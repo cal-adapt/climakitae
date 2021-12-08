@@ -3,7 +3,7 @@
 from setuptools import setup, find_packages
 
 with open('README.rst') as fp:
-    _description = f.read()
+    _description = fp.read()
 
 setup(name='climakit',
       version='0.0.1',
@@ -13,4 +13,5 @@ setup(name='climakit',
       author_email='analytics@cal-adapt.org',
       url='https://github.com/cal-adapt/climakit',
       license='BSD',
-      packages=find_packages(exclude=('tests', 'docs')))
+      packages=find_packages(exclude=('tests', 'docs')),
+      classifiers=['Development Status :: 1 - Planning'])
