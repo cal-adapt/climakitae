@@ -10,7 +10,7 @@ Install the latest version in development directly with pip.
 
 .. code-block:: sh
 
-    pip install https://github.com/cal-adapt/climakitae/archive/master.zip
+    pip install https://github.com/cal-adapt/climakitae/archive/main.zip
 
 Basic Usage
 -----------
