@@ -5,8 +5,8 @@ Climakitae Documentation
    :maxdepth: 2
    :caption: Contents:
 
-   readme
-   modules
+   Getting started <readme>
+   API reference <modules>
 
 Indices and Tables
 ------------------
