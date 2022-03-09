@@ -1,0 +1,2 @@
+Sphinx==4.4.0
+sphinx-book-theme==0.2.0
