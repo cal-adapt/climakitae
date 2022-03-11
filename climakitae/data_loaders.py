@@ -42,8 +42,9 @@ def _get_var_name(cat,var_description):
     for i in _ds.data_vars:
         if _ds[i].attrs['description'] == var_description:
             return i
+    return 'T2' #a default that might not be what the user asked for...
     # add some handling for if it's not there for some reason,
-    # to provide a more useful error message
+    # to provide a more useful error message instead of returning whatever default
 
 def _open_and_concat(cat,file_list,selections,geom):
     '''
@@ -72,8 +73,8 @@ def _open_and_concat(cat,file_list,selections,geom):
                 mask=ds_region.mask(data.lon,data.lat,wrap_lon=False)
                 data = data.where(np.isnan(mask)==False).dropna('x',how='all').dropna('y',how='all')
             #add data to larger Dataset being built
-            all_files[source_id] = data
-    return all_files 
+            all_files.assign(source_id = data)
+    return all_files.to_array('simulation') 
 
 def _get_as_shapely(location):
     '''
@@ -98,8 +99,8 @@ def _read_from_catalog(selections,location):
     all_files = xr.Dataset()
     for one_scenario in selections.scenario:
         files_by_scenario = _get_file_list(cat,selections,one_scenario)
-        all_files[one_scenario] = _open_and_concat(cat,files_by_scenario,selections,geom)
-        
+        temp = _open_and_concat(cat,files_by_scenario,selections,geom)
+        all_files.assign(one_scenario=temp)
         #if selections.append_historical:
         #    files_historical = get_file_list(selections,'historical')
         #    all_files = xr.concat([files_historical,all_files],dim='time')

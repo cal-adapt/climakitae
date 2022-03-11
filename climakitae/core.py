@@ -1,20 +1,4 @@
-#import numpy as np
 import xarray as xr
-#import pandas as pd
-#import geopandas as gpd
-#import xesmf as xe
-#import matplotlib.pyplot as plt
-#import matplotlib.patches as mpatches
-#from cycler import cycler
-#from itertools import cycle
-#import geoviews as gv
-#import cartopy.crs as ccrs
-#import cartopy.feature as cfeature
-#from shapely.geometry import Point, box, Polygon
-#import holoviews as hv
-#from holoviews import opts
-#import hvplot.pandas
-#import hvplot.xarray
 
 from .selectors import DataSelector, _display_select, LocSelectorArea
 from .data_loaders import _read_from_catalog
