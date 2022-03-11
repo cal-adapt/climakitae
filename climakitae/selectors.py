@@ -1,7 +1,7 @@
 import param
 import panel as pn
 import intake
-from shapely.geometry import Point, box, Polygon
+from shapely.geometry import box #, Point, Polygon
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature

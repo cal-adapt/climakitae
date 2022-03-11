@@ -1,5 +1,5 @@
 import xarray as xr
-from shapely.geometry import Polygon, box, Point
+from shapely.geometry import box #, Point, Polygon
 import regionmask
 import intake
 import numpy as np
