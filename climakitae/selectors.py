@@ -78,13 +78,13 @@ class LocSelectorArea(param.Parameterized):
     #    location = user_location
 
     # doesn't display yet for some reason:
-    @param.depends("latitude", "longitude", watch=True)
+    @param.depends("latitude", "longitude", watch=False)
     def view(self):
         geometry = box(
             self.longitude[0], self.latitude[0], self.longitude[1], self.latitude[1]
         )
         fig0 = plt.figure()
-        ax = plt.subplot(111, projection=ccrs.Orthographic(-115, 40))
+        ax = fig0.add_subplot(projection=ccrs.Orthographic(-115, 40))
         ax.set_extent([-160, -84, 8, 68], crs=ccrs.PlateCarree())
         ax.add_geometries([geometry], crs=ccrs.PlateCarree())
         ax.coastlines()
@@ -113,10 +113,9 @@ class CatalogContents:
         # get the list of data variables from one of the zarr files:
         cat = intake.open_catalog("s3://cdcat/cae.yaml")
         _ds = cat[list(cat)[0]].to_dask()
-        _variable_choices_hourly_wrf = [
-            _ds[i].attrs["description"] for i in _ds.data_vars
-        ]
-        _variable_choices_hourly_wrf = _variable_choices_hourly_wrf  # +['precipitation (total)', 'wind 10m magnitude'] #which we'll derive from what's there
+        _variable_choices_hourly_wrf = {v.attrs["description"].capitalize(): k 
+                                                    for k, v in _ds.data_vars.items()}
+        #_variable_choices_hourly_wrf = _variable_choices_hourly_wrf +['precipitation (total)', 'wind 10m magnitude'] #which we'll derive from what's there
         # expand this dictionary to also be dependent on LOCA vs WRF:
         _variable_choices_daily_loca = [
             "Temperature",
@@ -144,17 +143,15 @@ class CatalogContents:
         }
 
         # hard-coded options:
-        self._scenario_choices = [
-            "Historical Climate",
-            "Historical Reconstruction",
-            "SSP 2-4.5 -- Middle of the Road",
-            "SSP 3-7.0 -- Business as Usual",
-            "SSP 5-8.5 -- Burn it All",
-        ]
-        resolutions = []
-        for name in cat:
-            resolutions.append(cat[name].metadata["nominal_resolution"])
-        self._resolutions = list(set(resolutions))
+        self._scenario_choices = {
+            "Historical Climate": "historical",
+            "Historical Reconstruction": "",
+            "SSP 2-4.5 -- Middle of the Road": "ssp245",
+            "SSP 3-7.0 -- Business as Usual": "ssp370",
+            "SSP 5-8.5 -- Burn it All": "ssp585",
+        }
+
+        self._resolutions = list(set(e.metadata["nominal_resolution"] for e in cat.values()))
 
 
 class DataSelector(param.Parameterized):
@@ -184,7 +181,7 @@ class DataSelector(param.Parameterized):
     #    variables = choices._variable_choices[self.timescale][self.dyn_stat]
     #    self.param['variable'].objects = variables
     #    self.variable = variables[0]
-    scenario = param.ListSelector(objects=choices._scenario_choices)
+    scenario = param.ListSelector(default=list(choices._scenario_choices.values())[:1],objects=choices._scenario_choices)
     resolution = param.ObjectSelector(default="45 km", objects=choices._resolutions)
 
     @param.depends("resolution", watch=True)
@@ -209,7 +206,7 @@ def _display_select(selections, location, location_type="area average"):
     ], "Please enter either 'area average' or 'station'."
 
     # _which_loc_input = {'area average': LocSelectorArea, 'station': LocSelectorPoint}
-    location_chooser = pn.Row(location.param)
+    location_chooser = pn.Row(location.param) #,location.view)
 
     # add in when we have LOCA data too:
     # pn.widgets.RadioButtonGroup.from_param(selections.param.dyn_stat),

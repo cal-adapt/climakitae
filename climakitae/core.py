@@ -1,4 +1,5 @@
 import xarray as xr
+import logging
 
 from .selectors import DataSelector, _display_select, LocSelectorArea
 from .data_loaders import _read_from_catalog
@@ -31,8 +32,6 @@ class Application(object):
         Uses the information gathered in 'select' and store in 'selections' and 'location'
         to generate an xarray Dataset as specified, and return that Dataset object.
         """
-        print("... reading-in data ...")
         # to do: insert additional 'hang in there' statement if it's taking a while
         self.data = _read_from_catalog(self.selections, self.location)
-        print("Data Summary:")
         print(self.data)

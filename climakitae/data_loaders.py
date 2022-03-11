@@ -6,27 +6,6 @@ import numpy as np
 
 # support methods for core.Application.generate
 
-
-def _experiment_id(scenario):
-    """
-    Returns the SSP designation in CMIP 'experiment_id' format based on the
-    contents of the human-readable scenario designation stored in 'selections'.
-    """
-    split = scenario.split(" ")
-    for i, one in enumerate(split):
-        if "SSP" in one:
-            numbers = split[i + 1].split("-")
-            ssp = numbers[0]
-            rcp = numbers[1].split(".")
-            rcp = rcp[0] + rcp[1]
-            return "ssp" + ssp + rcp
-        elif one == "Historical Climate":
-            return "historical"
-        elif one == "Historical Reconstruction":
-            return ""
-    return None
-
-
 def _get_file_list(cat, selections, scenario):
     """
     Returns a list of simulation names for all of the simulations present in the catalog
@@ -35,19 +14,9 @@ def _get_file_list(cat, selections, scenario):
     file_list = []
     for item in list(cat):
         if cat[item].metadata["nominal_resolution"] == selections.resolution:
-            if cat[item].metadata["experiment_id"] == _experiment_id(scenario):
+            if cat[item].metadata["experiment_id"] == scenario:
                 file_list.append(cat[item].name)
     return file_list
-
-
-def _get_var_name(cat, var_description):
-    _ds = cat[list(cat)[0]].to_dask()
-    for i in _ds.data_vars:
-        if _ds[i].attrs["description"] == var_description:
-            return i
-    return "T2"  # a default that might not be what the user asked for...
-    # add some handling for if it's not there for some reason,
-    # to provide a more useful error message instead of returning whatever default
 
 
 def _open_and_concat(cat, file_list, selections, geom):
@@ -60,13 +29,13 @@ def _open_and_concat(cat, file_list, selections, geom):
     for one_file in file_list:
         with cat[one_file].to_dask() as data:
             source_id = data.attrs["source_id"]
-            if selections.variable == "precipitation (total)":
+            if selections.variable not in ("precipitation (total)", "wind 10m magnitude"):
+                data = data[selections.variable]
+            elif selections.variable == "precipitation (total)":
                 pass
             elif selections.variable == "wind 10m magnitude":
                 pass
-            else:
-                var_name = _get_var_name(cat, selections.variable)
-                data = data[var_name]
+                
             # coarsen in time if 'selections' so-indicates:
             if selections.timescale == "daily":
                 data = data.resample(time="1D").mean("time")
@@ -110,7 +79,7 @@ def _read_from_catalog(selections, location):
     stored in 'selections' and 'location').
     """
     cat = intake.open_catalog("s3://cdcat/cae.yaml")
-    if location.subset_by_lat_lon == True:
+    if location.subset_by_lat_lon:
         geom = _get_as_shapely(location)
         assert geom.is_valid, "Please go back to 'select' and choose a valid lat/lon range."
     else:
