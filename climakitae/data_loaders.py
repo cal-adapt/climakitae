@@ -6,11 +6,12 @@ import numpy as np
 
 # support methods for core.Application.generate
 
-def _get_file_list(cat, selections, scenario):
+def _get_file_list(selections, scenario):
     """
     Returns a list of simulation names for all of the simulations present in the catalog
     for a given scenario, contingent on other user-supplied constraints in 'selections'.
     """
+    cat = selections.choices._cat
     file_list = []
     for item in list(cat):
         if cat[item].metadata["nominal_resolution"] == selections.resolution:
@@ -19,42 +20,43 @@ def _get_file_list(cat, selections, scenario):
     return file_list
 
 
-def _open_and_concat(cat, file_list, selections, geom):
+def _open_and_concat(file_list, selections, geom):
     """
     Open multiple zarr files, and add them to one big xarray Dataset. Coarsens in time, and/or
     subsets in space if selections so-indicates. Won't work unless the file_list supplied
     contains files of only one nominal resolution (_get_file_list ensures this).
     """
+    cat = selections.choices._cat
     all_files = xr.Dataset()
     for one_file in file_list:
-        with cat[one_file].to_dask() as data:
-            source_id = data.attrs["source_id"]
-            if selections.variable not in ("precipitation (total)", "wind 10m magnitude"):
-                data = data[selections.variable]
-            elif selections.variable == "precipitation (total)":
-                pass
-            elif selections.variable == "wind 10m magnitude":
-                pass
+        data = cat[one_file].to_dask()
+        source_id = data.attrs["source_id"]
+        if selections.variable not in ("precipitation (total)", "wind 10m magnitude"):
+            data = data[selections.variable]
+        elif selections.variable == "precipitation (total)":
+            pass
+        elif selections.variable == "wind 10m magnitude":
+            pass
                 
-            # coarsen in time if 'selections' so-indicates:
-            if selections.timescale == "daily":
-                data = data.resample(time="1D").mean("time")
-            elif selections.timescale == "monthly":
-                data = data.resample(time="1MS").mean("time")
-            if geom:
-                # subset data spatially:
-                ds_region = regionmask.Regions(
-                    [geom], abbrevs=["lat/lon box"], name="box mask"
-                )
-                mask = ds_region.mask(data.lon, data.lat, wrap_lon=False)
-                assert False not in mask.isnull() #, "No grid cells are within the lat/lon bounds."
-                data = (
-                    data.where(np.isnan(mask) == False)
-                    .dropna("x", how="all")
-                    .dropna("y", how="all")
-                )
-            # add data to larger Dataset being built
-            all_files[source_id] = data 
+        # coarsen in time if 'selections' so-indicates:
+        if selections.timescale == "daily":
+            data = data.resample(time="1D").mean("time")
+        elif selections.timescale == "monthly":
+            data = data.resample(time="1MS").mean("time")
+        if geom:
+            # subset data spatially:
+            ds_region = regionmask.Regions(
+                        [geom], abbrevs=["lat/lon box"], name="box mask"
+            )
+            mask = ds_region.mask(data.lon, data.lat, wrap_lon=False)
+            assert False not in mask.isnull() #, "No grid cells are within the lat/lon bounds."
+            data = (
+                data.where(np.isnan(mask) == False)
+                .dropna("x", how="all")
+                .dropna("y", how="all")
+            )
+        # add data to larger Dataset being built
+        all_files[source_id] = data
     return all_files.to_array("simulation")
 
 
@@ -78,7 +80,6 @@ def _read_from_catalog(selections, location):
     a dataset (which can be quite large) containing everything requested by the user (which is
     stored in 'selections' and 'location').
     """
-    cat = intake.open_catalog("s3://cdcat/cae.yaml")
     if location.subset_by_lat_lon:
         geom = _get_as_shapely(location)
         assert geom.is_valid, "Please go back to 'select' and choose a valid lat/lon range."
@@ -87,10 +88,12 @@ def _read_from_catalog(selections, location):
 
     all_files = xr.Dataset()
     for one_scenario in selections.scenario:
-        files_by_scenario = _get_file_list(cat, selections, one_scenario)
-        temp = _open_and_concat(cat, files_by_scenario, selections, geom)
+        files_by_scenario = _get_file_list(selections, one_scenario)
+        temp = _open_and_concat(files_by_scenario, selections, geom)
         all_files[one_scenario] = temp
         # if selections.append_historical:
         #    files_historical = get_file_list(selections,'historical')
         #    all_files = xr.concat([files_historical,all_files],dim='time')
+    all_files = all_files.to_array('scenario')
+    all_files.name = selections.variable
     return all_files

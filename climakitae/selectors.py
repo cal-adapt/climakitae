@@ -111,8 +111,8 @@ class LocSelectorPoint(param.Parameterized):
 class CatalogContents:
     def __init__(self):
         # get the list of data variables from one of the zarr files:
-        cat = intake.open_catalog("s3://cdcat/cae.yaml")
-        _ds = cat[list(cat)[0]].to_dask()
+        self._cat = intake.open_catalog("s3://cdcat/cae.yaml")
+        _ds = self._cat[list(self._cat)[0]].to_dask()
         _variable_choices_hourly_wrf = {v.attrs["description"].capitalize(): k 
                                                     for k, v in _ds.data_vars.items()}
         #_variable_choices_hourly_wrf = _variable_choices_hourly_wrf +['precipitation (total)', 'wind 10m magnitude'] #which we'll derive from what's there
@@ -151,8 +151,7 @@ class CatalogContents:
             "SSP 5-8.5 -- Burn it All": "ssp585",
         }
 
-        self._resolutions = list(set(e.metadata["nominal_resolution"] for e in cat.values()))
-
+        self._resolutions = list(set(e.metadata["nominal_resolution"] for e in self._cat.values()))
 
 class DataSelector(param.Parameterized):
     """
@@ -162,7 +161,7 @@ class DataSelector(param.Parameterized):
     """
 
     choices = CatalogContents()
-    variable = param.ObjectSelector(
+    variable = param.ObjectSelector(default='T2',
         objects=choices._variable_choices["hourly"]["Dynamical"]
     )
     timescale = param.ObjectSelector(
