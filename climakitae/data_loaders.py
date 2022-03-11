@@ -75,7 +75,7 @@ def _open_and_concat(cat, file_list, selections, geom):
             if geom:
                 # subset data spatially:
                 ds_region = regionmask.Regions(
-                    [geom], abbrevs=["lat/lon box"], name="test mask"
+                    [geom], abbrevs=["lat/lon box"], name="box mask"
                 )
                 mask = ds_region.mask(data.lon, data.lat, wrap_lon=False)
                 data = (
@@ -84,7 +84,7 @@ def _open_and_concat(cat, file_list, selections, geom):
                     .dropna("y", how="all")
                 )
             # add data to larger Dataset being built
-            all_files.assign(source_id=data)
+            all_files[source_id] = data 
     return all_files.to_array("simulation")
 
 
@@ -118,7 +118,7 @@ def _read_from_catalog(selections, location):
     for one_scenario in selections.scenario:
         files_by_scenario = _get_file_list(cat, selections, one_scenario)
         temp = _open_and_concat(cat, files_by_scenario, selections, geom)
-        all_files.assign(one_scenario=temp)
+        all_files[one_scenario] = temp
         # if selections.append_historical:
         #    files_historical = get_file_list(selections,'historical')
         #    all_files = xr.concat([files_historical,all_files],dim='time')
