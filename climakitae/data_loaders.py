@@ -78,6 +78,7 @@ def _open_and_concat(cat, file_list, selections, geom):
                     [geom], abbrevs=["lat/lon box"], name="box mask"
                 )
                 mask = ds_region.mask(data.lon, data.lat, wrap_lon=False)
+                assert False not in mask.isnull() #, "No grid cells are within the lat/lon bounds."
                 data = (
                     data.where(np.isnan(mask) == False)
                     .dropna("x", how="all")
@@ -111,6 +112,7 @@ def _read_from_catalog(selections, location):
     cat = intake.open_catalog("s3://cdcat/cae.yaml")
     if location.subset_by_lat_lon == True:
         geom = _get_as_shapely(location)
+        assert geom.is_valid, "Please go back to 'select' and choose a valid lat/lon range."
     else:
         geom = False  # for now... later a cached polygon will be an elseif option too
 
