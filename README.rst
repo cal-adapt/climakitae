@@ -18,3 +18,9 @@ Basic Usage
 .. code-block:: python
 
     import climakitae as ck
+
+Links
+-----
+* PyPI releases: https://pypi.org/project/climakitae/
+* Source code: https://github.com/cal-adapt/climakitae
+* Issue tracker: https://github.com/cal-adapt/climakitae/issues
