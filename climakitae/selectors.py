@@ -2,7 +2,7 @@ import param
 import panel as pn
 import intake
 from shapely.geometry import box #, Point, Polygon
-import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 
@@ -77,14 +77,13 @@ class LocSelectorArea(param.Parameterized):
     #    # polygon in the shapefile!
     #    location = user_location
 
-    # doesn't display yet for some reason:
     @param.depends("latitude", "longitude", watch=False)
     def view(self):
         geometry = box(
             self.longitude[0], self.latitude[0], self.longitude[1], self.latitude[1]
         )
-        fig0 = plt.figure()
-        ax = fig0.add_subplot(projection=ccrs.Orthographic(-115, 40))
+        fig0 = Figure(figsize=(3, 3))
+        ax = fig0.add_subplot(111,projection=ccrs.Orthographic(-115, 40))
         ax.set_extent([-160, -84, 8, 68], crs=ccrs.PlateCarree())
         ax.add_geometries([geometry], crs=ccrs.PlateCarree())
         ax.coastlines()
@@ -160,9 +159,9 @@ class DataSelector(param.Parameterized):
     UI could in principle be used to update these parameters instead.
     """
 
-    choices = CatalogContents()
+    _choices = CatalogContents()
     variable = param.ObjectSelector(default='T2',
-        objects=choices._variable_choices["hourly"]["Dynamical"]
+        objects=_choices._variable_choices["hourly"]["Dynamical"]
     )
     timescale = param.ObjectSelector(
         default="hourly", objects=["hourly", "daily", "monthly"]
@@ -180,8 +179,8 @@ class DataSelector(param.Parameterized):
     #    variables = choices._variable_choices[self.timescale][self.dyn_stat]
     #    self.param['variable'].objects = variables
     #    self.variable = variables[0]
-    scenario = param.ListSelector(default=list(choices._scenario_choices.values())[:1],objects=choices._scenario_choices)
-    resolution = param.ObjectSelector(default="45 km", objects=choices._resolutions)
+    scenario = param.ListSelector(default=list(_choices._scenario_choices.values())[:1],objects=_choices._scenario_choices)
+    resolution = param.ObjectSelector(default="45 km", objects=_choices._resolutions)
 
     @param.depends("resolution", watch=True)
     def _update_scenarios(self):
@@ -205,14 +204,16 @@ def _display_select(selections, location, location_type="area average"):
     ], "Please enter either 'area average' or 'station'."
 
     # _which_loc_input = {'area average': LocSelectorArea, 'station': LocSelectorPoint}
-    location_chooser = pn.Row(location.param) #,location.view)
+    location_chooser = pn.Row(location.param, location.view)
 
     # add in when we have LOCA data too:
     # pn.widgets.RadioButtonGroup.from_param(selections.param.dyn_stat),
-    first_col = pn.Column(
-        selections.param.timescale,
-        selections.param.variable,
-        pn.widgets.CheckBoxGroup.from_param(selections.param.scenario),
-        pn.widgets.RadioButtonGroup.from_param(selections.param.resolution),
+    first_row = pn.Row(
+        pn.Column(
+            selections.param.timescale,
+            selections.param.variable,
+            pn.widgets.RadioButtonGroup.from_param(selections.param.resolution),
+        ),
+        pn.widgets.CheckBoxGroup.from_param(selections.param.scenario)
     )
-    return pn.Row(first_col, location_chooser)
+    return pn.Column(first_row, location_chooser)

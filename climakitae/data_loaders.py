@@ -11,7 +11,7 @@ def _get_file_list(selections, scenario):
     Returns a list of simulation names for all of the simulations present in the catalog
     for a given scenario, contingent on other user-supplied constraints in 'selections'.
     """
-    cat = selections.choices._cat
+    cat = selections._choices._cat
     file_list = []
     for item in list(cat):
         if cat[item].metadata["nominal_resolution"] == selections.resolution:
@@ -26,7 +26,7 @@ def _open_and_concat(file_list, selections, geom):
     subsets in space if selections so-indicates. Won't work unless the file_list supplied
     contains files of only one nominal resolution (_get_file_list ensures this).
     """
-    cat = selections.choices._cat
+    cat = selections._choices._cat
     all_files = xr.Dataset()
     for one_file in file_list:
         data = cat[one_file].to_dask()
