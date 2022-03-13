@@ -46,7 +46,7 @@ def _open_and_concat(file_list, selections, ds_region):
         if ds_region:
             # subset data spatially:
             mask = ds_region.mask(data.lon, data.lat, wrap_lon=False)
-            assert False not in mask.isnull() #, "No grid cells are within the lat/lon bounds."
+            assert False in mask.isnull() #, "No grid cells are within the lat/lon bounds."
             data = (
                 data.where(np.isnan(mask) == False)
                 .dropna("x", how="all")

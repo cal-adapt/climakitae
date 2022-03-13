@@ -60,11 +60,6 @@ class LocSelectorArea(param.Parameterized):
     [future: 3. upload their own shapefile with the outline of a natural or administrative geographic area]
     """
 
-    #def __init__(self, *args, **kwargs):
-    #    super(LocSelectorArea, self).__init__(*args, **kwargs)
-    #    self._us_states = regionmask.defined_regions.natural_earth_v4_1_0.us_states_50
-    #    self._state_lookup = dict([(abbrev,np.argwhere(np.asarray(self._us_states.abbrevs) == abbrev)[0][0]) for abbrev in ['CA','NV','OR','WA','UT','MT','ID','AZ','CO','NM']])
-
     subset_by_lat_lon = param.Boolean()
     # would be nice if these lat/lon sliders were greyed-out when subset option is not selected
     latitude = param.Range(default=(41, 42), bounds=(10, 67))
