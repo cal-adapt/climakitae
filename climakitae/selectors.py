@@ -5,6 +5,8 @@ from shapely.geometry import box #, Point, Polygon
 from matplotlib.figure import Figure
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
+import regionmask
+import numpy as np
 
 # support methods for core.Application.select
 
@@ -43,6 +45,11 @@ _cached_stations = [
 ]
 
 # === Select ===================================
+def get_us_states():
+    _us_states = regionmask.defined_regions.natural_earth_v4_1_0.us_states_50
+    _state_lookup = dict([(abbrev,np.argwhere(np.asarray(_us_states.abbrevs) == abbrev)[0][0]) for abbrev in ['CA','NV','OR','WA','UT','MT','ID','AZ','CO','NM']])
+    return _state_lookup
+
 class LocSelectorArea(param.Parameterized):
     """
     Used to produce a panel of widgets for entering one of the types of location information used to
@@ -53,42 +60,39 @@ class LocSelectorArea(param.Parameterized):
     [future: 3. upload their own shapefile with the outline of a natural or administrative geographic area]
     """
 
+    #def __init__(self, *args, **kwargs):
+    #    super(LocSelectorArea, self).__init__(*args, **kwargs)
+    #    self._us_states = regionmask.defined_regions.natural_earth_v4_1_0.us_states_50
+    #    self._state_lookup = dict([(abbrev,np.argwhere(np.asarray(self._us_states.abbrevs) == abbrev)[0][0]) for abbrev in ['CA','NV','OR','WA','UT','MT','ID','AZ','CO','NM']])
+
     subset_by_lat_lon = param.Boolean()
     # would be nice if these lat/lon sliders were greyed-out when subset option is not selected
     latitude = param.Range(default=(41, 42), bounds=(10, 67))
     longitude = param.Range(default=(-125, -115), bounds=(-156.82317, -84.18701))
-    # shapefile = param.FileSelector(path='../../*/*.shp*', precedence=0.5) #not for March 2022
-    # cached_area = param.ObjectSelector(objects=['CA','Sierra','LA County']) #this is a placeholder list
-
-    # @param.depends('cached_area',watch=True)
-    # def _update_loc_cached(self):
-    #    '''Updates the 'location' object to be the Polygon associated with the selected geographic area.'''
-    #    location = _areas_database[self.cached_area] #need this database to exist...
-
-    # not for soft launch:
-    # @param.depends('shapefile',watch=True)
-    # def _update_loc_shp(self):
-    #    '''Updates the 'location' object to be the polygon in the uploaded shapefile.
-    #    Dealing with user-uploaded data of any kind might not be in the soft launch.'''
-    #    # probably need to do checking for valid input (also for security reasons)
-    #    user_location = gpd.read_file("shapefile.shp")
-    #    assert user_location.geom_type in ['Point','Polygon'], "Please upload a valid shapefile."
-    #    # maybe also offer interactive selecting if there's more than one
-    #    # polygon in the shapefile!
-    #    location = user_location
-
-    @param.depends("latitude", "longitude", watch=False)
+    cached_area = param.ObjectSelector(objects=get_us_states()) 
+    
+    @param.depends("latitude", "longitude","subset_by_lat_lon", "cached_area", watch=False)
     def view(self):
         geometry = box(
             self.longitude[0], self.latitude[0], self.longitude[1], self.latitude[1]
         )
+       
         fig0 = Figure(figsize=(3, 3))
-        ax = fig0.add_subplot(111,projection=ccrs.Orthographic(-115, 40))
+        proj = ccrs.Orthographic(-115, 40)
+        ax = fig0.add_subplot(111,projection=proj)
         ax.set_extent([-160, -84, 8, 68], crs=ccrs.PlateCarree())
-        ax.add_geometries([geometry], crs=ccrs.PlateCarree())
         ax.coastlines()
         ax.add_feature(cfeature.STATES, linewidth=0.5)
-        return pn.pane.Matplotlib(fig0, dpi=144)
+        
+        mpl_pane = pn.pane.Matplotlib(fig0, dpi=144)
+
+        if self.subset_by_lat_lon:
+            ax.add_geometries([geometry], crs=ccrs.PlateCarree())
+        elif self.cached_area:
+            regionmask.defined_regions.natural_earth_v4_1_0.us_states_50[[int(self.cached_area)]].plot(ax=ax,add_label=False,line_kws=dict(color='b'))
+            mpl_pane.param.trigger('object')
+            
+        return mpl_pane
 
 
 class LocSelectorPoint(param.Parameterized):

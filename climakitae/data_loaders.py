@@ -20,7 +20,7 @@ def _get_file_list(selections, scenario):
     return file_list
 
 
-def _open_and_concat(file_list, selections, geom):
+def _open_and_concat(file_list, selections, ds_region):
     """
     Open multiple zarr files, and add them to one big xarray Dataset. Coarsens in time, and/or
     subsets in space if selections so-indicates. Won't work unless the file_list supplied
@@ -43,11 +43,8 @@ def _open_and_concat(file_list, selections, geom):
             data = data.resample(time="1D").mean("time")
         elif selections.timescale == "monthly":
             data = data.resample(time="1MS").mean("time")
-        if geom:
+        if ds_region:
             # subset data spatially:
-            ds_region = regionmask.Regions(
-                        [geom], abbrevs=["lat/lon box"], name="box mask"
-            )
             mask = ds_region.mask(data.lon, data.lat, wrap_lon=False)
             assert False not in mask.isnull() #, "No grid cells are within the lat/lon bounds."
             data = (
@@ -83,13 +80,18 @@ def _read_from_catalog(selections, location):
     if location.subset_by_lat_lon:
         geom = _get_as_shapely(location)
         assert geom.is_valid, "Please go back to 'select' and choose a valid lat/lon range."
+        ds_region = regionmask.Regions(
+                        [geom], abbrevs=["lat/lon box"], name="box mask"
+            )
+    elif location.cached_area:
+        ds_region = regionmask.defined_regions.natural_earth_v4_1_0.us_states_50[[int(location.cached_area)]]
     else:
-        geom = False  # for now... later a cached polygon will be an elseif option too
+        ds_region = False  # for now... later a cached polygon will be an elseif option too
 
     all_files = xr.Dataset()
     for one_scenario in selections.scenario:
         files_by_scenario = _get_file_list(selections, one_scenario)
-        temp = _open_and_concat(files_by_scenario, selections, geom)
+        temp = _open_and_concat(files_by_scenario, selections, ds_region)
         all_files[one_scenario] = temp
         # if selections.append_historical:
         #    files_historical = get_file_list(selections,'historical')
