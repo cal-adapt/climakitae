@@ -1,7 +1,7 @@
 import param
 import panel as pn
 import intake
-from shapely.geometry import box #, Point, Polygon
+from shapely.geometry import box  # , Point, Polygon
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
@@ -113,9 +113,10 @@ class CatalogContents:
         # get the list of data variables from one of the zarr files:
         self._cat = intake.open_catalog("s3://cdcat/cae.yaml")
         _ds = self._cat[list(self._cat)[0]].to_dask()
-        _variable_choices_hourly_wrf = {v.attrs["description"].capitalize(): k 
-                                                    for k, v in _ds.data_vars.items()}
-        #_variable_choices_hourly_wrf = _variable_choices_hourly_wrf +['precipitation (total)', 'wind 10m magnitude'] #which we'll derive from what's there
+        _variable_choices_hourly_wrf = {
+            v.attrs["description"].capitalize(): k for k, v in _ds.data_vars.items()
+        }
+        # _variable_choices_hourly_wrf = _variable_choices_hourly_wrf +['precipitation (total)', 'wind 10m magnitude'] #which we'll derive from what's there
         # expand this dictionary to also be dependent on LOCA vs WRF:
         _variable_choices_daily_loca = [
             "Temperature",
@@ -151,7 +152,10 @@ class CatalogContents:
             "SSP 5-8.5 -- Burn it All": "ssp585",
         }
 
-        self._resolutions = list(set(e.metadata["nominal_resolution"] for e in self._cat.values()))
+        self._resolutions = list(
+            set(e.metadata["nominal_resolution"] for e in self._cat.values())
+        )
+
 
 class DataSelector(param.Parameterized):
     """
@@ -161,8 +165,8 @@ class DataSelector(param.Parameterized):
     """
 
     choices = CatalogContents()
-    variable = param.ObjectSelector(default='T2',
-        objects=choices._variable_choices["hourly"]["Dynamical"]
+    variable = param.ObjectSelector(
+        default="T2", objects=choices._variable_choices["hourly"]["Dynamical"]
     )
     timescale = param.ObjectSelector(
         default="hourly", objects=["hourly", "daily", "monthly"]
@@ -180,7 +184,10 @@ class DataSelector(param.Parameterized):
     #    variables = choices._variable_choices[self.timescale][self.dyn_stat]
     #    self.param['variable'].objects = variables
     #    self.variable = variables[0]
-    scenario = param.ListSelector(default=list(choices._scenario_choices.values())[:1],objects=choices._scenario_choices)
+    scenario = param.ListSelector(
+        default=list(choices._scenario_choices.values())[:1],
+        objects=choices._scenario_choices,
+    )
     resolution = param.ObjectSelector(default="45 km", objects=choices._resolutions)
 
     @param.depends("resolution", watch=True)
@@ -205,7 +212,7 @@ def _display_select(selections, location, location_type="area average"):
     ], "Please enter either 'area average' or 'station'."
 
     # _which_loc_input = {'area average': LocSelectorArea, 'station': LocSelectorPoint}
-    location_chooser = pn.Row(location.param) #,location.view)
+    location_chooser = pn.Row(location.param)  # ,location.view)
 
     # add in when we have LOCA data too:
     # pn.widgets.RadioButtonGroup.from_param(selections.param.dyn_stat),

@@ -1,10 +1,11 @@
 import xarray as xr
-from shapely.geometry import box #, Point, Polygon
+from shapely.geometry import box  # , Point, Polygon
 import regionmask
 import intake
 import numpy as np
 
 # support methods for core.Application.generate
+
 
 def _get_file_list(selections, scenario):
     """
@@ -37,7 +38,7 @@ def _open_and_concat(file_list, selections, geom):
             pass
         elif selections.variable == "wind 10m magnitude":
             pass
-                
+
         # coarsen in time if 'selections' so-indicates:
         if selections.timescale == "daily":
             data = data.resample(time="1D").mean("time")
@@ -46,10 +47,12 @@ def _open_and_concat(file_list, selections, geom):
         if geom:
             # subset data spatially:
             ds_region = regionmask.Regions(
-                        [geom], abbrevs=["lat/lon box"], name="box mask"
+                [geom], abbrevs=["lat/lon box"], name="box mask"
             )
             mask = ds_region.mask(data.lon, data.lat, wrap_lon=False)
-            assert False not in mask.isnull() #, "No grid cells are within the lat/lon bounds."
+            assert (
+                False not in mask.isnull()
+            )  # , "No grid cells are within the lat/lon bounds."
             data = (
                 data.where(np.isnan(mask) == False)
                 .dropna("x", how="all")
@@ -82,7 +85,9 @@ def _read_from_catalog(selections, location):
     """
     if location.subset_by_lat_lon:
         geom = _get_as_shapely(location)
-        assert geom.is_valid, "Please go back to 'select' and choose a valid lat/lon range."
+        assert (
+            geom.is_valid
+        ), "Please go back to 'select' and choose a valid lat/lon range."
     else:
         geom = False  # for now... later a cached polygon will be an elseif option too
 
@@ -94,6 +99,6 @@ def _read_from_catalog(selections, location):
         # if selections.append_historical:
         #    files_historical = get_file_list(selections,'historical')
         #    all_files = xr.concat([files_historical,all_files],dim='time')
-    all_files = all_files.to_array('scenario')
+    all_files = all_files.to_array("scenario")
     all_files.name = selections.variable
     return all_files

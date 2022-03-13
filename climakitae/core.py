@@ -11,7 +11,7 @@ class Application(object):
     def __init__(self):
         self.selections = DataSelector()
         self.location = LocSelectorArea()
-        
+
     # === Select =====================================
     def select(self):
         """
@@ -30,4 +30,3 @@ class Application(object):
         """
         # to do: insert additional 'hang in there' statement if it's taking a while
         return _read_from_catalog(self.selections, self.location)
-
