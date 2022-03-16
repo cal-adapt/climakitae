@@ -46,7 +46,7 @@ def _open_and_concat(file_list, selections, ds_region):
         if ds_region:
             # subset data spatially:
             mask = ds_region.mask(data.lon, data.lat, wrap_lon=False)
-            assert False in mask.isnull() #, "No grid cells are within the lat/lon bounds."
+            assert False in mask.isnull(), "Insufficient gridcells are contained within the bounds."
             data = (
                 data.where(np.isnan(mask) == False)
                 .dropna("x", how="all")
@@ -77,17 +77,26 @@ def _read_from_catalog(selections, location):
     a dataset (which can be quite large) containing everything requested by the user (which is
     stored in 'selections' and 'location').
     """
-    if location.subset_by_lat_lon:
+    if location.area_subset == 'lat/lon':
         geom = _get_as_shapely(location)
         assert geom.is_valid, "Please go back to 'select' and choose a valid lat/lon range."
         ds_region = regionmask.Regions(
                         [geom], abbrevs=["lat/lon box"], name="box mask"
             )
-    elif location.cached_area:
-        ds_region = regionmask.defined_regions.natural_earth_v4_1_0.us_states_50[[int(location.cached_area)]]
-    else:
-        ds_region = False  # for now... later a cached polygon will be an elseif option too
-
+    elif location.area_subset == 'states':
+        shape_index = int(location._geography_choose[location.area_subset][location.cached_area])
+        ds_region = location._geographies._us_states[[shape_index]]
+    elif location.area_subset != 'none':
+        shape_index = int(location._geography_choose[location.area_subset][location.cached_area])
+        if location.area_subset == 'CA watersheds':
+            shape = location._geographies._ca_watersheds
+            shape = shape[shape['OBJECTID']==shape_index].iloc[0].geometry
+        elif location.area_subset == 'CA counties':
+            shape = location._geographies._ca_counties
+            shape = shape[shape.index==shape_index].iloc[0].geometry
+        ds_region = regionmask.Regions(
+                        [shape], abbrevs=["geographic area"], name="area mask"
+            )
     all_files = xr.Dataset()
     for one_scenario in selections.scenario:
         files_by_scenario = _get_file_list(selections, one_scenario)
