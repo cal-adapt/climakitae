@@ -121,7 +121,7 @@ class LocSelectorArea(param.Parameterized):
         selected in 'area_subset' (currently state, county, or watershed boundaries).
         """
         if self.area_subset in ['states','CA counties','CA watersheds']:
-            #setting this to the dict works for initializing, but not updating an objects list:
+            # setting this to the dict works for initializing, but not updating an objects list:
             self.param['cached_area'].objects = list(self._geography_choose[self.area_subset].keys())
             self.cached_area = list(self._geography_choose[self.area_subset].keys())[0]
             
@@ -220,14 +220,23 @@ class CatalogContents:
 
         # hard-coded options:
         self._scenario_choices = {
-            "Historical Climate": "historical",
-            "Historical Reconstruction": "",
-            "SSP 2-4.5 -- Middle of the Road": "ssp245",
-            "SSP 3-7.0 -- Business as Usual": "ssp370",
-            "SSP 5-8.5 -- Burn it All": "ssp585",
+            "historical":"Historical Climate",
+            "":"Historical Reconstruction",
+            "ssp245":"SSP 2-4.5 -- Middle of the Road",
+            "ssp370":"SSP 3-7.0 -- Business as Usual",
+            "ssp585":"SSP 5-8.5 -- Burn it All",
         }
 
         self._resolutions = list(set(e.metadata["nominal_resolution"] for e in self._cat.values()))
+
+        _scenario_list = []
+        for resolution in self._resolutions:
+            _temp = list(set(e.metadata["experiment_id"] for e in self._cat.values() if e.metadata["nominal_resolution"]==resolution))
+            _scenario_subset = [(self._scenario_choices[e],e) for e in _temp]
+            _scenario_subset = dict(_scenario_subset)
+            _scenario_list.append((resolution,_scenario_subset))
+        self._scenarios = dict(_scenario_list)
+            
 
 class DataSelector(param.Parameterized):
     """
@@ -256,15 +265,17 @@ class DataSelector(param.Parameterized):
     #    variables = choices._variable_choices[self.timescale][self.dyn_stat]
     #    self.param['variable'].objects = variables
     #    self.variable = variables[0]
-    scenario = param.ListSelector(default=list(_choices._scenario_choices.values())[:1],objects=_choices._scenario_choices)
+    scenario = param.ListSelector(objects=list(_choices._scenarios["45 km"].keys()))
     resolution = param.ObjectSelector(default="45 km", objects=_choices._resolutions)
-
+    
+    
     @param.depends("resolution", watch=True)
     def _update_scenarios(self):
-        pass  # add this, so that options depend on resolution selected
+        self.param["scenario"].objects = list(self._choices._scenarios[self.resolution].keys())
+
 
     # append_historical = param.Boolean()    #need to add this as well
-
+    
 
 def _display_select(selections, location, location_type="area average"):
     """

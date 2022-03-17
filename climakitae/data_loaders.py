@@ -12,10 +12,11 @@ def _get_file_list(selections, scenario):
     for a given scenario, contingent on other user-supplied constraints in 'selections'.
     """
     cat = selections._choices._cat
+    lookup = dict(map(reversed, selections._choices._scenario_choices.items()))
     file_list = []
     for item in list(cat):
         if cat[item].metadata["nominal_resolution"] == selections.resolution:
-            if cat[item].metadata["experiment_id"] == scenario:
+            if cat[item].metadata["experiment_id"] == lookup[scenario]:
                 file_list.append(cat[item].name)
     return file_list
 
@@ -77,6 +78,8 @@ def _read_from_catalog(selections, location):
     a dataset (which can be quite large) containing everything requested by the user (which is
     stored in 'selections' and 'location').
     """
+    assert not selections.scenario is None, "Please select at least one scenario."
+    
     if location.area_subset == 'lat/lon':
         geom = _get_as_shapely(location)
         assert geom.is_valid, "Please go back to 'select' and choose a valid lat/lon range."
@@ -97,6 +100,9 @@ def _read_from_catalog(selections, location):
         ds_region = regionmask.Regions(
                         [shape], abbrevs=["geographic area"], name="area mask"
             )
+    else:
+        ds_region = None
+        
     all_files = xr.Dataset()
     for one_scenario in selections.scenario:
         files_by_scenario = _get_file_list(selections, one_scenario)
