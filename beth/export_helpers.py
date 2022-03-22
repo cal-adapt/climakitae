@@ -1,35 +1,40 @@
 import xarray as xr
 import inspect
 import sys
+from transform_helpers import progress_bar
+from dask import delayed, compute
 
 # set global xarray to keep attributes
 # otherwise we lose crucial metadata during transforms
 xr.set_options(keep_attrs=True)
 
+
 def generate_metadata(transform_name,func_args,
                         func_kwargs,metadata_dict):
     
-    '''
+    """
     returns dictionary of xarray dataset/data array attributes.
     this is called in each transform itself. See example_transform
     for a usage example.
     
+    these are pulled via the code dropped into the 
+    transform function itself; no need to manually call.
     transform_name: the function applied to the data
     func_args: user-defined arguments fed into the function
     func_kwargs: user-defined keyword arguments fed into function
     metadata_dict: author-defined dictionary containing 
-    relevant metadata.
+    relevant metadata. 
     
     note: the first three arguments are defined flexibly
     from code that transform authors put at the beginning
     of their functions. I am looking for a way to call this
     code separately to reduce this redundancy.
-    '''
+    """
     
     # flag that climakitae transform has been applied
     transform_attrs = {'post_processed' : 'true',
                  'post_processed_by' : 'Cal-Adapt Analytics'+
-                 'Engine v 0.0.1'}
+                 'Engine v 0.1'}
     # append author-supplied metadata dict
     transform_attrs.update(metadata_dict)
 
@@ -46,14 +51,16 @@ def generate_metadata(transform_name,func_args,
     return(transform_attrs)
 
 
+@progress_bar
+@delayed
 def example_transform(ds,*args,**kwargs):
     
-    '''
+    """
     returns a full-record temporal mean of a dataset (ds).
     args are not doing anything right now but changing metadata,
     but one kwarg does something just to show that options
     can be updated flexibly as metadata.
-    '''
+    """
     
     # ================================================================
     # CODE THAT MUST BE ADDED TO TRANSFORM
@@ -112,5 +119,5 @@ def example_transform(ds,*args,**kwargs):
                             func_args,func_kwargs,metadata_dict))
     
     ds_transformed.attrs = ds_attrs
-   
+    
     return(ds_transformed)
