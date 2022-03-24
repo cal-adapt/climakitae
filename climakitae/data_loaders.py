@@ -3,6 +3,8 @@ from shapely.geometry import box #, Point, Polygon
 import regionmask
 import intake
 import numpy as np
+import explore # for progress bar
+import dask # for progress bar
 
 # support methods for core.Application.generate
 
@@ -74,6 +76,8 @@ def _get_as_shapely(location):
     )
 
 
+@explore.progress_bar
+@dask.delayed
 def _read_from_catalog(selections, location):
     """
     The primary and first data loading method, called by core.Application.generate, it returns
