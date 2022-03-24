@@ -1,10 +1,11 @@
 import xarray as xr
-from shapely.geometry import box #, Point, Polygon
+from shapely.geometry import box  # , Point, Polygon
 import regionmask
 import intake
 import numpy as np
 
 # support methods for core.Application.generate
+
 
 def _get_file_list(selections, scenario):
     """
@@ -12,7 +13,7 @@ def _get_file_list(selections, scenario):
     for a given scenario, contingent on other user-supplied constraints in 'selections'.
     """
     cat = selections._choices._cat
-    lookup = dict(map(reversed, selections._choices._scenario_choices.items()))
+    lookup = {v: k for k, v in selections._choices._scenario_choices.items()}
     file_list = []
     for item in list(cat):
         if cat[item].metadata["nominal_resolution"] == selections.resolution:
@@ -38,7 +39,7 @@ def _open_and_concat(file_list, selections, ds_region):
             pass
         elif selections.variable == "wind 10m magnitude":
             pass
-                
+
         # coarsen in time if 'selections' so-indicates:
         if selections.timescale == "daily":
             data = data.resample(time="1D").mean("time")
@@ -47,7 +48,9 @@ def _open_and_concat(file_list, selections, ds_region):
         if ds_region:
             # subset data spatially:
             mask = ds_region.mask(data.lon, data.lat, wrap_lon=False)
-            assert False in mask.isnull(), "Insufficient gridcells are contained within the bounds."
+            assert (
+                False in mask.isnull()
+            ), "Insufficient gridcells are contained within the bounds."
             data = (
                 data.where(np.isnan(mask) == False)
                 .dropna("x", how="all")
@@ -79,30 +82,34 @@ def _read_from_catalog(selections, location):
     stored in 'selections' and 'location').
     """
     assert not selections.scenario is None, "Please select at least one scenario."
-    
-    if location.area_subset == 'lat/lon':
+
+    if location.area_subset == "lat/lon":
         geom = _get_as_shapely(location)
-        assert geom.is_valid, "Please go back to 'select' and choose a valid lat/lon range."
-        ds_region = regionmask.Regions(
-                        [geom], abbrevs=["lat/lon box"], name="box mask"
-            )
-    elif location.area_subset == 'states':
-        shape_index = int(location._geography_choose[location.area_subset][location.cached_area])
+        assert (
+            geom.is_valid
+        ), "Please go back to 'select' and choose a valid lat/lon range."
+        ds_region = regionmask.Regions([geom], abbrevs=["lat/lon box"], name="box mask")
+    elif location.area_subset == "states":
+        shape_index = int(
+            location._geography_choose[location.area_subset][location.cached_area]
+        )
         ds_region = location._geographies._us_states[[shape_index]]
-    elif location.area_subset != 'none':
-        shape_index = int(location._geography_choose[location.area_subset][location.cached_area])
-        if location.area_subset == 'CA watersheds':
+    elif location.area_subset != "none":
+        shape_index = int(
+            location._geography_choose[location.area_subset][location.cached_area]
+        )
+        if location.area_subset == "CA watersheds":
             shape = location._geographies._ca_watersheds
-            shape = shape[shape['OBJECTID']==shape_index].iloc[0].geometry
-        elif location.area_subset == 'CA counties':
+            shape = shape[shape["OBJECTID"] == shape_index].iloc[0].geometry
+        elif location.area_subset == "CA counties":
             shape = location._geographies._ca_counties
-            shape = shape[shape.index==shape_index].iloc[0].geometry
+            shape = shape[shape.index == shape_index].iloc[0].geometry
         ds_region = regionmask.Regions(
-                        [shape], abbrevs=["geographic area"], name="area mask"
-            )
+            [shape], abbrevs=["geographic area"], name="area mask"
+        )
     else:
         ds_region = None
-        
+
     all_files = xr.Dataset()
     for one_scenario in selections.scenario:
         files_by_scenario = _get_file_list(selections, one_scenario)
@@ -111,6 +118,6 @@ def _read_from_catalog(selections, location):
         # if selections.append_historical:
         #    files_historical = get_file_list(selections,'historical')
         #    all_files = xr.concat([files_historical,all_files],dim='time')
-    all_files = all_files.to_array('scenario')
+    all_files = all_files.to_array("scenario")
     all_files.name = selections.variable
     return all_files
