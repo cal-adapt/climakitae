@@ -56,8 +56,14 @@ def _open_and_concat(file_list, selections, ds_region):
                 .dropna("x", how="all")
                 .dropna("y", how="all")
             )
+
+        if selections.area_average:
+            weights = np.cos(np.deg2rad(data.lat))
+            data = data.weighted(weights).mean('x').mean('y')
+
         # add data to larger Dataset being built
         all_files[source_id] = data
+        
     return all_files.to_array("simulation")
 
 
@@ -110,14 +116,27 @@ def _read_from_catalog(selections, location):
     else:
         ds_region = None
 
+    if selections.append_historical:
+        one_scenario = 'Historical Climate'
+        files_by_scenario = _get_file_list(selections, one_scenario)
+        historical = _open_and_concat(files_by_scenario, selections, ds_region)
+        
     all_files = xr.Dataset()
     for one_scenario in selections.scenario:
-        files_by_scenario = _get_file_list(selections, one_scenario)
-        temp = _open_and_concat(files_by_scenario, selections, ds_region)
-        all_files[one_scenario] = temp
-        # if selections.append_historical:
-        #    files_historical = get_file_list(selections,'historical')
-        #    all_files = xr.concat([files_historical,all_files],dim='time')
+        if selections.append_historical:
+            if "SSP" in one_scenario:
+                files_by_scenario = _get_file_list(selections, one_scenario)
+                temp = _open_and_concat(files_by_scenario, selections, ds_region)
+                all_files["Historical + "+one_scenario] = xr.concat([historical,temp],dim="time")
+            elif one_scenario != "Historical Climate":
+                files_by_scenario = _get_file_list(selections, one_scenario)
+                temp = _open_and_concat(files_by_scenario, selections, ds_region)
+                all_files[one_scenario] = temp
+        else:
+            files_by_scenario = _get_file_list(selections, one_scenario)
+            temp = _open_and_concat(files_by_scenario, selections, ds_region)
+            all_files[one_scenario] = temp
+            
     all_files = all_files.to_array("scenario")
     all_files.name = selections.variable
     return all_files

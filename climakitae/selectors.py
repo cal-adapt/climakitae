@@ -131,12 +131,12 @@ class LocSelectorArea(param.Parameterized):
         objects=["none", "lat/lon", "states", "CA counties", "CA watersheds"],
     )
     # would be nice if these lat/lon sliders were greyed-out when lat/lon subset option is not selected
-    latitude = param.Range(default=(41, 42), bounds=(10, 67))
-    longitude = param.Range(default=(-125, -115), bounds=(-156.82317, -84.18701))
+    latitude = param.Range(default=(32.5, 42), bounds=(10, 67))
+    longitude = param.Range(default=(-125.5, -114), bounds=(-156.82317, -84.18701))
     _geographies = Boundaries()
     _geography_choose = (
         _geographies.boundary_dict()
-    )  # this now makes executing core.select() slow
+    ) 
     cached_area = param.ObjectSelector(
         default="CA", objects=list(_geography_choose["states"].keys())
     )
@@ -171,7 +171,7 @@ class LocSelectorArea(param.Parameterized):
         mpl_pane = pn.pane.Matplotlib(fig0, dpi=144)
         if self.area_subset == "lat/lon":
             ax.set_extent([-160, -84, 8, 68], crs=ccrs.PlateCarree())
-            ax.add_geometries([geometry], crs=ccrs.PlateCarree())
+            ax.add_geometries([geometry], crs=ccrs.PlateCarree(),edgecolor='b',facecolor='None')
         elif self.area_subset == "states":
             ax.set_extent([-130, -100, 25, 50], crs=ccrs.PlateCarree())
             shape_index = int(
@@ -278,6 +278,7 @@ class CatalogContents:
                     if e.metadata["nominal_resolution"] == resolution
                 )
             )
+            _temp.sort() #consistent order
             _scenario_subset = [(self._scenario_choices[e], e) for e in _temp]
             _scenario_subset = dict(_scenario_subset)
             _scenario_list.append((resolution, _scenario_subset))
@@ -296,7 +297,7 @@ class DataSelector(param.Parameterized):
         default="T2", objects=_choices._variable_choices["hourly"]["Dynamical"]
     )
     timescale = param.ObjectSelector(
-        default="hourly", objects=["hourly", "daily", "monthly"]
+        default="monthly", objects=["hourly", "daily", "monthly"]
     )  # for WRF, will just coarsen data to start
 
     # not needed yet until we have LOCA data:
@@ -311,16 +312,20 @@ class DataSelector(param.Parameterized):
     #    variables = choices._variable_choices[self.timescale][self.dyn_stat]
     #    self.param['variable'].objects = variables
     #    self.variable = variables[0]
-    scenario = param.ListSelector(objects=list(_choices._scenarios["45 km"].keys()))
+    scenario = param.ListSelector(objects=list(_choices._scenarios["45 km"].keys()),allow_None=True)
     resolution = param.ObjectSelector(default="45 km", objects=_choices._resolutions)
-
-    @param.depends("resolution", watch=True)
+    append_historical = param.Boolean(default=False)
+    
+    @param.depends("resolution","append_historical", watch=True)
     def _update_scenarios(self):
-        self.param["scenario"].objects = list(
-            self._choices._scenarios[self.resolution].keys()
-        )
+        _list_of_scenarios = list(self._choices._scenarios[self.resolution].keys())
+        if self.append_historical:
+            if "Historical Climate" in _list_of_scenarios:
+                _list_of_scenarios.remove("Historical Climate")
+        self.param["scenario"].objects = _list_of_scenarios
+        self.scenario = [None] #resetting this avoids indexing errors with prior values
 
-    # append_historical = param.Boolean()    #need to add this as well
+    area_average = param.Boolean(default=False)
 
 
 def _display_select(selections, location, location_type="area average"):
@@ -348,6 +353,10 @@ def _display_select(selections, location, location_type="area average"):
             selections.param.variable,
             pn.widgets.RadioButtonGroup.from_param(selections.param.resolution),
         ),
-        pn.widgets.CheckBoxGroup.from_param(selections.param.scenario),
+        pn.Column(
+            pn.widgets.CheckBoxGroup.from_param(selections.param.scenario),
+            selections.param.append_historical,
+            selections.param.area_average,
+        )
     )
     return pn.Column(first_row, location_chooser)
