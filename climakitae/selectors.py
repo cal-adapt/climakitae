@@ -171,7 +171,7 @@ class LocSelectorArea(param.Parameterized):
         mpl_pane = pn.pane.Matplotlib(fig0, dpi=144)
         if self.area_subset == "lat/lon":
             ax.set_extent([-160, -84, 8, 68], crs=ccrs.PlateCarree())
-            ax.add_geometries([geometry], crs=ccrs.PlateCarree())
+            ax.add_geometries([geometry], crs=ccrs.PlateCarree(),edgecolor='b',facecolor='None')
         elif self.area_subset == "states":
             ax.set_extent([-130, -100, 25, 50], crs=ccrs.PlateCarree())
             shape_index = int(
