@@ -181,6 +181,7 @@ def get_aicc_stat(ams, multiple_points=True):
             input_core_dims=[["time"]],
             exclude_dims=set(("time",)),
             output_core_dims=[[], [], []],
+            dask = 'allowed', vectorize = True
         )
 
     all_aicc_results, lowest_aicc_distr, lowest_aicc_value = apply_function(ams)
@@ -299,6 +300,7 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
             input_core_dims=[["time"]],
             exclude_dims=set(("time",)),
             output_core_dims=[[], []],
+            dask = 'allowed', vectorize = True
         )
 
     d_statistic, p_value = apply_function(ams)
@@ -395,6 +397,7 @@ def get_return_value(ams, return_period=10, distr="gev", multiple_points=True):
             input_core_dims=[["time"]],
             exclude_dims=set(("time",)),
             output_core_dims=[[]],
+            dask = 'allowed', vectorize = True
         )
 
     return_value = apply_function(ams)
@@ -481,6 +484,7 @@ def get_return_prob(ams, threshold, distr="gev", multiple_points=True):
             input_core_dims=[["time"]],
             exclude_dims=set(("time",)),
             output_core_dims=[[]],
+            dask = 'allowed', vectorize = True
         )
 
     return_prob = apply_function(ams)
@@ -591,6 +595,7 @@ def get_return_period(ams, return_value, distr="gev", multiple_points=True):
             input_core_dims=[["time"]],
             exclude_dims=set(("time",)),
             output_core_dims=[[]],
+            dask = 'allowed', vectorize = True
         )
 
     return_period = apply_function(ams)
