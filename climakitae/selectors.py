@@ -297,7 +297,7 @@ class DataSelector(param.Parameterized):
         default="T2", objects=_choices._variable_choices["hourly"]["Dynamical"]
     )
     timescale = param.ObjectSelector(
-        default="hourly", objects=["hourly", "daily", "monthly"]
+        default="monthly", objects=["hourly", "daily", "monthly"]
     )  # for WRF, will just coarsen data to start
 
     # not needed yet until we have LOCA data:
