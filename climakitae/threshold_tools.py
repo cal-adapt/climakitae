@@ -175,7 +175,7 @@ def get_aicc_stat(ams, multiple_points=True):
 
             return all_aicc_results, lowest_aicc_distr, lowest_aicc_value
 
-        dask_ufunc_kwargs = {"allow_rechunk":True}
+        dask_ufunc_kwargs = {"allow_rechunk": True}
         
         return xr.apply_ufunc(
             function,
