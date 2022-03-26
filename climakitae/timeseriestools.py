@@ -17,37 +17,50 @@ class TimeSeriesParams(param.Parameterized):
    
     reference_range = param.CalendarDateRange(default=(dt.datetime(1980,1,1),dt.datetime(2012,12,31)),
                                               bounds=(dt.datetime(1980,1,1),dt.datetime(2021,12,31)))
-    by_season = param.Boolean(default=False)
+    remove_seasonal_cycle = param.Boolean(default=False)
     anomaly = param.Boolean(default=True) 
+    separate_seasons = param.Boolean(default=False)
     smoothing = param.ObjectSelector(default="None", objects=["None", "running mean"])
     _time_scales = dict(
-        [("hours", "H"), ("days", "D"), ("months", "MS"), ("years", "AS")]
+        [("H", "hours"), ("D", "days"), ("M", "months"), ("A", "years")]
     )
-    timescale = param.ObjectSelector(default="MS", objects=_time_scales)
-    # window = param.Integer(default=1,bounds=(1,24))
-   
-    @param.depends("anomaly", "reference_range", "by_season", watch=False)
+    num_timesteps = param.Integer(default=0,bounds=(0,240))
+        
+    @param.depends("anomaly", "reference_range", "separate_seasons", "smoothing", "num_timesteps", 
+                   "remove_seasonal_cycle", watch=False)
     def view(self):
         """
         Does the main work of timeseries.explore(). Updating a plot in real-time
         to enable the user to preview the results of any timeseries transforms.
         """
-        def getAnom(y):
+        
+        if self.remove_seasonal_cycle:
+            to_plot = self.data.groupby("time.month") - self.data.groupby("time.month").mean("time")
+        else:
+            to_plot = self.data
+        
+        def _getAnom(y):
             """
             Returns the difference with respect to the average across a historical range.
             """
             return y - y.sel(time=slice(
-                pd.to_datetime(self.reference_range[0]),
-                pd.to_datetime(self.reference_range[1]))).mean("time")
+                self.reference_range[0],
+                self.reference_range[1])).mean("time")
         
-        if self.anomaly and not self.by_season:
-            to_plot = getAnom(self.data)
-        elif self.anomaly and self.by_season:
-            to_plot = self.data.groupby("time.season").apply(getAnom)
+        if self.anomaly and not self.separate_seasons:
+            to_plot = _getAnom(to_plot)
+        elif self.anomaly and self.separate_seasons:
+            to_plot = to_plot.groupby("time.season").apply(_getAnom)
         else:
-            to_plot = self.data
+            to_plot = to_plot
+        
+        
+        if self.smoothing == "running mean":
+            if self.num_timesteps > 0:
+                to_plot = to_plot.rolling(time=self.num_timesteps,center=True).mean("time")
+                to_plot.name = str(self.num_timesteps)+" timesteps running mean"
             
-        if self.by_season:
+        if self.separate_seasons:
             obj = to_plot.hvplot.line(x="time",widget_location="bottom",
                                       by="simulation", groupby=["scenario","time.season"]
                                      ) 
@@ -55,7 +68,6 @@ class TimeSeriesParams(param.Parameterized):
             obj = to_plot.hvplot.line(x="time",by="simulation",
                                       widget_location="bottom")
         return obj 
-
 
 def _timeseries_visualize(choices):
     """
