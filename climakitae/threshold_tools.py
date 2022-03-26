@@ -175,6 +175,8 @@ def get_aicc_stat(ams, multiple_points=True):
 
             return all_aicc_results, lowest_aicc_distr, lowest_aicc_value
 
+        dask_gufunc_kwargs = {"allow_rechunk":"True"}
+        
         return xr.apply_ufunc(
             function,
             ams,
@@ -182,8 +184,8 @@ def get_aicc_stat(ams, multiple_points=True):
             exclude_dims=set(("time",)),
             output_core_dims=[[], [], []],
             dask = 'parallelized', 
-            dask_gufunc_kwargs["allow_rechunk"] = True
-            #dask_gufunc_kwargs = {"allow_rechunk":"True"}
+            **dask_gufunc_kwargs
+            
         )
 
     all_aicc_results, lowest_aicc_distr, lowest_aicc_value = apply_function(ams)
