@@ -181,7 +181,7 @@ def get_aicc_stat(ams, multiple_points=True):
             input_core_dims=[["time"]],
             exclude_dims=set(("time",)),
             output_core_dims=[[], [], []],
-            dask = 'parallelized', dask_gufunc_kwargs=(allow_rechunk=True)
+            dask = 'parallelized', kwargs=('allow_rechunk'=True)
         )
 
     all_aicc_results, lowest_aicc_distr, lowest_aicc_value = apply_function(ams)
