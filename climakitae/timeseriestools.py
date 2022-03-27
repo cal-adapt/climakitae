@@ -27,7 +27,7 @@ class TimeSeriesParams(param.Parameterized):
     remove_seasonal_cycle = param.Boolean(default=False)
     smoothing = param.ObjectSelector(default="None", objects=["None", "running mean"])
     _time_scales = dict(
-        [("hours", "H"), ("days", "D"), ("months", "M"), ("years", "A")]
+        [("hours", "H"), ("days", "D"), ("months", "MS"), ("years", "AS-SEP")]
     )
     num_timesteps = param.Integer(default=0, bounds=(0, 240))
     separate_seasons = param.Boolean(
