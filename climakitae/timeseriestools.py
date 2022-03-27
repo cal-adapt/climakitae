@@ -26,13 +26,11 @@ class TimeSeriesParams(param.Parameterized):
     num_timesteps = param.Integer(default=0,bounds=(0,240))
     separate_seasons = param.Boolean(default=False,label="Disaggregate into four seasons")
     
-    running_extremes = param.ObjectSelector(default="None", objects=["None","min","max","percentile"])
+    extremes = param.ObjectSelector(default="None", objects=["None","min","max","percentile"])
     resample_window = param.Integer(default=1,bounds=(1,30))
     resample_period = param.ObjectSelector(default="A",objects=_time_scales)
-    percentile = param.Number(default=0,bounds=(0,1),
+    percentile = param.Number(default=0,bounds=(0,1),step=0.01,
                               doc="Relevant if 'running extremes' is 'percentile.")
-    overlay = param.Boolean(default=False,
-                            doc="Overlay running extremes on existing view.")
     
     @param.depends("anomaly",watch=True)
     def update_seasonal_cycle(self):
@@ -43,12 +41,7 @@ class TimeSeriesParams(param.Parameterized):
     def update_anom(self):
         if self.remove_seasonal_cycle:
             self.anomaly = True
-            
-    @param.depends("running_extremes",watch=True)
-    def update_overlay(self):
-        if self.running_extremes != "None":
-            self.overlay = True
-    
+                
     def transform_data(self):
         """
         Returns a dataset that has been transformed in the ways that the params indicate,
@@ -83,56 +76,51 @@ class TimeSeriesParams(param.Parameterized):
             else:
                 to_plot = _running_mean(to_plot)
             to_plot.name = str(self.num_timesteps)+" timesteps running mean"
-            
-        if self.running_extremes != "None":
-            if self.running_extremes == "max":
-                extremes = to_plot.resample(time=str(self.resample_window)+self.resample_period).max("time")
-            elif self.running_extremes == "min":
-                extremes = to_plot.resample(time=str(self.resample_window)+self.resample_period).min("time")
-            elif self.running_extremes == "percentile":
-                extremes = to_plot.resample(time=str(self.resample_window)+self.resample_period).quantile(q=self.percentile)
-            new_name = str(self.resample_window)+self.resample_period+" "+self.running_extremes
-            extremes['simulation'] = [str(k.values) +" -- "+ new_name for k in extremes.simulation]
-
-            
-            if self.overlay:
-                to_plot = xr.merge([to_plot,extremes])
-            else:
-                to_plot = extremes
+    
+        if self.extremes != "None": 
+            new_name = to_plot.name+" -- "+str(self.resample_window)+self.resample_period+" "+self.extremes
+            if self.extremes == "max":
+                to_plot = to_plot.resample(time=str(self.resample_window)+self.resample_period).max("time")
+            elif self.extremes == "min":
+                to_plot = to_plot.resample(time=str(self.resample_window)+self.resample_period).min("time")
+            elif self.extremes == "percentile":
+                to_plot = to_plot.resample(time=str(self.resample_window)+self.resample_period).quantile(q=self.percentile)
+                new_name = to_plot.name+" -- "+"{:.0f}".format(self.percentile*100)+" "+self.extremes
+            to_plot.name = new_name
 
         return to_plot
+        
     
     @param.depends("anomaly", "reference_range", "separate_seasons", "smoothing",  
-                   "num_timesteps", "remove_seasonal_cycle", "running_extremes",
-                   "resample_window","resample_period","percentile","overlay",watch=False)
+                   "num_timesteps", "remove_seasonal_cycle", "extremes",
+                   "resample_window","resample_period","percentile",watch=False)
     def view(self):
         """
         Does the main work of timeseries.explore(). Updating a plot in real-time
         to enable the user to preview the results of any timeseries transforms.
         """
         to_plot = self.transform_data()
-                
+              
         if self.separate_seasons: 
-            obj = to_plot.hvplot.line(x="time",widget_location="bottom",
-                                      by="simulation", groupby=["scenario","time.season"]
-                                     ) 
+            menu_list = ["scenario","time.season"]          
         else:
-            obj = to_plot.hvplot.line(x="time",by="simulation",
-                                      widget_location="bottom"
-                                     )
-        return obj  
+            menu_list = ["scenario"]
+            
+        obj = to_plot.hvplot.line(x="time",widget_location="bottom",
+                                      by="simulation", groupby=menu_list
+                                     ) 
+        return obj   
 
 def _timeseries_visualize(choices):
     """
     Uses holoviz 'panel' library to display the parameters and view defined in an instance
-    of TimeSeriesParams. Arranges the widgets in the panel in rows and columns.
+    of TimeSeriesParams.
     """
     return pn.Column(pn.Row(pn.Column(choices.param.anomaly, choices.param.reference_range, 
                             choices.param.remove_seasonal_cycle, choices.param.smoothing,
                             choices.param.num_timesteps, choices.param.separate_seasons),
                             pn.Spacer(width=50),
-                            pn.Column(pn.Row(choices.param.running_extremes,
-                                             choices.param.overlay,width=320),
+                            pn.Column(choices.param.extremes,
                                       pn.Row(choices.param.resample_window,
                                              choices.param.resample_period,width=320),
                                       choices.param.percentile)),
@@ -140,9 +128,9 @@ def _timeseries_visualize(choices):
 
 class Timeseries():
     """
-    Holds the instance of TimeSeriesParams that is used both to display a panel that
-    previews various time-series transforms (explore), and to save the transform represented by 
-    the current state of that preview into a new variable (output_current).
+    Holds the instance of TimeSeriesParams that is used 1) to display a panel that
+    previews various time-series transforms (explore), and 2) to save the transform 
+    represented by the current state of that preview into a new variable (output_current).
     """
     def __init__(self,data):
         assert "xarray" in str(
