@@ -34,7 +34,7 @@ def transform_details(func):
         # flag that climakitae transform has been applied
         transform_attrs = {'post_processed' : 'true',
                      'post_processed_by' : 'Cal-Adapt Analytics'+
-                     'Engine v 0.1'}
+                     'Engine v 0.0.1'}
 
         # build the transform and transform details dict
         # this is to make the process as traceable as possible
