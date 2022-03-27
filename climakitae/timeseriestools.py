@@ -137,6 +137,12 @@ class Timeseries():
     @progress_bar
     @dask.delayed
     def __init__(self,data):
+        # optimize data for ensuing time-series work:
+        name = data.name
+        data.to_netcdf("temporary.nc")
+        data = xr.open_dataset("temporary.nc")[name]
+        !rm temporary.nc
+        
         assert "xarray" in str(
             type(data)
             ), "Please pass an xarray DataArray (e.g. as output by generate)."
@@ -146,11 +152,6 @@ class Timeseries():
         assert (
             "Historical + " in data.scenario.values.any()
             ), "Please append the historical period in your data retrieval."
-        # optimize data for ensuing time-series work:
-        name = data.name
-        data.to_netcdf("temporary.nc")
-        data = xr.open_dataset("temporary.nc")[name]
-        !rm temporary.nc
         
         self.choices = TimeSeriesParams(data)
         
