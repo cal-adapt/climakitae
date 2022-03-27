@@ -5,6 +5,7 @@ import hvplot.xarray
 import datetime as dt
 from .explore import progress_bar # for progress bar
 import dask # for progress bar
+import tempfile, os
 
 
 class TimeSeriesParams(param.Parameterized):
@@ -127,6 +128,16 @@ def _timeseries_visualize(choices):
                                              choices.param.resample_period,width=320),
                                       choices.param.percentile)),
                      choices.view)
+
+def optimize(y):
+    name = y.name
+    temp_dir = tempfile.mkdtemp()
+    os.chdir(temp_dir)
+    y.to_netcdf("temporary.nc")
+    new = xr.open_dataset("temporary.nc")[name]
+    
+    return new
+
 
 class Timeseries():
     """
