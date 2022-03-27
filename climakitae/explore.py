@@ -1,3 +1,9 @@
+from functools import wraps
+from dask import delayed, compute
+from dask.diagnostics import ProgressBar
+pbar = ProgressBar()
+pbar.register()
+
 def explore(my_data, do_smoothing=False):
     """
     A placeholder for now, which will be generalized to display the most useful interactive hvplot
@@ -34,18 +40,14 @@ def explore(my_data, do_smoothing=False):
     return linePlot
 
 
-from dask import delayed, compute
-from dask.diagnostics import ProgressBar
-pbar = ProgressBar()
-pbar.register()
 def progress_bar(func):
     @wraps(func)
     def pbar_wrapper(*args, **kwargs):
         """
         Generic decorator that shows a progress bar for any
-        function. To use, import progress_bar, then
-        put the following two lines above the function definition
-        (in this order):
+        function using dask delayed and compute functionality.
+        To use, put the following two lines above the 
+        function definition (in this order):
         @progress_bar
         @delayed        
         """          

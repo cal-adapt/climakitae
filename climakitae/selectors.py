@@ -1,10 +1,14 @@
 import param
 import panel as pn
 import intake
-from shapely.geometry import box #, Point, Polygon
-import matplotlib.pyplot as plt
+from shapely.geometry import box  # , Point, Polygon
+from matplotlib.figure import Figure
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
+import regionmask
+import numpy as np
+import geopandas as gpd
+import pandas as pd
 
 # support methods for core.Application.select
 
@@ -43,6 +47,75 @@ _cached_stations = [
 ]
 
 # === Select ===================================
+class Boundaries:
+    def __init__(self):
+        self._us_states = regionmask.defined_regions.natural_earth_v4_1_0.us_states_50
+        self._ca_counties = gpd.read_file(
+            "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/1/query?where=STATE=06&f=geojson"
+        )
+        self._ca_counties = self._ca_counties.sort_values("NAME")
+
+        self._ca_watersheds_file = "https://gis.data.cnra.ca.gov/datasets/02ff4971b8084ca593309036fb72289c_0.zip?outSR=%7B%22latestWkid%22%3A3857%2C%22wkid%22%3A102100%7D"
+        self._ca_watersheds = gpd.read_file(self._ca_watersheds_file)
+        self._ca_watersheds = self._ca_watersheds.sort_values("Name")
+
+    def get_us_states(self):
+        """
+        Opens regionmask to retrieve a dictionary of state abbreviations:index
+        """
+        _state_lookup = dict(
+            [
+                (
+                    abbrev,
+                    np.argwhere(np.asarray(self._us_states.abbrevs) == abbrev)[0][0],
+                )
+                for abbrev in [
+                    "CA",
+                    "NV",
+                    "OR",
+                    "WA",
+                    "UT",
+                    "MT",
+                    "ID",
+                    "AZ",
+                    "CO",
+                    "NM",
+                    "WY",
+                ]
+            ]
+        )
+        return _state_lookup
+
+    def get_ca_counties(self):
+        """
+        Returns a dictionary of California counties and their indices in the shapefile.
+        """
+        return pd.Series(
+            self._ca_counties.index, index=self._ca_counties["NAME"]
+        ).to_dict()
+
+    def get_ca_watersheds(self):
+        """
+        Returns a lookup dictionary for CA watersheds that references the shapefile.
+        """
+        return pd.Series(
+            self._ca_watersheds["OBJECTID"].values, index=self._ca_watersheds["Name"]
+        ).to_dict()
+
+    def boundary_dict(self):
+        """
+        This returns a dictionary of lookup dictionaries for each set of shapefiles that
+        the user might be choosing from. It is used to populate the selector object dynamically
+        as the category in 'LocSelectorArea.area_subset' changes.
+        """
+        _all_options = {
+            "states": self.get_us_states(),
+            "CA counties": self.get_ca_counties(),
+            "CA watersheds": self.get_ca_watersheds(),
+        }
+        return _all_options
+
+
 class LocSelectorArea(param.Parameterized):
     """
     Used to produce a panel of widgets for entering one of the types of location information used to
@@ -53,43 +126,83 @@ class LocSelectorArea(param.Parameterized):
     [future: 3. upload their own shapefile with the outline of a natural or administrative geographic area]
     """
 
-    subset_by_lat_lon = param.Boolean()
-    # would be nice if these lat/lon sliders were greyed-out when subset option is not selected
-    latitude = param.Range(default=(41, 42), bounds=(10, 67))
-    longitude = param.Range(default=(-125, -115), bounds=(-156.82317, -84.18701))
-    # shapefile = param.FileSelector(path='../../*/*.shp*', precedence=0.5) #not for March 2022
-    # cached_area = param.ObjectSelector(objects=['CA','Sierra','LA County']) #this is a placeholder list
+    area_subset = param.ObjectSelector(
+        default="none",
+        objects=["none", "lat/lon", "states", "CA counties", "CA watersheds"],
+    )
+    # would be nice if these lat/lon sliders were greyed-out when lat/lon subset option is not selected
+    latitude = param.Range(default=(32.5, 42), bounds=(10, 67))
+    longitude = param.Range(default=(-125.5, -114), bounds=(-156.82317, -84.18701))
+    _geographies = Boundaries()
+    _geography_choose = (
+        _geographies.boundary_dict()
+    ) 
+    cached_area = param.ObjectSelector(
+        default="CA", objects=list(_geography_choose["states"].keys())
+    )
 
-    # @param.depends('cached_area',watch=True)
-    # def _update_loc_cached(self):
-    #    '''Updates the 'location' object to be the Polygon associated with the selected geographic area.'''
-    #    location = _areas_database[self.cached_area] #need this database to exist...
+    @param.depends("area_subset", watch=True)
+    def _update_cached_area(self):
+        """
+        Makes the dropdown options for 'cached area' reflect the type of area subsetting
+        selected in 'area_subset' (currently state, county, or watershed boundaries).
+        """
+        if self.area_subset in ["states", "CA counties", "CA watersheds"]:
+            # setting this to the dict works for initializing, but not updating an objects list:
+            self.param["cached_area"].objects = list(
+                self._geography_choose[self.area_subset].keys()
+            )
+            self.cached_area = list(self._geography_choose[self.area_subset].keys())[0]
 
-    # not for soft launch:
-    # @param.depends('shapefile',watch=True)
-    # def _update_loc_shp(self):
-    #    '''Updates the 'location' object to be the polygon in the uploaded shapefile.
-    #    Dealing with user-uploaded data of any kind might not be in the soft launch.'''
-    #    # probably need to do checking for valid input (also for security reasons)
-    #    user_location = gpd.read_file("shapefile.shp")
-    #    assert user_location.geom_type in ['Point','Polygon'], "Please upload a valid shapefile."
-    #    # maybe also offer interactive selecting if there's more than one
-    #    # polygon in the shapefile!
-    #    location = user_location
-
-    # doesn't display yet for some reason:
-    @param.depends("latitude", "longitude", watch=False)
+    @param.depends("latitude", "longitude", "area_subset", "cached_area", watch=False)
     def view(self):
         geometry = box(
             self.longitude[0], self.latitude[0], self.longitude[1], self.latitude[1]
         )
-        fig0 = plt.figure()
-        ax = fig0.add_subplot(projection=ccrs.Orthographic(-115, 40))
+
+        fig0 = Figure(figsize=(3, 3))
+        proj = ccrs.Orthographic(-118, 40)
+        crs_proj4 = proj.proj4_init  # used below
+        ax = fig0.add_subplot(111, projection=proj)
         ax.set_extent([-160, -84, 8, 68], crs=ccrs.PlateCarree())
-        ax.add_geometries([geometry], crs=ccrs.PlateCarree())
         ax.coastlines()
         ax.add_feature(cfeature.STATES, linewidth=0.5)
-        return pn.pane.Matplotlib(fig0, dpi=144)
+
+        mpl_pane = pn.pane.Matplotlib(fig0, dpi=144)
+        if self.area_subset == "lat/lon":
+            ax.set_extent([-160, -84, 8, 68], crs=ccrs.PlateCarree())
+            ax.add_geometries([geometry], crs=ccrs.PlateCarree(),edgecolor='b',facecolor='None')
+        elif self.area_subset == "states":
+            ax.set_extent([-130, -100, 25, 50], crs=ccrs.PlateCarree())
+            shape_index = int(
+                self._geography_choose[self.area_subset][self.cached_area]
+            )
+            self._geographies._us_states[[shape_index]].plot(
+                ax=ax, add_label=False, line_kws=dict(color="b")
+            )
+            mpl_pane.param.trigger("object")
+        elif self.area_subset == "CA counties":
+            ax.set_extent([-125, -114, 31, 43], crs=ccrs.PlateCarree())
+            shapefile = self._geographies._ca_counties
+            shape_index = int(
+                self._geography_choose[self.area_subset][self.cached_area]
+            )
+            county = shapefile[shapefile.index == shape_index]
+            df_ae = county.to_crs(crs_proj4)
+            df_ae.plot(ax=ax, color="b")
+            mpl_pane.param.trigger("object")
+        elif self.area_subset == "CA watersheds":
+            ax.set_extent([-125, -114, 31, 43], crs=ccrs.PlateCarree())
+            shapefile = self._geographies._ca_watersheds
+            shape_index = int(
+                self._geography_choose[self.area_subset][self.cached_area]
+            )
+            basin = shapefile[shapefile["OBJECTID"] == shape_index]
+            df_ae = basin.to_crs(crs_proj4)
+            df_ae.plot(ax=ax, color="b")
+            mpl_pane.param.trigger("object")
+
+        return mpl_pane
 
 
 class LocSelectorPoint(param.Parameterized):
@@ -111,11 +224,12 @@ class LocSelectorPoint(param.Parameterized):
 class CatalogContents:
     def __init__(self):
         # get the list of data variables from one of the zarr files:
-        self._cat = intake.open_catalog("s3://cdcat/cae.yaml")
+        self._cat = intake.open_catalog("https://cdcat.s3.amazonaws.com/cae.yaml")
         _ds = self._cat[list(self._cat)[0]].to_dask()
-        _variable_choices_hourly_wrf = {v.attrs["description"].capitalize(): k 
-                                                    for k, v in _ds.data_vars.items()}
-        #_variable_choices_hourly_wrf = _variable_choices_hourly_wrf +['precipitation (total)', 'wind 10m magnitude'] #which we'll derive from what's there
+        _variable_choices_hourly_wrf = {
+            v.attrs["description"].capitalize(): k for k, v in _ds.data_vars.items()
+        }
+        # _variable_choices_hourly_wrf = _variable_choices_hourly_wrf +['precipitation (total)', 'wind 10m magnitude'] #which we'll derive from what's there
         # expand this dictionary to also be dependent on LOCA vs WRF:
         _variable_choices_daily_loca = [
             "Temperature",
@@ -144,14 +258,32 @@ class CatalogContents:
 
         # hard-coded options:
         self._scenario_choices = {
-            "Historical Climate": "historical",
-            "Historical Reconstruction": "",
-            "SSP 2-4.5 -- Middle of the Road": "ssp245",
-            "SSP 3-7.0 -- Business as Usual": "ssp370",
-            "SSP 5-8.5 -- Burn it All": "ssp585",
+            "historical": "Historical Climate",
+            "": "Historical Reconstruction",
+            "ssp245": "SSP 2-4.5 -- Middle of the Road",
+            "ssp370": "SSP 3-7.0 -- Business as Usual",
+            "ssp585": "SSP 5-8.5 -- Burn it All",
         }
 
-        self._resolutions = list(set(e.metadata["nominal_resolution"] for e in self._cat.values()))
+        self._resolutions = list(
+            set(e.metadata["nominal_resolution"] for e in self._cat.values())
+        )
+
+        _scenario_list = []
+        for resolution in self._resolutions:
+            _temp = list(
+                set(
+                    e.metadata["experiment_id"]
+                    for e in self._cat.values()
+                    if e.metadata["nominal_resolution"] == resolution
+                )
+            )
+            _temp.sort() #consistent order
+            _scenario_subset = [(self._scenario_choices[e], e) for e in _temp]
+            _scenario_subset = dict(_scenario_subset)
+            _scenario_list.append((resolution, _scenario_subset))
+        self._scenarios = dict(_scenario_list)
+
 
 class DataSelector(param.Parameterized):
     """
@@ -160,12 +292,12 @@ class DataSelector(param.Parameterized):
     UI could in principle be used to update these parameters instead.
     """
 
-    choices = CatalogContents()
-    variable = param.ObjectSelector(default='T2',
-        objects=choices._variable_choices["hourly"]["Dynamical"]
+    _choices = CatalogContents()
+    variable = param.ObjectSelector(
+        default="T2", objects=_choices._variable_choices["hourly"]["Dynamical"]
     )
     timescale = param.ObjectSelector(
-        default="hourly", objects=["hourly", "daily", "monthly"]
+        default="monthly", objects=["hourly", "daily", "monthly"]
     )  # for WRF, will just coarsen data to start
 
     # not needed yet until we have LOCA data:
@@ -180,14 +312,20 @@ class DataSelector(param.Parameterized):
     #    variables = choices._variable_choices[self.timescale][self.dyn_stat]
     #    self.param['variable'].objects = variables
     #    self.variable = variables[0]
-    scenario = param.ListSelector(default=list(choices._scenario_choices.values())[:1],objects=choices._scenario_choices)
-    resolution = param.ObjectSelector(default="45 km", objects=choices._resolutions)
-
-    @param.depends("resolution", watch=True)
+    scenario = param.ListSelector(objects=list(_choices._scenarios["45 km"].keys()),allow_None=True)
+    resolution = param.ObjectSelector(default="45 km", objects=_choices._resolutions)
+    append_historical = param.Boolean(default=False)
+    
+    @param.depends("resolution","append_historical", watch=True)
     def _update_scenarios(self):
-        pass  # add this, so that options depend on resolution selected
+        _list_of_scenarios = list(self._choices._scenarios[self.resolution].keys())
+        if self.append_historical:
+            if "Historical Climate" in _list_of_scenarios:
+                _list_of_scenarios.remove("Historical Climate")
+        self.param["scenario"].objects = _list_of_scenarios
+        self.scenario = [None] #resetting this avoids indexing errors with prior values
 
-    # append_historical = param.Boolean()    #need to add this as well
+    area_average = param.Boolean(default=False)
 
 
 def _display_select(selections, location, location_type="area average"):
@@ -205,14 +343,20 @@ def _display_select(selections, location, location_type="area average"):
     ], "Please enter either 'area average' or 'station'."
 
     # _which_loc_input = {'area average': LocSelectorArea, 'station': LocSelectorPoint}
-    location_chooser = pn.Row(location.param) #,location.view)
+    location_chooser = pn.Row(location.param, location.view)
 
     # add in when we have LOCA data too:
     # pn.widgets.RadioButtonGroup.from_param(selections.param.dyn_stat),
-    first_col = pn.Column(
-        selections.param.timescale,
-        selections.param.variable,
-        pn.widgets.CheckBoxGroup.from_param(selections.param.scenario),
-        pn.widgets.RadioButtonGroup.from_param(selections.param.resolution),
+    first_row = pn.Row(
+        pn.Column(
+            selections.param.timescale,
+            selections.param.variable,
+            pn.widgets.RadioButtonGroup.from_param(selections.param.resolution),
+        ),
+        pn.Column(
+            pn.widgets.CheckBoxGroup.from_param(selections.param.scenario),
+            selections.param.append_historical,
+            selections.param.area_average,
+        )
     )
-    return pn.Row(first_col, location_chooser)
+    return pn.Column(first_row, location_chooser)
