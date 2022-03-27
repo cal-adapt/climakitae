@@ -129,6 +129,8 @@ def _timeseries_visualize(choices):
                                       choices.param.percentile)),
                      choices.view)
 
+@progress_bar
+@dask.delayed
 def optimize(y):
     name = y.name
     temp_dir = tempfile.mkdtemp()
@@ -145,8 +147,6 @@ class Timeseries():
     previews various time-series transforms (explore), and 2) to save the transform 
     represented by the current state of that preview into a new variable (output_current).
     """
-    @progress_bar
-    @dask.delayed
     def __init__(self,data):
         assert "xarray" in str(
             type(data)
