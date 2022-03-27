@@ -3,6 +3,8 @@ import param
 import panel as pn
 import hvplot.xarray
 import datetime as dt
+from .explore import progress_bar # for progress bar
+import dask # for progress bar
 
 
 class TimeSeriesParams(param.Parameterized):
@@ -132,17 +134,24 @@ class Timeseries():
     previews various time-series transforms (explore), and 2) to save the transform 
     represented by the current state of that preview into a new variable (output_current).
     """
+    @progress_bar
+    @dask.delayed
     def __init__(self,data):
         assert "xarray" in str(
             type(data)
-            ), "Please pass an xarray dataset (e.g. as output by generate)."
+            ), "Please pass an xarray DataArray (e.g. as output by generate)."
         assert (
             "lat" not in data.dims
             ), "Please pass a timeseries (area average or individual station)."
         assert (
             "Historical + " in data.scenario.values.any()
             ), "Please append the historical period in your data retrieval."
-
+        # optimize data for ensuing time-series work:
+        name = data.name
+        data.to_netcdf("temporary.nc")
+        data = xr.open_dataset("temporary.nc")[name]
+        !rm temporary.nc
+        
         self.choices = TimeSeriesParams(data)
         
     def explore(self):
