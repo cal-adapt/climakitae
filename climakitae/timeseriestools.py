@@ -1,8 +1,8 @@
 import xarray as xr
 import param
 import panel as pn
-import panel.widgets as pnw
-from matplotlib.figure import Figure
+import hvplot.xarray
+import datetime as dt
 
 
 class TimeSeriesParams(param.Parameterized):
