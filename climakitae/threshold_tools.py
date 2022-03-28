@@ -151,6 +151,12 @@ def get_aicc_stat(ams, multiple_points=True):
         except ValueError:
             aicc_gpa = ["genpareto", np.nan]
 
+        try:
+            lmoments_gpa = ldistr.gpa.lmom_fit(ams)
+            aicc_gpa = ["genpareto", lstats.AICc(ams, "gpa", lmoments_gpa)]
+        except ValueError:
+            aicc_gpa = ["genpareto", np.nan]
+
         all_aicc_results = (
             str(aicc_gev)
             + str(aicc_gum)
@@ -177,13 +183,27 @@ def get_aicc_stat(ams, multiple_points=True):
 
         return all_aicc_results, lowest_aicc_distr, lowest_aicc_value
 
+    if lowest_aicc_value == aicc_gev[1]:
+        lowest_aicc_distr = aicc_gev[0]
+    elif lowest_aicc_value == aicc_gum[1]:
+        lowest_aicc_distr = aicc_gum[0]
+    elif lowest_aicc_value == aicc_wei[1]:
+        lowest_aicc_distr = aicc_wei[0]
+    elif lowest_aicc_value == aicc_pe3[1]:
+        lowest_aicc_distr = aicc_pe3[0]
+    elif lowest_aicc_value == aicc_gpa[1]:
+        lowest_aicc_distr = aicc_gpa[0]
+
+    return all_aicc_results, lowest_aicc_distr, lowest_aicc_value
+
     all_aicc_results, lowest_aicc_distr, lowest_aicc_value = xr.apply_ufunc(
         aicc_stat,
         ams,
         input_core_dims=[["time"]],
         exclude_dims=set(("time",)),
         output_core_dims=[[], [], []],
-        dask="allowed",
+        dask = "parallelized", 
+        dask_gufunc_kwargs=dict("allow_rechunk"=True)
     )
 
     all_aicc_results = all_aicc_results.rename("all_aicc_results")
