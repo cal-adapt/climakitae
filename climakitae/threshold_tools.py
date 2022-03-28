@@ -203,7 +203,7 @@ def get_aicc_stat(ams, multiple_points=True):
         exclude_dims=set(("time",)),
         output_core_dims=[[], [], []],
         dask = "parallelized", 
-        dask_gufunc_kwargs=dict("allow_rechunk"=True)
+        dask_gufunc_kwargs=dict("allow_rechunk"=True, "output_dtypes"=[ams.dtype])
     )
 
     all_aicc_results = all_aicc_results.rename("all_aicc_results")
