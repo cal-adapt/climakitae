@@ -183,19 +183,6 @@ def get_aicc_stat(ams, multiple_points=True):
 
         return all_aicc_results, lowest_aicc_distr, lowest_aicc_value
 
-    if lowest_aicc_value == aicc_gev[1]:
-        lowest_aicc_distr = aicc_gev[0]
-    elif lowest_aicc_value == aicc_gum[1]:
-        lowest_aicc_distr = aicc_gum[0]
-    elif lowest_aicc_value == aicc_wei[1]:
-        lowest_aicc_distr = aicc_wei[0]
-    elif lowest_aicc_value == aicc_pe3[1]:
-        lowest_aicc_distr = aicc_pe3[0]
-    elif lowest_aicc_value == aicc_gpa[1]:
-        lowest_aicc_distr = aicc_gpa[0]
-
-    return all_aicc_results, lowest_aicc_distr, lowest_aicc_value
-
     all_aicc_results, lowest_aicc_distr, lowest_aicc_value = xr.apply_ufunc(
         aicc_stat,
         ams,
