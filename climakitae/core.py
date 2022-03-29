@@ -2,6 +2,8 @@ from .selectors import (DataSelector, _display_select, LocSelectorArea,
                         UserFileChoices, _user_export_select, FileTypeSelector)
 from .data_loaders import _read_from_catalog
 from .data_export import _export_to_user
+from .metadata_update import transform_details
+from .example_transform import temporal_mean
 
 
 class Application(object):
@@ -38,14 +40,15 @@ class Application(object):
     def export_as(self):
         """
         Displays a panel of choices for export file formats. Modifies the
-        'export_format' value according to user specification.
+        'user_export_format' value according to user specification.
         """
         export_select_panel = _user_export_select(self.user_export_format)
         return export_select_panel
 
-    def export_dataset(self,data_to_export,file_name):
+    def export_dataset(self,data_to_export,variable_name,file_name):
         """
         Uses the selection from 'export_as' to create a file in the specified
         format and write it to the working directory.
         """
-        return _export_to_user(self.user_export_format,data_to_export,file_name)
+        return _export_to_user(self.user_export_format,data_to_export,
+                               variable_name,file_name)

@@ -227,7 +227,8 @@ class UserFileChoices:
     # output_file_name = param.String()
     
     def __init__(self):
-        self._export_format_choices = ["", "NetCDF" , "CSV"]
+        self._export_format_choices = ["Pick a file format" , "CSV" ,
+                                      "GeoTIFF" , "NetCDF" ]
 
 class FileTypeSelector(param.Parameterized):
     """
@@ -238,16 +239,15 @@ class FileTypeSelector(param.Parameterized):
     user_options = UserFileChoices()
     output_file_format = param.ObjectSelector(objects=user_options._export_format_choices)
 
-    @param.depends("output_file_format")
     def _export_file_type(self):
-        """Updates the 'export_format' object to be the format specified by the user."""
+        """Updates the 'user_export_format' object to be the format specified by the user."""
         user_export_format = self.output_file_format
         
 def _user_export_select(user_export_format):
     """
     Called by 'export' at the end of the workflow. Displays panel
-    from which to select the export file format. Modifies 'export_format' object, which is used
-    by dataset_export() to export data to the user in their specified format.
+    from which to select the export file format. Modifies 'user_export_format' object, which is used
+    by data_export() to export data to the user in their specified format.
     """
     
     data_to_export = pn.widgets.TextInput(name="Data to export", 
