@@ -93,8 +93,7 @@ def get_lmoments(ams, distr="gev", multiple_points=True):
         ams,
         input_core_dims=[["time"]],
         exclude_dims=set(("time",)),
-        output_core_dims=[[]],
-        dask="allowed",
+        output_core_dims=[[]]
     )
 
     lmoments = lmoments.rename("lmoments")
@@ -188,8 +187,7 @@ def get_aicc_stat(ams, multiple_points=True):
         ams,
         input_core_dims=[["time"]],
         exclude_dims=set(("time",)),
-        output_core_dims=[[], [], []],
-        dask = "forbidden" 
+        output_core_dims=[[], [], []]
         
         #dask_gufunc_kwargs=dict({"allow_rechunk"==True, "output_dtypes"==[ams.dtype]})
     )
@@ -301,8 +299,7 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
         ams,
         input_core_dims=[["time"]],
         exclude_dims=set(("time",)),
-        output_core_dims=[[], []],
-        dask="allowed",
+        output_core_dims=[[], []]
     )
 
     d_statistic = d_statistic.rename("d_statistic")
@@ -390,8 +387,7 @@ def get_return_value(ams, return_period=10, distr="gev", multiple_points=True):
         ams,
         input_core_dims=[["time"]],
         exclude_dims=set(("time",)),
-        output_core_dims=[[]],
-        dask="allowed",
+        output_core_dims=[[]]
     )
 
     return_value = return_value.rename("return_value")
@@ -469,8 +465,7 @@ def get_return_prob(ams, threshold, distr="gev", multiple_points=True):
         ams,
         input_core_dims=[["time"]],
         exclude_dims=set(("time",)),
-        output_core_dims=[[]],
-        dask="allowed",
+        output_core_dims=[[]]
     )
 
     return_prob = return_prob.rename("return_prob")
@@ -573,8 +568,7 @@ def get_return_period(ams, return_value, distr="gev", multiple_points=True):
         ams,
         input_core_dims=[["time"]],
         exclude_dims=set(("time",)),
-        output_core_dims=[[]],
-        dask="allowed",
+        output_core_dims=[[]]
     )
 
     return_period = return_period.rename("return_period")
