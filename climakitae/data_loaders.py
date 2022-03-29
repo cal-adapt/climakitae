@@ -6,7 +6,6 @@ import numpy as np
 
 # support methods for core.Application.generate
 
-
 def _get_file_list(selections, scenario):
     """
     Returns a list of simulation names for all of the simulations present in the catalog
