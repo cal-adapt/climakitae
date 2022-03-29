@@ -65,14 +65,14 @@ def _open_and_concat(file_list, selections, ds_region):
             weights = np.cos(np.deg2rad(data.lat))
             data = data.weighted(weights).mean('x').mean('y')
 
-        # add data to larger Dataset being built
+        # add data to larger Dataset being built:
         attrs_var = data.attrs
         all_files[source_id] = data
 
     to_delete = [k for k in attributes if k.isupper()] #these are all of the WRF-config attributes
     [attributes.pop(k) for k in to_delete]
-    del attributes["source_id"]
-    del attributes["variant_label"]
+    del attributes["source_id"] #This is now indicated by the 'simulation' dimension.
+    del attributes["variant_label"] #This will be handled in a future version.
     attributes.update(attrs_var)
     all_files = all_files.to_array("simulation")
     all_files.attrs = attributes
@@ -134,24 +134,28 @@ def _read_from_catalog(selections, location):
         files_by_scenario = _get_file_list(selections, one_scenario)
         historical = _open_and_concat(files_by_scenario, selections, ds_region)
         
-    all_files = xr.Dataset()
+    all_files_list = []
     for one_scenario in selections.scenario:
         if selections.append_historical:
             if "SSP" in one_scenario:
                 files_by_scenario = _get_file_list(selections, one_scenario)
                 temp = _open_and_concat(files_by_scenario, selections, ds_region)
-                all_files["Historical + "+one_scenario] = xr.concat([historical,temp],dim="time")
+                temp = xr.concat([historical,temp],dim="time")
+                temp.name = "Historical + "+one_scenario
             elif one_scenario != "Historical Climate":
                 files_by_scenario = _get_file_list(selections, one_scenario)
                 temp = _open_and_concat(files_by_scenario, selections, ds_region)
-                all_files[one_scenario] = temp
+                temp.name = one_scenario
+                
         else:
             files_by_scenario = _get_file_list(selections, one_scenario)
             temp = _open_and_concat(files_by_scenario, selections, ds_region)
-            all_files[one_scenario] = temp
-
+            temp.name = one_scenario
+            
+        all_files_list.append(temp)
+    all_files = xr.merge(all_files_list)
     attributes = temp.attrs
-    attributes.pop("experiment_id")
+    attributes.pop("experiment_id") #This is now indicated by the 'scenario' variable name.
     all_files = all_files.to_array("scenario")
     all_files.name = selections.variable
     all_files.attrs = attributes
