@@ -5,6 +5,7 @@ import intake
 import numpy as np
 
 # support methods for core.Application.generate
+xr.set_options(keep_attrs=True)
 
 def _get_file_list(selections, scenario):
     """
@@ -31,6 +32,7 @@ def _open_and_concat(file_list, selections, ds_region):
     all_files = xr.Dataset()
     for one_file in file_list:
         data = cat[one_file].to_dask()
+        attributes = data.attrs
         source_id = data.attrs["source_id"]
         if selections.variable not in ("precipitation (total)", "wind 10m magnitude"):
             data = data[selections.variable]
@@ -42,8 +44,10 @@ def _open_and_concat(file_list, selections, ds_region):
         # coarsen in time if 'selections' so-indicates:
         if selections.timescale == "daily":
             data = data.resample(time="1D").mean("time")
+            attributes['frequency'] = "1day"
         elif selections.timescale == "monthly":
             data = data.resample(time="1MS").mean("time")
+            attributes['frequency'] = "1month"
         if ds_region:
             # subset data spatially:
             mask = ds_region.mask(data.lon, data.lat, wrap_lon=False)
@@ -57,14 +61,23 @@ def _open_and_concat(file_list, selections, ds_region):
                 .dropna("y", how="all")
             )
 
-        if selections.area_average:
+        if selections.area_average: 
             weights = np.cos(np.deg2rad(data.lat))
             data = data.weighted(weights).mean('x').mean('y')
 
         # add data to larger Dataset being built
+        attrs_var = data.attrs
         all_files[source_id] = data
+
+    to_delete = [k for k in attributes if k.isupper()] #these are all of the WRF-config attributes
+    [attributes.pop(k) for k in to_delete]
+    del attributes["source_id"]
+    del attributes["variant_label"]
+    attributes.update(attrs_var)
+    all_files = all_files.to_array("simulation")
+    all_files.attrs = attributes
         
-    return all_files.to_array("simulation")
+    return all_files
 
 
 def _get_as_shapely(location):
@@ -136,7 +149,10 @@ def _read_from_catalog(selections, location):
             files_by_scenario = _get_file_list(selections, one_scenario)
             temp = _open_and_concat(files_by_scenario, selections, ds_region)
             all_files[one_scenario] = temp
-            
+
+    attributes = temp.attrs
+    attributes.pop("experiment_id")
     all_files = all_files.to_array("scenario")
     all_files.name = selections.variable
+    all_files.attrs = attributes
     return all_files
