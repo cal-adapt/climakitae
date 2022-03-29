@@ -1,5 +1,7 @@
-from .selectors import DataSelector, _display_select, LocSelectorArea
+from .selectors import (DataSelector, _display_select, LocSelectorArea,
+                        UserFileChoices, _user_export_select, FileTypeSelector)
 from .data_loaders import _read_from_catalog
+from .data_export import _export_to_user
 
 
 class Application(object):
@@ -11,6 +13,7 @@ class Application(object):
     def __init__(self):
         self.selections = DataSelector()
         self.location = LocSelectorArea()
+        self.user_export_format = FileTypeSelector()
         
     # === Select =====================================
     def select(self):
@@ -31,3 +34,18 @@ class Application(object):
         # to do: insert additional 'hang in there' statement if it's taking a while
         return _read_from_catalog(self.selections, self.location)
 
+    # === Export ======================================
+    def export_as(self):
+        """
+        Displays a panel of choices for export file formats. Modifies the
+        'export_format' value according to user specification.
+        """
+        export_select_panel = _user_export_select(self.user_export_format)
+        return export_select_panel
+
+    def export_dataset(self,data_to_export,file_name):
+        """
+        Uses the selection from 'export_as' to create a file in the specified
+        format and write it to the working directory.
+        """
+        return _export_to_user(self.user_export_format,data_to_export,file_name)
