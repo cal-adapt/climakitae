@@ -1,10 +1,8 @@
 import xarray as xr
-from shapely.geometry import box  # , Point, Polygon
+from shapely.geometry import box
 import regionmask
 import intake
 import numpy as np
-from .explore import progress_bar # for progress bar
-import dask # for progress bar
 
 # support methods for core.Application.generate
 
@@ -83,8 +81,6 @@ def _get_as_shapely(location):
     )
 
 
-@progress_bar
-@dask.delayed
 def _read_from_catalog(selections, location):
     """
     The primary and first data loading method, called by core.Application.generate, it returns
