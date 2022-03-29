@@ -3,8 +3,7 @@ import param
 import panel as pn
 import hvplot.xarray
 import datetime as dt
-from .explore import progress_bar  # for progress bar
-import dask  # for progress bar
+import dask
 import tempfile, os
 
 
@@ -186,8 +185,6 @@ def _timeseries_visualize(choices):
     )
 
 
-@progress_bar
-@dask.delayed
 def optimize(y):
     name = y.name
     temp_dir = tempfile.mkdtemp()
