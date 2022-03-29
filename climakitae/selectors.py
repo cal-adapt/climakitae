@@ -312,6 +312,7 @@ class DataSelector(param.Parameterized):
     #    variables = choices._variable_choices[self.timescale][self.dyn_stat]
     #    self.param['variable'].objects = variables
     #    self.variable = variables[0]
+
     scenario = param.ListSelector(objects=list(_choices._scenarios["45 km"].keys()),allow_None=True)
     resolution = param.ObjectSelector(default="45 km", objects=_choices._resolutions)
     append_historical = param.Boolean(default=False)

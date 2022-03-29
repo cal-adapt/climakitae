@@ -53,6 +53,7 @@ def _open_and_concat(file_list, selections, ds_region):
             assert (
                 False in mask.isnull()
             ), "Insufficient gridcells are contained within the bounds."
+
             data = (
                 data.where(np.isnan(mask) == False)
                 .dropna("x", how="all")
