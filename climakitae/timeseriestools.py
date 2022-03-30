@@ -194,6 +194,32 @@ def optimize(y):
 
     return new
 
+def _update_attrs(data_to_output,attrs_to_add):
+    """
+    This function updates the attributes of the DataArray being output
+    so that it contains new attributes that describe the transforms
+    that were performed in the timeseries toolkit.
+    Called only in Timeseries.output_current
+    """
+    attributes = data_to_output.attrs
+    attrs_to_add.pop('name')
+    attrs_to_add.pop('separate_seasons')
+    if attrs_to_add['extremes'] != 'percentile':
+        attrs_to_add.pop('percentile')
+    if attrs_to_add['extremes'] == 'None':
+        attrs_to_add.pop('resample_period')
+        attrs_to_add.pop('resample_window')
+    if attrs_to_add['smoothing'] != 'None':
+        attrs_to_add['smoothing_timesteps'] = attrs_to_add['num_timesteps']
+    attrs_to_add.pop('num_timesteps')
+    if not attrs_to_add['anomaly']:
+        attrs_to_add.pop('reference_range')
+        
+    attrs_to_add = {'timeseries:'+k:v for k, v in attrs_to_add.items()}
+        
+    attributes.update(attrs_to_add)
+    data_to_output.attrs = attributes
+    return data_to_output
 
 class Timeseries:
     """
@@ -219,4 +245,7 @@ class Timeseries:
         return _timeseries_visualize(self.choices)
 
     def output_current(self):
-        return self.choices.transform_data()
+        to_output = self.choices.transform_data()
+        attrs_to_add = dict(self.choices.get_param_values())
+        to_output = _update_attrs(to_output,attrs_to_add)
+        return to_output
