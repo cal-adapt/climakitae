@@ -16,7 +16,7 @@ class Application(object):
         self.selections = DataSelector()
         self.location = LocSelectorArea()
         self.user_export_format = FileTypeSelector()
-        
+
     # === Select =====================================
     def select(self):
         """
@@ -52,3 +52,4 @@ class Application(object):
         """
         return _export_to_user(self.user_export_format,data_to_export,
                                file_name,**kwargs)
+
