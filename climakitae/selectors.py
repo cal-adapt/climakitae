@@ -111,7 +111,7 @@ class LocSelectorPoint(param.Parameterized):
 class CatalogContents:
     def __init__(self):
         # get the list of data variables from one of the zarr files:
-        self._cat = intake.open_catalog("s3://cdcat/cae.yaml")
+        self._cat = intake.open_catalog("https://cdcat.s3.amazonaws.com/cae.yaml")
         _ds = self._cat[list(self._cat)[0]].to_dask()
         _variable_choices_hourly_wrf = {v.attrs["description"].capitalize(): k 
                                                     for k, v in _ds.data_vars.items()}
