@@ -236,7 +236,7 @@ class Timeseries:
             "lat" not in data.dims
         ), "Please pass a timeseries (area average or individual station)."
         assert (
-            "Historical + " in data.scenario.values.any()
+            True in ["Historical + " in v for v in my_data.scenario.values]
         ), "Please append the historical period in your data retrieval."
 
         self.choices = TimeSeriesParams(data)
