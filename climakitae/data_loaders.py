@@ -3,6 +3,7 @@ from shapely.geometry import box
 import regionmask
 import intake
 import numpy as np
+from copy import deepcopy
 
 # support methods for core.Application.generate
 xr.set_options(keep_attrs=True)
@@ -33,7 +34,7 @@ def _open_and_concat(file_list, selections, ds_region):
     all_files = xr.Dataset()
     for one_file in file_list:
         data = cat[one_file].to_dask()
-        attributes = data.attrs
+        attributes = deepcopy(data.attrs)
         source_id = data.attrs["source_id"]
         if selections.variable not in ("Precipitation (total)", "wind 10m magnitude"):
             data = data[selections.variable]
@@ -103,7 +104,7 @@ def _read_from_catalog(selections, location):
     a dataset (which can be quite large) containing everything requested by the user (which is
     stored in 'selections' and 'location').
     """
-    assert not selections.scenario is None, "Please select at least one scenario."
+    assert not selections.scenario[0] is None, "Please select at least one scenario."
 
     if location.area_subset == "lat/lon":
         geom = _get_as_shapely(location)
@@ -133,6 +134,7 @@ def _read_from_catalog(selections, location):
         ds_region = None
 
     if selections.append_historical:
+        assert True in ["SSP" in one for one in app.selections.scenario], "Please also select at least one SSP to which the historical simulation should be appended."
         one_scenario = "Historical Climate"
         files_by_scenario = _get_file_list(selections, one_scenario)
         historical = _open_and_concat(files_by_scenario, selections, ds_region)
