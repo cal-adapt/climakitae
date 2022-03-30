@@ -134,9 +134,7 @@ class LocSelectorArea(param.Parameterized):
     latitude = param.Range(default=(32.5, 42), bounds=(10, 67))
     longitude = param.Range(default=(-125.5, -114), bounds=(-156.82317, -84.18701))
     _geographies = Boundaries()
-    _geography_choose = (
-        _geographies.boundary_dict()
-    ) 
+    _geography_choose = _geographies.boundary_dict()
     cached_area = param.ObjectSelector(
         default="CA", objects=list(_geography_choose["states"].keys())
     )
@@ -171,7 +169,9 @@ class LocSelectorArea(param.Parameterized):
         mpl_pane = pn.pane.Matplotlib(fig0, dpi=144)
         if self.area_subset == "lat/lon":
             ax.set_extent([-160, -84, 8, 68], crs=ccrs.PlateCarree())
-            ax.add_geometries([geometry], crs=ccrs.PlateCarree(),edgecolor='b',facecolor='None')
+            ax.add_geometries(
+                [geometry], crs=ccrs.PlateCarree(), edgecolor="b", facecolor="None"
+            )
         elif self.area_subset == "states":
             ax.set_extent([-130, -100, 25, 50], crs=ccrs.PlateCarree())
             shape_index = int(
@@ -229,7 +229,41 @@ class CatalogContents:
         _variable_choices_hourly_wrf = {
             v.attrs["description"].capitalize(): k for k, v in _ds.data_vars.items()
         }
-        # _variable_choices_hourly_wrf = _variable_choices_hourly_wrf +['precipitation (total)', 'wind 10m magnitude'] #which we'll derive from what's there
+        _variable_choices_hourly_wrf.update(
+            {"Precipitation (total)": ""}
+        )  # which we'll derive from what's there
+        # remove some variables from the list, which will be superceded by higher quality hydrology
+        _to_drop = ["Surface runoff", "Subsurface runoff", "Snow water equivalent"]
+        [_variable_choices_hourly_wrf.pop(k) for k in _to_drop]
+        # give better names to some descriptions, and reorder:
+        _variable_choices_hourly_wrf["Surface Pressure"] = _variable_choices_hourly_wrf[
+            "Sfc pressure"
+        ]
+        _variable_choices_hourly_wrf.pop("Sfc pressure")
+        _variable_choices_hourly_wrf[
+            "2m Air Temperature"
+        ] = _variable_choices_hourly_wrf["Temp at 2 m"]
+        _variable_choices_hourly_wrf.pop("Temp at 2 m")
+        _variable_choices_hourly_wrf[
+            "2m Water Vapor Mixing Ratio"
+        ] = _variable_choices_hourly_wrf["Qv at 2 m"]
+        _variable_choices_hourly_wrf.pop("Qv at 2 m")
+        _variable_choices_hourly_wrf[
+            "West-East component of Wind at 10m"
+        ] = _variable_choices_hourly_wrf["U at 10 m"]
+        _variable_choices_hourly_wrf.pop("U at 10 m")
+        _variable_choices_hourly_wrf[
+            "North-South component of Wind at 10m"
+        ] = _variable_choices_hourly_wrf["V at 10 m"]
+        _variable_choices_hourly_wrf.pop("V at 10 m")
+        _variable_choices_hourly_wrf[
+            "Snowfall (snow and ice)"
+        ] = _variable_choices_hourly_wrf["Accumulated total grid scale snow and ice"]
+        _variable_choices_hourly_wrf.pop("Accumulated total grid scale snow and ice")
+        _move_to_end = [k for k in _variable_choices_hourly_wrf if "Instantaneous" in k]
+        for k in _move_to_end:
+            _variable_choices_hourly_wrf[k] = _variable_choices_hourly_wrf.pop(k)
+
         # expand this dictionary to also be dependent on LOCA vs WRF:
         _variable_choices_daily_loca = [
             "Temperature",
@@ -278,7 +312,7 @@ class CatalogContents:
                     if e.metadata["nominal_resolution"] == resolution
                 )
             )
-            _temp.sort() #consistent order
+            _temp.sort()  # consistent order
             _scenario_subset = [(self._scenario_choices[e], e) for e in _temp]
             _scenario_subset = dict(_scenario_subset)
             _scenario_list.append((resolution, _scenario_subset))
@@ -313,18 +347,22 @@ class DataSelector(param.Parameterized):
     #    self.param['variable'].objects = variables
     #    self.variable = variables[0]
 
-    scenario = param.ListSelector(objects=list(_choices._scenarios["45 km"].keys()),allow_None=True)
+    scenario = param.ListSelector(
+        objects=list(_choices._scenarios["45 km"].keys()), allow_None=True
+    )
     resolution = param.ObjectSelector(default="45 km", objects=_choices._resolutions)
     append_historical = param.Boolean(default=False)
-    
-    @param.depends("resolution","append_historical", watch=True)
+
+    @param.depends("resolution", "append_historical", watch=True)
     def _update_scenarios(self):
         _list_of_scenarios = list(self._choices._scenarios[self.resolution].keys())
         if self.append_historical:
             if "Historical Climate" in _list_of_scenarios:
                 _list_of_scenarios.remove("Historical Climate")
         self.param["scenario"].objects = _list_of_scenarios
-        self.scenario = [None] #resetting this avoids indexing errors with prior values
+        self.scenario = [
+            None
+        ]  # resetting this avoids indexing errors with prior values
 
     area_average = param.Boolean(default=False)
 
@@ -358,6 +396,6 @@ def _display_select(selections, location, location_type="area average"):
             pn.widgets.CheckBoxGroup.from_param(selections.param.scenario),
             selections.param.append_historical,
             selections.param.area_average,
-        )
+        ),
     )
     return pn.Column(first_row, location_chooser)

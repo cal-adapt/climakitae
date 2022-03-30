@@ -23,7 +23,7 @@ class Application(object):
         return select_panel
 
     # === Generate ===================================
-    def generate(self):
+    def retrieve(self):
         """
         Uses the information gathered in 'select' and store in 'selections' and 'location'
         to generate an xarray Dataset as specified, and return that Dataset object.
