@@ -37,7 +37,7 @@ class TimeSeriesParams(param.Parameterized):
         default="None", objects=["None", "min", "max", "percentile"]
     )
     resample_window = param.Integer(default=1, bounds=(1, 30))
-    resample_period = param.ObjectSelector(default="A", objects=_time_scales)
+    resample_period = param.ObjectSelector(default="AS-SEP", objects=_time_scales)
     percentile = param.Number(
         default=0,
         bounds=(0, 1),
