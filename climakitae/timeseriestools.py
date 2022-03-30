@@ -185,15 +185,6 @@ def _timeseries_visualize(choices):
     )
 
 
-def optimize(y):
-    name = y.name
-    temp_dir = tempfile.mkdtemp()
-    os.chdir(temp_dir)
-    y.to_netcdf("temporary.nc")
-    new = xr.open_dataset("temporary.nc")[name]
-
-    return new
-
 def _update_attrs(data_to_output,attrs_to_add):
     """
     This function updates the attributes of the DataArray being output
@@ -236,7 +227,7 @@ class Timeseries:
             "lat" not in data.dims
         ), "Please pass a timeseries (area average or individual station)."
         assert (
-            True in ["Historical + " in v for v in my_data.scenario.values]
+            True in ["Historical + " in v for v in data.scenario.values]
         ), "Please append the historical period in your data retrieval."
 
         self.choices = TimeSeriesParams(data)
