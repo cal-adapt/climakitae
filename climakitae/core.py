@@ -3,7 +3,6 @@ from .selectors import (DataSelector, _display_select, LocSelectorArea,
 from .data_loaders import _read_from_catalog
 from .data_export import _export_to_user
 from .metadata_update import transform_details
-from .example_transform import temporal_mean
 
 
 class Application(object):
