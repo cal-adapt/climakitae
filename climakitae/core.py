@@ -45,10 +45,10 @@ class Application(object):
         export_select_panel = _user_export_select(self.user_export_format)
         return export_select_panel
 
-    def export_dataset(self,data_to_export,variable_name,file_name):
+    def export_dataset(self,data_to_export,file_name,**kwargs):
         """
         Uses the selection from 'export_as' to create a file in the specified
         format and write it to the working directory.
         """
         return _export_to_user(self.user_export_format,data_to_export,
-                               variable_name,file_name)
+                               file_name,**kwargs)
