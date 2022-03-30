@@ -123,37 +123,37 @@ def get_aicc_stat(ams, multiple_points=True):
         try:
             lmoments_gev = ldistr.gev.lmom_fit(ams)
             aicc_gev = ["gev", lstats.AICc(ams, "gev", lmoments_gev)]
-        except ValueError:
+        except (ValueError, ZeroDivisionError):
             aicc_gev = ["gev", np.nan]
 
         try:
             lmoments_gum = ldistr.gum.lmom_fit(ams)
             aicc_gum = ["gumbel", lstats.AICc(ams, "gum", lmoments_gum)]
-        except ValueError:
+        except (ValueError, ZeroDivisionError):
             aicc_gum = ["gumbel", np.nan]
 
         try:
             lmoments_wei = ldistr.wei.lmom_fit(ams)
             aicc_wei = ["weibull", lstats.AICc(ams, "wei", lmoments_wei)]
-        except ValueError:
+        except (ValueError, ZeroDivisionError):
             aicc_wei = ["weibull", np.nan]
 
         try:
             lmoments_pe3 = ldistr.pe3.lmom_fit(ams)
             aicc_pe3 = ["pearson3", lstats.AICc(ams, "pe3", lmoments_pe3)]
-        except ValueError:
+        except (ValueError, ZeroDivisionError):
             aicc_pe3 = ["pearson3", np.nan]
 
         try:
             lmoments_gpa = ldistr.gpa.lmom_fit(ams)
             aicc_gpa = ["genpareto", lstats.AICc(ams, "gpa", lmoments_gpa)]
-        except ValueError:
+        except (ValueError, ZeroDivisionError):
             aicc_gpa = ["genpareto", np.nan]
 
         try:
             lmoments_gpa = ldistr.gpa.lmom_fit(ams)
             aicc_gpa = ["genpareto", lstats.AICc(ams, "gpa", lmoments_gpa)]
-        except ValueError:
+        except (ValueError, ZeroDivisionError):
             aicc_gpa = ["genpareto", np.nan]
 
         all_aicc_results = (
