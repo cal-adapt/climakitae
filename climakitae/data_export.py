@@ -19,9 +19,6 @@ def _export_to_user(user_export_format,data_to_export,
     data_to_export: xarray ds or da to export
     file_name: string corresponding to desired output file name
     kwargs: variable, scenario, and simulation (as needed)
-    
-    NOTE: requires the following at the top of the notebook:
-    !pip install pytest-shutil
     """
     
     file_name = file_name.split('.')[0]
@@ -60,6 +57,7 @@ def _export_to_user(user_export_format,data_to_export,
             var_attrs = data_to_export[var].attrs
             data_to_export = data_to_export[var]
             ds_attrs.update(var_attrs)            
+
             
     # we have to ensure that each non-NetCDF has only one simulation
     # and scenario per file. 
