@@ -17,13 +17,14 @@ def _export_to_user(user_export_format,data_to_export,
     
     user_export_format: pulled from dropdown called by app.export_as()
     data_to_export: xarray ds or da to export
-    variable_name: string corresponding to variable to export
     file_name: string corresponding to desired output file name
     kwargs: variable, scenario, and simulation (as needed)
     
     NOTE: requires the following at the top of the notebook:
     !pip install pytest-shutil
     """
+    
+    file_name = file_name.split('.')[0]
     
     excel_row_limit = 1048576
     path_and_name = './'+file_name
@@ -33,7 +34,10 @@ def _export_to_user(user_export_format,data_to_export,
     ct_str = ct.strftime("%d-%b-%Y (%H:%M:%S)")    
     ck_attrs = {'data_retrieved_by' : 'Cal-Adapt Analytics Engine v 0.0.1',
                'data_export_timestamp' : ct_str}   
-    ds_attrs.update(ck_attrs)
+    
+    
+    if req_format is None:
+        raise AssertionError("Please select a file format from the dropdown menu.")
         
     assert "xarray" in str(
             type(data_to_export)
@@ -53,7 +57,9 @@ def _export_to_user(user_export_format,data_to_export,
             assert type(kwargs['variable']) is str,("Please pass variable name "+
             "in double or single quotation marks.")
             var = kwargs['variable']
+            var_attrs = data_to_export[var].attrs
             data_to_export = data_to_export[var]
+            
             
     # we have to ensure that each non-NetCDF has only one simulation
     # and scenario per file. 
@@ -99,6 +105,9 @@ def _export_to_user(user_export_format,data_to_export,
             data_to_export['scenario'].attrs = scen_dict
             data_to_export = data_to_export.sel(scenario=scen) # subset                    
    
+    
+    ds_attrs.update(ck_attrs)
+    ds_attrs.update(var_attrs)
     data_to_export.attrs = ds_attrs
     data_to_export = data_to_export.squeeze(drop=True)
     file_size_threshold = 5 # in GB
@@ -123,6 +132,9 @@ def _export_to_user(user_export_format,data_to_export,
     if ("NetCDF" in req_format):
         print("Alright, exporting specified data to NetCDF. This might take a while - "+
              "hang tight!")
+        # data_to_export.attrs = var_atts 
+        
+        data_to_export.attrs = ds_attrs
         data_to_export.to_netcdf(path_and_name+".nc")
         
     else:        
@@ -162,7 +174,6 @@ def metadata_to_file(ds,output_name,req_format):
     """
     Writes NetCDF metadata to a txt file so users can still access it 
     after exporting to a CSV or GeoTIFF.
-    Does not appear to work for GeoTIFF.
     """
     if os.path.exists(output_name+"_metadata.txt"):
         os.remove(output_name+"_metadata.txt")
@@ -201,7 +212,11 @@ def metadata_to_file(ds,output_name,req_format):
         f.write('\n')
         
         if ("GeoTIFF" in req_format):
-            f.write("==== Note: All coordinates come from the original NetCDF,"+
+            f.write("==== Note: Conversion from NetCDF to GeoTIFF is experimental,"+
+                    " and may result in loss of coordinate data. ====")
+            f.write("==== We have tried to reproduce the necessary reference information"+
+                    " in this metadata file. ====")
+            f.write("==== All coordinates come from the original NetCDF,"+
                    " and may not exist in this raster. ====")
             f.write('\n')
             
@@ -210,7 +225,7 @@ def metadata_to_file(ds,output_name,req_format):
                 f.write("==== Note: Time series was saved as a multiband raster,"+
                    " and each band corresponds to a time step. ====")
                 f.write('\n')
-                f.write("First time slice is: "+str(first_ts)+". Use this and 'units'"+
+                f.write("First time slice is: "+str(first_ts)+". Use this and 'frequency'"+
                         " attribute to determine time stamp for each band." ) 
                 f.write('\n')
 
