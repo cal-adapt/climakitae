@@ -2,7 +2,6 @@ from .selectors import (DataSelector, _display_select, LocSelectorArea,
                         UserFileChoices, _user_export_select, FileTypeSelector)
 from .data_loaders import _read_from_catalog
 from .data_export import _export_to_user
-from .metadata_update import transform_details
 
 
 class Application(object):
