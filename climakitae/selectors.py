@@ -399,3 +399,49 @@ def _display_select(selections, location, location_type="area average"):
         ),
     )
     return pn.Column(first_row, location_chooser)
+
+# === For export functionality ==========================================================
+
+class UserFileChoices:
+
+    # reserved for later: text boxes for dataset to export
+    # as well as a file name
+    # data_var_name = param.String()
+    # output_file_name = param.String()
+    
+    def __init__(self):
+        self._export_format_choices = ["Pick a file format" , "CSV" ,
+                                      "GeoTIFF" , "NetCDF" ]
+
+class FileTypeSelector(param.Parameterized):
+    """
+    If the user wants to export an xarray dataset, they can choose
+    their preferred format here. Produces a panel from which to select a 
+    supported file type.
+    """
+    user_options = UserFileChoices()
+    output_file_format = param.ObjectSelector(objects=user_options._export_format_choices)
+
+    def _export_file_type(self):
+        """Updates the 'user_export_format' object to be the format specified by the user."""
+        user_export_format = self.output_file_format
+        
+def _user_export_select(user_export_format):
+    """
+    Called by 'export' at the end of the workflow. Displays panel
+    from which to select the export file format. Modifies 'user_export_format' object, which is used
+    by data_export() to export data to the user in their specified format.
+    """
+    
+    data_to_export = pn.widgets.TextInput(name="Data to export", 
+                                placeholder="Type name of dataset here")
+    
+    # reserved for later: text boxes for dataset to export
+    # as well as a file name
+    # file_name = pn.widgets.TextInput(name='File name', 
+    #                                 placeholder='Type file name here')    
+    # file_input_col = pn.Column(user_export_format.param, data_to_export, file_name)
+
+
+    return pn.Row(user_export_format.param)
+
