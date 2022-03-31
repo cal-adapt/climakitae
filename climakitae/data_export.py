@@ -59,7 +59,7 @@ def _export_to_user(user_export_format,data_to_export,
             var = kwargs['variable']
             var_attrs = data_to_export[var].attrs
             data_to_export = data_to_export[var]
-            
+            ds_attrs.update(var_attrs)            
             
     # we have to ensure that each non-NetCDF has only one simulation
     # and scenario per file. 
@@ -101,13 +101,11 @@ def _export_to_user(user_export_format,data_to_export,
                 scen = kwargs['scenario']
                     
             scen_dict = {'climate_scenario' : scen}
-            # ds_attrs.update(scen_dict)
+            ds_attrs.update(scen_dict)
             data_to_export['scenario'].attrs = scen_dict
             data_to_export = data_to_export.sel(scenario=scen) # subset                    
-   
-    
+       
     ds_attrs.update(ck_attrs)
-    ds_attrs.update(var_attrs)
     data_to_export.attrs = ds_attrs
     data_to_export = data_to_export.squeeze(drop=True)
     file_size_threshold = 5 # in GB
@@ -175,8 +173,8 @@ def metadata_to_file(ds,output_name,req_format):
     Writes NetCDF metadata to a txt file so users can still access it 
     after exporting to a CSV or GeoTIFF.
     """
-    if os.path.exists(output_name+"_metadata.txt"):
-        os.remove(output_name+"_metadata.txt")
+    # if os.path.exists(output_name+"_metadata.txt"):
+    #     os.remove(output_name+"_metadata.txt")
         
     with open(output_name+"_metadata.txt", 'w') as f:
         f.write('======== Metadata for '+req_format+' file '+output_name+' ========')
@@ -213,9 +211,10 @@ def metadata_to_file(ds,output_name,req_format):
         
         if ("GeoTIFF" in req_format):
             f.write("==== Note: Conversion from NetCDF to GeoTIFF is experimental,"+
-                    " and may result in loss of coordinate data. ====")
-            f.write("==== We have tried to reproduce the necessary reference information"+
-                    " in this metadata file. ====")
+                    " and may result in loss of coordinate data. We have tried to "+
+                    " reproduce the necessary reference information"+
+                    " in this metadata file, but some may be missing. ====")
+            f.write('\n')
             f.write("==== All coordinates come from the original NetCDF,"+
                    " and may not exist in this raster. ====")
             f.write('\n')
@@ -233,8 +232,10 @@ def metadata_to_file(ds,output_name,req_format):
             f.write('\n')
             f.write("== "+str(coord)+" ==")
             f.write('\n')
-            for att_keys,att_values in list(zip(ds[coord].attrs.keys(),ds[coord].attrs.values())):    
+            for att_keys,att_values in list(zip(ds[coord].attrs.keys(),
+                                            ds[coord].attrs.values())):    
                 f.write(str(att_keys)+" : "+str(att_values))
                 f.write('\n')
+                
 
             
