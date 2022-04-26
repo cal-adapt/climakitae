@@ -3,12 +3,14 @@ import panel as pn
 import intake
 from shapely.geometry import box  # , Point, Polygon
 from matplotlib.figure import Figure
+import matplotlib.ticker as ticker
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import regionmask
 import numpy as np
 import geopandas as gpd
 import pandas as pd
+import datetime as dt
 
 # support methods for core.Application.select
 
@@ -334,37 +336,76 @@ class DataSelector(param.Parameterized):
         default="monthly", objects=["hourly", "daily", "monthly"]
     )  # for WRF, will just coarsen data to start
 
-    # not needed yet until we have LOCA data:
-    # dyn_stat = param.ListSelector(objects=['Dynamical','Statistical'])
+    time_slice = param.Range(default=(1950,2100),bounds=(1950,2100))
 
-    # @param.depends('timescale','dyn_stat', watch=True)
-    # def _update_variables(self):
-    #    '''
-    #    Updates variable choices, which are different between dynamical/statistical, and
-    #    for statistical are also different for hourly/daily.
-    #    '''
-    #    variables = choices._variable_choices[self.timescale][self.dyn_stat]
-    #    self.param['variable'].objects = variables
-    #    self.variable = variables[0]
-
-    scenario = param.ListSelector(
+    scenario = param.ListSelector(default=["Historical Climate"],
         objects=list(_choices._scenarios["45 km"].keys()), allow_None=True
     )
     resolution = param.ObjectSelector(default="45 km", objects=_choices._resolutions)
     append_historical = param.Boolean(default=False)
 
-    @param.depends("resolution", "append_historical", watch=True)
+    @param.depends("resolution", "append_historical", "scenario", watch=True)
     def _update_scenarios(self):
         _list_of_scenarios = list(self._choices._scenarios[self.resolution].keys())
-        if self.append_historical:
-            if "Historical Climate" in _list_of_scenarios:
-                _list_of_scenarios.remove("Historical Climate")
-        self.param["scenario"].objects = _list_of_scenarios
-        self.scenario = [
-            None
-        ]  # resetting this avoids indexing errors with prior values
-
+        if self.append_historical and self.scenario is not None:
+            if ("Historical Climate" in self.scenario):
+                _scenarios = self.scenario
+                _scenarios.remove("Historical Climate")
+                self.scenario = _scenarios
+            
     area_average = param.Boolean(default=False)
+
+    @param.depends("time_slice", "scenario", "append_historical", watch=False)
+    def view(self):
+        fig0 = Figure(figsize=(3, 2))
+        ax = fig0.add_subplot(111)
+        ax.spines['right'].set_color('none')
+        ax.spines['left'].set_color('none')
+        ax.yaxis.set_major_locator(ticker.NullLocator())
+        ax.spines['top'].set_color('none')
+        ax.xaxis.set_ticks_position('bottom')
+        ax.set_xlim(1950, 2100)
+        ax.set_ylim(0, 1)
+        #majors = [1950, 1980, 2015, 2100]
+        #ax.xaxis.set_major_locator(ticker.FixedLocator(majors))
+        ax.xaxis.set_major_locator(ticker.AutoLocator())
+        ax.xaxis.set_minor_locator(ticker.AutoMinorLocator())
+        mpl_pane = pn.pane.Matplotlib(fig0, dpi=144)
+
+        def update_bars(scenario,y_offset):
+            if scenario == 'Historical Reconstruction':
+                color = 'g'
+                center = 1980
+                x_width = 37.5
+            elif scenario == 'Historical Climate':
+                color = 'c'
+                center = 1997.5
+                x_width = 17.5
+            else:
+                center = 2057.5
+                x_width = 42.5
+                if '2-4.5' in one:
+                    color = 'y'
+                elif '3-7.0' in one:
+                    color = 'orange'
+                elif '5-8.5' in one:
+                    color = 'r'
+                if self.append_historical:
+                    ax.errorbar(x=1997.5, y=y_offset, xerr=17.5, linewidth=8, color='c')
+            ax.errorbar(x=center, y=y_offset, xerr=x_width, linewidth=8, color=color)
+            ax.annotate(scenario[:10], xy=(center - x_width, y_offset + 0.06))
+                
+    
+        y_offset = 0.15
+        if self.scenario is not None:
+            for one in self.scenario:
+                update_bars(one,y_offset)
+                y_offset += 0.15
+
+        ax.fill_betweenx([0,1],1950,self.time_slice[0],alpha=0.8,facecolor='grey')
+        ax.fill_betweenx([0,1],self.time_slice[1],2100,alpha=0.8,facecolor='grey')
+
+        return mpl_pane
 
 
 def _display_select(selections, location, location_type="area average"):
@@ -384,18 +425,20 @@ def _display_select(selections, location, location_type="area average"):
     # _which_loc_input = {'area average': LocSelectorArea, 'station': LocSelectorPoint}
     location_chooser = pn.Row(location.param, location.view)
 
-    # add in when we have LOCA data too:
-    # pn.widgets.RadioButtonGroup.from_param(selections.param.dyn_stat),
     first_row = pn.Row(
         pn.Column(
             selections.param.timescale,
+            selections.param.time_slice,
+            pn.layout.VSpacer(),
             selections.param.variable,
             pn.widgets.RadioButtonGroup.from_param(selections.param.resolution),
+            pn.layout.VSpacer(),
+            selections.param.area_average,
         ),
         pn.Column(
+            selections.view,
             pn.widgets.CheckBoxGroup.from_param(selections.param.scenario),
             selections.param.append_historical,
-            selections.param.area_average,
         ),
     )
     return pn.Column(first_row, location_chooser)
