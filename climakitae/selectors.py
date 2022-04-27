@@ -1,7 +1,7 @@
 import param
 import panel as pn
 import intake
-from shapely.geometry import box  # , Point, Polygon
+from shapely.geometry import box, Polygon
 from matplotlib.figure import Figure
 import matplotlib.ticker as ticker
 import cartopy.crs as ccrs
@@ -141,6 +141,15 @@ class LocSelectorArea(param.Parameterized):
         default="CA", objects=list(_geography_choose["states"].keys())
     )
 
+    @param.depends("cached_area","latitude","longitude", watch=True)
+    def _update_area_subset(self):
+        """
+        Makes the dropdown options for 'area subset' reflect the kind of subsetting
+        that the user is adjusting.
+        """
+        # How to know the most recently changed thing?
+
+    
     @param.depends("area_subset", watch=True)
     def _update_cached_area(self):
         """
@@ -153,7 +162,7 @@ class LocSelectorArea(param.Parameterized):
                 self._geography_choose[self.area_subset].keys()
             )
             self.cached_area = list(self._geography_choose[self.area_subset].keys())[0]
-
+            
     @param.depends("latitude", "longitude", "area_subset", "cached_area", watch=False)
     def view(self):
         geometry = box(
@@ -164,10 +173,36 @@ class LocSelectorArea(param.Parameterized):
         proj = ccrs.Orthographic(-118, 40)
         crs_proj4 = proj.proj4_init  # used below
         ax = fig0.add_subplot(111, projection=proj)
-        ax.set_extent([-160, -84, 8, 68], crs=ccrs.PlateCarree())
+        ax.set_extent([-158, -84, 8, 68], crs=ccrs.PlateCarree())
+        ax.set_facecolor('grey')
+        
+        def _plot_wrf_domains(ax):
+            ''' 
+            Plots the boundaries of the WRF domains on an existing set of axes for a map. 
+            Used with the area selection preview panel in 'select'. We could load some data 
+            to do this procedurally, but hard-coding these numbers makes it faster.
+            '''
+            _wrf_bb = {'45 km':Polygon([(-123.52125549316406, 9.475631713867188),
+                                            (-156.8231658935547, 35.449039459228516),
+                                            (-102.43182373046875, 67.32866668701172),
+                                            (-84.18701171875, 26.643436431884766)
+                                            ]),
+                           '9 km':Polygon([(-116.69509887695312, 22.267112731933594),
+                                               (-138.42117309570312, 43.23344802856445),
+                                               (-110.90779113769531, 57.5806770324707),
+                                               (-94.9368896484375, 31.627288818359375)])
+                           }
+              
+            _colors = ['purple','magenta','pink']
+            for i, domain in enumerate(['45 km','9 km']):
+                #Plot domain
+                ax.add_geometries([_wrf_bb[domain]], crs=ccrs.PlateCarree(), edgecolor=_colors[i],
+                                      facecolor="white",linewidth=2)
+        
+        _plot_wrf_domains(ax)
         ax.coastlines()
+        ax.add_feature(cfeature.BORDERS)
         ax.add_feature(cfeature.STATES, linewidth=0.5)
-
         mpl_pane = pn.pane.Matplotlib(fig0, dpi=144)
         if self.area_subset == "lat/lon":
             ax.set_extent([-160, -84, 8, 68], crs=ccrs.PlateCarree())
