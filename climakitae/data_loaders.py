@@ -168,4 +168,5 @@ def _read_from_catalog(selections, location):
     all_files = all_files.to_array("scenario")
     all_files.name = selections.variable
     all_files.attrs = attributes
+    assert all_files.time.size != 0, "Dataset will be empty. Please adjust selections."
     return all_files

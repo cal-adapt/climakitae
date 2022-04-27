@@ -141,14 +141,37 @@ class LocSelectorArea(param.Parameterized):
         default="CA", objects=list(_geography_choose["states"].keys())
     )
 
-    @param.depends("cached_area","latitude","longitude", watch=True)
+    _wrf_bb = {'45 km':Polygon([(-123.52125549316406, 9.475631713867188),
+                                            (-156.8231658935547, 35.449039459228516),
+                                            (-102.43182373046875, 67.32866668701172),
+                                            (-84.18701171875, 26.643436431884766)
+                                            ]),
+                           '9 km':Polygon([(-116.69509887695312, 22.267112731933594),
+                                               (-138.42117309570312, 43.23344802856445),
+                                               (-110.90779113769531, 57.5806770324707),
+                                               (-94.9368896484375, 31.627288818359375)])
+                           }
+    @param.depends("cached_area", watch=True)
     def _update_area_subset(self):
         """
         Makes the dropdown options for 'area subset' reflect the kind of subsetting
         that the user is adjusting.
         """
-        # How to know the most recently changed thing?
+        _previous = self.cached_area
+        if (self.area_subset == 'none') or (self.area_subset == 'lat/lon'):
+            for option in ['states','CA counties','CA watersheds']:
+                if _previous in list(self._geography_choose[option].keys()):
+                    self.area_subset = option
+                    self.cached_area = _previous
 
+    @param.depends("latitude","longitude", watch=True)
+    def _update_area_subset_to_lat_lon(self):
+        """
+        Makes the dropdown options for 'area subset' reflect that the user is 
+        adjusting the latitude or longitude slider.
+        """
+        if self.area_subset != 'lat/lon':
+            self.area_subset = 'lat/lon'
     
     @param.depends("area_subset", watch=True)
     def _update_cached_area(self):
@@ -173,7 +196,7 @@ class LocSelectorArea(param.Parameterized):
         proj = ccrs.Orthographic(-118, 40)
         crs_proj4 = proj.proj4_init  # used below
         ax = fig0.add_subplot(111, projection=proj)
-        ax.set_extent([-158, -84, 8, 68], crs=ccrs.PlateCarree())
+        ax.set_extent([-150, -88, 8, 66], crs=ccrs.PlateCarree())
         ax.set_facecolor('grey')
         
         def _plot_wrf_domains(ax):
@@ -182,27 +205,18 @@ class LocSelectorArea(param.Parameterized):
             Used with the area selection preview panel in 'select'. We could load some data 
             to do this procedurally, but hard-coding these numbers makes it faster.
             '''
-            _wrf_bb = {'45 km':Polygon([(-123.52125549316406, 9.475631713867188),
-                                            (-156.8231658935547, 35.449039459228516),
-                                            (-102.43182373046875, 67.32866668701172),
-                                            (-84.18701171875, 26.643436431884766)
-                                            ]),
-                           '9 km':Polygon([(-116.69509887695312, 22.267112731933594),
-                                               (-138.42117309570312, 43.23344802856445),
-                                               (-110.90779113769531, 57.5806770324707),
-                                               (-94.9368896484375, 31.627288818359375)])
-                           }
-              
-            _colors = ['purple','magenta','pink']
+            _colors = ['k','purple','pink']
             for i, domain in enumerate(['45 km','9 km']):
                 #Plot domain
-                ax.add_geometries([_wrf_bb[domain]], crs=ccrs.PlateCarree(), edgecolor=_colors[i],
-                                      facecolor="white",linewidth=2)
+                ax.add_geometries([self._wrf_bb[domain]], crs=ccrs.PlateCarree(), edgecolor=_colors[i],
+                                      facecolor="white")
         
         _plot_wrf_domains(ax)
         ax.coastlines()
         ax.add_feature(cfeature.BORDERS)
         ax.add_feature(cfeature.STATES, linewidth=0.5)
+        ax.annotate('45-km grid',xy=(-154, 33.8),rotation=28,xycoords=ccrs.PlateCarree()._as_mpl_transform(ax))
+        ax.annotate('9-km', xy=(-135,42),rotation=32,xycoords=ccrs.PlateCarree()._as_mpl_transform(ax),color='purple')
         mpl_pane = pn.pane.Matplotlib(fig0, dpi=144)
         if self.area_subset == "lat/lon":
             ax.set_extent([-160, -84, 8, 68], crs=ccrs.PlateCarree())
@@ -226,7 +240,7 @@ class LocSelectorArea(param.Parameterized):
             )
             county = shapefile[shapefile.index == shape_index]
             df_ae = county.to_crs(crs_proj4)
-            df_ae.plot(ax=ax, color="b")
+            df_ae.plot(ax=ax, color="b",zorder=2)
             mpl_pane.param.trigger("object")
         elif self.area_subset == "CA watersheds":
             ax.set_extent([-125, -114, 31, 43], crs=ccrs.PlateCarree())
@@ -236,7 +250,7 @@ class LocSelectorArea(param.Parameterized):
             )
             basin = shapefile[shapefile["OBJECTID"] == shape_index]
             df_ae = basin.to_crs(crs_proj4)
-            df_ae.plot(ax=ax, color="b")
+            df_ae.plot(ax=ax, color="b",zorder=2)
             mpl_pane.param.trigger("object")
 
         return mpl_pane
@@ -371,7 +385,7 @@ class DataSelector(param.Parameterized):
         default="monthly", objects=["hourly", "daily", "monthly"]
     )  # for WRF, will just coarsen data to start
 
-    time_slice = param.Range(default=(1950,2100),bounds=(1950,2100))
+    time_slice = param.Range(default=(1980,2015),bounds=(1950,2100))
 
     scenario = param.ListSelector(default=["Historical Climate"],
         objects=list(_choices._scenarios["45 km"].keys()), allow_None=True
@@ -381,17 +395,50 @@ class DataSelector(param.Parameterized):
 
     @param.depends("resolution", "append_historical", "scenario", watch=True)
     def _update_scenarios(self):
+        '''
+        The scenarios available will depend on the resolution (more will be available for 9km 
+        than 3km for WRF eventually). Also ensures that "Historical Climate" is not
+        redundantly displayed when "Append historical" is also selected.
+        '''
         _list_of_scenarios = list(self._choices._scenarios[self.resolution].keys())
+        self.param["scenario"].objects = _list_of_scenarios
         if self.append_historical and self.scenario is not None:
             if ("Historical Climate" in self.scenario):
                 _scenarios = self.scenario
                 _scenarios.remove("Historical Climate")
                 self.scenario = _scenarios
+
+    @param.depends("scenario", watch=True)
+    def _update_time_slice_range(self):
+        '''
+        Will discourage the user from selecting a time slice that does not exist for any
+        of the selected scenarios, by updating the default range of years.
+        '''
+        low_bound, upper_bound = self.time_slice
+        if 'Historical Reconstruction' not in self.scenario:
+            low_bound = 1980
+            if 'Historical Climate' not in self.scenario:
+                low_bound = 2015
+        elif low_bound >= 2015:
+            low_bound = 1950
+        if not True in ['SSP' in one for one in self.scenario]:
+            if 'Historical Reconstruction' in self.scenario:
+                upper_bound = 2022
+            else:
+                upper_bound = 2015
+        elif upper_bound <= 2022:
+            upper_bound = 2100
+        
+        self.time_slice = (low_bound,upper_bound)
             
     area_average = param.Boolean(default=False)
 
     @param.depends("time_slice", "scenario", "append_historical", watch=False)
     def view(self):
+        '''
+        Displays a timeline to help the user visualize the time ranges available, 
+        and the subset of time slice selected.
+        '''
         fig0 = Figure(figsize=(3, 2))
         ax = fig0.add_subplot(111)
         ax.spines['right'].set_color('none')
@@ -401,23 +448,24 @@ class DataSelector(param.Parameterized):
         ax.xaxis.set_ticks_position('bottom')
         ax.set_xlim(1950, 2100)
         ax.set_ylim(0, 1)
-        #majors = [1950, 1980, 2015, 2100]
-        #ax.xaxis.set_major_locator(ticker.FixedLocator(majors))
         ax.xaxis.set_major_locator(ticker.AutoLocator())
         ax.xaxis.set_minor_locator(ticker.AutoMinorLocator())
         mpl_pane = pn.pane.Matplotlib(fig0, dpi=144)
 
         def update_bars(scenario,y_offset):
+            '''
+            Displays the time range of available data for each scenario above the timeline.
+            '''
             if scenario == 'Historical Reconstruction':
                 color = 'g'
-                center = 1980
-                x_width = 37.5
+                center = 1986 #1950-2022
+                x_width = 36
             elif scenario == 'Historical Climate':
                 color = 'c'
-                center = 1997.5
+                center = 1997.5 #1980-2014
                 x_width = 17.5
             else:
-                center = 2057.5
+                center = 2057.5 #2015-2100
                 x_width = 42.5
                 if '2-4.5' in one:
                     color = 'y'
