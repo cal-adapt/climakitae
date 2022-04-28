@@ -243,7 +243,7 @@ class LocSelectorArea(param.Parameterized):
         )
         mpl_pane = pn.pane.Matplotlib(fig0, dpi=144)
         if self.area_subset == "lat/lon":
-            ax.set_extent([-160, -84, 8, 68], crs=ccrs.PlateCarree())
+            ax.set_extent([-150, -88, 8, 66], crs=ccrs.PlateCarree())
             ax.add_geometries(
                 [geometry], crs=ccrs.PlateCarree(), edgecolor="b", facecolor="None"
             )
@@ -434,7 +434,7 @@ class DataSelector(param.Parameterized):
                 _scenarios.remove("Historical Climate")
                 self.scenario = _scenarios
 
-    @param.depends("scenario", watch=True)
+    @param.depends("scenario", "append_historical", watch=True)
     def _update_time_slice_range(self):
         """
         Will discourage the user from selecting a time slice that does not exist for any
@@ -443,9 +443,11 @@ class DataSelector(param.Parameterized):
         low_bound, upper_bound = self.time_slice
         if "Historical Reconstruction" not in self.scenario:
             low_bound = 1980
-            if "Historical Climate" not in self.scenario:
+            if ("Historical Climate" not in self.scenario) and (self.append_historical == False):
                 low_bound = 2015
-        elif low_bound >= 2015:
+            else:
+                low_bound = 1980
+        elif low_bound >= 1980:
             low_bound = 1950
         if not True in ["SSP" in one for one in self.scenario]:
             if "Historical Reconstruction" in self.scenario:
