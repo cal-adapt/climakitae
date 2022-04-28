@@ -51,7 +51,12 @@ def _open_and_concat(file_list, selections, ds_region):
             data = data.resample(time="1MS").mean("time")
             attributes["frequency"] = "1month"
         # time-slice:
-        data = data.sel(time=slice(str(selections.time_slice[0])+'0101',str(selections.time_slice[1])+'1231'))
+        data = data.sel(
+            time=slice(
+                str(selections.time_slice[0]) + "0101",
+                str(selections.time_slice[1]) + "1231",
+            )
+        )
         # subset data spatially:
         if ds_region:
             mask = ds_region.mask(data.lon, data.lat, wrap_lon=False)
@@ -136,7 +141,9 @@ def _read_from_catalog(selections, location):
         ds_region = None
 
     if selections.append_historical:
-        assert True in ["SSP" in one for one in selections.scenario], "Please also select at least one SSP to which the historical simulation should be appended."
+        assert True in [
+            "SSP" in one for one in selections.scenario
+        ], "Please also select at least one SSP to which the historical simulation should be appended."
         one_scenario = "Historical Climate"
         files_by_scenario = _get_file_list(selections, one_scenario)
         historical = _open_and_concat(files_by_scenario, selections, ds_region)

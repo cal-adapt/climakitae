@@ -141,16 +141,25 @@ class LocSelectorArea(param.Parameterized):
         default="CA", objects=list(_geography_choose["states"].keys())
     )
 
-    _wrf_bb = {'45 km':Polygon([(-123.52125549316406, 9.475631713867188),
-                                            (-156.8231658935547, 35.449039459228516),
-                                            (-102.43182373046875, 67.32866668701172),
-                                            (-84.18701171875, 26.643436431884766)
-                                            ]),
-                           '9 km':Polygon([(-116.69509887695312, 22.267112731933594),
-                                               (-138.42117309570312, 43.23344802856445),
-                                               (-110.90779113769531, 57.5806770324707),
-                                               (-94.9368896484375, 31.627288818359375)])
-                           }
+    _wrf_bb = {
+        "45 km": Polygon(
+            [
+                (-123.52125549316406, 9.475631713867188),
+                (-156.8231658935547, 35.449039459228516),
+                (-102.43182373046875, 67.32866668701172),
+                (-84.18701171875, 26.643436431884766),
+            ]
+        ),
+        "9 km": Polygon(
+            [
+                (-116.69509887695312, 22.267112731933594),
+                (-138.42117309570312, 43.23344802856445),
+                (-110.90779113769531, 57.5806770324707),
+                (-94.9368896484375, 31.627288818359375),
+            ]
+        ),
+    }
+
     @param.depends("cached_area", watch=True)
     def _update_area_subset(self):
         """
@@ -158,21 +167,21 @@ class LocSelectorArea(param.Parameterized):
         that the user is adjusting.
         """
         _previous = self.cached_area
-        if (self.area_subset == 'none') or (self.area_subset == 'lat/lon'):
-            for option in ['states','CA counties','CA watersheds']:
+        if (self.area_subset == "none") or (self.area_subset == "lat/lon"):
+            for option in ["states", "CA counties", "CA watersheds"]:
                 if _previous in list(self._geography_choose[option].keys()):
                     self.area_subset = option
                     self.cached_area = _previous
 
-    @param.depends("latitude","longitude", watch=True)
+    @param.depends("latitude", "longitude", watch=True)
     def _update_area_subset_to_lat_lon(self):
         """
-        Makes the dropdown options for 'area subset' reflect that the user is 
+        Makes the dropdown options for 'area subset' reflect that the user is
         adjusting the latitude or longitude slider.
         """
-        if self.area_subset != 'lat/lon':
-            self.area_subset = 'lat/lon'
-    
+        if self.area_subset != "lat/lon":
+            self.area_subset = "lat/lon"
+
     @param.depends("area_subset", watch=True)
     def _update_cached_area(self):
         """
@@ -185,7 +194,7 @@ class LocSelectorArea(param.Parameterized):
                 self._geography_choose[self.area_subset].keys()
             )
             self.cached_area = list(self._geography_choose[self.area_subset].keys())[0]
-            
+
     @param.depends("latitude", "longitude", "area_subset", "cached_area", watch=False)
     def view(self):
         geometry = box(
@@ -197,26 +206,41 @@ class LocSelectorArea(param.Parameterized):
         crs_proj4 = proj.proj4_init  # used below
         ax = fig0.add_subplot(111, projection=proj)
         ax.set_extent([-150, -88, 8, 66], crs=ccrs.PlateCarree())
-        ax.set_facecolor('grey')
-        
+        ax.set_facecolor("grey")
+
         def _plot_wrf_domains(ax):
-            ''' 
-            Plots the boundaries of the WRF domains on an existing set of axes for a map. 
-            Used with the area selection preview panel in 'select'. We could load some data 
+            """
+            Plots the boundaries of the WRF domains on an existing set of axes for a map.
+            Used with the area selection preview panel in 'select'. We could load some data
             to do this procedurally, but hard-coding these numbers makes it faster.
-            '''
-            _colors = ['k','purple','pink']
-            for i, domain in enumerate(['45 km','9 km']):
-                #Plot domain
-                ax.add_geometries([self._wrf_bb[domain]], crs=ccrs.PlateCarree(), edgecolor=_colors[i],
-                                      facecolor="white")
-        
+            """
+            _colors = ["k", "purple", "pink"]
+            for i, domain in enumerate(["45 km", "9 km"]):
+                # Plot domain
+                ax.add_geometries(
+                    [self._wrf_bb[domain]],
+                    crs=ccrs.PlateCarree(),
+                    edgecolor=_colors[i],
+                    facecolor="white",
+                )
+
         _plot_wrf_domains(ax)
         ax.coastlines()
         ax.add_feature(cfeature.BORDERS)
         ax.add_feature(cfeature.STATES, linewidth=0.5)
-        ax.annotate('45-km grid',xy=(-154, 33.8),rotation=28,xycoords=ccrs.PlateCarree()._as_mpl_transform(ax))
-        ax.annotate('9-km', xy=(-135,42),rotation=32,xycoords=ccrs.PlateCarree()._as_mpl_transform(ax),color='purple')
+        ax.annotate(
+            "45-km grid",
+            xy=(-154, 33.8),
+            rotation=28,
+            xycoords=ccrs.PlateCarree()._as_mpl_transform(ax),
+        )
+        ax.annotate(
+            "9-km",
+            xy=(-135, 42),
+            rotation=32,
+            xycoords=ccrs.PlateCarree()._as_mpl_transform(ax),
+            color="purple",
+        )
         mpl_pane = pn.pane.Matplotlib(fig0, dpi=144)
         if self.area_subset == "lat/lon":
             ax.set_extent([-160, -84, 8, 68], crs=ccrs.PlateCarree())
@@ -240,7 +264,7 @@ class LocSelectorArea(param.Parameterized):
             )
             county = shapefile[shapefile.index == shape_index]
             df_ae = county.to_crs(crs_proj4)
-            df_ae.plot(ax=ax, color="b",zorder=2)
+            df_ae.plot(ax=ax, color="b", zorder=2)
             mpl_pane.param.trigger("object")
         elif self.area_subset == "CA watersheds":
             ax.set_extent([-125, -114, 31, 43], crs=ccrs.PlateCarree())
@@ -250,7 +274,7 @@ class LocSelectorArea(param.Parameterized):
             )
             basin = shapefile[shapefile["OBJECTID"] == shape_index]
             df_ae = basin.to_crs(crs_proj4)
-            df_ae.plot(ax=ax, color="b",zorder=2)
+            df_ae.plot(ax=ax, color="b", zorder=2)
             mpl_pane.param.trigger("object")
 
         return mpl_pane
@@ -385,108 +409,109 @@ class DataSelector(param.Parameterized):
         default="monthly", objects=["hourly", "daily", "monthly"]
     )  # for WRF, will just coarsen data to start
 
-    time_slice = param.Range(default=(1980,2015),bounds=(1950,2100))
+    time_slice = param.Range(default=(1980, 2015), bounds=(1950, 2100))
 
-    scenario = param.ListSelector(default=["Historical Climate"],
-        objects=list(_choices._scenarios["45 km"].keys()), allow_None=True
+    scenario = param.ListSelector(
+        default=["Historical Climate"],
+        objects=list(_choices._scenarios["45 km"].keys()),
+        allow_None=True,
     )
     resolution = param.ObjectSelector(default="45 km", objects=_choices._resolutions)
     append_historical = param.Boolean(default=False)
 
     @param.depends("resolution", "append_historical", "scenario", watch=True)
     def _update_scenarios(self):
-        '''
-        The scenarios available will depend on the resolution (more will be available for 9km 
+        """
+        The scenarios available will depend on the resolution (more will be available for 9km
         than 3km for WRF eventually). Also ensures that "Historical Climate" is not
         redundantly displayed when "Append historical" is also selected.
-        '''
+        """
         _list_of_scenarios = list(self._choices._scenarios[self.resolution].keys())
         self.param["scenario"].objects = _list_of_scenarios
         if self.append_historical and self.scenario is not None:
-            if ("Historical Climate" in self.scenario):
+            if "Historical Climate" in self.scenario:
                 _scenarios = self.scenario
                 _scenarios.remove("Historical Climate")
                 self.scenario = _scenarios
 
     @param.depends("scenario", watch=True)
     def _update_time_slice_range(self):
-        '''
+        """
         Will discourage the user from selecting a time slice that does not exist for any
         of the selected scenarios, by updating the default range of years.
-        '''
+        """
         low_bound, upper_bound = self.time_slice
-        if 'Historical Reconstruction' not in self.scenario:
+        if "Historical Reconstruction" not in self.scenario:
             low_bound = 1980
-            if 'Historical Climate' not in self.scenario:
+            if "Historical Climate" not in self.scenario:
                 low_bound = 2015
         elif low_bound >= 2015:
             low_bound = 1950
-        if not True in ['SSP' in one for one in self.scenario]:
-            if 'Historical Reconstruction' in self.scenario:
+        if not True in ["SSP" in one for one in self.scenario]:
+            if "Historical Reconstruction" in self.scenario:
                 upper_bound = 2022
             else:
                 upper_bound = 2015
         elif upper_bound <= 2022:
             upper_bound = 2100
-        
-        self.time_slice = (low_bound,upper_bound)
-            
+
+        self.time_slice = (low_bound, upper_bound)
+
     area_average = param.Boolean(default=False)
 
     @param.depends("time_slice", "scenario", "append_historical", watch=False)
     def view(self):
-        '''
-        Displays a timeline to help the user visualize the time ranges available, 
+        """
+        Displays a timeline to help the user visualize the time ranges available,
         and the subset of time slice selected.
-        '''
+        """
         fig0 = Figure(figsize=(3, 2))
         ax = fig0.add_subplot(111)
-        ax.spines['right'].set_color('none')
-        ax.spines['left'].set_color('none')
+        ax.spines["right"].set_color("none")
+        ax.spines["left"].set_color("none")
         ax.yaxis.set_major_locator(ticker.NullLocator())
-        ax.spines['top'].set_color('none')
-        ax.xaxis.set_ticks_position('bottom')
+        ax.spines["top"].set_color("none")
+        ax.xaxis.set_ticks_position("bottom")
         ax.set_xlim(1950, 2100)
         ax.set_ylim(0, 1)
         ax.xaxis.set_major_locator(ticker.AutoLocator())
         ax.xaxis.set_minor_locator(ticker.AutoMinorLocator())
         mpl_pane = pn.pane.Matplotlib(fig0, dpi=144)
 
-        def update_bars(scenario,y_offset):
-            '''
+        def update_bars(scenario, y_offset):
+            """
             Displays the time range of available data for each scenario above the timeline.
-            '''
-            if scenario == 'Historical Reconstruction':
-                color = 'g'
-                center = 1986 #1950-2022
+            """
+            if scenario == "Historical Reconstruction":
+                color = "g"
+                center = 1986  # 1950-2022
                 x_width = 36
-            elif scenario == 'Historical Climate':
-                color = 'c'
-                center = 1997.5 #1980-2014
+            elif scenario == "Historical Climate":
+                color = "c"
+                center = 1997.5  # 1980-2014
                 x_width = 17.5
             else:
-                center = 2057.5 #2015-2100
+                center = 2057.5  # 2015-2100
                 x_width = 42.5
-                if '2-4.5' in one:
-                    color = 'y'
-                elif '3-7.0' in one:
-                    color = 'orange'
-                elif '5-8.5' in one:
-                    color = 'r'
+                if "2-4.5" in one:
+                    color = "y"
+                elif "3-7.0" in one:
+                    color = "orange"
+                elif "5-8.5" in one:
+                    color = "r"
                 if self.append_historical:
-                    ax.errorbar(x=1997.5, y=y_offset, xerr=17.5, linewidth=8, color='c')
+                    ax.errorbar(x=1997.5, y=y_offset, xerr=17.5, linewidth=8, color="c")
             ax.errorbar(x=center, y=y_offset, xerr=x_width, linewidth=8, color=color)
             ax.annotate(scenario[:10], xy=(center - x_width, y_offset + 0.06))
-                
-    
+
         y_offset = 0.15
         if self.scenario is not None:
             for one in self.scenario:
-                update_bars(one,y_offset)
+                update_bars(one, y_offset)
                 y_offset += 0.15
 
-        ax.fill_betweenx([0,1],1950,self.time_slice[0],alpha=0.8,facecolor='grey')
-        ax.fill_betweenx([0,1],self.time_slice[1],2100,alpha=0.8,facecolor='grey')
+        ax.fill_betweenx([0, 1], 1950, self.time_slice[0], alpha=0.8, facecolor="grey")
+        ax.fill_betweenx([0, 1], self.time_slice[1], 2100, alpha=0.8, facecolor="grey")
 
         return mpl_pane
 
@@ -526,7 +551,9 @@ def _display_select(selections, location, location_type="area average"):
     )
     return pn.Column(first_row, location_chooser)
 
+
 # === For export functionality ==========================================================
+
 
 class UserFileChoices:
 
@@ -534,40 +561,43 @@ class UserFileChoices:
     # as well as a file name
     # data_var_name = param.String()
     # output_file_name = param.String()
-    
+
     def __init__(self):
-        self._export_format_choices = ["Pick a file format" , "CSV" ,
-                                      "GeoTIFF" , "NetCDF" ]
+        self._export_format_choices = ["Pick a file format", "CSV", "GeoTIFF", "NetCDF"]
+
 
 class FileTypeSelector(param.Parameterized):
     """
     If the user wants to export an xarray dataset, they can choose
-    their preferred format here. Produces a panel from which to select a 
+    their preferred format here. Produces a panel from which to select a
     supported file type.
     """
+
     user_options = UserFileChoices()
-    output_file_format = param.ObjectSelector(objects=user_options._export_format_choices)
+    output_file_format = param.ObjectSelector(
+        objects=user_options._export_format_choices
+    )
 
     def _export_file_type(self):
         """Updates the 'user_export_format' object to be the format specified by the user."""
         user_export_format = self.output_file_format
-        
+
+
 def _user_export_select(user_export_format):
     """
     Called by 'export' at the end of the workflow. Displays panel
     from which to select the export file format. Modifies 'user_export_format' object, which is used
     by data_export() to export data to the user in their specified format.
     """
-    
-    data_to_export = pn.widgets.TextInput(name="Data to export", 
-                                placeholder="Type name of dataset here")
-    
+
+    data_to_export = pn.widgets.TextInput(
+        name="Data to export", placeholder="Type name of dataset here"
+    )
+
     # reserved for later: text boxes for dataset to export
     # as well as a file name
-    # file_name = pn.widgets.TextInput(name='File name', 
-    #                                 placeholder='Type file name here')    
+    # file_name = pn.widgets.TextInput(name='File name',
+    #                                 placeholder='Type file name here')
     # file_input_col = pn.Column(user_export_format.param, data_to_export, file_name)
 
-
     return pn.Row(user_export_format.param)
-
