@@ -1,4 +1,6 @@
 import xarray as xr
+import cartopy.crs as ccrs
+import dask
 from shapely.geometry import box
 import regionmask
 import intake
@@ -58,18 +60,23 @@ def _open_and_concat(file_list, selections, ds_region):
             )
         )
         # subset data spatially:
+        data_crs = ccrs.LambertConformal(central_longitude=-70,central_latitude=38,
+                                 standard_parallels=(30.0,60.0))
+
         if ds_region:
+            output = data_crs.transform_points(ccrs.PlateCarree(),
+                                                   x=ds_region.coords[0][:,0],
+                                                   y=ds_region.coords[0][:,1])
+
+            data = data.sel(x=slice(np.nanmin(output[:,0]), np.nanmax(output[:,0])),
+                y=slice(np.nanmin(output[:,1]), np.nanmax(output[:,1])))
+
             mask = ds_region.mask(data.lon, data.lat, wrap_lon=False)
             assert (
                 False in mask.isnull()
             ), "Insufficient gridcells are contained within the bounds."
-
-            data = (
-                data.where(np.isnan(mask) == False)
-                .dropna("x", how="all")
-                .dropna("y", how="all")
-            )
-
+            data = data.where(np.isnan(mask) == False)
+            
         if selections.area_average:
             weights = np.cos(np.deg2rad(data.lat))
             data = data.weighted(weights).mean("x").mean("y")
