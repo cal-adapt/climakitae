@@ -158,6 +158,14 @@ class LocSelectorArea(param.Parameterized):
                 (-94.9368896484375, 31.627288818359375),
             ]
         ),
+        '3 km':Polygon(
+            [
+                (-117.80029, 29.978943),
+                (-127.95593, 40.654625),
+                (-120.79376, 44.8999),
+                (-111.23247, 33.452168)
+            ]
+        )
     }
 
     @param.depends("cached_area", watch=True)
@@ -214,8 +222,8 @@ class LocSelectorArea(param.Parameterized):
             Used with the area selection preview panel in 'select'. We could load some data
             to do this procedurally, but hard-coding these numbers makes it faster.
             """
-            _colors = ["k", "purple", "pink"]
-            for i, domain in enumerate(["45 km", "9 km"]):
+            _colors = ["k", "dodgerblue", "darkorange"]
+            for i, domain in enumerate(["45 km", "9 km", "3 km"]):
                 # Plot domain
                 ax.add_geometries(
                     [self._wrf_bb[domain]],
@@ -239,7 +247,14 @@ class LocSelectorArea(param.Parameterized):
             xy=(-135, 42),
             rotation=32,
             xycoords=ccrs.PlateCarree()._as_mpl_transform(ax),
-            color="purple",
+            color="k",
+        )
+        ax.annotate(
+            "3-km",
+            xy=(-127, 39),
+            rotation=32,
+            xycoords=ccrs.PlateCarree()._as_mpl_transform(ax),
+            color="k",
         )
         mpl_pane = pn.pane.Matplotlib(fig0, dpi=144)
         if self.area_subset == "lat/lon":
