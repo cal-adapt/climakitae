@@ -333,13 +333,13 @@ def bootstrap(ams, distr='gev', data_variable="return_value", arg_value=10):
                     return_event = 1.0 - (1./arg_value)
                     return_value = fitted_distr.ppf(return_event)
                     result = round(return_value, 5)
-                except ValueError:
+                except (ValueError, ZeroDivisionError):
                     result = np.nan
 
             if data_variable == "return_prob":
                 try:
                     result = 1 - (fitted_distr.cdf(arg_value))
-                except ValueError:
+                except (ValueError, ZeroDivisionError):
                     result = np.nan
 
             if data_variable == "return_period":
@@ -350,10 +350,10 @@ def bootstrap(ams, distr='gev', data_variable="return_value", arg_value=10):
                     else:
                         return_period = -1.0 / (return_prob - 1.0)
                         result = round(return_period, 3)
-                except ValueError:
+                except (ValueError, ZeroDivisionError):
                     result = np.nan
     
-        except ValueError:
+        except (ValueError, ZeroDivisionError):
                     result = np.nan
 
     if distr == "pearson3":
@@ -492,7 +492,7 @@ def get_return_value(ams, return_period=10, distr="gev",
                 return_event = 1.0 - (1.0 / return_period)
                 return_value = fitted_distr.ppf(return_event)
                 return_value = round(return_value, 5)
-            except ValueError:
+            except (ValueError, ZeroDivisionError):
                 return_value = np.nan
 
             bootstrap_values = []
