@@ -151,7 +151,7 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
                 )
                 d_statistic = ks[0]
                 p_value = ks[1]
-            except ValueError:
+            except (ValueError, ZeroDivisionError):
                 d_statistic = np.nan
                 p_value = np.nan
 
@@ -164,7 +164,7 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
                 )
                 d_statistic = ks[0]
                 p_value = ks[1]
-            except ValueError:
+            except (ValueError, ZeroDivisionError):
                 d_statistic = np.nan
                 p_value = np.nan
 
@@ -179,7 +179,7 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
                 )
                 d_statistic = ks[0]
                 p_value = ks[1]
-            except ValueError:
+            except (ValueError, ZeroDivisionError):
                 d_statistic = np.nan
                 p_value = np.nan
 
@@ -194,7 +194,7 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
                 )
                 d_statistic = ks[0]
                 p_value = ks[1]
-            except ValueError:
+            except (ValueError, ZeroDivisionError):
                 d_statistic = np.nan
                 p_value = np.nan
 
@@ -209,7 +209,7 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
                 )
                 d_statistic = ks[0]
                 p_value = ks[1]
-            except ValueError:
+            except (ValueError, ZeroDivisionError):
                 d_statistic = np.nan
                 p_value = np.nan
 
@@ -265,27 +265,27 @@ def bootstrap(ams, distr='gev', data_variable="return_value", arg_value=10):
                     return_event = 1.0 - (1./arg_value)
                     return_value = fitted_distr.ppf(return_event)
                     result = round(return_value, 5)
-                except ValueError:
+                except (ValueError, ZeroDivisionError):
                     result = np.nan
 
             if data_variable == "return_prob":
                 try:
                     result = 1 - (fitted_distr.cdf(arg_value))
-                except ValueError:
+                except (ValueError, ZeroDivisionError):
                     result = np.nan
 
             if data_variable == "return_period":
                 try:
                     return_prob = fitted_distr.cdf(arg_value)
                     if return_prob == 1.0:
-                        return_period = np.nan
+                        result = np.nan
                     else:
                         return_period = -1.0 / (return_prob - 1.0)
                         result = round(return_period, 3)
-                except ValueError:
+                except (ValueError, ZeroDivisionError):
                     result = np.nan
     
-        except ValueError:
+        except (ValueError, ZeroDivisionError):
                     result = np.nan
 
     if distr == "gumbel":
@@ -299,27 +299,27 @@ def bootstrap(ams, distr='gev', data_variable="return_value", arg_value=10):
                     return_event = 1.0 - (1./arg_value)
                     return_value = fitted_distr.ppf(return_event)
                     result = round(return_value, 5)
-                except ValueError:
+                except (ValueError, ZeroDivisionError):
                     result = np.nan
 
             if data_variable == "return_prob":
                 try:
                     result = 1 - (fitted_distr.cdf(arg_value))
-                except ValueError:
+                except (ValueError, ZeroDivisionError):
                     result = np.nan
 
             if data_variable == "return_period":
                 try:
                     return_prob = fitted_distr.cdf(arg_value)
                     if return_prob == 1.0:
-                        return_period = np.nan
+                        result = np.nan
                     else:
                         return_period = -1.0 / (return_prob - 1.0)
                         result = round(return_period, 3)
-                except ValueError:
+                except (ValueError, ZeroDivisionError):
                     result = np.nan
     
-        except ValueError:
+        except (ValueError, ZeroDivisionError):
                     result = np.nan
 
     if distr == "weibull":
@@ -346,7 +346,7 @@ def bootstrap(ams, distr='gev', data_variable="return_value", arg_value=10):
                 try:
                     return_prob = fitted_distr.cdf(arg_value)
                     if return_prob == 1.0:
-                        return_period = np.nan
+                        result = np.nan
                     else:
                         return_period = -1.0 / (return_prob - 1.0)
                         result = round(return_period, 3)
@@ -367,27 +367,27 @@ def bootstrap(ams, distr='gev', data_variable="return_value", arg_value=10):
                     return_event = 1.0 - (1./arg_value)
                     return_value = fitted_distr.ppf(return_event)
                     result = round(return_value, 5)
-                except ValueError:
+                except (ValueError, ZeroDivisionError):
                     result = np.nan
 
             if data_variable == "return_prob":
                 try:
                     result = 1 - (fitted_distr.cdf(arg_value))
-                except ValueError:
+                except (ValueError, ZeroDivisionError):
                     result = np.nan
 
             if data_variable == "return_period":
                 try:
                     return_prob = fitted_distr.cdf(arg_value)
                     if return_prob == 1.0:
-                        return_period = np.nan
+                        result = np.nan
                     else:
                         return_period = -1.0 / (return_prob - 1.0)
                         result = round(return_period, 3)
-                except ValueError:
+                except (ValueError, ZeroDivisionError):
                     result = np.nan
     
-        except ValueError:
+        except (ValueError, ZeroDivisionError):
                     result = np.nan
 
     if distr == "genpareto":
@@ -401,27 +401,27 @@ def bootstrap(ams, distr='gev', data_variable="return_value", arg_value=10):
                     return_event = 1.0 - (1./arg_value)
                     return_value = fitted_distr.ppf(return_event)
                     result = round(return_value, 5)
-                except ValueError:
+                except (ValueError, ZeroDivisionError):
                     result = np.nan
 
             if data_variable == "return_prob":
                 try:
                     result = 1 - (fitted_distr.cdf(arg_value))
-                except ValueError:
+                except (ValueError, ZeroDivisionError):
                     result = np.nan
 
             if data_variable == "return_period":
                 try:
                     return_prob = fitted_distr.cdf(arg_value)
                     if return_prob == 1.0:
-                        return_period = np.nan
+                        result = np.nan
                     else:
                         return_period = -1.0 / (return_prob - 1.0)
                         result = round(return_period, 3)
-                except ValueError:
+                except (ValueError, ZeroDivisionError):
                     result = np.nan
 
-        except ValueError:
+        except (ValueError, ZeroDivisionError):
                     result = np.nan
 
     
@@ -452,7 +452,7 @@ def get_return_value(ams, return_period=10, distr="gev",
                 return_event = 1.0 - (1.0 / return_period)
                 return_value = fitted_distr.ppf(return_event)
                 return_value = round(return_value, 5)
-            except ValueError:
+            except (ValueError, ZeroDivisionError):
                 return_value = np.nan
 
             bootstrap_values = []
@@ -472,7 +472,7 @@ def get_return_value(ams, return_period=10, distr="gev",
                 return_event = 1.0 - (1.0 / return_period)
                 return_value = fitted_distr.ppf(return_event)
                 return_value = round(return_value, 5)
-            except ValueError:
+            except (ValueError, ZeroDivisionError):
                 return_value = np.nan
 
             bootstrap_values = []
@@ -512,7 +512,7 @@ def get_return_value(ams, return_period=10, distr="gev",
                 return_event = 1.0 - (1.0 / return_period)
                 return_value = fitted_distr.ppf(return_event)
                 return_value = round(return_value, 5)
-            except ValueError:
+            except (ValueError, ZeroDivisionError):
                 return_value = np.nan
             
             bootstrap_values = []
@@ -532,7 +532,7 @@ def get_return_value(ams, return_period=10, distr="gev",
                 return_event = 1.0 - (1.0 / return_period)
                 return_value = fitted_distr.ppf(return_event)
                 return_value = round(return_value, 5)
-            except ValueError:
+            except (ValueError, ZeroDivisionError):
                 return_value = np.nan
 
             bootstrap_values = []
@@ -598,7 +598,7 @@ def get_return_prob(ams, threshold, distr="gev",
                 lmoments = lmom_distr.lmom_fit(ams)
                 fitted_distr = stats.genextreme(**lmoments)
                 return_prob = 1 - (fitted_distr.cdf(threshold))
-            except ValueError:
+            except (ValueError, ZeroDivisionError):
                 return_prob = np.nan
 
             bootstrap_values = []
@@ -616,7 +616,7 @@ def get_return_prob(ams, threshold, distr="gev",
                 lmoments = lmom_distr.lmom_fit(ams)
                 fitted_distr = stats.gumbel_r(**lmoments)
                 return_prob = 1 - (fitted_distr.cdf(threshold))
-            except ValueError:
+            except (ValueError, ZeroDivisionError):
                 return_prob = np.nan
             
             bootstrap_values = []
@@ -634,7 +634,7 @@ def get_return_prob(ams, threshold, distr="gev",
                 lmoments = lmom_distr.lmom_fit(ams)
                 fitted_distr = stats.weibull_min(**lmoments)
                 return_prob = 1 - (fitted_distr.cdf(threshold))
-            except ValueError:
+            except (ValueError, ZeroDivisionError):
                 return_prob = np.nan
 
             bootstrap_values = []
@@ -652,7 +652,7 @@ def get_return_prob(ams, threshold, distr="gev",
                 lmoments = lmom_distr.lmom_fit(ams)
                 fitted_distr = stats.pearson3(**lmoments)
                 return_prob = 1 - (fitted_distr.cdf(threshold))
-            except ValueError:
+            except (ValueError, ZeroDivisionError):
                 return_prob = np.nan
             
             bootstrap_values = []
@@ -670,7 +670,7 @@ def get_return_prob(ams, threshold, distr="gev",
                 lmoments = lmom_distr.lmom_fit(ams)
                 fitted_distr = stats.genpareto(**lmoments)
                 return_prob = 1 - (fitted_distr.cdf(threshold))
-            except ValueError:
+            except (ValueError, ZeroDivisionError):
                 return_prob = np.nan
             
             bootstrap_values = []
@@ -741,7 +741,7 @@ def get_return_period(ams, return_value, distr="gev",
                 else:
                     return_period = -1.0 / (return_prob - 1.0)
                     return_period = round(return_period, 3)
-            except ValueError:
+            except (ValueError, ZeroDivisionError):
                 return_period = np.nan
 
             bootstrap_values = []
@@ -764,7 +764,7 @@ def get_return_period(ams, return_value, distr="gev",
                 else:
                     return_period = -1.0 / (return_prob - 1.0)
                     return_period = round(return_period, 3)
-            except ValueError:
+            except (ValueError, ZeroDivisionError):
                 return_period = np.nan
             
             bootstrap_values = []
@@ -787,7 +787,7 @@ def get_return_period(ams, return_value, distr="gev",
                 else:
                     return_period = -1.0 / (return_prob - 1.0)
                     return_period = round(return_period, 3)
-            except ValueError:
+            except (ValueError, ZeroDivisionError):
                 return_period = np.nan
             
             bootstrap_values = []
@@ -810,7 +810,7 @@ def get_return_period(ams, return_value, distr="gev",
                 else:
                     return_period = -1.0 / (return_prob - 1.0)
                     return_period = round(return_period, 3)
-            except ValueError:
+            except (ValueError, ZeroDivisionError):
                 return_period = np.nan
             
             bootstrap_values = []
@@ -833,7 +833,7 @@ def get_return_period(ams, return_value, distr="gev",
                 else:
                     return_period = -1.0 / (return_prob - 1.0)
                     return_period = round(return_period, 3)
-            except ValueError:
+            except (ValueError, ZeroDivisionError):
                 return_period = np.nan
 
             bootstrap_values = []
