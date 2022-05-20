@@ -11,7 +11,7 @@ class Application(object):
     """
 
     def __init__(self):
-        _cat = intake.open_catalog("https://cdcat.s3.amazonaws.com/cae.yaml")
+        _cat = intake.open_catalog("https://cadcat.s3.amazonaws.com/cae.yaml")
         self.selections = DataSelector(choices=_get_catalog_contents(_cat))
                             
         self.location = LocSelectorArea()
