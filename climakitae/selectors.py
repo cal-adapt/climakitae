@@ -132,11 +132,16 @@ class LocSelectorArea(param.Parameterized):
     # would be nice if these lat/lon sliders were greyed-out when lat/lon subset option is not selected
     latitude = param.Range(default=(32.5, 42), bounds=(10, 67))
     longitude = param.Range(default=(-125.5, -114), bounds=(-156.82317, -84.18701))
-    _geographies = Boundaries()
-    _geography_choose = _geographies.boundary_dict()
     cached_area = param.ObjectSelector(
-        default="CA", objects=list(_geography_choose["states"].keys())
+        objects=dict()
     )
+
+    def __init__(self,**params):
+        super().__init__(**params)
+        self._geographies = Boundaries()
+        self._geography_choose = self._geographies.boundary_dict()
+        self.param["cached_area"].objects = list(self._geography_choose["states"].keys())
+        self.cached_area = "CA"
 
     @param.depends("area_subset", watch=True)
     def _update_cached_area(self):
@@ -249,14 +254,17 @@ class DataSelector(param.Parameterized):
     #    self.variable = variables[0]
 
     scenario = param.ListSelector(
-        objects=dict(), allow_None=True
+        objects=dict()
     )
-    resolution = param.ObjectSelector(objects=dict())
+    resolution = param.ObjectSelector(
+        objects=dict()
+    )
     append_historical = param.Boolean(default=False)
 
     def __init__(self,**params):
         super().__init__(**params)
         self.param["resolution"].objects = self.choices["resolutions"]
+        self.resolution = self.choices["resolutions"][0]
         _list_of_scenarios = list(self.choices["scenarios"]["45 km"].keys())
         self.param["scenario"].objects = _list_of_scenarios
         self.param["variable"].objects = self.choices['variable_choices']["hourly"]["Dynamical"]
@@ -311,7 +319,7 @@ def _display_select(selections, location, location_type="area average"):
 
 # === For export functionality ==========================================================
 
-class UserFileChoices:
+class UserFileChoices():
 
     # reserved for later: text boxes for dataset to export
     # as well as a file name

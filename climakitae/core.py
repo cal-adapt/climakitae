@@ -11,8 +11,8 @@ class Application(object):
     """
 
     def __init__(self):
-        _cat = intake.open_catalog("https://cadcat.s3.amazonaws.com/cae.yaml")
-        self.selections = DataSelector(choices=_get_catalog_contents(_cat))
+        self._cat = intake.open_catalog("https://cadcat.s3.amazonaws.com/cae.yaml")
+        self.selections = DataSelector(choices=_get_catalog_contents(self._cat))
                             
         self.location = LocSelectorArea()
         self.user_export_format = FileTypeSelector()
@@ -34,7 +34,7 @@ class Application(object):
         to generate an xarray DataArray as specified, and return that DataArray object.
         """
         # to do: insert additional 'hang in there' statement if it's taking a while
-        return _read_from_catalog(self.selections, self.location)
+        return _read_from_catalog(self.selections, self.location, self._cat)
 
     # === Export ======================================
     def export_as(self):
