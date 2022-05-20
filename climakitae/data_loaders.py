@@ -1,4 +1,6 @@
 import xarray as xr
+import cartopy.crs as ccrs
+import dask
 from shapely.geometry import box
 import regionmask
 import intake
@@ -52,19 +54,31 @@ def _open_and_concat(file_list, selections, cat, ds_region):
         elif selections.timescale == "monthly":
             data = data.resample(time="1MS").mean("time")
             attributes["frequency"] = "1month"
+        # time-slice:
+        data = data.sel(
+            time=slice(
+                str(selections.time_slice[0]) + "0101",
+                str(selections.time_slice[1]) + "1231",
+            )
+        )
+        # subset data spatially:
+        data_crs = ccrs.LambertConformal(central_longitude=-70,central_latitude=38,
+                                 standard_parallels=(30.0,60.0))
+
         if ds_region:
-            # subset data spatially:
+            output = data_crs.transform_points(ccrs.PlateCarree(),
+                                                   x=ds_region.coords[0][:,0],
+                                                   y=ds_region.coords[0][:,1])
+
+            data = data.sel(x=slice(np.nanmin(output[:,0]), np.nanmax(output[:,0])),
+                y=slice(np.nanmin(output[:,1]), np.nanmax(output[:,1])))
+
             mask = ds_region.mask(data.lon, data.lat, wrap_lon=False)
             assert (
                 False in mask.isnull()
             ), "Insufficient gridcells are contained within the bounds."
-
-            data = (
-                data.where(np.isnan(mask) == False)
-                .dropna("x", how="all")
-                .dropna("y", how="all")
-            )
-
+            data = data.where(np.isnan(mask) == False)
+            
         if selections.area_average:
             weights = np.cos(np.deg2rad(data.lat))
             data = data.weighted(weights).mean("x").mean("y")
@@ -137,7 +151,7 @@ def _read_from_catalog(selections, location, cat):
 
     if selections.append_historical:
         assert True in [
-            "SSP" in one for one in app.selections.scenario
+            "SSP" in one for one in selections.scenario
         ], "Please also select at least one SSP to which the historical simulation should be appended."
         one_scenario = "Historical Climate"
         files_by_scenario = _get_file_list(selections, one_scenario, cat)
@@ -170,4 +184,5 @@ def _read_from_catalog(selections, location, cat):
     all_files = all_files.to_array("scenario")
     all_files.name = selections.variable
     all_files.attrs = attributes
+    assert all_files.time.size != 0, "Dataset will be empty. Please adjust selections."
     return all_files
