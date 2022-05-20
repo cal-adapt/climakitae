@@ -97,6 +97,7 @@ def get_lmom_distr(distr):
 # input: annual maximum series
 # export: xarray dataset of l-moment ratios
 
+
 def get_lmoments(ams, distr="gev", multiple_points=True):
 
     lmom_distr = get_lmom_distr(distr)
@@ -110,7 +111,7 @@ def get_lmoments(ams, distr="gev", multiple_points=True):
         ams,
         input_core_dims=[["time"]],
         exclude_dims=set(("time",)),
-        output_core_dims=[[]]
+        output_core_dims=[[]],
     )
 
     lmoments = lmoments.rename("lmoments")
@@ -129,6 +130,7 @@ def get_lmoments(ams, distr="gev", multiple_points=True):
 # GET KS STAT
 # input: annual maximum series
 # export: xarray dataset of ks test d-statistics and p-values
+
 
 def get_ks_stat(ams, distr="gev", multiple_points=True):
 
@@ -220,7 +222,7 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
         ams,
         input_core_dims=[["time"]],
         exclude_dims=set(("time",)),
-        output_core_dims=[[], []]
+        output_core_dims=[[], []],
     )
 
     d_statistic = d_statistic.rename("d_statistic")
@@ -243,26 +245,30 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
 # input: annual maximum series and relevant parameters
 # export: boostrap-calculated value for relevant parameters
 
-def bootstrap(ams, distr='gev', data_variable="return_value", arg_value=10):
-        
+
+def bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
+
     data_variables = ["return_value", "return_prob", "return_period"]
     if data_variable not in data_variables:
-        raise ValueError("invalid data variable type. expected one of the following: %s" % data_variables)
-    
+        raise ValueError(
+            "invalid data variable type. expected one of the following: %s"
+            % data_variables
+        )
+
     lmom_distr = get_lmom_distr(distr)
 
     sample_size = len(ams)
     new_ams = np.random.choice(ams, size=sample_size, replace=True)
 
     if distr == "gev":
-    
+
         try:
             lmoments = lmom_distr.lmom_fit(new_ams)
             fitted_distr = stats.genextreme(**lmoments)
 
             if data_variable == "return_value":
                 try:
-                    return_event = 1.0 - (1./arg_value)
+                    return_event = 1.0 - (1.0 / arg_value)
                     return_value = fitted_distr.ppf(return_event)
                     result = round(return_value, 5)
                 except (ValueError, ZeroDivisionError):
@@ -284,9 +290,9 @@ def bootstrap(ams, distr='gev', data_variable="return_value", arg_value=10):
                         result = round(return_period, 3)
                 except (ValueError, ZeroDivisionError):
                     result = np.nan
-    
+
         except (ValueError, ZeroDivisionError):
-                    result = np.nan
+            result = np.nan
 
     if distr == "gumbel":
 
@@ -296,7 +302,7 @@ def bootstrap(ams, distr='gev', data_variable="return_value", arg_value=10):
 
             if data_variable == "return_value":
                 try:
-                    return_event = 1.0 - (1./arg_value)
+                    return_event = 1.0 - (1.0 / arg_value)
                     return_value = fitted_distr.ppf(return_event)
                     result = round(return_value, 5)
                 except (ValueError, ZeroDivisionError):
@@ -318,9 +324,9 @@ def bootstrap(ams, distr='gev', data_variable="return_value", arg_value=10):
                         result = round(return_period, 3)
                 except (ValueError, ZeroDivisionError):
                     result = np.nan
-    
+
         except (ValueError, ZeroDivisionError):
-                    result = np.nan
+            result = np.nan
 
     if distr == "weibull":
 
@@ -330,7 +336,7 @@ def bootstrap(ams, distr='gev', data_variable="return_value", arg_value=10):
 
             if data_variable == "return_value":
                 try:
-                    return_event = 1.0 - (1./arg_value)
+                    return_event = 1.0 - (1.0 / arg_value)
                     return_value = fitted_distr.ppf(return_event)
                     result = round(return_value, 5)
                 except (ValueError, ZeroDivisionError):
@@ -352,9 +358,9 @@ def bootstrap(ams, distr='gev', data_variable="return_value", arg_value=10):
                         result = round(return_period, 3)
                 except (ValueError, ZeroDivisionError):
                     result = np.nan
-    
+
         except (ValueError, ZeroDivisionError):
-                    result = np.nan
+            result = np.nan
 
     if distr == "pearson3":
 
@@ -364,7 +370,7 @@ def bootstrap(ams, distr='gev', data_variable="return_value", arg_value=10):
 
             if data_variable == "return_value":
                 try:
-                    return_event = 1.0 - (1./arg_value)
+                    return_event = 1.0 - (1.0 / arg_value)
                     return_value = fitted_distr.ppf(return_event)
                     result = round(return_value, 5)
                 except (ValueError, ZeroDivisionError):
@@ -386,19 +392,19 @@ def bootstrap(ams, distr='gev', data_variable="return_value", arg_value=10):
                         result = round(return_period, 3)
                 except (ValueError, ZeroDivisionError):
                     result = np.nan
-    
+
         except (ValueError, ZeroDivisionError):
-                    result = np.nan
+            result = np.nan
 
     if distr == "genpareto":
-        
+
         try:
             lmoments = lmom_distr.lmom_fit(new_ams)
             fitted_distr = stats.genpareto(**lmoments)
 
             if data_variable == "return_value":
                 try:
-                    return_event = 1.0 - (1./arg_value)
+                    return_event = 1.0 - (1.0 / arg_value)
                     return_value = fitted_distr.ppf(return_event)
                     result = round(return_value, 5)
                 except (ValueError, ZeroDivisionError):
@@ -422,19 +428,26 @@ def bootstrap(ams, distr='gev', data_variable="return_value", arg_value=10):
                     result = np.nan
 
         except (ValueError, ZeroDivisionError):
-                    result = np.nan
+            result = np.nan
 
-    
     return result
+
 
 #####################################################################
 # GET RETURN VALUE
 # input: annual maximum series and relevant parameters
 # export: xarray dataset with return values and confidence intervals
 
-def get_return_value(ams, return_period=10, distr="gev", 
-                    bootstrap_runs=100, conf_int_lower_bound=2.5, 
-                    conf_int_upper_bound=97.5, multiple_points=True):
+
+def get_return_value(
+    ams,
+    return_period=10,
+    distr="gev",
+    bootstrap_runs=100,
+    conf_int_lower_bound=2.5,
+    conf_int_upper_bound=97.5,
+    multiple_points=True,
+):
 
     data_variable = "return_value"
     lmom_distr = get_lmom_distr(distr)
@@ -457,11 +470,17 @@ def get_return_value(ams, return_period=10, distr="gev",
 
             bootstrap_values = []
             for _ in range(bootstrap_runs):
-                result = bootstrap(ams, distr=distr, data_variable=data_variable,
-                               arg_value=return_period)
+                result = bootstrap(
+                    ams,
+                    distr=distr,
+                    data_variable=data_variable,
+                    arg_value=return_period,
+                )
                 bootstrap_values.append(result)
 
-            conf_int_array = np.percentile(bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound])
+            conf_int_array = np.percentile(
+                bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound]
+            )
             conf_int_lower_limit = conf_int_array[0]
             conf_int_upper_limit = conf_int_array[1]
 
@@ -477,11 +496,17 @@ def get_return_value(ams, return_period=10, distr="gev",
 
             bootstrap_values = []
             for _ in range(bootstrap_runs):
-                result = bootstrap(ams, distr=distr, data_variable=data_variable,
-                               arg_value=return_period)
+                result = bootstrap(
+                    ams,
+                    distr=distr,
+                    data_variable=data_variable,
+                    arg_value=return_period,
+                )
                 bootstrap_values.append(result)
 
-            conf_int_array = np.percentile(bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound])
+            conf_int_array = np.percentile(
+                bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound]
+            )
             conf_int_lower_limit = conf_int_array[0]
             conf_int_upper_limit = conf_int_array[1]
 
@@ -497,11 +522,17 @@ def get_return_value(ams, return_period=10, distr="gev",
 
             bootstrap_values = []
             for _ in range(bootstrap_runs):
-                result = bootstrap(ams, distr=distr, data_variable=data_variable,
-                               arg_value=return_period)
+                result = bootstrap(
+                    ams,
+                    distr=distr,
+                    data_variable=data_variable,
+                    arg_value=return_period,
+                )
                 bootstrap_values.append(result)
 
-            conf_int_array = np.percentile(bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound])
+            conf_int_array = np.percentile(
+                bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound]
+            )
             conf_int_lower_limit = conf_int_array[0]
             conf_int_upper_limit = conf_int_array[1]
 
@@ -514,14 +545,20 @@ def get_return_value(ams, return_period=10, distr="gev",
                 return_value = round(return_value, 5)
             except (ValueError, ZeroDivisionError):
                 return_value = np.nan
-            
+
             bootstrap_values = []
             for _ in range(bootstrap_runs):
-                result = bootstrap(ams, distr=distr, data_variable=data_variable,
-                               arg_value=return_period)
+                result = bootstrap(
+                    ams,
+                    distr=distr,
+                    data_variable=data_variable,
+                    arg_value=return_period,
+                )
                 bootstrap_values.append(result)
 
-            conf_int_array = np.percentile(bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound])
+            conf_int_array = np.percentile(
+                bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound]
+            )
             conf_int_lower_limit = conf_int_array[0]
             conf_int_upper_limit = conf_int_array[1]
 
@@ -537,22 +574,28 @@ def get_return_value(ams, return_period=10, distr="gev",
 
             bootstrap_values = []
             for _ in range(bootstrap_runs):
-                result = bootstrap(ams, distr=distr, data_variable=data_variable,
-                               arg_value=return_period)
+                result = bootstrap(
+                    ams,
+                    distr=distr,
+                    data_variable=data_variable,
+                    arg_value=return_period,
+                )
                 bootstrap_values.append(result)
 
-            conf_int_array = np.percentile(bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound])
+            conf_int_array = np.percentile(
+                bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound]
+            )
             conf_int_lower_limit = conf_int_array[0]
             conf_int_upper_limit = conf_int_array[1]
 
         return return_value, conf_int_lower_limit, conf_int_upper_limit
 
     return_value, conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
-                                                                return_value,
-                                                                ams,
-                                                                input_core_dims=[["time"]],
-                                                                exclude_dims=set(("time",)),
-                                                                output_core_dims=[[],[],[]]
+        return_value,
+        ams,
+        input_core_dims=[["time"]],
+        exclude_dims=set(("time",)),
+        output_core_dims=[[], [], []],
     )
 
     return_value = return_value.rename("return_value")
@@ -566,9 +609,13 @@ def get_return_value(ams, return_period=10, distr="gev",
     new_ds["return_value"].attrs["return period"] = "1 in {} year event".format(
         str(return_period)
     )
-    new_ds["conf_int_lower_limit"].attrs["confidence interval lower bound"] = "{}th percentile".format(str(conf_int_lower_bound))
-    new_ds["conf_int_upper_limit"].attrs["confidence interval upper bound"] = "{}th percentile".format(str(conf_int_upper_bound))
-    
+    new_ds["conf_int_lower_limit"].attrs[
+        "confidence interval lower bound"
+    ] = "{}th percentile".format(str(conf_int_lower_bound))
+    new_ds["conf_int_upper_limit"].attrs[
+        "confidence interval upper bound"
+    ] = "{}th percentile".format(str(conf_int_upper_bound))
+
     new_ds.attrs = ams_attributes
     new_ds.attrs["distribution"] = "{}".format(str(distr))
 
@@ -580,9 +627,16 @@ def get_return_value(ams, return_period=10, distr="gev",
 # input: annual maximum series and relevant parameters
 # export: xarray dataset with return probabilities and confidence intervals
 
-def get_return_prob(ams, threshold, distr="gev", 
-                    bootstrap_runs=100, conf_int_lower_bound=2.5, 
-                    conf_int_upper_bound=97.5, multiple_points=True):
+
+def get_return_prob(
+    ams,
+    threshold,
+    distr="gev",
+    bootstrap_runs=100,
+    conf_int_lower_bound=2.5,
+    conf_int_upper_bound=97.5,
+    multiple_points=True,
+):
 
     data_variable = "return_prob"
     lmom_distr = get_lmom_distr(distr)
@@ -603,11 +657,14 @@ def get_return_prob(ams, threshold, distr="gev",
 
             bootstrap_values = []
             for _ in range(bootstrap_runs):
-                result = bootstrap(ams, distr=distr, data_variable=data_variable,
-                               arg_value=threshold)
+                result = bootstrap(
+                    ams, distr=distr, data_variable=data_variable, arg_value=threshold
+                )
                 bootstrap_values.append(result)
 
-            conf_int_array = np.percentile(bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound])
+            conf_int_array = np.percentile(
+                bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound]
+            )
             conf_int_lower_limit = conf_int_array[0]
             conf_int_upper_limit = conf_int_array[1]
 
@@ -618,14 +675,17 @@ def get_return_prob(ams, threshold, distr="gev",
                 return_prob = 1 - (fitted_distr.cdf(threshold))
             except (ValueError, ZeroDivisionError):
                 return_prob = np.nan
-            
+
             bootstrap_values = []
             for _ in range(bootstrap_runs):
-                result = bootstrap(ams, distr=distr, data_variable=data_variable,
-                               arg_value=threshold)
+                result = bootstrap(
+                    ams, distr=distr, data_variable=data_variable, arg_value=threshold
+                )
                 bootstrap_values.append(result)
 
-            conf_int_array = np.percentile(bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound])
+            conf_int_array = np.percentile(
+                bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound]
+            )
             conf_int_lower_limit = conf_int_array[0]
             conf_int_upper_limit = conf_int_array[1]
 
@@ -639,11 +699,14 @@ def get_return_prob(ams, threshold, distr="gev",
 
             bootstrap_values = []
             for _ in range(bootstrap_runs):
-                result = bootstrap(ams, distr=distr, data_variable=data_variable,
-                               arg_value=threshold)
+                result = bootstrap(
+                    ams, distr=distr, data_variable=data_variable, arg_value=threshold
+                )
                 bootstrap_values.append(result)
 
-            conf_int_array = np.percentile(bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound])
+            conf_int_array = np.percentile(
+                bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound]
+            )
             conf_int_lower_limit = conf_int_array[0]
             conf_int_upper_limit = conf_int_array[1]
 
@@ -654,14 +717,17 @@ def get_return_prob(ams, threshold, distr="gev",
                 return_prob = 1 - (fitted_distr.cdf(threshold))
             except (ValueError, ZeroDivisionError):
                 return_prob = np.nan
-            
+
             bootstrap_values = []
             for _ in range(bootstrap_runs):
-                result = bootstrap(ams, distr=distr, data_variable=data_variable,
-                               arg_value=threshold)
+                result = bootstrap(
+                    ams, distr=distr, data_variable=data_variable, arg_value=threshold
+                )
                 bootstrap_values.append(result)
 
-            conf_int_array = np.percentile(bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound])
+            conf_int_array = np.percentile(
+                bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound]
+            )
             conf_int_lower_limit = conf_int_array[0]
             conf_int_upper_limit = conf_int_array[1]
 
@@ -672,25 +738,28 @@ def get_return_prob(ams, threshold, distr="gev",
                 return_prob = 1 - (fitted_distr.cdf(threshold))
             except (ValueError, ZeroDivisionError):
                 return_prob = np.nan
-            
+
             bootstrap_values = []
             for _ in range(bootstrap_runs):
-                result = bootstrap(ams, distr=distr, data_variable=data_variable,
-                               arg_value=threshold)
+                result = bootstrap(
+                    ams, distr=distr, data_variable=data_variable, arg_value=threshold
+                )
                 bootstrap_values.append(result)
 
-            conf_int_array = np.percentile(bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound])
+            conf_int_array = np.percentile(
+                bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound]
+            )
             conf_int_lower_limit = conf_int_array[0]
             conf_int_upper_limit = conf_int_array[1]
 
         return return_prob, conf_int_lower_limit, conf_int_upper_limit
 
     return_prob, conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
-                                                                return_prob,
-                                                                ams,
-                                                                input_core_dims=[["time"]],
-                                                                exclude_dims=set(("time",)),
-                                                                output_core_dims=[[],[],[]]
+        return_prob,
+        ams,
+        input_core_dims=[["time"]],
+        exclude_dims=set(("time",)),
+        output_core_dims=[[], [], []],
     )
 
     return_prob = return_prob.rename("return_prob")
@@ -704,9 +773,13 @@ def get_return_prob(ams, threshold, distr="gev",
     new_ds["return_prob"].attrs["threshold"] = "exceedance of {} value event".format(
         str(threshold)
     )
-    new_ds["conf_int_lower_limit"].attrs["confidence interval lower bound"] = "{}th percentile".format(str(conf_int_lower_bound))
-    new_ds["conf_int_upper_limit"].attrs["confidence interval upper bound"] = "{}th percentile".format(str(conf_int_upper_bound))
-    
+    new_ds["conf_int_lower_limit"].attrs[
+        "confidence interval lower bound"
+    ] = "{}th percentile".format(str(conf_int_lower_bound))
+    new_ds["conf_int_upper_limit"].attrs[
+        "confidence interval upper bound"
+    ] = "{}th percentile".format(str(conf_int_upper_bound))
+
     new_ds.attrs = ams_attributes
     new_ds.attrs["distribution"] = "{}".format(str(distr))
 
@@ -718,9 +791,16 @@ def get_return_prob(ams, threshold, distr="gev",
 # input: annual maximum series and relevant parameters
 # export: xarray dataset with return periods and confidence intervals
 
-def get_return_period(ams, return_value, distr="gev", 
-                    bootstrap_runs=100, conf_int_lower_bound=2.5, 
-                    conf_int_upper_bound=97.5, multiple_points=True):
+
+def get_return_period(
+    ams,
+    return_value,
+    distr="gev",
+    bootstrap_runs=100,
+    conf_int_lower_bound=2.5,
+    conf_int_upper_bound=97.5,
+    multiple_points=True,
+):
 
     data_variable = "return_period"
     lmom_distr = get_lmom_distr(distr)
@@ -746,11 +826,17 @@ def get_return_period(ams, return_value, distr="gev",
 
             bootstrap_values = []
             for _ in range(bootstrap_runs):
-                result = bootstrap(ams, distr=distr, data_variable=data_variable,
-                               arg_value=return_value)
+                result = bootstrap(
+                    ams,
+                    distr=distr,
+                    data_variable=data_variable,
+                    arg_value=return_value,
+                )
                 bootstrap_values.append(result)
 
-            conf_int_array = np.percentile(bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound])
+            conf_int_array = np.percentile(
+                bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound]
+            )
             conf_int_lower_limit = conf_int_array[0]
             conf_int_upper_limit = conf_int_array[1]
 
@@ -766,14 +852,20 @@ def get_return_period(ams, return_value, distr="gev",
                     return_period = round(return_period, 3)
             except (ValueError, ZeroDivisionError):
                 return_period = np.nan
-            
+
             bootstrap_values = []
             for _ in range(bootstrap_runs):
-                result = bootstrap(ams, distr=distr, data_variable=data_variable,
-                               arg_value=return_value)
+                result = bootstrap(
+                    ams,
+                    distr=distr,
+                    data_variable=data_variable,
+                    arg_value=return_value,
+                )
                 bootstrap_values.append(result)
 
-            conf_int_array = np.percentile(bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound])
+            conf_int_array = np.percentile(
+                bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound]
+            )
             conf_int_lower_limit = conf_int_array[0]
             conf_int_upper_limit = conf_int_array[1]
 
@@ -789,14 +881,20 @@ def get_return_period(ams, return_value, distr="gev",
                     return_period = round(return_period, 3)
             except (ValueError, ZeroDivisionError):
                 return_period = np.nan
-            
+
             bootstrap_values = []
             for _ in range(bootstrap_runs):
-                result = bootstrap(ams, distr=distr, data_variable=data_variable,
-                               arg_value=return_value)
+                result = bootstrap(
+                    ams,
+                    distr=distr,
+                    data_variable=data_variable,
+                    arg_value=return_value,
+                )
                 bootstrap_values.append(result)
 
-            conf_int_array = np.percentile(bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound])
+            conf_int_array = np.percentile(
+                bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound]
+            )
             conf_int_lower_limit = conf_int_array[0]
             conf_int_upper_limit = conf_int_array[1]
 
@@ -812,14 +910,20 @@ def get_return_period(ams, return_value, distr="gev",
                     return_period = round(return_period, 3)
             except (ValueError, ZeroDivisionError):
                 return_period = np.nan
-            
+
             bootstrap_values = []
             for _ in range(bootstrap_runs):
-                result = bootstrap(ams, distr=distr, data_variable=data_variable,
-                               arg_value=return_value)
+                result = bootstrap(
+                    ams,
+                    distr=distr,
+                    data_variable=data_variable,
+                    arg_value=return_value,
+                )
                 bootstrap_values.append(result)
 
-            conf_int_array = np.percentile(bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound])
+            conf_int_array = np.percentile(
+                bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound]
+            )
             conf_int_lower_limit = conf_int_array[0]
             conf_int_upper_limit = conf_int_array[1]
 
@@ -838,22 +942,28 @@ def get_return_period(ams, return_value, distr="gev",
 
             bootstrap_values = []
             for _ in range(bootstrap_runs):
-                result = bootstrap(ams, distr=distr, data_variable=data_variable,
-                               arg_value=return_value)
+                result = bootstrap(
+                    ams,
+                    distr=distr,
+                    data_variable=data_variable,
+                    arg_value=return_value,
+                )
                 bootstrap_values.append(result)
 
-            conf_int_array = np.percentile(bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound])
+            conf_int_array = np.percentile(
+                bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound]
+            )
             conf_int_lower_limit = conf_int_array[0]
             conf_int_upper_limit = conf_int_array[1]
 
         return return_period, conf_int_lower_limit, conf_int_upper_limit
-    
+
     return_period, conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
-                                                                return_period,
-                                                                ams,
-                                                                input_core_dims=[["time"]],
-                                                                exclude_dims=set(("time",)),
-                                                                output_core_dims=[[],[],[]]
+        return_period,
+        ams,
+        input_core_dims=[["time"]],
+        exclude_dims=set(("time",)),
+        output_core_dims=[[], [], []],
     )
 
     return_period = return_period.rename("return_period")
@@ -867,13 +977,18 @@ def get_return_period(ams, return_value, distr="gev",
     new_ds["return_period"].attrs[
         "return value"
     ] = "occurrence of a {} value event".format(str(return_value))
-    new_ds["conf_int_lower_limit"].attrs["confidence interval lower bound"] = "{}th percentile".format(str(conf_int_lower_bound))
-    new_ds["conf_int_upper_limit"].attrs["confidence interval upper bound"] = "{}th percentile".format(str(conf_int_upper_bound))
+    new_ds["conf_int_lower_limit"].attrs[
+        "confidence interval lower bound"
+    ] = "{}th percentile".format(str(conf_int_lower_bound))
+    new_ds["conf_int_upper_limit"].attrs[
+        "confidence interval upper bound"
+    ] = "{}th percentile".format(str(conf_int_upper_bound))
 
     new_ds.attrs = ams_attributes
     new_ds.attrs["distribution"] = "{}".format(str(distr))
 
     return new_ds
+
 
 #####################################################################
 # ARCHIVE
@@ -956,7 +1071,7 @@ def get_return_period(ams, return_value, distr="gev",
 #         input_core_dims=[["time"]],
 #         exclude_dims=set(("time",)),
 #         output_core_dims=[[], [], []]
-        
+
 #         #dask_gufunc_kwargs=dict({"allow_rechunk"==True, "output_dtypes"==[ams.dtype]})
 #     )
 
