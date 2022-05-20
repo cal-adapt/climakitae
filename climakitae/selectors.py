@@ -352,7 +352,7 @@ class DataSelector(param.Parameterized):
         than 3km for WRF eventually). Also ensures that "Historical Climate" is not
         redundantly displayed when "Append historical" is also selected.
         """
-        _list_of_scenarios = list(self._choices._scenarios[self.resolution].keys())
+        _list_of_scenarios = list(self.choices["scenarios"][self.resolution].keys())
         self.param["scenario"].objects = _list_of_scenarios
         if self.append_historical and self.scenario is not None:
             if "Historical Climate" in self.scenario:
