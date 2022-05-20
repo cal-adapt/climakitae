@@ -218,7 +218,7 @@ class LocSelectorPoint(param.Parameterized):
     def _update_location(self):
         """Updates the 'location' object to be the point associated with the selected station."""
         location = _stations_database[self.cached_station]
-        
+
 
 class DataSelector(param.Parameterized):
     """
