@@ -1,8 +1,15 @@
-from .selectors import (DataSelector, _display_select, LocSelectorArea,
-                        UserFileChoices, _user_export_select, FileTypeSelector)
+from .selectors import (
+    DataSelector,
+    _display_select,
+    LocSelectorArea,
+    UserFileChoices,
+    _user_export_select,
+    FileTypeSelector,
+)
 from .data_loaders import _read_from_catalog
 from .data_export import _export_to_user
 import intake
+
 
 class Application(object):
     """
@@ -13,7 +20,7 @@ class Application(object):
     def __init__(self):
         self._cat = intake.open_catalog("https://cadcat.s3.amazonaws.com/cae.yaml")
         self.selections = DataSelector(choices=_get_catalog_contents(self._cat))
-                            
+
         self.location = LocSelectorArea()
         self.user_export_format = FileTypeSelector()
 
@@ -45,13 +52,14 @@ class Application(object):
         export_select_panel = _user_export_select(self.user_export_format)
         return export_select_panel
 
-    def export_dataset(self,data_to_export,file_name,**kwargs):
+    def export_dataset(self, data_to_export, file_name, **kwargs):
         """
         Uses the selection from 'export_as' to create a file in the specified
         format and write it to the working directory.
         """
-        return _export_to_user(self.user_export_format,data_to_export,
-                               file_name,**kwargs)
+        return _export_to_user(
+            self.user_export_format, data_to_export, file_name, **kwargs
+        )
 
 
 def _get_catalog_contents(_cat):
@@ -62,7 +70,7 @@ def _get_catalog_contents(_cat):
     }
     _variable_choices_hourly_wrf.update(
         {"Precipitation (total)": ""}
-        )  # which we'll derive from what's there
+    )  # which we'll derive from what's there
     # remove some variables from the list, which will be superceded by higher quality hydrology
     _to_drop = ["Surface runoff", "Subsurface runoff", "Snow water equivalent"]
     [_variable_choices_hourly_wrf.pop(k) for k in _to_drop]
@@ -71,25 +79,25 @@ def _get_catalog_contents(_cat):
         "Sfc pressure"
     ]
     _variable_choices_hourly_wrf.pop("Sfc pressure")
-    _variable_choices_hourly_wrf[
-        "2m Air Temperature"
-        ] = _variable_choices_hourly_wrf["Temp at 2 m"]
+    _variable_choices_hourly_wrf["2m Air Temperature"] = _variable_choices_hourly_wrf[
+        "Temp at 2 m"
+    ]
     _variable_choices_hourly_wrf.pop("Temp at 2 m")
     _variable_choices_hourly_wrf[
         "2m Water Vapor Mixing Ratio"
-        ] = _variable_choices_hourly_wrf["Qv at 2 m"]
+    ] = _variable_choices_hourly_wrf["Qv at 2 m"]
     _variable_choices_hourly_wrf.pop("Qv at 2 m")
     _variable_choices_hourly_wrf[
         "West-East component of Wind at 10m"
-        ] = _variable_choices_hourly_wrf["U at 10 m"]
+    ] = _variable_choices_hourly_wrf["U at 10 m"]
     _variable_choices_hourly_wrf.pop("U at 10 m")
     _variable_choices_hourly_wrf[
         "North-South component of Wind at 10m"
-        ] = _variable_choices_hourly_wrf["V at 10 m"]
+    ] = _variable_choices_hourly_wrf["V at 10 m"]
     _variable_choices_hourly_wrf.pop("V at 10 m")
     _variable_choices_hourly_wrf[
         "Snowfall (snow and ice)"
-        ] = _variable_choices_hourly_wrf["Accumulated total grid scale snow and ice"]
+    ] = _variable_choices_hourly_wrf["Accumulated total grid scale snow and ice"]
     _variable_choices_hourly_wrf.pop("Accumulated total grid scale snow and ice")
     _move_to_end = [k for k in _variable_choices_hourly_wrf if "Instantaneous" in k]
     for k in _move_to_end:
@@ -130,9 +138,7 @@ def _get_catalog_contents(_cat):
         "ssp585": "SSP 5-8.5 -- Burn it All",
     }
 
-    _resolutions = list(
-        set(e.metadata["nominal_resolution"] for e in _cat.values())
-    )
+    _resolutions = list(set(e.metadata["nominal_resolution"] for e in _cat.values()))
 
     _scenario_list = []
     for resolution in _resolutions:
@@ -140,14 +146,17 @@ def _get_catalog_contents(_cat):
             set(
                 e.metadata["experiment_id"]
                 for e in _cat.values()
-                    if e.metadata["nominal_resolution"] == resolution
-                )
+                if e.metadata["nominal_resolution"] == resolution
             )
+        )
         _temp.sort()  # consistent order
         _scenario_subset = [(_scenario_choices[e], e) for e in _temp]
         _scenario_subset = dict(_scenario_subset)
         _scenario_list.append((resolution, _scenario_subset))
     _scenarios = dict(_scenario_list)
-    return {'scenarios':_scenarios, 'resolutions':_resolutions, 'scenario_choices':_scenario_choices,
-                        'variable_choices':_variable_choices} 
-
+    return {
+        "scenarios": _scenarios,
+        "resolutions": _resolutions,
+        "scenario_choices": _scenario_choices,
+        "variable_choices": _variable_choices,
+    }

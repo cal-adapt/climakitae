@@ -14,12 +14,12 @@ def _get_file_list(selections, scenario, cat):
     Returns a list of simulation names for all of the simulations present in the catalog
     for a given scenario, contingent on other user-supplied constraints in 'selections'.
     """
-    lookup = {v: k for k, v in selections.choices['scenario_choices'].items()}
+    lookup = {v: k for k, v in selections.choices["scenario_choices"].items()}
     file_list = []
     for item in list(cat):
         if cat[item].metadata["nominal_resolution"] == selections.resolution:
             if cat[item].metadata["experiment_id"] == lookup[scenario]:
-                file_list.append(cat[item].name)  
+                file_list.append(cat[item].name)
     return file_list
 
 
@@ -35,7 +35,11 @@ def _open_and_concat(file_list, selections, cat, ds_region):
         attributes = deepcopy(data.attrs)
         source_id = data.attrs["source_id"]
         if selections.variable not in ("Precipitation (total)", "wind 10m magnitude"):
-            data = data[selections.choices['variable_choices']['hourly']['Dynamical'][selections.variable]]
+            data = data[
+                selections.choices["variable_choices"]["hourly"]["Dynamical"][
+                    selections.variable
+                ]
+            ]
         elif selections.variable == "Precipitation (total)":
             data = data["RAINC"] + data["RAINNC"]
         elif selections.variable == "wind 10m magnitude":
@@ -103,7 +107,7 @@ def _read_from_catalog(selections, location, cat):
     stored in 'selections' and 'location').
     """
     assert not selections.scenario == [], "Please select as least one scenario."
-    
+
     if location.area_subset == "lat/lon":
         geom = _get_as_shapely(location)
         assert (
@@ -132,7 +136,9 @@ def _read_from_catalog(selections, location, cat):
         ds_region = None
 
     if selections.append_historical:
-        assert True in ["SSP" in one for one in app.selections.scenario], "Please also select at least one SSP to which the historical simulation should be appended."
+        assert True in [
+            "SSP" in one for one in app.selections.scenario
+        ], "Please also select at least one SSP to which the historical simulation should be appended."
         one_scenario = "Historical Climate"
         files_by_scenario = _get_file_list(selections, one_scenario, cat)
         historical = _open_and_concat(files_by_scenario, selections, cat, ds_region)

@@ -132,15 +132,15 @@ class LocSelectorArea(param.Parameterized):
     # would be nice if these lat/lon sliders were greyed-out when lat/lon subset option is not selected
     latitude = param.Range(default=(32.5, 42), bounds=(10, 67))
     longitude = param.Range(default=(-125.5, -114), bounds=(-156.82317, -84.18701))
-    cached_area = param.ObjectSelector(
-        objects=dict()
-    )
+    cached_area = param.ObjectSelector(objects=dict())
 
-    def __init__(self,**params):
+    def __init__(self, **params):
         super().__init__(**params)
         self._geographies = Boundaries()
         self._geography_choose = self._geographies.boundary_dict()
-        self.param["cached_area"].objects = list(self._geography_choose["states"].keys())
+        self.param["cached_area"].objects = list(
+            self._geography_choose["states"].keys()
+        )
         self.cached_area = "CA"
 
     @param.depends("area_subset", watch=True)
@@ -233,9 +233,7 @@ class DataSelector(param.Parameterized):
     """
 
     choices = param.Dict(dict())
-    variable = param.ObjectSelector(
-        default="T2", objects=dict()
-    )
+    variable = param.ObjectSelector(default="T2", objects=dict())
     timescale = param.ObjectSelector(
         default="monthly", objects=["hourly", "daily", "monthly"]
     )  # for WRF, will just coarsen data to start
@@ -253,21 +251,19 @@ class DataSelector(param.Parameterized):
     #    self.param['variable'].objects = variables
     #    self.variable = variables[0]
 
-    scenario = param.ListSelector(
-        objects=dict()
-    )
-    resolution = param.ObjectSelector(
-        objects=dict()
-    )
+    scenario = param.ListSelector(objects=dict())
+    resolution = param.ObjectSelector(objects=dict())
     append_historical = param.Boolean(default=False)
 
-    def __init__(self,**params):
+    def __init__(self, **params):
         super().__init__(**params)
         self.param["resolution"].objects = self.choices["resolutions"]
         self.resolution = self.choices["resolutions"][0]
         _list_of_scenarios = list(self.choices["scenarios"]["45 km"].keys())
         self.param["scenario"].objects = _list_of_scenarios
-        self.param["variable"].objects = self.choices['variable_choices']["hourly"]["Dynamical"]
+        self.param["variable"].objects = self.choices["variable_choices"]["hourly"][
+            "Dynamical"
+        ]
         self.variable = "2m Air Temperature"
 
     @param.depends("resolution", "append_historical", watch=True)
@@ -317,48 +313,53 @@ def _display_select(selections, location, location_type="area average"):
     )
     return pn.Column(first_row, location_chooser)
 
+
 # === For export functionality ==========================================================
 
-class UserFileChoices():
+
+class UserFileChoices:
 
     # reserved for later: text boxes for dataset to export
     # as well as a file name
     # data_var_name = param.String()
     # output_file_name = param.String()
-    
+
     def __init__(self):
-        self._export_format_choices = ["Pick a file format" , "CSV" ,
-                                      "GeoTIFF" , "NetCDF" ]
+        self._export_format_choices = ["Pick a file format", "CSV", "GeoTIFF", "NetCDF"]
+
 
 class FileTypeSelector(param.Parameterized):
     """
     If the user wants to export an xarray dataset, they can choose
-    their preferred format here. Produces a panel from which to select a 
+    their preferred format here. Produces a panel from which to select a
     supported file type.
     """
+
     user_options = UserFileChoices()
-    output_file_format = param.ObjectSelector(objects=user_options._export_format_choices)
+    output_file_format = param.ObjectSelector(
+        objects=user_options._export_format_choices
+    )
 
     def _export_file_type(self):
         """Updates the 'user_export_format' object to be the format specified by the user."""
         user_export_format = self.output_file_format
-        
+
+
 def _user_export_select(user_export_format):
     """
     Called by 'export' at the end of the workflow. Displays panel
     from which to select the export file format. Modifies 'user_export_format' object, which is used
     by data_export() to export data to the user in their specified format.
     """
-    
-    data_to_export = pn.widgets.TextInput(name="Data to export", 
-                                placeholder="Type name of dataset here")
-    
+
+    data_to_export = pn.widgets.TextInput(
+        name="Data to export", placeholder="Type name of dataset here"
+    )
+
     # reserved for later: text boxes for dataset to export
     # as well as a file name
-    # file_name = pn.widgets.TextInput(name='File name', 
-    #                                 placeholder='Type file name here')    
+    # file_name = pn.widgets.TextInput(name='File name',
+    #                                 placeholder='Type file name here')
     # file_input_col = pn.Column(user_export_format.param, data_to_export, file_name)
 
-
     return pn.Row(user_export_format.param)
-
