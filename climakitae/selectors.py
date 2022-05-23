@@ -212,27 +212,23 @@ class LocSelectorArea(param.Parameterized):
         fig0 = Figure(figsize=(3, 3))
         proj = ccrs.Orthographic(-118, 40)
         crs_proj4 = proj.proj4_init  # used below
+        xy = ccrs.PlateCarree()
         ax = fig0.add_subplot(111, projection=proj)
-        ax.set_extent([-150, -88, 8, 66], crs=ccrs.PlateCarree())
+        ax.set_extent([-150, -88, 8, 66], crs=xy)
         ax.set_facecolor("grey")
 
-        def _plot_wrf_domains(ax):
-            """
-            Plots the boundaries of the WRF domains on an existing set of axes for a map.
-            Used with the area selection preview panel in 'select'. We could load some data
-            to do this procedurally, but hard-coding these numbers makes it faster.
-            """
-            _colors = ["k", "dodgerblue", "darkorange"]
-            for i, domain in enumerate(["45 km", "9 km", "3 km"]):
-                # Plot domain
-                ax.add_geometries(
-                    [self._wrf_bb[domain]],
-                    crs=ccrs.PlateCarree(),
-                    edgecolor=_colors[i],
-                    facecolor="white",
+        # Plot the boundaries of the WRF domains on an existing set of axes for a map.
+        # Hard-coding these numbers makes it faster.
+        _colors = ["k", "dodgerblue", "darkorange"]
+        for i, domain in enumerate(["45 km", "9 km", "3 km"]):
+            # Plot domain:
+            ax.add_geometries(
+                [self._wrf_bb[domain]],
+                crs=ccrs.PlateCarree(),
+                edgecolor=_colors[i],
+                facecolor="white",
                 )
 
-        _plot_wrf_domains(ax)
         ax.coastlines()
         ax.add_feature(cfeature.BORDERS)
         ax.add_feature(cfeature.STATES, linewidth=0.5)
@@ -240,30 +236,30 @@ class LocSelectorArea(param.Parameterized):
             "45-km grid",
             xy=(-154, 33.8),
             rotation=28,
-            xycoords=ccrs.PlateCarree()._as_mpl_transform(ax),
+            xycoords=xy._as_mpl_transform(ax),
         )
         ax.annotate(
             "9-km",
             xy=(-135, 42),
             rotation=32,
-            xycoords=ccrs.PlateCarree()._as_mpl_transform(ax),
+            xycoords=xy._as_mpl_transform(ax),
             color="k",
         )
         ax.annotate(
             "3-km",
             xy=(-127, 39),
             rotation=32,
-            xycoords=ccrs.PlateCarree()._as_mpl_transform(ax),
+            xycoords=xy._as_mpl_transform(ax),
             color="k",
         )
         mpl_pane = pn.pane.Matplotlib(fig0, dpi=144)
         if self.area_subset == "lat/lon":
-            ax.set_extent([-150, -88, 8, 66], crs=ccrs.PlateCarree())
+            ax.set_extent([-150, -88, 8, 66], crs=xy)
             ax.add_geometries(
                 [geometry], crs=ccrs.PlateCarree(), edgecolor="b", facecolor="None"
             )
         elif self.area_subset == "states":
-            ax.set_extent([-130, -100, 25, 50], crs=ccrs.PlateCarree())
+            ax.set_extent([-130, -100, 25, 50], crs=xy)
             shape_index = int(
                 self._geography_choose[self.area_subset][self.cached_area]
             )
@@ -272,7 +268,7 @@ class LocSelectorArea(param.Parameterized):
             )
             mpl_pane.param.trigger("object")
         elif self.area_subset == "CA counties":
-            ax.set_extent([-125, -114, 31, 43], crs=ccrs.PlateCarree())
+            ax.set_extent([-125, -114, 31, 43], crs=xy)
             shapefile = self._geographies._ca_counties
             shape_index = int(
                 self._geography_choose[self.area_subset][self.cached_area]
@@ -282,7 +278,7 @@ class LocSelectorArea(param.Parameterized):
             df_ae.plot(ax=ax, color="b", zorder=2)
             mpl_pane.param.trigger("object")
         elif self.area_subset == "CA watersheds":
-            ax.set_extent([-125, -114, 31, 43], crs=ccrs.PlateCarree())
+            ax.set_extent([-125, -114, 31, 43], crs=xy)
             shapefile = self._geographies._ca_watersheds
             shape_index = int(
                 self._geography_choose[self.area_subset][self.cached_area]
@@ -458,7 +454,7 @@ class DataSelector(param.Parameterized):
         low_bound, upper_bound = self.time_slice
         if "Historical Reconstruction" not in self.scenario:
             low_bound = 1980
-            if ("Historical Climate" not in self.scenario) and (self.append_historical == False):
+            if "Historical Climate" not in self.scenario and not self.append_historical:
                 low_bound = 2015
             else:
                 low_bound = 1980
