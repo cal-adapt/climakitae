@@ -144,7 +144,6 @@ class LocSelectorArea(param.Parameterized):
         self.param["cached_area"].objects = list(
             self._geography_choose["states"].keys()
         )
-        self.cached_area = "CA"
 
     _wrf_bb = {
         "45 km": Polygon(
@@ -340,6 +339,7 @@ class DataSelector(param.Parameterized):
         self.resolution = self.choices["resolutions"][0]
         _list_of_scenarios = list(self.choices["scenarios"]["45 km"].keys())
         self.param["scenario"].objects = _list_of_scenarios
+        self.scenario = ["Historical Climate"]
         self.param["variable"].objects = self.choices["variable_choices"]["hourly"][
             "Dynamical"
         ]
