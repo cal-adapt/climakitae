@@ -60,7 +60,7 @@ def _open_and_concat(file_list, selections, ds_region):
             )
         )
         # subset data spatially:
-        data_crs = pyproj.CRS.from_cf(data['Lambert_Conformal'].attrs)
+        data_crs = ccrs.CRS(pyproj.CRS.from_cf(data['Lambert_Conformal'].attrs))
 
         if ds_region:
             output = data_crs.transform_points(ccrs.PlateCarree(),
