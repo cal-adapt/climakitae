@@ -4,9 +4,6 @@
 #                                      #
 ########################################
 
-#####################################################################
-# import packages
-
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -30,12 +27,11 @@ import hvplot.xarray
 from .visualize import get_geospatial_plot
 
 #####################################################################
-# GET AMS
-# input: data array
-# export: data array of maximums
-
 
 def get_ams(da, extremes_type="max"):
+    """
+    Returns a data array of annual maximums.
+    """
 
     extremes_types = ["max"]
     if extremes_type not in extremes_types:
@@ -59,14 +55,12 @@ def get_ams(da, extremes_type="max"):
 
     return ams
 
-
-#####################################################################
-# GET L-MOMENTS DISTR
-# input: distribution name
-# export: corresponding l-moments distribution function
-
+#####################################################################a
 
 def get_lmom_distr(distr):
+    """
+    Returns corresponding l-moments distribution function from selected distribution name.
+    """
 
     distrs = ["gev", "gumbel", "weibull", "pearson3", "genpareto"]
     if distr not in distrs:
@@ -93,12 +87,11 @@ def get_lmom_distr(distr):
 
 
 #####################################################################
-# GET L-MOMENTS
-# input: annual maximum series
-# export: xarray dataset of l-moment ratios
-
 
 def get_lmoments(ams, distr="gev", multiple_points=True):
+    """
+    Returns dataset of l-moments ratios from an inputed maximum series.
+    """
 
     lmom_distr = get_lmom_distr(distr)
     ams_attributes = ams.attrs
@@ -127,12 +120,11 @@ def get_lmoments(ams, distr="gev", multiple_points=True):
 
 
 #####################################################################
-# GET KS STAT
-# input: annual maximum series
-# export: xarray dataset of ks test d-statistics and p-values
-
 
 def get_ks_stat(ams, distr="gev", multiple_points=True):
+    """
+    Returns a dataset of ks test d-statistics and p-values from an inputed maximum series.
+    """
 
     lmom_distr = get_lmom_distr(distr)
     ams_attributes = ams.attrs
@@ -241,12 +233,11 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
 
 
 #####################################################################
-# BOOTSTRAP
-# input: annual maximum series and relevant parameters
-# export: boostrap-calculated value for relevant parameters
-
 
 def bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
+    """
+    Returns a bootstrap-calculated value for relevant parameters from a inputed maximum series.
+    """
 
     data_variables = ["return_value", "return_prob", "return_period"]
     if data_variable not in data_variables:
@@ -434,10 +425,6 @@ def bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
 
 
 #####################################################################
-# GET RETURN VALUE
-# input: annual maximum series and relevant parameters
-# export: xarray dataset with return values and confidence intervals
-
 
 def get_return_value(
     ams,
@@ -448,6 +435,9 @@ def get_return_value(
     conf_int_upper_bound=97.5,
     multiple_points=True,
 ):
+    """
+    Returns dataset with return values and confidence intervals from maximum series.
+    """
 
     data_variable = "return_value"
     lmom_distr = get_lmom_distr(distr)
@@ -623,10 +613,6 @@ def get_return_value(
 
 
 #####################################################################
-# GET RETURN PROBABILITY
-# input: annual maximum series and relevant parameters
-# export: xarray dataset with return probabilities and confidence intervals
-
 
 def get_return_prob(
     ams,
@@ -637,6 +623,9 @@ def get_return_prob(
     conf_int_upper_bound=97.5,
     multiple_points=True,
 ):
+    """
+    Returns dataset with return probabilities and confidence intervals from maximum series.
+    """
 
     data_variable = "return_prob"
     lmom_distr = get_lmom_distr(distr)
@@ -787,10 +776,6 @@ def get_return_prob(
 
 
 #####################################################################
-# GET RETURN PERIOD
-# input: annual maximum series and relevant parameters
-# export: xarray dataset with return periods and confidence intervals
-
 
 def get_return_period(
     ams,
@@ -801,6 +786,9 @@ def get_return_period(
     conf_int_upper_bound=97.5,
     multiple_points=True,
 ):
+    """
+    Returns dataset with return periods and confidence intervals from maximum series.
+    """
 
     data_variable = "return_period"
     lmom_distr = get_lmom_distr(distr)
@@ -988,102 +976,3 @@ def get_return_period(
     new_ds.attrs["distribution"] = "{}".format(str(distr))
 
     return new_ds
-
-
-#####################################################################
-# ARCHIVE
-
-
-# def get_aicc_stat(ams, multiple_points=True):
-
-#     ams_attributes = ams.attrs
-
-#     if multiple_points:
-#         ams = ams.stack(allpoints=["x", "y"]).squeeze().groupby("allpoints")
-
-#     def aicc_stat(ams):
-
-#         try:
-#             lmoments_gev = ldistr.gev.lmom_fit(ams)
-#             aicc_gev = ["gev", lstats.AICc(ams, "gev", lmoments_gev)]
-#         except (ValueError, ZeroDivisionError):
-#             aicc_gev = ["gev", np.nan]
-
-#         try:
-#             lmoments_gum = ldistr.gum.lmom_fit(ams)
-#             aicc_gum = ["gumbel", lstats.AICc(ams, "gum", lmoments_gum)]
-#         except (ValueError, ZeroDivisionError):
-#             aicc_gum = ["gumbel", np.nan]
-
-#         try:
-#             lmoments_wei = ldistr.wei.lmom_fit(ams)
-#             aicc_wei = ["weibull", lstats.AICc(ams, "wei", lmoments_wei)]
-#         except (ValueError, ZeroDivisionError):
-#             aicc_wei = ["weibull", np.nan]
-
-#         try:
-#             lmoments_pe3 = ldistr.pe3.lmom_fit(ams)
-#             aicc_pe3 = ["pearson3", lstats.AICc(ams, "pe3", lmoments_pe3)]
-#         except (ValueError, ZeroDivisionError):
-#             aicc_pe3 = ["pearson3", np.nan]
-
-#         try:
-#             lmoments_gpa = ldistr.gpa.lmom_fit(ams)
-#             aicc_gpa = ["genpareto", lstats.AICc(ams, "gpa", lmoments_gpa)]
-#         except (ValueError, ZeroDivisionError):
-#             aicc_gpa = ["genpareto", np.nan]
-
-#         try:
-#             lmoments_gpa = ldistr.gpa.lmom_fit(ams)
-#             aicc_gpa = ["genpareto", lstats.AICc(ams, "gpa", lmoments_gpa)]
-#         except (ValueError, ZeroDivisionError):
-#             aicc_gpa = ["genpareto", np.nan]
-
-#         all_aicc_results = (
-#             str(aicc_gev)
-#             + str(aicc_gum)
-#             + str(aicc_wei)
-#             + str(aicc_pe3)
-#             + str(aicc_gpa)
-#         )
-#         all_aicc_results_string = str(all_aicc_results)
-
-#         lowest_aicc_value = min(
-#             aicc_gev[1], aicc_gum[1], aicc_wei[1], aicc_pe3[1], aicc_gpa[1]
-#         )
-
-#         if lowest_aicc_value == aicc_gev[1]:
-#             lowest_aicc_distr = aicc_gev[0]
-#         elif lowest_aicc_value == aicc_gum[1]:
-#             lowest_aicc_distr = aicc_gum[0]
-#         elif lowest_aicc_value == aicc_wei[1]:
-#             lowest_aicc_distr = aicc_wei[0]
-#         elif lowest_aicc_value == aicc_pe3[1]:
-#             lowest_aicc_distr = aicc_pe3[0]
-#         elif lowest_aicc_value == aicc_gpa[1]:
-#             lowest_aicc_distr = aicc_gpa[0]
-
-#         return all_aicc_results, lowest_aicc_distr, lowest_aicc_value
-
-#     all_aicc_results, lowest_aicc_distr, lowest_aicc_value = xr.apply_ufunc(
-#         aicc_stat,
-#         ams,
-#         input_core_dims=[["time"]],
-#         exclude_dims=set(("time",)),
-#         output_core_dims=[[], [], []]
-
-#         #dask_gufunc_kwargs=dict({"allow_rechunk"==True, "output_dtypes"==[ams.dtype]})
-#     )
-
-#     all_aicc_results = all_aicc_results.rename("all_aicc_results")
-#     new_ds = all_aicc_results.to_dataset()
-#     new_ds["lowest_aicc_distr"] = lowest_aicc_distr
-#     new_ds["lowest_aicc_value"] = lowest_aicc_value
-
-#     if multiple_points:
-#         new_ds = new_ds.unstack("allpoints")
-
-#     new_ds.attrs = ams_attributes
-#     new_ds.attrs["model selection technique"] = "AICc"
-
-#     return new_ds
