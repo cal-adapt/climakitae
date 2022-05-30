@@ -868,7 +868,7 @@ def get_return_period(
             try:
                 lmoments = lmom_distr.lmom_fit(ams)
                 fitted_distr = stats.pearson3(**lmoments)
-                return_prob = fitted_distr.cdf(threshold)
+                return_prob = fitted_distr.cdf(return_value)
                 if return_prob == 1.0:
                     return_period = np.nan
                 else:
