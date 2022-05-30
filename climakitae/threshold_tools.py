@@ -483,7 +483,7 @@ def get_return_value(
             except (ValueError, ZeroDivisionError):
                 return_value = np.nan
 
-            conf_int_lower_limit, conf_int_upper_limit = conf_int(ams, distr, data_variable, arg_value=return_period, bootstrap_runs, conf_int_lower_bound, conf_int_upper_bound)
+            conf_int_lower_limit, conf_int_upper_limit = conf_int(ams=ams, distr=distr, data_variable=data_variable, arg_value=return_period, bootstrap_runs=bootstrap_runs, conf_int_lower_bound=conf_int_lower_bound, conf_int_upper_bound=conf_int_upper_bound)
 
         if distr == "gumbel":
             try:
@@ -495,7 +495,7 @@ def get_return_value(
             except (ValueError, ZeroDivisionError):
                 return_value = np.nan
 
-            conf_int_lower_limit, conf_int_upper_limit = conf_int(ams, distr, data_variable, arg_value=return_period, bootstrap_runs, conf_int_lower_bound, conf_int_upper_bound)
+            conf_int_lower_limit, conf_int_upper_limit = conf_int(ams=ams, distr=distr, data_variable=data_variable, arg_value=return_period, bootstrap_runs=bootstrap_runs, conf_int_lower_bound=conf_int_lower_bound, conf_int_upper_bound=conf_int_upper_bound)
 
 
         if distr == "weibull":
@@ -508,7 +508,7 @@ def get_return_value(
             except (ValueError, ZeroDivisionError):
                 return_value = np.nan
 
-            conf_int_lower_limit, conf_int_upper_limit = conf_int(ams, distr, data_variable, arg_value=return_period, bootstrap_runs, conf_int_lower_bound, conf_int_upper_bound)
+            conf_int_lower_limit, conf_int_upper_limit = conf_int(ams=ams, distr=distr, data_variable=data_variable, arg_value=return_period, bootstrap_runs=bootstrap_runs, conf_int_lower_bound=conf_int_lower_bound, conf_int_upper_bound=conf_int_upper_bound)
 
         if distr == "pearson3":
             try:
@@ -520,7 +520,7 @@ def get_return_value(
             except (ValueError, ZeroDivisionError):
                 return_value = np.nan
 
-            conf_int_lower_limit, conf_int_upper_limit = conf_int(ams, distr, data_variable, arg_value=return_period, bootstrap_runs, conf_int_lower_bound, conf_int_upper_bound)
+            conf_int_lower_limit, conf_int_upper_limit = conf_int(ams=ams, distr=distr, data_variable=data_variable, arg_value=return_period, bootstrap_runs=bootstrap_runs, conf_int_lower_bound=conf_int_lower_bound, conf_int_upper_bound=conf_int_upper_bound)
 
         if distr == "genpareto":
             try:
@@ -532,7 +532,7 @@ def get_return_value(
             except (ValueError, ZeroDivisionError):
                 return_value = np.nan
 
-            conf_int_lower_limit, conf_int_upper_limit = conf_int(ams, distr, data_variable, arg_value=return_period, bootstrap_runs, conf_int_lower_bound, conf_int_upper_bound)
+            conf_int_lower_limit, conf_int_upper_limit = conf_int(ams=ams, distr=distr, data_variable=data_variable, arg_value=return_period, bootstrap_runs=bootstrap_runs, conf_int_lower_bound=conf_int_lower_bound, conf_int_upper_bound=conf_int_upper_bound)
 
         return return_value, conf_int_lower_limit, conf_int_upper_limit
 
