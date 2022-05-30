@@ -423,6 +423,31 @@ def bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
 
     return result
 
+#####################################################################
+
+def conf_int(ams, distr, data_variable, arg_value, bootstrap_runs, conf_int_lower_bound, conf_int_upper_bound):
+    """
+    Returns lower and upper limits of confidence interval given selected parameters.
+    """
+
+    bootstrap_values = []
+
+    for _ in range(bootstrap_runs):
+        result = bootstrap(
+            ams,
+            distr,
+            data_variable,
+            arg_value,
+        )
+        bootstrap_values.append(result)
+
+    conf_int_array = np.percentile(bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound])
+    
+    conf_int_lower_limit = conf_int_array[0]
+    conf_int_upper_limit = conf_int_array[1]
+
+    return conf_int_lower_limit, conf_int_upper_limit
+
 
 #####################################################################
 
@@ -458,21 +483,7 @@ def get_return_value(
             except (ValueError, ZeroDivisionError):
                 return_value = np.nan
 
-            bootstrap_values = []
-            for _ in range(bootstrap_runs):
-                result = bootstrap(
-                    ams,
-                    distr=distr,
-                    data_variable=data_variable,
-                    arg_value=return_period,
-                )
-                bootstrap_values.append(result)
-
-            conf_int_array = np.percentile(
-                bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound]
-            )
-            conf_int_lower_limit = conf_int_array[0]
-            conf_int_upper_limit = conf_int_array[1]
+            conf_int_lower_limit, conf_int_upper_limit = conf_int(ams, distr, data_variable, arg_value=return_period, bootstrap_runs, conf_int_lower_bound, conf_int_upper_bound)
 
         if distr == "gumbel":
             try:
@@ -484,21 +495,8 @@ def get_return_value(
             except (ValueError, ZeroDivisionError):
                 return_value = np.nan
 
-            bootstrap_values = []
-            for _ in range(bootstrap_runs):
-                result = bootstrap(
-                    ams,
-                    distr=distr,
-                    data_variable=data_variable,
-                    arg_value=return_period,
-                )
-                bootstrap_values.append(result)
+            conf_int_lower_limit, conf_int_upper_limit = conf_int(ams, distr, data_variable, arg_value=return_period, bootstrap_runs, conf_int_lower_bound, conf_int_upper_bound)
 
-            conf_int_array = np.percentile(
-                bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound]
-            )
-            conf_int_lower_limit = conf_int_array[0]
-            conf_int_upper_limit = conf_int_array[1]
 
         if distr == "weibull":
             try:
@@ -510,21 +508,7 @@ def get_return_value(
             except (ValueError, ZeroDivisionError):
                 return_value = np.nan
 
-            bootstrap_values = []
-            for _ in range(bootstrap_runs):
-                result = bootstrap(
-                    ams,
-                    distr=distr,
-                    data_variable=data_variable,
-                    arg_value=return_period,
-                )
-                bootstrap_values.append(result)
-
-            conf_int_array = np.percentile(
-                bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound]
-            )
-            conf_int_lower_limit = conf_int_array[0]
-            conf_int_upper_limit = conf_int_array[1]
+            conf_int_lower_limit, conf_int_upper_limit = conf_int(ams, distr, data_variable, arg_value=return_period, bootstrap_runs, conf_int_lower_bound, conf_int_upper_bound)
 
         if distr == "pearson3":
             try:
@@ -536,21 +520,7 @@ def get_return_value(
             except (ValueError, ZeroDivisionError):
                 return_value = np.nan
 
-            bootstrap_values = []
-            for _ in range(bootstrap_runs):
-                result = bootstrap(
-                    ams,
-                    distr=distr,
-                    data_variable=data_variable,
-                    arg_value=return_period,
-                )
-                bootstrap_values.append(result)
-
-            conf_int_array = np.percentile(
-                bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound]
-            )
-            conf_int_lower_limit = conf_int_array[0]
-            conf_int_upper_limit = conf_int_array[1]
+            conf_int_lower_limit, conf_int_upper_limit = conf_int(ams, distr, data_variable, arg_value=return_period, bootstrap_runs, conf_int_lower_bound, conf_int_upper_bound)
 
         if distr == "genpareto":
             try:
@@ -562,21 +532,7 @@ def get_return_value(
             except (ValueError, ZeroDivisionError):
                 return_value = np.nan
 
-            bootstrap_values = []
-            for _ in range(bootstrap_runs):
-                result = bootstrap(
-                    ams,
-                    distr=distr,
-                    data_variable=data_variable,
-                    arg_value=return_period,
-                )
-                bootstrap_values.append(result)
-
-            conf_int_array = np.percentile(
-                bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound]
-            )
-            conf_int_lower_limit = conf_int_array[0]
-            conf_int_upper_limit = conf_int_array[1]
+            conf_int_lower_limit, conf_int_upper_limit = conf_int(ams, distr, data_variable, arg_value=return_period, bootstrap_runs, conf_int_lower_bound, conf_int_upper_bound)
 
         return return_value, conf_int_lower_limit, conf_int_upper_limit
 
