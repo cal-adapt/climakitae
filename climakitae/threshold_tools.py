@@ -95,24 +95,44 @@ def get_fitted_distr(ams, distr, lmom_distr):
     """
 
     if distr == "gev":
-        lmoments = lmom_distr.lmom_fit(ams)
-        fitted_distr = stats.genextreme(**lmoments)
+        try:
+            lmoments = lmom_distr.lmom_fit(ams)
+            fitted_distr = stats.genextreme(**lmoments)
+        except (ValueError, ZeroDivisionError):
+            lmoments = np.nan
+            fitted_distr = np.nan
 
     elif distr == "gumbel":
-        lmoments = lmom_distr.lmom_fit(ams)
-        fitted_distr = stats.gumbel_r(**lmoments)
+        try:
+            lmoments = lmom_distr.lmom_fit(ams)
+            fitted_distr = stats.gumbel_r(**lmoments)
+        except (ValueError, ZeroDivisionError):
+            lmoments = np.nan
+            fitted_distr = np.nan
 
     elif distr == "weibull":
-        lmoments = lmom_distr.lmom_fit(ams)
-        fitted_distr = stats.weibull_min(**lmoments)
+        try:
+            lmoments = lmom_distr.lmom_fit(ams)
+            fitted_distr = stats.weibull_min(**lmoments)
+        except (ValueError, ZeroDivisionError):
+            lmoments = np.nan
+            fitted_distr = np.nan
 
     elif distr == "pearson3":
-        lmoments = lmom_distr.lmom_fit(ams)
-        fitted_distr = stats.pearson3(**lmoments)
+        try:
+            lmoments = lmom_distr.lmom_fit(ams)
+            fitted_distr = stats.pearson3(**lmoments)
+        except (ValueError, ZeroDivisionError):
+            lmoments = np.nan
+            fitted_distr = np.nan
 
     elif distr == "genpareto":
-        lmoments = lmom_distr.lmom_fit(ams)
-        fitted_distr = stats.genpareto(**lmoments)
+        try:
+            lmoments = lmom_distr.lmom_fit(ams)
+            fitted_distr = stats.genpareto(**lmoments)
+        except (ValueError, ZeroDivisionError):
+            lmoments = np.nan
+            fitted_distr = np.nan
 
     return lmoments, fitted_distr
 
