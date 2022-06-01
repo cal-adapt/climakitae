@@ -57,8 +57,7 @@ def get_ams(da, extremes_type="max"):
     return ams
 
 
-#####################################################################a
-
+#####################################################################
 
 def get_lmom_distr(distr):
     """
@@ -74,23 +73,67 @@ def get_lmom_distr(distr):
     if distr == "gev":
         lmom_distr = ldistr.gev
 
-    if distr == "gumbel":
+    elif distr == "gumbel":
         lmom_distr = ldistr.gum
 
-    if distr == "weibull":
+    elif distr == "weibull":
         lmom_distr = ldistr.wei
 
-    if distr == "pearson3":
+    elif distr == "pearson3":
         lmom_distr = ldistr.pe3
 
-    if distr == "genpareto":
+    elif distr == "genpareto":
         lmom_distr = ldistr.gpa
 
     return lmom_distr
 
-
 #####################################################################
 
+def get_fitted_distr(ams, distr):
+    """
+    Returns fitted l-moments distribution function from l-moments.
+    """
+
+    lmom_distr = get_lmom_distr(distr)
+
+    if distr == "gev":
+        try: 
+            lmoments = lmom_distr.lmom_fit(ams)
+            fitted_distr = stats.genextreme(**lmoments)
+        except (ValueError, ZeroDivisionError):
+            pass
+
+    elif distr == "gumbel":
+        try:
+            lmoments = lmom_distr.lmom_fit(ams)
+            fitted_distr = stats.gumbel_r(**lmoments)
+        except (ValueError, ZeroDivisionError):
+            pass
+
+    elif distr == "weibull":
+        try:
+            lmoments = lmom_distr.lmom_fit(ams)
+            fitted_distr = stats.weibull_min(**lmoments)
+        except (ValueError, ZeroDivisionError):
+            pass
+
+    elif distr == "pearson3":
+        try:
+            lmoments = lmom_distr.lmom_fit(ams)
+            fitted_distr = stats.pearson3(**lmoments)
+        except (ValueError, ZeroDivisionError):
+            pass
+
+    elif distr == "genpareto":
+        try:
+            lmoments = lmom_distr.lmom_fit(ams)
+            fitted_distr = stats.genpareto(**lmoments)
+        except:
+            pass
+
+    return lmoments, fitted_distr
+
+#####################################################################
 
 def get_lmoments(ams, distr="gev", multiple_points=True):
     """
@@ -130,8 +173,7 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
     """
     Returns a dataset of ks test d-statistics and p-values from an inputed maximum series.
     """
-
-    lmom_distr = get_lmom_distr(distr)
+    lmoments, fitted_distr = get_fitted_distr(ams, distr)
     ams_attributes = ams.attrs
 
     if multiple_points:
@@ -141,8 +183,6 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
 
         if distr == "gev":
             try:
-                lmoments = lmom_distr.lmom_fit(ams)
-                fitted_distr = stats.genextreme(**lmoments)
                 ks = stats.kstest(
                     ams,
                     "genextreme",
@@ -154,10 +194,8 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
                 d_statistic = np.nan
                 p_value = np.nan
 
-        if distr == "gumbel":
+        elif distr == "gumbel":
             try:
-                lmoments = lmom_distr.lmom_fit(ams)
-                fitted_distr = stats.gumbel_r(**lmoments)
                 ks = stats.kstest(
                     ams, "gumbel_r", args=(lmoments["loc"], lmoments["scale"])
                 )
@@ -167,10 +205,8 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
                 d_statistic = np.nan
                 p_value = np.nan
 
-        if distr == "weibull":
+        elif distr == "weibull":
             try:
-                lmoments = lmom_distr.lmom_fit(ams)
-                fitted_distr = stats.weibull_min(**lmoments)
                 ks = stats.kstest(
                     ams,
                     "weibull_min",
@@ -182,10 +218,8 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
                 d_statistic = np.nan
                 p_value = np.nan
 
-        if distr == "pearson3":
+        elif distr == "pearson3":
             try:
-                lmoments = lmom_distr.lmom_fit(ams)
-                fitted_distr = stats.pearson3(**lmoments)
                 ks = stats.kstest(
                     ams,
                     "pearson3",
@@ -197,10 +231,8 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
                 d_statistic = np.nan
                 p_value = np.nan
 
-        if distr == "genpareto":
+        elif distr == "genpareto":
             try:
-                lmoments = lmom_distr.lmom_fit(ams)
-                fitted_distr = stats.genpareto(**lmoments)
                 ks = stats.kstest(
                     ams,
                     "genpareto",
@@ -291,7 +323,7 @@ def bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
         except (ValueError, ZeroDivisionError):
             result = np.nan
 
-    if distr == "gumbel":
+    elif distr == "gumbel":
 
         try:
             lmoments = lmom_distr.lmom_fit(new_ams)
@@ -325,7 +357,7 @@ def bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
         except (ValueError, ZeroDivisionError):
             result = np.nan
 
-    if distr == "weibull":
+    elif distr == "weibull":
 
         try:
             lmoments = lmom_distr.lmom_fit(new_ams)
@@ -359,7 +391,7 @@ def bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
         except (ValueError, ZeroDivisionError):
             result = np.nan
 
-    if distr == "pearson3":
+    elif distr == "pearson3":
 
         try:
             lmoments = lmom_distr.lmom_fit(new_ams)
@@ -393,7 +425,7 @@ def bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
         except (ValueError, ZeroDivisionError):
             result = np.nan
 
-    if distr == "genpareto":
+    elif distr == "genpareto":
 
         try:
             lmoments = lmom_distr.lmom_fit(new_ams)
@@ -507,7 +539,7 @@ def get_return_value(
                 conf_int_upper_bound=conf_int_upper_bound,
             )
 
-        if distr == "gumbel":
+        elif distr == "gumbel":
             try:
                 lmoments = lmom_distr.lmom_fit(ams)
                 fitted_distr = stats.gumbel_r(**lmoments)
@@ -527,7 +559,7 @@ def get_return_value(
                 conf_int_upper_bound=conf_int_upper_bound,
             )
 
-        if distr == "weibull":
+        elif distr == "weibull":
             try:
                 lmoments = lmom_distr.lmom_fit(ams)
                 fitted_distr = stats.weibull_min(**lmoments)
@@ -547,7 +579,7 @@ def get_return_value(
                 conf_int_upper_bound=conf_int_upper_bound,
             )
 
-        if distr == "pearson3":
+        elif distr == "pearson3":
             try:
                 lmoments = lmom_distr.lmom_fit(ams)
                 fitted_distr = stats.pearson3(**lmoments)
@@ -567,7 +599,7 @@ def get_return_value(
                 conf_int_upper_bound=conf_int_upper_bound,
             )
 
-        if distr == "genpareto":
+        elif distr == "genpareto":
             try:
                 lmoments = lmom_distr.lmom_fit(ams)
                 fitted_distr = stats.genpareto(**lmoments)
@@ -664,7 +696,7 @@ def get_return_prob(
                 conf_int_upper_bound=conf_int_upper_bound,
             )
 
-        if distr == "gumbel":
+        elif distr == "gumbel":
             try:
                 lmoments = lmom_distr.lmom_fit(ams)
                 fitted_distr = stats.gumbel_r(**lmoments)
@@ -682,7 +714,7 @@ def get_return_prob(
                 conf_int_upper_bound=conf_int_upper_bound,
             )
 
-        if distr == "weibull":
+        elif distr == "weibull":
             try:
                 lmoments = lmom_distr.lmom_fit(ams)
                 fitted_distr = stats.weibull_min(**lmoments)
@@ -700,7 +732,7 @@ def get_return_prob(
                 conf_int_upper_bound=conf_int_upper_bound,
             )
 
-        if distr == "pearson3":
+        elif distr == "pearson3":
             try:
                 lmoments = lmom_distr.lmom_fit(ams)
                 fitted_distr = stats.pearson3(**lmoments)
@@ -718,7 +750,7 @@ def get_return_prob(
                 conf_int_upper_bound=conf_int_upper_bound,
             )
 
-        if distr == "genpareto":
+        elif distr == "genpareto":
             try:
                 lmoments = lmom_distr.lmom_fit(ams)
                 fitted_distr = stats.genpareto(**lmoments)
@@ -818,7 +850,7 @@ def get_return_period(
                 conf_int_upper_bound=conf_int_upper_bound,
             )
 
-        if distr == "gumbel":
+        elif distr == "gumbel":
             try:
                 lmoments = lmom_distr.lmom_fit(ams)
                 fitted_distr = stats.gumbel_r(**lmoments)
@@ -841,7 +873,7 @@ def get_return_period(
                 conf_int_upper_bound=conf_int_upper_bound,
             )
 
-        if distr == "weibull":
+        elif distr == "weibull":
             try:
                 lmoments = lmom_distr.lmom_fit(ams)
                 fitted_distr = stats.weibull_min(**lmoments)
@@ -864,7 +896,7 @@ def get_return_period(
                 conf_int_upper_bound=conf_int_upper_bound,
             )
 
-        if distr == "pearson3":
+        elif distr == "pearson3":
             try:
                 lmoments = lmom_distr.lmom_fit(ams)
                 fitted_distr = stats.pearson3(**lmoments)
@@ -887,7 +919,7 @@ def get_return_period(
                 conf_int_upper_bound=conf_int_upper_bound,
             )
 
-        if distr == "genpareto":
+        elif distr == "genpareto":
             try:
                 lmoments = lmom_distr.lmom_fit(ams)
                 fitted_distr = stats.genpareto(**lmoments)
