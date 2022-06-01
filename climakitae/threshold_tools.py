@@ -99,35 +99,40 @@ def get_fitted_distr(ams, distr, lmom_distr):
             lmoments = lmom_distr.lmom_fit(ams)
             fitted_distr = stats.genextreme(**lmoments)
         except (ValueError, ZeroDivisionError):
-            pass
+            lmoments = np.nan
+            fitted_distr = np.nan
 
     elif distr == "gumbel":
         try:
             lmoments = lmom_distr.lmom_fit(ams)
             fitted_distr = stats.gumbel_r(**lmoments)
         except (ValueError, ZeroDivisionError):
-            pass
+            lmoments = np.nan
+            fitted_distr = np.nan
 
     elif distr == "weibull":
         try:
             lmoments = lmom_distr.lmom_fit(ams)
             fitted_distr = stats.weibull_min(**lmoments)
         except (ValueError, ZeroDivisionError):
-            pass
+            lmoments = np.nan
+            fitted_distr = np.nan
 
     elif distr == "pearson3":
         try:
             lmoments = lmom_distr.lmom_fit(ams)
             fitted_distr = stats.pearson3(**lmoments)
         except (ValueError, ZeroDivisionError):
-            pass
+            lmoments = np.nan
+            fitted_distr = np.nan
 
     elif distr == "genpareto":
         try:
             lmoments = lmom_distr.lmom_fit(ams)
             fitted_distr = stats.genpareto(**lmoments)
         except (ValueError, ZeroDivisionError):
-            pass
+            lmoments = np.nan
+            fitted_distr = np.nan
 
     return lmoments, fitted_distr
 
@@ -283,13 +288,13 @@ def calculate_return(fitted_distr, data_variable, arg_value):
             return_event = 1.0 - (1.0 / arg_value)
             return_value = fitted_distr.ppf(return_event)
             result = round(return_value, 5)
-        except (ValueError, ZeroDivisionError):
+        except (ValueError, ZeroDivisionError, AttributeError):
             result = np.nan
 
     elif data_variable == "return_prob":
         try:
             result = 1 - (fitted_distr.cdf(arg_value))
-        except (ValueError, ZeroDivisionError):
+        except (ValueError, ZeroDivisionError, AttributeError):
             result = np.nan
 
     elif data_variable == "return_period":
@@ -300,7 +305,7 @@ def calculate_return(fitted_distr, data_variable, arg_value):
             else:
                 return_period = -1.0 / (return_prob - 1.0)
                 result = round(return_period, 3)
-        except (ValueError, ZeroDivisionError):
+        except (ValueError, ZeroDivisionError, AttributeError):
             result = np.nan
 
     return result
