@@ -89,13 +89,11 @@ def get_lmom_distr(distr):
 
 #####################################################################
 
-def get_fitted_distr(ams, distr):
+def get_fitted_distr(ams, distr, lmom_distr):
     """
     Returns fitted l-moments distribution function from l-moments.
     """
-
-    lmom_distr = get_lmom_distr(distr)
-
+    
     if distr == "gev":
         lmoments = lmom_distr.lmom_fit(ams)
         fitted_distr = stats.genextreme(**lmoments)
@@ -158,6 +156,8 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
     """
     Returns a dataset of ks test d-statistics and p-values from an inputed maximum series.
     """
+
+    lmom_distr = get_lmom_distr(distr)
     ams_attributes = ams.attrs
 
     if multiple_points:
@@ -167,7 +167,7 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
 
         if distr == "gev":
             try:
-                lmoments, fitted_distr = get_fitted_distr(ams, distr)
+                lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 ks = stats.kstest(
                     ams,
                     "genextreme",
@@ -181,7 +181,7 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
 
         elif distr == "gumbel":
             try:
-                lmoments, fitted_distr = get_fitted_distr(ams, distr)
+                lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 ks = stats.kstest(
                     ams, "gumbel_r", args=(lmoments["loc"], lmoments["scale"])
                 )
@@ -193,7 +193,7 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
 
         elif distr == "weibull":
             try:
-                lmoments, fitted_distr = get_fitted_distr(ams, distr)
+                lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 ks = stats.kstest(
                     ams,
                     "weibull_min",
@@ -207,7 +207,7 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
 
         elif distr == "pearson3":
             try:
-                lmoments, fitted_distr = get_fitted_distr(ams, distr)
+                lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 ks = stats.kstest(
                     ams,
                     "pearson3",
@@ -221,7 +221,7 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
 
         elif distr == "genpareto":
             try:
-                lmoments, fitted_distr = get_fitted_distr(ams, distr)
+                lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 ks = stats.kstest(
                     ams,
                     "genpareto",
