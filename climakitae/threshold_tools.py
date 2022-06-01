@@ -258,7 +258,7 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
 
 #####################################################################
 
-def calculate_return(fitted_distr, data_variable, arg_value)
+def calculate_return(fitted_distr, data_variable, arg_value):
     """
     Returns corresponding extreme value calculation for selected data variable.
     """
