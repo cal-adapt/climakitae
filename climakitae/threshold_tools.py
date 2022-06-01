@@ -93,7 +93,7 @@ def get_fitted_distr(ams, distr, lmom_distr):
     """
     Returns fitted l-moments distribution function from l-moments.
     """
-    
+
     if distr == "gev":
         lmoments = lmom_distr.lmom_fit(ams)
         fitted_distr = stats.genextreme(**lmoments)
@@ -281,8 +281,7 @@ def bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
     if distr == "gev":
 
         try:
-            lmoments = lmom_distr.lmom_fit(new_ams)
-            fitted_distr = stats.genextreme(**lmoments)
+            lmoments, fitted_distr = get_fitted_distr(new_ams, distr, lmom_distr)
 
             if data_variable == "return_value":
                 try:
@@ -292,13 +291,13 @@ def bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
                 except (ValueError, ZeroDivisionError):
                     result = np.nan
 
-            if data_variable == "return_prob":
+            elif data_variable == "return_prob":
                 try:
                     result = 1 - (fitted_distr.cdf(arg_value))
                 except (ValueError, ZeroDivisionError):
                     result = np.nan
 
-            if data_variable == "return_period":
+            elif data_variable == "return_period":
                 try:
                     return_prob = fitted_distr.cdf(arg_value)
                     if return_prob == 1.0:
@@ -315,8 +314,7 @@ def bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
     elif distr == "gumbel":
 
         try:
-            lmoments = lmom_distr.lmom_fit(new_ams)
-            fitted_distr = stats.gumbel_r(**lmoments)
+            lmoments, fitted_distr = get_fitted_distr(new_ams, distr, lmom_distr)
 
             if data_variable == "return_value":
                 try:
@@ -326,13 +324,13 @@ def bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
                 except (ValueError, ZeroDivisionError):
                     result = np.nan
 
-            if data_variable == "return_prob":
+            elif data_variable == "return_prob":
                 try:
                     result = 1 - (fitted_distr.cdf(arg_value))
                 except (ValueError, ZeroDivisionError):
                     result = np.nan
 
-            if data_variable == "return_period":
+            elif data_variable == "return_period":
                 try:
                     return_prob = fitted_distr.cdf(arg_value)
                     if return_prob == 1.0:
@@ -349,8 +347,7 @@ def bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
     elif distr == "weibull":
 
         try:
-            lmoments = lmom_distr.lmom_fit(new_ams)
-            fitted_distr = stats.weibull_min(**lmoments)
+            lmoments, fitted_distr = get_fitted_distr(new_ams, distr, lmom_distr)
 
             if data_variable == "return_value":
                 try:
@@ -360,13 +357,13 @@ def bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
                 except (ValueError, ZeroDivisionError):
                     result = np.nan
 
-            if data_variable == "return_prob":
+            elif data_variable == "return_prob":
                 try:
                     result = 1 - (fitted_distr.cdf(arg_value))
                 except (ValueError, ZeroDivisionError):
                     result = np.nan
 
-            if data_variable == "return_period":
+            elif data_variable == "return_period":
                 try:
                     return_prob = fitted_distr.cdf(arg_value)
                     if return_prob == 1.0:
@@ -383,8 +380,7 @@ def bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
     elif distr == "pearson3":
 
         try:
-            lmoments = lmom_distr.lmom_fit(new_ams)
-            fitted_distr = stats.pearson3(**lmoments)
+            lmoments, fitted_distr = get_fitted_distr(new_ams, distr, lmom_distr)
 
             if data_variable == "return_value":
                 try:
@@ -394,13 +390,13 @@ def bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
                 except (ValueError, ZeroDivisionError):
                     result = np.nan
 
-            if data_variable == "return_prob":
+            elif data_variable == "return_prob":
                 try:
                     result = 1 - (fitted_distr.cdf(arg_value))
                 except (ValueError, ZeroDivisionError):
                     result = np.nan
 
-            if data_variable == "return_period":
+            elif data_variable == "return_period":
                 try:
                     return_prob = fitted_distr.cdf(arg_value)
                     if return_prob == 1.0:
@@ -417,8 +413,7 @@ def bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
     elif distr == "genpareto":
 
         try:
-            lmoments = lmom_distr.lmom_fit(new_ams)
-            fitted_distr = stats.genpareto(**lmoments)
+            lmoments, fitted_distr = get_fitted_distr(new_ams, distr, lmom_distr)
 
             if data_variable == "return_value":
                 try:
@@ -428,13 +423,13 @@ def bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
                 except (ValueError, ZeroDivisionError):
                     result = np.nan
 
-            if data_variable == "return_prob":
+            elif data_variable == "return_prob":
                 try:
                     result = 1 - (fitted_distr.cdf(arg_value))
                 except (ValueError, ZeroDivisionError):
                     result = np.nan
 
-            if data_variable == "return_period":
+            elif data_variable == "return_period":
                 try:
                     return_prob = fitted_distr.cdf(arg_value)
                     if return_prob == 1.0:
@@ -510,8 +505,7 @@ def get_return_value(
 
         if distr == "gev":
             try:
-                lmoments = lmom_distr.lmom_fit(ams)
-                fitted_distr = stats.genextreme(**lmoments)
+                lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 return_event = 1.0 - (1.0 / return_period)
                 return_value = fitted_distr.ppf(return_event)
                 return_value = round(return_value, 5)
@@ -530,8 +524,7 @@ def get_return_value(
 
         elif distr == "gumbel":
             try:
-                lmoments = lmom_distr.lmom_fit(ams)
-                fitted_distr = stats.gumbel_r(**lmoments)
+                lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 return_event = 1.0 - (1.0 / return_period)
                 return_value = fitted_distr.ppf(return_event)
                 return_value = round(return_value, 5)
@@ -550,8 +543,7 @@ def get_return_value(
 
         elif distr == "weibull":
             try:
-                lmoments = lmom_distr.lmom_fit(ams)
-                fitted_distr = stats.weibull_min(**lmoments)
+                lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 return_event = 1.0 - (1.0 / return_period)
                 return_value = fitted_distr.ppf(return_event)
                 return_value = round(return_value, 5)
@@ -570,8 +562,7 @@ def get_return_value(
 
         elif distr == "pearson3":
             try:
-                lmoments = lmom_distr.lmom_fit(ams)
-                fitted_distr = stats.pearson3(**lmoments)
+                lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 return_event = 1.0 - (1.0 / return_period)
                 return_value = fitted_distr.ppf(return_event)
                 return_value = round(return_value, 5)
@@ -590,8 +581,7 @@ def get_return_value(
 
         elif distr == "genpareto":
             try:
-                lmoments = lmom_distr.lmom_fit(ams)
-                fitted_distr = stats.genpareto(**lmoments)
+                lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 return_event = 1.0 - (1.0 / return_period)
                 return_value = fitted_distr.ppf(return_event)
                 return_value = round(return_value, 5)
@@ -669,8 +659,7 @@ def get_return_prob(
 
         if distr == "gev":
             try:
-                lmoments = lmom_distr.lmom_fit(ams)
-                fitted_distr = stats.genextreme(**lmoments)
+                lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 return_prob = 1 - (fitted_distr.cdf(threshold))
             except (ValueError, ZeroDivisionError):
                 return_prob = np.nan
@@ -687,8 +676,7 @@ def get_return_prob(
 
         elif distr == "gumbel":
             try:
-                lmoments = lmom_distr.lmom_fit(ams)
-                fitted_distr = stats.gumbel_r(**lmoments)
+                lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 return_prob = 1 - (fitted_distr.cdf(threshold))
             except (ValueError, ZeroDivisionError):
                 return_prob = np.nan
@@ -705,8 +693,7 @@ def get_return_prob(
 
         elif distr == "weibull":
             try:
-                lmoments = lmom_distr.lmom_fit(ams)
-                fitted_distr = stats.weibull_min(**lmoments)
+                lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 return_prob = 1 - (fitted_distr.cdf(threshold))
             except (ValueError, ZeroDivisionError):
                 return_prob = np.nan
@@ -723,8 +710,7 @@ def get_return_prob(
 
         elif distr == "pearson3":
             try:
-                lmoments = lmom_distr.lmom_fit(ams)
-                fitted_distr = stats.pearson3(**lmoments)
+                lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 return_prob = 1 - (fitted_distr.cdf(threshold))
             except (ValueError, ZeroDivisionError):
                 return_prob = np.nan
@@ -741,8 +727,7 @@ def get_return_prob(
 
         elif distr == "genpareto":
             try:
-                lmoments = lmom_distr.lmom_fit(ams)
-                fitted_distr = stats.genpareto(**lmoments)
+                lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 return_prob = 1 - (fitted_distr.cdf(threshold))
             except (ValueError, ZeroDivisionError):
                 return_prob = np.nan
@@ -818,8 +803,7 @@ def get_return_period(
 
         if distr == "gev":
             try:
-                lmoments = lmom_distr.lmom_fit(ams)
-                fitted_distr = stats.genextreme(**lmoments)
+                lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 return_prob = fitted_distr.cdf(return_value)
                 if return_prob == 1.0:
                     return_period = np.nan
@@ -841,8 +825,7 @@ def get_return_period(
 
         elif distr == "gumbel":
             try:
-                lmoments = lmom_distr.lmom_fit(ams)
-                fitted_distr = stats.gumbel_r(**lmoments)
+                lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 return_prob = fitted_distr.cdf(return_value)
                 if return_prob == 1.0:
                     return_period = np.nan
@@ -864,8 +847,7 @@ def get_return_period(
 
         elif distr == "weibull":
             try:
-                lmoments = lmom_distr.lmom_fit(ams)
-                fitted_distr = stats.weibull_min(**lmoments)
+                lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 return_prob = fitted_distr.cdf(return_value)
                 if return_prob == 1.0:
                     return_period = np.nan
@@ -887,8 +869,7 @@ def get_return_period(
 
         elif distr == "pearson3":
             try:
-                lmoments = lmom_distr.lmom_fit(ams)
-                fitted_distr = stats.pearson3(**lmoments)
+                lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 return_prob = fitted_distr.cdf(return_value)
                 if return_prob == 1.0:
                     return_period = np.nan
@@ -910,8 +891,7 @@ def get_return_period(
 
         elif distr == "genpareto":
             try:
-                lmoments = lmom_distr.lmom_fit(ams)
-                fitted_distr = stats.genpareto(**lmoments)
+                lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 return_prob = fitted_distr.cdf(return_value)
                 if return_prob == 1.0:
                     return_period = np.nan
