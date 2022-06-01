@@ -59,6 +59,7 @@ def get_ams(da, extremes_type="max"):
 
 #####################################################################
 
+
 def get_lmom_distr(distr):
     """
     Returns corresponding l-moments distribution function from selected distribution name.
@@ -87,7 +88,9 @@ def get_lmom_distr(distr):
 
     return lmom_distr
 
+
 #####################################################################
+
 
 def get_fitted_distr(ams, distr, lmom_distr):
     """
@@ -136,7 +139,9 @@ def get_fitted_distr(ams, distr, lmom_distr):
 
     return lmoments, fitted_distr
 
+
 #####################################################################
+
 
 def get_lmoments(ams, distr="gev", multiple_points=True):
     """
@@ -168,7 +173,9 @@ def get_lmoments(ams, distr="gev", multiple_points=True):
 
     return new_ds
 
+
 #####################################################################
+
 
 def get_ks_stat(ams, distr="gev", multiple_points=True):
     """
@@ -278,6 +285,7 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
 
 #####################################################################
 
+
 def calculate_return(fitted_distr, data_variable, arg_value):
     """
     Returns corresponding extreme value calculation for selected data variable.
@@ -310,7 +318,9 @@ def calculate_return(fitted_distr, data_variable, arg_value):
 
     return result
 
+
 #####################################################################
+
 
 def bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
     """
@@ -332,35 +342,55 @@ def bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
     if distr == "gev":
         try:
             lmoments, fitted_distr = get_fitted_distr(new_ams, distr, lmom_distr)
-            result = calculate_return(fitted_distr=fitted_distr, data_variable=data_variable, arg_value=arg_value)
+            result = calculate_return(
+                fitted_distr=fitted_distr,
+                data_variable=data_variable,
+                arg_value=arg_value,
+            )
         except (ValueError, ZeroDivisionError):
             result = np.nan
 
     elif distr == "gumbel":
         try:
             lmoments, fitted_distr = get_fitted_distr(new_ams, distr, lmom_distr)
-            result = calculate_return(fitted_distr=fitted_distr, data_variable=data_variable, arg_value=arg_value)
+            result = calculate_return(
+                fitted_distr=fitted_distr,
+                data_variable=data_variable,
+                arg_value=arg_value,
+            )
         except (ValueError, ZeroDivisionError):
             result = np.nan
 
     elif distr == "weibull":
         try:
             lmoments, fitted_distr = get_fitted_distr(new_ams, distr, lmom_distr)
-            result = calculate_return(fitted_distr=fitted_distr, data_variable=data_variable, arg_value=arg_value)
+            result = calculate_return(
+                fitted_distr=fitted_distr,
+                data_variable=data_variable,
+                arg_value=arg_value,
+            )
         except (ValueError, ZeroDivisionError):
             result = np.nan
 
     elif distr == "pearson3":
         try:
             lmoments, fitted_distr = get_fitted_distr(new_ams, distr, lmom_distr)
-            result = calculate_return(fitted_distr=fitted_distr, data_variable=data_variable, arg_value=arg_value)
+            result = calculate_return(
+                fitted_distr=fitted_distr,
+                data_variable=data_variable,
+                arg_value=arg_value,
+            )
         except (ValueError, ZeroDivisionError):
             result = np.nan
 
     elif distr == "genpareto":
         try:
             lmoments, fitted_distr = get_fitted_distr(new_ams, distr, lmom_distr)
-            result = calculate_return(fitted_distr=fitted_distr, data_variable=data_variable, arg_value=arg_value)
+            result = calculate_return(
+                fitted_distr=fitted_distr,
+                data_variable=data_variable,
+                arg_value=arg_value,
+            )
         except (ValueError, ZeroDivisionError):
             result = np.nan
 
@@ -426,7 +456,11 @@ def get_return_value(
 
         if distr == "gev":
             lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
-            return_value = calculate_return(fitted_distr=fitted_distr, data_variable=data_variable, arg_value=return_period)
+            return_value = calculate_return(
+                fitted_distr=fitted_distr,
+                data_variable=data_variable,
+                arg_value=return_period,
+            )
             conf_int_lower_limit, conf_int_upper_limit = conf_int(
                 ams=ams,
                 distr=distr,
@@ -439,7 +473,11 @@ def get_return_value(
 
         elif distr == "gumbel":
             lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
-            return_value = calculate_return(fitted_distr=fitted_distr, data_variable=data_variable, arg_value=return_period)
+            return_value = calculate_return(
+                fitted_distr=fitted_distr,
+                data_variable=data_variable,
+                arg_value=return_period,
+            )
             conf_int_lower_limit, conf_int_upper_limit = conf_int(
                 ams=ams,
                 distr=distr,
@@ -452,7 +490,11 @@ def get_return_value(
 
         elif distr == "weibull":
             lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
-            return_value = calculate_return(fitted_distr=fitted_distr, data_variable=data_variable, arg_value=return_period)
+            return_value = calculate_return(
+                fitted_distr=fitted_distr,
+                data_variable=data_variable,
+                arg_value=return_period,
+            )
             conf_int_lower_limit, conf_int_upper_limit = conf_int(
                 ams=ams,
                 distr=distr,
@@ -465,7 +507,11 @@ def get_return_value(
 
         elif distr == "pearson3":
             lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
-            return_value = calculate_return(fitted_distr=fitted_distr, data_variable=data_variable, arg_value=return_period)
+            return_value = calculate_return(
+                fitted_distr=fitted_distr,
+                data_variable=data_variable,
+                arg_value=return_period,
+            )
             conf_int_lower_limit, conf_int_upper_limit = conf_int(
                 ams=ams,
                 distr=distr,
@@ -478,7 +524,11 @@ def get_return_value(
 
         elif distr == "genpareto":
             lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
-            return_value = calculate_return(fitted_distr=fitted_distr, data_variable=data_variable, arg_value=return_period)
+            return_value = calculate_return(
+                fitted_distr=fitted_distr,
+                data_variable=data_variable,
+                arg_value=return_period,
+            )
             conf_int_lower_limit, conf_int_upper_limit = conf_int(
                 ams=ams,
                 distr=distr,
@@ -550,7 +600,11 @@ def get_return_prob(
 
         if distr == "gev":
             lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
-            return_prob = calculate_return(fitted_distr=fitted_distr, data_variable=data_variable, arg_value=threshold)
+            return_prob = calculate_return(
+                fitted_distr=fitted_distr,
+                data_variable=data_variable,
+                arg_value=threshold,
+            )
             conf_int_lower_limit, conf_int_upper_limit = conf_int(
                 ams=ams,
                 distr=distr,
@@ -563,7 +617,11 @@ def get_return_prob(
 
         elif distr == "gumbel":
             lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
-            return_prob = calculate_return(fitted_distr=fitted_distr, data_variable=data_variable, arg_value=threshold)
+            return_prob = calculate_return(
+                fitted_distr=fitted_distr,
+                data_variable=data_variable,
+                arg_value=threshold,
+            )
             conf_int_lower_limit, conf_int_upper_limit = conf_int(
                 ams=ams,
                 distr=distr,
@@ -576,7 +634,11 @@ def get_return_prob(
 
         elif distr == "weibull":
             lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
-            return_prob = calculate_return(fitted_distr=fitted_distr, data_variable=data_variable, arg_value=threshold)
+            return_prob = calculate_return(
+                fitted_distr=fitted_distr,
+                data_variable=data_variable,
+                arg_value=threshold,
+            )
             conf_int_lower_limit, conf_int_upper_limit = conf_int(
                 ams=ams,
                 distr=distr,
@@ -589,7 +651,11 @@ def get_return_prob(
 
         elif distr == "pearson3":
             lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
-            return_prob = calculate_return(fitted_distr=fitted_distr, data_variable=data_variable, arg_value=threshold)
+            return_prob = calculate_return(
+                fitted_distr=fitted_distr,
+                data_variable=data_variable,
+                arg_value=threshold,
+            )
             conf_int_lower_limit, conf_int_upper_limit = conf_int(
                 ams=ams,
                 distr=distr,
@@ -602,7 +668,11 @@ def get_return_prob(
 
         elif distr == "genpareto":
             lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
-            return_prob = calculate_return(fitted_distr=fitted_distr, data_variable=data_variable, arg_value=threshold)
+            return_prob = calculate_return(
+                fitted_distr=fitted_distr,
+                data_variable=data_variable,
+                arg_value=threshold,
+            )
             conf_int_lower_limit, conf_int_upper_limit = conf_int(
                 ams=ams,
                 distr=distr,
@@ -674,7 +744,11 @@ def get_return_period(
 
         if distr == "gev":
             lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
-            return_prob = calculate_return(fitted_distr=fitted_distr, data_variable=data_variable, arg_value=return_value)
+            return_period = calculate_return(
+                fitted_distr=fitted_distr,
+                data_variable=data_variable,
+                arg_value=return_value,
+            )
             conf_int_lower_limit, conf_int_upper_limit = conf_int(
                 ams=ams,
                 distr=distr,
@@ -687,7 +761,11 @@ def get_return_period(
 
         elif distr == "gumbel":
             lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
-            return_prob = calculate_return(fitted_distr=fitted_distr, data_variable=data_variable, arg_value=return_value)
+            return_period = calculate_return(
+                fitted_distr=fitted_distr,
+                data_variable=data_variable,
+                arg_value=return_value,
+            )
             conf_int_lower_limit, conf_int_upper_limit = conf_int(
                 ams=ams,
                 distr=distr,
@@ -700,7 +778,11 @@ def get_return_period(
 
         elif distr == "weibull":
             lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
-            return_prob = calculate_return(fitted_distr=fitted_distr, data_variable=data_variable, arg_value=return_value)
+            return_period = calculate_return(
+                fitted_distr=fitted_distr,
+                data_variable=data_variable,
+                arg_value=return_value,
+            )
             conf_int_lower_limit, conf_int_upper_limit = conf_int(
                 ams=ams,
                 distr=distr,
@@ -713,7 +795,11 @@ def get_return_period(
 
         elif distr == "pearson3":
             lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
-            return_prob = calculate_return(fitted_distr=fitted_distr, data_variable=data_variable, arg_value=return_value)
+            return_period = calculate_return(
+                fitted_distr=fitted_distr,
+                data_variable=data_variable,
+                arg_value=return_value,
+            )
             conf_int_lower_limit, conf_int_upper_limit = conf_int(
                 ams=ams,
                 distr=distr,
@@ -726,7 +812,11 @@ def get_return_period(
 
         elif distr == "genpareto":
             lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
-            return_prob = calculate_return(fitted_distr=fitted_distr, data_variable=data_variable, arg_value=return_value)
+            return_period = calculate_return(
+                fitted_distr=fitted_distr,
+                data_variable=data_variable,
+                arg_value=return_value,
+            )
             conf_int_lower_limit, conf_int_upper_limit = conf_int(
                 ams=ams,
                 distr=distr,
