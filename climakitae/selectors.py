@@ -53,7 +53,7 @@ class Boundaries:
     def __init__(self):
         self._us_states = regionmask.defined_regions.natural_earth_v4_1_0.us_states_50
         self._ca_counties = gpd.read_file(
-            "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/1/query?where=STATE=06&f=geojson"
+            "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/1/query?where=STATE='06'&f=geojson"
         )
         self._ca_counties = self._ca_counties.sort_values("NAME")
 
