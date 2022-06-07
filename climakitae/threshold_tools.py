@@ -132,7 +132,7 @@ def get_lmoments(ams, distr="gev", multiple_points=True):
     ams_attributes = ams.attrs
 
     if multiple_points:
-        ams = ams.stack(allpoints=["x", "y"]).squeeze().groupby("allpoints")
+        ams = ams.stack(allpoints=["y", "x"]).squeeze().groupby("allpoints")
 
     lmoments = xr.apply_ufunc(
         lmom_distr.lmom_fit,
@@ -166,7 +166,7 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
     ams_attributes = ams.attrs
 
     if multiple_points:
-        ams = ams.stack(allpoints=["x", "y"]).squeeze().groupby("allpoints")
+        ams = ams.stack(allpoints=["y", "x"]).squeeze().groupby("allpoints")
 
     def ks_stat(ams):
 
@@ -430,7 +430,7 @@ def get_return_value(
     ams_attributes = ams.attrs
 
     if multiple_points:
-        ams = ams.stack(allpoints=["x", "y"]).squeeze().groupby("allpoints")
+        ams = ams.stack(allpoints=["y", "x"]).squeeze().groupby("allpoints")
 
     def return_value(ams):
 
@@ -589,7 +589,7 @@ def get_return_prob(
     ams_attributes = ams.attrs
 
     if multiple_points:
-        ams = ams.stack(allpoints=["x", "y"]).squeeze().groupby("allpoints")
+        ams = ams.stack(allpoints=["y", "x"]).squeeze().groupby("allpoints")
 
     def return_prob(ams):
 
@@ -748,7 +748,7 @@ def get_return_period(
     ams_attributes = ams.attrs
 
     if multiple_points:
-        ams = ams.stack(allpoints=["x", "y"]).squeeze().groupby("allpoints")
+        ams = ams.stack(allpoints=["y", "x"]).squeeze().groupby("allpoints")
 
     def return_period(ams):
 
