@@ -1,3 +1,9 @@
+########################################
+#                                      #
+# VISUALIZE                            #
+#                                      #
+########################################
+
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -15,36 +21,6 @@ import hvplot.xarray
 
 #####################################################################
 
-
-def get_frequency_plot(ds, data_variable, color="orange", hover_fill_color="blue"):
-
-    data_variables = ["lowest_aicc_distr"]
-    if data_variable not in data_variables:
-        raise ValueError(
-            "invalid data variable type. expected one of the following: %s"
-            % data_variables
-        )
-
-    if data_variable in ["lowest_aicc_distr"]:
-        categories, counts = np.unique(ds[data_variable].values, return_counts=True)
-        d = {"Distributions": categories, "Number of Lowest AICc Occurrences": counts}
-        df = pd.DataFrame(data=d, index=np.arange(len(categories)))
-        title = "Frequency of Different Distributions Having the Lowest AICc Statistic"
-
-    frequency_plot = df.hvplot.bar(
-        x="Distributions",
-        y="Number of Lowest AICc Occurrences",
-        title=title,
-        color=color,
-        hover_fill_color=hover_fill_color,
-    )
-
-    return frequency_plot
-
-
-#####################################################################
-
-
 def get_geospatial_plot(
     ds,
     data_variable,
@@ -55,6 +31,9 @@ def get_geospatial_plot(
     cmap="Wistia",
     hover_fill_color="blue",
 ):
+    """
+    Returns a geospatial plot (hvplot) from inputed dataset and selected data variable.
+    """
 
     data_variables = [
         "d_statistic",

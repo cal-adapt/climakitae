@@ -1,6 +1,6 @@
 import xarray as xr
 import cartopy.crs as ccrs
-import dask
+import pyproj
 from shapely.geometry import box
 import regionmask
 import intake
@@ -57,13 +57,12 @@ def _open_and_concat(file_list, selections, cat, ds_region):
         # time-slice:
         data = data.sel(
             time=slice(
-                str(selections.time_slice[0]) + "0101",
-                str(selections.time_slice[1]) + "1231",
+                str(selections.time_slice[0]),
+                str(selections.time_slice[1]),
             )
         )
         # subset data spatially:
-        data_crs = ccrs.LambertConformal(central_longitude=-70,central_latitude=38,
-                                 standard_parallels=(30.0,60.0))
+        data_crs = ccrs.CRS(pyproj.CRS.from_cf(data['Lambert_Conformal'].attrs))
 
         if ds_region:
             output = data_crs.transform_points(ccrs.PlateCarree(),
@@ -120,13 +119,13 @@ def _read_from_catalog(selections, location, cat):
     a dataset (which can be quite large) containing everything requested by the user (which is
     stored in 'selections' and 'location').
     """
+
     assert not selections.scenario == [], "Please select as least one scenario."
 
     if location.area_subset == "lat/lon":
         geom = _get_as_shapely(location)
-        assert (
-            geom.is_valid
-        ), "Please go back to 'select' and choose a valid lat/lon range."
+        if not geom.is_valid:
+            raise ValueError("Please go back to 'select' and choose a valid lat/lon range.")
         ds_region = regionmask.Regions([geom], abbrevs=["lat/lon box"], name="box mask")
     elif location.area_subset == "states":
         shape_index = int(
@@ -150,9 +149,9 @@ def _read_from_catalog(selections, location, cat):
         ds_region = None
 
     if selections.append_historical:
-        assert True in [
-            "SSP" in one for one in selections.scenario
-        ], "Please also select at least one SSP to which the historical simulation should be appended."
+        if not any(['SSP' in s for s in selections.scenario]):
+            raise ValueError('Please also select at least one SSP to '
+                     'which the historical simulation should be appended.')
         one_scenario = "Historical Climate"
         files_by_scenario = _get_file_list(selections, one_scenario, cat)
         historical = _open_and_concat(files_by_scenario, selections, cat, ds_region)
@@ -184,5 +183,6 @@ def _read_from_catalog(selections, location, cat):
     all_files = all_files.to_array("scenario")
     all_files.name = selections.variable
     all_files.attrs = attributes
-    assert all_files.time.size != 0, "Dataset will be empty. Please adjust selections."
+    if not all_files.time.size:
+        raise ValueError("Dataset will be empty. Please adjust selections.")
     return all_files
