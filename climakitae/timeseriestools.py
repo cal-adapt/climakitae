@@ -76,7 +76,11 @@ class TimeSeriesParams(param.Parameterized):
             ).mean("time")
 
         def _running_mean(y):
-            return y.rolling(time=self.num_timesteps, center=True).mean("time")
+            if y.timescale == "monthly":
+                month_weights = xr.DataArray([], dims=["num_days"])
+                return y.rolling(time=self.num_timesteps, center=True).construct("num_days").dot(month_weights)
+            else:
+                return y.rolling(time=self.num_timesteps, center=True).mean("time")
 
         if self.anomaly and not self.separate_seasons:
             to_plot = _getAnom(to_plot)
