@@ -317,7 +317,16 @@ class CatalogContents:
         }
         _variable_choices_hourly_wrf.update(
             {"Precipitation (total)": ""}
-        )  # which we'll derive from what's there
+        )
+        _variable_choices_hourly_wrf.update(
+            {"Relative Humidity": ""}
+        )
+        _variable_choices_hourly_wrf.update(
+            {"Wind Magnitude at 10 m": ""}
+        )
+        _variable_choices_hourly_wrf.update(
+            {"Wind Direction at 10 m": ""}
+        )# which we'll derive from what's there
         # remove some variables from the list, which will be superceded by higher quality hydrology
         _to_drop = ["Surface runoff", "Subsurface runoff", "Snow water equivalent"]
         [_variable_choices_hourly_wrf.pop(k) for k in _to_drop]
