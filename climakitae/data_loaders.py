@@ -38,11 +38,17 @@ def _open_and_concat(file_list, selections, ds_region):
         data = cat[one_file].to_dask()
         attributes = deepcopy(data.attrs)
         source_id = data.attrs["source_id"]
-        if selections.variable not in ("Precipitation (total)", "wind 10m magnitude"):
+        if selections.variable not in ("Precipitation (total)", "Relative Humidity", "Wind Magnitude at 10 m", "Wind Direction at 10 m", "Daily Maximum Hourly Temperature"):
             data = data[selections.variable]
         elif selections.variable == "Precipitation (total)":
             data = data["RAINC"] + data["RAINNC"]
-        elif selections.variable == "wind 10m magnitude":
+        elif selections.variable == "Relative Humidity":
+            data = wrf.rh(data["Q2"], data["PSFC"], data["T2"], meta=True) #technically using surface pressure, not full atm pressure
+        elif selections.variable == "Wind Magnitude at 10 m":
+            data = np.sqrt(np.square(data["U10"]) + np.square(data["V10"]))
+        elif selections.variable == "Wind Direction at 10 m":
+            data = metpy.calc.wind_direction(data["U10"], data["V10"], convention="from")
+        elif selections.variable == "Daily Maximum Hourly Temperature":
             pass
 
         # coarsen in time if 'selections' so-indicates:
@@ -75,7 +81,7 @@ def _open_and_concat(file_list, selections, ds_region):
                 False in mask.isnull()
             ), "Insufficient gridcells are contained within the bounds."
             data = data.where(np.isnan(mask) == False)
-            
+
         if selections.area_average:
             weights = np.cos(np.deg2rad(data.lat))
             data = data.weighted(weights).mean("x").mean("y")
