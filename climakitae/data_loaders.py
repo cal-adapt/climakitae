@@ -6,6 +6,7 @@ import regionmask
 import intake
 import numpy as np
 from copy import deepcopy
+import metpy
 
 # support methods for core.Application.generate
 xr.set_options(keep_attrs=True)
@@ -43,7 +44,7 @@ def _open_and_concat(file_list, selections, ds_region):
         elif selections.variable == "Precipitation (total)":
             data = data["RAINC"] + data["RAINNC"]
         elif selections.variable == "Relative Humidity":
-            data = wrf.rh(data["Q2"], data["PSFC"], data["T2"], meta=True) #technically using surface pressure, not full atm pressure
+            data = metpy.calc.relative_humidity_from_mixing_ratio(data["Q2"], data["PSFC"], data["T2"]) #technically using surface pressure, not full atm pressure
         elif selections.variable == "Wind Magnitude at 10 m":
             data = np.sqrt(np.square(data["U10"]) + np.square(data["V10"]))
         elif selections.variable == "Wind Direction at 10 m":
