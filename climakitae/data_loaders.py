@@ -7,6 +7,7 @@ import intake
 import numpy as np
 from copy import deepcopy
 import metpy
+from .derive_variables import compute_precip
 
 # support methods for core.Application.generate
 xr.set_options(keep_attrs=True)
@@ -39,10 +40,11 @@ def _open_and_concat(file_list, selections, ds_region):
         data = cat[one_file].to_dask()
         attributes = deepcopy(data.attrs)
         source_id = data.attrs["source_id"]
-        if selections.variable not in ("Precipitation (total)", "Relative Humidity", "Wind Magnitude at 10 m", "Wind Direction at 10 m", "Daily Maximum Hourly Temperature"):
+        if selections.variable not in ("TOT_PRECIP", "Relative Humidity", "Wind Magnitude at 10 m", "Wind Direction at 10 m", "Daily Maximum Hourly Temperature"):
             data = data[selections.variable]
-        elif selections.variable == "Precipitation (total)":
-            data = data["RAINC"] + data["RAINNC"]
+        elif selections.variable == "TOT_PRECIP":
+            data = compute_total_precip(cumulus_precip=data["RAINC"], gridcell_precip=data["RAINNC"], 
+                                        variable_name="TOT_PRECIP") # Assign name to DataArray. Must match variable name in code above
         elif selections.variable == "Relative Humidity":
             data = metpy.calc.relative_humidity_from_mixing_ratio(data["Q2"], data["PSFC"], data["T2"]) #technically using surface pressure, not full atm pressure
         elif selections.variable == "Wind Magnitude at 10 m":

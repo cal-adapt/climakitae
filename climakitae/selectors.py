@@ -316,7 +316,7 @@ class CatalogContents:
             v.attrs["description"].capitalize(): k for k, v in _ds.data_vars.items()
         }
         _variable_choices_hourly_wrf.update(
-            {"Precipitation (total)": ""}
+            {"Precipitation (total)": "TOT_PRECIP"}
         )
         _variable_choices_hourly_wrf.update(
             {"Relative Humidity": ""}
