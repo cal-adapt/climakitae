@@ -506,12 +506,12 @@ class DataSelector(param.Parameterized):
             else:
                 center = 2057.5  # 2015-2100
                 x_width = 42.5
-                if "2-4.5" in one:
-                    color = "y"
+                if "2-4.5" in one: # CMIP6 scenario colors
+                    color = "#EADD3D"
                 elif "3-7.0" in one:
-                    color = "orange"
+                    color = "#F21111"
                 elif "5-8.5" in one:
-                    color = "r"
+                    color = "#980002"
                 if self.append_historical:
                     ax.errorbar(x=1997.5, y=y_offset, xerr=17.5, linewidth=8, color="c")
             ax.errorbar(x=center, y=y_offset, xerr=x_width, linewidth=8, color=color)
