@@ -506,10 +506,10 @@ class DataSelector(param.Parameterized):
             else:
                 center = 2057.5  # 2015-2100
                 x_width = 42.5
-                if "2-4.5" in one: # CMIP6 scenario colors
-                    color = "#EADD3D"
+                if "2-4.5" in one: # CMIP6 scenario colors 
+                    color = "#eadd3d"
                 elif "3-7.0" in one:
-                    color = "#F21111"
+                    color = "#f21111"
                 elif "5-8.5" in one:
                     color = "#980002"
                 if self.append_historical:
