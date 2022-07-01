@@ -8,7 +8,7 @@ from climakitae.derive_variables import _compute_total_precip
 @pytest.fixture
 def test_data(rootdir): 
     """ Read in test dataset using xarray. """
-    filename = "test_data/test_dataset_2022_monthly_45km.nc"
+    filename = "test_data/test_dataset_2022_2022_monthly_45km.nc"
     filepath = os.path.join(rootdir, filename)
     ds = xr.open_dataset(filepath)  
     return ds
