@@ -6,8 +6,7 @@ import regionmask
 import intake
 import numpy as np
 from copy import deepcopy
-import metpy
-from .derive_variables import compute_precip
+from .derive_variables import _compute_total_precip, _compute_relative_humidity, _compute_wind_mag
 
 # support methods for core.Application.generate
 xr.set_options(keep_attrs=True)
@@ -40,19 +39,30 @@ def _open_and_concat(file_list, selections, ds_region):
         data = cat[one_file].to_dask()
         attributes = deepcopy(data.attrs)
         source_id = data.attrs["source_id"]
-        if selections.variable not in ("TOT_PRECIP", "Relative Humidity", "Wind Magnitude at 10 m", "Wind Direction at 10 m", "Daily Maximum Hourly Temperature"):
+        if selections.variable not in ("TOT_PRECIP", "REL_HUMIDITY", "WIND_MAG", "WIND_DIR", "Daily Maximum Hourly Temperature"):
             data = data[selections.variable]
         elif selections.variable == "TOT_PRECIP":
-            data = compute_total_precip(cumulus_precip=data["RAINC"], gridcell_precip=data["RAINNC"], 
-                                        variable_name="TOT_PRECIP") # Assign name to DataArray. Must match variable name in code above
-        elif selections.variable == "Relative Humidity":
-            data = metpy.calc.relative_humidity_from_mixing_ratio(data["Q2"], data["PSFC"], data["T2"]) #technically using surface pressure, not full atm pressure
-        elif selections.variable == "Wind Magnitude at 10 m":
-            data = np.sqrt(np.square(data["U10"]) + np.square(data["V10"]))
-        elif selections.variable == "Wind Direction at 10 m":
-            data = metpy.calc.wind_direction(data["U10"], data["V10"], convention="from")
+            data = _compute_total_precip(cumulus_precip=data["RAINC"], 
+                                         gridcell_precip=data["RAINNC"], 
+                                         variable_name="TOT_PRECIP") # Assign name to DataArray. Must match variable name in code above
+        elif selections.variable == "REL_HUMIDITY":
+            data = _compute_relative_humidity(pressure=data["PSFC"], # Technically using surface pressure, not full atmospheric pressure
+                                              temperature=data["T2"], 
+                                              mixing_ratio=data["Q2"],
+                                              variable_name="REL_HUMIDITY") 
+        elif selections.variable == "WIND_MAG":
+            data = _compute_wind_mag(u10=data["U10"], 
+                                     v10=data["V10"], 
+                                     variable_name="WIND_MAG")
+        #elif selections.variable == "WIND_DIR":
+        #    data = _compute_wind_direction(u10=data["U10"], 
+        #                                   v10=data["V10"], 
+        #                                   variable_name="WIND_DIR")
         elif selections.variable == "Daily Maximum Hourly Temperature":
             pass
+        
+        else: # Raise error; Variable selected exists as dropdown option, but is not completely integrated into the code selection process. 
+            raise ValueError("You've encountered a bug in the code. Variable " + selections.variable + " is not a valid variable. Check source code for data_loaders or selectors module.")
 
         # coarsen in time if 'selections' so-indicates:
         if selections.timescale == "daily":

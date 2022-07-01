@@ -315,18 +315,20 @@ class CatalogContents:
         _variable_choices_hourly_wrf = {
             v.attrs["description"].capitalize(): k for k, v in _ds.data_vars.items()
         }
+        
+        # Add derived variables 
+        # Dictionary key (i.e. Precipitation (total)) will appear in list of variable options. 
+        # Dictionary item (i.e. TOT_PRECIP) must match name of DataArray assigned in data_loaders module. 
         _variable_choices_hourly_wrf.update(
-            {"Precipitation (total)": "TOT_PRECIP"}
-        )
-        _variable_choices_hourly_wrf.update(
-            {"Relative Humidity": ""}
-        )
-        _variable_choices_hourly_wrf.update(
-            {"Wind Magnitude at 10 m": ""}
-        )
-        _variable_choices_hourly_wrf.update(
-            {"Wind Direction at 10 m": ""}
-        )# which we'll derive from what's there
+            {"Precipitation (total)": "TOT_PRECIP",  
+             "Relative Humidity": "REL_HUMIDITY", 
+             "Wind Magnitude at 10 m": "WIND_MAG"}
+        ) 
+             
+        #_variable_choices_hourly_wrf.update(
+        #    "Wind Direction at 10 m": "WIND_DIR"}
+        #)
+        
         # remove some variables from the list, which will be superceded by higher quality hydrology
         _to_drop = ["Surface runoff", "Subsurface runoff", "Snow water equivalent"]
         [_variable_choices_hourly_wrf.pop(k) for k in _to_drop]
