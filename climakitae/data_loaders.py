@@ -6,7 +6,7 @@ import regionmask
 import intake
 import numpy as np
 from copy import deepcopy
-from .derive_variables import _compute_total_precip, _compute_relative_humidity, _compute_wind_mag
+from .derive_variables import _compute_total_precip, _compute_relative_humidity, _compute_wind_mag, _compute_wind_direction
 
 # support methods for core.Application.generate
 xr.set_options(keep_attrs=True)
