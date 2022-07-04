@@ -54,10 +54,10 @@ def _open_and_concat(file_list, selections, ds_region):
             data = _compute_wind_mag(u10=data["U10"], 
                                      v10=data["V10"], 
                                      variable_name="WIND_MAG")
-        #elif selections.variable == "WIND_DIR":
-        #    data = _compute_wind_direction(u10=data["U10"], 
-        #                                   v10=data["V10"], 
-        #                                   variable_name="WIND_DIR")
+        elif selections.variable == "WIND_DIR":
+            data = _compute_wind_direction(u10=data["U10"], 
+                                           v10=data["V10"], 
+                                           variable_name="WIND_DIR")
         elif selections.variable == "Daily Maximum Hourly Temperature":
             pass
         
