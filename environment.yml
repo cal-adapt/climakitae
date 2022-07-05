@@ -1,4 +1,4 @@
-name: climakitae
+name: climakitae-tests
 
 channels:
   - conda-forge
