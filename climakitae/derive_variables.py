@@ -66,26 +66,3 @@ def _compute_wind_mag(u10, v10, variable_name="WIND_MAG"):
     wind_mag.attrs["units"] = "m s-1"
 
     return wind_mag
-
-
-def _compute_wind_direction(u10, v10, variable_name="WIND_DIR"):
-    """Compute wind direction at 10 meters
-
-    Args:
-        u10 (xr.DataArray): Zonal velocity at 10 meters height in m/s
-        v10 (xr.DataArray): Meridonal velocity at 10 meters height in m/s
-        variable_name (string): Name to assign DataArray object (default to "WIND_DIR")
-
-    Returns:
-        wind_dir (xr.DataArray): Wind direction
-
-    """
-
-    wind_dir = metpy.calc.wind_direction(u10, v10, convention="from")
-    wind_dir = wind_dir.metpy.dequantify() # metpy function returns a pint.Quantity object, which can cause issues with dask. This can be undone using the dequantify function. For more info: https://unidata.github.io/MetPy/latest/tutorials/xarray_tutorial.html
-
-    # Assign descriptive name and attributes
-    wind_dir.name = variable_name
-    wind_dir.attrs["description"] = "Wind direction at 10 m"
-    #wind_dir.attrs["units"] = "Degrees (0-360)"
-    return wind_dir

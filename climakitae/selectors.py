@@ -322,8 +322,7 @@ class CatalogContents:
         _variable_choices_hourly_wrf.update(
             {"Precipitation (total)": "TOT_PRECIP",  
              "Relative Humidity": "REL_HUMIDITY", 
-             "Wind Magnitude at 10 m": "WIND_MAG", 
-             "Wind Direction at 10 m": "WIND_DIR"}
+             "Wind Magnitude at 10 m": "WIND_MAG"}
         ) 
         
         # remove some variables from the list, which will be superceded by higher quality hydrology
