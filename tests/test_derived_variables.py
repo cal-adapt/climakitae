@@ -55,7 +55,3 @@ def test_precip_check_expected_value(test_data):
     total_precip = _compute_total_precip(cumulus_precip=test_data_subset["RAINC"], gridcell_precip=test_data_subset["RAINNC"])
     expected_value = test_data_subset["RAINC"] + test_data_subset["RAINNC"] # Value you expect the function to return      
     assert total_precip.equals(expected_value)
-    
-
-    
-    
