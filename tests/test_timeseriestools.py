@@ -1,5 +1,6 @@
 import climakitae as ck
 from climakitae import timeseriestools as tst
+import datetime as dt
 import pytest
 import xarray as xr
 
@@ -9,9 +10,7 @@ import xarray as xr
 test_filepath = "tests/test_data/timeseries_data_T2_2014_2016_monthly_45km.nc"
 y = xr.open_dataarray(test_filepath)
 
-#------------------ Build TimeseriesParam object ------------------------------
-
-# Test running mean without anomaly
+#------------------ Test running mean without anomaly ------------------------------
 
 ts = tst.Timeseries(y) 
 tsp = ts.choices
@@ -24,18 +23,12 @@ tr_data
 Exception("Still need to manually re-center the rolling average!")
 
 
+#------------------ Test monthly weighted anomaly ------------------------------
 
+ts = tst.Timeseries(y) 
+tsp = ts.choices
+tsp.anomaly = True
+tsp.reference_range = (dt.datetime(2014, 1, 1), dt.datetime(2014, 12, 31)) 
 
-# # def test_running_mean():
-# #     """
-
-# #     """
-# #     _expected_rolling_avg = []
-
-# #     my_data = xr.open_dataset("test_data/test_dataset_2015_monthly_45km.nc")
-
-# #     tsp = tst.TimeSeriesParams(my_data)
-
-# #     tsp.transform_data() # transform_data calls _running_mean()
-# #     assert tsp.output_current() == _expected_rolling_avg
-
+tr_data = tsp.transform_data() # transform_data calls _running_mean()
+tr_data

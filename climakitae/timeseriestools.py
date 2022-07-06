@@ -71,7 +71,15 @@ class TimeSeriesParams(param.Parameterized):
             """
             Returns the difference with respect to the average across a historical range.
             """
-            return y - y.sel(time=slice(*self.reference_range)).mean("time")
+            if y.attrs["frequency"] == "1month":
+                # If frequency is monthly, then the reference period average needs to be a 
+                # weighted average, with weights equal to the number of days in each month
+                reference_slice = y.sel(time=slice(*self.reference_range))
+                month_weights = reference_slice.time.dt.daysinmonth # Number of days in each month of the reference range
+                reference_avg = reference_slice.weighted(month_weights).mean("time") # Calculate the weighted average of this period
+                return y - reference_avg # return the difference
+            else:
+                return y - y.sel(time=slice(*self.reference_range)).mean("time")
 
         def _running_mean(y):
             # If timescale is monthly, need to weight the rolling average by the number of days in each month
