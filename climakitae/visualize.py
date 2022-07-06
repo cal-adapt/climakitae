@@ -9,7 +9,8 @@ import pandas as pd
 import xarray as xr
 
 import matplotlib.pyplot as plt
-from matplotlib import cm
+# from matplotlib import cm  ## potentially not needed now?
+import matplotlib.colors as mcolors
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import geoviews as gv
@@ -20,6 +21,33 @@ import hvplot.pandas
 import hvplot.xarray
 
 #####################################################################
+
+ae_orange_cm = mcolors.ListedColormap(['#FDF7EC', '#FAE9D1',
+                                       '#F7DBB5', '#F8D096',
+                                       '#F8C576', '#F9B858',
+                                       '#FAAA3A', '#F99E30',
+                                       '#F79226', '#EC8022',
+                                       '#DA651B', '#C84914',
+                                       '#BC3710', '#B0250B',
+                                       '#980002', '#821113'])
+
+ae_blue_cm = mcolors.ListedColormap(['#D8F3FA', '#C7E9F7',
+                                       '#B6DEF4', '#93C8ED',
+                                       '#82BEEA', '#70B3E7',
+                                       '#4D9DE0', '#478FD0',
+                                       '#4081BF', '#3A73A5',
+                                       '#33658A', '#2D5679',
+                                       '#274768', '#203757',
+                                       '#192745', '#152039'])
+
+ae_div_cm = mcolors.ListedColormap(['#192745', '#264668',
+                                      '#33658A', '#4081BF',
+                                      '#4D9DE0', '#93C8ED',
+                                      '#B6DEF4', '#D8F3FA',
+                                      '#FDF7EC', '#F7DBBF',
+                                      '#F8C576', '#FAAA3A',
+                                      '#F79226', '#E06E1D',
+                                      '#C84914', '#980002'])
 
 def get_geospatial_plot(
     ds,
@@ -106,7 +134,7 @@ def get_geospatial_plot(
             title="{} For A {} ({} Distribution)".format(
                 variable_name, attribute_name, distr_name
             ),
-            cmap=cmap,
+            cmap=ae_orange_cm.colors, ######
             hover_fill_color=hover_fill_color,
         )
         * borders
