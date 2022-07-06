@@ -71,14 +71,24 @@ class TimeSeriesParams(param.Parameterized):
             """
             Returns the difference with respect to the average across a historical range.
             """
-            return y - y.sel(
-                time=slice(self.reference_range[0], self.reference_range[1])
-            ).mean("time")
+            return y - y.sel(time=slice(*self.reference_range)).mean("time")
 
         def _running_mean(y):
-            if y.timescale == "monthly":
-                month_weights = xr.DataArray([], dims=["num_days"])
-                return y.rolling(time=self.num_timesteps, center=True).construct("num_days").dot(month_weights)
+            # If timescale is monthly, need to weight the rolling average by the number of days in each month
+            if y.attrs["frequency"] == "1month":                
+                # Access the number of days in each month corresponding to each element of y
+                month_weights = y.time.dt.daysinmonth
+                
+                # Construct DataArrayRolling objects for both the data and the weights
+                rolling_y = y.rolling(time=self.num_timesteps, center=True) # `center` doesn't work for manual iteration
+                rolling_weights = month_weights.rolling(time=self.num_timesteps, center=True)
+                
+                # Manually iterate over the rolling windows and calculate each weighted average
+                result = y.copy()
+                for (_lab_y, y_window), (_lab_w, weights_window) in zip(rolling_y, rolling_weights):
+                    result.loc[dict(time = _lab_y)] = y_window.weighted(weights_window.fillna(0)).mean("time").values
+ 
+                return result
             else:
                 return y.rolling(time=self.num_timesteps, center=True).mean("time")
 
