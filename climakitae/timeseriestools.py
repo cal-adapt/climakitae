@@ -94,7 +94,7 @@ class TimeSeriesParams(param.Parameterized):
                 # Manually iterate over the rolling windows and calculate each weighted average
                 result = y.copy()
                 for (_lab_y, y_window), (_lab_w, weights_window) in zip(rolling_y, rolling_weights):
-                    result.loc[dict(time = _lab_y)] = y_window.weighted(weights_window.fillna(0)).mean("time").values
+                    result.loc[dict(time = _lab_y)] = y_window.weighted(weights_window.fillna(0)).mean("time")
  
                 return result
             else:
