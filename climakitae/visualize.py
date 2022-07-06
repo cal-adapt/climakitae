@@ -56,7 +56,7 @@ def get_geospatial_plot(
     bar_max=None,
     border_color="black",
     line_width=0.5,
-    cmap=ae_orange_cm,
+    cmap='Wistia',
     hover_fill_color="blue",
 ):
     """
