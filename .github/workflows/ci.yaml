@@ -5,10 +5,7 @@
 
 name: ci
 
-on:
-  push:
-    branches: 
-    - add_var_test
+on: push
 
 jobs:
   build:
