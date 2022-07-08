@@ -9,8 +9,7 @@ import pandas as pd
 import xarray as xr
 
 import matplotlib.pyplot as plt
-# from matplotlib import cm  ## potentially not needed now?
-import matplotlib.colors as mcolors
+from matplotlib import cm  # potentially no longer needed once branded maps are implemented
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import geoviews as gv
@@ -22,32 +21,49 @@ import hvplot.xarray
 
 #####################################################################
 
-ae_orange_cm = mcolors.ListedColormap(['#FDF7EC', '#FAE9D1',
-                                       '#F7DBB5', '#F8D096',
-                                       '#F8C576', '#F9B858',
-                                       '#FAAA3A', '#F99E30',
-                                       '#F79226', '#EC8022',
-                                       '#DA651B', '#C84914',
-                                       '#BC3710', '#B0250B',
-                                       '#980002', '#821113'])
+ae_orange_cm = ['#FDF7EC', '#FAE9D1', '#F7DBB5', '#F8D096',
+               '#F8C576', '#F9B858', '#FAAA3A', '#F99E30',
+               '#F79226', '#EC8022', '#DA651B', '#C84914',
+               '#BC3710', '#B0250B', '#980002', '#821113']
 
-ae_blue_cm = mcolors.ListedColormap(['#D8F3FA', '#C7E9F7',
-                                       '#B6DEF4', '#93C8ED',
-                                       '#82BEEA', '#70B3E7',
-                                       '#4D9DE0', '#478FD0',
-                                       '#4081BF', '#3A73A5',
-                                       '#33658A', '#2D5679',
-                                       '#274768', '#203757',
-                                       '#192745', '#152039'])
+ae_blue_cm = ['#D8F3FA', '#C7E9F7', '#B6DEF4', '#93C8ED',
+               '#82BEEA', '#70B3E7', '#4D9DE0', '#478FD0',
+               '#4081BF', '#3A73A5', '#33658A', '#2D5679',
+               '#274768', '#203757', '#192745', '#152039']
 
-ae_div_cm = mcolors.ListedColormap(['#192745', '#264668',
-                                      '#33658A', '#4081BF',
-                                      '#4D9DE0', '#93C8ED',
-                                      '#B6DEF4', '#D8F3FA',
-                                      '#FDF7EC', '#F7DBBF',
-                                      '#F8C576', '#FAAA3A',
-                                      '#F79226', '#E06E1D',
-                                      '#C84914', '#980002'])
+ae_div_cm = ['#192745', '#264668', '#33658A', '#4081BF',
+              '#4D9DE0', '#93C8ED', '#B6DEF4', '#D8F3FA',
+              '#FDF7EC', '#F7DBBF', '#F8C576', '#FAAA3A',
+              '#F79226', '#E06E1D', '#C84914', '#980002']
+
+# ae_div_cm will need to be midpoint normalized using the data min and max when called
+# ae_orange_cm should be default colormap option unless variable specified
+
+var_cmap = {
+    '2m Air Temperature': 'ae_orange_cm'
+    'Surface skin temperature': 'ae_orange_cm'
+    'Wind magnitude at 10 m': 'ae_orange_cm'
+    'Shortwave surface downward diffuse irradiance': 'ae_orange_cm'
+    'Instantaneous downwelling longwave flux at bottom': 'ae_orange_cm'
+    'Instantaneous downwelling clear sky longwave flux at bottom': 'ae_orange_cm'
+    'Instantaneous upwelling longwave flux at bottom': 'ae_orange_cm'
+    'Instantaneous upwelling clear sky longwave flux at bottom': 'ae_orange_cm'
+    'Instantaneous downwelling shortwave flux at bottom': 'ae_orange_cm'
+    'Instantaneous downwelling clear sky shortwave flux at bottom': 'ae_orange_cm'
+    'Instantaneous upwelling shortwave flux at bottom': 'ae_orange_cm'
+    'Instantaneous upwelling clear sky shortwave flux at bottom': 'ae_orange_cm'
+    'Precipitation (total)': 'ae_blue_cm'
+    'Accumulated total cumulus precipitation': ' ae_blue_cm'
+    'Accumulated total grid scale precipitation': 'ae_blue_cm'
+    '2m Water Vapor Mixing Ratio': 'ae_blue_cm'
+    'Snowfall (snow and ice)': 'ae_blue_cm'
+    'Relative Humidity': ' ae_blue_cm'
+    'North-South component of Wind at 10 m': 'ae_div_cm'
+    'East-West component of Wind at 10 m': 'ae_div_cm'
+    'Surface pressure': 'ae_div_cm' # note surface pressure isn't diverging, but is commonly mapped as such for high/low p 
+}
+
+# note specifically excluding 360-wind direction from var_cmap for now as it doesn't fit these categories
 
 def get_geospatial_plot(
     ds,
@@ -134,7 +150,7 @@ def get_geospatial_plot(
             title="{} For A {} ({} Distribution)".format(
                 variable_name, attribute_name, distr_name
             ),
-            cmap=ae_orange_cm.colors, ######
+            cmap=cmap, # default ae_orange_cm, unless otherwise variable specified
             hover_fill_color=hover_fill_color,
         )
         * borders
