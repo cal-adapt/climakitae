@@ -12,7 +12,7 @@ class Application(object):
 
     def __init__(self):
         self.selections = DataSelector()
-        self.location = LocSelectorArea()
+        self.location = LocSelectorArea(name="Location Selections")
         self.user_export_format = FileTypeSelector()
 
     # === Select =====================================
