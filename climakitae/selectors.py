@@ -12,6 +12,11 @@ import geopandas as gpd
 import pandas as pd
 import datetime as dt
 
+# Import package data 
+import pkg_resources
+DATA_PATH = pkg_resources.resource_filename('climakitae', 'data/')
+CSV_FILE = pkg_resources.resource_filename('climakitae', 'data/variable_descriptions.csv')
+
 # support methods for core.Application.select
 
 # constants: instead will be read from database of some kind:
@@ -413,9 +418,6 @@ class DataSelector(param.Parameterized):
     """
 
     _choices = CatalogContents()
-    variable = param.ObjectSelector(
-        default="T2", objects=_choices._variable_choices["hourly"]["Dynamical"]
-    )
     timescale = param.ObjectSelector(
         default="monthly", objects=["hourly", "daily", "monthly"]
     )  # for WRF, will just coarsen data to start
@@ -429,7 +431,21 @@ class DataSelector(param.Parameterized):
     )
     resolution = param.ObjectSelector(default="45 km", objects=_choices._resolutions)
     append_historical = param.Boolean(default=False)
-
+    
+    default_variable = "T2" # 2 meter temp 
+    variable = param.ObjectSelector(
+        default=default_variable, objects=_choices._variable_choices["hourly"]["Dynamical"]
+    )
+    csv = pd.read_csv(CSV_FILE, 
+             index_col="name", usecols=["name","extended_description"])
+    descrip_dict = csv.to_dict()["extended_description"]   
+    variable_description = param.String(default=descrip_dict[default_variable], doc="Extended description of variable selected")
+    
+    @param.depends("variable", "descrip_dict", watch=True)
+    def _update_variable_description(self): 
+        """ Update extended description of variable selected. """
+        self.variable_description = self.descrip_dict[self.variable]
+    
     @param.depends("resolution", "append_historical", "scenario", watch=True)
     def _update_scenarios(self):
         """
@@ -552,6 +568,7 @@ def _display_select(selections, location, location_type="area average"):
             selections.param.time_slice,
             pn.layout.VSpacer(),
             selections.param.variable,
+            pn.widgets.StaticText.from_param(selections.param.variable_description, name=""),
             pn.widgets.RadioButtonGroup.from_param(selections.param.resolution),
             pn.layout.VSpacer(),
             selections.param.area_average,
