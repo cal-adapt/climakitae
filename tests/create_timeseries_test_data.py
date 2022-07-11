@@ -2,8 +2,8 @@ from climakitae.data_loaders import _read_from_catalog
 from climakitae.selectors import DataSelector, LocSelectorArea
 
 
-#------------- Retrieve small test dataset ----------------#
-# For Timeseries tools, dataset must have appended historical climate data and area_average=True
+#------------- Retrieve small test dataset ------------------------------------
+# For Timeseries tools, dataset must have appended_historical=True
 
 year_start=2014
 year_end=2016
@@ -29,6 +29,8 @@ location = LocSelectorArea(
 
 xr_da = _read_from_catalog(selections=selections, location=location)
  
+#------------- Manual location subset -----------------------------------------
+
 # Coordinates of San Diego to Joshua Tree area
 lon_0 = min_lon = -117.1611 # San Diego 
 lat_0 = min_lat = 32.7157
