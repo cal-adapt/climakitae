@@ -88,14 +88,11 @@ class TimeSeriesParams(param.Parameterized):
                 month_weights = y.time.dt.daysinmonth
                 
                 # Construct DataArrayRolling objects for both the data and the weights
-                rolling_y = y.rolling(time=self.num_timesteps, center=True) # `center` doesn't work for manual iteration
-                rolling_weights = month_weights.rolling(time=self.num_timesteps, center=True)
+                rolling_y = y.rolling(time=self.num_timesteps, center=True).construct("window")
+                rolling_weights = month_weights.rolling(time=self.num_timesteps, center=True).construct("window")
                 
-                # Manually iterate over the rolling windows and calculate each weighted average
-                result = y.copy()
-                for (_lab_y, y_window), (_lab_w, weights_window) in zip(rolling_y, rolling_weights):
-                    result.loc[dict(time = _lab_y)] = y_window.weighted(weights_window.fillna(0)).mean("time")
- 
+                # Build a DataArrayWeighted and collapse across the window dimension with mean
+                result = rolling_y.weighted(rolling_weights.fillna(0)).mean("window", skipna=False)
                 return result
             else:
                 return y.rolling(time=self.num_timesteps, center=True).mean("time")
