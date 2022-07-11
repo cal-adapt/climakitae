@@ -1,8 +1,9 @@
-name: climakitae
+name: climakitae-tests
 
 channels:
   - conda-forge
 dependencies:
+  - python=3.7
   - black=22.3.0
   - cartopy=0.20.1
   - flake8=4.0.1
@@ -11,6 +12,7 @@ dependencies:
   - holoviews=1.14.6
   - hvplot=0.7.3
   - intake-xarray=0.5.0
+  - jinja2=3.0.3
   - matplotlib=3.4.3
   - numpy=1.21.2
   - pandas=1.3.4
