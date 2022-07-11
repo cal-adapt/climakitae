@@ -1,22 +1,22 @@
 name,description,extended_description
-RAINC,Accumulated total cumulus precipitation,RAINC extended description here! blah blah blah blah
-RAINNC,Accumulated total grid scale precipitation,RAINNC extended description here! blah blah blah blah
-SWDDIF,Shortwave surface downward diffuse irradiance,SWDDIF extended description here! blah blah blah blah
-TSK,Surface skin temperature,TSK extended description here! blah blah blah blah
-TOT_PRECIP,Precipitation (total), extended description here! blah blah blah blah
-PSFC,Surface Pressure,PSFC extended description here! blah blah blah blah
-T2,2m Air Temperature,T2 extended description here! blah blah blah blah
-Q2,2m Water Vapor Mixing Ratio,Q2 extended description here! blah blah blah blah
-U10,West-East component of Wind at 10m,U10 extended description here! blah blah blah blah
-V10,North-South component of Wind at 10m,V10 extended description here! blah blah blah blah
-SNOWNC,Snowfall (snow and ice),SNOWNC extended description here! blah blah blah blah
-LWDNB,Instantaneous downwelling longwave flux at bottom,LWDNB extended description here! blah blah blah blah
-LWDNBC,Instantaneous downwelling clear sky longwave flux at bottom,LWDNBC extended description here! blah blah blah blah
-LWUPB,Instantaneous upwelling longwave flux at bottom,LWUPB extended description here! blah blah blah blah
-LWUPBC,Instantaneous upwelling clear sky longwave flux at bottom,LWUPBC extended description here! blah blah blah blah
-SWDNB,Instantaneous downwelling shortwave flux at bottom,SWDNB extended description here! blah blah blah blah
-SWDNBC,Instantaneous downwelling clear sky shortwave flux at bottom,SWDNBC extended description here! blah blah blah blah
-SWUPB,Instantaneous upwelling shortwave flux at bottom,SWUPB extended description here! blah blah blah blah
-SWUPBC,Instantaneous upwelling clear sky shortwave flux at bottom,SWUPBC extended description here! blah blah blah blah
-REL_HUMIDITY,Relative Humidity,REL_HUMIDITY extended description here! blah blah blah blah
-WIND_MAG,Wind Magnitude at 10 m,WIND_MAG extended description here! blah blah blah blah
+RAINC,Accumulated total cumulus precipitation,"Any form of precipitation (rain, snow, etc.) that is produced specifically by cumulus/cumulonimbus clouds. These are generally small clouds that bring heavy precipitation."
+RAINNC,Accumulated total grid scale precipitation,"Any form of precipitation (rain, snow, etc.) captured by the model resolution (i.e. 45km). Small clouds (including cumulus clouds) typically are excluded from this. "
+SWDDIF,Shortwave surface downward diffuse irradiance,Total incoming solar radiation in the shortwave spectrum at the surface of the Earth. 
+TSK,Surface skin temperature,Temperature of the Earth's surface.
+TOT_PRECIP,Precipitation (total),Total precipitation. Computed by summing total gridscale precipitation and total cumulus precipitation. 
+PSFC,Surface Pressure,Air pressure at Earth's surface. 
+T2,2m Air Temperature,Temperature of the air 2 meters above Earth's surface. 
+Q2,2m Water Vapor Mixing Ratio,"The ratio of the mass of water vapor over the mass of dry air, measured 2 meters above Earth's surface."
+U10,West-East component of Wind at 10m,"Wind coming from the west, measured at 10 meters above Earth's surface. By definition, wind coming from the east is negative.  "
+V10,North-South component of Wind at 10m,"Wind coming from the north, measured at 10 meters above Earth's surface. By definition, wind coming from the south is negative.  "
+SNOWNC,Snowfall (snow and ice),Total precipitation in the form of snow and ice. 
+LWDNB,Instantaneous downwelling longwave flux at bottom,Longwave radiation outputted by Earth's surface that is reflected back downwards by clouds. 
+LWDNBC,Instantaneous downwelling clear sky longwave flux at bottom,"Longwave radiation outputted by Earth's surface that is reflected back downwards by the atmosphere, excluding the effect of clouds. "
+LWUPB,Instantaneous upwelling longwave flux at bottom,Total amount of longwave radiation outputted by Earth's surface. 
+LWUPBC,Instantaneous upwelling clear sky longwave flux at bottom,Longwave radiation outputted by Earth's surface that passes through the atmosphere (i.e. is not reflected back to the surface). 
+SWDNB,Instantaneous downwelling shortwave flux at bottom,"Shortwave radiation from the sun that reaches Earth's surface, minus radiation reflected back to space by clouds. "
+SWDNBC,Instantaneous downwelling clear sky shortwave flux at bottom,Shortwave radiation from the sun that reaches Earth's surface. 
+SWUPB,Instantaneous upwelling shortwave flux at bottom,"Shortwave radiation from the sun that is reflected by Earth's surface, some of which may be reflected back downwards (i.e. not reach space). "
+SWUPBC,Instantaneous upwelling clear sky shortwave flux at bottom,Shortwave radiation from the sun that is reflected by Earth's surface back to space. 
+REL_HUMIDITY,Relative Humidity,"The amount of water vapor (i.e. moisture) in the air, relative to the amount of water vapor needed to saturate the air at the same air temperature and pressure. Expressed as a percentage. "
+WIND_MAG,Wind Magnitude at 10 m,Wind speed at 10 meters above the Earth's surface. Computed by taking the magnitude of the west-east (u) component of wind and the north-south (v) component of wind. 
