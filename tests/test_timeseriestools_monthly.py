@@ -1,35 +1,112 @@
+# This script runs tests on various Timeseries Tools options using monthly data.
+# For now, the tests only test that the various parameter combinations can run
+# through `transform_data` without error, and that the data has been transformed
+# (not equal to original values), but does not test for exact expected values.
+
 from climakitae import timeseriestools as tst
 import datetime as dt
 import pytest
 import xarray as xr
 
-#------------- Read in the test dataset ---------------------------------------
+#-------- Read in the test dataset and return a TimeSeriesParams object -------
 
 @pytest.fixture
-def test_data():
+def test_TSP():
     # This data is generated in "create_timeseries_test_data.py"
     test_filepath = "tests/test_data/timeseries_data_T2_2014_2016_monthly_45km.nc"
-    return xr.open_dataarray(test_filepath)
+    test_data = xr.open_dataarray(test_filepath)
+    ts = tst.Timeseries(test_data) # make Timeseries object
+    return ts.choices # return the underlying TimeSeriesParams object for testing
 
-#------------- Test monthly weighted running mean without anomaly -------------
+#------------- Test monthly-weighted running mean without anomaly -------------
 
-def test_monthly_smoothing(test_data):
-    ts = tst.Timeseries(test_data) 
-    tsp = ts.choices
-    tsp.smoothing = "running mean"
-    tsp.num_timesteps = 3
-    tsp.anomaly = False 
+def test_monthly_smoothing(test_TSP):
+    # Specify Params options
+    test_TSP.smoothing = 'running mean'
+    test_TSP.num_timesteps = 3
+    test_TSP.anomaly = False 
 
-    tr_data = tsp.transform_data() # transform_data calls _running_mean()
-    raise Exception("Still need to manually re-center the rolling average!")
+    # Transform data and test
+    result = test_TSP.transform_data() # transform_data calls _running_mean()
+    assert (result == test_TSP.data).sum().values.item() == 0
 
-#------------- Test monthly weighted anomaly -----------------------------------
+#------------- Test monthly weighted anomaly ----------------------------------
 
-def test_monthly_anomaly(test_data):
-    ts = tst.Timeseries(test_data) 
-    tsp = ts.choices
-    tsp.anomaly = True
-    tsp.reference_range = (dt.datetime(2014, 1, 1), dt.datetime(2014, 12, 31)) 
+def test_monthly_anomaly(test_TSP):
+    # Specify Params options
+    test_TSP.anomaly = True
+    test_TSP.reference_range = (dt.datetime(2014, 1, 1), dt.datetime(2014, 12, 31)) 
 
-    tr_data = tsp.transform_data()
-    assert (tr_data == test_data).sum().values.item() == 0
+    # Transform data and test
+    result = test_TSP.transform_data()
+    assert (result == test_TSP.data).sum().values.item() == 0
+
+#------------- Test anomaly and smoothing together ----------------------------
+
+def test_monthly_anomaly_and_smoothing(test_TSP):
+    # Specify Params options
+    test_TSP.smoothing = 'running mean'
+    test_TSP.num_timesteps = 3
+    test_TSP.anomaly = True
+    test_TSP.reference_range = (dt.datetime(2014, 1, 1), dt.datetime(2014, 12, 31)) 
+
+    # Transform data and test
+    result = test_TSP.transform_data()
+    assert (result == test_TSP.data).sum().values.item() == 0
+
+#------------- Test seasonal cycle removal w/ and w/o smoothing ---------------
+
+def test_seasonal(test_TSP):
+    # Specify Params options
+    test_TSP.anomaly = False
+    test_TSP.remove_seasonal_cycle = True 
+
+    # Transform data and test
+    result = test_TSP.transform_data()
+    assert (result == test_TSP.data).sum().values.item() == 0
+
+def test_seasonal_and_smoothing(test_TSP):
+    # Specify Params options
+    test_TSP.smoothing = 'running mean'
+    test_TSP.num_timesteps = 3
+    test_TSP.anomaly = False
+    test_TSP.remove_seasonal_cycle = True 
+
+    # Transform data and test
+    result = test_TSP.transform_data()
+    assert (result == test_TSP.data).sum().values.item() == 0
+
+#------------- Test extremes options ------------------------------------------
+
+def test_extremes_smoothing(test_TSP):
+    # Specify Params options
+    test_TSP.anomaly = False 
+    test_TSP.smoothing = 'running mean'
+    test_TSP.num_timesteps = 3
+    test_TSP.extremes = "min"
+    test_TSP.resample_window = 2
+
+    # Transform data and test
+    result = test_TSP.transform_data() 
+    assert (result == test_TSP.data).sum().values.item() == 0
+
+def test_extremes_min(test_TSP):
+    # Specify Params options
+    test_TSP.anomaly = False 
+    test_TSP.extremes = "min"
+    test_TSP.resample_window = 2 
+
+    # Transform data and test
+    result = test_TSP.transform_data() 
+    assert (result == test_TSP.data).sum().values.item() == 0
+
+def test_extremes_percentile(test_TSP):
+    # Specify Params options
+    test_TSP.anomaly = False 
+    test_TSP.extremes = "percentile"
+    test_TSP.resample_window = 2
+    test_TSP.percentile = 0.95
+
+    # Transform data and test
+    result = test_TSP.transform_data() 
+    assert (result == test_TSP.data).sum().values.item() == 0
