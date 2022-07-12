@@ -17,6 +17,13 @@ import pkg_resources
 DATA_PATH = pkg_resources.resource_filename('climakitae', 'data/')
 CSV_FILE = pkg_resources.resource_filename('climakitae', 'data/variable_descriptions.csv')
 
+# Read package data as dictionary
+def _read_var_descrip(csv_file, index_col="name"): 
+    """Read in variable descriptions csv file as a dictionary, with variable names as keys and descriptions as items"""
+    csv = pd.read_csv(csv_file, index_col=index_col, usecols=["name","description","extended_description"])
+    descrip_dict = csv.to_dict(orient="index")
+    return descrip_dict
+
 # support methods for core.Application.select
 
 # constants: instead will be read from database of some kind:
@@ -351,10 +358,12 @@ class CatalogContents:
             "Snowfall (snow and ice)"
         ] = _variable_choices_hourly_wrf["Accumulated total grid scale snow and ice"]
         _variable_choices_hourly_wrf.pop("Accumulated total grid scale snow and ice")
-        _move_to_end = [k for k in _variable_choices_hourly_wrf if "Instantaneous" in k]
-        for k in _move_to_end:
-            _variable_choices_hourly_wrf[k] = _variable_choices_hourly_wrf.pop(k)
+        
+        # Reorder dictionary according to variable order in csv file 
+        descrip_dict = _read_var_descrip(CSV_FILE, index_col="description")
+        _variable_choices_hourly_wrf = {i: _variable_choices_hourly_wrf[i] for i in descrip_dict.keys() if i in _variable_choices_hourly_wrf.keys()}
 
+        
         # expand this dictionary to also be dependent on LOCA vs WRF:
         _variable_choices_daily_loca = [
             "Temperature",
@@ -436,15 +445,13 @@ class DataSelector(param.Parameterized):
     variable = param.ObjectSelector(
         default=default_variable, objects=_choices._variable_choices["hourly"]["Dynamical"]
     )
-    csv = pd.read_csv(CSV_FILE, 
-             index_col="name", usecols=["name","extended_description"])
-    descrip_dict = csv.to_dict()["extended_description"]   
-    variable_description = param.String(default=descrip_dict[default_variable], doc="Extended description of variable selected")
+    descrip_dict = _read_var_descrip(CSV_FILE)
+    variable_description = param.String(default=descrip_dict[default_variable]["extended_description"], doc="Extended description of variable selected")
     
     @param.depends("variable", "descrip_dict", watch=True)
     def _update_variable_description(self): 
         """ Update extended description of variable selected. """
-        self.variable_description = self.descrip_dict[self.variable]
+        self.variable_description = self.descrip_dict[self.variable]["extended_description"]
     
     @param.depends("resolution", "append_historical", "scenario", watch=True)
     def _update_scenarios(self):
