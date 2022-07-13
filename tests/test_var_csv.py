@@ -1,3 +1,8 @@
+""" This script runs tests using the variable descriptions csv file and the catalog contents variable choices. 
+This script tests that the variables and descriptions listed in the catalog are the same as (or a smaller subset of) the variables and descriptions listed in the csv file. 
+It also tests that the variable descriptions csv file contains the expected column names. 
+"""
+
 import pandas as pd
 import pytest
 from climakitae.selectors import CatalogContents
