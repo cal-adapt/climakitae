@@ -425,9 +425,9 @@ class DataSelector(param.Parameterized):
     """
 
     _choices = CatalogContents()
-    variable = param.ObjectSelector(
-        default="T2", objects=_choices._variable_choices["hourly"]["Dynamical"]
-    )
+    # variable = param.ObjectSelector(
+    #     default="T2", objects=_choices._variable_choices["hourly"]["Dynamical"]
+    # )
     timescale = param.ObjectSelector(
         default="monthly", objects=["hourly", "daily", "monthly"]
     )  # for WRF, will just coarsen data to start
@@ -442,8 +442,14 @@ class DataSelector(param.Parameterized):
     resolution = param.ObjectSelector(default="45 km", objects=_choices._resolutions)
     append_historical = param.Boolean(default=False)
 
+    default_variable = "T2"
+    variable = param.ObjectSelector(
+        default=default_variable, objects=_choices._variable_choices["hourly"]["Dynamical"]
+    )
+
     # Note: this is hardcoding options in for now
-    unit_dict = _read_var_units(CSV_FILE2) ###
+    csv = pd.read_csv(CSV_FILE2, index_col="name", usecols=["name", "unit_options"]) ###
+    unit_dict = csv.to_dict()["unit_options"]
     unit_options = param.String(default=unit_dict[default_variable]["unit_options"], doc="Available units of variable selected") ###
 
     @param.depends("variable", "unit_options", watch=True)
