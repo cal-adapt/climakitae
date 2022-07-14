@@ -12,6 +12,18 @@ import geopandas as gpd
 import pandas as pd
 import datetime as dt
 
+# Import package data
+import pkg_resources
+DATA_PATH = pkg_resources.resource_filename('climakitae', 'data/')
+CSV_FILE2 = pkg_resources.resource_filename('climakitae', 'data/unit_options.csv')
+
+# Read package data as dictionary
+def _read_var_units(csv_file, index_col="name"):
+    """ Read in unit options csv file as a dictionary, with var names as keys and units as items"""
+    csv = pd.read_csv(csv_file, index_col=index_col, usecols=["name", "description", "unit_options"])
+    unit_dict = csv.to_dict(orient="index")
+    return(unit_dict)
+
 # support methods for core.Application.select
 
 # constants: instead will be read from database of some kind:
@@ -430,6 +442,19 @@ class DataSelector(param.Parameterized):
     resolution = param.ObjectSelector(default="45 km", objects=_choices._resolutions)
     append_historical = param.Boolean(default=False)
 
+    # Note: this is hardcoding options in for now
+    unit_dict = _read_var_units(CSV_FILE2) ###
+    unit_options = param.String(default=unit_dict[default_variable]["unit_options"], doc="Available units of variable selected") ###
+
+    @param.depends("variable", "unit_options", watch=True)
+    def _update_variable_unit(self):
+        """
+        The unit options will depend on the selection of variable, but the
+        default option will be the original variable units in WRF/LOCA and
+        will display as the first option in this list.
+        """
+        self.unit_options = self.unit_dict[self.variable]["unit_options"]
+
     @param.depends("resolution", "append_historical", "scenario", watch=True)
     def _update_scenarios(self):
         """
@@ -552,6 +577,7 @@ def _display_select(selections, location, location_type="area average"):
             selections.param.time_slice,
             pn.layout.VSpacer(),
             selections.param.variable,
+            pn.widgets.StaticText.from_param(selections.param.unit_options, name=""),
             pn.widgets.RadioButtonGroup.from_param(selections.param.resolution),
             pn.layout.VSpacer(),
             selections.param.area_average,
