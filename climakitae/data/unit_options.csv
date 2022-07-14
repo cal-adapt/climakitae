@@ -1,22 +1,22 @@
 ﻿name,description,unit_options
-T2,2m Air Temperature,"K, degC, degF"
+T2,2m Air Temperature,"K, °C, °F"
 TOT_PRECIP,Precipitation (total),"mm, inches"
 REL_HUMIDITY,Relative Humidity,%
-WIND_MAG,Wind Magnitude at 10 m,m s-1
+WIND_MAG,Wind Magnitude at 10 m,"m/s, knots"
 PSFC,Surface Pressure,"mb, hPa, inHg"
 SNOWNC,Snowfall (snow and ice),"mm, inches"
-Q2,2m Water Vapor Mixing Ratio,kg/kg
-TSK,Surface skin temperature,"K, degC, degF"
-U10,West-East component of Wind at 10m,m s-1
-V10,North-South component of Wind at 10m,m s-1
+Q2,2m Water Vapor Mixing Ratio,"kg/kg, g/kg"
+TSK,Surface skin temperature,"K, °C, °F"
+U10,West-East component of Wind at 10m,"m/s, knots"
+V10,North-South component of Wind at 10m,"m/s, knots"
 RAINC,Accumulated total cumulus precipitation,"mm, inches"
 RAINNC,Accumulated total grid scale precipitation,"mm, inches"
-SWDDIF,Shortwave surface downward diffuse irradiance,W m-2
-LWDNB,Instantaneous downwelling longwave flux at bottom,W m-2
-LWDNBC,Instantaneous downwelling clear sky longwave flux at bottom,W m-2
-LWUPB,Instantaneous upwelling longwave flux at bottom,W m-2
-LWUPBC,Instantaneous upwelling clear sky longwave flux at bottom,W m-2
-SWDNB,Instantaneous downwelling shortwave flux at bottom,W m-2
-SWDNBC,Instantaneous downwelling clear sky shortwave flux at bottom,W m-2
-SWUPB,Instantaneous upwelling shortwave flux at bottom,W m-2
-SWUPBC,Instantaneous upwelling clear sky shortwave flux at bottom,W m-2
+SWDDIF,Shortwave surface downward diffuse irradiance,W/m$^{2}$
+LWDNB,Instantaneous downwelling longwave flux at bottom,W/m$^{2}$
+LWDNBC,Instantaneous downwelling clear sky longwave flux at bottom,W/m$^{2}$
+LWUPB,Instantaneous upwelling longwave flux at bottom,W/m$^{2}$
+LWUPBC,Instantaneous upwelling clear sky longwave flux at bottom,W/m$^{2}$
+SWDNB,Instantaneous downwelling shortwave flux at bottom,W/m$^{2}$
+SWDNBC,Instantaneous downwelling clear sky shortwave flux at bottom,W/m$^{2}$
+SWUPB,Instantaneous upwelling shortwave flux at bottom,W/m$^{2}$
+SWUPBC,Instantaneous upwelling clear sky shortwave flux at bottom,W/m$^{2}$
