@@ -22,7 +22,7 @@ def _read_var_units(csv_file, index_col="name"):
     """ Read in unit options csv file as a dictionary, with var names as keys and units as items"""
     csv = pd.read_csv(csv_file, index_col=index_col, usecols=["name", "description", "unit_options"])
     unit_dict = csv.to_dict(orient="index")
-    return(unit_dict)
+    return unit_dict
 
 # support methods for core.Application.select
 
@@ -448,11 +448,12 @@ class DataSelector(param.Parameterized):
     )
 
     # Note: this is hardcoding options in for now
-    csv = pd.read_csv(CSV_FILE2, index_col="name", usecols=["name", "unit_options"]) ###
-    unit_dict = csv.to_dict()["unit_options"]
+    # csv = pd.read_csv(CSV_FILE2, index_col="name", usecols=["name", "unit_options"]) ###
+    unit_dict = _read_var_units(CSV_FILE2) ###
+    # unit_dict = csv.to_dict()["unit_options"]
     unit_options = param.String(default=unit_dict[default_variable]["unit_options"], doc="Available units of variable selected") ###
 
-    @param.depends("variable", "unit_options", watch=True)
+    @param.depends("variable", "unit_dict", watch=True)
     def _update_variable_unit(self):
         """
         The unit options will depend on the selection of variable, but the
