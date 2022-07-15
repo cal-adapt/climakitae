@@ -6,14 +6,16 @@
 from climakitae import timeseriestools as tst
 import datetime as dt
 import pytest
+import os
 import xarray as xr
 
 #-------- Read in the test dataset and return a TimeSeriesParams object -------
 
 @pytest.fixture
-def test_TSP():
+def test_TSP(rootdir):
     # This data is generated in "create_timeseries_test_data.py"
-    test_filepath = "tests/test_data/timeseries_data_T2_2014_2016_monthly_45km.nc"
+    test_filename= "test_data/timeseries_data_T2_2014_2016_monthly_45km.nc"
+    test_filepath = os.path.join(rootdir, test_filename)
     test_data = xr.open_dataarray(test_filepath)
     ts = tst.Timeseries(test_data) # make Timeseries object
     return ts.choices # return the underlying TimeSeriesParams object for testing
