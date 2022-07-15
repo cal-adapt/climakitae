@@ -6,6 +6,7 @@ import regionmask
 import intake
 import numpy as np
 from copy import deepcopy
+from .unit_conversions import _unit_convert_temp, _unit_convert_winds, _unit_convert_precip, _unit_convert_pressure
 
 # support methods for core.Application.generate
 xr.set_options(keep_attrs=True)
@@ -45,6 +46,18 @@ def _open_and_concat(file_list, selections, ds_region):
         elif selections.variable == "wind 10m magnitude":
             pass
 
+        # convert unit based on selected variable:
+        if selections.variable == "T2" or selections.variable == "TSK":
+            data = _unit_convert_temp(selections.variable, preferred_units = selections.unit_options)
+        elif selections.variable == "PSFC":
+            data = _unit_convert_pressure(selections.variable, preferred_units = selections.unit_options)
+        elif selections.variable in ("U10", "V10"): # leaving out WIND_MAG until PR #50 merges
+            data = _unit_convert_winds(selections.variable, preferred_units = selections.unit_options)
+        elif selections.variable in ("TOT_PRECIP", "RAINC", "RAINNC"):
+            data = _unit_convert_precip(selections.variable, preferred_units = selections.unit_options)
+        # elif
+        #     pass
+
         # coarsen in time if 'selections' so-indicates:
         if selections.timescale == "daily":
             data = data.resample(time="1D").mean("time")
@@ -75,7 +88,7 @@ def _open_and_concat(file_list, selections, ds_region):
                 False in mask.isnull()
             ), "Insufficient gridcells are contained within the bounds."
             data = data.where(np.isnan(mask) == False)
-            
+
         if selections.area_average:
             weights = np.cos(np.deg2rad(data.lat))
             data = data.weighted(weights).mean("x").mean("y")

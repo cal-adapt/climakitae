@@ -11,12 +11,12 @@ U10,West-East component of Wind at 10m,"m/s, knots"
 V10,North-South component of Wind at 10m,"m/s, knots"
 RAINC,Accumulated total cumulus precipitation,"mm, inches"
 RAINNC,Accumulated total grid scale precipitation,"mm, inches"
-SWDDIF,Shortwave surface downward diffuse irradiance,W/m$^{2}$
-LWDNB,Instantaneous downwelling longwave flux at bottom,W/m$^{2}$
-LWDNBC,Instantaneous downwelling clear sky longwave flux at bottom,W/m$^{2}$
-LWUPB,Instantaneous upwelling longwave flux at bottom,W/m$^{2}$
-LWUPBC,Instantaneous upwelling clear sky longwave flux at bottom,W/m$^{2}$
-SWDNB,Instantaneous downwelling shortwave flux at bottom,W/m$^{2}$
-SWDNBC,Instantaneous downwelling clear sky shortwave flux at bottom,W/m$^{2}$
-SWUPB,Instantaneous upwelling shortwave flux at bottom,W/m$^{2}$
-SWUPBC,Instantaneous upwelling clear sky shortwave flux at bottom,W/m$^{2}$
+SWDDIF,Shortwave surface downward diffuse irradiance,W/m2
+LWDNB,Instantaneous downwelling longwave flux at bottom,W/m2
+LWDNBC,Instantaneous downwelling clear sky longwave flux at bottom,W/m2
+LWUPB,Instantaneous upwelling longwave flux at bottom,W/m2
+LWUPBC,Instantaneous upwelling clear sky longwave flux at bottom,W/m2
+SWDNB,Instantaneous downwelling shortwave flux at bottom,W/m2
+SWDNBC,Instantaneous downwelling clear sky shortwave flux at bottom,W/m2
+SWUPB,Instantaneous upwelling shortwave flux at bottom,W/m2
+SWUPBC,Instantaneous upwelling clear sky shortwave flux at bottom,W/m2

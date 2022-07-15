@@ -12,17 +12,17 @@ import geopandas as gpd
 import pandas as pd
 import datetime as dt
 
-# Import package data
-import pkg_resources
-DATA_PATH = pkg_resources.resource_filename('climakitae', 'data/')
-CSV_FILE2 = pkg_resources.resource_filename('climakitae', 'data/unit_options.csv')
-
-# Read package data as dictionary
-def _read_var_units(csv_file, index_col="name"):
-    """ Read in unit options csv file as a dictionary, with var names as keys and units as items"""
-    csv = pd.read_csv(csv_file, index_col=index_col, usecols=["name", "description", "unit_options"])
-    unit_dict = csv.to_dict(orient="index")
-    return unit_dict
+# # Import package data
+# import pkg_resources
+# DATA_PATH = pkg_resources.resource_filename('climakitae', 'data/')
+# CSV_FILE2 = pkg_resources.resource_filename('climakitae', 'data/unit_options.csv')
+#
+# # Read package data as dictionary
+# def _read_var_units(csv_file, index_col="name"):
+#     """ Read in unit options csv file as a dictionary, with var names as keys and units as items"""
+#     csv = pd.read_csv(csv_file, index_col=index_col, usecols=["name", "description", "unit_options"])
+#     unit_dict = csv.to_dict(orient="index")
+#     return unit_dict
 
 # support methods for core.Application.select
 
@@ -416,6 +416,21 @@ class CatalogContents:
             _scenario_list.append((resolution, _scenario_subset))
         self._scenarios = dict(_scenario_list)
 
+        _variable_unit_choices_precip = ["mm", "in"]
+        _variable_unit_choices_temp = ["K", "degC", "degF"]
+        _variable_unit_choices_wind = ["m/s", "kts"]
+        _variable_unit_chioces_pressure = ["Pa", "hPa", "mb", "inHg"]
+
+        _unit_list = []
+        if self._variable_choices in ("T2", "TSK"):
+            _unit_list = ["K", "degC", "degF"]
+        elif self._variable_choices == "PSFC":
+            _unit_list = ["Pa", "hPa", "mb", "inHg"]
+        elif self._variable_choices in ("U10", "V10"):
+            _unit_list = ["m/s", "kts"]
+        elif self._variable_choices in ("TOT_PRECIP", "RAINC", "RAINNC"):
+            _unit_list = ["mm", "in"]
+        self._unit_options = dict(_unit_list)
 
 class DataSelector(param.Parameterized):
     """
@@ -425,9 +440,7 @@ class DataSelector(param.Parameterized):
     """
 
     _choices = CatalogContents()
-    # variable = param.ObjectSelector(
-    #     default="T2", objects=_choices._variable_choices["hourly"]["Dynamical"]
-    # )
+
     timescale = param.ObjectSelector(
         default="monthly", objects=["hourly", "daily", "monthly"]
     )  # for WRF, will just coarsen data to start
@@ -447,20 +460,24 @@ class DataSelector(param.Parameterized):
         default=default_variable, objects=_choices._variable_choices["hourly"]["Dynamical"]
     )
 
-    # Note: this is hardcoding options in for now
-    # csv = pd.read_csv(CSV_FILE2, index_col="name", usecols=["name", "unit_options"]) ###
-    unit_dict = _read_var_units(CSV_FILE2) ###
-    # unit_dict = csv.to_dict()["unit_options"]
-    unit_options = param.String(default=unit_dict[default_variable]["unit_options"], doc="Available units of variable selected") ###
+    # default_unit = "K" # Hardcoding this for now
+    unit_options = param.ObjectSelector(
+        default=_choices._unit_options, objects=_choices._unit_options
+    )
 
-    @param.depends("variable", "unit_dict", watch=True)
+    # Note: this is hardcoding options as as SINGLE STRING in for now just to test
+    # unit_dict = _read_var_units(CSV_FILE2) ###
+    # unit_options = param.String(default=unit_dict[default_variable]["unit_options"], doc="Available units of variable selected") ###
+
+    @param.depends("variable", "unit_options", watch=True)
     def _update_variable_unit(self):
         """
         The unit options will depend on the selection of variable, but the
         default option will be the original variable units in WRF/LOCA and
-        will display as the first option in this list.
+        display as the first option in this list.
         """
-        self.unit_options = self.unit_dict[self.variable]["unit_options"]
+        _list_of_units = list(self._choices._unit_options.keys())
+        self.param["unit_options"].objects = _list_of_units
 
     @param.depends("resolution", "append_historical", "scenario", watch=True)
     def _update_scenarios(self):
@@ -584,7 +601,8 @@ def _display_select(selections, location, location_type="area average"):
             selections.param.time_slice,
             pn.layout.VSpacer(),
             selections.param.variable,
-            pn.widgets.StaticText.from_param(selections.param.unit_options, name=""),
+            pn.widgets.RadioButtonGroup.from_param(selections.param.unit_options),
+            pn.layout.VSpacer(),
             pn.widgets.RadioButtonGroup.from_param(selections.param.resolution),
             pn.layout.VSpacer(),
             selections.param.area_average,
