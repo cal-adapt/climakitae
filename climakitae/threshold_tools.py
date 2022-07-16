@@ -4,6 +4,7 @@
 #                                      #
 ########################################
 
+from multiprocessing.sharedctypes import Value
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -884,3 +885,44 @@ def get_return_period(
     new_ds.attrs["distribution"] = "{}".format(str(distr))
 
     return new_ds
+
+
+def exceedance(
+    da,
+    threshold_value,
+    period_length = "1year",
+    threshold_direction = "above", 
+    smoothing = None,
+    duration = None,
+    duration_type = None
+):
+    """
+    Calculate the number of occurances of exceeding the specified threshold_value
+    within each period length.
+
+    Returns an xarray with the same coordinates as the input data except for the time dimension.
+    """
+
+    #--------- Type check arguments -------------------------------------------
+
+    if duration is not None: raise ValueError("Duration option not yet implemented.")
+    if duration_type is not None: raise ValueError("Duration option not yet implemented.")
+    if smoothing is not None: raise ValueError("Smoothing option not yet implemented.")
+
+    #--------- Calculate occurances -------------------------------------------
+
+    if threshold_direction == "above":
+        occurance_da = (da > threshold_value)
+    elif threshold_direction == "below":
+        occurance_da = (da < threshold_value)
+    else:
+        raise ValueError(f"Unknown value for `threshold_direction` parameter: {threshold_direction}. Available options are 'above' or 'below'.")
+
+    #--------- Group by time period and count----------------------------------
+    
+    if period_length == "1year":
+        exceedance_counts = occurance_da.groupby("time.year").sum()
+    else:
+        raise ValueError("Other period_length options not yet implemented.")
+
+    return exceedance_counts
