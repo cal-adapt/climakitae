@@ -29,13 +29,13 @@ scenarios = ['SSP 2-4.5 -- Middle of the Road', 'SSP 3-7.0 -- Business as Usual'
 
 
 # ---- Settings to generate testing file timeseries_data_T2_2014_2016_monthly_45km.nc 
-variable_list = ["T2"] 
-year_start = 2014 
-year_end = 2016 
-timescale = "monthly" 
-resolution = "45 km" 
-append_historical = True 
-scenarios = ['SSP 2-4.5 -- Middle of the Road', 'Historical Climate']
+#variable_list = ["T2"] 
+#year_start = 2014 
+#year_end = 2016 
+#timescale = "monthly" 
+#resolution = "45 km" 
+#append_historical = True 
+#scenarios = ['SSP 2-4.5 -- Middle of the Road', 'Historical Climate']
 
 
 # -----------------  READ IN DATA FROM AWS CATALOG -----------------
