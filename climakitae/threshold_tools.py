@@ -886,43 +886,115 @@ def get_return_period(
 
     return new_ds
 
+def _parse_event_string(event_string):
+    """
+    Return a tuple with the 
+    Error if not the correct format.
+    
+    Examples:
+    "3days" --> (3, "day")
+    "3day" --> (3, "day")
+    "4months" --> (4, "month")
+    "1year" --> (1, "year")
 
-def exceedance(
+    """
+    # Error if doesn't start with an integer
+
+    # Split on numeric
+
+    # Error if string not "day" "month" "year"
+    #   TBD: offer hourly groupings?
+
+    # Return tuple
+
+
+def get_exceedance_events(
+    da,
+    threshold_value,
+    threshold_direction = "above", 
+    groupby = None
+):
+    """
+    Returns a Boolean xarray that specifies whether each entry of da is a qualifying event.
+    """
+    # group_num, group_type = _parse_event_string(groupby)
+
+    # Count occurances
+    if threshold_direction == "above":
+        events_da = (da > threshold_value)
+    elif threshold_direction == "below":
+        events_da = (da < threshold_value)
+    else:
+        raise ValueError(f"Unknown value for `threshold_direction` parameter: {threshold_direction}. Available options are 'above' or 'below'.")
+
+    # Groupby 
+    if groupby is not None:
+        if groupby == "1day":
+            day_totals = events_da.groupby("time.date").sum()
+            events_da = day_totals > 0
+            events_da["date"] = pd.to_datetime(events_da.date)
+            events_da = events_da.rename({"date":"time"})
+        else:
+            raise ValueError("Duration options other than '1day' not yet implmented.")
+
+    return events_da
+
+
+def get_exceedance_count(
     da,
     threshold_value,
     period_length = "1year",
     threshold_direction = "above", 
-    smoothing = None,
     duration = None,
-    duration_type = None
+    groupby = None,
+    smoothing = None
 ):
     """
     Calculate the number of occurances of exceeding the specified threshold_value
     within each period length.
 
     Returns an xarray with the same coordinates as the input data except for the time dimension.
+
+    Arguments:
+    da -- an xarray.DataArray of some climate variable. Can have mutliple scenarios, simulations,
+        or x and y coordinates. 
+    threshold_value -- value against which to test exceedance
+    
+    Optional Keyword Arguments:
+    period_length -- amount of time across which to sum the number of occurances, default is 1 year. 
+        Options: "1year", "1month", f"{x}year", f"{x}month" where x is an integer
+    threshold_direction -- string either "above" or "below", default is above.
+    duration -- length of exceedance in order to qualify as an event
+    groupby -- see examples for explanation. Typical grouping could be "1day"
+    smoothing -- option to average the result across 
     """
 
     #--------- Type check arguments -------------------------------------------
 
+    # if da.frequencey != "hourly": raise ValueError("Must use hourly data for calls to `get_exceedance_count`")
+
     if duration is not None: raise ValueError("Duration option not yet implemented.")
-    if duration_type is not None: raise ValueError("Duration option not yet implemented.")
     if smoothing is not None: raise ValueError("Smoothing option not yet implemented.")
+
+    # period_num, period_type = _parse_event_string(period_length)
+    # duration_num, duration_type = _parse_event_string(duration)
+
+    # Need to check compatibility of periods, durations, and groupbys
 
     #--------- Calculate occurances -------------------------------------------
 
-    if threshold_direction == "above":
-        occurance_da = (da > threshold_value)
-    elif threshold_direction == "below":
-        occurance_da = (da < threshold_value)
-    else:
-        raise ValueError(f"Unknown value for `threshold_direction` parameter: {threshold_direction}. Available options are 'above' or 'below'.")
+    events_da = get_exceedance_events(da, threshold_value, threshold_direction, groupby)
 
-    #--------- Group by time period and count----------------------------------
+    #--------- Group by time period and count ---------------------------------
     
     if period_length == "1year":
-        exceedance_counts = occurance_da.groupby("time.year").sum()
+        exceedance_count = events_da.groupby("time.year").sum()
     else:
-        raise ValueError("Other period_length options not yet implemented.")
+        raise ValueError("Other period_length options not yet implemented. Please use '1year'.")
 
-    return exceedance_counts
+    return exceedance_count
+
+
+def plot_exceedance_counts(exceedance_counts, location):
+    """
+    """
