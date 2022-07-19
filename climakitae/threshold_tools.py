@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from scipy import stats
+import panel as pn
 
 import lmoments3 as lm
 from lmoments3 import distr as ldistr
@@ -995,6 +996,17 @@ def get_exceedance_count(
     return exceedance_count
 
 
-def plot_exceedance_counts(exceedance_counts, location):
+def plot_exceedance_count(exceedance_count):
     """
+    Plots each simulation as a different color line.
+    Drop down option to select different scenario.
+    Currently can only plot for one location, so is expecting input to already be subsetted or an area average.
     """
+    # Need to add custom informative axis labels and title
+
+    # Need to generalize x period length 
+    
+    plot_obj = exceedance_count.hvplot.line(
+        x="year", widget_location="bottom", by="simulation", groupby=["scenario"]
+    )
+    return pn.Column(plot_obj)
