@@ -1,6 +1,6 @@
 """create_test_dataset.py 
 
-This script uses functions from the data_loaders and selectors modules to construct a small dataset for testing. 
+This script uses functions from the data_loaders and selectors modules to construct small datasets for testing. 
 Depending on the number of variables you use to construct your dataset and the geographic subset you want, this script can take a while to run.
 
 """
@@ -19,24 +19,24 @@ from climakitae.selectors import DataSelector, LocSelectorArea
 # The variables will be read in individually using the _read_from_catalog function, which returns an xarray DataArray. At the end, we will combine the individual DataArrays to form a single xarray Dataset object.
 
 # ---- Settings to generate testing file test_dataset_2022_2022_monthly_45km 
-variable_list = ["RAINC", "RAINNC", "SWDDIF", "TSK", "PSFC", "T2", "Q2", "U10", "V10", "SNOWNC", "LWDNB", "LWDNBC", "LWUPB", "LWUPBC", "SWDNB", "SWDNBC", "SWUPB", "SWUPBC"] 
-year_start = 2022 # Starting year for time slice (integer)
-year_end = 2022 # Ending year for time slice (integer)
-timescale = "monthly" # Timescale (string): hourly, daily, or monthly
-resolution = "45 km" # Resolution (string): 3 km, 9 km , or 45 km 
-append_historical = False # Append historical data? (boolean) year_start must be < 2015
-scenarios = ['SSP 2-4.5 -- Middle of the Road', 'SSP 3-7.0 -- Business as Usual', 'SSP 5-8.5 -- Burn it All']
-
+# variable_list = ["RAINC", "RAINNC", "SWDDIF", "TSK", "PSFC", "T2", "Q2", "U10", "V10", "SNOWNC", "LWDNB", "LWDNBC", "LWUPB", "LWUPBC", "SWDNB", "SWDNBC", "SWUPB", "SWUPBC"] 
+# year_start = 2022 # Starting year for time slice (integer)
+# year_end = 2022 # Ending year for time slice (integer)
+# timescale = "monthly" # Timescale (string): hourly, daily, or monthly
+# resolution = "45 km" # Resolution (string): 3 km, 9 km , or 45 km 
+# append_historical = False # Append historical data? (boolean) year_start must be < 2015
+# scenarios = ['SSP 2-4.5 -- Middle of the Road', 'SSP 3-7.0 -- Business as Usual', 'SSP 5-8.5 -- Burn it All']
+# filename = None
 
 # ---- Settings to generate testing file timeseries_data_T2_2014_2016_monthly_45km.nc 
-#variable_list = ["T2"] 
-#year_start = 2014 
-#year_end = 2016 
-#timescale = "monthly" 
-#resolution = "45 km" 
-#append_historical = True 
-#scenarios = ['SSP 2-4.5 -- Middle of the Road', 'Historical Climate']
-
+variable_list = ["T2"] 
+year_start = 2014 
+year_end = 2016 
+timescale = "monthly" 
+resolution = "45 km" 
+append_historical = True 
+scenarios = ['SSP 2-4.5 -- Middle of the Road', 'Historical Climate']
+filename = "timeseries_data_T2_2014_2016_monthly_45km"
 
 # -----------------  READ IN DATA FROM AWS CATALOG -----------------
 
@@ -133,7 +133,8 @@ download_data = True # Boolean True/False
 
 # Define filename and output folder
 output_folder = "test_data" # Set to "" if you want to store in your current directory (where the notebook is running)
-filename = "test_dataset_"+str(year_start)+"_"+str(year_end)+"_"+timescale+"_"+resolution # Leave off .nc !
+if filename is None:
+    filename = "test_dataset_"+str(year_start)+"_"+str(year_end)+"_"+timescale+"_"+resolution # Leave off .nc !
 filename = filename.replace(" ", "") # Remove any spaces from the string
 filepath = output_folder+"/"+filename+".nc" # Path to file 
 print("Filename: {0}".format(filename))

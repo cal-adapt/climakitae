@@ -1,7 +1,9 @@
-# This script runs tests on various Timeseries Tools options using monthly data.
-# For now, the tests only test that the various parameter combinations can run
-# through `transform_data` without error, and that the data has been transformed
-# (not equal to original values), but does not test for exact expected values.
+"""
+This script contains tests on various Timeseries Tools options using monthly 
+data. For now, the tests only test that the various parameter combinations can 
+run through `transform_data` without error, and that the data has been transformed
+(not equal to original values), but does not test for exact expected values.
+"""
 
 from climakitae import timeseriestools as tst
 import datetime as dt
@@ -16,7 +18,7 @@ def test_TSP(rootdir):
     # This data is generated in "create_timeseries_test_data.py"
     test_filename= "test_data/timeseries_data_T2_2014_2016_monthly_45km.nc"
     test_filepath = os.path.join(rootdir, test_filename)
-    test_data = xr.open_dataarray(test_filepath)
+    test_data = xr.open_dataset(test_filepath).T2
     ts = tst.Timeseries(test_data) # make Timeseries object
     return ts.choices # return the underlying TimeSeriesParams object for testing
 
