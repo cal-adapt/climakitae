@@ -135,11 +135,15 @@ class LocSelectorArea(param.Parameterized):
     # would be nice if these lat/lon sliders were greyed-out when lat/lon subset option is not selected
     latitude = param.Range(default=(32.5, 42), bounds=(10, 67))
     longitude = param.Range(default=(-125.5, -114), bounds=(-156.82317, -84.18701))
-    _geographies = Boundaries()
-    _geography_choose = _geographies.boundary_dict()
-    cached_area = param.ObjectSelector(
-        default="CA", objects=list(_geography_choose["states"].keys())
-    )
+    cached_area = param.ObjectSelector(objects=dict())
+
+    def __init__(self, **params):
+        super().__init__(**params)
+        self._geographies = Boundaries()
+        self._geography_choose = self._geographies.boundary_dict()
+        self.param["cached_area"].objects = list(
+            self._geography_choose["states"].keys()
+        )
 
     _wrf_bb = {
         "45 km": Polygon(
@@ -412,6 +416,7 @@ class CatalogContents:
         self._scenarios = dict(_scenario_list)
 
 
+
 class DataSelector(param.Parameterized):
     """
     An object to hold data parameters, which depends only on the 'param' library.
@@ -419,23 +424,28 @@ class DataSelector(param.Parameterized):
     UI could in principle be used to update these parameters instead.
     """
 
-    _choices = CatalogContents()
-    variable = param.ObjectSelector(
-        default="T2", objects=_choices._variable_choices["hourly"]["Dynamical"]
-    )
+    choices = param.Dict(dict())
+    variable = param.ObjectSelector(default="T2", objects=dict())
     timescale = param.ObjectSelector(
         default="monthly", objects=["hourly", "daily", "monthly"]
     )  # for WRF, will just coarsen data to start
 
     time_slice = param.Range(default=(1980, 2015), bounds=(1950, 2100))
-
-    scenario = param.ListSelector(
-        default=["Historical Climate"],
-        objects=list(_choices._scenarios["45 km"].keys()),
-        allow_None=True,
-    )
-    resolution = param.ObjectSelector(default="45 km", objects=_choices._resolutions)
+    scenario = param.ListSelector(objects=dict())
+    resolution = param.ObjectSelector(objects=dict())
     append_historical = param.Boolean(default=False)
+
+    def __init__(self, **params):
+        super().__init__(**params)
+        self.param["resolution"].objects = self.choices["resolutions"]
+        self.resolution = self.choices["resolutions"][0]
+        _list_of_scenarios = list(self.choices["scenarios"]["45 km"].keys())
+        self.param["scenario"].objects = _list_of_scenarios
+        self.scenario = ["Historical Climate"]
+        self.param["variable"].objects = self.choices["variable_choices"]["hourly"][
+            "Dynamical"
+        ]
+        self.variable = "2m Air Temperature"
 
     @param.depends("resolution", "append_historical", "scenario", watch=True)
     def _update_scenarios(self):
@@ -444,7 +454,7 @@ class DataSelector(param.Parameterized):
         than 3km for WRF eventually). Also ensures that "Historical Climate" is not
         redundantly displayed when "Append historical" is also selected.
         """
-        _list_of_scenarios = list(self._choices._scenarios[self.resolution].keys())
+        _list_of_scenarios = list(self.choices["scenarios"][self.resolution].keys())
         self.param["scenario"].objects = _list_of_scenarios
         if self.append_historical and self.scenario is not None:
             if "Historical Climate" in self.scenario:
