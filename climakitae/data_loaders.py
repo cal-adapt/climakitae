@@ -11,13 +11,12 @@ from copy import deepcopy
 xr.set_options(keep_attrs=True)
 
 
-def _get_file_list(selections, scenario):
+def _get_file_list(selections, scenario, cat):
     """
     Returns a list of simulation names for all of the simulations present in the catalog
     for a given scenario, contingent on other user-supplied constraints in 'selections'.
     """
-    cat = selections._choices._cat
-    lookup = {v: k for k, v in selections._choices._scenario_choices.items()}
+    lookup = {v: k for k, v in selections.choices["scenario_choices"].items()}
     file_list = []
     for item in list(cat):
         if cat[item].metadata["nominal_resolution"] == selections.resolution:
@@ -26,20 +25,23 @@ def _get_file_list(selections, scenario):
     return file_list
 
 
-def _open_and_concat(file_list, selections, ds_region):
+def _open_and_concat(file_list, selections, cat, ds_region):
     """
     Open multiple zarr files, and add them to one big xarray Dataset. Coarsens in time, and/or
     subsets in space if selections so-indicates. Won't work unless the file_list supplied
     contains files of only one nominal resolution (_get_file_list ensures this).
     """
-    cat = selections._choices._cat
     all_files = xr.Dataset()
     for one_file in file_list:
         data = cat[one_file].to_dask()
         attributes = deepcopy(data.attrs)
         source_id = data.attrs["source_id"]
         if selections.variable not in ("Precipitation (total)", "wind 10m magnitude"):
-            data = data[selections.variable]
+            data = data[
+                selections.choices["variable_choices"]["hourly"]["Dynamical"][
+                    selections.variable
+                ]
+            ]
         elif selections.variable == "Precipitation (total)":
             data = data["RAINC"] + data["RAINNC"]
         elif selections.variable == "wind 10m magnitude":
@@ -111,14 +113,14 @@ def _get_as_shapely(location):
     )
 
 
-def _read_from_catalog(selections, location):
+def _read_from_catalog(selections, location, cat):
     """
     The primary and first data loading method, called by core.Application.generate, it returns
     a dataset (which can be quite large) containing everything requested by the user (which is
     stored in 'selections' and 'location').
     """
-    if selections.scenario[0] is None:
-        raise ValueError("Please select at least one scenario.")
+
+    assert not selections.scenario == [], "Please select as least one scenario."
 
     if location.area_subset == "lat/lon":
         geom = _get_as_shapely(location)
@@ -151,25 +153,25 @@ def _read_from_catalog(selections, location):
             raise ValueError('Please also select at least one SSP to '
                      'which the historical simulation should be appended.')
         one_scenario = "Historical Climate"
-        files_by_scenario = _get_file_list(selections, one_scenario)
-        historical = _open_and_concat(files_by_scenario, selections, ds_region)
+        files_by_scenario = _get_file_list(selections, one_scenario, cat)
+        historical = _open_and_concat(files_by_scenario, selections, cat, ds_region)
 
     all_files_list = []
     for one_scenario in selections.scenario:
         if selections.append_historical:
             if "SSP" in one_scenario:
-                files_by_scenario = _get_file_list(selections, one_scenario)
-                temp = _open_and_concat(files_by_scenario, selections, ds_region)
+                files_by_scenario = _get_file_list(selections, one_scenario, cat)
+                temp = _open_and_concat(files_by_scenario, selections, cat, ds_region)
                 temp = xr.concat([historical, temp], dim="time")
                 temp.name = "Historical + " + one_scenario
             elif one_scenario != "Historical Climate":
-                files_by_scenario = _get_file_list(selections, one_scenario)
-                temp = _open_and_concat(files_by_scenario, selections, ds_region)
+                files_by_scenario = _get_file_list(selections, one_scenario, cat)
+                temp = _open_and_concat(files_by_scenario, selections, cat, ds_region)
                 temp.name = one_scenario
 
         else:
-            files_by_scenario = _get_file_list(selections, one_scenario)
-            temp = _open_and_concat(files_by_scenario, selections, ds_region)
+            files_by_scenario = _get_file_list(selections, one_scenario, cat)
+            temp = _open_and_concat(files_by_scenario, selections, cat, ds_region)
             temp.name = one_scenario
 
         all_files_list.append(temp)
