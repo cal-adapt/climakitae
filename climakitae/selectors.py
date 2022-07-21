@@ -311,6 +311,7 @@ class LocSelectorPoint(param.Parameterized):
         location = _stations_database[self.cached_station]
 
 
+
 class DataSelector(param.Parameterized):
     """
     An object to hold data parameters, which depends only on the 'param' library.

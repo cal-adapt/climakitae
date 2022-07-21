@@ -7,6 +7,7 @@ import regionmask
 import intake
 import numpy as np
 from copy import deepcopy
+from .derive_variables import _compute_total_precip, _compute_relative_humidity, _compute_wind_mag
 
 # support methods for core.Application.generate
 xr.set_options(keep_attrs=True)
@@ -37,16 +38,28 @@ def _open_and_concat(file_list, selections, cat, ds_region):
         data = cat[one_file].to_dask()
         attributes = deepcopy(data.attrs)
         source_id = data.attrs["source_id"]
-        if selections.variable not in ("Precipitation (total)", "wind 10m magnitude"):
-            data = data[
-                selections.choices["variable_choices"]["hourly"]["Dynamical"][
-                    selections.variable
-                ]
-            ]
-        elif selections.variable == "Precipitation (total)":
-            data = data["RAINC"] + data["RAINNC"]
-        elif selections.variable == "wind 10m magnitude":
+
+        if selections.variable not in ("TOT_PRECIP", "REL_HUMIDITY", "WIND_MAG", "Daily Maximum Hourly Temperature"):
+            data = data[selections.choices["variable_choices"]["hourly"]["Dynamical"][selections.variable]]
+        elif selections.variable == "TOT_PRECIP":
+            data = _compute_total_precip(cumulus_precip=data["RAINC"], 
+                                         gridcell_precip=data["RAINNC"], 
+                                         variable_name="TOT_PRECIP") # Assign name to DataArray. Must match variable name in code above
+        elif selections.variable == "REL_HUMIDITY":
+            data = _compute_relative_humidity(pressure=data["PSFC"], # Technically using surface pressure, not full atmospheric pressure
+                                              temperature=data["T2"], 
+                                              mixing_ratio=data["Q2"],
+                                              variable_name="REL_HUMIDITY") 
+        elif selections.variable == "WIND_MAG":
+            data = _compute_wind_mag(u10=data["U10"], 
+                                     v10=data["V10"], 
+                                     variable_name="WIND_MAG")
+        
+        elif selections.variable == "Daily Maximum Hourly Temperature":
             pass
+        
+        else: # Raise error; Variable selected exists as dropdown option, but is not completely integrated into the code selection process. 
+            raise ValueError("You've encountered a bug in the code. Variable " + selections.variable + " is not a valid variable. Check source code for data_loaders or selectors module.")
 
         # coarsen in time if 'selections' so-indicates:
         if selections.timescale == "daily":
@@ -78,7 +91,7 @@ def _open_and_concat(file_list, selections, cat, ds_region):
                 False in mask.isnull()
             ), "Insufficient gridcells are contained within the bounds."
             data = data.where(np.isnan(mask) == False)
-            
+
         if selections.area_average:
             weights = np.cos(np.deg2rad(data.lat))
             data = data.weighted(weights).mean("x").mean("y")
