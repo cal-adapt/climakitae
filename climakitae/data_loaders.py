@@ -39,7 +39,7 @@ def _open_and_concat(file_list, selections, cat, ds_region):
         attributes = deepcopy(data.attrs)
         source_id = data.attrs["source_id"]
 
-        if selections.variable not in ("Precipitation (total)", "Relative Humidity", "Wind magnitude at 10m"):
+        if selections.variable not in ("Precipitation (total)", "Relative Humidity", "Wind Magnitude at 10m"):
             data = data[selections.choices["variable_choices"]["hourly"]["Dynamical"][selections.variable]]
         elif selections.variable == "Precipitation (total)":
             data = _compute_total_precip(cumulus_precip=data["RAINC"], 
@@ -50,7 +50,7 @@ def _open_and_concat(file_list, selections, cat, ds_region):
                                               temperature=data["T2"], 
                                               mixing_ratio=data["Q2"],
                                               variable_name="REL_HUMIDITY") 
-        elif selections.variable == "Wind magnitude at 10m":
+        elif selections.variable == "Wind Magnitude at 10m":
             data = _compute_wind_mag(u10=data["U10"], 
                                      v10=data["V10"], 
                                      variable_name="WIND_MAG")
