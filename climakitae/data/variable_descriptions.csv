@@ -1,5 +1,5 @@
 name,description,extended_description
-T2,2m Air Temperature,Temperature of the air 2 meters above Earth's surface. This is the measure of air temperature used for most modeling applications.
+T2,Air Temperature at 2m,Temperature of the air 2 meters above Earth's surface. This is the measure of air temperature used for most modeling applications.
 TOT_PRECIP,Precipitation (total),Total precipitation. Computed by summing total gridscale precipitation and total cumulus precipitation.
 REL_HUMIDITY,Relative Humidity,The percentage of water vapor (i.e. moisture) relative to the amount of water vapor needed to saturate the air at the current air temperature and pressure.
 WIND_MAG,Wind Magnitude at 10 m,Wind speed at 10 meters above the Earth's surface. Computed by taking the vector magnitude of the west-east (u) component of wind and the north-south (v) component of wind.

@@ -82,7 +82,7 @@ def _get_catalog_contents(_cat):
         "Sfc pressure"
     ]
     _variable_choices_hourly_wrf.pop("Sfc pressure")
-    _variable_choices_hourly_wrf["2m Air Temperature"] = _variable_choices_hourly_wrf[
+    _variable_choices_hourly_wrf["Air Temperature at 2m"] = _variable_choices_hourly_wrf[
         "Temp at 2 m"
     ]
     _variable_choices_hourly_wrf.pop("Temp at 2 m")

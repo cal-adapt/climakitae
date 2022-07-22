@@ -333,7 +333,7 @@ class DataSelector(param.Parameterized):
     """
 
     choices = param.Dict(dict())
-    default_variable = "2m Air Temperature"
+    default_variable = "Air Temperature at 2m"
     variable = param.ObjectSelector(default=default_variable, objects=dict())
     timescale = param.ObjectSelector(
         default="monthly", objects=["hourly", "daily", "monthly"]
