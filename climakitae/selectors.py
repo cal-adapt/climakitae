@@ -333,7 +333,7 @@ class DataSelector(param.Parameterized):
     """
 
     choices = param.Dict(dict())
-    default_variable = "T2" # 2 meter air tempt 
+    default_variable = "2m Air Temperature"
     variable = param.ObjectSelector(default=default_variable, objects=dict())
     timescale = param.ObjectSelector(
         default="monthly", objects=["hourly", "daily", "monthly"]
@@ -342,7 +342,7 @@ class DataSelector(param.Parameterized):
     scenario = param.ListSelector(objects=dict())
     resolution = param.ObjectSelector(objects=dict())
     append_historical = param.Boolean(default=False)
-    descrip_dict = _read_var_descrip(CSV_FILE)
+    descrip_dict = _read_var_descrip(CSV_FILE, index_col="description")
     variable_description = param.String(default=descrip_dict[default_variable]["extended_description"], doc="Extended description of variable selected")
  
 
@@ -357,7 +357,7 @@ class DataSelector(param.Parameterized):
         self.param["variable"].objects = self.choices["variable_choices"]["hourly"][
             "Dynamical"
         ]
-        self.variable = "2m Air Temperature"
+        self.variable = self.default_variable
 
 
     @param.depends("variable", "descrip_dict", watch=True)
