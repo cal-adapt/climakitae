@@ -11,18 +11,11 @@ import numpy as np
 import geopandas as gpd
 import pandas as pd
 import datetime as dt
+from .utils import _read_var_csv
 
-# Import package data 
-import pkg_resources
-DATA_PATH = pkg_resources.resource_filename('climakitae', 'data/')
+import pkg_resources # Import package data 
 CSV_FILE = pkg_resources.resource_filename('climakitae', 'data/variable_descriptions.csv')
 
-# Read package data as dictionary
-def _read_var_descrip(csv_file, index_col="name"): 
-    """Read in variable descriptions csv file as a dictionary, with variable names as keys and descriptions as items"""
-    csv = pd.read_csv(csv_file, index_col=index_col, usecols=["name","description","extended_description"])
-    descrip_dict = csv.to_dict(orient="index")
-    return descrip_dict
 
 # support methods for core.Application.select
 
@@ -342,7 +335,7 @@ class DataSelector(param.Parameterized):
     scenario = param.ListSelector(objects=dict())
     resolution = param.ObjectSelector(objects=dict())
     append_historical = param.Boolean(default=False)
-    descrip_dict = _read_var_descrip(CSV_FILE, index_col="description")
+    descrip_dict = _read_var_csv(CSV_FILE, index_col="description")
     variable_description = param.String(default=descrip_dict[default_variable]["extended_description"], doc="Extended description of variable selected")
  
 

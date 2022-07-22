@@ -8,7 +8,10 @@ from .selectors import (
 )
 from .data_loaders import _read_from_catalog
 from .data_export import _export_to_user
+from .utils import _read_var_csv
 import intake
+import pkg_resources # Import package data 
+CSV_FILE = pkg_resources.resource_filename('climakitae', 'data/variable_descriptions.csv')
 
 
 class Application(object):
@@ -102,9 +105,10 @@ def _get_catalog_contents(_cat):
         "Snowfall (snow and ice)"
     ] = _variable_choices_hourly_wrf["Accumulated total grid scale snow and ice"]
     _variable_choices_hourly_wrf.pop("Accumulated total grid scale snow and ice")
-    _move_to_end = [k for k in _variable_choices_hourly_wrf if "Instantaneous" in k]
-    for k in _move_to_end:
-        _variable_choices_hourly_wrf[k] = _variable_choices_hourly_wrf.pop(k)
+   
+    # Reorder dictionary according to variable order in csv file 
+    descrip_dict = _read_var_csv(CSV_FILE, index_col="description")
+    _variable_choices_hourly_wrf = {i: _variable_choices_hourly_wrf[i] for i in descrip_dict.keys() if i in _variable_choices_hourly_wrf.keys()}
 
     # expand this dictionary to also be dependent on LOCA vs WRF:
     _variable_choices_daily_loca = [

@@ -8,7 +8,6 @@ import pytest
 from climakitae.core import _get_catalog_contents
 import intake
 import pkg_resources
-DATA_PATH = pkg_resources.resource_filename('climakitae', 'data/')
 CSV_FILE = pkg_resources.resource_filename('climakitae', 'data/variable_descriptions.csv')
 
 @pytest.fixture
