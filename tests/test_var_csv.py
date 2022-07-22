@@ -5,7 +5,8 @@ It also tests that the variable descriptions csv file contains the expected colu
 
 import pandas as pd
 import pytest
-from climakitae.selectors import CatalogContents
+from climakitae.core import _get_catalog_contents
+import intake
 import pkg_resources
 DATA_PATH = pkg_resources.resource_filename('climakitae', 'data/')
 CSV_FILE = pkg_resources.resource_filename('climakitae', 'data/variable_descriptions.csv')
@@ -13,11 +14,13 @@ CSV_FILE = pkg_resources.resource_filename('climakitae', 'data/variable_descript
 @pytest.fixture
 def cat_contents():  
     """Load variable choices listed in Analytics Engine catalog. """
-    return CatalogContents()._variable_choices
+    catalog_info = intake.open_catalog("https://cadcat.s3.amazonaws.com/cae.yaml")
+    cat_contents = _get_catalog_contents(catalog_info)
+    return cat_contents["variable_choices"]
 
 @pytest.fixture
 def descrip_dict_formatted():
-    """Read in csv file formatted with the same columns as CatalogContents()._variable_choices. """
+    """Read in csv file formatted with the same columns as AWS catalog """
     csv = pd.read_csv(CSV_FILE, index_col="description", usecols=["name","description"])
     return csv.to_dict(orient="dict")["name"]
 
