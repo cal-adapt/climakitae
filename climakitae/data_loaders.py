@@ -39,24 +39,21 @@ def _open_and_concat(file_list, selections, cat, ds_region):
         attributes = deepcopy(data.attrs)
         source_id = data.attrs["source_id"]
 
-        if selections.variable not in ("TOT_PRECIP", "REL_HUMIDITY", "WIND_MAG", "Daily Maximum Hourly Temperature"):
+        if selections.variable not in ("Precipitation (total)", "Relative Humidity", "Wind magnitude at 10m"):
             data = data[selections.choices["variable_choices"]["hourly"]["Dynamical"][selections.variable]]
-        elif selections.variable == "TOT_PRECIP":
+        elif selections.variable == "Precipitation (total)":
             data = _compute_total_precip(cumulus_precip=data["RAINC"], 
                                          gridcell_precip=data["RAINNC"], 
                                          variable_name="TOT_PRECIP") # Assign name to DataArray. Must match variable name in code above
-        elif selections.variable == "REL_HUMIDITY":
+        elif selections.variable == "Relative Humidity":
             data = _compute_relative_humidity(pressure=data["PSFC"], # Technically using surface pressure, not full atmospheric pressure
                                               temperature=data["T2"], 
                                               mixing_ratio=data["Q2"],
                                               variable_name="REL_HUMIDITY") 
-        elif selections.variable == "WIND_MAG":
+        elif selections.variable == "Wind magnitude at 10m":
             data = _compute_wind_mag(u10=data["U10"], 
                                      v10=data["V10"], 
                                      variable_name="WIND_MAG")
-        
-        elif selections.variable == "Daily Maximum Hourly Temperature":
-            pass
         
         else: # Raise error; Variable selected exists as dropdown option, but is not completely integrated into the code selection process. 
             raise ValueError("You've encountered a bug in the code. Variable " + selections.variable + " is not a valid variable. Check source code for data_loaders or selectors module.")
