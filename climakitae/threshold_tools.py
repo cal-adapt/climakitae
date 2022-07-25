@@ -908,6 +908,44 @@ def _parse_event_string(event_string):
 
     # Return tuple
 
+def _exceedance_count_name(exceedance_count):
+    """
+    Helper function to build the appropriate name for the queried exceedance count.
+    Examples:
+        'Number of hours per 1year'
+        'Number of days per 1year'
+        'Number of 3-day events per 1year' (not yet implemented)
+    """
+    freq = exceedance_count.group
+    if freq is None:
+        if exceedance_count.frequency == "hourly":
+            freq = "hours"
+        elif exceedance_count.frequency == "daily":
+            freq = "days"
+        elif exceedance_count.frequency == "monthly":
+            freq = "months"
+    else:
+        _, f_type = _parse_event_string(freq)
+        freq = f"{f_type}s" # ex: day --> days
+
+    return f"Number of {freq} per {exceedance_count.period_length}"
+
+def _exceedance_plot_title(exceedance_count):
+    """
+    Helper function for making the title for exceedance plots.
+    Examples:
+        'T2: events above 35'
+        'Preciptation (total): 1-month events below 10'
+
+    To do: units
+    """
+    if exceedance_count.duration is not None:
+        d_num, d_type = _parse_event_string(exceedance_count.duration)
+        event = f"{d_num}-{d_type} events"
+    else:
+        event = "event"
+
+    return f"{exceedance_count.variable}: {event} {exceedance_count.threshold_direction} {exceedance_count.threshold_value}"
 
 def get_exceedance_events(
     da,
@@ -916,15 +954,16 @@ def get_exceedance_events(
     groupby = None
 ):
     """
-    Returns a Boolean xarray that specifies whether each entry of da is a qualifying event.
+    Returns an xarray that specifies whether each entry of da is a qualifying event. 
+    0 for False, 1 for True, and NaN for NaN values
     """
     # group_num, group_type = _parse_event_string(groupby)
 
-    # Count occurances
+    # Count occurances (and preserve NaNs)
     if threshold_direction == "above":
-        events_da = (da > threshold_value)
+        events_da = (da > threshold_value).where(da.isnull()==False)
     elif threshold_direction == "below":
-        events_da = (da < threshold_value)
+        events_da = (da < threshold_value).where(da.isnull()==False)
     else:
         raise ValueError(f"Unknown value for `threshold_direction` parameter: {threshold_direction}. Available options are 'above' or 'below'.")
 
@@ -967,7 +1006,7 @@ def get_exceedance_count(
     threshold_direction -- string either "above" or "below", default is above.
     duration -- length of exceedance in order to qualify as an event
     groupby -- see examples for explanation. Typical grouping could be "1day"
-    smoothing -- option to average the result across 
+    smoothing -- option to average the result across multiple periods with a rolling average
     """
 
     #--------- Type check arguments -------------------------------------------
@@ -993,6 +1032,17 @@ def get_exceedance_count(
     else:
         raise ValueError("Other period_length options not yet implemented. Please use '1year'.")
 
+    #--------- Update attributes 
+    exceedance_count.attrs["frequency"] = da.frequency
+    exceedance_count.attrs["variable"] = da.name
+    exceedance_count.attrs["period_length"] = period_length
+    exceedance_count.attrs["group"] = groupby
+    exceedance_count.attrs["duration"] = duration
+    exceedance_count.attrs["threshold_value"] = threshold_value
+    exceedance_count.attrs["threshold_direction"] = threshold_direction
+    exceedance_count.attrs["time"] = "year"
+    # exceedance_count.name = _exceedance_count_name(exceedance_count)
+
     return exceedance_count
 
 
@@ -1007,6 +1057,10 @@ def plot_exceedance_count(exceedance_count):
     # Need to generalize x period length 
     
     plot_obj = exceedance_count.hvplot.line(
-        x="year", widget_location="bottom", by="simulation", groupby=["scenario"]
+        x=exceedance_count.attrs["time"], 
+        widget_location="bottom", 
+        by="simulation", 
+        groupby=["scenario"],
+        title=_exceedance_plot_title(exceedance_count)
     )
     return pn.Column(plot_obj)

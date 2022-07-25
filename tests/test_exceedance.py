@@ -18,8 +18,8 @@ def T2_hourly(rootdir):
     """ Small hourly temperature data set for one scenario and one simulation"""
     test_filename= "test_data/threshold_data_T2_2050_2060_hourly_45km.nc"
     test_filepath = os.path.join(rootdir, test_filename)
-    test_data = xr.open_dataarray(test_filepath)
-    return test_data.isel(scenario=0, simulation=0)
+    # return xr.open_dataarray(test_filepath).T2
+    return xr.open_dataarray(test_filepath)
 
 #------------- Tests with hourly data -----------------------------------------
 
@@ -46,6 +46,33 @@ def test_hourly_ex3(T2_hourly):
     exc_counts = threshold_tools.get_exceedance_count(T2_hourly, threshold_value=305, period_length="1year", duration="3day", groupby="1day")
     assert (exc_counts >= 0).all()      # test no negative values
     assert "year" in exc_counts.coords  # test correct time transformation occured (datetime --> year)
+
+
+#------------- Test helper functions for plotting -----------------------------
+
+# example name 1: 
+def test_name1():
+    ex1 = xr.DataArray(attrs = {
+        "group" : None,
+        "frequency" : "hourly",
+        "period_length" : "1year"
+    })
+    name1 = threshold_tools._exceedance_count_name(ex1)
+    assert name1 == "Number of hours per 1year"
+
+# example name 2: 
+def test_name2():
+    ex2 = xr.DataArray(attrs = {
+        "group" : "1day",
+        "frequency" : "hourly",
+        "period_length" : "1year"
+    })
+    name2 = threshold_tools._exceedance_count_name(ex2)
+    assert name2 == "Number of days per 1year"
+
+# def test_title1():
+
+
 
 
 # test multiple scenario / simulation options with montlhy data (smaller)
