@@ -8,6 +8,7 @@ import intake
 import numpy as np
 from copy import deepcopy
 from .derive_variables import _compute_total_precip, _compute_relative_humidity, _compute_wind_mag
+from .unit_conversions import _unit_convert_temp, _unit_convert_winds, _unit_convert_precip, _unit_convert_pressure
 
 # support methods for core.Application.generate
 xr.set_options(keep_attrs=True)
@@ -42,21 +43,32 @@ def _open_and_concat(file_list, selections, cat, ds_region):
         if selections.variable not in ("Precipitation (total)", "Relative Humidity", "Wind Magnitude at 10m"):
             data = data[selections.choices["variable_choices"]["hourly"]["Dynamical"][selections.variable]]
         elif selections.variable == "Precipitation (total)":
-            data = _compute_total_precip(cumulus_precip=data["RAINC"], 
-                                         gridcell_precip=data["RAINNC"], 
+            data = _compute_total_precip(cumulus_precip=data["RAINC"],
+                                         gridcell_precip=data["RAINNC"],
                                          variable_name="TOT_PRECIP") # Assign name to DataArray. Must match variable name in code above
         elif selections.variable == "Relative Humidity":
             data = _compute_relative_humidity(pressure=data["PSFC"], # Technically using surface pressure, not full atmospheric pressure
-                                              temperature=data["T2"], 
+                                              temperature=data["T2"],
                                               mixing_ratio=data["Q2"],
-                                              variable_name="REL_HUMIDITY") 
+                                              variable_name="REL_HUMIDITY")
         elif selections.variable == "Wind Magnitude at 10m":
-            data = _compute_wind_mag(u10=data["U10"], 
-                                     v10=data["V10"], 
+            data = _compute_wind_mag(u10=data["U10"],
+                                     v10=data["V10"],
                                      variable_name="WIND_MAG")
-        
-        else: # Raise error; Variable selected exists as dropdown option, but is not completely integrated into the code selection process. 
+
+        else: # Raise error; Variable selected exists as dropdown option, but is not completely integrated into the code selection process.
             raise ValueError("You've encountered a bug in the code. Variable " + selections.variable + " is not a valid variable. Check source code for data_loaders or selectors module.")
+
+        # convert unit based on selected variable
+        if selections.variable == "T2" or selections.variable == "TSK":
+            data = _unit_convert_temp(variable = selections.variable, preferred_units = selections.unit_options)
+        elif selections.variable == "PSFC":
+            data = _unit_convert_pressure(variable = selections.variable, preferred_units = selections.unit_options)
+        elif selections.variable in ("U10", "V10", "WIND_MAG"):
+            data = _unit_convert_winds(variable = selections.variable, preferred_units = selections.unit_options)
+        elif selections.variable in ("TOT_PRECIP", "RAINC", "RAINNC", "SNOWFALL"):
+            data = _unit_convert_precip(variable = selections.variable, preferred_units = selections.unit_options)
+
 
         # coarsen in time if 'selections' so-indicates:
         if selections.timescale == "daily":
