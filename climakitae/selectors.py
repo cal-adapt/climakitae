@@ -11,6 +11,11 @@ import numpy as np
 import geopandas as gpd
 import pandas as pd
 import datetime as dt
+from .utils import _read_var_csv
+
+import pkg_resources # Import package data 
+CSV_FILE = pkg_resources.resource_filename('climakitae', 'data/variable_descriptions.csv')
+
 
 # support methods for core.Application.select
 
@@ -135,11 +140,15 @@ class LocSelectorArea(param.Parameterized):
     # would be nice if these lat/lon sliders were greyed-out when lat/lon subset option is not selected
     latitude = param.Range(default=(32.5, 42), bounds=(10, 67))
     longitude = param.Range(default=(-125.5, -114), bounds=(-156.82317, -84.18701))
-    _geographies = Boundaries()
-    _geography_choose = _geographies.boundary_dict()
-    cached_area = param.ObjectSelector(
-        default="CA", objects=list(_geography_choose["states"].keys())
-    )
+    cached_area = param.ObjectSelector(objects=dict())
+
+    def __init__(self, **params):
+        super().__init__(**params)
+        self._geographies = Boundaries()
+        self._geography_choose = self._geographies.boundary_dict()
+        self.param["cached_area"].objects = list(
+            self._geography_choose["states"].keys()
+        )
 
     _wrf_bb = {
         "45 km": Polygon(
@@ -307,109 +316,6 @@ class LocSelectorPoint(param.Parameterized):
         location = _stations_database[self.cached_station]
 
 
-class CatalogContents:
-    def __init__(self):
-        # get the list of data variables from one of the zarr files:
-        self._cat = intake.open_catalog("https://cadcat.s3.amazonaws.com/cae.yaml")
-        _ds = self._cat[list(self._cat)[0]].to_dask()
-        _variable_choices_hourly_wrf = {
-            v.attrs["description"].capitalize(): k for k, v in _ds.data_vars.items()
-        }
-        
-        # Add derived variables 
-        # Dictionary key (i.e. Precipitation (total)) will appear in list of variable options. 
-        # Dictionary item (i.e. TOT_PRECIP) must match name of DataArray assigned in data_loaders module. 
-        _variable_choices_hourly_wrf.update(
-            {"Precipitation (total)": "TOT_PRECIP",  
-             "Relative Humidity": "REL_HUMIDITY", 
-             "Wind Magnitude at 10 m": "WIND_MAG"}
-        ) 
-        
-        # remove some variables from the list, which will be superceded by higher quality hydrology
-        _to_drop = ["Surface runoff", "Subsurface runoff", "Snow water equivalent"]
-        [_variable_choices_hourly_wrf.pop(k) for k in _to_drop]
-        # give better names to some descriptions, and reorder:
-        _variable_choices_hourly_wrf["Surface Pressure"] = _variable_choices_hourly_wrf[
-            "Sfc pressure"
-        ]
-        _variable_choices_hourly_wrf.pop("Sfc pressure")
-        _variable_choices_hourly_wrf[
-            "2m Air Temperature"
-        ] = _variable_choices_hourly_wrf["Temp at 2 m"]
-        _variable_choices_hourly_wrf.pop("Temp at 2 m")
-        _variable_choices_hourly_wrf[
-            "2m Water Vapor Mixing Ratio"
-        ] = _variable_choices_hourly_wrf["Qv at 2 m"]
-        _variable_choices_hourly_wrf.pop("Qv at 2 m")
-        _variable_choices_hourly_wrf[
-            "West-East component of Wind at 10m"
-        ] = _variable_choices_hourly_wrf["U at 10 m"]
-        _variable_choices_hourly_wrf.pop("U at 10 m")
-        _variable_choices_hourly_wrf[
-            "North-South component of Wind at 10m"
-        ] = _variable_choices_hourly_wrf["V at 10 m"]
-        _variable_choices_hourly_wrf.pop("V at 10 m")
-        _variable_choices_hourly_wrf[
-            "Snowfall (snow and ice)"
-        ] = _variable_choices_hourly_wrf["Accumulated total grid scale snow and ice"]
-        _variable_choices_hourly_wrf.pop("Accumulated total grid scale snow and ice")
-        _move_to_end = [k for k in _variable_choices_hourly_wrf if "Instantaneous" in k]
-        for k in _move_to_end:
-            _variable_choices_hourly_wrf[k] = _variable_choices_hourly_wrf.pop(k)
-
-        # expand this dictionary to also be dependent on LOCA vs WRF:
-        _variable_choices_daily_loca = [
-            "Temperature",
-            "Maximum Relative Humidity",
-            "Minimum Relative Humidity",
-            "Solar Radiation",
-            "Wind Speed",
-            "Wind Direction",
-            "Precipitation",
-        ]
-        _variable_choices_hourly_loca = ["Temperature", "Precipitation"]
-
-        _variable_choices_hourly = {
-            "Dynamical": _variable_choices_hourly_wrf,
-            "Statistical": _variable_choices_hourly_loca,
-        }
-        _variable_choices_daily = {
-            "Dynamical": _variable_choices_hourly_wrf,
-            "Statistical": _variable_choices_daily_loca,
-        }
-
-        self._variable_choices = {
-            "hourly": _variable_choices_hourly,
-            "daily": _variable_choices_daily,
-        }
-
-        # hard-coded options:
-        self._scenario_choices = {
-            "historical": "Historical Climate",
-            "": "Historical Reconstruction",
-            "ssp245": "SSP 2-4.5 -- Middle of the Road",
-            "ssp370": "SSP 3-7.0 -- Business as Usual",
-            "ssp585": "SSP 5-8.5 -- Burn it All",
-        }
-
-        self._resolutions = list(
-            set(e.metadata["nominal_resolution"] for e in self._cat.values())
-        )
-
-        _scenario_list = []
-        for resolution in self._resolutions:
-            _temp = list(
-                set(
-                    e.metadata["experiment_id"]
-                    for e in self._cat.values()
-                    if e.metadata["nominal_resolution"] == resolution
-                )
-            )
-            _temp.sort()  # consistent order
-            _scenario_subset = [(self._scenario_choices[e], e) for e in _temp]
-            _scenario_subset = dict(_scenario_subset)
-            _scenario_list.append((resolution, _scenario_subset))
-        self._scenarios = dict(_scenario_list)
 
 
 class DataSelector(param.Parameterized):
@@ -419,24 +325,39 @@ class DataSelector(param.Parameterized):
     UI could in principle be used to update these parameters instead.
     """
 
-    _choices = CatalogContents()
-    variable = param.ObjectSelector(
-        default="T2", objects=_choices._variable_choices["hourly"]["Dynamical"]
-    )
+    choices = param.Dict(dict())
+    default_variable = "Air Temperature at 2m"
+    variable = param.ObjectSelector(default=default_variable, objects=dict())
     timescale = param.ObjectSelector(
         default="monthly", objects=["hourly", "daily", "monthly"]
     )  # for WRF, will just coarsen data to start
-
     time_slice = param.Range(default=(1980, 2015), bounds=(1950, 2100))
-
-    scenario = param.ListSelector(
-        default=["Historical Climate"],
-        objects=list(_choices._scenarios["45 km"].keys()),
-        allow_None=True,
-    )
-    resolution = param.ObjectSelector(default="45 km", objects=_choices._resolutions)
+    scenario = param.ListSelector(objects=dict())
+    resolution = param.ObjectSelector(objects=dict())
     append_historical = param.Boolean(default=False)
+    descrip_dict = _read_var_csv(CSV_FILE, index_col="description")
+    variable_description = param.String(default=descrip_dict[default_variable]["extended_description"], doc="Extended description of variable selected")
+ 
 
+    def __init__(self, **params):
+        # Set default values 
+        super().__init__(**params)
+        self.param["resolution"].objects = self.choices["resolutions"]
+        self.resolution = self.choices["resolutions"][0]
+        _list_of_scenarios = list(self.choices["scenarios"]["45 km"].keys())
+        self.param["scenario"].objects = _list_of_scenarios
+        self.scenario = ["Historical Climate"]
+        self.param["variable"].objects = self.choices["variable_choices"]["hourly"][
+            "Dynamical"
+        ]
+        self.variable = self.default_variable
+
+
+    @param.depends("variable", "descrip_dict", watch=True)
+    def _update_variable_description(self): 
+        """ Update extended description of variable selected. """
+        self.variable_description = self.descrip_dict[self.variable]["extended_description"]
+        
     @param.depends("resolution", "append_historical", "scenario", watch=True)
     def _update_scenarios(self):
         """
@@ -444,7 +365,7 @@ class DataSelector(param.Parameterized):
         than 3km for WRF eventually). Also ensures that "Historical Climate" is not
         redundantly displayed when "Append historical" is also selected.
         """
-        _list_of_scenarios = list(self._choices._scenarios[self.resolution].keys())
+        _list_of_scenarios = list(self.choices["scenarios"][self.resolution].keys())
         self.param["scenario"].objects = _list_of_scenarios
         if self.append_historical and self.scenario is not None:
             if "Historical Climate" in self.scenario:
@@ -559,6 +480,7 @@ def _display_select(selections, location, location_type="area average"):
             selections.param.time_slice,
             pn.layout.VSpacer(),
             selections.param.variable,
+            pn.widgets.StaticText.from_param(selections.param.variable_description, name=""),
             pn.widgets.RadioButtonGroup.from_param(selections.param.resolution),
             pn.layout.VSpacer(),
             selections.param.area_average,

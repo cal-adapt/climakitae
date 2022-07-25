@@ -1,12 +1,11 @@
+"""This script tests that the functions used to compute derived variables perform as expected. """
+
 import xarray as xr
 import numpy as np
 import pytest
 import os
 from climakitae.derive_variables import _compute_total_precip, _compute_relative_humidity, _compute_wind_mag
 
-
-### --- DATA TO BE USED IN FUNCTIONS --- ###
-# The test_data fixture was set in conftest.py 
 
 @pytest.fixture
 def total_precip(test_data):
@@ -27,9 +26,7 @@ def wind_mag(test_data):
     da = _compute_wind_mag(u10=test_data["U10"], v10=test_data["V10"])
     return da
     
-    
-### --- TESTS -- ### 
-
+ 
 def test_expected_data_name(total_precip,rel_humidity,wind_mag): 
     """Ensure that xr.DataArray has the correct assigned name"""
     assert total_precip.name == "TOT_PRECIP"

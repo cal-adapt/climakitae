@@ -71,12 +71,31 @@ class TimeSeriesParams(param.Parameterized):
             """
             Returns the difference with respect to the average across a historical range.
             """
-            return y - y.sel(
-                time=slice(self.reference_range[0], self.reference_range[1])
-            ).mean("time")
+            if y.attrs["frequency"] == "1month":
+                # If frequency is monthly, then the reference period average needs to be a 
+                # weighted average, with weights equal to the number of days in each month
+                reference_slice = y.sel(time=slice(*self.reference_range))
+                month_weights = reference_slice.time.dt.daysinmonth # Number of days in each month of the reference range
+                reference_avg = reference_slice.weighted(month_weights).mean("time") # Calculate the weighted average of this period
+                return y - reference_avg # return the difference
+            else:
+                return y - y.sel(time=slice(*self.reference_range)).mean("time")
 
         def _running_mean(y):
-            return y.rolling(time=self.num_timesteps, center=True).mean("time")
+            # If timescale is monthly, need to weight the rolling average by the number of days in each month
+            if y.attrs["frequency"] == "1month":                
+                # Access the number of days in each month corresponding to each element of y
+                month_weights = y.time.dt.daysinmonth
+                
+                # Construct DataArrayRolling objects for both the data and the weights
+                rolling_y = y.rolling(time=self.num_timesteps, center=True).construct("window")
+                rolling_weights = month_weights.rolling(time=self.num_timesteps, center=True).construct("window")
+                
+                # Build a DataArrayWeighted and collapse across the window dimension with mean
+                result = rolling_y.weighted(rolling_weights.fillna(0)).mean("window", skipna=False)
+                return result
+            else:
+                return y.rolling(time=self.num_timesteps, center=True).mean("time")
 
         if self.anomaly and not self.separate_seasons:
             to_plot = _getAnom(to_plot)
