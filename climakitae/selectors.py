@@ -11,6 +11,11 @@ import numpy as np
 import geopandas as gpd
 import pandas as pd
 import datetime as dt
+from .utils import _read_var_csv
+
+import pkg_resources # Import package data 
+CSV_FILE = pkg_resources.resource_filename('climakitae', 'data/variable_descriptions.csv')
+
 
 # support methods for core.Application.select
 
@@ -312,6 +317,7 @@ class LocSelectorPoint(param.Parameterized):
 
 
 
+
 class DataSelector(param.Parameterized):
     """
     An object to hold data parameters, which depends only on the 'param' library.
@@ -320,17 +326,21 @@ class DataSelector(param.Parameterized):
     """
 
     choices = param.Dict(dict())
-    variable = param.ObjectSelector(default="T2", objects=dict())
+    default_variable = "Air Temperature at 2m"
+    variable = param.ObjectSelector(default=default_variable, objects=dict())
     timescale = param.ObjectSelector(
         default="monthly", objects=["hourly", "daily", "monthly"]
     )  # for WRF, will just coarsen data to start
-
     time_slice = param.Range(default=(1980, 2015), bounds=(1950, 2100))
     scenario = param.ListSelector(objects=dict())
     resolution = param.ObjectSelector(objects=dict())
     append_historical = param.Boolean(default=False)
+    descrip_dict = _read_var_csv(CSV_FILE, index_col="description")
+    variable_description = param.String(default=descrip_dict[default_variable]["extended_description"], doc="Extended description of variable selected")
+ 
 
     def __init__(self, **params):
+        # Set default values 
         super().__init__(**params)
         self.param["resolution"].objects = self.choices["resolutions"]
         self.resolution = self.choices["resolutions"][0]
@@ -340,8 +350,14 @@ class DataSelector(param.Parameterized):
         self.param["variable"].objects = self.choices["variable_choices"]["hourly"][
             "Dynamical"
         ]
-        self.variable = "2m Air Temperature"
+        self.variable = self.default_variable
 
+
+    @param.depends("variable", "descrip_dict", watch=True)
+    def _update_variable_description(self): 
+        """ Update extended description of variable selected. """
+        self.variable_description = self.descrip_dict[self.variable]["extended_description"]
+        
     @param.depends("resolution", "append_historical", "scenario", watch=True)
     def _update_scenarios(self):
         """
@@ -464,6 +480,7 @@ def _display_select(selections, location, location_type="area average"):
             selections.param.time_slice,
             pn.layout.VSpacer(),
             selections.param.variable,
+            pn.widgets.StaticText.from_param(selections.param.variable_description, name=""),
             pn.widgets.RadioButtonGroup.from_param(selections.param.resolution),
             pn.layout.VSpacer(),
             selections.param.area_average,

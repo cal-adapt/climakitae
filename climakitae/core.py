@@ -8,7 +8,10 @@ from .selectors import (
 )
 from .data_loaders import _read_from_catalog
 from .data_export import _export_to_user
+from .utils import _read_var_csv
 import intake
+import pkg_resources # Import package data 
+CSV_FILE = pkg_resources.resource_filename('climakitae', 'data/variable_descriptions.csv')
 
 
 class Application(object):
@@ -20,7 +23,6 @@ class Application(object):
     def __init__(self):
         self._cat = intake.open_catalog("https://cadcat.s3.amazonaws.com/cae.yaml")
         self.selections = DataSelector(choices=_get_catalog_contents(self._cat))
-
         self.location = LocSelectorArea()
         self.user_export_format = FileTypeSelector()
 
@@ -78,34 +80,52 @@ def _get_catalog_contents(_cat):
     # remove some variables from the list, which will be superceded by higher quality hydrology
     _to_drop = ["Surface runoff", "Subsurface runoff", "Snow water equivalent"]
     [_variable_choices_hourly_wrf.pop(k) for k in _to_drop]
-    # give better names to some descriptions, and reorder:
+    
+    #####  Give better names to some descriptions:
     _variable_choices_hourly_wrf["Surface Pressure"] = _variable_choices_hourly_wrf[
         "Sfc pressure"
-    ]
-    _variable_choices_hourly_wrf.pop("Sfc pressure")
-    _variable_choices_hourly_wrf["2m Air Temperature"] = _variable_choices_hourly_wrf[
+    ] # Replace catalog name with better descriptive name 
+    _variable_choices_hourly_wrf.pop("Sfc pressure") # Remove old variable from dropdown
+    
+    _variable_choices_hourly_wrf["Air Temperature at 2m"] = _variable_choices_hourly_wrf[
         "Temp at 2 m"
     ]
     _variable_choices_hourly_wrf.pop("Temp at 2 m")
+    
     _variable_choices_hourly_wrf[
         "2m Water Vapor Mixing Ratio"
     ] = _variable_choices_hourly_wrf["Qv at 2 m"]
     _variable_choices_hourly_wrf.pop("Qv at 2 m")
+    
     _variable_choices_hourly_wrf[
         "West-East component of Wind at 10m"
     ] = _variable_choices_hourly_wrf["U at 10 m"]
     _variable_choices_hourly_wrf.pop("U at 10 m")
+    
     _variable_choices_hourly_wrf[
         "North-South component of Wind at 10m"
     ] = _variable_choices_hourly_wrf["V at 10 m"]
     _variable_choices_hourly_wrf.pop("V at 10 m")
+    
     _variable_choices_hourly_wrf[
         "Snowfall (snow and ice)"
     ] = _variable_choices_hourly_wrf["Accumulated total grid scale snow and ice"]
+    
     _variable_choices_hourly_wrf.pop("Accumulated total grid scale snow and ice")
-    _move_to_end = [k for k in _variable_choices_hourly_wrf if "Instantaneous" in k]
-    for k in _move_to_end:
-        _variable_choices_hourly_wrf[k] = _variable_choices_hourly_wrf.pop(k)
+    
+    _variable_choices_hourly_wrf["Precipitation (cumulus portion only)"] = _variable_choices_hourly_wrf[
+        "Accumulated total cumulus precipitation"
+    ]
+    _variable_choices_hourly_wrf.pop("Accumulated total cumulus precipitation")
+    
+    _variable_choices_hourly_wrf["Precipitation (grid-scale portion only)"] = _variable_choices_hourly_wrf[
+        "Accumulated total grid scale precipitation"
+    ]
+    _variable_choices_hourly_wrf.pop("Accumulated total grid scale precipitation")
+   
+    ### Reorder dictionary according to variable order in csv file 
+    descrip_dict = _read_var_csv(CSV_FILE, index_col="description")
+    _variable_choices_hourly_wrf = {i: _variable_choices_hourly_wrf[i] for i in descrip_dict.keys() if i in _variable_choices_hourly_wrf.keys()}
 
     # expand this dictionary to also be dependent on LOCA vs WRF:
     _variable_choices_daily_loca = [
