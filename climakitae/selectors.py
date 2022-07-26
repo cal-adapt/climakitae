@@ -333,11 +333,11 @@ class DataSelector(param.Parameterized):
     )  # for WRF, will just coarsen data to start
     time_slice = param.Range(default=(1980, 2015), bounds=(1950, 2100))
     scenario = param.ListSelector(objects=dict())
-    resolution = param.ObjectSelector(objects=dict())
+    resolution = param.ObjectSelector(objects=dict(),label="resolution")
     append_historical = param.Boolean(default=False)
     descrip_dict = _read_var_csv(CSV_FILE, index_col="description")
     variable_description = param.String(default=descrip_dict[default_variable]["extended_description"], doc="Extended description of variable selected")
- 
+    units = param.ObjectSelector(default="K", objects=["K", "T", "C"])
 
     def __init__(self, **params):
         # Set default values 
@@ -481,6 +481,9 @@ def _display_select(selections, location, location_type="area average"):
             pn.layout.VSpacer(),
             selections.param.variable,
             pn.widgets.StaticText.from_param(selections.param.variable_description, name=""),
+            pn.widgets.StaticText(name="",value="Variable Units"),
+            pn.widgets.RadioButtonGroup.from_param(selections.param.units),
+            pn.widgets.StaticText(name="",value="Model Resolution"),
             pn.widgets.RadioButtonGroup.from_param(selections.param.resolution),
             pn.layout.VSpacer(),
             selections.param.area_average,
