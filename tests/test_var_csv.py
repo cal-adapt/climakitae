@@ -49,5 +49,5 @@ def test_csv_matches_cat_contents(cat_contents, descrip_dict_formatted):
     assert cat_contents["hourly"]["Dynamical"].items() <= descrip_dict_formatted.items(), "Catalog contents are not the same as (or a smaller subset of) the items in the variable descriptions csv."
     
 def test_csv_contains_all_columns(descrip_pd): 
-    columns = ["name","description","extended_description"]
+    columns = ["name","description","extended_description","native_unit","alt_unit_options"]
     assert all(descrip_pd.columns.values == columns), "Variable description csv does not contain the correct columns."
