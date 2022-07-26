@@ -1,6 +1,6 @@
 """create_test_dataset.py 
 
-This script uses functions from the data_loaders and selectors modules to construct small datasets for testing. 
+This script uses functions from the data_loaders, core, and selectors modules to construct small datasets for testing. 
 Depending on the number of variables you use to construct your dataset and the geographic subset you want, this script can take a while to run.
 
 """
@@ -9,8 +9,10 @@ Depending on the number of variables you use to construct your dataset and the g
 import xarray as xr 
 import os 
 import sys
+import intake 
 from climakitae.data_loaders import _read_from_catalog
 from climakitae.selectors import DataSelector, LocSelectorArea
+from climakitae.core import _get_catalog_contents
 
 
 # ----------------- CHOOSE SETTINGS FOR TEST DATASET -----------------
@@ -19,7 +21,7 @@ from climakitae.selectors import DataSelector, LocSelectorArea
 # The variables will be read in individually using the _read_from_catalog function, which returns an xarray DataArray. At the end, we will combine the individual DataArrays to form a single xarray Dataset object.
 
 # ---- Settings to generate testing file test_dataset_2022_2022_monthly_45km 
-# variable_list = ["RAINC", "RAINNC", "SWDDIF", "TSK", "PSFC", "T2", "Q2", "U10", "V10", "SNOWNC", "LWDNB", "LWDNBC", "LWUPB", "LWUPBC", "SWDNB", "SWDNBC", "SWUPB", "SWUPBC"] 
+# variable_list = ['Air Temperature at 2m', 'Precipitation (total)', 'Relative Humidity', 'Wind Magnitude at 10m', 'West-East component of Wind at 10m', 'North-South component of Wind at 10m', 'Surface Pressure', '2m Water Vapor Mixing Ratio', 'Surface skin temperature', 'Shortwave surface downward diffuse irradiance', 'Instantaneous downwelling longwave flux at bottom', 'Instantaneous downwelling clear sky longwave flux at bottom', 'Instantaneous upwelling longwave flux at bottom', 'Instantaneous upwelling clear sky longwave flux at bottom', 'Instantaneous downwelling shortwave flux at bottom', 'Instantaneous downwelling clear sky shortwave flux at bottom', 'Instantaneous upwelling shortwave flux at bottom', 'Instantaneous upwelling clear sky shortwave flux at bottom', 'Snowfall (snow and ice)', 'Precipitation (cumulus portion only)', 'Precipitation (grid-scale portion only)']
 # year_start = 2022 # Starting year for time slice (integer)
 # year_end = 2022 # Ending year for time slice (integer)
 # timescale = "monthly" # Timescale (string): hourly, daily, or monthly
@@ -29,9 +31,9 @@ from climakitae.selectors import DataSelector, LocSelectorArea
 # filename = None
 
 # ---- Settings to generate testing file timeseries_data_T2_2014_2016_monthly_45km.nc 
-variable_list = ["T2"] 
+variable_list = ["Air Temperature at 2m"] 
 year_start = 2014 
-year_end = 2016 
+year_end = 2016
 timescale = "monthly" 
 resolution = "45 km" 
 append_historical = True 
@@ -40,22 +42,21 @@ filename = "timeseries_data_T2_2014_2016_monthly_45km"
 
 # -----------------  READ IN DATA FROM AWS CATALOG -----------------
 
-def read_data_for_var(variable, year_start=2013, year_end=2016, append_historical=True, timescale="monthly", resolution="45 km", scenarios=['SSP 2-4.5 -- Middle of the Road', 'SSP 3-7.0 -- Business as Usual', 'SSP 5-8.5 -- Burn it All']): 
+
+def _read_data_for_var(cat, selections, location, variable="Air Temperature at 2m", year_start=2013, year_end=2016, append_historical=True, timescale="monthly", resolution="45 km", scenarios=['SSP 2-4.5 -- Middle of the Road', 'SSP 3-7.0 -- Business as Usual', 'SSP 5-8.5 -- Burn it All']): 
     """ Read data from catalog for a given variable. """
-    selections = DataSelector(append_historical=append_historical, 
-                              area_average=False, 
-                              name='DataSelector00101', 
-                              resolution=resolution, 
-                              scenario=scenarios, 
-                              time_slice=(year_start, year_end), 
-                              timescale=timescale, 
-                              variable=variable)
-    location = LocSelectorArea(area_subset='none', 
-                               cached_area='CA', 
-                               latitude=(32.5, 42), 
-                               longitude=(-125.5, -114), 
-                               name='LocSelectorArea00102')
-    xr_da = _read_from_catalog(selections=selections, location=location)
+    
+    selections.append_historical = append_historical
+    selections.area_average = False
+    selections.resolutions = resolution
+    selections.scenario = scenarios
+    selections.time_slice = (year_start, year_end)
+    selections.timescale = timescale 
+    selections.variable = variable
+        
+    xr_da = _read_from_catalog(selections=selections, 
+                               location=location, 
+                               cat=cat)
     return xr_da
 
 def progressBar(i, tot): 
@@ -80,17 +81,25 @@ print("Append historical data: {0}".format(append_historical))
 print("Resolution: {0}".format(resolution))
 print("Scenarios: {0}".format(', '.join(map(str,scenarios))))
 
+# Get catalog, DataSelector, and LocSelectorArea
+_cat = intake.open_catalog("https://cadcat.s3.amazonaws.com/cae.yaml")
+_selections = DataSelector(choices=_get_catalog_contents(_cat))
+_location = LocSelectorArea()
+
 # Read in each variable individually into an xr.DataArray
 xr_da_list = []
 for i in range(len(variable_list)): 
     variable = variable_list[i] 
-    xr_da = read_data_for_var(variable=variable, 
-                              year_start=year_start, 
-                              year_end=year_end, 
-                              timescale=timescale, 
-                              append_historical=append_historical, 
-                              resolution=resolution, 
-                              scenarios=scenarios) 
+    xr_da = _read_data_for_var(cat=_cat,
+                               selections=_selections,
+                               location=_location,
+                               variable=variable, 
+                               year_start=year_start, 
+                               year_end=year_end, 
+                               timescale=timescale, 
+                               append_historical=append_historical, 
+                               resolution=resolution, 
+                               scenarios=scenarios) 
     xr_da_list.append(xr_da) 
     progressBar(i, len(variable_list)) # Display progress bar 
 
@@ -140,7 +149,11 @@ filepath = output_folder+"/"+filename+".nc" # Path to file
 print("Filename: {0}".format(filename))
 
 if download_data==True: 
-    test_dataset.to_netcdf(path=filepath, mode='w') # Output 
-    print("File saved to: {0}".format(filepath))
+    try: 
+        test_dataset.to_netcdf(path=filepath, mode='w') # Output 
+        print("File saved to: {0}".format(filepath))
+    except:
+        print("You already have a file with the same name: "+filename+"\nDelete that file to output a new one with the same name.")
+        print("DATA NOT DOWNLOADED")
 else: 
     print("Data not downloaded. Set download_data = True to download data")
