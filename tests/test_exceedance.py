@@ -5,17 +5,17 @@ import xarray as xr
 
 from climakitae import threshold_tools
 
-
 #------------- Data for testing -----------------------------------------------
 
 @pytest.fixture
 def T2_monthly(test_data):
-    """ Monthly temperature data for one scenario and one simulation"""
+    """ Monthly precipitation data for one scenario and one simulation 
+    (pulled from the general test data set)"""
     return test_data["TOT_PRECIP"].isel(scenario=0, simulation=0)
 
 @pytest.fixture
 def T2_hourly(rootdir):
-    """ Small hourly temperature data set for one scenario and one simulation"""
+    """ Small hourly temperature data set"""
     test_filename= "test_data/threshold_data_T2_2050_2060_hourly_45km.nc"
     test_filepath = os.path.join(rootdir, test_filename)
     # return xr.open_dataarray(test_filepath).T2
