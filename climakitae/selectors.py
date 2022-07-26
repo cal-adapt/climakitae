@@ -333,11 +333,15 @@ class DataSelector(param.Parameterized):
     )  # for WRF, will just coarsen data to start
     time_slice = param.Range(default=(1980, 2015), bounds=(1950, 2100))
     scenario = param.ListSelector(objects=dict())
-    resolution = param.ObjectSelector(objects=dict(),label="resolution")
+    resolution = param.ObjectSelector(objects=dict())
     append_historical = param.Boolean(default=False)
     descrip_dict = _read_var_csv(CSV_FILE, index_col="description")
-    variable_description = param.String(default=descrip_dict[default_variable]["extended_description"], doc="Extended description of variable selected")
-    units = param.ObjectSelector(default="K", objects=["K", "T", "C"])
+    variable_description = param.String(
+        default=descrip_dict[default_variable]["extended_description"],
+        doc="Extended description of variable selected"
+    )
+
+    units = param.ObjectSelector(objects=dict())
 
     def __init__(self, **params):
         # Set default values 
@@ -350,8 +354,19 @@ class DataSelector(param.Parameterized):
         self.param["variable"].objects = self.choices["variable_choices"]["hourly"][
             "Dynamical"
         ]
-        self.variable = self.default_variable
+        self.units = self.param["units"].objects[0]
 
+    @param.depends("variable","units","descrip_dict", watch=True)
+    def _update_unit_options(self): 
+        """ Update extended description of variable selected. """
+        _default_unit = self.descrip_dict[self.variable]["native_unit"]
+        _alt_units = self.descrip_dict[self.variable]["alt_unit_options"]
+        if pd.isna(_alt_units): 
+            self.param["units"].objects = [_default_unit]
+            self.units = _default_unit
+        else:
+            self.param["units"].objects = _default_unit.split(", ")+_alt_units.split(", ")
+            self.units = self.param["units"].objects[0]
 
     @param.depends("variable", "descrip_dict", watch=True)
     def _update_variable_description(self): 
@@ -482,9 +497,9 @@ def _display_select(selections, location, location_type="area average"):
             selections.param.variable,
             pn.widgets.StaticText.from_param(selections.param.variable_description, name=""),
             pn.layout.VSpacer(),
-            pn.widgets.StaticText(name="",value="Variable Units"),
+            pn.widgets.StaticText(name="", value="Variable Units"),
             pn.widgets.RadioButtonGroup.from_param(selections.param.units),
-            pn.widgets.StaticText(name="",value="Model Resolution"),
+            pn.widgets.StaticText(name="", value="Model Resolution"),
             pn.widgets.RadioButtonGroup.from_param(selections.param.resolution),
             selections.param.area_average,
             pn.layout.VSpacer(),
