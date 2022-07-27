@@ -355,7 +355,7 @@ class DataSelector(param.Parameterized):
         self.param["variable"].objects = self.choices["variable_choices"]["hourly"][
             "Dynamical"
         ]
-        self.units = self.param["units"].objects[0]
+        self.units = self.descrip_dict[self.variable]["native_unit"]
         self.native_units = self.descrip_dict[self.variable]["native_unit"]
 
     @param.depends("variable","native_units","units","descrip_dict", watch=True)
