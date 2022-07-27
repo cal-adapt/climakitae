@@ -1,106 +1,65 @@
 """
-This script calculates alternative units for variables with multiple
-commonly used units.
+This script calculates alternative units for variables with multiplecommonly used units.
+
 """
 
-def _unit_convert_precip(variable, preferred_units):
-    """ Converts units for any precipitation-related variable
+def _convert_units(da, native_units, selected_units): 
+    """ Converts units for any variable
 
     Args:
-      variable (xr.DataArray): Precipitation (default unit mm)
-      preferred_units (string): Option of either "mm" or "in" for unit
+      da (xr.DataArray): Data
+      native_units (str): Native units of data, from selections.native_units 
+      selected_units (str): Selected units of data, from selections.units
 
     Returns:
-      variable (xr.DataArray): Total precipitation (converted unit in)
+      da (xr.DataArray): Data with converted units and updated units attribute
     """
+    
+    # Units that have existing conversions
+    units_with_conversions = ["mm","Pa","m/s","K"]
+    
+    # Pass if chosen units is the same as native units 
+    if native_units == selected_units: 
+        pass
+    
+    # Raise error; Unit selected exists as button, but is not completely integrated into the code selection process.
+    elif (native_units != selected_units) and (native_units not in units_with_conversions):
+        raise ValueError("You've encountered a bug in the code. Selected unit " + selected_units + " is not a valid unit option. Check package data and/or source code for data_loaders and unit_conversions modules.")
+    
+    # Precipitation units 
+    elif native_units == "mm":
+        if selected_units == "in":
+            da = da / 25.4
+            da.attrs["units"] = selected_units
 
-  # If choice of units is the default unit, do nothing
-    if variable.units == preferred_units:
-        return variable
+    # Pressure units 
+    elif native_units == "Pa":
+        if selected_units == "hPa":
+            da = da / 100.
+            da.attrs["units"] = selected_units
+        elif selected_units == "mb":
+            da = da / 100.
+            da.attrs["units"] = selected_units
+        elif selected_units == "inHg":
+            da = da / 100. / 29.92 
+            da.attrs["units"] = selected_units
 
-    if variable.units == "mm" and preferred_units == "in":
-        variable = total_precip / 25.4
-        variable.units = "in"
+    # Wind units 
+    elif native_units == "m/s":
+        if selected_units == "kts":
+            da = da * 1.94
+            da.attrs["units"] = selected_units
 
-    return variable
+    # Temperature units
+    elif native_units == "K": 
+        if selected_units == "degC":
+            da = da - 273.15
+            da.attrs["units"] = selected_units
+        elif selected_units == "degF":
+            da = 1.8 * (da - 273.15) - 32
+            da.attrs["units"] = selected_units
+        elif selected_units == "degR": 
+            da = da * 1.8
+            da.attrs["units"] = selected_units
 
-
-def _unit_convert_pressure(pressure, preferred_units):
-    """ Converts units for air pressure
-
-    Args:
-      pressure (xr.DataArray): Pressure (default unit Pa)
-      preferred_units (string): Option of Pa, hPa, mb, inHg
-
-    Returns:
-      pressure (xr.DataArray): Pressue (with unit of choice)
-    """
-
-    # If choice of units is the default unit, do nothing
-    if pressure.units == preferred_units:
-        return pressure
-
-    if pressure.units == "Pa" and preferred_units == "hPa":
-        pressure = pressure / 100.
-        pressure.units = "hPa"
-
-    elif pressure.units == "Pa" and preferred_units == "mb":
-        pressure = pressure / 100.
-        pressure.units = "mb"
-
-    elif pressure.units == "Pa" and preferred_units == "inHg":
-        pressure = pressure / 100. / 29.92
-        pressure.units = "inHg"
-
-    return pressure
-
-
-def _unit_convert_winds(variable, preferred_units):
-    """ Converts units for any wind magnitude-related variable
-
-        Args:
-            variable (xr.DataArray): Wind magnitude (default unit m/s)
-            preferred_units (string): Option of m/s, knots
-
-        Returns:
-            variable (xr.DataArray): Wind magnitude (with unit of choice)
-    """
-
-    # If choice of units is the default unit, do nothing
-    if variable.units == preferred_units:
-        return variable
-
-    if variable.units == "m/s" and preferred_units == "kts":
-        variable = variable * 1.94
-        variable.units = "kts"
-
-    return variable
-
-def _unit_convert_temp(variable, preferred_units):
-    """ Converts units for any temperature-related variable
-
-        Args:
-            variable (xr.DataArray): temperature (default unit K)
-            preferred_units (string): Option of K, degC, degF, degR
-
-        Returns:
-            variable (xr.DataArray): temperature (with unit of choice)
-    """
-
-    #If choice of units is the default unit, do nothing
-    if variable.units == preferred_units:
-        return variable
-
-    if variable.units == "K" and preferred_units == "degC":
-        variable = variable - 273.15
-        variable.units = "degC"
-
-    elif variable.units == "K" and preferred_units == "degF":
-        variable = 1.8 * (variable - 273.15) - 32
-        variable.units = "degF"
-
-    elif variable.units == "K" and preferred_units == "degR":
-        variable = variable * 1.8
-        variable.units = "degR"
-
-    return variable
+    return da
