@@ -28,7 +28,7 @@ def _convert_units(da, native_units, selected_units):
     
     # Precipitation units 
     elif native_units == "mm":
-        if selected_units == "in":
+        if selected_units == "inches":
             da = da / 25.4
             da.attrs["units"] = selected_units
             
