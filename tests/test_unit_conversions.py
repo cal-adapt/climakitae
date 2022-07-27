@@ -92,7 +92,7 @@ def test_temp_conversion_Fahrenheit(air_temp_K):
     da_converted = _convert_units(
         da=air_temp_K, native_units="K", selected_units="degF"
     )
-    correct_conversion = (1.8 * (air_temp_K - 273.15) + 32)
+    correct_conversion = ((1.8 * (air_temp_K - 273.15)) + 32)
     assert correct_conversion.equals(da_converted)
 
 def test_temp_conversion_Rankine(air_temp_K):

@@ -62,7 +62,7 @@ def _convert_units(da, native_units, selected_units):
             da = da - 273.15
             da.attrs["units"] = selected_units
         elif selected_units == "degF":
-            da = 1.8 * (da - 273.15) + 32
+            da = (1.8 * (da - 273.15)) + 32
             da.attrs["units"] = selected_units
         elif selected_units == "degR":
             da = da * 1.8
