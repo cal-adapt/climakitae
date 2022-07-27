@@ -16,7 +16,7 @@ def _convert_units(da, native_units, selected_units):
     """
     
     # Units that have existing conversions
-    units_with_conversions = ["mm","Pa","m/s","K"]
+    units_with_conversions = ["mm","Pa","m/s","K","kg/kg"]
     
     # Pass if chosen units is the same as native units 
     if native_units == selected_units: 
@@ -30,6 +30,12 @@ def _convert_units(da, native_units, selected_units):
     elif native_units == "mm":
         if selected_units == "in":
             da = da / 25.4
+            da.attrs["units"] = selected_units
+            
+    # Weight ratio units
+    elif native_units == "kg/kg":
+        if selected_units == "g/kg":
+            da = da * 1000
             da.attrs["units"] = selected_units
 
     # Pressure units 
@@ -46,7 +52,7 @@ def _convert_units(da, native_units, selected_units):
 
     # Wind units 
     elif native_units == "m/s":
-        if selected_units == "kts":
+        if selected_units == "knots":
             da = da * 1.94
             da.attrs["units"] = selected_units
 
