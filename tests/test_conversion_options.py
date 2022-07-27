@@ -35,12 +35,12 @@ def unit_combos():
     alt_units = pd_conversions["alt_unit_options"].values
     alt_units = [x.split(', ') for x in alt_units]
     l_iter = [(native_units[i], alt_units[i][x]) for i in range(len(native_units)) for x in range(len(alt_units[i]))]
-    for a, b in l_iter: 
-        yield a,b
+    for native_unit, selected_unit in l_iter: 
+        yield native_unit, selected_unit
         
-@pytest.mark.parametrize('a, b', unit_combos())
-def test_unit_conversion_exists(a, b):
+@pytest.mark.parametrize('native_unit, selected_unit', unit_combos())
+def test_unit_conversion_exists(native_unit, selected_unit):
     """Test that a conversion exists for each (native_unit, selected_unit) conversion pair. """
     dummy_da = xr.DataArray(np.arange(1,10,1)) 
-    k = _convert_units(da=dummy_da, native_units=a, selected_units=b)
-    assert k.attrs["units"] == b
+    da_converted = _convert_units(da=dummy_da, native_units=native_unit, selected_units=selected_unit)
+    assert da_converted.attrs["units"] == selected_unit, "This is not a valid unit conversion for the native unit"
