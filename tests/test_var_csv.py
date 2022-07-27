@@ -31,11 +31,6 @@ def descrip_pd():
     pd_df = pd.read_csv(CSV_FILE)
     return pd_df 
 
-@pytest.fixture
-def descrip_pd(): 
-    """Read in csv file as pandas dataframe object. """
-    pd_df = pd.read_csv(CSV_FILE)
-    return pd_df
 
 @pytest.mark.parametrize("csv_file,index_col,usecols", [(CSV_FILE, "name", ["name","description","extended_description"]), (CSV_FILE, "description", ["description","extended_description","name"]),(CSV_FILE, "extended_description", ["extended_description","name","description"])])
 def test_read_var_function_output(csv_file,index_col,usecols):
