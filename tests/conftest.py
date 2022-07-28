@@ -1,3 +1,5 @@
+"""Shared data and paths between multiple unit tests. """
+
 import os
 import pytest
 import xarray as xr
