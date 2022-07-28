@@ -94,11 +94,3 @@ def test_temp_conversion_Fahrenheit(air_temp_K):
     )
     correct_conversion = ((1.8 * (air_temp_K - 273.15)) + 32)
     assert correct_conversion.equals(da_converted)
-
-def test_temp_conversion_Rankine(air_temp_K):
-    """Test that the _convert_units function correctly converts from Kelvin to Rankine. """
-    da_converted = _convert_units(
-        da=air_temp_K, native_units="K", selected_units="degR"
-    )
-    correct_conversion = (1.8 * air_temp_K)
-    assert correct_conversion.equals(da_converted)
