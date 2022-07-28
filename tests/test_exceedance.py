@@ -9,17 +9,16 @@ from climakitae import threshold_tools
 
 @pytest.fixture
 def T2_monthly(test_data):
-    """ Monthly precipitation data for one scenario and one simulation 
+    """ Monthly RAINC data for one scenario and one simulation 
     (pulled from the general test data set)"""
-    return test_data["TOT_PRECIP"].isel(scenario=0, simulation=0)
+    return test_data["RAINC"].isel(scenario=0, simulation=0)
 
 @pytest.fixture
 def T2_hourly(rootdir):
     """ Small hourly temperature data set"""
-    test_filename= "test_data/threshold_data_T2_2050_2060_hourly_45km.nc"
+    test_filename= "test_data/threshold_data_T2_2050_2051_hourly_45km.nc"
     test_filepath = os.path.join(rootdir, test_filename)
-    # return xr.open_dataarray(test_filepath).T2
-    return xr.open_dataarray(test_filepath)
+    return xr.open_dataset(test_filepath)["Air Temperature at 2m"]
 
 #------------- Test kwarg compatibility and Exceptions ------------------------
 
@@ -110,7 +109,7 @@ def test_title1():
         "variable_units" : "K"
     })
     title1 = threshold_tools._exceedance_plot_title(ex1)
-    assert title1 == "TEMP at 2 M: events above 299K"
+    assert title1 == "Air Temperature at 2m: events above 299K"
 
 
 

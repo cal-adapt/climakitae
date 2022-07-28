@@ -27,18 +27,32 @@ from climakitae.core import _get_catalog_contents
 # timescale = "monthly" # Timescale (string): hourly, daily, or monthly
 # resolution = "45 km" # Resolution (string): 3 km, 9 km , or 45 km 
 # append_historical = False # Append historical data? (boolean) year_start must be < 2015
+# area_average = False
 # scenarios = ['SSP 2-4.5 -- Middle of the Road', 'SSP 3-7.0 -- Business as Usual', 'SSP 5-8.5 -- Burn it All']
 # filename = None
 
 # ---- Settings to generate testing file timeseries_data_T2_2014_2016_monthly_45km.nc 
+# variable_list = ["Air Temperature at 2m"] 
+# year_start = 2014 
+# year_end = 2016 
+# timescale = "monthly" 
+# resolution = "45 km" 
+# append_historical = True 
+# area_average = False
+# scenarios = ['SSP 2-4.5 -- Middle of the Road', 'Historical Climate']
+# filename = "timeseries_data_T2_2014_2016_monthly_45km"
+
+# ---- Settings to generate testing file threshold_data_T2_2050_2051_hourly_45km.nc 
 variable_list = ["Air Temperature at 2m"] 
-year_start = 2014 
-year_end = 2016
-timescale = "monthly" 
+year_start = 2050
+year_end = 2051
+timescale = "hourly" 
 resolution = "45 km" 
-append_historical = True 
-scenarios = ['SSP 2-4.5 -- Middle of the Road', 'Historical Climate']
-filename = "timeseries_data_T2_2014_2016_monthly_45km"
+append_historical = False
+area_average = True
+scenarios = ['SSP 2-4.5 -- Middle of the Road']
+filename = "threshold_data_T2_2050_2051_hourly_45km"
+
 
 # -----------------  READ IN DATA FROM AWS CATALOG -----------------
 
@@ -129,6 +143,10 @@ mask_lat = (xr_ds.lat >= min_lat) & (xr_ds.lat <= max_lat)
 test_dataset = xr_ds.where(mask_lon & mask_lat, drop=True)
 print("COMPLETE.")
 
+# Area average?
+if area_average:
+    test_dataset = test_dataset.mean("x").mean("y")
+
 # Load lazy dask data  
 print("Loading data...", end="")
 test_dataset = test_dataset.compute()
@@ -149,11 +167,7 @@ filepath = output_folder+"/"+filename+".nc" # Path to file
 print("Filename: {0}".format(filename))
 
 if download_data==True: 
-    try: 
-        test_dataset.to_netcdf(path=filepath, mode='w') # Output 
-        print("File saved to: {0}".format(filepath))
-    except:
-        print("You already have a file with the same name: "+filename+"\nDelete that file to output a new one with the same name.")
-        print("DATA NOT DOWNLOADED")
+    test_dataset.to_netcdf(path=filepath, mode='w') # Output 
+    print("File saved to: {0}".format(filepath))
 else: 
     print("Data not downloaded. Set download_data = True to download data")
