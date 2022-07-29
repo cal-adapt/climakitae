@@ -10,6 +10,7 @@ import pandas as pd
 import xarray as xr
 from scipy import stats
 import panel as pn
+import param
 
 import lmoments3 as lm
 from lmoments3 import distr as ldistr
@@ -887,6 +888,8 @@ def get_return_period(
 
     return new_ds
 
+#------------- Functions for exceedance count ---------------------------------
+
 def _exceedance_count_name(exceedance_count):
     """
     Helper function to build the appropriate name for the queried exceedance count.
@@ -930,7 +933,7 @@ def _exceedance_plot_title(exceedance_count):
         'Air Temperatue at 2m: events above 35C'
         'Preciptation (total): events below 10cm'
     """
-    return f"{exceedance_count.description}: events {exceedance_count.threshold_direction} {exceedance_count.threshold_value}{exceedance_count.variable_units}"
+    return f"{exceedance_count.variable}: events {exceedance_count.threshold_direction} {exceedance_count.threshold_value}{exceedance_count.variable_units}"
 
 def get_exceedance_events(
     da,
@@ -1034,16 +1037,16 @@ def get_exceedance_count(
     #--------- Set attributes for the counts DataArray ------------------------
     exceedance_count.attrs["variable"] = da.name
     exceedance_count.attrs["variable_units"] = exceedance_count.units
-    exceedance_count.attrs["units"] = _exceedance_count_name(exceedance_count)
     exceedance_count.attrs["period"] = period
     exceedance_count.attrs["group"] = groupby
     exceedance_count.attrs["duration"] = duration
     exceedance_count.attrs["threshold_value"] = threshold_value
     exceedance_count.attrs["threshold_direction"] = threshold_direction
+    exceedance_count.attrs["units"] = _exceedance_count_name(exceedance_count)
     exceedance_count.attrs["time"] = period[1] # for plotting: x-axis
 
     # Set name (for plotting, this will be the y-axis label)
-    exceedance_count.name =  "Exceedance count"
+    exceedance_count.name =  "Count"
 
     return exceedance_count
 
@@ -1062,3 +1065,58 @@ def plot_exceedance_count(exceedance_count):
         title=_exceedance_plot_title(exceedance_count)
     )
     return pn.Column(plot_obj)
+
+
+#------------- Class and methods for the explore_exceedance GUI ---------------
+
+class ExceedanceParams(param.Parameterized):
+    """
+    An object to hold exceedance count parameters, which depends only on the 'param' library.
+    """
+    def __init__(self, dataarray, **params):
+        super().__init__(**params)
+        self.data = dataarray
+
+    # Define the params
+    threshold_value = param.Number(label = "The threshold value")
+    threshold_direction = param.ObjectSelector(default = "above", objects = ["above", "below"])
+    period = param.ObjectSelector(default = (1, "year"), label = "Length of time over which to sum occurances")
+    groupby = param.ObjectSelector(default = None, label = "Length of time over which to group occurances")
+    duration = param.ObjectSelector(default = None, label = "Duration of event")
+
+    def transform_data(self):
+        return get_exceedance_count(self.data, 
+            threshold_value = self.threshold_value, 
+            threshold_direction = self.threshold_direction,
+            period = self.period,
+            groupby = self.groupby,
+            duration = self.duration)
+
+    def view(self):
+        to_plot = self.transform_data()
+        obj = plot_exceedance_count(to_plot)
+        return obj
+
+def _exceedance_visualize(choices):
+    """
+    Uses holoviz 'panel' library to display the parameters and view defined for exploring exceedance.
+    """
+    return pn.Column(
+        pn.Row(
+            pn.Column(
+                choices.param.threshold_value,
+                choices.param.threshold_direction
+            ),
+            pn.Spacer(width=50),
+            pn.Column(
+                choices.param.period,
+                choices.param.groupby,
+                choices.param.duration
+            )
+        ),
+        choices.view,
+    )
+
+def explore_exceedance(da):
+    exc_choices = ExceedanceParams(da)
+    return _exceedance_visualize(exc_choices)
