@@ -15,17 +15,13 @@ class TestTempConversions:
 
     def test_temp_conversion_Celcius(self, air_temp_K):
         """Test that the _convert_units function correctly converts from Kelvin to Celcius. """
-        da_converted = _convert_units(
-            da=air_temp_K, native_units="K", selected_units="degC"
-        )
+        da_converted = _convert_units(da=air_temp_K, selected_units="degC")
         correct_conversion = (air_temp_K - 273.15)
         assert correct_conversion.equals(da_converted)
 
     def test_temp_conversion_Fahrenheit(self, air_temp_K):
         """Test that the _convert_units function correctly converts from Kelvin to Fahrenheit. """
-        da_converted = _convert_units(
-            da=air_temp_K, native_units="K", selected_units="degF"
-        )
+        da_converted = _convert_units(da=air_temp_K, selected_units="degF")
         correct_conversion = ((1.8 * (air_temp_K - 273.15)) + 32)
         assert correct_conversion.equals(da_converted)
 
@@ -41,28 +37,19 @@ class TestPressureConversions:
 
     def test_pressure_conversion_hPa(self, surf_pres_pasc):
         """Test that the _convert_units function correctly converts from Pa to hPa. """
-
-        da_converted = _convert_units(
-            da=surf_pres_pasc, native_units="Pa", selected_units="hPa"
-        )
+        da_converted = _convert_units(da=surf_pres_pasc, selected_units="hPa")
         correct_conversion = (surf_pres_pasc / 100.)
         assert correct_conversion.equals(da_converted)
 
     def test_pressure_conversion_inHg(self, surf_pres_pasc):
         """Test that the _convert_units function correctly converts from Pa to inHg. """
-
-        da_converted = _convert_units(
-            da=surf_pres_pasc, native_units="Pa", selected_units="inHg"
-        )
+        da_converted = _convert_units(da=surf_pres_pasc, selected_units="inHg")
         correct_conversion = (surf_pres_pasc / 3386.39)
         assert correct_conversion.equals(da_converted)
 
     def test_pressure_conversion_mb(self, surf_pres_pasc):
         """Test that the _convert_units function correctly converts from Pa to mb. """
-
-        da_converted = _convert_units(
-            da=surf_pres_pasc, native_units="Pa", selected_units="mb"
-        )
+        da_converted = _convert_units(da=surf_pres_pasc, selected_units="mb")
         correct_conversion = (surf_pres_pasc / 100.)
         assert correct_conversion.equals(da_converted)
 
@@ -78,9 +65,7 @@ class TestWindSpeedConversions:
 
     def test_wind_u10_conversion_knots(self, wind_u_ms):
         """Test that the _convert_units function correctly converts from m/s to knots. """
-        da_converted = _convert_units(
-            da=wind_u_ms, native_units="m/s", selected_units="knots"
-        )
+        da_converted = _convert_units(da=wind_u_ms, selected_units="knots")
         correct_conversion = wind_u_ms * 1.94
         assert correct_conversion.equals(da_converted)
 
@@ -96,9 +81,7 @@ class TestWaterVaporConversions:
 
     def test_water_vapor_ratio_conversion(self, water_vapor_kgkg):
         """Test that the _convert_units function correctly converts from kg/kg to g/kg. """
-        da_converted = _convert_units(
-            da=water_vapor_kgkg, native_units="kg/kg", selected_units="g/kg"
-        )
+        da_converted = _convert_units(da=water_vapor_kgkg, selected_units="g/kg")
         correct_conversion = water_vapor_kgkg * 1000
         assert correct_conversion.equals(da_converted)
 
@@ -114,8 +97,6 @@ class TestPrecipitationConversions:
 
     def test_precip_conversion(self, cumulus_precip_mm):
         """Test that the _convert_units function correctly converts from mm to inches. """
-        da_converted = _convert_units(
-            da=cumulus_precip_mm, native_units="mm", selected_units="inches"
-        )
+        da_converted = _convert_units(da=cumulus_precip_mm, selected_units="inches")
         correct_conversion = cumulus_precip_mm / 25.4
         assert correct_conversion.equals(da_converted)

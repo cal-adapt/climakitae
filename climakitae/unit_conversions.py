@@ -3,17 +3,23 @@ This script calculates alternative units for variables with multiple commonly us
 
 """
 
-def _convert_units(da, native_units, selected_units):
+def _convert_units(da, selected_units):
     """ Converts units for any variable
 
     Args:
       da (xr.DataArray): Data
-      native_units (str): Native units of data, from selections.native_units
       selected_units (str): Selected units of data, from selections.units
 
     Returns:
       da (xr.DataArray): Data with converted units and updated units attribute
     """
+    
+    # Get native units of data from attributes 
+    try: 
+        native_units = da.attrs["units"] 
+    except: 
+        raise ValueError("You've encountered a bug in the code. This variable does not have identifiable native units. The data for this variable will need to have a 'units' attribute added in the catalog.")
+
 
     # Pass if chosen units is the same as native units
     if native_units == selected_units:

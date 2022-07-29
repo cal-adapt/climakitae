@@ -342,7 +342,6 @@ class DataSelector(param.Parameterized):
     )
 
     units = param.ObjectSelector(objects=dict())
-    native_units = param.String()
 
     def __init__(self, **params):
         # Set default values 
@@ -356,14 +355,12 @@ class DataSelector(param.Parameterized):
             "Dynamical"
         ]
         self.units = self.descrip_dict[self.variable]["native_unit"]
-        self.native_units = self.descrip_dict[self.variable]["native_unit"]
 
-    @param.depends("variable","native_units","units","descrip_dict", watch=True)
+    @param.depends("variable","units","descrip_dict", watch=True)
     def _update_unit_options(self): 
         """ Update unit options and native units for selected variable. """
         _default_unit = self.descrip_dict[self.variable]["native_unit"]
         _alt_units = self.descrip_dict[self.variable]["alt_unit_options"]
-        self.native_units = _default_unit
         if pd.isna(_alt_units): 
             self.param["units"].objects = [_default_unit]
         else:

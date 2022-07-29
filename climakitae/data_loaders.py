@@ -63,9 +63,7 @@ def _open_and_concat(file_list, selections, cat, ds_region):
             raise ValueError("You've encountered a bug in the code. Variable " + selections.variable + " is not a valid variable. Check source code for data_loaders or selectors module.")
 
         # Perform any neccessary unit conversions 
-        data = _convert_units(da=data, 
-                              native_units=selections.native_units, 
-                              selected_units=selections.units)
+        data = _convert_units(da=data, selected_units=selections.units)
 
         # coarsen in time if 'selections' so-indicates:
         if selections.timescale == "daily":
