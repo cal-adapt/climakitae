@@ -20,7 +20,14 @@ def _convert_units(da, selected_units):
     except: 
         raise ValueError("You've encountered a bug in the code. This variable does not have identifiable native units. The data for this variable will need to have a 'units' attribute added in the catalog.")
 
-
+    # Rename poorly formatted native units for better readability
+    if native_units == "kg kg-1": 
+        da.attrs["units"] = "kg/kg"
+        native_units = "kg/kg" 
+    if native_units == "m s-1": 
+        da.attrs["units"] = "m/s"
+        native_units = "m/s" 
+    
     # Pass if chosen units is the same as native units
     if native_units == selected_units:
         pass
