@@ -1034,7 +1034,7 @@ def get_exceedance_count(
     #--------- Set attributes for the counts DataArray ------------------------
     exceedance_count.attrs["variable"] = da.name
     exceedance_count.attrs["variable_units"] = exceedance_count.units
-    exceedance_count.attrs["units"] = ""
+    exceedance_count.attrs["units"] = _exceedance_count_name(exceedance_count)
     exceedance_count.attrs["period"] = period
     exceedance_count.attrs["group"] = groupby
     exceedance_count.attrs["duration"] = duration
@@ -1043,7 +1043,7 @@ def get_exceedance_count(
     exceedance_count.attrs["time"] = period[1] # for plotting: x-axis
 
     # Set name (for plotting, this will be the y-axis label)
-    exceedance_count.name = _exceedance_count_name(exceedance_count) 
+    exceedance_count.name =  "Exceedance count"
 
     return exceedance_count
 
