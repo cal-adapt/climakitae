@@ -9,6 +9,7 @@ from .selectors import (
 from .data_loaders import _read_from_catalog
 from .data_export import _export_to_user
 from .utils import _read_var_csv
+from .explore import _explore
 import intake
 import pkg_resources # Import package data 
 CSV_FILE = pkg_resources.resource_filename('climakitae', 'data/variable_descriptions.csv')
@@ -44,6 +45,14 @@ class Application(object):
         """
         # to do: insert additional 'hang in there' statement if it's taking a while
         return _read_from_catalog(self.selections, self.location, self._cat)
+    
+    # === Explore ===================================
+    def explore(self, data_to_use): 
+        """
+        Calls a method to display a plot of the data 
+        """
+        return _explore(data_to_use)
+    
 
     # === Export ======================================
     def export_as(self):
