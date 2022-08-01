@@ -1,5 +1,7 @@
 """
-This script calculates alternative units for variables with multiple commonly used units.
+This script calculates alternative units for variables with multiple commonly used units, following NWS conversions for pressure and wind speed.
+Wind speed: https://www.weather.gov/media/epz/wxcalc/windConversion.pdf
+Pressure: https://www.weather.gov/media/epz/wxcalc/pressureConversion.pdf
 
 """
 
@@ -13,21 +15,21 @@ def _convert_units(da, selected_units):
     Returns:
       da (xr.DataArray): Data with converted units and updated units attribute
     """
-    
-    # Get native units of data from attributes 
-    try: 
-        native_units = da.attrs["units"] 
-    except: 
+
+    # Get native units of data from attributes
+    try:
+        native_units = da.attrs["units"]
+    except:
         raise ValueError("You've encountered a bug in the code. This variable does not have identifiable native units. The data for this variable will need to have a 'units' attribute added in the catalog.")
 
     # Rename poorly formatted native units for better readability
-    if native_units == "kg kg-1": 
+    if native_units == "kg kg-1":
         da.attrs["units"] = "kg/kg"
-        native_units = "kg/kg" 
-    if native_units == "m s-1": 
+        native_units = "kg/kg"
+    if native_units == "m s-1":
         da.attrs["units"] = "m/s"
-        native_units = "m/s" 
-    
+        native_units = "m/s"
+
     # Pass if chosen units is the same as native units
     if native_units == selected_units:
         pass
@@ -53,13 +55,13 @@ def _convert_units(da, selected_units):
             da = da / 100.
             da.attrs["units"] = selected_units
         elif selected_units == "inHg":
-            da = da / 3386.39
+            da = da * 0.000295300
             da.attrs["units"] = selected_units
 
     # Wind units
     elif native_units == "m/s":
         if selected_units == "knots":
-            da = da * 1.94
+            da = da * 1.9438445
             da.attrs["units"] = selected_units
 
     # Temperature units

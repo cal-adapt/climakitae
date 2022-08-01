@@ -44,7 +44,7 @@ class TestPressureConversions:
     def test_pressure_conversion_inHg(self, surf_pres_pasc):
         """Test that the _convert_units function correctly converts from Pa to inHg. """
         da_converted = _convert_units(da=surf_pres_pasc, selected_units="inHg")
-        correct_conversion = (surf_pres_pasc / 3386.39)
+        correct_conversion = (surf_pres_pasc * 0.000295300)
         assert correct_conversion.equals(da_converted)
 
     def test_pressure_conversion_mb(self, surf_pres_pasc):
@@ -66,7 +66,7 @@ class TestWindSpeedConversions:
     def test_wind_u10_conversion_knots(self, wind_u_ms):
         """Test that the _convert_units function correctly converts from m/s to knots. """
         da_converted = _convert_units(da=wind_u_ms, selected_units="knots")
-        correct_conversion = wind_u_ms * 1.94
+        correct_conversion = wind_u_ms * 1.9438445
         assert correct_conversion.equals(da_converted)
 
 
