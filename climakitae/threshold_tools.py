@@ -1084,21 +1084,22 @@ class ExceedanceParams(param.Parameterized):
     # threshold_value = param.Number(label = f"Value (units: {data.units})", default = 0)
     threshold_value = param.Number(label = "Value", default = 0)
     threshold_direction = param.ObjectSelector(default = "above", objects = ["above", "below"], label = "Direction")
-    period_length = param.Number(default = 1, label = "Period length", bounds = (0, None))
-    period_type = param.ObjectSelector(default = "year", objects = ["year", "month", "day", "hour"], label = "Period type")
-    group_length = param.Number(default = 1, label = "Groupby length", bounds = (0, None))
-    group_type = param.ObjectSelector(default = "hour", objects = ["year", "month", "day", "hour"], label = "Groupby type")
-    duration = param.ObjectSelector(default = None, label = "Duration of event")
-
+    period_length = param.Number(default = 1, bounds = (0, None), label = "")
+    period_type = param.ObjectSelector(default = "year", objects = ["year", "month", "day", "hour"], label = "")
+    group_length = param.Number(default = 1, label = "", bounds = (0, None))
+    group_type = param.ObjectSelector(default = "hour", objects = ["year", "month", "day", "hour"], label = "")
+    duration_length = param.Number(default = 3, label = "", bounds = (0, None))
+    duration_type = param.ObjectSelector(default = "day", objects = ["year", "month", "day", "hour"], label = "")
     def transform_data(self):
         return get_exceedance_count(self.data, 
             threshold_value = self.threshold_value, 
             threshold_direction = self.threshold_direction,
             period = (self.period_length, self.period_type),
             groupby = (self.group_length, self.group_type),
-            duration = self.duration)
+            duration = None)
 
-    @param.depends("threshold_value", "threshold_direction", "period_length", "period_type", "group_length", "group_type", "duration", watch=False)
+    @param.depends("threshold_value", "threshold_direction", "period_length", "period_type", 
+        "group_length", "group_type", "duration_length", "duration_type", watch=False)
     def view(self):
         to_plot = self.transform_data()
         obj = plot_exceedance_count(to_plot)
@@ -1111,23 +1112,41 @@ def _exceedance_visualize(choices):
     _left_column_width = 400
     return pn.Row(
         pn.Column(
-            pn.pane.Markdown('''### Threshold'''),
-            pn.Row(
-                choices.param.threshold_value,
-                choices.param.threshold_direction,
-                width = _left_column_width
+            pn.Card(
+                "Specify the event threshold of interest.",
+                pn.Row(
+                    choices.param.threshold_value,
+                    choices.param.threshold_direction,
+                    width = _left_column_width
+                ),
+                title = "Threshold",
             ),
-            pn.pane.Markdown('''### Period across which to sum occurences'''),
-            pn.Row(
-                choices.param.period_length,
-                choices.param.period_type,
-                width = _left_column_width
+            pn.Card(
+                "Specify the amount of time across which to sum the occurances.",
+                pn.Row(
+                    choices.param.period_length,
+                    choices.param.period_type,
+                    width = _left_column_width
+                ),
+                title = "Period",
             ),
-            pn.pane.Markdown('''### Group occurances into single events'''),
-            pn.Row(
-                choices.param.group_length,
-                choices.param.group_type,
-                width = _left_column_width
+            pn.Card(
+                "Group occurances into single events.",
+                pn.Row(
+                    choices.param.group_length,
+                    choices.param.group_type,
+                    width = _left_column_width
+                ),
+                title = "Group",
+            ),
+            pn.Card(
+                "Amount of time threshold is exceeded to qualify as an event.",
+                pn.Row(
+                    choices.param.duration_length,
+                    choices.param.duration_type,
+                    width = _left_column_width
+                ),
+                title = "Duration (not yet implemented)",
             ),
             background = 'WhiteSmoke',
             width = _left_column_width
