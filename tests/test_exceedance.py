@@ -103,7 +103,7 @@ def test_name3():
 # example title 1: 
 def test_title1():
     ex1 = xr.DataArray(attrs = {
-        "description" : "Air Temperature at 2m",
+        "variable_name" : "Air Temperature at 2m",
         "threshold_direction" : "above",
         "threshold_value" : 299,
         "variable_units" : "K"

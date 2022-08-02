@@ -933,7 +933,7 @@ def _exceedance_plot_title(exceedance_count):
         'Air Temperatue at 2m: events above 35C'
         'Preciptation (total): events below 10cm'
     """
-    return f"{exceedance_count.variable}: events {exceedance_count.threshold_direction} {exceedance_count.threshold_value}{exceedance_count.variable_units}"
+    return f"{exceedance_count.variable_name}: events {exceedance_count.threshold_direction} {exceedance_count.threshold_value}{exceedance_count.variable_units}"
 
 def get_exceedance_events(
     da,
@@ -961,6 +961,9 @@ def get_exceedance_events(
             events_da = day_totals > 0
             events_da["date"] = pd.to_datetime(events_da.date)
             events_da = events_da.rename({"date":"time"})
+        elif groupby == (1, "hour") and da.frequency == "1hr":
+            # grouped at same frequency as data, same effective behavior as `groupby=None`
+            pass
         else:
             raise ValueError("Groupby options other than (1, 'day') not yet implmented.")
 
@@ -1015,13 +1018,13 @@ def get_exceedance_count(
     if duration is not None: raise ValueError("Duration options not yet implemented.")
     if smoothing is not None: raise ValueError("Smoothing option not yet implemented.")
 
-    # Need to check compatibility of periods, durations, and groupbys
+    # Check compatibility of periods, durations, and groupbys
     if _is_greater(groupby, duration): raise ValueError("Incompatible `groupby` and `duration` specification. Duration must be longer than groupby.")
     if _is_greater(duration, period): raise ValueError("Incompatible `duration` and `period` specification. Period must be longer than duration.")
     freq = (1, "hour") if da.frequency == "1hr" else ((1, "day") if da.frequency == "1day" else (1, "month"))
-    if _is_greater(freq, groupby): raise ValueError("Incompatible `groupby` specification: most be longer than data frequency.")
-    if _is_greater(freq, duration): raise ValueError("Incompatible `duration` specification: most be longer than data frequency.")
-    if _is_greater(freq, period): raise ValueError("Incompatible `period` specification: most be longer than data frequency.")
+    if _is_greater(freq, groupby): raise ValueError("Incompatible `groupby` specification: cannot be less than data frequency.")
+    if _is_greater(freq, duration): raise ValueError("Incompatible `duration` specification: cannot be less than data frequency.")
+    if _is_greater(freq, period): raise ValueError("Incompatible `period` specification: cannot be less than data frequency.")
 
     #--------- Calculate occurances -------------------------------------------
 
@@ -1035,7 +1038,7 @@ def get_exceedance_count(
         raise ValueError("Other period options not yet implemented. Please use (1, 'year').")
 
     #--------- Set attributes for the counts DataArray ------------------------
-    exceedance_count.attrs["variable"] = da.name
+    exceedance_count.attrs["variable_name"] = da.name
     exceedance_count.attrs["variable_units"] = exceedance_count.units
     exceedance_count.attrs["period"] = period
     exceedance_count.attrs["group"] = groupby
@@ -1078,20 +1081,24 @@ class ExceedanceParams(param.Parameterized):
         self.data = dataarray
 
     # Define the params
-    threshold_value = param.Number(label = "The threshold value")
-    threshold_direction = param.ObjectSelector(default = "above", objects = ["above", "below"])
-    period = param.ObjectSelector(default = (1, "year"), label = "Length of time over which to sum occurances")
-    groupby = param.ObjectSelector(default = None, label = "Length of time over which to group occurances")
+    # threshold_value = param.Number(label = f"Value (units: {data.units})", default = 0)
+    threshold_value = param.Number(label = "Value", default = 0)
+    threshold_direction = param.ObjectSelector(default = "above", objects = ["above", "below"], label = "Direction")
+    period_length = param.Number(default = 1, label = "Period length", bounds = (0, None))
+    period_type = param.ObjectSelector(default = "year", objects = ["year", "month", "day", "hour"], label = "Period type")
+    group_length = param.Number(default = 1, label = "Groupby length", bounds = (0, None))
+    group_type = param.ObjectSelector(default = "hour", objects = ["year", "month", "day", "hour"], label = "Groupby type")
     duration = param.ObjectSelector(default = None, label = "Duration of event")
 
     def transform_data(self):
         return get_exceedance_count(self.data, 
             threshold_value = self.threshold_value, 
             threshold_direction = self.threshold_direction,
-            period = self.period,
-            groupby = self.groupby,
+            period = (self.period_length, self.period_type),
+            groupby = (self.group_length, self.group_type),
             duration = self.duration)
 
+    @param.depends("threshold_value", "threshold_direction", "period_length", "period_type", "group_length", "group_type", "duration", watch=False)
     def view(self):
         to_plot = self.transform_data()
         obj = plot_exceedance_count(to_plot)
@@ -1101,20 +1108,31 @@ def _exceedance_visualize(choices):
     """
     Uses holoviz 'panel' library to display the parameters and view defined for exploring exceedance.
     """
-    return pn.Column(
-        pn.Row(
-            pn.Column(
+    _left_column_width = 400
+    return pn.Row(
+        pn.Column(
+            pn.pane.Markdown('''### Threshold'''),
+            pn.Row(
                 choices.param.threshold_value,
-                choices.param.threshold_direction
+                choices.param.threshold_direction,
+                width = _left_column_width
             ),
-            pn.Spacer(width=50),
-            pn.Column(
-                choices.param.period,
-                choices.param.groupby,
-                choices.param.duration
-            )
+            pn.pane.Markdown('''### Period across which to sum occurences'''),
+            pn.Row(
+                choices.param.period_length,
+                choices.param.period_type,
+                width = _left_column_width
+            ),
+            pn.pane.Markdown('''### Group occurances into single events'''),
+            pn.Row(
+                choices.param.group_length,
+                choices.param.group_type,
+                width = _left_column_width
+            ),
+            background = 'WhiteSmoke',
+            width = _left_column_width
         ),
-        choices.view,
+        choices.view
     )
 
 def explore_exceedance(da):
