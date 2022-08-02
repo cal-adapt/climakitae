@@ -23,7 +23,7 @@ class Application(object):
     def __init__(self):
         self._cat = intake.open_catalog("https://cadcat.s3.amazonaws.com/cae.yaml")
         self.selections = DataSelector(choices=_get_catalog_contents(self._cat))
-        self.location = LocSelectorArea()
+        self.location = LocSelectorArea(name="Location Selections")
         self.user_export_format = FileTypeSelector()
 
     # === Select =====================================

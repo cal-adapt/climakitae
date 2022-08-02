@@ -336,8 +336,12 @@ class DataSelector(param.Parameterized):
     resolution = param.ObjectSelector(objects=dict())
     append_historical = param.Boolean(default=False)
     descrip_dict = _read_var_csv(CSV_FILE, index_col="description")
-    variable_description = param.String(default=descrip_dict[default_variable]["extended_description"], doc="Extended description of variable selected")
- 
+    variable_description = param.String(
+        default=descrip_dict[default_variable]["extended_description"],
+        doc="Extended description of variable selected"
+    )
+
+    units = param.ObjectSelector(objects=dict())
 
     def __init__(self, **params):
         # Set default values 
@@ -350,8 +354,19 @@ class DataSelector(param.Parameterized):
         self.param["variable"].objects = self.choices["variable_choices"]["hourly"][
             "Dynamical"
         ]
-        self.variable = self.default_variable
+        self.units = self.descrip_dict[self.variable]["native_unit"]
 
+    @param.depends("variable","units","descrip_dict", watch=True)
+    def _update_unit_options(self): 
+        """ Update unit options and native units for selected variable. """
+        _default_unit = self.descrip_dict[self.variable]["native_unit"]
+        _alt_units = self.descrip_dict[self.variable]["alt_unit_options"]
+        if pd.isna(_alt_units): 
+            self.param["units"].objects = [_default_unit]
+        else:
+            self.param["units"].objects = _default_unit.split(", ")+_alt_units.split(", ")
+        if self.units not in self.param["units"].objects:
+            self.units = _default_unit
 
     @param.depends("variable", "descrip_dict", watch=True)
     def _update_variable_description(self): 
@@ -481,9 +496,13 @@ def _display_select(selections, location, location_type="area average"):
             pn.layout.VSpacer(),
             selections.param.variable,
             pn.widgets.StaticText.from_param(selections.param.variable_description, name=""),
-            pn.widgets.RadioButtonGroup.from_param(selections.param.resolution),
             pn.layout.VSpacer(),
+            pn.widgets.StaticText(name="", value="Variable Units"),
+            pn.widgets.RadioButtonGroup.from_param(selections.param.units),
+            pn.widgets.StaticText(name="", value="Model Resolution"),
+            pn.widgets.RadioButtonGroup.from_param(selections.param.resolution),
             selections.param.area_average,
+            pn.layout.VSpacer(),
         ),
         pn.Column(
             selections.view,
