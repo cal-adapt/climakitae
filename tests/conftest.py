@@ -1,3 +1,5 @@
+"""Shared data and paths between multiple unit tests. """
+
 import os
 import pytest
 import xarray as xr
@@ -8,7 +10,7 @@ def rootdir():
     return os.path.dirname(os.path.abspath("tests/test_data"))
 
 @pytest.fixture
-def test_data(rootdir): 
+def test_data_2022_monthly_45km(rootdir): 
     """ Read in test dataset using xarray. """
     filename = "test_data/test_dataset_2022_2022_monthly_45km.nc"
     filepath = os.path.join(rootdir, filename)

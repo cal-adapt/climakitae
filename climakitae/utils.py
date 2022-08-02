@@ -1,7 +1,7 @@
 import pandas as pd 
 
 # Read csv file containing variable information as dictionary
-def _read_var_csv(csv_file, index_col="name", usecols=["name","description","extended_description"]): 
+def _read_var_csv(csv_file, index_col="name", usecols=["name","description","extended_description","native_unit","alt_unit_options"]): 
     """Read in variable descriptions csv file as a dictionary
     
     Args: 
