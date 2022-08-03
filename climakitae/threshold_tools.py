@@ -1065,7 +1065,10 @@ def plot_exceedance_count(exceedance_count):
         widget_location="bottom", 
         by="simulation", 
         groupby=["scenario"],
-        title=_exceedance_plot_title(exceedance_count)
+        title=_exceedance_plot_title(exceedance_count),
+        fontsize = {'title': '14pt', 'ylabel': '10pt'},
+        legend = 'right',
+        xlabel = str.capitalize(exceedance_count.attrs["time"])
     )
     return pn.Column(plot_obj)
 
@@ -1081,14 +1084,13 @@ class ExceedanceParams(param.Parameterized):
         self.data = dataarray
 
     # Define the params
-    # threshold_value = param.Number(label = f"Value (units: {data.units})", default = 0)
-    threshold_value = param.Number(label = "Value", default = 0)
-    threshold_direction = param.ObjectSelector(default = "above", objects = ["above", "below"], label = "Direction")
+    threshold_direction = param.ObjectSelector(default = "above", objects = ["above", "below"], label = "")
+    threshold_value = param.Number(default = 0, label = "")
     period_length = param.Number(default = 1, bounds = (0, None), label = "")
     period_type = param.ObjectSelector(default = "year", objects = ["year", "month", "day", "hour"], label = "")
-    group_length = param.Number(default = 1, label = "", bounds = (0, None))
+    group_length = param.Number(default = 1, bounds = (0, None), label = "")
     group_type = param.ObjectSelector(default = "hour", objects = ["year", "month", "day", "hour"], label = "")
-    duration_length = param.Number(default = 3, label = "", bounds = (0, None))
+    duration_length = param.Number(default = 3, bounds = (0, None), label = "")
     duration_type = param.ObjectSelector(default = "day", objects = ["year", "month", "day", "hour"], label = "")
     def transform_data(self):
         return get_exceedance_count(self.data, 
@@ -1109,20 +1111,20 @@ def _exceedance_visualize(choices):
     """
     Uses holoviz 'panel' library to display the parameters and view defined for exploring exceedance.
     """
-    _left_column_width = 400
+    _left_column_width = 375
     return pn.Row(
         pn.Column(
             pn.Card(
                 "Specify the event threshold of interest.",
                 pn.Row(
-                    choices.param.threshold_value,
                     choices.param.threshold_direction,
+                    choices.param.threshold_value,
                     width = _left_column_width
                 ),
                 title = "Threshold",
             ),
             pn.Card(
-                "Specify the amount of time across which to sum the occurances.",
+                "Amount of time across which to sum the occurances.",
                 pn.Row(
                     choices.param.period_length,
                     choices.param.period_type,
@@ -1148,9 +1150,9 @@ def _exceedance_visualize(choices):
                 ),
                 title = "Duration (not yet implemented)",
             ),
-            background = 'WhiteSmoke',
             width = _left_column_width
         ),
+        pn.Spacer(width=15),
         choices.view
     )
 
