@@ -51,7 +51,6 @@ plt.xlim([1950,2100]);
 plt.xticks([1950,1960,1970,1980,1990,2000,2010,2015,2020,2030,2040,2050,2060,2070,2080,2090,2100],
            labels=["1950","","","","","2000","","2015","","","","2050","","","","","2100"]);
 plt.annotate("°C", xy=(-0.05, 1.05), xycoords='axes fraction');
-plt.grid(visible=True, which='major', axis='y', color='0.75')
 f = 12 # fontsize for labels
 
 # CMIP6 mean lines
@@ -77,5 +76,15 @@ plt.annotate("SSP5-8.5", xy=(cmip_t[-1]+3, ssp585_mean[lidx]), xycoords='data', 
 
 # Title
 plt.title("Global surface temperature change relative to 1850-1900", x=-0.05, y=1.1, loc='left', fontsize=f+2);
+
+# 3°C exceedance lines
+# plt.grid(visible=True, which='major', axis='y', color='0.75')
+warmlevel = 3.0
+plt.axhline(y=warmlevel, color='k', lw=1);
+
+means = [ssp119_mean, ssp126_mean, ssp245_mean, ssp370_mean, ssp585_mean]
+for i in means:
+    if np.argmax(i > warmlevel) != 0:
+        plt.axvline(x=cmip_t[0] + np.argmax(i > warmlevel), color='k', linestyle='--', lw=1);
 
 fig.savefig("spm_fig8.jpeg", dpi=300, bbox_inches='tight');
