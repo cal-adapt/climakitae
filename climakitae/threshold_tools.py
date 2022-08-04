@@ -890,51 +890,6 @@ def get_return_period(
 
 #------------- Functions for exceedance count ---------------------------------
 
-def _exceedance_count_name(exceedance_count):
-    """
-    Helper function to build the appropriate name for the queried exceedance count.
-    Examples:
-        'Number of hours per 1 year'
-        'Number of days per 1 year'
-        'Number of 3-day events per 1 year'
-    """
-    # If duration is used, this determines the event name
-    dur = exceedance_count.duration
-    if dur is not None:
-        d_num, d_type = dur 
-        if d_num != 1:
-            event = f"{d_num}-{d_type} events"
-        else:
-            event = f"{d_type}s" # ex: day --> days
-    else:
-        # otherwise use "groupby" 
-        freq = exceedance_count.group
-        if freq is not None:
-            f_num, f_type = freq
-            if f_num != 1:
-                event = f"{f_num}-{f_type} events"
-            else:
-                event = f"{f_type}s" # ex: day --> days
-        else:
-            # otherwise use data frequency info
-            if exceedance_count.frequency == "1hr":
-                event = "hours"
-            elif exceedance_count.frequency == "1day":
-                event = "days"
-            elif exceedance_count.frequency == "1month":
-                event = "months"
-
-    return f"Number of {event} per " + " ".join(map(str, exceedance_count.period))
-
-def _exceedance_plot_title(exceedance_count):
-    """
-    Helper function for making the title for exceedance plots.
-    Examples:
-        'Air Temperatue at 2m: events above 35C'
-        'Preciptation (total): events below 10cm'
-    """
-    return f"{exceedance_count.variable_name}: events {exceedance_count.threshold_direction} {exceedance_count.threshold_value}{exceedance_count.variable_units}"
-
 def get_exceedance_events(
     da,
     threshold_value,
@@ -1058,6 +1013,50 @@ def get_exceedance_count(
 
     return exceedance_count
 
+def _exceedance_count_name(exceedance_count):
+    """
+    Helper function to build the appropriate name for the queried exceedance count.
+    Examples:
+        'Number of hours per 1 year'
+        'Number of days per 1 year'
+        'Number of 3-day events per 1 year'
+    """
+    # If duration is used, this determines the event name
+    dur = exceedance_count.duration
+    if dur is not None:
+        d_num, d_type = dur 
+        if d_num != 1:
+            event = f"{d_num}-{d_type} events"
+        else:
+            event = f"{d_type}s" # ex: day --> days
+    else:
+        # otherwise use "groupby" 
+        freq = exceedance_count.group
+        if freq is not None:
+            f_num, f_type = freq
+            if f_num != 1:
+                event = f"{f_num}-{f_type} events"
+            else:
+                event = f"{f_type}s" # ex: day --> days
+        else:
+            # otherwise use data frequency info
+            if exceedance_count.frequency == "1hr":
+                event = "hours"
+            elif exceedance_count.frequency == "1day":
+                event = "days"
+            elif exceedance_count.frequency == "1month":
+                event = "months"
+
+    return f"Number of {event} per " + " ".join(map(str, exceedance_count.period))
+
+def _exceedance_plot_title(exceedance_count):
+    """
+    Helper function for making the title for exceedance plots.
+    Examples:
+        'Air Temperatue at 2m: events above 35C'
+        'Preciptation (total): events below 10cm'
+    """
+    return f"{exceedance_count.variable_name}: events {exceedance_count.threshold_direction} {exceedance_count.threshold_value}{exceedance_count.variable_units}"
 
 def plot_exceedance_count(exceedance_count):
     """
@@ -1097,6 +1096,7 @@ class ExceedanceParams(param.Parameterized):
     group_type = param.ObjectSelector(default = "hour", objects = ["year", "month", "day", "hour"], label = "")
     duration_length = param.Number(default = 1, bounds = (0, None), label = "")
     duration_type = param.ObjectSelector(default = "hour", objects = ["year", "month", "day", "hour"], label = "")
+    
     def transform_data(self):
         return get_exceedance_count(self.data, 
             threshold_value = self.threshold_value, 
