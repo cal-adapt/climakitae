@@ -1009,17 +1009,22 @@ def get_exceedance_count(
         Specified as a tuple: (x, time) where x is an integer, and time is one of: ["day", "month", "year"]
     threshold_direction -- string either "above" or "below", default is above.
     duration -- length of exceedance in order to qualify as an event
-    groupby -- see examples for explanation. Typical grouping could be "1day"
+    groupby -- see examples for explanation. Typical grouping could be (1, "day")
     smoothing -- option to average the result across multiple periods with a rolling average (not yet implemented)
     """
 
     #--------- Type check arguments -------------------------------------------
 
-    if duration is not None: raise ValueError("Duration options not yet implemented.")
+    if duration is not None:
+        if duration == (1, "hour"):
+            duration = None
+        else:
+            raise ValueError("Other duration options not yet implemented. Please use (1, 'hour').")
     if smoothing is not None: raise ValueError("Smoothing option not yet implemented.")
 
     # Check compatibility of periods, durations, and groupbys
-    if _is_greater(groupby, duration): raise ValueError("Incompatible `groupby` and `duration` specification. Duration must be longer than groupby.")
+    if _is_greater(groupby, duration): raise ValueError("Incompatible `group` and `duration` specification. Duration must be longer than group.")
+    if _is_greater(groupby, period): raise ValueError("Incompatible `group` and `period` specification. Group must be longer than period.")
     if _is_greater(duration, period): raise ValueError("Incompatible `duration` and `period` specification. Period must be longer than duration.")
     freq = (1, "hour") if da.frequency == "1hr" else ((1, "day") if da.frequency == "1day" else (1, "month"))
     if _is_greater(freq, groupby): raise ValueError("Incompatible `groupby` specification: cannot be less than data frequency.")
@@ -1090,29 +1095,32 @@ class ExceedanceParams(param.Parameterized):
     period_type = param.ObjectSelector(default = "year", objects = ["year", "month", "day", "hour"], label = "")
     group_length = param.Number(default = 1, bounds = (0, None), label = "")
     group_type = param.ObjectSelector(default = "hour", objects = ["year", "month", "day", "hour"], label = "")
-    duration_length = param.Number(default = 3, bounds = (0, None), label = "")
-    duration_type = param.ObjectSelector(default = "day", objects = ["year", "month", "day", "hour"], label = "")
+    duration_length = param.Number(default = 1, bounds = (0, None), label = "")
+    duration_type = param.ObjectSelector(default = "hour", objects = ["year", "month", "day", "hour"], label = "")
     def transform_data(self):
         return get_exceedance_count(self.data, 
             threshold_value = self.threshold_value, 
             threshold_direction = self.threshold_direction,
             period = (self.period_length, self.period_type),
             groupby = (self.group_length, self.group_type),
-            duration = None)
+            duration = (self.duration_length, self.duration_type))
 
     @param.depends("threshold_value", "threshold_direction", "period_length", "period_type", 
         "group_length", "group_type", "duration_length", "duration_type", watch=False)
     def view(self):
-        to_plot = self.transform_data()
-        obj = plot_exceedance_count(to_plot)
-        return obj
+        try:
+            to_plot = self.transform_data()
+            obj = plot_exceedance_count(to_plot)
+            return obj
+        except ValueError as ve:
+            return ve
 
-def _exceedance_visualize(choices):
+def _exceedance_visualize(choices, option=1):
     """
     Uses holoviz 'panel' library to display the parameters and view defined for exploring exceedance.
     """
     _left_column_width = 375
-    return pn.Row(
+    exceedance_count_panel = pn.Column(pn.Spacer(width=15), pn.Row(
         pn.Column(
             pn.Card(
                 "Specify the event threshold of interest.",
@@ -1148,14 +1156,27 @@ def _exceedance_visualize(choices):
                     choices.param.duration_type,
                     width = _left_column_width
                 ),
-                title = "Duration (not yet implemented)",
+                title = "Duration",
             ),
             width = _left_column_width
         ),
         pn.Spacer(width=15),
         choices.view
-    )
+    ))
+    
+    if option==1:
+        return exceedance_count_panel
+    elif option==2:
+        return pn.Tabs(
+            ("Event counts", exceedance_count_panel), 
+            ("Return values", pn.Row())
+        ) 
+    else:
+        raise ValueError("Unknown option")
+    
+    
 
-def explore_exceedance(da):
+
+def explore_exceedance(da, option=1):
     exc_choices = ExceedanceParams(da)
-    return _exceedance_visualize(exc_choices)
+    return _exceedance_visualize(exc_choices, option)
