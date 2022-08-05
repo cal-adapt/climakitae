@@ -1083,10 +1083,6 @@ class ExceedanceParams(param.Parameterized):
     """
     An object to hold exceedance count parameters, which depends only on the 'param' library.
     """
-    def __init__(self, dataarray, **params):
-        super().__init__(**params)
-        self.data = dataarray
-
     # Define the params
     threshold_direction = param.ObjectSelector(default = "above", objects = ["above", "below"], label = "")
     threshold_value = param.Number(default = 0, label = "")
@@ -1096,7 +1092,12 @@ class ExceedanceParams(param.Parameterized):
     group_type = param.ObjectSelector(default = "hour", objects = ["year", "month", "day", "hour"], label = "")
     duration_length = param.Number(default = 1, bounds = (0, None), label = "")
     duration_type = param.ObjectSelector(default = "hour", objects = ["year", "month", "day", "hour"], label = "")
-    
+
+    def __init__(self, dataarray, **params):
+        super().__init__(**params)
+        self.data = dataarray
+        self.threshold_value = round(dataarray.mean().values.item()) # Have the starting display value be the average of the data
+
     def transform_data(self):
         return get_exceedance_count(self.data, 
             threshold_value = self.threshold_value, 
