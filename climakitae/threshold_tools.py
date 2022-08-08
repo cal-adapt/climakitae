@@ -1025,27 +1025,33 @@ def _group_and_sum(da, group_spec):
     those groups. 
     """
     group_len, group_type = group_spec
+
     if (group_spec == (1, "hour") and da.frequency == "1hr") \
         or (group_spec == (1, "day") and da.frequency == "1day") \
         or (group_spec == (1, "month") and da.frequency == "1month"):
         # group_spec same as data frequency, do nothing
-        pass
+        group_totals = da
+
     elif group_spec == (1, "day"):
         # special case where it is simpler to sum by day using "time.date"
-        day_totals = events_da.groupby("time.date").sum()
-        events_da["date"] = pd.to_datetime(events_da.date)
-        events_da = events_da.rename({"date":"time"})
+        group_totals = da.groupby("time.date").sum()
+        group_totals["date"] = pd.to_datetime(group_totals.date)
+        group_totals = group_totals.rename({"date":"time"})
+
     elif group_type == "day":
         # general case for grouping by some number of days
-        dates = events_da.time.dt.date.values # get the date for each value in the time dimension
+        dates = da.time.dt.date.values # get the date for each value in the time dimension
         days = [(d - dates[0]).days for d in dates] # calculate the day number for each value (i.e. [0,0,...1,1,...])
         groups = [math.floor(d / group_len) for d in days] # group the day numbers based on user-specified group length
         date_ids = dates[[groups.index(i) for i in list(set(groups))]] # save one date value for each group to use as the time index after summing
-        events_da["time"] = groups # set the group numbers as the time dimension for summing
-        group_totals = events_da.groupby("time").sum() # sum across the groups
-        events_da["time"] = pd.to_datetime(date_ids) # reset the time dimension to the saved date values
+        da["time"] = groups # set the group numbers as the time dimension for summing
+        group_totals = da.groupby("time").sum() # sum across the groups
+        group_totals["time"] = pd.to_datetime(date_ids) # reset the time dimension to the saved date values
+
     else:
         raise ValueError("Groupby options other than 'day' not yet implmented.")
+
+    return group_totals
 
 def _exceedance_count_name(exceedance_count):
     """

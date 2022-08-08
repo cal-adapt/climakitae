@@ -23,9 +23,9 @@ def T2_hourly(rootdir):
 #------------- Test kwarg compatibility and Exceptions ------------------------
 
 # incompatible: cannot specify a 1-day groupy for monthly data
-def test_error1(T2_monthly):
+def test_error1(test_data_2022_monthly_45km):
     with pytest.raises(ValueError, match="Incompatible `groupby` specification"):
-        threshold_tools.get_exceedance_count(T2_monthly,
+        threshold_tools.get_exceedance_count(test_data_2022_monthly_45km,
             threshold_value=305, groupby = (1, "day")
         ) 
 
@@ -33,7 +33,7 @@ def test_error1(T2_monthly):
 # But for now, `duration` not yet implemented
 def test_error2(T2_hourly):
     # with pytest.raises(ValueError, match="Incompatible `groupby` and `duration` specification"):
-    with pytest.raises(ValueError, match="Duration options not yet implemented"):
+    with pytest.raises(ValueError, match="Other duration options not yet implemented"):
         threshold_tools.get_exceedance_count(T2_hourly,
             threshold_value=305, groupby = (1, "month"), duration = (3, "day")
         )
@@ -71,7 +71,7 @@ def test_hourly_ex4(T2_hourly):
 def test_name1():
     ex1 = xr.DataArray(attrs = {
         "group" : None,
-        "frequency" : "hourly",
+        "frequency" : "1hr",
         "period" : (1, "year"),
         "duration" : None
     })
@@ -82,7 +82,7 @@ def test_name1():
 def test_name2():
     ex2 = xr.DataArray(attrs = {
         "group" : (1, "day"),
-        "frequency" : "hourly",
+        "frequency" : "1hr",
         "period" : (1, "year"),
         "duration" : None
     })
@@ -93,7 +93,7 @@ def test_name2():
 def test_name3():
     ex3 = xr.DataArray(attrs = {
         "group" : (1, "day"),
-        "frequency" : "hourly",
+        "frequency" : "1hr",
         "period" : (1, "year"),
         "duration" : (3, "day")
     })
