@@ -11,6 +11,7 @@ import xarray as xr
 from scipy import stats
 import panel as pn
 import param
+import math
 
 import lmoments3 as lm
 from lmoments3 import distr as ldistr
@@ -911,18 +912,47 @@ def get_exceedance_events(
 
     # Groupby 
     if groupby is not None:
-        if groupby == (1, "day"):
-            day_totals = events_da.groupby("time.date").sum()
-            events_da = day_totals > 0
-            events_da["date"] = pd.to_datetime(events_da.date)
-            events_da = events_da.rename({"date":"time"})
-        elif groupby == (1, "hour") and da.frequency == "1hr":
-            # grouped at same frequency as data, same effective behavior as `groupby=None`
-            pass
-        else:
-            raise ValueError("Groupby options other than (1, 'day') not yet implmented.")
+        group_totals = _group_and_sum(events_da, groupby)
+        events_da = (group_totals > 0).where(group_totals.isnull()==False)
 
     return events_da
+
+def _group_and_sum(da, group_spec):
+    """
+    Helper function to sum data across time periods (i.e. days, months years).
+    The `group_spec` argument is a tuple of the form (3, 'day') or (1, 'year').
+
+    Return value is an xarray DataArray, with all the same dimensions except 
+    for `time`, which will be collapsed in length along the groups, and the 
+    coordinate values will be the date of the start of the group, rather than a 
+    datetime. (TBD if this is the desired behavior for the time dimension.)
+
+    This function is implemented by manually creating group numbers (i.e. 
+    [0,0,...1,1,...]), assigning them as a dimension, then summing across 
+    those groups. 
+    """
+    group_len, group_type = group_spec
+    if (group_spec == (1, "hour") and da.frequency == "1hr") \
+        or (group_spec == (1, "day") and da.frequency == "1day") \
+        or (group_spec == (1, "month") and da.frequency == "1month"):
+        # group_spec same as data frequency, do nothing
+        pass
+    elif group_spec == (1, "day"):
+        # special case where it is simpler to sum by day using "time.date"
+        day_totals = events_da.groupby("time.date").sum()
+        events_da["date"] = pd.to_datetime(events_da.date)
+        events_da = events_da.rename({"date":"time"})
+    elif group_type == "day":
+        # general case for grouping by some number of days
+        dates = events_da.time.dt.date.values # get the date for each value in the time dimension
+        days = [(d - dates[0]).days for d in dates] # calculate the day number for each value (i.e. [0,0,...1,1,...])
+        groups = [math.floor(d / group_len) for d in days] # group the day numbers based on user-specified group length
+        date_ids = dates[[groups.index(i) for i in list(set(groups))]] # save one date value for each group to use as the time index after summing
+        events_da["time"] = groups # set the group numbers as the time dimension for summing
+        group_totals = events_da.groupby("time").sum() # sum across the groups
+        events_da["time"] = pd.to_datetime(date_ids) # reset the time dimension to the saved date values
+    else:
+        raise ValueError("Groupby options other than 'day' not yet implmented.")
 
 def _is_greater(time1, time2):
     """
@@ -949,10 +979,12 @@ def get_exceedance_count(
     smoothing = None
 ):
     """
-    Calculate the number of occurances of exceeding the specified threshold_value
+    Calculate the number of occurances of exceeding the specified threshold 
     within each period length.
 
-    Returns an xarray with the same coordinates as the input data except for the time dimension.
+    Returns an xarray with the same coordinates as the input data except for 
+    the time dimension, which will be collapsed to one value per period (equal
+    to the number of event occurances in each period).
 
     Arguments:
     da -- an xarray.DataArray of some climate variable. Can have mutliple scenarios, simulations,
@@ -996,6 +1028,8 @@ def get_exceedance_count(
         exceedance_count = events_da.groupby("time.year").sum()
     else:
         raise ValueError("Other period options not yet implemented. Please use (1, 'year').")
+        # eventually, run:
+        # exceedance_count = _group_and_sum(events_da, period)
 
     #--------- Set attributes for the counts DataArray ------------------------
     exceedance_count.attrs["variable_name"] = da.name
