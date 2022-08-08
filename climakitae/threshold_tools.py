@@ -4,7 +4,6 @@
 #                                      #
 ########################################
 
-from multiprocessing.sharedctypes import Value
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -953,7 +952,7 @@ def get_exceedance_count(
         # eventually, run:
         # exceedance_count = _group_and_sum(events_da, period)
 
-    #--------- Set attributes for the counts DataArray ------------------------
+    #--------- Set new attributes for the counts DataArray --------------------
     exceedance_count.attrs["variable_name"] = da.name
     exceedance_count.attrs["variable_units"] = exceedance_count.units
     exceedance_count.attrs["period"] = period
@@ -962,7 +961,7 @@ def get_exceedance_count(
     exceedance_count.attrs["threshold_value"] = threshold_value
     exceedance_count.attrs["threshold_direction"] = threshold_direction
     exceedance_count.attrs["units"] = _exceedance_count_name(exceedance_count)
-    exceedance_count.attrs["time"] = period[1] # for plotting: x-axis
+    exceedance_count.attrs["time"] = period[1] # for plotting: x-axis (usually "year" but can be other user-specified period lengths)
 
     # Set name (for plotting, this will be the y-axis label)
     exceedance_count.name =  "Count"
