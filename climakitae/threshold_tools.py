@@ -891,84 +891,6 @@ def get_return_period(
 
 #------------- Functions for exceedance count ---------------------------------
 
-def get_exceedance_events(
-    da,
-    threshold_value,
-    threshold_direction = "above", 
-    groupby = None
-):
-    """
-    Returns an xarray that specifies whether each entry of da is a qualifying event. 
-    0 for False, 1 for True, and NaN for NaN values
-    """
-
-    # Count occurances (and preserve NaNs)
-    if threshold_direction == "above":
-        events_da = (da > threshold_value).where(da.isnull()==False)
-    elif threshold_direction == "below":
-        events_da = (da < threshold_value).where(da.isnull()==False)
-    else:
-        raise ValueError(f"Unknown value for `threshold_direction` parameter: {threshold_direction}. Available options are 'above' or 'below'.")
-
-    # Groupby 
-    if groupby is not None:
-        group_totals = _group_and_sum(events_da, groupby)
-        events_da = (group_totals > 0).where(group_totals.isnull()==False)
-
-    return events_da
-
-def _group_and_sum(da, group_spec):
-    """
-    Helper function to sum data across time periods (i.e. days, months years).
-    The `group_spec` argument is a tuple of the form (3, 'day') or (1, 'year').
-
-    Return value is an xarray DataArray, with all the same dimensions except 
-    for `time`, which will be collapsed in length along the groups, and the 
-    coordinate values will be the date of the start of the group, rather than a 
-    datetime. (TBD if this is the desired behavior for the time dimension.)
-
-    This function is implemented by manually creating group numbers (i.e. 
-    [0,0,...1,1,...]), assigning them as a dimension, then summing across 
-    those groups. 
-    """
-    group_len, group_type = group_spec
-    if (group_spec == (1, "hour") and da.frequency == "1hr") \
-        or (group_spec == (1, "day") and da.frequency == "1day") \
-        or (group_spec == (1, "month") and da.frequency == "1month"):
-        # group_spec same as data frequency, do nothing
-        pass
-    elif group_spec == (1, "day"):
-        # special case where it is simpler to sum by day using "time.date"
-        day_totals = events_da.groupby("time.date").sum()
-        events_da["date"] = pd.to_datetime(events_da.date)
-        events_da = events_da.rename({"date":"time"})
-    elif group_type == "day":
-        # general case for grouping by some number of days
-        dates = events_da.time.dt.date.values # get the date for each value in the time dimension
-        days = [(d - dates[0]).days for d in dates] # calculate the day number for each value (i.e. [0,0,...1,1,...])
-        groups = [math.floor(d / group_len) for d in days] # group the day numbers based on user-specified group length
-        date_ids = dates[[groups.index(i) for i in list(set(groups))]] # save one date value for each group to use as the time index after summing
-        events_da["time"] = groups # set the group numbers as the time dimension for summing
-        group_totals = events_da.groupby("time").sum() # sum across the groups
-        events_da["time"] = pd.to_datetime(date_ids) # reset the time dimension to the saved date values
-    else:
-        raise ValueError("Groupby options other than 'day' not yet implmented.")
-
-def _is_greater(time1, time2):
-    """
-    Helper function for comparing user specifications of period, duration, and groupby.
-    Examples:
-        (1, "day"), (1, "year") --> False
-        (3, "month"), (1, "month") --> True
-    """
-    order = ["hour", "day", "month", "year"]
-    if time1 is None or time2 is None:
-        return False
-    elif time1[1] == time2[1]:
-        return time1[0] > time2[0]
-    else:
-        return order.index(time1[1]) > order.index(time2[1])
-
 def get_exceedance_count(
     da,
     threshold_value,
@@ -1047,6 +969,84 @@ def get_exceedance_count(
 
     return exceedance_count
 
+def _is_greater(time1, time2):
+    """
+    Helper function for comparing user specifications of period, duration, and groupby.
+    Examples:
+        (1, "day"), (1, "year") --> False
+        (3, "month"), (1, "month") --> True
+    """
+    order = ["hour", "day", "month", "year"]
+    if time1 is None or time2 is None:
+        return False
+    elif time1[1] == time2[1]:
+        return time1[0] > time2[0]
+    else:
+        return order.index(time1[1]) > order.index(time2[1])
+
+def get_exceedance_events(
+    da,
+    threshold_value,
+    threshold_direction = "above", 
+    groupby = None
+):
+    """
+    Returns an xarray that specifies whether each entry of da is a qualifying event. 
+    0 for False, 1 for True, and NaN for NaN values
+    """
+
+    # Count occurances (and preserve NaNs)
+    if threshold_direction == "above":
+        events_da = (da > threshold_value).where(da.isnull()==False)
+    elif threshold_direction == "below":
+        events_da = (da < threshold_value).where(da.isnull()==False)
+    else:
+        raise ValueError(f"Unknown value for `threshold_direction` parameter: {threshold_direction}. Available options are 'above' or 'below'.")
+
+    # Groupby 
+    if groupby is not None:
+        group_totals = _group_and_sum(events_da, groupby)
+        events_da = (group_totals > 0).where(group_totals.isnull()==False)
+
+    return events_da
+
+def _group_and_sum(da, group_spec):
+    """
+    Helper function to sum data across time periods (i.e. days, months years).
+    The `group_spec` argument is a tuple of the form (3, 'day') or (1, 'year').
+
+    Return value is an xarray DataArray, with all the same dimensions except 
+    for `time`, which will be collapsed in length along the groups, and the 
+    coordinate values will be the date of the start of the group, rather than a 
+    datetime. (TBD if this is the desired behavior for the time dimension.)
+
+    This function is implemented by manually creating group numbers (i.e. 
+    [0,0,...1,1,...]), assigning them as a dimension, then summing across 
+    those groups. 
+    """
+    group_len, group_type = group_spec
+    if (group_spec == (1, "hour") and da.frequency == "1hr") \
+        or (group_spec == (1, "day") and da.frequency == "1day") \
+        or (group_spec == (1, "month") and da.frequency == "1month"):
+        # group_spec same as data frequency, do nothing
+        pass
+    elif group_spec == (1, "day"):
+        # special case where it is simpler to sum by day using "time.date"
+        day_totals = events_da.groupby("time.date").sum()
+        events_da["date"] = pd.to_datetime(events_da.date)
+        events_da = events_da.rename({"date":"time"})
+    elif group_type == "day":
+        # general case for grouping by some number of days
+        dates = events_da.time.dt.date.values # get the date for each value in the time dimension
+        days = [(d - dates[0]).days for d in dates] # calculate the day number for each value (i.e. [0,0,...1,1,...])
+        groups = [math.floor(d / group_len) for d in days] # group the day numbers based on user-specified group length
+        date_ids = dates[[groups.index(i) for i in list(set(groups))]] # save one date value for each group to use as the time index after summing
+        events_da["time"] = groups # set the group numbers as the time dimension for summing
+        group_totals = events_da.groupby("time").sum() # sum across the groups
+        events_da["time"] = pd.to_datetime(date_ids) # reset the time dimension to the saved date values
+    else:
+        raise ValueError("Groupby options other than 'day' not yet implmented.")
+
 def _exceedance_count_name(exceedance_count):
     """
     Helper function to build the appropriate name for the queried exceedance count.
@@ -1064,16 +1064,16 @@ def _exceedance_count_name(exceedance_count):
         else:
             event = f"{d_type}s" # ex: day --> days
     else:
-        # otherwise use "groupby" 
-        freq = exceedance_count.group
-        if freq is not None:
-            f_num, f_type = freq
-            if f_num != 1:
-                event = f"{f_num}-{f_type} events"
+        # otherwise use "groupby" if not None
+        grp = exceedance_count.group
+        if grp is not None:
+            g_num, g_type = grp
+            if g_num != 1:
+                event = f"{g_num}-{g_type} events"
             else:
-                event = f"{f_type}s" # ex: day --> days
+                event = f"{g_type}s" # ex: day --> days
         else:
-            # otherwise use data frequency info
+            # otherwise use data frequency info as the default event type
             if exceedance_count.frequency == "1hr":
                 event = "hours"
             elif exceedance_count.frequency == "1day":
@@ -1082,15 +1082,6 @@ def _exceedance_count_name(exceedance_count):
                 event = "months"
 
     return f"Number of {event} per " + " ".join(map(str, exceedance_count.period))
-
-def _exceedance_plot_title(exceedance_count):
-    """
-    Helper function for making the title for exceedance plots.
-    Examples:
-        'Air Temperatue at 2m: events above 35C'
-        'Preciptation (total): events below 10cm'
-    """
-    return f"{exceedance_count.variable_name}: events {exceedance_count.threshold_direction} {exceedance_count.threshold_value}{exceedance_count.variable_units}"
 
 def plot_exceedance_count(exceedance_count):
     """
@@ -1110,14 +1101,23 @@ def plot_exceedance_count(exceedance_count):
     )
     return pn.Column(plot_obj)
 
+def _exceedance_plot_title(exceedance_count):
+    """
+    Helper function for making the title for exceedance plots.
+    Examples:
+        'Air Temperatue at 2m: events above 35C'
+        'Preciptation (total): events below 10mm'
+    """
+    return f"{exceedance_count.variable_name}: events {exceedance_count.threshold_direction} {exceedance_count.threshold_value}{exceedance_count.variable_units}"
+
 
 #------------- Class and methods for the explore_exceedance GUI ---------------
 
 class ExceedanceParams(param.Parameterized):
     """
-    An object to hold exceedance count parameters, which depends only on the 'param' library.
+    An object to hold exceedance count parameters, which depends on the 'param' library.
     """
-    # Define the params
+    # Define the params (before __init__ so that we can access them during __init__)
     threshold_direction = param.ObjectSelector(default = "above", objects = ["above", "below"], label = "")
     threshold_value = param.Number(default = 0, label = "")
     period_length = param.Number(default = 1, bounds = (0, None), label = "")
@@ -1130,7 +1130,10 @@ class ExceedanceParams(param.Parameterized):
     def __init__(self, dataarray, **params):
         super().__init__(**params)
         self.data = dataarray
-        self.threshold_value = round(dataarray.mean().values.item()) # Have the starting display value be the average of the data
+        # Set the starting display value to be the average of the data 
+        #   (TBD: do we want "rounding" to be different number of sig figs 
+        #   depending on variable type?)
+        self.threshold_value = round(dataarray.mean().values.item())  
 
     def transform_data(self):
         return get_exceedance_count(self.data, 
@@ -1148,7 +1151,17 @@ class ExceedanceParams(param.Parameterized):
             obj = plot_exceedance_count(to_plot)
             return obj
         except ValueError as ve:
+            # Display any raised ValueErrors (instead of plotting) if any of the 
+            # user specifications are incompatible or not yet implemented.
             return ve
+
+def explore_exceedance(da, option=1):
+    """
+    Main function for displaying the threshold exceedance count GUI for a 
+    provided DataArray.
+    """
+    exc_choices = ExceedanceParams(da) # initialize an instance of the Param class for this dataarray
+    return _exceedance_visualize(exc_choices, option) # display the holoviz panel
 
 def _exceedance_visualize(choices, option=1):
     """
@@ -1202,16 +1215,12 @@ def _exceedance_visualize(choices, option=1):
     if option==1:
         return exceedance_count_panel
     elif option==2:
+        # For show: potential option to display multiple tabs if we want to 
+        # build this out as a broader GUI app for all threshold tools
         return pn.Tabs(
             ("Event counts", exceedance_count_panel), 
-            ("Return values", pn.Row())
+            ("Return values", pn.Row()),
+            ("Return periods", pn.Row())
         ) 
     else:
         raise ValueError("Unknown option")
-    
-    
-
-
-def explore_exceedance(da, option=1):
-    exc_choices = ExceedanceParams(da)
-    return _exceedance_visualize(exc_choices, option)
