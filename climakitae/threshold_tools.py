@@ -918,7 +918,7 @@ def get_exceedance_count(
     threshold_direction -- string either "above" or "below", default is above.
     duration -- length of exceedance in order to qualify as an event
     groupby -- see examples for explanation. Typical grouping could be (1, "day")
-    smoothing -- option to average the result across multiple periods with a rolling average (not yet implemented)
+    smoothing -- option to average the result across multiple periods with a rolling average
     """
 
     #--------- Type check arguments -------------------------------------------
@@ -928,7 +928,6 @@ def get_exceedance_count(
             duration = None
         else:
             raise ValueError("Other duration options not yet implemented. Please use (1, 'hour').")
-    if smoothing is not None: raise ValueError("Smoothing option not yet implemented.")
 
     # Check compatibility of periods, durations, and groupbys
     if _is_greater(groupby, duration): raise ValueError("Incompatible `group` and `duration` specification. Duration must be longer than group.")
@@ -951,6 +950,13 @@ def get_exceedance_count(
         raise ValueError("Other period options not yet implemented. Please use (1, 'year').")
         # eventually, run:
         # exceedance_count = _group_and_sum(events_da, period)
+
+    # Optional smoothing
+    if smoothing is not None:
+        if period[1] == "year":
+            exceedance_count = exceedance_count.rolling(year=smoothing, center=True).mean("year")
+        else:
+            raise ValueError("Smoothing option for periods other than (1, 'year') not yet implemented.")
 
     #--------- Set new attributes for the counts DataArray --------------------
     exceedance_count.attrs["variable_name"] = da.name
@@ -1131,6 +1137,8 @@ class ExceedanceParams(param.Parameterized):
     group_type = param.ObjectSelector(default = "hour", objects = ["year", "month", "day", "hour"], label = "")
     duration_length = param.Number(default = 1, bounds = (0, None), label = "")
     duration_type = param.ObjectSelector(default = "hour", objects = ["year", "month", "day", "hour"], label = "")
+    smoothing = param.ObjectSelector(default="None", objects=["None", "Running mean"], label = "Smoothing")
+    num_timesteps = param.Number(default=10, bounds=(0, None), label = "Number of timesteps")
 
     def __init__(self, dataarray, **params):
         super().__init__(**params)
@@ -1147,10 +1155,12 @@ class ExceedanceParams(param.Parameterized):
             threshold_direction = self.threshold_direction,
             period = (self.period_length, self.period_type),
             groupby = (self.group_length, self.group_type),
-            duration = (self.duration_length, self.duration_type))
+            duration = (self.duration_length, self.duration_type),
+            smoothing = self.num_timesteps if self.smoothing == "Running mean" else None)
 
-    @param.depends("threshold_value", "threshold_direction", "period_length", "period_type", 
-        "group_length", "group_type", "duration_length", "duration_type", watch=False)
+    @param.depends("threshold_value", "threshold_direction", "period_length", 
+        "period_type", "group_length", "group_type", "duration_length", 
+        "duration_type", "smoothing", "num_timesteps", watch=False)
     def view(self):
         try:
             to_plot = self.transform_data()
@@ -1161,10 +1171,24 @@ class ExceedanceParams(param.Parameterized):
             # user specifications are incompatible or not yet implemented.
             return ve
 
+    @param.depends("smoothing")
+    def _smoothing_card(self):
+        """A reactive panel card used by _exceedance_visualize that only 
+        displays the num_timesteps option if smoothing is selected."""
+        if self.smoothing != "None":
+            return pn.Card(pn.Row(
+                self.param.smoothing,
+                self.param.num_timesteps, width=375
+            ), title = "Smoothing")
+        else:
+            return pn.Card(pn.Row(
+                self.param.smoothing
+            ), title = "Smoothing")
+
 def explore_exceedance(da, option=1):
     """
     Main function for displaying the threshold exceedance count GUI for a 
-    provided DataArray.
+    provided DataArray `da`.
     """
     exc_choices = ExceedanceParams(da) # initialize an instance of the Param class for this dataarray
     return _exceedance_visualize(exc_choices, option) # display the holoviz panel
@@ -1215,7 +1239,10 @@ def _exceedance_visualize(choices, option=1):
             width = _left_column_width
         ),
         pn.Spacer(width=15),
-        choices.view
+        pn.Column(
+            choices._smoothing_card,
+            choices.view
+        )
     ))
     
     if option==1:
