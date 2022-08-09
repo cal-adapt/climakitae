@@ -1123,7 +1123,7 @@ class ExceedanceParams(param.Parameterized):
     An object to hold exceedance count parameters, which depends on the 'param' library.
     """
     # Define the params (before __init__ so that we can access them during __init__)
-    threshold_direction = param.ObjectSelector(default = "above", objects = ["above", "below"], label = "")
+    threshold_direction = param.ObjectSelector(default = "above", objects = ["above", "below"], label = "Direction")
     threshold_value = param.Number(default = 0, label = "")
     period_length = param.Number(default = 1, bounds = (0, None), label = "")
     period_type = param.ObjectSelector(default = "year", objects = ["year", "month", "day", "hour"], label = "")
@@ -1138,7 +1138,8 @@ class ExceedanceParams(param.Parameterized):
         # Set the starting display value to be the average of the data 
         #   (TBD: do we want "rounding" to be different number of sig figs 
         #   depending on variable type?)
-        self.threshold_value = round(dataarray.mean().values.item())  
+        self.threshold_value = round(dataarray.mean().values.item())
+        self.param.threshold_value.label = f"Value (units: {dataarray.units})"
 
     def transform_data(self):
         return get_exceedance_count(self.data, 
