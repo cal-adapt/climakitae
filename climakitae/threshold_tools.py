@@ -944,12 +944,9 @@ def get_exceedance_count(
 
     #--------- Group by time period and count ---------------------------------
     
-    if period == (1, "year"):
-        exceedance_count = events_da.groupby("time.year").sum()
-    else:
-        raise ValueError("Other period options not yet implemented. Please use (1, 'year').")
-        # eventually, run:
-        # exceedance_count = _group_and_sum(events_da, period)
+    period_len, period_type = period
+    period_indexer = str.capitalize(period_type[0]) # capitalize first letter to use as indexer in resample
+    exceedance_count = events_da.resample(time = f"{period_len}{period_indexer}", label="left").sum()
 
     # Optional smoothing
     if smoothing is not None:
@@ -967,7 +964,6 @@ def get_exceedance_count(
     exceedance_count.attrs["threshold_value"] = threshold_value
     exceedance_count.attrs["threshold_direction"] = threshold_direction
     exceedance_count.attrs["units"] = _exceedance_count_name(exceedance_count)
-    exceedance_count.attrs["time"] = period[1] # for plotting: x-axis (usually "year" but can be other user-specified period lengths)
 
     # Set name (for plotting, this will be the y-axis label)
     exceedance_count.name =  "Count"
@@ -996,11 +992,11 @@ def get_exceedance_events(
     groupby = None
 ):
     """
-    Returns an xarray that specifies whether each entry of da is a qualifying event. 
-    0 for False, 1 for True, and NaN for NaN values
+    Returns an xarray that specifies whether each entry of `da` is a qualifying 
+    threshold event. Values are 0 for False, 1 for True, or NaN for NaNs.
     """
 
-    # Count occurances (and preserve NaNs)
+    # Identify occurances (and preserve NaNs)
     if threshold_direction == "above":
         events_da = (da > threshold_value).where(da.isnull()==False)
     elif threshold_direction == "below":
@@ -1010,53 +1006,18 @@ def get_exceedance_events(
 
     # Groupby 
     if groupby is not None:
-        group_totals = _group_and_sum(events_da, groupby)
-        events_da = (group_totals > 0).where(group_totals.isnull()==False)
+        if (groupby == (1, "hour") and da.frequency == "1hr") \
+            or (groupby == (1, "day") and da.frequency == "1day") \
+            or (groupby == (1, "month") and da.frequency == "1month"):
+            # groupby specification is the same as data frequency, do nothing
+            pass
+        else:
+            group_len, group_type = groupby
+            indexer_type = str.capitalize(group_type[0]) # capitalize the first letter to use as the indexer (i.e. H, D, M, or Y)
+            group_totals = events_da.resample(time=f"{group_len}{indexer_type}", label="left").sum() # sum occurences within each group
+            events_da = (group_totals > 0).where(group_totals.isnull()==False) # turn back into a boolean with preserved NaNs (0 or 1 for whether there is any occurance in the group)
 
     return events_da
-
-def _group_and_sum(da, group_spec):
-    """
-    Helper function to sum data across time periods (i.e. days, months years).
-    The `group_spec` argument is a tuple of the form (3, 'day') or (1, 'year').
-
-    Return value is an xarray DataArray, with all the same dimensions except 
-    for `time`, which will be collapsed in length along the groups, and the 
-    coordinate values will be the date of the start of the group, rather than a 
-    datetime. (TBD if this is the desired behavior for the time dimension.)
-
-    This function is implemented by manually creating group numbers (i.e. 
-    [0,0,...1,1,...]), assigning them as a dimension, then summing across 
-    those groups. 
-    """
-    group_len, group_type = group_spec
-
-    if (group_spec == (1, "hour") and da.frequency == "1hr") \
-        or (group_spec == (1, "day") and da.frequency == "1day") \
-        or (group_spec == (1, "month") and da.frequency == "1month"):
-        # group_spec same as data frequency, do nothing
-        group_totals = da
-
-    elif group_spec == (1, "day"):
-        # special case where it is simpler to sum by day using "time.date"
-        group_totals = da.groupby("time.date").sum()
-        group_totals["date"] = pd.to_datetime(group_totals.date)
-        group_totals = group_totals.rename({"date":"time"})
-
-    elif group_type == "day":
-        # general case for grouping by some number of days
-        dates = da.time.dt.date.values # get the date for each value in the time dimension
-        days = [(d - dates[0]).days for d in dates] # calculate the day number for each value (i.e. [0,0,...1,1,...])
-        groups = [math.floor(d / group_len) for d in days] # group the day numbers based on user-specified group length
-        date_ids = dates[[groups.index(i) for i in list(set(groups))]] # save one date value for each group to use as the time index after summing
-        da["time"] = groups # set the group numbers as the time dimension for summing
-        group_totals = da.groupby("time").sum() # sum across the groups
-        group_totals["time"] = pd.to_datetime(date_ids) # reset the time dimension to the saved date values
-
-    else:
-        raise ValueError("Groupby options other than 'day' not yet implmented.")
-
-    return group_totals
 
 def _exceedance_count_name(exceedance_count):
     """
@@ -1101,14 +1062,13 @@ def plot_exceedance_count(exceedance_count):
     Currently can only plot for one location, so is expecting input to already be subsetted or an area average.
     """
     plot_obj = exceedance_count.hvplot.line(
-        x=exceedance_count.attrs["time"], 
+        x="time", 
         widget_location="bottom", 
         by="simulation", 
         groupby=["scenario"],
         title=_exceedance_plot_title(exceedance_count),
         fontsize = {'title': '14pt', 'ylabel': '10pt'},
         legend = 'right',
-        xlabel = str.capitalize(exceedance_count.attrs["time"])
     )
     return pn.Column(plot_obj)
 
