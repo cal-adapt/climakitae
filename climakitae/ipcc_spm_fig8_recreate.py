@@ -80,4 +80,14 @@ plt.annotate("SSP5-8.5", xy=(cmip_t[-1]+3, ssp585_data['Mean'][lidx]), xycoords=
 # Title
 plt.title("Global surface temperature change relative to 1850-1900", x=-0.05, y=1.1, loc='left', fontsize=f+2);
 
+# 3°C connection lines
+# plt.grid(visible=True, which='major', axis='y', color='0.75')
+warmlevel = 3.0
+plt.axhline(y=warmlevel, color='k', lw=1);
+
+means = [ssp119_data['Mean'], ssp126_data['Mean'], ssp245_data['Mean'], ssp370_data['Mean'], ssp585_data['Mean']]
+for i in means:
+    if np.argmax(i > warmlevel) != 0:
+        plt.axvline(x=cmip_t[0] + np.argmax(i > warmlevel), color='k', linestyle='--', lw=1);
+
 fig.savefig("spm_fig8.jpeg", dpi=300, bbox_inches='tight');
