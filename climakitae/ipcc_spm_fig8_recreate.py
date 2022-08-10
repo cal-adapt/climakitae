@@ -34,7 +34,6 @@ ssp370_data = pd.read_csv(datadir + "tas_global_SSP3_7_0.csv", index_col='Year')
 ssp585_data = pd.read_csv(datadir + "tas_global_SSP5_8_5.csv", index_col='Year')
 hist_data = pd.read_csv(datadir + "tas_global_Historical.csv", index_col='Year')
 
-
 ## Plot figure
 hist_t = np.arange(1950,2015,1)
 cmip_t = np.arange(2015,2100,1)
@@ -80,8 +79,8 @@ plt.annotate("SSP5-8.5", xy=(cmip_t[-1]+3, ssp585_data['Mean'][lidx]), xycoords=
 # Title
 plt.title("Global surface temperature change relative to 1850-1900", x=-0.05, y=1.1, loc='left', fontsize=f+2);
 
-# 3°C connection lines
-# plt.grid(visible=True, which='major', axis='y', color='0.75')
+## 3°C connection lines
+# plt.grid(visible=True, which='major', axis='y', color='0.75')     # gridlines at the whole degree mark
 warmlevel = 3.0
 plt.axhline(y=warmlevel, color='k', lw=1);
 
