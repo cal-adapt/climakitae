@@ -16,7 +16,6 @@ hist = pkg_resources.resource_filename('climakitae', 'data/tas_global_Historical
 class GMTContextPlot(): 
    
     def view(self): 
-
         ## Read in data
         ssp119_data = pd.read_csv(ssp119, index_col='Year')
         ssp126_data = pd.read_csv(ssp126, index_col='Year')
@@ -38,11 +37,12 @@ class GMTContextPlot():
         c585 = "#980002"
 
         # Set up figure 
-        fig = Figure(figsize=(8, 6))
+        fig = Figure(figsize=(7, 4), tight_layout=True)
         ax = fig.subplots()
         ax.set_ylim([-1,5])
         ax.set_xlim([1950,2100]);
-        ax.set_xticks([1950,2000,2015,2100])
+        ax.set_xticks([1950,1960,1970,1980,1990,2000,2010,2015,2020,2030,2040,2050,2060,2070,2080,2090,2100])
+        ax.set_xticklabels([1950,"","","","",2000,"",2015,"","","",2050,"","","","",2100])
         ax.annotate("°C", xy=(-0.05, 1.05), xycoords='axes fraction')
         ax.grid(visible=True, which='major', axis='y', color='0.75')
 
@@ -53,6 +53,16 @@ class GMTContextPlot():
         ax.plot(cmip_t, ssp245_data['Mean'], c=c245)
         ax.plot(cmip_t, ssp370_data['Mean'], c=c370) # very likely range
         ax.plot(cmip_t, ssp585_data['Mean'], c=c585)
+        
+        ## 3°C connection lines
+        # plt.grid(visible=True, which='major', axis='y', color='0.75')     # gridlines at the whole degree mark
+        warmlevel = 3.0
+        ax.axhline(y=warmlevel, color='k', lw=1.8);
+
+        means = [ssp119_data['Mean'], ssp126_data['Mean'], ssp245_data['Mean'], ssp370_data['Mean'], ssp585_data['Mean']]
+        for i in means:
+            if np.argmax(i > warmlevel) != 0:
+                ax.axvline(x=cmip_t[0] + np.argmax(i > warmlevel), color='k', linestyle='--', lw=1);
 
         # Very likely ranges: 90-100%
         ax.fill_between(hist_t, hist_data['5%'], hist_data['95%'], color='k', alpha=0.1);
@@ -69,8 +79,8 @@ class GMTContextPlot():
         ax.annotate("SSP5-8.5", xy=(cmip_t[-1]+3, ssp585_data['Mean'][lidx]), xycoords='data', annotation_clip=False, c=c585, fontsize=f);
 
         # Title
-        ax.set_title("Global surface temperature change relative to 1850-1900", y=1.05, fontsize=f+2);
-
+        ax.set_title("Global surface temperature change relative to 1850-1900",y=1.1, fontsize=f+2)
+        
         # Generate panel figure 
         mpl_pane = pn.pane.Matplotlib(fig, dpi=144)
         return mpl_pane 
