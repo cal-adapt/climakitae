@@ -44,25 +44,25 @@ def test_error2(T2_hourly):
 def test_hourly_ex1(T2_hourly):
     exc_counts = threshold_tools.get_exceedance_count(T2_hourly, threshold_value=305, period=(1, "year"))
     assert (exc_counts >= 0).all()      # test no negative values
-    assert "year" in exc_counts.coords  # test correct time transformation occured (datetime --> year)
+    assert len(exc_counts.time) == 2    # test correct time transformation occured (collapsed to only 2 values, one for each year)
 
 # exmample 2: count number of days in each year that have at least one hour exceeding the threshold
 def test_hourly_ex2(T2_hourly):
     exc_counts = threshold_tools.get_exceedance_count(T2_hourly, threshold_value=305, period=(1, "year"), groupby=(1, "day"))
     assert (exc_counts >= 0).all()      # test no negative values
-    assert "year" in exc_counts.coords  # test correct time transformation occured (datetime --> year)
+    assert len(exc_counts.time) == 2    # test correct time transformation occured (collapsed to only 2 values, one for each year)
 
 # exmample 3: count number of 3-day events in each year that continously exceed the threshold
 def test_hourly_ex3(T2_hourly):
     exc_counts = threshold_tools.get_exceedance_count(T2_hourly, threshold_value=305, period=(1, "year"), duration=(3, "day"))
     assert (exc_counts >= 0).all()      # test no negative values
-    assert "year" in exc_counts.coords  # test correct time transformation occured (datetime --> year)
+    assert len(exc_counts.time) == 2    # test correct time transformation occured (collapsed to only 2 values, one for each year)
 
 # exmample 4: count number of 3-day events in each year that exceed the threshold once each day
 def test_hourly_ex4(T2_hourly):
     exc_counts = threshold_tools.get_exceedance_count(T2_hourly, threshold_value=305, period=(1, "year"), duration=(3, "day"), groupby=(1, "day"))
     assert (exc_counts >= 0).all()      # test no negative values
-    assert "year" in exc_counts.coords  # test correct time transformation occured (datetime --> year)
+    assert len(exc_counts.time) == 2    # test correct time transformation occured (collapsed to only 2 values, one for each year)
 
 
 #------------- Test helper functions for plotting -----------------------------
