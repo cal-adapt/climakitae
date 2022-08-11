@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import pandas as pd
 import pytest
 import xarray as xr
 
@@ -32,8 +33,7 @@ def test_error1(test_data_2022_monthly_45km):
 # incompatible: cannot specify a 3-day duration if grouped by month
 # But for now, `duration` not yet implemented
 def test_error2(T2_hourly):
-    # with pytest.raises(ValueError, match="Incompatible `groupby` and `duration` specification"):
-    with pytest.raises(ValueError, match="Other duration options not yet implemented"):
+    with pytest.raises(ValueError, match="Incompatible `group` and `duration` specification"):
         threshold_tools.get_exceedance_count(T2_hourly,
             threshold_value=305, groupby = (1, "month"), duration = (3, "day")
         )
@@ -64,6 +64,12 @@ def test_hourly_ex4(T2_hourly):
     assert (exc_counts >= 0).all()      # test no negative values
     assert len(exc_counts.time) == 2    # test correct time transformation occured (collapsed to only 2 values, one for each year)
 
+# test current behavior of `duration` option: a six day event is counted as 4 3-day events
+def test_duration():
+    da = xr.DataArray([1,1,1,1,1,1], coords = {"time":pd.date_range("2000-01-01", freq="1D", periods=6)},
+        attrs={"frequency":"1day", "units":"T"})
+    exc_counts = threshold_tools.get_exceedance_count(da, 0, duration=(3, "day"))
+    assert exc_counts == 4 # four of the six days are the start of a 3-day event
 
 #------------- Test helper functions for plotting -----------------------------
 
@@ -111,11 +117,4 @@ def test_title1():
     title1 = threshold_tools._exceedance_plot_title(ex1)
     assert title1 == "Air Temperature at 2m: events above 299K"
 
-
-
-
-# test multiple scenario / simulation options with montlhy data (smaller)
-
 # test smoothing options with monthly data
-
-# test duration options-- probably has to be with hourly data

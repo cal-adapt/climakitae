@@ -925,12 +925,6 @@ def get_exceedance_count(
 
     #--------- Type check arguments -------------------------------------------
 
-    if duration is not None:
-        if duration == (1, "hour"):
-            duration = None
-        else:
-            raise ValueError("Other duration options not yet implemented. Please use (1, 'hour').")
-
     # Check compatibility of periods, durations, and groupbys
     if _is_greater(groupby, duration): raise ValueError("Incompatible `group` and `duration` specification. Duration must be longer than group.")
     if _is_greater(groupby, period): raise ValueError("Incompatible `group` and `period` specification. Group must be longer than period.")
@@ -943,6 +937,21 @@ def get_exceedance_count(
     #--------- Calculate occurances -------------------------------------------
 
     events_da = get_exceedance_events(da, threshold_value, threshold_direction, groupby)
+
+    # Duration
+    if duration is not None:
+        dur_len, dur_type = duration
+
+        if (groupby is not None and groupby[1] == dur_type) \
+            or (groupby is None and freq[1] == dur_type):
+            window_size = dur_len 
+        else:
+            raise ValueError("Duration options for time types (i.e. hour, day) that are different than group or frequency not yet implemented")
+
+        # The "min" operation will return 0 if any time in the window is not an
+        # event, which is the behavior we want. It will only return 1 for True 
+        # if all values in the duration window are 1.
+        events_da = events_da.rolling(time = window_size, center=False).min("time")
 
     #--------- Group by time period and count ---------------------------------
     
@@ -1097,8 +1106,8 @@ class ExceedanceParams(param.Parameterized):
     period_type = param.ObjectSelector(default = "year", objects = ["year", "month", "day", "hour"], label = "")
     group_length = param.Number(default = 1, bounds = (0, None), label = "")
     group_type = param.ObjectSelector(default = "hour", objects = ["year", "month", "day", "hour"], label = "")
-    duration_length = param.Number(default = 1, bounds = (0, None), label = "")
-    duration_type = param.ObjectSelector(default = "hour", objects = ["year", "month", "day", "hour"], label = "")
+    duration_length = param.Number(default = 1, bounds = (0, None), label = "Length")
+    duration_type = param.ObjectSelector(default = "None", objects = ["None", "year", "month", "day", "hour"], label = "Type")
     smoothing = param.ObjectSelector(default="None", objects=["None", "Running mean"], label = "Smoothing")
     num_timesteps = param.Number(default=10, bounds=(0, None), label = "Number of timesteps")
 
@@ -1117,7 +1126,7 @@ class ExceedanceParams(param.Parameterized):
             threshold_direction = self.threshold_direction,
             period = (self.period_length, self.period_type),
             groupby = (self.group_length, self.group_type),
-            duration = (self.duration_length, self.duration_type),
+            duration = None if self.duration_type == "None" else (self.duration_length, self.duration_type),
             smoothing = self.num_timesteps if self.smoothing == "Running mean" else None)
 
     @param.depends("threshold_value", "threshold_direction", "period_length", 
@@ -1134,7 +1143,7 @@ class ExceedanceParams(param.Parameterized):
             return ve
 
     @param.depends("smoothing")
-    def _smoothing_card(self):
+    def smoothing_card(self):
         """A reactive panel card used by _exceedance_visualize that only 
         displays the num_timesteps option if smoothing is selected."""
         if self.smoothing != "None":
@@ -1146,6 +1155,18 @@ class ExceedanceParams(param.Parameterized):
             return pn.Card(pn.Row(
                 self.param.smoothing
             ), title = "Smoothing")
+
+    @param.depends("duration_type")
+    def duration_row(self):
+        """A reactive panel row used by _exceedance_visualize that only 
+        displays the duration length option if duration_type is not None."""
+        if self.duration_type != "None":
+            return pn.Row(
+                self.param.duration_length,
+                self.param.duration_type, width=375
+            )
+        else:
+            return pn.Row(self.param.duration_type, width=375)
 
 def explore_exceedance(da, option=1):
     """
@@ -1191,18 +1212,14 @@ def _exceedance_visualize(choices, option=1):
             ),
             pn.Card(
                 "Amount of time threshold is exceeded to qualify as an event.",
-                pn.Row(
-                    choices.param.duration_length,
-                    choices.param.duration_type,
-                    width = _left_column_width
-                ),
+                choices.duration_row,
                 title = "Duration",
             ),
             width = _left_column_width
         ),
         pn.Spacer(width=15),
         pn.Column(
-            choices._smoothing_card,
+            choices.smoothing_card,
             choices.view
         )
     ))
