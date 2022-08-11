@@ -901,20 +901,21 @@ def get_exceedance_count(
 ):
     """
     Calculate the number of occurances of exceeding the specified threshold 
-    within each period length.
+    within each period.
 
     Returns an xarray with the same coordinates as the input data except for 
     the time dimension, which will be collapsed to one value per period (equal
     to the number of event occurances in each period).
 
     Arguments:
-    da -- an xarray.DataArray of some climate variable. Can have mutliple scenarios, simulations,
-        or x and y coordinates. 
+    da -- an xarray.DataArray of some climate variable. Can have multiple 
+        scenarios, simulations, or x and y coordinates. 
     threshold_value -- value against which to test exceedance
     
     Optional Keyword Arguments:
-    period -- amount of time across which to sum the number of occurances, default is (1, "year"). 
-        Specified as a tuple: (x, time) where x is an integer, and time is one of: ["day", "month", "year"]
+    period -- amount of time across which to sum the number of occurances, 
+        default is (1, "year"). Specified as a tuple: (x, time) where x is an 
+        integer, and time is one of: ["day", "month", "year"]
     threshold_direction -- string either "above" or "below", default is above.
     duration -- length of exceedance in order to qualify as an event
     groupby -- see examples for explanation. Typical grouping could be (1, "day")
@@ -929,8 +930,10 @@ def get_exceedance_count(
     if _is_greater(groupby, duration): raise ValueError("Incompatible `group` and `duration` specification. Duration must be longer than group.")
     if _is_greater(groupby, period): raise ValueError("Incompatible `group` and `period` specification. Group must be longer than period.")
     if _is_greater(duration, period): raise ValueError("Incompatible `duration` and `period` specification. Period must be longer than duration.")
+    
+    # Check compatibility of specifications with the data frequency (hourly, daily, or monthly)
     freq = (1, "hour") if da.frequency == "1hr" else ((1, "day") if da.frequency == "1day" else (1, "month"))
-    if _is_greater(freq, groupby): raise ValueError("Incompatible `groupby` specification: cannot be less than data frequency.")
+    if _is_greater(freq, groupby): raise ValueError("Incompatible `group` specification: cannot be less than data frequency.")
     if _is_greater(freq, duration): raise ValueError("Incompatible `duration` specification: cannot be less than data frequency.")
     if _is_greater(freq, period): raise ValueError("Incompatible `period` specification: cannot be less than data frequency.")
 
@@ -938,7 +941,8 @@ def get_exceedance_count(
 
     events_da = get_exceedance_events(da, threshold_value, threshold_direction, groupby)
 
-    # Duration
+    #--------- Apply specified duration requirement ---------------------------
+
     if duration is not None:
         dur_len, dur_type = duration
 
@@ -953,7 +957,7 @@ def get_exceedance_count(
         # if all values in the duration window are 1.
         events_da = events_da.rolling(time = window_size, center=False).min("time")
 
-    #--------- Group by time period and count ---------------------------------
+    #--------- Sum occurances across each period ------------------------------
     
     period_len, period_type = period
     period_indexer = str.capitalize(period_type[0]) # capitalize first letter to use as indexer in resample
@@ -1134,10 +1138,10 @@ class ExceedanceParams(param.Parameterized):
             to_plot = self.transform_data()
             obj = plot_exceedance_count(to_plot)
             return obj
-        except ValueError as ve:
-            # Display any raised ValueErrors (instead of plotting) if any of the 
+        except Exception as e:
+            # Display any raised Errors (instead of plotting) if any of the 
             # user specifications are incompatible or not yet implemented.
-            return ve
+            return e
 
     @param.depends("smoothing")
     def smoothing_card(self):
