@@ -1102,14 +1102,14 @@ class ExceedanceParams(param.Parameterized):
     # Define the params (before __init__ so that we can access them during __init__)
     threshold_direction = param.ObjectSelector(default = "above", objects = ["above", "below"], label = "Direction")
     threshold_value = param.Number(default = 0, label = "")
-    period_length = param.Number(default = 1, bounds = (0, None), label = "")
+    period_length = param.Integer(default = 1, bounds = (0, None), label = "")
     period_type = param.ObjectSelector(default = "year", objects = ["year", "month", "day", "hour"], label = "")
-    group_length = param.Number(default = 1, bounds = (0, None), label = "")
+    group_length = param.Integer(default = 1, bounds = (0, None), label = "")
     group_type = param.ObjectSelector(default = "hour", objects = ["year", "month", "day", "hour"], label = "")
-    duration_length = param.Number(default = 1, bounds = (0, None), label = "Length")
+    duration_length = param.Integer(default = 1, bounds = (0, None), label = "Length")
     duration_type = param.ObjectSelector(default = "None", objects = ["None", "year", "month", "day", "hour"], label = "Type")
     smoothing = param.ObjectSelector(default="None", objects=["None", "Running mean"], label = "Smoothing")
-    num_timesteps = param.Number(default=10, bounds=(0, None), label = "Number of timesteps")
+    num_timesteps = param.Integer(default=10, bounds=(0, None), label = "Number of timesteps")
 
     def __init__(self, dataarray, **params):
         super().__init__(**params)
