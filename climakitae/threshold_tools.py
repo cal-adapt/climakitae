@@ -918,7 +918,9 @@ def get_exceedance_count(
     threshold_direction -- string either "above" or "below", default is above.
     duration -- length of exceedance in order to qualify as an event
     groupby -- see examples for explanation. Typical grouping could be (1, "day")
-    smoothing -- option to average the result across multiple periods with a rolling average
+    smoothing -- option to average the result across multiple periods with a 
+        rolling average; value is either None or the number of timesteps to use 
+        as the window size
     """
 
     #--------- Type check arguments -------------------------------------------
@@ -951,7 +953,7 @@ def get_exceedance_count(
     # Optional smoothing
     if smoothing is not None:
         if period[1] == "year":
-            exceedance_count = exceedance_count.rolling(year=smoothing, center=True).mean("year")
+            exceedance_count = exceedance_count.rolling(time=smoothing, center=True).mean("time")
         else:
             raise ValueError("Smoothing option for periods other than (1, 'year') not yet implemented.")
 
