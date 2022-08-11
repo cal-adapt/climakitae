@@ -961,10 +961,7 @@ def get_exceedance_count(
 
     # Optional smoothing
     if smoothing is not None:
-        if period[1] == "year":
-            exceedance_count = exceedance_count.rolling(time=smoothing, center=True).mean("time")
-        else:
-            raise ValueError("Smoothing option for periods other than (1, 'year') not yet implemented.")
+        exceedance_count = exceedance_count.rolling(time=smoothing, center=True).mean("time")
 
     #--------- Set new attributes for the counts DataArray --------------------
     exceedance_count.attrs["variable_name"] = da.name
