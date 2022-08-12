@@ -51,7 +51,7 @@ class Application(object):
         """
         Calls a method to display a plot of the data 
         """
-        return _display_warming_levels()
+        return _display_warming_levels(self.selections, self.location, self._cat)
     
 
     # === Export ======================================
