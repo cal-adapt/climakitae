@@ -7,6 +7,7 @@ Effevtive workflow:
 When in the Warming Levels notebook, both the full spatial data and the area-averaged data should be read in.
 """
 
+## This keeps crashing my kernel -- in development
 
 ## Import libraries
 import numpy as np
@@ -33,6 +34,3 @@ to_plot = _running_mean(area_avg_data)
 to_plot.hvplot.line(
     x="time", y="Air Temperature at 2m", by="simulation", legend="below"
 )
-
-
-## This keeps crashing my kernel -- in development
