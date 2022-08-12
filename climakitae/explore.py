@@ -128,23 +128,25 @@ def _load_default_data(selections, location, catalog, modified_scenario, area_av
 
 def GCM_PostageStamps(data): 
     
-    data_cropped = data.isel(x=np.arange(50,90), y=np.arange(30,60))
+    # Crop data to improve speed during testing
+    data_cropped = data.isel(x=np.arange(50,90), y=np.arange(30,80))
+
     fig = Figure(figsize=(7, 5), tight_layout=True)
 
     # Placeholder indices 
     for ax_index, time_index, plot_title in zip([1,2,3,4],[0,1,2,3],
-        ["mean (placeholder)","median(placeholder)","min(placeholder)","max(placeholder)"]): 
+        ["mean (placeholder)","median (placeholder)","min (placeholder)","max (placeholder)"]): 
         # Ideally these should all have the same colorbar
         ax = fig.add_subplot(2,2,ax_index,projection=ccrs.LambertConformal())
-        xr_pl = data_cropped.isel(time=time_index,simulation=0,scenario=0).plot(ax=ax,
-            x="lon", y="lat", transform=ccrs.PlateCarree(), shading='auto', cmap="coolwarm"
+        xr_pl = data_cropped.isel(time=time_index,simulation=0,scenario=0).plot(
+            ax=ax, shading='auto', cmap="coolwarm"
             )
         ax.set_title(plot_title)
         ax.coastlines(linewidth=1, color = 'black', zorder = 10) # Coastlines
+        ax.gridlines(linewidth=0.25, color='gray', alpha=0.9, crs=ccrs.PlateCarree(), linestyle = '--',draw_labels=False)
 
     mpl_pane = pn.pane.Matplotlib(fig, dpi=144)
     return mpl_pane
-
 
 
 def _display_warming_levels(selections, location, _cat):
