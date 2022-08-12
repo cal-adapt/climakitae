@@ -1,3 +1,4 @@
+import cartopy.crs as ccrs
 from matplotlib.figure import Figure
 import numpy as np 
 import pandas as pd
@@ -125,6 +126,25 @@ def _load_default_data(selections, location, catalog, modified_scenario, area_av
     return default_data
 
 
+def GCM_PostageStamps(data): 
+    
+    data_cropped = data.isel(x=np.arange(50,90), y=np.arange(30,60))
+    fig = Figure(figsize=(7, 5), tight_layout=True)
+
+    # Placeholder indices 
+    for ax_index, time_index, plot_title in zip([1,2,3,4],[0,1,2,3],
+        ["mean (placeholder)","median(placeholder)","min(placeholder)","max(placeholder)"]): 
+        # Ideally these should all have the same colorbar
+        ax = fig.add_subplot(2,2,ax_index,projection=ccrs.LambertConformal())
+        xr_pl = data_cropped.isel(time=time_index,simulation=0,scenario=0).plot(ax=ax,
+            x="lon", y="lat", transform=ccrs.PlateCarree(), shading='auto', cmap="coolwarm"
+            )
+        ax.set_title(plot_title)
+        ax.coastlines(linewidth=1, color = 'black', zorder = 10) # Coastlines
+
+    mpl_pane = pn.pane.Matplotlib(fig, dpi=144)
+    return mpl_pane
+
 
 
 def _display_warming_levels(selections, location, _cat):
@@ -132,7 +152,9 @@ def _display_warming_levels(selections, location, _cat):
     modified_scenario = ScenarioSSP(selections=selections)
     default_data_area_average = _load_default_data(area_average=True, selections=selections, location=location, catalog=_cat, modified_scenario=modified_scenario)
     default_data = _load_default_data(area_average=False, selections=selections, location=location, catalog=_cat, modified_scenario=modified_scenario)
+    
 
+    # Create panel doodad!
     user_options = pn.Card(
         pn.Row(
             pn.Column(
@@ -144,12 +166,28 @@ def _display_warming_levels(selections, location, _cat):
                 ), 
             location.view
             )
-        , title="Data Options", collapsible=False
+        , title="Data Options", collapsible=True
     )         
     
-    GMT_plot = GMTContextPlot()
-
-    panel_doodad = pn.Column(user_options, 
-        GMT_plot)
+    lineplots = pn.Card(
+        pn.Column(
+            # Put area average line plot here
+            GMTContextPlot(), 
+        ), 
+        title="Spatially Averaged Plots", collapsible=False
+    )
+    
+    postage_stamps = pn.Card(
+        GCM_PostageStamps(data=default_data),
+        title="GCM maps", collapsible=False
+    )
+        
+        
+    warming_levels_plots = pn.Row(
+        lineplots, 
+        postage_stamps
+    )
+    
+    panel_doodad = pn.Column(user_options, warming_levels_plots)
     
     return panel_doodad
