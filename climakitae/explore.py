@@ -45,7 +45,7 @@ def GMTContextPlot():
     c585 = "#980002"
 
     # Set up figure 
-    fig = Figure(figsize=(7, 4), tight_layout=True)
+    fig = Figure(figsize=(6.5, 3.5), tight_layout=True)
     ax = fig.subplots()
     ax.set_ylim([-1,5])
     ax.set_xlim([1950,2100]);
@@ -130,8 +130,8 @@ def GCM_PostageStamps(data):
     
     # Crop data to improve speed during testing
     data_cropped = data.isel(x=np.arange(50,90), y=np.arange(30,80))
-
-    fig = Figure(figsize=(7, 5), tight_layout=True)
+    
+    fig = Figure(figsize=(6, 4), tight_layout=True)
 
     # Placeholder indices 
     for ax_index, time_index, plot_title in zip([1,2,3,4],[0,1,2,3],
@@ -152,10 +152,9 @@ def GCM_PostageStamps(data):
 def _display_warming_levels(selections, location, _cat):
     # Load default data 
     modified_scenario = ScenarioSSP(selections=selections)
-    default_data_area_average = _load_default_data(area_average=True, selections=selections, location=location, catalog=_cat, modified_scenario=modified_scenario)
+    #default_data_area_average = _load_default_data(area_average=True, selections=selections, location=location, catalog=_cat, modified_scenario=modified_scenario)
     default_data = _load_default_data(area_average=False, selections=selections, location=location, catalog=_cat, modified_scenario=modified_scenario)
     
-
     # Create panel doodad!
     user_options = pn.Card(
         pn.Row(
@@ -164,32 +163,37 @@ def _display_warming_levels(selections, location, _cat):
                 pn.widgets.Select.from_param(modified_scenario.param.scenario2, name="SSP"),
                 location.param.area_subset,
                 location.param.cached_area,
-                width = 250
+                width = 210
                 ), 
             location.view
             )
-        , title="Data Options", collapsible=True
+        , title="Data Options", collapsible=True, width = 440, height=290
     )         
     
     lineplots = pn.Card(
         pn.Column(
-            # Put area average line plot here
-            GMTContextPlot(), 
+            GMTContextPlot(),
+            pn.layout.VSpacer(),
+            GMTContextPlot()  # Replace with area average line plot here
         ), 
-        title="Spatially Averaged Plots", collapsible=False
+        title="Spatially Averaged Plots", collapsible=True, width = 475, height=640
     )
     
     postage_stamps = pn.Card(
         GCM_PostageStamps(data=default_data),
-        title="GCM maps", collapsible=False
+        collapsible=True,
+        width = 440, height=340,
+        title="Global Circulation Model Maps"
     )
         
         
-    warming_levels_plots = pn.Row(
-        lineplots, 
+    left_column = pn.Column(
+        user_options, 
         postage_stamps
     )
     
-    panel_doodad = pn.Column(user_options, warming_levels_plots)
+    right_column = pn.Column(lineplots)
+    
+    panel_doodad = pn.Row(left_column, right_column)
     
     return panel_doodad
