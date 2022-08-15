@@ -138,7 +138,7 @@ def AreaAverageLinePlot(data):
 def _display_warming_levels(selections, location, _cat):
     # Load default data 
     modified_scenario = ScenarioSSP(selections=selections)
-    default_data_area_average = _load_default_data(area_average=True, selections=selections, location=location, catalog=_cat, modified_scenario=modified_scenario)
+    #default_data_area_average = _load_default_data(area_average=True, selections=selections, location=location, catalog=_cat, modified_scenario=modified_scenario)
     default_data = _load_default_data(area_average=False, selections=selections, location=location, catalog=_cat, modified_scenario=modified_scenario)
     
     # Create panel doodad!
@@ -169,7 +169,7 @@ def _display_warming_levels(selections, location, _cat):
         ) 
     
     postage_stamps = pn.Card(
-        GCM_PostageStamps(data=default_data_area_average),
+        GCM_PostageStamps(data=default_data),
         collapsible=False,
         width = 440, height=340,
         title="Global Circulation Model Maps"
