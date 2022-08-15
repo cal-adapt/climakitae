@@ -45,48 +45,76 @@ c245 = "#f69320"
 c370 = "#df0000"
 c585 = "#980002"
 
-# Figure set-up
-fig = plt.figure(figsize = (7,4))
-plt.ylim([-1,5])
-plt.xlim([1950,2100]);
-plt.xticks([1950,1960,1970,1980,1990,2000,2010,2015,2020,2030,2040,2050,2060,2070,2080,2090,2100],
-           labels=["1950","","","","","2000","","2015","","","","2050","","","","","2100"]);
-plt.annotate("°C", xy=(-0.05, 1.05), xycoords='axes fraction');
-plt.grid(visible=True, which='major', axis='y', color='0.75')
-f = 12 # fontsize for labels
+ipcc_data = (hist_data.hvplot(y="Mean", color="k", label="Historical") *
+             hist_data.hvplot.area(x="Year", y="5%", y2="95%", alpha=0.1, color="k", ylabel="°C", xlabel="", ylim=[-1,5], xlim=[1950,2100]) * # very likely range
+             ssp119_data.hvplot(y="Mean", color=c119, label="SSP1-1.9") *
+             ssp126_data.hvplot.area(x="Year", y="5%", y2="95%", alpha=0.1, color=c126) * # very likely range
+             ssp126_data.hvplot(y="Mean", color=c126, label="SSP1-2.6") *
+             ssp245_data.hvplot(y="Mean", color=c245, label="SSP2-4.5") *
+             ssp370_data.hvplot.area(x="Year", y="5%", y2="95%", alpha=0.1, color=c370) * # very likely range
+             ssp370_data.hvplot(y="Mean", color=c370, label="SSP3-7.0") *
+             ssp585_data.hvplot(y="Mean", color=c585, label="SSP5-8.5")
+            ).opts(legend_position='bottom_right')
 
-# CMIP6 mean lines
-plt.plot(hist_t, hist_data['Mean'], color='k'); # very likely range
-plt.plot(cmip_t, ssp119_data['Mean'], c=c119);
-plt.plot(cmip_t, ssp126_data['Mean'], c=c126); # very likely range
-plt.plot(cmip_t, ssp245_data['Mean'], c=c245);
-plt.plot(cmip_t, ssp370_data['Mean'], c=c370); # very likely range
-plt.plot(cmip_t, ssp585_data['Mean'], c=c585);
-
-# Very likely ranges: 90-100%
-plt.fill_between(hist_t, hist_data['5%'], hist_data['95%'], color='k', alpha=0.1);
-plt.fill_between(cmip_t, ssp126_data['5%'], ssp126_data['95%'], color=c126, alpha=0.1);
-plt.fill_between(cmip_t, ssp370_data['5%'], ssp370_data['95%'], color=c370, alpha=0.1);
-
-# Labels on right hand side
-lidx = 2099 # last index of cmip6 dataframes
-plt.annotate("SSP1-1.9", xy=(cmip_t[-1]+3, ssp119_data['Mean'][lidx]), xycoords='data', annotation_clip=False, c=c119, fontsize=f);
-plt.annotate("SSP1-2.6", xy=(cmip_t[-1]+3, ssp126_data['Mean'][lidx]), xycoords='data', annotation_clip=False, c=c126, fontsize=f);
-plt.annotate("SSP2-4.5", xy=(cmip_t[-1]+3, ssp245_data['Mean'][lidx]), xycoords='data', annotation_clip=False, c=c245, fontsize=f);
-plt.annotate("SSP3-7.0", xy=(cmip_t[-1]+3, ssp370_data['Mean'][lidx]), xycoords='data', annotation_clip=False, c=c370, fontsize=f);
-plt.annotate("SSP5-8.5", xy=(cmip_t[-1]+3, ssp585_data['Mean'][lidx]), xycoords='data', annotation_clip=False, c=c585, fontsize=f);
-
-# Title
-plt.title("Global surface temperature change relative to 1850-1900", x=-0.05, y=1.1, loc='left', fontsize=f+2);
-
-## 3°C connection lines
-# plt.grid(visible=True, which='major', axis='y', color='0.75')     # gridlines at the whole degree mark
+# 3.0°C connection lines
 warmlevel = 3.0
-plt.axhline(y=warmlevel, color='k', lw=1);
+warmlevel_line =  hv.HLine(warmlevel).opts(color="black", line_width=1.0)
 
-means = [ssp119_data['Mean'], ssp126_data['Mean'], ssp245_data['Mean'], ssp370_data['Mean'], ssp585_data['Mean']]
-for i in means:
-    if np.argmax(i > warmlevel) != 0:
-        plt.axvline(x=cmip_t[0] + np.argmax(i > warmlevel), color='k', linestyle='--', lw=1);
+# SSP intersection lines
+# ssp119_int = hv.VLine(cmip_t[0] + np.argmax(ssp119_data["Mean"] > warmlevel)).opts(color=c119, line_dash="dashed", line_width=1)
+# ssp126_int = hv.VLine(cmip_t[0] + np.argmax(ssp126_data["Mean"] > warmlevel)).opts(color=c126, line_dash="dashed", line_width=1)
+# ssp245_int = hv.VLine(cmip_t[0] + np.argmax(ssp245_data["Mean"] > warmlevel)).opts(color=c245, line_dash="dashed", line_width=1)
+ssp370_int = hv.VLine(cmip_t[0] + np.argmax(ssp370_data["Mean"] > warmlevel)).opts(color=c370, line_dash="dashed", line_width=1)
+ssp585_int = hv.VLine(cmip_t[0] + np.argmax(ssp585_data["Mean"] > warmlevel)).opts(color=c585, line_dash="dashed", line_width=1)
 
-fig.savefig("spm_fig8.jpeg", dpi=300, bbox_inches='tight');
+to_plot = ipcc_data * warmlevel_line * ssp370_int * ssp585_int
+to_plot.opts(opts.Overlay(title='Global surface temperature change relative to 1850-1900', fontsize=12))
+
+
+#### -------------------------------------------------------------------------------------------------
+#### The below code is for a static figure
+# Figure set-up
+# fig = plt.figure(figsize = (7,4))
+# plt.ylim([-1,5])
+# plt.xlim([1950,2100]);
+# plt.xticks([1950,1960,1970,1980,1990,2000,2010,2015,2020,2030,2040,2050,2060,2070,2080,2090,2100],
+#            labels=["1950","","","","","2000","","2015","","","","2050","","","","","2100"]);
+# plt.annotate("°C", xy=(-0.05, 1.05), xycoords='axes fraction');
+# plt.grid(visible=True, which='major', axis='y', color='0.75')
+# f = 12 # fontsize for labels
+#
+# # CMIP6 mean lines
+# plt.plot(hist_t, hist_data['Mean'], color='k'); # very likely range
+# plt.plot(cmip_t, ssp119_data['Mean'], c=c119);
+# plt.plot(cmip_t, ssp126_data['Mean'], c=c126); # very likely range
+# plt.plot(cmip_t, ssp245_data['Mean'], c=c245);
+# plt.plot(cmip_t, ssp370_data['Mean'], c=c370); # very likely range
+# plt.plot(cmip_t, ssp585_data['Mean'], c=c585);
+#
+# # Very likely ranges: 90-100%
+# plt.fill_between(hist_t, hist_data['5%'], hist_data['95%'], color='k', alpha=0.1);
+# plt.fill_between(cmip_t, ssp126_data['5%'], ssp126_data['95%'], color=c126, alpha=0.1);
+# plt.fill_between(cmip_t, ssp370_data['5%'], ssp370_data['95%'], color=c370, alpha=0.1);
+#
+# # Labels on right hand side
+# lidx = 2099 # last index of cmip6 dataframes
+# plt.annotate("SSP1-1.9", xy=(cmip_t[-1]+3, ssp119_data['Mean'][lidx]), xycoords='data', annotation_clip=False, c=c119, fontsize=f);
+# plt.annotate("SSP1-2.6", xy=(cmip_t[-1]+3, ssp126_data['Mean'][lidx]), xycoords='data', annotation_clip=False, c=c126, fontsize=f);
+# plt.annotate("SSP2-4.5", xy=(cmip_t[-1]+3, ssp245_data['Mean'][lidx]), xycoords='data', annotation_clip=False, c=c245, fontsize=f);
+# plt.annotate("SSP3-7.0", xy=(cmip_t[-1]+3, ssp370_data['Mean'][lidx]), xycoords='data', annotation_clip=False, c=c370, fontsize=f);
+# plt.annotate("SSP5-8.5", xy=(cmip_t[-1]+3, ssp585_data['Mean'][lidx]), xycoords='data', annotation_clip=False, c=c585, fontsize=f);
+#
+# # Title
+# plt.title("Global surface temperature change relative to 1850-1900", x=-0.05, y=1.1, loc='left', fontsize=f+2);
+#
+# ## 3°C connection lines
+# # plt.grid(visible=True, which='major', axis='y', color='0.75')     # gridlines at the whole degree mark
+# warmlevel = 3.0
+# plt.axhline(y=warmlevel, color='k', lw=1);
+#
+# means = [ssp119_data['Mean'], ssp126_data['Mean'], ssp245_data['Mean'], ssp370_data['Mean'], ssp585_data['Mean']]
+# for i in means:
+#     if np.argmax(i > warmlevel) != 0:
+#         plt.axvline(x=cmip_t[0] + np.argmax(i > warmlevel), color='k', linestyle='--', lw=1);
+#
+# fig.savefig("spm_fig8.jpeg", dpi=300, bbox_inches='tight');
