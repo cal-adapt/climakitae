@@ -1,4 +1,8 @@
 import cartopy.crs as ccrs
+import hvplot.xarray
+import hvplot.pandas
+import holoviews as hv
+from holoviews import opts
 from matplotlib.figure import Figure
 import numpy as np 
 import pandas as pd
@@ -22,7 +26,7 @@ ssp585 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP5_8_5
 hist = pkg_resources.resource_filename('climakitae', 'data/tas_global_Historical.csv')
 
 
-def GMTContextPlot(): 
+def GMTContextPlot(width=500,height=300): 
     """ Display static GMT plot using package data. """
     ## Read in data
     ssp119_data = pd.read_csv(ssp119, index_col='Year')
@@ -31,67 +35,42 @@ def GMTContextPlot():
     ssp370_data = pd.read_csv(ssp370, index_col='Year')
     ssp585_data = pd.read_csv(ssp585, index_col='Year')
     hist_data = pd.read_csv(hist, index_col='Year')
-
-    ## x-axes 
+    
+    ## Plot figure
     hist_t = np.arange(1950,2015,1)
     cmip_t = np.arange(2015,2100,1)
 
-    ## Colors for each line, matching IPCC standard colors 
-    #https://pyam-iamc.readthedocs.io/en/stable/tutorials/ipcc_colors.html
+    ## https://pyam-iamc.readthedocs.io/en/stable/tutorials/ipcc_colors.html
     c119 = "#00a9cf"
     c126 = "#003466"
     c245 = "#f69320"
     c370 = "#df0000"
     c585 = "#980002"
 
-    # Set up figure 
-    fig = Figure(figsize=(6.5, 3.5), tight_layout=True)
-    ax = fig.subplots()
-    ax.set_ylim([-1,5])
-    ax.set_xlim([1950,2100]);
-    ax.set_xticks([1950,1960,1970,1980,1990,2000,2010,2015,2020,2030,2040,2050,2060,2070,2080,2090,2100])
-    ax.set_xticklabels([1950,"","","","",2000,"",2015,"","","",2050,"","","","",2100])
-    ax.annotate("°C", xy=(-0.05, 1.05), xycoords='axes fraction')
-    ax.grid(visible=True, which='major', axis='y', color='0.75')
+    ipcc_data = (hist_data.hvplot(y="Mean", color="k", label="Historical", width=width, height=height) *
+                 hist_data.hvplot.area(x="Year", y="5%", y2="95%", alpha=0.1, color="k", ylabel="°C", xlabel="", ylim=[-1,5], xlim=[1950,2100]) * # very likely range
+                 ssp119_data.hvplot(y="Mean", color=c119, label="SSP1-1.9") *
+                 ssp126_data.hvplot.area(x="Year", y="5%", y2="95%", alpha=0.1, color=c126) * # very likely range
+                 ssp126_data.hvplot(y="Mean", color=c126, label="SSP1-2.6") *
+                 ssp245_data.hvplot(y="Mean", color=c245, label="SSP2-4.5") *
+                 ssp370_data.hvplot.area(x="Year", y="5%", y2="95%", alpha=0.1, color=c370) * # very likely range
+                 ssp370_data.hvplot(y="Mean", color=c370, label="SSP3-7.0") *
+                 ssp585_data.hvplot(y="Mean", color=c585, label="SSP5-8.5")
+                )
 
-    # CMIP6 mean lines
-    ax.plot(hist_t, hist_data['Mean'], color='k') # very likely range
-    ax.plot(cmip_t, ssp119_data['Mean'], c=c119)
-    ax.plot(cmip_t, ssp126_data['Mean'], c=c126) # very likely range
-    ax.plot(cmip_t, ssp245_data['Mean'], c=c245)
-    ax.plot(cmip_t, ssp370_data['Mean'], c=c370) # very likely range
-    ax.plot(cmip_t, ssp585_data['Mean'], c=c585)
-
-    ## 3°C connection lines
-    # plt.grid(visible=True, which='major', axis='y', color='0.75')     # gridlines at the whole degree mark
+    # 3.0°C connection lines
     warmlevel = 3.0
-    ax.axhline(y=warmlevel, color='k', lw=1.8);
+    warmlevel_line =  hv.HLine(warmlevel).opts(color="black", line_width=1.0)
 
-    means = [ssp119_data['Mean'], ssp126_data['Mean'], ssp245_data['Mean'], ssp370_data['Mean'], ssp585_data['Mean']]
-    for i in means:
-        if np.argmax(i > warmlevel) != 0:
-            ax.axvline(x=cmip_t[0] + np.argmax(i > warmlevel), color='k', linestyle='--', lw=1);
+    # SSP intersection lines
+    ssp370_int = hv.VLine(cmip_t[0] + np.argmax(ssp370_data["Mean"] > warmlevel)).opts(color=c370, line_dash="dashed", line_width=1)
+    ssp585_int = hv.VLine(cmip_t[0] + np.argmax(ssp585_data["Mean"] > warmlevel)).opts(color=c585, line_dash="dashed", line_width=1)
 
-    # Very likely ranges: 90-100%
-    ax.fill_between(hist_t, hist_data['5%'], hist_data['95%'], color='k', alpha=0.1);
-    ax.fill_between(cmip_t, ssp126_data['5%'], ssp126_data['95%'], color=c126, alpha=0.1);
-    ax.fill_between(cmip_t, ssp370_data['5%'], ssp370_data['95%'], color=c370, alpha=0.1);
+    to_plot = ipcc_data * warmlevel_line * ssp370_int * ssp585_int
+    to_plot.opts(opts.Overlay(title='Global surface temperature change relative to 1850-1900', fontsize=12))
+    to_plot.opts(legend_position='bottom')
 
-    # Labels on right hand side
-    lidx = 2099 # last index of cmip6 dataframes
-    f = 12 # fontsize for labels
-    ax.annotate("SSP1-1.9", xy=(cmip_t[-1]+3, ssp119_data['Mean'][lidx]), xycoords='data', annotation_clip=False, c=c119, fontsize=f);
-    ax.annotate("SSP1-2.6", xy=(cmip_t[-1]+3, ssp126_data['Mean'][lidx]), xycoords='data', annotation_clip=False, c=c126, fontsize=f);
-    ax.annotate("SSP2-4.5", xy=(cmip_t[-1]+3, ssp245_data['Mean'][lidx]), xycoords='data', annotation_clip=False, c=c245, fontsize=f);
-    ax.annotate("SSP3-7.0", xy=(cmip_t[-1]+3, ssp370_data['Mean'][lidx]), xycoords='data', annotation_clip=False, c=c370, fontsize=f);
-    ax.annotate("SSP5-8.5", xy=(cmip_t[-1]+3, ssp585_data['Mean'][lidx]), xycoords='data', annotation_clip=False, c=c585, fontsize=f);
-
-    # Title
-    ax.set_title("Global surface temperature change relative to 1850-1900",y=1.1, fontsize=f+2)
-
-    # Generate panel figure 
-    mpl_pane = pn.pane.Matplotlib(fig, dpi=144)
-    return mpl_pane 
+    return to_plot
 
 
 class ScenarioSSP(param.Parameterized): 
@@ -106,6 +85,7 @@ class ScenarioSSP(param.Parameterized):
     def _update_selections(self): 
         modified_scenario_list = [self.scenario2]
         self.selections.scenario = modified_scenario_list
+    
     
 def _load_default_data(selections, location, catalog, modified_scenario, area_average=False): 
     """Load default data to be displayed whenever app.explore() is called """
@@ -148,11 +128,17 @@ def GCM_PostageStamps(data):
     mpl_pane = pn.pane.Matplotlib(fig, dpi=144)
     return mpl_pane
 
+def AreaAverageLinePlot(data): 
+    data_subset = data.isel(time=np.arange(0,30), scenario=0)
+    lineplot = data_subset.hvplot.line(
+       x="time", y="Air Temperature at 2m", by="simulation"
+    )
+    return lineplot
 
 def _display_warming_levels(selections, location, _cat):
     # Load default data 
     modified_scenario = ScenarioSSP(selections=selections)
-    #default_data_area_average = _load_default_data(area_average=True, selections=selections, location=location, catalog=_cat, modified_scenario=modified_scenario)
+    default_data_area_average = _load_default_data(area_average=True, selections=selections, location=location, catalog=_cat, modified_scenario=modified_scenario)
     default_data = _load_default_data(area_average=False, selections=selections, location=location, catalog=_cat, modified_scenario=modified_scenario)
     
     # Create panel doodad!
@@ -171,19 +157,19 @@ def _display_warming_levels(selections, location, _cat):
     )         
     
     GMT_plot = pn.Card(
-            GMTContextPlot(),
+            GMTContextPlot(width=525),
             title="Global Mean Temperature Context Plot", 
-            collapsible=False, width = 475, height=310
+            collapsible=False, width=550, height=360
         ) 
     
     area_average_line_plot = pn.Card(
-            GMTContextPlot(), # Replace with area average plot
+            GMTContextPlot(width=525), # Replace with area average plot
             title="Area Average Line Plot", 
-            collapsible=False, width = 475, height=310
+            collapsible=False, width=550, height=360
         ) 
     
     postage_stamps = pn.Card(
-        GCM_PostageStamps(data=default_data),
+        GCM_PostageStamps(data=default_data_area_average),
         collapsible=False,
         width = 440, height=340,
         title="Global Circulation Model Maps"
