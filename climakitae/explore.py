@@ -129,7 +129,7 @@ def _load_default_data(selections, location, catalog, modified_scenario, area_av
 def GCM_PostageStamps(data): 
     
     # Crop data to improve speed during testing
-    data_cropped = data.isel(x=np.arange(50,90), y=np.arange(30,80))
+    data_cropped = data.isel(x=np.arange(50,100), y=np.arange(30,80))
     
     fig = Figure(figsize=(6, 4), tight_layout=True)
 
@@ -167,32 +167,34 @@ def _display_warming_levels(selections, location, _cat):
                 ), 
             location.view
             )
-        , title="Data Options", collapsible=True, width = 440, height=290
+        , title="Data Options", collapsible=False, width = 440, height=290
     )         
     
-    lineplots = pn.Card(
-        pn.Column(
+    GMT_plot = pn.Card(
             GMTContextPlot(),
-            pn.layout.VSpacer(),
-            GMTContextPlot()  # Replace with area average line plot here
-        ), 
-        title="Spatially Averaged Plots", collapsible=True, width = 475, height=640
-    )
+            title="Global Mean Temperature Context Plot", 
+            collapsible=False, width = 475, height=310
+        ) 
+    
+    area_average_line_plot = pn.Card(
+            GMTContextPlot(), # Replace with area average plot
+            title="Area Average Line Plot", 
+            collapsible=False, width = 475, height=310
+        ) 
     
     postage_stamps = pn.Card(
         GCM_PostageStamps(data=default_data),
-        collapsible=True,
+        collapsible=False,
         width = 440, height=340,
         title="Global Circulation Model Maps"
     )
-        
-        
+            
     left_column = pn.Column(
         user_options, 
         postage_stamps
     )
     
-    right_column = pn.Column(lineplots)
+    right_column = pn.Column(GMT_plot, area_average_line_plot)
     
     panel_doodad = pn.Row(left_column, right_column)
     
