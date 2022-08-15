@@ -61,6 +61,7 @@ warmlevel = 3.0
 warmlevel_line =  hv.HLine(warmlevel).opts(color="black", line_width=1.0)
 
 # SSP intersection lines
+# Need to clean this up in case the desired warming level changes (to a lower temp for the "lower" 3 scenarios)
 # ssp119_int = hv.VLine(cmip_t[0] + np.argmax(ssp119_data["Mean"] > warmlevel)).opts(color=c119, line_dash="dashed", line_width=1)
 # ssp126_int = hv.VLine(cmip_t[0] + np.argmax(ssp126_data["Mean"] > warmlevel)).opts(color=c126, line_dash="dashed", line_width=1)
 # ssp245_int = hv.VLine(cmip_t[0] + np.argmax(ssp245_data["Mean"] > warmlevel)).opts(color=c245, line_dash="dashed", line_width=1)
