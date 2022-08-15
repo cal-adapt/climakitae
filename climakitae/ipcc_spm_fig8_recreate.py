@@ -54,7 +54,7 @@ ipcc_data = (hist_data.hvplot(y="Mean", color="k", label="Historical") *
              ssp370_data.hvplot.area(x="Year", y="5%", y2="95%", alpha=0.1, color=c370) * # very likely range
              ssp370_data.hvplot(y="Mean", color=c370, label="SSP3-7.0") *
              ssp585_data.hvplot(y="Mean", color=c585, label="SSP5-8.5")
-            ).opts(legend_position='bottom_right')
+            )
 
 # 3.0°C connection lines
 warmlevel = 3.0
