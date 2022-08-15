@@ -1,3 +1,4 @@
+import cartopy.crs as ccrs
 from matplotlib.figure import Figure
 import numpy as np 
 import pandas as pd
@@ -44,7 +45,7 @@ def GMTContextPlot():
     c585 = "#980002"
 
     # Set up figure 
-    fig = Figure(figsize=(7, 4), tight_layout=True)
+    fig = Figure(figsize=(6.5, 3.5), tight_layout=True)
     ax = fig.subplots()
     ax.set_ylim([-1,5])
     ax.set_xlim([1950,2100]);
@@ -125,14 +126,36 @@ def _load_default_data(selections, location, catalog, modified_scenario, area_av
     return default_data
 
 
+def GCM_PostageStamps(data): 
+    
+    # Crop data to improve speed during testing
+    data_cropped = data.isel(x=np.arange(50,100), y=np.arange(30,80))
+    
+    fig = Figure(figsize=(6, 4), tight_layout=True)
+
+    # Placeholder indices 
+    for ax_index, time_index, plot_title in zip([1,2,3,4],[0,1,2,3],
+        ["mean (placeholder)","median (placeholder)","min (placeholder)","max (placeholder)"]): 
+        # Ideally these should all have the same colorbar
+        ax = fig.add_subplot(2,2,ax_index,projection=ccrs.LambertConformal())
+        xr_pl = data_cropped.isel(time=time_index,simulation=0,scenario=0).plot(
+            ax=ax, shading='auto', cmap="coolwarm"
+            )
+        ax.set_title(plot_title)
+        ax.coastlines(linewidth=1, color = 'black', zorder = 10) # Coastlines
+        ax.gridlines(linewidth=0.25, color='gray', alpha=0.9, crs=ccrs.PlateCarree(), linestyle = '--',draw_labels=False)
+
+    mpl_pane = pn.pane.Matplotlib(fig, dpi=144)
+    return mpl_pane
 
 
 def _display_warming_levels(selections, location, _cat):
     # Load default data 
     modified_scenario = ScenarioSSP(selections=selections)
-    default_data_area_average = _load_default_data(area_average=True, selections=selections, location=location, catalog=_cat, modified_scenario=modified_scenario)
+    #default_data_area_average = _load_default_data(area_average=True, selections=selections, location=location, catalog=_cat, modified_scenario=modified_scenario)
     default_data = _load_default_data(area_average=False, selections=selections, location=location, catalog=_cat, modified_scenario=modified_scenario)
-
+    
+    # Create panel doodad!
     user_options = pn.Card(
         pn.Row(
             pn.Column(
@@ -140,16 +163,39 @@ def _display_warming_levels(selections, location, _cat):
                 pn.widgets.Select.from_param(modified_scenario.param.scenario2, name="SSP"),
                 location.param.area_subset,
                 location.param.cached_area,
-                width = 250
+                width = 210
                 ), 
             location.view
             )
-        , title="Data Options", collapsible=False
+        , title="Data Options", collapsible=False, width = 440, height=290
     )         
     
-    GMT_plot = GMTContextPlot()
-
-    panel_doodad = pn.Column(user_options, 
-        GMT_plot)
+    GMT_plot = pn.Card(
+            GMTContextPlot(),
+            title="Global Mean Temperature Context Plot", 
+            collapsible=False, width = 475, height=310
+        ) 
+    
+    area_average_line_plot = pn.Card(
+            GMTContextPlot(), # Replace with area average plot
+            title="Area Average Line Plot", 
+            collapsible=False, width = 475, height=310
+        ) 
+    
+    postage_stamps = pn.Card(
+        GCM_PostageStamps(data=default_data),
+        collapsible=False,
+        width = 440, height=340,
+        title="Global Circulation Model Maps"
+    )
+            
+    left_column = pn.Column(
+        user_options, 
+        postage_stamps
+    )
+    
+    right_column = pn.Column(GMT_plot, area_average_line_plot)
+    
+    panel_doodad = pn.Row(left_column, right_column)
     
     return panel_doodad
