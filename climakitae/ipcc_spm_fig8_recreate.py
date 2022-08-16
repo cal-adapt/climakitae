@@ -48,7 +48,7 @@ c585 = "#980002"
 ipcc_data = (hist_data.hvplot(y="Mean", color="k", label="Historical") *
              hist_data.hvplot.area(x="Year", y="5%", y2="95%", alpha=0.1, color="k", ylabel="°C", xlabel="", ylim=[-1,5], xlim=[1950,2100]) * # very likely range
              ssp119_data.hvplot(y="Mean", color=c119, label="SSP1-1.9") *
-             ssp126_data.hvplot.area(x="Year", y="5%", y2="95%", alpha=0.1, color=c126) * # very likely range
+             # ssp126_data.hvplot.area(x="Year", y="5%", y2="95%", alpha=0.1, color=c126) * # very likely range
              ssp126_data.hvplot(y="Mean", color=c126, label="SSP1-2.6") *
              ssp245_data.hvplot(y="Mean", color=c245, label="SSP2-4.5") *
              ssp370_data.hvplot.area(x="Year", y="5%", y2="95%", alpha=0.1, color=c370) * # very likely range
@@ -56,21 +56,33 @@ ipcc_data = (hist_data.hvplot(y="Mean", color="k", label="Historical") *
              ssp585_data.hvplot(y="Mean", color=c585, label="SSP5-8.5")
             )
 
-# 3.0°C connection lines
-warmlevel = 3.0
-warmlevel_line =  hv.HLine(warmlevel).opts(color="black", line_width=1.0)
-
 # SSP intersection lines
-# Need to clean this up in case the desired warming level changes (to a lower temp for the "lower" 3 scenarios)
-# ssp119_int = hv.VLine(cmip_t[0] + np.argmax(ssp119_data["Mean"] > warmlevel)).opts(color=c119, line_dash="dashed", line_width=1)
-# ssp126_int = hv.VLine(cmip_t[0] + np.argmax(ssp126_data["Mean"] > warmlevel)).opts(color=c126, line_dash="dashed", line_width=1)
-# ssp245_int = hv.VLine(cmip_t[0] + np.argmax(ssp245_data["Mean"] > warmlevel)).opts(color=c245, line_dash="dashed", line_width=1)
-ssp370_int = hv.VLine(cmip_t[0] + np.argmax(ssp370_data["Mean"] > warmlevel)).opts(color=c370, line_dash="dashed", line_width=1)
-ssp585_int = hv.VLine(cmip_t[0] + np.argmax(ssp585_data["Mean"] > warmlevel)).opts(color=c585, line_dash="dashed", line_width=1)
+cmip_t = np.arange(2015,2101,1)
 
-to_plot = ipcc_data * warmlevel_line * ssp370_int * ssp585_int
+# warming level connection lines & additional labeling
+warmlevel = 2.5
+warmlevel_line = hv.HLine(warmlevel).opts(color="black", line_width=1.0) * hv.Text(x=1964, y=warmlevel+0.25, text=str(warmlevel) + "°C warming level").opts(style=dict(text_font_size='8pt'))
+
+## Specifically only for SSP3-7.0 at present -- ahead of WG4
+# If the mean/upperbound/lowerbound does not cross threshold, set to 2100 (not visible)
+if (np.argmax(ssp370_data["Mean"] > warmlevel)) > 0:
+    ssp370_int = hv.VLine(cmip_t[0] + np.argmax(ssp370_data["Mean"] > warmlevel)).opts(color=c370, line_width=1)
+else:
+    ssp370_int = hv.VLine(cmip_t[0] + 2100).opts(color=c370, line_width=1)
+
+if (np.argmax(ssp370_data["95%"] > warmlevel)) > 0:
+    ssp370_firstdate = hv.VLine(cmip_t[0] + np.argmax(ssp370_data["95%"] > warmlevel)).opts(color=c370, line_dash="dashed", line_width=1)
+else:
+    ssp370_firstdate = hv.VLine(cmip_t[0] + 2100).opts(color=c370, line_dash="dashed", line_width=1)
+
+if (np.argmax(ssp370_data["5%"] > warmlevel)) > 0:
+    ssp370_lastdate = hv.VLine(cmip_t[0] + np.argmax(ssp370_data["5%"] > warmlevel)).opts(color=c370, line_dash="dashed", line_width=1)
+else:
+    ssp370_lastdate = hv.VLine(cmip_t[0] + 2100).opts(color=c370, line_dash="dashed", line_width=1)
+
+to_plot = ipcc_data * warmlevel_line * ssp370_int * ssp370_lastdate * ssp370_firstdate
 to_plot.opts(opts.Overlay(title='Global surface temperature change relative to 1850-1900', fontsize=12))
-
+to_plot.opts(legend_position='bottom', fontsize=10)
 
 #### -------------------------------------------------------------------------------------------------
 #### The below code is for a static figure
