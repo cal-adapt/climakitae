@@ -60,27 +60,37 @@ ipcc_data = (hist_data.hvplot(y="Mean", color="k", label="Historical") *
 cmip_t = np.arange(2015,2101,1)
 
 # warming level connection lines & additional labeling
-warmlevel = 2.5
+warmlevel = 2.5 ## this should not be hardcoded in, but provided as options
+#warmlevel = [1.5, 2.0, 3.0, 4.0]
 warmlevel_line = hv.HLine(warmlevel).opts(color="black", line_width=1.0) * hv.Text(x=1964, y=warmlevel+0.25, text=str(warmlevel) + "°C warming level").opts(style=dict(text_font_size='8pt'))
 
-## Specifically only for SSP3-7.0 at present -- ahead of WG4
+## Specifically only for SSP3-7.0 at present
 # If the mean/upperbound/lowerbound does not cross threshold, set to 2100 (not visible)
 if (np.argmax(ssp370_data["Mean"] > warmlevel)) > 0:
-    ssp370_int = hv.VLine(cmip_t[0] + np.argmax(ssp370_data["Mean"] > warmlevel)).opts(color=c370, line_width=1)
+    ssp370_int = hv.VLine(cmip_t[0] + np.argmax(ssp370_data["Mean"] > warmlevel)).opts(color=c370, line_dash="dashed", line_width=1)
 else:
-    ssp370_int = hv.VLine(cmip_t[0] + 2100).opts(color=c370, line_width=1)
+    ssp370_int = hv.VLine(cmip_t[0] + 2100).opts(color=c370, line_dash="dashed", line_width=1)
 
 if (np.argmax(ssp370_data["95%"] > warmlevel)) > 0:
-    ssp370_firstdate = hv.VLine(cmip_t[0] + np.argmax(ssp370_data["95%"] > warmlevel)).opts(color=c370, line_dash="dashed", line_width=1)
+    ssp370_firstdate = hv.VLine(cmip_t[0] + np.argmax(ssp370_data["95%"] > warmlevel)).opts(color=c370,  line_width=1)
 else:
-    ssp370_firstdate = hv.VLine(cmip_t[0] + 2100).opts(color=c370, line_dash="dashed", line_width=1)
+    ssp370_firstdate = hv.VLine(cmip_t[0] + 2100).opts(color=c370,  line_width=1)
 
 if (np.argmax(ssp370_data["5%"] > warmlevel)) > 0:
-    ssp370_lastdate = hv.VLine(cmip_t[0] + np.argmax(ssp370_data["5%"] > warmlevel)).opts(color=c370, line_dash="dashed", line_width=1)
+    ssp370_lastdate = hv.VLine(cmip_t[0] + np.argmax(ssp370_data["5%"] > warmlevel)).opts(color=c370,  line_width=1)
 else:
-    ssp370_lastdate = hv.VLine(cmip_t[0] + 2100).opts(color=c370, line_dash="dashed", line_width=1)
+    ssp370_lastdate = hv.VLine(cmip_t[0] + 2100).opts(color=c370, line_width=1)
 
-to_plot = ipcc_data * warmlevel_line * ssp370_int * ssp370_lastdate * ssp370_firstdate
+## Bar to connect firstdate and lastdate of threshold cross
+## Will need to add functionality for if it does not cross before 2100
+bar_y = -0.5
+yr_len = [(cmip_t[0] + np.argmax(ssp370_data["95%"] > warmlevel), bar_y), (cmip_t[0] + np.argmax(ssp370_data["5%"] > warmlevel), bar_y)]
+interval = hv.Path(yr_len).opts(color=c370, line_width=1) * hv.Text(x=cmip_t[0] + np.argmax(ssp370_data["95%"] > warmlevel)+5,
+                                                                    y=bar_y+0.25,
+                                                                    text = str((np.argmax(ssp370_data["5%"] > warmlevel) - np.argmax(ssp370_data["95%"] > warmlevel))) + " yrs").opts(style=dict(text_font_size='8pt'))
+
+
+to_plot = ipcc_data * warmlevel_line * ssp370_int * ssp370_lastdate * ssp370_firstdate * interval
 to_plot.opts(opts.Overlay(title='Global surface temperature change relative to 1850-1900', fontsize=12))
 to_plot.opts(legend_position='bottom', fontsize=10)
 
