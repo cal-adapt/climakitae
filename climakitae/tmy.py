@@ -17,7 +17,7 @@ fn = "data/dummy_dataset_1980_2100_SSP3.7.0_historical_appended.nc"     # Nicole
 
 ## Step 3: Calculate cumulative distribution function for given property
 
-## Step 4: Select most typical year of data for given month/day -- Sandia method
+## Step 4: Select most typical year of data for given month/day -- Sandia method (hold off on for now)
 
 ## Step 5: Calculate TMY given Sandia method
 
