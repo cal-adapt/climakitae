@@ -26,17 +26,40 @@ hist = pkg_resources.resource_filename('climakitae', 'data/tas_global_Historical
 
 
 
+class WarmingLevels(param.Parameterized):
+    
+    ## ---------- Params used for GMT context plot ----------
+    
+    warmlevel = param.ObjectSelector(default=1.5, 
+        objects=[1.5, 2, 3, 4]
+    )
+    ssp = param.ObjectSelector(default="SSP 3-7.0 -- Business as Usual",
+        objects=["SSP 2-4.5 -- Middle of the Road","SSP 3-7.0 -- Business as Usual","SSP 5-8.5 -- Burn it All"]
+    ) 
+    
+    ## ---------- Reset certain DataSelector and LocSelectorArea options ----------
+    def __init__(self, *args, **params):
+        super().__init__(*args, **params)
+        
+        self.selections.append_historical = True
+        self.selections.area_average = False
+        self.selections.resolution = "9 km"
+        self.selections.scenario = ["SSP 3-7.0 -- Business as Usual"]
+        self.selections.time_slice = (1980,2100)
+        self.selections.timescale = "monthly" 
+        self.selections.variable = "Air Temperature at 2m"
 
-class ModifiedSelections(param.Parameterized): 
-    """Modify options in DataSelectors object"""
+        self.location.area_subset = 'states'
+        self.location.cached_area = 'CA'
+    
+    ## ---------- Modify options in selectors.py DataSelectors object ----------
+    
     variable2 = param.ObjectSelector(default="Air Temperature at 2m", 
         objects=["Air Temperature at 2m","Precipitation (total)"]
         )    
     location_subset2 = param.ObjectSelector(default="California", 
         objects=["California","Entire domain"]
         )
-    def __init__(self, *args, **params):
-        super().__init__(*args, **params)
         
     @param.depends("variable2", watch=True)
     def _update_variable(self): 
@@ -51,50 +74,43 @@ class ModifiedSelections(param.Parameterized):
             self.location.area_subset = "none"
         else: 
             raise ValueError("You've encountered a bug in the code. See the ModifiedSelections class in explore.py")
+            
+
+    reload_data = param.Action(lambda x: x.param.trigger('reload_data'), label='Reload Data')
+    
+    @param.depends("reload_data", watch=False)
+    def _GCM_PostageStamps(self): 
+        def _get_data():    
+            """Get data from AWS catalog"""
+            xr_da = _read_from_catalog(
+                selections=self.selections, 
+                location=self.location, 
+                cat=self.catalog
+            )
+            return xr_da
         
+        data = _get_data()
+        
+        # Crop data to improve speed during testing
+        data_cropped = data.isel(x=np.arange(10,30), y=np.arange(10,30))
+
+        fig = Figure(figsize=(6, 4), tight_layout=True)
+
+        # Placeholder indices 
+        for ax_index, time_index in zip([1,2],[0,1]): 
+            # Ideally these should all have the same colorbar
+            ax = fig.add_subplot(1,2,ax_index,projection=ccrs.LambertConformal())
+            xr_pl = data_cropped.isel(time=time_index,simulation=0,scenario=0).plot(
+                ax=ax, shading='auto', cmap="coolwarm"
+                )
+            ax.set_title("plot {0}".format(ax_index))
+            ax.coastlines(linewidth=1, color = 'black', zorder = 10) # Coastlines
+            ax.gridlines(linewidth=0.25, color='gray', alpha=0.9, crs=ccrs.PlateCarree(), linestyle = '--',draw_labels=False)
+
+        mpl_pane = pn.pane.Matplotlib(fig, dpi=144)
+        return mpl_pane
+
     
-def _load_default_data(selections, location, catalog): 
-    """Load default data to be displayed whenever app.explore() is called """
-    
-    selections.append_historical = True
-    selections.area_average = False
-    selections.resolution = "9 km"
-    selections.scenario = ["SSP 3-7.0 -- Business as Usual"]
-    selections.time_slice = (1980,2100)
-    selections.timescale = "monthly" 
-    selections.variable = "Air Temperature at 2m"
-    
-    location.area_subset = 'states'
-    location.cached_area = 'CA'
-    
-    default_data = _read_from_catalog(selections=selections, 
-                                   location=location, 
-                                   cat=catalog)
-    return default_data
-
-
-def GCM_PostageStamps(data): 
-    
-    fig = Figure(figsize=(10, 7), tight_layout=True)
-
-    # Placeholder indices 
-    for ax_index in np.arange(1,9):
-        ax = fig.add_subplot(2,5,ax_index,projection=ccrs.LambertConformal())
-        ax.set_title("plot {0}".format(ax_index))
-        ax.coastlines(linewidth=1, color = 'black', zorder = 10) # Coastlines
-        ax.gridlines(linewidth=0.25, color='gray', alpha=0.9, crs=ccrs.PlateCarree(), linestyle = '--',draw_labels=False)
-
-    mpl_pane = pn.pane.Matplotlib(fig, dpi=144)
-    return mpl_pane
-
-
-class WarmingLevels(param.Parameterized):
-    warmlevel = param.ObjectSelector(default=1.5, 
-        objects=[1.5, 2, 3, 4]
-    )
-    ssp = param.ObjectSelector(default="SSP 3-7.0 -- Business as Usual",
-        objects=["SSP 2-4.5 -- Middle of the Road","SSP 3-7.0 -- Business as Usual","SSP 5-8.5 -- Burn it All"]
-    ) 
     
     @param.depends("warmlevel","ssp", watch=False)
     def _GMT_context_plot(self): 
@@ -140,27 +156,30 @@ class WarmingLevels(param.Parameterized):
         warmlevel_line = hv.HLine(self.warmlevel).opts(color="black", line_width=1.0) * hv.Text(x=1964, y=self.warmlevel+0.25, text=".    " + str(self.warmlevel) + "°C warming level").opts(style=dict(text_font_size='8pt'))
 
         ssp_dict = {
-            "SSP 2-4.5 -- Middle of the Road":ssp245_data, 
-            "SSP 3-7.0 -- Business as Usual":ssp370_data, 
-            "SSP 5-8.5 -- Burn it All":ssp585_data
+            "SSP 2-4.5 -- Middle of the Road":(ssp245_data,c245),
+            "SSP 3-7.0 -- Business as Usual":(ssp370_data,c370), 
+            "SSP 5-8.5 -- Burn it All":(ssp585_data,c585)
         }
         
-        ssp_selected = ssp_dict[self.ssp]
+        ssp_selected = ssp_dict[self.ssp][0] # data selected 
+        ssp_color = ssp_dict[self.ssp][1] # color corresponding to ssp selected 
+        
         # If the mean/upperbound/lowerbound does not cross threshold, set to 2100 (not visible)
+        
         if (np.argmax(ssp_selected["Mean"] > self.warmlevel)) > 0:
-            ssp_int = hv.VLine(cmip_t[0] + np.argmax(ssp_selected["Mean"] > self.warmlevel)).opts(color=c370, line_dash="dashed", line_width=1)
+                ssp_int = hv.VLine(cmip_t[0] + np.argmax(ssp_selected["Mean"] > self.warmlevel)).opts(color=ssp_color, line_dash="dashed", line_width=1)
         else:
-            ssp_int = hv.VLine(cmip_t[0] + 2100).opts(color=c370, line_dash="dashed", line_width=1)
+            ssp_int = hv.VLine(cmip_t[0] + 2100).opts(color=ssp_color, line_dash="dashed", line_width=1)
 
         if (np.argmax(ssp_selected["95%"] > self.warmlevel)) > 0:
-            ssp_firstdate = hv.VLine(cmip_t[0] + np.argmax(ssp_selected["95%"] > self.warmlevel)).opts(color=c370,  line_width=1)
+            ssp_firstdate = hv.VLine(cmip_t[0] + np.argmax(ssp_selected["95%"] > self.warmlevel)).opts(color=ssp_color,  line_width=1)
         else:
-            ssp_firstdate = hv.VLine(cmip_t[0] + 2100).opts(color=c370,  line_width=1)
+            ssp_firstdate = hv.VLine(cmip_t[0] + 2100).opts(color=ssp_color,  line_width=1)
 
         if (np.argmax(ssp_selected["5%"] > self.warmlevel)) > 0:
-            ssp_lastdate = hv.VLine(cmip_t[0] + np.argmax(ssp_selected["5%"] > self.warmlevel)).opts(color=c370,  line_width=1)
+            ssp_lastdate = hv.VLine(cmip_t[0] + np.argmax(ssp_selected["5%"] > self.warmlevel)).opts(color=ssp_color,  line_width=1)
         else:
-            ssp_lastdate = hv.VLine(cmip_t[0] + 2100).opts(color=c370, line_width=1)
+            ssp_lastdate = hv.VLine(cmip_t[0] + 2100).opts(color=ssp_color, line_width=1)
 
 
         ## Bar to connect firstdate and lastdate of threshold cross
@@ -168,7 +187,7 @@ class WarmingLevels(param.Parameterized):
         yr_len = [(cmip_t[0] + np.argmax(ssp_selected["95%"] > self.warmlevel), bar_y), (cmip_t[0] + np.argmax(ssp_selected["5%"] > self.warmlevel), bar_y)]
         yr_rng = (np.argmax(ssp_selected["5%"] > self.warmlevel) - np.argmax(ssp_selected["95%"] > self.warmlevel))
         if yr_rng > 0:
-            interval = hv.Path(yr_len).opts(color=c370, line_width=1) * hv.Text(x=cmip_t[0] + np.argmax(ssp_selected["95%"] > self.warmlevel)+5,
+            interval = hv.Path(yr_len).opts(color=ssp_color, line_width=1) * hv.Text(x=cmip_t[0] + np.argmax(ssp_selected["95%"] > self.warmlevel)+5,
                                                                             y=bar_y+0.25,
                                                                             text = str(yr_rng) + " yrs").opts(style=dict(text_font_size='8pt'))
         else: # Removes "bar" in case the upperbound is beyond 2100
@@ -184,31 +203,27 @@ class WarmingLevels(param.Parameterized):
     
 
 def _display_warming_levels(selections, location, _cat):
-    # Load default data 
-    default_data = _load_default_data(selections=selections, location=location, catalog=_cat)
-    
-    # Modified user selections 
-    modified_selections = ModifiedSelections(selections=selections, location=location)
-    
+
     # Warming levels object 
-    warming_levels = WarmingLevels()
+    warming_levels = WarmingLevels(selections=selections, location=location, catalog=_cat)
     
     # Create panel doodad!
     user_options = pn.Card(
-        pn.Row(
-            pn.Column(
-                pn.widgets.StaticText(name="", value='Warming Level (°C)'),
-                pn.widgets.RadioButtonGroup.from_param(warming_levels.param.warmlevel, name=""),
-                pn.widgets.Select.from_param(modified_selections.param.variable2, name="Data variable"),
-                pn.widgets.StaticText.from_param(selections.param.variable_description),
-                width = 230
-                ), 
-            pn.Column(
-                pn.widgets.Select.from_param(modified_selections.param.location_subset2, name="Location"),
-                location.view,
-                width = 230
-            )
-        ) 
+        pn.Column(
+            pn.Row(
+                pn.Column(
+                    pn.widgets.StaticText(name="", value='Warming Level (°C)'),
+                    pn.widgets.RadioButtonGroup.from_param(warming_levels.param.warmlevel, name=""),
+                    pn.widgets.Select.from_param(warming_levels.param.variable2, name="Data variable"),
+                    pn.widgets.StaticText.from_param(selections.param.variable_description),
+                    width = 230), 
+                pn.Column(
+                    pn.widgets.Select.from_param(warming_levels.param.location_subset2, name="Location"),
+                    location.view,
+                    width = 230)
+                ),
+            pn.widgets.Button.from_param(warming_levels.param.reload_data, button_type="primary", width=200, height=50)
+        )
         , title="Data Options", collapsible=False, width=460, height=420
     )         
     
@@ -220,13 +235,10 @@ def _display_warming_levels(selections, location, _cat):
         ) 
     
     
-    postage_stamps = GCM_PostageStamps(data=default_data)
-        
-    
     map_tabs = pn.Card(
         pn.Tabs(
-            ("Model means", postage_stamps),
-            ("Model difference from historical", postage_stamps), 
+            ("Model means", warming_levels._GCM_PostageStamps),
+            ("Model difference from historical", pn.Row()), 
             ("Typical meteorological year", pn.Row()), 
         ), 
     title="Global Circulation Model Maps", width = 800, height=500, collapsible=False
