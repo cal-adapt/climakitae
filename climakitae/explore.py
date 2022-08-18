@@ -1,6 +1,7 @@
 import cartopy.crs as ccrs
 import hvplot.xarray
 import hvplot.pandas
+import xarray as xr
 import holoviews as hv
 from holoviews import opts
 from matplotlib.figure import Figure
@@ -23,6 +24,7 @@ ssp245 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP2_4_5
 ssp370 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP3_7_0.csv')
 ssp585 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP5_8_5.csv')
 hist = pkg_resources.resource_filename('climakitae', 'data/tas_global_Historical.csv')
+dummy_data = pkg_resources.resource_filename('climakitae', 'data/dummy_dataset_1980_2100_SSP3.7.0_historical_appended.nc')
 
 
 
@@ -76,37 +78,38 @@ class WarmingLevels(param.Parameterized):
             raise ValueError("You've encountered a bug in the code. See the ModifiedSelections class in explore.py")
             
 
-    reload_data = param.Action(lambda x: x.param.trigger('reload_data'), label='Reload Data')
+    #reload_data = param.Action(lambda x: x.param.trigger('reload_data'), label='Reload Data')
     
-    @param.depends("reload_data", watch=False)
+    @param.depends("variable2", watch=False)
     def _GCM_PostageStamps(self): 
-        def _get_data():    
-            """Get data from AWS catalog"""
-            xr_da = _read_from_catalog(
-                selections=self.selections, 
-                location=self.location, 
-                cat=self.catalog
-            )
-            return xr_da
-        
+        #def _get_data():    
+        #   """Get data from AWS catalog"""
+        #    xr_da = _read_from_catalog(
+        #        selections=self.selections, 
+        #        location=self.location, 
+        #        cat=self.catalog
+        #    )
+        #    return xr_da
+        def _get_data(): 
+            pkg_data = xr.open_dataset(dummy_data)
+            return pkg_data[self.variable2]
+            
         data = _get_data()
         
-        # Crop data to improve speed during testing
-        data_cropped = data.isel(x=np.arange(10,30), y=np.arange(10,30))
-
-        fig = Figure(figsize=(6, 4), tight_layout=True)
+        fig = Figure(figsize=(7, 5), tight_layout=True)
 
         # Placeholder indices 
-        for ax_index, time_index in zip([1,2],[0,1]): 
+        for ax_index, time_index in zip(np.arange(1,6),np.arange(1,6)):
             # Ideally these should all have the same colorbar
-            ax = fig.add_subplot(1,2,ax_index,projection=ccrs.LambertConformal())
-            xr_pl = data_cropped.isel(time=time_index,simulation=0,scenario=0).plot(
-                ax=ax, shading='auto', cmap="coolwarm"
+            ax = fig.add_subplot(2,4,ax_index,projection=ccrs.LambertConformal())
+            xr_pl = data.isel(time=time_index,simulation=0,scenario=0).plot(
+                ax=ax, shading='auto', cmap="coolwarm",add_colorbar=False
                 )
             ax.set_title("plot {0}".format(ax_index))
             ax.coastlines(linewidth=1, color = 'black', zorder = 10) # Coastlines
             ax.gridlines(linewidth=0.25, color='gray', alpha=0.9, crs=ccrs.PlateCarree(), linestyle = '--',draw_labels=False)
 
+        fig.suptitle(data.name, fontsize=16)
         mpl_pane = pn.pane.Matplotlib(fig, dpi=144)
         return mpl_pane
 
@@ -144,10 +147,10 @@ class WarmingLevels(param.Parameterized):
                  # ssp126_data.hvplot.area(x="Year", y="5%", y2="95%", alpha=0.1, color=c126) * # very likely range
                  ssp126_data.hvplot(y="Mean", color=c126, label="SSP1-2.6") *
                  ssp245_data.hvplot(y="Mean", color=c245, label="SSP2-4.5") *
-                 ssp370_data.hvplot.area(x="Year", y="5%", y2="95%", alpha=0.1, color=c370) * # very likely range
                  ssp370_data.hvplot(y="Mean", color=c370, label="SSP3-7.0") *
                  ssp585_data.hvplot(y="Mean", color=c585, label="SSP5-8.5")
                 )
+
 
         # SSP intersection lines
         cmip_t = np.arange(2015,2101,1)
@@ -164,8 +167,10 @@ class WarmingLevels(param.Parameterized):
         ssp_selected = ssp_dict[self.ssp][0] # data selected 
         ssp_color = ssp_dict[self.ssp][1] # color corresponding to ssp selected 
         
-        # If the mean/upperbound/lowerbound does not cross threshold, set to 2100 (not visible)
+        # Shading around selected SSP 
+        ssp_shading = ssp_selected.hvplot.area(x="Year", y="5%", y2="95%", alpha=0.1, color=ssp_color) # very likely range
         
+        # If the mean/upperbound/lowerbound does not cross threshold, set to 2100 (not visible)
         if (np.argmax(ssp_selected["Mean"] > self.warmlevel)) > 0:
                 ssp_int = hv.VLine(cmip_t[0] + np.argmax(ssp_selected["Mean"] > self.warmlevel)).opts(color=ssp_color, line_dash="dashed", line_width=1)
         else:
@@ -193,13 +198,11 @@ class WarmingLevels(param.Parameterized):
         else: # Removes "bar" in case the upperbound is beyond 2100
             interval = hv.Path([(0,0), (0,0)]) # hardcoding for now, likely a better way to handle
 
-        to_plot = ipcc_data * warmlevel_line * ssp_int * ssp_lastdate * ssp_firstdate * interval
+        to_plot = ipcc_data * warmlevel_line * ssp_int * ssp_shading * ssp_lastdate * ssp_firstdate * interval
         to_plot.opts(opts.Overlay(title='Global surface temperature change relative to 1850-1900', fontsize=12))
         to_plot.opts(legend_position='bottom', fontsize=10)
 
         return to_plot
-        
-    
     
 
 def _display_warming_levels(selections, location, _cat):
@@ -209,7 +212,6 @@ def _display_warming_levels(selections, location, _cat):
     
     # Create panel doodad!
     user_options = pn.Card(
-        pn.Column(
             pn.Row(
                 pn.Column(
                     pn.widgets.StaticText(name="", value='Warming Level (°C)'),
@@ -221,27 +223,26 @@ def _display_warming_levels(selections, location, _cat):
                     pn.widgets.Select.from_param(warming_levels.param.location_subset2, name="Location"),
                     location.view,
                     width = 230)
-                ),
-            pn.widgets.Button.from_param(warming_levels.param.reload_data, button_type="primary", width=200, height=50)
-        )
+                )
         , title="Data Options", collapsible=False, width=460, height=420
     )         
     
     GMT_plot = pn.Card(
             pn.widgets.Select.from_param(warming_levels.param.ssp, name="Scenario", width=250),
             warming_levels._GMT_context_plot,
-            title="Global Mean Temperature Context Plot", 
+            title="When is the warming level reached?", 
             collapsible=False, width=600, height=420
         ) 
     
     
     map_tabs = pn.Card(
         pn.Tabs(
-            ("Model means", warming_levels._GCM_PostageStamps),
-            ("Model difference from historical", pn.Row()), 
+            ("Maps of individual simulations", warming_levels._GCM_PostageStamps),
+            ("Maps of cross-model statistics: mean/median/max/min", pn.Row()), 
             ("Typical meteorological year", pn.Row()), 
         ), 
-    title="Global Circulation Model Maps", width = 800, height=500, collapsible=False
+    title="Regional response at selected warming level", 
+    width = 800, height=500, collapsible=False,
     )
         
     
