@@ -157,10 +157,6 @@ def _read_from_catalog(selections, location, cat):
         if location.area_subset == "CA watersheds":
             shape = location._geographies._ca_watersheds
             shape = shape[shape["OBJECTID"] == shape_index].iloc[0].geometry
-            wgs84 = pyproj.CRS('EPSG:4326')
-            psdo_merc = pyproj.CRS('EPSG:3857')
-            project = pyproj.Transformer.from_crs(psdo_merc, wgs84, always_xy=True).transform
-            shape = transform(project, shape)
         elif location.area_subset == "CA counties":
             shape = location._geographies._ca_counties
             shape = shape[shape.index == shape_index].iloc[0].geometry
