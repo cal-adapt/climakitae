@@ -109,7 +109,7 @@ class WarmingLevels(param.Parameterized):
             ax.coastlines(linewidth=1, color = 'black', zorder = 10) # Coastlines
             ax.gridlines(linewidth=0.25, color='gray', alpha=0.9, crs=ccrs.PlateCarree(), linestyle = '--',draw_labels=False)
 
-        fig.suptitle(data.name, fontsize=16)
+        fig.suptitle("Variable: "+data.name+"; Units: "+data.attrs["units"], fontsize=16)
         mpl_pane = pn.pane.Matplotlib(fig, dpi=144)
         return mpl_pane
 
