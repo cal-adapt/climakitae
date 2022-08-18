@@ -56,15 +56,10 @@ _cached_stations = [
 # === Select ===================================
 class Boundaries:
     def __init__(self):
-        self._us_states = regionmask.defined_regions.natural_earth_v4_1_0.us_states_50
-        self._ca_counties = gpd.read_file(
-            "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/1/query?where=STATE='06'&f=geojson"
-        )
-        self._ca_counties = self._ca_counties.sort_values("NAME")
-
-        self._ca_watersheds_file = "https://gis.data.cnra.ca.gov/datasets/02ff4971b8084ca593309036fb72289c_0.zip?outSR=%7B%22latestWkid%22%3A3857%2C%22wkid%22%3A102100%7D"
-        self._ca_watersheds = gpd.read_file(self._ca_watersheds_file)
-        self._ca_watersheds = self._ca_watersheds.sort_values("Name")
+        self._cat = intake.open_catalog("https://cadcat.s3.amazonaws.com/parquet/catalog.yaml")
+        self._us_states = self._cat.states.read()
+        self._ca_counties = self._cat.counties.read().sort_values("NAME")
+        self._ca_watersheds = self._cat.huc8.read().sort_values("Name")
 
     def get_us_states(self):
         """
