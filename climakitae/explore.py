@@ -78,18 +78,77 @@ class WarmingLevels(param.Parameterized):
             raise ValueError("You've encountered a bug in the code. See the ModifiedSelections class in explore.py")
             
 
-    #reload_data = param.Action(lambda x: x.param.trigger('reload_data'), label='Reload Data')
-    
+    reload_data = param.Action(lambda x: x.param.trigger('reload_data'), label='Reload Data')
+    @param.depends("reload_data", watch=False)
+    def _TMY_hourly_heatmap(self):
+        def _get_heatmap_data():    
+            """Get data from AWS catalog"""
+            heatmap_selections = self.selections
+            heatmap_selections.append_historical = False
+            heatmap_selections.area_average = True
+            heatmap_selections.resolution = "45 km"
+            heatmap_selections.scenario = ["Historical Climate"]
+            heatmap_selections.time_slice = (1980,2000)
+            heatmap_selections.timescale = "hourly" 
+            xr_da = _read_from_catalog(
+                selections=heatmap_selections, 
+                location=self.location, 
+                cat=self.catalog
+            )
+            return xr_da
+        
+        def remove_repeats(xr_data): 
+            """
+            Remove hours that have repeats. 
+            This occurs if two hours have the same absolute difference from the mean.
+            Returns numpy array
+            """
+            unq, unq_idx, unq_cnt = np.unique(xr_data.time.dt.hour.values, return_inverse=True, return_counts=True)
+            cnt_mask = unq_cnt > 1
+            cnt_idx, = np.nonzero(cnt_mask)
+            idx_mask = np.in1d(unq_idx, cnt_idx)
+            idx_idx, = np.nonzero(idx_mask)
+            srt_idx = np.argsort(unq_idx[idx_mask])
+            dup_idx = np.split(idx_idx[srt_idx], np.cumsum(unq_cnt[cnt_mask])[:-1])
+            cleaned_np = np.delete(xr_data.values, dup_idx[0])
+        return cleaned_np
+        
+        # Grab data from AWS 
+        data = _get_heatmap_data()
+        data = data.mean(dim="simulation").isel(scenario=0)
+        
+        # Compute hourly TMY for each day of the year
+        days_in_year = 366
+        tmy_hourly = []
+        for x in np.arange(1,days_in_year+1,1): 
+            data_on_day_x = data.where(data.time.dt.dayofyear == x, drop=True)
+            data_grouped = data_on_day_x.groupby("time.hour")
+            mean_by_hour = data_grouped.mean()
+            min_diff = abs(data_grouped - mean_by_hour).groupby("time.hour").min()
+            typical_hourly_data_on_day_x = data_on_day_x.where(abs(data_grouped - mean_by_hour).groupby("time.hour") == min_diff, drop=True).sortby("time.hour")
+            np_typical_hourly_data_on_day_x = remove_repeats(typical_hourly_data_on_day_x)
+            tmy_hourly.append(np_typical_hourly_data_on_day_x)
+
+        # Funnel data into pandas DataFrame object 
+        df = pd.DataFrame(tmy_hourly, columns = np.arange(1,25,1), index=np.arange(1,days_in_year+1,1))
+        df = df.iloc[::-1] # Reverse index 
+        
+        # Create heatmap 
+        heatmap = df.hvplot.heatmap(
+            x='columns', 
+            y='index', 
+            title='Typical Meteorological Year Heatmap', 
+            cmap="coolwarm", 
+            xaxis='bottom', 
+            xlabel="Hour of Day (UTC)",
+            ylabel="Day of Year",clabel=data.name + " ("+data.units+")",
+            width=800, height=350).opts( 
+            fontsize={'title': 15, 'xlabel':12, 'ylabel':12}
+        )
+        return heatmap
+
     @param.depends("variable2", watch=False)
     def _GCM_PostageStamps(self): 
-        #def _get_data():    
-        #   """Get data from AWS catalog"""
-        #    xr_da = _read_from_catalog(
-        #        selections=self.selections, 
-        #        location=self.location, 
-        #        cat=self.catalog
-        #    )
-        #    return xr_da
         def _get_data(): 
             pkg_data = xr.open_dataset(dummy_data)
             return pkg_data[self.variable2]
@@ -234,12 +293,16 @@ def _display_warming_levels(selections, location, _cat):
             collapsible=False, width=600, height=420
         ) 
     
+    TMY = pn.Column(
+        pn.widgets.Button.from_param(warming_levels.param.reload_data, button_type="primary", width=200, height=50),
+        warming_levels._TMY_hourly_heatmap
+    )
     
     map_tabs = pn.Card(
         pn.Tabs(
             ("Maps of individual simulations", warming_levels._GCM_PostageStamps),
             ("Maps of cross-model statistics: mean/median/max/min", pn.Row()), 
-            ("Typical meteorological year", pn.Row()), 
+            ("Typical meteorological year", TMY), 
         ), 
     title="Regional response at selected warming level", 
     width = 800, height=500, collapsible=False,
