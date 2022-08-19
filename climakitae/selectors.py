@@ -63,34 +63,30 @@ class Boundaries:
 
     def get_us_states(self):
         """
-        Opens regionmask to retrieve a dictionary of state abbreviations:index
+        Returns a custom sorted dictionary of state abbreviations and indices.
         """
-        _state_lookup = dict(
-            [
-                (
-                    abbrev,
-                    np.argwhere(np.asarray(self._us_states.abbrevs) == abbrev)[0][0],
-                )
-                for abbrev in [
-                    "CA",
-                    "NV",
-                    "OR",
-                    "WA",
-                    "UT",
-                    "MT",
-                    "ID",
-                    "AZ",
-                    "CO",
-                    "NM",
-                    "WY",
-                ]
-            ]
-        )
-        return _state_lookup
+        _states_subset_list = [
+            "CA",
+            "NV",
+            "OR",
+            "WA",
+            "UT",
+            "MT",
+            "ID",
+            "AZ",
+            "CO",
+            "NM",
+            "WY"
+        ]
+        _us_states_subset = self._us_states.query("abbrevs in @_states_subset_list")[["abbrevs"]]
+        _us_states_subset["abbrevs"] = pd.Categorical(_us_states_subset["abbrevs"], categories=_states_subset_list)
+        _us_states_subset.sort_values(by="abbrevs", inplace=True)
+
+        return dict(zip(_us_states_subset.abbrevs, _us_states_subset.index))
 
     def get_ca_counties(self):
         """
-        Returns a dictionary of California counties and their indices in the shapefile.
+        Returns a dictionary of California counties and their indices in the geoparquet file.
         """
         return pd.Series(
             self._ca_counties.index, index=self._ca_counties["NAME"]
@@ -98,7 +94,7 @@ class Boundaries:
 
     def get_ca_watersheds(self):
         """
-        Returns a lookup dictionary for CA watersheds that references the shapefile.
+        Returns a lookup dictionary for CA watersheds that references the geoparquet file.
         """
         return pd.Series(
             self._ca_watersheds["OBJECTID"].values, index=self._ca_watersheds["Name"]
@@ -106,7 +102,7 @@ class Boundaries:
 
     def boundary_dict(self):
         """
-        This returns a dictionary of lookup dictionaries for each set of shapefiles that
+        This returns a dictionary of lookup dictionaries for each set of geoparquet files that
         the user might be choosing from. It is used to populate the selector object dynamically
         as the category in 'LocSelectorArea.area_subset' changes.
         """
@@ -124,7 +120,7 @@ class LocSelectorArea(param.Parameterized):
     define a timeseries from an average over an area. Will update 'location' with whatever reflects the
     last change made to any one of the options. User can
     1. update the latitude or longitude of a bounding box
-    2. select a predefined area, from a set of shapefiles we pre-select
+    2. select a predefined area, from a set of geoparquet files in S3 we pre-select
     [future: 3. upload their own shapefile with the outline of a natural or administrative geographic area]
     """
 
