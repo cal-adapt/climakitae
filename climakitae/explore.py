@@ -115,7 +115,7 @@ class WarmingLevels(param.Parameterized):
         
         # Grab data from AWS 
         data = _get_heatmap_data()
-        data = data.mean(dim="simulation").isel(scenario=0)
+        data = data.mean(dim="simulation").isel(scenario=0).compute()
         
         # Compute hourly TMY for each day of the year
         days_in_year = 366
