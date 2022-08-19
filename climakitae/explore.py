@@ -111,7 +111,7 @@ class WarmingLevels(param.Parameterized):
             srt_idx = np.argsort(unq_idx[idx_mask])
             dup_idx = np.split(idx_idx[srt_idx], np.cumsum(unq_cnt[cnt_mask])[:-1])
             cleaned_np = np.delete(xr_data.values, dup_idx[0])
-        return cleaned_np
+            return cleaned_np
         
         # Grab data from AWS 
         data = _get_heatmap_data()
