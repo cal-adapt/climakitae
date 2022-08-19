@@ -294,7 +294,7 @@ def _display_warming_levels(selections, location, _cat):
         ) 
     
     TMY = pn.Column(
-        pn.widgets.Button.from_param(warming_levels.param.reload_data, button_type="primary", width=200, height=50),
+        pn.widgets.Button.from_param(warming_levels.param.reload_data, button_type="primary", width=150, height=30),
         warming_levels._TMY_hourly_heatmap
     )
     
