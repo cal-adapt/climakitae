@@ -263,7 +263,7 @@ class LocSelectorArea(param.Parameterized):
             shape_index = int(
                 self._geography_choose[self.area_subset][self.cached_area]
             )
-            self._geographies._us_states[[shape_index]].plot(
+            self._geographies._us_states.iloc[[shape_index]].plot(
                 ax=ax, add_label=False, line_kws=dict(color="b")
             )
             mpl_pane.param.trigger("object")
