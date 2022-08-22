@@ -6,8 +6,6 @@ from matplotlib.figure import Figure
 import matplotlib.ticker as ticker
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
-import regionmask
-import numpy as np
 import geopandas as gpd
 import pandas as pd
 import datetime as dt
