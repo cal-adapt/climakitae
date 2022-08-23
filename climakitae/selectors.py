@@ -263,6 +263,9 @@ class LocSelectorArea(param.Parameterized):
             )
             df_ae = self._geographies._us_states.iloc[[shape_index]].to_crs(crs_proj4)
             df_ae.plot(ax=ax, color="b", zorder=2)
+            df_ae.plot(
+                ax=ax, add_label=False, line_kws=dict(color="b")
+            )
             mpl_pane.param.trigger("object")
         elif self.area_subset == "CA counties":
             ax.set_extent([-125, -114, 31, 43], crs=xy)
