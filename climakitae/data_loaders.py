@@ -148,11 +148,6 @@ def _read_from_catalog(selections, location, cat):
         if not geom.is_valid:
             raise ValueError("Please go back to 'select' and choose a valid lat/lon range.")
         ds_region = regionmask.Regions([geom], abbrevs=["lat/lon box"], name="box mask")
-    elif location.area_subset == "states":
-        shape_index = int(
-            location._geography_choose[location.area_subset][location.cached_area]
-        )
-        ds_region = location._geographies._us_states[[shape_index]]
     elif location.area_subset != "none":
         shape_index = int(
             location._geography_choose[location.area_subset][location.cached_area]
