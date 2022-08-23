@@ -455,3 +455,193 @@ def _display_warming_levels(selections, location, _cat):
     )
     
     return panel_doodad
+
+
+def postage_stamps(data,var,warming_threshold):    
+    
+    '''
+    outputs postage stamp type figures
+    showing anomaly maps for a given variable and threshold.
+    
+    
+    ds = xarray dataset
+    var = variable (string), currently tuned for T at 2m 
+    (this is because the colorbar and cmap are hardcoded).
+    warming_threshold = desired warming level (string),
+    currently must be either:
+    1.5C, 2.0C, 3.0C, 4.0C exactly.
+    '''   
+    
+    var = data[var_str]
+    var.attrs['reference_range'] = '1981','2010'# hist threshold
+
+
+    # year ranges for each warming threshold for each model
+    # this is a placeholder for a function which reads in these years
+    # from the CSV file
+    warming_15 = [(str(y-15),str(y+14)) for y in [2044,2050,2045,2053,2053]]
+    warming_2 = [(str(y-15),str(y+14)) for y in [2055,2061,2056,2072,2069]]
+    warming_3 = [(str(y-15),str(y+14)) for y in [2078,2077,2073,np.nan,np.nan]]
+    warming_4 = [(str(y-15),str(y+14)) for y in [np.nan,np.nan,2091,np.nan,np.nan]]
+
+    my_simulations = ['cesm2', 'cnrm-esm2-1', 'ec-earth3-veg', 'fgoals-g3', 'mpi-esm1-2-lr']
+
+    # make dicts for simulation
+    # and the year each threshold is reached
+    # hardcoded for now
+    # note: not all sims reach all thresholds
+    # might want to warn users
+    dict_15 = dict(zip(my_simulations, warming_15))
+    dict_20 = dict(zip(my_simulations, warming_2))
+    dict_30 = dict(zip(my_simulations[0:3], warming_3[0:3]))
+    dict_40 = dict(zip(my_simulations[2:3], warming_4[2:3]))
+
+    thresh_dict = {'1.5C' : dict_15,
+             '2.0C' : dict_20,
+             '3.0C' : dict_30,
+             '4.0C' : dict_40}
+
+    ### generate weights based off days per month
+    month_length = data.time.dt.days_in_month
+    ### first monthly weights, ie, days in month / days in year
+    mon_wgts = month_length.groupby("time.year") / month_length.groupby("time.year").sum()
+    ### then annual weights, days in year / total days
+
+    ### want to ensure nans do not impact the weighting
+    # code from https://ncar.github.io/esds/posts/2021/yearly-averages-xarray/
+    # Setup our masking for nan values
+    cond = var.isnull()
+    ones = xr.where(cond, 0.0, 1.0)
+    # Calculate the numerator
+    var_sum = (var * mon_wgts).resample(time="AS").sum(dim="time")
+    # Calculate the denominator
+    ones_out = (ones * mon_wgts).resample(time="AS").sum(dim="time")
+    # weighted mean
+    wgt_ann_mean = var_sum / ones_out
+
+    var_hist = var.sel(time=slice(*wgt_ann_mean.reference_range))
+
+    ### now for annual weights, days in year / total days
+    ### need to do this for each time period
+    ### note: each time period differs by the year the  
+    ### warming threshold is reached.
+    year_length = month_length.groupby("time.year").sum() 
+    year_length.name = "days_in_year"
+    year_length = year_length.assign_coords(year=wgt_ann_mean.time.values)
+
+    hist_time_slice = year_length.sel(year=slice(*var.reference_range))
+    hist_ann_wgts = hist_time_slice / hist_time_slice.sum()
+    hist_ann_wgts = hist_ann_wgts.rename({'year' : 'time'})
+
+    # # get the weighted 30-year historical statistics
+    ann_hist_mean = wgt_ann_mean.sel(time=slice(*wgt_ann_mean.reference_range))
+    hist_wgtd = ann_hist_mean.weighted(hist_ann_wgts)
+    hist_mean = hist_wgtd.mean("time")
+    hist_mean.name = 'Historical mean'
+
+    fig = Figure(figsize=(8, 9))
+
+    # dictionary of simulations and years they reach the given threshold
+    warm_dict = thresh_dict[thresh_str]
+
+    # make a dataset of means for given T threshold
+    # and then for the anomalies
+
+    for i,sim in enumerate(warm_dict.keys()):
+
+        my_years = warm_dict[sim]
+        #### compute the weihted means
+
+        var_warm = var.sel(simulation=sim,time=slice(*my_years))
+        warm_time_slice = year_length.sel(year=slice(*my_years))
+        warm_ann_wgts = warm_time_slice / warm_time_slice.sum()
+        warm_ann_wgts = warm_ann_wgts.rename({'year' : 'time'})
+
+        # get the weighted 30-year threshold statistics
+        ann_warm_mean = wgt_ann_mean.sel(simulation=sim,time=slice(*my_years))
+        warm_wgtd = ann_warm_mean.weighted(warm_ann_wgts)
+
+        # and find the anomaly
+        warm_anom = warm_wgtd.mean("time") - hist_mean.sel(simulation=sim)
+
+        ######## PANEL 1 CODE
+        ax = fig.add_subplot(2,3,i+1,projection=ccrs.LambertConformal())
+        cs = warm_anom.plot(
+                ax=ax, shading='auto', cmap="coolwarm", transform = ccrs.LambertConformal(),
+                add_colorbar = False, vmin=-3,vmax=3)
+
+        ax.set_title(sim)
+        ax.coastlines(linewidth=1, color = 'black', zorder = 10) # Coastlines
+        gl = ax.gridlines(linewidth=0.25, color='gray', alpha=0.9, crs=ccrs.PlateCarree(), 
+                                  linestyle = '--',draw_labels=False, x_inline=False)
+
+        gl.bottom_labels = True
+        if (i==0) or (i==3):
+            gl.left_labels = True    
+
+        # need to concatenate across simulations
+        # ... there has to be a better way
+        if (i==0):
+            warm_all_anoms = warm_anom
+
+        elif (i==1):
+            warm_all_anoms = xr.concat([warm_all_anoms,warm_anom],dim='simulation')
+
+        else:
+            warm_all_anoms = xr.concat([warm_all_anoms,warm_anom],dim='simulation')      
+
+
+    # Adjust the location of the subplots on the page to make room for the colorbar
+    fig.subplots_adjust(bottom=0.2, top=0.9, left=0.1, right=0.9,
+                        wspace=0.1, hspace=0.4)
+    # Add a colorbar axis at the bottom of the graph
+    cbar_ax = fig.add_axes([0.2, 0.1, 0.65, 0.02])
+    # Draw the colorbar
+    cbar=fig.colorbar(cs, cax=cbar_ax,orientation='horizontal',
+                     label='$^\circ$C')   
+    fig.suptitle(var_str+ ' Anomalies for '+thresh_str+' Warming',y=.98)
+    mpl_pane = pn.pane.Matplotlib(fig, dpi=144)
+    display(mpl_pane)   
+
+
+    ########## PANEL 2 CODE
+    # now compute min, median, max anomalies
+    min_anom = warm_all_anoms.min(dim='simulation')
+    min_anom.name = "Min"
+    max_anom = warm_all_anoms.max(dim='simulation')
+    max_anom.name = "Max"
+    med_anom = warm_all_anoms.median(dim='simulation')
+    med_anom.name = "Median"
+
+    stat_anoms = xr.merge([min_anom,med_anom,max_anom])
+
+    fig = Figure(figsize=(8, 4))
+
+    for ax_index, stat_str in zip([1,2,3,4],
+        ["Median","Min","Max"]): 
+
+    # Ideally these should all have the same colorbar
+        ax = fig.add_subplot(1,3,ax_index,projection=ccrs.LambertConformal())
+        cs = stat_anoms[stat_str].isel(scenario=0).plot(
+            ax=ax, shading='auto', cmap="coolwarm",add_colorbar = False, vmin=-3,vmax=3
+            )
+
+        ax.set_title(stat_str)
+        ax.coastlines(linewidth=1, color = 'black', zorder = 10) # Coastlines
+        gl = ax.gridlines(linewidth=0.25, color='gray', alpha=0.9, crs=ccrs.PlateCarree(), 
+                                  linestyle = '--',draw_labels=False, x_inline=False)
+
+        gl.bottom_labels = gl.left_labels = True   
+
+
+    # Adjust the location of the subplots on the page to make room for the colorbar
+    fig.subplots_adjust(bottom=0.1, top=.95, left=0.1, right=0.88,
+                        wspace=0.35, hspace=.4)
+    # Add a colorbar axis at the bottom of the graph
+    cbar_ax = fig.add_axes([0.9, 0.28, 0.04, 0.5])
+    # Draw the colorbar
+    cbar=fig.colorbar(cs, cax=cbar_ax,orientation='vertical',
+                     label='$^\circ$C')   
+    fig.suptitle(var_str+ ' Anomalies for '+thresh_str+' Warming Across Models',y=1)
+    mpl_pane = pn.pane.Matplotlib(fig, dpi=144)
+    display(mpl_pane)    
