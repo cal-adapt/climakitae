@@ -95,7 +95,7 @@ class Boundaries:
         Returns a lookup dictionary for CA watersheds that references the geoparquet file.
         """
         return pd.Series(
-            self._ca_watersheds["OBJECTID"].values, index=self._ca_watersheds["Name"]
+            self._ca_watersheds.index, index=self._ca_watersheds["Name"]
         ).to_dict()
 
     def boundary_dict(self):
@@ -251,6 +251,14 @@ class LocSelectorArea(param.Parameterized):
             color="k",
         )
         mpl_pane = pn.pane.Matplotlib(fig0, dpi=144)
+
+        def plot_subarea(boundary_dataset, extent, shape_index):
+            ax.set_extent(extent, crs=xy)
+            subarea = boundary_dataset[boundary_dataset.index == shape_index]
+            df_ae = county.to_crs(crs_proj4)
+            df_ae.plot(ax=ax, color="b", zorder=2)
+            mpl_pane.param.trigger("object")
+
         if self.area_subset == "lat/lon":
             ax.set_extent([-150, -88, 8, 66], crs=xy)
             ax.add_geometries(
@@ -261,26 +269,11 @@ class LocSelectorArea(param.Parameterized):
                 self._geography_choose[self.area_subset][self.cached_area]
             )
             if self.area_subset == "states":
-                ax.set_extent([-130, -100, 25, 50], crs=xy)
-                parquetfile = self._geographies._us_states
-                state = parquetfile[parquetfile.index == shape_index]
-                df_ae = state.to_crs(crs_proj4)
-                df_ae.plot(ax=ax, color="b", zorder=2)
-                mpl_pane.param.trigger("object")
+                plot_subarea(self._geographies._us_states, [-130, -100, 25, 50], shape_index)
             elif self.area_subset == "CA counties":
-                ax.set_extent([-125, -114, 31, 43], crs=xy)
-                parquetfile = self._geographies._ca_counties
-                county = parquetfile[parquetfile.index == shape_index]
-                df_ae = county.to_crs(crs_proj4)
-                df_ae.plot(ax=ax, color="b", zorder=2)
-                mpl_pane.param.trigger("object")
+                plot_subarea(self._geographies._ca_counties, [-125, -114, 31, 43], shape_index)
             elif self.area_subset == "CA watersheds":
-                ax.set_extent([-125, -114, 31, 43], crs=xy)
-                parquetfile = self._geographies._ca_watersheds
-                basin = parquetfile[parquetfile["OBJECTID"] == shape_index]
-                df_ae = basin.to_crs(crs_proj4)
-                df_ae.plot(ax=ax, color="b", zorder=2)
-                mpl_pane.param.trigger("object")
+                plot_subarea(self._geographies._ca_watersheds, [-125, -114, 31, 43], shape_index)
 
         return mpl_pane
 
