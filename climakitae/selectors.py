@@ -256,36 +256,31 @@ class LocSelectorArea(param.Parameterized):
             ax.add_geometries(
                 [geometry], crs=ccrs.PlateCarree(), edgecolor="b", facecolor="None"
             )
-        elif self.area_subset == "states":
-            ax.set_extent([-130, -100, 25, 50], crs=xy)
+        elif location.area_subset != "none":
             shape_index = int(
                 self._geography_choose[self.area_subset][self.cached_area]
             )
-            df_ae = self._geographies._us_states.iloc[[shape_index]].to_crs(crs_proj4)
-            df_ae.plot(
-                ax=ax, line_kws=dict(color="b")
-            )
-            mpl_pane.param.trigger("object")
-        elif self.area_subset == "CA counties":
-            ax.set_extent([-125, -114, 31, 43], crs=xy)
-            parquetfile = self._geographies._ca_counties
-            shape_index = int(
-                self._geography_choose[self.area_subset][self.cached_area]
-            )
-            county = parquetfile[parquetfile.index == shape_index]
-            df_ae = county.to_crs(crs_proj4)
-            df_ae.plot(ax=ax, color="b", zorder=2)
-            mpl_pane.param.trigger("object")
-        elif self.area_subset == "CA watersheds":
-            ax.set_extent([-125, -114, 31, 43], crs=xy)
-            parquetfile = self._geographies._ca_watersheds
-            shape_index = int(
-                self._geography_choose[self.area_subset][self.cached_area]
-            )
-            basin = parquetfile[parquetfile["OBJECTID"] == shape_index]
-            df_ae = basin.to_crs(crs_proj4)
-            df_ae.plot(ax=ax, color="b", zorder=2)
-            mpl_pane.param.trigger("object")
+            if self.area_subset == "states":
+                ax.set_extent([-130, -100, 25, 50], crs=xy)
+                parquetfile = self._geographies._us_states
+                state = parquetfile[parquetfile.index == shape_index]
+                df_ae = state.to_crs(crs_proj4)
+                df_ae.plot(ax=ax, color="b", zorder=2)
+                mpl_pane.param.trigger("object")
+            elif self.area_subset == "CA counties":
+                ax.set_extent([-125, -114, 31, 43], crs=xy)
+                parquetfile = self._geographies._ca_counties
+                county = parquetfile[parquetfile.index == shape_index]
+                df_ae = county.to_crs(crs_proj4)
+                df_ae.plot(ax=ax, color="b", zorder=2)
+                mpl_pane.param.trigger("object")
+            elif self.area_subset == "CA watersheds":
+                ax.set_extent([-125, -114, 31, 43], crs=xy)
+                parquetfile = self._geographies._ca_watersheds
+                basin = parquetfile[parquetfile["OBJECTID"] == shape_index]
+                df_ae = basin.to_crs(crs_proj4)
+                df_ae.plot(ax=ax, color="b", zorder=2)
+                mpl_pane.param.trigger("object")
 
         return mpl_pane
 
