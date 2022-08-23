@@ -151,10 +151,11 @@ def postage_stamps(ds, var):
                         wspace=0.1, hspace=0.1)
 
     # Add a colorbar axis at the right of the graph
-    cbar_ax = fig.add_axes([.92, 0.33, 0.03, 0.25])
+    cbar_ax = fig.add_axes([.9, 0.33, 0.03, 0.25])
 
     # Draw the colorbar
-    cbar=fig.colorbar(cs, cax=cbar_ax,orientation='vertical')
+    cbar=fig.colorbar(cs, cax=cbar_ax,orientation='vertical',
+                     label='deg C')
 
     # fig.tight_layout() # not compatible with shared cbar
 
