@@ -5,11 +5,11 @@ import xarray as xr
 import holoviews as hv
 from holoviews import opts
 from matplotlib.figure import Figure
-import numpy as np 
+import numpy as np
 import pandas as pd
 import param
 import panel as pn
-import intake 
+import intake
 import warnings
 from .data_loaders import _read_from_catalog
 from .selectors import DataSelector, LocSelectorArea
@@ -17,7 +17,7 @@ import intake
 
 import pkg_resources
 
-# Import package data 
+# Import package data
 ssp119 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP1_1_9.csv')
 ssp126 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP1_2_6.csv')
 ssp245 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP2_4_5.csv')
@@ -30,77 +30,99 @@ all_monthly_T2_data = pkg_resources.resource_filename('climakitae', 'data/T2_mon
 
 
 class WarmingLevels(param.Parameterized):
-    
+
     ## ---------- Params used for GMT context plot ----------
-    
-    warmlevel = param.ObjectSelector(default=1.5, 
+
+    warmlevel = param.ObjectSelector(default=1.5,
         objects=[1.5, 2, 3, 4]
     )
     ssp = param.ObjectSelector(default="SSP 3-7.0 -- Business as Usual",
         objects=["SSP 2-4.5 -- Middle of the Road","SSP 3-7.0 -- Business as Usual","SSP 5-8.5 -- Burn it All"]
-    ) 
-    
+    )
+
     ## ---------- Reset certain DataSelector and LocSelectorArea options ----------
     def __init__(self, *args, **params):
         super().__init__(*args, **params)
-        
+
         self.selections.append_historical = True
         self.selections.area_average = False
         self.selections.resolution = "9 km"
         self.selections.scenario = ["SSP 3-7.0 -- Business as Usual"]
         self.selections.time_slice = (1980,2100)
-        self.selections.timescale = "monthly" 
+        self.selections.timescale = "monthly"
         self.selections.variable = "Air Temperature at 2m"
 
         self.location.area_subset = 'states'
         self.location.cached_area = 'CA'
-    
+
     ## ---------- Modify options in selectors.py DataSelectors object ----------
-    
-    variable2 = param.ObjectSelector(default="Air Temperature at 2m", 
+
+    variable2 = param.ObjectSelector(default="Air Temperature at 2m",
         objects=["Air Temperature at 2m","Precipitation (total)"]
-        )    
-    location_subset2 = param.ObjectSelector(default="California", 
+        )
+    location_subset2 = param.ObjectSelector(default="California",
         objects=["California","Entire domain"]
         )
-        
+
     @param.depends("variable2", watch=True)
-    def _update_variable(self): 
+    def _update_variable(self):
         self.selections.variable = self.variable2
-    
+
     @param.depends("location_subset2", watch=True)
-    def _update_location(self): 
+    def _update_location(self):
         if self.location_subset2 == "California":
             self.location.area_subset = "states"
-            self.location.cached_area = "CA" 
-        elif self.location_subset2 == "Entire domain": 
+            self.location.cached_area = "CA"
+        elif self.location_subset2 == "Entire domain":
             self.location.area_subset = "none"
-        else: 
+        else:
             raise ValueError("You've encountered a bug in the code. See the ModifiedSelections class in explore.py")
-            
+
 
     reload_data = param.Action(lambda x: x.param.trigger('reload_data'), label='Reload Data')
     @param.depends("reload_data", watch=False)
     def _TMY_hourly_heatmap(self):
-        def _get_heatmap_data():    
+        def _get_heatmap_data():
             """Get data from AWS catalog"""
             heatmap_selections = self.selections
             heatmap_selections.append_historical = False
             heatmap_selections.area_average = True
             heatmap_selections.resolution = "45 km"
             heatmap_selections.scenario = ["Historical Climate"]
-            heatmap_selections.time_slice = (1980,2000)
-            heatmap_selections.timescale = "hourly" 
+            heatmap_selections.time_slice = (1981,2010) # to match historical 30-year average
+            heatmap_selections.timescale = "hourly"
             xr_da = _read_from_catalog(
-                selections=heatmap_selections, 
-                location=self.location, 
+                selections=heatmap_selections,
+                location=self.location,
                 cat=self.catalog
             )
             return xr_da
-        
-        def remove_repeats(xr_data): 
+
+
+        def deaccumulate_precip(xr_data):
             """
-            Remove hours that have repeats. 
+            Deaccumulates the precipitation (total) by taking the difference between subsequent timesteps.
+            Returns xr.DataArray.
+            """
+            da_deacc = np.ediff1d(xr_data, to_begin=0.0)
+            da_deacc = np.where(da_deacc<0, 0.0, da_deacc)
+
+            da = xr.DataArray(
+                data = da_deacc,
+                dims = ["time"],
+                coords=dict(
+                    time=xr_data["time"],
+
+                ),
+                attrs=dict(
+                    description="De-accumulated precipitation (total)",
+                ),
+            )
+            return da
+
+        def remove_repeats(xr_data):
+            """
+            Remove hours that have repeats.
             This occurs if two hours have the same absolute difference from the mean.
             Returns numpy array
             """
@@ -111,21 +133,26 @@ class WarmingLevels(param.Parameterized):
             idx_idx, = np.nonzero(idx_mask)
             srt_idx = np.argsort(unq_idx[idx_mask])
             dup_idx = np.split(idx_idx[srt_idx], np.cumsum(unq_cnt[cnt_mask])[:-1])
-            if len(dup_idx[0]) > 0: 
+            if len(dup_idx[0]) > 0:
                 dup_idx_keep_first_val = np.concatenate([dup_idx[x][1:] for x in range(len(dup_idx))], axis=0)
                 cleaned_np = np.delete(xr_data.values, dup_idx_keep_first_val)
                 return cleaned_np
-            else: 
+            else:
                 return xr_data.values
-        
-        # Grab data from AWS 
+
+        # Grab data from AWS
         data = _get_heatmap_data()
         data = data.mean(dim="simulation").isel(scenario=0).compute()
-        
+        if heatmap_selections.selections.variable == ('Precipitation (total)'):   # need to include snowfall eventually
+            data = deaccumulate_precip(data)
+        else:
+            data = data
+
         # Compute hourly TMY for each day of the year
         days_in_year = 366
         tmy_hourly = []
-        for x in np.arange(1,days_in_year+1,1): 
+
+        for x in np.arange(1,days_in_year+1,1):
             data_on_day_x = data.where(data.time.dt.dayofyear == x, drop=True)
             data_grouped = data_on_day_x.groupby("time.hour")
             mean_by_hour = data_grouped.mean()
@@ -134,20 +161,20 @@ class WarmingLevels(param.Parameterized):
             np_typical_hourly_data_on_day_x = remove_repeats(typical_hourly_data_on_day_x)
             tmy_hourly.append(np_typical_hourly_data_on_day_x)
 
-        # Funnel data into pandas DataFrame object 
+        # Funnel data into pandas DataFrame object
         df = pd.DataFrame(tmy_hourly, columns = np.arange(1,25,1), index=np.arange(1,days_in_year+1,1))
-        df = df.iloc[::-1] # Reverse index 
-        
-        # Create heatmap 
+        df = df.iloc[::-1] # Reverse index
+
+        # Create heatmap
         heatmap = df.hvplot.heatmap(
-            x='columns', 
-            y='index', 
-            title='Typical Meteorological Year Heatmap', 
-            cmap="coolwarm", 
-            xaxis='bottom', 
+            x='columns',
+            y='index',
+            title='Typical Meteorological Year Heatmap',
+            cmap="coolwarm",
+            xaxis='bottom',
             xlabel="Hour of Day (UTC)",
             ylabel="Day of Year",clabel=data.name + " ("+data.units+")",
-            width=800, height=350).opts( 
+            width=800, height=350).opts(
             fontsize={'title': 15, 'xlabel':12, 'ylabel':12}
         )
         return heatmap
@@ -350,9 +377,9 @@ class WarmingLevels(param.Parameterized):
     
     
     @param.depends("warmlevel","ssp", watch=False)
-    def _GMT_context_plot(self): 
+    def _GMT_context_plot(self):
         """ Display static GMT plot using package data. """
-        ## Plot dimensions 
+        ## Plot dimensions
         width=575
         height=300
 
@@ -378,7 +405,6 @@ class WarmingLevels(param.Parameterized):
         ipcc_data = (hist_data.hvplot(y="Mean", color="k", label="Historical", width=width, height=height) *
                 hist_data.hvplot.area(x="Year", y="5%", y2="95%", alpha=0.1, color="k", ylabel="°C", xlabel="", ylim=[-1,5], xlim=[1950,2100]) * # very likely range
                  ssp119_data.hvplot(y="Mean", color=c119, label="SSP1-1.9") *
-                 # ssp126_data.hvplot.area(x="Year", y="5%", y2="95%", alpha=0.1, color=c126) * # very likely range
                  ssp126_data.hvplot(y="Mean", color=c126, label="SSP1-2.6") *
                  ssp245_data.hvplot(y="Mean", color=c245, label="SSP2-4.5") *
                  ssp370_data.hvplot(y="Mean", color=c370, label="SSP3-7.0") *
@@ -394,16 +420,16 @@ class WarmingLevels(param.Parameterized):
 
         ssp_dict = {
             "SSP 2-4.5 -- Middle of the Road":(ssp245_data,c245),
-            "SSP 3-7.0 -- Business as Usual":(ssp370_data,c370), 
+            "SSP 3-7.0 -- Business as Usual":(ssp370_data,c370),
             "SSP 5-8.5 -- Burn it All":(ssp585_data,c585)
         }
-        
-        ssp_selected = ssp_dict[self.ssp][0] # data selected 
-        ssp_color = ssp_dict[self.ssp][1] # color corresponding to ssp selected 
-        
-        # Shading around selected SSP 
+
+        ssp_selected = ssp_dict[self.ssp][0] # data selected
+        ssp_color = ssp_dict[self.ssp][1] # color corresponding to ssp selected
+
+        # Shading around selected SSP
         ssp_shading = ssp_selected.hvplot.area(x="Year", y="5%", y2="95%", alpha=0.1, color=ssp_color) # very likely range
-        
+
         # If the mean/upperbound/lowerbound does not cross threshold, set to 2100 (not visible)
         if (np.argmax(ssp_selected["Mean"] > self.warmlevel)) > 0:
                 ssp_int = hv.VLine(cmip_t[0] + np.argmax(ssp_selected["Mean"] > self.warmlevel)).opts(color=ssp_color, line_dash="dashed", line_width=1)
@@ -437,13 +463,13 @@ class WarmingLevels(param.Parameterized):
         to_plot.opts(legend_position='bottom', fontsize=10)
 
         return to_plot
-    
+
 
 def _display_warming_levels(selections, location, _cat):
 
-    # Warming levels object 
+    # Warming levels object
     warming_levels = WarmingLevels(selections=selections, location=location, catalog=_cat)
-    
+
     # Create panel doodad!
     user_options = pn.Card(
             pn.Row(
@@ -452,27 +478,27 @@ def _display_warming_levels(selections, location, _cat):
                     pn.widgets.RadioButtonGroup.from_param(warming_levels.param.warmlevel, name=""),
                     pn.widgets.Select.from_param(warming_levels.param.variable2, name="Data variable"),
                     pn.widgets.StaticText.from_param(selections.param.variable_description),
-                    width = 230), 
+                    width = 230),
                 pn.Column(
                     pn.widgets.Select.from_param(warming_levels.param.location_subset2, name="Location"),
                     location.view,
                     width = 230)
                 )
         , title="Data Options", collapsible=False, width=460, height=420
-    )         
-    
+    )
+
     GMT_plot = pn.Card(
             pn.widgets.Select.from_param(warming_levels.param.ssp, name="Scenario", width=250),
             warming_levels._GMT_context_plot,
-            title="When is the warming level reached?", 
+            title="When is the warming level reached?",
             collapsible=False, width=600, height=420
-        ) 
-    
+        )
+
     TMY = pn.Column(
         pn.widgets.Button.from_param(warming_levels.param.reload_data, button_type="primary", width=150, height=30),
         warming_levels._TMY_hourly_heatmap
     )
-    
+
     map_tabs = pn.Card(
         pn.Tabs(
             ("Maps of individual simulations", warming_levels._GCM_PostageStamps_MAIN),
@@ -482,10 +508,11 @@ def _display_warming_levels(selections, location, _cat):
     title="Regional response at selected warming level", 
     width = 800, height=700, collapsible=False,
     )
-        
+
     panel_doodad = pn.Column(
-        pn.Row(user_options, GMT_plot), 
+        pn.Row(user_options, GMT_plot),
         map_tabs
     )
-    
+
     return panel_doodad
+    
