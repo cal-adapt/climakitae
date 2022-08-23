@@ -25,6 +25,7 @@ ssp370 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP3_7_0
 ssp585 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP5_8_5.csv')
 hist = pkg_resources.resource_filename('climakitae', 'data/tas_global_Historical.csv')
 dummy_data = pkg_resources.resource_filename('climakitae', 'data/dummy_dataset_1980_2100_SSP3.7.0_historical_appended.nc')
+all_monthly_T2_data = pkg_resources.resource_filename('climakitae', 'data/T2_monthly_1981_2100_all_CA_45km.nc')
 
 
 
@@ -149,37 +150,34 @@ class WarmingLevels(param.Parameterized):
 
     @param.depends("variable2", watch=False)
     def _GCM_PostageStamps(self): 
-        # def _get_data(): 
-        #     pkg_data = xr.open_dataset(dummy_data)
-        #     return pkg_data[self.variable2]
             
-        # data = _get_data()
-        
-        # fig = Figure(figsize=(7, 5), tight_layout=True)
+        def _get_postage_data():    
 
-        # # Placeholder indices 
-        # for ax_index, time_index in zip(np.arange(1,6),np.arange(1,6)):
-        #     # Ideally these should all have the same colorbar
-        #     ax = fig.add_subplot(2,4,ax_index,projection=ccrs.LambertConformal())
-        #     xr_pl = data.isel(time=time_index,simulation=0,scenario=0).plot(
-        #         ax=ax, shading='auto', cmap="coolwarm",add_colorbar=False
-        #         )
-        #     ax.set_title("plot {0}".format(ax_index))
-        #     ax.coastlines(linewidth=1, color = 'black', zorder = 10) # Coastlines
-        #     ax.gridlines(linewidth=0.25, color='gray', alpha=0.9, crs=ccrs.PlateCarree(), linestyle = '--',draw_labels=False)
+            pkg_data = xr.open_dataset(all_monthly_T2_data)
+            da = pkg_data[self.variable2]
 
-        # fig.suptitle("Variable: "+data.name+"; Units: "+data.attrs["units"], fontsize=16)
-        # mpl_pane = pn.pane.Matplotlib(fig, dpi=144)
+            user_scenario = 'Historical + ' + self.selections.scenario[0]
+            # postage_data = da.sel(scenario = user_scenario)
+            postage_data = da.where(da.scenario == user_scenario, drop=True)
 
-        #----------
-        var = data[var_str]
+            return postage_data
+
+        data = _get_postage_data()
+        var = data
+
+        var_str = self.variable2
         var.attrs['reference_range'] = '1981','2010'# hist threshold
 
         # year ranges for each warming threshold for each model
-        warming_15 = [(str(y-15),str(y+14)) for y in [2044,2050,2045,2053,2053]]
-        warming_2 = [(str(y-15),str(y+14)) for y in [2055,2061,2056,2072,2069]]
-        warming_3 = [(str(y-15),str(y+14)) for y in [2078,2077,2073,np.nan,np.nan]]
-        warming_4 = [(str(y-15),str(y+14)) for y in [np.nan,np.nan,2091,np.nan,np.nan]]
+        warming_years = {
+            1.5 : [2044,2050,2045,2053,2053],
+            2 : [2055,2061,2056,2072,2069],
+            3 : [2078,2077,2073,np.nan,np.nan],
+            4 : [np.nan,np.nan,2091,np.nan,np.nan]
+        }
+
+        # Build the 30-year windows for each model for the selected warming level
+        warming_year_range = [(str(y-15),str(y+14)) for y in warming_years[self.warmlevel]]
 
         ### generate weights based off days per month
         month_length = data.time.dt.days_in_month
@@ -247,13 +245,13 @@ class WarmingLevels(param.Parameterized):
             #### compute the anomalies
             # need the same stats as above
             # but for the given warming scenario
-            var_warm = var.sel(time=slice(*warming_2[i]))
-            warm_time_slice = year_length.sel(year=slice(*warming_2[i]))
+            var_warm = var.sel(time=slice(*warming_year_range[i]))
+            warm_time_slice = year_length.sel(year=slice(*warming_year_range[i]))
             warm_ann_wgts = warm_time_slice / warm_time_slice.sum()
             warm_ann_wgts = warm_ann_wgts.rename({'year' : 'time'})
 
             # get the weighted 30-year threshold statistics
-            ann_warm_mean = wgt_ann_mean.sel(time=slice(*warming_2[i]))
+            ann_warm_mean = wgt_ann_mean.sel(time=slice(*warming_year_range[i]))
             warm_wgtd = ann_warm_mean.weighted(warm_ann_wgts)
             warm_mean = warm_wgtd.mean("time")
             warm_mean.name = 'Mean'
