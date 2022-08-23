@@ -98,20 +98,24 @@ class WarmingLevels(param.Parameterized):
             return xr_da
         
         def remove_repeats(xr_data): 
-            """
-            Remove hours that have repeats. 
-            This occurs if two hours have the same absolute difference from the mean.
-            Returns numpy array
-            """
-            unq, unq_idx, unq_cnt = np.unique(xr_data.time.dt.hour.values, return_inverse=True, return_counts=True)
-            cnt_mask = unq_cnt > 1
-            cnt_idx, = np.nonzero(cnt_mask)
-            idx_mask = np.in1d(unq_idx, cnt_idx)
-            idx_idx, = np.nonzero(idx_mask)
-            srt_idx = np.argsort(unq_idx[idx_mask])
-            dup_idx = np.split(idx_idx[srt_idx], np.cumsum(unq_cnt[cnt_mask])[:-1])
-            cleaned_np = np.delete(xr_data.values, dup_idx[0])
+        """
+        Remove hours that have repeats. 
+        This occurs if two hours have the same absolute difference from the mean.
+        Returns numpy array
+        """
+        unq, unq_idx, unq_cnt = np.unique(xr_data.time.dt.hour.values, return_inverse=True, return_counts=True)
+        cnt_mask = unq_cnt > 1
+        cnt_idx, = np.nonzero(cnt_mask)
+        idx_mask = np.in1d(unq_idx, cnt_idx)
+        idx_idx, = np.nonzero(idx_mask)
+        srt_idx = np.argsort(unq_idx[idx_mask])
+        dup_idx = np.split(idx_idx[srt_idx], np.cumsum(unq_cnt[cnt_mask])[:-1])
+        if len(dup_idx[0]) > 0: 
+            dup_idx_keep_first_val = np.concatenate([dup_idx[x][1:] for x in range(len(dup_idx))], axis=0)
+            cleaned_np = np.delete(xr_data.values, dup_idx_keep_first_val)
             return cleaned_np
+        else: 
+            return xr_data.values
         
         # Grab data from AWS 
         data = _get_heatmap_data()
