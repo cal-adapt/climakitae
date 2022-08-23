@@ -141,7 +141,7 @@ class WarmingLevels(param.Parameterized):
         # Grab data from AWS
         data = _get_heatmap_data()
         data = data.mean(dim="simulation").isel(scenario=0).compute()
-        if data.selections.variable == ('Precipitation (total)'):   # need to include snowfall eventually
+        if heatmap_selections.selections.variable == ('Precipitation (total)'):   # need to include snowfall eventually
             data = deaccumulate_precip(data)
         else:
             data = data
