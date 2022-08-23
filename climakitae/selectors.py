@@ -256,7 +256,7 @@ class LocSelectorArea(param.Parameterized):
             ax.add_geometries(
                 [geometry], crs=ccrs.PlateCarree(), edgecolor="b", facecolor="None"
             )
-        elif location.area_subset != "none":
+        elif self.area_subset != "none":
             shape_index = int(
                 self._geography_choose[self.area_subset][self.cached_area]
             )
