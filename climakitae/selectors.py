@@ -267,21 +267,21 @@ class LocSelectorArea(param.Parameterized):
             mpl_pane.param.trigger("object")
         elif self.area_subset == "CA counties":
             ax.set_extent([-125, -114, 31, 43], crs=xy)
-            shapefile = self._geographies._ca_counties
+            parquetfile = self._geographies._ca_counties
             shape_index = int(
                 self._geography_choose[self.area_subset][self.cached_area]
             )
-            county = shapefile[shapefile.index == shape_index]
+            county = parquetfile[parquetfile.index == shape_index]
             df_ae = county.to_crs(crs_proj4)
             df_ae.plot(ax=ax, color="b", zorder=2)
             mpl_pane.param.trigger("object")
         elif self.area_subset == "CA watersheds":
             ax.set_extent([-125, -114, 31, 43], crs=xy)
-            shapefile = self._geographies._ca_watersheds
+            parquetfile = self._geographies._ca_watersheds
             shape_index = int(
                 self._geography_choose[self.area_subset][self.cached_area]
             )
-            basin = shapefile[shapefile["OBJECTID"] == shape_index]
+            basin = parquetfile[parquetfile["OBJECTID"] == shape_index]
             df_ae = basin.to_crs(crs_proj4)
             df_ae.plot(ax=ax, color="b", zorder=2)
             mpl_pane.param.trigger("object")
