@@ -252,7 +252,7 @@ class LocSelectorArea(param.Parameterized):
         )
         mpl_pane = pn.pane.Matplotlib(fig0, dpi=144)
 
-        def plot_subarea(boundary_dataset, extent, shape_index):
+        def plot_subarea(boundary_dataset, extent):
             ax.set_extent(extent, crs=xy)
             subarea = boundary_dataset[boundary_dataset.index == shape_index]
             df_ae = subarea.to_crs(crs_proj4)
@@ -269,11 +269,11 @@ class LocSelectorArea(param.Parameterized):
                 self._geography_choose[self.area_subset][self.cached_area]
             )
             if self.area_subset == "states":
-                plot_subarea(self._geographies._us_states, [-130, -100, 25, 50], shape_index)
+                plot_subarea(self._geographies._us_states, [-130, -100, 25, 50])
             elif self.area_subset == "CA counties":
-                plot_subarea(self._geographies._ca_counties, [-125, -114, 31, 43], shape_index)
+                plot_subarea(self._geographies._ca_counties, [-125, -114, 31, 43])
             elif self.area_subset == "CA watersheds":
-                plot_subarea(self._geographies._ca_watersheds, [-125, -114, 31, 43], shape_index)
+                plot_subarea(self._geographies._ca_watersheds, [-125, -114, 31, 43])
 
         return mpl_pane
 
