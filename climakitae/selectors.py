@@ -255,7 +255,7 @@ class LocSelectorArea(param.Parameterized):
         def plot_subarea(boundary_dataset, extent, shape_index):
             ax.set_extent(extent, crs=xy)
             subarea = boundary_dataset[boundary_dataset.index == shape_index]
-            df_ae = county.to_crs(crs_proj4)
+            df_ae = subarea.to_crs(crs_proj4)
             df_ae.plot(ax=ax, color="b", zorder=2)
             mpl_pane.param.trigger("object")
 
