@@ -140,6 +140,9 @@ def _read_from_catalog(selections, location, cat):
 
     assert not selections.scenario == [], "Please select as least one scenario."
 
+    def set_subarea(boundary_dataset):
+        return boundary_dataset[boundary_dataset.index == shape_index].iloc[0].geometry
+
     if location.area_subset == "lat/lon":
         geom = _get_as_shapely(location)
         if not geom.is_valid:
@@ -154,12 +157,12 @@ def _read_from_catalog(selections, location, cat):
         shape_index = int(
             location._geography_choose[location.area_subset][location.cached_area]
         )
-        if location.area_subset == "CA watersheds":
-            shape = location._geographies._ca_watersheds
-            shape = shape[shape["OBJECTID"] == shape_index].iloc[0].geometry
+        if location.area_subset == "states":
+            shape = set_subarea(location._geographies._us_states)
         elif location.area_subset == "CA counties":
-            shape = location._geographies._ca_counties
-            shape = shape[shape.index == shape_index].iloc[0].geometry
+            shape = set_subarea(location._geographies._ca_counties)
+        elif location.area_subset == "CA watersheds":
+            shape = set_subarea(location._geographies._ca_watersheds)
         ds_region = regionmask.Regions(
             [shape], abbrevs=["geographic area"], name="area mask"
         )
