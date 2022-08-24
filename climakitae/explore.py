@@ -96,6 +96,10 @@ class WarmingLevels(param.Parameterized):
                 location=self.location,
                 cat=self.catalog
             )
+
+            if self.selections.variable == ('Precipitation (total)'):   # need to include snowfall eventually
+                xr_da = deaccumulate_precip(xr_da)
+
             return xr_da
 
 
@@ -143,10 +147,6 @@ class WarmingLevels(param.Parameterized):
         # Grab data from AWS
         data = _get_heatmap_data()
         data = data.mean(dim="simulation").isel(scenario=0).compute()
-        if heatmap_selections.selections.variable == ('Precipitation (total)'):   # need to include snowfall eventually
-            data = deaccumulate_precip(data)
-        else:
-            data = data
 
         # Compute hourly TMY for each day of the year
         days_in_year = 366
