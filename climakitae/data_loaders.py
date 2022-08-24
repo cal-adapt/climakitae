@@ -3,7 +3,7 @@ import cartopy.crs as ccrs
 import pyproj
 from shapely.geometry import box
 from shapely.ops import transform
-import regionmask
+import rioxarray
 import intake
 import numpy as np
 from copy import deepcopy
@@ -83,18 +83,7 @@ def _open_and_concat(file_list, selections, cat, ds_region):
         data_crs = ccrs.CRS(pyproj.CRS.from_cf(data['Lambert_Conformal'].attrs))
 
         if ds_region:
-            output = data_crs.transform_points(ccrs.PlateCarree(),
-                                                   x=ds_region.coords[0][:,0],
-                                                   y=ds_region.coords[0][:,1])
-
-            data = data.sel(x=slice(np.nanmin(output[:,0]), np.nanmax(output[:,0])),
-                y=slice(np.nanmin(output[:,1]), np.nanmax(output[:,1])))
-
-            mask = ds_region.mask(data.lon, data.lat, wrap_lon=False)
-            assert (
-                False in mask.isnull()
-            ), "Insufficient gridcells are contained within the bounds."
-            data = data.where(np.isnan(mask) == False)
+            data = data.rio.clip(geometries=ds_region, crs=4326, drop=True, from_disk=True)
 
         if selections.area_average:
             weights = np.cos(np.deg2rad(data.lat))
@@ -147,7 +136,7 @@ def _read_from_catalog(selections, location, cat):
         geom = _get_as_shapely(location)
         if not geom.is_valid:
             raise ValueError("Please go back to 'select' and choose a valid lat/lon range.")
-        ds_region = regionmask.Regions([geom], abbrevs=["lat/lon box"], name="box mask")
+        ds_region = geom
     elif location.area_subset != "none":
         shape_index = int(
             location._geography_choose[location.area_subset][location.cached_area]
@@ -158,9 +147,7 @@ def _read_from_catalog(selections, location, cat):
             shape = set_subarea(location._geographies._ca_counties)
         elif location.area_subset == "CA watersheds":
             shape = set_subarea(location._geographies._ca_watersheds)
-        ds_region = regionmask.Regions(
-            [shape], abbrevs=["geographic area"], name="area mask"
-        )
+        ds_region = shape
     else:
         ds_region = None
 
