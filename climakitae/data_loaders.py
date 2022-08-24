@@ -134,7 +134,7 @@ def _read_from_catalog(selections, location, cat):
         geom = _get_as_shapely(location)
         if not geom.is_valid:
             raise ValueError("Please go back to 'select' and choose a valid lat/lon range.")
-        ds_region = geom
+        ds_region = [geom]
     elif location.area_subset != "none":
         shape_index = int(
             location._geography_choose[location.area_subset][location.cached_area]
@@ -145,7 +145,7 @@ def _read_from_catalog(selections, location, cat):
             shape = set_subarea(location._geographies._ca_counties)
         elif location.area_subset == "CA watersheds":
             shape = set_subarea(location._geographies._ca_watersheds)
-        ds_region = shape
+        ds_region = [shape]
     else:
         ds_region = None
 
