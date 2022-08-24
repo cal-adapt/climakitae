@@ -81,7 +81,7 @@ def _open_and_concat(file_list, selections, cat, ds_region):
         )
         # subset data spatially:
         if ds_region:
-            data = data.rio.clip(geometries=ds_region, crs=4326, drop=True, from_disk=True)
+            data = data.rio.clip(geometries=ds_region, crs=4326, drop=True)
 
         if selections.area_average:
             weights = np.cos(np.deg2rad(data.lat))
