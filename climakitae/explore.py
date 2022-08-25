@@ -207,7 +207,7 @@ class WarmingLevels(param.Parameterized):
         heatmap = df.hvplot.heatmap(
             x='columns',
             y='index',
-            title='Typical Meteorological Year\nDifference between a {}°C-warming level future and the historical baseline'.format(self.warmlevel),
+            title='Typical Meteorological Year\nDifference between a {}°C future and historical baseline'.format(self.warmlevel),
             cmap="YlOrRd",
             xaxis='bottom',
             xlabel="Hour of Day (UTC)",
