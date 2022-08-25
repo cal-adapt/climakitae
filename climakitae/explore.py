@@ -99,8 +99,8 @@ class WarmingLevels(param.Parameterized):
     reload_data = param.Action(lambda x: x.param.trigger('reload_data'), label='Reload Data')
     @param.depends("reload_data", watch=False)
     def _TMY_hourly_heatmap(self):
-        def _get_heatmap_data():
-            """Get data from AWS catalog"""
+        def _get_hist_heatmap_data():
+            """Get historical data from AWS catalog"""
             heatmap_selections = self.selections
             heatmap_selections.append_historical = False
             heatmap_selections.area_average = True
@@ -114,11 +114,35 @@ class WarmingLevels(param.Parameterized):
                 cat=self.catalog
             )
 
-            if self.selections.variable == 'Precipitation (total)':   # need to include snowfall eventually
-                xr_da = deaccumulate_precip(xr_da)
+            # if self.variable2 == ('Precipitation (total)'):   # need to include snowfall eventually
+            #     xr_da = deaccumulate_precip(xr_da)
 
             return xr_da
 
+
+        # hard-coding in for now
+        warming_year_average_range = {
+            1.5 : (2034,2063),
+            2 : (2047,2076),
+            3 : (2061,2090),
+            4 : (2076, 2100)
+        }
+        def _get_future_heatmap_data():
+            """Gets data from AWS catalog based upon desired warming level"""
+            heatmap_selections = self.selections
+            heatmap_selections.append_historical = False
+            heatmap_selections.area_average = True
+            heatmap_selections.resolution = "45 km"
+            heatmap_selections.scenario = ["SSP 3-7.0 -- Business as Usual"]
+            heatmap_selections.time_slice = warming_year_average_range[self.warmlevel]
+            heatmap_selections.timescale = "hourly"
+            xr_da2 = _read_from_catalog(
+                selections=heatmap_selections,
+                location=self.location,
+                cat=self.catalog
+            )
+
+            return xr_da2
 
         def deaccumulate_precip(xr_data):
             """
@@ -162,37 +186,51 @@ class WarmingLevels(param.Parameterized):
                 return xr_data.values
 
         # Grab data from AWS
-        data = _get_heatmap_data()
-        data = data.mean(dim="simulation").isel(scenario=0).compute()
+        data_hist = _get_hist_heatmap_data()
+        data_hist = data_hist.mean(dim="simulation").isel(scenario=0).compute()
+        data_future = _get_future_heatmap_data()
+        data_future = data_future.mean(dim="simulation").isel(scenario=0).compute()
 
         # Compute hourly TMY for each day of the year
         days_in_year = 366
-        tmy_hourly = []
+        def tmy_calc(data, days_in_year=366):
+            """Calculates the typical meteorological year based for both historical and future periods.
+            Returns two lists, one for the historical tmy and one for the future tmy.
+            """
+            hourly_list = []
+            for x in np.arange(1,days_in_year+1,1):
+                data_on_day_x = data.where(data.time.dt.dayofyear == x, drop=True)
+                data_grouped = data_on_day_x.groupby("time.hour")
+                mean_by_hour = data_grouped.mean()
+                min_diff = abs(data_grouped - mean_by_hour).groupby("time.hour").min()
+                typical_hourly_data_on_day_x = data_on_day_x.where(abs(data_grouped - mean_by_hour).groupby("time.hour") == min_diff, drop=True).sortby("time.hour")
+                np_typical_hourly_data_on_day_x = remove_repeats(typical_hourly_data_on_day_x)
+                hourly_list.append(np_typical_hourly_data_on_day_x)
 
-        for x in np.arange(1,days_in_year+1,1):
-            data_on_day_x = data.where(data.time.dt.dayofyear == x, drop=True)
-            data_grouped = data_on_day_x.groupby("time.hour")
-            mean_by_hour = data_grouped.mean()
-            min_diff = abs(data_grouped - mean_by_hour).groupby("time.hour").min()
-            typical_hourly_data_on_day_x = data_on_day_x.where(abs(data_grouped - mean_by_hour).groupby("time.hour") == min_diff, drop=True).sortby("time.hour")
-            np_typical_hourly_data_on_day_x = remove_repeats(typical_hourly_data_on_day_x)
-            tmy_hourly.append(np_typical_hourly_data_on_day_x)
+            return hourly_list
+
+        tmy_hourly = tmy_calc(data_hist)
+        tmy_future = tmy_calc(data_future)
 
         # Funnel data into pandas DataFrame object
-        df = pd.DataFrame(tmy_hourly, columns = np.arange(1,25,1), index=np.arange(1,days_in_year+1,1))
-        df = df.iloc[::-1] # Reverse index
+        df_hist = pd.DataFrame(tmy_hourly, columns = np.arange(1,25,1), index=np.arange(1,days_in_year+1,1))
+        df_hist = df_hist.iloc[::-1] # Reverse index
 
-        # Create heatmap
+        df_future = pd.DataFrame(tmy_future, columns = np.arange(1,25,1), index=np.arange(1,days_in_year+1,1))
+        df_future = df_future.iloc[::-1]
+
+        # Create difference heatmaps based on selected warming level
+        df = df_future - df_hist
         heatmap = df.hvplot.heatmap(
             x='columns',
             y='index',
-            title='Typical Meteorological Year Heatmap',
-            cmap="coolwarm",
+            title='Typical Meteorological Year\nDifference between a {}°C future and historical baseline'.format(self.warmlevel),
+            cmap="YlOrRd",
             xaxis='bottom',
             xlabel="Hour of Day (UTC)",
-            ylabel="Day of Year",clabel=data.name + " ("+data.units+")",
+            ylabel="Day of Year",clabel="Air Temperature at 2m " + " (°C)",
             width=800, height=350).opts(
-            fontsize={'title': 15, 'xlabel':12, 'ylabel':12}
+            clim=(0,6), fontsize={'title': 15, 'xlabel':12, 'ylabel':12} # clim=(0,6) is for air temperature; clim=(-1,1) for relative humidity?
         )
         return heatmap
     
@@ -311,9 +349,9 @@ class WarmingLevels(param.Parameterized):
 
         ### now for annual weights, days in year / total days
         ### need to do this for each time period
-        ### note: each time period differs by the year the  
+        ### note: each time period differs by the year the
         ### warming threshold is reached.
-        year_length = month_length.groupby("time.year").sum() 
+        year_length = month_length.groupby("time.year").sum()
         year_length.name = "days_in_year"
         year_length = year_length.assign_coords(year=wgt_ann_mean.time.values)
 
@@ -346,7 +384,7 @@ class WarmingLevels(param.Parameterized):
 
             # and find the anomaly
             warm_anom = warm_wgtd.mean("time") - hist_mean.sel(simulation=sim)
-            
+
             # need to concatenate across simulations
             # ... there has to be a better way
             if (i==0):
@@ -356,7 +394,7 @@ class WarmingLevels(param.Parameterized):
                 warm_all_anoms = xr.concat([warm_all_anoms,warm_anom],dim='simulation')
 
             else:
-                warm_all_anoms = xr.concat([warm_all_anoms,warm_anom],dim='simulation')      
+                warm_all_anoms = xr.concat([warm_all_anoms,warm_anom],dim='simulation')
 
         return warm_all_anoms
     
@@ -380,12 +418,12 @@ class WarmingLevels(param.Parameterized):
 
             ax.set_title(sim)
             ax.coastlines(linewidth=1, color = 'black', zorder = 10) # Coastlines
-            gl = ax.gridlines(linewidth=0.25, color='gray', alpha=0.9, crs=ccrs.PlateCarree(), 
+            gl = ax.gridlines(linewidth=0.25, color='gray', alpha=0.9, crs=ccrs.PlateCarree(),
                                     linestyle = '--',draw_labels=False, x_inline=False)
 
             gl.bottom_labels = True
             if (i==0) or (i==3):
-                gl.left_labels = True    
+                gl.left_labels = True
 
         # Adjust the location of the subplots on the page to make room for the colorbar
         fig.subplots_adjust(bottom=0.2, top=0.9, left=0.1, right=0.9,
@@ -394,7 +432,7 @@ class WarmingLevels(param.Parameterized):
         cbar_ax = fig.add_axes([0.2, 0.1, 0.65, 0.02])
         # Draw the colorbar
         cbar=fig.colorbar(cs, cax=cbar_ax,orientation='horizontal',
-                        label='$^\circ$C')   
+                        label='$^\circ$C')
         fig.suptitle(self.variable2+ ' Anomalies for '+str(self.warmlevel)+' Warming',y=.98)
         mpl_pane = pn.pane.Matplotlib(fig, dpi=144)
         return mpl_pane
@@ -415,7 +453,7 @@ class WarmingLevels(param.Parameterized):
 
         fig = Figure(figsize=(8, 4))
 
-        for ax_index, stat_str in zip([1,2,3,4], ["Median","Min","Max"]): 
+        for ax_index, stat_str in zip([1,2,3,4], ["Median","Min","Max"]):
 
             # Ideally these should all have the same colorbar
             ax = fig.add_subplot(1,3,ax_index,projection=ccrs.LambertConformal())
@@ -425,10 +463,10 @@ class WarmingLevels(param.Parameterized):
 
             ax.set_title(stat_str)
             ax.coastlines(linewidth=1, color = 'black', zorder = 10) # Coastlines
-            gl = ax.gridlines(linewidth=0.25, color='gray', alpha=0.9, crs=ccrs.PlateCarree(), 
+            gl = ax.gridlines(linewidth=0.25, color='gray', alpha=0.9, crs=ccrs.PlateCarree(),
                                     linestyle = '--',draw_labels=False, x_inline=False)
 
-            gl.bottom_labels = gl.left_labels = True   
+            gl.bottom_labels = gl.left_labels = True
 
 
         # Adjust the location of the subplots on the page to make room for the colorbar
@@ -438,7 +476,7 @@ class WarmingLevels(param.Parameterized):
         cbar_ax = fig.add_axes([0.9, 0.28, 0.04, 0.5])
         # Draw the colorbar
         cbar=fig.colorbar(cs, cax=cbar_ax,orientation='vertical',
-                        label='$^\circ$C')   
+                        label='$^\circ$C')
         fig.suptitle(self.variable2+ ' Anomalies for '+str(self.warmlevel)+' Warming Across Models',y=1)
         mpl_pane = pn.pane.Matplotlib(fig, dpi=144)
 
@@ -587,4 +625,3 @@ def _display_warming_levels(selections, location, _cat):
     )
 
     return panel_doodad
-    
