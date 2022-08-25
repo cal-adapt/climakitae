@@ -10,11 +10,14 @@ import pandas as pd
 import param
 import panel as pn
 import intake
-import warnings
+import intake
+import s3fs
+import pyproj
+from shapely.geometry import box
+from shapely.ops import transform
+import regionmask
 from .data_loaders import _read_from_catalog
 from .selectors import DataSelector, LocSelectorArea
-import intake
-
 import pkg_resources
 
 # Import package data
@@ -24,9 +27,6 @@ ssp245 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP2_4_5
 ssp370 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP3_7_0.csv')
 ssp585 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP5_8_5.csv')
 hist = pkg_resources.resource_filename('climakitae', 'data/tas_global_Historical.csv')
-dummy_data = pkg_resources.resource_filename('climakitae', 'data/dummy_dataset_1980_2100_SSP3.7.0_historical_appended.nc')
-all_monthly_T2_data = pkg_resources.resource_filename('climakitae', 'data/T2_monthly_1981_2100_all_CA_45km.nc')
-
 
 
 class WarmingLevels(param.Parameterized):
@@ -58,27 +58,44 @@ class WarmingLevels(param.Parameterized):
     ## ---------- Modify options in selectors.py DataSelectors object ----------
 
     variable2 = param.ObjectSelector(default="Air Temperature at 2m",
-        objects=["Air Temperature at 2m","Precipitation (total)"]
+        objects=["Air Temperature at 2m","Relative Humidity"]
         )
-    location_subset2 = param.ObjectSelector(default="California",
-        objects=["California","Entire domain"]
+    
+    cached_area2 = param.ObjectSelector(default="CA",
+        objects=["CA"]
         )
+    
+    area_subset2 = param.ObjectSelector(
+        default="states",
+        objects=["states", "CA counties","CA watersheds"],
+    )
+    
 
     @param.depends("variable2", watch=True)
     def _update_variable(self):
         self.selections.variable = self.variable2
 
-    @param.depends("location_subset2", watch=True)
-    def _update_location(self):
-        if self.location_subset2 == "California":
-            self.location.area_subset = "states"
-            self.location.cached_area = "CA"
-        elif self.location_subset2 == "Entire domain":
-            self.location.area_subset = "none"
-        else:
-            raise ValueError("You've encountered a bug in the code. See the ModifiedSelections class in explore.py")
-
-
+    @param.depends("area_subset2", watch=True)
+    def _update_cached_area(self):
+        """
+        Makes the dropdown options for 'cached area' reflect the type of area subsetting
+        selected in 'area_subset' (currently state, county, or watershed boundaries).
+        """
+        if self.area_subset2 in ["CA counties", "CA watersheds"]:
+            # setting this to the dict works for initializing, but not updating an objects list:
+            self.param["cached_area2"].objects = list(
+                self.location._geography_choose[self.area_subset2].keys()
+            )
+            self.cached_area2 = list(self.location._geography_choose[self.area_subset2].keys())[0]
+        elif self.area_subset2 == "states": 
+            self.param["cached_area2"].objects = ["CA"]
+            self.cached_area2 = "CA"
+    
+    @param.depends("area_subset2","cached_area2",watch=True)
+    def _updated_location(self): 
+        self.location.area_subset = self.area_subset2
+        self.location.cached_area = self.cached_area2
+   
     reload_data = param.Action(lambda x: x.param.trigger('reload_data'), label='Reload Data')
     @param.depends("reload_data", watch=False)
     def _TMY_hourly_heatmap(self):
@@ -97,7 +114,7 @@ class WarmingLevels(param.Parameterized):
                 cat=self.catalog
             )
 
-            if self.selections.variable == ('Precipitation (total)'):   # need to include snowfall eventually
+            if self.selections.variable == 'Precipitation (total)':   # need to include snowfall eventually
                 xr_da = deaccumulate_precip(xr_da)
 
             return xr_da
@@ -178,21 +195,72 @@ class WarmingLevels(param.Parameterized):
             fontsize={'title': 15, 'xlabel':12, 'ylabel':12}
         )
         return heatmap
+    
+    
+
 
     def _calculate_postage_anomalies(self):
         """ 
         Helper function for calculating warming levels anomalies; used by both
         "postage" stamp plot tabs.
         """
-        def _get_postage_data():    
+        
+        def _get_postage_data(): 
+        
+            """
+            This function pulls pre-compiled data from AWS and then subsets it using recylced code from the data_loaders module
+            """
 
-            pkg_data = xr.open_dataset(all_monthly_T2_data)
+            # Get data from AWS 
+            fs = s3fs.S3FileSystem(anon=True)
+            fp = fs.open('s3://cadcat/tmp/t2m_and_rh_9km_ssp370_monthly_CA.nc')
+            pkg_data = xr.open_dataset(fp)
+
+            # Select variable & scenario from dataset 
             da = pkg_data[self.variable2]
+            postage_data = da.where(da.scenario == "Historical + SSP 3-7.0 -- Business as Usual", drop=True)
 
-            user_scenario = 'Historical + ' + self.ssp
-            postage_data = da.where(da.scenario == user_scenario, drop=True)
+            # Perform area subset based on user selections
+            if self.area_subset2 == "states":
+                ds_region = None # Data is already subsetted to CA 
+            elif self.area_subset2 in ["CA watersheds","CA counties"]:
+                shape_index = int(
+                    self.location._geography_choose[self.area_subset2][self.cached_area2]
+                )
+                if self.area_subset2 == "CA watersheds":
+                    shape = self.location._geographies._ca_watersheds
+                    shape = shape[shape["OBJECTID"] == shape_index].iloc[0].geometry
+                    wgs84 = pyproj.CRS('EPSG:4326')
+                    psdo_merc = pyproj.CRS('EPSG:3857')
+                    project = pyproj.Transformer.from_crs(psdo_merc, wgs84, always_xy=True).transform
+                    shape = transform(project, shape)
+                elif self.area_subset2 == "CA counties":
+                    shape = self.location._geographies._ca_counties
+                    shape = shape[shape.index == shape_index].iloc[0].geometry
+                ds_region = regionmask.Regions(
+                    [shape], abbrevs=["geographic area"], name="area mask"
+                )
+
+            if ds_region:
+                # Attributes are arrays, must be items to call pyproj.CRS.from_cf
+                for attr_np in ["earth_radius","latitude_of_projection_origin","longitude_of_central_meridian"]:
+                    postage_data['Lambert_Conformal'].attrs[attr_np] = postage_data['Lambert_Conformal'].attrs[attr_np].item()
+                data_crs = ccrs.CRS(pyproj.CRS.from_cf(postage_data['Lambert_Conformal'].attrs))
+                output = data_crs.transform_points(ccrs.PlateCarree(),
+                                                       x=ds_region.coords[0][:,0],
+                                                       y=ds_region.coords[0][:,1])
+
+                postage_data = postage_data.sel(x=slice(np.nanmin(output[:,0]), np.nanmax(output[:,0])),
+                    y=slice(np.nanmin(output[:,1]), np.nanmax(output[:,1])))
+
+                mask = ds_region.mask(postage_data.lon, postage_data.lat, wrap_lon=False)
+                assert (
+                    False in mask.isnull()
+                ), "Insufficient gridcells are contained within the bounds."
+                postage_data = postage_data.where(np.isnan(mask) == False)
 
             return postage_data
+
 
         data = _get_postage_data()
         var = data
@@ -291,12 +359,13 @@ class WarmingLevels(param.Parameterized):
                 warm_all_anoms = xr.concat([warm_all_anoms,warm_anom],dim='simulation')      
 
         return warm_all_anoms
-
-    @param.depends("variable2", "warmlevel", "ssp", watch=False)
-    def _GCM_PostageStamps_MAIN(self): 
-            
+    
+    
+    @param.depends("variable2", "warmlevel","area_subset2","cached_area2", watch=False)
+    def _GCM_PostageStamps_MAIN(self):
+        
         warm_all_anoms = self._calculate_postage_anomalies()
-
+        
         # intialize the plot
         fig = Figure(figsize=(8, 9))
         my_simulations = ['cesm2', 'cnrm-esm2-1', 'ec-earth3-veg', 'fgoals-g3', 'mpi-esm1-2-lr']
@@ -329,12 +398,12 @@ class WarmingLevels(param.Parameterized):
         fig.suptitle(self.variable2+ ' Anomalies for '+str(self.warmlevel)+' Warming',y=.98)
         mpl_pane = pn.pane.Matplotlib(fig, dpi=144)
         return mpl_pane
-
-    @param.depends("variable2", "warmlevel", "ssp", watch=False)
+    
+    @param.depends("variable2", "warmlevel","area_subset2","cached_area2", watch=False)
     def _GCM_PostageStamps_STATS(self): 
-            
+        
         warm_all_anoms = self._calculate_postage_anomalies()
-
+        
         min_anom = warm_all_anoms.min(dim='simulation')
         min_anom.name = "Min"
         max_anom = warm_all_anoms.max(dim='simulation')
@@ -374,7 +443,7 @@ class WarmingLevels(param.Parameterized):
         mpl_pane = pn.pane.Matplotlib(fig, dpi=144)
 
         return mpl_pane
-    
+
     
     @param.depends("warmlevel","ssp", watch=False)
     def _GMT_context_plot(self):
@@ -480,7 +549,8 @@ def _display_warming_levels(selections, location, _cat):
                     pn.widgets.StaticText.from_param(selections.param.variable_description),
                     width = 230),
                 pn.Column(
-                    pn.widgets.Select.from_param(warming_levels.param.location_subset2, name="Location"),
+                    pn.widgets.Select.from_param(warming_levels.param.area_subset2, name="Area subset"),
+                    pn.widgets.Select.from_param(warming_levels.param.cached_area2, name="Cached area"),
                     location.view,
                     width = 230)
                 )
@@ -499,15 +569,17 @@ def _display_warming_levels(selections, location, _cat):
         warming_levels._TMY_hourly_heatmap
     )
 
+    
     map_tabs = pn.Card(
         pn.Tabs(
-            ("Maps of individual simulations", warming_levels._GCM_PostageStamps_MAIN),
+            ("Maps of individual simulations",warming_levels._GCM_PostageStamps_MAIN),
             ("Maps of cross-model statistics: mean/median/max/min", warming_levels._GCM_PostageStamps_STATS), 
             ("Typical meteorological year", TMY), 
         ), 
     title="Regional response at selected warming level", 
-    width = 800, height=700, collapsible=False,
+    width = 850, height=700, collapsible=False,
     )
+
 
     panel_doodad = pn.Column(
         pn.Row(user_options, GMT_plot),
