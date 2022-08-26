@@ -7,6 +7,7 @@ from holoviews import opts
 from matplotlib.figure import Figure
 import numpy as np
 import pandas as pd
+import geopandas as gpd
 import param
 import panel as pn
 import intake
@@ -27,6 +28,19 @@ ssp245 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP2_4_5
 ssp370 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP3_7_0.csv')
 ssp585 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP5_8_5.csv')
 hist = pkg_resources.resource_filename('climakitae', 'data/tas_global_Historical.csv')
+
+# Global warming levels file (years when warming level is reached)
+gwl_file = pkg_resources.resource_filename('climakitae', 'data/gwl_1981-2010ref.csv')
+gwl_times = pd.read_csv(gwl_file, index_col=[0,1])
+
+# URLs to shapefiles for example point data from CEC (power plants and substations available)
+CEC_shapefile_URLs = {
+    'power_plants' : "https://opendata.arcgis.com/api/v3/datasets/4a702cd67be24ae7ab8173423a768e1b_0/downloads/data?format=geojson&spatialRefId=4326&where=1%3D1",
+    'substations' : "https://cecgis-caenergy.opendata.arcgis.com/datasets/CAEnergy::california-electric-substations.geojson?outSR=%7B%22latestWkid%22%3A3857%2C%22wkid%22%3A102100%7D"
+}
+# Read in the values once (so that it does not re-download every time plots are updated)
+power_plants = gpd.read_file(CEC_shapefile_URLs['power_plants']).rename(columns = {'Lon_WGS84':'lon', 'Lat_WGS84':'lat'})
+substations = gpd.read_file(CEC_shapefile_URLs['substations']).rename(columns = {'Lon_WGS84':'lon', 'Lat_WGS84':'lat'})
 
 
 def _get_postage_data(area_subset2, cached_area2, variable2, location):
@@ -96,113 +110,30 @@ def _get_postage_data(area_subset2, cached_area2, variable2, location):
     return postage_data
 
 
-def calculate_postage_anomalies(data,warmlevel):
+def get_anomaly_data(data, warmlevel=3.0):
     """
-    Helper function for calculating warming levels anomalies; used by both "postage" stamp plot tabs.
-    
+    Helper function for calculating warming level anomalies.
+
     Args: 
         data (xr.DataArray)
         warmlevel (float): warming level 
         
     Returns: 
         warm_all_anoms (xr.DatArray): warming level anomalies computed from input data 
-        
     """
+    model_case = {'cesm2':'CESM2', 'cnrm-esm2-1':'CNRM-ESM2-1', 
+              'ec-earth3-veg':'EC-Earth3-Veg', 'fgoals-g3':'FGOALS-g3', 
+              'mpi-esm1-2-lr':'MPI-ESM1-2-LR'}
 
-    data.attrs['reference_range'] = '1981','2010'# hist threshold
-
-    # year ranges for each warming threshold for each model
-    warming_years = {
-        1.5 : [2044,2050,2045,2053,2053],
-        2 : [2055,2061,2056,2072,2069],
-        3 : [2078,2077,2073,np.nan,np.nan],
-        4 : [np.nan,np.nan,2091,np.nan,np.nan]
-    }
-    my_simulations = ['cesm2', 'cnrm-esm2-1', 'ec-earth3-veg', 'fgoals-g3', 'mpi-esm1-2-lr']
-
-    # Build the 30-year windows for each model for the selected warming level
-    warming_year_range = [(str(y-15),str(y+14)) for y in warming_years[warmlevel]]
-    if warmlevel == 3:
-        warm_dict = dict(zip(my_simulations[0:3], warming_year_range[0:3]))
-    elif warmlevel == 4:
-        warm_dict = dict(zip(my_simulations[2:3], warming_year_range[2:3]))
-    else:
-        warm_dict = dict(zip(my_simulations, warming_year_range))
-
-    ### generate weights based off days per month
-    month_length = data.time.dt.days_in_month
-    ### first monthly weights, ie, days in month / days in year
-    mon_wgts = month_length.groupby("time.year") / month_length.groupby("time.year").sum()
-    ### then annual weights, days in year / total days
-    # wgts.groupby("time.year").sum(xr.ALL_DIMS) # check that annual weights make sense
-
-    ### want to ensure nans do not impact the weighting
-    # code from https://ncar.github.io/esds/posts/2021/yearly-averages-xarray/
-
-    # Setup our masking for nan values
-    cond = data.isnull()
-    ones = xr.where(cond, 0.0, 1.0)
-
-    # Calculate the numerator
-    data_sum = (data * mon_wgts).resample(time="AS").sum(dim="time")
-    # Calculate the denominator
-    ones_out = (ones * mon_wgts).resample(time="AS").sum(dim="time")
-    # weighted mean
-    wgt_ann_mean = data_sum / ones_out
-
-    data_hist = data.sel(time=slice(*wgt_ann_mean.reference_range))
-
-    ### now for annual weights, days in year / total days
-    ### need to do this for each time period
-    ### note: each time period differs by the year the
-    ### warming threshold is reached.
-    year_length = month_length.groupby("time.year").sum()
-    year_length.name = "days_in_year"
-    year_length = year_length.assign_coords(year=wgt_ann_mean.time.values)
-
-    hist_time_slice = year_length.sel(year=slice(*data.reference_range))
-    hist_ann_wgts = hist_time_slice / hist_time_slice.sum()
-    hist_ann_wgts = hist_ann_wgts.rename({'year' : 'time'})
-
-    # # get the weighted 30-year historical statistics
-    ann_hist_mean = wgt_ann_mean.sel(time=slice(*wgt_ann_mean.reference_range))
-    hist_wgtd = ann_hist_mean.weighted(hist_ann_wgts)
-    hist_mean = hist_wgtd.mean("time")
-    hist_mean.name = 'Mean'
-
-    # make a dataset of means for given T threshold
-    # and then for the anomalies
-
-    for i,sim in enumerate(warm_dict.keys()):
-
-        my_years = warm_dict[sim]
-        #### compute the weihted means
-
-        data_warm = data.sel(simulation=sim,time=slice(*my_years))
-        warm_time_slice = year_length.sel(year=slice(*my_years))
-        warm_ann_wgts = warm_time_slice / warm_time_slice.sum()
-        warm_ann_wgts = warm_ann_wgts.rename({'year' : 'time'})
-
-        # get the weighted 30-year threshold statistics
-        ann_warm_mean = wgt_ann_mean.sel(simulation=sim,time=slice(*my_years))
-        warm_wgtd = ann_warm_mean.weighted(warm_ann_wgts)
-
-        # and find the anomaly
-        warm_anom = warm_wgtd.mean("time") - hist_mean.sel(simulation=sim)
-
-        # need to concatenate across simulations
-        # ... there has to be a better way
-        if (i==0):
-            warm_all_anoms = warm_anom
-
-        elif (i==1):
-            warm_all_anoms = xr.concat([warm_all_anoms,warm_anom],dim='simulation')
-
-        else:
-            warm_all_anoms = xr.concat([warm_all_anoms,warm_anom],dim='simulation')
-
-    return warm_all_anoms
-
+    all_sims = xr.Dataset()
+    for simulation in data.simulation.values:
+        for scenario in ['ssp370']: 
+            one_ts = data.sel(simulation=simulation).squeeze() #,scenario=scenario) #scenario names are longer strings
+            centered_time = pd.to_datetime(gwl_times[str(warmlevel)][model_case[simulation]][scenario]).year
+            if not np.isnan(centered_time):
+                anom = one_ts.sel(time=slice(str(centered_time-15),str(centered_time+14))).mean('time') - one_ts.sel(time=slice('1981','2010')).mean('time')
+                all_sims[simulation] = anom
+    return all_sims.to_array('simulation')
 
 class WarmingLevels(param.Parameterized):
 
@@ -227,7 +158,7 @@ class WarmingLevels(param.Parameterized):
         self.postage_data = _get_postage_data(
             area_subset2=self.location.area_subset, cached_area2=self.location.cached_area, variable2=self.selections.variable, location=self.location
         )
-        self._warm_all_anoms = calculate_postage_anomalies(data=self.postage_data, warmlevel=1.5)
+        self._warm_all_anoms = get_anomaly_data(data=self.postage_data, warmlevel=1.5)
 
     ## ---------- Params & global variables ----------
 
@@ -237,7 +168,6 @@ class WarmingLevels(param.Parameterized):
     ssp = param.ObjectSelector(default="SSP 3-7.0 -- Business as Usual",
         objects=["SSP 2-4.5 -- Middle of the Road","SSP 3-7.0 -- Business as Usual","SSP 5-8.5 -- Burn it All"]
     )
-    
     
     # Button to reload TMY heatmap. Will be deleted. 
     reload_data = param.Action(lambda x: x.param.trigger('reload_data'), label='Reload Data')
@@ -259,6 +189,18 @@ class WarmingLevels(param.Parameterized):
         objects=["states", "CA counties","CA watersheds"],
     )
 
+    # Option to overlay CEC point data on the MAIN postage stamp plots
+    overlay_MAIN = param.ObjectSelector(default = "None", 
+        objects = ["None", "Power plants", "Substations"], 
+        label = "Infrastructure point data"
+    )
+
+    # Option to overlay CEC point data on the STATS postage stamp plots
+    overlay_STATS = param.ObjectSelector(default = "None", 
+        objects = ["None", "Power plants", "Substations"], 
+        label = "Infrastructure point data"
+    )
+
 
     @param.depends("area_subset2","cached_area2","variable2", watch=True)
     def _updated_bool_loc_and_var(self): 
@@ -272,7 +214,7 @@ class WarmingLevels(param.Parameterized):
         if self.changed_loc_and_var == True: 
             self.postage_data = _get_postage_data(area_subset2=self.area_subset2, cached_area2=self.cached_area2, variable2=self.variable2, location=self.location)
             self.changed_loc_and_var = False
-        self._warm_all_anoms = calculate_postage_anomalies(data=self.postage_data, warmlevel=self.warmlevel)
+        self._warm_all_anoms = get_anomaly_data(data=self.postage_data, warmlevel=self.warmlevel)
 
 
     @param.depends("variable2", watch=True)
@@ -453,84 +395,65 @@ class WarmingLevels(param.Parameterized):
         return heatmap
 
 
-    @param.depends("reload_data2", watch=False)
+    @param.depends("reload_data2", "overlay_MAIN", watch=False)
     def _GCM_PostageStamps_MAIN(self):
 
-        # intialize the plot
-        fig = Figure(figsize=(8, 9))
-        my_simulations = ['cesm2', 'cnrm-esm2-1', 'ec-earth3-veg', 'fgoals-g3', 'mpi-esm1-2-lr']
+        all_plot_data = self._warm_all_anoms
 
-        for i, warm_anom in enumerate(self._warm_all_anoms):
-            sim = my_simulations[i]
+        sim_plots = all_plot_data.hvplot.quadmesh('lon','lat', 
+            by='simulation',
+            subplots = True,
+            width = 200, height = 200,
+            crs=ccrs.PlateCarree(),
+            projection=ccrs.Orthographic(-118, 40),
+            project=True, rasterize=True,
+            coastline=True, features=['borders']
+            ).cols(3)
 
-            ax = fig.add_subplot(2,3,i+1,projection=ccrs.LambertConformal())
-            cs = warm_anom.plot(
-                    ax=ax, shading='auto', cmap="coolwarm", transform = ccrs.LambertConformal(),
-                    add_colorbar = False, vmin=-3,vmax=3)
+        if self.overlay_MAIN == "Power plants":
+            return sim_plots * power_plants.hvplot(color="black",geo=True,projection=ccrs.Orthographic(-118, 40))
+        elif self.overlay_MAIN == "Substations":
+            return sim_plots * substations.hvplot(color="black",geo=True,projection=ccrs.Orthographic(-118, 40))
+        else:
+            return sim_plots
 
-            ax.set_title(sim)
-            ax.coastlines(linewidth=1, color = 'black', zorder = 10) # Coastlines
-            gl = ax.gridlines(linewidth=0.25, color='gray', alpha=0.9, crs=ccrs.PlateCarree(),
-                                    linestyle = '--',draw_labels=False, x_inline=False)
-
-            gl.bottom_labels = True
-            if (i==0) or (i==3):
-                gl.left_labels = True
-
-        # Adjust the location of the subplots on the page to make room for the colorbar
-        fig.subplots_adjust(bottom=0.2, top=0.9, left=0.1, right=0.9,
-                            wspace=0.1, hspace=0.4)
-        # Add a colorbar axis at the bottom of the graph
-        cbar_ax = fig.add_axes([0.2, 0.1, 0.65, 0.02])
-        # Draw the colorbar
-        cbar=fig.colorbar(cs, cax=cbar_ax,orientation='horizontal',
-                        label='$^\circ$C')
-        fig.suptitle(self.variable2+ ' Anomalies for '+str(self.warmlevel)+' Warming',y=.98)
-        mpl_pane = pn.pane.Matplotlib(fig, dpi=144)
-        return mpl_pane
-
-    @param.depends("reload_data2", watch=False)
+    @param.depends("reload_data2", "overlay_STATS", watch=False)
     def _GCM_PostageStamps_STATS(self):
 
-        min_anom = self._warm_all_anoms.min(dim='simulation')
-        min_anom.name = "Min"
-        max_anom = self._warm_all_anoms.max(dim='simulation')
-        max_anom.name = "Max"
-        med_anom = self._warm_all_anoms.median(dim='simulation')
-        med_anom.name = "Median"
+        all_plot_data = self._warm_all_anoms
 
-        stat_anoms = xr.merge([min_anom,med_anom,max_anom])
+        min_data = all_plot_data.min(dim='simulation')
+        max_data = all_plot_data.max(dim='simulation')
+        med_data = all_plot_data.median(dim='simulation')
+        mean_data = all_plot_data.mean(dim='simulation')
 
-        fig = Figure(figsize=(8, 4))
-
-        for ax_index, stat_str in zip([1,2,3,4], ["Median","Min","Max"]):
-
-            # Ideally these should all have the same colorbar
-            ax = fig.add_subplot(1,3,ax_index,projection=ccrs.LambertConformal())
-            cs = stat_anoms[stat_str].isel(scenario=0).plot(
-                ax=ax, shading='auto', cmap="coolwarm",add_colorbar = False, vmin=-3,vmax=3
+        def _make_plot(data, title):
+            _plot = data.hvplot.quadmesh('lon','lat', 
+                title = title,
+                width = 400, height = 300,
+                crs=ccrs.PlateCarree(),
+                projection=ccrs.Orthographic(-118, 40),
+                project=True, rasterize=True,
+                coastline=True, features=['borders']
                 )
+            if self.overlay_STATS == "Power plants":
+                return _plot * power_plants.hvplot(color="black",geo=True,projection=ccrs.Orthographic(-118, 40))
+            elif self.overlay_STATS == "Substations":
+                return _plot * substations.hvplot(color="black",geo=True,projection=ccrs.Orthographic(-118, 40))
+            else:
+                return _plot
 
-            ax.set_title(stat_str)
-            ax.coastlines(linewidth=1, color = 'black', zorder = 10) # Coastlines
-            gl = ax.gridlines(linewidth=0.25, color='gray', alpha=0.9, crs=ccrs.PlateCarree(),
-                                    linestyle = '--',draw_labels=False, x_inline=False)
+        mean_plot = _make_plot(mean_data, "Mean")
+        med_plot = _make_plot(med_data, "Median")
+        max_plot = _make_plot(max_data, "Maximum")
+        min_plot = _make_plot(min_data, "Minimum")
 
-            gl.bottom_labels = gl.left_labels = True
+        plot_grid = pn.Column(
+            pn.Row(mean_plot, med_plot),
+            pn.Row(max_plot, min_plot)
+        )
 
-
-        # Adjust the location of the subplots on the page to make room for the colorbar
-        fig.subplots_adjust(bottom=0.1, top=.95, left=0.1, right=0.88,
-                            wspace=0.35, hspace=.4)
-        # Add a colorbar axis at the bottom of the graph
-        cbar_ax = fig.add_axes([0.9, 0.28, 0.04, 0.5])
-        # Draw the colorbar
-        cbar=fig.colorbar(cs, cax=cbar_ax,orientation='vertical',
-                        label='$^\circ$C')
-        fig.suptitle(self.variable2+ ' Anomalies for '+str(self.warmlevel)+' Warming Across Models',y=1)
-        mpl_pane = pn.pane.Matplotlib(fig, dpi=144)
-
-        return mpl_pane
+        return plot_grid
 
 
     @param.depends("warmlevel","ssp", watch=False)
@@ -658,11 +581,24 @@ def _display_warming_levels(selections, location, _cat):
         warming_levels._TMY_hourly_heatmap
     )
 
+    postage_stamps_MAIN = pn.Column(
+        pn.Spacer(width=15),
+        pn.Row(warming_levels.param.overlay_MAIN, width = 400),
+        pn.Spacer(width=15),
+        warming_levels._GCM_PostageStamps_MAIN
+    )
+
+    postage_stamps_STATS = pn.Column(
+        pn.Spacer(width=15),
+        pn.Row(warming_levels.param.overlay_STATS, width = 400),
+        pn.Spacer(width=15),
+        warming_levels._GCM_PostageStamps_STATS
+    )
 
     map_tabs = pn.Card(
         pn.Tabs(
-            ("Maps of individual simulations",warming_levels._GCM_PostageStamps_MAIN),
-            ("Maps of cross-model statistics: mean/median/max/min", warming_levels._GCM_PostageStamps_STATS),
+            ("Maps of individual simulations", postage_stamps_MAIN),
+            ("Maps of cross-model statistics: mean/median/max/min", postage_stamps_STATS),
             ("Typical meteorological year", TMY),
         ),
     title="Regional response at selected warming level",
