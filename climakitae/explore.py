@@ -60,16 +60,16 @@ class WarmingLevels(param.Parameterized):
     variable2 = param.ObjectSelector(default="Air Temperature at 2m",
         objects=["Air Temperature at 2m","Relative Humidity"]
         )
-    
+
     cached_area2 = param.ObjectSelector(default="CA",
         objects=["CA"]
         )
-    
+
     area_subset2 = param.ObjectSelector(
         default="states",
         objects=["states", "CA counties","CA watersheds"],
     )
-    
+
 
     @param.depends("variable2", watch=True)
     def _update_variable(self):
@@ -87,15 +87,15 @@ class WarmingLevels(param.Parameterized):
                 self.location._geography_choose[self.area_subset2].keys()
             )
             self.cached_area2 = list(self.location._geography_choose[self.area_subset2].keys())[0]
-        elif self.area_subset2 == "states": 
+        elif self.area_subset2 == "states":
             self.param["cached_area2"].objects = ["CA"]
             self.cached_area2 = "CA"
-    
+
     @param.depends("area_subset2","cached_area2",watch=True)
-    def _updated_location(self): 
+    def _updated_location(self):
         self.location.area_subset = self.area_subset2
         self.location.cached_area = self.cached_area2
-   
+
     reload_data = param.Action(lambda x: x.param.trigger('reload_data'), label='Reload Data')
     @param.depends("reload_data", watch=False)
     def _TMY_hourly_heatmap(self):
@@ -219,48 +219,58 @@ class WarmingLevels(param.Parameterized):
         df_future = pd.DataFrame(tmy_future, columns = np.arange(1,25,1), index=np.arange(1,days_in_year+1,1))
         df_future = df_future.iloc[::-1]
 
-        # Create difference heatmaps based on selected warming level
+        # Create difference heatamp between future and historical baseline
         df = df_future - df_hist
+        if data_hist.name == "Air Temperature at 2m":
+            cm = "YlOrRd"
+            cl = (0,6)  # hardcoding this in, full range of warming level response for 2m air temp
+        elif data_hist.name == "Relative Humidity":
+            df = df * 100
+            cm = "coolwarm"
+            cl = (-15,15) # hardcoding this in, full range of warming level response for relhumid
+        else:
+            cm = "coolwarm"
+            cl = (df_diff.min(axis=0).min(), df_diff.max(axis=0).max())
+
         heatmap = df.hvplot.heatmap(
             x='columns',
             y='index',
             title='Typical Meteorological Year\nDifference between a {}°C future and historical baseline'.format(self.warmlevel),
-            cmap="YlOrRd",
+            cmap=cm,
             xaxis='bottom',
             xlabel="Hour of Day (UTC)",
-            ylabel="Day of Year",clabel="Air Temperature at 2m " + " (°C)",
+            ylabel="Day of Year",clabel=data_hist.name + " ("+data_hist.units+")",
             width=800, height=350).opts(
-            clim=(0,6), fontsize={'title': 15, 'xlabel':12, 'ylabel':12} # clim=(0,6) is for air temperature; clim=(-1,1) for relative humidity?
+            fontsize={'title': 15, 'xlabel':12, 'ylabel':12},
+            clim=cl
         )
         return heatmap
-    
-    
 
 
     def _calculate_postage_anomalies(self):
-        """ 
+        """
         Helper function for calculating warming levels anomalies; used by both
         "postage" stamp plot tabs.
         """
-        
-        def _get_postage_data(): 
-        
+
+        def _get_postage_data():
+
             """
             This function pulls pre-compiled data from AWS and then subsets it using recylced code from the data_loaders module
             """
 
-            # Get data from AWS 
+            # Get data from AWS
             fs = s3fs.S3FileSystem(anon=True)
             fp = fs.open('s3://cadcat/tmp/t2m_and_rh_9km_ssp370_monthly_CA.nc')
             pkg_data = xr.open_dataset(fp)
 
-            # Select variable & scenario from dataset 
+            # Select variable & scenario from dataset
             da = pkg_data[self.variable2]
             postage_data = da.where(da.scenario == "Historical + SSP 3-7.0 -- Business as Usual", drop=True)
 
             # Perform area subset based on user selections
             if self.area_subset2 == "states":
-                ds_region = None # Data is already subsetted to CA 
+                ds_region = None # Data is already subsetted to CA
             elif self.area_subset2 in ["CA watersheds","CA counties"]:
                 shape_index = int(
                     self.location._geography_choose[self.area_subset2][self.cached_area2]
@@ -397,13 +407,13 @@ class WarmingLevels(param.Parameterized):
                 warm_all_anoms = xr.concat([warm_all_anoms,warm_anom],dim='simulation')
 
         return warm_all_anoms
-    
-    
+
+
     @param.depends("variable2", "warmlevel","area_subset2","cached_area2", watch=False)
     def _GCM_PostageStamps_MAIN(self):
-        
+
         warm_all_anoms = self._calculate_postage_anomalies()
-        
+
         # intialize the plot
         fig = Figure(figsize=(8, 9))
         my_simulations = ['cesm2', 'cnrm-esm2-1', 'ec-earth3-veg', 'fgoals-g3', 'mpi-esm1-2-lr']
@@ -436,12 +446,12 @@ class WarmingLevels(param.Parameterized):
         fig.suptitle(self.variable2+ ' Anomalies for '+str(self.warmlevel)+' Warming',y=.98)
         mpl_pane = pn.pane.Matplotlib(fig, dpi=144)
         return mpl_pane
-    
+
     @param.depends("variable2", "warmlevel","area_subset2","cached_area2", watch=False)
-    def _GCM_PostageStamps_STATS(self): 
-        
+    def _GCM_PostageStamps_STATS(self):
+
         warm_all_anoms = self._calculate_postage_anomalies()
-        
+
         min_anom = warm_all_anoms.min(dim='simulation')
         min_anom.name = "Min"
         max_anom = warm_all_anoms.max(dim='simulation')
@@ -482,7 +492,7 @@ class WarmingLevels(param.Parameterized):
 
         return mpl_pane
 
-    
+
     @param.depends("warmlevel","ssp", watch=False)
     def _GMT_context_plot(self):
         """ Display static GMT plot using package data. """
@@ -607,14 +617,14 @@ def _display_warming_levels(selections, location, _cat):
         warming_levels._TMY_hourly_heatmap
     )
 
-    
+
     map_tabs = pn.Card(
         pn.Tabs(
             ("Maps of individual simulations",warming_levels._GCM_PostageStamps_MAIN),
-            ("Maps of cross-model statistics: mean/median/max/min", warming_levels._GCM_PostageStamps_STATS), 
-            ("Typical meteorological year", TMY), 
-        ), 
-    title="Regional response at selected warming level", 
+            ("Maps of cross-model statistics: mean/median/max/min", warming_levels._GCM_PostageStamps_STATS),
+            ("Typical meteorological year", TMY),
+        ),
+    title="Regional response at selected warming level",
     width = 850, height=700, collapsible=False,
     )
 
