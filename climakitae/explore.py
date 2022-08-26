@@ -29,21 +29,188 @@ ssp585 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP5_8_5
 hist = pkg_resources.resource_filename('climakitae', 'data/tas_global_Historical.csv')
 
 
+def _get_postage_data(area_subset2, cached_area2, variable2, location):
+
+    """
+    This function pulls pre-compiled data from AWS and then subsets it using recylced code from the data_loaders module
+    
+    Args: 
+        area_subset2 (str): area subset 
+        cached_area2 (str): cached area 
+        variable2 (str): variable 
+        location (LocSelectorArea object from selectors.py): location object containing boundary information
+        
+    Returns: 
+        postage_data (xr.DataArray): data to use for creating postage stamp data 
+    
+    """
+
+    # Get data from AWS
+    fs = s3fs.S3FileSystem(anon=True)
+    fp = fs.open('s3://cadcat/tmp/t2m_and_rh_9km_ssp370_monthly_CA.nc')
+    pkg_data = xr.open_dataset(fp)
+
+    # Select variable & scenario from dataset
+    da = pkg_data[variable2]
+    postage_data = da.where(da.scenario == "Historical + SSP 3-7.0 -- Business as Usual", drop=True)
+
+    # Perform area subset based on user selections
+    if area_subset2 == "states":
+        ds_region = None # Data is already subsetted to CA
+    elif area_subset2 in ["CA watersheds","CA counties"]:
+        shape_index = int(
+            location._geography_choose[area_subset2][cached_area2]
+        )
+        if area_subset2 == "CA watersheds":
+            shape = location._geographies._ca_watersheds
+            shape = shape[shape["OBJECTID"] == shape_index].iloc[0].geometry
+            wgs84 = pyproj.CRS('EPSG:4326')
+            psdo_merc = pyproj.CRS('EPSG:3857')
+            project = pyproj.Transformer.from_crs(psdo_merc, wgs84, always_xy=True).transform
+            shape = transform(project, shape)
+        elif area_subset2 == "CA counties":
+            shape = location._geographies._ca_counties
+            shape = shape[shape.index == shape_index].iloc[0].geometry
+        ds_region = regionmask.Regions(
+            [shape], abbrevs=["geographic area"], name="area mask"
+        )
+
+    if ds_region:
+        # Attributes are arrays, must be items to call pyproj.CRS.from_cf
+        for attr_np in ["earth_radius","latitude_of_projection_origin","longitude_of_central_meridian"]:
+            postage_data['Lambert_Conformal'].attrs[attr_np] = postage_data['Lambert_Conformal'].attrs[attr_np].item()
+        data_crs = ccrs.CRS(pyproj.CRS.from_cf(postage_data['Lambert_Conformal'].attrs))
+        output = data_crs.transform_points(ccrs.PlateCarree(),
+                                               x=ds_region.coords[0][:,0],
+                                               y=ds_region.coords[0][:,1])
+
+        postage_data = postage_data.sel(x=slice(np.nanmin(output[:,0]), np.nanmax(output[:,0])),
+            y=slice(np.nanmin(output[:,1]), np.nanmax(output[:,1])))
+
+        mask = ds_region.mask(postage_data.lon, postage_data.lat, wrap_lon=False)
+        assert (
+            False in mask.isnull()
+        ), "Insufficient gridcells are contained within the bounds."
+        postage_data = postage_data.where(np.isnan(mask) == False)
+
+    return postage_data
+
+
+def calculate_postage_anomalies(data,warmlevel):
+    """
+    Helper function for calculating warming levels anomalies; used by both "postage" stamp plot tabs.
+    
+    Args: 
+        data (xr.DataArray)
+        warmlevel (float): warming level 
+        
+    Returns: 
+        warm_all_anoms (xr.DatArray): warming level anomalies computed from input data 
+        
+    """
+
+    data.attrs['reference_range'] = '1981','2010'# hist threshold
+
+    # year ranges for each warming threshold for each model
+    warming_years = {
+        1.5 : [2044,2050,2045,2053,2053],
+        2 : [2055,2061,2056,2072,2069],
+        3 : [2078,2077,2073,np.nan,np.nan],
+        4 : [np.nan,np.nan,2091,np.nan,np.nan]
+    }
+    my_simulations = ['cesm2', 'cnrm-esm2-1', 'ec-earth3-veg', 'fgoals-g3', 'mpi-esm1-2-lr']
+
+    # Build the 30-year windows for each model for the selected warming level
+    warming_year_range = [(str(y-15),str(y+14)) for y in warming_years[warmlevel]]
+    if warmlevel == 3:
+        warm_dict = dict(zip(my_simulations[0:3], warming_year_range[0:3]))
+    elif warmlevel == 4:
+        warm_dict = dict(zip(my_simulations[2:3], warming_year_range[2:3]))
+    else:
+        warm_dict = dict(zip(my_simulations, warming_year_range))
+
+    ### generate weights based off days per month
+    month_length = data.time.dt.days_in_month
+    ### first monthly weights, ie, days in month / days in year
+    mon_wgts = month_length.groupby("time.year") / month_length.groupby("time.year").sum()
+    ### then annual weights, days in year / total days
+    # wgts.groupby("time.year").sum(xr.ALL_DIMS) # check that annual weights make sense
+
+    ### want to ensure nans do not impact the weighting
+    # code from https://ncar.github.io/esds/posts/2021/yearly-averages-xarray/
+
+    # Setup our masking for nan values
+    cond = data.isnull()
+    ones = xr.where(cond, 0.0, 1.0)
+
+    # Calculate the numerator
+    data_sum = (data * mon_wgts).resample(time="AS").sum(dim="time")
+    # Calculate the denominator
+    ones_out = (ones * mon_wgts).resample(time="AS").sum(dim="time")
+    # weighted mean
+    wgt_ann_mean = data_sum / ones_out
+
+    data_hist = data.sel(time=slice(*wgt_ann_mean.reference_range))
+
+    ### now for annual weights, days in year / total days
+    ### need to do this for each time period
+    ### note: each time period differs by the year the
+    ### warming threshold is reached.
+    year_length = month_length.groupby("time.year").sum()
+    year_length.name = "days_in_year"
+    year_length = year_length.assign_coords(year=wgt_ann_mean.time.values)
+
+    hist_time_slice = year_length.sel(year=slice(*data.reference_range))
+    hist_ann_wgts = hist_time_slice / hist_time_slice.sum()
+    hist_ann_wgts = hist_ann_wgts.rename({'year' : 'time'})
+
+    # # get the weighted 30-year historical statistics
+    ann_hist_mean = wgt_ann_mean.sel(time=slice(*wgt_ann_mean.reference_range))
+    hist_wgtd = ann_hist_mean.weighted(hist_ann_wgts)
+    hist_mean = hist_wgtd.mean("time")
+    hist_mean.name = 'Mean'
+
+    # make a dataset of means for given T threshold
+    # and then for the anomalies
+
+    for i,sim in enumerate(warm_dict.keys()):
+
+        my_years = warm_dict[sim]
+        #### compute the weihted means
+
+        data_warm = data.sel(simulation=sim,time=slice(*my_years))
+        warm_time_slice = year_length.sel(year=slice(*my_years))
+        warm_ann_wgts = warm_time_slice / warm_time_slice.sum()
+        warm_ann_wgts = warm_ann_wgts.rename({'year' : 'time'})
+
+        # get the weighted 30-year threshold statistics
+        ann_warm_mean = wgt_ann_mean.sel(simulation=sim,time=slice(*my_years))
+        warm_wgtd = ann_warm_mean.weighted(warm_ann_wgts)
+
+        # and find the anomaly
+        warm_anom = warm_wgtd.mean("time") - hist_mean.sel(simulation=sim)
+
+        # need to concatenate across simulations
+        # ... there has to be a better way
+        if (i==0):
+            warm_all_anoms = warm_anom
+
+        elif (i==1):
+            warm_all_anoms = xr.concat([warm_all_anoms,warm_anom],dim='simulation')
+
+        else:
+            warm_all_anoms = xr.concat([warm_all_anoms,warm_anom],dim='simulation')
+
+    return warm_all_anoms
+
+
 class WarmingLevels(param.Parameterized):
-
-    ## ---------- Params used for GMT context plot ----------
-
-    warmlevel = param.ObjectSelector(default=1.5,
-        objects=[1.5, 2, 3, 4]
-    )
-    ssp = param.ObjectSelector(default="SSP 3-7.0 -- Business as Usual",
-        objects=["SSP 2-4.5 -- Middle of the Road","SSP 3-7.0 -- Business as Usual","SSP 5-8.5 -- Burn it All"]
-    )
 
     ## ---------- Reset certain DataSelector and LocSelectorArea options ----------
     def __init__(self, *args, **params):
         super().__init__(*args, **params)
 
+        # Selectors defaults
         self.selections.append_historical = True
         self.selections.area_average = False
         self.selections.resolution = "9 km"
@@ -52,10 +219,32 @@ class WarmingLevels(param.Parameterized):
         self.selections.timescale = "monthly"
         self.selections.variable = "Air Temperature at 2m"
 
+        # Location defaults 
         self.location.area_subset = 'states'
         self.location.cached_area = 'CA'
 
-    ## ---------- Modify options in selectors.py DataSelectors object ----------
+        # Postage data and anomalies defaults 
+        self.postage_data = _get_postage_data(
+            area_subset2=self.location.area_subset, cached_area2=self.location.cached_area, variable2=self.selections.variable, location=self.location
+        )
+        self._warm_all_anoms = calculate_postage_anomalies(data=self.postage_data, warmlevel=1.5)
+
+    ## ---------- Params & global variables ----------
+
+    warmlevel = param.ObjectSelector(default=1.5,
+        objects=[1.5, 2, 3, 4]
+    )
+    ssp = param.ObjectSelector(default="SSP 3-7.0 -- Business as Usual",
+        objects=["SSP 2-4.5 -- Middle of the Road","SSP 3-7.0 -- Business as Usual","SSP 5-8.5 -- Burn it All"]
+    )
+    
+    
+    # Button to reload TMY heatmap. Will be deleted. 
+    reload_data = param.Action(lambda x: x.param.trigger('reload_data'), label='Reload Data')
+    
+    # For reloading postage stamp data and plots
+    reload_data2 = param.Action(lambda x: x.param.trigger('reload_data2'), label='Reload Data')
+    changed_loc_and_var = param.Boolean(default=True)
 
     variable2 = param.ObjectSelector(default="Air Temperature at 2m",
         objects=["Air Temperature at 2m","Relative Humidity"]
@@ -71,8 +260,24 @@ class WarmingLevels(param.Parameterized):
     )
 
 
+    @param.depends("area_subset2","cached_area2","variable2", watch=True)
+    def _updated_bool_loc_and_var(self): 
+        """Update boolean if any changes were made to the location or variable"""
+        self.changed_loc_and_var = True
+        
+    @param.depends("reload_data2", watch=True)
+    def _update_postage_data(self): 
+        """If the button was clicked and the location or variable was changed, 
+        reload the postage stamp data from AWS"""
+        if self.changed_loc_and_var == True: 
+            self.postage_data = _get_postage_data(area_subset2=self.area_subset2, cached_area2=self.cached_area2, variable2=self.variable2, location=self.location)
+            self.changed_loc_and_var = False
+        self._warm_all_anoms = calculate_postage_anomalies(data=self.postage_data, warmlevel=self.warmlevel)
+
+
     @param.depends("variable2", watch=True)
     def _update_variable(self):
+        """Update variable in selections object to reflect variable chosen in panel"""
         self.selections.variable = self.variable2
 
     @param.depends("area_subset2", watch=True)
@@ -93,12 +298,13 @@ class WarmingLevels(param.Parameterized):
 
     @param.depends("area_subset2","cached_area2",watch=True)
     def _updated_location(self):
+        """Update locations object to reflect location chosen in panel"""
         self.location.area_subset = self.area_subset2
         self.location.cached_area = self.cached_area2
 
-    reload_data = param.Action(lambda x: x.param.trigger('reload_data'), label='Reload Data')
     @param.depends("reload_data", watch=False)
     def _TMY_hourly_heatmap(self):
+        """Generate a TMY hourly heatmap using hourly data"""
         def _get_hist_heatmap_data():
             """Get historical data from AWS catalog"""
             heatmap_selections = self.selections
@@ -247,178 +453,14 @@ class WarmingLevels(param.Parameterized):
         return heatmap
 
 
-    def _calculate_postage_anomalies(self):
-        """
-        Helper function for calculating warming levels anomalies; used by both
-        "postage" stamp plot tabs.
-        """
-
-        def _get_postage_data():
-
-            """
-            This function pulls pre-compiled data from AWS and then subsets it using recylced code from the data_loaders module
-            """
-
-            # Get data from AWS
-            fs = s3fs.S3FileSystem(anon=True)
-            fp = fs.open('s3://cadcat/tmp/t2m_and_rh_9km_ssp370_monthly_CA.nc')
-            pkg_data = xr.open_dataset(fp)
-
-            # Select variable & scenario from dataset
-            da = pkg_data[self.variable2]
-            postage_data = da.where(da.scenario == "Historical + SSP 3-7.0 -- Business as Usual", drop=True)
-
-            # Perform area subset based on user selections
-            if self.area_subset2 == "states":
-                ds_region = None # Data is already subsetted to CA
-            elif self.area_subset2 in ["CA watersheds","CA counties"]:
-                shape_index = int(
-                    self.location._geography_choose[self.area_subset2][self.cached_area2]
-                )
-                if self.area_subset2 == "CA watersheds":
-                    shape = self.location._geographies._ca_watersheds
-                    shape = shape[shape["OBJECTID"] == shape_index].iloc[0].geometry
-                    wgs84 = pyproj.CRS('EPSG:4326')
-                    psdo_merc = pyproj.CRS('EPSG:3857')
-                    project = pyproj.Transformer.from_crs(psdo_merc, wgs84, always_xy=True).transform
-                    shape = transform(project, shape)
-                elif self.area_subset2 == "CA counties":
-                    shape = self.location._geographies._ca_counties
-                    shape = shape[shape.index == shape_index].iloc[0].geometry
-                ds_region = regionmask.Regions(
-                    [shape], abbrevs=["geographic area"], name="area mask"
-                )
-
-            if ds_region:
-                # Attributes are arrays, must be items to call pyproj.CRS.from_cf
-                for attr_np in ["earth_radius","latitude_of_projection_origin","longitude_of_central_meridian"]:
-                    postage_data['Lambert_Conformal'].attrs[attr_np] = postage_data['Lambert_Conformal'].attrs[attr_np].item()
-                data_crs = ccrs.CRS(pyproj.CRS.from_cf(postage_data['Lambert_Conformal'].attrs))
-                output = data_crs.transform_points(ccrs.PlateCarree(),
-                                                       x=ds_region.coords[0][:,0],
-                                                       y=ds_region.coords[0][:,1])
-
-                postage_data = postage_data.sel(x=slice(np.nanmin(output[:,0]), np.nanmax(output[:,0])),
-                    y=slice(np.nanmin(output[:,1]), np.nanmax(output[:,1])))
-
-                mask = ds_region.mask(postage_data.lon, postage_data.lat, wrap_lon=False)
-                assert (
-                    False in mask.isnull()
-                ), "Insufficient gridcells are contained within the bounds."
-                postage_data = postage_data.where(np.isnan(mask) == False)
-
-            return postage_data
-
-
-        data = _get_postage_data()
-        var = data
-
-        var_str = self.variable2
-        var.attrs['reference_range'] = '1981','2010'# hist threshold
-
-        # year ranges for each warming threshold for each model
-        warming_years = {
-            1.5 : [2044,2050,2045,2053,2053],
-            2 : [2055,2061,2056,2072,2069],
-            3 : [2078,2077,2073,np.nan,np.nan],
-            4 : [np.nan,np.nan,2091,np.nan,np.nan]
-        }
-        my_simulations = ['cesm2', 'cnrm-esm2-1', 'ec-earth3-veg', 'fgoals-g3', 'mpi-esm1-2-lr']
-
-        # Build the 30-year windows for each model for the selected warming level
-        warming_year_range = [(str(y-15),str(y+14)) for y in warming_years[self.warmlevel]]
-        if self.warmlevel == 3:
-            warm_dict = dict(zip(my_simulations[0:3], warming_year_range[0:3]))
-        elif self.warmlevel == 4:
-            warm_dict = dict(zip(my_simulations[2:3], warming_year_range[2:3]))
-        else:
-            warm_dict = dict(zip(my_simulations, warming_year_range))
-
-        ### generate weights based off days per month
-        month_length = data.time.dt.days_in_month
-        ### first monthly weights, ie, days in month / days in year
-        mon_wgts = month_length.groupby("time.year") / month_length.groupby("time.year").sum()
-        ### then annual weights, days in year / total days
-        # wgts.groupby("time.year").sum(xr.ALL_DIMS) # check that annual weights make sense
-
-        ### want to ensure nans do not impact the weighting
-        # code from https://ncar.github.io/esds/posts/2021/yearly-averages-xarray/
-
-        # Setup our masking for nan values
-        cond = var.isnull()
-        ones = xr.where(cond, 0.0, 1.0)
-
-        # Calculate the numerator
-        var_sum = (var * mon_wgts).resample(time="AS").sum(dim="time")
-        # Calculate the denominator
-        ones_out = (ones * mon_wgts).resample(time="AS").sum(dim="time")
-        # weighted mean
-        wgt_ann_mean = var_sum / ones_out
-
-        var_hist = var.sel(time=slice(*wgt_ann_mean.reference_range))
-
-        ### now for annual weights, days in year / total days
-        ### need to do this for each time period
-        ### note: each time period differs by the year the
-        ### warming threshold is reached.
-        year_length = month_length.groupby("time.year").sum()
-        year_length.name = "days_in_year"
-        year_length = year_length.assign_coords(year=wgt_ann_mean.time.values)
-
-        hist_time_slice = year_length.sel(year=slice(*var.reference_range))
-        hist_ann_wgts = hist_time_slice / hist_time_slice.sum()
-        hist_ann_wgts = hist_ann_wgts.rename({'year' : 'time'})
-
-        # # get the weighted 30-year historical statistics
-        ann_hist_mean = wgt_ann_mean.sel(time=slice(*wgt_ann_mean.reference_range))
-        hist_wgtd = ann_hist_mean.weighted(hist_ann_wgts)
-        hist_mean = hist_wgtd.mean("time")
-        hist_mean.name = 'Mean'
-
-        # make a dataset of means for given T threshold
-        # and then for the anomalies
-
-        for i,sim in enumerate(warm_dict.keys()):
-
-            my_years = warm_dict[sim]
-            #### compute the weihted means
-
-            var_warm = var.sel(simulation=sim,time=slice(*my_years))
-            warm_time_slice = year_length.sel(year=slice(*my_years))
-            warm_ann_wgts = warm_time_slice / warm_time_slice.sum()
-            warm_ann_wgts = warm_ann_wgts.rename({'year' : 'time'})
-
-            # get the weighted 30-year threshold statistics
-            ann_warm_mean = wgt_ann_mean.sel(simulation=sim,time=slice(*my_years))
-            warm_wgtd = ann_warm_mean.weighted(warm_ann_wgts)
-
-            # and find the anomaly
-            warm_anom = warm_wgtd.mean("time") - hist_mean.sel(simulation=sim)
-
-            # need to concatenate across simulations
-            # ... there has to be a better way
-            if (i==0):
-                warm_all_anoms = warm_anom
-
-            elif (i==1):
-                warm_all_anoms = xr.concat([warm_all_anoms,warm_anom],dim='simulation')
-
-            else:
-                warm_all_anoms = xr.concat([warm_all_anoms,warm_anom],dim='simulation')
-
-        return warm_all_anoms
-
-
-    @param.depends("variable2", "warmlevel","area_subset2","cached_area2", watch=False)
+    @param.depends("reload_data2", watch=False)
     def _GCM_PostageStamps_MAIN(self):
-
-        warm_all_anoms = self._calculate_postage_anomalies()
 
         # intialize the plot
         fig = Figure(figsize=(8, 9))
         my_simulations = ['cesm2', 'cnrm-esm2-1', 'ec-earth3-veg', 'fgoals-g3', 'mpi-esm1-2-lr']
 
-        for i, warm_anom in enumerate(warm_all_anoms):
+        for i, warm_anom in enumerate(self._warm_all_anoms):
             sim = my_simulations[i]
 
             ax = fig.add_subplot(2,3,i+1,projection=ccrs.LambertConformal())
@@ -447,16 +489,14 @@ class WarmingLevels(param.Parameterized):
         mpl_pane = pn.pane.Matplotlib(fig, dpi=144)
         return mpl_pane
 
-    @param.depends("variable2", "warmlevel","area_subset2","cached_area2", watch=False)
+    @param.depends("reload_data2", watch=False)
     def _GCM_PostageStamps_STATS(self):
 
-        warm_all_anoms = self._calculate_postage_anomalies()
-
-        min_anom = warm_all_anoms.min(dim='simulation')
+        min_anom = self._warm_all_anoms.min(dim='simulation')
         min_anom.name = "Min"
-        max_anom = warm_all_anoms.max(dim='simulation')
+        max_anom = self._warm_all_anoms.max(dim='simulation')
         max_anom.name = "Max"
-        med_anom = warm_all_anoms.median(dim='simulation')
+        med_anom = self._warm_all_anoms.median(dim='simulation')
         med_anom.name = "Median"
 
         stat_anoms = xr.merge([min_anom,med_anom,max_anom])
@@ -495,7 +535,7 @@ class WarmingLevels(param.Parameterized):
 
     @param.depends("warmlevel","ssp", watch=False)
     def _GMT_context_plot(self):
-        """ Display static GMT plot using package data. """
+        """ Display GMT plot using package data that updates whenever the warming level or SSP is changed by the user. """
         ## Plot dimensions
         width=575
         height=300
@@ -595,6 +635,7 @@ def _display_warming_levels(selections, location, _cat):
                     pn.widgets.RadioButtonGroup.from_param(warming_levels.param.warmlevel, name=""),
                     pn.widgets.Select.from_param(warming_levels.param.variable2, name="Data variable"),
                     pn.widgets.StaticText.from_param(selections.param.variable_description),
+                    pn.widgets.Button.from_param(warming_levels.param.reload_data2, button_type="primary", width=150, height=30),
                     width = 230),
                 pn.Column(
                     pn.widgets.Select.from_param(warming_levels.param.area_subset2, name="Area subset"),
