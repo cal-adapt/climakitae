@@ -537,7 +537,7 @@ class WarmingLevels(param.Parameterized):
             interval = hv.Path([(0,0), (0,0)]) # hardcoding for now, likely a better way to handle
 
         to_plot = ipcc_data * warmlevel_line * ssp_int * ssp_shading * ssp_lastdate * ssp_firstdate * interval
-        to_plot.opts(opts.Overlay(title='Global surface temperature change relative to 1850-1900', fontsize=12))
+        to_plot.opts(opts.Overlay(title='Global mean surface temperature change relative to 1850-1900', fontsize=12))
         to_plot.opts(legend_position='bottom', fontsize=10)
 
         return to_plot
@@ -552,7 +552,7 @@ def _display_warming_levels(selections, location, _cat):
     user_options = pn.Card(
             pn.Row(
                 pn.Column(
-                    pn.widgets.StaticText(name="", value='Warming Level (°C)'),
+                    pn.widgets.StaticText(name="", value='Warming level (°C)'),
                     pn.widgets.RadioButtonGroup.from_param(warming_levels.param.warmlevel, name=""),
                     pn.widgets.Select.from_param(warming_levels.param.variable2, name="Data variable"),
                     pn.widgets.StaticText.from_param(selections.param.variable_description),
@@ -564,22 +564,34 @@ def _display_warming_levels(selections, location, _cat):
                     location.view,
                     width = 230)
                 )
-        , title="Data Options", collapsible=False, width=460, height=420
+        , title="Data Options", collapsible=False, width=460, height=500
     )
 
     GMT_plot = pn.Card(
-            pn.widgets.Select.from_param(warming_levels.param.ssp, name="Scenario", width=250),
-            warming_levels._GMT_context_plot,
-            title="When is the warming level reached?",
-            collapsible=False, width=600, height=420
+            pn.Column(
+                pn.widgets.Select.from_param(warming_levels.param.ssp, name="Scenario", width=250),
+                "Shading around selected scenario shows variation across different simulations. Dotted line indicates when the multi-model ensemble reaches the selected warming level, while solid vertical lines indicate when the earliest and latest simulations of that scenario reach the warming level.", 
+                warming_levels._GMT_context_plot,
+            ),
+            title="When do different scenarios reach the warming level?",
+            collapsible=False, width=600, height=500
         )
 
-    #TMY = pn.Column(
-    #    pn.widgets.Button.from_param(warming_levels.param.reload_data, button_type="primary", width=150, height=30),
-    #    warming_levels._TMY_hourly_heatmap
-    #)
+    TMY = pn.Column(
+        pn.widgets.Button.from_param(warming_levels.param.reload_data, button_type="primary", width=150, height=30),
+        pn.Row(
+           "A typical meteorological year is calculated by selecting the 24 hours for every day that best represent multi-model mean conditions during a 30-year period – 1981-2010 for the historical baseline or centered on the year the warming level is reached.",
+           width = 600
+        ),
+        warming_levels._TMY_hourly_heatmap
+    )
 
     postage_stamps_MAIN = pn.Column(
+        pn.Spacer(width=15),
+        pn.Row(
+            "Panels show difference between 30-year average centered on the year each model reaches the specified warming level and average from 1981-2010.",
+            width = 600
+        ),
         pn.Spacer(width=15),
         pn.Row(warming_levels.param.overlay_MAIN, width = 200),
         pn.Spacer(width=15),
@@ -587,6 +599,11 @@ def _display_warming_levels(selections, location, _cat):
     )
 
     postage_stamps_STATS = pn.Column(
+        pn.Spacer(width=15),
+        pn.Row(
+            "Panels show simulation that represents average, minimum, or maximum conditions across all models.",
+            width = 600
+        ),
         pn.Spacer(width=15),
         pn.Row(warming_levels.param.overlay_STATS, width = 200),
         pn.Spacer(width=15),
@@ -597,12 +614,11 @@ def _display_warming_levels(selections, location, _cat):
         pn.Tabs(
             ("Maps of individual simulations", postage_stamps_MAIN),
             ("Maps of cross-model statistics: mean/median/max/min", postage_stamps_STATS),
-            ("Typical meteorological year", pn.Row()),
+            ("Typical meteorological year", TMY),
         ),
     title="Regional response at selected warming level",
-    width = 850, height=700, collapsible=False,
+    width = 1000, height=800, collapsible=False,
     )
-
 
     panel_doodad = pn.Column(
         pn.Row(user_options, GMT_plot),
