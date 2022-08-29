@@ -186,7 +186,7 @@ class WarmingLevels(param.Parameterized):
 
     area_subset2 = param.ObjectSelector(
         default="states",
-        objects=["states", "CA counties","CA watersheds"],
+        objects=["states", "CA counties"],
     )
 
     # Option to overlay CEC point data on the MAIN postage stamp plots
@@ -228,12 +228,10 @@ class WarmingLevels(param.Parameterized):
         Makes the dropdown options for 'cached area' reflect the type of area subsetting
         selected in 'area_subset' (currently state, county, or watershed boundaries).
         """
-        if self.area_subset2 in ["CA counties", "CA watersheds"]:
+        if self.area_subset2 == "CA counties":
             # setting this to the dict works for initializing, but not updating an objects list:
-            self.param["cached_area2"].objects = list(
-                self.location._geography_choose[self.area_subset2].keys()
-            )
-            self.cached_area2 = list(self.location._geography_choose[self.area_subset2].keys())[0]
+            self.param["cached_area2"].objects = ["Santa Clara County", "Los Angeles County"]
+            self.cached_area2 = "Santa Clara County"
         elif self.area_subset2 == "states":
             self.param["cached_area2"].objects = ["CA"]
             self.cached_area2 = "CA"
@@ -437,7 +435,7 @@ class WarmingLevels(param.Parameterized):
                 coastline=True, features=['borders']
                 )
             if self.overlay_STATS == "Power plants":
-                return _plot * power_plants.hvplot(color="black",geo=True,projection=ccrs.Orthographic(-118, 40))
+                return _plot * power_plants.hvplot(color="black",s=4,geo=True,projection=ccrs.Orthographic(-118, 40))
             elif self.overlay_STATS == "Substations":
                 return _plot * substations.hvplot(color="black",geo=True,projection=ccrs.Orthographic(-118, 40))
             else:
@@ -576,21 +574,21 @@ def _display_warming_levels(selections, location, _cat):
             collapsible=False, width=600, height=420
         )
 
-    TMY = pn.Column(
-        pn.widgets.Button.from_param(warming_levels.param.reload_data, button_type="primary", width=150, height=30),
-        warming_levels._TMY_hourly_heatmap
-    )
+    #TMY = pn.Column(
+    #    pn.widgets.Button.from_param(warming_levels.param.reload_data, button_type="primary", width=150, height=30),
+    #    warming_levels._TMY_hourly_heatmap
+    #)
 
     postage_stamps_MAIN = pn.Column(
         pn.Spacer(width=15),
-        pn.Row(warming_levels.param.overlay_MAIN, width = 400),
+        pn.Row(warming_levels.param.overlay_MAIN, width = 200),
         pn.Spacer(width=15),
         warming_levels._GCM_PostageStamps_MAIN
     )
 
     postage_stamps_STATS = pn.Column(
         pn.Spacer(width=15),
-        pn.Row(warming_levels.param.overlay_STATS, width = 400),
+        pn.Row(warming_levels.param.overlay_STATS, width = 200),
         pn.Spacer(width=15),
         warming_levels._GCM_PostageStamps_STATS
     )
@@ -599,7 +597,7 @@ def _display_warming_levels(selections, location, _cat):
         pn.Tabs(
             ("Maps of individual simulations", postage_stamps_MAIN),
             ("Maps of cross-model statistics: mean/median/max/min", postage_stamps_STATS),
-            ("Typical meteorological year", TMY),
+            ("Typical meteorological year", pn.Row()),
         ),
     title="Regional response at selected warming level",
     width = 850, height=700, collapsible=False,
