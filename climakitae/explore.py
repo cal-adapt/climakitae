@@ -401,7 +401,7 @@ class WarmingLevels(param.Parameterized):
         sim_plots = all_plot_data.hvplot.quadmesh('lon','lat', 
             by='simulation',
             subplots = True,
-            width = 200, height = 200,
+            width = 300, height = 250,
             crs=ccrs.PlateCarree(),
             projection=ccrs.Orthographic(-118, 40),
             project=True, rasterize=True,
@@ -409,9 +409,9 @@ class WarmingLevels(param.Parameterized):
             ).cols(3)
 
         if self.overlay_MAIN == "Power plants":
-            return sim_plots * power_plants.hvplot(color="black",geo=True,projection=ccrs.Orthographic(-118, 40))
+            return sim_plots * power_plants.hvplot(color="black",s=2,geo=True,projection=ccrs.Orthographic(-118, 40))
         elif self.overlay_MAIN == "Substations":
-            return sim_plots * substations.hvplot(color="black",geo=True,projection=ccrs.Orthographic(-118, 40))
+            return sim_plots * substations.hvplot(color="black",s=2,geo=True,projection=ccrs.Orthographic(-118, 40))
         else:
             return sim_plots
 
@@ -428,7 +428,7 @@ class WarmingLevels(param.Parameterized):
         def _make_plot(data, title):
             _plot = data.hvplot.quadmesh('lon','lat', 
                 title = title,
-                width = 400, height = 300,
+                width = 300, height = 250,
                 crs=ccrs.PlateCarree(),
                 projection=ccrs.Orthographic(-118, 40),
                 project=True, rasterize=True,
@@ -437,7 +437,7 @@ class WarmingLevels(param.Parameterized):
             if self.overlay_STATS == "Power plants":
                 return _plot * power_plants.hvplot(color="black",s=4,geo=True,projection=ccrs.Orthographic(-118, 40))
             elif self.overlay_STATS == "Substations":
-                return _plot * substations.hvplot(color="black",geo=True,projection=ccrs.Orthographic(-118, 40))
+                return _plot * substations.hvplot(color="black",s=4,geo=True,projection=ccrs.Orthographic(-118, 40))
             else:
                 return _plot
 
