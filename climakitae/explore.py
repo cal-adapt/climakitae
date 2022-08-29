@@ -45,51 +45,51 @@ substations = gpd.read_file(CEC_shapefile_URLs['substations']).rename(columns = 
 
 
 
-def read_cached_tmy_df(cached_tmy_files, variable, warmlevel, cached_area): 
-    """Read in cached tmy file corresponding to a given variable, warmlevel, and cached area. 
+def read_cached_tmy_df(cached_tmy_files, variable, warmlevel, cached_area):
+    """Read in cached tmy file corresponding to a given variable, warmlevel, and cached area.
     Returns a dataframe"""
-    
+
     # Subset list by variable
-    if variable == "Relative Humidity": 
+    if variable == "Relative Humidity":
         cached_tmy_var = [file for file in cached_tmy_files if "rh" in file]
     elif variable == "Air Temperature at 2m":
         cached_tmy_var = [file for file in cached_tmy_files if "temp" in file]
 
-    # Subset list by warming level 
-    if warmlevel == 1.5: 
-        cached_tmy_warmlevel = [file for file in cached_tmy_var if "15degC" in file] 
+    # Subset list by warming level
+    if warmlevel == 1.5:
+        cached_tmy_warmlevel = [file for file in cached_tmy_var if "15degC" in file]
     elif warmlevel == 2:
-        cached_tmy_warmlevel = [file for file in cached_tmy_var if "2degC" in file] 
+        cached_tmy_warmlevel = [file for file in cached_tmy_var if "2degC" in file]
     elif warmlevel == 3:
-        cached_tmy_warmlevel = [file for file in cached_tmy_var if "3degC" in file] 
+        cached_tmy_warmlevel = [file for file in cached_tmy_var if "3degC" in file]
 
-    # Subset list by location 
-    if cached_area == "CA": 
-        tmy = [file for file in cached_tmy_warmlevel if "CA" in file] 
-    if cached_area == "Santa Clara County": 
-        tmy = [file for file in cached_tmy_warmlevel if "santaclara" in file] 
-    if cached_area == "Los Angeles County" : 
-        tmy = [file for file in cached_tmy_warmlevel if "losangeles" in file] 
-    
-    # Read in file as pandas dataframe 
+    # Subset list by location
+    if cached_area == "CA":
+        tmy = [file for file in cached_tmy_warmlevel if "CA" in file]
+    if cached_area == "Santa Clara County":
+        tmy = [file for file in cached_tmy_warmlevel if "santaclara" in file]
+    if cached_area == "Los Angeles County" :
+        tmy = [file for file in cached_tmy_warmlevel if "losangeles" in file]
+
+    # Read in file as pandas dataframe
     df = pd.read_csv(tmy[0], index_col=0)
-    return df 
+    return df
 
 
 def _get_postage_data(area_subset2, cached_area2, variable2, location):
 
     """
     This function pulls pre-compiled data from AWS and then subsets it using recylced code from the data_loaders module
-    
-    Args: 
-        area_subset2 (str): area subset 
-        cached_area2 (str): cached area 
-        variable2 (str): variable 
+
+    Args:
+        area_subset2 (str): area subset
+        cached_area2 (str): cached area
+        variable2 (str): variable
         location (LocSelectorArea object from selectors.py): location object containing boundary information
-        
-    Returns: 
-        postage_data (xr.DataArray): data to use for creating postage stamp data 
-    
+
+    Returns:
+        postage_data (xr.DataArray): data to use for creating postage stamp data
+
     """
 
     # Get data from AWS
@@ -147,20 +147,20 @@ def get_anomaly_data(data, warmlevel=3.0):
     """
     Helper function for calculating warming level anomalies.
 
-    Args: 
+    Args:
         data (xr.DataArray)
-        warmlevel (float): warming level 
-        
-    Returns: 
-        warm_all_anoms (xr.DatArray): warming level anomalies computed from input data 
+        warmlevel (float): warming level
+
+    Returns:
+        warm_all_anoms (xr.DatArray): warming level anomalies computed from input data
     """
-    model_case = {'cesm2':'CESM2', 'cnrm-esm2-1':'CNRM-ESM2-1', 
-              'ec-earth3-veg':'EC-Earth3-Veg', 'fgoals-g3':'FGOALS-g3', 
+    model_case = {'cesm2':'CESM2', 'cnrm-esm2-1':'CNRM-ESM2-1',
+              'ec-earth3-veg':'EC-Earth3-Veg', 'fgoals-g3':'FGOALS-g3',
               'mpi-esm1-2-lr':'MPI-ESM1-2-LR'}
 
     all_sims = xr.Dataset()
     for simulation in data.simulation.values:
-        for scenario in ['ssp370']: 
+        for scenario in ['ssp370']:
             one_ts = data.sel(simulation=simulation).squeeze() #,scenario=scenario) #scenario names are longer strings
             centered_time = pd.to_datetime(gwl_times[str(float(warmlevel))][model_case[simulation]][scenario]).year
             if not np.isnan(centered_time):
@@ -183,11 +183,11 @@ class WarmingLevels(param.Parameterized):
         self.selections.timescale = "monthly"
         self.selections.variable = "Air Temperature at 2m"
 
-        # Location defaults 
+        # Location defaults
         self.location.area_subset = 'states'
         self.location.cached_area = 'CA'
 
-        # Postage data and anomalies defaults 
+        # Postage data and anomalies defaults
         self.postage_data = _get_postage_data(
             area_subset2=self.location.area_subset, cached_area2=self.location.cached_area, variable2=self.selections.variable, location=self.location
         )
@@ -201,7 +201,7 @@ class WarmingLevels(param.Parameterized):
     ssp = param.ObjectSelector(default="SSP 3-7.0 -- Business as Usual",
         objects=["SSP 2-4.5 -- Middle of the Road","SSP 3-7.0 -- Business as Usual","SSP 5-8.5 -- Burn it All"]
     )
-    
+
 
     # For reloading postage stamp data and plots
     reload_data2 = param.Action(lambda x: x.param.trigger('reload_data2'), label='Reload Data')
@@ -221,28 +221,28 @@ class WarmingLevels(param.Parameterized):
     )
 
     # Option to overlay CEC point data on the MAIN postage stamp plots
-    overlay_MAIN = param.ObjectSelector(default = "None", 
-        objects = ["None", "Power plants", "Substations"], 
+    overlay_MAIN = param.ObjectSelector(default = "None",
+        objects = ["None", "Power plants", "Substations"],
         label = "Infrastructure point data"
     )
 
     # Option to overlay CEC point data on the STATS postage stamp plots
-    overlay_STATS = param.ObjectSelector(default = "None", 
-        objects = ["None", "Power plants", "Substations"], 
+    overlay_STATS = param.ObjectSelector(default = "None",
+        objects = ["None", "Power plants", "Substations"],
         label = "Infrastructure point data"
     )
 
 
     @param.depends("area_subset2","cached_area2","variable2", watch=True)
-    def _updated_bool_loc_and_var(self): 
+    def _updated_bool_loc_and_var(self):
         """Update boolean if any changes were made to the location or variable"""
         self.changed_loc_and_var = True
-        
+
     @param.depends("reload_data2", watch=True)
-    def _update_postage_data(self): 
-        """If the button was clicked and the location or variable was changed, 
+    def _update_postage_data(self):
+        """If the button was clicked and the location or variable was changed,
         reload the postage stamp data from AWS"""
-        if self.changed_loc_and_var == True: 
+        if self.changed_loc_and_var == True:
             self.postage_data = _get_postage_data(area_subset2=self.area_subset2, cached_area2=self.cached_area2, variable2=self.variable2, location=self.location)
             self.changed_loc_and_var = False
         self._warm_all_anoms = get_anomaly_data(data=self.postage_data, warmlevel=self.warmlevel)
@@ -400,12 +400,19 @@ class WarmingLevels(param.Parameterized):
 #         df = df_future - df_hist
 
         df = read_cached_tmy_df(
-            cached_tmy_files=cached_tmy_files, 
-            variable=self.variable2, 
-            warmlevel=self.warmlevel, 
+            cached_tmy_files=cached_tmy_files,
+            variable=self.variable2,
+            warmlevel=self.warmlevel,
             cached_area=self.cached_area2
         )
-    
+
+        # Set to PST time -- hardcoded
+        df = df[['8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','1','2','3','4','5','6','7']]
+        col_h=[]
+        for i in np.arange(1,25,1):
+            col_h.append(str(i))
+        df.columns = col_h
+
         if self.variable2 == "Air Temperature at 2m":
             cm = "YlOrRd"
             cl = (0,6)  # hardcoding this in, full range of warming level response for 2m air temp
@@ -420,7 +427,7 @@ class WarmingLevels(param.Parameterized):
             title='Typical Meteorological Year\nDifference between a {}°C future and historical baseline'.format(self.warmlevel),
             cmap=cm,
             xaxis='bottom',
-            xlabel="Hour of Day (UTC)",
+            xlabel="Hour of Day (PST)",
             ylabel="Day of Year",clabel=self.postage_data.name + " ("+self.postage_data.attrs["units"]+")",
             width=800, height=350).opts(
             fontsize={'title': 15, 'xlabel':12, 'ylabel':12},
@@ -433,13 +440,13 @@ class WarmingLevels(param.Parameterized):
     def _GCM_PostageStamps_MAIN(self):
 
         all_plot_data = self._warm_all_anoms
-        
-        if self.variable2 == "Air Temperature at 2m": 
+
+        if self.variable2 == "Air Temperature at 2m":
             cmap = "coolwarm"
-        elif self.variable2 == "Relative Humidity": 
+        elif self.variable2 == "Relative Humidity":
             cmap = "viridis"
 
-        sim_plots = all_plot_data.hvplot.quadmesh('lon','lat', 
+        sim_plots = all_plot_data.hvplot.quadmesh('lon','lat',
             by='simulation',
             subplots = True,
             width = 250, height = 200,
@@ -468,13 +475,13 @@ class WarmingLevels(param.Parameterized):
         mean_data = all_plot_data.mean(dim='simulation')
 
         def _make_plot(data, title, cmap="coolwarm"):
-            _plot = data.hvplot.quadmesh('lon','lat', 
+            _plot = data.hvplot.quadmesh('lon','lat',
                 title = title,
                 width = 300, height = 250,
                 crs=ccrs.PlateCarree(),
                 projection=ccrs.Orthographic(-118, 40),
                 project=True, rasterize=False, dynamic=False,
-                coastline=True, features=['borders'], 
+                coastline=True, features=['borders'],
                 cmap=cmap
                 )
             if self.overlay_STATS == "Power plants":
@@ -483,11 +490,11 @@ class WarmingLevels(param.Parameterized):
                 return _plot * substations.hvplot(color="black",s=4,geo=True,projection=ccrs.Orthographic(-118, 40))
             else:
                 return _plot
-        if self.variable2 == "Air Temperature at 2m": 
+        if self.variable2 == "Air Temperature at 2m":
             cmap = "coolwarm"
-        elif self.variable2 == "Relative Humidity": 
+        elif self.variable2 == "Relative Humidity":
             cmap = "viridis"
-            
+
         mean_plot = _make_plot(mean_data, "Mean", cmap=cmap)
         med_plot = _make_plot(med_data, "Median", cmap=cmap)
         max_plot = _make_plot(max_data, "Maximum", cmap=cmap)
@@ -617,7 +624,7 @@ def _display_warming_levels(selections, location, _cat):
     GMT_plot = pn.Card(
             pn.Column(
                 pn.widgets.Select.from_param(warming_levels.param.ssp, name="Scenario", width=250),
-                "Shading around selected scenario shows variation across different simulations. Dotted line indicates when the multi-model ensemble reaches the selected warming level, while solid vertical lines indicate when the earliest and latest simulations of that scenario reach the warming level.", 
+                "Shading around selected scenario shows variation across different simulations. Dotted line indicates when the multi-model ensemble reaches the selected warming level, while solid vertical lines indicate when the earliest and latest simulations of that scenario reach the warming level.",
                 warming_levels._GMT_context_plot,
             ),
             title="When do different scenarios reach the warming level?",
