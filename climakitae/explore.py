@@ -429,7 +429,7 @@ class WarmingLevels(param.Parameterized):
         return heatmap
 
 
-    @param.depends("reload_data2", "Overlay_MAIN", watch=False)
+    @param.depends("reload_data2", "overlay_MAIN", watch=False)
     def _GCM_PostageStamps_MAIN(self):
 
         all_plot_data = self._warm_all_anoms
@@ -457,7 +457,7 @@ class WarmingLevels(param.Parameterized):
         else:
             return sim_plots
 
-    @param.depends("reload_data2", "Overlay_STATS", watch=False)
+    @param.depends("reload_data2", "overlay_STATS", watch=False)
     def _GCM_PostageStamps_STATS(self):
 
         all_plot_data = self._warm_all_anoms
