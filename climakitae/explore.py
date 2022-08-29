@@ -667,7 +667,7 @@ def _display_warming_levels(selections, location, _cat):
             ("Typical meteorological year", TMY),
         ),
     title="Regional response at selected warming level",
-    width = 800, height=700, collapsible=False,
+    width = 900, height=650, collapsible=False,
     )
 
     panel_doodad = pn.Column(
