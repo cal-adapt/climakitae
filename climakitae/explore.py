@@ -445,7 +445,7 @@ class WarmingLevels(param.Parameterized):
             width = 250, height = 200,
             crs=ccrs.PlateCarree(),
             projection=ccrs.Orthographic(-118, 40),
-            project=True, rasterize=True,
+            project=True, rasterize=False, dynamic=False,
             coastline=True, features=['borders'],
             cmap = cmap
             ).cols(3)
@@ -473,7 +473,7 @@ class WarmingLevels(param.Parameterized):
                 width = 300, height = 250,
                 crs=ccrs.PlateCarree(),
                 projection=ccrs.Orthographic(-118, 40),
-                project=True, rasterize=True,
+                project=True, rasterize=False, dynamic=False,
                 coastline=True, features=['borders'], 
                 cmap=cmap
                 )
