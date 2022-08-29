@@ -34,14 +34,22 @@ cached_tmy_files = [pkg_resources.resource_filename('climakitae', 'data/cached_t
 gwl_file = pkg_resources.resource_filename('climakitae', 'data/gwl_1981-2010ref.csv')
 gwl_times = pd.read_csv(gwl_file, index_col=[0,1])
 
-# URLs to shapefiles for example point data from CEC (power plants and substations available)
-CEC_shapefile_URLs = {
-    'power_plants' : "https://opendata.arcgis.com/api/v3/datasets/4a702cd67be24ae7ab8173423a768e1b_0/downloads/data?format=geojson&spatialRefId=4326&where=1%3D1",
-    'substations' : "https://cecgis-caenergy.opendata.arcgis.com/datasets/CAEnergy::california-electric-substations.geojson?outSR=%7B%22latestWkid%22%3A3857%2C%22wkid%22%3A102100%7D"
-}
-# Read in the values once (so that it does not re-download every time plots are updated)
-power_plants = gpd.read_file(CEC_shapefile_URLs['power_plants']).rename(columns = {'Lon_WGS84':'lon', 'Lat_WGS84':'lat'})
-substations = gpd.read_file(CEC_shapefile_URLs['substations']).rename(columns = {'Lon_WGS84':'lon', 'Lat_WGS84':'lat'})
+# # URLs to shapefiles for example point data from CEC (power plants and substations available)
+# CEC_shapefile_URLs = {
+#     'power_plants' : "https://opendata.arcgis.com/api/v3/datasets/4a702cd67be24ae7ab8173423a768e1b_0/downloads/data?format=geojson&spatialRefId=4326&where=1%3D1",
+#     'substations' : "https://cecgis-caenergy.opendata.arcgis.com/datasets/CAEnergy::california-electric-substations.geojson?outSR=%7B%22latestWkid%22%3A3857%2C%22wkid%22%3A102100%7D"
+# }
+# # Read in the values once (so that it does not re-download every time plots are updated)
+# power_plants = gpd.read_file(CEC_shapefile_URLs['power_plants']).rename(columns = {'Lon_WGS84':'lon', 'Lat_WGS84':'lat'})
+# substations = gpd.read_file(CEC_shapefile_URLs['substations']).rename(columns = {'Lon_WGS84':'lon', 'Lat_WGS84':'lat'})
+
+## Read in data
+ssp119_data = pd.read_csv(ssp119, index_col='Year')
+ssp126_data = pd.read_csv(ssp126, index_col='Year')
+ssp245_data = pd.read_csv(ssp245, index_col='Year')
+ssp370_data = pd.read_csv(ssp370, index_col='Year')
+ssp585_data = pd.read_csv(ssp585, index_col='Year')
+hist_data = pd.read_csv(hist, index_col='Year')
 
 
 
@@ -196,7 +204,7 @@ class WarmingLevels(param.Parameterized):
     ## ---------- Params & global variables ----------
 
     warmlevel = param.ObjectSelector(default=1.5,
-        objects=[1.5, 2, 3, 4]
+        objects=[1.5, 2, 3]
     )
     ssp = param.ObjectSelector(default="SSP 3-7.0 -- Business as Usual",
         objects=["SSP 2-4.5 -- Middle of the Road","SSP 3-7.0 -- Business as Usual","SSP 5-8.5 -- Burn it All"]
@@ -220,17 +228,17 @@ class WarmingLevels(param.Parameterized):
         objects=["states", "CA counties"],
     )
 
-    # Option to overlay CEC point data on the MAIN postage stamp plots
-    overlay_MAIN = param.ObjectSelector(default = "None", 
-        objects = ["None", "Power plants", "Substations"], 
-        label = "Infrastructure point data"
-    )
+#     # Option to overlay CEC point data on the MAIN postage stamp plots
+#     overlay_MAIN = param.ObjectSelector(default = "None", 
+#         objects = ["None", "Power plants", "Substations"], 
+#         label = "Infrastructure point data"
+#     )
 
-    # Option to overlay CEC point data on the STATS postage stamp plots
-    overlay_STATS = param.ObjectSelector(default = "None", 
-        objects = ["None", "Power plants", "Substations"], 
-        label = "Infrastructure point data"
-    )
+#     # Option to overlay CEC point data on the STATS postage stamp plots
+#     overlay_STATS = param.ObjectSelector(default = "None", 
+#         objects = ["None", "Power plants", "Substations"], 
+#         label = "Infrastructure point data"
+#     )
 
 
     @param.depends("area_subset2","cached_area2","variable2", watch=True)
@@ -411,7 +419,7 @@ class WarmingLevels(param.Parameterized):
             cl = (0,6)  # hardcoding this in, full range of warming level response for 2m air temp
         elif self.variable2 == "Relative Humidity":
             df = df * 100
-            cm = "coolwarm"
+            cm = "PuOr"
             cl = (-15,15) # hardcoding this in, full range of warming level response for relhumid
 
         heatmap = df.hvplot.heatmap(
@@ -429,15 +437,15 @@ class WarmingLevels(param.Parameterized):
         return heatmap
 
 
-    @param.depends("reload_data2", "overlay_MAIN", watch=False)
+    @param.depends("reload_data2", watch=False)
     def _GCM_PostageStamps_MAIN(self):
 
         all_plot_data = self._warm_all_anoms
         
         if self.variable2 == "Air Temperature at 2m": 
-            cmap = "coolwarm"
+            cmap = "YlOrRd"
         elif self.variable2 == "Relative Humidity": 
-            cmap = "viridis"
+            cmap = "PuOr"
 
         sim_plots = all_plot_data.hvplot.quadmesh('lon','lat', 
             by='simulation',
@@ -450,14 +458,16 @@ class WarmingLevels(param.Parameterized):
             cmap = cmap
             ).cols(3)
 
-        if self.overlay_MAIN == "Power plants":
-            return sim_plots * power_plants.hvplot(color="black",s=2,geo=True,projection=ccrs.Orthographic(-118, 40))
-        elif self.overlay_MAIN == "Substations":
-            return sim_plots * substations.hvplot(color="black",s=2,geo=True,projection=ccrs.Orthographic(-118, 40))
-        else:
-            return sim_plots
+        # if self.overlay_MAIN == "Power plants":
+        #     return sim_plots * power_plants.hvplot(color="black",s=2,geo=True,projection=ccrs.Orthographic(-118, 40))
+        # elif self.overlay_MAIN == "Substations":
+        #     return sim_plots * substations.hvplot(color="black",s=2,geo=True,projection=ccrs.Orthographic(-118, 40))
+        # else:
+        #     return sim_plots
+        
+        return sim_plots
 
-    @param.depends("reload_data2", "overlay_STATS", watch=False)
+    @param.depends("reload_data2", watch=False)
     def _GCM_PostageStamps_STATS(self):
 
         all_plot_data = self._warm_all_anoms
@@ -477,16 +487,19 @@ class WarmingLevels(param.Parameterized):
                 coastline=True, features=['borders'], 
                 cmap=cmap
                 )
-            if self.overlay_STATS == "Power plants":
-                return _plot * power_plants.hvplot(color="black",s=4,geo=True,projection=ccrs.Orthographic(-118, 40))
-            elif self.overlay_STATS == "Substations":
-                return _plot * substations.hvplot(color="black",s=4,geo=True,projection=ccrs.Orthographic(-118, 40))
-            else:
-                return _plot
+            # if self.overlay_STATS == "Power plants":
+            #     return _plot * power_plants.hvplot(color="black",s=4,geo=True,projection=ccrs.Orthographic(-118, 40))
+            # elif self.overlay_STATS == "Substations":
+            #     return _plot * substations.hvplot(color="black",s=4,geo=True,projection=ccrs.Orthographic(-118, 40))
+            # else:
+            #     return _plot
+        
+            return _plot 
+        
         if self.variable2 == "Air Temperature at 2m": 
-            cmap = "coolwarm"
+            cmap = "YlOrRd"
         elif self.variable2 == "Relative Humidity": 
-            cmap = "viridis"
+            cmap = "PuOr"
             
         mean_plot = _make_plot(mean_data, "Mean", cmap=cmap)
         med_plot = _make_plot(med_data, "Median", cmap=cmap)
@@ -507,14 +520,6 @@ class WarmingLevels(param.Parameterized):
         ## Plot dimensions
         width=575
         height=300
-
-        ## Read in data
-        ssp119_data = pd.read_csv(ssp119, index_col='Year')
-        ssp126_data = pd.read_csv(ssp126, index_col='Year')
-        ssp245_data = pd.read_csv(ssp245, index_col='Year')
-        ssp370_data = pd.read_csv(ssp370, index_col='Year')
-        ssp585_data = pd.read_csv(ssp585, index_col='Year')
-        hist_data = pd.read_csv(hist, index_col='Year')
 
         ## Plot figure
         hist_t = np.arange(1950,2015,1)
@@ -616,8 +621,8 @@ def _display_warming_levels(selections, location, _cat):
 
     GMT_plot = pn.Card(
             pn.Column(
-                pn.widgets.Select.from_param(warming_levels.param.ssp, name="Scenario", width=250),
                 "Shading around selected scenario shows variation across different simulations. Dotted line indicates when the multi-model ensemble reaches the selected warming level, while solid vertical lines indicate when the earliest and latest simulations of that scenario reach the warming level.", 
+                pn.widgets.Select.from_param(warming_levels.param.ssp, name="Scenario", width=250),
                 warming_levels._GMT_context_plot,
             ),
             title="When do different scenarios reach the warming level?",
@@ -625,34 +630,26 @@ def _display_warming_levels(selections, location, _cat):
         )
 
     TMY = pn.Column(
-        pn.Row(
-           "A typical meteorological year is calculated by selecting the 24 hours for every day that best represent multi-model mean conditions during a 30-year period – 1981-2010 for the historical baseline or centered on the year the warming level is reached.",
-           width = 600
+        pn.widgets.StaticText(
+           value="A typical meteorological year is calculated by selecting the 24 hours for every day that best represent multi-model mean conditions during a 30-year period – 1981-2010 for the historical baseline or centered on the year the warming level is reached.",
+           width = 700
         ),
         warming_levels._TMY_hourly_heatmap
     )
 
     postage_stamps_MAIN = pn.Column(
-        pn.Spacer(width=15),
-        pn.Row(
-            "Panels show difference between 30-year average centered on the year each model reaches the specified warming level and average from 1981-2010.",
-            width = 600
+        pn.widgets.StaticText(
+            value="Panels show difference between 30-year average centered on the year each model reaches the specified warming level and average from 1981-2010.",
+            width = 700
         ),
-        pn.Spacer(width=15),
-        pn.Row(warming_levels.param.overlay_MAIN, width = 200),
-        pn.Spacer(width=15),
         warming_levels._GCM_PostageStamps_MAIN
     )
 
     postage_stamps_STATS = pn.Column(
-        pn.Spacer(width=15),
-        pn.Row(
-            "Panels show simulation that represents average, minimum, or maximum conditions across all models.",
-            width = 600
+        pn.widgets.StaticText(
+            value="Panels show simulation that represents average, minimum, or maximum conditions across all models.",
+            width = 700
         ),
-        pn.Spacer(width=15),
-        pn.Row(warming_levels.param.overlay_STATS, width = 200),
-        pn.Spacer(width=15),
         warming_levels._GCM_PostageStamps_STATS
     )
 
@@ -663,7 +660,7 @@ def _display_warming_levels(selections, location, _cat):
             ("Typical meteorological year", TMY),
         ),
     title="Regional response at selected warming level",
-    width = 1000, height=800, collapsible=False,
+    width = 800, height=700, collapsible=False,
     )
 
     panel_doodad = pn.Column(
