@@ -426,7 +426,7 @@ class WarmingLevels(param.Parameterized):
             cl = (0,6)  # hardcoding this in, full range of warming level response for 2m air temp
         elif self.variable2 == "Relative Humidity":
             cm = "PuOr"
-            cl = (-15,15) # hardcoding this in, full range of warming level response for relhumid
+            cl = (-10,10) # hardcoding this in, full range of warming level response for relhumid
 
         heatmap = df.hvplot.heatmap(
             x='columns',
@@ -452,34 +452,34 @@ class WarmingLevels(param.Parameterized):
             cmap = "YlOrRd"
         elif self.variable2 == "Relative Humidity":
             cmap = "PuOr"
-            
+
         # Compute min and max for plotting
-        def compute_vmin_vmax(da): 
+        def compute_vmin_vmax(da):
             vmin = np.nanpercentile(da, 1)
             vmax = np.nanpercentile(da, 99)
             return vmin, vmax
-        
+
         # Get int number of simulations
         num_simulations = len(all_plot_data.simulation.values)
-        
+
         # Compute 1% min and 99% max of all simulations
         vmin_l, vmax_l = [],[]
-        for sim in range(num_simulations): 
+        for sim in range(num_simulations):
             vmin_i, vmax_i = compute_vmin_vmax(all_plot_data.isel(simulation=sim))
-            vmin_l.append(vmin_i) 
+            vmin_l.append(vmin_i)
             vmax_l.append(vmax_i)
         vmin = min(vmin_l)
         vmax = max(vmax_l)
-        
+
         # Initialize figure
         fig = Figure(figsize=(11, 7))
-        
+
         # Make each plot. Add to figure
         for ax_index, sim_i in zip(np.arange(1,num_simulations+1),np.arange(0,num_simulations)):
-            
-            # Grab data for just that simulation 
+
+            # Grab data for just that simulation
             sim_data = all_plot_data.isel(simulation=sim_i)
-            
+
             # Ideally these should all have the same colorbar
             ax = fig.add_subplot(2,3,ax_index,projection=ccrs.LambertConformal())
             xr_pl = sim_data.plot(
@@ -488,13 +488,13 @@ class WarmingLevels(param.Parameterized):
             ax.set_title(sim_data.simulation.item())
             ax.coastlines(linewidth=1, color = 'black', zorder = 10) # Coastlines
             ax.gridlines(linewidth=0.25, color='gray', alpha=0.9, crs=ccrs.PlateCarree(), linestyle = '--',draw_labels=False)
-            
+
         # Add a colorbar axis at the bottom of the graph
         cbar_ax = fig.add_axes([0.9, 0.1, 0.03, 0.7])
-        
+
         # Draw the colorbar
         cbar=fig.colorbar(xr_pl, cax=cbar_ax,orientation='vertical',label=self.variable2+" ("+self.postage_data.attrs["units"]+")")
-        
+
         # Add title
         fig.suptitle(self.variable2+ ': Anomalies for '+str(self.warmlevel)+'°C Warming by Simulation',y=1, fontsize=15)
 
@@ -518,7 +518,7 @@ class WarmingLevels(param.Parameterized):
 #             return sim_plots * substations.hvplot(color="black",s=2,geo=True,projection=ccrs.Orthographic(-118, 40))
 #         else:
 #             return sim_plots
-        
+
 #         return sim_plots
 
     @param.depends("reload_data2", watch=False)
@@ -530,25 +530,25 @@ class WarmingLevels(param.Parameterized):
         max_data = all_plot_data.max(dim='simulation')
         med_data = all_plot_data.median(dim='simulation')
         mean_data = all_plot_data.mean(dim='simulation')
-        
-        if self.variable2 == "Air Temperature at 2m": 
+
+        if self.variable2 == "Air Temperature at 2m":
             cmap = "YlOrRd"
         elif self.variable2 == "Relative Humidity":
             cmap = "PuOr"
-            
+
         # Compute min and max for plotting
-        def compute_vmin_vmax(da): 
+        def compute_vmin_vmax(da):
             vmin = np.nanpercentile(da, 1)
             vmax = np.nanpercentile(da, 99)
             return vmin, vmax
         vmin, vmax = compute_vmin_vmax(mean_data)
-        
+
         # Initialize figure
         fig = Figure(figsize=(11, 7))
-        
+
         # Make each plot. Add to figure
         for ax_index, stats_data, title in zip(np.arange(1,4+1),[min_data,max_data,med_data,mean_data],["Minimum","Maximum","Median","Mean"]):
-            
+
             # Ideally these should all have the same colorbar
             ax = fig.add_subplot(2,2,ax_index,projection=ccrs.LambertConformal())
             xr_pl = stats_data.plot(
@@ -557,20 +557,20 @@ class WarmingLevels(param.Parameterized):
             ax.set_title(title)
             ax.coastlines(linewidth=1, color = 'black', zorder = 10) # Coastlines
             ax.gridlines(linewidth=0.25, color='gray', alpha=0.9, crs=ccrs.PlateCarree(), linestyle = '--',draw_labels=False)
-            
+
         # Add a colorbar axis at the bottom of the graph
         cbar_ax = fig.add_axes([0.9, 0.1, 0.03, 0.7])
-        
+
         # Draw the colorbar
         cbar=fig.colorbar(xr_pl, cax=cbar_ax,orientation='vertical',label=self.variable2+" ("+self.postage_data.attrs["units"]+")")
-        
+
         # Add title
         fig.suptitle(self.variable2+ ': Anomalies for '+str(self.warmlevel)+'°C Warming Across Models',y=1, fontsize=15)
 
         mpl_pane = pn.pane.Matplotlib(fig, dpi=144)
         return mpl_pane
-    
-    
+
+
 #         def _make_plot(data, title, cmap="coolwarm"):
 #             _plot = data.plot.quadmesh('lon','lat',
 #                 title = title,
@@ -587,14 +587,14 @@ class WarmingLevels(param.Parameterized):
 #                 return _plot * substations.hvplot(color="black",s=4,geo=True,projection=ccrs.Orthographic(-118, 40))
 #             else:
 #                 return _plot
-        
-#             return _plot 
-        
-#         if self.variable2 == "Air Temperature at 2m": 
+
+#             return _plot
+
+#         if self.variable2 == "Air Temperature at 2m":
 #             cmap = "YlOrRd"
-#         elif self.variable2 == "Relative Humidity": 
+#         elif self.variable2 == "Relative Humidity":
 #             cmap = "PuOr"
-            
+
 #         mean_plot = _make_plot(mean_data, "Mean", cmap=cmap)
 #         med_plot = _make_plot(med_data, "Median", cmap=cmap)
 #         max_plot = _make_plot(max_data, "Maximum", cmap=cmap)
