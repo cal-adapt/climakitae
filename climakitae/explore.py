@@ -493,7 +493,7 @@ class WarmingLevels(param.Parameterized):
         cbar_ax = fig.add_axes([0.9, 0.1, 0.03, 0.7])
         
         # Draw the colorbar
-        cbar=fig.colorbar(xr_pl, cax=cbar_ax,orientation='vertical',label=self.variable2+" ("+self.postage_data.attrs["units"]+")", fontsize=13)
+        cbar=fig.colorbar(xr_pl, cax=cbar_ax,orientation='vertical',label=self.variable2+" ("+self.postage_data.attrs["units"]+")")
         
         # Add title
         fig.suptitle(self.variable2+ ': Anomalies for '+str(self.warmlevel)+'°C Warming by Simulation',y=1, fontsize=15)
@@ -562,7 +562,7 @@ class WarmingLevels(param.Parameterized):
         cbar_ax = fig.add_axes([0.9, 0.1, 0.03, 0.7])
         
         # Draw the colorbar
-        cbar=fig.colorbar(xr_pl, cax=cbar_ax,orientation='vertical',label=self.variable2+" ("+self.postage_data.attrs["units"]+")", fontsize=13)
+        cbar=fig.colorbar(xr_pl, cax=cbar_ax,orientation='vertical',label=self.variable2+" ("+self.postage_data.attrs["units"]+")")
         
         # Add title
         fig.suptitle(self.variable2+ ': Anomalies for '+str(self.warmlevel)+'°C Warming Across Models',y=1, fontsize=15)
@@ -754,7 +754,7 @@ def _display_warming_levels(selections, location, _cat):
             ("Typical meteorological year", TMY),
         ),
     title="Regional response at selected warming level",
-    width = 900, height=650, collapsible=False,
+    width = 850, height=600, collapsible=False,
     )
 
     panel_doodad = pn.Column(
