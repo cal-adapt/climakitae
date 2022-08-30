@@ -452,6 +452,7 @@ class WarmingLevels(param.Parameterized):
             cmap = "YlOrRd"
         elif self.variable2 == "Relative Humidity":
             cmap = "PuOr"
+            all_plot_data = all_plot_data * 100. ## testing locally
 
         # Compute min and max for plotting
         def compute_vmin_vmax(da):
@@ -526,15 +527,16 @@ class WarmingLevels(param.Parameterized):
 
         all_plot_data = self._warm_all_anoms
 
-        min_data = all_plot_data.min(dim='simulation')
-        max_data = all_plot_data.max(dim='simulation')
-        med_data = all_plot_data.median(dim='simulation')
-        mean_data = all_plot_data.mean(dim='simulation')
-
         if self.variable2 == "Air Temperature at 2m":
             cmap = "YlOrRd"
         elif self.variable2 == "Relative Humidity":
             cmap = "PuOr"
+            all_plot_data = all_plot_data * 100 ## testing locally
+
+        min_data = all_plot_data.min(dim='simulation')
+        max_data = all_plot_data.max(dim='simulation')
+        med_data = all_plot_data.median(dim='simulation')
+        mean_data = all_plot_data.mean(dim='simulation')
 
         # Compute min and max for plotting
         def compute_vmin_vmax(da):
