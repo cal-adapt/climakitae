@@ -229,14 +229,14 @@ class WarmingLevels(param.Parameterized):
     )
 
 #     # Option to overlay CEC point data on the MAIN postage stamp plots
-#     overlay_MAIN = param.ObjectSelector(default = "None", 
-#         objects = ["None", "Power plants", "Substations"], 
+#     overlay_MAIN = param.ObjectSelector(default = "None",
+#         objects = ["None", "Power plants", "Substations"],
 #         label = "Infrastructure point data"
 #     )
 
 #     # Option to overlay CEC point data on the STATS postage stamp plots
-#     overlay_STATS = param.ObjectSelector(default = "None", 
-#         objects = ["None", "Power plants", "Substations"], 
+#     overlay_STATS = param.ObjectSelector(default = "None",
+#         objects = ["None", "Power plants", "Substations"],
 #         label = "Infrastructure point data"
 #     )
 
@@ -447,10 +447,10 @@ class WarmingLevels(param.Parameterized):
     def _GCM_PostageStamps_MAIN(self):
 
         all_plot_data = self._warm_all_anoms
-        
-        if self.variable2 == "Air Temperature at 2m": 
+
+        if self.variable2 == "Air Temperature at 2m":
             cmap = "YlOrRd"
-        elif self.variable2 == "Relative Humidity": 
+        elif self.variable2 == "Relative Humidity":
             cmap = "PuOr"
             
         # Compute min and max for plotting
@@ -533,7 +533,7 @@ class WarmingLevels(param.Parameterized):
         
         if self.variable2 == "Air Temperature at 2m": 
             cmap = "YlOrRd"
-        elif self.variable2 == "Relative Humidity": 
+        elif self.variable2 == "Relative Humidity":
             cmap = "PuOr"
             
         # Compute min and max for plotting
@@ -715,7 +715,7 @@ def _display_warming_levels(selections, location, _cat):
 
     GMT_plot = pn.Card(
             pn.Column(
-                "Shading around selected scenario shows variation across different simulations. Dotted line indicates when the multi-model ensemble reaches the selected warming level, while solid vertical lines indicate when the earliest and latest simulations of that scenario reach the warming level.", 
+                "Shading around selected scenario shows 90% interval across different simulations. Dotted line indicates when the multi-model ensemble reaches the selected warming level, while solid vertical lines indicate when the earliest and latest simulations of that scenario reach the warming level. Figure and data reproduced from the IPCC AR6 Summary for Policymakers Fig 8.",
                 pn.widgets.Select.from_param(warming_levels.param.ssp, name="Scenario", width=250),
                 warming_levels._GMT_context_plot,
             ),
