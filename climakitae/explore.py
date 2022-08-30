@@ -483,6 +483,9 @@ class WarmingLevels(param.Parameterized):
         max_data = all_plot_data.max(dim='simulation')
         med_data = all_plot_data.median(dim='simulation')
         mean_data = all_plot_data.mean(dim='simulation')
+        
+        upper_value = max_data.max()
+        lower_value = min_data.min()
 
         def _make_plot(data, title, cmap="coolwarm"):
             _plot = data.hvplot.quadmesh('lon','lat',
@@ -492,7 +495,8 @@ class WarmingLevels(param.Parameterized):
                 projection=ccrs.Orthographic(-118, 40),
                 project=True, rasterize=False, dynamic=False,
                 coastline=True, features=['borders'],
-                cmap=cmap
+                cmap=cmap, clim=(lower_value,upper_value),
+                symmetric=sopt
                 )
             # if self.overlay_STATS == "Power plants":
             #     return _plot * power_plants.hvplot(color="black",s=4,geo=True,projection=ccrs.Orthographic(-118, 40))
@@ -505,8 +509,16 @@ class WarmingLevels(param.Parameterized):
 
         if self.variable2 == "Air Temperature at 2m":
             cmap = "YlOrRd"
+            symmetric_var = False 
         elif self.variable2 == "Relative Humidity":
             cmap = "PuOr"
+            symmetric_var = True 
+            
+        if symmetric_var:
+            sopt = True
+        else:
+            sopt = False
+
 
         mean_plot = _make_plot(mean_data, "Mean", cmap=cmap)
         med_plot = _make_plot(med_data, "Median", cmap=cmap)
