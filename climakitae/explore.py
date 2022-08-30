@@ -425,7 +425,6 @@ class WarmingLevels(param.Parameterized):
             cm = "YlOrRd"
             cl = (0,6)  # hardcoding this in, full range of warming level response for 2m air temp
         elif self.variable2 == "Relative Humidity":
-            df = df * 100
             cm = "PuOr"
             cl = (-15,15) # hardcoding this in, full range of warming level response for relhumid
 
@@ -640,7 +639,7 @@ def _display_warming_levels(selections, location, _cat):
 
     GMT_plot = pn.Card(
             pn.Column(
-                "Shading around selected scenario shows 90% interval across different simulations. Dotted line indicates when the multi-model ensemble reaches the selected warming level, while solid vertical lines indicate when the earliest and latest simulations of that scenario reach the warming level. Figure and data reproduced from the IPCC AR6 Summary for Policymakers Fig 8.", 
+                "Shading around selected scenario shows 90% interval across different simulations. Dotted line indicates when the multi-model ensemble reaches the selected warming level, while solid vertical lines indicate when the earliest and latest simulations of that scenario reach the warming level. Figure and data reproduced from the IPCC AR6 Summary for Policymakers Fig 8.",
                 pn.widgets.Select.from_param(warming_levels.param.ssp, name="Scenario", width=250),
                 warming_levels._GMT_context_plot,
             ),
