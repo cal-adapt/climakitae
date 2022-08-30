@@ -20,6 +20,8 @@ import regionmask
 from .data_loaders import _read_from_catalog
 from .selectors import DataSelector, LocSelectorArea
 import pkg_resources
+import matplotlib.colors as mcolors
+
 
 # Import package data
 ssp119 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP1_1_9.csv')
@@ -426,7 +428,7 @@ class WarmingLevels(param.Parameterized):
             cl = (0,6)  # hardcoding this in, full range of warming level response for 2m air temp
         elif self.variable2 == "Relative Humidity":
             cm = "PuOr"
-            cl = (-10,10) # hardcoding this in, full range of warming level response for relhumid
+            cl = (-7,7) # hardcoding this in, full range of warming level response for relhumid
 
         heatmap = df.hvplot.heatmap(
             x='columns',
@@ -450,9 +452,11 @@ class WarmingLevels(param.Parameterized):
 
         if self.variable2 == "Air Temperature at 2m":
             cmap = "YlOrRd"
+            multiplier = 1
         elif self.variable2 == "Relative Humidity":
             cmap = "PuOr"
-            all_plot_data = all_plot_data * 100. ## testing locally
+            all_plot_data = all_plot_data*100
+            
 
         # Compute min and max for plotting
         def compute_vmin_vmax(da):
@@ -471,6 +475,12 @@ class WarmingLevels(param.Parameterized):
             vmax_l.append(vmax_i)
         vmin = min(vmin_l)
         vmax = max(vmax_l)
+        if (vmin < 0):
+            sopt = mcolors.CenteredNorm()
+            vmin = None
+            vmax = None
+        else:
+            sopt = None
 
         # Initialize figure
         fig = Figure(figsize=(11, 7))
@@ -484,7 +494,8 @@ class WarmingLevels(param.Parameterized):
             # Ideally these should all have the same colorbar
             ax = fig.add_subplot(2,3,ax_index,projection=ccrs.LambertConformal())
             xr_pl = sim_data.plot(
-                ax=ax, shading='auto', cmap=cmap, add_colorbar=False, vmin=vmin, vmax=vmax
+                ax=ax, shading='auto', cmap=cmap, add_colorbar=False, 
+                norm=sopt, vmin=vmin, vmax=vmax
                 )
             ax.set_title(sim_data.simulation.item())
             ax.coastlines(linewidth=1, color = 'black', zorder = 10) # Coastlines
@@ -526,24 +537,31 @@ class WarmingLevels(param.Parameterized):
     def _GCM_PostageStamps_STATS(self):
 
         all_plot_data = self._warm_all_anoms
-
+        
         if self.variable2 == "Air Temperature at 2m":
             cmap = "YlOrRd"
         elif self.variable2 == "Relative Humidity":
             cmap = "PuOr"
-            all_plot_data = all_plot_data * 100 ## testing locally
+            all_plot_data = all_plot_data*100
 
         min_data = all_plot_data.min(dim='simulation')
         max_data = all_plot_data.max(dim='simulation')
         med_data = all_plot_data.median(dim='simulation')
         mean_data = all_plot_data.mean(dim='simulation')
 
-        # Compute min and max for plotting
-        def compute_vmin_vmax(da):
-            vmin = np.nanpercentile(da, 1)
-            vmax = np.nanpercentile(da, 99)
-            return vmin, vmax
-        vmin, vmax = compute_vmin_vmax(mean_data)
+        # Compute min, max, and center for plotting
+        def compute_vmin_vmax(da_min,da_max):
+            vmin = np.nanpercentile(da_min, 1)
+            vmax = np.nanpercentile(da_max, 99)
+            if (vmin < 0):
+                sopt = mcolors.CenteredNorm()
+                vmin = None
+                vmax = None
+            else:
+                sopt = None
+            return vmin, vmax, sopt
+        
+        vmin, vmax, sopt = compute_vmin_vmax(min_data,max_data)
 
         # Initialize figure
         fig = Figure(figsize=(11, 7))
@@ -554,7 +572,8 @@ class WarmingLevels(param.Parameterized):
             # Ideally these should all have the same colorbar
             ax = fig.add_subplot(2,2,ax_index,projection=ccrs.LambertConformal())
             xr_pl = stats_data.plot(
-                ax=ax, shading='auto', cmap=cmap, add_colorbar=False, vmin=vmin, vmax=vmax
+                ax=ax, shading='auto', cmap=cmap, add_colorbar=False, 
+                norm=sopt, vmin=vmin, vmax=vmax
                 )
             ax.set_title(title)
             ax.coastlines(linewidth=1, color = 'black', zorder = 10) # Coastlines
