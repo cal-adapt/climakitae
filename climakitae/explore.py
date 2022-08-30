@@ -229,14 +229,14 @@ class WarmingLevels(param.Parameterized):
     )
 
 #     # Option to overlay CEC point data on the MAIN postage stamp plots
-#     overlay_MAIN = param.ObjectSelector(default = "None", 
-#         objects = ["None", "Power plants", "Substations"], 
+#     overlay_MAIN = param.ObjectSelector(default = "None",
+#         objects = ["None", "Power plants", "Substations"],
 #         label = "Infrastructure point data"
 #     )
 
 #     # Option to overlay CEC point data on the STATS postage stamp plots
-#     overlay_STATS = param.ObjectSelector(default = "None", 
-#         objects = ["None", "Power plants", "Substations"], 
+#     overlay_STATS = param.ObjectSelector(default = "None",
+#         objects = ["None", "Power plants", "Substations"],
 #         label = "Infrastructure point data"
 #     )
 
@@ -448,10 +448,10 @@ class WarmingLevels(param.Parameterized):
     def _GCM_PostageStamps_MAIN(self):
 
         all_plot_data = self._warm_all_anoms
-        
-        if self.variable2 == "Air Temperature at 2m": 
+
+        if self.variable2 == "Air Temperature at 2m":
             cmap = "YlOrRd"
-        elif self.variable2 == "Relative Humidity": 
+        elif self.variable2 == "Relative Humidity":
             cmap = "PuOr"
 
         sim_plots = all_plot_data.hvplot.quadmesh('lon','lat',
@@ -471,7 +471,7 @@ class WarmingLevels(param.Parameterized):
         #     return sim_plots * substations.hvplot(color="black",s=2,geo=True,projection=ccrs.Orthographic(-118, 40))
         # else:
         #     return sim_plots
-        
+
         return sim_plots
 
     @param.depends("reload_data2", watch=False)
@@ -500,14 +500,14 @@ class WarmingLevels(param.Parameterized):
             #     return _plot * substations.hvplot(color="black",s=4,geo=True,projection=ccrs.Orthographic(-118, 40))
             # else:
             #     return _plot
-        
-            return _plot 
-        
-        if self.variable2 == "Air Temperature at 2m": 
+
+            return _plot
+
+        if self.variable2 == "Air Temperature at 2m":
             cmap = "YlOrRd"
-        elif self.variable2 == "Relative Humidity": 
+        elif self.variable2 == "Relative Humidity":
             cmap = "PuOr"
-            
+
         mean_plot = _make_plot(mean_data, "Mean", cmap=cmap)
         med_plot = _make_plot(med_data, "Median", cmap=cmap)
         max_plot = _make_plot(max_data, "Maximum", cmap=cmap)
@@ -628,7 +628,7 @@ def _display_warming_levels(selections, location, _cat):
 
     GMT_plot = pn.Card(
             pn.Column(
-                "Shading around selected scenario shows variation across different simulations. Dotted line indicates when the multi-model ensemble reaches the selected warming level, while solid vertical lines indicate when the earliest and latest simulations of that scenario reach the warming level.", 
+                "Shading around selected scenario shows 90% interval across different simulations. Dotted line indicates when the multi-model ensemble reaches the selected warming level, while solid vertical lines indicate when the earliest and latest simulations of that scenario reach the warming level. Figure and data reproduced from the IPCC AR6 Summary for Policymakers Fig 8.", 
                 pn.widgets.Select.from_param(warming_levels.param.ssp, name="Scenario", width=250),
                 warming_levels._GMT_context_plot,
             ),
