@@ -55,15 +55,6 @@ cached_tmy_files = [pkg_resources.resource_filename('climakitae', 'data/cached_t
 gwl_file = pkg_resources.resource_filename('climakitae', 'data/gwl_1981-2010ref.csv')
 gwl_times = pd.read_csv(gwl_file, index_col=[0,1])
 
-# # URLs to shapefiles for example point data from CEC (power plants and substations available)
-# CEC_shapefile_URLs = {
-#     'power_plants' : "https://opendata.arcgis.com/api/v3/datasets/4a702cd67be24ae7ab8173423a768e1b_0/downloads/data?format=geojson&spatialRefId=4326&where=1%3D1",
-#     'substations' : "https://cecgis-caenergy.opendata.arcgis.com/datasets/CAEnergy::california-electric-substations.geojson?outSR=%7B%22latestWkid%22%3A3857%2C%22wkid%22%3A102100%7D"
-# }
-# # Read in the values once (so that it does not re-download every time plots are updated)
-# power_plants = gpd.read_file(CEC_shapefile_URLs['power_plants']).rename(columns = {'Lon_WGS84':'lon', 'Lat_WGS84':'lat'})
-# substations = gpd.read_file(CEC_shapefile_URLs['substations']).rename(columns = {'Lon_WGS84':'lon', 'Lat_WGS84':'lat'})
-
 ## Read in data
 ssp119_data = pd.read_csv(ssp119, index_col='Year')
 ssp126_data = pd.read_csv(ssp126, index_col='Year')
@@ -249,19 +240,6 @@ class WarmingLevels(param.Parameterized):
         objects=["states", "CA counties"],
     )
 
-#     # Option to overlay CEC point data on the MAIN postage stamp plots
-#     overlay_MAIN = param.ObjectSelector(default = "None",
-#         objects = ["None", "Power plants", "Substations"],
-#         label = "Infrastructure point data"
-#     )
-
-#     # Option to overlay CEC point data on the STATS postage stamp plots
-#     overlay_STATS = param.ObjectSelector(default = "None",
-#         objects = ["None", "Power plants", "Substations"],
-#         label = "Infrastructure point data"
-#     )
-
-
     @param.depends("area_subset2","cached_area2","variable2", watch=True)
     def _updated_bool_loc_and_var(self):
         """Update boolean if any changes were made to the location or variable"""
@@ -305,26 +283,6 @@ class WarmingLevels(param.Parameterized):
     @param.depends("reload_data2", watch=False)
     def _TMY_hourly_heatmap(self):
         """Generate a TMY hourly heatmap using hourly data"""
-#         def _get_hist_heatmap_data():
-#             """Get historical data from AWS catalog"""
-#             heatmap_selections = self.selections
-#             heatmap_selections.append_historical = False
-#             heatmap_selections.area_average = True
-#             heatmap_selections.resolution = "45 km"
-#             heatmap_selections.scenario = ["Historical Climate"]
-#             heatmap_selections.time_slice = (1981,2010) # to match historical 30-year average
-#             heatmap_selections.timescale = "hourly"
-#             xr_da = _read_from_catalog(
-#                 selections=heatmap_selections,
-#                 location=self.location,
-#                 cat=self.catalog
-#             )
-
-#             # if self.variable2 == ('Precipitation (total)'):   # need to include snowfall eventually
-#             #     xr_da = deaccumulate_precip(xr_da)
-
-#             return xr_da
-
 
         # hard-coding in for now
         warming_year_average_range = {
@@ -333,43 +291,7 @@ class WarmingLevels(param.Parameterized):
             3 : (2061,2090),
             4 : (2076, 2100)
         }
-#         def _get_future_heatmap_data():
-#             """Gets data from AWS catalog based upon desired warming level"""
-#             heatmap_selections = self.selections
-#             heatmap_selections.append_historical = False
-#             heatmap_selections.area_average = True
-#             heatmap_selections.resolution = "45 km"
-#             heatmap_selections.scenario = ["SSP 3-7.0 -- Business as Usual"]
-#             heatmap_selections.time_slice = warming_year_average_range[self.warmlevel]
-#             heatmap_selections.timescale = "hourly"
-#             xr_da2 = _read_from_catalog(
-#                 selections=heatmap_selections,
-#                 location=self.location,
-#                 cat=self.catalog
-#             )
 
-#             return xr_da2
-
-#         def deaccumulate_precip(xr_data):
-#             """
-#             Deaccumulates the precipitation (total) by taking the difference between subsequent timesteps.
-#             Returns xr.DataArray.
-#             """
-#             da_deacc = np.ediff1d(xr_data, to_begin=0.0)
-#             da_deacc = np.where(da_deacc<0, 0.0, da_deacc)
-
-#             da = xr.DataArray(
-#                 data = da_deacc,
-#                 dims = ["time"],
-#                 coords=dict(
-#                     time=xr_data["time"],
-
-#                 ),
-#                 attrs=dict(
-#                     description="De-accumulated precipitation (total)",
-#                 ),
-#             )
-#             return da
 
         def remove_repeats(xr_data):
             """
@@ -390,43 +312,6 @@ class WarmingLevels(param.Parameterized):
                 return cleaned_np
             else:
                 return xr_data.values
-
-#         # Grab data from AWS
-#         data_hist = _get_hist_heatmap_data()
-#         data_hist = data_hist.mean(dim="simulation").isel(scenario=0).compute()
-#         data_future = _get_future_heatmap_data()
-#         data_future = data_future.mean(dim="simulation").isel(scenario=0).compute()
-
-#         # Compute hourly TMY for each day of the year
-#         days_in_year = 366
-#         def tmy_calc(data, days_in_year=366):
-#             """Calculates the typical meteorological year based for both historical and future periods.
-#             Returns two lists, one for the historical tmy and one for the future tmy.
-#             """
-#             hourly_list = []
-#             for x in np.arange(1,days_in_year+1,1):
-#                 data_on_day_x = data.where(data.time.dt.dayofyear == x, drop=True)
-#                 data_grouped = data_on_day_x.groupby("time.hour")
-#                 mean_by_hour = data_grouped.mean()
-#                 min_diff = abs(data_grouped - mean_by_hour).groupby("time.hour").min()
-#                 typical_hourly_data_on_day_x = data_on_day_x.where(abs(data_grouped - mean_by_hour).groupby("time.hour") == min_diff, drop=True).sortby("time.hour")
-#                 np_typical_hourly_data_on_day_x = remove_repeats(typical_hourly_data_on_day_x)
-#                 hourly_list.append(np_typical_hourly_data_on_day_x)
-
-#             return hourly_list
-
-#         tmy_hourly = tmy_calc(data_hist)
-#         tmy_future = tmy_calc(data_future)
-
-#         # Funnel data into pandas DataFrame object
-#         df_hist = pd.DataFrame(tmy_hourly, columns = np.arange(1,25,1), index=np.arange(1,days_in_year+1,1))
-#         df_hist = df_hist.iloc[::-1] # Reverse index
-
-#         df_future = pd.DataFrame(tmy_future, columns = np.arange(1,25,1), index=np.arange(1,days_in_year+1,1))
-#         df_future = df_future.iloc[::-1]
-
-#         # Create difference heatamp between future and historical baseline
-#         df = df_future - df_hist
 
         df = read_cached_tmy_df(
             cached_tmy_files=cached_tmy_files,
@@ -532,25 +417,6 @@ class WarmingLevels(param.Parameterized):
         mpl_pane = pn.pane.Matplotlib(fig, dpi=144)
         return mpl_pane
 
-#         sim_plots = all_plot_data.hvplot.quadmesh('lon','lat',
-#             by='simulation',
-#             subplots = True,
-#             width = 250, height = 200,
-#             crs=ccrs.PlateCarree(),
-#             projection=ccrs.Orthographic(-118, 40),
-#             project=True, rasterize=False, dynamic=False,
-#             coastline=True, features=['borders'],
-#             cmap = cmap
-#             ).cols(3)
-
-#         if self.overlay_MAIN == "Power plants":
-#             return sim_plots * power_plants.hvplot(color="black",s=2,geo=True,projection=ccrs.Orthographic(-118, 40))
-#         elif self.overlay_MAIN == "Substations":
-#             return sim_plots * substations.hvplot(color="black",s=2,geo=True,projection=ccrs.Orthographic(-118, 40))
-#         else:
-#             return sim_plots
-
-#         return sim_plots
 
     @param.depends("reload_data2", watch=False)
     def _GCM_PostageStamps_STATS(self):
@@ -610,42 +476,6 @@ class WarmingLevels(param.Parameterized):
         mpl_pane = pn.pane.Matplotlib(fig, dpi=144)
         return mpl_pane
 
-
-#         def _make_plot(data, title, cmap="coolwarm"):
-#             _plot = data.plot.quadmesh('lon','lat',
-#                 title = title,
-#                 width = 300, height = 250,
-#                 crs=ccrs.PlateCarree(),
-#                 projection=ccrs.Orthographic(-118, 40),
-#                 project=True, dynamic=False,
-#                 coastline=True, features=['borders'],
-#                 cmap=cmap
-#                 )
-#             if self.overlay_STATS == "Power plants":
-#                 return _plot * power_plants.hvplot(color="black",s=4,geo=True,projection=ccrs.Orthographic(-118, 40))
-#             elif self.overlay_STATS == "Substations":
-#                 return _plot * substations.hvplot(color="black",s=4,geo=True,projection=ccrs.Orthographic(-118, 40))
-#             else:
-#                 return _plot
-
-#             return _plot
-
-#         if self.variable2 == "Air Temperature at 2m":
-#             cmap = "YlOrRd"
-#         elif self.variable2 == "Relative Humidity":
-#             cmap = "PuOr"
-
-#         mean_plot = _make_plot(mean_data, "Mean", cmap=cmap)
-#         med_plot = _make_plot(med_data, "Median", cmap=cmap)
-#         max_plot = _make_plot(max_data, "Maximum", cmap=cmap)
-#         min_plot = _make_plot(min_data, "Minimum", cmap=cmap)
-
-#         plot_grid = pn.Column(
-#             pn.Row(mean_plot, med_plot),
-#             pn.Row(max_plot, min_plot)
-#         )
-
-#         return  pn.Row()
 
 
     @param.depends("warmlevel","ssp", watch=False)
