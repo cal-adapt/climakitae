@@ -30,7 +30,26 @@ ssp245 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP2_4_5
 ssp370 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP3_7_0.csv')
 ssp585 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP5_8_5.csv')
 hist = pkg_resources.resource_filename('climakitae', 'data/tas_global_Historical.csv')
-cached_tmy_files = [pkg_resources.resource_filename('climakitae', 'data/cached_tmy/'+file) for file in pkg_resources.resource_listdir('climakitae', 'data/cached_tmy')]
+
+tmy_filenames = ['tmy_future-minus-hist_rh_45km_CA_15degC.csv',
+ 'tmy_future-minus-hist_rh_45km_CA_2degC.csv',
+ 'tmy_future-minus-hist_rh_45km_CA_3degC.csv',
+ 'tmy_future-minus-hist_rh_45km_losangeles_15degC.csv',
+ 'tmy_future-minus-hist_rh_45km_losangeles_2degC.csv',
+ 'tmy_future-minus-hist_rh_45km_losangeles_3degC.csv',
+ 'tmy_future-minus-hist_rh_45km_santaclara_15degC.csv',
+ 'tmy_future-minus-hist_rh_45km_santaclara_2degC.csv',
+ 'tmy_future-minus-hist_rh_45km_santaclara_3degC.csv',
+ 'tmy_future-minus-hist_temp_45km_CA_15degC.csv',
+ 'tmy_future-minus-hist_temp_45km_CA_2degC.csv',
+ 'tmy_future-minus-hist_temp_45km_CA_3degC.csv',
+ 'tmy_future-minus-hist_temp_45km_losangeles_15degC.csv',
+ 'tmy_future-minus-hist_temp_45km_losangeles_2degC.csv',
+ 'tmy_future-minus-hist_temp_45km_losangeles_3degC.csv',
+ 'tmy_future-minus-hist_temp_45km_santaclara_15degC.csv',
+ 'tmy_future-minus-hist_temp_45km_santaclara_2degC.csv',
+ 'tmy_future-minus-hist_temp_45km_santaclara_3degC.csv']
+cached_tmy_files = [pkg_resources.resource_filename('climakitae', 'data/cached_tmy/'+file) for file in tmy_filenames]
 
 # Global warming levels file (years when warming level is reached)
 gwl_file = pkg_resources.resource_filename('climakitae', 'data/gwl_1981-2010ref.csv')
