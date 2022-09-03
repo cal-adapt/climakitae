@@ -392,6 +392,14 @@ class WarmingLevels(param.Parameterized):
             cmap = "PuOr"
         else: 
             cmap = "viridis"
+            
+        if (num_simulations < 3):
+            width = 200 
+            height = 225
+        else: # Make plots a little smaller if there are more than 3 
+            width = 190
+            height = 210
+            
 
         # Compute 1% min and 99% max of all simulations
         vmin_l, vmax_l = [],[]
@@ -414,14 +422,14 @@ class WarmingLevels(param.Parameterized):
             data=all_plot_data.isel(simulation=0), 
             clabel=clabel, clim=(vmin,vmax), cmap=cmap, 
             title=all_plot_data.isel(simulation=0).simulation.item(), 
-            width=190, height=210
+            width=width, height=height
         )
         for sim_i in range(1,num_simulations): 
             pl_i = _make_hvplot(
                 data=all_plot_data.isel(simulation=sim_i), 
                 clabel=clabel, clim=(vmin,vmax), cmap=cmap, 
                 title=all_plot_data.isel(simulation=sim_i).simulation.item(), 
-                width=190, height=210
+                width=width, height=height
             )
             all_plots += pl_i
         
