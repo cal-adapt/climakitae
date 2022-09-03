@@ -393,7 +393,7 @@ class WarmingLevels(param.Parameterized):
         else: 
             cmap = "viridis"
             
-        if (num_simulations < 3):
+        if (num_simulations <= 3):
             width = 200 
             height = 225
         else: # Make plots a little smaller if there are more than 3 
