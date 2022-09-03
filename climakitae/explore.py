@@ -188,6 +188,30 @@ def get_anomaly_data(data, warmlevel=3.0):
                 all_sims[simulation] = anom
     return all_sims.to_array('simulation')
 
+
+def _compute_vmin_vmax(da_min,da_max):
+    """Compute min, max, and center for plotting"""
+    vmin = np.nanpercentile(da_min, 1)
+    vmax = np.nanpercentile(da_max, 99)
+    if (vmin < 0):
+        sopt = mcolors.CenteredNorm()
+        vmin = None
+        vmax = None
+    else:
+        sopt = None
+    return vmin, vmax, sopt
+
+def _make_hvplot(data, clabel, clim, cmap, title, width=200, height=225): 
+    """Make single map"""
+    _plot = data.hvplot.image(
+        x="x", y="y", 
+        grid=True, width=width, height=height, xaxis=None, yaxis=None,
+        clabel=clabel, clim=clim, cmap=cmap, # Colorbar 
+        title=title
+    )
+    return _plot
+
+
 class WarmingLevels(param.Parameterized):
 
     ## ---------- Reset certain DataSelector and LocSelectorArea options ----------
@@ -351,30 +375,29 @@ class WarmingLevels(param.Parameterized):
 
     @param.depends("reload_data2", watch=False)
     def _GCM_PostageStamps_MAIN(self):
-
+        
+        # Get plot data 
         all_plot_data = self._warm_all_anoms
-
-        if self.variable2 == "Air Temperature at 2m":
-            cmap = "YlOrRd"
-            multiplier = 1
-        elif self.variable2 == "Relative Humidity":
-            cmap = "PuOr"
+        if self.variable2 == "Relative Humidity": 
             all_plot_data = all_plot_data*100
             
-
-        # Compute min and max for plotting
-        def compute_vmin_vmax(da):
-            vmin = np.nanpercentile(da, 1)
-            vmax = np.nanpercentile(da, 99)
-            return vmin, vmax
-
         # Get int number of simulations
         num_simulations = len(all_plot_data.simulation.values)
+            
+        # Set up plotting arguments 
+        clabel = self.variable2 + " ("+self.postage_data.attrs["units"]+")"
+        if self.variable2 == "Air Temperature at 2m":
+            cmap = "YlOrRd"
+        elif self.variable2 == "Relative Humidity":
+            cmap = "PuOr"
+        else: 
+            cmap = "viridis"
 
         # Compute 1% min and 99% max of all simulations
         vmin_l, vmax_l = [],[]
         for sim in range(num_simulations):
-            vmin_i, vmax_i = compute_vmin_vmax(all_plot_data.isel(simulation=sim))
+            data = all_plot_data.isel(simulation=sim)
+            vmin_i, vmax_i, sopt_i = _compute_vmin_vmax(data, data)
             vmin_l.append(vmin_i)
             vmax_l.append(vmax_i)
         vmin = min(vmin_l)
@@ -385,96 +408,65 @@ class WarmingLevels(param.Parameterized):
             vmax = None
         else:
             sopt = None
-
-        # Initialize figure
-        fig = Figure(figsize=(11, 7))
-
-        # Make each plot. Add to figure
-        for ax_index, sim_i in zip(np.arange(1,num_simulations+1),np.arange(0,num_simulations)):
-
-            # Grab data for just that simulation
-            sim_data = all_plot_data.isel(simulation=sim_i)
-
-            # Ideally these should all have the same colorbar
-            ax = fig.add_subplot(2,3,ax_index,projection=ccrs.LambertConformal())
-            xr_pl = sim_data.plot(
-                ax=ax, shading='auto', cmap=cmap, add_colorbar=False, 
-                norm=sopt, vmin=vmin, vmax=vmax
-                )
-            ax.set_title(sim_data.simulation.item())
-            ax.coastlines(linewidth=1, color = 'black', zorder = 10) # Coastlines
-            ax.gridlines(linewidth=0.25, color='gray', alpha=0.9, crs=ccrs.PlateCarree(), linestyle = '--',draw_labels=False)
-
-        # Add a colorbar axis at the bottom of the graph
-        cbar_ax = fig.add_axes([0.9, 0.1, 0.03, 0.7])
-
-        # Draw the colorbar
-        cbar=fig.colorbar(xr_pl, cax=cbar_ax,orientation='vertical',label=self.variable2+" ("+self.postage_data.attrs["units"]+")")
-
-        # Add title
-        fig.suptitle(self.variable2+ ': Anomalies for '+str(self.warmlevel)+'°C Warming by Simulation',y=1, fontsize=15)
-
-        mpl_pane = pn.pane.Matplotlib(fig, dpi=144)
-        return mpl_pane
-
-
+        
+        # Make each plot 
+        all_plots = _make_hvplot( # Need to make the first plot separate from the loop
+            data=all_plot_data.isel(simulation=0), 
+            clabel=clabel, clim=(vmin,vmax), cmap=cmap, 
+            title=all_plot_data.isel(simulation=0).simulation.item(), 
+            width=190, height=210
+        )
+        for sim_i in range(1,num_simulations): 
+            pl_i = _make_hvplot(
+                data=all_plot_data.isel(simulation=sim_i), 
+                clabel=clabel, clim=(vmin,vmax), cmap=cmap, 
+                title=all_plot_data.isel(simulation=sim_i).simulation.item(), 
+                width=190, height=210
+            )
+            all_plots += pl_i
+        
+        all_plots.cols(3) # Organize into 3 columns 
+        all_plots.opts(title=self.variable2+ ': Anomalies for '+str(self.warmlevel)+'°C Warming by Simulation') # Add title
+        all_plots.opts(toolbar="right") # Set toolbar location
+        all_plots.opts(hv.opts.Layout(merge_tools=True)) # Merge toolbar 
+        return all_plots
+        
+        
     @param.depends("reload_data2", watch=False)
     def _GCM_PostageStamps_STATS(self):
-
-        all_plot_data = self._warm_all_anoms
         
-        if self.variable2 == "Air Temperature at 2m":
-            cmap = "YlOrRd"
-        elif self.variable2 == "Relative Humidity":
-            cmap = "PuOr"
+        # Get plot data 
+        all_plot_data = self._warm_all_anoms
+        if self.variable2 == "Relative Humidity": 
             all_plot_data = all_plot_data*100
-
+        
+        # Compute stats
         min_data = all_plot_data.min(dim='simulation')
         max_data = all_plot_data.max(dim='simulation')
         med_data = all_plot_data.median(dim='simulation')
         mean_data = all_plot_data.mean(dim='simulation')
-
-        # Compute min, max, and center for plotting
-        def compute_vmin_vmax(da_min,da_max):
-            vmin = np.nanpercentile(da_min, 1)
-            vmax = np.nanpercentile(da_max, 99)
-            if (vmin < 0):
-                sopt = mcolors.CenteredNorm()
-                vmin = None
-                vmax = None
-            else:
-                sopt = None
-            return vmin, vmax, sopt
         
-        vmin, vmax, sopt = compute_vmin_vmax(min_data,max_data)
+        # Set up plotting arguments 
+        clabel = self.variable2 + " ("+self.postage_data.attrs["units"]+")"
+        vmin, vmax, sopt = _compute_vmin_vmax(min_data,max_data)
+        if self.variable2 == "Air Temperature at 2m":
+            cmap = "YlOrRd"
+        elif self.variable2 == "Relative Humidity":
+            cmap = "PuOr"
+        else: 
+            cmap = "viridis"
+        
+        # Make plots
+        min_plot = _make_hvplot(data=min_data, clabel=clabel, cmap=cmap, clim=(vmin,vmax), title="Minimum")
+        max_plot = _make_hvplot(data=max_data, clabel=clabel, cmap=cmap,  clim=(vmin,vmax), title="Maximum")
+        med_plot = _make_hvplot(data=med_data, clabel=clabel, cmap=cmap,  clim=(vmin,vmax), title="Median")
+        mean_plot = _make_hvplot(data=mean_data, clabel=clabel, cmap=cmap, clim=(vmin,vmax), title="Mean")
 
-        # Initialize figure
-        fig = Figure(figsize=(11, 7))
-
-        # Make each plot. Add to figure
-        for ax_index, stats_data, title in zip(np.arange(1,4+1),[min_data,max_data,med_data,mean_data],["Minimum","Maximum","Median","Mean"]):
-
-            # Ideally these should all have the same colorbar
-            ax = fig.add_subplot(2,2,ax_index,projection=ccrs.LambertConformal())
-            xr_pl = stats_data.plot(
-                ax=ax, shading='auto', cmap=cmap, add_colorbar=False, 
-                norm=sopt, vmin=vmin, vmax=vmax
-                )
-            ax.set_title(title)
-            ax.coastlines(linewidth=1, color = 'black', zorder = 10) # Coastlines
-            ax.gridlines(linewidth=0.25, color='gray', alpha=0.9, crs=ccrs.PlateCarree(), linestyle = '--',draw_labels=False)
-
-        # Add a colorbar axis at the bottom of the graph
-        cbar_ax = fig.add_axes([0.9, 0.1, 0.03, 0.7])
-
-        # Draw the colorbar
-        cbar=fig.colorbar(xr_pl, cax=cbar_ax,orientation='vertical',label=self.variable2+" ("+self.postage_data.attrs["units"]+")")
-
-        # Add title
-        fig.suptitle(self.variable2+ ': Anomalies for '+str(self.warmlevel)+'°C Warming Across Models',y=1, fontsize=15)
-
-        mpl_pane = pn.pane.Matplotlib(fig, dpi=144)
-        return mpl_pane
+        all_plots = (mean_plot+med_plot+min_plot+max_plot)
+        all_plots.opts(title=self.variable2+ ': Anomalies for '+str(self.warmlevel)+'°C Warming Across Models') # Add title
+        all_plots.opts(toolbar="below") # Set toolbar location
+        all_plots.opts(hv.opts.Layout(merge_tools=True)) # Merge toolbar 
+        return all_plots
 
 
 
