@@ -193,13 +193,7 @@ def _compute_vmin_vmax(da_min,da_max):
     """Compute min, max, and center for plotting"""
     vmin = np.nanpercentile(da_min, 1)
     vmax = np.nanpercentile(da_max, 99)
-    if (vmin < 0):
-        sopt = mcolors.CenteredNorm()
-        vmin = None
-        vmax = None
-    else:
-        sopt = None
-    return vmin, vmax, sopt
+    return vmin, vmax
 
 def _make_hvplot(data, clabel, clim, cmap, title, width=200, height=225): 
     """Make single map"""
@@ -405,17 +399,11 @@ class WarmingLevels(param.Parameterized):
         vmin_l, vmax_l = [],[]
         for sim in range(num_simulations):
             data = all_plot_data.isel(simulation=sim)
-            vmin_i, vmax_i, sopt_i = _compute_vmin_vmax(data, data)
+            vmin_i, vmax_i = _compute_vmin_vmax(data, data)
             vmin_l.append(vmin_i)
             vmax_l.append(vmax_i)
         vmin = min(vmin_l)
         vmax = max(vmax_l)
-        if (vmin < 0):
-            sopt = mcolors.CenteredNorm()
-            vmin = None
-            vmax = None
-        else:
-            sopt = None
         
         # Make each plot 
         all_plots = _make_hvplot( # Need to make the first plot separate from the loop
@@ -456,7 +444,7 @@ class WarmingLevels(param.Parameterized):
         
         # Set up plotting arguments 
         clabel = self.variable2 + " ("+self.postage_data.attrs["units"]+")"
-        vmin, vmax, sopt = _compute_vmin_vmax(min_data,max_data)
+        vmin, vmax = _compute_vmin_vmax(min_data,max_data)
         if self.variable2 == "Air Temperature at 2m":
             cmap = "YlOrRd"
         elif self.variable2 == "Relative Humidity":
