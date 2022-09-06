@@ -562,11 +562,6 @@ class WarmingLevels(param.Parameterized):
                 ).opts(style=dict(text_font_size='8pt',color=ssp_color))
                 to_plot *= ssp_int # Add to plot 
                 
-                # Add point 
-                #point = pd.DataFrame({"year warming level is reached":[year_warmlevel_reached], "warming level":[self.warmlevel]})
-                #point_hvplot = point.hvplot.scatter(x="year warming level is reached", y="warming level", s=30, color=ssp_color, label=info_label)
-                #to_plot *= point_hvplot
-
             if ((np.argmax(ssp_selected["95%"] > self.warmlevel)) > 0) and ((np.argmax(ssp_selected["5%"] > self.warmlevel)) > 0):
                 # Make 95% CI line
                 label2 = "90% Confidence Interval"
@@ -590,16 +585,6 @@ class WarmingLevels(param.Parameterized):
                 yr_len = [(x_95, bar_y), (x_5, bar_y)]
                 yr_rng = (np.argmax(ssp_selected["5%"] > self.warmlevel) - np.argmax(ssp_selected["95%"] > self.warmlevel))
                 if yr_rng > 0:
-                    # interval = hv.Path(
-                    #     yr_len, 
-                    #     label=label2
-                    # ).opts(color=ssp_color, line_width=1) * hv.Text(
-                    #     x=x_95+5, 
-                    #     y=bar_y+0.25, 
-                    #     text=str(yr_rng) + "yrs", 
-                    #     label=label2
-                    # ).opts(style=dict(text_font_size='8pt', color=ssp_color))
-                    # to_plot *= interval
                     interval = hv.Curve(
                         [[x_95,bar_y],[x_5,bar_y]],
                         label=label2
