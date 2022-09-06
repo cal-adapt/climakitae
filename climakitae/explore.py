@@ -21,6 +21,8 @@ from .data_loaders import _read_from_catalog
 from .selectors import DataSelector, LocSelectorArea
 import pkg_resources
 import matplotlib.colors as mcolors
+import logging
+logging.getLogger("param").setLevel(logging.CRITICAL)
 
 
 # Import package data
@@ -198,15 +200,21 @@ def _compute_vmin_vmax(da_min,da_max):
     """Compute min, max, and center for plotting"""
     vmin = np.nanpercentile(da_min, 1)
     vmax = np.nanpercentile(da_max, 99)
-    return vmin, vmax
+    # define center for diverging symmetric data
+    if (vmin < 0) and (vmax > 0):
+        # dabs = abs(vmax) - abs(vmin)
+        sopt = True
+    else:
+        sopt = None
+    return vmin, vmax, sopt
 
-def _make_hvplot(data, clabel, clim, cmap, title, width=200, height=225): 
+def _make_hvplot(data, clabel, clim, cmap, sopt, title, width=200, height=225): 
     """Make single map"""
     _plot = data.hvplot.image(
         x="x", y="y", 
         grid=True, width=width, height=height, xaxis=None, yaxis=None,
         clabel=clabel, clim=clim, cmap=cmap, # Colorbar 
-        title=title
+        symmetric=sopt, title=title
     )
     return _plot
 
@@ -411,23 +419,24 @@ class WarmingLevels(param.Parameterized):
         vmin_l, vmax_l = [],[]
         for sim in range(num_simulations):
             data = all_plot_data.isel(simulation=sim)
-            vmin_i, vmax_i = _compute_vmin_vmax(data, data)
+            vmin_i, vmax_i, sopt = _compute_vmin_vmax(data, data)
             vmin_l.append(vmin_i)
             vmax_l.append(vmax_i)
         vmin = min(vmin_l)
         vmax = max(vmax_l)
+    
         
         # Make each plot 
         all_plots = _make_hvplot( # Need to make the first plot separate from the loop
             data=all_plot_data.isel(simulation=0), 
-            clabel=clabel, clim=(vmin,vmax), cmap=cmap, 
+            clabel=clabel, clim=(vmin,vmax), cmap=cmap, sopt=sopt,
             title=all_plot_data.isel(simulation=0).simulation.item(), 
             width=width, height=height
         )
         for sim_i in range(1,num_simulations): 
             pl_i = _make_hvplot(
                 data=all_plot_data.isel(simulation=sim_i), 
-                clabel=clabel, clim=(vmin,vmax), cmap=cmap, 
+                clabel=clabel, clim=(vmin,vmax), cmap=cmap, sopt=sopt,
                 title=all_plot_data.isel(simulation=sim_i).simulation.item(), 
                 width=width, height=height
             )
@@ -456,7 +465,7 @@ class WarmingLevels(param.Parameterized):
         
         # Set up plotting arguments 
         clabel = self.variable2 + " ("+self.postage_data.attrs["units"]+")"
-        vmin, vmax = _compute_vmin_vmax(min_data,max_data)
+        vmin, vmax, sopt = _compute_vmin_vmax(min_data,max_data)
         if self.variable2 == "Air Temperature at 2m":
             cmap = "YlOrRd"
         elif self.variable2 == "Relative Humidity":
@@ -465,10 +474,10 @@ class WarmingLevels(param.Parameterized):
             cmap = "viridis"
         
         # Make plots
-        min_plot = _make_hvplot(data=min_data, clabel=clabel, cmap=cmap, clim=(vmin,vmax), title="Minimum")
-        max_plot = _make_hvplot(data=max_data, clabel=clabel, cmap=cmap,  clim=(vmin,vmax), title="Maximum")
-        med_plot = _make_hvplot(data=med_data, clabel=clabel, cmap=cmap,  clim=(vmin,vmax), title="Median")
-        mean_plot = _make_hvplot(data=mean_data, clabel=clabel, cmap=cmap, clim=(vmin,vmax), title="Mean")
+        min_plot = _make_hvplot(data=min_data, clabel=clabel, cmap=cmap, clim=(vmin,vmax), sopt=sopt, title="Minimum")
+        max_plot = _make_hvplot(data=max_data, clabel=clabel, cmap=cmap,  clim=(vmin,vmax), sopt=sopt, title="Maximum")
+        med_plot = _make_hvplot(data=med_data, clabel=clabel, cmap=cmap,  clim=(vmin,vmax), sopt=sopt, title="Median")
+        mean_plot = _make_hvplot(data=mean_data, clabel=clabel, cmap=cmap, clim=(vmin,vmax), sopt=sopt, title="Mean")
 
         all_plots = (mean_plot+med_plot+min_plot+max_plot)
         all_plots.opts(title=self.variable2+ ': Anomalies for '+str(self.warmlevel)+'°C Warming Across Models') # Add title
