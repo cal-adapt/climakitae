@@ -65,7 +65,7 @@ hist_data = pd.read_csv(hist, index_col='Year')
 
 
 
-def read_cached_tmy_df(cached_tmy_files, variable, warmlevel, cached_area):
+def _read_cached_tmy_df(cached_tmy_files, variable, warmlevel, cached_area):
     """Read in cached tmy file corresponding to a given variable, warmlevel, and cached area.
     Returns a dataframe"""
 
@@ -93,6 +93,11 @@ def read_cached_tmy_df(cached_tmy_files, variable, warmlevel, cached_area):
 
     # Read in file as pandas dataframe
     df = pd.read_csv(tmy[0], index_col=0)
+    
+    # Name columns and index 
+    df.columns.name = "Hour of Day"
+    df.index.name = "Day of Year"
+    
     return df
 
 
@@ -211,7 +216,7 @@ class WarmingLevels(param.Parameterized):
     ## ---------- Reset certain DataSelector and LocSelectorArea options ----------
     def __init__(self, *args, **params):
         super().__init__(*args, **params)
-
+        
         # Selectors defaults
         self.selections.append_historical = True
         self.selections.area_average = False
@@ -338,7 +343,7 @@ class WarmingLevels(param.Parameterized):
             else:
                 return xr_data.values
 
-        df = read_cached_tmy_df(
+        df = _read_cached_tmy_df(
             cached_tmy_files=cached_tmy_files,
             variable=self.variable2,
             warmlevel=self.warmlevel,
@@ -606,7 +611,7 @@ class WarmingLevels(param.Parameterized):
 def _display_warming_levels(selections, location, _cat):
 
     # Warming levels object
-    warming_levels = WarmingLevels(selections=selections, location=location, catalog=_cat)
+    warming_levels = WarmingLevels(selections=selections, location=location)
 
     # Create panel doodad!
     user_options = pn.Card(
