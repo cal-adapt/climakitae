@@ -236,8 +236,15 @@ class WarmingLevels(param.Parameterized):
     warmlevel = param.ObjectSelector(default=1.5,
         objects=[1.5, 2, 3]
     )
-    ssp = param.ObjectSelector(default="SSP 3-7.0 -- Business as Usual",
-        objects=["SSP 2-4.5 -- Middle of the Road","SSP 3-7.0 -- Business as Usual","SSP 5-8.5 -- Burn it All"]
+    ssp = param.ObjectSelector(default="All",
+        objects=[
+            "All",
+            "SSP 1-1.9 -- Very Low Emissions Scenario", 
+            "SSP 1-2.6 -- Low Emissions Scenario", 
+            "SSP 2-4.5 -- Middle of the Road",
+            "SSP 3-7.0 -- Business as Usual",
+            "SSP 5-8.5 -- Burn it All"
+        ]
     )
 
 
@@ -484,63 +491,127 @@ class WarmingLevels(param.Parameterized):
         c370 = "#df0000"
         c585 = "#980002"
 
-        ipcc_data = (hist_data.hvplot(y="Mean", color="k", label="Historical", width=width, height=height) *
-                hist_data.hvplot.area(x="Year", y="5%", y2="95%", alpha=0.1, color="k", ylabel="°C", xlabel="", ylim=[-1,5], xlim=[1950,2100]) * # very likely range
-                 ssp119_data.hvplot(y="Mean", color=c119, label="SSP1-1.9") *
-                 ssp126_data.hvplot(y="Mean", color=c126, label="SSP1-2.6") *
-                 ssp245_data.hvplot(y="Mean", color=c245, label="SSP2-4.5") *
-                 ssp370_data.hvplot(y="Mean", color=c370, label="SSP3-7.0") *
-                 ssp585_data.hvplot(y="Mean", color=c585, label="SSP5-8.5")
-                )
+        ipcc_data = (
+            hist_data.hvplot(y="Mean", color="k", label="Historical", width=width, height=height) *
+            hist_data.hvplot.area(x="Year", y="5%", y2="95%", alpha=0.1, color="k", ylabel="°C", xlabel="", ylim=[-1,5], xlim=[1950,2100])
+        ) 
+        if self.ssp == "All":
+            ipcc_data = (
+                ipcc_data *
+                ssp119_data.hvplot(y="Mean", color=c119, label="SSP1-1.9") *
+                ssp126_data.hvplot(y="Mean", color=c126, label="SSP1-2.6") *
+                ssp245_data.hvplot(y="Mean", color=c245, label="SSP2-4.5") *
+                ssp370_data.hvplot(y="Mean", color=c370, label="SSP3-7.0") *
+                ssp585_data.hvplot(y="Mean", color=c585, label="SSP5-8.5")
+            )
+        elif self.ssp == "SSP 1-1.9 -- Very Low Emissions Scenario": 
+            ipcc_data = (ipcc_data * ssp119_data.hvplot(y="Mean", color=c119, label="SSP1-1.9"))
+        elif self.ssp == "SSP 1-2.6 -- Low Emissions Scenario": 
+            ipcc_data = (ipcc_data * ssp126_data.hvplot(y="Mean", color=c126, label="SSP1-2.6"))
+        elif self.ssp == "SSP 2-4.5 -- Middle of the Road": 
+            ipcc_data = (ipcc_data * ssp245_data.hvplot(y="Mean", color=c245, label="SSP2-4.5"))
+        elif self.ssp == "SSP 3-7.0 -- Business as Usual": 
+            ipcc_data = (ipcc_data * ssp370_data.hvplot(y="Mean", color=c370, label="SSP3-7.0"))
+        elif self.ssp == "SSP 5-8.5 -- Burn it All": 
+            ipcc_data = (ipcc_data * ssp585_data.hvplot(y="Mean", color=c585, label="SSP5-8.5"))
 
 
         # SSP intersection lines
         cmip_t = np.arange(2015,2101,1)
 
-        # warming level connection lines & additional labeling
+        # Warming level connection lines & additional labeling
         warmlevel_line = hv.HLine(self.warmlevel).opts(color="black", line_width=1.0) * hv.Text(x=1964, y=self.warmlevel+0.25, text=".    " + str(self.warmlevel) + "°C warming level").opts(style=dict(text_font_size='8pt'))
 
-        ssp_dict = {
-            "SSP 2-4.5 -- Middle of the Road":(ssp245_data,c245),
-            "SSP 3-7.0 -- Business as Usual":(ssp370_data,c370),
-            "SSP 5-8.5 -- Burn it All":(ssp585_data,c585)
-        }
+        # Create plot 
+        to_plot = ipcc_data * warmlevel_line
 
-        ssp_selected = ssp_dict[self.ssp][0] # data selected
-        ssp_color = ssp_dict[self.ssp][1] # color corresponding to ssp selected
+        if self.ssp != "All": 
+            # Label to give addional plot info 
+            info_label = "Intersection information"
+            
+            # Add interval line and shading around selected SSP 
+            ssp_dict = {
+                "SSP 1-1.9 -- Very Low Emissions Scenario":(ssp119_data, c119), 
+                "SSP 1-2.6 -- Low Emissions Scenario":(ssp126_data, c126), 
+                "SSP 2-4.5 -- Middle of the Road":(ssp245_data,c245),
+                "SSP 3-7.0 -- Business as Usual":(ssp370_data,c370),
+                "SSP 5-8.5 -- Burn it All":(ssp585_data,c585)
+            }
+            
+            ssp_selected = ssp_dict[self.ssp][0] # data selected
+            ssp_color = ssp_dict[self.ssp][1] # color corresponding to ssp selected
 
-        # Shading around selected SSP
-        ssp_shading = ssp_selected.hvplot.area(x="Year", y="5%", y2="95%", alpha=0.1, color=ssp_color) # very likely range
+            # Shading around selected SSP
+            ssp_shading = ssp_selected.hvplot.area(x="Year", y="5%", y2="95%", alpha=0.1, color=ssp_color) # very likely range
 
-        # If the mean/upperbound/lowerbound does not cross threshold, set to 2100 (not visible)
-        if (np.argmax(ssp_selected["Mean"] > self.warmlevel)) > 0:
-                ssp_int = hv.VLine(cmip_t[0] + np.argmax(ssp_selected["Mean"] > self.warmlevel)).opts(color=ssp_color, line_dash="dashed", line_width=1)
-        else:
-            ssp_int = hv.VLine(cmip_t[0] + 2100).opts(color=ssp_color, line_dash="dashed", line_width=1)
+            # If the mean/upperbound/lowerbound does not cross threshold, set to 2100 (not visible)
+            if (np.argmax(ssp_selected["Mean"] > self.warmlevel)) > 0:
+                
+                # Add dashed line 
+                label1 = "Warming level reached"
+                year_warmlevel_reached = ssp_selected.where(ssp_selected["Mean"] > self.warmlevel).dropna().index[0]
+                ssp_int = hv.Curve(
+                    [[year_warmlevel_reached,-2],[year_warmlevel_reached,10]], 
+                    label=label1
+                ).opts(color=ssp_color, line_dash="dashed", line_width=1) 
+                ssp_int = ssp_int * hv.Text(
+                    x=year_warmlevel_reached-2, y=4.5, 
+                    text=str(int(year_warmlevel_reached)), 
+                    rotation=90, 
+                    label=label1
+                ).opts(style=dict(text_font_size='8pt',color=ssp_color))
+                to_plot *= ssp_int # Add to plot 
+                
+                # Add point 
+                #point = pd.DataFrame({"year warming level is reached":[year_warmlevel_reached], "warming level":[self.warmlevel]})
+                #point_hvplot = point.hvplot.scatter(x="year warming level is reached", y="warming level", s=30, color=ssp_color, label=info_label)
+                #to_plot *= point_hvplot
 
-        if (np.argmax(ssp_selected["95%"] > self.warmlevel)) > 0:
-            ssp_firstdate = hv.VLine(cmip_t[0] + np.argmax(ssp_selected["95%"] > self.warmlevel)).opts(color=ssp_color,  line_width=1)
-        else:
-            ssp_firstdate = hv.VLine(cmip_t[0] + 2100).opts(color=ssp_color,  line_width=1)
+            if ((np.argmax(ssp_selected["95%"] > self.warmlevel)) > 0) and ((np.argmax(ssp_selected["5%"] > self.warmlevel)) > 0):
+                # Make 95% CI line
+                label2 = "90% Confidence Interval"
+                x_95 = cmip_t[0] + np.argmax(ssp_selected["95%"] > self.warmlevel)
+                ssp_firstdate = hv.Curve(
+                    [[x_95,-2],[x_95,10]], 
+                    label=label2
+                ).opts(color=ssp_color, line_width=1)
+                to_plot *= ssp_firstdate
+                
+                # Make 5% CI line
+                x_5 = cmip_t[0] + np.argmax(ssp_selected["5%"] > self.warmlevel)
+                ssp_lastdate = hv.Curve(
+                    [[x_5,-2],[x_5,10]], 
+                    label=label2
+                ).opts(color=ssp_color, line_width=1)
+                to_plot *= ssp_lastdate 
+                
+                ## Bar to connect firstdate and lastdate of threshold cross
+                bar_y = -0.5
+                yr_len = [(x_95, bar_y), (x_5, bar_y)]
+                yr_rng = (np.argmax(ssp_selected["5%"] > self.warmlevel) - np.argmax(ssp_selected["95%"] > self.warmlevel))
+                if yr_rng > 0:
+                    # interval = hv.Path(
+                    #     yr_len, 
+                    #     label=label2
+                    # ).opts(color=ssp_color, line_width=1) * hv.Text(
+                    #     x=x_95+5, 
+                    #     y=bar_y+0.25, 
+                    #     text=str(yr_rng) + "yrs", 
+                    #     label=label2
+                    # ).opts(style=dict(text_font_size='8pt', color=ssp_color))
+                    # to_plot *= interval
+                    interval = hv.Curve(
+                        [[x_95,bar_y],[x_5,bar_y]],
+                        label=label2
+                    ).opts(color=ssp_color, line_width=1) * hv.Text(
+                        x=x_95+5, 
+                        y=bar_y+0.25, 
+                        text=str(yr_rng) + "yrs", 
+                        label=label2
+                    ).opts(style=dict(text_font_size='8pt', color=ssp_color))
+                    
+                    to_plot *= interval
 
-        if (np.argmax(ssp_selected["5%"] > self.warmlevel)) > 0:
-            ssp_lastdate = hv.VLine(cmip_t[0] + np.argmax(ssp_selected["5%"] > self.warmlevel)).opts(color=ssp_color,  line_width=1)
-        else:
-            ssp_lastdate = hv.VLine(cmip_t[0] + 2100).opts(color=ssp_color, line_width=1)
-
-
-        ## Bar to connect firstdate and lastdate of threshold cross
-        bar_y = -0.5
-        yr_len = [(cmip_t[0] + np.argmax(ssp_selected["95%"] > self.warmlevel), bar_y), (cmip_t[0] + np.argmax(ssp_selected["5%"] > self.warmlevel), bar_y)]
-        yr_rng = (np.argmax(ssp_selected["5%"] > self.warmlevel) - np.argmax(ssp_selected["95%"] > self.warmlevel))
-        if yr_rng > 0:
-            interval = hv.Path(yr_len).opts(color=ssp_color, line_width=1) * hv.Text(x=cmip_t[0] + np.argmax(ssp_selected["95%"] > self.warmlevel)+5,
-                                                                            y=bar_y+0.25,
-                                                                            text = str(yr_rng) + " yrs").opts(style=dict(text_font_size='8pt'))
-        else: # Removes "bar" in case the upperbound is beyond 2100
-            interval = hv.Path([(0,0), (0,0)]) # hardcoding for now, likely a better way to handle
-
-        to_plot = ipcc_data * warmlevel_line * ssp_int * ssp_shading * ssp_lastdate * ssp_firstdate * interval
         to_plot.opts(opts.Overlay(title='Global mean surface temperature change relative to 1850-1900', fontsize=12))
         to_plot.opts(legend_position='bottom', fontsize=10)
 
