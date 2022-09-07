@@ -1108,7 +1108,7 @@ class ExceedanceParams(param.Parameterized):
     group_length = param.Integer(default = 1, bounds = (0, None), label = "")
     group_type = param.ObjectSelector(default = "hour", objects = ["year", "month", "day", "hour"], label = "")
     duration_length = param.Integer(default = 1, bounds = (0, None), label = "")
-    duration_type = param.ObjectSelector(default = "None", objects = ["None", "year", "month", "day", "hour"], label = "")
+    duration_type = param.ObjectSelector(default = "hour", objects = ["year", "month", "day", "hour"], label = "")
     smoothing = param.ObjectSelector(default="None", objects=["None", "Running mean"], label = "Smoothing")
     num_timesteps = param.Integer(default=10, bounds=(0, None), label = "Number of timesteps")
 
@@ -1184,6 +1184,20 @@ def _exceedance_visualize(choices, option=1):
     Uses holoviz 'panel' library to display the parameters and view defined for exploring exceedance.
     """
     _left_column_width = 375
+
+    if option==1:
+        plot_card = choices.view
+    elif option==2:
+        # For show: potential option to display multiple tabs if we want to 
+        # build this out as a broader GUI app for all threshold tools
+        plot_card = pn.Tabs(
+            ("Event counts", choices.view), 
+            ("Return values", pn.Row()),
+            ("Return periods", pn.Row())
+        ) 
+    else:
+        raise ValueError("Unknown option")
+
     exceedance_count_panel = pn.Column(pn.Spacer(width=15), pn.Row(
         pn.Column(
             pn.Card(
@@ -1217,20 +1231,8 @@ def _exceedance_visualize(choices, option=1):
         ),
         pn.Spacer(width=15),
         pn.Column(
-            
-            choices.view
+            plot_card
         )
     ))
-    
-    if option==1:
-        return exceedance_count_panel
-    elif option==2:
-        # For show: potential option to display multiple tabs if we want to 
-        # build this out as a broader GUI app for all threshold tools
-        return pn.Tabs(
-            ("Event counts", exceedance_count_panel), 
-            ("Return values", pn.Row()),
-            ("Return periods", pn.Row())
-        ) 
-    else:
-        raise ValueError("Unknown option")
+
+    return exceedance_count_panel
