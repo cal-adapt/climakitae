@@ -556,7 +556,7 @@ class WarmingLevels(param.Parameterized):
             ssp_color = ssp_dict[self.ssp][1] # color corresponding to ssp selected
 
             # Shading around selected SSP
-            ci_label = "90% Confidence Interval"
+            ci_label = "90% interval"
             ssp_shading = ssp_selected.hvplot.area(
                 x="Year", 
                 y="5%", 
