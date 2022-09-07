@@ -556,7 +556,16 @@ class WarmingLevels(param.Parameterized):
             ssp_color = ssp_dict[self.ssp][1] # color corresponding to ssp selected
 
             # Shading around selected SSP
-            ssp_shading = ssp_selected.hvplot.area(x="Year", y="5%", y2="95%", alpha=0.1, color=ssp_color) # very likely range
+            ci_label = "90% Confidence Interval"
+            ssp_shading = ssp_selected.hvplot.area(
+                x="Year", 
+                y="5%", 
+                y2="95%", 
+                alpha=0.28, 
+                color=ssp_color, 
+                label=ci_label
+            ) 
+            to_plot = to_plot*ssp_shading 
 
             # If the mean/upperbound/lowerbound does not cross threshold, set to 2100 (not visible)
             if (np.argmax(ssp_selected["Mean"] > self.warmlevel)) > 0:
@@ -578,11 +587,10 @@ class WarmingLevels(param.Parameterized):
                 
             if ((np.argmax(ssp_selected["95%"] > self.warmlevel)) > 0) and ((np.argmax(ssp_selected["5%"] > self.warmlevel)) > 0):
                 # Make 95% CI line
-                label2 = "90% Confidence Interval"
                 x_95 = cmip_t[0] + np.argmax(ssp_selected["95%"] > self.warmlevel)
                 ssp_firstdate = hv.Curve(
                     [[x_95,-2],[x_95,10]], 
-                    label=label2
+                    label=ci_label
                 ).opts(color=ssp_color, line_width=1)
                 to_plot *= ssp_firstdate
                 
@@ -590,7 +598,7 @@ class WarmingLevels(param.Parameterized):
                 x_5 = cmip_t[0] + np.argmax(ssp_selected["5%"] > self.warmlevel)
                 ssp_lastdate = hv.Curve(
                     [[x_5,-2],[x_5,10]], 
-                    label=label2
+                    label=ci_label
                 ).opts(color=ssp_color, line_width=1)
                 to_plot *= ssp_lastdate 
                 
@@ -601,12 +609,12 @@ class WarmingLevels(param.Parameterized):
                 if yr_rng > 0:
                     interval = hv.Curve(
                         [[x_95,bar_y],[x_5,bar_y]],
-                        label=label2
+                        label=ci_label
                     ).opts(color=ssp_color, line_width=1) * hv.Text(
                         x=x_95+5, 
                         y=bar_y+0.25, 
                         text=str(yr_rng) + "yrs", 
-                        label=label2
+                        label=ci_label
                     ).opts(style=dict(text_font_size='8pt', color=ssp_color))
                     
                     to_plot *= interval
