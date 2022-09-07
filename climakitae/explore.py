@@ -189,7 +189,7 @@ class WarmingLevels(param.Parameterized):
     ## ---------- Params & global variables ----------
 
     warmlevel = param.ObjectSelector(default=1.5,
-        objects=[1.5, 2, 3]
+        objects=[1.5, 2, 3, 4]
     )
     ssp = param.ObjectSelector(default="All",
         objects=[
@@ -281,11 +281,11 @@ class WarmingLevels(param.Parameterized):
             cmap = "viridis"
             
         if (num_simulations <= 3):
-            width = 200 
-            height = 225
+            width = 210 
+            height = 235
         else: # Make plots a little smaller if there are more than 3 
-            width = 190
-            height = 210
+            width = 200
+            height = 215
             
 
         # Compute 1% min and 99% max of all simulations
@@ -315,8 +315,12 @@ class WarmingLevels(param.Parameterized):
             )
             all_plots += pl_i
         
-        all_plots.cols(3) # Organize into 3 columns 
-        all_plots.opts(title=self.variable2+ ': Anomalies for '+str(self.warmlevel)+'°C Warming by Simulation') # Add title
+        try: 
+            all_plots.cols(3) # Organize into 3 columns 
+            all_plots.opts(title=self.variable2+ ': Anomalies for '+str(self.warmlevel)+'°C Warming by Simulation') # Add title
+        except: 
+            all_plots.opts(title=str(self.warmlevel)+'°C Anomalies') # Add shorter title
+        
         all_plots.opts(toolbar="right") # Set toolbar location
         all_plots.opts(hv.opts.Layout(merge_tools=True)) # Merge toolbar 
         return all_plots
