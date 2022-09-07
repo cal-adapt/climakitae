@@ -24,8 +24,6 @@ import matplotlib.colors as mcolors
 import logging
 logging.getLogger("param").setLevel(logging.CRITICAL)
 
-#test
-
 # Import package data
 ssp119 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP1_1_9.csv')
 ssp126 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP1_2_6.csv')
@@ -521,31 +519,45 @@ def _display_warming_levels(selections, location, _cat):
                     location.view,
                     width = 230)
                 )
-        , title="Data Options", collapsible=False, width=460, height=500
+        , title="Data Options", collapsible=False, width=460, height=515
     )
 
     GMT_plot = pn.Card(
             pn.Column(
-                "Shading around selected scenario shows 90% interval across different simulations. Dotted line indicates when the multi-model ensemble reaches the selected warming level, while solid vertical lines indicate when the earliest and latest simulations of that scenario reach the warming level. Figure and data reproduced from the IPCC AR6 Summary for Policymakers Fig 8.",
+                "Shading around selected global emissions scenario shows 90% interval across different simulations. Dotted line indicates when the multi-model ensemble reaches the selected warming level, while solid vertical lines indicate when the earliest and latest simulations of that scenario reach the warming level. Figure and data are reproduced from the [IPCC AR6 Summary for Policymakers Fig 8](https://www.ipcc.ch/report/ar6/wg1/figures/summary-for-policymakers/figure-spm-8/).",
                 pn.widgets.Select.from_param(warming_levels.param.ssp, name="Scenario", width=250),
                 warming_levels._GMT_context_plot,
             ),
             title="When do different scenarios reach the warming level?",
-            collapsible=False, width=600, height=500
+            collapsible=False, width=600, height=515
         )
 
     postage_stamps_MAIN = pn.Column(
         pn.widgets.StaticText(
-            value="Panels show difference between 30-year average centered on the year each model reaches the specified warming level and average from 1981-2010.",
-            width = 700
+            value="Panels show difference between 30-year average centered on the year each GCM (name of model titles each panel) reaches the specified warming level and average from 1981-2010.",
+            width=800
         ),
-        warming_levels._GCM_PostageStamps_MAIN
+        pn.Row(
+            warming_levels._GCM_PostageStamps_MAIN,
+            pn.Column(
+                pn.widgets.StaticText(
+                    value="<br><br><br>", 
+                    width=200
+                ),
+                pn.widgets.StaticText(
+                    value="<b>Tip</b>: There's a toolbar to the side of the maps. \
+        Try clicking the magnifying glass to zoom in on a particular region. \
+        You can also click the save button to save a copy of the figure to your computer.", 
+                    width=200, 
+                    style={"border":"1.2px red solid","padding":"5px","border-radius":"4px","font-size":"13px"})
+            )
+        )
     )
 
     postage_stamps_STATS = pn.Column(
         pn.widgets.StaticText(
-            value="Panels show simulation that represents average, minimum, or maximum conditions across all models.",
-            width = 700
+            value="Panels show simulation that represents average, median, minimum, or maximum conditions across all models. Minimum and maximum values were calculated across simulations for each grid cell, so one map may contain grid cells from different simulations. Median and mean maps show those respective summaries across simulations at each grid cell.",
+            width=800
         ),
         warming_levels._GCM_PostageStamps_STATS
     )
