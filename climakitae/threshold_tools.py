@@ -1107,8 +1107,8 @@ class ExceedanceParams(param.Parameterized):
     period_type = param.ObjectSelector(default = "year", objects = ["year", "month", "day", "hour"], label = "")
     group_length = param.Integer(default = 1, bounds = (0, None), label = "")
     group_type = param.ObjectSelector(default = "hour", objects = ["year", "month", "day", "hour"], label = "")
-    duration_length = param.Integer(default = 1, bounds = (0, None), label = "Length")
-    duration_type = param.ObjectSelector(default = "None", objects = ["None", "year", "month", "day", "hour"], label = "Type")
+    duration_length = param.Integer(default = 1, bounds = (0, None), label = "")
+    duration_type = param.ObjectSelector(default = "None", objects = ["None", "year", "month", "day", "hour"], label = "")
     smoothing = param.ObjectSelector(default="None", objects=["None", "Running mean"], label = "Smoothing")
     num_timesteps = param.Integer(default=10, bounds=(0, None), label = "Number of timesteps")
 
@@ -1150,12 +1150,14 @@ class ExceedanceParams(param.Parameterized):
         if self.smoothing != "None":
             return pn.Card(pn.Row(
                 self.param.smoothing,
-                self.param.num_timesteps, width=375
-            ), title = "Smoothing")
+                self.param.num_timesteps, 
+                width=375
+            ), title = "Smoothing", collapsible = False)
         else:
             return pn.Card(pn.Row(
-                self.param.smoothing
-            ), title = "Smoothing")
+                self.param.smoothing,
+                width=375
+            ), title = "Smoothing", collapsible = False)
 
     @param.depends("duration_type")
     def duration_row(self):
@@ -1185,42 +1187,37 @@ def _exceedance_visualize(choices, option=1):
     exceedance_count_panel = pn.Column(pn.Spacer(width=15), pn.Row(
         pn.Column(
             pn.Card(
-                "Specify the event threshold of interest.",
                 pn.Row(
                     choices.param.threshold_direction,
                     choices.param.threshold_value,
                     width = _left_column_width
                 ),
-                title = "Threshold",
-            ),
-            pn.Card(
-                "Amount of time across which to sum the occurances.",
-                pn.Row(
-                    choices.param.period_length,
-                    choices.param.period_type,
-                    width = _left_column_width
-                ),
-                title = "Period",
-            ),
-            pn.Card(
-                "Group occurances into single events.",
+                pn.layout.Divider(margin = (-10,0,-10,0)),
+                "Group occurances into single events:",
                 pn.Row(
                     choices.param.group_length,
                     choices.param.group_type,
                     width = _left_column_width
                 ),
-                title = "Group",
-            ),
-            pn.Card(
-                "Amount of time threshold is exceeded to qualify as an event.",
+                pn.layout.Divider(margin = (-10,0,-10,0)),
+                "Amount of time threshold is exceeded to qualify as an event:",
                 choices.duration_row,
-                title = "Duration",
+                pn.layout.Divider(margin = (-10,0,-10,0)),
+                "Amount of time across which to sum the occurances:",
+                pn.Row(
+                    choices.param.period_length,
+                    choices.param.period_type,
+                    width = _left_column_width
+                ),
+                title = "Threshold event options",
+                collapsible = False
             ),
+            choices.smoothing_card,
             width = _left_column_width
         ),
         pn.Spacer(width=15),
         pn.Column(
-            choices.smoothing_card,
+            
             choices.view
         )
     ))
