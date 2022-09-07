@@ -24,6 +24,7 @@ import matplotlib.colors as mcolors
 import logging
 logging.getLogger("param").setLevel(logging.CRITICAL)
 
+#test
 
 # Import package data
 ssp119 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP1_1_9.csv')
