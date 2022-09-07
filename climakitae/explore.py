@@ -279,15 +279,11 @@ class WarmingLevels(param.Parameterized):
             cmap = "PuOr"
         else: 
             cmap = "viridis"
+        
+        # Set plot dimensions
+        width = 200
+        height = 215
             
-        if (num_simulations <= 3):
-            width = 210 
-            height = 235
-        else: # Make plots a little smaller if there are more than 3 
-            width = 200
-            height = 215
-            
-
         # Compute 1% min and 99% max of all simulations
         vmin_l, vmax_l = [],[]
         for sim in range(num_simulations):
