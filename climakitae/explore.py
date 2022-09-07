@@ -33,26 +33,6 @@ ssp370 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP3_7_0
 ssp585 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP5_8_5.csv')
 hist = pkg_resources.resource_filename('climakitae', 'data/tas_global_Historical.csv')
 
-tmy_filenames = ['tmy_future-minus-hist_rh_45km_CA_15degC.csv',
- 'tmy_future-minus-hist_rh_45km_CA_2degC.csv',
- 'tmy_future-minus-hist_rh_45km_CA_3degC.csv',
- 'tmy_future-minus-hist_rh_45km_losangeles_15degC.csv',
- 'tmy_future-minus-hist_rh_45km_losangeles_2degC.csv',
- 'tmy_future-minus-hist_rh_45km_losangeles_3degC.csv',
- 'tmy_future-minus-hist_rh_45km_santaclara_15degC.csv',
- 'tmy_future-minus-hist_rh_45km_santaclara_2degC.csv',
- 'tmy_future-minus-hist_rh_45km_santaclara_3degC.csv',
- 'tmy_future-minus-hist_temp_45km_CA_15degC.csv',
- 'tmy_future-minus-hist_temp_45km_CA_2degC.csv',
- 'tmy_future-minus-hist_temp_45km_CA_3degC.csv',
- 'tmy_future-minus-hist_temp_45km_losangeles_15degC.csv',
- 'tmy_future-minus-hist_temp_45km_losangeles_2degC.csv',
- 'tmy_future-minus-hist_temp_45km_losangeles_3degC.csv',
- 'tmy_future-minus-hist_temp_45km_santaclara_15degC.csv',
- 'tmy_future-minus-hist_temp_45km_santaclara_2degC.csv',
- 'tmy_future-minus-hist_temp_45km_santaclara_3degC.csv']
-cached_tmy_files = [pkg_resources.resource_filename('climakitae', 'data/cached_tmy/'+file) for file in tmy_filenames]
-
 # Global warming levels file (years when warming level is reached)
 gwl_file = pkg_resources.resource_filename('climakitae', 'data/gwl_1981-2010ref.csv')
 gwl_times = pd.read_csv(gwl_file, index_col=[0,1])
@@ -64,43 +44,6 @@ ssp245_data = pd.read_csv(ssp245, index_col='Year')
 ssp370_data = pd.read_csv(ssp370, index_col='Year')
 ssp585_data = pd.read_csv(ssp585, index_col='Year')
 hist_data = pd.read_csv(hist, index_col='Year')
-
-
-
-def _read_cached_tmy_df(cached_tmy_files, variable, warmlevel, cached_area):
-    """Read in cached tmy file corresponding to a given variable, warmlevel, and cached area.
-    Returns a dataframe"""
-
-    # Subset list by variable
-    if variable == "Relative Humidity":
-        cached_tmy_var = [file for file in cached_tmy_files if "rh" in file]
-    elif variable == "Air Temperature at 2m":
-        cached_tmy_var = [file for file in cached_tmy_files if "temp" in file]
-
-    # Subset list by warming level
-    if warmlevel == 1.5:
-        cached_tmy_warmlevel = [file for file in cached_tmy_var if "15degC" in file]
-    elif warmlevel == 2:
-        cached_tmy_warmlevel = [file for file in cached_tmy_var if "2degC" in file]
-    elif warmlevel == 3:
-        cached_tmy_warmlevel = [file for file in cached_tmy_var if "3degC" in file]
-
-    # Subset list by location
-    if cached_area == "CA":
-        tmy = [file for file in cached_tmy_warmlevel if "CA" in file]
-    if cached_area == "Santa Clara County":
-        tmy = [file for file in cached_tmy_warmlevel if "santaclara" in file]
-    if cached_area == "Los Angeles County" :
-        tmy = [file for file in cached_tmy_warmlevel if "losangeles" in file]
-
-    # Read in file as pandas dataframe
-    df = pd.read_csv(tmy[0], index_col=0)
-    
-    # Name columns and index 
-    df.columns.name = "Hour of Day"
-    df.index.name = "Day of Year"
-    
-    return df
 
 
 def _get_postage_data(area_subset2, cached_area2, variable2, location):
@@ -317,75 +260,6 @@ class WarmingLevels(param.Parameterized):
         """Update locations object to reflect location chosen in panel"""
         self.location.area_subset = self.area_subset2
         self.location.cached_area = self.cached_area2
-
-    @param.depends("reload_data2", watch=False)
-    def _TMY_hourly_heatmap(self):
-        """Generate a TMY hourly heatmap using hourly data"""
-
-        # hard-coding in for now
-        warming_year_average_range = {
-            1.5 : (2034,2063),
-            2 : (2047,2076),
-            3 : (2061,2090),
-            4 : (2076, 2100)
-        }
-
-
-        def remove_repeats(xr_data):
-            """
-            Remove hours that have repeats.
-            This occurs if two hours have the same absolute difference from the mean.
-            Returns numpy array
-            """
-            unq, unq_idx, unq_cnt = np.unique(xr_data.time.dt.hour.values, return_inverse=True, return_counts=True)
-            cnt_mask = unq_cnt > 1
-            cnt_idx, = np.nonzero(cnt_mask)
-            idx_mask = np.in1d(unq_idx, cnt_idx)
-            idx_idx, = np.nonzero(idx_mask)
-            srt_idx = np.argsort(unq_idx[idx_mask])
-            dup_idx = np.split(idx_idx[srt_idx], np.cumsum(unq_cnt[cnt_mask])[:-1])
-            if len(dup_idx[0]) > 0:
-                dup_idx_keep_first_val = np.concatenate([dup_idx[x][1:] for x in range(len(dup_idx))], axis=0)
-                cleaned_np = np.delete(xr_data.values, dup_idx_keep_first_val)
-                return cleaned_np
-            else:
-                return xr_data.values
-
-        df = _read_cached_tmy_df(
-            cached_tmy_files=cached_tmy_files,
-            variable=self.variable2,
-            warmlevel=self.warmlevel,
-            cached_area=self.cached_area2
-        )
-
-        # Set to PST time -- hardcoded
-        df = df[['8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','1','2','3','4','5','6','7']]
-        col_h=[]
-        for i in np.arange(1,25,1):
-            col_h.append(str(i))
-        df.columns = col_h
-
-        if self.variable2 == "Air Temperature at 2m":
-            cm = "YlOrRd"
-            cl = (0,6)  # hardcoding this in, full range of warming level response for 2m air temp
-        elif self.variable2 == "Relative Humidity":
-            cm = "PuOr"
-            cl = (-7,7) # hardcoding this in, full range of warming level response for relhumid
-
-        heatmap = df.hvplot.heatmap(
-            x='columns',
-            y='index',
-            title='Typical Meteorological Year\nDifference between a {}°C future and historical baseline'.format(self.warmlevel),
-            cmap=cm,
-            xaxis='bottom',
-            xlabel="Hour of Day (PST)",
-            ylabel="Day of Year",clabel=self.postage_data.name + " ("+self.postage_data.attrs["units"]+")",
-            width=800, height=350).opts(
-            fontsize={'title': 15, 'xlabel':12, 'ylabel':12},
-            clim=cl
-        )
-        return heatmap
-
 
     @param.depends("reload_data2", watch=False)
     def _GCM_PostageStamps_MAIN(self):
@@ -659,14 +533,6 @@ def _display_warming_levels(selections, location, _cat):
             collapsible=False, width=600, height=500
         )
 
-    TMY = pn.Column(
-        pn.widgets.StaticText(
-           value="A typical meteorological year is calculated by selecting the 24 hours for every day that best represent multi-model mean conditions during a 30-year period – 1981-2010 for the historical baseline or centered on the year the warming level is reached.",
-           width = 700
-        ),
-        warming_levels._TMY_hourly_heatmap
-    )
-
     postage_stamps_MAIN = pn.Column(
         pn.widgets.StaticText(
             value="Panels show difference between 30-year average centered on the year each model reaches the specified warming level and average from 1981-2010.",
@@ -687,7 +553,6 @@ def _display_warming_levels(selections, location, _cat):
         pn.Tabs(
             ("Maps of individual simulations", postage_stamps_MAIN),
             ("Maps of cross-model statistics: mean/median/max/min", postage_stamps_STATS),
-            ("Typical meteorological year", TMY),
         ),
     title="Regional response at selected warming level",
     width = 850, height=600, collapsible=False,
