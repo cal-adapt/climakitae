@@ -48,14 +48,25 @@ class Application(object):
         return _read_from_catalog(self.selections, self.location, self._cat)
     
     # === View =====================================
-    def view(self, data): 
-        """Create generic visualization of data"""
-        return _visualize(data)
+    def view(self, data, lat_lon=True, width=None, height=None): 
+        """Create a generic visualization of the data
+    
+        Args: 
+            data (xr.DataArray)
+            lat_lon (boolean): reproject to lat/lon coords? (default to True) 
+            width (int): width of plot (default to hvplot.image default) 
+            height (int): hight of plot (default to hvplot.image default) 
+        
+        Returns: 
+            hvplot.image()
+
+        """
+        return _visualize(data, lat_lon=lat_lon, width=width, height=height)
     
     # === Explore ===================================
     def explore(self): 
         """
-        Calls a method to display a plot of the data 
+        Display warming levels panel 
         """
         return _display_warming_levels(self.selections, self.location, self._cat)
     
