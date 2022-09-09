@@ -4,7 +4,7 @@ import hvplot.xarray
 import warnings 
 from .utils import _reproject_data
 
-def _visualize(data, lat_lon=True, width=None, height=None, cmap="viridis"): 
+def _visualize(data, lat_lon=True, width=None, height=None, cmap="inferno_r"): 
     """Create a generic visualization of the data
 
     Args: 
@@ -44,8 +44,7 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap="viridis"):
                 data = _reproject_data(
                     xr_da = data, 
                     proj="EPSG:4326", 
-                    fill_value=np.nan, 
-                    cmap=cmap
+                    fill_value=np.nan
                 ) 
             except: # Reprojection can fail if the data doesn't have a crs element. If that happens, just carry on without projection (i.e. don't raise an error) 
                 pass 
@@ -56,7 +55,8 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap="viridis"):
             grid=True, 
             clabel=clabel, 
             width=width, 
-            height=height
+            height=height, 
+            cmap=cmap
         )
         
     # Workflow if data contains only time dimension
