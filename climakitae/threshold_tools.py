@@ -893,9 +893,10 @@ def get_return_period(
 def get_exceedance_count(
     da,
     threshold_value,
+    duration1 = None,
     period = (1, "year"),
     threshold_direction = "above", 
-    duration = None,
+    duration2 = None,
     groupby = None,
     smoothing = None
 ):
@@ -917,8 +918,9 @@ def get_exceedance_count(
         default is (1, "year"). Specified as a tuple: (x, time) where x is an 
         integer, and time is one of: ["day", "month", "year"]
     threshold_direction -- string either "above" or "below", default is above.
-    duration -- length of exceedance in order to qualify as an event
+    duration1 -- length of exceedance in order to qualify as an event (before grouping)
     groupby -- see examples for explanation. Typical grouping could be (1, "day")
+    duration2 -- length of exceedance in order to qualify as an event (after grouping)
     smoothing -- option to average the result across multiple periods with a 
         rolling average; value is either None or the number of timesteps to use 
         as the window size
@@ -927,24 +929,25 @@ def get_exceedance_count(
     #--------- Type check arguments -------------------------------------------
 
     # Check compatibility of periods, durations, and groupbys
-    if _is_greater(groupby, duration): raise ValueError("Incompatible `group` and `duration` specification. Duration must be longer than group.")
+    if _is_greater(duration1, groupby): raise ValueError("Incompatible `group` and `duration1` specification. Duration1 must be shorter than group.")
+    if _is_greater(groupby, duration2): raise ValueError("Incompatible `group` and `duration2` specification. Duration2 must be longer than group.")
     if _is_greater(groupby, period): raise ValueError("Incompatible `group` and `period` specification. Group must be longer than period.")
-    if _is_greater(duration, period): raise ValueError("Incompatible `duration` and `period` specification. Period must be longer than duration.")
+    if _is_greater(duration2, period): raise ValueError("Incompatible `duration` and `period` specification. Period must be longer than duration.")
     
     # Check compatibility of specifications with the data frequency (hourly, daily, or monthly)
     freq = (1, "hour") if da.frequency == "1hr" else ((1, "day") if da.frequency == "1day" else (1, "month"))
     if _is_greater(freq, groupby): raise ValueError("Incompatible `group` specification: cannot be less than data frequency.")
-    if _is_greater(freq, duration): raise ValueError("Incompatible `duration` specification: cannot be less than data frequency.")
+    if _is_greater(freq, duration2): raise ValueError("Incompatible `duration` specification: cannot be less than data frequency.")
     if _is_greater(freq, period): raise ValueError("Incompatible `period` specification: cannot be less than data frequency.")
 
     #--------- Calculate occurances -------------------------------------------
 
-    events_da = get_exceedance_events(da, threshold_value, threshold_direction, groupby)
+    events_da = get_exceedance_events(da, threshold_value, threshold_direction, duration1, groupby)
 
     #--------- Apply specified duration requirement ---------------------------
 
-    if duration is not None:
-        dur_len, dur_type = duration
+    if duration2 is not None:
+        dur_len, dur_type = duration2
 
         if (groupby is not None and groupby[1] == dur_type) \
             or (groupby is None and freq[1] == dur_type):
@@ -971,8 +974,9 @@ def get_exceedance_count(
     exceedance_count.attrs["variable_name"] = da.name
     exceedance_count.attrs["variable_units"] = exceedance_count.units
     exceedance_count.attrs["period"] = period
+    exceedance_count.attrs["duration1"] = duration1
     exceedance_count.attrs["group"] = groupby
-    exceedance_count.attrs["duration"] = duration
+    exceedance_count.attrs["duration2"] = duration2
     exceedance_count.attrs["threshold_value"] = threshold_value
     exceedance_count.attrs["threshold_direction"] = threshold_direction
     exceedance_count.attrs["units"] = _exceedance_count_name(exceedance_count)
@@ -1001,6 +1005,7 @@ def get_exceedance_events(
     da,
     threshold_value,
     threshold_direction = "above", 
+    duration1 = None,
     groupby = None
 ):
     """
@@ -1016,11 +1021,23 @@ def get_exceedance_events(
     else:
         raise ValueError(f"Unknown value for `threshold_direction` parameter: {threshold_direction}. Available options are 'above' or 'below'.")
 
+    if duration1 is not None:
+        dur_len, dur_type = duration1
+        if dur_type != "hour" or da.frequency != "1hr":
+            raise ValueError("Current specifications not yet implemented.")
+        window_size = dur_len 
+
+        # The "min" operation will return 0 if any time in the window is not an
+        # event, which is the behavior we want. It will only return 1 for True 
+        # if all values in the duration window are 1.
+        events_da = events_da.rolling(time = window_size, center=False).min("time")
+
     # Groupby 
     if groupby is not None:
         if (groupby == (1, "hour") and da.frequency == "1hr") \
             or (groupby == (1, "day") and da.frequency == "1day") \
-            or (groupby == (1, "month") and da.frequency == "1month"):
+            or (groupby == (1, "month") and da.frequency == "1month") \
+            or groupby == duration1:
             # groupby specification is the same as data frequency, do nothing
             pass
         else:
@@ -1035,12 +1052,12 @@ def _exceedance_count_name(exceedance_count):
     """
     Helper function to build the appropriate name for the queried exceedance count.
     Examples:
-        'Number of hours per 1 year'
-        'Number of days per 1 year'
-        'Number of 3-day events per 1 year'
+        'Number of hours'
+        'Number of days'
+        'Number of 3-day events'
     """
     # If duration is used, this determines the event name
-    dur = exceedance_count.duration
+    dur = exceedance_count.duration2
     if dur is not None:
         d_num, d_type = dur 
         if d_num != 1:
@@ -1065,7 +1082,7 @@ def _exceedance_count_name(exceedance_count):
             elif exceedance_count.frequency == "1month":
                 event = "months"
 
-    return f"Number of {event} per " + " ".join(map(str, exceedance_count.period))
+    return f"Number of {event}"
 
 def plot_exceedance_count(exceedance_count):
     """
@@ -1078,8 +1095,8 @@ def plot_exceedance_count(exceedance_count):
         widget_location="bottom", 
         by="simulation", 
         groupby=["scenario"],
-        title=_exceedance_plot_title(exceedance_count),
-        fontsize = {'title': '14pt', 'ylabel': '10pt'},
+        title = "",
+        fontsize = {'ylabel': '10pt'},
         legend = 'right',
     )
     return pn.Column(plot_obj)
@@ -1093,6 +1110,39 @@ def _exceedance_plot_title(exceedance_count):
     """
     return f"{exceedance_count.variable_name}: events {exceedance_count.threshold_direction} {exceedance_count.threshold_value}{exceedance_count.variable_units}"
 
+def _exceedance_plot_subtitle(exceedance_count):
+    """
+    Examples:
+        'Number of hours per year'
+        'Number of 4-hour events per 3-months'
+        'Number of days per year with conditions lasting at least 4-hours'
+    """
+
+    if exceedance_count.duration2 != exceedance_count.duration1:
+        dur_len, dur_type = exceedance_count.duration1
+        _s = "" if dur_len == 1 else "s"
+        dur_str = f" with conditions lasting at least {dur_len} {dur_type}{_s}"
+    else:
+        dur_str = ""
+
+    if exceedance_count.duration2 != exceedance_count.group:
+        grp_len, grp_type = exceedance_count.group
+        if grp_len == 1:
+            grp_str = f" each {grp_type}"
+        else:
+            grp_str = f" every {grp_len} {grp_type}s"
+    else:
+        grp_str = ""
+
+    per_len, per_type = exceedance_count.period
+    if per_len == 1:
+        period_str = f" each {per_type}"
+    else:
+        period_str = f" per {per_len}-{per_type} period"
+
+    _subtitle = _exceedance_count_name(exceedance_count)+ period_str + dur_str + grp_str
+    
+    return _subtitle
 
 #------------- Class and methods for the explore_exceedance GUI ---------------
 
@@ -1127,23 +1177,31 @@ class ExceedanceParams(param.Parameterized):
         return get_exceedance_count(self.data, 
             threshold_value = self.threshold_value, 
             threshold_direction = self.threshold_direction,
+            duration1 = (self.duration1_length, self.duration1_type),
             period = (self.period_length, self.period_type),
             groupby = (self.group_length, self.group_type),
-            duration = None if self.duration2_type == "None" else (self.duration2_length, self.duration2_type),
+            duration2 = (self.duration2_length, self.duration2_type),
             smoothing = self.num_timesteps if self.smoothing == "Running mean" else None)
 
-    @param.depends("threshold_value", "threshold_direction", "period_length", 
+    @param.depends("threshold_value", "threshold_direction", 
+        "duration1_length", "duration1_type", "period_length", 
         "period_type", "group_length", "group_type", "duration2_length", 
         "duration2_type", "smoothing", "num_timesteps", watch=False)
     def view(self):
         try:
             to_plot = self.transform_data()
             obj = plot_exceedance_count(to_plot)
-            return obj
         except Exception as e:
             # Display any raised Errors (instead of plotting) if any of the 
             # user specifications are incompatible or not yet implemented.
             return e
+        return pn.Column(
+            _exceedance_plot_title(to_plot),
+            _exceedance_plot_subtitle(to_plot),
+            obj
+        )
+        return obj
+
 
     @param.depends("smoothing")
     def smoothing_card(self):
