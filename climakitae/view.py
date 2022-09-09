@@ -46,7 +46,8 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap="inferno_r"):
                     proj="EPSG:4326", 
                     fill_value=np.nan
                 ) 
-            except: # Reprojection can fail if the data doesn't have a crs element. If that happens, just carry on without projection (i.e. don't raise an error) 
+            except: # Reprojection can fail if the data doesn't have a crs element. If that happens, just carry on without projection (i.e. don't raise an error)
+                warnings.warn("Data reprojection to lat/lon failed. Using native x,y grid.")
                 pass 
         
         # Create map 
