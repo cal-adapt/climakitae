@@ -68,6 +68,6 @@ def _visualize(data, lat_lon=True, width=None, height=None):
 
     # Error raised if data does not contain [x,y] or time dimensions 
     else: 
-        raise ValueError("Input data must contain valid spatial and/or time dimensions")
+        raise ValueError("Input data must contain valid spatial dimensions (x,y) and/or time dimensions")
    
     return _plot
