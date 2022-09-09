@@ -1150,16 +1150,37 @@ class ExceedanceParams(param.Parameterized):
         """A reactive panel card used by _exceedance_visualize that only 
         displays the num_timesteps option if smoothing is selected."""
         if self.smoothing != "None":
-            return pn.Card(pn.Row(
+            smooth_row = pn.Row(
                 self.param.smoothing,
                 self.param.num_timesteps, 
                 width=375
-            ), title = "Smoothing", collapsible = False)
+            )
         else:
-            return pn.Card(pn.Row(
+            smooth_row = pn.Row(
                 self.param.smoothing,
                 width=375
-            ), title = "Smoothing", collapsible = False)
+            )
+        return pn.Card(smooth_row, title = "Smoothing", collapsible = True)
+
+    @param.depends("duration1_length", "duration1_type", watch=False)
+    def group_row(self):
+        """A reactive row for duration2 options that updates if group is updated"""
+        self.group_length = self.duration1_length
+        self.group_type = self.duration1_type
+        return pn.Row(
+            self.param.group_length, self.param.group_type, 
+            width=375
+        )
+
+    @param.depends("group_length", "group_type", watch=False)
+    def duration2_row(self):
+        """A reactive row for duration2 options that updates if group is updated"""
+        self.duration2_length = self.group_length
+        self.duration2_type = self.group_type
+        return pn.Row(
+            self.param.duration2_length, self.param.duration2_type, 
+            width=375
+        )
 
 def explore_exceedance(da, option=1):
     """
@@ -1211,24 +1232,17 @@ def _exceedance_visualize(choices, option=1):
             choices.param.period_type,
             width = _left_column_width
         ),
-        "Examples: for annual, select '1-year'; for seasonal, select '3-month'",
+        "Examples: for an annual timeseries, select '1-year'. For a seasonal timeseries, select '3-month'.",
         pn.layout.Divider(margin = (-10,0,-10,0)),
 
         # GROUP
         "Optional aggregation: I'm interested in the number of ___ that contain at least one occurance.",
-        pn.Row(
-            choices.param.group_length,
-            choices.param.group_type,
-            width = _left_column_width
-        ),
+        choices.group_row,
         pn.layout.Divider(margin = (-10,0,-10,0)),
 
         # DURATION 2
         "I'm interested in grouped occurances that last for . . .",
-        pn.Row(
-            choices.param.duration2_length,
-            choices.param.duration2_type, width=375
-        ),
+        choices.duration2_row,
         
         title = "Threshold event options",
         collapsible = False
