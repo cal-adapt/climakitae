@@ -572,7 +572,7 @@ def _display_warming_levels(selections, location, _cat):
 
     postage_stamps_MAIN = pn.Column(
         pn.widgets.StaticText(
-            value="Panels show the difference between the 30-year average centered on the year that each GCM (name of model titles each panel) reaches the specified warming level and the average from 1981-2010.",
+            value="Panels show the difference (anomaly) between the 30-year average centered on the year that each GCM (name of model titles each panel) reaches the specified warming level and the average from 1981-2010.",
             width=800
         ),
         pn.Row(
@@ -594,7 +594,7 @@ def _display_warming_levels(selections, location, _cat):
 
     postage_stamps_STATS = pn.Column(
         pn.widgets.StaticText(
-            value="Panels show the average, median, minimum, or maximum conditions across all models. These statistics are computed from the data in the first panel: the difference between the 30-year average centered on the year that each GCM reaches the specified warming level and the average from 1981-2010. Minimum and maximum values are calculated across simulations for each grid cell, so one map may contain grid cells from different simulations. Median and mean maps show those respective summaries across simulations at each grid cell.",
+            value="Panels show the average, median, minimum, or maximum conditions across all models. These statistics are computed from the data in the first panel: the difference (anomaly) between the 30-year average centered on the year that each GCM reaches the specified warming level and the average from 1981-2010. Minimum and maximum values are calculated across simulations for each grid cell, so one map may contain grid cells from different simulations. Median and mean maps show those respective summaries across simulations at each grid cell.",
             width=800
         ),
         warming_levels._GCM_PostageStamps_STATS
