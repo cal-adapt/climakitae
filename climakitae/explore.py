@@ -126,16 +126,38 @@ def get_anomaly_data(data, warmlevel=3.0):
     model_case = {'cesm2':'CESM2', 'cnrm-esm2-1':'CNRM-ESM2-1',
               'ec-earth3-veg':'EC-Earth3-Veg', 'fgoals-g3':'FGOALS-g3',
               'mpi-esm1-2-lr':'MPI-ESM1-2-LR'}
-
+    ssp = 'ssp370' 
     all_sims = xr.Dataset()
+    central_year_l, year_start_l, year_end_l = [],[],[]
     for simulation in data.simulation.values:
-        for scenario in ['ssp370']:
+        for scenario in [ssp]:
             one_ts = data.sel(simulation=simulation).squeeze() #,scenario=scenario) #scenario names are longer strings
             centered_time = pd.to_datetime(gwl_times[str(float(warmlevel))][model_case[simulation]][scenario]).year
             if not np.isnan(centered_time):
-                anom = one_ts.sel(time=slice(str(centered_time-15),str(centered_time+14))).mean('time') - one_ts.sel(time=slice('1981','2010')).mean('time')
+                start_year = centered_time-15
+                end_year = centered_time+14
+                anom = one_ts.sel(time=slice(str(start_year),str(end_year))).mean('time') - one_ts.sel(time=slice('1981','2010')).mean('time')
                 all_sims[simulation] = anom
-    return all_sims.to_array('simulation')
+                
+                # Append to list. Used to assign descriptive attributes & coordinates to final dataset 
+                central_year_l.append(centered_time) 
+                year_start_l.append(start_year)
+                year_end_l.append(end_year)
+    anomaly_da = all_sims.to_array('simulation')
+    
+    # Assign descriptivie coordinates 
+    anomaly_da = anomaly_da.assign_coords(
+        {"window_year_center":("simulation",central_year_l), 
+        "window_year_start":("simulation",year_start_l), 
+        "window_year_end":("simulation",year_end_l)}
+    )
+    # Assign descriptive attributes to new coordinates 
+    anomaly_da["window_year_center"].attrs["description"] = "year that defines the center of the 30-year window around which the anomaly was computed"
+    anomaly_da["window_year_start"].attrs["description"] = "year that defines the start of the 30-year window around which the anomaly was computed"
+    anomaly_da["window_year_end"].attrs["description"] = "year that defines the end of the 30-year window around which the anomaly was computed"
+    anomaly_da.attrs["warming_level"] = warmlevel
+    
+    return anomaly_da
 
 
 def _compute_vmin_vmax(da_min,da_max):
@@ -320,7 +342,23 @@ class WarmingLevels(param.Parameterized):
         all_plots.opts(toolbar="right") # Set toolbar location
         all_plots.opts(hv.opts.Layout(merge_tools=True)) # Merge toolbar 
         return all_plots
-        
+    
+    @param.depends("reload_data2", watch=False)
+    def _30_yr_window(self): 
+        """Create a dataframe to give information about the 30-yr anomalies window for each simulation used in the postage stamp maps. """
+        anom = self._warm_all_anoms
+        df = pd.DataFrame(
+            {"simulation":anom.simulation.values,
+            "30-yr window":zip(anom.window_year_start.values,anom.window_year_end.values), 
+            "central year":anom.window_year_center.values, 
+            "warming level":[anom.attrs["warming_level"]]*len(anom.simulation)} 
+        ) 
+        df_pane = pn.pane.DataFrame(
+            df, 
+            width=400, 
+            index=False
+        )
+        return df_pane
         
     @param.depends("reload_data2", watch=False)
     def _GCM_PostageStamps_STATS(self):
@@ -561,11 +599,20 @@ def _display_warming_levels(selections, location, _cat):
         ),
         warming_levels._GCM_PostageStamps_STATS
     )
+    
+    window_df = pn.Column(
+        pn.widgets.StaticText(
+            value="This panel displays start and end years that define the 30-year window for which the anomalies were computed for each model. It also displays the year at which each model crosses the selected warming level, defined in the table below as the central year. This information corresponds to the anomalies shown in the maps on the previous two tabs.",
+            width=800
+        ),
+        warming_levels._30_yr_window
+    )
 
     map_tabs = pn.Card(
         pn.Tabs(
             ("Maps of individual simulations", postage_stamps_MAIN),
             ("Maps of cross-model statistics: mean/median/max/min", postage_stamps_STATS),
+            ("Anomaly computation details", window_df)
         ),
     title="Regional response at selected warming level",
     width = 850, height=600, collapsible=False,
