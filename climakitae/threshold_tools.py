@@ -1103,12 +1103,14 @@ class ExceedanceParams(param.Parameterized):
     # Define the params (before __init__ so that we can access them during __init__)
     threshold_direction = param.ObjectSelector(default = "above", objects = ["above", "below"], label = "Direction")
     threshold_value = param.Number(default = 0, label = "")
+    duration1_length = param.Integer(default = 1, bounds = (0, None), label = "")
+    duration1_type = param.ObjectSelector(default = "hour", objects = ["year", "month", "day", "hour"], label = "")
     period_length = param.Integer(default = 1, bounds = (0, None), label = "")
-    period_type = param.ObjectSelector(default = "year", objects = ["year", "month", "day", "hour"], label = "")
+    period_type = param.ObjectSelector(default = "year", objects = ["year", "month", "day"], label = "")
     group_length = param.Integer(default = 1, bounds = (0, None), label = "")
     group_type = param.ObjectSelector(default = "hour", objects = ["year", "month", "day", "hour"], label = "")
-    duration_length = param.Integer(default = 1, bounds = (0, None), label = "")
-    duration_type = param.ObjectSelector(default = "hour", objects = ["year", "month", "day", "hour"], label = "")
+    duration2_length = param.Integer(default = 1, bounds = (0, None), label = "")
+    duration2_type = param.ObjectSelector(default = "hour", objects = ["year", "month", "day", "hour"], label = "")
     smoothing = param.ObjectSelector(default="None", objects=["None", "Running mean"], label = "Smoothing")
     num_timesteps = param.Integer(default=10, bounds=(0, None), label = "Number of timesteps")
 
@@ -1127,12 +1129,12 @@ class ExceedanceParams(param.Parameterized):
             threshold_direction = self.threshold_direction,
             period = (self.period_length, self.period_type),
             groupby = (self.group_length, self.group_type),
-            duration = None if self.duration_type == "None" else (self.duration_length, self.duration_type),
+            duration = None if self.duration2_type == "None" else (self.duration2_length, self.duration2_type),
             smoothing = self.num_timesteps if self.smoothing == "Running mean" else None)
 
     @param.depends("threshold_value", "threshold_direction", "period_length", 
-        "period_type", "group_length", "group_type", "duration_length", 
-        "duration_type", "smoothing", "num_timesteps", watch=False)
+        "period_type", "group_length", "group_type", "duration2_length", 
+        "duration2_type", "smoothing", "num_timesteps", watch=False)
     def view(self):
         try:
             to_plot = self.transform_data()
@@ -1158,18 +1160,6 @@ class ExceedanceParams(param.Parameterized):
                 self.param.smoothing,
                 width=375
             ), title = "Smoothing", collapsible = False)
-
-    @param.depends("duration_type")
-    def duration_row(self):
-        """A reactive panel row used by _exceedance_visualize that only 
-        displays the duration length option if duration_type is not None."""
-        if self.duration_type != "None":
-            return pn.Row(
-                self.param.duration_length,
-                self.param.duration_type, width=375
-            )
-        else:
-            return pn.Row(self.param.duration_type, width=375)
 
 def explore_exceedance(da, option=1):
     """
@@ -1198,34 +1188,55 @@ def _exceedance_visualize(choices, option=1):
     else:
         raise ValueError("Unknown option")
 
+    options_card = pn.Card(
+        # Threshold value and direction
+        pn.Row(
+            choices.param.threshold_direction,
+            choices.param.threshold_value,
+            width = _left_column_width
+        ),
+
+        # DURATION 1
+        "I'm interested in extreme conditions that last for . . .",
+        pn.Row(
+            choices.param.duration1_length,
+            choices.param.duration1_type, width=375
+        ),
+        pn.layout.Divider(margin = (-10,0,-10,0)),
+
+        # PERIOD
+        "Show me a timeseries of the number of occurences every . . .",
+        pn.Row(
+            choices.param.period_length,
+            choices.param.period_type,
+            width = _left_column_width
+        ),
+        "Examples: for annual, select '1-year'; for seasonal, select '3-month'",
+        pn.layout.Divider(margin = (-10,0,-10,0)),
+
+        # GROUP
+        "Optional aggregation: I'm interested in the number of ___ that contain at least one occurance.",
+        pn.Row(
+            choices.param.group_length,
+            choices.param.group_type,
+            width = _left_column_width
+        ),
+        pn.layout.Divider(margin = (-10,0,-10,0)),
+
+        # DURATION 2
+        "I'm interested in grouped occurances that last for . . .",
+        pn.Row(
+            choices.param.duration2_length,
+            choices.param.duration2_type, width=375
+        ),
+        
+        title = "Threshold event options",
+        collapsible = False
+    )
+
     exceedance_count_panel = pn.Column(pn.Spacer(width=15), pn.Row(
         pn.Column(
-            pn.Card(
-                pn.Row(
-                    choices.param.threshold_direction,
-                    choices.param.threshold_value,
-                    width = _left_column_width
-                ),
-                pn.layout.Divider(margin = (-10,0,-10,0)),
-                "Group occurances into single events:",
-                pn.Row(
-                    choices.param.group_length,
-                    choices.param.group_type,
-                    width = _left_column_width
-                ),
-                pn.layout.Divider(margin = (-10,0,-10,0)),
-                "Amount of time threshold is exceeded to qualify as an event:",
-                choices.duration_row,
-                pn.layout.Divider(margin = (-10,0,-10,0)),
-                "Amount of time across which to sum the occurances:",
-                pn.Row(
-                    choices.param.period_length,
-                    choices.param.period_type,
-                    width = _left_column_width
-                ),
-                title = "Threshold event options",
-                collapsible = False
-            ),
+            options_card,
             choices.smoothing_card,
             width = _left_column_width
         ),
