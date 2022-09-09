@@ -4,7 +4,7 @@ import hvplot.xarray
 import warnings 
 from .utils import _reproject_data
 
-def _visualize(data, lat_lon=True, width=None, height=None): 
+def _visualize(data, lat_lon=True, width=None, height=None, cmap="viridis"): 
     """Create a generic visualization of the data
 
     Args: 
@@ -12,6 +12,7 @@ def _visualize(data, lat_lon=True, width=None, height=None):
         lat_lon (boolean): reproject to lat/lon coords? (default to True) 
         width (int): width of plot (default to hvplot.image default) 
         height (int): hight of plot (default to hvplot.image default) 
+        cmap (str): colormap to apply to data (default to "viridis"); applies only to mapped data 
 
     Returns: 
         hvplot.image()
@@ -39,11 +40,15 @@ def _visualize(data, lat_lon=True, width=None, height=None):
         
         # Reproject data to lat/lon
         if lat_lon == True:
-            data = _reproject_data(
-                xr_da = data, 
-                proj="EPSG:4326", 
-                fill_value=np.nan
-            ) 
+            try: 
+                data = _reproject_data(
+                    xr_da = data, 
+                    proj="EPSG:4326", 
+                    fill_value=np.nan, 
+                    cmap=cmap
+                ) 
+            except: # Reprojection can fail if the data doesn't have a crs element. If that happens, just carry on without projection (i.e. don't raise an error) 
+                pass 
         
         # Create map 
         _plot = data.hvplot.image(

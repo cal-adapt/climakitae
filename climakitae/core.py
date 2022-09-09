@@ -48,7 +48,7 @@ class Application(object):
         return _read_from_catalog(self.selections, self.location, self._cat)
     
     # === View =====================================
-    def view(self, data, lat_lon=True, width=None, height=None): 
+    def view(self, data, lat_lon=True, width=None, height=None, cmap="viridis"): 
         """Create a generic visualization of the data
     
         Args: 
@@ -56,12 +56,13 @@ class Application(object):
             lat_lon (boolean): reproject to lat/lon coords? (default to True) 
             width (int): width of plot (default to hvplot.image default) 
             height (int): hight of plot (default to hvplot.image default) 
+            cmap (str): colormap to apply to data (default to "viridis"); applies only to mapped data 
         
         Returns: 
             hvplot.image()
 
         """
-        return _visualize(data, lat_lon=lat_lon, width=width, height=height)
+        return _visualize(data, lat_lon=lat_lon, width=width, height=height, cmap=cmap)
     
     # === Explore ===================================
     def explore(self): 
