@@ -16,7 +16,6 @@ import s3fs
 import pyproj
 from shapely.geometry import box
 from shapely.ops import transform
-import regionmask
 from .data_loaders import _read_from_catalog
 from .selectors import DataSelector, LocSelectorArea
 import pkg_resources
