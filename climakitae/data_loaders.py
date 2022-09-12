@@ -140,30 +140,24 @@ def _read_from_catalog(selections, location, cat):
 
     assert not selections.scenario == [], "Please select as least one scenario."
 
+    def set_subarea(boundary_dataset):
+        return boundary_dataset[boundary_dataset.index == shape_index].iloc[0].geometry
+
     if location.area_subset == "lat/lon":
         geom = _get_as_shapely(location)
         if not geom.is_valid:
             raise ValueError("Please go back to 'select' and choose a valid lat/lon range.")
         ds_region = regionmask.Regions([geom], abbrevs=["lat/lon box"], name="box mask")
-    elif location.area_subset == "states":
-        shape_index = int(
-            location._geography_choose[location.area_subset][location.cached_area]
-        )
-        ds_region = location._geographies._us_states[[shape_index]]
     elif location.area_subset != "none":
         shape_index = int(
             location._geography_choose[location.area_subset][location.cached_area]
         )
-        if location.area_subset == "CA watersheds":
-            shape = location._geographies._ca_watersheds
-            shape = shape[shape["OBJECTID"] == shape_index].iloc[0].geometry
-            wgs84 = pyproj.CRS('EPSG:4326')
-            psdo_merc = pyproj.CRS('EPSG:3857')
-            project = pyproj.Transformer.from_crs(psdo_merc, wgs84, always_xy=True).transform
-            shape = transform(project, shape)
+        if location.area_subset == "states":
+            shape = set_subarea(location._geographies._us_states)
         elif location.area_subset == "CA counties":
-            shape = location._geographies._ca_counties
-            shape = shape[shape.index == shape_index].iloc[0].geometry
+            shape = set_subarea(location._geographies._ca_counties)
+        elif location.area_subset == "CA watersheds":
+            shape = set_subarea(location._geographies._ca_watersheds)
         ds_region = regionmask.Regions(
             [shape], abbrevs=["geographic area"], name="area mask"
         )
