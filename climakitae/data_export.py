@@ -62,28 +62,42 @@ def _export_to_user(user_export_format,data_to_export,
     # we have to ensure that each non-NetCDF has only one simulation
     # and scenario per file. 
     if ("NetCDF" not in req_format):
-        if ('simulation' in data_to_export.coords): # if simulation coord exists
-            if ('simulation' not in kwargs): # and one simulation is not supplied by user
-                if (np.size(data_to_export.coords['simulation'].values) > 1): # and there is > 1
+        
+        if ('simulation' in data_to_export.dims): # if simulation dim exists
+            if ('simulation' not in kwargs): # and one simulation is not supplied by user            
+                if (len(data_to_export['simulation']) > 1): # and there is > 1
                     raise ValueError("File format does not allow for data from"+
                             " more than one simulation. Please pass simulation = 'sim'"+
                              " anywhere after file_name in the export_dataset() call."+
                              " E.g., 'app.export_dataset(data,file_name='example',"+
                             "simulation='cesm2')")
-                else: # automatically pull the simulation name if there is 1
-                    simu = data_to_export.coords['simulation'].values                    
+                else: # only one simulation in data
+                    if ('simulation' in data_to_export.coords): # and it has a coordinate
+                        simu = data_to_export.coords['simulation'].values
+                    else:
+                        simu = 'not found in data array!'
+                        print("WARNING: No label " +
+                            " found for dimension 'simulation'!" + 
+                              " We suggest you note this somewhere, or" +
+                             " pass simulation = 'sim'"+
+                             " anywhere after file_name in the export_dataset() call."+
+                             " E.g., 'app.export_dataset(data,file_name='example',"+
+                            "simulation='cesm2')")
+                                       
             else: # it is a kwarg
                 assert type(kwargs['simulation']) is str,("Please pass simulation name "+
-                "in double or single quotation marks.")
+                       "in double or single quotation marks.")
                 simu = kwargs['simulation']
+                
                     
             sim_dict = {'simulation_model' : simu}
-            # ds_attrs.update(sim_dict)
+            ds_attrs.update(sim_dict)
             data_to_export['simulation'].attrs = {'simulation_model' : simu}
+            
             data_to_export = data_to_export.sel(simulation=simu) # subset        
     
     # same as above, but for scenario instead of simulation
-        if ('scenario' in data_to_export.coords): 
+        if ('scenario' in data_to_export.dims): 
             if ('scenario' not in kwargs): 
                 if (np.size(data_to_export.coords['scenario'].values) > 1):
                     raise ValueError("File format does not allow for data from"+
@@ -92,16 +106,27 @@ def _export_to_user(user_export_format,data_to_export,
                              " E.g., 'app.export_dataset(data,file_name='example',"+
                             "scenario='historical')")
                 else: 
-                    scen = data_to_export.coords['scenario'].values                    
+                    if ('scenario' in data_to_export.coords):
+                        scen = data_to_export.coords['scenario'].values   
+                    else: 
+                        scen = 'not found in data array!'
+                        print("WARNING: No label " +
+                            " found for dimension 'scenario'!" + 
+                              " We suggest you note this somewhere, or" +
+                              " pass scenario = 'scenario'"+
+                             " anywhere after file_name in the export_dataset() call."+
+                             " E.g., 'app.export_dataset(data,file_name='example',"+
+                            "scenario='historical')")
             else: 
                 assert type(kwargs['scenario']) is str,("Please pass scenario name "+
                 "in double or single quotation marks.")
                 scen = kwargs['scenario']
                     
-            scen_dict = {'climate_scenario' : scen}
-            ds_attrs.update(scen_dict)
+            # scen_dict = {'climate_scenario' : scen}
+            # ds_attrs.update(scen_dict)
             data_to_export['scenario'].attrs = scen_dict
-            data_to_export = data_to_export.sel(scenario=scen) # subset                    
+            data_to_export = data_to_export.sel(scenario=scen) # subset 
+
        
     ds_attrs.update(ck_attrs)
     data_to_export.attrs = ds_attrs
@@ -116,8 +141,8 @@ def _export_to_user(user_export_format,data_to_export,
                         " You need at least "+str(data_size)+ " GB free"+
                         " in the hub directory, which has 10 GB total space."+
                          " Try smaller subsets of space, time,"+
-                        " scenario, and/or simulation, pick a coarser"+
-                        " spatial or temporal scale, or clean any exported datasets"+
+                        " scenario, and/or simulation; pick a coarser"+
+                        " spatial or temporal scale; or clean any exported datasets"+
                         " which you have already downloaded or do not want.")
     
     if (data_size > file_size_threshold):
@@ -131,6 +156,10 @@ def _export_to_user(user_export_format,data_to_export,
         # data_to_export.attrs = var_atts 
         
         data_to_export.attrs = ds_attrs
+        data_to_export.lon.encoding['_FillValue'] = None
+        data_to_export.lat.encoding['_FillValue'] = None
+        # data_to_export.time.encoding['_FillValue'] = None
+        # encoding = {coord : {'_FillValue' : None} for coord in data_to_export.coords}
         data_to_export.to_netcdf(path_and_name+".nc")
         
     else:        
