@@ -16,15 +16,12 @@ import s3fs
 import pyproj
 from shapely.geometry import box
 from shapely.ops import transform
-import regionmask
 from .data_loaders import _read_from_catalog
 from .selectors import DataSelector, LocSelectorArea
 import pkg_resources
 import matplotlib.colors as mcolors
 import logging
 logging.getLogger("param").setLevel(logging.CRITICAL)
-
-#test
 
 # Import package data
 ssp119 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP1_1_9.csv')
@@ -128,16 +125,38 @@ def get_anomaly_data(data, warmlevel=3.0):
     model_case = {'cesm2':'CESM2', 'cnrm-esm2-1':'CNRM-ESM2-1',
               'ec-earth3-veg':'EC-Earth3-Veg', 'fgoals-g3':'FGOALS-g3',
               'mpi-esm1-2-lr':'MPI-ESM1-2-LR'}
-
+    ssp = 'ssp370' 
     all_sims = xr.Dataset()
+    central_year_l, year_start_l, year_end_l = [],[],[]
     for simulation in data.simulation.values:
-        for scenario in ['ssp370']:
+        for scenario in [ssp]:
             one_ts = data.sel(simulation=simulation).squeeze() #,scenario=scenario) #scenario names are longer strings
             centered_time = pd.to_datetime(gwl_times[str(float(warmlevel))][model_case[simulation]][scenario]).year
             if not np.isnan(centered_time):
-                anom = one_ts.sel(time=slice(str(centered_time-15),str(centered_time+14))).mean('time') - one_ts.sel(time=slice('1981','2010')).mean('time')
+                start_year = centered_time-15
+                end_year = centered_time+14
+                anom = one_ts.sel(time=slice(str(start_year),str(end_year))).mean('time') - one_ts.sel(time=slice('1981','2010')).mean('time')
                 all_sims[simulation] = anom
-    return all_sims.to_array('simulation')
+                
+                # Append to list. Used to assign descriptive attributes & coordinates to final dataset 
+                central_year_l.append(centered_time) 
+                year_start_l.append(start_year)
+                year_end_l.append(end_year)
+    anomaly_da = all_sims.to_array('simulation')
+    
+    # Assign descriptivie coordinates 
+    anomaly_da = anomaly_da.assign_coords(
+        {"window_year_center":("simulation",central_year_l), 
+        "window_year_start":("simulation",year_start_l), 
+        "window_year_end":("simulation",year_end_l)}
+    )
+    # Assign descriptive attributes to new coordinates 
+    anomaly_da["window_year_center"].attrs["description"] = "year that defines the center of the 30-year window around which the anomaly was computed"
+    anomaly_da["window_year_start"].attrs["description"] = "year that defines the start of the 30-year window around which the anomaly was computed"
+    anomaly_da["window_year_end"].attrs["description"] = "year that defines the end of the 30-year window around which the anomaly was computed"
+    anomaly_da.attrs["warming_level"] = warmlevel
+    
+    return anomaly_da
 
 
 def _compute_vmin_vmax(da_min,da_max):
@@ -191,7 +210,7 @@ class WarmingLevels(param.Parameterized):
     ## ---------- Params & global variables ----------
 
     warmlevel = param.ObjectSelector(default=1.5,
-        objects=[1.5, 2, 3]
+        objects=[1.5, 2, 3, 4]
     )
     ssp = param.ObjectSelector(default="All",
         objects=[
@@ -281,15 +300,11 @@ class WarmingLevels(param.Parameterized):
             cmap = "PuOr"
         else: 
             cmap = "viridis"
+        
+        # Set plot dimensions
+        width = 200
+        height = 215
             
-        if (num_simulations <= 3):
-            width = 200 
-            height = 225
-        else: # Make plots a little smaller if there are more than 3 
-            width = 190
-            height = 210
-            
-
         # Compute 1% min and 99% max of all simulations
         vmin_l, vmax_l = [],[]
         for sim in range(num_simulations):
@@ -317,12 +332,32 @@ class WarmingLevels(param.Parameterized):
             )
             all_plots += pl_i
         
-        all_plots.cols(3) # Organize into 3 columns 
-        all_plots.opts(title=self.variable2+ ': Anomalies for '+str(self.warmlevel)+'°C Warming by Simulation') # Add title
+        try: 
+            all_plots.cols(3) # Organize into 3 columns 
+            all_plots.opts(title=self.variable2+ ': Anomalies for '+str(self.warmlevel)+'°C Warming by Simulation') # Add title
+        except: 
+            all_plots.opts(title=str(self.warmlevel)+'°C Anomalies') # Add shorter title
+        
         all_plots.opts(toolbar="right") # Set toolbar location
         all_plots.opts(hv.opts.Layout(merge_tools=True)) # Merge toolbar 
         return all_plots
-        
+    
+    @param.depends("reload_data2", watch=False)
+    def _30_yr_window(self): 
+        """Create a dataframe to give information about the 30-yr anomalies window for each simulation used in the postage stamp maps. """
+        anom = self._warm_all_anoms
+        df = pd.DataFrame(
+            {"simulation":anom.simulation.values,
+            "30-yr window":zip(anom.window_year_start.values,anom.window_year_end.values), 
+            "central year":anom.window_year_center.values, 
+            "warming level":[anom.attrs["warming_level"]]*len(anom.simulation)} 
+        ) 
+        df_pane = pn.pane.DataFrame(
+            df, 
+            width=400, 
+            index=False
+        )
+        return df_pane
         
     @param.depends("reload_data2", watch=False)
     def _GCM_PostageStamps_STATS(self):
@@ -521,39 +556,62 @@ def _display_warming_levels(selections, location, _cat):
                     location.view,
                     width = 230)
                 )
-        , title="Data Options", collapsible=False, width=460, height=500
+        , title="Data Options", collapsible=False, width=460, height=515
     )
 
     GMT_plot = pn.Card(
             pn.Column(
-                "Shading around selected scenario shows 90% interval across different simulations. Dotted line indicates when the multi-model ensemble reaches the selected warming level, while solid vertical lines indicate when the earliest and latest simulations of that scenario reach the warming level. Figure and data reproduced from the IPCC AR6 Summary for Policymakers Fig 8.",
+                "Shading around selected global emissions scenario shows the 90% interval across different simulations. Dotted line indicates when the multi-model ensemble reaches the selected warming level, while solid vertical lines indicate when the earliest and latest simulations of that scenario reach the warming level. Figure and data are reproduced from the [IPCC AR6 Summary for Policymakers Fig 8](https://www.ipcc.ch/report/ar6/wg1/figures/summary-for-policymakers/figure-spm-8/).",
                 pn.widgets.Select.from_param(warming_levels.param.ssp, name="Scenario", width=250),
                 warming_levels._GMT_context_plot,
             ),
             title="When do different scenarios reach the warming level?",
-            collapsible=False, width=600, height=500
+            collapsible=False, width=600, height=515
         )
 
     postage_stamps_MAIN = pn.Column(
         pn.widgets.StaticText(
-            value="Panels show difference between 30-year average centered on the year each model reaches the specified warming level and average from 1981-2010.",
-            width = 700
+            value="Panels show the difference (anomaly) between the 30-year average centered on the year that each GCM (name of model titles each panel) reaches the specified warming level and the average from 1981-2010.",
+            width=800
         ),
-        warming_levels._GCM_PostageStamps_MAIN
+        pn.Row(
+            warming_levels._GCM_PostageStamps_MAIN,
+            pn.Column(
+                pn.widgets.StaticText(
+                    value="<br><br><br>", 
+                    width=200
+                ),
+                pn.widgets.StaticText(
+                    value="<b>Tip</b>: There's a toolbar to the side of the maps. \
+        Try clicking the magnifying glass to zoom in on a particular region. \
+        You can also click the save button to save a copy of the figure to your computer.", 
+                    width=200, 
+                    style={"border":"1.2px red solid","padding":"5px","border-radius":"4px","font-size":"13px"})
+            )
+        )
     )
 
     postage_stamps_STATS = pn.Column(
         pn.widgets.StaticText(
-            value="Panels show simulation that represents average, minimum, or maximum conditions across all models.",
-            width = 700
+            value="Panels show the average, median, minimum, or maximum conditions across all models. These statistics are computed from the data in the first panel: the difference (anomaly) between the 30-year average centered on the year that each GCM reaches the specified warming level and the average from 1981-2010. Minimum and maximum values are calculated across simulations for each grid cell, so one map may contain grid cells from different simulations. Median and mean maps show those respective summaries across simulations at each grid cell.",
+            width=800
         ),
         warming_levels._GCM_PostageStamps_STATS
+    )
+    
+    window_df = pn.Column(
+        pn.widgets.StaticText(
+            value="This panel displays start and end years that define the 30-year window for which the anomalies were computed for each model. It also displays the year at which each model crosses the selected warming level, defined in the table below as the central year. This information corresponds to the anomalies shown in the maps on the previous two tabs.",
+            width=800
+        ),
+        warming_levels._30_yr_window
     )
 
     map_tabs = pn.Card(
         pn.Tabs(
             ("Maps of individual simulations", postage_stamps_MAIN),
             ("Maps of cross-model statistics: mean/median/max/min", postage_stamps_STATS),
+            ("Anomaly computation details", window_df)
         ),
     title="Regional response at selected warming level",
     width = 850, height=600, collapsible=False,
