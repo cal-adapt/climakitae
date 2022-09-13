@@ -11,7 +11,7 @@ from .data_export import _export_to_user
 from .utils import _read_var_csv
 from .explore import _display_warming_levels
 from .view import _visualize
-from .tmy import _display_tmy
+#from .tmy import _display_tmy
 import intake
 import pkg_resources # Import package data
 CSV_FILE = pkg_resources.resource_filename('climakitae', 'data/variable_descriptions.csv')
