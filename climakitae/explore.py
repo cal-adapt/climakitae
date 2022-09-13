@@ -23,6 +23,8 @@ import matplotlib.colors as mcolors
 import logging
 logging.getLogger("param").setLevel(logging.CRITICAL)
 
+xr.set_options(keep_attrs=True) # Keep attributes when mutating xr objects
+
 # Import package data
 ssp119 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP1_1_9.csv')
 ssp126 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP1_2_6.csv')
@@ -155,6 +157,9 @@ def get_anomaly_data(data, warmlevel=3.0):
     anomaly_da["window_year_start"].attrs["description"] = "year that defines the start of the 30-year window around which the anomaly was computed"
     anomaly_da["window_year_end"].attrs["description"] = "year that defines the end of the 30-year window around which the anomaly was computed"
     anomaly_da.attrs["warming_level"] = warmlevel
+    
+    # Rename
+    anomaly_da.name = data.name + " Anomalies"
     
     return anomaly_da
 
