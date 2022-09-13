@@ -1,6 +1,7 @@
 # A class for holding the app explore options
 
 import panel as pn
+from .tmy import _display_tmy
 
 class AppExplore(object):
     """
@@ -14,7 +15,7 @@ class AppExplore(object):
         self.location = location,
         self._cat = _cat
 
-    def TMY(self):
+    def tmy(self):
         return pn.Card(title = "Typical Meteorological Year", collapsible = False)
 
     def thresholds(self):
