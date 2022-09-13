@@ -11,7 +11,6 @@ from .data_export import _export_to_user
 from .utils import _read_var_csv
 from .explore import _display_warming_levels
 from .explore2 import AppExplore
-# from .tmy import _display_tmy
 import intake
 import pkg_resources # Import package data
 CSV_FILE = pkg_resources.resource_filename('climakitae', 'data/variable_descriptions.csv')
@@ -55,15 +54,6 @@ class Application(object):
         Calls a method to display a plot of the data
         """
         return _display_warming_levels(self.selections, self.location, self._cat)
-
-
-    # # Goal is to have: app.explore.tmy()
-    # def tmy(self):
-    #     """
-    #     Calls a method to display a plot of hourly data
-    #     """
-    #     return _display_tmy(self.selections, self.location, self._cat)
-
 
     # === Export ======================================
     def export_as(self):
