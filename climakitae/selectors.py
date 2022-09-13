@@ -6,8 +6,6 @@ from matplotlib.figure import Figure
 import matplotlib.ticker as ticker
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
-import regionmask
-import numpy as np
 import geopandas as gpd
 import pandas as pd
 import datetime as dt
@@ -56,46 +54,37 @@ _cached_stations = [
 # === Select ===================================
 class Boundaries:
     def __init__(self):
-        self._us_states = regionmask.defined_regions.natural_earth_v4_1_0.us_states_50
-        self._ca_counties = gpd.read_file(
-            "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/1/query?where=STATE='06'&f=geojson"
-        )
-        self._ca_counties = self._ca_counties.sort_values("NAME")
-
-        self._ca_watersheds_file = "https://gis.data.cnra.ca.gov/datasets/02ff4971b8084ca593309036fb72289c_0.zip?outSR=%7B%22latestWkid%22%3A3857%2C%22wkid%22%3A102100%7D"
-        self._ca_watersheds = gpd.read_file(self._ca_watersheds_file)
-        self._ca_watersheds = self._ca_watersheds.sort_values("Name")
+        self._cat = intake.open_catalog("https://cadcat.s3.amazonaws.com/parquet/catalog.yaml")
+        self._us_states = self._cat.states.read()
+        self._ca_counties = self._cat.counties.read().sort_values("NAME")
+        self._ca_watersheds = self._cat.huc8.read().sort_values("Name")
 
     def get_us_states(self):
         """
-        Opens regionmask to retrieve a dictionary of state abbreviations:index
+        Returns a custom sorted dictionary of state abbreviations and indices.
         """
-        _state_lookup = dict(
-            [
-                (
-                    abbrev,
-                    np.argwhere(np.asarray(self._us_states.abbrevs) == abbrev)[0][0],
-                )
-                for abbrev in [
-                    "CA",
-                    "NV",
-                    "OR",
-                    "WA",
-                    "UT",
-                    "MT",
-                    "ID",
-                    "AZ",
-                    "CO",
-                    "NM",
-                    "WY",
-                ]
-            ]
-        )
-        return _state_lookup
+        _states_subset_list = [
+            "CA",
+            "NV",
+            "OR",
+            "WA",
+            "UT",
+            "MT",
+            "ID",
+            "AZ",
+            "CO",
+            "NM",
+            "WY"
+        ]
+        _us_states_subset = self._us_states.query("abbrevs in @_states_subset_list")[["abbrevs"]]
+        _us_states_subset["abbrevs"] = pd.Categorical(_us_states_subset["abbrevs"], categories=_states_subset_list)
+        _us_states_subset.sort_values(by="abbrevs", inplace=True)
+
+        return dict(zip(_us_states_subset.abbrevs, _us_states_subset.index))
 
     def get_ca_counties(self):
         """
-        Returns a dictionary of California counties and their indices in the shapefile.
+        Returns a dictionary of California counties and their indices in the geoparquet file.
         """
         return pd.Series(
             self._ca_counties.index, index=self._ca_counties["NAME"]
@@ -103,15 +92,15 @@ class Boundaries:
 
     def get_ca_watersheds(self):
         """
-        Returns a lookup dictionary for CA watersheds that references the shapefile.
+        Returns a lookup dictionary for CA watersheds that references the geoparquet file.
         """
         return pd.Series(
-            self._ca_watersheds["OBJECTID"].values, index=self._ca_watersheds["Name"]
+            self._ca_watersheds.index, index=self._ca_watersheds["Name"]
         ).to_dict()
 
     def boundary_dict(self):
         """
-        This returns a dictionary of lookup dictionaries for each set of shapefiles that
+        This returns a dictionary of lookup dictionaries for each set of geoparquet files that
         the user might be choosing from. It is used to populate the selector object dynamically
         as the category in 'LocSelectorArea.area_subset' changes.
         """
@@ -129,7 +118,7 @@ class LocSelectorArea(param.Parameterized):
     define a timeseries from an average over an area. Will update 'location' with whatever reflects the
     last change made to any one of the options. User can
     1. update the latitude or longitude of a bounding box
-    2. select a predefined area, from a set of shapefiles we pre-select
+    2. select a predefined area, from a set of geoparquet files in S3 we pre-select
     [future: 3. upload their own shapefile with the outline of a natural or administrative geographic area]
     """
 
@@ -262,40 +251,29 @@ class LocSelectorArea(param.Parameterized):
             color="k",
         )
         mpl_pane = pn.pane.Matplotlib(fig0, dpi=144)
+
+        def plot_subarea(boundary_dataset, extent):
+            ax.set_extent(extent, crs=xy)
+            subarea = boundary_dataset[boundary_dataset.index == shape_index]
+            df_ae = subarea.to_crs(crs_proj4)
+            df_ae.plot(ax=ax, color="b", zorder=2)
+            mpl_pane.param.trigger("object")
+
         if self.area_subset == "lat/lon":
             ax.set_extent([-150, -88, 8, 66], crs=xy)
             ax.add_geometries(
                 [geometry], crs=ccrs.PlateCarree(), edgecolor="b", facecolor="None"
             )
-        elif self.area_subset == "states":
-            ax.set_extent([-130, -100, 25, 50], crs=xy)
+        elif self.area_subset != "none":
             shape_index = int(
                 self._geography_choose[self.area_subset][self.cached_area]
             )
-            self._geographies._us_states[[shape_index]].plot(
-                ax=ax, add_label=False, line_kws=dict(color="b")
-            )
-            mpl_pane.param.trigger("object")
-        elif self.area_subset == "CA counties":
-            ax.set_extent([-125, -114, 31, 43], crs=xy)
-            shapefile = self._geographies._ca_counties
-            shape_index = int(
-                self._geography_choose[self.area_subset][self.cached_area]
-            )
-            county = shapefile[shapefile.index == shape_index]
-            df_ae = county.to_crs(crs_proj4)
-            df_ae.plot(ax=ax, color="b", zorder=2)
-            mpl_pane.param.trigger("object")
-        elif self.area_subset == "CA watersheds":
-            ax.set_extent([-125, -114, 31, 43], crs=xy)
-            shapefile = self._geographies._ca_watersheds
-            shape_index = int(
-                self._geography_choose[self.area_subset][self.cached_area]
-            )
-            basin = shapefile[shapefile["OBJECTID"] == shape_index]
-            df_ae = basin.to_crs(crs_proj4)
-            df_ae.plot(ax=ax, color="b", zorder=2)
-            mpl_pane.param.trigger("object")
+            if self.area_subset == "states":
+                plot_subarea(self._geographies._us_states, [-130, -100, 25, 50])
+            elif self.area_subset == "CA counties":
+                plot_subarea(self._geographies._ca_counties, [-125, -114, 31, 43])
+            elif self.area_subset == "CA watersheds":
+                plot_subarea(self._geographies._ca_watersheds, [-125, -114, 31, 43])
 
         return mpl_pane
 
