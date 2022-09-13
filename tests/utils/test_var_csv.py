@@ -11,12 +11,12 @@ import intake
 import pkg_resources
 CSV_FILE = pkg_resources.resource_filename('climakitae', 'data/variable_descriptions.csv')
 
-@pytest.fixture
-def cat_contents():  
-    """Load variable choices listed in Analytics Engine catalog. """
-    catalog_info = intake.open_catalog("https://cadcat.s3.amazonaws.com/cae.yaml")
-    cat_contents = _get_catalog_contents(catalog_info)
-    return cat_contents["variable_choices"]
+# @pytest.fixture
+# def cat_contents():  
+#     """Load variable choices listed in Analytics Engine catalog. """
+#     catalog_info = intake.open_catalog("https://cadcat.s3.amazonaws.com/cae.yaml")
+#     cat_contents = _get_catalog_contents(catalog_info)
+#     return cat_contents["variable_choices"]
 
 @pytest.fixture
 def descrip_dict_formatted():
@@ -39,9 +39,9 @@ def test_read_var_function_output(csv_file,index_col,usecols):
     dict_values = dict(descrip_dict.values())
     assert (dict_values == {usecols[1]: usecols[2]}) or (dict_values == {usecols[2]: usecols[1]}), "Function _read_var_csv does not return expected formatted dictionary object."
     
-def test_csv_matches_cat_contents(cat_contents, descrip_dict_formatted):
-    """Ensure that items in catalog are the same as (or a smaller subset of) the items in the variable csv. """
-    assert cat_contents["hourly"]["Dynamical"].items() <= descrip_dict_formatted.items(), "Catalog contents are not the same as (or a smaller subset of) the items in the variable descriptions csv."
+# def test_csv_matches_cat_contents(cat_contents, descrip_dict_formatted):
+#     """Ensure that items in catalog are the same as (or a smaller subset of) the items in the variable csv. """
+#     assert cat_contents["hourly"]["Dynamical"].items() <= descrip_dict_formatted.items(), "Catalog contents are not the same as (or a smaller subset of) the items in the variable descriptions csv."
     
 def test_csv_contains_all_columns(descrip_pd): 
     columns = ["name","description","extended_description","native_unit","alt_unit_options"]
