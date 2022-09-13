@@ -11,17 +11,16 @@ import geopandas as gpd
 import param
 import panel as pn
 import intake
-import intake
 import s3fs
 import pyproj
 from shapely.geometry import box
 from shapely.ops import transform
 from .data_loaders import _read_from_catalog
-from .selectors import DataSelector, LocSelectorArea
 import pkg_resources
 import matplotlib.colors as mcolors
 import logging
 logging.getLogger("param").setLevel(logging.CRITICAL)
+import rioxarray
 
 xr.set_options(keep_attrs=True) # Keep attributes when mutating xr objects
 
@@ -71,44 +70,31 @@ def _get_postage_data(area_subset2, cached_area2, variable2, location):
     da = pkg_data[variable2]
     postage_data = da.where(da.scenario == "Historical + SSP 3-7.0 -- Business as Usual", drop=True)
 
-    # Perform area subset based on user selections
-    if area_subset2 == "states":
-        ds_region = None # Data is already subsetted to CA
-    elif area_subset2 in ["CA watersheds","CA counties"]:
-        shape_index = int(
-            location._geography_choose[area_subset2][cached_area2]
-        )
-        if area_subset2 == "CA watersheds":
-            shape = location._geographies._ca_watersheds
-            shape = shape[shape["OBJECTID"] == shape_index].iloc[0].geometry
-            wgs84 = pyproj.CRS('EPSG:4326')
-            psdo_merc = pyproj.CRS('EPSG:3857')
-            project = pyproj.Transformer.from_crs(psdo_merc, wgs84, always_xy=True).transform
-            shape = transform(project, shape)
-        elif area_subset2 == "CA counties":
-            shape = location._geographies._ca_counties
-            shape = shape[shape.index == shape_index].iloc[0].geometry
-        ds_region = regionmask.Regions(
-            [shape], abbrevs=["geographic area"], name="area mask"
+    #================= Modified from data_loaders.py =================
+    
+    def set_subarea(boundary_dataset):
+        return boundary_dataset[boundary_dataset.index == shape_index].iloc[0].geometry
+    
+    shape_index = int(
+            location._geography_choose[location.area_subset][location.cached_area]
         )
 
-    if ds_region:
-        # Attributes are arrays, must be items to call pyproj.CRS.from_cf
-        for attr_np in ["earth_radius","latitude_of_projection_origin","longitude_of_central_meridian"]:
-            postage_data['Lambert_Conformal'].attrs[attr_np] = postage_data['Lambert_Conformal'].attrs[attr_np].item()
-        data_crs = ccrs.CRS(pyproj.CRS.from_cf(postage_data['Lambert_Conformal'].attrs))
-        output = data_crs.transform_points(ccrs.PlateCarree(),
-                                               x=ds_region.coords[0][:,0],
-                                               y=ds_region.coords[0][:,1])
-
-        postage_data = postage_data.sel(x=slice(np.nanmin(output[:,0]), np.nanmax(output[:,0])),
-            y=slice(np.nanmin(output[:,1]), np.nanmax(output[:,1])))
-
-        mask = ds_region.mask(postage_data.lon, postage_data.lat, wrap_lon=False)
-        assert (
-            False in mask.isnull()
-        ), "Insufficient gridcells are contained within the bounds."
-        postage_data = postage_data.where(np.isnan(mask) == False)
+    if location.area_subset == "states":
+        shape = set_subarea(location._geographies._us_states)
+    elif location.area_subset == "CA counties":
+        shape = set_subarea(location._geographies._ca_counties)
+    elif location.area_subset == "CA watersheds":
+        shape = set_subarea(location._geographies._ca_watersheds)
+    ds_region = [shape]
+    
+    #==================================
+    
+    # Un-list attributes so rioxarray can find them when it looks for a crs 
+    for attr_np in ["earth_radius","latitude_of_projection_origin","longitude_of_central_meridian"]:
+        postage_data['Lambert_Conformal'].attrs[attr_np] = postage_data['Lambert_Conformal'].attrs[attr_np].item()
+    
+    # Clip data to geometry
+    postage_data = postage_data.rio.clip(geometries=ds_region, crs=4326, drop=True) 
 
     return postage_data
 
