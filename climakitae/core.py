@@ -11,8 +11,9 @@ from .data_export import _export_to_user
 from .utils import _read_var_csv
 from .explore import _display_warming_levels
 from .view import _visualize
+from .tmy import _display_tmy
 import intake
-import pkg_resources # Import package data 
+import pkg_resources # Import package data
 CSV_FILE = pkg_resources.resource_filename('climakitae', 'data/variable_descriptions.csv')
 
 
@@ -46,7 +47,7 @@ class Application(object):
         """
         # to do: insert additional 'hang in there' statement if it's taking a while
         return _read_from_catalog(self.selections, self.location, self._cat)
-    
+
     # === View =====================================
     def view(self, data, lat_lon=True, width=None, height=None, cmap="inferno_r"): 
         """Create a generic visualization of the data
@@ -65,12 +66,20 @@ class Application(object):
         return _visualize(data, lat_lon=lat_lon, width=width, height=height, cmap=cmap)
     
     # === Explore ===================================
-    def explore(self): 
+    def explore(self):
         """
-        Display warming levels panel 
+        Display warming levels panel
         """
         return _display_warming_levels(self.selections, self.location, self._cat)
-    
+
+
+    # # Goal is to have: app.explore.tmy()
+    # def tmy(self):
+    #     """
+    #     Calls a method to display a plot of hourly data
+    #     """
+    #     return _display_tmy(self.selections, self.location, self._cat)
+
 
     # === Export ======================================
     def export_as(self):
@@ -97,60 +106,60 @@ def _get_catalog_contents(_cat):
     _variable_choices_hourly_wrf = {
         v.attrs["description"].capitalize(): k for k, v in _ds.data_vars.items()
     }
-    # Add derived variables 
-    # Dictionary key (i.e. Precipitation (total)) will appear in list of variable options. 
+    # Add derived variables
+    # Dictionary key (i.e. Precipitation (total)) will appear in list of variable options.
     _variable_choices_hourly_wrf.update(
-            {"Precipitation (total)": "TOT_PRECIP",  
-             "Relative Humidity": "REL_HUMIDITY", 
+            {"Precipitation (total)": "TOT_PRECIP",
+             "Relative Humidity": "REL_HUMIDITY",
              "Wind Magnitude at 10m": "WIND_MAG"}
-    ) 
+    )
     # remove some variables from the list, which will be superceded by higher quality hydrology
     _to_drop = ["Surface runoff", "Subsurface runoff", "Snow water equivalent"]
     [_variable_choices_hourly_wrf.pop(k) for k in _to_drop]
-    
+
     #####  Give better names to some descriptions:
     _variable_choices_hourly_wrf["Surface Pressure"] = _variable_choices_hourly_wrf[
         "Sfc pressure"
-    ] # Replace catalog name with better descriptive name 
+    ] # Replace catalog name with better descriptive name
     _variable_choices_hourly_wrf.pop("Sfc pressure") # Remove old variable from dropdown
-    
+
     _variable_choices_hourly_wrf["Air Temperature at 2m"] = _variable_choices_hourly_wrf[
         "Temp at 2 m"
     ]
     _variable_choices_hourly_wrf.pop("Temp at 2 m")
-    
+
     _variable_choices_hourly_wrf[
         "2m Water Vapor Mixing Ratio"
     ] = _variable_choices_hourly_wrf["Qv at 2 m"]
     _variable_choices_hourly_wrf.pop("Qv at 2 m")
-    
+
     _variable_choices_hourly_wrf[
         "West-East component of Wind at 10m"
     ] = _variable_choices_hourly_wrf["U at 10 m"]
     _variable_choices_hourly_wrf.pop("U at 10 m")
-    
+
     _variable_choices_hourly_wrf[
         "North-South component of Wind at 10m"
     ] = _variable_choices_hourly_wrf["V at 10 m"]
     _variable_choices_hourly_wrf.pop("V at 10 m")
-    
+
     _variable_choices_hourly_wrf[
         "Snowfall (snow and ice)"
     ] = _variable_choices_hourly_wrf["Accumulated total grid scale snow and ice"]
-    
+
     _variable_choices_hourly_wrf.pop("Accumulated total grid scale snow and ice")
-    
+
     _variable_choices_hourly_wrf["Precipitation (cumulus portion only)"] = _variable_choices_hourly_wrf[
         "Accumulated total cumulus precipitation"
     ]
     _variable_choices_hourly_wrf.pop("Accumulated total cumulus precipitation")
-    
+
     _variable_choices_hourly_wrf["Precipitation (grid-scale portion only)"] = _variable_choices_hourly_wrf[
         "Accumulated total grid scale precipitation"
     ]
     _variable_choices_hourly_wrf.pop("Accumulated total grid scale precipitation")
-   
-    ### Reorder dictionary according to variable order in csv file 
+
+    ### Reorder dictionary according to variable order in csv file
     descrip_dict = _read_var_csv(CSV_FILE, index_col="description")
     _variable_choices_hourly_wrf = {i: _variable_choices_hourly_wrf[i] for i in descrip_dict.keys() if i in _variable_choices_hourly_wrf.keys()}
 

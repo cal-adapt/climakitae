@@ -16,12 +16,12 @@ import s3fs
 import pyproj
 from shapely.geometry import box
 from shapely.ops import transform
-import regionmask
 from .data_loaders import _read_from_catalog
 from .selectors import DataSelector, LocSelectorArea
 import pkg_resources
 import matplotlib.colors as mcolors
-
+import logging
+logging.getLogger("param").setLevel(logging.CRITICAL)
 
 # Import package data
 ssp119 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP1_1_9.csv')
@@ -30,26 +30,6 @@ ssp245 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP2_4_5
 ssp370 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP3_7_0.csv')
 ssp585 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP5_8_5.csv')
 hist = pkg_resources.resource_filename('climakitae', 'data/tas_global_Historical.csv')
-
-tmy_filenames = ['tmy_future-minus-hist_rh_45km_CA_15degC.csv',
- 'tmy_future-minus-hist_rh_45km_CA_2degC.csv',
- 'tmy_future-minus-hist_rh_45km_CA_3degC.csv',
- 'tmy_future-minus-hist_rh_45km_losangeles_15degC.csv',
- 'tmy_future-minus-hist_rh_45km_losangeles_2degC.csv',
- 'tmy_future-minus-hist_rh_45km_losangeles_3degC.csv',
- 'tmy_future-minus-hist_rh_45km_santaclara_15degC.csv',
- 'tmy_future-minus-hist_rh_45km_santaclara_2degC.csv',
- 'tmy_future-minus-hist_rh_45km_santaclara_3degC.csv',
- 'tmy_future-minus-hist_temp_45km_CA_15degC.csv',
- 'tmy_future-minus-hist_temp_45km_CA_2degC.csv',
- 'tmy_future-minus-hist_temp_45km_CA_3degC.csv',
- 'tmy_future-minus-hist_temp_45km_losangeles_15degC.csv',
- 'tmy_future-minus-hist_temp_45km_losangeles_2degC.csv',
- 'tmy_future-minus-hist_temp_45km_losangeles_3degC.csv',
- 'tmy_future-minus-hist_temp_45km_santaclara_15degC.csv',
- 'tmy_future-minus-hist_temp_45km_santaclara_2degC.csv',
- 'tmy_future-minus-hist_temp_45km_santaclara_3degC.csv']
-cached_tmy_files = [pkg_resources.resource_filename('climakitae', 'data/cached_tmy/'+file) for file in tmy_filenames]
 
 # Global warming levels file (years when warming level is reached)
 gwl_file = pkg_resources.resource_filename('climakitae', 'data/gwl_1981-2010ref.csv')
@@ -62,38 +42,6 @@ ssp245_data = pd.read_csv(ssp245, index_col='Year')
 ssp370_data = pd.read_csv(ssp370, index_col='Year')
 ssp585_data = pd.read_csv(ssp585, index_col='Year')
 hist_data = pd.read_csv(hist, index_col='Year')
-
-
-
-def read_cached_tmy_df(cached_tmy_files, variable, warmlevel, cached_area):
-    """Read in cached tmy file corresponding to a given variable, warmlevel, and cached area.
-    Returns a dataframe"""
-
-    # Subset list by variable
-    if variable == "Relative Humidity":
-        cached_tmy_var = [file for file in cached_tmy_files if "rh" in file]
-    elif variable == "Air Temperature at 2m":
-        cached_tmy_var = [file for file in cached_tmy_files if "temp" in file]
-
-    # Subset list by warming level
-    if warmlevel == 1.5:
-        cached_tmy_warmlevel = [file for file in cached_tmy_var if "15degC" in file]
-    elif warmlevel == 2:
-        cached_tmy_warmlevel = [file for file in cached_tmy_var if "2degC" in file]
-    elif warmlevel == 3:
-        cached_tmy_warmlevel = [file for file in cached_tmy_var if "3degC" in file]
-
-    # Subset list by location
-    if cached_area == "CA":
-        tmy = [file for file in cached_tmy_warmlevel if "CA" in file]
-    if cached_area == "Santa Clara County":
-        tmy = [file for file in cached_tmy_warmlevel if "santaclara" in file]
-    if cached_area == "Los Angeles County" :
-        tmy = [file for file in cached_tmy_warmlevel if "losangeles" in file]
-
-    # Read in file as pandas dataframe
-    df = pd.read_csv(tmy[0], index_col=0)
-    return df
 
 
 def _get_postage_data(area_subset2, cached_area2, variable2, location):
@@ -177,23 +125,69 @@ def get_anomaly_data(data, warmlevel=3.0):
     model_case = {'cesm2':'CESM2', 'cnrm-esm2-1':'CNRM-ESM2-1',
               'ec-earth3-veg':'EC-Earth3-Veg', 'fgoals-g3':'FGOALS-g3',
               'mpi-esm1-2-lr':'MPI-ESM1-2-LR'}
-
+    ssp = 'ssp370' 
     all_sims = xr.Dataset()
+    central_year_l, year_start_l, year_end_l = [],[],[]
     for simulation in data.simulation.values:
-        for scenario in ['ssp370']:
+        for scenario in [ssp]:
             one_ts = data.sel(simulation=simulation).squeeze() #,scenario=scenario) #scenario names are longer strings
             centered_time = pd.to_datetime(gwl_times[str(float(warmlevel))][model_case[simulation]][scenario]).year
             if not np.isnan(centered_time):
-                anom = one_ts.sel(time=slice(str(centered_time-15),str(centered_time+14))).mean('time') - one_ts.sel(time=slice('1981','2010')).mean('time')
+                start_year = centered_time-15
+                end_year = centered_time+14
+                anom = one_ts.sel(time=slice(str(start_year),str(end_year))).mean('time') - one_ts.sel(time=slice('1981','2010')).mean('time')
                 all_sims[simulation] = anom
-    return all_sims.to_array('simulation')
+                
+                # Append to list. Used to assign descriptive attributes & coordinates to final dataset 
+                central_year_l.append(centered_time) 
+                year_start_l.append(start_year)
+                year_end_l.append(end_year)
+    anomaly_da = all_sims.to_array('simulation')
+    
+    # Assign descriptivie coordinates 
+    anomaly_da = anomaly_da.assign_coords(
+        {"window_year_center":("simulation",central_year_l), 
+        "window_year_start":("simulation",year_start_l), 
+        "window_year_end":("simulation",year_end_l)}
+    )
+    # Assign descriptive attributes to new coordinates 
+    anomaly_da["window_year_center"].attrs["description"] = "year that defines the center of the 30-year window around which the anomaly was computed"
+    anomaly_da["window_year_start"].attrs["description"] = "year that defines the start of the 30-year window around which the anomaly was computed"
+    anomaly_da["window_year_end"].attrs["description"] = "year that defines the end of the 30-year window around which the anomaly was computed"
+    anomaly_da.attrs["warming_level"] = warmlevel
+    
+    return anomaly_da
+
+
+def _compute_vmin_vmax(da_min,da_max):
+    """Compute min, max, and center for plotting"""
+    vmin = np.nanpercentile(da_min, 1)
+    vmax = np.nanpercentile(da_max, 99)
+    # define center for diverging symmetric data
+    if (vmin < 0) and (vmax > 0):
+        # dabs = abs(vmax) - abs(vmin)
+        sopt = True
+    else:
+        sopt = None
+    return vmin, vmax, sopt
+
+def _make_hvplot(data, clabel, clim, cmap, sopt, title, width=200, height=225): 
+    """Make single map"""
+    _plot = data.hvplot.image(
+        x="x", y="y", 
+        grid=True, width=width, height=height, xaxis=None, yaxis=None,
+        clabel=clabel, clim=clim, cmap=cmap, # Colorbar 
+        symmetric=sopt, title=title
+    )
+    return _plot
+
 
 class WarmingLevels(param.Parameterized):
 
     ## ---------- Reset certain DataSelector and LocSelectorArea options ----------
     def __init__(self, *args, **params):
         super().__init__(*args, **params)
-
+        
         # Selectors defaults
         self.selections.append_historical = True
         self.selections.area_average = False
@@ -216,10 +210,17 @@ class WarmingLevels(param.Parameterized):
     ## ---------- Params & global variables ----------
 
     warmlevel = param.ObjectSelector(default=1.5,
-        objects=[1.5, 2, 3]
+        objects=[1.5, 2, 3, 4]
     )
-    ssp = param.ObjectSelector(default="SSP 3-7.0 -- Business as Usual",
-        objects=["SSP 2-4.5 -- Middle of the Road","SSP 3-7.0 -- Business as Usual","SSP 5-8.5 -- Burn it All"]
+    ssp = param.ObjectSelector(default="All",
+        objects=[
+            "All",
+            "SSP 1-1.9 -- Very Low Emissions Scenario", 
+            "SSP 1-2.6 -- Low Emissions Scenario", 
+            "SSP 2-4.5 -- Middle of the Road",
+            "SSP 3-7.0 -- Business as Usual",
+            "SSP 5-8.5 -- Burn it All"
+        ]
     )
 
 
@@ -281,200 +282,118 @@ class WarmingLevels(param.Parameterized):
         self.location.cached_area = self.cached_area2
 
     @param.depends("reload_data2", watch=False)
-    def _TMY_hourly_heatmap(self):
-        """Generate a TMY hourly heatmap using hourly data"""
-
-        # hard-coding in for now
-        warming_year_average_range = {
-            1.5 : (2034,2063),
-            2 : (2047,2076),
-            3 : (2061,2090),
-            4 : (2076, 2100)
-        }
-
-
-        def remove_repeats(xr_data):
-            """
-            Remove hours that have repeats.
-            This occurs if two hours have the same absolute difference from the mean.
-            Returns numpy array
-            """
-            unq, unq_idx, unq_cnt = np.unique(xr_data.time.dt.hour.values, return_inverse=True, return_counts=True)
-            cnt_mask = unq_cnt > 1
-            cnt_idx, = np.nonzero(cnt_mask)
-            idx_mask = np.in1d(unq_idx, cnt_idx)
-            idx_idx, = np.nonzero(idx_mask)
-            srt_idx = np.argsort(unq_idx[idx_mask])
-            dup_idx = np.split(idx_idx[srt_idx], np.cumsum(unq_cnt[cnt_mask])[:-1])
-            if len(dup_idx[0]) > 0:
-                dup_idx_keep_first_val = np.concatenate([dup_idx[x][1:] for x in range(len(dup_idx))], axis=0)
-                cleaned_np = np.delete(xr_data.values, dup_idx_keep_first_val)
-                return cleaned_np
-            else:
-                return xr_data.values
-
-        df = read_cached_tmy_df(
-            cached_tmy_files=cached_tmy_files,
-            variable=self.variable2,
-            warmlevel=self.warmlevel,
-            cached_area=self.cached_area2
-        )
-
-        # Set to PST time -- hardcoded
-        df = df[['8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','1','2','3','4','5','6','7']]
-        col_h=[]
-        for i in np.arange(1,25,1):
-            col_h.append(str(i))
-        df.columns = col_h
-
-        if self.variable2 == "Air Temperature at 2m":
-            cm = "YlOrRd"
-            cl = (0,6)  # hardcoding this in, full range of warming level response for 2m air temp
-        elif self.variable2 == "Relative Humidity":
-            cm = "PuOr"
-            cl = (-7,7) # hardcoding this in, full range of warming level response for relhumid
-
-        heatmap = df.hvplot.heatmap(
-            x='columns',
-            y='index',
-            title='Typical Meteorological Year\nDifference between a {}°C future and historical baseline'.format(self.warmlevel),
-            cmap=cm,
-            xaxis='bottom',
-            xlabel="Hour of Day (PST)",
-            ylabel="Day of Year",clabel=self.postage_data.name + " ("+self.postage_data.attrs["units"]+")",
-            width=800, height=350).opts(
-            fontsize={'title': 15, 'xlabel':12, 'ylabel':12},
-            clim=cl
-        )
-        return heatmap
-
-
-    @param.depends("reload_data2", watch=False)
     def _GCM_PostageStamps_MAIN(self):
-
+        
+        # Get plot data 
         all_plot_data = self._warm_all_anoms
-
-        if self.variable2 == "Air Temperature at 2m":
-            cmap = "YlOrRd"
-            multiplier = 1
-        elif self.variable2 == "Relative Humidity":
-            cmap = "PuOr"
+        if self.variable2 == "Relative Humidity": 
             all_plot_data = all_plot_data*100
             
-
-        # Compute min and max for plotting
-        def compute_vmin_vmax(da):
-            vmin = np.nanpercentile(da, 1)
-            vmax = np.nanpercentile(da, 99)
-            return vmin, vmax
-
         # Get int number of simulations
         num_simulations = len(all_plot_data.simulation.values)
-
+            
+        # Set up plotting arguments 
+        clabel = self.variable2 + " ("+self.postage_data.attrs["units"]+")"
+        if self.variable2 == "Air Temperature at 2m":
+            cmap = "YlOrRd"
+        elif self.variable2 == "Relative Humidity":
+            cmap = "PuOr"
+        else: 
+            cmap = "viridis"
+        
+        # Set plot dimensions
+        width = 200
+        height = 215
+            
         # Compute 1% min and 99% max of all simulations
         vmin_l, vmax_l = [],[]
         for sim in range(num_simulations):
-            vmin_i, vmax_i = compute_vmin_vmax(all_plot_data.isel(simulation=sim))
+            data = all_plot_data.isel(simulation=sim)
+            vmin_i, vmax_i, sopt = _compute_vmin_vmax(data, data)
             vmin_l.append(vmin_i)
             vmax_l.append(vmax_i)
         vmin = min(vmin_l)
         vmax = max(vmax_l)
-        if (vmin < 0):
-            sopt = mcolors.CenteredNorm()
-            vmin = None
-            vmax = None
-        else:
-            sopt = None
-
-        # Initialize figure
-        fig = Figure(figsize=(11, 7))
-
-        # Make each plot. Add to figure
-        for ax_index, sim_i in zip(np.arange(1,num_simulations+1),np.arange(0,num_simulations)):
-
-            # Grab data for just that simulation
-            sim_data = all_plot_data.isel(simulation=sim_i)
-
-            # Ideally these should all have the same colorbar
-            ax = fig.add_subplot(2,3,ax_index,projection=ccrs.LambertConformal())
-            xr_pl = sim_data.plot(
-                ax=ax, shading='auto', cmap=cmap, add_colorbar=False, 
-                norm=sopt, vmin=vmin, vmax=vmax
-                )
-            ax.set_title(sim_data.simulation.item())
-            ax.coastlines(linewidth=1, color = 'black', zorder = 10) # Coastlines
-            ax.gridlines(linewidth=0.25, color='gray', alpha=0.9, crs=ccrs.PlateCarree(), linestyle = '--',draw_labels=False)
-
-        # Add a colorbar axis at the bottom of the graph
-        cbar_ax = fig.add_axes([0.9, 0.1, 0.03, 0.7])
-
-        # Draw the colorbar
-        cbar=fig.colorbar(xr_pl, cax=cbar_ax,orientation='vertical',label=self.variable2+" ("+self.postage_data.attrs["units"]+")")
-
-        # Add title
-        fig.suptitle(self.variable2+ ': Anomalies for '+str(self.warmlevel)+'°C Warming by Simulation',y=1, fontsize=15)
-
-        mpl_pane = pn.pane.Matplotlib(fig, dpi=144)
-        return mpl_pane
-
-
+    
+        
+        # Make each plot 
+        all_plots = _make_hvplot( # Need to make the first plot separate from the loop
+            data=all_plot_data.isel(simulation=0), 
+            clabel=clabel, clim=(vmin,vmax), cmap=cmap, sopt=sopt,
+            title=all_plot_data.isel(simulation=0).simulation.item(), 
+            width=width, height=height
+        )
+        for sim_i in range(1,num_simulations): 
+            pl_i = _make_hvplot(
+                data=all_plot_data.isel(simulation=sim_i), 
+                clabel=clabel, clim=(vmin,vmax), cmap=cmap, sopt=sopt,
+                title=all_plot_data.isel(simulation=sim_i).simulation.item(), 
+                width=width, height=height
+            )
+            all_plots += pl_i
+        
+        try: 
+            all_plots.cols(3) # Organize into 3 columns 
+            all_plots.opts(title=self.variable2+ ': Anomalies for '+str(self.warmlevel)+'°C Warming by Simulation') # Add title
+        except: 
+            all_plots.opts(title=str(self.warmlevel)+'°C Anomalies') # Add shorter title
+        
+        all_plots.opts(toolbar="right") # Set toolbar location
+        all_plots.opts(hv.opts.Layout(merge_tools=True)) # Merge toolbar 
+        return all_plots
+    
+    @param.depends("reload_data2", watch=False)
+    def _30_yr_window(self): 
+        """Create a dataframe to give information about the 30-yr anomalies window for each simulation used in the postage stamp maps. """
+        anom = self._warm_all_anoms
+        df = pd.DataFrame(
+            {"simulation":anom.simulation.values,
+            "30-yr window":zip(anom.window_year_start.values,anom.window_year_end.values), 
+            "central year":anom.window_year_center.values, 
+            "warming level":[anom.attrs["warming_level"]]*len(anom.simulation)} 
+        ) 
+        df_pane = pn.pane.DataFrame(
+            df, 
+            width=400, 
+            index=False
+        )
+        return df_pane
+        
     @param.depends("reload_data2", watch=False)
     def _GCM_PostageStamps_STATS(self):
-
-        all_plot_data = self._warm_all_anoms
         
-        if self.variable2 == "Air Temperature at 2m":
-            cmap = "YlOrRd"
-        elif self.variable2 == "Relative Humidity":
-            cmap = "PuOr"
+        # Get plot data 
+        all_plot_data = self._warm_all_anoms
+        if self.variable2 == "Relative Humidity": 
             all_plot_data = all_plot_data*100
-
+        
+        # Compute stats
         min_data = all_plot_data.min(dim='simulation')
         max_data = all_plot_data.max(dim='simulation')
         med_data = all_plot_data.median(dim='simulation')
         mean_data = all_plot_data.mean(dim='simulation')
-
-        # Compute min, max, and center for plotting
-        def compute_vmin_vmax(da_min,da_max):
-            vmin = np.nanpercentile(da_min, 1)
-            vmax = np.nanpercentile(da_max, 99)
-            if (vmin < 0):
-                sopt = mcolors.CenteredNorm()
-                vmin = None
-                vmax = None
-            else:
-                sopt = None
-            return vmin, vmax, sopt
         
-        vmin, vmax, sopt = compute_vmin_vmax(min_data,max_data)
+        # Set up plotting arguments 
+        clabel = self.variable2 + " ("+self.postage_data.attrs["units"]+")"
+        vmin, vmax, sopt = _compute_vmin_vmax(min_data,max_data)
+        if self.variable2 == "Air Temperature at 2m":
+            cmap = "YlOrRd"
+        elif self.variable2 == "Relative Humidity":
+            cmap = "PuOr"
+        else: 
+            cmap = "viridis"
+        
+        # Make plots
+        min_plot = _make_hvplot(data=min_data, clabel=clabel, cmap=cmap, clim=(vmin,vmax), sopt=sopt, title="Minimum")
+        max_plot = _make_hvplot(data=max_data, clabel=clabel, cmap=cmap,  clim=(vmin,vmax), sopt=sopt, title="Maximum")
+        med_plot = _make_hvplot(data=med_data, clabel=clabel, cmap=cmap,  clim=(vmin,vmax), sopt=sopt, title="Median")
+        mean_plot = _make_hvplot(data=mean_data, clabel=clabel, cmap=cmap, clim=(vmin,vmax), sopt=sopt, title="Mean")
 
-        # Initialize figure
-        fig = Figure(figsize=(11, 7))
-
-        # Make each plot. Add to figure
-        for ax_index, stats_data, title in zip(np.arange(1,4+1),[min_data,max_data,med_data,mean_data],["Minimum","Maximum","Median","Mean"]):
-
-            # Ideally these should all have the same colorbar
-            ax = fig.add_subplot(2,2,ax_index,projection=ccrs.LambertConformal())
-            xr_pl = stats_data.plot(
-                ax=ax, shading='auto', cmap=cmap, add_colorbar=False, 
-                norm=sopt, vmin=vmin, vmax=vmax
-                )
-            ax.set_title(title)
-            ax.coastlines(linewidth=1, color = 'black', zorder = 10) # Coastlines
-            ax.gridlines(linewidth=0.25, color='gray', alpha=0.9, crs=ccrs.PlateCarree(), linestyle = '--',draw_labels=False)
-
-        # Add a colorbar axis at the bottom of the graph
-        cbar_ax = fig.add_axes([0.9, 0.1, 0.03, 0.7])
-
-        # Draw the colorbar
-        cbar=fig.colorbar(xr_pl, cax=cbar_ax,orientation='vertical',label=self.variable2+" ("+self.postage_data.attrs["units"]+")")
-
-        # Add title
-        fig.suptitle(self.variable2+ ': Anomalies for '+str(self.warmlevel)+'°C Warming Across Models',y=1, fontsize=15)
-
-        mpl_pane = pn.pane.Matplotlib(fig, dpi=144)
-        return mpl_pane
+        all_plots = (mean_plot+med_plot+min_plot+max_plot)
+        all_plots.opts(title=self.variable2+ ': Anomalies for '+str(self.warmlevel)+'°C Warming Across Models') # Add title
+        all_plots.opts(toolbar="below") # Set toolbar location
+        all_plots.opts(hv.opts.Layout(merge_tools=True)) # Merge toolbar 
+        return all_plots
 
 
 
@@ -496,63 +415,120 @@ class WarmingLevels(param.Parameterized):
         c370 = "#df0000"
         c585 = "#980002"
 
-        ipcc_data = (hist_data.hvplot(y="Mean", color="k", label="Historical", width=width, height=height) *
-                hist_data.hvplot.area(x="Year", y="5%", y2="95%", alpha=0.1, color="k", ylabel="°C", xlabel="", ylim=[-1,5], xlim=[1950,2100]) * # very likely range
-                 ssp119_data.hvplot(y="Mean", color=c119, label="SSP1-1.9") *
-                 ssp126_data.hvplot(y="Mean", color=c126, label="SSP1-2.6") *
-                 ssp245_data.hvplot(y="Mean", color=c245, label="SSP2-4.5") *
-                 ssp370_data.hvplot(y="Mean", color=c370, label="SSP3-7.0") *
-                 ssp585_data.hvplot(y="Mean", color=c585, label="SSP5-8.5")
-                )
+        ipcc_data = (
+            hist_data.hvplot(y="Mean", color="k", label="Historical", width=width, height=height) *
+            hist_data.hvplot.area(x="Year", y="5%", y2="95%", alpha=0.1, color="k", ylabel="°C", xlabel="", ylim=[-1,5], xlim=[1950,2100])
+        ) 
+        if self.ssp == "All":
+            ipcc_data = (
+                ipcc_data *
+                ssp119_data.hvplot(y="Mean", color=c119, label="SSP1-1.9") *
+                ssp126_data.hvplot(y="Mean", color=c126, label="SSP1-2.6") *
+                ssp245_data.hvplot(y="Mean", color=c245, label="SSP2-4.5") *
+                ssp370_data.hvplot(y="Mean", color=c370, label="SSP3-7.0") *
+                ssp585_data.hvplot(y="Mean", color=c585, label="SSP5-8.5")
+            )
+        elif self.ssp == "SSP 1-1.9 -- Very Low Emissions Scenario": 
+            ipcc_data = (ipcc_data * ssp119_data.hvplot(y="Mean", color=c119, label="SSP1-1.9"))
+        elif self.ssp == "SSP 1-2.6 -- Low Emissions Scenario": 
+            ipcc_data = (ipcc_data * ssp126_data.hvplot(y="Mean", color=c126, label="SSP1-2.6"))
+        elif self.ssp == "SSP 2-4.5 -- Middle of the Road": 
+            ipcc_data = (ipcc_data * ssp245_data.hvplot(y="Mean", color=c245, label="SSP2-4.5"))
+        elif self.ssp == "SSP 3-7.0 -- Business as Usual": 
+            ipcc_data = (ipcc_data * ssp370_data.hvplot(y="Mean", color=c370, label="SSP3-7.0"))
+        elif self.ssp == "SSP 5-8.5 -- Burn it All": 
+            ipcc_data = (ipcc_data * ssp585_data.hvplot(y="Mean", color=c585, label="SSP5-8.5"))
 
 
         # SSP intersection lines
         cmip_t = np.arange(2015,2101,1)
 
-        # warming level connection lines & additional labeling
+        # Warming level connection lines & additional labeling
         warmlevel_line = hv.HLine(self.warmlevel).opts(color="black", line_width=1.0) * hv.Text(x=1964, y=self.warmlevel+0.25, text=".    " + str(self.warmlevel) + "°C warming level").opts(style=dict(text_font_size='8pt'))
 
-        ssp_dict = {
-            "SSP 2-4.5 -- Middle of the Road":(ssp245_data,c245),
-            "SSP 3-7.0 -- Business as Usual":(ssp370_data,c370),
-            "SSP 5-8.5 -- Burn it All":(ssp585_data,c585)
-        }
+        # Create plot 
+        to_plot = ipcc_data * warmlevel_line
 
-        ssp_selected = ssp_dict[self.ssp][0] # data selected
-        ssp_color = ssp_dict[self.ssp][1] # color corresponding to ssp selected
+        if self.ssp != "All": 
+            # Label to give addional plot info 
+            info_label = "Intersection information"
+            
+            # Add interval line and shading around selected SSP 
+            ssp_dict = {
+                "SSP 1-1.9 -- Very Low Emissions Scenario":(ssp119_data, c119), 
+                "SSP 1-2.6 -- Low Emissions Scenario":(ssp126_data, c126), 
+                "SSP 2-4.5 -- Middle of the Road":(ssp245_data,c245),
+                "SSP 3-7.0 -- Business as Usual":(ssp370_data,c370),
+                "SSP 5-8.5 -- Burn it All":(ssp585_data,c585)
+            }
+            
+            ssp_selected = ssp_dict[self.ssp][0] # data selected
+            ssp_color = ssp_dict[self.ssp][1] # color corresponding to ssp selected
 
-        # Shading around selected SSP
-        ssp_shading = ssp_selected.hvplot.area(x="Year", y="5%", y2="95%", alpha=0.1, color=ssp_color) # very likely range
+            # Shading around selected SSP
+            ci_label = "90% interval"
+            ssp_shading = ssp_selected.hvplot.area(
+                x="Year", 
+                y="5%", 
+                y2="95%", 
+                alpha=0.28, 
+                color=ssp_color, 
+                label=ci_label
+            ) 
+            to_plot = to_plot*ssp_shading 
 
-        # If the mean/upperbound/lowerbound does not cross threshold, set to 2100 (not visible)
-        if (np.argmax(ssp_selected["Mean"] > self.warmlevel)) > 0:
-                ssp_int = hv.VLine(cmip_t[0] + np.argmax(ssp_selected["Mean"] > self.warmlevel)).opts(color=ssp_color, line_dash="dashed", line_width=1)
-        else:
-            ssp_int = hv.VLine(cmip_t[0] + 2100).opts(color=ssp_color, line_dash="dashed", line_width=1)
+            # If the mean/upperbound/lowerbound does not cross threshold, set to 2100 (not visible)
+            if (np.argmax(ssp_selected["Mean"] > self.warmlevel)) > 0:
+                
+                # Add dashed line 
+                label1 = "Warming level reached"
+                year_warmlevel_reached = ssp_selected.where(ssp_selected["Mean"] > self.warmlevel).dropna().index[0]
+                ssp_int = hv.Curve(
+                    [[year_warmlevel_reached,-2],[year_warmlevel_reached,10]], 
+                    label=label1
+                ).opts(color=ssp_color, line_dash="dashed", line_width=1) 
+                ssp_int = ssp_int * hv.Text(
+                    x=year_warmlevel_reached-2, y=4.5, 
+                    text=str(int(year_warmlevel_reached)), 
+                    rotation=90, 
+                    label=label1
+                ).opts(style=dict(text_font_size='8pt',color=ssp_color))
+                to_plot *= ssp_int # Add to plot 
+                
+            if ((np.argmax(ssp_selected["95%"] > self.warmlevel)) > 0) and ((np.argmax(ssp_selected["5%"] > self.warmlevel)) > 0):
+                # Make 95% CI line
+                x_95 = cmip_t[0] + np.argmax(ssp_selected["95%"] > self.warmlevel)
+                ssp_firstdate = hv.Curve(
+                    [[x_95,-2],[x_95,10]], 
+                    label=ci_label
+                ).opts(color=ssp_color, line_width=1)
+                to_plot *= ssp_firstdate
+                
+                # Make 5% CI line
+                x_5 = cmip_t[0] + np.argmax(ssp_selected["5%"] > self.warmlevel)
+                ssp_lastdate = hv.Curve(
+                    [[x_5,-2],[x_5,10]], 
+                    label=ci_label
+                ).opts(color=ssp_color, line_width=1)
+                to_plot *= ssp_lastdate 
+                
+                ## Bar to connect firstdate and lastdate of threshold cross
+                bar_y = -0.5
+                yr_len = [(x_95, bar_y), (x_5, bar_y)]
+                yr_rng = (np.argmax(ssp_selected["5%"] > self.warmlevel) - np.argmax(ssp_selected["95%"] > self.warmlevel))
+                if yr_rng > 0:
+                    interval = hv.Curve(
+                        [[x_95,bar_y],[x_5,bar_y]],
+                        label=ci_label
+                    ).opts(color=ssp_color, line_width=1) * hv.Text(
+                        x=x_95+5, 
+                        y=bar_y+0.25, 
+                        text=str(yr_rng) + "yrs", 
+                        label=ci_label
+                    ).opts(style=dict(text_font_size='8pt', color=ssp_color))
+                    
+                    to_plot *= interval
 
-        if (np.argmax(ssp_selected["95%"] > self.warmlevel)) > 0:
-            ssp_firstdate = hv.VLine(cmip_t[0] + np.argmax(ssp_selected["95%"] > self.warmlevel)).opts(color=ssp_color,  line_width=1)
-        else:
-            ssp_firstdate = hv.VLine(cmip_t[0] + 2100).opts(color=ssp_color,  line_width=1)
-
-        if (np.argmax(ssp_selected["5%"] > self.warmlevel)) > 0:
-            ssp_lastdate = hv.VLine(cmip_t[0] + np.argmax(ssp_selected["5%"] > self.warmlevel)).opts(color=ssp_color,  line_width=1)
-        else:
-            ssp_lastdate = hv.VLine(cmip_t[0] + 2100).opts(color=ssp_color, line_width=1)
-
-
-        ## Bar to connect firstdate and lastdate of threshold cross
-        bar_y = -0.5
-        yr_len = [(cmip_t[0] + np.argmax(ssp_selected["95%"] > self.warmlevel), bar_y), (cmip_t[0] + np.argmax(ssp_selected["5%"] > self.warmlevel), bar_y)]
-        yr_rng = (np.argmax(ssp_selected["5%"] > self.warmlevel) - np.argmax(ssp_selected["95%"] > self.warmlevel))
-        if yr_rng > 0:
-            interval = hv.Path(yr_len).opts(color=ssp_color, line_width=1) * hv.Text(x=cmip_t[0] + np.argmax(ssp_selected["95%"] > self.warmlevel)+5,
-                                                                            y=bar_y+0.25,
-                                                                            text = str(yr_rng) + " yrs").opts(style=dict(text_font_size='8pt'))
-        else: # Removes "bar" in case the upperbound is beyond 2100
-            interval = hv.Path([(0,0), (0,0)]) # hardcoding for now, likely a better way to handle
-
-        to_plot = ipcc_data * warmlevel_line * ssp_int * ssp_shading * ssp_lastdate * ssp_firstdate * interval
         to_plot.opts(opts.Overlay(title='Global mean surface temperature change relative to 1850-1900', fontsize=12))
         to_plot.opts(legend_position='bottom', fontsize=10)
 
@@ -562,7 +538,7 @@ class WarmingLevels(param.Parameterized):
 def _display_warming_levels(selections, location, _cat):
 
     # Warming levels object
-    warming_levels = WarmingLevels(selections=selections, location=location, catalog=_cat)
+    warming_levels = WarmingLevels(selections=selections, location=location)
 
     # Create panel doodad!
     user_options = pn.Card(
@@ -580,48 +556,62 @@ def _display_warming_levels(selections, location, _cat):
                     location.view,
                     width = 230)
                 )
-        , title="Data Options", collapsible=False, width=460, height=500
+        , title="Data Options", collapsible=False, width=460, height=515
     )
 
     GMT_plot = pn.Card(
             pn.Column(
-                "Shading around selected scenario shows 90% interval across different simulations. Dotted line indicates when the multi-model ensemble reaches the selected warming level, while solid vertical lines indicate when the earliest and latest simulations of that scenario reach the warming level. Figure and data reproduced from the IPCC AR6 Summary for Policymakers Fig 8.",
+                "Shading around selected global emissions scenario shows the 90% interval across different simulations. Dotted line indicates when the multi-model ensemble reaches the selected warming level, while solid vertical lines indicate when the earliest and latest simulations of that scenario reach the warming level. Figure and data are reproduced from the [IPCC AR6 Summary for Policymakers Fig 8](https://www.ipcc.ch/report/ar6/wg1/figures/summary-for-policymakers/figure-spm-8/).",
                 pn.widgets.Select.from_param(warming_levels.param.ssp, name="Scenario", width=250),
                 warming_levels._GMT_context_plot,
             ),
             title="When do different scenarios reach the warming level?",
-            collapsible=False, width=600, height=500
+            collapsible=False, width=600, height=515
         )
-
-    TMY = pn.Column(
-        pn.widgets.StaticText(
-           value="A typical meteorological year is calculated by selecting the 24 hours for every day that best represent multi-model mean conditions during a 30-year period – 1981-2010 for the historical baseline or centered on the year the warming level is reached.",
-           width = 700
-        ),
-        warming_levels._TMY_hourly_heatmap
-    )
 
     postage_stamps_MAIN = pn.Column(
         pn.widgets.StaticText(
-            value="Panels show difference between 30-year average centered on the year each model reaches the specified warming level and average from 1981-2010.",
-            width = 700
+            value="Panels show the difference (anomaly) between the 30-year average centered on the year that each GCM (name of model titles each panel) reaches the specified warming level and the average from 1981-2010.",
+            width=800
         ),
-        warming_levels._GCM_PostageStamps_MAIN
+        pn.Row(
+            warming_levels._GCM_PostageStamps_MAIN,
+            pn.Column(
+                pn.widgets.StaticText(
+                    value="<br><br><br>", 
+                    width=200
+                ),
+                pn.widgets.StaticText(
+                    value="<b>Tip</b>: There's a toolbar to the side of the maps. \
+        Try clicking the magnifying glass to zoom in on a particular region. \
+        You can also click the save button to save a copy of the figure to your computer.", 
+                    width=200, 
+                    style={"border":"1.2px red solid","padding":"5px","border-radius":"4px","font-size":"13px"})
+            )
+        )
     )
 
     postage_stamps_STATS = pn.Column(
         pn.widgets.StaticText(
-            value="Panels show simulation that represents average, minimum, or maximum conditions across all models.",
-            width = 700
+            value="Panels show the average, median, minimum, or maximum conditions across all models. These statistics are computed from the data in the first panel: the difference (anomaly) between the 30-year average centered on the year that each GCM reaches the specified warming level and the average from 1981-2010. Minimum and maximum values are calculated across simulations for each grid cell, so one map may contain grid cells from different simulations. Median and mean maps show those respective summaries across simulations at each grid cell.",
+            width=800
         ),
         warming_levels._GCM_PostageStamps_STATS
+    )
+    
+    window_df = pn.Column(
+        pn.widgets.StaticText(
+            value="This panel displays start and end years that define the 30-year window for which the anomalies were computed for each model. It also displays the year at which each model crosses the selected warming level, defined in the table below as the central year. This information corresponds to the anomalies shown in the maps on the previous two tabs.",
+            width=800
+        ),
+        warming_levels._30_yr_window
     )
 
     map_tabs = pn.Card(
         pn.Tabs(
             ("Maps of individual simulations", postage_stamps_MAIN),
             ("Maps of cross-model statistics: mean/median/max/min", postage_stamps_STATS),
-            ("Typical meteorological year", TMY),
+            ("Anomaly computation details", window_df)
         ),
     title="Regional response at selected warming level",
     width = 850, height=600, collapsible=False,
