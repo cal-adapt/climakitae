@@ -1218,7 +1218,7 @@ class ExceedanceParams(param.Parameterized):
                 self.param.smoothing,
                 width=375
             )
-        return pn.Card(smooth_row, title = "Smoothing", collapsible = True)
+        return pn.Card(smooth_row, title = "Smoothing", collapsible = False)
 
     @param.depends("duration1_length", "duration1_type", watch=False)
     def group_row(self):
@@ -1299,7 +1299,7 @@ def _exceedance_visualize(choices, option=1):
         pn.layout.Divider(margin = (-10,0,-10,0)),
 
         # DURATION 2
-        "I'm interested in grouped occurances that last for . . .",
+        "After aggregation, I'm interested in occurances that last for . . .",
         choices.duration2_row,
         
         title = "Threshold event options",
