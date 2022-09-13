@@ -9,8 +9,10 @@ class AppExplore(object):
         app.explore2.thresholds()
     """
 
-    def __init__(self):
-        pass
+    def __init__(self, selections, location, _cat):
+        self.selections = selections
+        self.location = location,
+        self._cat = _cat
 
     def TMY(self):
         return pn.Card(title = "Typical Meteorological Year", collapsible = False)

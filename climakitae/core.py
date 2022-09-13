@@ -28,7 +28,7 @@ class Application(object):
         self.selections = DataSelector(choices=_get_catalog_contents(self._cat))
         self.location = LocSelectorArea(name="Location Selections")
         self.user_export_format = FileTypeSelector()
-        self.explore2 = AppExplore()
+        self.explore2 = AppExplore(self.selections, self.location, self._cat)
 
     # === Select =====================================
     def select(self):
