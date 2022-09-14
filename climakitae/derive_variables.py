@@ -46,8 +46,8 @@ def _compute_relative_humidity(pressure, temperature, mixing_ratio, variable_nam
     # For some reason, the grid_mapping attr is lost by the metpy function
     # We want to add it back in to allow for projecting the data
     for var in [pressure, temperature, mixing_ratio]:
-        if “grid_mapping” in var.attrs:
-            rel_hum.attrs[“grid_mapping”] = var.attrs[“grid_mapping”]
+        if "grid_mapping" in var.attrs:
+            rel_hum.attrs["grid_mapping"] = var.attrs["grid_mapping"]
             
     return rel_hum
 
