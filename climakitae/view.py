@@ -1,7 +1,8 @@
 import xarray as xr 
 import numpy as np
 import hvplot.xarray
-import warnings 
+import matplotlib.pyplot as plt 
+import warnings
 from .utils import _reproject_data
 
 def _visualize(data, lat_lon=True, width=None, height=None, cmap="inferno_r"): 
@@ -25,40 +26,61 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap="inferno_r"):
           
     # Workflow if data contains spatial coordinates 
     if set(["x","y"]).issubset(set(data.dims)):
-        
-        # Define colorbar label using variable and units 
-        try: 
-            clabel = data.name + " ("+data.attrs["units"]+")"
-        except: # Try except just in case units attribute is missing from data 
-            clabel = data.name
             
-        # Set default width & height 
-        if width is None: 
-            width = 550
-        if height is None: 
-            height = 450
+        # Must have more than one grid cell to generate a map 
+        if (len(data["x"]) <= 1) and (len(data["y"]) <= 1):  
+            print("Your data contains only one grid cell. A plot will be created using a default method that may or may not have the spatial coordinates as the x and y axes.") # Warn user that plot may be weird 
+            
+            with warnings.catch_warnings():
+                
+                # Silence annoying matplotlib deprecation error 
+                warnings.simplefilter("ignore")
+                
+                # Use generic static xarray plot
+                _matplotlib_plot = data.plot(shading="auto") 
+                _plot = plt.gcf() # Add plot to figure 
+                plt.close() # Close to prevent annoying matplotlib collections object line from showing in notebook 
         
-        # Reproject data to lat/lon
-        if lat_lon == True:
+         # If there's more than one grid cell, generate a pretty map
+        elif (len(data["x"]) > 1) and (len(data["y"]) > 1):  
+        
+            # Define colorbar label using variable and units 
             try: 
-                data = _reproject_data(
-                    xr_da = data, 
-                    proj="EPSG:4326", 
-                    fill_value=np.nan
-                ) 
-            except: # Reprojection can fail if the data doesn't have a crs element. If that happens, just carry on without projection (i.e. don't raise an error)
-                warnings.warn("Data reprojection to lat/lon failed. Using native x,y grid.")
-                pass 
+                clabel = data.name + " ("+data.attrs["units"]+")"
+            except: # Try except just in case units attribute is missing from data 
+                clabel = data.name
+
+            # Set default width & height 
+            if width is None: 
+                width = 550
+            if height is None: 
+                height = 450
+
+            # Reproject data to lat/lon
+            if lat_lon == True:
+                try: 
+                    data = _reproject_data(
+                        xr_da = data, 
+                        proj="EPSG:4326", 
+                        fill_value=np.nan
+                    ) 
+                except: # Reprojection can fail if the data doesn't have a crs element. If that happens, just carry on without projection (i.e. don't raise an error)
+                    warnings.warn("Data reprojection to lat/lon failed. Using native x,y grid.")
+                    pass 
+
+            # Create map 
+            _plot = data.hvplot.image(
+                x="x", y="y", 
+                grid=True, 
+                clabel=clabel, 
+                width=width, 
+                height=height, 
+                cmap=cmap
+            )
         
-        # Create map 
-        _plot = data.hvplot.image(
-            x="x", y="y", 
-            grid=True, 
-            clabel=clabel, 
-            width=width, 
-            height=height, 
-            cmap=cmap
-        )
+        else: 
+            raise ValueError("You've encountered a bug in the code. Check the view.py module to troubleshoot")
+        
         
     # Workflow if data contains only time dimension
     elif "time" in data.dims: 
