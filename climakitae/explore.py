@@ -1,4 +1,3 @@
-import cartopy.crs as ccrs
 import hvplot.xarray
 import hvplot.pandas
 import xarray as xr
@@ -7,20 +6,16 @@ from holoviews import opts
 from matplotlib.figure import Figure
 import numpy as np
 import pandas as pd
-import geopandas as gpd
+import rioxarray
 import param
 import panel as pn
 import intake
 import s3fs
-import pyproj
-from shapely.geometry import box
-from shapely.ops import transform
-from .data_loaders import _read_from_catalog
 import pkg_resources
-import matplotlib.colors as mcolors
+
+# Silence warnings 
 import logging
 logging.getLogger("param").setLevel(logging.CRITICAL)
-import rioxarray
 
 xr.set_options(keep_attrs=True) # Keep attributes when mutating xr objects
 
@@ -90,8 +85,13 @@ def _get_postage_data(area_subset2, cached_area2, variable2, location):
     #==================================
     
     # Un-list attributes so rioxarray can find them when it looks for a crs 
+    proj = "Lambert_Conformal"
     for attr_np in ["earth_radius","latitude_of_projection_origin","longitude_of_central_meridian"]:
-        postage_data['Lambert_Conformal'].attrs[attr_np] = postage_data['Lambert_Conformal'].attrs[attr_np].item()
+        postage_data[proj].attrs[attr_np] = postage_data[proj].attrs[attr_np].item()
+    
+    # Add grid-mapping attr (missing from Rel Humidity) 
+    if "grid_mapping" not in postage_data.attrs: 
+        postage_data.attrs["grid_mapping"] = proj 
     
     # Clip data to geometry
     postage_data = postage_data.rio.clip(geometries=ds_region, crs=4326, drop=True) 
