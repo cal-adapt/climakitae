@@ -1,8 +1,119 @@
 import numpy as np
 import xarray as xr
+import rioxarray as rio 
+import numpy as np 
 import pandas as pd
 import s3fs
 import intake
+
+
+def _reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan): 
+    """Reproject xr.DataArray using rioxarray. 
+    Raises ValueError if input data does not have spatial coords x,y 
+    Raises ValueError if input data has more than 5 dimensions 
+    
+    Args: 
+        xr_da (xr.DataArray): 2-or-3-dimensional DataArray, with 2 spatial dimensions 
+        proj (str): proj to use for reprojection (default to "EPSG:4326"-- lat/lon coords) 
+        fill_value (float): fill value (default to np.nan)
+        
+    Returns: 
+        data_reprojected (xr.DataArray): 2-or-3-dimensional reprojected DataArray
+    
+    """
+    
+    def _reproject_data_4D(data, reproject_dim, proj="EPSG:4326", fill_value=np.nan): 
+        """Reproject 4D xr.DataArray across an input dimension
+
+        Args: 
+            data (xr.DataArray): 4-dimensional DataArray, with 2 spatial dimensions 
+            reproject_dim (str): name of dimensions to use 
+            proj (str): proj to use for reprojection (default to "EPSG:4326"-- lat/lon coords) 
+            fill_value (float): fill value (default to np.nan)
+
+        Returns: 
+            data_reprojected (xr.DataArray): 4-dimensional reprojected DataArray
+
+        """
+        rp_list = []
+        for i in range(len(data[reproject_dim])): 
+            dp_i = data[i].rio.reproject(proj, nodata=fill_value) # Reproject each index in that dimension
+            rp_list.append(dp_i)
+        data_reprojected = xr.concat(rp_list, dim=reproject_dim) # Concat along reprojection dim to get entire dataset reprojected 
+        return data_reprojected
+
+    def _reproject_data_5D(data, reproject_dim, proj="EPSG:4326", fill_value=np.nan): 
+        """Reproject 5D xr.DataArray across two input dimensions
+
+        Args: 
+            data (xr.DataArray): 5-dimensional DataArray, with 2 spatial dimensions 
+            reproject_dim (list): list of str dimension names to use 
+            proj (str): proj to use for reprojection (default to "EPSG:4326"-- lat/lon coords) 
+            fill_value (float): fill value (default to np.nan)
+
+        Returns: 
+            data_reprojected (xr.DataArray): 5-dimensional reprojected DataArray
+
+        """
+        rp_list_j = []
+        reproject_dim_j = reproject_dim[0]
+        for j in range(len(data[reproject_dim_j])): 
+            rp_list_i = []
+            reproject_dim_i = reproject_dim[1]
+            for i in range(len(data[reproject_dim_i])): 
+                dp_i = data[j,i].rio.reproject(proj, nodata=fill_value) # Reproject each index in that dimension
+                rp_list_i.append(dp_i)
+            data_reprojected_i = xr.concat(rp_list_i, dim=reproject_dim_i) # Concat along reprojection dim to get entire dataset reprojected 
+            rp_list_j.append(data_reprojected_i)
+        data_reprojected = xr.concat(rp_list_j, dim=reproject_dim_j)
+        return data_reprojected
+    
+    
+    # Raise error if data doesn't have spatial dimensions x,y
+    if not set(["x","y"]).issubset(xr_da.dims): 
+        raise ValueError("Input DataArray cannot be reprojected because it does not contain spatial dimensions x,y")
+    
+    # Drop non-dimension coords. Will cause error with rioxarray 
+    coords = [coord for coord in xr_da.coords if coord not in xr_da.dims]
+    data = xr_da.drop_vars(coords)
+    
+    # Re-write crs to data using original dataset 
+    data = data.rio.write_crs(xr_da.rio.crs) 
+    
+    # Get non-spatial dimensions 
+    non_spatial_dims = [dim for dim in data.dims if dim not in ["x","y"]]
+    
+    # 2 or 3D DataArray 
+    if len(data.dims) <= 3: 
+        data_reprojected = data.rio.reproject(proj, nodata=fill_value)
+
+    # 4D DataArray
+    elif len(data.dims) == 4: 
+        data_reprojected = _reproject_data_4D(
+            data=data, 
+            reproject_dim=non_spatial_dims[0], 
+            proj=proj, 
+            fill_value=fill_value
+        )
+
+    # 5D DataArray     
+    elif len(data.dims) == 5: 
+        data_reprojected = _reproject_data_5D(
+            data=data, 
+            reproject_dim=non_spatial_dims[:-1], 
+            proj=proj, 
+            fill_value=fill_value
+        )
+        
+    else: 
+        raise ValueError("DataArrays with dimensions greater than 5 are not currently supported")
+        
+    # Reassign attribute to reflect reprojection 
+    data_reprojected.attrs["grid_mapping"] = proj
+        
+    return data_reprojected
+
+
 
 # Read csv file containing variable information as dictionary
 def _read_var_csv(
