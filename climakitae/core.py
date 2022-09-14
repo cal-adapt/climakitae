@@ -10,6 +10,7 @@ from .data_loaders import _read_from_catalog
 from .data_export import _export_to_user
 from .utils import _read_var_csv
 from .explore import _display_warming_levels
+from .view import _visualize
 from .explore2 import AppExplore
 # from .tmy import _display_tmy
 import intake
@@ -49,10 +50,27 @@ class Application(object):
         # to do: insert additional 'hang in there' statement if it's taking a while
         return _read_from_catalog(self.selections, self.location, self._cat)
 
+    # === View =====================================
+    def view(self, data, lat_lon=True, width=None, height=None, cmap="inferno_r"): 
+        """Create a generic visualization of the data
+    
+        Args: 
+            data (xr.DataArray)
+            lat_lon (boolean): reproject to lat/lon coords? (default to True) 
+            width (int): width of plot (default to hvplot.image default) 
+            height (int): hight of plot (default to hvplot.image default) 
+            cmap (str): colormap to apply to data (default to "viridis"); applies only to mapped data 
+        
+        Returns: 
+            hvplot.image()
+
+        """
+        return _visualize(data, lat_lon=lat_lon, width=width, height=height, cmap=cmap)
+    
     # === Explore ===================================
     def explore(self):
         """
-        Calls a method to display a plot of the data
+        Display warming levels panel
         """
         return _display_warming_levels(self.selections, self.location, self._cat)
 
