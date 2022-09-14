@@ -29,7 +29,7 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap="inferno_r"):
             
         # Must have more than one grid cell to generate a map 
         if (len(data["x"]) <= 1) and (len(data["y"]) <= 1):  
-            print("Your data contains only one grid cell. A plot will be created using a default method that may or may not have the spatial coordinates as the x and y axes.") # Warn user that plot may be weird 
+            print("Your data contains only one grid cell. A plot will be created using a default method that may or may not have spatial coordinates as the x and y axes.") # Warn user that plot may be weird 
             
             with warnings.catch_warnings():
                 
