@@ -19,7 +19,8 @@ class AppExplore(object):
     def TMY(self):
         return pn.Card(title = "Typical Meteorological Year", collapsible = False)
 
-    def thresholds(self, da, option=1):
+    # def thresholds(self, da, option=1):
+    def thresholds(self, option=1):
         thresh_data = ThresholdDataParams(selections=self.selections2, location=self.location2)
 
         data_options_card = pn.Card(
@@ -42,13 +43,12 @@ class AppExplore(object):
             title = "About this tool", collapsible = False
         )
 
-        exc_choices = ExceedanceParams(da) # initialize an instance of the Param class for this dataarray
-
-        plot_panel = _exceedance_visualize(exc_choices, option) # display the holoviz panel
+        # exc_choices = ExceedanceParams(da) # initialize an instance of the Param class for this dataarray
+        # plot_panel = _exceedance_visualize(exc_choices, option) # display the holoviz panel
 
         return pn.Column(
             pn.Row(
                 data_options_card, description_box
             ),
-            plot_panel
+            # plot_panel
         )
