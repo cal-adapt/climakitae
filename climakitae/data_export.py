@@ -17,8 +17,7 @@ def export_to_netcdf(data_to_export,save_name,**kwargs):
     data_to_export: xarray dataset or array to export
     save_name: string corresponding to desired output file name + file extension
     kwargs: reserved for future use
-    '''
-    
+    '''    
     print("Alright, exporting specified data to NetCDF. This might take a while - "+
          "hang tight!")
     data_to_export.to_netcdf(save_name)
@@ -47,8 +46,7 @@ def export_to_csv(data_to_export,save_name,**kwargs):
         print("WARNING: Dataset exceeds Excel limit of "+
                       str(excel_row_limit)+" rows.")        
     print("Compressing data... This can take a bit...")
-    to_save.to_csv(save_name,compression='gzip')
-    
+    to_save.to_csv(save_name,compression='gzip')   
 
 def export_to_geotiff(data_to_export,save_name,**kwargs):    
     '''
@@ -60,7 +58,7 @@ def export_to_geotiff(data_to_export,save_name,**kwargs):
     save_name: string corresponding to desired output file name + file extension
     kwargs: reserved for future use
     '''
-    
+
     if ('time' in data_to_export.dims):
         print("NOTE: Saving as multiband raster in which "+
              "each band corresponds to a time step.")
@@ -68,7 +66,6 @@ def export_to_geotiff(data_to_export,save_name,**kwargs):
     print("Saving as GeoTIFF...")
     data_to_export.rio.to_raster(save_name)
     
-
 def _export_to_user(user_export_format,data_to_export,
                     file_name,**kwargs):
     """
@@ -81,7 +78,7 @@ def _export_to_user(user_export_format,data_to_export,
     file_name: string corresponding to desired output file name
     kwargs: variable, scenario, and simulation (as needed)
     """
-    
+    ndims = len(data_to_export.dims)
     file_name = file_name.split('.')[0]
     
     assert type(file_name) is str,("Please pass a string "+
@@ -90,6 +87,8 @@ def _export_to_user(user_export_format,data_to_export,
     
     path_and_name = './'+file_name
     req_format = user_export_format.output_file_format
+    if req_format is None:
+        raise AssertionError("Please select a file format from the dropdown menu.")
     
     extension_dict = {'NetCDF' : '.nc',
                       'CSV' : '.gz',
@@ -109,15 +108,12 @@ def _export_to_user(user_export_format,data_to_export,
     ct_str = ct.strftime("%d-%b-%Y (%H:%M:%S)")    
     ck_attrs = {'data_exported_from' : 'Cal-Adapt Analytics Engine v 0.0.1',
                'data_export_timestamp' : ct_str}       
-    
-    if req_format is None:
-        raise AssertionError("Please select a file format from the dropdown menu.")
+
         
     assert "xarray" in str(
             type(data_to_export)
             ), "Please pass an xarray dataset or data array (e.g., as output by generate)."
-    
-    
+       
     # metadata stuff
     ds_attrs.update(ck_attrs)
     data_to_export.attrs = ds_attrs
@@ -161,64 +157,13 @@ def _export_to_user(user_export_format,data_to_export,
             if ("CSV" in req_format):
                 export_to_csv(data_to_export,save_name,**kwargs)
             elif ("GeoTIFF" in req_format):
+                assert ndims <= 3,("Cannot export data with more than 3"+
+                       " dimensions as GeoTIFF, please subset data"+
+                       " appropriately to fewer dimensions.")
                 export_to_geotiff(data_to_export,save_name,**kwargs)    
                   
     return(print("Saved! You can find your file(s) in the panel to the left "+
                 "and download to your local machine from there." ))
-
-
-def metadata_to_file(ds,output_name,req_format):
-    """
-    Writes NetCDF metadata to a txt file so users can still access it 
-    after exporting to a CSV or GeoTIFF.
-    """
-    if os.path.exists(output_name+"_metadata.txt"):
-        os.remove(output_name+"_metadata.txt")
-        
-    with open(output_name+"_metadata.txt", 'w') as f:
-        f.write('======== Metadata for '+req_format+' file '+output_name+' ========')
-        f.write('\n')
-        f.write('\n')
-        f.write('\n')
-        f.write('===== Global file attributes =====')
-        f.write('\n')
-        f.write('\n')
-        for att_keys,att_values in list(zip(ds.attrs.keys(),ds.attrs.values())):    
-            f.write(str(att_keys)+" : "+str(att_values))
-            f.write('\n')                       
-
-        f.write('\n')
-        f.write('\n')
-        f.write('===== Coordinate attributes =====')
-        f.write('\n')
-        
-        if ("GeoTIFF" in req_format):
-            f.write("==== Note: Conversion from NetCDF to GeoTIFF is experimental,"+
-                    " and may result in loss of coordinate data. We have tried to "+
-                    " reproduce the necessary reference information"+
-                    " in this metadata file, but some may be missing. ====")
-            f.write('\n')
-            f.write("==== All coordinates come from the original NetCDF,"+
-                   " and may not exist in this raster. ====")
-            f.write('\n')
-            
-            if ('time' in ds.dims):
-                first_ts = ds['time'].values[0]
-                f.write("==== Note: Time series was saved as a multiband raster,"+
-                   " and each band corresponds to a time step. ====")
-                f.write('\n')
-                f.write("First time slice is: "+str(first_ts)+". Use this and 'frequency'"+
-                        " attribute to determine time stamp for each band." ) 
-                f.write('\n')
-
-        for coord in ds.coords:
-            f.write('\n')
-            f.write("== "+str(coord)+" ==")
-            f.write('\n')
-            for att_keys,att_values in list(zip(ds[coord].attrs.keys(),
-                                            ds[coord].attrs.values())):    
-                f.write(str(att_keys)+" : "+str(att_values))
-                f.write('\n')
                 
 
             
