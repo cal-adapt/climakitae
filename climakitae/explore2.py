@@ -2,6 +2,8 @@
 
 import panel as pn
 
+from .threshold_tools import ExceedanceParams, _exceedance_visualize
+
 class AppExplore(object):
     """
     A class for holding the following app explore options:
@@ -17,5 +19,6 @@ class AppExplore(object):
     def TMY(self):
         return pn.Card(title = "Typical Meteorological Year", collapsible = False)
 
-    def thresholds(self):
-        return pn.Card(title = "Explore extreme events", collapsible = False)
+    def thresholds(self, da, option=1):
+        exc_choices = ExceedanceParams(da) # initialize an instance of the Param class for this dataarray
+        return _exceedance_visualize(exc_choices, option) # display the holoviz panel

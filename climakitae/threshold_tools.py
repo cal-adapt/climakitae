@@ -1296,7 +1296,6 @@ def _exceedance_visualize(choices, option=1):
         # GROUP
         "Optional aggregation: I'm interested in the number of ___ that contain at least one occurance.",
         choices.group_row,
-        pn.layout.Divider(margin = (-10,0,-10,0)),
 
         # DURATION 2
         "After aggregation, I'm interested in occurances that last for . . .",
