@@ -142,7 +142,7 @@ def _reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
 def _read_var_csv(
     csv_file,
     index_col="name", 
-    use_cols=[
+    usecols=[
         "name",
         "description",
         "extended_description",
@@ -167,7 +167,7 @@ def _read_var_csv(
         index_col = "name"
         
     # Read in csv and return as dictionary
-    csv = pd.read_csv(csv_file, index_col=index_col)
+    csv = pd.read_csv(csv_file, index_col=index_col, usecols=usecols)
     descrip_dict = csv.to_dict(orient="index")
     return descrip_dict
 
