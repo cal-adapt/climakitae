@@ -577,7 +577,7 @@ def _display_warming_levels(selections, location, _cat):
                     width=150
                 ),
                 pn.widgets.StaticText(
-                    value="<b>Tip</b>: There's a toolbar above of the maps. \
+                    value="<b>Tip</b>: There's a toolbar below the maps. \
         Try clicking the magnifying glass to zoom in on a particular region. \
         You can also click the save button to save a copy of the figure to your computer.", 
                     width=150, 
