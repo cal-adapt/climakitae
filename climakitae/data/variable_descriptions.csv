@@ -1,22 +1,22 @@
-name,description,extended_description,native_unit,alt_unit_options
-T2,Air Temperature at 2m,Temperature of the air 2 meters above Earth's surface. This is the measure of air temperature used for most modeling applications.,K,"degC, degF"
-TOT_PRECIP,Precipitation (total),Total precipitation. Computed by summing total gridscale precipitation and total cumulus precipitation.,mm,inches
-REL_HUMIDITY,Relative Humidity,The percentage of water vapor (i.e. moisture) relative to the amount of water vapor needed to saturate the air at the current air temperature and pressure.,%,
-WIND_MAG,Wind Magnitude at 10m,Wind speed at 10 meters above the Earth's surface. Computed by taking the vector magnitude of the west-east (u) component of wind and the north-south (v) component of wind.,m/s,knots
-U10,West-East component of Wind at 10m,"Wind coming from the west, measured at 10 meters above Earth's surface. By convention, wind coming from the east is negative.",m/s,knots
-V10,North-South component of Wind at 10m,"Wind coming from the north, measured at 10 meters above Earth's surface. By convention, wind coming from the south is negative.",m/s,knots
-PSFC,Surface Pressure,Air pressure at Earth's surface.,Pa,"mb, hPa, inHg"
-Q2,2m Water Vapor Mixing Ratio,"The ratio of the mass of water vapor over the mass of dry air, measured 2 meters above Earth's surface.",kg/kg,g/kg
-TSK,Surface skin temperature,Temperature of the Earth's surface (ground surface).,K,"degC, degF"
-SWDDIF,Shortwave surface downward diffuse irradiance,"The portion of the total incoming solar radiation that has been scattered (by the atmosphere, clouds, etc.) before reaching the Earth’s surface.",W/m2,
-LWDNB,Instantaneous downwelling longwave flux at bottom,Longwave radiation emitted by Earth's surface that is reflected back downwards by clouds. ,W/m2,
-LWDNBC,Instantaneous downwelling clear sky longwave flux at bottom,"Longwave radiation emitted by Earth's surface that is reflected back downwards by the atmosphere, excluding the effect of clouds.",W/m2,
-LWUPB,Instantaneous upwelling longwave flux at bottom,Total amount of longwave radiation outputted by Earth's surface. ,W/m2,
-LWUPBC,Instantaneous upwelling clear sky longwave flux at bottom,Longwave radiation emitted by Earth's surface that passes through the atmosphere (i.e. is not reflected back to the surface or absorbed by the atmosphere). ,W/m2,
-SWDNB,Instantaneous downwelling shortwave flux at bottom,"Shortwave radiation from the sun that reaches Earth's surface, minus radiation reflected back to space by clouds or absorbed by the atmosphere.",W/m2,
-SWDNBC,Instantaneous downwelling clear sky shortwave flux at bottom,Shortwave radiation from the sun that reaches Earth's surface.,W/m2,
-SWUPB,Instantaneous upwelling shortwave flux at bottom,"Shortwave radiation from the sun that is reflected by Earth's surface, some of which may be reflected back downwards by clouds (i.e. not reflected back to space).",W/m2,
-SWUPBC,Instantaneous upwelling clear sky shortwave flux at bottom,Shortwave radiation from the sun that is reflected by Earth's surface back to space.,W/m2,
-SNOWNC,Snowfall (snow and ice),Portion of the total precipitation in the form of snow and ice.,mm,inches
-RAINC,Precipitation (cumulus portion only),"Any form of precipitation (rain, snow, etc.) that is produced specifically by cumulus/cumulonimbus clouds. These are generally small clouds that bring heavy precipitation.",mm,inches
-RAINNC,Precipitation (grid-scale portion only),"Any form of precipitation (rain, snow, etc.) captured by the model resolution (i.e. 45km). Small clouds (including cumulus clouds) typically are excluded from this.",mm,inches
+name,description,extended_description,native_unit,alt_unit_options,default_cmap
+T2,Air Temperature at 2m,Temperature of the air 2 meters above Earth's surface. This is the measure of air temperature used for most modeling applications.,K,"degC, degF",ae_orange
+TOT_PRECIP,Precipitation (total),Total precipitation. Computed by summing total gridscale precipitation and total cumulus precipitation.,mm,inches,ae_blue
+REL_HUMIDITY,Relative Humidity,The percentage of water vapor (i.e. moisture) relative to the amount of water vapor needed to saturate the air at the current air temperature and pressure.,%,,ae_blue
+WIND_MAG,Wind Magnitude at 10m,Wind speed at 10 meters above the Earth's surface. Computed by taking the vector magnitude of the west-east (u) component of wind and the north-south (v) component of wind.,m/s,knots,ae_orange
+U10,West-East component of Wind at 10m,"Wind coming from the west, measured at 10 meters above Earth's surface. By convention, wind coming from the east is negative.",m/s,knots,ae_div
+V10,North-South component of Wind at 10m,"Wind coming from the north, measured at 10 meters above Earth's surface. By convention, wind coming from the south is negative.",m/s,knots,ae_div
+PSFC,Surface Pressure,Air pressure at Earth's surface.,Pa,"mb, hPa, inHg",ae_div
+Q2,2m Water Vapor Mixing Ratio,"The ratio of the mass of water vapor over the mass of dry air, measured 2 meters above Earth's surface.",kg/kg,g/kg,ae_blue
+TSK,Surface skin temperature,Temperature of the Earth's surface (ground surface).,K,"degC, degF",ae_orange
+SWDDIF,Shortwave surface downward diffuse irradiance,"The portion of the total incoming solar radiation that has been scattered (by the atmosphere, clouds, etc.) before reaching the Earth’s surface.",W/m2,,ae_orange
+LWDNB,Instantaneous downwelling longwave flux at bottom,Longwave radiation emitted by Earth's surface that is reflected back downwards by clouds. ,W/m2,,ae_orange
+LWDNBC,Instantaneous downwelling clear sky longwave flux at bottom,"Longwave radiation emitted by Earth's surface that is reflected back downwards by the atmosphere, excluding the effect of clouds.",W/m2,,ae_orange
+LWUPB,Instantaneous upwelling longwave flux at bottom,Total amount of longwave radiation outputted by Earth's surface. ,W/m2,,ae_orange
+LWUPBC,Instantaneous upwelling clear sky longwave flux at bottom,Longwave radiation emitted by Earth's surface that passes through the atmosphere (i.e. is not reflected back to the surface or absorbed by the atmosphere). ,W/m2,,ae_orange
+SWDNB,Instantaneous downwelling shortwave flux at bottom,"Shortwave radiation from the sun that reaches Earth's surface, minus radiation reflected back to space by clouds or absorbed by the atmosphere.",W/m2,,ae_orange
+SWDNBC,Instantaneous downwelling clear sky shortwave flux at bottom,Shortwave radiation from the sun that reaches Earth's surface.,W/m2,,ae_orange
+SWUPB,Instantaneous upwelling shortwave flux at bottom,"Shortwave radiation from the sun that is reflected by Earth's surface, some of which may be reflected back downwards by clouds (i.e. not reflected back to space).",W/m2,,ae_orange
+SWUPBC,Instantaneous upwelling clear sky shortwave flux at bottom,Shortwave radiation from the sun that is reflected by Earth's surface back to space.,W/m2,,ae_orange
+SNOWNC,Snowfall (snow and ice),Portion of the total precipitation in the form of snow and ice.,mm,inches,ae_blue
+RAINC,Precipitation (cumulus portion only),"Any form of precipitation (rain, snow, etc.) that is produced specifically by cumulus/cumulonimbus clouds. These are generally small clouds that bring heavy precipitation.",mm,inches,ae_blue
+RAINNC,Precipitation (grid-scale portion only),"Any form of precipitation (rain, snow, etc.) captured by the model resolution (i.e. 45km). Small clouds (including cumulus clouds) typically are excluded from this.",mm,inches,ae_blue
