@@ -11,7 +11,7 @@ import pkg_resources
 def _read_ae_colormap(cmap=“ae_orange”):
     """Read in AE colormap by name
     Args:
-        cmap (str): one of [“ae_orange”,“ae_orange_hex”,“ae_blue”,“ae_blue_hex”,“ae_diverging”,“ae_diverging_hex”]
+        cmap (str): one of ["ae_orange","ae_orange_hex","ae_blue","ae_blue_hex","ae_diverging","ae_diverging_hex"]
     Returns: one of either
         1) cmap_data (matplotlib.colors.LinearSegmentedColormap): cmaps without “hex” in the name, used for matplotlib
         2) cmap_data (list): cmaps with “hex” in the name, used for hvplot maps
