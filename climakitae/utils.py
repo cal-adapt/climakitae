@@ -8,7 +8,7 @@ import intake
 import matplotlib.colors as mcolors
 import pkg_resources
 
-def _read_ae_colormap(cmap=“ae_orange”):
+def _read_ae_colormap(cmap="ae_orange"):
     """Read in AE colormap by name
     
     Args:
