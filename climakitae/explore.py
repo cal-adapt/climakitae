@@ -27,7 +27,7 @@ ssp245 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP2_4_5
 ssp370 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP3_7_0.csv')
 ssp585 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP5_8_5.csv')
 hist = pkg_resources.resource_filename('climakitae', 'data/tas_global_Historical.csv')
-var_descriptions = pkg_resources.resource_filename('climakitae', 'data/variable_descriptions.csv')
+var_descrip_pkg = pkg_resources.resource_filename('climakitae', 'data/variable_descriptions.csv')
 gwl_file = pkg_resources.resource_filename('climakitae', 'data/gwl_1981-2010ref.csv')
 
 # Global warming levels file (years when warming level is reached)
@@ -42,7 +42,7 @@ ssp585_data = pd.read_csv(ssp585, index_col='Year')
 hist_data = pd.read_csv(hist, index_col='Year')
 
 # Variable descriptions csv with colormap info 
-var_descrip = _read_var_csv(var_descriptions, index_col="description")
+var_descrip = _read_var_csv(var_descrip_pkg, index_col="description")
 
 
 def _get_postage_data(area_subset2, cached_area2, variable2, location):
