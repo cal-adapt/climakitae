@@ -3,7 +3,12 @@ import numpy as np
 import hvplot.xarray
 import matplotlib.pyplot as plt 
 import warnings
-from .utils import _reproject_data, _read_ae_colormap
+import pkg_resources
+from .utils import _reproject_data, _read_ae_colormap, _read_var_csv
+
+# Variable descriptions csv with colormap info 
+var_descrip_pkg = pkg_resources.resource_filename('climakitae', 'data/variable_descriptions.csv')
+var_descrip = _read_var_csv(var_descrip_pkg, index_col="description")
 
 def _visualize(data, lat_lon=True, width=None, height=None, cmap=None): 
     """Create a generic visualization of the data
@@ -29,13 +34,19 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
         
         # Set default cmap if no user input
         if cmap is None: 
-            cmap = _read_ae_colormap() 
-        if cmap in ["ae_orange","ae_orange_hex","ae_blue","ae_blue_hex","ae_diverging","ae_diverging_hex"]: 
-            cmap = _read_ae_colormap(cmap)
+            try: 
+                cmap_name = var_descrip[data.name]["default_cmap"]
+            except: # If variable not found, set to ae_orange without raising error 
+                cmap_name = "ae_orange"
             
         # Must have more than one grid cell to generate a map 
         if (len(data["x"]) <= 1) and (len(data["y"]) <= 1):  
             print("Your data contains only one grid cell. A plot will be created using a default method that may or may not have spatial coordinates as the x and y axes.") # Warn user that plot may be weird 
+            
+            # Set default cmap if no user input
+            # Different if using matplotlib (no "hex") 
+            if cmap is None: 
+                cmap = _read_ae_colormap(cmap=cmap_name)
             
             with warnings.catch_warnings():
                 
@@ -55,6 +66,11 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
                 clabel = data.name + " ("+data.attrs["units"]+")"
             except: # Try except just in case units attribute is missing from data 
                 clabel = data.name
+                
+            # Set default cmap if no user input
+            # Different if using hvplot (we need "hex") 
+            if cmap is None: 
+                cmap = _read_ae_colormap(cmap=cmap_name+"_hex")
 
             # Set default width & height 
             if width is None: 
