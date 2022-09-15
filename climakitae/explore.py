@@ -12,7 +12,7 @@ import panel as pn
 import intake
 import s3fs
 import pkg_resources
-from .utils import _reproject_data, _read_ae_colormap
+from .utils import _reproject_data, _read_ae_colormap, _read_var_csv
 
 # Silence warnings 
 import logging
@@ -27,18 +27,22 @@ ssp245 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP2_4_5
 ssp370 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP3_7_0.csv')
 ssp585 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP5_8_5.csv')
 hist = pkg_resources.resource_filename('climakitae', 'data/tas_global_Historical.csv')
+var_descriptions = pkg_resources.resource_filename('climakitae', 'data/variable_descriptions.csv')
+gwl_file = pkg_resources.resource_filename('climakitae', 'data/gwl_1981-2010ref.csv')
 
 # Global warming levels file (years when warming level is reached)
-gwl_file = pkg_resources.resource_filename('climakitae', 'data/gwl_1981-2010ref.csv')
 gwl_times = pd.read_csv(gwl_file, index_col=[0,1])
 
-## Read in data
+# Read in GMT context plot data
 ssp119_data = pd.read_csv(ssp119, index_col='Year')
 ssp126_data = pd.read_csv(ssp126, index_col='Year')
 ssp245_data = pd.read_csv(ssp245, index_col='Year')
 ssp370_data = pd.read_csv(ssp370, index_col='Year')
 ssp585_data = pd.read_csv(ssp585, index_col='Year')
 hist_data = pd.read_csv(hist, index_col='Year')
+
+# Variable descriptions csv with colormap info 
+var_descrip = _read_var_csv(var_descriptions, index_col="description")
 
 
 def _get_postage_data(area_subset2, cached_area2, variable2, location):
@@ -297,12 +301,8 @@ class WarmingLevels(param.Parameterized):
             
         # Set up plotting arguments 
         clabel = self.variable2 + " ("+self.postage_data.attrs["units"]+")"
-        if self.variable2 == "Air Temperature at 2m":
-            cmap = "YlOrRd"
-        elif self.variable2 == "Relative Humidity":
-            cmap = "PuOr"
-        else: 
-            cmap = "viridis"
+        cmap_name = var_descrip[self.variable2]["default_cmap"]
+        cmap = _read_ae_colormap(cmap=cmap_name+"_hex")
          
         # Compute 1% min and 99% max of all simulations
         vmin_l, vmax_l = [],[]
@@ -314,7 +314,6 @@ class WarmingLevels(param.Parameterized):
         vmin = min(vmin_l)
         vmax = max(vmax_l)
     
-        
         # Make each plot 
         all_plots = _make_hvplot( # Need to make the first plot separate from the loop
             data=all_plot_data.isel(simulation=0), 
@@ -338,23 +337,6 @@ class WarmingLevels(param.Parameterized):
         all_plots.opts(toolbar="below") # Set toolbar location
         all_plots.opts(hv.opts.Layout(merge_tools=True)) # Merge toolbar 
         return all_plots
-    
-    @param.depends("reload_data2", watch=False)
-    def _30_yr_window(self): 
-        """Create a dataframe to give information about the 30-yr anomalies window for each simulation used in the postage stamp maps. """
-        anom = self._warm_all_anoms
-        df = pd.DataFrame(
-            {"simulation":anom.simulation.values,
-            "30-yr window":zip(anom.window_year_start.values,anom.window_year_end.values), 
-            "central year":anom.window_year_center.values, 
-            "warming level":[anom.attrs["warming_level"]]*len(anom.simulation)} 
-        ) 
-        df_pane = pn.pane.DataFrame(
-            df, 
-            width=400, 
-            index=False
-        )
-        return df_pane
         
     @param.depends("reload_data2", watch=False)
     def _GCM_PostageStamps_STATS(self):
@@ -374,13 +356,9 @@ class WarmingLevels(param.Parameterized):
         width=210
         height=210
         clabel = self.variable2 + " ("+self.postage_data.attrs["units"]+")"
+        cmap_name = var_descrip[self.variable2]["default_cmap"]
+        cmap = _read_ae_colormap(cmap=cmap_name+"_hex")
         vmin, vmax, sopt = _compute_vmin_vmax(min_data,max_data)
-        if self.variable2 == "Air Temperature at 2m":
-            cmap = "YlOrRd"
-        elif self.variable2 == "Relative Humidity":
-            cmap = "PuOr"
-        else: 
-            cmap = "viridis"
         
         # Make plots
         min_plot = _make_hvplot(data=min_data, clabel=clabel, cmap=cmap, clim=(vmin,vmax), sopt=sopt, title="Minimum", width=width, height=height)
@@ -394,6 +372,23 @@ class WarmingLevels(param.Parameterized):
         all_plots.opts(hv.opts.Layout(merge_tools=True)) # Merge toolbar 
         return all_plots
 
+    
+    @param.depends("reload_data2", watch=False)
+    def _30_yr_window(self): 
+        """Create a dataframe to give information about the 30-yr anomalies window for each simulation used in the postage stamp maps. """
+        anom = self._warm_all_anoms
+        df = pd.DataFrame(
+            {"simulation":anom.simulation.values,
+            "30-yr window":zip(anom.window_year_start.values,anom.window_year_end.values), 
+            "central year":anom.window_year_center.values, 
+            "warming level":[anom.attrs["warming_level"]]*len(anom.simulation)} 
+        ) 
+        df_pane = pn.pane.DataFrame(
+            df, 
+            width=400, 
+            index=False
+        )
+        return df_pane
 
 
     @param.depends("warmlevel","ssp", watch=False)
