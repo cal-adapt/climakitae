@@ -12,6 +12,7 @@ import panel as pn
 import intake
 import s3fs
 import pkg_resources
+from .utils import _reproject_data, _read_ae_colormap
 
 # Silence warnings 
 import logging
@@ -95,6 +96,16 @@ def _get_postage_data(area_subset2, cached_area2, variable2, location):
     
     # Clip data to geometry
     postage_data = postage_data.rio.clip(geometries=ds_region, crs=4326, drop=True) 
+    
+    # Reproject data to lat/lon
+    try: 
+        postage_data = _reproject_data(
+            xr_da = postage_data, 
+            proj="EPSG:4326", 
+            fill_value=np.nan
+        ) 
+    except: # Reprojection can fail if the data doesn't have a crs element. If that happens, just carry on without projection (i.e. don't raise an error)
+        pass 
 
     return postage_data
 
@@ -162,7 +173,8 @@ def _compute_vmin_vmax(da_min,da_max):
         sopt = None
     return vmin, vmax, sopt
 
-def _make_hvplot(data, clabel, clim, cmap, sopt, title, width=200, height=225): 
+
+def _make_hvplot(data, clabel, clim, cmap, sopt, title, width=225, height=210): 
     """Make single map"""
     _plot = data.hvplot.image(
         x="x", y="y", 
@@ -291,11 +303,7 @@ class WarmingLevels(param.Parameterized):
             cmap = "PuOr"
         else: 
             cmap = "viridis"
-        
-        # Set plot dimensions
-        width = 200
-        height = 215
-            
+         
         # Compute 1% min and 99% max of all simulations
         vmin_l, vmax_l = [],[]
         for sim in range(num_simulations):
@@ -311,15 +319,13 @@ class WarmingLevels(param.Parameterized):
         all_plots = _make_hvplot( # Need to make the first plot separate from the loop
             data=all_plot_data.isel(simulation=0), 
             clabel=clabel, clim=(vmin,vmax), cmap=cmap, sopt=sopt,
-            title=all_plot_data.isel(simulation=0).simulation.item(), 
-            width=width, height=height
+            title=all_plot_data.isel(simulation=0).simulation.item()
         )
         for sim_i in range(1,num_simulations): 
             pl_i = _make_hvplot(
                 data=all_plot_data.isel(simulation=sim_i), 
                 clabel=clabel, clim=(vmin,vmax), cmap=cmap, sopt=sopt,
-                title=all_plot_data.isel(simulation=sim_i).simulation.item(), 
-                width=width, height=height
+                title=all_plot_data.isel(simulation=sim_i).simulation.item()
             )
             all_plots += pl_i
         
@@ -329,7 +335,7 @@ class WarmingLevels(param.Parameterized):
         except: 
             all_plots.opts(title=str(self.warmlevel)+'°C Anomalies') # Add shorter title
         
-        all_plots.opts(toolbar="right") # Set toolbar location
+        all_plots.opts(toolbar="below") # Set toolbar location
         all_plots.opts(hv.opts.Layout(merge_tools=True)) # Merge toolbar 
         return all_plots
     
@@ -365,6 +371,8 @@ class WarmingLevels(param.Parameterized):
         mean_data = all_plot_data.mean(dim='simulation')
         
         # Set up plotting arguments 
+        width=210
+        height=210
         clabel = self.variable2 + " ("+self.postage_data.attrs["units"]+")"
         vmin, vmax, sopt = _compute_vmin_vmax(min_data,max_data)
         if self.variable2 == "Air Temperature at 2m":
@@ -375,10 +383,10 @@ class WarmingLevels(param.Parameterized):
             cmap = "viridis"
         
         # Make plots
-        min_plot = _make_hvplot(data=min_data, clabel=clabel, cmap=cmap, clim=(vmin,vmax), sopt=sopt, title="Minimum")
-        max_plot = _make_hvplot(data=max_data, clabel=clabel, cmap=cmap,  clim=(vmin,vmax), sopt=sopt, title="Maximum")
-        med_plot = _make_hvplot(data=med_data, clabel=clabel, cmap=cmap,  clim=(vmin,vmax), sopt=sopt, title="Median")
-        mean_plot = _make_hvplot(data=mean_data, clabel=clabel, cmap=cmap, clim=(vmin,vmax), sopt=sopt, title="Mean")
+        min_plot = _make_hvplot(data=min_data, clabel=clabel, cmap=cmap, clim=(vmin,vmax), sopt=sopt, title="Minimum", width=width, height=height)
+        max_plot = _make_hvplot(data=max_data, clabel=clabel, cmap=cmap,  clim=(vmin,vmax), sopt=sopt, title="Maximum", width=width, height=height)
+        med_plot = _make_hvplot(data=med_data, clabel=clabel, cmap=cmap,  clim=(vmin,vmax), sopt=sopt, title="Median", width=width, height=height)
+        mean_plot = _make_hvplot(data=mean_data, clabel=clabel, cmap=cmap, clim=(vmin,vmax), sopt=sopt, title="Mean", width=width, height=height)
 
         all_plots = (mean_plot+med_plot+min_plot+max_plot)
         all_plots.opts(title=self.variable2+ ': Anomalies for '+str(self.warmlevel)+'°C Warming Across Models') # Add title
@@ -570,13 +578,13 @@ def _display_warming_levels(selections, location, _cat):
             pn.Column(
                 pn.widgets.StaticText(
                     value="<br><br><br>", 
-                    width=200
+                    width=150
                 ),
                 pn.widgets.StaticText(
-                    value="<b>Tip</b>: There's a toolbar to the side of the maps. \
+                    value="<b>Tip</b>: There's a toolbar above of the maps. \
         Try clicking the magnifying glass to zoom in on a particular region. \
         You can also click the save button to save a copy of the figure to your computer.", 
-                    width=200, 
+                    width=150, 
                     style={"border":"1.2px red solid","padding":"5px","border-radius":"4px","font-size":"13px"})
             )
         )
