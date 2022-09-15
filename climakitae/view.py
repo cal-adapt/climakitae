@@ -3,9 +3,9 @@ import numpy as np
 import hvplot.xarray
 import matplotlib.pyplot as plt 
 import warnings
-from .utils import _reproject_data
+from .utils import _reproject_data, _read_ae_colormap
 
-def _visualize(data, lat_lon=True, width=None, height=None, cmap="inferno_r"): 
+def _visualize(data, lat_lon=True, width=None, height=None, cmap=None): 
     """Create a generic visualization of the data
 
     Args: 
@@ -26,6 +26,12 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap="inferno_r"):
           
     # Workflow if data contains spatial coordinates 
     if set(["x","y"]).issubset(set(data.dims)):
+        
+        # Set default cmap if no user input
+        if cmap is None: 
+            cmap = _read_ae_colormap() 
+        if cmap in ["ae_orange","ae_orange_hex","ae_blue","ae_blue_hex","ae_diverging","ae_diverging_hex"]: 
+            cmap = _read_ae_colormap(cmap)
             
         # Must have more than one grid cell to generate a map 
         if (len(data["x"]) <= 1) and (len(data["y"]) <= 1):  
@@ -37,7 +43,7 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap="inferno_r"):
                 warnings.simplefilter("ignore")
                 
                 # Use generic static xarray plot
-                _matplotlib_plot = data.plot(shading="auto") 
+                _matplotlib_plot = data.plot(cmap=cmap) 
                 _plot = plt.gcf() # Add plot to figure 
                 plt.close() # Close to prevent annoying matplotlib collections object line from showing in notebook 
         
@@ -73,9 +79,9 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap="inferno_r"):
                 x="x", y="y", 
                 grid=True, 
                 clabel=clabel, 
+                cmap=cmap,
                 width=width, 
-                height=height, 
-                cmap=cmap
+                height=height
             )
         
         else: 
