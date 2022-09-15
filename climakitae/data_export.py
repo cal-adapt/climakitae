@@ -9,11 +9,32 @@ xr.set_options(keep_attrs=True)
 import os
 
 def export_to_netcdf(data_to_export,save_name,**kwargs):
+    '''
+    exports user-selected data to netCDF format.
+    this function is called from the _export_to_user
+    function if the user selected netCDF output.
+    
+    data_to_export: xarray dataset or array to export
+    save_name: string corresponding to desired output file name + file extension
+    kwargs: reserved for future use
+    '''
+    
     print("Alright, exporting specified data to NetCDF. This might take a while - "+
          "hang tight!")
     data_to_export.to_netcdf(save_name)
     
+    
 def export_to_csv(data_to_export,save_name,**kwargs):
+    '''
+    exports user-selected data to CSV format.
+    this function is called from the _export_to_user
+    function if the user selected CSV output.
+    
+    data_to_export: xarray dataset or array to export
+    save_name: string corresponding to desired output file name + file extension
+    kwargs: reserved for future use
+    '''
+    
     print("WARNING: Exporting to CSV can take a long time,"+
                  " and is not recommended for data with more than 2 dimensions."+
                   " Please note that the data will be compressed via gzip. Even so,"+
@@ -27,14 +48,26 @@ def export_to_csv(data_to_export,save_name,**kwargs):
                       str(excel_row_limit)+" rows.")        
     print("Compressing data... This can take a bit...")
     to_save.to_csv(save_name,compression='gzip')
+    
 
-def export_to_geotiff(data_to_export,save_name,**kwargs):
+def export_to_geotiff(data_to_export,save_name,**kwargs):    
+    '''
+    exports user-selected data to geoTIFF format.
+    this function is called from the _export_to_user
+    function if the user selected geoTIFF output.
+    
+    data_to_export: xarray dataset or array to export
+    save_name: string corresponding to desired output file name + file extension
+    kwargs: reserved for future use
+    '''
+    
     if ('time' in data_to_export.dims):
         print("NOTE: Saving as multiband raster in which "+
              "each band corresponds to a time step.")
         print("See metadata file for more information.")
     print("Saving as GeoTIFF...")
     data_to_export.rio.to_raster(save_name)
+    
 
 def _export_to_user(user_export_format,data_to_export,
                     file_name,**kwargs):
@@ -128,95 +161,8 @@ def _export_to_user(user_export_format,data_to_export,
             if ("CSV" in req_format):
                 export_to_csv(data_to_export,save_name,**kwargs)
             elif ("GeoTIFF" in req_format):
-                export_to_geotiff(data_to_export,save_name,**kwargs)
-
-        
-    return(print("All done!"))
-    
-    # if "Dataset" in str(type(data_to_export)):
-    #     if ("variable" not in kwargs):
-    #         raise ValueError("Please pass variable = 'var'"+
-    #                          " anywhere after file_name in the export_dataset() call."+
-    #                         " E.g., 'app.export_dataset(data,file_name='example',"+
-    #                         "variable='T2')")
-    #     else:
-    #         assert type(kwargs['variable']) is str,("Please pass variable name "+
-    #         "in double or single quotation marks.")
-    #         var = kwargs['variable']
-    #         var_attrs = data_to_export[var].attrs
-    #         data_to_export = data_to_export[var]
-    #         ds_attrs.update(var_attrs)
-
-            
-    # we have to ensure that each non-NetCDF has only one simulation
-    # and scenario per file. 
-#     if ("NetCDF" not in req_format):
-#         if ('simulation' in data_to_export.coords): # if simulation coord exists
-#             if ('simulation' not in kwargs): # and one simulation is not supplied by user
-#                 if (np.size(data_to_export.coords['simulation'].values) > 1): # and there is > 1
-#                     raise ValueError("File format does not allow for data from"+
-#                             " more than one simulation. Please pass simulation = 'sim'"+
-#                              " anywhere after file_name in the export_dataset() call."+
-#                              " E.g., 'app.export_dataset(data,file_name='example',"+
-#                             "simulation='cesm2')")
-#                 else: # automatically pull the simulation name if there is 1
-#                     simu = data_to_export.coords['simulation'].values                    
-#             else: # it is a kwarg
-#                 assert type(kwargs['simulation']) is str,("Please pass simulation name "+
-#                 "in double or single quotation marks.")
-#                 simu = kwargs['simulation']
-                    
-#             sim_dict = {'simulation_model' : simu}
-#             # ds_attrs.update(sim_dict)
-#             data_to_export['simulation'].attrs = {'simulation_model' : simu}
-#             data_to_export = data_to_export.sel(simulation=simu) # subset        
-    
-#     # same as above, but for scenario instead of simulation
-#         if ('scenario' in data_to_export.coords): 
-#             if ('scenario' not in kwargs): 
-#                 if (np.size(data_to_export.coords['scenario'].values) > 1):
-#                     raise ValueError("File format does not allow for data from"+
-#                             " more than one scenario. Please pass scenario = 'scenario'"+
-#                              " anywhere after file_name in the export_dataset() call."+
-#                              " E.g., 'app.export_dataset(data,file_name='example',"+
-#                             "scenario='historical')")
-#                 else: 
-#                     scen = data_to_export.coords['scenario'].values                    
-#             else: 
-#                 assert type(kwargs['scenario']) is str,("Please pass scenario name "+
-#                 "in double or single quotation marks.")
-#                 scen = kwargs['scenario']
-                    
-#             scen_dict = {'climate_scenario' : scen}
-#             ds_attrs.update(scen_dict)
-#             data_to_export['scenario'].attrs = scen_dict
-#             data_to_export = data_to_export.sel(scenario=scen) # subset                    
-              
-            
-#     if ("NetCDF" in req_format):
-#         print("Alright, exporting specified data to NetCDF. This might take a while - "+
-#              "hang tight!")
-#         # data_to_export.attrs = var_atts 
-        
-#         data_to_export.attrs = ds_attrs
-#         data_to_export.to_netcdf(save_name)
-        
-#     else:        
-#         data_to_export = data_to_export.squeeze()
-#         print("NOTE: Metadata will be saved to a separate file called "+
-#               file_name+"_metadata.txt. Be sure to download it"+
-#               " when you download your data!")       
-#         metadata_to_file(data_to_export,file_name,req_format)# make metadata text file
-
-
-#         elif ("GeoTIFF" in req_format):
-#             if ('time' in data_to_export.dims):
-#                 print("NOTE: Saving time series as multiband raster in which "+
-#                      "each band corresponds to a time step.")
-#                 print("See metadata file for more information.")
-#             print("Saving as GeoTIFF...")
-#             data_to_export.rio.to_raster(save_name)
-                   
+                export_to_geotiff(data_to_export,save_name,**kwargs)    
+                  
     return(print("Saved! You can find your file(s) in the panel to the left "+
                 "and download to your local machine from there." ))
 
@@ -240,22 +186,6 @@ def metadata_to_file(ds,output_name,req_format):
         for att_keys,att_values in list(zip(ds.attrs.keys(),ds.attrs.values())):    
             f.write(str(att_keys)+" : "+str(att_values))
             f.write('\n')                       
-
-# only used if exporting datasets
-#         f.write('\n')
-#         f.write('\n')
-#         f.write('===== Variable attributes =====')
-#         f.write('\n')
-
-#         for var in ds.data_vars:
-#             f.write('\n')
-#             f.write("== "+str(var)+" ==")
-#             f.write('\n')
-#             f.write("Variable dimensions: "+str(ds[var].dims))
-#             f.write('\n')
-#             for att_keys,att_values in list(zip(ds[var].attrs.keys(),ds[var].attrs.values())):    
-#                 f.write(str(att_keys)+" : "+str(att_values))
-#                 f.write('\n')
 
         f.write('\n')
         f.write('\n')
