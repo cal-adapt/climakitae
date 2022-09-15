@@ -141,7 +141,15 @@ def _reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
 # Read csv file containing variable information as dictionary
 def _read_var_csv(
     csv_file,
-    index_col="name"
+    index_col="name", 
+    use_cols=[
+        "name",
+        "description",
+        "extended_description",
+        "native_unit",
+        "alt_unit_options",
+        "default_cmap"
+    ]
 ):
     """Read in variable descriptions csv file as a dictionary
 
@@ -153,6 +161,12 @@ def _read_var_csv(
         descrip_dict (dictionary): Dictionary containing index_col as keys and additional columns as values
 
     """
+    # Print warning if user inputs invalid index column 
+    if index_col in ["native_unit","alt_unit_options","default_cmap"]: 
+        print("Index column must have unique values. Cannot set index_col to "+index_col+". Setting index to 'name'.") 
+        index_col = "name"
+        
+    # Read in csv and return as dictionary
     csv = pd.read_csv(csv_file, index_col=index_col)
     descrip_dict = csv.to_dict(orient="index")
     return descrip_dict
