@@ -3,9 +3,9 @@ T2,Air Temperature at 2m,Temperature of the air 2 meters above Earth's surface. 
 TOT_PRECIP,Precipitation (total),Total precipitation. Computed by summing total gridscale precipitation and total cumulus precipitation.,mm,inches,ae_blue
 REL_HUMIDITY,Relative Humidity,The percentage of water vapor (i.e. moisture) relative to the amount of water vapor needed to saturate the air at the current air temperature and pressure.,%,,ae_blue
 WIND_MAG,Wind Magnitude at 10m,Wind speed at 10 meters above the Earth's surface. Computed by taking the vector magnitude of the west-east (u) component of wind and the north-south (v) component of wind.,m/s,knots,ae_orange
-U10,West-East component of Wind at 10m,"Wind coming from the west, measured at 10 meters above Earth's surface. By convention, wind coming from the east is negative.",m/s,knots,ae_div
-V10,North-South component of Wind at 10m,"Wind coming from the north, measured at 10 meters above Earth's surface. By convention, wind coming from the south is negative.",m/s,knots,ae_div
-PSFC,Surface Pressure,Air pressure at Earth's surface.,Pa,"mb, hPa, inHg",ae_div
+U10,West-East component of Wind at 10m,"Wind coming from the west, measured at 10 meters above Earth's surface. By convention, wind coming from the east is negative.",m/s,knots,ae_diverging
+V10,North-South component of Wind at 10m,"Wind coming from the north, measured at 10 meters above Earth's surface. By convention, wind coming from the south is negative.",m/s,knots,ae_diverging
+PSFC,Surface Pressure,Air pressure at Earth's surface.,Pa,"mb, hPa, inHg",ae_diverging
 Q2,2m Water Vapor Mixing Ratio,"The ratio of the mass of water vapor over the mass of dry air, measured 2 meters above Earth's surface.",kg/kg,g/kg,ae_blue
 TSK,Surface skin temperature,Temperature of the Earth's surface (ground surface).,K,"degC, degF",ae_orange
 SWDDIF,Shortwave surface downward diffuse irradiance,"The portion of the total incoming solar radiation that has been scattered (by the atmosphere, clouds, etc.) before reaching the Earth’s surface.",W/m2,,ae_orange
