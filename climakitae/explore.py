@@ -301,8 +301,8 @@ class WarmingLevels(param.Parameterized):
             
         # Set up plotting arguments 
         clabel = self.variable2 + " ("+self.postage_data.attrs["units"]+")"
-        cmap_name = var_descrip[self.variable2]["default_cmap"]+"_hex"
-        cmap = _read_ae_colormap(cmap=cmap_name)
+        cmap_name = var_descrip[self.variable2]["default_cmap"]
+        cmap = _read_ae_colormap(cmap=cmap_name, cmap_hex=True)
          
         # Compute 1% min and 99% max of all simulations
         vmin_l, vmax_l = [],[]
@@ -357,8 +357,8 @@ class WarmingLevels(param.Parameterized):
         width=210
         height=210
         clabel = self.variable2 + " ("+self.postage_data.attrs["units"]+")"
-        cmap_name = var_descrip[self.variable2]["default_cmap"]+"_hex"
-        cmap = _read_ae_colormap(cmap=cmap_name)
+        cmap_name = var_descrip[self.variable2]["default_cmap"]
+        cmap = _read_ae_colormap(cmap=cmap_name, cmap_hex=True)
         vmin, vmax, sopt = _compute_vmin_vmax(min_data,max_data)
         
         # Make plots

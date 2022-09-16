@@ -6,27 +6,32 @@ import pandas as pd
 import s3fs
 import intake
 import matplotlib.colors as mcolors
+import matplotlib
 import pkg_resources
 
-def _read_ae_colormap(cmap="ae_orange"):
+def _read_ae_colormap(cmap="ae_orange", cmap_hex=False):
     """Read in AE colormap by name
     
     Args:
-        cmap (str): one of ["ae_orange","ae_orange_hex","ae_blue","ae_blue_hex","ae_diverging","ae_diverging_hex"]
+        cmap (str): one of ["ae_orange","ae_blue","ae_diverging"]
+        cmap_hex (boolean): return RGB or hex colors? 
+        
     Returns: one of either
-        1) cmap_data (matplotlib.colors.LinearSegmentedColormap): cmaps without “hex” in the name, used for matplotlib
-        2) cmap_data (list): cmaps with “hex” in the name, used for hvplot maps
+        cmap_data (matplotlib.colors.LinearSegmentedColormap): used for matplotlib (if cmap_hex == False)
+        cmap_data (list): used for hvplot maps (if cmap_hex == True)
         
     """
     
     cmap_filename = cmap+".txt" # Filename of colormap
     cmap_pkg_data = pkg_resources.resource_filename("climakitae", "data/cmaps/"+cmap_filename) # Read package data
-    if "hex" not in cmap: # For using with matplotlib plots
-        cmap_np = np.loadtxt(cmap_pkg_data, dtype=float)
+    cmap_np = np.loadtxt(cmap_pkg_data, dtype=float)
+    
+    # RBG to hex
+    if cmap_hex: 
+        cmap_data = [matplotlib.colors.rgb2hex(color) for color in cmap_np]   
+    else: 
         cmap_data = mcolors.LinearSegmentedColormap.from_list(cmap, cmap_np, N=256)
-    elif "hex" in cmap: # For using with hvplot maps
-        cmap_np = np.loadtxt(cmap_pkg_data, dtype=str)
-        cmap_data = ["#"+color for color in cmap_np] # Add hex to each item
+        
     return cmap_data
 
 

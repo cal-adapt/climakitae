@@ -18,10 +18,10 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
         lat_lon (boolean): reproject to lat/lon coords? (default to True) 
         width (int): width of plot (default to hvplot.image default) 
         height (int): hight of plot (default to hvplot.image default) 
-        cmap (str): colormap to apply to data (default to "viridis"); applies only to mapped data 
+        cmap (str): colormap to apply to data (default to "ae_orange"); applies only to mapped data 
 
     Returns: 
-        hvplot.image()
+        hvplot.image() or matplotlib object, depending on input data 
 
     """
     
@@ -35,18 +35,18 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
         # Set default cmap if no user input
         if cmap is None: 
             try: 
-                cmap_name = var_descrip[data.name]["default_cmap"]
+                cmap = var_descrip[data.name]["default_cmap"]
             except: # If variable not found, set to ae_orange without raising error 
-                cmap_name = "ae_orange"
-            
+                cmap = "ae_orange"
+        
         # Must have more than one grid cell to generate a map 
         if (len(data["x"]) <= 1) and (len(data["y"]) <= 1):  
             print("Your data contains only one grid cell. A plot will be created using a default method that may or may not have spatial coordinates as the x and y axes.") # Warn user that plot may be weird 
             
             # Set default cmap if no user input
             # Different if using matplotlib (no "hex") 
-            if cmap is None: 
-                cmap = _read_ae_colormap(cmap=cmap_name)
+            if cmap in ["ae_orange","ae_diverging","ae_blue"]: 
+                cmap = _read_ae_colormap(cmap=cmap, cmap_hex=False)
             
             with warnings.catch_warnings():
                 
@@ -69,8 +69,8 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
                 
             # Set default cmap if no user input
             # Different if using hvplot (we need "hex") 
-            if cmap is None: 
-                cmap = _read_ae_colormap(cmap=cmap_name+"_hex")
+            if cmap in ["ae_orange","ae_diverging","ae_blue"]: 
+                cmap = _read_ae_colormap(cmap=cmap, cmap_hex=True)
 
             # Set default width & height 
             if width is None: 
