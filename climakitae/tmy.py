@@ -12,9 +12,9 @@ Working Group 4 (Aug 31, 2022) version focuses on air temperature and relative h
 
 # To be developed: will delete these notes once finalized
 # app.explore.tmy -- COMPLETED
-# absolute tmy of raw data: "preliminary unbiased data corrected data" -- IN PROGRESS
+# absolute tmy of raw data: "preliminary unbiased data corrected data" -- COMPLETED
 # difference tmys -- IN PROGRESS (FROM OLD EXPLORE )
-# extreme/severe tmys: can think about percentiles above extreme values to represent
+# extreme/severe tmys: can think about percentiles above extreme values to represent, stress years?
 # can also select diurnal cycle
 # download/export functionality
 # watch cluster worker numbers for a target time to complete computations
@@ -66,9 +66,14 @@ class TypicalMeteorologicalYear(param.Parameterized):
         self.location.area_subset = 'states'
         self.location.cached_area = 'CA'
 
+    # TMY options to display
+    tmy_options = param.ObjectSelector(default='Absolute TMY',
+        objects=['Absolute TMY', 'Warming Level TMY', 'Extreme TMY']
+    )
+
     # For the difference TMY maps
     warmlevel = param.ObjectSelector(default=1.5,
-        objects=[1.5, 2, 3, 4]
+        objects=[1.5, 2, 3]     # removing 4°C option for TMY
     )
 
     # For reloading data and plots
@@ -145,7 +150,7 @@ class TypicalMeteorologicalYear(param.Parameterized):
             3 : (2061,2090),
             4 : (2076,2100) ## Need to consider this further
         }
-
+        @param.depends("warmlevel", watch=False)
         def _get_future_heatmap_data():
             """Gets data from AWS catalog based upon desired warming level"""
             heatmap_selections = self.selections
@@ -187,6 +192,8 @@ class TypicalMeteorologicalYear(param.Parameterized):
         data_hist = data_hist.mean(dim="simulation").isel(scenario=0).compute()
         # data_future = _get_future_heatmap_data()
         # data_future = data_future.mean(dim="simulation").isel(scenario=0).compute()
+        # data_extreme = _get_extreme_heatmap_data()
+        # data_extreme = data_extreme.mean(dim="simulation").isel(scenario=0).compute()
 
         ## Compute hourly TMY for each hour of the year
         days_in_year = 366
@@ -209,18 +216,22 @@ class TypicalMeteorologicalYear(param.Parameterized):
 
         tmy_hist = tmy_calc(data_hist)
         # tmy_future = tmy_calc(data_future)
+        # tmy_extreme = tmy_calc(data_extreme)
 
         ## Funnel data into pandas DataFrame object
         df_hist = pd.DataFrame(tmy_hist, columns = np.arange(1,25,1), index=np.arange(1,days_in_year+1,1))
-        df_hist = df_hist.iloc[::-1] # Reverse index
+        df_hist = df_hist.iloc[::-1]
         # df_future = pd.DataFrame(tmy_future, columns = np.arange(1,25,1), index=np.arange(1,days_in_year+1,1))
         # df_future = df_future.iloc[::-1]
+        # df_extreme = pd.DataFrame(tmy_extreme, columns = np.arange(1,25,1), index=np.arange(1,days_in_year+1,1))
+        # df_extreme = df_future.iloc[::-1]
 
         ## Create difference heatmaps based on selected warming level
         df = df_hist # absolute unbias corrected version
         # df = df_future - df_hist # future difference version
         # df = df_extreme - df_hist # extreme version
 
+        ## Visual ease of orientation elements
         # ## Set to PST time -- hardcoded
         # df = df[['8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','1','2','3','4','5','6','7']]
         # col_h=[]
@@ -236,23 +247,35 @@ class TypicalMeteorologicalYear(param.Parameterized):
         #     cm = "PuOr"
         #     cl = (-7,7) # hardcoding this in, full range of warming level response for relhumid
 
+        # if df == df_hist:
+        #     cmap = ae_orange_cmap # depending on variable here NEED TO DO
+        #     title = "Typical Meteorological Year\nAbsolute Value for Historical Baseline\n{}".format(self._get_hist_heatmap_data.area_subset2)
+        # elif df == df_diff:
+        #     cmap = ae_div_cmap
+        #     title = "Typical Meteorological Year\nDifference between a {}°C-warming level future and the historical baseline\n{}".format(self.warmlevel, self._get_hist_heatmap_data.area_subset2)
+        #     clim = (-10,10) # this will depend on variable here NEED TO DO
+        # elif df == df_extreme:
+        #     cmap = ae_orange_cmap
+        #     title = "Typical Meteorological Year\nDifference between 90% percentile extreme and the historical baseline\n{}".format(self._get_hist_heatmap_data.area_subset2)
+
+        clabel = self.variable2 #+ " ("+self.variable2.attrs["units"]+")"
+        title = "Typical Meteorological Year\nAbsolute Value for Historical Baseline\nLOCATION"
+
         heatmap = df.hvplot.heatmap(
             x='columns',
             y='index',
-            # title='Typical Meteorological Year\nDifference between a {}°C-warming level future and the historical baseline'.format(self.warmlevel),
-            title='Typical Meteorological Year',
+            title=title,
             cmap="YlOrRd",
             xaxis='bottom',
-            xlabel="Hour of Day (UTC)",
-            ylabel="Day of Year",clabel="Air Temperature at 2m " + " (°C)",
+            xlabel="Hour of Day (FIX ME)",
+            ylabel="Day of Year (FIX ME)",clabel=clabel,
             width=800, height=350).opts(
-            clim=(0,6), fontsize={'title': 15, 'xlabel':12, 'ylabel':12} # clim=(0,6) is for air temperature; clim=(-1,1) for relative humidity?
+            fontsize={'title': 15, 'xlabel':12, 'ylabel':12} # clim=(0,6) is for air temperature; clim=(-1,1) for relative humidity?
         )
         return heatmap
 
 
 #--------------------------------------------------------------------------------------------
-# def _tmy_visualize(data, cmap=None):
 def _tmy_visualize(tmy_ob, selections, location):
     """
     Creates a new TMY focus panel object to display user selections
@@ -260,7 +283,9 @@ def _tmy_visualize(tmy_ob, selections, location):
     user_options = pn.Card(
             pn.Row(
                 pn.Column(
-                    pn.widgets.StaticText(name="", value='Typical Meteorological Year Options'),
+                    pn.widgets.StaticText(name="", value=""),
+                    pn.widgets.Select.from_param(tmy_ob.param.tmy_options, name="How do you want to investigate TMY?"),
+                    pn.widgets.RadioButtonGroup.from_param(tmy_ob.param.warmlevel, name="Warming level (°C)"),
                     pn.widgets.Select.from_param(tmy_ob.param.variable2, name="Data variable"),
                     pn.widgets.StaticText.from_param(selections.param.variable_description),
                     pn.widgets.Button.from_param(tmy_ob.param.reload_data, button_type="primary", width=150, height=30),
@@ -273,21 +298,31 @@ def _tmy_visualize(tmy_ob, selections, location):
         , title="Data Options", collapsible=False, width=460, height=500
     )
 
+    mthd_bx = pn.Column(
+        pn.widgets.StaticText(
+            value="A typical meteorological year is calculated by selecting the 24 hours for every day that best represent multi-model mean conditions during a 30-year period – 1981-2010 for the historical baseline or centered on the year the warming level is reached. Alternatively, can put what data was selected here as a visual reminder.",
+            width=400
+        ),
+    )
+
     TMY = pn.Card(
         pn.widgets.StaticText(
-           value=" ",
-           width = 700
+           value="Absolute TMY",
+           width = 650, height=500
            ),
         tmy_ob._tmy_hourly_heatmap
     )
 
-    mthd_bx = pn.Card(
-        "A typical meteorological year is calculated by selecting the 24 hours for every day that best represent multi-model mean conditions during a 30-year period – 1981-2010 for the historical baseline or centered on the year the warming level is reached. Alternatively, can put what data was selected here as a visual reminder. ",
-        title="Methodology", collapsible=True, width=1160
+    tmy_tabs = pn.Card(
+        pn.Tabs(
+            ("TMY Heatmap", tmy_ob._tmy_hourly_heatmap),
+            ("Methodology", mthd_bx)
+        ),
+    title="Typical Meteorological Year", width = 850, height=500, collapsible=False,
     )
 
     tmy_panel = pn.Column(
-        pn.Row(user_options, TMY),
-        mthd_bx
+        pn.Row(user_options, tmy_tabs)
     )
+
     return tmy_panel
