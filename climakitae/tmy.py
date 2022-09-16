@@ -35,7 +35,6 @@ import panel as pn
 import intake
 import warnings
 from .data_loaders import _read_from_catalog
-from .selectors import DataSelector, LocSelectorArea
 # from .utils import _read_var_csv, _read_ae_colormap
 import intake
 import pkg_resources
@@ -73,7 +72,7 @@ class TypicalMeteorologicalYear(param.Parameterized):
     )
 
     # For reloading data and plots
-    reload_data2 = param.Action(lambda x: x.param.trigger('reload_data2'), label='Reload Data')
+    reload_data = param.Action(lambda x: x.param.trigger('reload_data'), label='Reload Data')
     changed_loc_and_var = param.Boolean(default=True)
 
     variable2 = param.ObjectSelector(default="Air Temperature at 2m",
@@ -212,7 +211,7 @@ class TypicalMeteorologicalYear(param.Parameterized):
         # tmy_future = tmy_calc(data_future)
 
         ## Funnel data into pandas DataFrame object
-        df_hist = pd.DataFrame(tmy_hourly, columns = np.arange(1,25,1), index=np.arange(1,days_in_year+1,1))
+        df_hist = pd.DataFrame(tmy_hist, columns = np.arange(1,25,1), index=np.arange(1,days_in_year+1,1))
         df_hist = df_hist.iloc[::-1] # Reverse index
         # df_future = pd.DataFrame(tmy_future, columns = np.arange(1,25,1), index=np.arange(1,days_in_year+1,1))
         # df_future = df_future.iloc[::-1]
@@ -222,12 +221,12 @@ class TypicalMeteorologicalYear(param.Parameterized):
         # df = df_future - df_hist # future difference version
         # df = df_extreme - df_hist # extreme version
 
-        ## Set to PST time -- hardcoded
-        df = df[['8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','1','2','3','4','5','6','7']]
-        col_h=[]
-        for i in np.arange(1,25,1):
-            col_h.append(str(i))
-        df.columns = col_h
+        # ## Set to PST time -- hardcoded
+        # df = df[['8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','1','2','3','4','5','6','7']]
+        # col_h=[]
+        # for i in np.arange(1,25,1):
+        #     col_h.append(str(i))
+        # df.columns = col_h
 
         # # think about best practices data presentation here
         # if self.variable2 == "Air Temperature at 2m":
@@ -254,23 +253,21 @@ class TypicalMeteorologicalYear(param.Parameterized):
 
 #--------------------------------------------------------------------------------------------
 # def _tmy_visualize(data, cmap=None):
-def _tmy_visualize(self):
+def _tmy_visualize(tmy_ob, selections, location):
     """
     Creates a new TMY focus panel object to display user selections
     """
-    tmy_ob = TypicalMeteorologicalYear(selections=self.selections, location=self.location)
-
     user_options = pn.Card(
             pn.Row(
                 pn.Column(
                     pn.widgets.StaticText(name="", value='Typical Meteorological Year Options'),
                     pn.widgets.Select.from_param(tmy_ob.param.variable2, name="Data variable"),
-                    pn.widgets.StaticText.from_param(self.selections.param.variable_description),
+                    pn.widgets.StaticText.from_param(selections.param.variable_description),
                     pn.widgets.Button.from_param(tmy_ob.param.reload_data, button_type="primary", width=150, height=30),
                     width = 230),
                 pn.Column(
                     pn.widgets.Select.from_param(tmy_ob.param.area_subset2, name="Location"),
-                    self.location.view,
+                    location.view,
                     width = 230)
                 )
         , title="Data Options", collapsible=False, width=460, height=500

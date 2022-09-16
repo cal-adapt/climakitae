@@ -15,9 +15,9 @@ class AppExplore(object):
 
     def __init__(self, selections, location, _cat):
         self.selections = selections
-        self.location = location,
+        self.location = location
         self._cat = _cat
 
-    def tmy(selections, location):
-        tmy_ob = TypicalMeteorologicalYear(selections=selections, location=location)
-        return _tmy_visualize(tmy_ob.selections, tmy_ob.location)
+    def tmy(self):
+        tmy_ob = TypicalMeteorologicalYear(selections=self.selections, location=self.location, catalog=self._cat)
+        return _tmy_visualize(tmy_ob=tmy_ob, selections=self.selections, location=self.location)
