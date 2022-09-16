@@ -240,7 +240,7 @@ class TypicalMeteorologicalYear(param.Parameterized):
             x='columns',
             y='index',
             # title='Typical Meteorological Year\nDifference between a {}°C-warming level future and the historical baseline'.format(self.warmlevel),
-            title='Typical Meteorological Year\nAbsolute value for Historical Baseline\n{}'.format(self.location_subset2),
+            title='Typical Meteorological Year',
             cmap="YlOrRd",
             xaxis='bottom',
             xlabel="Hour of Day (UTC)",
