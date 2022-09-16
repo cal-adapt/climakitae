@@ -27,6 +27,7 @@ from holoviews import opts
 import hvplot.pandas
 import hvplot.xarray
 
+from .data_loaders import _read_from_catalog
 from .visualize import get_geospatial_plot
 
 #####################################################################
@@ -1159,13 +1160,21 @@ class ThresholdDataParams(param.Parameterized):
         self.selections.area_average = True
         self.selections.resolution = "45 km"
         self.selections.scenario = ["SSP 3-7.0 -- Business as Usual"]
-        self.selections.time_slice = (1980,2100)
+        # self.selections.time_slice = (1980,2100)
+        self.selections.time_slice = (2050, 2051)
         self.selections.timescale = "hourly"
         self.selections.variable = "Air Temperature at 2m"
 
         # Location defaults
-        self.location.area_subset = 'states'
-        self.location.cached_area = 'CA'
+        self.location.area_subset = 'CA counties'
+        self.location.cached_area = 'Santa Clara County'
+
+        # Get the underlying dataarray
+        self.da = _read_from_catalog(
+            selections = self.selections,
+            location = self.location,
+            cat = self._cat
+            )
 
     variable2 = param.ObjectSelector(default="Air Temperature at 2m",
         objects=["Air Temperature at 2m"]
