@@ -5,6 +5,7 @@ geopandas==0.10.2
 geoviews==1.9.2
 holoviews==1.14.6
 hvplot==0.7.3
+intake==0.6.4
 intake-xarray==0.5.0
 lmoments3
 matplotlib==3.4.3
