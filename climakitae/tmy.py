@@ -36,6 +36,7 @@ import intake
 import warnings
 from .data_loaders import _read_from_catalog
 from .selectors import DataSelector, LocSelectorArea
+# from .utils import _read_var_csv, _read_ae_colormap
 import intake
 import pkg_resources
 
@@ -45,8 +46,7 @@ import pkg_resources
 ## 2: Future-minus-historical warming level tmy (see warming_levels)
 ## 3: Severe/extremes tmy based upon historical baseline and a designated threshold/percentile
 
-
-class TMYParams(param.Parameterized):
+class TypicalMeteorologicalYear(param.Parameterized):
     """
     An object that holds the "Data Options" paramters for the
     explore.tmy panel.
@@ -58,14 +58,23 @@ class TMYParams(param.Parameterized):
         self.selections.append_historical = False
         self.selections.area_average = True
         self.selections.resolution = "45 km"
-        self.selections.scenario = ["SSP 3-7.0 -- Business as Usual"]
-        self.selections.time_slice = (1980,2100)
+        self.selections.scenario = ["Historical"]       # setting for historical
+        self.selections.time_slice = (1981,2010)
         self.selections.timescale = "hourly"
         self.selections.variable = "Air Temperature at 2m"
 
         # Location defaults
         self.location.area_subset = 'states'
         self.location.cached_area = 'CA'
+
+    # For the difference TMY maps
+    warmlevel = param.ObjectSelector(default=1.5,
+        objects=[1.5, 2, 3, 4]
+    )
+
+    # For reloading data and plots
+    reload_data2 = param.Action(lambda x: x.param.trigger('reload_data2'), label='Reload Data')
+    changed_loc_and_var = param.Boolean(default=True)
 
     variable2 = param.ObjectSelector(default="Air Temperature at 2m",
         objects=["Air Temperature at 2m"]
@@ -79,6 +88,11 @@ class TMYParams(param.Parameterized):
         default="states",
         objects=["states", "CA counties"],
     )
+
+    @param.depends("area_subset2","cached_area2","variable2", watch=True)
+    def _updated_bool_loc_and_var(self):
+        """Update boolean if any changes were made to the location or variable"""
+        self.changed_loc_and_var = True
 
     @param.depends("variable2", watch=True)
     def _update_variable(self):
@@ -106,10 +120,7 @@ class TMYParams(param.Parameterized):
         self.location.cached_area = self.cached_area2
 
 
-class TypicalMeteorologicalYear(param.Parameterized):
-    ## --------------- Params used for tmy plot ----------------
-
-    reload_data = param.Action(lambda x: x.param.trigger('reload_data'), label="Reload Data")
+    # reload_data = param.Action(lambda x: x.param.trigger('reload_data'), label="Reload Data")
     @param.depends("reload_data", watch=False)
     def _tmy_hourly_heatmap(self):
         def _get_hist_heatmap_data():
@@ -241,29 +252,29 @@ class TypicalMeteorologicalYear(param.Parameterized):
         return heatmap
 
 
-
-def _tmy_visualize():
+#--------------------------------------------------------------------------------------------
+# def _tmy_visualize(data, cmap=None):
+def _tmy_visualize(self):
     """
     Creates a new TMY focus panel object to display user selections
     """
-    tmy_ob = TMYParams(selections=self.selections, location=self.location, catalog=_cat)
+    tmy_ob = TypicalMeteorologicalYear(selections=self.selections, location=self.location)
 
     user_options = pn.Card(
             pn.Row(
                 pn.Column(
                     pn.widgets.StaticText(name="", value='Typical Meteorological Year Options'),
-                    pn.widgets.Select.from_param(tmy_ob.param.variable, name="Data variable"),
-                    pn.widgets.StaticText.from_param(tmy_ob.param.variable_description),
+                    pn.widgets.Select.from_param(tmy_ob.param.variable2, name="Data variable"),
+                    pn.widgets.StaticText.from_param(self.selections.param.variable_description),
                     pn.widgets.Button.from_param(tmy_ob.param.reload_data, button_type="primary", width=150, height=30),
                     width = 230),
                 pn.Column(
-                    pn.widgets.Select.from_param(tmy_ob.param.area_subset2, name="Area subset"),
-                    location.view,
+                    pn.widgets.Select.from_param(tmy_ob.param.area_subset2, name="Location"),
+                    self.location.view,
                     width = 230)
                 )
         , title="Data Options", collapsible=False, width=460, height=500
     )
-
 
     TMY = pn.Card(
         pn.widgets.StaticText(
