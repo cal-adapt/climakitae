@@ -89,15 +89,6 @@ def _get_postage_data(area_subset2, cached_area2, variable2, location):
     
     #==================================
     
-    # Un-list attributes so rioxarray can find them when it looks for a crs 
-    proj = "Lambert_Conformal"
-    for attr_np in ["earth_radius","latitude_of_projection_origin","longitude_of_central_meridian"]:
-        postage_data[proj].attrs[attr_np] = postage_data[proj].attrs[attr_np].item()
-    
-    # Add grid-mapping attr (missing from Rel Humidity) 
-    if "grid_mapping" not in postage_data.attrs: 
-        postage_data.attrs["grid_mapping"] = proj 
-    
     # Clip data to geometry
     postage_data = postage_data.rio.clip(geometries=ds_region, crs=4326, drop=True) 
     
