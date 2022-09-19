@@ -64,10 +64,10 @@ def _get_postage_data(area_subset2, cached_area2, variable2, location):
     # Get data from AWS
     fs = s3fs.S3FileSystem(anon=True)
     fp = fs.open('s3://cadcat/tmp/t2m_and_rh_9km_ssp370_monthly_CA.nc')
-    pkg_data = xr.open_dataset(fp).compute() 
+    pkg_data = xr.open_dataset(fp)
 
     # Select variable from dataset
-    da = pkg_data[variable2]
+    postage_data = pkg_data[variable2].compute()
     
     #================= Modified from data_loaders.py =================
     
