@@ -66,10 +66,9 @@ def _get_postage_data(area_subset2, cached_area2, variable2, location):
     fp = fs.open('s3://cadcat/tmp/t2m_and_rh_9km_ssp370_monthly_CA.nc')
     pkg_data = xr.open_dataset(fp)
 
-    # Select variable & scenario from dataset
+    # Select variable from dataset
     da = pkg_data[variable2]
-    postage_data = da.where(da.scenario == "Historical + SSP 3-7.0 -- Business as Usual", drop=True)
-
+    
     #================= Modified from data_loaders.py =================
     
     def set_subarea(boundary_dataset):
@@ -100,12 +99,6 @@ def _get_postage_data(area_subset2, cached_area2, variable2, location):
     
     # Clip data to geometry
     postage_data = postage_data.rio.clip(geometries=ds_region, crs=4326, drop=True)
-    
-    postage_data = _reproject_data(
-            xr_da = postage_data, 
-            proj="EPSG:4326", 
-            fill_value=np.nan
-        ) 
     
     # # Reproject data to lat/lon
     # try: 
