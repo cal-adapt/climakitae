@@ -1160,8 +1160,8 @@ class ThresholdDataParams(param.Parameterized):
         self.selections.area_average = True
         self.selections.resolution = "45 km"
         self.selections.scenario = ["SSP 3-7.0 -- Business as Usual"]
-        # self.selections.time_slice = (1980,2100)
-        self.selections.time_slice = (2050, 2051)
+        self.selections.time_slice = (2020,2100)
+        # self.selections.time_slice = (2050, 2051)
         self.selections.timescale = "hourly"
         self.selections.variable = "Air Temperature at 2m"
 
