@@ -1170,11 +1170,7 @@ class ThresholdDataParams(param.Parameterized):
         self.location.cached_area = 'Santa Clara County'
 
         # Get the underlying dataarray
-        self.da = _read_from_catalog(
-            selections = self.selections,
-            location = self.location,
-            cat = self._cat
-            )
+        self.da = _read_from_catalog(selections = self.selections, location = self.location, cat = self._cat).compute()
 
     variable2 = param.ObjectSelector(default="Air Temperature at 2m",
         objects=["Air Temperature at 2m"]
@@ -1188,6 +1184,23 @@ class ThresholdDataParams(param.Parameterized):
         default="states",
         objects=["states", "CA counties"],
     )
+
+    # For reloading data
+    reload_data = param.Action(lambda x: x.param.trigger('reload_data'), label='Reload Data')
+    changed_loc_and_var = param.Boolean(default=True)
+
+    @param.depends("area_subset2","cached_area2","variable2", watch=True)
+    def _updated_bool_loc_and_var(self):
+        """Update boolean if any changes were made to the location or variable"""
+        self.changed_loc_and_var = True
+
+    @param.depends("reload_data", watch=True)
+    def _update_data(self):
+        """If the button was clicked and the location or variable was changed,
+        reload the postage stamp data from AWS"""
+        if self.changed_loc_and_var == True:
+            self.da = _read_from_catalog(selections = self.selections, location = self.location, cat = self._cat).compute()
+            self.changed_loc_and_var = False
 
     @param.depends("variable2", watch=True)
     def _update_variable(self):
