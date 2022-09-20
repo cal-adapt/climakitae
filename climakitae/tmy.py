@@ -18,8 +18,6 @@ Working Group 4 (Aug 31, 2022) version focuses on air temperature and relative h
 # can also select diurnal cycle
 # download/export functionality
 # watch cluster worker numbers for a target time to complete computations
-# potential recent data transformation data cacheing
-
 
 import cartopy.crs as ccrs
 import hvplot.xarray
@@ -68,7 +66,7 @@ class TypicalMeteorologicalYear(param.Parameterized):
 
     # TMY options to display
     tmy_options = param.ObjectSelector(default='Absolute TMY',
-        objects=['Absolute TMY', 'Warming Level TMY', 'Extreme TMY']
+        objects=['Absolute TMY', 'Warming Level TMY', 'Severe TMY']
     )
 
     # For the difference TMY maps
@@ -232,12 +230,6 @@ class TypicalMeteorologicalYear(param.Parameterized):
         # df = df_extreme - df_hist # extreme version
 
         ## Visual ease of orientation elements
-        # ## Set to PST time -- hardcoded
-        # df = df[['8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','1','2','3','4','5','6','7']]
-        # col_h=[]
-        # for i in np.arange(1,25,1):
-        #     col_h.append(str(i))
-        # df.columns = col_h
 
         # # think about best practices data presentation here
         # if self.variable2 == "Air Temperature at 2m":
@@ -259,7 +251,16 @@ class TypicalMeteorologicalYear(param.Parameterized):
         #     title = "Typical Meteorological Year\nDifference between 90% percentile extreme and the historical baseline\n{}".format(self._get_hist_heatmap_data.area_subset2)
 
         clabel = self.variable2 #+ " ("+self.variable2.attrs["units"]+")"
-        title = "Typical Meteorological Year\nAbsolute Value for Historical Baseline\nLOCATION"
+        title = "Typical Meteorological Year\nAbsolute Value for Historical Baseline\n{}".format(self.cached_area2)
+
+        df.columns = ['Midnight','1am','2am','3am','4am','5am','6am','7am','8am','9am','10am','11am','Noon','1pm','2pm','3pm','4pm','5pm','6pm','7pm','8pm','9pm','10pm','11pm']
+
+        dy_labs = []
+        for x in np.arange(1,367,1):
+            dy_labs.append(x)
+        # m_days = ['Jan 1','Feb 1','Mar 1','Apr 1','Mar 1','Jun 1','Jul 1','Aug 1','Sep 1','Oct 1','Nov 1','Dec 1']
+        # d = dict(zip([0,31,59,90,120,151,181,212,243,273,304,334], m_days))
+        # df.index = [d.get(i, j) for i,j in enumerate(dy_labs)]
 
         heatmap = df.hvplot.heatmap(
             x='columns',
@@ -267,11 +268,12 @@ class TypicalMeteorologicalYear(param.Parameterized):
             title=title,
             cmap="YlOrRd",
             xaxis='bottom',
-            xlabel="Hour of Day (FIX ME)",
-            ylabel="Day of Year (FIX ME)",clabel=clabel,
+            xlabel="Hour of Day (PST)",
+            ylabel="Day of Year", clabel=clabel, rot=60,
             width=800, height=350).opts(
             fontsize={'title': 15, 'xlabel':12, 'ylabel':12} # clim=(0,6) is for air temperature; clim=(-1,1) for relative humidity?
         )
+
         return heatmap
 
 
