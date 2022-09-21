@@ -5,6 +5,7 @@ import dask
 import warnings
 import datetime
 import numpy as np
+import rasterio
 xr.set_options(keep_attrs=True)
 import os
 
@@ -62,9 +63,13 @@ def export_to_geotiff(data_to_export,save_name,**kwargs):
     if ('time' in data_to_export.dims):
         print("NOTE: Saving as multiband raster in which "+
              "each band corresponds to a time step.")
-        print("See metadata file for more information.")
     print("Saving as GeoTIFF...")
+    
     data_to_export.rio.to_raster(save_name)
+    meta_data_dict = data_to_export.attrs
+    with rasterio.open(save_name, 'r+') as raster:
+        raster.update_tags(**meta_data_dict)
+        raster.close()
     
 def _export_to_user(user_export_format,data_to_export,
                     file_name,**kwargs):
@@ -159,7 +164,7 @@ def _export_to_user(user_export_format,data_to_export,
             elif ("GeoTIFF" in req_format):
                 assert ndims <= 3,("Cannot export data with more than 3"+
                        " dimensions as GeoTIFF, please subset data"+
-                       " appropriately to fewer dimensions.")
+                       " appropriately to 3 or fewer dimensions.")
                 export_to_geotiff(data_to_export,save_name,**kwargs)    
                   
     return(print("Saved! You can find your file(s) in the panel to the left "+
