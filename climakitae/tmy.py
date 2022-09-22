@@ -37,6 +37,11 @@ from .data_loaders import _read_from_catalog
 import intake
 import pkg_resources
 
+import logging  # Silence warnings
+logging.getLogger("param").setLevel(logging.CRITICAL)
+
+xr.set_options(keep_attrs=True) # Keep attributes when mutating xr objects
+
 
 ## Needs to produce 3 different kinds of TMY
 ## 1: Absolute/unbias corrected raw tmy
@@ -65,14 +70,18 @@ class TypicalMeteorologicalYear(param.Parameterized):
         self.location.cached_area = 'CA'
 
     # TMY options to display
-    tmy_options = param.ObjectSelector(default='Absolute TMY',
-        objects=['Absolute TMY', 'Warming Level TMY', 'Severe TMY']
-    )
+    tmy_options = param.ObjectSelector(default='Absolute',
+        objects=['Absolute', 'Difference'])
+
+    abs_tmy_options = param.ObjectSelector(default='Historical',
+        objects=['Historical', 'Warming Level Future'])
+
+    diff_tmy_options = param.ObjectSelector(default='Warming Level Future',
+        objects=['Warming Level Future', 'Severe TMY'])
 
     # For the difference TMY maps
     warmlevel = param.ObjectSelector(default=1.5,
-        objects=[1.5, 2, 3]     # removing 4°C option for TMY
-    )
+        objects=[1.5, 2, 3])     # removing 4°C option for TMY
 
     # For reloading data and plots
     reload_data = param.Action(lambda x: x.param.trigger('reload_data'), label='Reload Data')
@@ -90,6 +99,19 @@ class TypicalMeteorologicalYear(param.Parameterized):
         default="states",
         objects=["states", "CA counties"],
     )
+
+    @param.depends("tmy_options", watch=True)
+    def _update_tmy_type(self):
+        """Update which kind of tmy is being displayed (absolute/raw data or difference)"""
+        self.changed_tmy_type = True
+
+    @param.depends("abs_tmy_options", watch=True)
+    def _update_abs_tmy(self):
+        self.changed_abs_type = True
+
+    @param.depends("diff_tmy_options", watch=True)
+    def _update_diff_tmy(self):
+        self.changed_diff_type = True
 
     @param.depends("area_subset2","cached_area2","variable2", watch=True)
     def _updated_bool_loc_and_var(self):
@@ -121,8 +143,6 @@ class TypicalMeteorologicalYear(param.Parameterized):
         self.location.area_subset = self.area_subset2
         self.location.cached_area = self.cached_area2
 
-
-    # reload_data = param.Action(lambda x: x.param.trigger('reload_data'), label="Reload Data")
     @param.depends("reload_data", watch=False)
     def _tmy_hourly_heatmap(self):
         def _get_hist_heatmap_data():
@@ -188,8 +208,8 @@ class TypicalMeteorologicalYear(param.Parameterized):
         ## Grab data from AWS
         data_hist = _get_hist_heatmap_data()
         data_hist = data_hist.mean(dim="simulation").isel(scenario=0).compute()
-        # data_future = _get_future_heatmap_data()
-        # data_future = data_future.mean(dim="simulation").isel(scenario=0).compute()
+        data_future = _get_future_heatmap_data()
+        data_future = data_future.mean(dim="simulation").isel(scenario=0).compute()
         # data_extreme = _get_extreme_heatmap_data()
         # data_extreme = data_extreme.mean(dim="simulation").isel(scenario=0).compute()
 
@@ -213,14 +233,14 @@ class TypicalMeteorologicalYear(param.Parameterized):
             return hourly_list
 
         tmy_hist = tmy_calc(data_hist)
-        # tmy_future = tmy_calc(data_future)
+        tmy_future = tmy_calc(data_future)
         # tmy_extreme = tmy_calc(data_extreme)
 
         ## Funnel data into pandas DataFrame object
         df_hist = pd.DataFrame(tmy_hist, columns = np.arange(1,25,1), index=np.arange(1,days_in_year+1,1))
         df_hist = df_hist.iloc[::-1]
-        # df_future = pd.DataFrame(tmy_future, columns = np.arange(1,25,1), index=np.arange(1,days_in_year+1,1))
-        # df_future = df_future.iloc[::-1]
+        df_future = pd.DataFrame(tmy_future, columns = np.arange(1,25,1), index=np.arange(1,days_in_year+1,1))
+        df_future = df_future.iloc[::-1]
         # df_extreme = pd.DataFrame(tmy_extreme, columns = np.arange(1,25,1), index=np.arange(1,days_in_year+1,1))
         # df_extreme = df_future.iloc[::-1]
 
@@ -253,7 +273,7 @@ class TypicalMeteorologicalYear(param.Parameterized):
         clabel = self.variable2 #+ " ("+self.variable2.attrs["units"]+")"
         title = "Typical Meteorological Year\nAbsolute Value for Historical Baseline\n{}".format(self.cached_area2)
 
-        df.columns = ['Midnight','1am','2am','3am','4am','5am','6am','7am','8am','9am','10am','11am','Noon','1pm','2pm','3pm','4pm','5pm','6pm','7pm','8pm','9pm','10pm','11pm']
+        df.columns = ['12am','1am','2am','3am','4am','5am','6am','7am','8am','9am','10am','11am','12pm','1pm','2pm','3pm','4pm','5pm','6pm','7pm','8pm','9pm','10pm','11pm']
 
         dy_labs = []
         for x in np.arange(1,367,1):
@@ -285,24 +305,26 @@ def _tmy_visualize(tmy_ob, selections, location):
     user_options = pn.Card(
             pn.Row(
                 pn.Column(
-                    pn.widgets.StaticText(name="", value=""),
-                    pn.widgets.Select.from_param(tmy_ob.param.tmy_options, name="How do you want to investigate TMY?"),
-                    pn.widgets.RadioButtonGroup.from_param(tmy_ob.param.warmlevel, name="Warming level (°C)"),
+                    pn.widgets.RadioButtonGroup.from_param(tmy_ob.param.tmy_options, name=" "),
+                    pn.widgets.Select.from_param(tmy_ob.param.abs_tmy_options, name="Absolute AMY Options"),
+                    pn.widgets.Select.from_param(tmy_ob.param.diff_tmy_options, name="Difference AMY Options"),
+                    pn.widgets.StaticText(name="", value="Warming level (°C)"),
+                    pn.widgets.RadioButtonGroup.from_param(tmy_ob.param.warmlevel),
                     pn.widgets.Select.from_param(tmy_ob.param.variable2, name="Data variable"),
                     pn.widgets.StaticText.from_param(selections.param.variable_description),
-                    pn.widgets.Button.from_param(tmy_ob.param.reload_data, button_type="primary", width=150, height=30),
-                    width = 230),
+                    width=230),
                 pn.Column(
                     pn.widgets.Select.from_param(tmy_ob.param.area_subset2, name="Location"),
                     location.view,
-                    width = 230)
+                    pn.widgets.Button.from_param(tmy_ob.param.reload_data, button_type="primary", width=150, height=30),
+                    width=230)
                 )
-        , title="Data Options", collapsible=False, width=460, height=500
+        , title="How do you want to investigate AMY?", collapsible=False, width=460, height=500
     )
 
     mthd_bx = pn.Column(
         pn.widgets.StaticText(
-            value="A typical meteorological year is calculated by selecting the 24 hours for every day that best represent multi-model mean conditions during a 30-year period – 1981-2010 for the historical baseline or centered on the year the warming level is reached. Alternatively, can put what data was selected here as a visual reminder.",
+            value="A average meteorological year is calculated by selecting the 24 hours for every day that best represent multi-model mean conditions during a 30-year period – 1981-2010 for the historical baseline or centered on the year the warming level is reached. Alternatively, can put what data was selected here as a visual reminder.",
             width=400
         ),
     )
@@ -320,7 +342,7 @@ def _tmy_visualize(tmy_ob, selections, location):
             ("TMY Heatmap", tmy_ob._tmy_hourly_heatmap),
             ("Methodology", mthd_bx)
         ),
-    title="Typical Meteorological Year", width = 850, height=500, collapsible=False,
+    title="Average Meteorological Year", width = 850, height=500, collapsible=False,
     )
 
     tmy_panel = pn.Column(
