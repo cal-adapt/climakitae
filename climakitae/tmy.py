@@ -260,12 +260,12 @@ class AverageMeteorologicalYear(param.Parameterized):
         elif self.tmy_options == "Difference":
             if self.diff_tmy_options == "Warming Level Future":
                 df = df_future - df_hist
-                title = "Average Meteorological Year\Difference between {} at {}°C and Historical Baseline \n{}".format(self.diff_tmy_options, self.warmlevel, self.cached_area2)
+                title = "Average Meteorological Year\nDifference between {} at {}°C and Historical Baseline \n{}".format(self.diff_tmy_options, self.warmlevel, self.cached_area2)
             else:
                 df = df_future - df_hist # placeholder for now for severe amy
-                title = "Average Meteorological Year\Difference between {} at Xth percentile and Historical Baseline \n{}".format(self.diff_tmy_options, self.cached_area2)
+                title = "Average Meteorological Year\nDifference between {} at Xth percentile and Historical Baseline \n{}".format(self.diff_tmy_options, self.cached_area2)
         else:
-            title = "Average Meteorological Year\{}".format(self.cached_area2)
+            title = "Average Meteorological Year\n{}".format(self.cached_area2)
 
         df = df[[8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,1,2,3,4,5,6,7]]
         df.columns = ['12am','1am','2am','3am','4am','5am','6am','7am','8am','9am','10am','11am','12pm','1pm','2pm','3pm','4pm','5pm','6pm','7pm','8pm','9pm','10pm','11pm']
