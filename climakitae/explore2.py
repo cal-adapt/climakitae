@@ -3,7 +3,7 @@
 import panel as pn
 import param
 
-from .threshold_tools import ThresholdDataParams, ExceedanceParams, _exceedance_visualize
+from .threshold_tools import ThresholdDataParams, _exceedance_visualize
 
 class AppExplore(object):
     """
@@ -30,7 +30,7 @@ class AppExplore(object):
             pn.Row(
                 pn.Column(
                     pn.widgets.Select.from_param(thresh_data.param.variable2, name="Data variable"),
-                    pn.widgets.RadioButtonGroup.from_param(self.selections.param.units),
+                    pn.widgets.RadioButtonGroup.from_param(thresh_data.param.units2),
                     pn.widgets.StaticText.from_param(self.selections.param.variable_description),
                     width = 230
                     ),
@@ -55,9 +55,7 @@ class AppExplore(object):
             height = _first_row_height
         )
 
-        # exc_choices = ExceedanceParams(da) # initialize an instance of the Param class for this dataarray
-        exc_choices = ExceedanceParams(thresh_data.da) # initialize an instance of the Param class for this dataarray
-        plot_panel = _exceedance_visualize(exc_choices, option) # display the holoviz panel
+        plot_panel = _exceedance_visualize(thresh_data, option) # display the holoviz panel
 
         return pn.Column(
             pn.Row(
