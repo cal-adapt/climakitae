@@ -1,23 +1,26 @@
 """
-Calculates the Typical Meterological Year (TMY) for the Cal-Adapt: Analytics Engine using a standard climatological period (1981-2010) for the historical baseline,
+Calculates the Average Meterological Year (TMY) for the Cal-Adapt: Analytics Engine using a standard climatological period (1981-2010) for the historical baseline,
 and uses a 30-year window around when a designated warming level is exceeded for the SSP3-7.0 future scenario for 1.5°C, 2°C, and 3°C. Additional functionality for 4°C is forthcoming.
 Working Group 4 (Aug 31, 2022) version focuses on air temperature and relative humidity, with all variables being available for Analytics Engine Beta Launch.
+The AMY is comparable to a typical meteorological year, but not quite the same full methodology.
 """
 
-## PROCESS: typical meteorological year
+## PROCESS: average meteorological year
 # for each hour, the average variable over the whole climatological period is determined
-# data for that hour that has the value most closely equal (smalleset absolute difference) to the hourly average over the whole measurement period is chosen as the TMY data for that hour
+# data for that hour that has the value most closely equal (smalleset absolute difference) to the hourly average over the whole measurement period is chosen as the AMY data for that hour
 # process is repeated for each hour in the year
+# repeat values (where multiple years have the same smallest abs value) are removed, earliest occurence selected for AMY
 # hours are added together to provide a full year of hourly samples
 
+## Needs to produce 3 different kinds of AMY
+## 1: Absolute/unbias corrected raw AMY
+## 2: Future-minus-historical warming level AMY (see warming_levels)
+## 3: Severe AMY based upon historical baseline and a designated threshold/percentile
+
 # To be developed: will delete these notes once finalized
-# app.explore.tmy -- COMPLETED
-# absolute tmy of raw data: "preliminary unbiased data corrected data" -- COMPLETED
-# difference tmys -- IN PROGRESS (FROM OLD EXPLORE )
-# extreme/severe tmys: can think about percentiles above extreme values to represent, stress years?
+# severe amys: can think about percentiles above extreme values to represent, stress years?
 # can also select diurnal cycle
 # download/export functionality
-# watch cluster worker numbers for a target time to complete computations
 
 import cartopy.crs as ccrs
 import hvplot.xarray
@@ -42,12 +45,6 @@ logging.getLogger("param").setLevel(logging.CRITICAL)
 
 xr.set_options(keep_attrs=True) # Keep attributes when mutating xr objects
 
-
-## Needs to produce 3 different kinds of TMY
-## 1: Absolute/unbias corrected raw tmy
-## 2: Future-minus-historical warming level tmy (see warming_levels)
-## 3: Severe/extremes tmy based upon historical baseline and a designated threshold/percentile
-
 def _get_historical_tmy_data(selections, location, catalog):
     """Get historical data from AWS catalog"""
     selections.append_historical = False
@@ -61,23 +58,21 @@ def _get_historical_tmy_data(selections, location, catalog):
         location=location,
         cat=catalog
     )
-    
-    # Compute mean of all simulations 
-    # Compute zarr data 
-    historical_da_mean = historical_da.mean(dim="simulation").isel(scenario=0).compute() 
-    return historical_da_mean
 
+    # Compute mean of all simulations
+    # Compute zarr data
+    historical_da_mean = historical_da.mean(dim="simulation").isel(scenario=0).compute()
+    return historical_da_mean
 
 def _get_future_heatmap_data(selections, location, catalog, warmlevel):
     """Gets data from AWS catalog based upon desired warming level"""
-    
+
     warming_year_average_range = {
         1.5 : (2034,2063),
         2 : (2047,2076),
         3 : (2061,2090),
-        4 : (2076,2100) ## Need to consider this further
     }
-    
+
     selections.append_historical = False
     selections.area_average = True
     selections.resolution = "45 km"
@@ -89,14 +84,14 @@ def _get_future_heatmap_data(selections, location, catalog, warmlevel):
         location=location,
         cat=catalog
     )
-    
-    # Compute mean of all simulations 
-    # Compute zarr data 
-    future_da_mean = future_da.mean(dim="simulation").isel(scenario=0).compute() 
+
+    # Compute mean of all simulations
+    # Compute zarr data
+    future_da_mean = future_da.mean(dim="simulation").isel(scenario=0).compute()
     return future_da_mean
 
 
-class TypicalMeteorologicalYear(param.Parameterized):
+class AverageMeteorologicalYear(param.Parameterized):
     """
     An object that holds the "Data Options" paramters for the
     explore.tmy panel.
@@ -108,7 +103,7 @@ class TypicalMeteorologicalYear(param.Parameterized):
         self.selections.append_historical = False
         self.selections.area_average = True
         self.selections.resolution = "45 km"
-        self.selections.scenario = ["Historical"]       # setting for historical
+        self.selections.scenario = ["Historical"]  # setting for historical
         self.selections.time_slice = (1981,2010)
         self.selections.timescale = "hourly"
         self.selections.variable = "Air Temperature at 2m"
@@ -116,17 +111,17 @@ class TypicalMeteorologicalYear(param.Parameterized):
         # Location defaults
         self.location.area_subset = 'states'
         self.location.cached_area = 'CA'
-        
+
         # Postage data and anomalies defaults
         self.historical_tmy_data = _get_historical_tmy_data(
-            selections=self.selections, 
-            location=self.location, 
+            selections=self.selections,
+            location=self.location,
             catalog=self.catalog
         )
         self.future_tmy_data = _get_future_heatmap_data(
-            selections=self.selections, 
-            location=self.location, 
-            catalog=self.catalog, 
+            selections=self.selections,
+            location=self.location,
+            catalog=self.catalog,
             warmlevel=1.5
         )
 
@@ -138,7 +133,7 @@ class TypicalMeteorologicalYear(param.Parameterized):
         objects=['Historical', 'Warming Level Future'])
 
     diff_tmy_options = param.ObjectSelector(default='Warming Level Future',
-        objects=['Warming Level Future', 'Severe TMY'])
+        objects=['Warming Level Future', 'Severe AMY'])
 
     # For the difference TMY maps
     warmlevel = param.ObjectSelector(default=1.5,
@@ -156,10 +151,9 @@ class TypicalMeteorologicalYear(param.Parameterized):
         default="states",
         objects=["states", "CA counties"],
     )
-    
+
     # For reloading data and plots
     reload_data = param.Action(lambda x: x.param.trigger('reload_data'), label='Reload Data')
-        
 
     @param.depends("variable2", watch=True)
     def _update_variable(self):
@@ -185,26 +179,26 @@ class TypicalMeteorologicalYear(param.Parameterized):
         """Update locations object to reflect location chosen in panel"""
         self.location.area_subset = self.area_subset2
         self.location.cached_area = self.cached_area2
-        
+
     @param.depends("reload_data", watch=True)
     def _update_tmy_data(self):
         """If the button was clicked and the location or variable was changed,
         reload the tmy data from AWS"""
         self.historical_tmy_data = _get_historical_tmy_data(
-            selections=self.selections, 
-            location=self.location, 
+            selections=self.selections,
+            location=self.location,
             catalog=self.catalog
         )
         self.future_tmy_data = _get_future_heatmap_data(
-            selections=self.selections, 
-            location=self.location, 
-            catalog=self.catalog, 
+            selections=self.selections,
+            location=self.location,
+            catalog=self.catalog,
             warmlevel=self.warmlevel
         )
-        
+
     @param.depends("reload_data", watch=False)
     def _tmy_hourly_heatmap(self):
-        
+
         def remove_repeats(xr_data):
             """
             Remove hours that have repeats.
@@ -229,7 +223,7 @@ class TypicalMeteorologicalYear(param.Parameterized):
         days_in_year = 366
         def tmy_calc(data, days_in_year=366):
             """
-            Calculates the typical meteorological year based on a designated period of time.
+            Calculates the average meteorological year based on a designated period of time.
             Applicable for both the historical and future periods.
             Returns: list of tmy
             """
@@ -253,16 +247,32 @@ class TypicalMeteorologicalYear(param.Parameterized):
         df_future = pd.DataFrame(tmy_future, columns = np.arange(1,25,1), index=np.arange(1,days_in_year+1,1))
         df_future = df_future.iloc[::-1]
 
-        df = df_future - df_hist # difference 
-
         clabel = self.variable2 #+ " ("+self.variable2.attrs["units"]+")"
-        title = "Typical Meteorological Year\nAbsolute Value for Historical Baseline\n{}".format(self.cached_area2)
 
+        # update heatmap df and title with selections
+        if self.tmy_options == "Absolute":
+            if self.abs_tmy_options == "Historical":
+                df = df_hist
+                title = "Average Meteorological Year\nAbsolute {} Baseline \n{}".format(self.abs_tmy_options, self.cached_area2)
+            else:
+                df = df_future
+                title = "Average Meteorological Year\nAbsolute {} at {}°C \n{}".format(self.abs_tmy_options, self.warmlevel, self.cached_area2)
+        elif self.tmy_options == "Difference":
+            if self.diff_tmy_options == "Warming Level Future":
+                df = df_future - df_hist
+                title = "Average Meteorological Year\Difference between {} at {}°C and Historical Baseline \n{}".format(self.diff_tmy_options, self.warmlevel, self.cached_area2)
+            else:
+                df = df_future - df_hist # placeholder for now for severe amy
+                title = "Average Meteorological Year\Difference between {} at Xth percentile and Historical Baseline \n{}".format(self.diff_tmy_options, self.cached_area2)
+        else:
+            title = "Average Meteorological Year\{}".format(self.cached_area2)
+
+        df = df[[8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,1,2,3,4,5,6,7]]
         df.columns = ['12am','1am','2am','3am','4am','5am','6am','7am','8am','9am','10am','11am','12pm','1pm','2pm','3pm','4pm','5pm','6pm','7pm','8pm','9pm','10pm','11pm']
 
-        dy_labs = []
-        for x in np.arange(1,367,1):
-            dy_labs.append(x)
+        # dy_labs = []
+        # for x in np.arange(1,367,1):
+        #     dy_labs.append(x)
 
         heatmap = df.hvplot.heatmap(
             x='columns',
@@ -277,13 +287,12 @@ class TypicalMeteorologicalYear(param.Parameterized):
         )
 
         return heatmap
-    
 
 
 #--------------------------------------------------------------------------------------------
-def _tmy_visualize(tmy_ob, selections, location):
+def _amy_visualize(tmy_ob, selections, location):
     """
-    Creates a new TMY focus panel object to display user selections
+    Creates a new AMY focus panel object to display user selections
     """
     user_options = pn.Card(
             pn.Row(
@@ -307,14 +316,14 @@ def _tmy_visualize(tmy_ob, selections, location):
 
     mthd_bx = pn.Column(
         pn.widgets.StaticText(
-            value="A average meteorological year is calculated by selecting the 24 hours for every day that best represent multi-model mean conditions during a 30-year period – 1981-2010 for the historical baseline or centered on the year the warming level is reached. Alternatively, can put what data was selected here as a visual reminder.",
+            value="An average meteorological year is calculated by selecting the 24 hours for every day that best represent multi-model mean conditions during a 30-year period – 1981-2010 for the historical baseline or centered on the year the warming level is reached. Alternatively, can put what data was selected here as a visual reminder.",
             width=400
         ),
     )
 
     TMY = pn.Card(
         pn.widgets.StaticText(
-           value="Absolute TMY",
+           value="Absolute AMY",
            width = 650, height=500
            ),
         tmy_ob._tmy_hourly_heatmap
@@ -322,7 +331,7 @@ def _tmy_visualize(tmy_ob, selections, location):
 
     tmy_tabs = pn.Card(
         pn.Tabs(
-            ("TMY Heatmap", tmy_ob._tmy_hourly_heatmap),
+            ("AMY Heatmap", tmy_ob._tmy_hourly_heatmap),
             ("Methodology", mthd_bx)
         ),
     title="Average Meteorological Year", width = 850, height=500, collapsible=False,
