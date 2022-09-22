@@ -30,13 +30,14 @@ class AppExplore(object):
             pn.Row(
                 pn.Column(
                     pn.widgets.Select.from_param(thresh_data.param.variable2, name="Data variable"),
+                    pn.widgets.RadioButtonGroup.from_param(self.selections.param.units),
                     pn.widgets.StaticText.from_param(self.selections.param.variable_description),
-                    pn.widgets.Button.from_param(thresh_data.param.reload_data, button_type="primary", width=150, height=30),
                     width = 230
                     ),
                 pn.Column(
                     pn.widgets.Select.from_param(thresh_data.param.area_subset2, name="Area subset"),
                     pn.widgets.Select.from_param(thresh_data.param.cached_area2, name="Cached area"),
+                    pn.widgets.Button.from_param(thresh_data.param.reload_data, button_type="primary", width=150, height=30),
                     width = 230
                     ),
                 pn.Column(
