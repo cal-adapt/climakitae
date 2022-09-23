@@ -41,6 +41,7 @@ class AppExplore(object):
                     width = 230
                     ),
                 pn.Column(
+                    # pn.widgets.Button.from_param(thresh_data.param.reload_plot, button_type="primary", width=100, height=30),
                     self.location.view,
                     width = 180
                     ),

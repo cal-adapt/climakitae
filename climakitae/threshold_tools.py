@@ -1186,10 +1186,10 @@ class ThresholdDataParams(param.Parameterized):
         self.units2 = self.selections.descrip_dict[self.selections.variable]["native_unit"]
 
         # Location defaults
-        self.location.area_subset = 'states'
-        self.location.cached_area = 'CA'
-        # self.location.area_subset = 'CA counties'
-        # self.location.cached_area = 'Santa Clara County'
+        # self.location.area_subset = 'states'
+        # self.location.cached_area = 'CA'
+        self.location.area_subset = 'CA counties'
+        self.location.cached_area = 'Santa Clara County'
 
         # Get the underlying dataarray
         self.da = _read_from_catalog(selections = self.selections, location = self.location, cat = self._cat).compute()
@@ -1209,6 +1209,8 @@ class ThresholdDataParams(param.Parameterized):
         default="states",
         objects=["states", "CA counties"],
     )
+
+    reload_plot = param.Action(lambda x: x.param.trigger('reload_plot'), label='Reload Plot')
 
     # For reloading data
     reload_data = param.Action(lambda x: x.param.trigger('reload_data'), label='Reload Data')
@@ -1285,10 +1287,7 @@ class ThresholdDataParams(param.Parameterized):
             duration2 = (self.duration2_length, self.duration2_type),
             smoothing = self.num_timesteps if self.smoothing == "Running mean" else None)
 
-    @param.depends("threshold_value", "threshold_direction", 
-        "duration1_length", "duration1_type", "period_length", 
-        "period_type", "group_length", "group_type", "duration2_length", 
-        "duration2_type", "smoothing", "num_timesteps", "reload_data", watch=False)
+    @param.depends("reload_plot", watch=False)
     def view(self):
         try:
             to_plot = self.transform_data()
@@ -1298,6 +1297,7 @@ class ThresholdDataParams(param.Parameterized):
             # user specifications are incompatible or not yet implemented.
             return e
         return pn.Column(
+            pn.widgets.Button.from_param(self.param.reload_plot, button_type="primary", width=150, height=30),
             _exceedance_plot_title(to_plot),
             _exceedance_plot_subtitle(to_plot),
             obj
