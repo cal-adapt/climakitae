@@ -1169,6 +1169,10 @@ class ThresholdDataParams(param.Parameterized):
     num_timesteps = param.Integer(default=10, bounds=(0, None), label = "Number of timesteps")
 
     units2 = param.ObjectSelector(objects=dict())
+    # variable2 = param.ObjectSelector(default="Air Temperature at 2m", objects=["Air Temperature at 2m"])
+    variable2 = param.ObjectSelector(default="Air Temperature at 2m", objects=dict())
+    cached_area2 = param.ObjectSelector(default="Sacramento County", objects=dict())
+    area_subset2 = param.ObjectSelector(default="CA counties", objects=dict())
 
     def __init__(self, *args, **params):
         super().__init__(*args, **params)
@@ -1189,7 +1193,7 @@ class ThresholdDataParams(param.Parameterized):
         # self.location.area_subset = 'states'
         # self.location.cached_area = 'CA'
         self.location.area_subset = 'CA counties'
-        self.location.cached_area = 'Santa Clara County'
+        self.location.cached_area = 'Sacramento County'
 
         # Get the underlying dataarray
         self.da = _read_from_catalog(selections = self.selections, location = self.location, cat = self._cat).compute()
@@ -1197,18 +1201,9 @@ class ThresholdDataParams(param.Parameterized):
         self.threshold_value = round(self.da.mean().values.item())
         self.param.threshold_value.label = f"Value (units: {self.da.units})"
 
-    variable2 = param.ObjectSelector(default="Air Temperature at 2m",
-        objects=["Air Temperature at 2m"]
-    )
-
-    cached_area2 = param.ObjectSelector(default="CA",
-        objects=["CA"]
-    )
-
-    area_subset2 = param.ObjectSelector(
-        default="states",
-        objects=["states", "CA counties"],
-    )
+        self.param["variable2"].objects = self.selections.param.variable.objects
+        self.param["area_subset2"].objects = self.location.param.area_subset.objects
+        self.param["cached_area2"].objects = self.location.param.cached_area.objects
 
     reload_plot = param.Action(lambda x: x.param.trigger('reload_plot'), label='Reload Plot')
 
