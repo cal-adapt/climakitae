@@ -1148,6 +1148,7 @@ def _exceedance_plot_subtitle(exceedance_count):
 
 #------------- Class and methods for the explore_exceedance GUI ---------------
 
+
 class ThresholdDataParams(param.Parameterized):
     """
     An object that holds the "Data Options" parameters for the 
@@ -1172,7 +1173,7 @@ class ThresholdDataParams(param.Parameterized):
     # variable2 = param.ObjectSelector(default="Air Temperature at 2m", objects=["Air Temperature at 2m"])
     variable2 = param.ObjectSelector(default="Air Temperature at 2m", objects=dict())
     cached_area2 = param.ObjectSelector(default="Sacramento County", objects=dict())
-    area_subset2 = param.ObjectSelector(default="CA counties", objects=dict())
+    area_subset2 = param.ObjectSelector(default="CA counties", objects=["CA counties", "states"])
 
     def __init__(self, *args, **params):
         super().__init__(*args, **params)
@@ -1202,7 +1203,6 @@ class ThresholdDataParams(param.Parameterized):
         self.param.threshold_value.label = f"Value (units: {self.da.units})"
 
         self.param["variable2"].objects = self.selections.param.variable.objects
-        self.param["area_subset2"].objects = self.location.param.area_subset.objects
         self.param["cached_area2"].objects = self.location.param.cached_area.objects
 
     reload_plot = param.Action(lambda x: x.param.trigger('reload_plot'), label='Reload Plot')
@@ -1259,10 +1259,13 @@ class ThresholdDataParams(param.Parameterized):
         selected in 'area_subset' (currently state, county, or watershed boundaries).
         """
         if self.area_subset2 == "CA counties":
-            # setting this to the dict works for initializing, but not updating an objects list:
-            self.param["cached_area2"].objects = ["Santa Clara County", "Los Angeles County"]
-            self.cached_area2 = "Santa Clara County"
+            # Get full list of counties
+            self.param["cached_area2"].objects = list(
+                self.location._geography_choose[self.area_subset2].keys()
+            )
+            self.cached_area2 = "Sacramento County"
         elif self.area_subset2 == "states":
+            # Only CA for now?
             self.param["cached_area2"].objects = ["CA"]
             self.cached_area2 = "CA"
 
@@ -1282,7 +1285,7 @@ class ThresholdDataParams(param.Parameterized):
             duration2 = (self.duration2_length, self.duration2_type),
             smoothing = self.num_timesteps if self.smoothing == "Running mean" else None)
 
-    @param.depends("reload_plot", watch=False)
+    @param.depends("reload_plot", "reload_data", watch=False)
     def view(self):
         try:
             to_plot = self.transform_data()

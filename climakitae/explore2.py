@@ -5,6 +5,9 @@ import param
 
 from .threshold_tools import ThresholdDataParams, _exceedance_visualize
 
+_thresholds_tool_description = "Select a variable of interest, variable units, and region of interest to the left. Then, use the dropdowns below to define the extreme event you are interested in. After clicking 'Reload Plot', the plot on the lower right will show event frequencies across different simulations. You can also explore how these frequencies change under different global emissions scenarios. Save a plot to come back to later by putting your cursor over the lower right and clicking the save icon."
+
+
 class AppExplore(object):
     """
     A class for holding the following app explore options:
@@ -20,7 +23,6 @@ class AppExplore(object):
     def TMY(self):
         return pn.Card(title = "Typical Meteorological Year", collapsible = False)
 
-    # def thresholds(self, da, option=1):
     def thresholds(self, option=1):
         thresh_data = ThresholdDataParams(selections=self.selections, location=self.location, _cat = self._cat)
 
@@ -41,7 +43,6 @@ class AppExplore(object):
                     width = 230
                     ),
                 pn.Column(
-                    # pn.widgets.Button.from_param(thresh_data.param.reload_plot, button_type="primary", width=100, height=30),
                     self.location.view,
                     width = 180
                     ),
@@ -50,7 +51,7 @@ class AppExplore(object):
         )
 
         description_box = pn.Card(
-            "Description text",
+            _thresholds_tool_description,
             title = "About this tool", collapsible = False,
             # width=400, 
             height = _first_row_height
