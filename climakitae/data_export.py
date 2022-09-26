@@ -34,7 +34,7 @@ def export_to_csv(data_to_export,save_name,**kwargs):
     kwargs: reserved for future use
     '''
     
-    print("WARNING: Exporting to CSV can take a long time,"+
+    print("Exporting to CSV can take a long time,"+
                  " and is not recommended for data with more than 2 dimensions."+
                   " Please note that the data will be compressed via gzip. Even so,"+
          " inherent inefficiencies may result in a file which is too large to save here.")
@@ -44,8 +44,12 @@ def export_to_csv(data_to_export,save_name,**kwargs):
     csv_nrows = len(to_save.index)        
     if (csv_nrows > excel_row_limit):
         print("WARNING: Dataset exceeds Excel limit of "+
-                      str(excel_row_limit)+" rows.")        
-    print("Compressing data... This can take a bit...")
+                      str(excel_row_limit)+" rows.") 
+        
+    
+    metadata_to_file(data_to_export,save_name)
+    print("Converting and compressing data... This can take a bit...")
+    
     to_save.to_csv(save_name,compression='gzip')   
 
 def export_to_geotiff(data_to_export,save_name,**kwargs):    
@@ -164,6 +168,46 @@ def _export_to_user(user_export_format,data_to_export,
                   
     return(print("Saved! You can find your file(s) in the panel to the left "+
                 "and download to your local machine from there." ))
+
+
+def metadata_to_file(ds,output_name):
+    """
+    Writes NetCDF metadata to a txt file so users can still access it 
+    after exporting to a CSV.
+    """
+    output_name = output_name.strip('.gz')
+    if os.path.exists(output_name+"_metadata.txt"):
+        os.remove(output_name+"_metadata.txt")
+        
+    with open('.'+output_name+"_metadata.txt", 'w') as f:
+        f.write('======== Metadata for CSV file '+output_name+' ========')
+        f.write('\n')
+        f.write('\n')
+        f.write('\n')
+        f.write('===== Global file attributes =====')
+        f.write('\n')
+        f.write('Name: '+ds.name)
+        f.write('\n')
+        for att_keys,att_values in list(zip(ds.attrs.keys(),ds.attrs.values())):    
+            f.write(str(att_keys)+" : "+str(att_values))
+            f.write('\n')                       
+
+        f.write('\n')
+        f.write('\n')
+        f.write('===== Coordinate descriptions =====')
+        f.write('\n')
+        f.write('Note: coordinate values are in the CSV')
+        f.write('\n')
+
+        for coord in ds.coords:
+            f.write('\n')
+            f.write("== "+str(coord)+" ==")
+            f.write('\n')
+            for att_keys,att_values in list(zip(ds[coord].attrs.keys(),
+                                            ds[coord].attrs.values())):    
+                f.write(str(att_keys)+" : "+str(att_values))
+                f.write('\n')
+                
                 
 
             
