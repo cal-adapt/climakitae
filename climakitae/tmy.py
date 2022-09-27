@@ -334,7 +334,7 @@ class AverageMeteorologicalYear(param.Parameterized):
             xlabel="Hour of Day (PST)",
             ylabel="Day of Year", clabel=clabel, rot=60,
             width=800, height=350).opts(
-            fontsize={'title': 15, 'xlabel':12, 'ylabel':12}
+            fontsize={'title': 13, 'xlabel':12, 'ylabel':12}
         )
         heatmap.opts(toolbar="below")
 
