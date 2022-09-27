@@ -1,4 +1,3 @@
-import cartopy.crs as ccrs
 import hvplot.xarray
 import hvplot.pandas
 import xarray as xr
@@ -7,21 +6,19 @@ from holoviews import opts
 from matplotlib.figure import Figure
 import numpy as np
 import pandas as pd
-import geopandas as gpd
+import rioxarray
 import param
 import panel as pn
 import intake
-import intake
 import s3fs
-import pyproj
-from shapely.geometry import box
-from shapely.ops import transform
-from .data_loaders import _read_from_catalog
-from .selectors import DataSelector, LocSelectorArea
 import pkg_resources
-import matplotlib.colors as mcolors
+from .utils import _reproject_data, _read_ae_colormap, _read_var_csv
+
+# Silence warnings 
 import logging
 logging.getLogger("param").setLevel(logging.CRITICAL)
+
+xr.set_options(keep_attrs=True) # Keep attributes when mutating xr objects
 
 # Import package data
 ssp119 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP1_1_9.csv')
@@ -30,18 +27,22 @@ ssp245 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP2_4_5
 ssp370 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP3_7_0.csv')
 ssp585 = pkg_resources.resource_filename('climakitae', 'data/tas_global_SSP5_8_5.csv')
 hist = pkg_resources.resource_filename('climakitae', 'data/tas_global_Historical.csv')
+var_descrip_pkg = pkg_resources.resource_filename('climakitae', 'data/variable_descriptions.csv')
+gwl_file = pkg_resources.resource_filename('climakitae', 'data/gwl_1981-2010ref.csv')
 
 # Global warming levels file (years when warming level is reached)
-gwl_file = pkg_resources.resource_filename('climakitae', 'data/gwl_1981-2010ref.csv')
 gwl_times = pd.read_csv(gwl_file, index_col=[0,1])
 
-## Read in data
+# Read in GMT context plot data
 ssp119_data = pd.read_csv(ssp119, index_col='Year')
 ssp126_data = pd.read_csv(ssp126, index_col='Year')
 ssp245_data = pd.read_csv(ssp245, index_col='Year')
 ssp370_data = pd.read_csv(ssp370, index_col='Year')
 ssp585_data = pd.read_csv(ssp585, index_col='Year')
 hist_data = pd.read_csv(hist, index_col='Year')
+
+# Variable descriptions csv with colormap info 
+var_descrip = _read_var_csv(var_descrip_pkg, index_col="description")
 
 
 def _get_postage_data(area_subset2, cached_area2, variable2, location):
@@ -65,48 +66,49 @@ def _get_postage_data(area_subset2, cached_area2, variable2, location):
     fp = fs.open('s3://cadcat/tmp/t2m_and_rh_9km_ssp370_monthly_CA.nc')
     pkg_data = xr.open_dataset(fp)
 
-    # Select variable & scenario from dataset
-    da = pkg_data[variable2]
-    postage_data = da.where(da.scenario == "Historical + SSP 3-7.0 -- Business as Usual", drop=True)
-
-    # Perform area subset based on user selections
-    if area_subset2 == "states":
-        ds_region = None # Data is already subsetted to CA
-    elif area_subset2 in ["CA watersheds","CA counties"]:
-        shape_index = int(
-            location._geography_choose[area_subset2][cached_area2]
-        )
-        if area_subset2 == "CA watersheds":
-            shape = location._geographies._ca_watersheds
-            shape = shape[shape["OBJECTID"] == shape_index].iloc[0].geometry
-            wgs84 = pyproj.CRS('EPSG:4326')
-            psdo_merc = pyproj.CRS('EPSG:3857')
-            project = pyproj.Transformer.from_crs(psdo_merc, wgs84, always_xy=True).transform
-            shape = transform(project, shape)
-        elif area_subset2 == "CA counties":
-            shape = location._geographies._ca_counties
-            shape = shape[shape.index == shape_index].iloc[0].geometry
-        ds_region = regionmask.Regions(
-            [shape], abbrevs=["geographic area"], name="area mask"
+    # Select variable from dataset
+    postage_data = pkg_data[variable2].compute()
+    
+    #================= Modified from data_loaders.py =================
+    
+    def set_subarea(boundary_dataset):
+        return boundary_dataset[boundary_dataset.index == shape_index].iloc[0].geometry
+    
+    shape_index = int(
+            location._geography_choose[location.area_subset][location.cached_area]
         )
 
-    if ds_region:
-        # Attributes are arrays, must be items to call pyproj.CRS.from_cf
-        for attr_np in ["earth_radius","latitude_of_projection_origin","longitude_of_central_meridian"]:
-            postage_data['Lambert_Conformal'].attrs[attr_np] = postage_data['Lambert_Conformal'].attrs[attr_np].item()
-        data_crs = ccrs.CRS(pyproj.CRS.from_cf(postage_data['Lambert_Conformal'].attrs))
-        output = data_crs.transform_points(ccrs.PlateCarree(),
-                                               x=ds_region.coords[0][:,0],
-                                               y=ds_region.coords[0][:,1])
-
-        postage_data = postage_data.sel(x=slice(np.nanmin(output[:,0]), np.nanmax(output[:,0])),
-            y=slice(np.nanmin(output[:,1]), np.nanmax(output[:,1])))
-
-        mask = ds_region.mask(postage_data.lon, postage_data.lat, wrap_lon=False)
-        assert (
-            False in mask.isnull()
-        ), "Insufficient gridcells are contained within the bounds."
-        postage_data = postage_data.where(np.isnan(mask) == False)
+    if location.area_subset == "states":
+        shape = set_subarea(location._geographies._us_states)
+    elif location.area_subset == "CA counties":
+        shape = set_subarea(location._geographies._ca_counties)
+    elif location.area_subset == "CA watersheds":
+        shape = set_subarea(location._geographies._ca_watersheds)
+    ds_region = [shape]
+    
+    #==================================
+    
+    # Un-list attributes so rioxarray can find them when it looks for a crs 
+    proj = "Lambert_Conformal"
+    for attr_np in ["earth_radius","latitude_of_projection_origin","longitude_of_central_meridian"]:
+        postage_data[proj].attrs[attr_np] = postage_data[proj].attrs[attr_np].item()
+    
+    # Add grid-mapping attr (missing from Rel Humidity) 
+    if "grid_mapping" not in postage_data.attrs: 
+        postage_data.attrs["grid_mapping"] = proj 
+    
+    # Clip data to geometry
+    postage_data = postage_data.rio.clip(geometries=ds_region, crs=4326, drop=True)
+    
+    # Reproject data to lat/lon
+    try: 
+        postage_data = _reproject_data(
+            xr_da = postage_data, 
+            proj="EPSG:4326", 
+            fill_value=np.nan
+        ) 
+    except: # Reprojection can fail if the data doesn't have a crs element. If that happens, just carry on without projection (i.e. don't raise an error)
+        pass 
 
     return postage_data
 
@@ -156,6 +158,9 @@ def get_anomaly_data(data, warmlevel=3.0):
     anomaly_da["window_year_end"].attrs["description"] = "year that defines the end of the 30-year window around which the anomaly was computed"
     anomaly_da.attrs["warming_level"] = warmlevel
     
+    # Rename
+    anomaly_da.name = data.name + " Anomalies"
+    
     return anomaly_da
 
 
@@ -171,7 +176,8 @@ def _compute_vmin_vmax(da_min,da_max):
         sopt = None
     return vmin, vmax, sopt
 
-def _make_hvplot(data, clabel, clim, cmap, sopt, title, width=200, height=225): 
+
+def _make_hvplot(data, clabel, clim, cmap, sopt, title, width=225, height=210): 
     """Make single map"""
     _plot = data.hvplot.image(
         x="x", y="y", 
@@ -294,17 +300,9 @@ class WarmingLevels(param.Parameterized):
             
         # Set up plotting arguments 
         clabel = self.variable2 + " ("+self.postage_data.attrs["units"]+")"
-        if self.variable2 == "Air Temperature at 2m":
-            cmap = "YlOrRd"
-        elif self.variable2 == "Relative Humidity":
-            cmap = "PuOr"
-        else: 
-            cmap = "viridis"
-        
-        # Set plot dimensions
-        width = 200
-        height = 215
-            
+        cmap_name = var_descrip[self.variable2]["default_cmap"]
+        cmap = _read_ae_colormap(cmap=cmap_name, cmap_hex=True)
+         
         # Compute 1% min and 99% max of all simulations
         vmin_l, vmax_l = [],[]
         for sim in range(num_simulations):
@@ -315,20 +313,17 @@ class WarmingLevels(param.Parameterized):
         vmin = min(vmin_l)
         vmax = max(vmax_l)
     
-        
         # Make each plot 
         all_plots = _make_hvplot( # Need to make the first plot separate from the loop
             data=all_plot_data.isel(simulation=0), 
             clabel=clabel, clim=(vmin,vmax), cmap=cmap, sopt=sopt,
-            title=all_plot_data.isel(simulation=0).simulation.item(), 
-            width=width, height=height
+            title=all_plot_data.isel(simulation=0).simulation.item()
         )
         for sim_i in range(1,num_simulations): 
             pl_i = _make_hvplot(
                 data=all_plot_data.isel(simulation=sim_i), 
                 clabel=clabel, clim=(vmin,vmax), cmap=cmap, sopt=sopt,
-                title=all_plot_data.isel(simulation=sim_i).simulation.item(), 
-                width=width, height=height
+                title=all_plot_data.isel(simulation=sim_i).simulation.item()
             )
             all_plots += pl_i
         
@@ -338,9 +333,45 @@ class WarmingLevels(param.Parameterized):
         except: 
             all_plots.opts(title=str(self.warmlevel)+'°C Anomalies') # Add shorter title
         
-        all_plots.opts(toolbar="right") # Set toolbar location
+        all_plots.opts(toolbar="below") # Set toolbar location
         all_plots.opts(hv.opts.Layout(merge_tools=True)) # Merge toolbar 
         return all_plots
+        
+        
+    @param.depends("reload_data2", watch=False)
+    def _GCM_PostageStamps_STATS(self):
+        
+        # Get plot data 
+        all_plot_data = self._warm_all_anoms
+        if self.variable2 == "Relative Humidity": 
+            all_plot_data = all_plot_data*100
+        
+        # Compute stats
+        min_data = all_plot_data.min(dim='simulation')
+        max_data = all_plot_data.max(dim='simulation')
+        med_data = all_plot_data.median(dim='simulation')
+        mean_data = all_plot_data.mean(dim='simulation')
+        
+        # Set up plotting arguments 
+        width=210
+        height=210
+        clabel = self.variable2 + " ("+self.postage_data.attrs["units"]+")"
+        cmap_name = var_descrip[self.variable2]["default_cmap"]
+        cmap = _read_ae_colormap(cmap=cmap_name, cmap_hex=True)
+        vmin, vmax, sopt = _compute_vmin_vmax(min_data,max_data)
+        
+        # Make plots
+        min_plot = _make_hvplot(data=min_data, clabel=clabel, cmap=cmap, clim=(vmin,vmax), sopt=sopt, title="Minimum", width=width, height=height)
+        max_plot = _make_hvplot(data=max_data, clabel=clabel, cmap=cmap,  clim=(vmin,vmax), sopt=sopt, title="Maximum", width=width, height=height)
+        med_plot = _make_hvplot(data=med_data, clabel=clabel, cmap=cmap,  clim=(vmin,vmax), sopt=sopt, title="Median", width=width, height=height)
+        mean_plot = _make_hvplot(data=mean_data, clabel=clabel, cmap=cmap, clim=(vmin,vmax), sopt=sopt, title="Mean", width=width, height=height)
+
+        all_plots = (mean_plot+med_plot+min_plot+max_plot)
+        all_plots.opts(title=self.variable2+ ': Anomalies for '+str(self.warmlevel)+'°C Warming Across Models') # Add title
+        all_plots.opts(toolbar="below") # Set toolbar location
+        all_plots.opts(hv.opts.Layout(merge_tools=True)) # Merge toolbar 
+        return all_plots
+
     
     @param.depends("reload_data2", watch=False)
     def _30_yr_window(self): 
@@ -358,43 +389,6 @@ class WarmingLevels(param.Parameterized):
             index=False
         )
         return df_pane
-        
-    @param.depends("reload_data2", watch=False)
-    def _GCM_PostageStamps_STATS(self):
-        
-        # Get plot data 
-        all_plot_data = self._warm_all_anoms
-        if self.variable2 == "Relative Humidity": 
-            all_plot_data = all_plot_data*100
-        
-        # Compute stats
-        min_data = all_plot_data.min(dim='simulation')
-        max_data = all_plot_data.max(dim='simulation')
-        med_data = all_plot_data.median(dim='simulation')
-        mean_data = all_plot_data.mean(dim='simulation')
-        
-        # Set up plotting arguments 
-        clabel = self.variable2 + " ("+self.postage_data.attrs["units"]+")"
-        vmin, vmax, sopt = _compute_vmin_vmax(min_data,max_data)
-        if self.variable2 == "Air Temperature at 2m":
-            cmap = "YlOrRd"
-        elif self.variable2 == "Relative Humidity":
-            cmap = "PuOr"
-        else: 
-            cmap = "viridis"
-        
-        # Make plots
-        min_plot = _make_hvplot(data=min_data, clabel=clabel, cmap=cmap, clim=(vmin,vmax), sopt=sopt, title="Minimum")
-        max_plot = _make_hvplot(data=max_data, clabel=clabel, cmap=cmap,  clim=(vmin,vmax), sopt=sopt, title="Maximum")
-        med_plot = _make_hvplot(data=med_data, clabel=clabel, cmap=cmap,  clim=(vmin,vmax), sopt=sopt, title="Median")
-        mean_plot = _make_hvplot(data=mean_data, clabel=clabel, cmap=cmap, clim=(vmin,vmax), sopt=sopt, title="Mean")
-
-        all_plots = (mean_plot+med_plot+min_plot+max_plot)
-        all_plots.opts(title=self.variable2+ ': Anomalies for '+str(self.warmlevel)+'°C Warming Across Models') # Add title
-        all_plots.opts(toolbar="below") # Set toolbar location
-        all_plots.opts(hv.opts.Layout(merge_tools=True)) # Merge toolbar 
-        return all_plots
-
 
 
     @param.depends("warmlevel","ssp", watch=False)
@@ -579,13 +573,13 @@ def _display_warming_levels(selections, location, _cat):
             pn.Column(
                 pn.widgets.StaticText(
                     value="<br><br><br>", 
-                    width=200
+                    width=150
                 ),
                 pn.widgets.StaticText(
-                    value="<b>Tip</b>: There's a toolbar to the side of the maps. \
+                    value="<b>Tip</b>: There's a toolbar below the maps. \
         Try clicking the magnifying glass to zoom in on a particular region. \
         You can also click the save button to save a copy of the figure to your computer.", 
-                    width=200, 
+                    width=150, 
                     style={"border":"1.2px red solid","padding":"5px","border-radius":"4px","font-size":"13px"})
             )
         )
