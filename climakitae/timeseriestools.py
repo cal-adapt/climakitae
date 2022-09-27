@@ -224,8 +224,12 @@ def _update_attrs(data_to_output,attrs_to_add):
     attrs_to_add.pop('num_timesteps')
     if not attrs_to_add['anomaly']:
         attrs_to_add.pop('reference_range')
+    if attrs_to_add['reference_range']:
+        ref1 = attrs_to_add['reference_range'][0].strftime('%b %d %Y %H:%M')
+        ref2 = attrs_to_add['reference_range'][-1].strftime('%b %d %Y %H:%M')
+        attrs_to_add['reference_range']=ref1+' - '+ref2
         
-    attrs_to_add = {'timeseries:'+k:str(v) for k, v in attrs_to_add.items()}
+    attrs_to_add = {'timeseries:'+k:( str(v) if type(v) == bool else v ) for k,v in attrs_to_add.items()}
         
     attributes.update(attrs_to_add)
     data_to_output.attrs = attributes
