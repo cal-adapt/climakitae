@@ -145,7 +145,7 @@ def export_to_geotiff(data_to_export,save_name,**kwargs):
                 print("Saving as multiband raster in which"+
                  " each band corresponds to a climate scenario.")
                 
-        non_spatial_dims = data_to_export.isel(x=0,y=0).squeeze.shape()
+        non_spatial_dims = data_to_export.isel(x=0,y=0).squeeze().shape
         
     print("Saving as GeoTIFF...")
     data_to_export.rio.to_raster(save_name)
