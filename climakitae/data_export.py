@@ -20,7 +20,11 @@ def export_to_netcdf(data_to_export,save_name,**kwargs):
     '''    
     print("Alright, exporting specified data to NetCDF. This might take a while - "+
          "hang tight!")
-    data_to_export.to_netcdf(save_name)
+    # set coordinate encoding to follow CF conventions
+    comp = dict(_FillValue=None)
+    encoding = {coord: comp for coord in data_to_export.coords}
+    # and export
+    data_to_export.to_netcdf(save_name,encoding=encoding)
     
     
 def export_to_csv(data_to_export,save_name,**kwargs):
