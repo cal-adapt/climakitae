@@ -5,6 +5,34 @@ import numpy as np
 import pandas as pd
 import s3fs
 import intake
+import matplotlib.colors as mcolors
+import matplotlib
+import pkg_resources
+
+def _read_ae_colormap(cmap="ae_orange", cmap_hex=False):
+    """Read in AE colormap by name
+    
+    Args:
+        cmap (str): one of ["ae_orange","ae_blue","ae_diverging"]
+        cmap_hex (boolean): return RGB or hex colors? 
+        
+    Returns: one of either
+        cmap_data (matplotlib.colors.LinearSegmentedColormap): used for matplotlib (if cmap_hex == False)
+        cmap_data (list): used for hvplot maps (if cmap_hex == True)
+        
+    """
+    
+    cmap_filename = cmap+".txt" # Filename of colormap
+    cmap_pkg_data = pkg_resources.resource_filename("climakitae", "data/cmaps/"+cmap_filename) # Read package data
+    cmap_np = np.loadtxt(cmap_pkg_data, dtype=float)
+    
+    # RBG to hex
+    if cmap_hex: 
+        cmap_data = [matplotlib.colors.rgb2hex(color) for color in cmap_np]   
+    else: 
+        cmap_data = mcolors.LinearSegmentedColormap.from_list(cmap, cmap_np, N=256)
+        
+    return cmap_data
 
 
 def _reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan): 
@@ -118,14 +146,15 @@ def _reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
 # Read csv file containing variable information as dictionary
 def _read_var_csv(
     csv_file,
-    index_col="name",
+    index_col="name", 
     usecols=[
         "name",
         "description",
         "extended_description",
         "native_unit",
         "alt_unit_options",
-    ],
+        "default_cmap"
+    ]
 ):
     """Read in variable descriptions csv file as a dictionary
 
@@ -137,6 +166,12 @@ def _read_var_csv(
         descrip_dict (dictionary): Dictionary containing index_col as keys and additional columns as values
 
     """
+    # Print warning if user inputs invalid index column 
+    if index_col in ["native_unit","alt_unit_options","default_cmap"]: 
+        print("Index column must have unique values. Cannot set index_col to "+index_col+". Setting index to 'name'.") 
+        index_col = "name"
+        
+    # Read in csv and return as dictionary
     csv = pd.read_csv(csv_file, index_col=index_col, usecols=usecols)
     descrip_dict = csv.to_dict(orient="index")
     return descrip_dict
