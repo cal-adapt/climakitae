@@ -38,22 +38,14 @@ def export_to_csv(data_to_export,save_name,**kwargs):
     kwargs: reserved for future use
     '''
     
-    print("Exporting to CSV can take a long time,"+
-                 " and is not recommended for data with more than 2 dimensions."+
-                  " Please note that the data will be compressed via gzip. Even so,"+
-         " inherent inefficiencies may result in a file which is too large to save here.")
-    print("Converting data...")
     excel_row_limit = 1048576
     to_save = data_to_export.to_dataframe()        
     csv_nrows = len(to_save.index)        
     if (csv_nrows > excel_row_limit):
-        print("WARNING: Dataset exceeds Excel limit of "+
+        warnings.warn("Dataset exceeds Excel limit of "+
                       str(excel_row_limit)+" rows.") 
-        
-    
-    metadata_to_file(data_to_export,save_name)
-    print("Converting and compressing data... This can take a bit...")
-    
+           
+    metadata_to_file(data_to_export,save_name)    
     to_save.to_csv(save_name,compression='gzip')   
 
 def export_to_geotiff(data_to_export,save_name,**kwargs):    
@@ -99,7 +91,7 @@ def _export_to_user(user_export_format,data_to_export,
         raise AssertionError("Please select a file format from the dropdown menu.")
     
     extension_dict = {'NetCDF' : '.nc',
-                      'CSV' : '.gz',
+                      'CSV' : '.csv.gz',
                       'GeoTIFF' : '.tif'}
     
     f_extension = extension_dict[req_format]
@@ -179,9 +171,14 @@ def metadata_to_file(ds,output_name):
     Writes NetCDF metadata to a txt file so users can still access it 
     after exporting to a CSV.
     """
-    output_name = output_name.strip('.gz')
+    output_name = output_name.strip('.csv.gz')
     if os.path.exists(output_name+"_metadata.txt"):
         os.remove(output_name+"_metadata.txt")
+        
+    print("NOTE: File metadata will be written in "+
+          output_name+"_metadata.txt. "+
+         "We recommend you download this along with "+
+         "the CSV for your records.")
         
     with open('.'+output_name+"_metadata.txt", 'w') as f:
         f.write('======== Metadata for CSV file '+output_name+' ========')
