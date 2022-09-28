@@ -23,6 +23,7 @@ import holoviews as hv
 from holoviews import opts
 import hvplot.pandas
 import hvplot.xarray
+import panel as pn
 
 from .visualize import get_geospatial_plot
 
