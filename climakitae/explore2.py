@@ -26,4 +26,4 @@ class AppExplore(object):
 
     def thresholds(self, option=1):
         thresh_data = ThresholdDataParams(selections=self.selections, location=self.location, _cat = self._cat)
-        return _thresholds_visualize(thresh_data)
+        return _thresholds_visualize(thresh_data, option)
