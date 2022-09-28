@@ -3,15 +3,18 @@
 import panel as pn
 import param
 
+from .tmy import AverageMeteorologicalYear, _amy_visualize
 from .threshold_tools import ThresholdDataParams, _exceedance_visualize
 
 _thresholds_tool_description = "Select a variable of interest, variable units, and region of interest to the left. Then, use the dropdowns below to define the extreme event you are interested in. After clicking 'Reload Plot', the plot on the lower right will show event frequencies across different simulations. You can also explore how these frequencies change under different global emissions scenarios. Save a plot to come back to later by putting your cursor over the lower right and clicking the save icon."
 
 
+#-----------------------------------------------------------------------
+
 class AppExplore(object):
     """
     A class for holding the following app explore options:
-        app.explore2.TMY()
+        app.explore2.amy()
         app.explore2.thresholds()
     """
     
@@ -20,8 +23,9 @@ class AppExplore(object):
         self.location = location
         self._cat = _cat
 
-    def TMY(self):
-        return pn.Card(title = "Typical Meteorological Year", collapsible = False)
+    def amy(self):
+        tmy_ob = AverageMeteorologicalYear(selections=self.selections, location=self.location, catalog=self._cat)
+        return _amy_visualize(tmy_ob=tmy_ob, selections=self.selections, location=self.location)
 
     def thresholds(self, option=1):
         thresh_data = ThresholdDataParams(selections=self.selections, location=self.location, _cat = self._cat)
