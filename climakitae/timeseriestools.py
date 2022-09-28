@@ -225,7 +225,7 @@ def _update_attrs(data_to_output,attrs_to_add):
     if not attrs_to_add['anomaly']:
         attrs_to_add.pop('reference_range')
         
-    attrs_to_add = {'timeseries:'+k:v for k, v in attrs_to_add.items()}
+    attrs_to_add = {'timeseries:'+k:str(v) for k, v in attrs_to_add.items()}
         
     attributes.update(attrs_to_add)
     data_to_output.attrs = attributes
