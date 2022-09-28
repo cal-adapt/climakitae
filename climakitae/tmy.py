@@ -1,13 +1,15 @@
 """
-Calculates the Average Meterological Year (TMY) for the Cal-Adapt: Analytics Engine using a standard climatological period (1981-2010) for the historical baseline,
-and uses a 30-year window around when a designated warming level is exceeded for the SSP3-7.0 future scenario for 1.5°C, 2°C, and 3°C. Additional functionality for 4°C is forthcoming.
-Working Group 4 (Aug 31, 2022) version focuses on air temperature and relative humidity, with all variables being available for Analytics Engine Beta Launch.
-The AMY is comparable to a typical meteorological year, but not quite the same full methodology.
+Calculates the Average Meterological Year (TMY) for the Cal-Adapt: Analytics Engine using a standard climatological period (1981-2010)
+for the historical baseline, and uses a 30-year window around when a designated warming level is exceeded for the SSP3-7.0 future scenario
+for 1.5°C, 2°C, and 3°C. Additional functionality for 4°C is forthcoming. Working Group 4 (Aug 31, 2022) version focuses on air temperature
+and relative humidity, with all variables being available for Analytics Engine Beta Launch. The AMY is comparable to a typical meteorological year,
+but not quite the same full methodology.
 """
 
 ## PROCESS: average meteorological year
 # for each hour, the average variable over the whole climatological period is determined
-# data for that hour that has the value most closely equal (smalleset absolute difference) to the hourly average over the whole measurement period is chosen as the AMY data for that hour
+# data for that hour that has the value most closely equal (smalleset absolute difference) to the hourly average over the whole measurement period
+# is chosen as the AMY data for that hour
 # process is repeated for each hour in the year
 # repeat values (where multiple years have the same smallest abs value) are removed, earliest occurence selected for AMY
 # hours are added together to provide a full year of hourly samples
@@ -120,8 +122,10 @@ class AverageMeteorologicalYear(param.Parameterized):
             "Warming Level Future": "AMY computed using the 30-year future period centered around when the selected warming level is reached."
         },
         "Difference": {
-            "Warming Level Future": "AMY computed by taking the difference between the 30-year future period centered around the selected warming level and the historical baseline."
-            # "Severe AMY": "AMY computed by taking the difference between the 90th percentile of the 30-year future period centered around the selected warming level and the historical baseline."
+            "Warming Level Future": "AMY computed by taking the difference between the 30-year future period centered around the selected warming \
+            level and the historical baseline."
+            # "Severe AMY": "AMY computed by taking the difference between the 90th percentile of the 30-year future period centered around the \
+            # selected warming level and the historical baseline."
         }
     }
 
@@ -278,7 +282,8 @@ class AverageMeteorologicalYear(param.Parameterized):
                 data_grouped = data_on_day_x.groupby("time.hour")
                 mean_by_hour = data_grouped.mean()
                 min_diff = abs(data_grouped - mean_by_hour).groupby("time.hour").min()
-                typical_hourly_data_on_day_x = data_on_day_x.where(abs(data_grouped - mean_by_hour).groupby("time.hour") == min_diff, drop = True).sortby("time.hour")
+                typical_hourly_data_on_day_x = data_on_day_x.where(abs(data_grouped - mean_by_hour).groupby("time.hour") == min_diff,
+                    drop = True).sortby("time.hour")
                 np_typical_hourly_data_on_day_x = remove_repeats(typical_hourly_data_on_day_x)
                 hourly_list.append(np_typical_hourly_data_on_day_x)
             return hourly_list
@@ -301,29 +306,39 @@ class AverageMeteorologicalYear(param.Parameterized):
                 clabel = self.variable2 + " (" +self.historical_tmy_data.attrs["units"]+")"
             else:
                 df = df_future
-                title = "Average Meteorological Year: {}\nAbsolute {} at {}°C".format(self.cached_area2, self.tmy_advanced_options, self.warmlevel)
+                title = "Average Meteorological Year: {}\nAbsolute {} at {}°C".format(
+                    self.cached_area2,
+                    self.tmy_advanced_options,
+                    self.warmlevel)
                 clabel = self.variable2 + " (" +self.future_tmy_data.attrs["units"]+")"
         elif self.tmy_options == "Difference":
             cmap = _read_ae_colormap("ae_diverging", cmap_hex = True)
             if self.tmy_advanced_options == "Warming Level Future":
                 df = df_future - df_hist
-                title = "Average Meteorological Year: {}\nDifference between {} at {}°C and Historical Baseline".format(self.cached_area2, self.tmy_advanced_options, self.warmlevel)
+                title = "Average Meteorological Year: {}\nDifference between {} at {}°C and Historical Baseline".format(
+                    self.cached_area2,
+                    self.tmy_advanced_options,
+                    self.warmlevel)
                 clabel = self.variable2 + " (" +self.historical_tmy_data.attrs["units"]+")"
             else:
                 df = df_future - df_hist # placeholder for now for severe amy
-                title = "Average Meteorological Year: {}\nDifference between {} at 90th percentile and Historical Baseline".format(self.cached_area2, self.tmy_advanced_options)
+                title = "Average Meteorological Year: {}\nDifference between {} at 90th percentile and Historical Baseline".format(
+                    self.cached_area2,
+                    self.tmy_advanced_options)
                 clabel = self.variable2 + " (" +self.historical_tmy_data.attrs["units"]+")"
         else:
             title = "Average Meteorological Year\n{}".format(self.cached_area2)
 
         # Manual re-ordering for PST time from UTC and easy-to-understand labels
         df = df[[8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,1,2,3,4,5,6,7]]
-        df.columns = ['12am','1am','2am','3am','4am','5am','6am','7am','8am','9am','10am','11am','12pm','1pm','2pm','3pm','4pm','5pm','6pm','7pm','8pm','9pm','10pm','11pm']
+        df.columns = [
+            '12am','1am','2am','3am','4am','5am','6am','7am','8am','9am','10am','11am',
+            '12pm','1pm','2pm','3pm','4pm','5pm','6pm','7pm','8pm','9pm','10pm','11pm'
+        ]
 
         cmap_name = var_descrip[self.variable2]["default_cmap"]
         cmap = _read_ae_colormap(cmap=cmap_name, cmap_hex=True)
-        # if df.min() < 0:
-        #     cmap = _read_ae_colormap(cmap="ae_diverging", cmap_hex = True)
+
 
         heatmap = df.hvplot.heatmap(
             x='columns',
@@ -369,9 +384,11 @@ def _amy_visualize(tmy_ob, selections, location):
 
     mthd_bx = pn.Column(
         pn.widgets.StaticText(
-            value="An average meteorological year is calculated by selecting the 24 hours for every day that best represent multi-model mean conditions during a 30-year period – 1981-2010 \
-            for the historical baseline or centered on the year the warming level is reached. Absolute average meteorolgoical year profiles represent data that is not bias corrected,  \
-            please exercise caution when analyzing. The 'severe' AMY is calculated using the 90th percentile of future warming level data at the selected warming level, and is compared to the historical baseline.",
+            value="An average meteorological year is calculated by selecting the 24 hours for every day that best represent multi-model mean \
+             conditions during a 30-year period – 1981-2010 for the historical baseline or centered on the year the warming level is reached. \
+             Absolute average meteorolgoical year profiles represent data that is not bias corrected, please exercise caution when analyzing. \
+             The 'severe' AMY is calculated using the 90th percentile of future warming level data at the selected warming level, and is compared \
+             to the historical baseline.",
             width=400
         ),
     )
