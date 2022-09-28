@@ -25,7 +25,7 @@ def T2_hourly(rootdir):
 
 # incompatible: cannot specify a 1-day groupy for monthly data
 def test_error1(test_data_2022_monthly_45km):
-    with pytest.raises(ValueError, match="Incompatible `groupby` specification"):
+    with pytest.raises(ValueError, match="Incompatible `group` specification"):
         threshold_tools.get_exceedance_count(test_data_2022_monthly_45km,
             threshold_value=305, groupby = (1, "day")
         ) 
@@ -33,9 +33,9 @@ def test_error1(test_data_2022_monthly_45km):
 # incompatible: cannot specify a 3-day duration if grouped by month
 # But for now, `duration` not yet implemented
 def test_error2(T2_hourly):
-    with pytest.raises(ValueError, match="Incompatible `group` and `duration` specification"):
+    with pytest.raises(ValueError, match="Incompatible `group` and `duration2` specification"):
         threshold_tools.get_exceedance_count(T2_hourly,
-            threshold_value=305, groupby = (1, "month"), duration = (3, "day")
+            threshold_value=305, groupby = (1, "month"), duration2 = (3, "day")
         )
 
 #------------- Tests with hourly data -----------------------------------------
@@ -54,61 +54,33 @@ def test_hourly_ex2(T2_hourly):
 
 # exmample 3: count number of 3-day events in each year that continously exceed the threshold
 def test_hourly_ex3(T2_hourly):
-    exc_counts = threshold_tools.get_exceedance_count(T2_hourly, threshold_value=305, period=(1, "year"), duration=(3, "day"))
+    exc_counts = threshold_tools.get_exceedance_count(T2_hourly, threshold_value=305, period=(1, "year"), duration1=(72, "hour"))
     assert (exc_counts >= 0).all()      # test no negative values
     assert len(exc_counts.time) == 2    # test correct time transformation occured (collapsed to only 2 values, one for each year)
 
 # exmample 4: count number of 3-day events in each year that exceed the threshold once each day
 def test_hourly_ex4(T2_hourly):
-    exc_counts = threshold_tools.get_exceedance_count(T2_hourly, threshold_value=305, period=(1, "year"), duration=(3, "day"), groupby=(1, "day"))
+    exc_counts = threshold_tools.get_exceedance_count(T2_hourly, threshold_value=305, period=(1, "year"), duration2=(3, "day"), groupby=(1, "day"))
     assert (exc_counts >= 0).all()      # test no negative values
     assert len(exc_counts.time) == 2    # test correct time transformation occured (collapsed to only 2 values, one for each year)
 
-# test current behavior of `duration` option: a six day event is counted as 4 3-day events
+# test current behavior of `duration` options: a six events in a row is counted as 4 3-hour events
 def test_duration():
-    da = xr.DataArray([1,1,1,1,1,1], coords = {"time":pd.date_range("2000-01-01", freq="1D", periods=6)},
-        attrs={"frequency":"1day", "units":"T"})
-    exc_counts = threshold_tools.get_exceedance_count(da, 0, duration=(3, "day"))
-    assert exc_counts == 4 # four of the six days are the start of a 3-day event
+    da = xr.DataArray([1,1,1,1,1,1], coords = {"time":pd.date_range("2000-01-01", freq="1H", periods=6)},
+        attrs={"frequency":"1hr", "units":"T"})
+    exc_counts = threshold_tools.get_exceedance_count(da, 0, duration1=(3, "hour"))
+    assert exc_counts == 4 # four of the six hours are the start of a 3-hour event
 
 #------------- Test helper functions for plotting -----------------------------
 
-# example name 1: Number of hours per 1 year
+# example name 1: Number of hours each year
 def test_name1():
     ex1 = xr.DataArray(attrs = {
+        "frequency" : "1hr",
+        "period" : (1, "year"),
+        "duration1" : None,
         "group" : None,
-        "frequency" : "1hr",
-        "period" : (1, "year"),
-        "duration" : None
-    })
-    name1 = threshold_tools._exceedance_count_name(ex1)
-    assert name1 == "Number of hours per 1 year"
-
-# example name 2: Number of days per 1 year
-def test_name2():
-    ex2 = xr.DataArray(attrs = {
-        "group" : (1, "day"),
-        "frequency" : "1hr",
-        "period" : (1, "year"),
-        "duration" : None
-    })
-    name2 = threshold_tools._exceedance_count_name(ex2)
-    assert name2 == "Number of days per 1 year"
-
-# example name 3: Number of 3-day events per 1 year
-def test_name3():
-    ex3 = xr.DataArray(attrs = {
-        "group" : (1, "day"),
-        "frequency" : "1hr",
-        "period" : (1, "year"),
-        "duration" : (3, "day")
-    })
-    name3 = threshold_tools._exceedance_count_name(ex3)
-    assert name3 == "Number of 3-day events per 1 year"
-
-# example title 1: 
-def test_title1():
-    ex1 = xr.DataArray(attrs = {
+        "duration2" : None,
         "variable_name" : "Air Temperature at 2m",
         "threshold_direction" : "above",
         "threshold_value" : 299,
@@ -116,5 +88,41 @@ def test_title1():
     })
     title1 = threshold_tools._exceedance_plot_title(ex1)
     assert title1 == "Air Temperature at 2m: events above 299K"
+    subtitle1 = threshold_tools._exceedance_plot_subtitle(ex1)
+    assert subtitle1 == "Number of hours each year"
 
-# test smoothing options with monthly data
+# example name 2: Number of days each year with conditions lasting at least 1 hour
+def test_name2():
+    ex2 = xr.DataArray(attrs = {
+        "frequency" : "1hr",
+        "period" : (1, "year"),
+        "duration1" : (1, "hour"),
+        "group" : (1, "day"),
+        "duration2" : (1, "day"),
+        "variable_name" : "Air Temperature at 2m",
+        "threshold_direction" : "above",
+        "threshold_value" : 299,
+        "variable_units" : "K"
+    })
+    title2 = threshold_tools._exceedance_plot_title(ex2)
+    assert title2 == "Air Temperature at 2m: events above 299K"
+    subtitle2 = threshold_tools._exceedance_plot_subtitle(ex2)
+    assert subtitle2 == "Number of days each year with conditions lasting at least 1 hour"
+
+# example name 3: Number of 3-day events per 1 year
+def test_name3():
+    ex3 = xr.DataArray(attrs = {
+        "frequency" : "1hr",
+        "period" : (1, "year"),
+        "duration1" : (4, "hour"),
+        "group" : (1, "day"),
+        "duration2" : (3, "day"),
+        "variable_name" : "Air Temperature at 2m",
+        "threshold_direction" : "above",
+        "threshold_value" : 299,
+        "variable_units" : "K"
+    })
+    title3 = threshold_tools._exceedance_plot_title(ex3)
+    assert title3 == "Air Temperature at 2m: events above 299K"
+    subtitle3 = threshold_tools._exceedance_plot_subtitle(ex3)
+    assert subtitle3 == "Number of 3-day events each year with conditions lasting at least 4 hours each day"
