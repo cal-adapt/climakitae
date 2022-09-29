@@ -5,8 +5,10 @@ import dask
 import warnings
 import datetime
 import numpy as np
-xr.set_options(keep_attrs=True)
 import os
+from . import __version__
+xr.set_options(keep_attrs=True)
+
 
 def export_to_netcdf(data_to_export,save_name,**kwargs):
     '''
@@ -18,8 +20,7 @@ def export_to_netcdf(data_to_export,save_name,**kwargs):
     save_name: string corresponding to desired output file name + file extension
     kwargs: reserved for future use
     '''    
-    print("Alright, exporting specified data to NetCDF. This might take a while - "+
-         "hang tight!")
+    print("Alright, exporting specified data to NetCDF.")
     data_to_export.to_netcdf(save_name)
     
     
@@ -105,10 +106,16 @@ def _export_to_user(user_export_format,data_to_export,
    
     ds_attrs = data_to_export.attrs
     ct = datetime.datetime.now()
-    ct_str = ct.strftime("%d-%b-%Y (%H:%M:%S)")    
-    ck_attrs = {'data_exported_from' : 'Cal-Adapt Analytics Engine v 0.0.1',
-               'data_export_timestamp' : ct_str}       
-
+    ct_str = ct.strftime("%d-%b-%Y (%H:%M)")    
+    
+    ck_attrs = {'Data_exported_from' : 'Cal-Adapt Analytics Engine',
+                'Data_export_timestamp' : ct_str,
+                'Analysis_package_name' : 'climakitae',
+                'Version' : __version__,
+                'Author' : 'Cal-Adapt Analytics Engine Team',
+                'Author_email' : 'analytics@cal-adapt.org',
+                'Home_page' : 'https://github.com/cal-adapt/climakitae',
+                'License' : 'BSD 3-Clause License'}
         
     assert "xarray" in str(
             type(data_to_export)
