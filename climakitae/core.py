@@ -9,9 +9,8 @@ from .selectors import (
 from .data_loaders import _read_from_catalog
 from .data_export import _export_to_user
 from .utils import _read_var_csv
-from .explore import _display_warming_levels
 from .view import _visualize
-from .explore2 import AppExplore
+from .explore import AppExplore
 import intake
 import pkg_resources # Import package data
 CSV_FILE = pkg_resources.resource_filename('climakitae', 'data/variable_descriptions.csv')
@@ -28,8 +27,8 @@ class Application(object):
         self.selections = DataSelector(choices=_get_catalog_contents(self._cat))
         self.location = LocSelectorArea(name="Location Selections")
         self.user_export_format = FileTypeSelector()
-        self.explore2 = AppExplore(self.selections, self.location, self._cat)
-
+        self.explore = AppExplore(self.selections, self.location, self._cat)
+        
     # === Select =====================================
     def select(self):
         """
@@ -66,12 +65,6 @@ class Application(object):
         """
         return _visualize(data, lat_lon=lat_lon, width=width, height=height, cmap=cmap)
     
-    # === Explore ===================================
-    def explore(self):
-        """
-        Display warming levels panel
-        """
-        return _display_warming_levels(self.selections, self.location, self._cat)
 
     # === Export ======================================
     def export_as(self):
