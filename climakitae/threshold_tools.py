@@ -23,6 +23,7 @@ import holoviews as hv
 from holoviews import opts
 import hvplot.pandas
 import hvplot.xarray
+import panel as pn
 
 from .visualize import get_geospatial_plot
 
@@ -884,3 +885,259 @@ def get_return_period(
     new_ds.attrs["distribution"] = "{}".format(str(distr))
 
     return new_ds
+
+#------------- Functions for exceedance count ---------------------------------
+
+def get_exceedance_count(
+    da,
+    threshold_value,
+    duration1 = None,
+    period = (1, "year"),
+    threshold_direction = "above", 
+    duration2 = None,
+    groupby = None,
+    smoothing = None
+):
+    """
+    Calculate the number of occurances of exceeding the specified threshold 
+    within each period.
+
+    Returns an xarray with the same coordinates as the input data except for 
+    the time dimension, which will be collapsed to one value per period (equal
+    to the number of event occurances in each period).
+
+    Arguments:
+    da -- an xarray.DataArray of some climate variable. Can have multiple 
+        scenarios, simulations, or x and y coordinates. 
+    threshold_value -- value against which to test exceedance
+    
+    Optional Keyword Arguments:
+    period -- amount of time across which to sum the number of occurances, 
+        default is (1, "year"). Specified as a tuple: (x, time) where x is an 
+        integer, and time is one of: ["day", "month", "year"]
+    threshold_direction -- string either "above" or "below", default is above.
+    duration1 -- length of exceedance in order to qualify as an event (before grouping)
+    groupby -- see examples for explanation. Typical grouping could be (1, "day")
+    duration2 -- length of exceedance in order to qualify as an event (after grouping)
+    smoothing -- option to average the result across multiple periods with a 
+        rolling average; value is either None or the number of timesteps to use 
+        as the window size
+    """
+
+    #--------- Type check arguments -------------------------------------------
+
+    # Check compatibility of periods, durations, and groupbys
+    if _is_greater(duration1, groupby): raise ValueError("Incompatible `group` and `duration1` specification. Duration1 must be shorter than group.")
+    if _is_greater(groupby, duration2): raise ValueError("Incompatible `group` and `duration2` specification. Duration2 must be longer than group.")
+    if _is_greater(groupby, period): raise ValueError("Incompatible `group` and `period` specification. Group must be longer than period.")
+    if _is_greater(duration2, period): raise ValueError("Incompatible `duration` and `period` specification. Period must be longer than duration.")
+    
+    # Check compatibility of specifications with the data frequency (hourly, daily, or monthly)
+    freq = (1, "hour") if da.frequency == "1hr" else ((1, "day") if da.frequency == "1day" else (1, "month"))
+    if _is_greater(freq, groupby): raise ValueError("Incompatible `group` specification: cannot be less than data frequency.")
+    if _is_greater(freq, duration2): raise ValueError("Incompatible `duration` specification: cannot be less than data frequency.")
+    if _is_greater(freq, period): raise ValueError("Incompatible `period` specification: cannot be less than data frequency.")
+
+    #--------- Calculate occurances -------------------------------------------
+
+    events_da = get_exceedance_events(da, threshold_value, threshold_direction, duration1, groupby)
+
+    #--------- Apply specified duration requirement ---------------------------
+
+    if duration2 is not None:
+        dur_len, dur_type = duration2
+
+        if (groupby is not None and groupby[1] == dur_type) \
+            or (groupby is None and freq[1] == dur_type):
+            window_size = dur_len 
+        else:
+            raise ValueError("Duration options for time types (i.e. hour, day) that are different than group or frequency not yet implemented")
+
+        # The "min" operation will return 0 if any time in the window is not an
+        # event, which is the behavior we want. It will only return 1 for True 
+        # if all values in the duration window are 1.
+        events_da = events_da.rolling(time = window_size, center=False).min("time")
+
+    #--------- Sum occurances across each period ------------------------------
+    
+    period_len, period_type = period
+    period_indexer = str.capitalize(period_type[0]) # capitalize first letter to use as indexer in resample
+    exceedance_count = events_da.resample(time = f"{period_len}{period_indexer}", label="left").sum()
+
+    # Optional smoothing
+    if smoothing is not None:
+        exceedance_count = exceedance_count.rolling(time=smoothing, center=True).mean("time")
+
+    #--------- Set new attributes for the counts DataArray --------------------
+    exceedance_count.attrs["variable_name"] = da.name
+    exceedance_count.attrs["variable_units"] = exceedance_count.units
+    exceedance_count.attrs["period"] = period
+    exceedance_count.attrs["duration1"] = duration1
+    exceedance_count.attrs["group"] = groupby
+    exceedance_count.attrs["duration2"] = duration2
+    exceedance_count.attrs["threshold_value"] = threshold_value
+    exceedance_count.attrs["threshold_direction"] = threshold_direction
+    exceedance_count.attrs["units"] = _exceedance_count_name(exceedance_count)
+
+    # Set name (for plotting, this will be the y-axis label)
+    exceedance_count.name =  "Count"
+
+    return exceedance_count
+
+def _is_greater(time1, time2):
+    """
+    Helper function for comparing user specifications of period, duration, and groupby.
+    Examples:
+        (1, "day"), (1, "year") --> False
+        (3, "month"), (1, "month") --> True
+    """
+    order = ["hour", "day", "month", "year"]
+    if time1 is None or time2 is None:
+        return False
+    elif time1[1] == time2[1]:
+        return time1[0] > time2[0]
+    else:
+        return order.index(time1[1]) > order.index(time2[1])
+
+def get_exceedance_events(
+    da,
+    threshold_value,
+    threshold_direction = "above", 
+    duration1 = None,
+    groupby = None
+):
+    """
+    Returns an xarray that specifies whether each entry of `da` is a qualifying 
+    threshold event. Values are 0 for False, 1 for True, or NaN for NaNs.
+    """
+
+    # Identify occurances (and preserve NaNs)
+    if threshold_direction == "above":
+        events_da = (da > threshold_value).where(da.isnull()==False)
+    elif threshold_direction == "below":
+        events_da = (da < threshold_value).where(da.isnull()==False)
+    else:
+        raise ValueError(f"Unknown value for `threshold_direction` parameter: {threshold_direction}. Available options are 'above' or 'below'.")
+
+    if duration1 is not None:
+        dur_len, dur_type = duration1
+        if dur_type != "hour" or da.frequency != "1hr":
+            raise ValueError("Current specifications not yet implemented.")
+        window_size = dur_len 
+
+        # The "min" operation will return 0 if any time in the window is not an
+        # event, which is the behavior we want. It will only return 1 for True 
+        # if all values in the duration window are 1.
+        events_da = events_da.rolling(time = window_size, center=False).min("time")
+
+    # Groupby 
+    if groupby is not None:
+        if (groupby == (1, "hour") and da.frequency == "1hr") \
+            or (groupby == (1, "day") and da.frequency == "1day") \
+            or (groupby == (1, "month") and da.frequency == "1month") \
+            or groupby == duration1:
+            # groupby specification is the same as data frequency, do nothing
+            pass
+        else:
+            group_len, group_type = groupby
+            indexer_type = str.capitalize(group_type[0]) # capitalize the first letter to use as the indexer (i.e. H, D, M, or Y)
+            group_totals = events_da.resample(time=f"{group_len}{indexer_type}", label="left").sum() # sum occurences within each group
+            events_da = (group_totals > 0).where(group_totals.isnull()==False) # turn back into a boolean with preserved NaNs (0 or 1 for whether there is any occurance in the group)
+
+    return events_da
+
+def _exceedance_count_name(exceedance_count):
+    """
+    Helper function to build the appropriate name for the queried exceedance count.
+    Examples:
+        'Number of hours'
+        'Number of days'
+        'Number of 3-day events'
+    """
+    # If duration is used, this determines the event name
+    dur = exceedance_count.duration2
+    if dur is not None:
+        d_num, d_type = dur 
+        if d_num != 1:
+            event = f"{d_num}-{d_type} events"
+        else:
+            event = f"{d_type}s" # ex: day --> days
+    else:
+        # otherwise use "groupby" if not None
+        grp = exceedance_count.group
+        if grp is not None:
+            g_num, g_type = grp
+            if g_num != 1:
+                event = f"{g_num}-{g_type} events"
+            else:
+                event = f"{g_type}s" # ex: day --> days
+        else:
+            # otherwise use data frequency info as the default event type
+            if exceedance_count.frequency == "1hr":
+                event = "hours"
+            elif exceedance_count.frequency == "1day":
+                event = "days"
+            elif exceedance_count.frequency == "1month":
+                event = "months"
+
+    return f"Number of {event}"
+
+def plot_exceedance_count(exceedance_count):
+    """
+    Plots each simulation as a different color line.
+    Drop down option to select different scenario.
+    Currently can only plot for one location, so is expecting input to already be subsetted or an area average.
+    """
+    plot_obj = exceedance_count.hvplot.line(
+        x="time", 
+        widget_location="bottom", 
+        by="simulation", 
+        groupby=["scenario"],
+        title = "",
+        fontsize = {'ylabel': '10pt'},
+        legend = 'right',
+    )
+    return pn.Column(plot_obj)
+
+def _exceedance_plot_title(exceedance_count):
+    """
+    Helper function for making the title for exceedance plots.
+    Examples:
+        'Air Temperatue at 2m: events above 35C'
+        'Preciptation (total): events below 10mm'
+    """
+    return f"{exceedance_count.variable_name}: events {exceedance_count.threshold_direction} {exceedance_count.threshold_value}{exceedance_count.variable_units}"
+
+def _exceedance_plot_subtitle(exceedance_count):
+    """
+    Examples:
+        'Number of hours per year'
+        'Number of 4-hour events per 3-months'
+        'Number of days per year with conditions lasting at least 4-hours'
+    """
+
+    if exceedance_count.duration2 != exceedance_count.duration1:
+        dur_len, dur_type = exceedance_count.duration1
+        _s = "" if dur_len == 1 else "s"
+        dur_str = f" with conditions lasting at least {dur_len} {dur_type}{_s}"
+    else:
+        dur_str = ""
+
+    if exceedance_count.duration2 != exceedance_count.group:
+        grp_len, grp_type = exceedance_count.group
+        if grp_len == 1:
+            grp_str = f" each {grp_type}"
+        else:
+            grp_str = f" every {grp_len} {grp_type}s"
+    else:
+        grp_str = ""
+
+    per_len, per_type = exceedance_count.period
+    if per_len == 1:
+        period_str = f" each {per_type}"
+    else:
+        period_str = f" per {per_len}-{per_type} period"
+
+    _subtitle = _exceedance_count_name(exceedance_count)+ period_str + dur_str + grp_str
+    
+    return _subtitle
