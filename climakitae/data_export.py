@@ -6,6 +6,7 @@ import warnings
 import datetime
 import numpy as np
 import os
+import rasterio
 from . import __version__
 xr.set_options(keep_attrs=True)
 
