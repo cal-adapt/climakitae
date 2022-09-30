@@ -99,17 +99,6 @@ def _get_postage_data(area_subset2, cached_area2, variable2, location):
     
     # Clip data to geometry
     postage_data = postage_data.rio.clip(geometries=ds_region, crs=4326, drop=True)
-    
-    # Reproject data to lat/lon
-    try: 
-        postage_data = _reproject_data(
-            xr_da = postage_data, 
-            proj="EPSG:4326", 
-            fill_value=np.nan
-        ) 
-    except: # Reprojection can fail if the data doesn't have a crs element. If that happens, just carry on without projection (i.e. don't raise an error)
-        pass 
-
     return postage_data
 
 
