@@ -223,8 +223,7 @@ def _update_attrs(data_to_output,attrs_to_add):
         attrs_to_add['smoothing_timesteps'] = attrs_to_add['num_timesteps']
     attrs_to_add.pop('num_timesteps')
     if not attrs_to_add['anomaly']:
-        attrs_to_add.pop('reference_range')
-    
+        attrs_to_add.pop('reference_range')  
 
                 
     attrs_to_add = {'timeseries:'+k:( str(v) if type(v) == bool or \
