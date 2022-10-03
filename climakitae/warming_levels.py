@@ -3,7 +3,6 @@ import hvplot.pandas
 import xarray as xr
 import holoviews as hv
 from holoviews import opts
-import bokeh.palettes
 from matplotlib.figure import Figure
 import numpy as np
 import pandas as pd
