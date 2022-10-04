@@ -91,6 +91,47 @@ def _get_future_heatmap_data(selections, location, catalog, warmlevel):
     future_da_mean = future_da.mean(dim="simulation").isel(scenario=0).compute()
     return future_da_mean
 
+def remove_repeats(xr_data):
+    """
+    Remove hours that have repeats.
+    This occurs if two hours have the same absolute difference from the mean.
+    Returns numpy array
+    """
+    unq, unq_idx, unq_cnt = np.unique(xr_data.time.dt.hour.values, return_inverse=True, return_counts=True)
+    cnt_mask = unq_cnt > 1
+    cnt_idx, = np.nonzero(cnt_mask)
+    idx_mask = np.in1d(unq_idx, cnt_idx)
+    idx_idx, = np.nonzero(idx_mask)
+    srt_idx = np.argsort(unq_idx[idx_mask])
+    dup_idx = np.split(idx_idx[srt_idx], np.cumsum(unq_cnt[cnt_mask])[:-1])
+    if len(dup_idx[0]) > 0:
+        dup_idx_keep_first_val = np.concatenate([dup_idx[x][1:] for x in range(len(dup_idx))], axis=0)
+        cleaned_np = np.delete(xr_data.values, dup_idx_keep_first_val)
+        return cleaned_np
+    else:
+        return xr_data.values
+
+
+## Compute hourly TMY for each hour of the year
+days_in_year = 366
+def tmy_calc(data, days_in_year=366):
+    """
+    Calculates the average meteorological year based on a designated period of time.
+    Applicable for both the historical and future periods.
+    Returns: list of tmy
+    """
+    hourly_list = []
+    for x in np.arange(1, days_in_year+1, 1):
+        data_on_day_x = data.where(data.time.dt.dayofyear == x, drop = True)
+        data_grouped = data_on_day_x.groupby("time.hour")
+        mean_by_hour = data_grouped.mean()
+        min_diff = abs(data_grouped - mean_by_hour).groupby("time.hour").min()
+        typical_hourly_data_on_day_x = data_on_day_x.where(abs(data_grouped - mean_by_hour).groupby("time.hour") == min_diff,
+            drop = True).sortby("time.hour")
+        np_typical_hourly_data_on_day_x = remove_repeats(typical_hourly_data_on_day_x)
+        hourly_list.append(np_typical_hourly_data_on_day_x)
+    return hourly_list
+
 
 class AverageMeteorologicalYear(param.Parameterized):
     """
@@ -247,50 +288,9 @@ class AverageMeteorologicalYear(param.Parameterized):
 
     @param.depends("reload_data", watch=False)
     def _tmy_hourly_heatmap(self):
-        def remove_repeats(xr_data):
-            """
-            Remove hours that have repeats.
-            This occurs if two hours have the same absolute difference from the mean.
-            Returns numpy array
-            """
-            unq, unq_idx, unq_cnt = np.unique(xr_data.time.dt.hour.values, return_inverse=True, return_counts=True)
-            cnt_mask = unq_cnt > 1
-            cnt_idx, = np.nonzero(cnt_mask)
-            idx_mask = np.in1d(unq_idx, cnt_idx)
-            idx_idx, = np.nonzero(idx_mask)
-            srt_idx = np.argsort(unq_idx[idx_mask])
-            dup_idx = np.split(idx_idx[srt_idx], np.cumsum(unq_cnt[cnt_mask])[:-1])
-            if len(dup_idx[0]) > 0:
-                dup_idx_keep_first_val = np.concatenate([dup_idx[x][1:] for x in range(len(dup_idx))], axis=0)
-                cleaned_np = np.delete(xr_data.values, dup_idx_keep_first_val)
-                return cleaned_np
-            else:
-                return xr_data.values
-
-
-        ## Compute hourly TMY for each hour of the year
-        days_in_year = 366
-        def tmy_calc(data, days_in_year=366):
-            """
-            Calculates the average meteorological year based on a designated period of time.
-            Applicable for both the historical and future periods.
-            Returns: list of tmy
-            """
-            hourly_list = []
-            for x in np.arange(1, days_in_year+1, 1):
-                data_on_day_x = data.where(data.time.dt.dayofyear == x, drop = True)
-                data_grouped = data_on_day_x.groupby("time.hour")
-                mean_by_hour = data_grouped.mean()
-                min_diff = abs(data_grouped - mean_by_hour).groupby("time.hour").min()
-                typical_hourly_data_on_day_x = data_on_day_x.where(abs(data_grouped - mean_by_hour).groupby("time.hour") == min_diff,
-                    drop = True).sortby("time.hour")
-                np_typical_hourly_data_on_day_x = remove_repeats(typical_hourly_data_on_day_x)
-                hourly_list.append(np_typical_hourly_data_on_day_x)
-            return hourly_list
 
         tmy_hist = tmy_calc(self.historical_tmy_data, days_in_year=days_in_year)
         tmy_future = tmy_calc(self.future_tmy_data, days_in_year=days_in_year)
-
 
         ## Funnel data into pandas DataFrame object
         df_hist = pd.DataFrame(tmy_hist, columns=np.arange(1,25,1), index=np.arange(1,days_in_year+1,1))
