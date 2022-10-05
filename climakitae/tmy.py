@@ -132,7 +132,6 @@ def tmy_calc(data, days_in_year=366):
 
     ## Funnel data into pandas DataFrame object
     df_amy = pd.DataFrame(hourly_list, columns=np.arange(1,25,1), index=np.arange(1,days_in_year+1,1))
-    df_amy = df_amy.iloc[::-1]
 
     ## Re-order columns for PST, with easy to read time labels
     df_amy = df_amy[[8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,1,2,3,4,5,6,7]]
@@ -298,16 +297,6 @@ class AverageMeteorologicalYear(param.Parameterized):
 
     @param.depends("reload_data", watch=False)
     def _tmy_hourly_heatmap(self):
-
-        # tmy_hist = tmy_calc(self.historical_tmy_data, days_in_year=days_in_year)
-        # tmy_future = tmy_calc(self.future_tmy_data, days_in_year=days_in_year)
-
-        # ## Funnel data into pandas DataFrame object
-        # df_hist = pd.DataFrame(tmy_hist, columns=np.arange(1,25,1), index=np.arange(1,days_in_year+1,1))
-        # df_hist = df_hist.iloc[::-1]
-        # df_future = pd.DataFrame(tmy_future, columns = np.arange(1,25,1), index=np.arange(1,days_in_year+1,1))
-        # df_future = df_future.iloc[::-1]
-
         # update heatmap df and title with selections
         days_in_year = 366
         if self.tmy_options == "Absolute":
@@ -331,21 +320,14 @@ class AverageMeteorologicalYear(param.Parameterized):
                     self.tmy_advanced_options,
                     self.warmlevel)
                 clabel = self.variable2 + " (" +self.historical_tmy_data.attrs["units"]+")"
-            else:
-                df = tmy_calc(self.future_tmy_data, days_in_year=days_in_year) - tmy_calc(self.historical_tmy_data, days_in_year=days_in_year) # placeholder for now for severe amy
+            else:   # placeholder for now for severe amy
+                df = tmy_calc(self.future_tmy_data, days_in_year=days_in_year) - tmy_calc(self.historical_tmy_data, days_in_year=days_in_year)
                 title = "Average Meteorological Year: {}\nDifference between {} at 90th percentile and Historical Baseline".format(
                     self.cached_area2,
                     self.tmy_advanced_options)
                 clabel = self.variable2 + " (" +self.historical_tmy_data.attrs["units"]+")"
         else:
             title = "Average Meteorological Year\n{}".format(self.cached_area2)
-
-        # # Manual re-ordering for PST time from UTC and easy-to-understand labels
-        # df = df[[8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,1,2,3,4,5,6,7]]
-        # df.columns = [
-        #     '12am','1am','2am','3am','4am','5am','6am','7am','8am','9am','10am','11am',
-        #     '12pm','1pm','2pm','3pm','4pm','5pm','6pm','7pm','8pm','9pm','10pm','11pm'
-        # ]
 
         cmap_name = var_descrip[self.variable2]["default_cmap"]
         cmap = _read_ae_colormap(cmap=cmap_name, cmap_hex=True)
