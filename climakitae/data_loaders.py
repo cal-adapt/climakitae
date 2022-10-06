@@ -55,7 +55,7 @@ def _get_cat_subset(selections, cat):
     """
     
     # Add back in Historical Climate if append_historical was selected
-    scenario_selections = selections.scenario 
+    scenario_selections = selections.scenario.copy()
     if (selections.append_historical == True) and ("Historical Climate" not in scenario_selections): 
         scenario_selections += ["Historical Climate"] 
     
@@ -144,6 +144,11 @@ def _process_and_concat(selections, dsets, cat_subset):
     """
     da_list = []
     scenario_list = cat_subset.unique()["experiment_id"]["values"]
+    
+    # If append historical is true, we don't need to have an additional Historical Climate scenario coordinate
+    if ("historical" in scenario_list) and (selections.append_historical == True): 
+        scenario_list.remove("historical")
+    
     for scenario in scenario_list: 
         sim_list = []
         da_name = _convert_scenario(scenario, reverse=True)
@@ -172,10 +177,6 @@ def _process_and_concat(selections, dsets, cat_subset):
                     join='inner'
                 ) 
                 sim_list.append(historical_appended)
-
-                if "historical" in scenario_list: 
-                    # If append historical is true, we don't need to have an additional Historical Climate scenario coordinate
-                    scenario_list.remove("historical")
 
             else:
                 try: 
