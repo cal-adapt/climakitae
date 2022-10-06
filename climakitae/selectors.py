@@ -10,12 +10,15 @@ import geopandas as gpd
 import pandas as pd
 import datetime as dt
 from .utils import _read_var_csv
+import pkg_resources 
 
-import pkg_resources # Import package data 
-CSV_FILE = pkg_resources.resource_filename('climakitae', 'data/variable_descriptions.csv')
+# Import package data 
+var_catalog_resource = pkg_resources.resource_filename('climakitae', 'data/variable_catalog.csv')
+var_catalog = pd.read_csv(var_catalog_resource, index_col=None)
+unit_options_dict = _get_unit_conversion_options()
 
 
-# support methods for core.Application.select
+# ======================== LOCATION SELECTIONS ========================
 
 # constants: instead will be read from database of some kind:
 _cached_stations = [
@@ -295,6 +298,7 @@ class LocSelectorPoint(param.Parameterized):
 
 
 
+# ======================== DATA SELECTIONS ========================
 
 class DataSelector(param.Parameterized):
     """
@@ -449,6 +453,8 @@ class DataSelector(param.Parameterized):
 
         return mpl_pane
 
+    
+# ======================== DISPLAY LOCATION/DATA SELECTIONS IN PANEL ========================
 
 def _display_select(selections, location, location_type="area average"):
     """
@@ -491,8 +497,7 @@ def _display_select(selections, location, location_type="area average"):
     return pn.Column(first_row, location_chooser)
 
 
-# === For export functionality ==========================================================
-
+# ======================== EXPORT DATA ========================
 
 class UserFileChoices:
 
