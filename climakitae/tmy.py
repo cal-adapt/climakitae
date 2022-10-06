@@ -111,7 +111,7 @@ def remove_repeats(xr_data):
         return xr_data.values
 
 
-## Compute hourly TMY for each hour of the year
+## Compute hourly AMY for each hour of the year
 days_in_year = 366
 def tmy_calc(data, days_in_year=366):
     """
@@ -134,11 +134,19 @@ def tmy_calc(data, days_in_year=366):
     df_amy = pd.DataFrame(hourly_list, columns=np.arange(1,25,1), index=np.arange(1,days_in_year+1,1))
 
     ## Re-order columns for PST, with easy to read time labels
-    df_amy = df_amy[[8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,1,2,3,4,5,6,7]]
-    df_amy.columns = [
-        '12am','1am','2am','3am','4am','5am','6am','7am','8am','9am','10am','11am',
-        '12pm','1pm','2pm','3pm','4pm','5pm','6pm','7pm','8pm','9pm','10pm','11pm'
-    ]
+    cols = df_amy.columns.tolist()
+    cols = cols[7:] + cols[:7]
+    df_amy = df_amy[cols]
+
+    n_col_lst = []
+    for ampm in ['am', 'pm']:
+        hr_lst = []
+        for hr in range(1, 13, 1):
+            hr_lst.append(str(hr)+ampm)
+        hr_lst = hr_lst[-1:] + hr_lst[:-1]
+        n_col_lst = n_col_lst + hr_lst
+    df_amy.columns = n_col_lst
+
     return df_amy
 
 
