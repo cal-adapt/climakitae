@@ -55,15 +55,16 @@ def _get_cat_subset(selections, cat):
     """
     
     # Add back in Historical Climate if append_historical was selected
-    if (selections.append_historical == True) and ("Historical Climate" not in selections.scenario): 
-        selections.scenario += ["Historical Climate"] 
+    scenario_selections = selections.scenario 
+    if (selections.append_historical == True) and ("Historical Climate" not in scenario_selections): 
+        scenario_selections += ["Historical Climate"] 
     
     # Get catalog keys 
     # Convert user-friendly names to catalog names (i.e. "45km" to "d01") 
     activity_id = selections.dataset
     table_id = _convert_timescale(selections.timescale)
     grid_label = _convert_resolution(selections.resolution)
-    experiment_id = [_convert_scenario(x) for x in selections.scenario]
+    experiment_id = [_convert_scenario(x) for x in scenario_selections]
     variable_id = selections.variable_id
     
     # Get catalog subset 
