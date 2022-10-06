@@ -452,7 +452,7 @@ class DataSelector(param.Parameterized):
         if native_unit in unit_options_dict.keys(): # See if there's unit conversion options for native variable
             self.param["units"].objects = unit_options_dict[native_unit]
         else: # Just use native units if no conversion options available 
-            self.param["units"].objects = native_unit
+            self.param["units"].objects = [native_unit]
         self.units = native_unit
 
     @param.depends("variable", watch=True)

@@ -41,8 +41,8 @@ import pkg_resources
 import logging  # Silence warnings
 logging.getLogger("param").setLevel(logging.CRITICAL)
 
-var_descrip_pkg = pkg_resources.resource_filename('climakitae', 'data/variable_descriptions.csv')
-var_descrip = _read_var_csv(var_descrip_pkg, index_col="description")
+#var_descrip_pkg = pkg_resources.resource_filename('climakitae', 'data/variable_descriptions.csv')
+#var_descrip = _read_var_csv(var_descrip_pkg, index_col="description")
 
 xr.set_options(keep_attrs=True) # Keep attributes when mutating xr objects
 

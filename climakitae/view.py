@@ -1,14 +1,15 @@
 import xarray as xr 
 import numpy as np
+import pandas as pd
 import hvplot.xarray
 import matplotlib.pyplot as plt 
 import warnings
 import pkg_resources
 from .utils import _reproject_data, _read_ae_colormap, _read_var_csv
 
-# Variable descriptions csv with colormap info 
-var_descrip_pkg = pkg_resources.resource_filename('climakitae', 'data/variable_descriptions.csv')
-var_descrip = _read_var_csv(var_descrip_pkg, index_col="description")
+# Import package data 
+var_catalog_resource = 'climakitae/climakitae/data/variable_catalog.csv'
+var_catalog = pd.read_csv(var_catalog_resource, index_col="display_name")
 
 def _visualize(data, lat_lon=True, width=None, height=None, cmap=None): 
     """Create a generic visualization of the data
@@ -35,12 +36,12 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
         # Set default cmap if no user input
         if cmap is None: 
             try: 
-                cmap = var_descrip[data.name]["default_cmap"]
+                cmap = var_catalog[data.name]["colormap"]
             except: # If variable not found, set to ae_orange without raising error 
                 cmap = "ae_orange"
         
         # Must have more than one grid cell to generate a map 
-        if (len(data["x"]) <= 1) and (len(data["y"]) <= 1):  
+        if (len(data["x"]) <= 1) or (len(data["y"]) <= 1):  
             print("Your data contains only one grid cell. A plot will be created using a default method that may or may not have spatial coordinates as the x and y axes.") # Warn user that plot may be weird 
             
             # Set default cmap if no user input
@@ -54,7 +55,7 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
                 warnings.simplefilter("ignore")
                 
                 # Use generic static xarray plot
-                _matplotlib_plot = data.plot(cmap=cmap) 
+                _matplotlib_plot = data.isel(time=0).plot(cmap=cmap) 
                 _plot = plt.gcf() # Add plot to figure 
                 plt.close() # Close to prevent annoying matplotlib collections object line from showing in notebook 
         
