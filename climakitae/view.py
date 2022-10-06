@@ -36,7 +36,7 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
         # Set default cmap if no user input
         if cmap is None: 
             try: 
-                cmap = var_catalog[data.name]["colormap"]
+                cmap = var_catalog.loc[data.name].colormap
             except: # If variable not found, set to ae_orange without raising error 
                 cmap = "ae_orange"
         

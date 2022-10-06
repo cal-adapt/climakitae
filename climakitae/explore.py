@@ -43,6 +43,6 @@ app.explore.amy(): Produce an hourly time series for one year capturing mean cli
 
     def warming_levels(self): 
         """Display Warming Levels panel. """
-        warming_data = WarmingLevels(selections=self.selections, location=self.location)
+        warming_data = WarmingLevels(selections=self.selections, location=self.location, cat=self._cat)
         return _display_warming_levels(warming_data, self.selections, self.location)
     

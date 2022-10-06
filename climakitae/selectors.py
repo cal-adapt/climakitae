@@ -591,7 +591,7 @@ def _display_select(selections, location, location_type="area average"):
 
     # _which_loc_input = {'area average': LocSelectorArea, 'station': LocSelectorPoint}
     location_chooser = pn.Row(location.param, location.view)
-
+    
     first_row = pn.Row(
         pn.Column(
             selections.param.timescale,
@@ -604,9 +604,9 @@ def _display_select(selections, location, location_type="area average"):
             pn.widgets.RadioButtonGroup.from_param(selections.param.units),
             pn.widgets.StaticText(name="", value="Model Resolution"),
             pn.widgets.RadioButtonGroup.from_param(selections.param.resolution),
-            selections.param.area_average,
-            pn.layout.VSpacer(),
-        ),
+            selections.param.area_average, 
+            pn.layout.VSpacer()
+        ), 
         pn.Column(
             selections.view,
             pn.widgets.CheckBoxGroup.from_param(selections.param.scenario),
