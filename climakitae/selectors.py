@@ -9,7 +9,8 @@ import cartopy.feature as cfeature
 import geopandas as gpd
 import pandas as pd
 import datetime as dt
-from .utils import _read_var_csv
+from .unit_conversions import _get_unit_conversion_options
+from .catalog_utils import _convert_resolution, _convert_timescale, _convert_scenario
 import pkg_resources 
 
 # Import package data 
@@ -54,7 +55,6 @@ _cached_stations = [
     "LANCASTER WILLIAM J FOX FIELD",
 ]
 
-# === Select ===================================
 class Boundaries:
     def __init__(self):
         self._cat = intake.open_catalog("https://cadcat.s3.amazonaws.com/parquet/catalog.yaml")
@@ -300,6 +300,51 @@ class LocSelectorPoint(param.Parameterized):
 
 # ======================== DATA SELECTIONS ========================
 
+def _get_unique_variables(cat, activity_id, table_id, grid_label): 
+    """Get unique variables for an input catalog subset. 
+    
+    Args: 
+        cat (intake catalog): catalog 
+        activity_id (str): dataset name (i.e. "WRF") 
+        table_id (str): timescale 
+        grid_label (str): resolution
+        
+    Returns: tuple 
+        variable_id_options (list of strs): valid variable id options for input 
+        scenario_options (list of strs): valid scenario (experiment_id) options for input 
+    """
+    # Get catalog subset from user inputs 
+    cat_subset = cat.search(
+        activity_id=activity_id, 
+        table_id=table_id, 
+        grid_label=grid_label
+    )
+    # Get all unique variable id options from catalog selection
+    variable_id_options = cat_subset.unique()["variable_id"]["values"] 
+    
+    # Get all unique scenario options from catalog selection
+    scenario_options = cat_subset.unique()["experiment_id"]["values"] 
+    return variable_id_options, scenario_options
+
+
+def _get_variable_options_df(var_catalog, unique_variable_ids): 
+    """Get variable information for a subset of unique variable ids. 
+    
+    Args: 
+        var_catalog (df): variable catalog information. read in from csv file 
+        unique_variable_ids (list of strs): list of unique variable ids from catalog. Used to subset var_catalog 
+        
+    Returns: 
+        variable_options_df (pd.DataFrame): var_catalog information subsetted by unique_variable_ids 
+    
+    """
+    variable_options_df = var_catalog[
+        (var_catalog["show"]==True) & # Make sure it's a valid variable selection
+        (var_catalog["variable_id"].isin(unique_variable_ids)) # Make sure variable_id is part of the catalog options for user selections
+    ]
+    return variable_options_df 
+
+
 class DataSelector(param.Parameterized):
     """
     An object to hold data parameters, which depends only on the 'param' library.
@@ -307,53 +352,115 @@ class DataSelector(param.Parameterized):
     UI could in principle be used to update these parameters instead.
     """
 
-    choices = param.Dict(dict())
+    # Defaults 
     default_variable = "Air Temperature at 2m"
-    variable = param.ObjectSelector(default=default_variable, objects=dict())
-    timescale = param.ObjectSelector(
-        default="monthly", objects=["hourly", "daily", "monthly"]
-    )  # for WRF, will just coarsen data to start
+    default_scenario = ["Historical Climate"]
     time_slice = param.Range(default=(1980, 2015), bounds=(1950, 2100))
-    scenario = param.ListSelector(objects=dict())
-    resolution = param.ObjectSelector(objects=dict())
     append_historical = param.Boolean(default=False)
-    descrip_dict = _read_var_csv(CSV_FILE, index_col="description")
-    variable_description = param.String(
-        default=descrip_dict[default_variable]["extended_description"],
-        doc="Extended description of variable selected"
-    )
+    area_average = param.Boolean(default=False)
 
+    resolution = param.ObjectSelector(
+        default="45km", 
+        objects=["45km","9km","3km"]
+    ) 
+    timescale = param.ObjectSelector( 
+        default="monthly", 
+        objects=["hourly","daily", "monthly"]
+    )
+    
+    # Empty params, initialized in __init__ 
+    dataset = param.ObjectSelector(objects=dict())
+    scenario = param.ListSelector(objects=dict())
+    variable = param.ObjectSelector(objects=dict())
     units = param.ObjectSelector(objects=dict())
+    extended_description = param.ObjectSelector(objects=dict())
+    variable_id = param.ObjectSelector(objects=dict())
 
     def __init__(self, **params):
         # Set default values 
         super().__init__(**params)
-        self.param["resolution"].objects = self.choices["resolutions"]
-        self.resolution = self.choices["resolutions"][0]
-        _list_of_scenarios = list(self.choices["scenarios"]["45 km"].keys())
-        self.param["scenario"].objects = _list_of_scenarios
-        self.scenario = ["Historical Climate"]
-        self.param["variable"].objects = self.choices["variable_choices"]["hourly"][
-            "Dynamical"
-        ]
-        self.units = self.descrip_dict[self.variable]["native_unit"]
+        
+        # Dataset selection 
+        self.dataset = "WRF"
 
-    @param.depends("variable","units","descrip_dict", watch=True)
+        # Variable catalog info 
+        self.unique_variable_ids, self.scenario_options = _get_unique_variables( # Get a list of unique variable ids for that catalog subset
+            cat=self.cat, 
+            activity_id=self.dataset, 
+            table_id=_convert_timescale(self.timescale), 
+            grid_label=_convert_resolution(self.resolution)
+        )
+
+        self.variable_options_df = _get_variable_options_df( # Get more info about that subset of unique variable ids 
+            var_catalog=var_catalog, 
+            unique_variable_ids=self.unique_variable_ids
+        )
+        
+        # Set scenario param 
+        scenario_options = [_convert_scenario(x, reverse=True) for x in self.scenario_options]
+        
+        # Reorder list 
+        for scenario_i in ["Historical Climate", "Historical Reconstruction", "SSP 3-7.0 -- Business as Usual","SSP 5-8.5 -- Burn it All","SSP 2-4.5 -- Middle of the Road"]: 
+            if scenario_i in scenario_options : 
+                scenario_options.remove(scenario_i) # Remove item 
+                scenario_options.append(scenario_i) # Add to back of list 
+              
+        self.param["scenario"].objects = scenario_options 
+        self.scenario = self.default_scenario 
+        
+        # Set variable param 
+        self.param["variable"].objects = self.variable_options_df.display_name.values
+        self.variable = self.default_variable
+        
+        # Set colormap, units, & extended description
+        var_info = self.variable_options_df[self.variable_options_df["display_name"]==self.variable] # Get info for just that variable 
+        self.colormap = var_info.colormap.item()
+        self.units = var_info.unit.item()
+        self.extended_description = var_info.extended_description.item()
+        self.variable_id = var_info.variable_id.item()
+        
+        
+    @param.depends("timescale","resolution",watch=True)
+    def _update_var_options(self): 
+        """Update unique variable options"""
+        
+        # Get a list of unique variable ids for that catalog subset
+        self.unique_variable_ids, self.scenario_options = _get_unique_variables( 
+            cat=self.cat, 
+            activity_id=self.dataset, 
+            table_id=_convert_timescale(self.timescale), 
+            grid_label=_convert_resolution(self.resolution)
+        )
+        
+        # Get more info about that subset of unique variable ids 
+        self.variable_options_df = _get_variable_options_df( 
+            var_catalog=var_catalog, 
+            unique_variable_ids=self.unique_variable_ids
+        )
+        
+        # Reset variable dropdown 
+        var_options = self.variable_options_df.display_name.values
+        self.param["variable"].objects = var_options
+        if self.variable not in var_options: 
+            self.variable = var_options[0]
+
+    @param.depends("variable", watch=True)
     def _update_unit_options(self): 
         """ Update unit options and native units for selected variable. """
-        _default_unit = self.descrip_dict[self.variable]["native_unit"]
-        _alt_units = self.descrip_dict[self.variable]["alt_unit_options"]
-        if pd.isna(_alt_units): 
-            self.param["units"].objects = [_default_unit]
-        else:
-            self.param["units"].objects = _default_unit.split(", ")+_alt_units.split(", ")
-        if self.units not in self.param["units"].objects:
-            self.units = _default_unit
+        var_info = self.variable_options_df[self.variable_options_df["display_name"]==self.variable] # Get info for just that variable 
+        native_unit = var_info.unit.item()
+        if native_unit in unit_options_dict.keys(): # See if there's unit conversion options for native variable
+            self.param["units"].objects = unit_options_dict[native_unit]
+        else: # Just use native units if no conversion options available 
+            self.param["units"].objects = native_unit
+        self.units = native_unit
 
-    @param.depends("variable", "descrip_dict", watch=True)
-    def _update_variable_description(self): 
-        """ Update extended description of variable selected. """
-        self.variable_description = self.descrip_dict[self.variable]["extended_description"]
+    @param.depends("variable", watch=True)
+    def _update_cmap_and_extended_description(self): 
+        var_info = self.variable_options_df[self.variable_options_df["display_name"]==self.variable] # Get info for just that variable 
+        self.colormap = var_info.colormap.item()
+        self.extended_description = var_info.extended_description.item()
+        self.variable_id = var_info.variable_id.item()
         
     @param.depends("resolution", "append_historical", "scenario", watch=True)
     def _update_scenarios(self):
@@ -361,10 +468,22 @@ class DataSelector(param.Parameterized):
         The scenarios available will depend on the resolution (more will be available for 9km
         than 3km for WRF eventually). Also ensures that "Historical Climate" is not
         redundantly displayed when "Append historical" is also selected.
-        """
-        _list_of_scenarios = list(self.choices["scenarios"][self.resolution].keys())
-        self.param["scenario"].objects = _list_of_scenarios
-        if self.append_historical and self.scenario is not None:
+        """      
+        # Get scenario options in catalog format 
+        scenario_options = [_convert_scenario(x, reverse=True) for x in self.scenario_options]
+        
+        # Reorder list 
+        for scenario_i in ["Historical Climate", "Historical Reconstruction", "SSP 3-7.0 -- Business as Usual","SSP 5-8.5 -- Burn it All","SSP 2-4.5 -- Middle of the Road"]: 
+            if scenario_i in scenario_options : 
+                scenario_options.remove(scenario_i) # Remove item 
+                scenario_options.append(scenario_i) # Add to back of list 
+    
+        # Reset param values 
+        self.param["scenario"].objects = scenario_options
+        self.scenario = [x for x in self.scenario if x in scenario_options]
+        
+        # Remove Historical Climate as option if append_historical is selected 
+        if self.append_historical and self.scenario is not None and self.scenario !=["Historical Climate"]:
             if "Historical Climate" in self.scenario:
                 _scenarios = self.scenario
                 _scenarios.remove("Historical Climate")
@@ -479,7 +598,7 @@ def _display_select(selections, location, location_type="area average"):
             selections.param.time_slice,
             pn.layout.VSpacer(),
             selections.param.variable,
-            pn.widgets.StaticText.from_param(selections.param.variable_description, name=""),
+            pn.widgets.StaticText.from_param(selections.param.extended_description, name=""),
             pn.layout.VSpacer(),
             pn.widgets.StaticText(name="", value="Variable Units"),
             pn.widgets.RadioButtonGroup.from_param(selections.param.units),
