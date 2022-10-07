@@ -33,7 +33,7 @@ app.explore.amy(): Produce an hourly time series for one year capturing mean cli
     
     def amy(self):
         """Display Average Meteorological Year panel. """
-        tmy_ob = AverageMeteorologicalYear(selections=self.selections, location=self.location, catalog=self.cat)
+        tmy_ob = AverageMeteorologicalYear(selections=self.selections, location=self.location, catalog=self._cat)
         return _amy_visualize(tmy_ob=tmy_ob, selections=self.selections, location=self.location)
 
     def thresholds(self, option=1):
