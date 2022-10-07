@@ -263,17 +263,18 @@ def _thresholds_visualize(thresh_data, selections, location, option=1):
                 pn.widgets.Select.from_param(selections.param.variable, name="Data variable"),
                 pn.widgets.RadioButtonGroup.from_param(selections.param.units),
                 pn.widgets.StaticText.from_param(selections.param.extended_description),
-                width = 230
+                width=230
                 ),
             pn.Column(
-                pn.widgets.Select.from_param(location.param.area_subset, name="Area subset"),
-                pn.widgets.Select.from_param(location.param.cached_area, name="Cached area"),
-                pn.widgets.Button.from_param(thresh_data.param.reload_data, button_type="primary", width=150, height=30),
-                width = 230
-                ),
+                    location.param.area_subset,
+                    location.param.latitude, 
+                    location.param.longitude, 
+                    location.param.cached_area,
+                    width=230,
+            ),
             pn.Column(
                 location.view,
-                width = 180
+                width=180
                 ),
             ),
     title="Data Options", collapsible=False, width=700, height=_first_row_height

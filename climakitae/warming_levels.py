@@ -191,7 +191,7 @@ class WarmingLevels(param.Parameterized):
     
     @param.depends("selections.variable", watch=True)
     def _update_cmap(self): 
-        """Set colormap used in postage stamp maps"""
+        """Set colormap depending on variable"""
         cmap_name = var_catalog[
             (var_catalog["display_name"]==self.selections.variable) & 
             (var_catalog["timescale"]=="daily/monthly")
@@ -199,9 +199,10 @@ class WarmingLevels(param.Parameterized):
         
         # Colormap normalization for hvplot -- only for relative humidity!
         if self.selections.variable == "Relative Humidity":
-            self.cmap = _read_ae_colormap(cmap="ae_diverging", cmap_hex=True)
-        else:
-            self.cmap = _read_ae_colormap(cmap=cmap_name, cmap_hex=True)
+            cmap_name = "ae_diverging"
+        
+        # Read colormap hex 
+        self.cmap = _read_ae_colormap(cmap=cmap_name, cmap_hex=True)
 
     @param.depends("location.area_subset","location.cached_area","selections.variable","selections.units", watch=True)
     def _updated_bool_loc_and_var(self):
