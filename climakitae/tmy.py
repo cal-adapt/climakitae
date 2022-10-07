@@ -360,7 +360,7 @@ def _amy_visualize(tmy_ob, selections, location):
                     pn.widgets.Button.from_param(tmy_ob.param.reload_data, button_type="primary", width=150, height=30),
                     width=230)
                 )
-        , title=" How do you want to investigate AMY?", collapsible=False, width=460, height=530
+        , title=" How do you want to investigate AMY?", collapsible=False, width=460, height=580
     )
 
     mthd_bx = pn.Column(
@@ -387,7 +387,7 @@ def _amy_visualize(tmy_ob, selections, location):
             ("AMY Heatmap", tmy_ob._tmy_hourly_heatmap),
             ("Methodology", mthd_bx)
         ),
-    title=" Average Meteorological Year", width = 850, height=530, collapsible=False,
+    title=" Average Meteorological Year", width = 850, height=580, collapsible=False,
     )
 
     tmy_panel = pn.Column(
