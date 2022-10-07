@@ -347,7 +347,7 @@ def _amy_visualize(tmy_ob, selections, location):
                     pn.widgets.StaticText(name="", value="Warming level (°C)"),
                     pn.widgets.RadioButtonGroup.from_param(tmy_ob.param.warmlevel),
                     pn.widgets.Select.from_param(selections.param.variable, name="Data variable"),
-                    pn.widgets.StaticText.from_param(selections.param.extended_description),
+                    pn.widgets.StaticText.from_param(selections.param.extended_description, name=""),
                     pn.widgets.StaticText(name="", value="Variable Units"),
                     pn.widgets.RadioButtonGroup.from_param(selections.param.units),
                     width=230),
