@@ -360,7 +360,7 @@ def _amy_visualize(tmy_ob, selections, location):
                     pn.widgets.Button.from_param(tmy_ob.param.reload_data, button_type="primary", width=150, height=30),
                     width=230)
                 )
-        , title=" How do you want to investigate AMY?", collapsible=False, width=460, height=500
+        , title=" How do you want to investigate AMY?", collapsible=False, width=460, height=560
     )
 
     mthd_bx = pn.Column(
