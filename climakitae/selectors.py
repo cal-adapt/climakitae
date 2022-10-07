@@ -327,20 +327,25 @@ def _get_unique_variables(cat, activity_id, table_id, grid_label):
     return variable_id_options, scenario_options
 
 
-def _get_variable_options_df(var_catalog, unique_variable_ids): 
+def _get_variable_options_df(var_catalog, unique_variable_ids, timescale): 
     """Get variable information for a subset of unique variable ids. 
     
     Args: 
         var_catalog (df): variable catalog information. read in from csv file 
         unique_variable_ids (list of strs): list of unique variable ids from catalog. Used to subset var_catalog 
+        timescale (str): hourly, daily, or monthly 
         
     Returns: 
         variable_options_df (pd.DataFrame): var_catalog information subsetted by unique_variable_ids 
     
     """
+    if timescale in ["daily","monthly"]: 
+        timescale = "daily/monthly"
     variable_options_df = var_catalog[
         (var_catalog["show"]==True) & # Make sure it's a valid variable selection
-        (var_catalog["variable_id"].isin(unique_variable_ids)) # Make sure variable_id is part of the catalog options for user selections
+        (var_catalog["variable_id"].str.lower().isin(unique_variable_ids) & # Make sure variable_id is part of the catalog options for user selections
+        (var_catalog["timescale"] == timescale) # Make sure its the right timescale 
+        ) 
     ]
     return variable_options_df 
 
