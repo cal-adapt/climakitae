@@ -290,7 +290,7 @@ class AverageMeteorologicalYear(param.Parameterized):
         if self.tmy_options == "Absolute":
             if self.tmy_advanced_options == "Historical":
                 df = tmy_calc(self.historical_tmy_data, days_in_year=days_in_year)
-                title = "Average Meteorological Year: {}\nAbsolute {} Baseline".format(self.cached_area2, self.tmy_advanced_options)
+                title = "Average Meteorological Year: {}\nAbsolute {} Baseline".format(self.location.cached_area, self.tmy_advanced_options)
                 clabel = self.selections.variable + " (" +self.historical_tmy_data.attrs["units"]+")"
             else:
                 df = tmy_calc(self.future_tmy_data, days_in_year=days_in_year)
