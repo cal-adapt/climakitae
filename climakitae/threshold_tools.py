@@ -933,7 +933,7 @@ def get_exceedance_count(
     if _is_greater(duration2, period): raise ValueError("Incompatible `duration` and `period` specification. Period must be longer than duration.")
     
     # Check compatibility of specifications with the data frequency (hourly, daily, or monthly)
-    freq = (1, "hour") if da.frequency == "hourly" else ((1, "daily") if da.frequency == "daily" else (1, "monthly"))
+    freq = (1, "hour") if da.frequency == "hourly" else ((1, "day") if da.frequency == "daily" else (1, "month"))
     if _is_greater(freq, groupby): raise ValueError("Incompatible `group` specification: cannot be less than data frequency.")
     if _is_greater(freq, duration2): raise ValueError("Incompatible `duration` specification: cannot be less than data frequency.")
     if _is_greater(freq, period): raise ValueError("Incompatible `period` specification: cannot be less than data frequency.")
@@ -1073,11 +1073,11 @@ def _exceedance_count_name(exceedance_count):
                 event = f"{g_type}s" # ex: day --> days
         else:
             # otherwise use data frequency info as the default event type
-            if exceedance_count.frequency == "1hr":
+            if exceedance_count.frequency == "hourly":
                 event = "hours"
-            elif exceedance_count.frequency == "1day":
+            elif exceedance_count.frequency == "daily":
                 event = "days"
-            elif exceedance_count.frequency == "1month":
+            elif exceedance_count.frequency == "monthly":
                 event = "months"
 
     return f"Number of {event}"

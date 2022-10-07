@@ -81,7 +81,7 @@ class TestWaterVaporConversions:
 
     def test_water_vapor_ratio_conversion(self, water_vapor_kgkg):
         """Test that the _convert_units function correctly converts from kg/kg to g/kg. """
-        da_converted = _convert_units(da=water_vapor_kgkg, selected_units="g/kg")
+        da_converted = _convert_units(da=water_vapor_kgkg, selected_units="g kg-1")
         correct_conversion = water_vapor_kgkg * 1000
         assert correct_conversion.equals(da_converted)
 

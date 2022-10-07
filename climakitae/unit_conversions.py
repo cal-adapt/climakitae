@@ -56,7 +56,7 @@ def _convert_units(da, selected_units):
 
     # Moisture ratio units
     elif native_units in ["kg/kg","kg kg-1"]:
-        if selected_units == ["g/kg","g kg-1"]:
+        if selected_units in ["g/kg","g kg-1"]:
             da = da * 1000
             da.attrs["units"] = selected_units
 
@@ -73,7 +73,7 @@ def _convert_units(da, selected_units):
             da.attrs["units"] = selected_units
 
     # Wind units
-    elif native_units == ["m/s","m s-1"]:
+    elif native_units in ["m/s","m s-1"]:
         if selected_units == "knots":
             da = da * 1.9438445
             da.attrs["units"] = selected_units
