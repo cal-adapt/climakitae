@@ -216,8 +216,8 @@ class AverageMeteorologicalYear(param.Parameterized):
         self.selections.variable = "Air Temperature at 2m"
 
         # Location defaults
-        self.location.area_subset = 'states'
-        self.location.cached_area = 'CA'
+        self.location.area_subset = 'CA counties'
+        self.location.cached_area = 'Los Angeles County'
 
         # Initialze tmy_adanced_options param
         self.param["tmy_advanced_options"].objects = self.tmy_advanced_options_dict[self.tmy_options]["objects"]
@@ -242,7 +242,7 @@ class AverageMeteorologicalYear(param.Parameterized):
     # For reloading data and plots
     reload_data = param.Action(lambda x: x.param.trigger('reload_data'), label='Reload Data')
     
-     @param.depends("selections.variable","tmy_options", watch=True)
+    @param.depends("selections.variable","tmy_options", watch=True)
     def _update_cmap(self): 
         """Set colormap depending on variable"""
         cmap_name = var_catalog[

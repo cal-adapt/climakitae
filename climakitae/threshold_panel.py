@@ -67,7 +67,7 @@ class ThresholdDataParams(param.Parameterized):
 
         # Location defaults
         self.location.area_subset = 'CA counties'
-        self.location.cached_area = 'Sacramento County'
+        self.location.cached_area = 'Los Angeles County'
 
         # Get the underlying dataarray
         self.da = _get_threshold_data(
