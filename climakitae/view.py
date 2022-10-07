@@ -8,8 +8,8 @@ import pkg_resources
 from .utils import _reproject_data, _read_ae_colormap, _read_var_csv
 
 # Import package data 
-var_catalog_resource = 'climakitae/climakitae/data/variable_catalog.csv'
-var_catalog = pd.read_csv(var_catalog_resource, index_col="display_name")
+var_catalog_resource = pkg_resources.resource_filename('climakitae', 'data/variable_catalog.csv')
+var_catalog = pd.read_csv(var_catalog_resource, index_col=None)
 
 def _visualize(data, lat_lon=True, width=None, height=None, cmap=None): 
     """Create a generic visualization of the data
@@ -36,7 +36,7 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
         # Set default cmap if no user input
         if cmap is None: 
             try: 
-                cmap = var_catalog.loc[data.name].colormap
+                cmap = var_catalog[(var_catalog["display_name"]==data.name) & (var_catalog["timescale"]==timescale)].colormap.item()
             except: # If variable not found, set to ae_orange without raising error 
                 cmap = "ae_orange"
         
