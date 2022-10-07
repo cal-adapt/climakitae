@@ -262,7 +262,7 @@ def _thresholds_visualize(thresh_data, selections, location, option=1):
             pn.Column(
                 pn.widgets.Select.from_param(selections.param.variable, name="Data variable"),
                 pn.widgets.RadioButtonGroup.from_param(selections.param.units),
-                pn.widgets.StaticText.from_param(selections.param.extended_description),
+                pn.widgets.StaticText.from_param(selections.param.extended_description, name=""),
                 width=230
                 ),
             pn.Column(
