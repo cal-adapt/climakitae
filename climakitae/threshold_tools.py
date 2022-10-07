@@ -933,7 +933,7 @@ def get_exceedance_count(
     if _is_greater(duration2, period): raise ValueError("Incompatible `duration` and `period` specification. Period must be longer than duration.")
     
     # Check compatibility of specifications with the data frequency (hourly, daily, or monthly)
-    freq = (1, "hour") if da.frequency == "hourly" else ((1, "daily") if da.frequency == "1day" else (1, "monthly"))
+    freq = (1, "hour") if da.frequency == "hourly" else ((1, "daily") if da.frequency == "daily" else (1, "monthly"))
     if _is_greater(freq, groupby): raise ValueError("Incompatible `group` specification: cannot be less than data frequency.")
     if _is_greater(freq, duration2): raise ValueError("Incompatible `duration` specification: cannot be less than data frequency.")
     if _is_greater(freq, period): raise ValueError("Incompatible `period` specification: cannot be less than data frequency.")
@@ -1021,7 +1021,7 @@ def get_exceedance_events(
 
     if duration1 is not None:
         dur_len, dur_type = duration1
-        if dur_type != "hour" or da.frequency != "1hr":
+        if dur_type != "hour" or da.frequency != "hourly":
             raise ValueError("Current specifications not yet implemented.")
         window_size = dur_len 
 
@@ -1032,9 +1032,9 @@ def get_exceedance_events(
 
     # Groupby 
     if groupby is not None:
-        if (groupby == (1, "hour") and da.frequency == "1hr") \
-            or (groupby == (1, "day") and da.frequency == "1day") \
-            or (groupby == (1, "month") and da.frequency == "1month") \
+        if (groupby == (1, "hour") and da.frequency == "hourly") \
+            or (groupby == (1, "day") and da.frequency == "daily") \
+            or (groupby == (1, "month") and da.frequency == "monthly") \
             or groupby == duration1:
             # groupby specification is the same as data frequency, do nothing
             pass
