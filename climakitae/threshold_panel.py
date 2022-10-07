@@ -113,20 +113,21 @@ class ThresholdDataParams(param.Parameterized):
             self.threshold_value = round(self.da.mean().values.item())
             self.param.threshold_value.label = f"Value (units: {self.selections.units})"
             self.changed_units = False
+            
+    def transform_data(self):
+        return get_exceedance_count(self.da, 
+            threshold_value = self.threshold_value, 
+            threshold_direction = self.threshold_direction,
+            duration1 = (self.duration1_length, self.duration1_type),
+            period = (self.period_length, self.period_type),
+            groupby = (self.group_length, self.group_type),
+            duration2 = (self.duration2_length, self.duration2_type),
+            smoothing = self.num_timesteps if self.smoothing == "Running mean" else None)
 
     @param.depends("reload_plot", "reload_data", watch=False)
     def view(self):
         try:
-            to_plot = get_exceedance_count(
-                self.da, 
-                threshold_value = self.threshold_value, 
-                threshold_direction = self.threshold_direction,
-                duration1 = (self.duration1_length, self.duration1_type),
-                period = (self.period_length, self.period_type),
-                groupby = (self.group_length, self.group_type),
-                duration2 = (self.duration2_length, self.duration2_type),
-                smoothing = self.num_timesteps if self.smoothing == "Running mean" else None
-            )
+            to_plot = self.transform_data()
             obj = plot_exceedance_count(to_plot)
         except Exception as e:
             # Display any raised Errors (instead of plotting) if any of the 
