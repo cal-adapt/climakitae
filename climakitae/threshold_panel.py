@@ -77,7 +77,7 @@ class ThresholdDataParams(param.Parameterized):
         )
 
         self.threshold_value = round(self.da.mean().values.item())
-        self.param.threshold_value.label = f"Value (units: {self.da.units})"
+        self.param.threshold_value.label = f"Value (units: {self.selections.unit})"
 
     # For reloading plot
     reload_plot = param.Action(lambda x: x.param.trigger('reload_plot'), label='Reload Plot')

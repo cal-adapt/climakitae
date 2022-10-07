@@ -933,7 +933,7 @@ def get_exceedance_count(
     if _is_greater(duration2, period): raise ValueError("Incompatible `duration` and `period` specification. Period must be longer than duration.")
     
     # Check compatibility of specifications with the data frequency (hourly, daily, or monthly)
-    freq = (1, "hour") if da.frequency == "1hr" else ((1, "day") if da.frequency == "1day" else (1, "month"))
+    freq = (1, "hour") if da.frequency == "hourly" else ((1, "daily") if da.frequency == "1day" else (1, "monthly"))
     if _is_greater(freq, groupby): raise ValueError("Incompatible `group` specification: cannot be less than data frequency.")
     if _is_greater(freq, duration2): raise ValueError("Incompatible `duration` specification: cannot be less than data frequency.")
     if _is_greater(freq, period): raise ValueError("Incompatible `period` specification: cannot be less than data frequency.")
