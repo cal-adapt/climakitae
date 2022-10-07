@@ -398,7 +398,8 @@ class DataSelector(param.Parameterized):
 
         self.variable_options_df = _get_variable_options_df( # Get more info about that subset of unique variable ids 
             var_catalog=var_catalog, 
-            unique_variable_ids=self.unique_variable_ids
+            unique_variable_ids=self.unique_variable_ids, 
+            timescale=self.timescale
         )
         
         # Set scenario param 
@@ -440,7 +441,8 @@ class DataSelector(param.Parameterized):
         # Get more info about that subset of unique variable ids 
         self.variable_options_df = _get_variable_options_df( 
             var_catalog=var_catalog, 
-            unique_variable_ids=self.unique_variable_ids
+            unique_variable_ids=self.unique_variable_ids, 
+            timescale=self.timescale
         )
         
         # Reset variable dropdown 
