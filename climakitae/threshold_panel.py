@@ -250,7 +250,7 @@ def _exceedance_visualize(choices, option=1):
 
 _thresholds_tool_description = "Select a variable of interest, variable units, and region of interest to the left. Then, use the dropdowns below to define the extreme event you are interested in. After clicking 'Reload Plot', the plot on the lower right will show event frequencies across different simulations. You can also explore how these frequencies change under different global emissions scenarios. Save a plot to come back to later by putting your cursor over the lower right and clicking the save icon."
 
-def _thresholds_visualize(thresh_data, option=1):
+def _thresholds_visualize(thresh_data, selections, location, option=1):
     """ 
     Function for constructing and displaying the explore.thresholds() panel. 
     """

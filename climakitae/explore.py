@@ -39,7 +39,7 @@ app.explore.amy(): Produce an hourly time series for one year capturing mean cli
     def thresholds(self, option=1):
         """Display Thresholds panel. """
         thresh_data = ThresholdDataParams(selections=self.selections, location=self.location, cat=self._cat)
-        return _thresholds_visualize(thresh_data, option)
+        return _thresholds_visualize(thresh_data=thresh_data, selections=self.selections, location=self.location, option=option)
 
     def warming_levels(self): 
         """Display Warming Levels panel. """
