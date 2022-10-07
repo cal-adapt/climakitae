@@ -50,7 +50,7 @@ def _get_historical_tmy_data(selections, location, catalog):
     """Get historical data from AWS catalog"""
     selections.append_historical = False
     selections.area_average = True
-    selections.resolution = "45 km" ## KEEPING FOR NOW
+    selections.resolution = "45km" ## KEEPING FOR NOW
     selections.scenario = ["Historical Climate"]
     selections.time_slice = (1981,2010) # to match historical 30-year average
     selections.timescale = "hourly"
@@ -76,7 +76,7 @@ def _get_future_heatmap_data(selections, location, catalog, warmlevel):
 
     selections.append_historical = False
     selections.area_average = True
-    selections.resolution = "45 km"
+    selections.resolution = "45km"
     selections.scenario = ["SSP 3-7.0 -- Business as Usual"]
     selections.time_slice = warming_year_average_range[warmlevel]
     selections.timescale = "hourly"
