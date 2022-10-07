@@ -343,7 +343,7 @@ def _get_variable_options_df(var_catalog, unique_variable_ids, timescale):
         timescale = "daily/monthly"
     variable_options_df = var_catalog[
         (var_catalog["show"]==True) & # Make sure it's a valid variable selection
-        (var_catalog["variable_id"].str.lower().isin(unique_variable_ids) & # Make sure variable_id is part of the catalog options for user selections
+        (var_catalog["variable_id"].isin(unique_variable_ids) & # Make sure variable_id is part of the catalog options for user selections
         (var_catalog["timescale"] == timescale) # Make sure its the right timescale 
         ) 
     ]
@@ -451,7 +451,7 @@ class DataSelector(param.Parameterized):
         if self.variable not in var_options: 
             self.variable = var_options[0]
 
-    @param.depends("variable", watch=True)
+    @param.depends("variable", "timescale", watch=True)
     def _update_unit_options(self): 
         """ Update unit options and native units for selected variable. """
         var_info = self.variable_options_df[self.variable_options_df["display_name"]==self.variable] # Get info for just that variable 

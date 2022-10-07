@@ -18,7 +18,7 @@ logging.getLogger("param").setLevel(logging.CRITICAL)
 xr.set_options(keep_attrs=True) # Keep attributes when mutating xr objects
 
 # Variable info  
-var_catalog_resource = 'climakitae/climakitae/data/variable_catalog.csv'
+var_catalog_resource = pkg_resources.resource_filename('climakitae', 'data/variable_catalog.csv')
 var_catalog = pd.read_csv(var_catalog_resource, index_col="variable_id")
 
 # Global warming levels file (years when warming level is reached)
@@ -50,17 +50,18 @@ def _get_postage_data(selections, location, cat):
         cat (intake_esm.core.esm_datastore): catalog 
 
     Returns:
-        postage_data (xr.DataArray): data to use for creating postage stamp data
+        data (xr.DataArray): data to use for creating postage stamp data
 
-    """
+    """ 
     # Read data from catalog 
-    postage_data = _read_from_catalog( 
-        selections, 
-        location, 
-        cat
+    data = _read_from_catalog( 
+        selections=selections, 
+        location=location, 
+        cat=cat
     )
-    postage_data = postage_data.compute() # Read into memory 
-    return postage_data
+    data = data.compute() # Read into memory 
+    return data
+
 
 
 def get_anomaly_data(data, warmlevel=3.0):
@@ -140,10 +141,12 @@ def _make_hvplot(data, clabel, clim, cmap, sopt, title, width=225, height=210):
 
 class WarmingLevels(param.Parameterized):
     
-    warmlevel = param.ObjectSelector(default=1.5,
+    warmlevel = param.ObjectSelector(
+        default=1.5,
         objects=[1.5, 2, 3, 4]
     )
-    ssp = param.ObjectSelector(default="All",
+    ssp = param.ObjectSelector(
+        default="All",
         objects=[
             "All",
             "SSP 1-1.9 -- Very Low Emissions Scenario",
@@ -153,6 +156,7 @@ class WarmingLevels(param.Parameterized):
             "SSP 5-8.5 -- Burn it All"
         ]
     )
+    cmap = param.ObjectSelector(objects=dict()) 
 
     def __init__(self, *args, **params):
         super().__init__(*args, **params)
@@ -184,10 +188,24 @@ class WarmingLevels(param.Parameterized):
     # For reloading postage stamp data and plots
     reload_data = param.Action(lambda x: x.param.trigger('reload_data'), label='Reload Data')
     changed_loc_and_var = param.Boolean(default=True)
+    
+    @param.depends("selections.variable", watch=True)
+    def _update_cmap(self): 
+        """Set colormap used in postage stamp maps"""
+        cmap_name = var_catalog[
+            (var_catalog["display_name"]==self.selections.variable) & 
+            (var_catalog["timescale"]=="daily/monthly")
+        ].colormap.item()
+        
+        # Colormap normalization for hvplot -- only for relative humidity!
+        if self.selections.variable == "Relative Humidity":
+            self.cmap = _read_ae_colormap(cmap="ae_diverging", cmap_hex=True)
+        else:
+            self.cmap = _read_ae_colormap(cmap=cmap_name, cmap_hex=True)
 
-    @param.depends("location.area_subset","location.cached_area","selections.variable", watch=True)
+    @param.depends("location.area_subset","location.cached_area","selections.variable","selections.units", watch=True)
     def _updated_bool_loc_and_var(self):
-        """Update boolean if any changes were made to the location or variable"""
+        """Update boolean if any changes were made to the location, variable, or unit"""
         self.changed_loc_and_var = True
 
     @param.depends("reload_data", watch=True)
@@ -218,10 +236,7 @@ class WarmingLevels(param.Parameterized):
         num_simulations = len(all_plot_data.simulation.values)
 
         # Set up plotting arguments
-        #clabel = self.selections.variable + " ("+self.postage_data.attrs["units"]+")"
-        clabel = self.selections.variable
-        #cmap_name = var_catalog.loc(self.selections.variable_id).colormap
-        cmap_name = "ae_orange"
+        clabel = self.selections.variable + " ("+self.postage_data.attrs["units"]+")"
 
         # Compute 1% min and 99% max of all simulations
         vmin_l, vmax_l = [],[]
@@ -233,22 +248,16 @@ class WarmingLevels(param.Parameterized):
         vmin = min(vmin_l)
         vmax = max(vmax_l)
 
-        # Colormap normalization for hvplot -- only for relative humidity!
-        if self.selections.variable == "Relative Humidity":
-            cmap = _read_ae_colormap(cmap="ae_diverging", cmap_hex=True)
-        else:
-            cmap = _read_ae_colormap(cmap=cmap_name, cmap_hex=True)
-
         # Make each plot
         all_plots = _make_hvplot( # Need to make the first plot separate from the loop
             data=all_plot_data.isel(simulation=0),
-            clabel=clabel, clim=(vmin,vmax), cmap=cmap, sopt=sopt,
+            clabel=clabel, clim=(vmin,vmax), cmap=self.cmap, sopt=sopt,
             title=all_plot_data.isel(simulation=0).simulation.item()
         )
         for sim_i in range(1,num_simulations):
             pl_i = _make_hvplot(
                 data=all_plot_data.isel(simulation=sim_i),
-                clabel=clabel, clim=(vmin,vmax), cmap=cmap, sopt=sopt,
+                clabel=clabel, clim=(vmin,vmax), cmap=self.cmap, sopt=sopt,
                 title=all_plot_data.isel(simulation=sim_i).simulation.item()
             )
             all_plots += pl_i
@@ -281,22 +290,14 @@ class WarmingLevels(param.Parameterized):
         # Set up plotting arguments
         width=210
         height=210
-        #clabel = self.selections.variable + " ("+self.postage_data.attrs["units"]+")"
-        clabel = self.selections.variable
-        #cmap_name = var_catalog.loc(self.selections.variable_id).colormap
-        cmap_name = "ae_orange"
+        clabel = self.selections.variable + " ("+self.postage_data.attrs["units"]+")"
         vmin, vmax, sopt = _compute_vmin_vmax(min_data,max_data)
 
-        if self.selections.variable == "Relative Humidity":
-            cmap = _read_ae_colormap(cmap='ae_diverging', cmap_hex=True)
-        else:
-            cmap = _read_ae_colormap(cmap=cmap_name, cmap_hex=True)
-
         # Make plots
-        min_plot = _make_hvplot(data=min_data, clabel=clabel, cmap=cmap, clim=(vmin,vmax), sopt=sopt, title="Minimum", width=width, height=height)
-        max_plot = _make_hvplot(data=max_data, clabel=clabel, cmap=cmap,  clim=(vmin,vmax), sopt=sopt, title="Maximum", width=width, height=height)
-        med_plot = _make_hvplot(data=med_data, clabel=clabel, cmap=cmap,  clim=(vmin,vmax), sopt=sopt, title="Median", width=width, height=height)
-        mean_plot = _make_hvplot(data=mean_data, clabel=clabel, cmap=cmap, clim=(vmin,vmax), sopt=sopt, title="Mean", width=width, height=height)
+        min_plot = _make_hvplot(data=min_data, clabel=clabel, cmap=self.cmap, clim=(vmin,vmax), sopt=sopt, title="Minimum", width=width, height=height)
+        max_plot = _make_hvplot(data=max_data, clabel=clabel, cmap=self.cmap,  clim=(vmin,vmax), sopt=sopt, title="Maximum", width=width, height=height)
+        med_plot = _make_hvplot(data=med_data, clabel=clabel, cmap=self.cmap,  clim=(vmin,vmax), sopt=sopt, title="Median", width=width, height=height)
+        mean_plot = _make_hvplot(data=mean_data, clabel=clabel, cmap=self.cmap, clim=(vmin,vmax), sopt=sopt, title="Mean", width=width, height=height)
 
         all_plots = (mean_plot+med_plot+min_plot+max_plot)
         all_plots.opts(title=self.selections.variable+ ': Anomalies for '+str(self.warmlevel)+'°C Warming Across Models') # Add title
@@ -467,6 +468,7 @@ def _display_warming_levels(warming_data, selections, location):
                 pn.Column(
                     pn.widgets.StaticText(name="", value='Warming level (°C)'),
                     pn.widgets.RadioButtonGroup.from_param(warming_data.param.warmlevel, name=""),
+                    selections.param.variable,
                     pn.widgets.StaticText.from_param(selections.param.extended_description, name=""),
                     pn.widgets.StaticText(name="", value="Variable Units"),
                     pn.widgets.RadioButtonGroup.from_param(selections.param.units),

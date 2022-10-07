@@ -7,7 +7,31 @@ from .data_loaders import _read_from_catalog
 from .unit_conversions import _convert_units
 from .threshold_tools import get_exceedance_count, plot_exceedance_count, _exceedance_plot_title, _exceedance_plot_subtitle
 
-#------------- Class and methods for the exlpore.thresholds() GUI ---------------
+#------------- Class and methods for the explore.thresholds() GUI ---------------
+
+
+def _get_threshold_data(selections, location, cat):
+    """
+    This function pulls data from the catalog and reads it into memory
+
+    Args:
+        selections (DataLoaders): object holding user's selections 
+        location (LocSelectorArea): location object containing boundary information
+        cat (intake_esm.core.esm_datastore): catalog 
+
+    Returns:
+        data (xr.DataArray): data to use for creating postage stamp data
+
+    """
+    # Read data from catalog 
+    data = _read_from_catalog( 
+        selections=selections, 
+        location=location, 
+        cat=cat
+    )
+    data = data.compute() # Read into memory 
+    return data
+
 
 class ThresholdDataParams(param.Parameterized):
     """
@@ -29,42 +53,33 @@ class ThresholdDataParams(param.Parameterized):
     smoothing = param.ObjectSelector(default="None", objects=["None", "Running mean"], label = "Smoothing")
     num_timesteps = param.Integer(default=10, bounds=(0, None), label = "Number of timesteps")
 
-    units2 = param.ObjectSelector(objects=dict())
-    # variable2 = param.ObjectSelector(default="Air Temperature at 2m", objects=["Air Temperature at 2m"])
-    variable2 = param.ObjectSelector(default="Air Temperature at 2m", objects=dict())
-    cached_area2 = param.ObjectSelector(default="Sacramento County", objects=dict())
-    area_subset2 = param.ObjectSelector(default="CA counties", objects=["CA counties", "states"])
-
     def __init__(self, *args, **params):
         super().__init__(*args, **params)
         
         # Selectors defaults
         self.selections.append_historical = False
         self.selections.area_average = True
-        self.selections.resolution = "45 km"
+        self.selections.resolution = "45km"
         self.selections.scenario = ["SSP 3-7.0 -- Business as Usual"]
         self.selections.time_slice = (2020,2100)
-        # self.selections.time_slice = (2050, 2051)
         self.selections.timescale = "hourly"
         self.selections.variable = "Air Temperature at 2m"
 
-        self.units2 = self.selections.descrip_dict[self.selections.variable]["native_unit"]
-
         # Location defaults
-        # self.location.area_subset = 'states'
-        # self.location.cached_area = 'CA'
         self.location.area_subset = 'CA counties'
         self.location.cached_area = 'Sacramento County'
 
         # Get the underlying dataarray
-        self.da = _read_from_catalog(selections = self.selections, location = self.location, cat = self._cat).compute()
+        self.da = _get_threshold_data(
+            selections=self.selections, 
+            location=self.location, 
+            cat=self.cat
+        )
 
         self.threshold_value = round(self.da.mean().values.item())
         self.param.threshold_value.label = f"Value (units: {self.da.units})"
 
-        self.param["variable2"].objects = self.selections.param.variable.objects
-        self.param["cached_area2"].objects = self.location.param.cached_area.objects
-
+    # For reloading plot
     reload_plot = param.Action(lambda x: x.param.trigger('reload_plot'), label='Reload Plot')
 
     # For reloading data
@@ -72,83 +87,46 @@ class ThresholdDataParams(param.Parameterized):
     changed_loc_and_var = param.Boolean(default=True)
     changed_units = param.Boolean(default=False)
 
-    @param.depends("area_subset2","cached_area2","variable2", watch=True)
+    @param.depends("location.area_subset","location.cached_area","selections.variable", watch=True)
     def _updated_bool_loc_and_var(self):
         """Update boolean if any changes were made to the location or variable"""
         self.changed_loc_and_var = True
 
-    @param.depends("units2", watch=True)
+    @param.depends("selections.units", watch=True)
     def _updated_units(self):
         """Update boolean if a change was made to the units"""
         self.changed_units = True
-
-    @param.depends("variable2","units2",watch=True)
-    def _update_unit_options(self): 
-        """ Update unit options and native units for selected variable. """
-        _default_unit = self.selections.descrip_dict[self.variable2]["native_unit"]
-        _alt_units = self.selections.descrip_dict[self.variable2]["alt_unit_options"]
-        if pd.isna(_alt_units): 
-            self.param["units2"].objects = [_default_unit]
-        else:
-            self.param["units2"].objects = _default_unit.split(", ")+_alt_units.split(", ")
-        if self.units2 not in self.param["units2"].objects:
-            self.units2 = _default_unit
 
     @param.depends("reload_data", watch=True)
     def _update_data(self):
         """If the button was clicked and the location, variable, or units were 
         changed, reload the data from AWS"""
         if self.changed_loc_and_var:
-            self.da = _read_from_catalog(selections = self.selections, location = self.location, cat = self._cat).compute()
+            self.da = _get_threshold_data(
+                selections=self.selections, 
+                location=self.location, 
+                cat=self.cat
+            )
             self.changed_loc_and_var = False
         if self.changed_units:
-            self.da = _convert_units(da=self.da, selected_units=self.units2)
+            self.da = _convert_units(da=self.da, selected_units=self.selections.units)
             self.threshold_value = round(self.da.mean().values.item())
-            self.param.threshold_value.label = f"Value (units: {self.da.units})"
+            self.param.threshold_value.label = f"Value (units: {self.selections.units})"
             self.changed_units = False
-
-    @param.depends("variable2", watch=True)
-    def _update_variable(self):
-        """Update variable in selections object to reflect variable chosen in panel"""
-        self.selections.variable = self.variable2
-
-    @param.depends("area_subset2", watch=True)
-    def _update_cached_area(self):
-        """
-        Makes the dropdown options for 'cached area' reflect the type of area subsetting
-        selected in 'area_subset' (currently state, county, or watershed boundaries).
-        """
-        if self.area_subset2 == "CA counties":
-            # Get full list of counties
-            self.param["cached_area2"].objects = list(
-                self.location._geography_choose[self.area_subset2].keys()
-            )
-            self.cached_area2 = "Sacramento County"
-        elif self.area_subset2 == "states":
-            # Only CA for now?
-            self.param["cached_area2"].objects = ["CA"]
-            self.cached_area2 = "CA"
-
-    @param.depends("area_subset2","cached_area2",watch=True)
-    def _updated_location(self):
-        """Update locations object to reflect location chosen in panel"""
-        self.location.area_subset = self.area_subset2
-        self.location.cached_area = self.cached_area2
-
-    def transform_data(self):
-        return get_exceedance_count(self.da, 
-            threshold_value = self.threshold_value, 
-            threshold_direction = self.threshold_direction,
-            duration1 = (self.duration1_length, self.duration1_type),
-            period = (self.period_length, self.period_type),
-            groupby = (self.group_length, self.group_type),
-            duration2 = (self.duration2_length, self.duration2_type),
-            smoothing = self.num_timesteps if self.smoothing == "Running mean" else None)
 
     @param.depends("reload_plot", "reload_data", watch=False)
     def view(self):
         try:
-            to_plot = self.transform_data()
+            to_plot = get_exceedance_count(
+                self.da, 
+                threshold_value = self.threshold_value, 
+                threshold_direction = self.threshold_direction,
+                duration1 = (self.duration1_length, self.duration1_type),
+                period = (self.period_length, self.period_type),
+                groupby = (self.group_length, self.group_type),
+                duration2 = (self.duration2_length, self.duration2_type),
+                smoothing = self.num_timesteps if self.smoothing == "Running mean" else None
+            )
             obj = plot_exceedance_count(to_plot)
         except Exception as e:
             # Display any raised Errors (instead of plotting) if any of the 
@@ -281,19 +259,19 @@ def _thresholds_visualize(thresh_data, option=1):
     data_options_card = pn.Card(
         pn.Row(
             pn.Column(
-                pn.widgets.Select.from_param(thresh_data.param.variable2, name="Data variable"),
-                pn.widgets.RadioButtonGroup.from_param(thresh_data.param.units2),
-                pn.widgets.StaticText.from_param(thresh_data.selections.param.variable_description),
+                pn.widgets.Select.from_param(selections.param.variable, name="Data variable"),
+                pn.widgets.RadioButtonGroup.from_param(selections.param.units),
+                pn.widgets.StaticText.from_param(selections.param.extended_description),
                 width = 230
                 ),
             pn.Column(
-                pn.widgets.Select.from_param(thresh_data.param.area_subset2, name="Area subset"),
-                pn.widgets.Select.from_param(thresh_data.param.cached_area2, name="Cached area"),
+                pn.widgets.Select.from_param(location.param.area_subset, name="Area subset"),
+                pn.widgets.Select.from_param(location.param.cached_area, name="Cached area"),
                 pn.widgets.Button.from_param(thresh_data.param.reload_data, button_type="primary", width=150, height=30),
                 width = 230
                 ),
             pn.Column(
-                thresh_data.location.view,
+                location.view,
                 width = 180
                 ),
             ),

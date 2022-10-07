@@ -90,7 +90,8 @@ def _get_data_dict_and_names(cat_subset):
     data_dict = cat_subset.to_dataset_dict(
         zarr_kwargs={'consolidated': True}, 
         storage_options={'anon': True}, 
-        preprocess=add_sim_coord
+        preprocess=add_sim_coord, 
+        progressbar=False
     )
     return data_dict
 
@@ -207,17 +208,17 @@ def _process_and_concat(selections, dsets, cat_subset):
     # Add attributes
     orig_attrs = dsets[list(dsets.keys())[0]].attrs
     da_final.attrs = { # Add descriptive attributes to DataArray 
-        "conventions": orig_attrs["conventions"], 
+        #"conventions": orig_attrs["conventions"], 
         "institution": orig_attrs["institution"], 
         "source": orig_attrs["source"], 
         "resolution": selections.resolution, 
         "frequency": selections.timescale,
         "grid_mapping": da_final.attrs["grid_mapping"], 
         "variable_id": selections.variable_id, 
-        "long_name": da_final.attrs["long_name"], 
+        #"long_name": da_final.attrs["long_name"], 
         "extended_description": selections.extended_description, 
         "units": da_final.attrs["units"]
-    }
+    }  
     return da_final
 
 
