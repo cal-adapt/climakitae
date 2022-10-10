@@ -7,7 +7,7 @@ def _convert_resolution(resolution, reverse=False):
     res_dict = {"45km":"d01","9km":"d02","3km":"d03"} 
     
     if reverse==True: 
-        res_dict = {v: k for k, v in res.items()}
+        res_dict = {v: k for k, v in res_dict.items()}
        
     return res_dict[resolution]
 
