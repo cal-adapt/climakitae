@@ -499,35 +499,35 @@ def _display_warming_levels(warming_data, selections, location):
             collapsible=False, width=600, height=515
         )
 
-    postage_stamps_MAIN = pn.Column(
-        pn.widgets.StaticText(
-            value="Panels show the difference (anomaly) between the 30-year average centered on the year that each GCM (name of model titles each panel) reaches the specified warming level and the average from 1981-2010.",
-            width=800
-        ),
-        pn.Row(
-            warming_data._GCM_PostageStamps_MAIN,
-            pn.Column(
-                pn.widgets.StaticText(
-                    value="<br><br><br>",
-                    width=150
-                ),
-                pn.widgets.StaticText(
-                    value="<b>Tip</b>: There's a toolbar below the maps. \
-        Try clicking the magnifying glass to zoom in on a particular region. \
-        You can also click the save button to save a copy of the figure to your computer.",
-                    width=150,
-                    style={"border":"1.2px red solid","padding":"5px","border-radius":"4px","font-size":"13px"})
-            )
-        )
-    )
+    # postage_stamps_MAIN = pn.Column(
+    #     pn.widgets.StaticText(
+    #         value="Panels show the difference (anomaly) between the 30-year average centered on the year that each GCM (name of model titles each panel) reaches the specified warming level and the average from 1981-2010.",
+    #         width=800
+    #     ),
+    #     pn.Row(
+    #         warming_data._GCM_PostageStamps_MAIN,
+    #         pn.Column(
+    #             pn.widgets.StaticText(
+    #                 value="<br><br><br>",
+    #                 width=150
+    #             ),
+    #             pn.widgets.StaticText(
+    #                 value="<b>Tip</b>: There's a toolbar below the maps. \
+    #     Try clicking the magnifying glass to zoom in on a particular region. \
+    #     You can also click the save button to save a copy of the figure to your computer.",
+    #                 width=150,
+    #                 style={"border":"1.2px red solid","padding":"5px","border-radius":"4px","font-size":"13px"})
+    #         )
+    #     )
+    # )
 
-    postage_stamps_STATS = pn.Column(
-        pn.widgets.StaticText(
-            value="Panels show the average, median, minimum, or maximum conditions across all models. These statistics are computed from the data in the first panel: the difference (anomaly) between the 30-year average centered on the year that each GCM reaches the specified warming level and the average from 1981-2010. Minimum and maximum values are calculated across simulations for each grid cell, so one map may contain grid cells from different simulations. Median and mean maps show those respective summaries across simulations at each grid cell.",
-            width=800
-        ),
-        warming_data._GCM_PostageStamps_STATS
-    )
+    # postage_stamps_STATS = pn.Column(
+    #     pn.widgets.StaticText(
+    #         value="Panels show the average, median, minimum, or maximum conditions across all models. These statistics are computed from the data in the first panel: the difference (anomaly) between the 30-year average centered on the year that each GCM reaches the specified warming level and the average from 1981-2010. Minimum and maximum values are calculated across simulations for each grid cell, so one map may contain grid cells from different simulations. Median and mean maps show those respective summaries across simulations at each grid cell.",
+    #         width=800
+    #     ),
+    #     warming_data._GCM_PostageStamps_STATS
+    # )
 
     window_df = pn.Column(
         pn.widgets.StaticText(
@@ -539,8 +539,8 @@ def _display_warming_levels(warming_data, selections, location):
 
     map_tabs = pn.Card(
         pn.Tabs(
-            ("Maps of individual simulations", postage_stamps_MAIN),
-            ("Maps of cross-model statistics: mean/median/max/min", postage_stamps_STATS),
+            #("Maps of individual simulations", postage_stamps_MAIN),
+            #("Maps of cross-model statistics: mean/median/max/min", postage_stamps_STATS),
             ("Anomaly computation details", window_df)
         ),
     title="Regional response at selected warming level",
