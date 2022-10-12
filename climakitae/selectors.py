@@ -108,6 +108,8 @@ class Boundaries:
         as the category in 'LocSelectorArea.area_subset' changes.
         """
         _all_options = {
+            "none": {"entire domain":0},
+            "lat/lon": {"coordinate selection":0},
             "states": self.get_us_states(),
             "CA counties": self.get_ca_counties(),
             "CA watersheds": self.get_ca_watersheds(),
@@ -139,7 +141,7 @@ class LocSelectorArea(param.Parameterized):
         self._geographies = Boundaries()
         self._geography_choose = self._geographies.boundary_dict()
         self.param["cached_area"].objects = list(
-            self._geography_choose["states"].keys()
+            self._geography_choose["none"].keys()
         )
 
     _wrf_bb = {
@@ -197,12 +199,11 @@ class LocSelectorArea(param.Parameterized):
         Makes the dropdown options for 'cached area' reflect the type of area subsetting
         selected in 'area_subset' (currently state, county, or watershed boundaries).
         """
-        if self.area_subset in ["states", "CA counties", "CA watersheds"]:
-            # setting this to the dict works for initializing, but not updating an objects list:
-            self.param["cached_area"].objects = list(
-                self._geography_choose[self.area_subset].keys()
-            )
-            self.cached_area = list(self._geography_choose[self.area_subset].keys())[0]
+        # setting this to the dict works for initializing, but not updating an objects list:
+        self.param["cached_area"].objects = list(
+            self._geography_choose[self.area_subset].keys()
+        )
+        self.cached_area = list(self._geography_choose[self.area_subset].keys())[0]
 
     @param.depends("latitude", "longitude", "area_subset", "cached_area", watch=False)
     def view(self):
@@ -372,7 +373,7 @@ class DataSelector(param.Parameterized):
         default="monthly", 
         objects=["hourly","daily", "monthly"]
     )
-    
+        
     # Empty params, initialized in __init__ 
     dataset = param.ObjectSelector(objects=dict())
     scenario = param.ListSelector(objects=dict())
@@ -450,8 +451,17 @@ class DataSelector(param.Parameterized):
         self.param["variable"].objects = var_options
         if self.variable not in var_options: 
             self.variable = var_options[0]
-
-    @param.depends("variable", "timescale", watch=True)
+            
+    @param.depends("resolution","location.area_subset", watch=True)
+    def _update_states_3km(self): 
+        if self.location.area_subset == "states": 
+            if self.resolution == "3km": 
+                self.location.param["cached_area"].objects = ["CA"]
+                self.location.cached_area = "CA"
+            else: 
+                self.location.param["cached_area"].objects = self.location._geography_choose["states"].keys()
+            
+    @param.depends("variable","timescale", watch=True)
     def _update_unit_options(self): 
         """ Update unit options and native units for selected variable. """
         var_info = self.variable_options_df[self.variable_options_df["display_name"]==self.variable] # Get info for just that variable 
