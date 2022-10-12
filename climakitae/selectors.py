@@ -456,7 +456,7 @@ class DataSelector(param.Parameterized):
     def _update_states_3km(self): 
         if self.location.area_subset == "states": 
             if self.resolution == "3km": 
-                self.location.param["cached_area"].objects = ["CA"]
+                self.location.param["cached_area"].objects = ["CA","NV","OR","UT","AZ"]
                 self.location.cached_area = "CA"
             else: 
                 self.location.param["cached_area"].objects = self.location._geography_choose["states"].keys()
