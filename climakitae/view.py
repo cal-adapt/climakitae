@@ -36,6 +36,10 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
         # Set default cmap if no user input
         if cmap is None: 
             try: 
+                if data.frequency in ["monthly","daily"]: 
+                    timescale = "daily/monthly"
+                else: 
+                    timescale = data.frequency 
                 cmap = var_catalog[(var_catalog["display_name"]==data.name) & (var_catalog["timescale"]==timescale)].colormap.item()
             except: # If variable not found, set to ae_orange without raising error 
                 cmap = "ae_orange"
