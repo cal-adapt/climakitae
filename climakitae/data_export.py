@@ -174,7 +174,8 @@ def _export_to_user(user_export_format,data_to_export,
     path_and_name = './'+file_name
     req_format = user_export_format.output_file_format
     if req_format is None:
-        raise AssertionError("Please select a file format from the dropdown menu.")
+        raise AssertionError("Please select a file format from the"+
+                             " dropdown menu.")
     
     extension_dict = {'NetCDF' : '.nc',
                       'CSV' : '.csv.gz',
@@ -204,8 +205,8 @@ def _export_to_user(user_export_format,data_to_export,
         
     assert "xarray" in str(
             type(data_to_export)
-            ),("Please pass an xarray dataset (NetCDF only)"+
-               " or data array (any format).")
+            ),("Please pass an xarray dataset (for NetCDF export only)"+
+               " or data array (any export format).")
        
     # metadata stuff
     ds_attrs.update(ck_attrs)
@@ -221,12 +222,13 @@ def _export_to_user(user_export_format,data_to_export,
     
     if (disk_space <= data_size):
         raise ValueError("Not enough disk space to export data!"+
-                        " You need at least "+str(data_size)+ " GB free"+
-                        " in the hub directory, which has 10 GB total space."+
-                         " Try smaller subsets of space, time,"+
-                        " scenario, and/or simulation; pick a coarser"+
-                        " spatial or temporal scale; or clean any exported datasets"+
-                        " which you have already downloaded or do not want.")
+                    " You need at least "+str(data_size)+ " GB free"+
+                    " in the hub directory, which has 10 GB total space."+
+                    " Try smaller subsets of space, time,"+
+                    " scenario, and/or simulation; pick a coarser"+
+                    " spatial or temporal scale; and/or"+
+                    " clean any exported datasets"+
+                    " which you have already downloaded or do not want.")
     
     if (data_size > file_size_threshold):
         print("WARNING: xarray dataset size = "+str(data_size)+
@@ -238,10 +240,28 @@ def _export_to_user(user_export_format,data_to_export,
     if ("NetCDF" in req_format):
         export_to_netcdf(data_to_export,save_name,**kwargs) 
     else:
-        assert "DataArray" in str(type(data_to_export)),("We are only"+
-                             " converting data arrays to this format"+
-                             " at this time, please pass a data array"+
-                             " (not a dataset). HINT:" ) 
+        if ("DataArray" not in str(type(data_to_export))):            
+            dv_list = list(data_to_export.data_vars)
+            assert (len(dv_list) == 1
+                                ),("We cannot convert"+
+                                " multivariate datasets"+
+                                " to CSV or GeoTiff at this time."+
+                                " Please supply a dataset or array"+
+                                " with a single data variable."+
+                                " A single variable array"+
+                                " can be extracted"+
+                                " from a multivariate"+
+                                " dataset like so:"+
+                                " app.export_dataset(ds['var'],'filename')"+
+                                " where ds is the dataset"+
+                                " you attempted to export,"+
+                                " and 'var' is a data variable"+
+                                " (in single or double quotes).")
+            var_name = dv_list[0]
+            data_to_export = data_to_export.to_array()
+            data_to_export.name = var_name
+
+
         if ("CSV" in req_format):
             export_to_csv(data_to_export,save_name,**kwargs)
         elif ("GeoTIFF" in req_format):
@@ -266,7 +286,8 @@ def metadata_to_file(ds,output_name):
     Writes NetCDF metadata to a txt file so users can still access it 
     after exporting to a CSV.
     """
-    output_name = output_name.strip('.csv.gz')
+    # output_name = output_name.strip(".csv.gz")
+    output_name = output_name.replace(".csv.gz","").strip('.')
     if os.path.exists(output_name+"_metadata.txt"):
         os.remove(output_name+"_metadata.txt")
         
