@@ -156,7 +156,10 @@ class WarmingLevels(param.Parameterized):
             "SSP 5-8.5 -- Burn it All"
         ]
     )
-    cmap = param.ObjectSelector(objects=dict()) 
+    cmap = param.ObjectSelector(
+        default="ae_orange", 
+        objects=["ae_orange","ae_blue","ae_diverging"]
+    ) 
 
     def __init__(self, *args, **params):
         super().__init__(*args, **params)
