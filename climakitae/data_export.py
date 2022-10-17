@@ -282,7 +282,7 @@ def metadata_to_file(ds, output_name):
           + "We recommend you download this along with "
           + "the CSV for your records.")
 
-    with open('.' + output_name + "_metadata.txt", 'w') as f:
+    with open(output_name + "_metadata.txt", 'w') as f:
         f.write('======== Metadata for CSV file ' + output_name + ' ========')
         f.write('\n')
         f.write('\n')
