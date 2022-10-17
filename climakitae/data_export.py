@@ -268,8 +268,8 @@ def metadata_to_file(ds,output_name):
     after exporting to a CSV.
     """
     def rchop(s, suffix):
-    if suffix and s.endswith(suffix):
-        return s[:-len(suffix)]
+        if suffix and s.endswith(suffix):
+            return s[:-len(suffix)]
     return s
 
     output_name = rchop(output_name, '.csv.gz')
