@@ -11,7 +11,7 @@ from . import __version__
 xr.set_options(keep_attrs=True)
 
 
-def export_to_netcdf(data_to_export,save_name,**kwargs):
+def export_to_netcdf(data_to_export, save_name, **kwargs):
     '''
     exports user-selected data to netCDF format.
     this function is called from the _export_to_user
@@ -27,7 +27,7 @@ def export_to_netcdf(data_to_export,save_name,**kwargs):
     data_to_export.to_netcdf(save_name, encoding=encoding)
 
 
-def export_to_csv(data_to_export,save_name,**kwargs):
+def export_to_csv(data_to_export, save_name, **kwargs):
     '''
     exports user-selected data to CSV format.
     this function is called from the _export_to_user
@@ -49,7 +49,7 @@ def export_to_csv(data_to_export,save_name,**kwargs):
     to_save.to_csv(save_name, compression='gzip')
 
 
-def export_to_geotiff(data_to_export,save_name,**kwargs):
+def export_to_geotiff(data_to_export, save_name, **kwargs):
     '''
     exports user-selected data to geoTIFF format.
     this function is called from the _export_to_user
@@ -216,9 +216,9 @@ def _export_to_user(user_export_format, data_to_export,
     # raise error for not enough space
     # and warning for large file
     file_size_threshold = 5 # in GB
-    bytes_per_gigabyte = 1024*1024*1024
-    disk_space = shutil.disk_usage('./')[2]/bytes_per_gigabyte
-    data_size = data_to_export.nbytes/bytes_per_gigabyte
+    bytes_per_gigabyte = 1024 * 1024 * 1024
+    disk_space = shutil.disk_usage('./')[2] / bytes_per_gigabyte
+    data_size = data_to_export.nbytes / bytes_per_gigabyte
 
     if (disk_space <= data_size):
         raise ValueError("Not enough disk space to export data!"
@@ -256,7 +256,7 @@ def _export_to_user(user_export_format, data_to_export,
                                      + shape_str + ". Please subset your"
                                      + " selection accordingly.")
 
-            export_to_geotiff(data_to_export,save_name, **kwargs)
+            export_to_geotiff(data_to_export, save_name, **kwargs)
 
     return(print("Saved! You can find your file(s) in the panel to the left "
            + "and download to your local machine from there."))
