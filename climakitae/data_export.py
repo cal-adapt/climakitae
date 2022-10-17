@@ -237,17 +237,17 @@ def _export_to_user(user_export_format, data_to_export,
     # we will have different functions for each file type
     # to keep things clean-ish
     if ("NetCDF" in req_format):
-        export_to_netcdf(data_to_export,save_name,**kwargs) 
+        export_to_netcdf(data_to_export, save_name, **kwargs) 
     else:
-        assert "DataArray" in str(type(data_to_export)),("We are only"
+        assert "DataArray" in str(type(data_to_export)), ("We are only"
                              + " converting data arrays to this format"
                              + " at this time, please pass a data array"
                              + " (not a dataset). HINT:" )
         if ("CSV" in req_format):
-            export_to_csv(data_to_export,save_name,**kwargs)
+            export_to_csv(data_to_export, save_name, **kwargs)
         elif ("GeoTIFF" in req_format):
-            dim_check = data_to_export.isel(x=0,y=0).squeeze().shape
-            shape_str = str(dim_check).strip('(').strip(')').replace(", "," x ")
+            dim_check = data_to_export.isel(x=0, y=0).squeeze().shape
+            shape_str = str(dim_check).strip('(').strip(')').replace(", ", " x ")
             if sum([int(dim>1) for dim in dim_check]) > 1:
                 raise AssertionError("Too many non-spatial dimensions"
                                      + " with length > 1 -- cannot convert"
@@ -256,7 +256,7 @@ def _export_to_user(user_export_format, data_to_export,
                                      + shape_str + ". Please subset your"
                                      + " selection accordingly.")
 
-            export_to_geotiff(data_to_export,save_name,**kwargs)
+            export_to_geotiff(data_to_export,save_name, **kwargs)
 
     return(print("Saved! You can find your file(s) in the panel to the left "
            + "and download to your local machine from there."))
@@ -311,5 +311,5 @@ def metadata_to_file(ds,output_name):
             for att_keys, att_values in list(
                                              zip(ds[coord].attrs.keys(),
                                              ds[coord].attrs.values())):
-                f.write(str(att_keys)+" : "+str(att_values))
+                f.write(str(att_keys) + " : " + str(att_values))
                 f.write('\n')
