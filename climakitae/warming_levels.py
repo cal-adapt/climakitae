@@ -156,10 +156,7 @@ class WarmingLevels(param.Parameterized):
             "SSP 5-8.5 -- Burn it All"
         ]
     )
-    cmap = param.ObjectSelector(
-        default="ae_orange", 
-        objects=["ae_orange","ae_blue","ae_diverging"]
-    ) 
+    cmap = param.ObjectSelector(dict()) 
 
     def __init__(self, *args, **params):
         super().__init__(*args, **params)
@@ -187,6 +184,8 @@ class WarmingLevels(param.Parameterized):
             data=self.postage_data, 
             warmlevel=1.5
         )
+        
+        self.cmap = _read_ae_colormap(cmap="ae_orange", cmap_hex=True)
 
     # For reloading postage stamp data and plots
     reload_data = param.Action(lambda x: x.param.trigger('reload_data'), label='Reload Data')
