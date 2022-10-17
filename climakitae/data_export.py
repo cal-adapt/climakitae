@@ -153,7 +153,7 @@ def export_to_geotiff(data_to_export,save_name,**kwargs):
 
 
 def _export_to_user(user_export_format, data_to_export,
-                    file_name,**kwargs):
+                    file_name, **kwargs):
     """
     The data export method, called by core.Application.export_dataset. Saves
     a dataset to the current working directory in the output 
@@ -262,7 +262,7 @@ def _export_to_user(user_export_format, data_to_export,
            + "and download to your local machine from there."))
 
 
-def metadata_to_file(ds,output_name):
+def metadata_to_file(ds, output_name):
     """
     Writes NetCDF metadata to a txt file so users can still access it 
     after exporting to a CSV.
@@ -270,7 +270,7 @@ def metadata_to_file(ds,output_name):
     def rchop(s, suffix):
         if suffix and s.endswith(suffix):
             return s[:-len(suffix)]
-    return s
+        return s
 
     output_name = rchop(output_name, '.csv.gz')
 
