@@ -156,7 +156,7 @@ def _export_to_user(user_export_format, data_to_export,
                     file_name, **kwargs):
     """
     The data export method, called by core.Application.export_dataset. Saves
-    a dataset to the current working directory in the output 
+    a dataset to the current working directory in the output
     format requested by the user (which is stored in 'user_export_format').
 
     user_export_format: pulled from dropdown called by app.export_as()
@@ -167,15 +167,15 @@ def _export_to_user(user_export_format, data_to_export,
     ndims = len(data_to_export.dims)
     file_name = file_name.split('.')[0]
 
-    assert type(file_name) is str,("Please pass a string "
-        + "(any characters surrounded by quotation marks)"
+    assert type(file_name) is str,("Please pass a string"
+        + " (any characters surrounded by quotation marks)"
         + " for your file name.")
 
     path_and_name = './' + file_name
     req_format = user_export_format.output_file_format
     if req_format is None:
-        raise AssertionError("Please select a file format \
-         from the dropdown menu.")
+        raise AssertionError("Please select a file format"
+                             + " from the dropdown menu.")
 
     extension_dict = {'NetCDF' : '.nc',
                       'CSV' : '.csv.gz',
@@ -230,7 +230,7 @@ def _export_to_user(user_export_format, data_to_export,
                          + " which you have already downloaded or do not want.")
 
     if (data_size > file_size_threshold):
-        print("WARNING: xarray dataset size = "+ str(data_size)
+        print("WARNING: xarray dataset size = " + str(data_size)
               + " GB. This might take a while!")
 
     # now here is where exporting actually begins
@@ -248,7 +248,7 @@ def _export_to_user(user_export_format, data_to_export,
         elif ("GeoTIFF" in req_format):
             dim_check = data_to_export.isel(x=0, y=0).squeeze().shape
             shape_str = str(dim_check).strip('(').strip(')').replace(", ", " x ")
-            if sum([int(dim>1) for dim in dim_check]) > 1:
+            if sum([int(dim > 1) for dim in dim_check]) > 1:
                 raise AssertionError("Too many non-spatial dimensions"
                                      + " with length > 1 -- cannot convert"
                                      + " to GeoTIFF. Current data shape"
