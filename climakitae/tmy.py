@@ -250,6 +250,23 @@ class AverageMeteorologicalYear(param.Parameterized):
 
     # For reloading data and plots
     reload_data = param.Action(lambda x: x.param.trigger('reload_data'), label='Reload Data')
+    
+    @param.depends("tmy_advanced_options","reload_data","warmlevel", watch=True)
+    def _update_data_to_be_returned(self):
+        """Update self.selections so that the correct data is returned by app.retrieve()"""
+        if self.tmy_advanced_options == "Historical":
+            self.selections.scenario = ["Historical Climate"]
+            self.selections.time_slice = (1981,2010) # to match historical 30-year average
+
+        elif self.tmy_advanced_options == "Warming Level Future": 
+            warming_year_average_range = {
+                1.5 : (2034,2063),
+                2 : (2047,2076),
+                3 : (2061,2090),
+            }
+            self.selections.scenario = ["SSP 3-7.0 -- Business as Usual"]
+            self.selections.time_slice = warming_year_average_range[self.warmlevel]
+            
 
     @param.depends("variable2", watch=True)
     def _update_variable(self):
