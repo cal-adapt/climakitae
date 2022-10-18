@@ -61,27 +61,6 @@ def export_to_geotiff(data_to_export, save_name, **kwargs):
     '''
     ds_attrs = data_to_export.attrs
 
-    # if x and/or y exist as coordinates
-    # but have been squeezed out as dimensions
-    # (eg we have point data), add them back in as dimensions.
-    # rasters require both x and y dimensions
-    if ('x' not in data_to_export.dims):
-        if ('x' in data_to_export.coords):
-            the_sel = data_to_export.expand_dims('x')
-        else:
-            raise ValueError("No x dimension or coordinate exists;"
-                             + " cannot export to GeoTIFF. Please provide"
-                             + " a data array with both x and y"
-                             + " spatial coordinates.")
-    if ('y' not in data_to_export.dims):
-        if ('y' in data_to_export.coords):
-            data_to_export = data_to_export.expand_dims('y')
-        else:
-            raise ValueError("No y dimension or coordinate exists;"
-                             + " cannot export to GeoTIFF. Please provide"
-                             + " a data array with both x and y"
-                             + " spatial coordinates.")
-
     # squeeze singleton dimensions as long as they are 
     # simulation and/or scenario dimensions;
     # retain simulation and/or scenario metadata
@@ -167,14 +146,15 @@ def _export_to_user(user_export_format, data_to_export,
     ndims = len(data_to_export.dims)
     file_name = file_name.split('.')[0]
 
-    assert type(file_name) is str,("Please pass a string"
+    if type(file_name) is not str:
+        raise Exception("Please pass a string"
         + " (any characters surrounded by quotation marks)"
         + " for your file name.")
 
     path_and_name = './' + file_name
     req_format = user_export_format.output_file_format
     if req_format is None:
-        raise AssertionError("Please select a file format"
+        raise Exception("Please select a file format"
                              + " from the dropdown menu.")
 
     extension_dict = {'NetCDF' : '.nc',
@@ -185,10 +165,10 @@ def _export_to_user(user_export_format, data_to_export,
     save_name = path_and_name+f_extension
 
     if os.path.exists(save_name):
-        raise AssertionError("File " + save_name + " exists,"
-                             + " please either delete that file"
-                             + " from the work space or specify"
-                             + " a new file name here.")
+        raise Exception("File " + save_name + " exists,"
+                        + " please either delete that file"
+                        + " from the work space or specify"
+                        + " a new file name here.")
 
     ds_attrs = data_to_export.attrs
     ct = datetime.datetime.now()
@@ -203,10 +183,9 @@ def _export_to_user(user_export_format, data_to_export,
                 'Home_page' : 'https://github.com/cal-adapt/climakitae',
                 'License' : 'BSD 3-Clause License'}
 
-    assert "xarray" in str(
-            type(data_to_export)
-            ),("Please pass an xarray dataset (NetCDF only)"
-               + " or data array (any format).")
+    if "xarray" not in str(type(data_to_export)):
+            raise Exception("Please pass an xarray dataset"
+                            + " or data array.")
 
     # metadata stuff
     ds_attrs.update(ck_attrs)
@@ -221,13 +200,13 @@ def _export_to_user(user_export_format, data_to_export,
     data_size = data_to_export.nbytes / bytes_per_gigabyte
 
     if (disk_space <= data_size):
-        raise ValueError("Not enough disk space to export data!"
-                         + " You need at least " + str(data_size) + " GB free"
-                         + " in the hub directory, which has 10 GB total space."
-                         + " Try smaller subsets of space, time,"
-                         + " scenario, and/or simulation; pick a coarser"
-                         + " spatial or temporal scale; or clean any exported datasets"
-                         + " which you have already downloaded or do not want.")
+        raise Exception("Not enough disk space to export data!"
+                        + " You need at least " + str(data_size) + " GB free"
+                        + " in the hub directory, which has 10 GB total space."
+                        + " Try smaller subsets of space, time,"
+                        + " scenario, and/or simulation; pick a coarser"
+                        + " spatial or temporal scale; or clean any exported datasets"
+                        + " which you have already downloaded or do not want.")
 
     if (data_size > file_size_threshold):
         print("WARNING: xarray dataset size = " + str(data_size)
@@ -239,27 +218,71 @@ def _export_to_user(user_export_format, data_to_export,
     if ("NetCDF" in req_format):
         export_to_netcdf(data_to_export, save_name, **kwargs) 
     else:
-        assert "DataArray" in str(type(data_to_export)), ("We are only"
-                             + " converting data arrays to this format"
-                             + " at this time, please pass a data array"
-                             + " (not a dataset). HINT:" )
+        if "DataArray" not in str(type(data_to_export)):
+            dv_list = list(data_to_export.data_vars)
+            if len(dv_list) > 1:
+                raise Exception("We cannot convert"
+                                + " multivariate datasets"
+                                + " to CSV or GeoTiff at this time."
+                                + " Please supply a dataset or array"
+                                + " with a single data variable."
+                                + " A single variable array"
+                                + " can be extracted"
+                                + " from a multivariate"
+                                + " dataset like so:"
+                                + " app.export_dataset(ds['var'],'filename')"
+                                + " where ds is the dataset or data array"
+                                + " you attempted to export,"
+                                + " and 'var' is a data variable"
+                                + " (in single or double quotes).")
+            else: 
+                var_name = dv_list[0]
+                data_to_export = data_to_export.to_array()
+                data_to_export.name = var_name
+                
         if ("CSV" in req_format):
             export_to_csv(data_to_export, save_name, **kwargs)
+            
         elif ("GeoTIFF" in req_format):
+            # if x and/or y exist as coordinates
+            # but have been squeezed out as dimensions
+            # (eg we have point data), add them back in as dimensions.
+            # rasters require both x and y dimensions
+            if ('x' not in data_to_export.dims):
+                if ('x' in data_to_export.coords):
+                    data_to_export = data_to_export.expand_dims('x')
+                else:
+                    raise Exception("No x dimension or coordinate exists;"
+                                     + " cannot export to GeoTIFF. Please provide"
+                                     + " a data array with both x and y"
+                                     + " spatial coordinates.")
+            if ('y' not in data_to_export.dims):
+                if ('y' in data_to_export.coords):
+                    data_to_export = data_to_export.expand_dims('y')
+                else:
+                    raise Exception("No y dimension or coordinate exists;"
+                                    + " cannot export to GeoTIFF. Please provide"
+                                    + " a data array with both x and y"
+                                    + " spatial coordinates.")
+                    
             dim_check = data_to_export.isel(x=0, y=0).squeeze().shape
-            shape_str = str(dim_check).strip('(').strip(')').replace(", ", " x ")
+
             if sum([int(dim > 1) for dim in dim_check]) > 1:
-                raise AssertionError("Too many non-spatial dimensions"
-                                     + " with length > 1 -- cannot convert"
-                                     + " to GeoTIFF. Current data shape"
-                                     + " excluding x and y coordinates is: "
-                                     + shape_str + ". Please subset your"
-                                     + " selection accordingly.")
+                dim_list = data_to_export.dims                            
+                shape_list = data_to_export.shape
+                dim_shape = str([str(d)+": "+str(s) for d,s in list(
+                            zip(dim_list,shape_list))])
+                raise Exception("Too many non-spatial dimensions"
+                                + " with length > 1 -- cannot convert"
+                                + " to GeoTIFF. Current dimensionality is"
+                                + " " + dim_shape 
+                                + ". Please subset your"
+                                + " selection accordingly.")
 
             export_to_geotiff(data_to_export, save_name, **kwargs)
 
     return(print("Saved! You can find your file(s) in the panel to the left "
-           + "and download to your local machine from there."))
+                 + "and download to your local machine from there."))
 
 
 def metadata_to_file(ds, output_name):
