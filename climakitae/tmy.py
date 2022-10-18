@@ -203,15 +203,6 @@ class AverageMeteorologicalYear(param.Parameterized):
     def __init__(self, *args, **params):
         super().__init__(*args, **params)
 
-        # Selectors defaults
-        self.selections.append_historical = False
-        self.selections.area_average = True
-        self.selections.resolution = "45 km"
-        self.selections.scenario = ["Historical"]  # setting for historical
-        self.selections.time_slice = (1981,2010)
-        self.selections.timescale = "hourly"
-        self.selections.variable = "Air Temperature at 2m"
-
         self.units2 = self.selections.descrip_dict[self.selections.variable]["native_unit"]
 
         # Location defaults
@@ -240,6 +231,15 @@ class AverageMeteorologicalYear(param.Parameterized):
             catalog=self.catalog,
             warmlevel=1.5
         )
+        
+        # Selectors defaults
+        self.selections.append_historical = False
+        self.selections.area_average = True
+        self.selections.resolution = "45 km"
+        self.selections.scenario = ["Historical"]  # setting for historical
+        self.selections.time_slice = (1981,2010)
+        self.selections.timescale = "hourly"
+        self.selections.variable = "Air Temperature at 2m"
 
     warmlevel = param.ObjectSelector(default=1.5,
         objects=[1.5, 2, 3])
