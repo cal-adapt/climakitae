@@ -236,7 +236,7 @@ class AverageMeteorologicalYear(param.Parameterized):
         self.selections.append_historical = False
         self.selections.area_average = True
         self.selections.resolution = "45 km"
-        self.selections.scenario = ["Historical"]  # setting for historical
+        self.selections.scenario = ["Historical Climate"]  # setting for historical
         self.selections.time_slice = (1981,2010)
         self.selections.timescale = "hourly"
         self.selections.variable = "Air Temperature at 2m"
