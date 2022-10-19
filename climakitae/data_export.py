@@ -271,7 +271,7 @@ def _export_to_user(user_export_format, data_to_export,
                 dim_list = data_to_export.dims
                 shape_list = data_to_export.shape
                 dim_shape = str([str(d) + ": " + str(s) for d, s in list(
-                            zip(dim_list,shape_list))])
+                                zip(dim_list, shape_list))])
                 raise Exception("Too many non-spatial dimensions"
                                 + " with length > 1 -- cannot convert"
                                 + " to GeoTIFF. Current dimensionality is"
