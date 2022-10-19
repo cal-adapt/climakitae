@@ -142,7 +142,14 @@ def _export_to_user(user_export_format, data_to_export,
     data_to_export: xarray ds or da to export
     file_name: string corresponding to desired output file name
     kwargs: variable, scenario, and simulation (as needed)
-    """
+    """   
+    ftype = str(type(data_to_export)).strip('<class>')
+    
+    if "xarray" not in ftype:
+            raise Exception("Cannot export object of type " + ftype
+                            + ". Please pass an xarray dataset"
+                            + " or data array.")
+            
     ndims = len(data_to_export.dims)
     file_name = file_name.split('.')[0]
 
@@ -183,10 +190,6 @@ def _export_to_user(user_export_format, data_to_export,
                 'Home_page' : 'https://github.com/cal-adapt/climakitae',
                 'License' : 'BSD 3-Clause License'}
 
-    if "xarray" not in str(type(data_to_export)):
-            raise Exception("Please pass an xarray dataset"
-                            + " or data array.")
-
     # metadata stuff
     ds_attrs.update(ck_attrs)
     data_to_export.attrs = ds_attrs
@@ -218,7 +221,7 @@ def _export_to_user(user_export_format, data_to_export,
     if ("NetCDF" in req_format):
         export_to_netcdf(data_to_export, save_name, **kwargs) 
     else:
-        if "DataArray" not in str(type(data_to_export)):
+        if "dataset.Dataset" in str(type(data_to_export)):
             dv_list = list(data_to_export.data_vars)
             if len(dv_list) > 1:
                 raise Exception("We cannot convert"
@@ -244,10 +247,14 @@ def _export_to_user(user_export_format, data_to_export,
             export_to_csv(data_to_export, save_name, **kwargs)
 
         elif ("GeoTIFF" in req_format):
+            # sometimes "variable" might be a singleton dimension:
+            data_to_export = data_to_export.squeeze()
+            
             # if x and/or y exist as coordinates
             # but have been squeezed out as dimensions
             # (eg we have point data), add them back in as dimensions.
             # rasters require both x and y dimensions
+            
             if ('x' not in data_to_export.dims):
                 if ('x' in data_to_export.coords):
                     data_to_export = data_to_export.expand_dims('x')
@@ -266,6 +273,7 @@ def _export_to_user(user_export_format, data_to_export,
                                     + " spatial coordinates.")
 
             dim_check = data_to_export.isel(x=0, y=0).squeeze().shape
+            print(dim_check)
 
             if sum([int(dim > 1) for dim in dim_check]) > 1:
                 dim_list = data_to_export.dims
