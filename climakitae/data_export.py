@@ -89,7 +89,7 @@ def export_to_geotiff(data_to_export, save_name, **kwargs):
         sim_attrs = {'simulation' : str(data_to_export.coords['simulation'].values)}
         ds_attrs = dict(ds_attrs, **sim_attrs)
     if ((str('simulation') in data_to_export.dims) and
-    (len(data_to_export.simulation)==1)):
+        (len(data_to_export.simulation)==1)):
         sim_attrs = {'simulation' : str(data_to_export.simulation.values)}
         ds_attrs = dict(ds_attrs, **sim_attrs)
         data_to_export = data_to_export.squeeze(dim='simulation')
@@ -148,21 +148,21 @@ def _export_to_user(user_export_format, data_to_export,
 
     if type(file_name) is not str:
         raise Exception("Please pass a string"
-        + " (any characters surrounded by quotation marks)"
-        + " for your file name.")
+                        + " (any characters surrounded by quotation marks)"
+                        + " for your file name.")
 
     path_and_name = './' + file_name
     req_format = user_export_format.output_file_format
     if req_format is None:
         raise Exception("Please select a file format"
-                             + " from the dropdown menu.")
+                        + " from the dropdown menu.")
 
     extension_dict = {'NetCDF' : '.nc',
                       'CSV' : '.csv.gz',
                       'GeoTIFF' : '.tif'}
 
     f_extension = extension_dict[req_format]
-    save_name = path_and_name+f_extension
+    save_name = path_and_name + f_extension
 
     if os.path.exists(save_name):
         raise Exception("File " + save_name + " exists,"
@@ -239,10 +239,10 @@ def _export_to_user(user_export_format, data_to_export,
                 var_name = dv_list[0]
                 data_to_export = data_to_export.to_array()
                 data_to_export.name = var_name
-                
+
         if ("CSV" in req_format):
             export_to_csv(data_to_export, save_name, **kwargs)
-            
+
         elif ("GeoTIFF" in req_format):
             # if x and/or y exist as coordinates
             # but have been squeezed out as dimensions
@@ -264,13 +264,13 @@ def _export_to_user(user_export_format, data_to_export,
                                     + " cannot export to GeoTIFF. Please provide"
                                     + " a data array with both x and y"
                                     + " spatial coordinates.")
-                    
+
             dim_check = data_to_export.isel(x=0, y=0).squeeze().shape
 
             if sum([int(dim > 1) for dim in dim_check]) > 1:
-                dim_list = data_to_export.dims                            
+                dim_list = data_to_export.dims
                 shape_list = data_to_export.shape
-                dim_shape = str([str(d)+": "+str(s) for d,s in list(
+                dim_shape = str([str(d) + ": " + str(s) for d, s in list(
                             zip(dim_list,shape_list))])
                 raise Exception("Too many non-spatial dimensions"
                                 + " with length > 1 -- cannot convert"
