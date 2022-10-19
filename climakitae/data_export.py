@@ -142,15 +142,15 @@ def _export_to_user(user_export_format, data_to_export,
     data_to_export: xarray ds or da to export
     file_name: string corresponding to desired output file name
     kwargs: variable, scenario, and simulation (as needed)
-    """   
+    """
     ftype = type(data_to_export)
 
-    if ftype not in [xr.core.dataset.Dataset, 
+    if ftype not in [xr.core.dataset.Dataset,
                      xr.core.dataarray.DataArray]:
         raise Exception("Cannot export object of type "
                         + str(ftype).strip('<class >')
                         + ". Please pass an xarray dataset"
-                        + " or data array.")             
+                        + " or data array.")
     ndims = len(data_to_export.dims)
 
     if type(file_name) is not str:
@@ -217,7 +217,7 @@ def _export_to_user(user_export_format, data_to_export,
     # we will have different functions for each file type
     # to keep things clean-ish
     if "NetCDF" in req_format:
-        export_to_netcdf(data_to_export, save_name, **kwargs) 
+        export_to_netcdf(data_to_export, save_name, **kwargs)
     else:
         if ftype == xr.core.dataset.Dataset:
             dv_list = list(data_to_export.data_vars)
@@ -236,7 +236,7 @@ def _export_to_user(user_export_format, data_to_export,
                                 + " you attempted to export,"
                                 + " and 'var' is a data variable"
                                 + " (in single or double quotes).")
-            else: 
+            else:
                 var_name = dv_list[0]
                 data_to_export = data_to_export.to_array()
                 data_to_export.name = var_name
@@ -247,11 +247,11 @@ def _export_to_user(user_export_format, data_to_export,
         elif "GeoTIFF" in req_format:
             # sometimes "variable" might be a singleton dimension:
             data_to_export = data_to_export.squeeze()
-            
+
             # if x and/or y exist as coordinates
             # but have been squeezed out as dimensions
             # (eg we have point data), add them back in as dimensions.
-            # rasters require both x and y dimensions            
+            # rasters require both x and y dimensions
             if 'x' not in data_to_export.dims:
                 if 'x' in data_to_export.coords:
                     data_to_export = data_to_export.expand_dims('x')
@@ -279,7 +279,7 @@ def _export_to_user(user_export_format, data_to_export,
                 raise Exception("Too many non-spatial dimensions"
                                 + " with length > 1 -- cannot convert"
                                 + " to GeoTIFF. Current dimensionality is"
-                                + " " + dim_shape 
+                                + " " + dim_shape
                                 + ". Please subset your"
                                 + " selection accordingly.")
 
@@ -291,7 +291,7 @@ def _export_to_user(user_export_format, data_to_export,
 
 def metadata_to_file(ds, output_name):
     """
-    Writes NetCDF metadata to a txt file so users can still access it 
+    Writes NetCDF metadata to a txt file so users can still access it
     after exporting to a CSV.
     """
     def rchop(s, suffix):
@@ -318,8 +318,7 @@ def metadata_to_file(ds, output_name):
         f.write('\n')
         f.write('Name: ' + ds.name)
         f.write('\n')
-        for att_keys, att_values in list(
-                                         zip(ds.attrs.keys(),
+        for att_keys, att_values in list(zip(ds.attrs.keys(),
                                          ds.attrs.values())):
             f.write(str(att_keys) + " : " + str(att_values))
             f.write('\n')
@@ -335,8 +334,7 @@ def metadata_to_file(ds, output_name):
             f.write('\n')
             f.write("== " + str(coord) + " ==")
             f.write('\n')
-            for att_keys, att_values in list(
-                                             zip(ds[coord].attrs.keys(),
+            for att_keys, att_values in list(zip(ds[coord].attrs.keys(),
                                              ds[coord].attrs.values())):
                 f.write(str(att_keys) + " : " + str(att_values))
                 f.write('\n')
