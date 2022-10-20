@@ -9,6 +9,7 @@ from .warming_levels import WarmingLevels, _display_warming_levels
 
 #-----------------------------------------------------------------------
 
+
 class AppExplore(object):
     """
     A class for holding the following app explore options:
@@ -16,13 +17,13 @@ class AppExplore(object):
         app.explore.thresholds()
         app.explore.warming_levels()
     """
-    
+
     def __init__(self, selections, location, _cat):
         self.selections = selections
         self.location = location
         self._cat = _cat
-    
-    def __repr__(self):   
+
+    def __repr__(self):
         """Print a string description of the available analysis method for this class. """
         description = """Choose one of these interactive panels to explore different aspects of the data. \n
 app.explore.warming_levels(): Learn about global warming levels and explore regional responses.
@@ -30,19 +31,43 @@ app.explore.thresholds(): Explore how frequencies of extreme events will change.
 app.explore.amy(): Produce an hourly time series for one year capturing mean climate conditions.
 """
         return description
-    
+
     def amy(self):
         """Display Average Meteorological Year panel. """
-        tmy_ob = AverageMeteorologicalYear(selections=self.selections, location=self.location, catalog=self._cat)
-        return _amy_visualize(tmy_ob=tmy_ob, selections=self.selections, location=self.location)
+        tmy_ob = AverageMeteorologicalYear(
+            selections = self.selections,
+            location = self.location,
+            catalog = self._cat
+        )
+        return _amy_visualize(
+            tmy_ob = tmy_ob,
+            selections = self.selections,
+            location = self.location
+        )
 
     def thresholds(self, option=1):
         """Display Thresholds panel. """
-        thresh_data = ThresholdDataParams(selections=self.selections, location=self.location, cat=self._cat)
-        return _thresholds_visualize(thresh_data=thresh_data, selections=self.selections, location=self.location, option=option)
+        thresh_data = ThresholdDataParams(
+            selections = self.selections,
+            location = self.location,
+            cat = self._cat
+        )
+        return _thresholds_visualize(
+            thresh_data = thresh_data,
+            selections = self.selections,
+            location = self.location,
+            option = option
+        )
 
-    def warming_levels(self): 
+    def warming_levels(self):
         """Display Warming Levels panel. """
-        warming_data = WarmingLevels(selections=self.selections, location=self.location, cat=self._cat)
-        return _display_warming_levels(warming_data, self.selections, self.location)
-    
+        warming_data = WarmingLevels(
+            selections = self.selections,
+            location = self.location,
+            cat = self._cat
+        )
+        return _display_warming_levels(
+            warming_data,
+            self.selections,
+            self.location
+        )
