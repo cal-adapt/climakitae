@@ -3,108 +3,115 @@ from shapely.geometry import box
 import rioxarray
 import intake
 import numpy as np
-from .catalog_utils import _convert_resolution, _convert_timescale, _convert_scenario
+from .catalog_utils import (
+    _convert_resolution,
+    _convert_timescale,
+    _convert_scenario
+)
 from .unit_conversions import _convert_units
 
 # support methods for core.Application.generate
 xr.set_options(keep_attrs=True)
 
 
-# ======================= Helper functions =======================
+# ============================ Helper functions ================================
 
 def add_sim_coord(ds):
-    """Add simulation as Dataset coords and dimensions. 
+    """Add simulation as Dataset coords and dimensions.
     Used when reading in data from catalog. 
     """
-    ds = ds.assign_coords({"simulation":ds.attrs["source_id"]}) 
+    ds = ds.assign_coords({"simulation": ds.attrs["source_id"]})
     return ds
 
 def _get_as_shapely(location):
     """
-    Takes the location data in the 'location' parameter, and turns it into a shapely object.
-    Just doing polygons for now. Later other point/station data will be available too.
-    
-    Args: 
-        location (climakitae.selectors.LocSelectorArea): location selection 
-        
-    Returns: 
+    Takes the location data in the 'location' parameter, and turns it into a
+    shapely object. Just doing polygons for now. Later other point/station data
+    will be available too.
+
+    Args:
+        location (climakitae.selectors.LocSelectorArea): location selection
+
+    Returns:
         shapely_geom (shapely.geometry)
+
     """
-    # Box is formed using the following shape: shapely.geometry.box(minx, miny, maxx, maxy)
+    # Box is formed using the following shape:
+    #   shapely.geometry.box(minx, miny, maxx, maxy)
     shapely_geom = box(
         location.longitude[0], # minx
-        location.latitude[0], # miny 
+        location.latitude[0], # miny
         location.longitude[1], # maxx
         location.latitude[1] # maxy
     )
     return shapely_geom
 
+# ============= Main functions used in data reading/processing =================
 
-# ======================= Main functions used in data reading/processing =======================
+def _get_cat_subset(selections, cat):
+    """For an input set of data selections, get the catalog subset.
 
-def _get_cat_subset(selections, cat): 
-    """For an input set of data selections, get the catalog subset. 
-    
-    Args: 
-        selections (DataLoaders): object holding user's selections 
-        cat (intake_esm.core.esm_datastore): catalog 
-        
-    Returns: 
-        cat_subset (intake_esm.core.esm_datastore): catalog subset  
-    
+    Args:
+        selections (DataLoaders): object holding user's selections
+        cat (intake_esm.core.esm_datastore): catalog
+
+    Returns:
+        cat_subset (intake_esm.core.esm_datastore): catalog subset
+
     """
-    
+
     # Add back in Historical Climate if append_historical was selected
     scenario_selections = selections.scenario.copy()
-    if (selections.append_historical == True) and ("Historical Climate" not in scenario_selections): 
-        scenario_selections += ["Historical Climate"] 
-    
-    # Get catalog keys 
-    # Convert user-friendly names to catalog names (i.e. "45km" to "d01") 
+    if (selections.append_historical == True) and
+       ("Historical Climate" not in scenario_selections):
+        scenario_selections += ["Historical Climate"]
+
+    # Get catalog keys
+    # Convert user-friendly names to catalog names (i.e. "45km" to "d01")
     activity_id = selections.dataset
     table_id = _convert_timescale(selections.timescale)
     grid_label = _convert_resolution(selections.resolution)
     experiment_id = [_convert_scenario(x) for x in scenario_selections]
     variable_id = selections.variable_id
-    
-    # Get catalog subset 
+
+    # Get catalog subset
     cat_subset = cat.search(
-        activity_id=activity_id, 
-        table_id=table_id, 
-        grid_label=grid_label, 
-        variable_id=variable_id, 
-        experiment_id=experiment_id 
+        activity_id = activity_id,
+        table_id = table_id,
+        grid_label = grid_label,
+        variable_id = variable_id,
+        experiment_id = experiment_id
     )
     return cat_subset
 
-
 def _get_data_dict_and_names(cat_subset):
-    """For an input catalog subset, grab the data. 
-    
-    Args: 
-        cat_subset (intake_esm.core.esm_datastore): catalog subset  
-        
-    Returns: 
-        data_dict (dictionary): dictionary of zarrs from catalog, with each key being its name and each item the zarr store    
+    """For an input catalog subset, grab the data.
+
+    Args:
+        cat_subset (intake_esm.core.esm_datastore): catalog subset
+
+    Returns:
+        data_dict (dictionary): dictionary of zarrs from catalog, with each key
+        being its name and each item the zarr store
+
     """
     data_dict = cat_subset.to_dataset_dict(
-        zarr_kwargs={'consolidated': True}, 
-        storage_options={'anon': True}, 
-        preprocess=add_sim_coord, 
-        progressbar=False
+        zarr_kwargs = {'consolidated': True},
+        storage_options = {'anon': True},
+        preprocess = add_sim_coord,
+        progressbar = False
     )
     return data_dict
 
-
 def _get_area_subset(location): 
-    """ Get geometry to perform area subsetting with. 
-    
-    Args: 
-        location (climakitae.selectors.LocSelectorArea): location selection 
-        
-    Returns: 
-        ds_region (shapely.geometry): geometry to use for subsetting 
-    
+    """ Get geometry to perform area subsetting with.
+
+    Args:
+        location (climakitae.selectors.LocSelectorArea): location selection
+
+    Returns:
+        ds_region (shapely.geometry): geometry to use for subsetting
+
     """
     def set_subarea(boundary_dataset):
         return boundary_dataset[boundary_dataset.index == shape_index].iloc[0].geometry
@@ -112,7 +119,8 @@ def _get_area_subset(location):
     if location.area_subset == "lat/lon":
         geom = _get_as_shapely(location)
         if not geom.is_valid:
-            raise ValueError("Please go back to 'select' and choose a valid lat/lon range.")
+            raise ValueError("Please go back to 'select' and choose"
+                             + " a valid lat/lon range.")
         ds_region = [geom]
     elif location.area_subset != "none":
         shape_index = int(
@@ -126,80 +134,83 @@ def _get_area_subset(location):
             shape = set_subarea(location._geographies._ca_watersheds)
         ds_region = [shape]
     else:
-        ds_region = None  
+        ds_region = None
     return ds_region
 
+def _process_and_concat(selections, dsets, cat_subset):
+    """ Process data if append_historical was selected.
+    Merge all datasets into one.
 
-def _process_and_concat(selections, dsets, cat_subset): 
-    """ Process data if append_historical was selected. 
-    Merge all datasets into one. 
-    
-    Args: 
-        selections (DataLoaders): object holding user's selections 
-        dsets (dictionary): dictionary of zarrs from catalog, with each key being its name and each item the zarr store
-        cat_subset (intake_esm.core.esm_datastore): catalog subset  
-    
-    Returns: 
-        da (xr.DataArray): output data 
-    
+    Args:
+        selections (DataLoaders): object holding user's selections
+        dsets (dictionary): dictionary of zarrs from catalog, with each key
+            being its name and each item the zarr store
+        cat_subset (intake_esm.core.esm_datastore): catalog subset
+
+    Returns:
+        da (xr.DataArray): output data
+
     """
     da_list = []
     scenario_list = cat_subset.unique()["experiment_id"]["values"]
     
-    # If append historical is true, we don't need to have an additional Historical Climate scenario coordinate
-    if ("historical" in scenario_list) and (selections.append_historical == True): 
+    # If append historical is true, we don't need to have an additional
+    # Historical Climate scenario coordinate
+    if ("historical" in scenario_list) and
+       (selections.append_historical == True):
         scenario_list.remove("historical")
-    
-    for scenario in scenario_list: 
+
+    for scenario in scenario_list:
         sim_list = []
         da_name = _convert_scenario(scenario, reverse=True)
-        for simulation in cat_subset.unique()["source_id"]["values"]: 
-            if selections.append_historical and "ssp" in scenario: 
+        for simulation in cat_subset.unique()["source_id"]["values"]:
+            if selections.append_historical and "ssp" in scenario:
 
-                # Reset name 
+                # Reset name
                 da_name = "Historical + " + _convert_scenario(scenario, reverse=True)
 
-                # Get filenames 
-                try: 
-                    historical_filename = [name for name in dsets.keys() if simulation+"."+"historical" in name][0]
-                    ssp_filename = [name for name in dsets.keys() if simulation+"."+scenario in name][0]
+                # Get filenames
+                try:
+                    historical_filename = [name for name in dsets.keys() if simulation + "." + "historical" in name][0]
+                    ssp_filename = [name for name in dsets.keys() if simulation + "." + scenario in name][0]
                 except: # Some simulation + ssp options are not available. Just continue with the loop if no filename is found
-                    continue   
-                # Grab data 
+                    continue
+                # Grab data
                 historical_data = dsets[historical_filename][selections.variable_id]
                 ssp_data = dsets[ssp_filename][selections.variable_id]
 
-                # Concatenate data. Rename scenario attribute 
+                # Concatenate data. Rename scenario attribute
                 historical_appended = xr.concat(
-                    [historical_data, ssp_data], 
-                    dim="time", 
-                    coords='minimal', 
-                    compat='override', 
-                    join='inner'
+                    [historical_data, ssp_data],
+                    dim = "time",
+                    coords = 'minimal',
+                    compat = 'override',
+                    join = 'inner'
                 ) 
                 sim_list.append(historical_appended)
 
             else:
-                try: 
-                    filename = [name for name in dsets.keys() if simulation+"."+scenario in name][0]
-                except: 
+                try:
+                    filename = [name for name in dsets.keys() if simulation + "." + scenario in name][0]
+                except:
                     continue
-                sim_list.append(dsets[filename][selections.variable_id])  
+                sim_list.append(dsets[filename][selections.variable_id])
 
         # Concatenate along simulation dimension
         da = xr.concat(
-            sim_list, 
-            dim="simulation", 
-            coords='minimal', 
-            compat='override'
+            sim_list,
+            dim = "simulation",
+            coords = 'minimal',
+            compat = 'override'
         )
-        da_list.append(da.assign_coords({"scenario":da_name}))
+        da_list.append(da.assign_coords({"scenario": da_name}))
 
     # Concatenate along scenario dimension
-    da_final = xr.concat(da_list, 
-        dim="scenario", 
-        coords='minimal', 
-        compat='override'
+    da_final = xr.concat(
+        da_list,
+        dim = "scenario",
+        coords = 'minimal',
+        compat = 'override'
     )
 
     # Rename 
@@ -207,75 +218,76 @@ def _process_and_concat(selections, dsets, cat_subset):
 
     # Add attributes
     orig_attrs = dsets[list(dsets.keys())[0]].attrs
-    da_final.attrs = { # Add descriptive attributes to DataArray 
-        #"conventions": orig_attrs["conventions"], 
-        "institution": orig_attrs["institution"], 
-        "source": orig_attrs["source"], 
-        "resolution": selections.resolution, 
+    da_final.attrs = { # Add descriptive attributes to DataArray
+        #"conventions": orig_attrs["conventions"],
+        "institution": orig_attrs["institution"],
+        "source": orig_attrs["source"],
+        "resolution": selections.resolution,
         "frequency": selections.timescale,
-        "grid_mapping": da_final.attrs["grid_mapping"], 
-        "variable_id": selections.variable_id, 
-        #"long_name": da_final.attrs["long_name"], 
-        "extended_description": selections.extended_description, 
+        "grid_mapping": da_final.attrs["grid_mapping"],
+        "variable_id": selections.variable_id,
+        #"long_name": da_final.attrs["long_name"],
+        "extended_description": selections.extended_description,
         "units": da_final.attrs["units"]
-    }  
+    }
     return da_final
 
 
-# ======================= Read from catalog function used by ck.Application =======================
+# ============ Read from catalog function used by ck.Application ===============
 
 def _read_from_catalog(selections, location, cat):
     """
-    The primary and first data loading method, called by core.Application.generate, it returns
-    a DataArray (which can be quite large) containing everything requested by the user (which is
-    stored in 'selections' and 'location').
-    
-    Args: 
-        selections (DataLoaders): object holding user's selections 
-        cat (intake_esm.core.esm_datastore): catalog 
-        
-    Returns: 
-        da (xr.DataArray): output data 
-    
+    The primary and first data loading method, called by
+    core.Application.generate, it returns a DataArray (which can be quite large)
+    containing everything requested by the user (which is stored in 'selections'
+    and 'location').
+
+    Args:
+        selections (DataLoaders): object holding user's selections
+        cat (intake_esm.core.esm_datastore): catalog
+
+    Returns:
+        da (xr.DataArray): output data
+
     """
-    # Raise error if no scenarios are selected 
+    # Raise error if no scenarios are selected
     assert not selections.scenario == [], "Please select as least one scenario."
 
-    # Get catalog subset for a set of user selections 
-    cat_subset = _get_cat_subset(selections=selections, cat=cat)
-    
-    # Read data from AWS. 
-    data_dict = _get_data_dict_and_names(cat_subset=cat_subset)
-    
-    # Process data if append_historical was selected. 
-    # Merge individual Datasets into one DataArray object.  
+    # Get catalog subset for a set of user selections
+    cat_subset = _get_cat_subset(selections = selections, cat = cat)
+
+    # Read data from AWS.
+    data_dict = _get_data_dict_and_names(cat_subset = cat_subset)
+
+    # Process data if append_historical was selected.
+    # Merge individual Datasets into one DataArray object.
     da = _process_and_concat(
-        selections=selections,
-        dsets=data_dict, 
-        cat_subset=cat_subset
+        selections = selections,
+        dsets = data_dict,
+        cat_subset = cat_subset
     )
-    
-    # Time slice 
+
+    # Time slice
     da = da.sel(
-        time=slice(
+        time = slice(
             str(selections.time_slice[0]),
             str(selections.time_slice[1]))
     )
-    
-    # Perform area subsetting and area averaging 
-    ds_region = _get_area_subset(location=location)
-    if ds_region is not None: # Perform subsetting 
+
+    # Perform area subsetting and area averaging
+    ds_region = _get_area_subset(location = location)
+    if ds_region is not None: # Perform subsetting
         da = da.rio.clip(
-            geometries=ds_region, 
-            crs=4326, 
-            drop=True
+            geometries = ds_region,
+            crs = 4326,
+            drop = True
         )
-    
-    # Perform area averaging 
-    if selections.area_average == True: 
+
+    # Perform area averaging
+    if selections.area_average == True:
         weights = np.cos(np.deg2rad(da.lat))
         da = da.weighted(weights).mean("x").mean("y")
         
-    # Convert units 
-    da = _convert_units(da=da, selected_units=selections.units)  
+    # Convert units
+    da = _convert_units(da = da, selected_units = selections.units)
     return da
