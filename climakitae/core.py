@@ -15,8 +15,8 @@ import intake
 
 class Application(object):
     """
-    The main control center of the library. Users can select and read-in datasets (retrieve),
-    visualize, transform, interpret, and export them.
+    The main control center of the library. Users can select and read-in
+    datasets (retrieve), visualize, transform, interpret, and export them.
     """
 
     def __init__(self):
@@ -25,45 +25,49 @@ class Application(object):
         self.selections = DataSelector(cat=self._cat, location=self.location)
         self.user_export_format = FileTypeSelector()
         self.explore = AppExplore(self.selections, self.location, self._cat)
-        
+
+
     # === Select =====================================
     def select(self):
         """
-        A top-level convenience method -- calls a method to display a panel of choices for
-        the data available to load. Modifies the 'selections' and 'location' values
-        according to what the user specifies in that GUI.
+        A top-level convenience method -- calls a method to display a panel of
+        choices for the data available to load. Modifies the 'selections' and
+        'location' values according to what the user specifies in that GUI.
         """
         select_panel = _display_select(self.selections, self.location)
         return select_panel
 
+
     # === Retrieve ===================================
     def retrieve(self):
         """
-        Uses the information gathered in 'select' and stored in 'selections' and 'location'
-        to generate an xarray DataArray as specified, and return that DataArray object.
+        Uses the information gathered in 'select' and stored in 'selections' and
+        'location' to generate an xarray DataArray as specified, and return that
+        DataArray object.
         """
-        # to do: insert additional 'hang in there' statement if it's taking a while
+        # TODO: insert additional 'hang in there' statement if it's taking a while
         return _read_from_catalog(self.selections, self.location, self._cat)
 
-    # === View =====================================
-    def view(self, data, lat_lon=True, width=None, height=None, cmap=None): 
+    # === View =======================================
+    def view(self, data, lat_lon=True, width=None, height=None, cmap=None):
         """Create a generic visualization of the data
-    
-        Args: 
+
+        Args:
             data (xr.DataArray)
-            lat_lon (boolean): reproject to lat/lon coords? (default to True) 
-            width (int): width of plot (default to hvplot.image default) 
-            height (int): hight of plot (default to hvplot.image default) 
-            cmap (str): colormap to apply to data (default to "viridis"); applies only to mapped data 
-        
-        Returns: 
+            lat_lon (boolean): reproject to lat/lon coords? (default to True)
+            width (int): width of plot (default to hvplot.image default)
+            height (int): hight of plot (default to hvplot.image default)
+            cmap (str): colormap to apply to data (default to "viridis");
+                        applies only to mapped data
+
+        Returns:
             hvplot.image()
 
         """
-        return _visualize(data, lat_lon=lat_lon, width=width, height=height, cmap=cmap)
-    
+        return _visualize(data, lat_lon=lat_lon, width=width,
+                          height=height, cmap=cmap)
 
-    # === Export ======================================
+    # === Export =====================================
     def export_as(self):
         """
         Displays a panel of choices for export file formats. Modifies the
