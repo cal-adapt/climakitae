@@ -73,13 +73,14 @@ def get_anomaly_data(data, warmlevel=3.0):
         warmlevel (float): warming level
 
     Returns:
-        warm_all_anoms (xr.DatArray): warming level anomalies computed from input data
+        warm_all_anoms (xr.DataArray): warming level anomalies computed from input data
     """
     model_case = {'cesm2':'CESM2', 'cnrm-esm2-1':'CNRM-ESM2-1',
               'ec-earth3-veg':'EC-Earth3-Veg', 'fgoals-g3':'FGOALS-g3',
               'mpi-esm1-2-lr':'MPI-ESM1-2-LR'}
     ssp = 'ssp370'
     all_sims = xr.Dataset()
+    all_sims.attrs = data.attrs
     central_year_l, year_start_l, year_end_l = [],[],[]
     for simulation in data.simulation.values:
         for scenario in [ssp]:
