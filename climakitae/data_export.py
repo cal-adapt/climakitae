@@ -10,7 +10,6 @@ import rasterio
 from . import __version__
 xr.set_options(keep_attrs=True)
 
-
 def export_to_netcdf(data_to_export, save_name, **kwargs):
     '''
     exports user-selected data to netCDF format.
@@ -25,7 +24,6 @@ def export_to_netcdf(data_to_export, save_name, **kwargs):
     comp = dict(_FillValue=None)
     encoding = {coord: comp for coord in data_to_export.coords}
     data_to_export.to_netcdf(save_name, encoding=encoding)
-
 
 def export_to_csv(data_to_export, save_name, **kwargs):
     '''
@@ -47,7 +45,6 @@ def export_to_csv(data_to_export, save_name, **kwargs):
 
     metadata_to_file(data_to_export, save_name)
     to_save.to_csv(save_name, compression='gzip')
-
 
 def export_to_geotiff(data_to_export, save_name, **kwargs):
     '''
@@ -150,7 +147,6 @@ def export_to_geotiff(data_to_export, save_name, **kwargs):
     with rasterio.open(save_name, 'r+') as raster:
         raster.update_tags(**meta_data_dict)
         raster.close()
-
 
 def _export_to_user(user_export_format, data_to_export,
                     file_name, **kwargs):
@@ -260,7 +256,6 @@ def _export_to_user(user_export_format, data_to_export,
 
     return(print("Saved! You can find your file(s) in the panel to the left "
            + "and download to your local machine from there."))
-
 
 def metadata_to_file(ds, output_name):
     """
