@@ -19,17 +19,17 @@ from holoviews import opts
 import hvplot.pandas
 import hvplot.xarray
 
-#####################################################################
+# ==============================================================================
 
 def get_geospatial_plot(
     ds,
     data_variable,
-    bar_min=None,
-    bar_max=None,
-    border_color="black",
-    line_width=0.5,
-    cmap="Wistia",
-    hover_fill_color="blue",
+    bar_min = None,
+    bar_max = None,
+    border_color = "black",
+    line_width = 0.5,
+    cmap = "Wistia",
+    hover_fill_color = "blue",
 ):
     """
     Returns a geospatial plot (hvplot) from inputed dataset and selected data variable.
@@ -52,10 +52,10 @@ def get_geospatial_plot(
 
     distr_name = ds.attrs["distribution"].replace("'", "").title()
 
-    borders = gv.Path(gv.feature.states.geoms(scale="50m", as_element=False)).opts(
-        color=border_color, line_width=line_width
-    ) * gv.feature.coastline.geoms(scale="50m").opts(
-        color=border_color, line_width=line_width
+    borders = gv.Path(gv.feature.states.geoms(scale = "50m", as_element = False)).opts(
+        color = border_color, line_width = line_width
+    ) * gv.feature.coastline.geoms(scale = "50m").opts(
+        color = border_color, line_width = line_width
     )
 
     if data_variable in ["d_statistic", "p_value"]:
@@ -99,15 +99,15 @@ def get_geospatial_plot(
             "lon",
             "lat",
             data_variable,
-            clim=(bar_min, bar_max),
-            projection=ccrs.PlateCarree(),
-            ylim=(30, 50),
-            xlim=(-130, -100),
-            title="{} For A {} ({} Distribution)".format(
+            clim = (bar_min, bar_max),
+            projection = ccrs.PlateCarree(),
+            ylim = (30, 50),
+            xlim = (-130, -100),
+            title = "{} For A {} ({} Distribution)".format(
                 variable_name, attribute_name, distr_name
             ),
-            cmap=cmap,
-            hover_fill_color=hover_fill_color,
+            cmap = cmap,
+            hover_fill_color = hover_fill_color,
         )
         * borders
     )
