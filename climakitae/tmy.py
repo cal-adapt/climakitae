@@ -233,7 +233,7 @@ class AverageMeteorologicalYear(param.Parameterized):
         # Selectors defaults
         self.selections.append_historical = False
         self.selections.area_average = True
-        self.selections.resolution = "45 km"
+        self.selections.resolution = "45km"
         self.selections.scenario = ["Historical Climate"]  # setting for historical
         self.selections.time_slice = (1981,2010)
         self.selections.timescale = "hourly"
