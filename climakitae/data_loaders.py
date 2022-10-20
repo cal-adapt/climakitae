@@ -62,8 +62,8 @@ def _get_cat_subset(selections, cat):
 
     # Add back in Historical Climate if append_historical was selected
     scenario_selections = selections.scenario.copy()
-    if (selections.append_historical == True) and
-       ("Historical Climate" not in scenario_selections):
+    if (selections.append_historical == True and
+        "Historical Climate" not in scenario_selections):
         scenario_selections += ["Historical Climate"]
 
     # Get catalog keys
