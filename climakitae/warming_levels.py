@@ -486,8 +486,8 @@ class WarmingLevels(param.Parameterized):
                 ).opts(style = dict(text_font_size = '8pt', color = ssp_color))
                 to_plot *= ssp_int # Add to plot
 
-            if ((np.argmax(ssp_selected["95%"] > self.warmlevel)) > 0) and
-               ((np.argmax(ssp_selected["5%"] > self.warmlevel)) > 0):
+            if ((np.argmax(ssp_selected["95%"] > self.warmlevel)) > 0 and
+                (np.argmax(ssp_selected["5%"] > self.warmlevel)) > 0):
                 # Make 95% CI line
                 x_95 = cmip_t[0] + np.argmax(ssp_selected["95%"] > self.warmlevel)
                 ssp_firstdate = hv.Curve(
