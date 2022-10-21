@@ -15,7 +15,7 @@ from .data_loaders import _read_from_catalog
 import logging
 logging.getLogger("param").setLevel(logging.CRITICAL)
 
-xr.set_options(keep_attrs=True) # Keep attributes when mutating xr objects
+xr.set_options(keep_attrs = True) # Keep attributes when mutating xr objects
 
 # Variable info  
 var_catalog_resource = pkg_resources.resource_filename('climakitae', 'data/variable_catalog.csv')
@@ -38,7 +38,6 @@ ssp245_data = pd.read_csv(ssp245, index_col = 'Year')
 ssp370_data = pd.read_csv(ssp370, index_col = 'Year')
 ssp585_data = pd.read_csv(ssp585, index_col = 'Year')
 hist_data = pd.read_csv(hist, index_col = 'Year')
-
 
 def _get_postage_data(selections, location, cat):
     """
@@ -114,7 +113,6 @@ def get_anomaly_data(data, warmlevel = 3.0):
 
     # Rename
     anomaly_da.name = data.name + " Anomalies"
-
     return anomaly_da
 
 def _compute_vmin_vmax(da_min, da_max):
@@ -209,7 +207,7 @@ class WarmingLevels(param.Parameterized):
             cmap_name = "ae_diverging"
 
         # Read colormap hex 
-        self.cmap = _read_ae_colormap(cmap=cmap_name, cmap_hex=True)
+        self.cmap = _read_ae_colormap(cmap = cmap_name, cmap_hex = True)
 
     @param.depends("location.area_subset", "location.cached_area", "selections.variable", "selections.units", watch = True)
     def _updated_bool_loc_and_var(self):
@@ -341,10 +339,9 @@ class WarmingLevels(param.Parameterized):
         )
 
         all_plots = (mean_plot + med_plot + min_plot + max_plot)
-        all_plots.opts(title = self.selections.variable + ': Anomalies for '+ str(self.warmlevel) +'°C Warming Across Models') # Add title
+        all_plots.opts(title = self.selections.variable + ': Anomalies for ' + str(self.warmlevel) +'°C Warming Across Models') # Add title
         all_plots.opts(toolbar = "below") # Set toolbar location
         all_plots.opts(hv.opts.Layout(merge_tools = True)) # Merge toolbar
-
         return all_plots
 
     @param.depends("reload_data", watch = False)
@@ -523,7 +520,6 @@ class WarmingLevels(param.Parameterized):
 
         to_plot.opts(opts.Overlay(title = 'Global mean surface temperature change relative to 1850-1900', fontsize = 12))
         to_plot.opts(legend_position = 'bottom', fontsize = 10)
-
         return to_plot
 
 def _display_warming_levels(warming_data, selections, location):
@@ -561,7 +557,13 @@ def _display_warming_levels(warming_data, selections, location):
 
     GMT_plot = pn.Card(
         pn.Column(
-            "Shading around selected global emissions scenario shows the 90% interval across different simulations. Dotted line indicates when the multi-model ensemble reaches the selected warming level, while solid vertical lines indicate when the earliest and latest simulations of that scenario reach the warming level. Figure and data are reproduced from the [IPCC AR6 Summary for Policymakers Fig 8](https://www.ipcc.ch/report/ar6/wg1/figures/summary-for-policymakers/figure-spm-8/).",
+            ("Shading around selected global emissions scenario shows the 90% interval"
+             " across different simulations. Dotted line indicates when the multi-model"
+             " ensemble reaches the selected warming level, while solid vertical lines"
+             " indicate when the earliest and latest simulations of that scenario reach"
+             " the warming level. Figure and data are reproduced from the"
+             " [IPCC AR6 Summary for Policymakers Fig 8]"
+             "(https://www.ipcc.ch/report/ar6/wg1/figures/summary-for-policymakers/figure-spm-8/)."),
             pn.widgets.Select.from_param(warming_data.param.ssp, name = "Scenario", width = 250),
             warming_data._GMT_context_plot,
         ),
@@ -571,7 +573,9 @@ def _display_warming_levels(warming_data, selections, location):
 
     postage_stamps_MAIN = pn.Column(
         pn.widgets.StaticText(
-            value = "Panels show the difference (anomaly) between the 30-year average centered on the year that each GCM (name of model titles each panel) reaches the specified warming level and the average from 1981-2010.",
+            value = ("Panels show the difference (anomaly) between the 30-year average"
+                     " centered on the year that each GCM (name of model titles each panel)"
+                     " reaches the specified warming level and the average from 1981-2010."),
             width = 800
         ),
         pn.Row(
@@ -582,19 +586,32 @@ def _display_warming_levels(warming_data, selections, location):
                     width = 150
                 ),
                 pn.widgets.StaticText(
-                    value = "<b>Tip</b>: There's a toolbar below the maps. \
-                        Try clicking the magnifying glass to zoom in on a \
-                        particular region. You can also click the save button \
-                        to save a copy of the figure to your computer.",
+                    value = ("<b>Tip</b>: There's a toolbar below the maps."
+                             " Try clicking the magnifying glass to zoom in on a"
+                             " particular region. You can also click the save button"
+                             " to save a copy of the figure to your computer."),
                     width = 150,
-                    style = {"border": "1.2px red solid", "padding": "5px", "border-radius": "4px", "font-size": "13px"})
+                    style = {
+                        "border": "1.2px red solid",
+                        "padding": "5px",
+                        "border-radius": "4px",
+                        "font-size": "13px"
+                    }
+                )
             )
         )
     )
 
     postage_stamps_STATS = pn.Column(
         pn.widgets.StaticText(
-            value = "Panels show the average, median, minimum, or maximum conditions across all models. These statistics are computed from the data in the first panel: the difference (anomaly) between the 30-year average centered on the year that each GCM reaches the specified warming level and the average from 1981-2010. Minimum and maximum values are calculated across simulations for each grid cell, so one map may contain grid cells from different simulations. Median and mean maps show those respective summaries across simulations at each grid cell.",
+            value = ("Panels show the average, median, minimum, or maximum conditions"
+                     " across all models. These statistics are computed from the data"
+                     " in the first panel: the difference (anomaly) between the 30-year"
+                     " average centered on the year that each GCM reaches the specified"
+                     " warming level and the average from 1981-2010. Minimum and maximum"
+                     " values are calculated across simulations for each grid cell, so one"
+                     " map may contain grid cells from different simulations. Median and"
+                     " mean maps show those respective summaries across simulations at each grid cell."),
             width = 800
         ),
         warming_data._GCM_PostageStamps_STATS
@@ -602,7 +619,12 @@ def _display_warming_levels(warming_data, selections, location):
 
     window_df = pn.Column(
         pn.widgets.StaticText(
-            value = "This panel displays start and end years that define the 30-year window for which the anomalies were computed for each model. It also displays the year at which each model crosses the selected warming level, defined in the table below as the central year. This information corresponds to the anomalies shown in the maps on the previous two tabs.",
+            value = ("This panel displays start and end years that define the 30-year"
+                     " window for which the anomalies were computed for each model. It"
+                     " also displays the year at which each model crosses the selected"
+                     " warming level, defined in the table below as the central year."
+                     " This information corresponds to the anomalies shown in the maps"
+                     " on the previous two tabs."),
             width = 800
         ),
         warming_data._30_yr_window
@@ -624,5 +646,4 @@ def _display_warming_levels(warming_data, selections, location):
         pn.Row(data_options, GMT_plot),
         map_tabs
     )
-
     return panel_doodad
