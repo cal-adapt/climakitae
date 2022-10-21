@@ -367,6 +367,15 @@ def _get_variable_options_df(var_catalog, unique_variable_ids, timescale):
         variable_options_df (pd.DataFrame): var_catalog information subsetted by unique_variable_ids
 
     """
+    if timescale == "hourly": 
+        unique_variable_ids.extend(
+            [
+                "precip_tot_derived", 
+                "rh_derived", 
+                "wind_mag_derived"
+            ]
+        )
+    
     if timescale in ["daily", "monthly"]:
         timescale = "daily/monthly"
     variable_options_df = var_catalog[
