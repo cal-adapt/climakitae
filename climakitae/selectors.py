@@ -1,3 +1,4 @@
+import datetime as dt
 import param
 import panel as pn
 import intake
@@ -8,20 +9,18 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import geopandas as gpd
 import pandas as pd
-import datetime as dt
+import pkg_resources
 from .unit_conversions import _get_unit_conversion_options
 from .catalog_utils import (
     _convert_resolution,
     _convert_timescale,
     _convert_scenario
 )
-import pkg_resources
 
 # Import package data 
 var_catalog_resource = pkg_resources.resource_filename('climakitae', 'data/variable_catalog.csv')
 var_catalog = pd.read_csv(var_catalog_resource, index_col = None)
 unit_options_dict = _get_unit_conversion_options()
-
 
 # =========================== LOCATION SELECTIONS ==============================
 
@@ -71,25 +70,12 @@ class Boundaries:
         """
         Returns a custom sorted dictionary of state abbreviations and indices.
         """
-        _states_subset_list = [
-            "CA",
-            "NV",
-            "OR",
-            "WA",
-            "UT",
-            "MT",
-            "ID",
-            "AZ",
-            "CO",
-            "NM",
-            "WY"
-        ]
+        _states_subset_list = ["CA", "NV", "OR", "WA", "UT", "MT", "ID", "AZ", "CO", "NM", "WY"]
         _us_states_subset = self._us_states.query("abbrevs in @_states_subset_list")[["abbrevs"]]
         _us_states_subset["abbrevs"] = pd.Categorical(
             _us_states_subset["abbrevs"], categories=_states_subset_list
         )
         _us_states_subset.sort_values(by = "abbrevs", inplace = True)
-
         return dict(zip(_us_states_subset.abbrevs, _us_states_subset.index))
 
     def get_ca_counties(self):
@@ -97,7 +83,6 @@ class Boundaries:
         Returns a dictionary of California counties and their indices
         in the geoparquet file.
         """
-
         return pd.Series(
             self._ca_counties.index, index = self._ca_counties["NAME"]
         ).to_dict()
@@ -107,7 +92,6 @@ class Boundaries:
         Returns a lookup dictionary for CA watersheds that references
         the geoparquet file.
         """
-
         return pd.Series(
             self._ca_watersheds.index, index = self._ca_watersheds["Name"]
         ).to_dict()
@@ -169,7 +153,7 @@ class LocSelectorArea(param.Parameterized):
                 (-123.52125549316406, 9.475631713867188),
                 (-156.8231658935547, 35.449039459228516),
                 (-102.43182373046875, 67.32866668701172),
-                (-84.18701171875, 26.643436431884766),
+                (-84.18701171875, 26.643436431884766)
             ]
         ),
         "9 km": Polygon(
@@ -177,7 +161,7 @@ class LocSelectorArea(param.Parameterized):
                 (-116.69509887695312, 22.267112731933594),
                 (-138.42117309570312, 43.23344802856445),
                 (-110.90779113769531, 57.5806770324707),
-                (-94.9368896484375, 31.627288818359375),
+                (-94.9368896484375, 31.627288818359375)
             ]
         ),
         '3 km': Polygon(
@@ -305,7 +289,6 @@ class LocSelectorArea(param.Parameterized):
                 plot_subarea(self._geographies._ca_counties, [-125, -114, 31, 43])
             elif self.area_subset == "CA watersheds":
                 plot_subarea(self._geographies._ca_watersheds, [-125, -114, 31, 43])
-
         return mpl_pane
 
 
@@ -324,8 +307,6 @@ class LocSelectorPoint(param.Parameterized):
     def _update_location(self):
         """Updates the 'location' object to be the point associated with the selected station."""
         location = _stations_database[self.cached_station]
-
-
 
 # ============================ DATA SELECTIONS =================================
 
@@ -413,7 +394,7 @@ class DataSelector(param.Parameterized):
     def __init__(self, **params):
         # Set default values
         super().__init__(**params)
-        
+
         # Dataset selection
         self.dataset = "WRF"
 
@@ -531,7 +512,7 @@ class DataSelector(param.Parameterized):
             "SSP 5-8.5 -- Burn it All",
             "SSP 2-4.5 -- Middle of the Road"
         ]:
-            if scenario_i in scenario_options :
+            if scenario_i in scenario_options:
                 scenario_options.remove(scenario_i) # Remove item
                 scenario_options.append(scenario_i) # Add to back of list
 
@@ -590,7 +571,7 @@ class DataSelector(param.Parameterized):
         ax.set_ylim(0, 1)
         ax.xaxis.set_major_locator(ticker.AutoLocator())
         ax.xaxis.set_minor_locator(ticker.AutoMinorLocator())
-        mpl_pane = pn.pane.Matplotlib(fig0, dpi=144)
+        mpl_pane = pn.pane.Matplotlib(fig0, dpi = 144)
 
         def update_bars(scenario, y_offset):
             """
@@ -651,9 +632,7 @@ class DataSelector(param.Parameterized):
             alpha = 0.8,
             facecolor="grey"
         )
-
         return mpl_pane
-
 
 # ================ DISPLAY LOCATION/DATA SELECTIONS IN PANEL ===================
 
@@ -699,7 +678,6 @@ def _display_select(selections, location, location_type = "area average"):
     )
     return pn.Column(first_row, location_chooser)
 
-
 # =============================== EXPORT DATA ==================================
 
 
@@ -723,7 +701,7 @@ class FileTypeSelector(param.Parameterized):
 
     user_options = UserFileChoices()
     output_file_format = param.ObjectSelector(
-        objects=user_options._export_format_choices
+        objects = user_options._export_format_choices
     )
 
     def _export_file_type(self):
@@ -747,5 +725,4 @@ def _user_export_select(user_export_format):
     # file_name = pn.widgets.TextInput(name='File name',
     #                                 placeholder='Type file name here')
     # file_input_col = pn.Column(user_export_format.param, data_to_export, file_name)
-
     return pn.Row(user_export_format.param)
