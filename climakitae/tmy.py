@@ -401,15 +401,16 @@ def _amy_visualize(tmy_ob, selections, location):
 
     mthd_bx = pn.Column(
         pn.widgets.StaticText(
-            value="An average meteorological year is calculated by selecting \
-             the 24 hours for every day that best represent multi-model mean \
-             conditions during a 30-year period – 1981-2010 for the historical \
-             baseline or centered on the year the warming level is reached. \
-             Absolute average meteorolgoical year profiles represent data that \
-             is not bias corrected, please exercise caution when analyzing. \
-             The 'severe' AMY is calculated using the 90th percentile of future \
-             warming level data at the selected warming level, and is compared \
-             to the historical baseline.",
+            value = ("An average meteorological year is calculated by selecting"
+                " the 24 hours for every day that best represent multi-model mean"
+                " conditions during a 30-year period – 1981-2010 for the historical"
+                " baseline or centered on the year the warming level is reached."
+                " Absolute average meteorolgoical year profiles represent data that"
+                " is not bias corrected, please exercise caution when analyzing."
+                " The 'severe' AMY is calculated using the 90th percentile of future"
+                " warming level data at the selected warming level, and is compared"
+                " to the historical baseline."
+            ),
             width = 400
         ),
     )
@@ -434,5 +435,4 @@ def _amy_visualize(tmy_ob, selections, location):
     tmy_panel = pn.Column(
         pn.Row(user_options, tmy_tabs)
     )
-
     return tmy_panel
