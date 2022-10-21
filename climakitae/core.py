@@ -47,7 +47,7 @@ class Application(object):
         return _read_from_catalog(self.selections, self.location, self._cat)
 
     # === View =======================================
-    def view(self, data, lat_lon=True, width=None, height=None, cmap=None):
+    def view(self, data, lat_lon = True, width = None, height = None, cmap = None):
         """Create a generic visualization of the data
 
         Args:
@@ -62,8 +62,8 @@ class Application(object):
             hvplot.image()
 
         """
-        return _visualize(data, lat_lon=lat_lon, width=width,
-                          height=height, cmap=cmap)
+        return _visualize(data, lat_lon = lat_lon, width = width,
+                          height = height, cmap = cmap)
 
     # === Export =====================================
     def export_as(self):
