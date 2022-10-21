@@ -1,8 +1,8 @@
 import xarray as xr
-from shapely.geometry import box
 import rioxarray
 import intake
 import numpy as np
+from shapely.geometry import box
 from .catalog_utils import (
     _convert_resolution,
     _convert_timescale,
@@ -11,8 +11,7 @@ from .catalog_utils import (
 from .unit_conversions import _convert_units
 
 # support methods for core.Application.generate
-xr.set_options(keep_attrs=True)
-
+xr.set_options(keep_attrs = True)
 
 # ============================ Helper functions ================================
 
@@ -162,12 +161,12 @@ def _process_and_concat(selections, dsets, cat_subset):
 
     for scenario in scenario_list:
         sim_list = []
-        da_name = _convert_scenario(scenario, reverse=True)
+        da_name = _convert_scenario(scenario, reverse = True)
         for simulation in cat_subset.unique()["source_id"]["values"]:
             if selections.append_historical and "ssp" in scenario:
 
                 # Reset name
-                da_name = "Historical + " + _convert_scenario(scenario, reverse=True)
+                da_name = "Historical + " + _convert_scenario(scenario, reverse = True)
 
                 # Get filenames
                 try:
@@ -186,7 +185,7 @@ def _process_and_concat(selections, dsets, cat_subset):
                     coords = 'minimal',
                     compat = 'override',
                     join = 'inner'
-                ) 
+                )
                 sim_list.append(historical_appended)
 
             else:
@@ -213,7 +212,7 @@ def _process_and_concat(selections, dsets, cat_subset):
         compat = 'override'
     )
 
-    # Rename 
+    # Rename
     da_final.name = selections.variable
 
     # Add attributes
@@ -231,7 +230,6 @@ def _process_and_concat(selections, dsets, cat_subset):
         "units": da_final.attrs["units"]
     }
     return da_final
-
 
 # ============ Read from catalog function used by ck.Application ===============
 
@@ -287,7 +285,7 @@ def _read_from_catalog(selections, location, cat):
     if selections.area_average == True:
         weights = np.cos(np.deg2rad(da.lat))
         da = da.weighted(weights).mean("x").mean("y")
-        
+
     # Convert units
     da = _convert_units(da = da, selected_units = selections.units)
     return da
