@@ -181,13 +181,15 @@ class AverageMeteorologicalYear(param.Parameterized):
     computatation_description_dict = {
         "Absolute": {
             "Historical": "AMY computed using the historical baseline for 1981-2010.",
-            "Warming Level Future": "AMY computed using the 30-year future period centered around when the selected warming level is reached."
+            "Warming Level Future": ("AMY computed using the 30-year future period"
+                                     " centered around when the selected warming level is reached.")
         },
         "Difference": {
-            "Warming Level Future": "AMY computed by taking the difference between the 30-year future period centered around the selected warming \
-            level and the historical baseline."
-            # "Severe AMY": "AMY computed by taking the difference between the 90th percentile of the 30-year future period centered around the \
-            # selected warming level and the historical baseline."
+            "Warming Level Future": ("AMY computed by taking the difference between"
+                                     " the 30-year future period centered around the selected warming"
+                                     " level and the historical baseline.")
+            # "Severe AMY": ("AMY computed by taking the difference between the 90th percentile of the 30-year future"
+            #                " period centered around the selected warming level and the historical baseline.")
         }
     }
 
@@ -354,13 +356,10 @@ class AverageMeteorologicalYear(param.Parameterized):
             width = 800,
             height = 350
         ).opts(
-            fontsize={'title': 13, 'xlabel': 12, 'ylabel': 12}
+            fontsize = {'title': 13, 'xlabel': 12, 'ylabel': 12},
+            toolbar = "below"
         )
-        heatmap.opts(toolbar = "below")
-
         return heatmap
-
-# ==============================================================================
 
 def _amy_visualize(tmy_ob, selections, location):
     """
