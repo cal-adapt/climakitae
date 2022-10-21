@@ -23,11 +23,12 @@ class AppExplore(object):
 
     def __repr__(self):
         """Print a string description of the available analysis method for this class. """
-        return "Choose one of these interactive panels to explore different aspects"
-            + " of the data.\n app.explore.warming_levels(): Learn about global warming"
-            + " levels and explore regional responses.\n app.explore.thresholds(): Explore"
-            + " how frequencies of extreme events will change.\n app.explore.amy(): Produce"
-            + " an hourly time series for one year capturing mean climate conditions."
+        description = "Choose one of these interactive panels to explore different aspects"
+                      + " of the data.\n app.explore.warming_levels(): Learn about global warming"
+                      + " levels and explore regional responses.\n app.explore.thresholds(): Explore"
+                      + " how frequencies of extreme events will change.\n app.explore.amy(): Produce"
+                      + " an hourly time series for one year capturing mean climate conditions."
+        return description
 
     def amy(self):
         """Display Average Meteorological Year panel. """
