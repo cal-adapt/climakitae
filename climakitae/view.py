@@ -1,9 +1,9 @@
+import warnings
 import xarray as xr
 import numpy as np
 import pandas as pd
 import hvplot.xarray
 import matplotlib.pyplot as plt
-import warnings
 import pkg_resources
 from .utils import _reproject_data, _read_ae_colormap, _read_var_csv
 
@@ -35,7 +35,7 @@ def _visualize(data, lat_lon = True, width = None, height = None, cmap = None):
         # Set default cmap if no user input
         if cmap is None:
             try:
-                if data.frequency in ["monthly","daily"]:
+                if data.frequency in ["monthly", "daily"]:
                     timescale = "daily/monthly"
                 else:
                     timescale = data.frequency
@@ -118,5 +118,4 @@ def _visualize(data, lat_lon = True, width = None, height = None, cmap = None):
     # Error raised if data does not contain [x,y] or time dimensions 
     else: 
         raise ValueError("Input data must contain valid spatial dimensions (x,y) and/or time dimensions")
-
     return _plot
