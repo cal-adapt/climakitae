@@ -56,7 +56,5 @@ def transform_details(func):
         # execute the transform and update attributes
         ds_transformed = func(*args, **kwargs)
         ds_transformed.attrs = orig_attrs
-
         return(ds_transformed)
-
     return(update_metadata)
