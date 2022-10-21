@@ -1,8 +1,7 @@
+import math
 import pandas as pd
 import panel as pn
 import param
-import math
-
 from .data_loaders import _read_from_catalog
 from .unit_conversions import _convert_units
 from .threshold_tools import (
@@ -29,9 +28,9 @@ def _get_threshold_data(selections, location, cat):
     """
     # Read data from catalog
     data = _read_from_catalog(
-        selections=selections,
-        location=location,
-        cat=cat
+        selections = selections,
+        location = location,
+        cat = cat
     )
     data = data.compute() # Read into memory
     return data
@@ -87,7 +86,7 @@ class ThresholdDataParams(param.Parameterized):
 
     def __init__(self, *args, **params):
         super().__init__(*args, **params)
-        
+
         # Selectors defaults
         self.selections.append_historical = False
         self.selections.area_average = True
@@ -193,7 +192,7 @@ class ThresholdDataParams(param.Parameterized):
         else:
             smooth_row = pn.Row(
                 self.param.smoothing,
-                width=375
+                width = 375
             )
         return pn.Card(smooth_row, title = "Smoothing", collapsible = False)
 
@@ -219,7 +218,7 @@ class ThresholdDataParams(param.Parameterized):
             width = 375
         )
 
-def _exceedance_visualize(choices, option=1):
+def _exceedance_visualize(choices, option = 1):
     """
     Uses holoviz 'panel' library to display the parameters and view defined for
     exploring exceedance.
@@ -235,7 +234,7 @@ def _exceedance_visualize(choices, option=1):
             ("Event counts", choices.view),
             ("Return values", pn.Row()),
             ("Return periods", pn.Row())
-        ) 
+        )
     else:
         raise ValueError("Unknown option")
 
@@ -288,17 +287,7 @@ def _exceedance_visualize(choices, option=1):
             plot_card
         )
     ))
-
     return exceedance_count_panel
-
-_thresholds_tool_description = "Select a variable of interest, variable units,\
-    and region of interest to the left. Then, use the dropdowns below to \
-    define the extreme event you are interested in. After clicking \
-    Reload Plot', the plot on the lower right will show event frequencies \
-    across different simulations. You can also explore how these \
-    frequencies change under different global emissions scenarios. Save a \
-    plot to come back to later by putting your cursor over the lower right \
-    and clicking the save icon."
 
 def _thresholds_visualize(thresh_data, selections, location, option = 1):
     """ 
@@ -338,6 +327,16 @@ def _thresholds_visualize(thresh_data, selections, location, option = 1):
         title = "Data Options", collapsible = False, width = 700, height = _first_row_height
     )
 
+    _thresholds_tool_description = ("Select a variable of interest, variable units,"
+        " and region of interest to the left. Then, use the dropdowns below to"
+        " define the extreme event you are interested in. After clicking"
+        " 'Reload Plot', the plot on the lower right will show event frequencies"
+        " across different simulations. You can also explore how these"
+        " frequencies change under different global emissions scenarios. Save a"
+        " plot to come back to later by putting your cursor over the lower right"
+        " and clicking the save icon."
+    )
+
     description_box = pn.Card(
         _thresholds_tool_description,
         title = "About this tool",
@@ -347,7 +346,6 @@ def _thresholds_visualize(thresh_data, selections, location, option = 1):
     )
 
     plot_panel = _exceedance_visualize(thresh_data, option) # display the holoviz panel
-
     return pn.Column(
         pn.Row(
             data_options_card, description_box
