@@ -923,8 +923,8 @@ def get_exceedance_count(
     if duration2 is not None:
         dur_len, dur_type = duration2
 
-        if (groupby is not None and groupby[1] == dur_type)
-            or (groupby is None and freq[1] == dur_type):
+        if (groupby is not None and groupby[1] == dur_type
+            or groupby is None and freq[1] == dur_type):
             window_size = dur_len
         else:
             raise ValueError("Duration options for time types (i.e. hour, day) that are different than group or frequency not yet implemented")
