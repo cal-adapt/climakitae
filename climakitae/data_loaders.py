@@ -156,8 +156,8 @@ def _process_and_concat(selections, dsets, cat_subset):
     
     # If append historical is true, we don't need to have an additional
     # Historical Climate scenario coordinate
-    if ("historical" in scenario_list) and
-       (selections.append_historical == True):
+    if ("historical" in scenario_list and
+        selections.append_historical == True):
         scenario_list.remove("historical")
 
     for scenario in scenario_list:
