@@ -518,7 +518,12 @@ class WarmingLevels(param.Parameterized):
 
                     to_plot *= interval
 
-        to_plot.opts(opts.Overlay(title = 'Global mean surface temperature change relative to 1850-1900', fontsize = 12))
+        to_plot.opts(
+            opts.Overlay(
+                title = 'Global mean surface temperature change relative to 1850-1900',
+                fontsize = 12
+            )
+        )
         to_plot.opts(legend_position = 'bottom', fontsize = 10)
         return to_plot
 
