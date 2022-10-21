@@ -1008,10 +1008,10 @@ def get_exceedance_events(
 
     # Groupby
     if groupby is not None:
-        if (groupby == (1, "hour") and da.frequency == "hourly")
+        if ((groupby == (1, "hour") and da.frequency == "hourly")
             or (groupby == (1, "day") and da.frequency == "daily")
             or (groupby == (1, "month") and da.frequency == "monthly")
-            or groupby == duration1:
+            or groupby == duration1):
             # groupby specification is the same as data frequency, do nothing
             pass
         else:
