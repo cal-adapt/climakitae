@@ -20,7 +20,6 @@ def _compute_total_precip(cumulus_precip, gridcell_precip,
     # Assign descriptive name and attributes
     total_precip.name = variable_name
     total_precip.attrs["description"] = "Total precipitation"
-
     return total_precip
 
 def _compute_relative_humidity(pressure, temperature, mixing_ratio,
@@ -55,7 +54,6 @@ def _compute_relative_humidity(pressure, temperature, mixing_ratio,
     for var in [pressure, temperature, mixing_ratio]:
         if "grid_mapping" in var.attrs:
             rel_hum.attrs["grid_mapping"] = var.attrs["grid_mapping"]
-
     return rel_hum
 
 def _compute_wind_mag(u10, v10, variable_name = "WIND_MAG"):
@@ -76,5 +74,4 @@ def _compute_wind_mag(u10, v10, variable_name = "WIND_MAG"):
     wind_mag.name = variable_name
     wind_mag.attrs["description"] = "Wind magnitude at 10 m"
     wind_mag.attrs["units"] = "m s-1"
-
     return wind_mag
