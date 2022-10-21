@@ -1,10 +1,11 @@
+import os
+import tempfile
+import datetime as dt
 import xarray as xr
 import param
 import panel as pn
 import hvplot.xarray
-import datetime as dt
 import dask
-import tempfile, os
 
 
 class TimeSeriesParams(param.Parameterized):
@@ -142,7 +143,6 @@ class TimeSeriesParams(param.Parameterized):
                     + self.extremes
                 )
             to_plot.name = new_name
-
         return to_plot
 
     @param.depends(
@@ -178,7 +178,6 @@ class TimeSeriesParams(param.Parameterized):
         )
         return obj
 
-
 def _timeseries_visualize(choices):
     """
     Uses holoviz 'panel' library to display the parameters and view defined in
@@ -207,7 +206,6 @@ def _timeseries_visualize(choices):
         ),
         choices.view,
     )
-
 
 def _update_attrs(data_to_output, attrs_to_add):
     """
@@ -243,7 +241,6 @@ def _update_attrs(data_to_output, attrs_to_add):
 
     attributes.update(attrs_to_add)
     data_to_output.attrs = attributes
-
     return data_to_output
 
 
