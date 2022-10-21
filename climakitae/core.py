@@ -1,16 +1,16 @@
+import intake
+from .data_export import _export_to_user
+from .data_loaders import _read_from_catalog
+from .explore import AppExplore
 from .selectors import (
     DataSelector,
     _display_select,
     LocSelectorArea,
     UserFileChoices,
     _user_export_select,
-    FileTypeSelector,
+    FileTypeSelector
 )
-from .data_loaders import _read_from_catalog
-from .data_export import _export_to_user
 from .view import _visualize
-from .explore import AppExplore
-import intake
 
 
 class Application(object):
@@ -26,7 +26,6 @@ class Application(object):
         self.user_export_format = FileTypeSelector()
         self.explore = AppExplore(self.selections, self.location, self._cat)
 
-
     # === Select =====================================
     def select(self):
         """
@@ -36,7 +35,6 @@ class Application(object):
         """
         select_panel = _display_select(self.selections, self.location)
         return select_panel
-
 
     # === Retrieve ===================================
     def retrieve(self):
