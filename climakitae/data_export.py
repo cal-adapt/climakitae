@@ -1,14 +1,15 @@
-import xarray as xr
-import pandas as pd
+import os
 import shutil
-import dask
 import warnings
 import datetime
+import xarray as xr
+import pandas as pd
+import dask
 import numpy as np
-import os
 import rasterio
 from . import __version__
-xr.set_options(keep_attrs=True)
+
+xr.set_options(keep_attrs = True)
 
 def export_to_netcdf(data_to_export, save_name, **kwargs):
     '''
@@ -21,9 +22,9 @@ def export_to_netcdf(data_to_export, save_name, **kwargs):
     kwargs: reserved for future use
     '''
     print("Alright, exporting specified data to NetCDF.")
-    comp = dict(_FillValue=None)
+    comp = dict(_FillValue = None)
     encoding = {coord: comp for coord in data_to_export.coords}
-    data_to_export.to_netcdf(save_name, encoding=encoding)
+    data_to_export.to_netcdf(save_name, encoding = encoding)
 
 def export_to_csv(data_to_export, save_name, **kwargs):
     '''
@@ -44,7 +45,7 @@ def export_to_csv(data_to_export, save_name, **kwargs):
                       + str(excel_row_limit) + " rows.")
 
     metadata_to_file(data_to_export, save_name)
-    to_save.to_csv(save_name, compression='gzip')
+    to_save.to_csv(save_name, compression = 'gzip')
 
 def export_to_geotiff(data_to_export, save_name, **kwargs):
     '''
@@ -58,7 +59,7 @@ def export_to_geotiff(data_to_export, save_name, **kwargs):
     '''
     ds_attrs = data_to_export.attrs
 
-    # squeeze singleton dimensions as long as they are 
+    # squeeze singleton dimensions as long as they are
     # simulation and/or scenario dimensions;
     # retain simulation and/or scenario metadata
     if ('scenario' in data_to_export.coords and
@@ -66,10 +67,10 @@ def export_to_geotiff(data_to_export, save_name, **kwargs):
         scen_attrs = {'scenario' : str(data_to_export.coords['scenario'].values)}
         ds_attrs = dict(ds_attrs, **scen_attrs)
     if ('scenario' in data_to_export.dims and
-          len(data_to_export.scenario)==1):
+          len(data_to_export.scenario) == 1):
         scen_attr = {'scenario' : str(data_to_export.scenario.values[0])}
         ds_attrs = dict(ds_attrs, **scen_attr)
-        data_to_export = data_to_export.squeeze(dim='scenario')
+        data_to_export = data_to_export.squeeze(dim = 'scenario')
     elif ('scenario' not in data_to_export.dims and
           'scenario' not in data_to_export.coords):
         warnings.warn("'scenario' not in data array as"
@@ -89,7 +90,7 @@ def export_to_geotiff(data_to_export, save_name, **kwargs):
         len(data_to_export.simulation) == 1):
         sim_attrs = {'simulation' : str(data_to_export.simulation.values)}
         ds_attrs = dict(ds_attrs, **sim_attrs)
-        data_to_export = data_to_export.squeeze(dim='simulation')
+        data_to_export = data_to_export.squeeze(dim = 'simulation')
     elif ('simulation' not in data_to_export.dims and
           'simulation' not in data_to_export.coords):
         warnings.warn("'simulation' not in data array as"
@@ -141,12 +142,10 @@ def _export_to_user(user_export_format, data_to_export,
     """
     ftype = type(data_to_export)
 
-    if ftype not in [xr.core.dataset.Dataset,
-                     xr.core.dataarray.DataArray]:
+    if ftype not in [xr.core.dataset.Dataset, xr.core.dataarray.DataArray]:
         raise Exception("Cannot export object of type "
                         + str(ftype).strip('<class >')
-                        + ". Please pass an xarray dataset"
-                        + " or data array.")
+                        + ". Please pass an xarray dataset or data array.")
     ndims = len(data_to_export.dims)
 
     if type(file_name) is not str:
@@ -156,13 +155,14 @@ def _export_to_user(user_export_format, data_to_export,
     file_name = file_name.split('.')[0]
 
     req_format = user_export_format.output_file_format
+
     if req_format is None:
-        raise Exception("Please select a file format"
-                        + " from the dropdown menu.")
+        raise Exception("Please select a file format from the dropdown menu.")
 
     extension_dict = {'NetCDF' : '.nc',
                       'CSV' : '.csv.gz',
                       'GeoTIFF' : '.tif'}
+
     save_name = './' + file_name + extension_dict[req_format]
 
     if os.path.exists(save_name):
@@ -265,7 +265,7 @@ def _export_to_user(user_export_format, data_to_export,
                                     + " a data array with both x and y"
                                     + " spatial coordinates.")
 
-            dim_check = data_to_export.isel(x=0, y=0).squeeze().shape
+            dim_check = data_to_export.isel(x = 0, y = 0).squeeze().shape
 
             if sum([int(dim > 1) for dim in dim_check]) > 1:
                 dim_list = data_to_export.dims
@@ -291,7 +291,7 @@ def metadata_to_file(ds, output_name):
     """
     def rchop(s, suffix):
         if suffix and s.endswith(suffix):
-            return s[:-len(suffix)]
+            return s[: -len(suffix)]
         return s
 
     output_name = rchop(output_name, '.csv.gz')
