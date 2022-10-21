@@ -9,6 +9,11 @@ from .catalog_utils import (
     _convert_scenario
 )
 from .unit_conversions import _convert_units
+from .derive_variables import (
+    _compute_total_precip, 
+    _compute_relative_humidity, 
+    _compute_wind_mag
+) 
 
 # support methods for core.Application.generate
 xr.set_options(keep_attrs = True)
@@ -233,27 +238,13 @@ def _process_and_concat(selections, dsets, cat_subset):
 
 # ============ Read from catalog function used by ck.Application ===============
 
-def _read_from_catalog(selections, location, cat):
-    """
-    The primary and first data loading method, called by
-    core.Application.generate, it returns a DataArray (which can be quite large)
-    containing everything requested by the user (which is stored in 'selections'
-    and 'location').
 
-    Args:
-        selections (DataLoaders): object holding user's selections
-        cat (intake_esm.core.esm_datastore): catalog
-
-    Returns:
-        da (xr.DataArray): output data
-
-    """
-    # Raise error if no scenarios are selected
-    assert not selections.scenario == [], "Please select as least one scenario."
-
+def _get_data_one_var(selections, location, cat): 
+    """Get data for one variable"""
+    
     # Get catalog subset for a set of user selections
     cat_subset = _get_cat_subset(selections = selections, cat = cat)
-
+    
     # Read data from AWS.
     data_dict = _get_data_dict_and_names(cat_subset = cat_subset)
 
@@ -286,6 +277,101 @@ def _read_from_catalog(selections, location, cat):
         weights = np.cos(np.deg2rad(da.lat))
         da = da.weighted(weights).mean("x").mean("y")
 
+    return da
+
+
+def _read_from_catalog(selections, location, cat):
+    """
+    The primary and first data loading method, called by
+    core.Application.generate, it returns a DataArray (which can be quite large)
+    containing everything requested by the user (which is stored in 'selections'
+    and 'location').
+
+    Args:
+        selections (DataLoaders): object holding user's selections
+        cat (intake_esm.core.esm_datastore): catalog
+
+    Returns:
+        da (xr.DataArray): output data
+
+    """
+    # Raise error if no scenarios are selected
+    assert not selections.scenario == [], "Please select as least one scenario."
+    
+    # Deal with derived variables 
+    if selections.variable_id == "precip_tot_derived":
+        
+        # Load cumulus precip data
+        selections.variable_id = "rainc"
+        cumulus_precip_da = _get_data_one_var(selections, location, cat)
+        
+        # Load grid-scale precip data 
+        selections.variable_id = "rainnc"
+        gridscale_precip_da = _get_data_one_var(selections, location, cat)
+        
+        # Derive precip total 
+        da = _compute_total_precip(
+            cumulus_precip = cumulus_precip_da,
+            gridcell_precip = gridscale_precip_da,
+            variable_name = selections.variable
+        ) 
+        
+    elif selections.variable_id == "wind_mag_derived": 
+        
+        # Load u10 data
+        selections.variable_id = "u10"
+        u10_da = _get_data_one_var(selections, location, cat)
+        
+        # Load v10 data 
+        selections.variable_id = "v10"
+        v10_da = _get_data_one_var(selections, location, cat)
+        
+        # Derive wind magnitude
+        da = _compute_wind_mag(
+            u10 = u10_da,
+            v10 = v10_da,
+            variable_name = selections.variable
+        )
+        
+    elif selections.variable_id == "rh_derived": 
+        
+        
+        # Load pressure data 
+        selections.variable_id = "psfc"
+        pressure_da = _get_data_one_var(selections, location, cat)
+        
+        # Load temperature data 
+        selections.variable_id = "t2"
+        t2_da = _get_data_one_var(selections, location, cat)
+        
+        # Load mixing ratio data 
+        selections.variable_id = "q2"
+        q2_da = _get_data_one_var(selections, location, cat)
+        
+        # Derive relative humidity 
+        da = _compute_relative_humidity(
+            pressure = pressure_da, 
+            temperature = t2_da,
+            mixing_ratio = q2_da,
+            variable_name = selections.variable
+        )
+        da.attrs = { # Add descriptive attributes to DataArray
+            #"conventions": orig_attrs["conventions"],
+            "institution": pressure_da.attrs["institution"],
+            "source": pressure_da.attrs["source"],
+            "resolution": selections.resolution,
+            "frequency": selections.timescale,
+            "grid_mapping": pressure_da.attrs["grid_mapping"],
+            "variable_id": "rh_derived",
+            #"long_name": da_final.attrs["long_name"],
+            "extended_description": selections.extended_description,
+            "units": selections.units
+        } 
+        
+    else: 
+        da = _get_data_one_var(selections, location, cat)
+
     # Convert units
     da = _convert_units(da = da, selected_units = selections.units)
+    
     return da
