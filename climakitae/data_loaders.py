@@ -245,6 +245,35 @@ def _get_data_one_var(selections, location, cat):
     
     # Read data from AWS.
     data_dict = _get_data_dict_and_names(cat_subset = cat_subset)
+    
+    # Perform subsetting operations
+    for dname, dset in data_dict.items():
+        
+        # Time slice
+        dset = dset.sel(
+            time = slice(
+                str(selections.time_slice[0]),
+                str(selections.time_slice[1]))
+        )
+
+        # Perform area subsetting and area averaging
+        ds_region = _get_area_subset(location = location)
+        if ds_region is not None: # Perform subsetting
+            dset = dset.rio.clip(
+                geometries = ds_region,
+                crs = 4326,
+                drop = True
+            )
+
+        # Perform area averaging
+        if selections.area_average == True:
+            weights = np.cos(np.deg2rad(dset.lat))
+            dset = dset.weighted(weights).mean("x").mean("y")
+        
+        # Update dataset in dictionary 
+        data_dict.update(
+            { dname : dset }
+        )
 
     # Process data if append_historical was selected.
     # Merge individual Datasets into one DataArray object.
@@ -253,27 +282,6 @@ def _get_data_one_var(selections, location, cat):
         dsets = data_dict,
         cat_subset = cat_subset
     )
-
-    # Time slice
-    da = da.sel(
-        time = slice(
-            str(selections.time_slice[0]),
-            str(selections.time_slice[1]))
-    )
-
-    # Perform area subsetting and area averaging
-    ds_region = _get_area_subset(location = location)
-    if ds_region is not None: # Perform subsetting
-        da = da.rio.clip(
-            geometries = ds_region,
-            crs = 4326,
-            drop = True
-        )
-
-    # Perform area averaging
-    if selections.area_average == True:
-        weights = np.cos(np.deg2rad(da.lat))
-        da = da.weighted(weights).mean("x").mean("y")
 
     return da
 
