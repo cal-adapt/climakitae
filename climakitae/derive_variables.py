@@ -16,15 +16,14 @@ def _compute_total_precip(cumulus_precip, gridcell_precip,
     """
 
     total_precip = cumulus_precip + gridcell_precip
-
-    # Assign descriptive name and attributes
     total_precip.name = variable_name
-    total_precip.attrs["description"] = "Total precipitation"
     return total_precip
 
 def _compute_relative_humidity(pressure, temperature, mixing_ratio,
                                variable_name = "REL_HUMIDITY"):
-    """Compute relative humidity
+    """Compute relative humidity. 
+    Variable attributes need to be assigned outside of this function because the metpy function removes them
+
 
     Args:
         pressure (xr.DataArray): Pressure in Pascals
@@ -41,19 +40,13 @@ def _compute_relative_humidity(pressure, temperature, mixing_ratio,
         temperature = temperature,
         mixing_ratio = mixing_ratio
     )
-    rel_hum = rel_hum.metpy.dequantify() # metpy function returns a pint.Quantity
-    # object, which can cause issues with dask. This can be undone using the dequantify function.
+    rel_hum = rel_hum.metpy.dequantify() 
+    # metpy function returns a pint.Quantity object, which can cause issues with dask. 
+    # This can be undone using the dequantify function.
     # For more info: https://unidata.github.io/MetPy/latest/tutorials/xarray_tutorial.html
 
-    # Assign descriptive name and attributes
-    rel_hum.name = variable_name
-
-    # For some reason, the grid_mapping attr is lost by the metpy function
-    # We want to add it back in to allow for projecting the data
-    # for var in [pressure, temperature, mixing_ratio]:
-    #     if "grid_mapping" in var.attrs:
-    #         rel_hum.attrs["grid_mapping"] = var.attrs["grid_mapping"]
-                
+    # Assign descriptive name 
+    rel_hum.name = variable_name    
     return rel_hum
 
 def _compute_wind_mag(u10, v10, variable_name = "WIND_MAG"):
@@ -69,9 +62,6 @@ def _compute_wind_mag(u10, v10, variable_name = "WIND_MAG"):
 
     """
     wind_mag = np.sqrt(np.square(u10) + np.square(v10))
-
-    # Assign descriptive name and attributes
     wind_mag.name = variable_name
-    wind_mag.attrs["description"] = "Wind magnitude at 10 m"
     wind_mag.attrs["units"] = "m s-1"
     return wind_mag

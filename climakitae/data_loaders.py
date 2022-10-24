@@ -223,14 +223,12 @@ def _process_and_concat(selections, dsets, cat_subset):
     # Add attributes
     orig_attrs = dsets[list(dsets.keys())[0]].attrs
     da_final.attrs = { # Add descriptive attributes to DataArray
-        #"conventions": orig_attrs["conventions"],
         "institution": orig_attrs["institution"],
         "source": orig_attrs["source"],
         "resolution": selections.resolution,
         "frequency": selections.timescale,
         "grid_mapping": da_final.attrs["grid_mapping"],
         "variable_id": selections.variable_id,
-        #"long_name": da_final.attrs["long_name"],
         "extended_description": selections.extended_description,
         "units": da_final.attrs["units"]
     }
@@ -335,7 +333,6 @@ def _read_from_catalog(selections, location, cat):
         
     elif selections.variable_id == "rh_derived": 
         
-        
         # Load pressure data 
         selections.variable_id = "psfc"
         pressure_da = _get_data_one_var(selections, location, cat)
@@ -356,14 +353,12 @@ def _read_from_catalog(selections, location, cat):
             variable_name = selections.variable
         )
         da.attrs = { # Add descriptive attributes to DataArray
-            #"conventions": orig_attrs["conventions"],
             "institution": pressure_da.attrs["institution"],
             "source": pressure_da.attrs["source"],
-            "resolution": selections.resolution,
+            "resolution": pressure_da.resolution,
             "frequency": selections.timescale,
             "grid_mapping": pressure_da.attrs["grid_mapping"],
             "variable_id": "rh_derived",
-            #"long_name": da_final.attrs["long_name"],
             "extended_description": selections.extended_description,
             "units": selections.units
         } 
