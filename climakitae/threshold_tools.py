@@ -8,27 +8,20 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from scipy import stats
-
 import lmoments3 as lm
 from lmoments3 import distr as ldistr
 from lmoments3 import stats as lstats
-
 import matplotlib.pyplot as plt
 from matplotlib import cm
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import geoviews as gv
-
 import holoviews as hv
 from holoviews import opts
 import hvplot.pandas
 import hvplot.xarray
 import panel as pn
-
 from .visualize import get_geospatial_plot
-
-# ==============================================================================
-
 
 def get_ams(da, extremes_type = "max"):
     """
@@ -54,12 +47,7 @@ def get_ams(da, extremes_type = "max"):
     #     ams.attrs['extremes type'] = 'minima'
     #     ams.attrs['block size'] = '1 year'
     #     ams.attrs['timeseries type'] = 'annual min series'
-
     return ams
-
-
-# ==============================================================================
-
 
 def get_lmom_distr(distr):
     """
@@ -83,12 +71,7 @@ def get_lmom_distr(distr):
         lmom_distr = ldistr.pe3
     elif distr == "genpareto":
         lmom_distr = ldistr.gpa
-
     return lmom_distr
-
-
-# ==============================================================================
-
 
 def get_fitted_distr(ams, distr, lmom_distr):
     """
@@ -110,12 +93,7 @@ def get_fitted_distr(ams, distr, lmom_distr):
     elif distr == "genpareto":
         lmoments = lmom_distr.lmom_fit(ams)
         fitted_distr = stats.genpareto(**lmoments)
-
     return lmoments, fitted_distr
-
-
-# ==============================================================================
-
 
 def get_lmoments(ams, distr = "gev", multiple_points = True):
     """
@@ -144,12 +122,7 @@ def get_lmoments(ams, distr = "gev", multiple_points = True):
 
     new_ds.attrs = ams_attributes
     new_ds.attrs["distribution"] = "{}".format(str(distr))
-
     return new_ds
-
-
-# ==============================================================================
-
 
 def get_ks_stat(ams, distr = "gev", multiple_points = True):
     """
@@ -170,7 +143,7 @@ def get_ks_stat(ams, distr = "gev", multiple_points = True):
                 ks = stats.kstest(
                     ams,
                     "genextreme",
-                    args = (lmoments["c"], lmoments["loc"], lmoments["scale"]),
+                    args = (lmoments["c"], lmoments["loc"], lmoments["scale"])
                 )
                 d_statistic = ks[0]
                 p_value = ks[1]
@@ -194,7 +167,7 @@ def get_ks_stat(ams, distr = "gev", multiple_points = True):
                 ks = stats.kstest(
                     ams,
                     "weibull_min",
-                    args = (lmoments["c"], lmoments["loc"], lmoments["scale"]),
+                    args = (lmoments["c"], lmoments["loc"], lmoments["scale"])
                 )
                 d_statistic = ks[0]
                 p_value = ks[1]
@@ -207,7 +180,7 @@ def get_ks_stat(ams, distr = "gev", multiple_points = True):
                 ks = stats.kstest(
                     ams,
                     "pearson3",
-                    args = (lmoments["skew"], lmoments["loc"], lmoments["scale"]),
+                    args = (lmoments["skew"], lmoments["loc"], lmoments["scale"])
                 )
                 d_statistic = ks[0]
                 p_value = ks[1]
@@ -220,14 +193,13 @@ def get_ks_stat(ams, distr = "gev", multiple_points = True):
                 ks = stats.kstest(
                     ams,
                     "genpareto",
-                    args = (lmoments["c"], lmoments["loc"], lmoments["scale"]),
+                    args = (lmoments["c"], lmoments["loc"], lmoments["scale"])
                 )
                 d_statistic = ks[0]
                 p_value = ks[1]
             except (ValueError, ZeroDivisionError):
                 d_statistic = np.nan
                 p_value = np.nan
-
         return d_statistic, p_value
 
     d_statistic, p_value = xr.apply_ufunc(
@@ -249,12 +221,7 @@ def get_ks_stat(ams, distr = "gev", multiple_points = True):
     new_ds["p_value"].attrs["stat test"] = "KS test"
     new_ds.attrs = ams_attributes
     new_ds.attrs["distribution"] = "{}".format(str(distr))
-
     return new_ds
-
-
-# ==============================================================================
-
 
 def calculate_return(fitted_distr, data_variable, arg_value):
     """
@@ -283,12 +250,7 @@ def calculate_return(fitted_distr, data_variable, arg_value):
                 result = round(return_period, 3)
         except (ValueError, ZeroDivisionError, AttributeError):
             result = np.nan
-
     return result
-
-
-# ==============================================================================
-
 
 def bootstrap(ams, distr = "gev", data_variable = "return_value", arg_value = 10):
     """
@@ -358,12 +320,7 @@ def bootstrap(ams, distr = "gev", data_variable = "return_value", arg_value = 10
             )
         except (ValueError, ZeroDivisionError):
             result = np.nan
-
     return result
-
-
-# ==============================================================================
-
 
 def conf_int(
     ams,
@@ -390,12 +347,7 @@ def conf_int(
 
     conf_int_lower_limit = conf_int_array[0]
     conf_int_upper_limit = conf_int_array[1]
-
     return conf_int_lower_limit, conf_int_upper_limit
-
-
-# ==============================================================================
-
 
 def get_return_value(
     ams,
@@ -513,7 +465,6 @@ def get_return_value(
                 conf_int_lower_bound = conf_int_lower_bound,
                 conf_int_upper_bound = conf_int_upper_bound,
             )
-
         return return_value, conf_int_lower_limit, conf_int_upper_limit
 
     return_value, conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
@@ -544,12 +495,7 @@ def get_return_value(
 
     new_ds.attrs = ams_attributes
     new_ds.attrs["distribution"] = "{}".format(str(distr))
-
     return new_ds
-
-
-# ==============================================================================
-
 
 def get_return_prob(
     ams,
@@ -667,7 +613,6 @@ def get_return_prob(
                 conf_int_lower_bound = conf_int_lower_bound,
                 conf_int_upper_bound = conf_int_upper_bound,
             )
-
         return return_prob, conf_int_lower_limit, conf_int_upper_limit
 
     return_prob, conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
@@ -698,12 +643,7 @@ def get_return_prob(
 
     new_ds.attrs = ams_attributes
     new_ds.attrs["distribution"] = "{}".format(str(distr))
-
     return new_ds
-
-
-# ==============================================================================
-
 
 def get_return_period(
     ams,
@@ -821,7 +761,6 @@ def get_return_period(
                 conf_int_lower_bound = conf_int_lower_bound,
                 conf_int_upper_bound = conf_int_upper_bound,
             )
-
         return return_period, conf_int_lower_limit, conf_int_upper_limit
 
     return_period, conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
@@ -852,7 +791,6 @@ def get_return_period(
 
     new_ds.attrs = ams_attributes
     new_ds.attrs["distribution"] = "{}".format(str(distr))
-
     return new_ds
 
 # ===================== Functions for exceedance count =========================
@@ -956,7 +894,7 @@ def get_exceedance_count(
     exceedance_count.attrs["units"] = _exceedance_count_name(exceedance_count)
 
     # Set name (for plotting, this will be the y-axis label)
-    exceedance_count.name =  "Count"
+    exceedance_count.name = "Count"
 
     return exceedance_count
 
@@ -1019,7 +957,6 @@ def get_exceedance_events(
             indexer_type = str.capitalize(group_type[0]) # capitalize the first letter to use as the indexer (i.e. H, D, M, or Y)
             group_totals = events_da.resample(time=f"{group_len}{indexer_type}", label = "left").sum() # sum occurences within each group
             events_da = (group_totals > 0).where(group_totals.isnull() == False) # turn back into a boolean with preserved NaNs (0 or 1 for whether there is any occurance in the group)
-
     return events_da
 
 def _exceedance_count_name(exceedance_count):
@@ -1055,7 +992,6 @@ def _exceedance_count_name(exceedance_count):
                 event = "days"
             elif exceedance_count.frequency == "monthly":
                 event = "months"
-
     return f"Number of {event}"
 
 def plot_exceedance_count(exceedance_count):
@@ -1114,6 +1050,5 @@ def _exceedance_plot_subtitle(exceedance_count):
     else:
         period_str = f" per {per_len}-{per_type} period"
 
-    _subtitle = _exceedance_count_name(exceedance_count)+ period_str + dur_str + grp_str
-
+    _subtitle = _exceedance_count_name(exceedance_count) + period_str + dur_str + grp_str
     return _subtitle

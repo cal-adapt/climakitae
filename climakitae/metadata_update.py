@@ -6,7 +6,6 @@ from functools import wraps
 def transform_details(func):
     @wraps(func)
     def update_metadata(*args, **kwargs):
-
         """
         Wrapper that pulls function parameters on execution of any
         transform 'func'.
@@ -56,7 +55,5 @@ def transform_details(func):
         # execute the transform and update attributes
         ds_transformed = func(*args, **kwargs)
         ds_transformed.attrs = orig_attrs
-
         return(ds_transformed)
-
     return(update_metadata)

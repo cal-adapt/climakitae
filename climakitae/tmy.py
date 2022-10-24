@@ -181,13 +181,15 @@ class AverageMeteorologicalYear(param.Parameterized):
     computatation_description_dict = {
         "Absolute": {
             "Historical": "AMY computed using the historical baseline for 1981-2010.",
-            "Warming Level Future": "AMY computed using the 30-year future period centered around when the selected warming level is reached."
+            "Warming Level Future": ("AMY computed using the 30-year future period"
+                                     " centered around when the selected warming level is reached.")
         },
         "Difference": {
-            "Warming Level Future": "AMY computed by taking the difference between the 30-year future period centered around the selected warming \
-            level and the historical baseline."
-            # "Severe AMY": "AMY computed by taking the difference between the 90th percentile of the 30-year future period centered around the \
-            # selected warming level and the historical baseline."
+            "Warming Level Future": ("AMY computed by taking the difference between"
+                                     " the 30-year future period centered around the selected warming"
+                                     " level and the historical baseline.")
+            # "Severe AMY": ("AMY computed by taking the difference between the 90th percentile of the 30-year future"
+            #                " period centered around the selected warming level and the historical baseline.")
         }
     }
 
@@ -354,13 +356,10 @@ class AverageMeteorologicalYear(param.Parameterized):
             width = 800,
             height = 350
         ).opts(
-            fontsize={'title': 13, 'xlabel': 12, 'ylabel': 12}
+            fontsize = {'title': 13, 'xlabel': 12, 'ylabel': 12},
+            toolbar = "below"
         )
-        heatmap.opts(toolbar = "below")
-
         return heatmap
-
-# ==============================================================================
 
 def _amy_visualize(tmy_ob, selections, location):
     """
@@ -401,15 +400,16 @@ def _amy_visualize(tmy_ob, selections, location):
 
     mthd_bx = pn.Column(
         pn.widgets.StaticText(
-            value="An average meteorological year is calculated by selecting \
-             the 24 hours for every day that best represent multi-model mean \
-             conditions during a 30-year period – 1981-2010 for the historical \
-             baseline or centered on the year the warming level is reached. \
-             Absolute average meteorolgoical year profiles represent data that \
-             is not bias corrected, please exercise caution when analyzing. \
-             The 'severe' AMY is calculated using the 90th percentile of future \
-             warming level data at the selected warming level, and is compared \
-             to the historical baseline.",
+            value = ("An average meteorological year is calculated by selecting"
+                " the 24 hours for every day that best represent multi-model mean"
+                " conditions during a 30-year period – 1981-2010 for the historical"
+                " baseline or centered on the year the warming level is reached."
+                " Absolute average meteorolgoical year profiles represent data that"
+                " is not bias corrected, please exercise caution when analyzing."
+                " The 'severe' AMY is calculated using the 90th percentile of future"
+                " warming level data at the selected warming level, and is compared"
+                " to the historical baseline."
+            ),
             width = 400
         ),
     )
@@ -434,5 +434,4 @@ def _amy_visualize(tmy_ob, selections, location):
     tmy_panel = pn.Column(
         pn.Row(user_options, tmy_tabs)
     )
-
     return tmy_panel

@@ -1,7 +1,6 @@
 import numpy as np
 import xarray as xr
 import rioxarray as rio
-import numpy as np 
 import pandas as pd
 import s3fs
 import intake
@@ -9,7 +8,7 @@ import matplotlib.colors as mcolors
 import matplotlib
 import pkg_resources
 
-def _read_ae_colormap(cmap="ae_orange", cmap_hex=False):
+def _read_ae_colormap(cmap = "ae_orange", cmap_hex = False):
     """Read in AE colormap by name
 
     Args:
@@ -23,7 +22,7 @@ def _read_ae_colormap(cmap="ae_orange", cmap_hex=False):
 
     """
 
-    cmap_filename = cmap+".txt" # Filename of colormap
+    cmap_filename = cmap + ".txt" # Filename of colormap
     cmap_pkg_data = pkg_resources.resource_filename("climakitae", "data/cmaps/" + cmap_filename) # Read package data
     cmap_np = np.loadtxt(cmap_pkg_data, dtype = float)
 
@@ -32,7 +31,6 @@ def _read_ae_colormap(cmap="ae_orange", cmap_hex=False):
         cmap_data = [matplotlib.colors.rgb2hex(color) for color in cmap_np]
     else:
         cmap_data = mcolors.LinearSegmentedColormap.from_list(cmap, cmap_np, N = 256)
-
     return cmap_data
 
 def _reproject_data(xr_da, proj = "EPSG:4326", fill_value = np.nan):
@@ -98,7 +96,8 @@ def _reproject_data(xr_da, proj = "EPSG:4326", fill_value = np.nan):
 
     # Raise error if data doesn't have spatial dimensions x,y
     if not set(["x", "y"]).issubset(xr_da.dims): 
-        raise ValueError("Input DataArray cannot be reprojected because it does not contain spatial dimensions x,y")
+        raise ValueError(("Input DataArray cannot be reprojected because it"
+                          " does not contain spatial dimensions x,y"))
 
     # Drop non-dimension coords. Will cause error with rioxarray
     coords = [coord for coord in xr_da.coords if coord not in xr_da.dims]
@@ -130,11 +129,11 @@ def _reproject_data(xr_da, proj = "EPSG:4326", fill_value = np.nan):
             fill_value = fill_value
         )
     else:
-        raise ValueError("DataArrays with dimensions greater than 5 are not currently supported")
+        raise ValueError(("DataArrays with dimensions greater"
+                          " than 5 are not currently supported"))
 
     # Reassign attribute to reflect reprojection
     data_reprojected.attrs["grid_mapping"] = proj
-
     return data_reprojected
 
 # Read csv file containing variable information as dictionary
@@ -162,7 +161,9 @@ def _read_var_csv(
     """
     # Print warning if user inputs invalid index column
     if index_col in ["native_unit", "alt_unit_options", "default_cmap"]:
-        print("Index column must have unique values. Cannot set index_col to " + index_col + ". Setting index to 'name'.")
+        print("Index column must have unique values. Cannot set index_col to "
+              + index_col
+              + ". Setting index to 'name'.")
         index_col = "name"
 
     # Read in csv and return as dictionary

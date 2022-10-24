@@ -7,19 +7,15 @@
 import numpy as np
 import pandas as pd
 import xarray as xr
-
 import matplotlib.pyplot as plt
 from matplotlib import cm
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import geoviews as gv
-
 import holoviews as hv
 from holoviews import opts
 import hvplot.pandas
 import hvplot.xarray
-
-# ==============================================================================
 
 def get_geospatial_plot(
     ds,
@@ -111,5 +107,4 @@ def get_geospatial_plot(
         )
         * borders
     )
-
     return geospatial_plot

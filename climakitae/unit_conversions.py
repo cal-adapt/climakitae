@@ -3,7 +3,6 @@ This script calculates alternative units for variables with multiple commonly
 used units, following NWS conversions for pressure and wind speed.
 Wind speed: https://www.weather.gov/media/epz/wxcalc/windConversion.pdf
 Pressure: https://www.weather.gov/media/epz/wxcalc/pressureConversion.pdf
-
 """
 
 def _get_unit_conversion_options():
@@ -36,7 +35,10 @@ def _convert_units(da, selected_units):
     try:
         native_units = da.attrs["units"]
     except:
-        raise ValueError("You've encountered a bug in the code. This variable does not have identifiable native units. The data for this variable will need to have a 'units' attribute added in the catalog.")
+        raise ValueError(("You've encountered a bug in the code. This variable"
+                          "does not have identifiable native units. The data"
+                          " for this variable will need to have a 'units'"
+                          " attribute added in the catalog."))
 
     # Convert hPa to Pa to make conversions easier
     # Monthly data native unit is hPa, hourly is Pa
@@ -93,5 +95,4 @@ def _convert_units(da, selected_units):
         if selected_units == "fraction":
             da = da / 100.
             da.attrs["units"] = selected_units
-
     return da
