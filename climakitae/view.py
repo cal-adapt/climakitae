@@ -29,19 +29,20 @@ def _visualize(data, lat_lon = True, width = None, height = None, cmap = None):
     # Warn user about speed if passing a zarr to the function
     if data.chunks is not None:
         warnings.warn("This function may be quite slow unless you call .compute() on your data before passing it to app.view()")
+        
+    # Set default cmap if no user input
+    if cmap is None:
+        try:
+            if data.frequency in ["monthly", "daily"]:
+                timescale = "daily/monthly"
+            else:
+                timescale = data.frequency
+            cmap = var_catalog[(var_catalog["display_name"] == data.name) & (var_catalog["timescale"] == timescale)].colormap.item()
+        except: # If variable not found, set to ae_orange without raising error
+            cmap = "ae_orange"
 
     # Workflow if data contains spatial coordinates 
     if set(["x", "y"]).issubset(set(data.dims)):
-        # Set default cmap if no user input
-        if cmap is None:
-            try:
-                if data.frequency in ["monthly", "daily"]:
-                    timescale = "daily/monthly"
-                else:
-                    timescale = data.frequency
-                cmap = var_catalog[(var_catalog["display_name"] == data.name) & (var_catalog["timescale"] == timescale)].colormap.item()
-            except: # If variable not found, set to ae_orange without raising error
-                cmap = "ae_orange"
 
         # Must have more than one grid cell to generate a map
         if (len(data["x"]) <= 1) or (len(data["y"]) <= 1):
@@ -58,10 +59,15 @@ def _visualize(data, lat_lon = True, width = None, height = None, cmap = None):
                 warnings.simplefilter("ignore")
 
                 # Use generic static xarray plot
-                _matplotlib_plot = data.isel(time = 0).plot(cmap = cmap)
+                try: # Try to make a map... 
+                    _matplotlib_plot = data.isel(time = 0).plot(cmap = cmap)
+                except: # If that fails, it will return a histogram 
+                    _matplotlib_plot = data.isel(time = 0).plot()
+                    
                 _plot = plt.gcf() # Add plot to figure
                 plt.close() # Close to prevent annoying matplotlib collections object line from showing in notebook
-         # If there's more than one grid cell, generate a pretty map
+        
+        # If there's more than one grid cell, generate a pretty map
         elif (len(data["x"]) > 1) and (len(data["y"]) > 1):
             # Define colorbar label using variable and units 
             try:
@@ -104,6 +110,7 @@ def _visualize(data, lat_lon = True, width = None, height = None, cmap = None):
             )
         else:
             raise ValueError("You've encountered a bug in the code. Check the view.py module to troubleshoot")
+    
     # Workflow if data contains only time dimension
     elif "time" in data.dims:
         # Set default width & height
