@@ -229,7 +229,7 @@ class AverageMeteorologicalYear(param.Parameterized):
             catalog=self.catalog,
             warmlevel=1.5
         )
-        
+
         # Selectors defaults
         self.selections.append_historical = False
         self.selections.area_average = True
@@ -264,7 +264,7 @@ class AverageMeteorologicalYear(param.Parameterized):
             self.selections.scenario = ["Historical Climate"]
             self.selections.time_slice = (1981,2010) # to match historical 30-year average
 
-        elif self.tmy_advanced_options == "Warming Level Future": 
+        elif self.tmy_advanced_options == "Warming Level Future":
             warming_year_average_range = {
                 1.5 : (2034,2063),
                 2 : (2047,2076),
@@ -342,9 +342,9 @@ class AverageMeteorologicalYear(param.Parameterized):
             xlabel="Hour of Day (PST)",
             ylabel="Day of Year", clabel=clabel, rot=60,
             width=800, height=350).opts(
-            fontsize={'title': 13, 'xlabel':12, 'ylabel':12}
+            fontsize={'title': 13, 'xlabel':12, 'ylabel':12},
+            toolbar="below"
         )
-        heatmap.opts(toolbar="below")
 
         return heatmap
 
