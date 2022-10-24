@@ -1,4 +1,5 @@
 import xarray as xr
+import dask 
 import rioxarray
 import intake
 import numpy as np
@@ -10,8 +11,9 @@ from .catalog_convert import (
 )
 from .unit_conversions import _convert_units
 
-# support methods for core.Application.generate
+# Set options 
 xr.set_options(keep_attrs = True)
+dask.config.set({"array.slicing.split_large_chunks": True})
 
 # ============================ Helper functions ================================
 
