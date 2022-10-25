@@ -23,7 +23,8 @@ import hvplot.xarray
 import panel as pn
 from .visualize import get_geospatial_plot
 
-def get_ams(da, extremes_type = "max"):
+
+def get_ams(da, extremes_type="max"):
     """
     Returns a data array of annual maximums.
     """
@@ -35,7 +36,7 @@ def get_ams(da, extremes_type = "max"):
         )
 
     if extremes_type == "max":
-        ams = da.resample(time = "A").max(keep_attrs = True)
+        ams = da.resample(time="A").max(keep_attrs=True)
         ams.attrs["extreme value extraction method"] = "block maxima"
         ams.attrs["extremes type"] = "maxima"
         ams.attrs["block size"] = "1 year"
@@ -48,6 +49,7 @@ def get_ams(da, extremes_type = "max"):
     #     ams.attrs['block size'] = '1 year'
     #     ams.attrs['timeseries type'] = 'annual min series'
     return ams
+
 
 def get_lmom_distr(distr):
     """
@@ -73,6 +75,7 @@ def get_lmom_distr(distr):
         lmom_distr = ldistr.gpa
     return lmom_distr
 
+
 def get_fitted_distr(ams, distr, lmom_distr):
     """
     Returns fitted l-moments distribution function from l-moments.
@@ -95,7 +98,8 @@ def get_fitted_distr(ams, distr, lmom_distr):
         fitted_distr = stats.genpareto(**lmoments)
     return lmoments, fitted_distr
 
-def get_lmoments(ams, distr = "gev", multiple_points = True):
+
+def get_lmoments(ams, distr="gev", multiple_points=True):
     """
     Returns dataset of l-moments ratios from an inputed maximum series.
     """
@@ -104,14 +108,14 @@ def get_lmoments(ams, distr = "gev", multiple_points = True):
     ams_attributes = ams.attrs
 
     if multiple_points:
-        ams = ams.stack(allpoints = ["y", "x"]).squeeze().groupby("allpoints")
+        ams = ams.stack(allpoints=["y", "x"]).squeeze().groupby("allpoints")
 
     lmoments = xr.apply_ufunc(
         lmom_distr.lmom_fit,
         ams,
-        input_core_dims = [["time"]],
-        exclude_dims = set(("time",)),
-        output_core_dims = [[]],
+        input_core_dims=[["time"]],
+        exclude_dims=set(("time",)),
+        output_core_dims=[[]],
     )
 
     lmoments = lmoments.rename("lmoments")
@@ -124,7 +128,8 @@ def get_lmoments(ams, distr = "gev", multiple_points = True):
     new_ds.attrs["distribution"] = "{}".format(str(distr))
     return new_ds
 
-def get_ks_stat(ams, distr = "gev", multiple_points = True):
+
+def get_ks_stat(ams, distr="gev", multiple_points=True):
     """
     Returns a dataset of ks test d-statistics and p-values from an inputed
     maximum series.
@@ -134,7 +139,7 @@ def get_ks_stat(ams, distr = "gev", multiple_points = True):
     ams_attributes = ams.attrs
 
     if multiple_points:
-        ams = ams.stack(allpoints = ["y", "x"]).squeeze().groupby("allpoints")
+        ams = ams.stack(allpoints=["y", "x"]).squeeze().groupby("allpoints")
 
     def ks_stat(ams):
         if distr == "gev":
@@ -143,7 +148,7 @@ def get_ks_stat(ams, distr = "gev", multiple_points = True):
                 ks = stats.kstest(
                     ams,
                     "genextreme",
-                    args = (lmoments["c"], lmoments["loc"], lmoments["scale"])
+                    args=(lmoments["c"], lmoments["loc"], lmoments["scale"]),
                 )
                 d_statistic = ks[0]
                 p_value = ks[1]
@@ -154,7 +159,7 @@ def get_ks_stat(ams, distr = "gev", multiple_points = True):
             try:
                 lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 ks = stats.kstest(
-                    ams, "gumbel_r", args = (lmoments["loc"], lmoments["scale"])
+                    ams, "gumbel_r", args=(lmoments["loc"], lmoments["scale"])
                 )
                 d_statistic = ks[0]
                 p_value = ks[1]
@@ -167,7 +172,7 @@ def get_ks_stat(ams, distr = "gev", multiple_points = True):
                 ks = stats.kstest(
                     ams,
                     "weibull_min",
-                    args = (lmoments["c"], lmoments["loc"], lmoments["scale"])
+                    args=(lmoments["c"], lmoments["loc"], lmoments["scale"]),
                 )
                 d_statistic = ks[0]
                 p_value = ks[1]
@@ -180,7 +185,7 @@ def get_ks_stat(ams, distr = "gev", multiple_points = True):
                 ks = stats.kstest(
                     ams,
                     "pearson3",
-                    args = (lmoments["skew"], lmoments["loc"], lmoments["scale"])
+                    args=(lmoments["skew"], lmoments["loc"], lmoments["scale"]),
                 )
                 d_statistic = ks[0]
                 p_value = ks[1]
@@ -193,7 +198,7 @@ def get_ks_stat(ams, distr = "gev", multiple_points = True):
                 ks = stats.kstest(
                     ams,
                     "genpareto",
-                    args = (lmoments["c"], lmoments["loc"], lmoments["scale"])
+                    args=(lmoments["c"], lmoments["loc"], lmoments["scale"]),
                 )
                 d_statistic = ks[0]
                 p_value = ks[1]
@@ -205,9 +210,9 @@ def get_ks_stat(ams, distr = "gev", multiple_points = True):
     d_statistic, p_value = xr.apply_ufunc(
         ks_stat,
         ams,
-        input_core_dims = [["time"]],
-        exclude_dims = set(("time",)),
-        output_core_dims = [[], []],
+        input_core_dims=[["time"]],
+        exclude_dims=set(("time",)),
+        output_core_dims=[[], []],
     )
 
     d_statistic = d_statistic.rename("d_statistic")
@@ -222,6 +227,7 @@ def get_ks_stat(ams, distr = "gev", multiple_points = True):
     new_ds.attrs = ams_attributes
     new_ds.attrs["distribution"] = "{}".format(str(distr))
     return new_ds
+
 
 def calculate_return(fitted_distr, data_variable, arg_value):
     """
@@ -252,7 +258,8 @@ def calculate_return(fitted_distr, data_variable, arg_value):
             result = np.nan
     return result
 
-def bootstrap(ams, distr = "gev", data_variable = "return_value", arg_value = 10):
+
+def bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
     """
     Returns a bootstrap-calculated value for relevant parameters from a inputed
     maximum series.
@@ -268,15 +275,15 @@ def bootstrap(ams, distr = "gev", data_variable = "return_value", arg_value = 10
     lmom_distr = get_lmom_distr(distr)
 
     sample_size = len(ams)
-    new_ams = np.random.choice(ams, size = sample_size, replace = True)
+    new_ams = np.random.choice(ams, size=sample_size, replace=True)
 
     if distr == "gev":
         try:
             lmoments, fitted_distr = get_fitted_distr(new_ams, distr, lmom_distr)
             result = calculate_return(
-                fitted_distr = fitted_distr,
-                data_variable = data_variable,
-                arg_value = arg_value,
+                fitted_distr=fitted_distr,
+                data_variable=data_variable,
+                arg_value=arg_value,
             )
         except (ValueError, ZeroDivisionError):
             result = np.nan
@@ -284,9 +291,9 @@ def bootstrap(ams, distr = "gev", data_variable = "return_value", arg_value = 10
         try:
             lmoments, fitted_distr = get_fitted_distr(new_ams, distr, lmom_distr)
             result = calculate_return(
-                fitted_distr = fitted_distr,
-                data_variable = data_variable,
-                arg_value = arg_value,
+                fitted_distr=fitted_distr,
+                data_variable=data_variable,
+                arg_value=arg_value,
             )
         except (ValueError, ZeroDivisionError):
             result = np.nan
@@ -294,9 +301,9 @@ def bootstrap(ams, distr = "gev", data_variable = "return_value", arg_value = 10
         try:
             lmoments, fitted_distr = get_fitted_distr(new_ams, distr, lmom_distr)
             result = calculate_return(
-                fitted_distr = fitted_distr,
-                data_variable = data_variable,
-                arg_value = arg_value,
+                fitted_distr=fitted_distr,
+                data_variable=data_variable,
+                arg_value=arg_value,
             )
         except (ValueError, ZeroDivisionError):
             result = np.nan
@@ -304,9 +311,9 @@ def bootstrap(ams, distr = "gev", data_variable = "return_value", arg_value = 10
         try:
             lmoments, fitted_distr = get_fitted_distr(new_ams, distr, lmom_distr)
             result = calculate_return(
-                fitted_distr = fitted_distr,
-                data_variable = data_variable,
-                arg_value = arg_value,
+                fitted_distr=fitted_distr,
+                data_variable=data_variable,
+                arg_value=arg_value,
             )
         except (ValueError, ZeroDivisionError):
             result = np.nan
@@ -314,13 +321,14 @@ def bootstrap(ams, distr = "gev", data_variable = "return_value", arg_value = 10
         try:
             lmoments, fitted_distr = get_fitted_distr(new_ams, distr, lmom_distr)
             result = calculate_return(
-                fitted_distr = fitted_distr,
-                data_variable = data_variable,
-                arg_value = arg_value,
+                fitted_distr=fitted_distr,
+                data_variable=data_variable,
+                arg_value=arg_value,
             )
         except (ValueError, ZeroDivisionError):
             result = np.nan
     return result
+
 
 def conf_int(
     ams,
@@ -338,7 +346,12 @@ def conf_int(
     bootstrap_values = []
 
     for _ in range(bootstrap_runs):
-        result = bootstrap(ams, distr, data_variable, arg_value,)
+        result = bootstrap(
+            ams,
+            distr,
+            data_variable,
+            arg_value,
+        )
         bootstrap_values.append(result)
 
     conf_int_array = np.percentile(
@@ -349,14 +362,15 @@ def conf_int(
     conf_int_upper_limit = conf_int_array[1]
     return conf_int_lower_limit, conf_int_upper_limit
 
+
 def get_return_value(
     ams,
-    return_period = 10,
-    distr = "gev",
-    bootstrap_runs = 100,
-    conf_int_lower_bound = 2.5,
-    conf_int_upper_bound = 97.5,
-    multiple_points = True,
+    return_period=10,
+    distr="gev",
+    bootstrap_runs=100,
+    conf_int_lower_bound=2.5,
+    conf_int_upper_bound=97.5,
+    multiple_points=True,
 ):
     """
     Returns dataset with return values and confidence intervals from maximum series.
@@ -367,112 +381,112 @@ def get_return_value(
     ams_attributes = ams.attrs
 
     if multiple_points:
-        ams = ams.stack(allpoints = ["y", "x"]).squeeze().groupby("allpoints")
+        ams = ams.stack(allpoints=["y", "x"]).squeeze().groupby("allpoints")
 
     def return_value(ams):
         if distr == "gev":
             try:
                 lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 return_value = calculate_return(
-                    fitted_distr = fitted_distr,
-                    data_variable = data_variable,
-                    arg_value = return_period,
+                    fitted_distr=fitted_distr,
+                    data_variable=data_variable,
+                    arg_value=return_period,
                 )
             except (ValueError, ZeroDivisionError):
                 return_value = np.nan
             conf_int_lower_limit, conf_int_upper_limit = conf_int(
-                ams = ams,
-                distr = distr,
-                data_variable = data_variable,
-                arg_value = return_period,
-                bootstrap_runs = bootstrap_runs,
-                conf_int_lower_bound = conf_int_lower_bound,
-                conf_int_upper_bound = conf_int_upper_bound,
+                ams=ams,
+                distr=distr,
+                data_variable=data_variable,
+                arg_value=return_period,
+                bootstrap_runs=bootstrap_runs,
+                conf_int_lower_bound=conf_int_lower_bound,
+                conf_int_upper_bound=conf_int_upper_bound,
             )
         elif distr == "gumbel":
             try:
                 lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 return_value = calculate_return(
-                    fitted_distr = fitted_distr,
-                    data_variable = data_variable,
-                    arg_value = return_period,
+                    fitted_distr=fitted_distr,
+                    data_variable=data_variable,
+                    arg_value=return_period,
                 )
             except (ValueError, ZeroDivisionError):
                 return_value = np.nan
             conf_int_lower_limit, conf_int_upper_limit = conf_int(
-                ams = ams,
-                distr = distr,
-                data_variable = data_variable,
-                arg_value = return_period,
-                bootstrap_runs = bootstrap_runs,
-                conf_int_lower_bound = conf_int_lower_bound,
-                conf_int_upper_bound = conf_int_upper_bound,
+                ams=ams,
+                distr=distr,
+                data_variable=data_variable,
+                arg_value=return_period,
+                bootstrap_runs=bootstrap_runs,
+                conf_int_lower_bound=conf_int_lower_bound,
+                conf_int_upper_bound=conf_int_upper_bound,
             )
         elif distr == "weibull":
             try:
                 lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 return_value = calculate_return(
-                    fitted_distr = fitted_distr,
-                    data_variable = data_variable,
-                    arg_value = return_period,
+                    fitted_distr=fitted_distr,
+                    data_variable=data_variable,
+                    arg_value=return_period,
                 )
             except (ValueError, ZeroDivisionError):
                 return_value = np.nan
             conf_int_lower_limit, conf_int_upper_limit = conf_int(
-                ams = ams,
-                distr = distr,
-                data_variable = data_variable,
-                arg_value = return_period,
-                bootstrap_runs = bootstrap_runs,
-                conf_int_lower_bound = conf_int_lower_bound,
-                conf_int_upper_bound = conf_int_upper_bound,
+                ams=ams,
+                distr=distr,
+                data_variable=data_variable,
+                arg_value=return_period,
+                bootstrap_runs=bootstrap_runs,
+                conf_int_lower_bound=conf_int_lower_bound,
+                conf_int_upper_bound=conf_int_upper_bound,
             )
         elif distr == "pearson3":
             try:
                 lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 return_value = calculate_return(
-                    fitted_distr = fitted_distr,
-                    data_variable = data_variable,
-                    arg_value = return_period,
+                    fitted_distr=fitted_distr,
+                    data_variable=data_variable,
+                    arg_value=return_period,
                 )
             except (ValueError, ZeroDivisionError):
                 return_value = np.nan
             conf_int_lower_limit, conf_int_upper_limit = conf_int(
-                ams = ams,
-                distr = distr,
-                data_variable = data_variable,
-                arg_value = return_period,
-                bootstrap_runs = bootstrap_runs,
-                conf_int_lower_bound = conf_int_lower_bound,
-                conf_int_upper_bound = conf_int_upper_bound,
+                ams=ams,
+                distr=distr,
+                data_variable=data_variable,
+                arg_value=return_period,
+                bootstrap_runs=bootstrap_runs,
+                conf_int_lower_bound=conf_int_lower_bound,
+                conf_int_upper_bound=conf_int_upper_bound,
             )
         elif distr == "genpareto":
             try:
                 lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 return_value = calculate_return(
-                    fitted_distr = fitted_distr,
-                    data_variable = data_variable,
-                    arg_value = return_period,
+                    fitted_distr=fitted_distr,
+                    data_variable=data_variable,
+                    arg_value=return_period,
                 )
             except (ValueError, ZeroDivisionError):
                 return_value = np.nan
             conf_int_lower_limit, conf_int_upper_limit = conf_int(
-                ams = ams,
-                distr = distr,
-                data_variable = data_variable,
-                arg_value = return_period,
-                bootstrap_runs = bootstrap_runs,
-                conf_int_lower_bound = conf_int_lower_bound,
-                conf_int_upper_bound = conf_int_upper_bound,
+                ams=ams,
+                distr=distr,
+                data_variable=data_variable,
+                arg_value=return_period,
+                bootstrap_runs=bootstrap_runs,
+                conf_int_lower_bound=conf_int_lower_bound,
+                conf_int_upper_bound=conf_int_upper_bound,
             )
         return return_value, conf_int_lower_limit, conf_int_upper_limit
 
     return_value, conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
         return_value,
         ams,
-        input_core_dims = [["time"]],
-        exclude_dims = set(("time",)),
-        output_core_dims = [[], [], []],
+        input_core_dims=[["time"]],
+        exclude_dims=set(("time",)),
+        output_core_dims=[[], [], []],
     )
 
     return_value = return_value.rename("return_value")
@@ -497,14 +511,15 @@ def get_return_value(
     new_ds.attrs["distribution"] = "{}".format(str(distr))
     return new_ds
 
+
 def get_return_prob(
     ams,
     threshold,
-    distr = "gev",
-    bootstrap_runs = 100,
-    conf_int_lower_bound = 2.5,
-    conf_int_upper_bound = 97.5,
-    multiple_points = True,
+    distr="gev",
+    bootstrap_runs=100,
+    conf_int_lower_bound=2.5,
+    conf_int_upper_bound=97.5,
+    multiple_points=True,
 ):
     """
     Returns dataset with return probabilities and confidence intervals from maximum series.
@@ -515,112 +530,112 @@ def get_return_prob(
     ams_attributes = ams.attrs
 
     if multiple_points:
-        ams = ams.stack(allpoints = ["y", "x"]).squeeze().groupby("allpoints")
+        ams = ams.stack(allpoints=["y", "x"]).squeeze().groupby("allpoints")
 
     def return_prob(ams):
         if distr == "gev":
             try:
                 lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 return_prob = calculate_return(
-                    fitted_distr = fitted_distr,
-                    data_variable = data_variable,
-                    arg_value = threshold,
+                    fitted_distr=fitted_distr,
+                    data_variable=data_variable,
+                    arg_value=threshold,
                 )
             except (ValueError, ZeroDivisionError):
                 return_prob = np.nan
             conf_int_lower_limit, conf_int_upper_limit = conf_int(
-                ams = ams,
-                distr = distr,
-                data_variable = data_variable,
-                arg_value = threshold,
-                bootstrap_runs = bootstrap_runs,
-                conf_int_lower_bound = conf_int_lower_bound,
-                conf_int_upper_bound = conf_int_upper_bound,
+                ams=ams,
+                distr=distr,
+                data_variable=data_variable,
+                arg_value=threshold,
+                bootstrap_runs=bootstrap_runs,
+                conf_int_lower_bound=conf_int_lower_bound,
+                conf_int_upper_bound=conf_int_upper_bound,
             )
         elif distr == "gumbel":
             try:
                 lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 return_prob = calculate_return(
-                    fitted_distr = fitted_distr,
-                    data_variable = data_variable,
-                    arg_value = threshold,
+                    fitted_distr=fitted_distr,
+                    data_variable=data_variable,
+                    arg_value=threshold,
                 )
             except (ValueError, ZeroDivisionError):
                 return_prob = np.nan
             conf_int_lower_limit, conf_int_upper_limit = conf_int(
-                ams = ams,
-                distr = distr,
-                data_variable = data_variable,
-                arg_value = threshold,
-                bootstrap_runs = bootstrap_runs,
-                conf_int_lower_bound = conf_int_lower_bound,
-                conf_int_upper_bound = conf_int_upper_bound,
+                ams=ams,
+                distr=distr,
+                data_variable=data_variable,
+                arg_value=threshold,
+                bootstrap_runs=bootstrap_runs,
+                conf_int_lower_bound=conf_int_lower_bound,
+                conf_int_upper_bound=conf_int_upper_bound,
             )
         elif distr == "weibull":
             try:
                 lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 return_prob = calculate_return(
-                    fitted_distr = fitted_distr,
-                    data_variable = data_variable,
-                    arg_value = threshold,
+                    fitted_distr=fitted_distr,
+                    data_variable=data_variable,
+                    arg_value=threshold,
                 )
             except (ValueError, ZeroDivisionError):
                 return_prob = np.nan
             conf_int_lower_limit, conf_int_upper_limit = conf_int(
-                ams = ams,
-                distr = distr,
-                data_variable = data_variable,
-                arg_value = threshold,
-                bootstrap_runs = bootstrap_runs,
-                conf_int_lower_bound = conf_int_lower_bound,
-                conf_int_upper_bound = conf_int_upper_bound,
+                ams=ams,
+                distr=distr,
+                data_variable=data_variable,
+                arg_value=threshold,
+                bootstrap_runs=bootstrap_runs,
+                conf_int_lower_bound=conf_int_lower_bound,
+                conf_int_upper_bound=conf_int_upper_bound,
             )
         elif distr == "pearson3":
             try:
                 lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 return_prob = calculate_return(
-                    fitted_distr = fitted_distr,
-                    data_variable = data_variable,
-                    arg_value = threshold,
+                    fitted_distr=fitted_distr,
+                    data_variable=data_variable,
+                    arg_value=threshold,
                 )
             except (ValueError, ZeroDivisionError):
                 return_prob = np.nan
             conf_int_lower_limit, conf_int_upper_limit = conf_int(
-                ams = ams,
-                distr = distr,
-                data_variable = data_variable,
-                arg_value = threshold,
-                bootstrap_runs = bootstrap_runs,
-                conf_int_lower_bound = conf_int_lower_bound,
-                conf_int_upper_bound = conf_int_upper_bound,
+                ams=ams,
+                distr=distr,
+                data_variable=data_variable,
+                arg_value=threshold,
+                bootstrap_runs=bootstrap_runs,
+                conf_int_lower_bound=conf_int_lower_bound,
+                conf_int_upper_bound=conf_int_upper_bound,
             )
         elif distr == "genpareto":
             try:
                 lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 return_prob = calculate_return(
-                    fitted_distr = fitted_distr,
-                    data_variable = data_variable,
-                    arg_value = threshold,
+                    fitted_distr=fitted_distr,
+                    data_variable=data_variable,
+                    arg_value=threshold,
                 )
             except (ValueError, ZeroDivisionError):
                 return_prob = np.nan
             conf_int_lower_limit, conf_int_upper_limit = conf_int(
-                ams = ams,
-                distr = distr,
-                data_variable = data_variable,
-                arg_value = threshold,
-                bootstrap_runs = bootstrap_runs,
-                conf_int_lower_bound = conf_int_lower_bound,
-                conf_int_upper_bound = conf_int_upper_bound,
+                ams=ams,
+                distr=distr,
+                data_variable=data_variable,
+                arg_value=threshold,
+                bootstrap_runs=bootstrap_runs,
+                conf_int_lower_bound=conf_int_lower_bound,
+                conf_int_upper_bound=conf_int_upper_bound,
             )
         return return_prob, conf_int_lower_limit, conf_int_upper_limit
 
     return_prob, conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
         return_prob,
         ams,
-        input_core_dims = [["time"]],
-        exclude_dims = set(("time",)),
-        output_core_dims = [[], [], []],
+        input_core_dims=[["time"]],
+        exclude_dims=set(("time",)),
+        output_core_dims=[[], [], []],
     )
 
     return_prob = return_prob.rename("return_prob")
@@ -645,14 +660,15 @@ def get_return_prob(
     new_ds.attrs["distribution"] = "{}".format(str(distr))
     return new_ds
 
+
 def get_return_period(
     ams,
     return_value,
-    distr = "gev",
-    bootstrap_runs = 100,
-    conf_int_lower_bound = 2.5,
-    conf_int_upper_bound = 97.5,
-    multiple_points = True,
+    distr="gev",
+    bootstrap_runs=100,
+    conf_int_lower_bound=2.5,
+    conf_int_upper_bound=97.5,
+    multiple_points=True,
 ):
     """
     Returns dataset with return periods and confidence intervals from maximum series.
@@ -663,112 +679,112 @@ def get_return_period(
     ams_attributes = ams.attrs
 
     if multiple_points:
-        ams = ams.stack(allpoints = ["y", "x"]).squeeze().groupby("allpoints")
+        ams = ams.stack(allpoints=["y", "x"]).squeeze().groupby("allpoints")
 
     def return_period(ams):
         if distr == "gev":
             try:
                 lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 return_period = calculate_return(
-                    fitted_distr = fitted_distr,
-                    data_variable = data_variable,
-                    arg_value = return_value,
+                    fitted_distr=fitted_distr,
+                    data_variable=data_variable,
+                    arg_value=return_value,
                 )
             except (ValueError, ZeroDivisionError):
                 return_period = np.nan
             conf_int_lower_limit, conf_int_upper_limit = conf_int(
-                ams = ams,
-                distr = distr,
-                data_variable = data_variable,
-                arg_value = return_value,
-                bootstrap_runs = bootstrap_runs,
-                conf_int_lower_bound = conf_int_lower_bound,
-                conf_int_upper_bound = conf_int_upper_bound,
+                ams=ams,
+                distr=distr,
+                data_variable=data_variable,
+                arg_value=return_value,
+                bootstrap_runs=bootstrap_runs,
+                conf_int_lower_bound=conf_int_lower_bound,
+                conf_int_upper_bound=conf_int_upper_bound,
             )
         elif distr == "gumbel":
             try:
                 lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 return_period = calculate_return(
-                    fitted_distr = fitted_distr,
-                    data_variable = data_variable,
-                    arg_value = return_value,
+                    fitted_distr=fitted_distr,
+                    data_variable=data_variable,
+                    arg_value=return_value,
                 )
             except (ValueError, ZeroDivisionError):
                 return_period = np.nan
             conf_int_lower_limit, conf_int_upper_limit = conf_int(
-                ams = ams,
-                distr = distr,
-                data_variable = data_variable,
-                arg_value = return_value,
-                bootstrap_runs = bootstrap_runs,
-                conf_int_lower_bound = conf_int_lower_bound,
-                conf_int_upper_bound = conf_int_upper_bound,
+                ams=ams,
+                distr=distr,
+                data_variable=data_variable,
+                arg_value=return_value,
+                bootstrap_runs=bootstrap_runs,
+                conf_int_lower_bound=conf_int_lower_bound,
+                conf_int_upper_bound=conf_int_upper_bound,
             )
         elif distr == "weibull":
             try:
                 lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 return_period = calculate_return(
-                    fitted_distr = fitted_distr,
-                    data_variable = data_variable,
-                    arg_value = return_value,
+                    fitted_distr=fitted_distr,
+                    data_variable=data_variable,
+                    arg_value=return_value,
                 )
             except (ValueError, ZeroDivisionError):
                 return_period = np.nan
             conf_int_lower_limit, conf_int_upper_limit = conf_int(
-                ams = ams,
-                distr = distr,
-                data_variable = data_variable,
-                arg_value = return_value,
-                bootstrap_runs = bootstrap_runs,
-                conf_int_lower_bound = conf_int_lower_bound,
-                conf_int_upper_bound = conf_int_upper_bound,
+                ams=ams,
+                distr=distr,
+                data_variable=data_variable,
+                arg_value=return_value,
+                bootstrap_runs=bootstrap_runs,
+                conf_int_lower_bound=conf_int_lower_bound,
+                conf_int_upper_bound=conf_int_upper_bound,
             )
         elif distr == "pearson3":
             try:
                 lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 return_period = calculate_return(
-                    fitted_distr = fitted_distr,
-                    data_variable = data_variable,
-                    arg_value = return_value,
+                    fitted_distr=fitted_distr,
+                    data_variable=data_variable,
+                    arg_value=return_value,
                 )
             except (ValueError, ZeroDivisionError):
                 return_period = np.nan
             conf_int_lower_limit, conf_int_upper_limit = conf_int(
-                ams = ams,
-                distr = distr,
-                data_variable = data_variable,
-                arg_value = return_value,
-                bootstrap_runs = bootstrap_runs,
-                conf_int_lower_bound = conf_int_lower_bound,
-                conf_int_upper_bound = conf_int_upper_bound,
+                ams=ams,
+                distr=distr,
+                data_variable=data_variable,
+                arg_value=return_value,
+                bootstrap_runs=bootstrap_runs,
+                conf_int_lower_bound=conf_int_lower_bound,
+                conf_int_upper_bound=conf_int_upper_bound,
             )
         elif distr == "genpareto":
             try:
                 lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
                 return_period = calculate_return(
-                    fitted_distr = fitted_distr,
-                    data_variable = data_variable,
-                    arg_value = return_value,
+                    fitted_distr=fitted_distr,
+                    data_variable=data_variable,
+                    arg_value=return_value,
                 )
             except (ValueError, ZeroDivisionError):
                 return_period = np.nan
             conf_int_lower_limit, conf_int_upper_limit = conf_int(
-                ams = ams,
-                distr = distr,
-                data_variable = data_variable,
-                arg_value = return_value,
-                bootstrap_runs = bootstrap_runs,
-                conf_int_lower_bound = conf_int_lower_bound,
-                conf_int_upper_bound = conf_int_upper_bound,
+                ams=ams,
+                distr=distr,
+                data_variable=data_variable,
+                arg_value=return_value,
+                bootstrap_runs=bootstrap_runs,
+                conf_int_lower_bound=conf_int_lower_bound,
+                conf_int_upper_bound=conf_int_upper_bound,
             )
         return return_period, conf_int_lower_limit, conf_int_upper_limit
 
     return_period, conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
         return_period,
         ams,
-        input_core_dims = [["time"]],
-        exclude_dims = set(("time",)),
-        output_core_dims = [[], [], []],
+        input_core_dims=[["time"]],
+        exclude_dims=set(("time",)),
+        output_core_dims=[[], [], []],
     )
 
     return_period = return_period.rename("return_period")
@@ -793,17 +809,19 @@ def get_return_period(
     new_ds.attrs["distribution"] = "{}".format(str(distr))
     return new_ds
 
+
 # ===================== Functions for exceedance count =========================
+
 
 def get_exceedance_count(
     da,
     threshold_value,
-    duration1 = None,
-    period = (1, "year"),
-    threshold_direction = "above",
-    duration2 = None,
-    groupby = None,
-    smoothing = None
+    duration1=None,
+    period=(1, "year"),
+    threshold_direction="above",
+    duration2=None,
+    groupby=None,
+    smoothing=None,
 ):
     """
     Calculate the number of occurances of exceeding the specified threshold
@@ -831,58 +849,90 @@ def get_exceedance_count(
         as the window size
     """
 
-    #--------- Type check arguments -------------------------------------------
+    # --------- Type check arguments -------------------------------------------
 
     # Check compatibility of periods, durations, and groupbys
     if _is_greater(duration1, groupby):
-        raise ValueError("Incompatible `group` and `duration1` specification. Duration1 must be shorter than group.")
+        raise ValueError(
+            "Incompatible `group` and `duration1` specification. Duration1 must be shorter than group."
+        )
     if _is_greater(groupby, duration2):
-        raise ValueError("Incompatible `group` and `duration2` specification. Duration2 must be longer than group.")
+        raise ValueError(
+            "Incompatible `group` and `duration2` specification. Duration2 must be longer than group."
+        )
     if _is_greater(groupby, period):
-        raise ValueError("Incompatible `group` and `period` specification. Group must be longer than period.")
+        raise ValueError(
+            "Incompatible `group` and `period` specification. Group must be longer than period."
+        )
     if _is_greater(duration2, period):
-        raise ValueError("Incompatible `duration` and `period` specification. Period must be longer than duration.")
-    
+        raise ValueError(
+            "Incompatible `duration` and `period` specification. Period must be longer than duration."
+        )
+
     # Check compatibility of specifications with the data frequency (hourly, daily, or monthly)
-    freq = (1, "hour") if da.frequency == "hourly" else ((1, "day") if da.frequency == "daily" else (1, "month"))
+    freq = (
+        (1, "hour")
+        if da.frequency == "hourly"
+        else ((1, "day") if da.frequency == "daily" else (1, "month"))
+    )
     if _is_greater(freq, groupby):
-        raise ValueError("Incompatible `group` specification: cannot be less than data frequency.")
+        raise ValueError(
+            "Incompatible `group` specification: cannot be less than data frequency."
+        )
     if _is_greater(freq, duration2):
-        raise ValueError("Incompatible `duration` specification: cannot be less than data frequency.")
+        raise ValueError(
+            "Incompatible `duration` specification: cannot be less than data frequency."
+        )
     if _is_greater(freq, period):
-        raise ValueError("Incompatible `period` specification: cannot be less than data frequency.")
+        raise ValueError(
+            "Incompatible `period` specification: cannot be less than data frequency."
+        )
 
-    #--------- Calculate occurances -------------------------------------------
+    # --------- Calculate occurances -------------------------------------------
 
-    events_da = get_exceedance_events(da, threshold_value, threshold_direction, duration1, groupby)
+    events_da = get_exceedance_events(
+        da, threshold_value, threshold_direction, duration1, groupby
+    )
 
-    #--------- Apply specified duration requirement ---------------------------
+    # --------- Apply specified duration requirement ---------------------------
 
     if duration2 is not None:
         dur_len, dur_type = duration2
 
-        if (groupby is not None and groupby[1] == dur_type
-            or groupby is None and freq[1] == dur_type):
+        if (
+            groupby is not None
+            and groupby[1] == dur_type
+            or groupby is None
+            and freq[1] == dur_type
+        ):
             window_size = dur_len
         else:
-            raise ValueError("Duration options for time types (i.e. hour, day) that are different than group or frequency not yet implemented")
+            raise ValueError(
+                "Duration options for time types (i.e. hour, day) that are different than group or frequency not yet implemented"
+            )
 
         # The "min" operation will return 0 if any time in the window is not an
         # event, which is the behavior we want. It will only return 1 for True
         # if all values in the duration window are 1.
-        events_da = events_da.rolling(time = window_size, center = False).min("time")
+        events_da = events_da.rolling(time=window_size, center=False).min("time")
 
-    #--------- Sum occurances across each period ------------------------------
+    # --------- Sum occurances across each period ------------------------------
 
     period_len, period_type = period
-    period_indexer = str.capitalize(period_type[0]) # capitalize first letter to use as indexer in resample
-    exceedance_count = events_da.resample(time = f"{period_len}{period_indexer}", label = "left").sum()
+    period_indexer = str.capitalize(
+        period_type[0]
+    )  # capitalize first letter to use as indexer in resample
+    exceedance_count = events_da.resample(
+        time=f"{period_len}{period_indexer}", label="left"
+    ).sum()
 
     # Optional smoothing
     if smoothing is not None:
-        exceedance_count = exceedance_count.rolling(time = smoothing, center = True).mean("time")
+        exceedance_count = exceedance_count.rolling(time=smoothing, center=True).mean(
+            "time"
+        )
 
-    #--------- Set new attributes for the counts DataArray --------------------
+    # --------- Set new attributes for the counts DataArray --------------------
     exceedance_count.attrs["variable_name"] = da.name
     exceedance_count.attrs["variable_units"] = exceedance_count.units
     exceedance_count.attrs["period"] = period
@@ -897,6 +947,7 @@ def get_exceedance_count(
     exceedance_count.name = "Count"
 
     return exceedance_count
+
 
 def _is_greater(time1, time2):
     """
@@ -913,12 +964,9 @@ def _is_greater(time1, time2):
     else:
         return order.index(time1[1]) > order.index(time2[1])
 
+
 def get_exceedance_events(
-    da,
-    threshold_value,
-    threshold_direction = "above",
-    duration1 = None,
-    groupby = None
+    da, threshold_value, threshold_direction="above", duration1=None, groupby=None
 ):
     """
     Returns an xarray that specifies whether each entry of `da` is a qualifying
@@ -931,33 +979,44 @@ def get_exceedance_events(
     elif threshold_direction == "below":
         events_da = (da < threshold_value).where(da.isnull() == False)
     else:
-        raise ValueError(f"Unknown value for `threshold_direction` parameter: {threshold_direction}. Available options are 'above' or 'below'.")
+        raise ValueError(
+            f"Unknown value for `threshold_direction` parameter: {threshold_direction}. Available options are 'above' or 'below'."
+        )
 
     if duration1 is not None:
         dur_len, dur_type = duration1
         if dur_type != "hour" or da.frequency != "hourly":
             raise ValueError("Current specifications not yet implemented.")
-        window_size = dur_len 
+        window_size = dur_len
 
         # The "min" operation will return 0 if any time in the window is not an
         # event, which is the behavior we want. It will only return 1 for True
         # if all values in the duration window are 1.
-        events_da = events_da.rolling(time = window_size, center = False).min("time")
+        events_da = events_da.rolling(time=window_size, center=False).min("time")
 
     # Groupby
     if groupby is not None:
-        if ((groupby == (1, "hour") and da.frequency == "hourly")
+        if (
+            (groupby == (1, "hour") and da.frequency == "hourly")
             or (groupby == (1, "day") and da.frequency == "daily")
             or (groupby == (1, "month") and da.frequency == "monthly")
-            or groupby == duration1):
+            or groupby == duration1
+        ):
             # groupby specification is the same as data frequency, do nothing
             pass
         else:
             group_len, group_type = groupby
-            indexer_type = str.capitalize(group_type[0]) # capitalize the first letter to use as the indexer (i.e. H, D, M, or Y)
-            group_totals = events_da.resample(time=f"{group_len}{indexer_type}", label = "left").sum() # sum occurences within each group
-            events_da = (group_totals > 0).where(group_totals.isnull() == False) # turn back into a boolean with preserved NaNs (0 or 1 for whether there is any occurance in the group)
+            indexer_type = str.capitalize(
+                group_type[0]
+            )  # capitalize the first letter to use as the indexer (i.e. H, D, M, or Y)
+            group_totals = events_da.resample(
+                time=f"{group_len}{indexer_type}", label="left"
+            ).sum()  # sum occurences within each group
+            events_da = (group_totals > 0).where(
+                group_totals.isnull() == False
+            )  # turn back into a boolean with preserved NaNs (0 or 1 for whether there is any occurance in the group)
     return events_da
+
 
 def _exceedance_count_name(exceedance_count):
     """
@@ -970,11 +1029,11 @@ def _exceedance_count_name(exceedance_count):
     # If duration is used, this determines the event name
     dur = exceedance_count.duration2
     if dur is not None:
-        d_num, d_type = dur 
+        d_num, d_type = dur
         if d_num != 1:
             event = f"{d_num}-{d_type} events"
         else:
-            event = f"{d_type}s" # ex: day --> days
+            event = f"{d_type}s"  # ex: day --> days
     else:
         # otherwise use "groupby" if not None
         grp = exceedance_count.group
@@ -983,7 +1042,7 @@ def _exceedance_count_name(exceedance_count):
             if g_num != 1:
                 event = f"{g_num}-{g_type} events"
             else:
-                event = f"{g_type}s" # ex: day --> days
+                event = f"{g_type}s"  # ex: day --> days
         else:
             # otherwise use data frequency info as the default event type
             if exceedance_count.frequency == "hourly":
@@ -994,6 +1053,7 @@ def _exceedance_count_name(exceedance_count):
                 event = "months"
     return f"Number of {event}"
 
+
 def plot_exceedance_count(exceedance_count):
     """
     Plots each simulation as a different color line.
@@ -1001,15 +1061,16 @@ def plot_exceedance_count(exceedance_count):
     Currently can only plot for one location, so is expecting input to already be subsetted or an area average.
     """
     plot_obj = exceedance_count.hvplot.line(
-        x = "time",
-        widget_location = "bottom",
-        by = "simulation",
-        groupby = ["scenario"],
-        title = "",
-        fontsize = {'ylabel': '10pt'},
-        legend = 'right',
+        x="time",
+        widget_location="bottom",
+        by="simulation",
+        groupby=["scenario"],
+        title="",
+        fontsize={"ylabel": "10pt"},
+        legend="right",
     )
     return pn.Column(plot_obj)
+
 
 def _exceedance_plot_title(exceedance_count):
     """
@@ -1019,6 +1080,7 @@ def _exceedance_plot_title(exceedance_count):
         'Preciptation (total): events below 10mm'
     """
     return f"{exceedance_count.variable_name}: events {exceedance_count.threshold_direction} {exceedance_count.threshold_value}{exceedance_count.variable_units}"
+
 
 def _exceedance_plot_subtitle(exceedance_count):
     """
@@ -1050,5 +1112,7 @@ def _exceedance_plot_subtitle(exceedance_count):
     else:
         period_str = f" per {per_len}-{per_type} period"
 
-    _subtitle = _exceedance_count_name(exceedance_count) + period_str + dur_str + grp_str
+    _subtitle = (
+        _exceedance_count_name(exceedance_count) + period_str + dur_str + grp_str
+    )
     return _subtitle

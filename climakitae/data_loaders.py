@@ -3,24 +3,22 @@ import rioxarray
 import intake
 import numpy as np
 from shapely.geometry import box
-from .catalog_utils import (
-    _convert_resolution,
-    _convert_timescale,
-    _convert_scenario
-)
+from .catalog_utils import _convert_resolution, _convert_timescale, _convert_scenario
 from .unit_conversions import _convert_units
 
 # support methods for core.Application.generate
-xr.set_options(keep_attrs = True)
+xr.set_options(keep_attrs=True)
 
 # ============================ Helper functions ================================
 
+
 def add_sim_coord(ds):
     """Add simulation as Dataset coords and dimensions.
-    Used when reading in data from catalog. 
+    Used when reading in data from catalog.
     """
     ds = ds.assign_coords({"simulation": ds.attrs["source_id"]})
     return ds
+
 
 def _get_as_shapely(location):
     """
@@ -38,14 +36,16 @@ def _get_as_shapely(location):
     # Box is formed using the following shape:
     #   shapely.geometry.box(minx, miny, maxx, maxy)
     shapely_geom = box(
-        location.longitude[0], # minx
-        location.latitude[0], # miny
-        location.longitude[1], # maxx
-        location.latitude[1] # maxy
+        location.longitude[0],  # minx
+        location.latitude[0],  # miny
+        location.longitude[1],  # maxx
+        location.latitude[1],  # maxy
     )
     return shapely_geom
 
+
 # ============= Main functions used in data reading/processing =================
+
 
 def _get_cat_subset(selections, cat):
     """For an input set of data selections, get the catalog subset.
@@ -61,8 +61,10 @@ def _get_cat_subset(selections, cat):
 
     # Add back in Historical Climate if append_historical was selected
     scenario_selections = selections.scenario.copy()
-    if (selections.append_historical == True and
-        "Historical Climate" not in scenario_selections):
+    if (
+        selections.append_historical == True
+        and "Historical Climate" not in scenario_selections
+    ):
         scenario_selections += ["Historical Climate"]
 
     # Get catalog keys
@@ -75,13 +77,14 @@ def _get_cat_subset(selections, cat):
 
     # Get catalog subset
     cat_subset = cat.search(
-        activity_id = activity_id,
-        table_id = table_id,
-        grid_label = grid_label,
-        variable_id = variable_id,
-        experiment_id = experiment_id
+        activity_id=activity_id,
+        table_id=table_id,
+        grid_label=grid_label,
+        variable_id=variable_id,
+        experiment_id=experiment_id,
     )
     return cat_subset
+
 
 def _get_data_dict_and_names(cat_subset):
     """For an input catalog subset, grab the data.
@@ -95,15 +98,16 @@ def _get_data_dict_and_names(cat_subset):
 
     """
     data_dict = cat_subset.to_dataset_dict(
-        zarr_kwargs = {'consolidated': True},
-        storage_options = {'anon': True},
-        preprocess = add_sim_coord,
-        progressbar = False
+        zarr_kwargs={"consolidated": True},
+        storage_options={"anon": True},
+        preprocess=add_sim_coord,
+        progressbar=False,
     )
     return data_dict
 
-def _get_area_subset(location): 
-    """ Get geometry to perform area subsetting with.
+
+def _get_area_subset(location):
+    """Get geometry to perform area subsetting with.
 
     Args:
         location (climakitae.selectors.LocSelectorArea): location selection
@@ -112,14 +116,16 @@ def _get_area_subset(location):
         ds_region (shapely.geometry): geometry to use for subsetting
 
     """
+
     def set_subarea(boundary_dataset):
         return boundary_dataset[boundary_dataset.index == shape_index].iloc[0].geometry
 
     if location.area_subset == "lat/lon":
         geom = _get_as_shapely(location)
         if not geom.is_valid:
-            raise ValueError("Please go back to 'select' and choose"
-                             + " a valid lat/lon range.")
+            raise ValueError(
+                "Please go back to 'select' and choose" + " a valid lat/lon range."
+            )
         ds_region = [geom]
     elif location.area_subset != "none":
         shape_index = int(
@@ -136,8 +142,9 @@ def _get_area_subset(location):
         ds_region = None
     return ds_region
 
+
 def _process_and_concat(selections, dsets, cat_subset):
-    """ Process data if append_historical was selected.
+    """Process data if append_historical was selected.
     Merge all datasets into one.
 
     Args:
@@ -152,27 +159,34 @@ def _process_and_concat(selections, dsets, cat_subset):
     """
     da_list = []
     scenario_list = cat_subset.unique()["experiment_id"]["values"]
-    
+
     # If append historical is true, we don't need to have an additional
     # Historical Climate scenario coordinate
-    if ("historical" in scenario_list and
-        selections.append_historical == True):
+    if "historical" in scenario_list and selections.append_historical == True:
         scenario_list.remove("historical")
 
     for scenario in scenario_list:
         sim_list = []
-        da_name = _convert_scenario(scenario, reverse = True)
+        da_name = _convert_scenario(scenario, reverse=True)
         for simulation in cat_subset.unique()["source_id"]["values"]:
             if selections.append_historical and "ssp" in scenario:
 
                 # Reset name
-                da_name = "Historical + " + _convert_scenario(scenario, reverse = True)
+                da_name = "Historical + " + _convert_scenario(scenario, reverse=True)
 
                 # Get filenames
                 try:
-                    historical_filename = [name for name in dsets.keys() if simulation + "." + "historical" in name][0]
-                    ssp_filename = [name for name in dsets.keys() if simulation + "." + scenario in name][0]
-                except: # Some simulation + ssp options are not available. Just continue with the loop if no filename is found
+                    historical_filename = [
+                        name
+                        for name in dsets.keys()
+                        if simulation + "." + "historical" in name
+                    ][0]
+                    ssp_filename = [
+                        name
+                        for name in dsets.keys()
+                        if simulation + "." + scenario in name
+                    ][0]
+                except:  # Some simulation + ssp options are not available. Just continue with the loop if no filename is found
                     continue
                 # Grab data
                 historical_data = dsets[historical_filename][selections.variable_id]
@@ -181,57 +195,53 @@ def _process_and_concat(selections, dsets, cat_subset):
                 # Concatenate data. Rename scenario attribute
                 historical_appended = xr.concat(
                     [historical_data, ssp_data],
-                    dim = "time",
-                    coords = 'minimal',
-                    compat = 'override',
-                    join = 'inner'
+                    dim="time",
+                    coords="minimal",
+                    compat="override",
+                    join="inner",
                 )
                 sim_list.append(historical_appended)
 
             else:
                 try:
-                    filename = [name for name in dsets.keys() if simulation + "." + scenario in name][0]
+                    filename = [
+                        name
+                        for name in dsets.keys()
+                        if simulation + "." + scenario in name
+                    ][0]
                 except:
                     continue
                 sim_list.append(dsets[filename][selections.variable_id])
 
         # Concatenate along simulation dimension
-        da = xr.concat(
-            sim_list,
-            dim = "simulation",
-            coords = 'minimal',
-            compat = 'override'
-        )
+        da = xr.concat(sim_list, dim="simulation", coords="minimal", compat="override")
         da_list.append(da.assign_coords({"scenario": da_name}))
 
     # Concatenate along scenario dimension
-    da_final = xr.concat(
-        da_list,
-        dim = "scenario",
-        coords = 'minimal',
-        compat = 'override'
-    )
+    da_final = xr.concat(da_list, dim="scenario", coords="minimal", compat="override")
 
     # Rename
     da_final.name = selections.variable
 
     # Add attributes
     orig_attrs = dsets[list(dsets.keys())[0]].attrs
-    da_final.attrs = { # Add descriptive attributes to DataArray
-        #"conventions": orig_attrs["conventions"],
+    da_final.attrs = {  # Add descriptive attributes to DataArray
+        # "conventions": orig_attrs["conventions"],
         "institution": orig_attrs["institution"],
         "source": orig_attrs["source"],
         "resolution": selections.resolution,
         "frequency": selections.timescale,
         "grid_mapping": da_final.attrs["grid_mapping"],
         "variable_id": selections.variable_id,
-        #"long_name": da_final.attrs["long_name"],
+        # "long_name": da_final.attrs["long_name"],
         "extended_description": selections.extended_description,
-        "units": da_final.attrs["units"]
+        "units": da_final.attrs["units"],
     }
     return da_final
 
+
 # ============ Read from catalog function used by ck.Application ===============
+
 
 def _read_from_catalog(selections, location, cat):
     """
@@ -252,34 +262,26 @@ def _read_from_catalog(selections, location, cat):
     assert not selections.scenario == [], "Please select as least one scenario."
 
     # Get catalog subset for a set of user selections
-    cat_subset = _get_cat_subset(selections = selections, cat = cat)
+    cat_subset = _get_cat_subset(selections=selections, cat=cat)
 
     # Read data from AWS.
-    data_dict = _get_data_dict_and_names(cat_subset = cat_subset)
+    data_dict = _get_data_dict_and_names(cat_subset=cat_subset)
 
     # Process data if append_historical was selected.
     # Merge individual Datasets into one DataArray object.
     da = _process_and_concat(
-        selections = selections,
-        dsets = data_dict,
-        cat_subset = cat_subset
+        selections=selections, dsets=data_dict, cat_subset=cat_subset
     )
 
     # Time slice
     da = da.sel(
-        time = slice(
-            str(selections.time_slice[0]),
-            str(selections.time_slice[1]))
+        time=slice(str(selections.time_slice[0]), str(selections.time_slice[1]))
     )
 
     # Perform area subsetting and area averaging
-    ds_region = _get_area_subset(location = location)
-    if ds_region is not None: # Perform subsetting
-        da = da.rio.clip(
-            geometries = ds_region,
-            crs = 4326,
-            drop = True
-        )
+    ds_region = _get_area_subset(location=location)
+    if ds_region is not None:  # Perform subsetting
+        da = da.rio.clip(geometries=ds_region, crs=4326, drop=True)
 
     # Perform area averaging
     if selections.area_average == True:
@@ -287,5 +289,5 @@ def _read_from_catalog(selections, location, cat):
         da = da.weighted(weights).mean("x").mean("y")
 
     # Convert units
-    da = _convert_units(da = da, selected_units = selections.units)
+    da = _convert_units(da=da, selected_units=selections.units)
     return da

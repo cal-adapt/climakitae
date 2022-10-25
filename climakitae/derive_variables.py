@@ -2,9 +2,9 @@ import metpy.calc
 import metpy
 import numpy as np
 
-def _compute_total_precip(cumulus_precip, gridcell_precip,
-                          variable_name = "TOT_PRECIP"):
-    """ Compute total precipitation
+
+def _compute_total_precip(cumulus_precip, gridcell_precip, variable_name="TOT_PRECIP"):
+    """Compute total precipitation
 
     Args:
         cumulus_precip (xr.DataArray): Accumulated total cumulus precipitation (mm)
@@ -22,8 +22,10 @@ def _compute_total_precip(cumulus_precip, gridcell_precip,
     total_precip.attrs["description"] = "Total precipitation"
     return total_precip
 
-def _compute_relative_humidity(pressure, temperature, mixing_ratio,
-                               variable_name = "REL_HUMIDITY"):
+
+def _compute_relative_humidity(
+    pressure, temperature, mixing_ratio, variable_name="REL_HUMIDITY"
+):
     """Compute relative humidity
 
     Args:
@@ -37,11 +39,9 @@ def _compute_relative_humidity(pressure, temperature, mixing_ratio,
 
     """
     rel_hum = metpy.calc.relative_humidity_from_mixing_ratio(
-        pressure = pressure,
-        temperature = temperature,
-        mixing_ratio = mixing_ratio
+        pressure=pressure, temperature=temperature, mixing_ratio=mixing_ratio
     )
-    rel_hum = rel_hum.metpy.dequantify() # metpy function returns a pint.Quantity
+    rel_hum = rel_hum.metpy.dequantify()  # metpy function returns a pint.Quantity
     # object, which can cause issues with dask. This can be undone using the dequantify function.
     # For more info: https://unidata.github.io/MetPy/latest/tutorials/xarray_tutorial.html
 
@@ -56,7 +56,8 @@ def _compute_relative_humidity(pressure, temperature, mixing_ratio,
             rel_hum.attrs["grid_mapping"] = var.attrs["grid_mapping"]
     return rel_hum
 
-def _compute_wind_mag(u10, v10, variable_name = "WIND_MAG"):
+
+def _compute_wind_mag(u10, v10, variable_name="WIND_MAG"):
     """Compute wind magnitude at 10 meters
 
     Args:
