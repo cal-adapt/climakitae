@@ -1,64 +1,67 @@
+import os
+import tempfile
+import datetime as dt
 import xarray as xr
 import param
 import panel as pn
 import hvplot.xarray
-import datetime as dt
 import dask
-import tempfile, os
 
 
 class TimeSeriesParams(param.Parameterized):
     """
-    An object to hold time-series parameters, which depends only on the 'param' library.
-    Currently used in '_timeseries_visualize', which uses 'panel' to draw the gui, but another
-    UI could in principle be used to update these parameters instead.
+    An object to hold time-series parameters, which depends only on the 'param'
+    library. Currently used in '_timeseries_visualize', which uses 'panel' to
+    draw the gui, but another UI could in principle be used to update these
+    parameters instead.
     """
 
     def __init__(self, dataset, **params):
         super().__init__(**params)
         self.data = dataset
 
-    anomaly = param.Boolean(default=True, label="Difference from a historical mean")
+    anomaly = param.Boolean(default = True, label = "Difference from a historical mean")
     reference_range = param.CalendarDateRange(
         default=(dt.datetime(1980, 1, 1), dt.datetime(2012, 12, 31)),
         bounds=(dt.datetime(1980, 1, 1), dt.datetime(2021, 12, 31)),
     )
-    remove_seasonal_cycle = param.Boolean(default=False)
-    smoothing = param.ObjectSelector(default="None", objects=["None", "running mean"])
+    remove_seasonal_cycle = param.Boolean(default = False)
+    smoothing = param.ObjectSelector(default = "None", objects = ["None", "running mean"])
     _time_scales = dict(
         [("hours", "H"), ("days", "D"), ("months", "MS"), ("years", "AS-SEP")]
     )
-    num_timesteps = param.Integer(default=0, bounds=(0, 240))
+    num_timesteps = param.Integer(default = 0, bounds = (0, 240))
     separate_seasons = param.Boolean(
-        default=False, label="Disaggregate into four seasons"
+        default = False, label = "Disaggregate into four seasons"
     )
 
     extremes = param.ObjectSelector(
-        default="None", objects=["None", "min", "max", "percentile"]
+        default = "None", objects = ["None", "min", "max", "percentile"]
     )
-    resample_window = param.Integer(default=1, bounds=(1, 30))
-    resample_period = param.ObjectSelector(default="AS-SEP", objects=_time_scales)
+    resample_window = param.Integer(default = 1, bounds = (1, 30))
+    resample_period = param.ObjectSelector(default = "AS-SEP", objects = _time_scales)
     percentile = param.Number(
-        default=0,
-        bounds=(0, 1),
-        step=0.01,
-        doc="Relevant if 'running extremes' is 'percentile.",
+        default = 0,
+        bounds = (0, 1),
+        step = 0.01,
+        doc = "Relevant if 'running extremes' is 'percentile.",
     )
 
-    @param.depends("anomaly", watch=True)
+    @param.depends("anomaly", watch = True)
     def update_seasonal_cycle(self):
         if not self.anomaly:
             self.remove_seasonal_cycle = False
 
-    @param.depends("remove_seasonal_cycle", watch=True)
+    @param.depends("remove_seasonal_cycle", watch = True)
     def update_anom(self):
         if self.remove_seasonal_cycle:
             self.anomaly = True
 
     def transform_data(self):
         """
-        Returns a dataset that has been transformed in the ways that the params indicate,
-        ready to plot in the preview window ("view" method of this class), or be saved out.
+        Returns a dataset that has been transformed in the ways that the params
+        indicate, ready to plot in the preview window ("view" method of this
+        class), or be saved out.
         """
         if self.remove_seasonal_cycle:
             to_plot = self.data.groupby("time.month") - self.data.groupby(
@@ -74,28 +77,28 @@ class TimeSeriesParams(param.Parameterized):
             if y.attrs["frequency"] == "1month":
                 # If frequency is monthly, then the reference period average needs to be a 
                 # weighted average, with weights equal to the number of days in each month
-                reference_slice = y.sel(time=slice(*self.reference_range))
+                reference_slice = y.sel(time = slice(*self.reference_range))
                 month_weights = reference_slice.time.dt.daysinmonth # Number of days in each month of the reference range
                 reference_avg = reference_slice.weighted(month_weights).mean("time") # Calculate the weighted average of this period
                 return y - reference_avg # return the difference
             else:
-                return y - y.sel(time=slice(*self.reference_range)).mean("time")
+                return y - y.sel(time = slice(*self.reference_range)).mean("time")
 
         def _running_mean(y):
             # If timescale is monthly, need to weight the rolling average by the number of days in each month
-            if y.attrs["frequency"] == "1month":                
+            if y.attrs["frequency"] == "1month":
                 # Access the number of days in each month corresponding to each element of y
                 month_weights = y.time.dt.daysinmonth
-                
+
                 # Construct DataArrayRolling objects for both the data and the weights
-                rolling_y = y.rolling(time=self.num_timesteps, center=True).construct("window")
-                rolling_weights = month_weights.rolling(time=self.num_timesteps, center=True).construct("window")
+                rolling_y = y.rolling(time = self.num_timesteps, center = True).construct("window")
+                rolling_weights = month_weights.rolling(time = self.num_timesteps, center = True).construct("window")
                 
                 # Build a DataArrayWeighted and collapse across the window dimension with mean
-                result = rolling_y.weighted(rolling_weights.fillna(0)).mean("window", skipna=False)
+                result = rolling_y.weighted(rolling_weights.fillna(0)).mean("window", skipna = False)
                 return result
             else:
-                return y.rolling(time=self.num_timesteps, center=True).mean("time")
+                return y.rolling(time = self.num_timesteps, center = True).mean("time")
 
         if self.anomaly and not self.separate_seasons:
             to_plot = _getAnom(to_plot)
@@ -131,7 +134,7 @@ class TimeSeriesParams(param.Parameterized):
             elif self.extremes == "percentile":
                 to_plot = to_plot.resample(
                     time=str(self.resample_window) + self.resample_period
-                ).quantile(q=self.percentile)
+                ).quantile(q = self.percentile)
                 new_name = (
                     to_plot.name
                     + " -- "
@@ -140,7 +143,6 @@ class TimeSeriesParams(param.Parameterized):
                     + self.extremes
                 )
             to_plot.name = new_name
-
         return to_plot
 
     @param.depends(
@@ -154,7 +156,7 @@ class TimeSeriesParams(param.Parameterized):
         "resample_window",
         "resample_period",
         "percentile",
-        watch=False,
+        watch = False,
     )
     def view(self):
         """
@@ -169,15 +171,17 @@ class TimeSeriesParams(param.Parameterized):
             menu_list = ["scenario"]
 
         obj = to_plot.hvplot.line(
-            x="time", widget_location="bottom", by="simulation", groupby=menu_list
+            x = "time",
+            widget_location = "bottom",
+            by = "simulation",
+            groupby = menu_list
         )
         return obj
 
-
 def _timeseries_visualize(choices):
     """
-    Uses holoviz 'panel' library to display the parameters and view defined in an instance
-    of TimeSeriesParams.
+    Uses holoviz 'panel' library to display the parameters and view defined in
+    an instance of TimeSeriesParams.
     """
     return pn.Column(
         pn.Row(
@@ -189,13 +193,13 @@ def _timeseries_visualize(choices):
                 choices.param.num_timesteps,
                 choices.param.separate_seasons,
             ),
-            pn.Spacer(width=50),
+            pn.Spacer(width = 50),
             pn.Column(
                 choices.param.extremes,
                 pn.Row(
                     choices.param.resample_window,
                     choices.param.resample_period,
-                    width=320,
+                    width = 320,
                 ),
                 choices.param.percentile,
             ),
@@ -203,8 +207,7 @@ def _timeseries_visualize(choices):
         choices.view,
     )
 
-
-def _update_attrs(data_to_output,attrs_to_add):
+def _update_attrs(data_to_output, attrs_to_add):
     """
     This function updates the attributes of the DataArray being output
     so that it contains new attributes that describe the transforms
@@ -225,10 +228,9 @@ def _update_attrs(data_to_output,attrs_to_add):
     if not attrs_to_add['anomaly']:
         attrs_to_add.pop('reference_range')  
 
-                
-    attrs_to_add = {'timeseries:'+k:( str(v) if type(v) == bool or \
+    attrs_to_add = {'timeseries: ' + k:( str(v) if type(v) == bool or \
                   None else v ) for k,v in attrs_to_add.items()}
-    
+
     datefmt = '%b %d %Y (%H:%M)'
     for att,v in attrs_to_add.items():
         if type(v) == tuple:
@@ -236,18 +238,18 @@ def _update_attrs(data_to_output,attrs_to_add):
                 dates = [atti.strftime(datefmt) for atti in v]
                 date_str = ' - '.join(dates)
                 attrs_to_add[att] = date_str
-    
+
     attributes.update(attrs_to_add)
     data_to_output.attrs = attributes
-        
-    
     return data_to_output
+
 
 class Timeseries:
     """
-    Holds the instance of TimeSeriesParams that is used 1) to display a panel that
-    previews various time-series transforms (explore), and 2) to save the transform
-    represented by the current state of that preview into a new variable (output_current).
+    Holds the instance of TimeSeriesParams that is used 1) to display a panel
+    that previews various time-series transforms (explore), and 2) to save the
+    transform represented by the current state of that preview into a new
+    variable (output_current).
     """
 
     def __init__(self, data):

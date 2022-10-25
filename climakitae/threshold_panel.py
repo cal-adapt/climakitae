@@ -1,14 +1,17 @@
+import math
 import pandas as pd
 import panel as pn
 import param
-import math
-
 from .data_loaders import _read_from_catalog
 from .unit_conversions import _convert_units
-from .threshold_tools import get_exceedance_count, plot_exceedance_count, _exceedance_plot_title, _exceedance_plot_subtitle
+from .threshold_tools import (
+    get_exceedance_count,
+    plot_exceedance_count,
+    _exceedance_plot_title,
+    _exceedance_plot_subtitle
+)
 
-#------------- Class and methods for the explore.thresholds() GUI ---------------
-
+# ============ Class and methods for the explore.thresholds() GUI ==============
 
 def _get_threshold_data(selections, location, cat):
     """
@@ -17,51 +20,79 @@ def _get_threshold_data(selections, location, cat):
     Args:
         selections (DataLoaders): object holding user's selections 
         location (LocSelectorArea): location object containing boundary information
-        cat (intake_esm.core.esm_datastore): catalog 
+        cat (intake_esm.core.esm_datastore): catalog
 
     Returns:
         data (xr.DataArray): data to use for creating postage stamp data
 
     """
-    # Read data from catalog 
-    data = _read_from_catalog( 
-        selections=selections, 
-        location=location, 
-        cat=cat
+    # Read data from catalog
+    data = _read_from_catalog(
+        selections = selections,
+        location = location,
+        cat = cat
     )
-    data = data.compute() # Read into memory 
+    data = data.compute() # Read into memory
     return data
 
 
 class ThresholdDataParams(param.Parameterized):
     """
-    An object that holds the "Data Options" parameters for the 
-    explore.thresholds panel. 
+    An object that holds the "Data Options" parameters for the
+    explore.thresholds panel.
     """
 
     # Define the params (before __init__ so that we can access them during __init__)
-    threshold_direction = param.ObjectSelector(default = "above", objects = ["above", "below"], label = "Direction")
+    threshold_direction = param.ObjectSelector(
+        default = "above",
+        objects = ["above", "below"],
+        label = "Direction"
+    )
     threshold_value = param.Number(default = 0, label = "")
     duration1_length = param.Integer(default = 1, bounds = (0, None), label = "")
-    duration1_type = param.ObjectSelector(default = "hour", objects = ["year", "month", "day", "hour"], label = "")
+    duration1_type = param.ObjectSelector(
+        default = "hour",
+        objects = ["year", "month", "day", "hour"],
+        label = ""
+    )
     period_length = param.Integer(default = 1, bounds = (0, None), label = "")
-    period_type = param.ObjectSelector(default = "year", objects = ["year", "month", "day"], label = "")
+    period_type = param.ObjectSelector(
+        default = "year",
+        objects = ["year", "month", "day"],
+        label = ""
+    )
     group_length = param.Integer(default = 1, bounds = (0, None), label = "")
-    group_type = param.ObjectSelector(default = "hour", objects = ["year", "month", "day", "hour"], label = "")
+    group_type = param.ObjectSelector(
+        default = "hour",
+        objects = ["year", "month", "day", "hour"],
+        label = ""
+    )
     duration2_length = param.Integer(default = 1, bounds = (0, None), label = "")
-    duration2_type = param.ObjectSelector(default = "hour", objects = ["year", "month", "day", "hour"], label = "")
-    smoothing = param.ObjectSelector(default="None", objects=["None", "Running mean"], label = "Smoothing")
-    num_timesteps = param.Integer(default=10, bounds=(0, None), label = "Number of timesteps")
+    duration2_type = param.ObjectSelector(
+        default = "hour",
+        objects = ["year", "month", "day", "hour"],
+        label = ""
+    )
+    smoothing = param.ObjectSelector(
+        default="None",
+        objects=["None", "Running mean"],
+        label = "Smoothing"
+    )
+    num_timesteps = param.Integer(
+        default=10,
+        bounds=(0, None),
+        label = "Number of timesteps"
+    )
 
     def __init__(self, *args, **params):
         super().__init__(*args, **params)
-        
+
         # Selectors defaults
         self.selections.append_historical = False
         self.selections.area_average = True
         self.selections.resolution = "45km"
         self.selections.scenario = ["SSP 3-7.0 -- Business as Usual"]
-        self.selections.time_slice = (2020,2100)
+        self.selections.time_slice = (2020, 2100)
         self.selections.timescale = "hourly"
         self.selections.variable = "Air Temperature at 2m"
 
@@ -71,70 +102,77 @@ class ThresholdDataParams(param.Parameterized):
 
         # Get the underlying dataarray
         self.da = _get_threshold_data(
-            selections=self.selections, 
-            location=self.location, 
-            cat=self.cat
+            selections = self.selections,
+            location = self.location,
+            cat = self.cat
         )
 
         self.threshold_value = round(self.da.mean().values.item())
         self.param.threshold_value.label = f"Value (units: {self.selections.units})"
 
     # For reloading plot
-    reload_plot = param.Action(lambda x: x.param.trigger('reload_plot'), label='Reload Plot')
+    reload_plot = param.Action(lambda x: x.param.trigger('reload_plot'), label = 'Reload Plot')
 
     # For reloading data
-    reload_data = param.Action(lambda x: x.param.trigger('reload_data'), label='Reload Data')
-    changed_loc_and_var = param.Boolean(default=True)
-    changed_units = param.Boolean(default=False)
+    reload_data = param.Action(lambda x: x.param.trigger('reload_data'), label = 'Reload Data')
+    changed_loc_and_var = param.Boolean(default = True)
+    changed_units = param.Boolean(default = False)
 
-    @param.depends("location.area_subset","location.cached_area","selections.variable", watch=True)
+    @param.depends("location.area_subset", "location.cached_area", "selections.variable", watch = True)
     def _updated_bool_loc_and_var(self):
         """Update boolean if any changes were made to the location or variable"""
         self.changed_loc_and_var = True
 
-    @param.depends("selections.units", watch=True)
+    @param.depends("selections.units", watch = True)
     def _updated_units(self):
         """Update boolean if a change was made to the units"""
         self.changed_units = True
 
-    @param.depends("reload_data", watch=True)
+    @param.depends("reload_data", watch = True)
     def _update_data(self):
         """If the button was clicked and the location, variable, or units were 
         changed, reload the data from AWS"""
         if self.changed_loc_and_var:
             self.da = _get_threshold_data(
-                selections=self.selections, 
-                location=self.location, 
-                cat=self.cat
+                selections = self.selections,
+                location = self.location,
+                cat = self.cat
             )
             self.changed_loc_and_var = False
         if self.changed_units:
-            self.da = _convert_units(da=self.da, selected_units=self.selections.units)
+            self.da = _convert_units(da = self.da, selected_units = self.selections.units)
             self.threshold_value = round(self.da.mean().values.item())
             self.param.threshold_value.label = f"Value (units: {self.selections.units})"
             self.changed_units = False
-            
+
     def transform_data(self):
-        return get_exceedance_count(self.da, 
-            threshold_value = self.threshold_value, 
+        return get_exceedance_count(
+            self.da,
+            threshold_value = self.threshold_value,
             threshold_direction = self.threshold_direction,
             duration1 = (self.duration1_length, self.duration1_type),
             period = (self.period_length, self.period_type),
             groupby = (self.group_length, self.group_type),
             duration2 = (self.duration2_length, self.duration2_type),
-            smoothing = self.num_timesteps if self.smoothing == "Running mean" else None)
+            smoothing = self.num_timesteps if self.smoothing == "Running mean" else None
+        )
 
-    @param.depends("reload_plot", "reload_data", watch=False)
+    @param.depends("reload_plot", "reload_data", watch = False)
     def view(self):
         try:
             to_plot = self.transform_data()
             obj = plot_exceedance_count(to_plot)
         except Exception as e:
-            # Display any raised Errors (instead of plotting) if any of the 
+            # Display any raised Errors (instead of plotting) if any of the
             # user specifications are incompatible or not yet implemented.
             return e
         return pn.Column(
-            pn.widgets.Button.from_param(self.param.reload_plot, button_type="primary", width=150, height=30),
+            pn.widgets.Button.from_param(
+                self.param.reload_plot,
+                button_type = "primary",
+                width = 150,
+                height = 30
+            ),
             _exceedance_plot_title(to_plot),
             _exceedance_plot_subtitle(to_plot),
             obj
@@ -143,57 +181,60 @@ class ThresholdDataParams(param.Parameterized):
 
     @param.depends("smoothing")
     def smoothing_card(self):
-        """A reactive panel card used by _exceedance_visualize that only 
+        """A reactive panel card used by _exceedance_visualize that only
         displays the num_timesteps option if smoothing is selected."""
         if self.smoothing != "None":
             smooth_row = pn.Row(
                 self.param.smoothing,
-                self.param.num_timesteps, 
-                width=375
+                self.param.num_timesteps,
+                width = 375
             )
         else:
             smooth_row = pn.Row(
                 self.param.smoothing,
-                width=375
+                width = 375
             )
         return pn.Card(smooth_row, title = "Smoothing", collapsible = False)
 
-    @param.depends("duration1_length", "duration1_type", watch=False)
+    @param.depends("duration1_length", "duration1_type", watch = False)
     def group_row(self):
         """A reactive row for duration2 options that updates if group is updated"""
         self.group_length = self.duration1_length
         self.group_type = self.duration1_type
         return pn.Row(
-            self.param.group_length, self.param.group_type, 
-            width=375
+            self.param.group_length,
+            self.param.group_type,
+            width = 375
         )
 
-    @param.depends("group_length", "group_type", watch=False)
+    @param.depends("group_length", "group_type", watch = False)
     def duration2_row(self):
         """A reactive row for duration2 options that updates if group is updated"""
         self.duration2_length = self.group_length
         self.duration2_type = self.group_type
         return pn.Row(
-            self.param.duration2_length, self.param.duration2_type, 
-            width=375
+            self.param.duration2_length,
+            self.param.duration2_type,
+            width = 375
         )
 
-def _exceedance_visualize(choices, option=1):
+def _exceedance_visualize(choices, option = 1):
     """
-    Uses holoviz 'panel' library to display the parameters and view defined for exploring exceedance.
+    Uses holoviz 'panel' library to display the parameters and view defined for
+    exploring exceedance.
     """
     _left_column_width = 375
 
-    if option==1:
+    if option == 1:
         plot_card = choices.view
-    elif option==2:
-        # For show: potential option to display multiple tabs if we want to 
+    elif option == 2:
+        # For show: potential option to display multiple tabs if we want to
         # build this out as a broader GUI app for all threshold tools
         plot_card = pn.Tabs(
-            ("Event counts", choices.view), 
+            ("Event counts", choices.view),
             ("Return values", pn.Row()),
             ("Return periods", pn.Row())
-        ) 
+        )
     else:
         raise ValueError("Unknown option")
 
@@ -209,9 +250,9 @@ def _exceedance_visualize(choices, option=1):
         "I'm interested in extreme conditions that last for . . .",
         pn.Row(
             choices.param.duration1_length,
-            choices.param.duration1_type, width=375
+            choices.param.duration1_type, width = 375
         ),
-        pn.layout.Divider(margin = (-10,0,-10,0)),
+        pn.layout.Divider(margin = (-10, 0, -10,0)),
 
         # PERIOD
         "Show me a timeseries of the number of occurences every . . .",
@@ -221,7 +262,7 @@ def _exceedance_visualize(choices, option=1):
             width = _left_column_width
         ),
         "Examples: for an annual timeseries, select '1-year'. For a seasonal timeseries, select '3-month'.",
-        pn.layout.Divider(margin = (-10,0,-10,0)),
+        pn.layout.Divider(margin = (-10, 0, -10,0)),
 
         # GROUP
         "Optional aggregation: I'm interested in the number of ___ that contain at least one occurance.",
@@ -230,66 +271,81 @@ def _exceedance_visualize(choices, option=1):
         # DURATION 2
         "After aggregation, I'm interested in occurances that last for . . .",
         choices.duration2_row,
-        
+
         title = "Threshold event options",
         collapsible = False
     )
 
-    exceedance_count_panel = pn.Column(pn.Spacer(width=15), pn.Row(
+    exceedance_count_panel = pn.Column(pn.Spacer(width = 15), pn.Row(
         pn.Column(
             options_card,
             choices.smoothing_card,
             width = _left_column_width
         ),
-        pn.Spacer(width=15),
+        pn.Spacer(width = 15),
         pn.Column(
             plot_card
         )
     ))
-
     return exceedance_count_panel
 
-_thresholds_tool_description = "Select a variable of interest, variable units, and region of interest to the left. Then, use the dropdowns below to define the extreme event you are interested in. After clicking 'Reload Plot', the plot on the lower right will show event frequencies across different simulations. You can also explore how these frequencies change under different global emissions scenarios. Save a plot to come back to later by putting your cursor over the lower right and clicking the save icon."
-
-def _thresholds_visualize(thresh_data, selections, location, option=1):
+def _thresholds_visualize(thresh_data, selections, location, option = 1):
     """ 
-    Function for constructing and displaying the explore.thresholds() panel. 
+    Function for constructing and displaying the explore.thresholds() panel.
     """
     _first_row_height = 300
 
     data_options_card = pn.Card(
         pn.Row(
             pn.Column(
-                pn.widgets.Select.from_param(selections.param.variable, name="Data variable"),
-                pn.widgets.RadioButtonGroup.from_param(selections.param.units),
-                pn.widgets.StaticText.from_param(selections.param.extended_description, name=""),
-                pn.widgets.Button.from_param(thresh_data.param.reload_data, button_type="primary", width=150, height=30),
-                width=230
+                pn.widgets.Select.from_param(
+                    selections.param.variable,
+                    name="Data variable"
                 ),
+                pn.widgets.RadioButtonGroup.from_param(selections.param.units),
+                pn.widgets.StaticText.from_param(selections.param.extended_description, name = ""),
+                pn.widgets.Button.from_param(
+                    thresh_data.param.reload_data,
+                    button_type = "primary",
+                    width = 150,
+                    height = 30
+                ),
+                width = 230
+            ),
             pn.Column(
                     location.param.area_subset,
-                    location.param.latitude, 
-                    location.param.longitude, 
+                    location.param.latitude,
+                    location.param.longitude,
                     location.param.cached_area,
-                    width=230,
+                    width = 230,
             ),
             pn.Column(
                 location.view,
-                width=180
-                ),
+                width = 180
             ),
-    title="Data Options", collapsible=False, width=700, height=_first_row_height
+        ),
+        title = "Data Options", collapsible = False, width = 700, height = _first_row_height
+    )
+
+    _thresholds_tool_description = ("Select a variable of interest, variable units,"
+        " and region of interest to the left. Then, use the dropdowns below to"
+        " define the extreme event you are interested in. After clicking"
+        " 'Reload Plot', the plot on the lower right will show event frequencies"
+        " across different simulations. You can also explore how these"
+        " frequencies change under different global emissions scenarios. Save a"
+        " plot to come back to later by putting your cursor over the lower right"
+        " and clicking the save icon."
     )
 
     description_box = pn.Card(
         _thresholds_tool_description,
-        title = "About this tool", collapsible = False,
-        # width=400, 
+        title = "About this tool",
+        collapsible = False,
+        # width = 400,
         height = _first_row_height
     )
 
     plot_panel = _exceedance_visualize(thresh_data, option) # display the holoviz panel
-
     return pn.Column(
         pn.Row(
             data_options_card, description_box
