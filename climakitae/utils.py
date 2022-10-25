@@ -8,6 +8,11 @@ import matplotlib.colors as mcolors
 import matplotlib
 import pkg_resources
 
+# Read colormap text files 
+ae_orange = pkg_resources.resource_filename('climakitae', 'data/cmaps/ae_orange.txt')
+ae_diverging = pkg_resources.resource_filename('climakitae', 'data/cmaps/ae_diverging.txt')
+ae_blue = pkg_resources.resource_filename('climakitae', 'data/cmaps/ae_blue.txt')
+
 def _read_ae_colormap(cmap = "ae_orange", cmap_hex = False):
     """Read in AE colormap by name
 
@@ -21,10 +26,16 @@ def _read_ae_colormap(cmap = "ae_orange", cmap_hex = False):
         cmap_data (list): used for hvplot maps (if cmap_hex == True)
 
     """
-
-    cmap_filename = cmap + ".txt" # Filename of colormap
-    cmap_pkg_data = pkg_resources.resource_filename("climakitae", "data/cmaps/" + cmap_filename) # Read package data
-    cmap_np = np.loadtxt(cmap_pkg_data, dtype = float)
+    
+    if cmap == "ae_orange": 
+        cmap_data = ae_orange
+    elif cmap == "ae_diverging": 
+        cmap_data = ae_diverging
+    elif cmap == "ae_blue":
+        cmap_data = ae_blue
+    
+    # Load text file
+    cmap_np = np.loadtxt(cmap_data, dtype = float)
 
     # RBG to hex
     if cmap_hex:
