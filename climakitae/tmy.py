@@ -274,7 +274,7 @@ class AverageMeteorologicalYear(param.Parameterized):
             self.selections.scenario = ["Historical Climate"]
             self.selections.time_slice = (1981, 2010) # to match historical 30-year average
 
-        elif self.tmy_advanced_options == "Warming Level Future": 
+        elif self.tmy_advanced_options == "Warming Level Future":
             warming_year_average_range = {
                 1.5 : (2034, 2063),
                 2 : (2047, 2076),
