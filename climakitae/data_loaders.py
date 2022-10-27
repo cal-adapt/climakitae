@@ -316,12 +316,15 @@ def _read_from_catalog(selections, location, cat):
         gridscale_precip_da = _get_data_one_var(selections, location, cat)
         
         # Derive precip total
-        selections.variable_id = "precip_tot_derived"
         da = _compute_total_precip(
             cumulus_precip = cumulus_precip_da,
             gridcell_precip = gridscale_precip_da,
             variable_name = selections.variable
         ) 
+        
+        # Reset variable id 
+        selections.variable_id = "precip_tot_derived"
+        da.attrs["variable_id"] = "precip_tot_derived"
         
     elif selections.variable_id == "wind_mag_derived": 
         
@@ -334,12 +337,15 @@ def _read_from_catalog(selections, location, cat):
         v10_da = _get_data_one_var(selections, location, cat)
         
         # Derive wind magnitude
-        selections.variable_id = "wind_mag_derived" 
         da = _compute_wind_mag(
             u10 = u10_da,
             v10 = v10_da,
             variable_name = selections.variable
         )
+        
+        # Reset variable id 
+        selections.variable_id = "wind_mag_derived"
+        da.attrs["variable_id"] = "wind_mag_derived"
         
     elif selections.variable_id == "rh_derived": 
         
