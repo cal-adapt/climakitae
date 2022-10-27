@@ -315,7 +315,8 @@ def _read_from_catalog(selections, location, cat):
         selections.variable_id = "rainnc"
         gridscale_precip_da = _get_data_one_var(selections, location, cat)
         
-        # Derive precip total 
+        # Derive precip total
+        selections.variable_id = "precip_tot_derived"
         da = _compute_total_precip(
             cumulus_precip = cumulus_precip_da,
             gridcell_precip = gridscale_precip_da,
@@ -333,6 +334,7 @@ def _read_from_catalog(selections, location, cat):
         v10_da = _get_data_one_var(selections, location, cat)
         
         # Derive wind magnitude
+        selections.variable_id = "wind_mag_derived" 
         da = _compute_wind_mag(
             u10 = u10_da,
             v10 = v10_da,
@@ -360,6 +362,7 @@ def _read_from_catalog(selections, location, cat):
             mixing_ratio = q2_da,
             variable_name = selections.variable
         )
+        selections.variable_id = "rh_derived" 
         da.attrs = { # Add descriptive attributes to DataArray
             "institution": pressure_da.attrs["institution"],
             "source": pressure_da.attrs["source"],
