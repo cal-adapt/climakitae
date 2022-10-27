@@ -22,7 +22,7 @@ class TimeSeriesParams(param.Parameterized):
 
     anomaly = param.Boolean(default = True, label = "Difference from a historical mean")
     reference_range = param.CalendarDateRange(
-        default=(dt.datetime(1980, 1, 1), dt.datetime(2012, 12, 31)),
+        default=(dt.datetime(1981, 1, 1), dt.datetime(2010, 12, 31)),
         bounds=(dt.datetime(1980, 1, 1), dt.datetime(2021, 12, 31)),
     )
     remove_seasonal_cycle = param.Boolean(default = False)
@@ -75,7 +75,7 @@ class TimeSeriesParams(param.Parameterized):
             Returns the difference with respect to the average across a historical range.
             """
             if y.attrs["frequency"] == "1month":
-                # If frequency is monthly, then the reference period average needs to be a 
+                # If frequency is monthly, then the reference period average needs to be a
                 # weighted average, with weights equal to the number of days in each month
                 reference_slice = y.sel(time = slice(*self.reference_range))
                 month_weights = reference_slice.time.dt.daysinmonth # Number of days in each month of the reference range
@@ -93,7 +93,7 @@ class TimeSeriesParams(param.Parameterized):
                 # Construct DataArrayRolling objects for both the data and the weights
                 rolling_y = y.rolling(time = self.num_timesteps, center = True).construct("window")
                 rolling_weights = month_weights.rolling(time = self.num_timesteps, center = True).construct("window")
-                
+
                 # Build a DataArrayWeighted and collapse across the window dimension with mean
                 result = rolling_y.weighted(rolling_weights.fillna(0)).mean("window", skipna = False)
                 return result
@@ -226,7 +226,7 @@ def _update_attrs(data_to_output, attrs_to_add):
         attrs_to_add['smoothing_timesteps'] = attrs_to_add['num_timesteps']
     attrs_to_add.pop('num_timesteps')
     if not attrs_to_add['anomaly']:
-        attrs_to_add.pop('reference_range')  
+        attrs_to_add.pop('reference_range')
 
     attrs_to_add = {'timeseries: ' + k:( str(v) if type(v) == bool or \
                   None else v ) for k,v in attrs_to_add.items()}
