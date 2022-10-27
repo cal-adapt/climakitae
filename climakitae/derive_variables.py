@@ -1,5 +1,3 @@
-import metpy.calc
-import metpy
 import numpy as np
 
 def _compute_total_precip(cumulus_precip, gridcell_precip,
@@ -35,18 +33,18 @@ def _compute_relative_humidity(pressure, temperature, mixing_ratio,
         rel_hum (xr.DataArray): Relative humidity
 
     """
-    rel_hum = metpy.calc.relative_humidity_from_mixing_ratio(
-        pressure = pressure,
-        temperature = temperature,
-        mixing_ratio = mixing_ratio
-    )
-    rel_hum = rel_hum.metpy.dequantify() 
-    # metpy function returns a pint.Quantity object, which can cause issues with dask. 
-    # This can be undone using the dequantify function.
-    # For more info: https://unidata.github.io/MetPy/latest/tutorials/xarray_tutorial.html
-
+    # Calculates saturated vapor pressure, unit is in kPa
+    e_s = 0.611 * np.exp((2500000/461) * ((1/273)-(1/temperature))) 
+    
+    # Calculates saturated mixing ratio, unit is kg/kg, pressure has to be divided by 1000 to get to kPa at this step
+    r_s = (0.622 * e_s)/((pressure/1000) - e_s) 
+    
+    # Calculates relative humidity, unit is 0 to 100
+    rel_hum = 100 * (mixing_ratio / r_s) 
+    
     # Assign descriptive name 
     rel_hum.name = variable_name    
+    
     return rel_hum
 
 def _compute_wind_mag(u10, v10, variable_name = "WIND_MAG"):
@@ -63,5 +61,4 @@ def _compute_wind_mag(u10, v10, variable_name = "WIND_MAG"):
     """
     wind_mag = np.sqrt(np.square(u10) + np.square(v10))
     wind_mag.name = variable_name
-    wind_mag.attrs["units"] = "m s-1"
     return wind_mag
