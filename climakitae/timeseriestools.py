@@ -36,7 +36,7 @@ class TimeSeriesParams(param.Parameterized):
     )
 
     extremes = param.ObjectSelector(
-        default = "None", objects = ["None", "min", "max", "percentile"]
+        default = "None", objects = ["None", "Min", "Max", "Percentile"]
     )
     resample_window = param.Integer(default = 1, bounds = (1, 30))
     resample_period = param.ObjectSelector(default = "AS-SEP", objects = _time_scales)
@@ -115,35 +115,25 @@ class TimeSeriesParams(param.Parameterized):
             to_plot.name = str(self.num_timesteps) + " timesteps running mean"
 
         if self.extremes != "None":
-            new_name = (
-                to_plot.name
-                + " -- "
-                + str(self.resample_window)
-                + self.resample_period
-                + " "
-                + self.extremes
-            )
-            if self.extremes == "max":
+            # new_name = to_plot.name
+
+            if self.extremes == "Max":
                 to_plot = to_plot.resample(
                     time=str(self.resample_window) + self.resample_period
                 ).max("time")
-            elif self.extremes == "min":
+            elif self.extremes == "Min":
                 to_plot = to_plot.resample(
                     time=str(self.resample_window) + self.resample_period
                 ).min("time")
-            elif self.extremes == "percentile":
+            elif self.extremes == "Percentile":
                 to_plot = to_plot.resample(
                     time=str(self.resample_window) + self.resample_period
                 ).quantile(q = self.percentile)
-                new_name = (
-                    to_plot.name
-                    + " -- "
-                    + "{:.0f}".format(self.percentile * 100)
-                    + " "
-                    + self.extremes
-                )
-            to_plot.name = new_name
+            #     new_name = to_plot.name
+            # to_plot.name = new_name
         return to_plot
+
+
 
     @param.depends(
         "anomaly",
@@ -170,11 +160,41 @@ class TimeSeriesParams(param.Parameterized):
         else:
             menu_list = ["scenario"]
 
+        # Default title
+        new_title = "Time Series for " + to_plot.name
+
+        if self.extremes == None:
+            new_title = new_title
+
+        # Updates title of view depending on extremes panel choices
+        elif self.extremes != None:
+            if self.extremes == "Percentile":
+                new_title = (
+                    "Extremes calculated for the "
+                    + str(self.percentile)
+                    + " percentile with a "
+                    + str(self.resample_window)
+                    + " "
+                    + self.resample_period
+                    + " running average"
+                )
+            else:
+                new_title = (
+                    self.extremes
+                    + " extremes with a "
+                    + str(self.resample_window)
+                    + " "
+                    + self.resample_period
+                    + " running average"
+                )
+                fontsize = 12 # column object has no "opts" function to investigate further
+
         obj = to_plot.hvplot.line(
             x = "time",
             widget_location = "bottom",
             by = "simulation",
-            groupby = menu_list
+            groupby = menu_list,
+            title = new_title
         )
         return obj
 
