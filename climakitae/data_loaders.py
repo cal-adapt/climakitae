@@ -343,6 +343,7 @@ def _read_from_catalog(selections, location, cat):
             u10 = u10_da,
             v10 = v10_da,
             variable_name = selections.variable
+        ) 
 
     # Raise error if no simulation is selected and append_historical == True
     if selections.append_historical:
