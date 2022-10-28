@@ -369,16 +369,7 @@ def _read_from_catalog(selections, location, cat):
             variable_name = selections.variable
         )
         selections.variable_id = "rh_derived" 
-        da.attrs = { # Add descriptive attributes to DataArray
-            "institution": pressure_da.attrs["institution"],
-            "source": pressure_da.attrs["source"],
-            "resolution": pressure_da.resolution,
-            "frequency": selections.timescale,
-            "grid_mapping": pressure_da.attrs["grid_mapping"],
-            "variable_id": "rh_derived",
-            "extended_description": selections.extended_description,
-            "units": selections.units
-        } 
+        da.attrs["variable_id"] = "rh_derived" 
         
     else: 
         da = _get_data_one_var(selections, location, cat)
