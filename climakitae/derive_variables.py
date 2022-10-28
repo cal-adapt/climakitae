@@ -45,7 +45,8 @@ def _compute_relative_humidity(pressure, temperature, mixing_ratio,
     rel_hum = 100 * (mixing_ratio / r_s) 
     
     # Assign descriptive name 
-    rel_hum.name = variable_name    
+    rel_hum.name = variable_name  
+    rel_hum.attrs["units"] = "[0 to 100]"
     
     return rel_hum
 
