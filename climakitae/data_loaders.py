@@ -238,7 +238,7 @@ def _process_and_concat(selections, dsets, cat_subset):
 def _read_from_catalog(selections, location, cat):
     """
     The primary and first data loading method, called by
-    core.Application.generate, it returns a DataArray (which can be quite large)
+    core.Application.retrieve, it returns a DataArray (which can be quite large)
     containing everything requested by the user (which is stored in 'selections'
     and 'location').
 
