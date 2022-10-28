@@ -245,6 +245,35 @@ def _get_data_one_var(selections, location, cat):
     
     # Read data from AWS.
     data_dict = _get_data_dict_and_names(cat_subset = cat_subset)
+    
+    # Perform subsetting operations
+    for dname, dset in data_dict.items():
+        
+        # Time slice
+        dset = dset.sel(
+            time = slice(
+                str(selections.time_slice[0]),
+                str(selections.time_slice[1]))
+        )
+
+        # Perform area subsetting and area averaging
+        ds_region = _get_area_subset(location = location)
+        if ds_region is not None: # Perform subsetting
+            dset = dset.rio.clip(
+                geometries = ds_region,
+                crs = 4326,
+                drop = True
+            )
+
+        # Perform area averaging
+        if selections.area_average == True:
+            weights = np.cos(np.deg2rad(dset.lat))
+            dset = dset.weighted(weights).mean("x").mean("y")
+        
+        # Update dataset in dictionary 
+        data_dict.update(
+            { dname : dset }
+        )
 
     # Process data if append_historical was selected.
     # Merge individual Datasets into one DataArray object.
@@ -253,27 +282,6 @@ def _get_data_one_var(selections, location, cat):
         dsets = data_dict,
         cat_subset = cat_subset
     )
-
-    # Time slice
-    da = da.sel(
-        time = slice(
-            str(selections.time_slice[0]),
-            str(selections.time_slice[1]))
-    )
-
-    # Perform area subsetting and area averaging
-    ds_region = _get_area_subset(location = location)
-    if ds_region is not None: # Perform subsetting
-        da = da.rio.clip(
-            geometries = ds_region,
-            crs = 4326,
-            drop = True
-        )
-
-    # Perform area averaging
-    if selections.area_average == True:
-        weights = np.cos(np.deg2rad(da.lat))
-        da = da.weighted(weights).mean("x").mean("y")
 
     return da
 
@@ -307,12 +315,16 @@ def _read_from_catalog(selections, location, cat):
         selections.variable_id = "rainnc"
         gridscale_precip_da = _get_data_one_var(selections, location, cat)
         
-        # Derive precip total 
+        # Derive precip total
         da = _compute_total_precip(
             cumulus_precip = cumulus_precip_da,
             gridcell_precip = gridscale_precip_da,
             variable_name = selections.variable
         ) 
+        
+        # Reset variable id 
+        selections.variable_id = "precip_tot_derived"
+        da.attrs["variable_id"] = "precip_tot_derived"
         
     elif selections.variable_id == "wind_mag_derived": 
         
@@ -330,6 +342,10 @@ def _read_from_catalog(selections, location, cat):
             v10 = v10_da,
             variable_name = selections.variable
         )
+        
+        # Reset variable id 
+        selections.variable_id = "wind_mag_derived"
+        da.attrs["variable_id"] = "wind_mag_derived"
         
     elif selections.variable_id == "rh_derived": 
         
@@ -352,16 +368,8 @@ def _read_from_catalog(selections, location, cat):
             mixing_ratio = q2_da,
             variable_name = selections.variable
         )
-        da.attrs = { # Add descriptive attributes to DataArray
-            "institution": pressure_da.attrs["institution"],
-            "source": pressure_da.attrs["source"],
-            "resolution": pressure_da.resolution,
-            "frequency": selections.timescale,
-            "grid_mapping": pressure_da.attrs["grid_mapping"],
-            "variable_id": "rh_derived",
-            "extended_description": selections.extended_description,
-            "units": selections.units
-        } 
+        selections.variable_id = "rh_derived" 
+        da.attrs["variable_id"] = "rh_derived" 
         
     else: 
         da = _get_data_one_var(selections, location, cat)

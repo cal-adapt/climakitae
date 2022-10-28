@@ -39,6 +39,11 @@ def _convert_units(da, selected_units):
                           "does not have identifiable native units. The data"
                           " for this variable will need to have a 'units'"
                           " attribute added in the catalog."))
+        
+    # Convert daily precip mm/d to mm 
+    if native_units == "mm/d": 
+        da.attrs["units"] = "mm" 
+        native_units = "mm"
 
     # Convert hPa to Pa to make conversions easier
     # Monthly data native unit is hPa, hourly is Pa

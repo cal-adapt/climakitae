@@ -495,7 +495,7 @@ class DataSelector(param.Parameterized):
             self.param["units"].objects = [native_unit]
         self.units = native_unit
 
-    @param.depends("variable", watch = True)
+    @param.depends("variable", "timescale", "resolution", watch = True)
     def _update_cmap_and_extended_description(self):
         var_info = self.variable_options_df[self.variable_options_df["display_name"] == self.variable] # Get info for just that variable
         self.colormap = var_info.colormap.item()
