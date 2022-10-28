@@ -306,6 +306,12 @@ def _read_from_catalog(selections, location, cat):
     # Raise error if no scenarios are selected
     assert not selections.scenario == [], "Please select as least one scenario."
     
+    # Raise error if no simulation is selected and append_historical == True
+    if selections.append_historical:
+        if not any(['SSP' in s for s in selections.scenario]):
+            raise ValueError('Please also select at least one SSP to '
+                     'which the historical simulation should be appended.')
+    
     # Deal with derived variables 
     if selections.variable_id == "precip_tot_derived":
         
@@ -345,46 +351,6 @@ def _read_from_catalog(selections, location, cat):
             variable_name = selections.variable
         ) 
 
-    # Raise error if no simulation is selected and append_historical == True
-    if selections.append_historical:
-        if not any(['SSP' in s for s in selections.scenario]):
-            raise ValueError('Please also select at least one SSP to '
-                     'which the historical simulation should be appended.')
-
-    # Get catalog subset for a set of user selections
-    cat_subset = _get_cat_subset(selections = selections, cat = cat)
-
-    # Read data from AWS.
-    data_dict = _get_data_dict_and_names(cat_subset = cat_subset)
-
-    # Process data if append_historical was selected.
-    # Merge individual Datasets into one DataArray object.
-    da = _process_and_concat(
-        selections = selections,
-        dsets = data_dict,
-        cat_subset = cat_subset
-    )
-
-    # Time slice
-    da = da.sel(
-        time = slice(
-            str(selections.time_slice[0]),
-            str(selections.time_slice[1]))
-    )
-
-    # Perform area subsetting and area averaging
-    ds_region = _get_area_subset(location = location)
-    if ds_region is not None: # Perform subsetting
-        da = da.rio.clip(
-            geometries = ds_region,
-            crs = 4326,
-            drop = True
-        )
-        
-        # Reset variable id 
-        selections.variable_id = "wind_mag_derived"
-        da.attrs["variable_id"] = "wind_mag_derived"
-        
     elif selections.variable_id == "rh_derived": 
         
         # Load pressure data 
