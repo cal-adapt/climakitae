@@ -90,7 +90,7 @@ class ThresholdDataParams(param.Parameterized):
         # Selectors defaults
         self.selections.append_historical = False
         self.selections.area_average = True
-        self.selections.resolution = "45km"
+        self.selections.resolution = "45 km"
         self.selections.scenario = ["SSP 3-7.0 -- Business as Usual"]
         self.selections.time_slice = (2020, 2100)
         self.selections.timescale = "hourly"

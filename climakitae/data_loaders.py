@@ -1,17 +1,19 @@
 import xarray as xr
+import dask 
 import rioxarray
 import intake
 import numpy as np
 from shapely.geometry import box
-from .catalog_utils import (
-    _convert_resolution,
-    _convert_timescale,
-    _convert_scenario
+from .catalog_convert import (
+    _resolution_to_gridlabel,
+    _timescale_to_table_id,
+    _scenario_to_experiment_id
 )
 from .unit_conversions import _convert_units
 
-# support methods for core.Application.generate
+# Set options 
 xr.set_options(keep_attrs = True)
+dask.config.set({"array.slicing.split_large_chunks": True})
 
 # ============================ Helper functions ================================
 
@@ -67,10 +69,10 @@ def _get_cat_subset(selections, cat):
 
     # Get catalog keys
     # Convert user-friendly names to catalog names (i.e. "45km" to "d01")
-    activity_id = selections.dataset
-    table_id = _convert_timescale(selections.timescale)
-    grid_label = _convert_resolution(selections.resolution)
-    experiment_id = [_convert_scenario(x) for x in scenario_selections]
+    activity_id = selections.downscaling_method
+    table_id = _timescale_to_table_id(selections.timescale)
+    grid_label = _resolution_to_gridlabel(selections.resolution)
+    experiment_id = [_scenario_to_experiment_id(x) for x in scenario_selections]
     variable_id = selections.variable_id
 
     # Get catalog subset
@@ -161,12 +163,12 @@ def _process_and_concat(selections, dsets, cat_subset):
 
     for scenario in scenario_list:
         sim_list = []
-        da_name = _convert_scenario(scenario, reverse = True)
+        da_name = _scenario_to_experiment_id(scenario, reverse = True)
         for simulation in cat_subset.unique()["source_id"]["values"]:
             if selections.append_historical and "ssp" in scenario:
 
                 # Reset name
-                da_name = "Historical + " + _convert_scenario(scenario, reverse = True)
+                da_name = "Historical + " + _scenario_to_experiment_id(scenario, reverse = True)
 
                 # Get filenames
                 try:
@@ -250,6 +252,12 @@ def _read_from_catalog(selections, location, cat):
     """
     # Raise error if no scenarios are selected
     assert not selections.scenario == [], "Please select as least one scenario."
+    
+    # Raise error if no simulation is selected and append_historical == True
+    if selections.append_historical:
+        if not any(['SSP' in s for s in selections.scenario]):
+            raise ValueError('Please also select at least one SSP to '
+                     'which the historical simulation should be appended.')
 
     # Get catalog subset for a set of user selections
     cat_subset = _get_cat_subset(selections = selections, cat = cat)
