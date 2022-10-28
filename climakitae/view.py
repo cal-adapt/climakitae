@@ -5,7 +5,7 @@ import pandas as pd
 import hvplot.xarray
 import matplotlib.pyplot as plt
 import pkg_resources
-from .utils import _reproject_data, _read_ae_colormap, _read_var_csv
+from .utils import _reproject_data, _read_ae_colormap
 
 # Import package data
 var_catalog_resource = pkg_resources.resource_filename('climakitae', 'data/variable_catalog.csv')
@@ -45,7 +45,7 @@ def _visualize(data, lat_lon = True, width = None, height = None, cmap = None):
 
         # Must have more than one grid cell to generate a map
         if (len(data["x"]) <= 1) or (len(data["y"]) <= 1):
-            print("Your data contains only one grid cell. A plot will be created using a default method that may or may not have spatial coordinates as the x and y axes.") # Warn user that plot may be weird
+            print("Your data contains only one grid cell in height and/or width. A plot will be created using a default method that may or may not have spatial coordinates as the x and y axes.") # Warn user that plot may be weird
 
             # Set default cmap if no user input
             # Different if using matplotlib (no "hex")
@@ -58,7 +58,10 @@ def _visualize(data, lat_lon = True, width = None, height = None, cmap = None):
                 warnings.simplefilter("ignore")
 
                 # Use generic static xarray plot
-                _matplotlib_plot = data.isel(time = 0).plot(cmap = cmap)
+                try: 
+                    _matplotlib_plot = data.isel(time = 0).plot(cmap = cmap)
+                except: 
+                    _matplotlib_plot = data.isel(time = 0).plot() # Make histogram for data the plotting function doesn't know how to handle
                 _plot = plt.gcf() # Add plot to figure
                 plt.close() # Close to prevent annoying matplotlib collections object line from showing in notebook
          # If there's more than one grid cell, generate a pretty map

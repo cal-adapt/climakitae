@@ -11,10 +11,10 @@ import geopandas as gpd
 import pandas as pd
 import pkg_resources
 from .unit_conversions import _get_unit_conversion_options
-from .catalog_utils import (
-    _convert_resolution,
-    _convert_timescale,
-    _convert_scenario
+from .catalog_convert import (
+    _resolution_to_gridlabel,
+    _timescale_to_table_id,
+    _scenario_to_experiment_id
 )
 
 # Import package data 
@@ -384,8 +384,8 @@ class DataSelector(param.Parameterized):
     area_average = param.Boolean(default = False)
 
     resolution = param.ObjectSelector(
-        default = "45km",
-        objects = ["45km", "9km", "3km"]
+        default = "45 km",
+        objects = ["45 km", "9 km", "3 km"]
     )
     timescale = param.ObjectSelector(
         default = "monthly",
@@ -393,7 +393,7 @@ class DataSelector(param.Parameterized):
     )
 
     # Empty params, initialized in __init__
-    dataset = param.ObjectSelector(objects = dict())
+    downscaling_method = param.ObjectSelector(objects = dict())
     scenario = param.ListSelector(objects = dict())
     variable = param.ObjectSelector(objects = dict())
     units = param.ObjectSelector(objects = dict())
@@ -404,15 +404,15 @@ class DataSelector(param.Parameterized):
         # Set default values
         super().__init__(**params)
 
-        # Dataset selection
-        self.dataset = "WRF"
+        # Downscaling method selection
+        self.downscaling_method = "WRF"
 
         # Variable catalog info
         self.unique_variable_ids, self.scenario_options = _get_unique_variables( # Get a list of unique variable ids for that catalog subset
             cat = self.cat,
-            activity_id = self.dataset,
-            table_id = _convert_timescale(self.timescale),
-            grid_label = _convert_resolution(self.resolution)
+            activity_id = self.downscaling_method,
+            table_id = _timescale_to_table_id(self.timescale),
+            grid_label = _resolution_to_gridlabel(self.resolution)
         )
 
         self.variable_options_df = _get_variable_options_df( # Get more info about that subset of unique variable ids 
@@ -422,7 +422,7 @@ class DataSelector(param.Parameterized):
         )
 
         # Set scenario param
-        scenario_options = [_convert_scenario(x, reverse = True) for x in self.scenario_options]
+        scenario_options = [_scenario_to_experiment_id(x, reverse = True) for x in self.scenario_options]
 
         # Reorder list
         for scenario_i in [
@@ -457,9 +457,9 @@ class DataSelector(param.Parameterized):
         # Get a list of unique variable ids for that catalog subset
         self.unique_variable_ids, self.scenario_options = _get_unique_variables(
             cat = self.cat,
-            activity_id = self.dataset,
-            table_id = _convert_timescale(self.timescale),
-            grid_label = _convert_resolution(self.resolution)
+            activity_id = self.downscaling_method,
+            table_id = _timescale_to_table_id(self.timescale),
+            grid_label = _resolution_to_gridlabel(self.resolution)
         )
 
         # Get more info about that subset of unique variable ids
@@ -478,7 +478,7 @@ class DataSelector(param.Parameterized):
     @param.depends("resolution", "location.area_subset", watch = True)
     def _update_states_3km(self):
         if self.location.area_subset == "states":
-            if self.resolution == "3km":
+            if self.resolution == "3 km":
                 self.location.param["cached_area"].objects = ["CA", "NV", "OR", "UT", "AZ"]
                 self.location.cached_area = "CA"
             else:
@@ -511,7 +511,7 @@ class DataSelector(param.Parameterized):
         "Append historical" is also selected.
         """ 
         # Get scenario options in catalog format
-        scenario_options = [_convert_scenario(x, reverse = True) for x in self.scenario_options]
+        scenario_options = [_scenario_to_experiment_id(x, reverse = True) for x in self.scenario_options]
         
         # Reorder list
         for scenario_i in [

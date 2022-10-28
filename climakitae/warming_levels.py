@@ -85,7 +85,7 @@ def get_anomaly_data(data, warmlevel = 3.0):
     central_year_l, year_start_l, year_end_l = [], [], []
     for simulation in data.simulation.values:
         for scenario in [ssp]:
-            one_ts = data.sel(simulation=simulation).squeeze() #,scenario=scenario) #scenario names are longer strings
+            one_ts = data.sel(simulation = simulation).squeeze() #,scenario=scenario) #scenario names are longer strings
             centered_time = pd.to_datetime(gwl_times[str(float(warmlevel))][model_case[simulation]][scenario]).year
             if not np.isnan(centered_time):
                 start_year = centered_time - 15
@@ -269,7 +269,10 @@ class WarmingLevels(param.Parameterized):
 
         try:
             all_plots.cols(3) # Organize into 3 columns
-            all_plots.opts(title = self.selections.variable + ': Anomalies for ' + str(self.warmlevel) + '°C Warming by Simulation') # Add title
+            all_plots.opts(title = self.selections.variable
+                           + ': Anomalies for ' + str(self.warmlevel)
+                           + '°C Warming by Simulation'
+            ) # Add title
         except:
             all_plots.opts(title = str(self.warmlevel) + '°C Anomalies') # Add shorter title
 
@@ -339,7 +342,10 @@ class WarmingLevels(param.Parameterized):
         )
 
         all_plots = (mean_plot + med_plot + min_plot + max_plot)
-        all_plots.opts(title = self.selections.variable + ': Anomalies for ' + str(self.warmlevel) +'°C Warming Across Models') # Add title
+        all_plots.opts(title = self.selections.variable
+                       + ': Anomalies for ' + str(self.warmlevel)
+                       + '°C Warming Across Models'
+        ) # Add title
         all_plots.opts(toolbar = "below") # Set toolbar location
         all_plots.opts(hv.opts.Layout(merge_tools = True)) # Merge toolbar
         return all_plots

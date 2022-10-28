@@ -1,12 +1,13 @@
 import xarray as xr
+import dask 
 import rioxarray
 import intake
 import numpy as np
 from shapely.geometry import box
-from .catalog_utils import (
-    _convert_resolution,
-    _convert_timescale,
-    _convert_scenario
+from .catalog_convert import (
+    _resolution_to_gridlabel,
+    _timescale_to_table_id,
+    _scenario_to_experiment_id
 )
 from .unit_conversions import _convert_units
 from .derive_variables import (
@@ -15,8 +16,9 @@ from .derive_variables import (
     _compute_wind_mag
 ) 
 
-# support methods for core.Application.generate
+# Set options 
 xr.set_options(keep_attrs = True)
+dask.config.set({"array.slicing.split_large_chunks": True})
 
 # ============================ Helper functions ================================
 
@@ -72,10 +74,10 @@ def _get_cat_subset(selections, cat):
 
     # Get catalog keys
     # Convert user-friendly names to catalog names (i.e. "45km" to "d01")
-    activity_id = selections.dataset
-    table_id = _convert_timescale(selections.timescale)
-    grid_label = _convert_resolution(selections.resolution)
-    experiment_id = [_convert_scenario(x) for x in scenario_selections]
+    activity_id = selections.downscaling_method
+    table_id = _timescale_to_table_id(selections.timescale)
+    grid_label = _resolution_to_gridlabel(selections.resolution)
+    experiment_id = [_scenario_to_experiment_id(x) for x in scenario_selections]
     variable_id = selections.variable_id
 
     # Get catalog subset
@@ -166,12 +168,12 @@ def _process_and_concat(selections, dsets, cat_subset):
 
     for scenario in scenario_list:
         sim_list = []
-        da_name = _convert_scenario(scenario, reverse = True)
+        da_name = _scenario_to_experiment_id(scenario, reverse = True)
         for simulation in cat_subset.unique()["source_id"]["values"]:
             if selections.append_historical and "ssp" in scenario:
 
                 # Reset name
-                da_name = "Historical + " + _convert_scenario(scenario, reverse = True)
+                da_name = "Historical + " + _scenario_to_experiment_id(scenario, reverse = True)
 
                 # Get filenames
                 try:
@@ -289,7 +291,7 @@ def _get_data_one_var(selections, location, cat):
 def _read_from_catalog(selections, location, cat):
     """
     The primary and first data loading method, called by
-    core.Application.generate, it returns a DataArray (which can be quite large)
+    core.Application.retrieve, it returns a DataArray (which can be quite large)
     containing everything requested by the user (which is stored in 'selections'
     and 'location').
 
@@ -341,6 +343,41 @@ def _read_from_catalog(selections, location, cat):
             u10 = u10_da,
             v10 = v10_da,
             variable_name = selections.variable
+
+    # Raise error if no simulation is selected and append_historical == True
+    if selections.append_historical:
+        if not any(['SSP' in s for s in selections.scenario]):
+            raise ValueError('Please also select at least one SSP to '
+                     'which the historical simulation should be appended.')
+
+    # Get catalog subset for a set of user selections
+    cat_subset = _get_cat_subset(selections = selections, cat = cat)
+
+    # Read data from AWS.
+    data_dict = _get_data_dict_and_names(cat_subset = cat_subset)
+
+    # Process data if append_historical was selected.
+    # Merge individual Datasets into one DataArray object.
+    da = _process_and_concat(
+        selections = selections,
+        dsets = data_dict,
+        cat_subset = cat_subset
+    )
+
+    # Time slice
+    da = da.sel(
+        time = slice(
+            str(selections.time_slice[0]),
+            str(selections.time_slice[1]))
+    )
+
+    # Perform area subsetting and area averaging
+    ds_region = _get_area_subset(location = location)
+    if ds_region is not None: # Perform subsetting
+        da = da.rio.clip(
+            geometries = ds_region,
+            crs = 4326,
+            drop = True
         )
         
         # Reset variable id 

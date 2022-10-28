@@ -54,7 +54,7 @@ def _get_historical_tmy_data(selections, location, catalog):
     """Get historical data from AWS catalog"""
     selections.append_historical = False
     selections.area_average = True
-    selections.resolution = "45km" ## KEEPING FOR NOW
+    selections.resolution = "45 km" ## KEEPING FOR NOW
     selections.scenario = ["Historical Climate"]
     selections.time_slice = (1981, 2010) # to match historical 30-year average
     selections.timescale = "hourly"
@@ -80,7 +80,7 @@ def _get_future_heatmap_data(selections, location, catalog, warmlevel):
 
     selections.append_historical = False
     selections.area_average = True
-    selections.resolution = "45km"
+    selections.resolution = "45 km"
     selections.scenario = ["SSP 3-7.0 -- Business as Usual"]
     selections.time_slice = warming_year_average_range[warmlevel]
     selections.timescale = "hourly"
@@ -243,7 +243,7 @@ class AverageMeteorologicalYear(param.Parameterized):
         # Selectors defaults
         self.selections.append_historical = False
         self.selections.area_average = True
-        self.selections.resolution = "45km"
+        self.selections.resolution = "45 km"
         self.selections.scenario = ["Historical Climate"]  # setting for historical
         self.selections.time_slice = (1981, 2010)
         self.selections.timescale = "hourly"
@@ -274,7 +274,7 @@ class AverageMeteorologicalYear(param.Parameterized):
             self.selections.scenario = ["Historical Climate"]
             self.selections.time_slice = (1981, 2010) # to match historical 30-year average
 
-        elif self.tmy_advanced_options == "Warming Level Future": 
+        elif self.tmy_advanced_options == "Warming Level Future":
             warming_year_average_range = {
                 1.5 : (2034, 2063),
                 2 : (2047, 2076),
