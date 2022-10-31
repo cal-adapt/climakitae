@@ -22,13 +22,6 @@ dask.config.set({"array.slicing.split_large_chunks": True})
 
 # ============================ Helper functions ================================
 
-def add_sim_coord(ds):
-    """Add simulation as Dataset coords and dimensions.
-    Used when reading in data from catalog. 
-    """
-    ds = ds.assign_coords({"simulation": ds.attrs["source_id"]})
-    return ds
-
 def _get_as_shapely(location):
     """
     Takes the location data in the 'location' parameter, and turns it into a
@@ -104,7 +97,6 @@ def _get_data_dict_and_names(cat_subset):
     data_dict = cat_subset.to_dataset_dict(
         zarr_kwargs = {'consolidated': True},
         storage_options = {'anon': True},
-        preprocess = add_sim_coord,
         progressbar = False
     )
     return data_dict
@@ -250,6 +242,9 @@ def _get_data_one_var(selections, location, cat):
     
     # Perform subsetting operations
     for dname, dset in data_dict.items():
+        
+        # Add simulation as a coord 
+        dset = dset.assign_coords({"simulation": dset.attrs["source_id"]})
         
         # Time slice
         dset = dset.sel(
