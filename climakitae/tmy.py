@@ -248,6 +248,8 @@ class AverageMeteorologicalYear(param.Parameterized):
         self.selections.time_slice = (1981, 2010)
         self.selections.timescale = "hourly"
         self.selections.variable = "Air Temperature at 2m"
+        
+        self.cmap = _read_ae_colormap(cmap = "ae_orange", cmap_hex = True)
 
     # For reloading data and plots
     reload_data = param.Action(lambda x: x.param.trigger('reload_data'), label = 'Reload Data')
