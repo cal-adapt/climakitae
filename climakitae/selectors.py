@@ -487,7 +487,7 @@ class DataSelector(param.Parameterized):
             if scenario_i in scenario_ssp_options: # Reorder list
                 scenario_ssp_options.remove(scenario_i) # Remove item
                 scenario_ssp_options.append(scenario_i) # Add to back of list
-            self.param["scenario_ssp"].objects = scenario_ssp_options
+        self.param["scenario_ssp"].objects = scenario_ssp_options
         self.scenario_ssp = [x for x in self.scenario_ssp if x in scenario_ssp_options]
          
         if (True in ["SSP" in one for one in self.scenario_ssp]) and (True in ["Historical" in one for one in self.scenario_historical]):
@@ -549,7 +549,7 @@ class DataSelector(param.Parameterized):
             the timeline.
             """
             if scenario == "Historical Reconstruction (ERA5-WRF)":
-                color = "g"
+                color = "darkblue"
                 center = 1986  # 1950-2022
                 x_width = 36
             elif scenario == "Historical Climate":
@@ -560,11 +560,11 @@ class DataSelector(param.Parameterized):
                 center = 2057.5  # 2015-2100
                 x_width = 42.5
                 if "2-4.5" in one:
-                    color = "y"
+                    color = "#f69320"
                 elif "3-7.0" in one:
-                    color = "orange"
+                    color = "#df0000"
                 elif "5-8.5" in one:
-                    color = "r"
+                    color = "#980002"
                 if self.append_historical:
                     ax.errorbar(
                         x = 1997.5,
@@ -580,17 +580,21 @@ class DataSelector(param.Parameterized):
                 linewidth = 8,
                 color = color
             )
-            ax.annotate(scenario[:10], xy = (center - x_width, y_offset + 0.06))
+            if scenario == "Historical Reconstruction (ERA5-WRF)": 
+                scenario_label = "Reconstruction" 
+            else: 
+                scenario_label = scenario[:10]
+            ax.annotate(scenario_label, xy = (center - x_width, y_offset + 0.06))
 
-        y_offset = 0.15
+        y_offset = 0.17
         if self.scenario_ssp is not None:
             for one in self.scenario_ssp:
                 update_bars(one, y_offset)
-                y_offset += 0.15
+                y_offset += 0.20
         if self.scenario_historical is not None:
             for one in self.scenario_historical:
                 update_bars(one, y_offset)
-                y_offset += 0.15
+                y_offset += 0.20
 
         ax.fill_betweenx(
             [0, 1],
@@ -645,6 +649,7 @@ def _display_select(selections, location, location_type = "area average"):
             pn.layout.VSpacer()
         ),
         pn.Column(
+            pn.widgets.StaticText(value = "<br>Data that will be returned upon calling app.retrieve()", name = "Selected Data"),
             selections.view,
             pn.widgets.StaticText(value = "<br>Estimates of recent historical climatic conditions", name = "Historical Data"),
             pn.widgets.CheckBoxGroup.from_param(selections.param.scenario_historical),
