@@ -310,32 +310,6 @@ class LocSelectorPoint(param.Parameterized):
 
 # ============================ DATA SELECTIONS =================================
 
-def _get_unique_variables(cat, activity_id, table_id, grid_label): 
-    """Get unique variables for an input catalog subset.
-
-    Args:
-        cat (intake catalog): catalog
-        activity_id (str): dataset name (i.e. "WRF")
-        table_id (str): timescale
-        grid_label (str): resolution
-
-    Returns: tuple
-        variable_id_options (list of strs): valid variable id options for input
-        scenario_options (list of strs): valid scenario (experiment_id) options for input
-    """
-    # Get catalog subset from user inputs
-    cat_subset = cat.search(
-        activity_id = activity_id,
-        table_id = table_id,
-        grid_label = grid_label
-    )
-    # Get all unique variable id options from catalog selection
-    variable_id_options = cat_subset.unique()["variable_id"]["values"]
-
-    # Get all unique scenario options from catalog selection
-    scenario_options = cat_subset.unique()["experiment_id"]["values"]
-    return variable_id_options, scenario_options
-
 def _get_variable_options_df(var_catalog, unique_variable_ids, timescale):
     """Get variable information for a subset of unique variable ids.
 
@@ -369,7 +343,6 @@ class DataSelector(param.Parameterized):
 
     # Defaults
     default_variable = "Air Temperature at 2m"
-    default_scenario = ["Historical Climate"]
     time_slice = param.Range(default = (1980, 2015), bounds = (1950, 2100))
     append_historical = param.Boolean(default = False)
     area_average = param.Boolean(default = False)
@@ -385,10 +358,15 @@ class DataSelector(param.Parameterized):
 
     # Empty params, initialized in __init__
     downscaling_method = param.ObjectSelector(objects = dict())
-    scenario = param.ListSelector(objects = dict())
+    scenario_ssp = param.ListSelector(objects = dict())
+    scenario_historical = param.ListSelector(
+        default = ["Historical Climate"], 
+        objects = ["Historical Reconstruction (ERA5-WRF)", "Historical Climate"]
+    )
     variable = param.ObjectSelector(objects = dict())
     units = param.ObjectSelector(objects = dict())
     extended_description = param.ObjectSelector(objects = dict())
+    _data_warning = param.ObjectSelector(objects = dict())
     variable_id = param.ObjectSelector(objects = dict())
 
     def __init__(self, **params):
@@ -399,13 +377,12 @@ class DataSelector(param.Parameterized):
         self.downscaling_method = "WRF"
 
         # Variable catalog info
-        self.unique_variable_ids, self.scenario_options = _get_unique_variables( # Get a list of unique variable ids for that catalog subset
-            cat = self.cat,
+        self.cat_subset = self.cat.search(
             activity_id = self.downscaling_method,
             table_id = _timescale_to_table_id(self.timescale),
             grid_label = _resolution_to_gridlabel(self.resolution)
         )
-
+        self.unique_variable_ids = self.cat_subset.unique()["variable_id"]["values"]
         self.variable_options_df = _get_variable_options_df( # Get more info about that subset of unique variable ids 
             var_catalog = var_catalog,
             unique_variable_ids = self.unique_variable_ids,
@@ -413,22 +390,17 @@ class DataSelector(param.Parameterized):
         )
 
         # Set scenario param
-        scenario_options = [_scenario_to_experiment_id(x, reverse = True) for x in self.scenario_options]
-
-        # Reorder list
-        for scenario_i in [
-            "Historical Climate",
-            "Historical Reconstruction",
+        scenario_ssp_options = [_scenario_to_experiment_id(scen, reverse = True) for scen in self.cat_subset.unique()["experiment_id"]["values"] if "ssp" in scen]
+        for scenario_i in [ 
+            "SSP 2-4.5 -- Middle of the Road",
             "SSP 3-7.0 -- Business as Usual",
-            "SSP 5-8.5 -- Burn it All",
-            "SSP 2-4.5 -- Middle of the Road"
+            "SSP 5-8.5 -- Burn it All"
         ]:
-            if scenario_i in scenario_options :
-                scenario_options.remove(scenario_i) # Remove item
-                scenario_options.append(scenario_i) # Add to back of list
-
-        self.param["scenario"].objects = scenario_options
-        self.scenario = self.default_scenario
+            if scenario_i in scenario_ssp_options: # Reorder list
+                scenario_ssp_options.remove(scenario_i) # Remove item
+                scenario_ssp_options.append(scenario_i) # Add to back of list
+        self.param["scenario_ssp"].objects = scenario_ssp_options
+        self.scenario_ssp = []
 
         # Set variable param
         self.param["variable"].objects = self.variable_options_df.display_name.values
@@ -440,18 +412,19 @@ class DataSelector(param.Parameterized):
         self.units = var_info.unit.item()
         self.extended_description = var_info.extended_description.item()
         self.variable_id = var_info.variable_id.item()
+        self._data_warning = ""
 
     @param.depends("timescale", "resolution", watch = True)
     def _update_var_options(self):
         """Update unique variable options"""
 
-        # Get a list of unique variable ids for that catalog subset
-        self.unique_variable_ids, self.scenario_options = _get_unique_variables(
-            cat = self.cat,
+        # Variable catalog info
+        self.cat_subset = self.cat.search(
             activity_id = self.downscaling_method,
             table_id = _timescale_to_table_id(self.timescale),
             grid_label = _resolution_to_gridlabel(self.resolution)
         )
+        self.unique_variable_ids = self.cat_subset.unique()["variable_id"]["values"]
 
         # Get more info about that subset of unique variable ids
         self.variable_options_df = _get_variable_options_df(
@@ -493,57 +466,54 @@ class DataSelector(param.Parameterized):
         self.extended_description = var_info.extended_description.item()
         self.variable_id = var_info.variable_id.item()
 
-    @param.depends("resolution", "append_historical", "scenario", watch = True)
+    @param.depends("resolution", "append_historical", "scenario_ssp", "scenario_historical", watch = True)
     def _update_scenarios(self):
         """
         The scenarios available will depend on the resolution (more will be
         available for 9km than 3km for WRF eventually). Also ensures that
         "Historical Climate" is not redundantly displayed when
         "Append historical" is also selected.
-        """ 
+        """         
+        self._data_warning = ""
+        
+        
         # Get scenario options in catalog format
-        scenario_options = [_scenario_to_experiment_id(x, reverse = True) for x in self.scenario_options]
-        
-        # Reorder list
-        for scenario_i in [
-            "Historical Climate",
-            "Historical Reconstruction",
+        scenario_ssp_options = [_scenario_to_experiment_id(scen, reverse = True) for scen in self.cat_subset.unique()["experiment_id"]["values"] if "ssp" in scen]
+        for scenario_i in [ 
+            "SSP 2-4.5 -- Middle of the Road",
             "SSP 3-7.0 -- Business as Usual",
-            "SSP 5-8.5 -- Burn it All",
-            "SSP 2-4.5 -- Middle of the Road"
+            "SSP 5-8.5 -- Burn it All"
         ]:
-            if scenario_i in scenario_options:
-                scenario_options.remove(scenario_i) # Remove item
-                scenario_options.append(scenario_i) # Add to back of list
+            if scenario_i in scenario_ssp_options: # Reorder list
+                scenario_ssp_options.remove(scenario_i) # Remove item
+                scenario_ssp_options.append(scenario_i) # Add to back of list
+            self.param["scenario_ssp"].objects = scenario_ssp_options
+        self.scenario_ssp = [x for x in self.scenario_ssp if x in scenario_ssp_options]
+         
+        if (True in ["SSP" in one for one in self.scenario_ssp]) and (True in ["Historical" in one for one in self.scenario_historical]):
+            if ("Historical Reconstruction (ERA5-WRF)" in self.scenario_historical):
+                self.scenario_historical.remove("Historical Reconstruction (ERA5-WRF)")
+            if ("Historical Climate" in self.scenario_historical): 
+                self.scenario_historical.remove("Historical Climate")
+            self._data_warning = "Historical data is only available with SSP data if it is appended via the selection 'Append Historical Climate'"
 
-        # Reset param values
-        self.param["scenario"].objects = scenario_options
-        self.scenario = [x for x in self.scenario if x in scenario_options]
-        
-        # Remove Historical Climate as option if append_historical is selected
-        if self.append_historical and self.scenario is not None and self.scenario != ["Historical Climate"]:
-            if "Historical Climate" in self.scenario:
-                _scenarios = self.scenario
-                _scenarios.remove("Historical Climate")
-                self.scenario = _scenarios
-
-    @param.depends("scenario", "append_historical", watch = True)
+    @param.depends("scenario_ssp", "scenario_historical", "append_historical", watch = True)
     def _update_time_slice_range(self):
         """
         Will discourage the user from selecting a time slice that does not exist
         for any of the selected scenarios, by updating the default range of years.
         """
         low_bound, upper_bound = self.time_slice
-        if "Historical Reconstruction" not in self.scenario:
+        if "Historical Reconstruction (ERA5-WRF)" not in self.scenario_historical:
             low_bound = 1980
-            if "Historical Climate" not in self.scenario and not self.append_historical:
+            if "Historical Climate" not in self.scenario_historical and not self.append_historical:
                 low_bound = 2015
             else:
                 low_bound = 1980
         elif low_bound >= 1980:
             low_bound = 1950
-        if not True in ["SSP" in one for one in self.scenario]:
-            if "Historical Reconstruction" in self.scenario:
+        if not True in ["SSP" in one for one in self.scenario_ssp]:
+            if "Historical Reconstruction (ERA5-WRF)" in self.scenario_historical:
                 upper_bound = 2022
             else:
                 upper_bound = 2015
@@ -554,7 +524,7 @@ class DataSelector(param.Parameterized):
 
     area_average = param.Boolean(default = False)
 
-    @param.depends("time_slice", "scenario", "append_historical", watch = False)
+    @param.depends("time_slice", "scenario_ssp", "scenario_historical", "append_historical", watch = False)
     def view(self):
         """
         Displays a timeline to help the user visualize the time ranges
@@ -578,7 +548,7 @@ class DataSelector(param.Parameterized):
             Displays the time range of available data for each scenario above
             the timeline.
             """
-            if scenario == "Historical Reconstruction":
+            if scenario == "Historical Reconstruction (ERA5-WRF)":
                 color = "g"
                 center = 1986  # 1950-2022
                 x_width = 36
@@ -613,8 +583,12 @@ class DataSelector(param.Parameterized):
             ax.annotate(scenario[:10], xy = (center - x_width, y_offset + 0.06))
 
         y_offset = 0.15
-        if self.scenario is not None:
-            for one in self.scenario:
+        if self.scenario_ssp is not None:
+            for one in self.scenario_ssp:
+                update_bars(one, y_offset)
+                y_offset += 0.15
+        if self.scenario_historical is not None:
+            for one in self.scenario_historical:
                 update_bars(one, y_offset)
                 y_offset += 0.15
 
@@ -672,8 +646,12 @@ def _display_select(selections, location, location_type = "area average"):
         ),
         pn.Column(
             selections.view,
-            pn.widgets.CheckBoxGroup.from_param(selections.param.scenario),
-            selections.param.append_historical,
+            pn.widgets.StaticText(value = "<br>Estimates of recent historical climatic conditions", name = "Historical Data"),
+            pn.widgets.CheckBoxGroup.from_param(selections.param.scenario_historical),
+            pn.widgets.StaticText(value = "<br>SSP options represent end-of-century range", name = "Future Model Data"),
+            pn.widgets.CheckBoxGroup.from_param(selections.param.scenario_ssp),
+            pn.widgets.Checkbox.from_param(selections.param.append_historical, name="Append Historical Climate"),
+            pn.widgets.StaticText.from_param(selections.param._data_warning, name = "")
         ),
     )
     return pn.Column(first_row, location_chooser)

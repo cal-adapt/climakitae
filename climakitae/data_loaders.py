@@ -61,8 +61,8 @@ def _get_cat_subset(selections, cat):
 
     """
 
+    scenario_selections = selections.scenario_ssp + selections.scenario_historical
     # Add back in Historical Climate if append_historical was selected
-    scenario_selections = selections.scenario.copy()
     if (selections.append_historical == True and
         "Historical Climate" not in scenario_selections):
         scenario_selections += ["Historical Climate"]
@@ -250,12 +250,14 @@ def _read_from_catalog(selections, location, cat):
         da (xr.DataArray): output data
 
     """
+    scenario_selections = selections.scenario_ssp + selections.scenario_historical
+    
     # Raise error if no scenarios are selected
-    assert not selections.scenario == [], "Please select as least one scenario."
+    assert not scenario_selections == [], "Please select as least one scenario."
     
     # Raise error if no simulation is selected and append_historical == True
     if selections.append_historical:
-        if not any(['SSP' in s for s in selections.scenario]):
+        if not any(['SSP' in s for s in scenario_selections]):
             raise ValueError('Please also select at least one SSP to '
                      'which the historical simulation should be appended.')
 
