@@ -159,35 +159,49 @@ class TimeSeriesParams(param.Parameterized):
             menu_list = ["scenario", "time.season"]
         else:
             menu_list = ["scenario"]
-        
-        # Resample period user-friendly (used in title)  
+
+        # Resample period user-friendly (used in title)
         resample_per_str = {v: k for k, v in self._time_scales.items()}[self.resample_period]
-        resample_per_str = resample_per_str[:-1] # Remove plural (i.e. "months" --> "month") 
-        
-        # Percentile string user-friendly (used in title) 
+        resample_per_str = resample_per_str[:-1] # Remove plural (i.e. "months" --> "month")
+
+        # Percentile string user-friendly (used in title)
         percentile_int = int(self.percentile*100)
         ordinal = lambda n: "%d%s" % (n,"tsnrhtdd"[(n//10%10!=1)*(n%10<4)*n%10::4])
         percentrile_str = ordinal(percentile_int)
-        
-        # Extremes string user-friendly (used in title) 
-        if self.extremes == "Min": 
+
+        # Extremes string user-friendly (used in title)
+        if self.extremes == "Min":
             extremes_str = "Minumum"
-        elif self.extremes == "Max": 
+        elif self.extremes == "Max":
             extremes_str = "Maximum"
-        else: 
-            extremes_str = self.extremes 
-        
+        else:
+            extremes_str = self.extremes
+
+        # Smoothing string user-friendly (used in title)
+        if self.smoothing == "running mean":
+            smoothing_str = "Smoothed "
+        else:
+            smoothing_str = ""
+
         # Updates title of view depending on extremes panel choices
         if self.extremes == "None":
             date1, date2 = self.reference_range
             year1, year2 = str(date1.year), str(date2.year)
-            if self.anomaly: 
-                new_title = "Difference anomaly for "+year1+"-"+year2
-            else: 
-                new_title = "Timeseries for "+year1+"-"+year2
+            if self.anomaly:
+                if self.smoothing == "running mean":
+                    new_title = smoothing_str+"Difference anomaly for ".lower()+year1+"-"+year2
+                else:
+                    new_title = smoothing_str+"Difference anomaly for "+year1+"-"+year2
+            else:
+                if self.smoothing == "running mean":
+                    new_title = smoothing_str+"Timeseries for ".lower()+year1+"-"+year2
+                else:
+                    new_title = smoothing_str+"Timeseries for "+year1+"-"+year2
+
         elif self.extremes == "Percentile":
             new_title = (
-                percentrile_str
+                smoothing_str
+                + percentrile_str
                 + " percentile extremes with a "
                 + str(self.resample_window)
                 + "-"
@@ -196,14 +210,15 @@ class TimeSeriesParams(param.Parameterized):
             )
         else:
             new_title = (
-                extremes_str
+                smoothing_str
+                + extremes_str
                 + " extremes with a "
                 + str(self.resample_window)
                 + "-"
                 + resample_per_str
                 + " running average"
             )
-    
+
         obj = to_plot.hvplot.line(
             x = "time",
             widget_location = "bottom",
