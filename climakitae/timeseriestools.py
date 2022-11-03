@@ -159,36 +159,51 @@ class TimeSeriesParams(param.Parameterized):
             menu_list = ["scenario", "time.season"]
         else:
             menu_list = ["scenario"]
-
-        # Default title
-        new_title = "Time Series for " + to_plot.name
-
-        if self.extremes == None:
-            new_title = new_title
-
+        
+        # Resample period user-friendly (used in title)  
+        resample_per_str = {v: k for k, v in self._time_scales.items()}[self.resample_period]
+        resample_per_str = resample_per_str[:-1] # Remove plural (i.e. "months" --> "month") 
+        
+        # Percentile string user-friendly (used in title) 
+        percentile_int = int(self.percentile*100)
+        ordinal = lambda n: "%d%s" % (n,"tsnrhtdd"[(n//10%10!=1)*(n%10<4)*n%10::4])
+        percentrile_str = ordinal(percentile_int)
+        
+        # Extremes string user-friendly (used in title) 
+        if self.extremes == "Min": 
+            extremes_str = "Minumum"
+        elif self.extremes == "Max": 
+            extremes_str = "Maximum"
+        else: 
+            extremes_str = self.extremes 
+        
         # Updates title of view depending on extremes panel choices
-        elif self.extremes != None:
-            if self.extremes == "Percentile":
-                new_title = (
-                    "Extremes calculated for the "
-                    + str(self.percentile)
-                    + " percentile with a "
-                    + str(self.resample_window)
-                    + " "
-                    + self.resample_period
-                    + " running average"
-                )
-            else:
-                new_title = (
-                    self.extremes
-                    + " extremes with a "
-                    + str(self.resample_window)
-                    + " "
-                    + self.resample_period
-                    + " running average"
-                )
-                fontsize = 12 # column object has no "opts" function to investigate further
-
+        if self.extremes == "None":
+            date1, date2 = self.reference_range
+            year1, year2 = str(date1.year), str(date2.year)
+            if self.anomaly: 
+                new_title = "Difference anomaly for "+year1+"-"+year2
+            else: 
+                new_title = "Timeseries for "+year1+"-"+year2
+        elif self.extremes == "Percentile":
+            new_title = (
+                percentrile_str
+                + " percentile extremes with a "
+                + str(self.resample_window)
+                + "-"
+                + resample_per_str
+                + " running average"
+            )
+        else:
+            new_title = (
+                extremes_str
+                + " extremes with a "
+                + str(self.resample_window)
+                + "-"
+                + resample_per_str
+                + " running average"
+            )
+    
         obj = to_plot.hvplot.line(
             x = "time",
             widget_location = "bottom",
