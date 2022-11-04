@@ -48,7 +48,7 @@ def _convert_units(da, selected_units):
     # Convert hPa to Pa to make conversions easier
     # Monthly data native unit is hPa, hourly is Pa
     if native_units == "hPa" and selected_units != "hPa":
-        da = da * 100.
+        da = da / 100.
         da.attrs["units"] = "Pa"
         native_units = "Pa"
 
