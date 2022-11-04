@@ -329,7 +329,7 @@ def _read_from_catalog(selections, location, cat):
         selections.variable_id = "precip_tot_derived"
         da.attrs["variable_id"] = "precip_tot_derived"
         
-    elif selections.variable_id == "wind_mag_derived": 
+    elif selections.variable_id == "wind_speed_derived": 
         
         # Load u10 data
         selections.variable_id = "u10"
@@ -345,6 +345,8 @@ def _read_from_catalog(selections, location, cat):
             v10 = v10_da,
             variable_name = selections.variable
         ) 
+        selections.variable_id = "wind_speed_derived"
+        da.attrs["variable_id"] = "wind_speed_derived"
 
     elif selections.variable_id == "rh_derived": 
         

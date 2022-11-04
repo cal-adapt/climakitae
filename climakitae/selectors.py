@@ -353,7 +353,7 @@ def _get_variable_options_df(var_catalog, unique_variable_ids, timescale):
             [
                 "precip_tot_derived", 
                 "rh_derived", 
-                "wind_mag_derived"
+                "wind_speed_derived"
             ]
         )
     
