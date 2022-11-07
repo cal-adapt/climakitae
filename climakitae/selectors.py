@@ -476,7 +476,6 @@ class DataSelector(param.Parameterized):
         """         
         self._data_warning = ""
         
-        
         # Get scenario options in catalog format
         scenario_ssp_options = [_scenario_to_experiment_id(scen, reverse = True) for scen in self.cat_subset.unique()["experiment_id"]["values"] if "ssp" in scen]
         for scenario_i in [ 
@@ -496,6 +495,12 @@ class DataSelector(param.Parameterized):
             if ("Historical Climate" in self.scenario_historical): 
                 self.scenario_historical.remove("Historical Climate")
             self._data_warning = "Historical data is only available with SSP data if it is appended via the selection 'Append Historical Climate'"
+        
+        if (not True in ["SSP" in one for one in self.scenario_ssp]) and (not True in ["Historical" in one for one in self.scenario_historical]): # Warn user if no data is selected
+            self._data_warning = "Please select as least one dataset."
+        
+        if (not True in ["SSP" in one for one in self.scenario_ssp]) and (self.append_historical): 
+            self._data_warning = "Please also select at least one SSP to which the historical simulation should be appended."
 
     @param.depends("scenario_ssp", "scenario_historical", "append_historical", watch = True)
     def _update_time_slice_range(self):
