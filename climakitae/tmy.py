@@ -29,17 +29,21 @@ import hvplot.pandas
 import xarray as xr
 import holoviews as hv
 from holoviews import opts
-from matplotlib.figure import Figure
 import numpy as np
 import pandas as pd
 import param
 import panel as pn
-import intake
 import warnings
-from .data_loaders import _read_from_catalog
-from .utils import _read_ae_colormap
-import intake
 import pkg_resources
+from .utils import _read_ae_colormap
+from .catalog_convert import (
+    _resolution_to_gridlabel,
+    _timescale_to_table_id,
+    _scenario_to_experiment_id
+)
+from .data_loaders import _get_area_subset
+from .unit_conversions import _convert_units
+
 
 import logging  # Silence warnings
 logging.getLogger("param").setLevel(logging.CRITICAL)
@@ -50,50 +54,81 @@ var_catalog = pd.read_csv(var_catalog_resource, index_col="variable_id")
 
 xr.set_options(keep_attrs = True) # Keep attributes when mutating xr objects
 
-def _get_historical_tmy_data(selections, location, catalog):
-    """Get historical data from AWS catalog"""
-    selections.append_historical = False
-    selections.area_average = True
-    selections.resolution = "45 km" ## KEEPING FOR NOW
-    selections.scenario = ["Historical Climate"]
-    selections.time_slice = (1981, 2010) # to match historical 30-year average
-    selections.timescale = "hourly"
-    historical_da = _read_from_catalog(
-        selections = selections,
-        location = location,
-        cat = catalog
+
+def _read_tmy_data(cat, selections, location, scenario, time_slice): 
+
+    # Get catalog subset for user selections
+    cat_subset = cat.search(
+        variable_id = selections.variable_id, 
+        experiment_id = [_scenario_to_experiment_id(scen) for scen in scenario],
+        grid_label = _resolution_to_gridlabel(selections.resolution),
+        table_id = "1hr",
+    ) 
+    
+    # Read in data from catalog 
+    data_dict = cat_subset.to_dataset_dict(
+        zarr_kwargs = {'consolidated': True},
+        storage_options = {'anon': True},
+        progressbar = False
     )
 
-    # Compute mean of all simulations
-    # Compute zarr data
-    historical_da_mean = historical_da.mean(dim = "simulation").isel(scenario = 0).compute()
-    return historical_da_mean
+    # Get first item from data dictionary 
+    da = list(data_dict.values())[0][selections.variable_id]
+    
+    # Time slice
+    da = da.sel(
+        time = slice(
+            str(time_slice[0]),
+            str(time_slice[1]))
+    )
+    
+    # Perform area subsetting and area averaging
+    ds_region = _get_area_subset(location = location)
+    if ds_region is not None: # Perform subsetting
+        da = da.rio.clip(
+            geometries = ds_region,
+            crs = 4326,
+            drop = True
+        )    
+        
+    # Perform area averaging
+    weights = np.cos(np.deg2rad(da.lat))
+    da = da.weighted(weights).mean("x").mean("y")
+        
+    # Convert units
+    da = _convert_units(
+        da = da, 
+        selected_units = selections.units
+    )
+    
+    return da 
 
-def _get_future_heatmap_data(selections, location, catalog, warmlevel):
+def _get_historical_tmy_data(cat, selections, location):
+    """Get historical data from AWS catalog"""
+    historical_da_mean = _read_tmy_data(
+        cat = cat, 
+        selections = selections, 
+        location = location, 
+        scenario = ["Historical Climate"], 
+        time_slice = (1981, 2010)
+    )
+    return historical_da_mean.compute()
+
+def _get_future_heatmap_data(cat, selections, location, warmlevel):
     """Gets data from AWS catalog based upon desired warming level"""
-
     warming_year_average_range = {
         1.5 : (2034, 2063),
         2 : (2047, 2076),
         3 : (2061, 2090),
     }
-
-    selections.append_historical = False
-    selections.area_average = True
-    selections.resolution = "45 km"
-    selections.scenario = ["SSP 3-7.0 -- Business as Usual"]
-    selections.time_slice = warming_year_average_range[warmlevel]
-    selections.timescale = "hourly"
-    future_da = _read_from_catalog(
-        selections = selections,
-        location = location,
-        cat = catalog
+    future_da_mean = _read_tmy_data(
+        cat = cat, 
+        selections = selections, 
+        location = location, 
+        scenario = ["SSP 3-7.0 -- Business as Usual"], 
+        time_slice = warming_year_average_range[warmlevel]
     )
-
-    # Compute mean of all simulations
-    # Compute zarr data
-    future_da_mean = future_da.mean(dim = "simulation").isel(scenario = 0).compute()
-    return future_da_mean
+    return future_da_mean.compute()
 
 def remove_repeats(xr_data):
     """
@@ -120,7 +155,6 @@ def remove_repeats(xr_data):
         return xr_data.values
 
 ## Compute hourly AMY for each hour of the year
-days_in_year = 366
 def tmy_calc(data, days_in_year = 366):
     """
     Calculates the average meteorological year based on a designated period of time.
@@ -229,14 +263,14 @@ class AverageMeteorologicalYear(param.Parameterized):
 
         # Postage data and anomalies defaults
         self.historical_tmy_data = _get_historical_tmy_data(
+            cat = self.cat,
             selections = self.selections,
             location = self.location,
-            catalog = self.catalog
         )
         self.future_tmy_data = _get_future_heatmap_data(
+            cat = self.cat,
             selections = self.selections,
             location = self.location,
-            catalog = self.catalog,
             warmlevel = 1.5
         )
 
@@ -290,14 +324,14 @@ class AverageMeteorologicalYear(param.Parameterized):
         """If the button was clicked and the location or variable was changed,
         reload the tmy data from AWS"""
         self.historical_tmy_data = _get_historical_tmy_data(
+            cat = self.cat,
             selections = self.selections,
             location = self.location,
-            catalog = self.catalog
         )
         self.future_tmy_data = _get_future_heatmap_data(
+            cat = self.cat,
             selections = self.selections,
             location = self.location,
-            catalog = self.catalog,
             warmlevel = self.warmlevel
         )
 
@@ -380,6 +414,8 @@ def _amy_visualize(tmy_ob, selections, location):
                 pn.widgets.StaticText.from_param(selections.param.extended_description, name = ""),
                 pn.widgets.StaticText(name = "", value = "Variable Units"),
                 pn.widgets.RadioButtonGroup.from_param(selections.param.units),
+                pn.widgets.StaticText(name = "", value = "Model Resolution"),
+                pn.widgets.RadioButtonGroup.from_param(selections.param.resolution),
                 width = 230
             ),
             pn.Column(

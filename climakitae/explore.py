@@ -16,10 +16,11 @@ class AppExplore(object):
         app.explore.warming_levels()
     """
 
-    def __init__(self, selections, location, _cat):
+    def __init__(self, selections, location, _cat, _multi_ensemble_means):
         self.selections = selections
         self.location = location
         self._cat = _cat
+        self._multi_ensemble_means = _multi_ensemble_means
 
     def __repr__(self):
         """Print a string description of the available analysis method for this class. """
@@ -34,7 +35,7 @@ class AppExplore(object):
         tmy_ob = AverageMeteorologicalYear(
             selections = self.selections,
             location = self.location,
-            catalog = self._cat
+            cat = self._multi_ensemble_means
         )
         return _amy_visualize(
             tmy_ob = tmy_ob,
