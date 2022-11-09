@@ -322,6 +322,15 @@ def _get_variable_options_df(var_catalog, unique_variable_ids, timescale):
         variable_options_df (pd.DataFrame): var_catalog information subsetted by unique_variable_ids
 
     """
+    if timescale == "hourly": 
+        unique_variable_ids.extend(
+            [
+                "precip_tot_derived", 
+                "rh_derived", 
+                "wind_speed_derived"
+            ]
+        )
+    
     if timescale in ["daily", "monthly"]:
         timescale = "daily/monthly"
     variable_options_df = var_catalog[
@@ -459,7 +468,7 @@ class DataSelector(param.Parameterized):
             self.param["units"].objects = [native_unit]
         self.units = native_unit
 
-    @param.depends("variable", watch = True)
+    @param.depends("variable", "timescale", "resolution", watch = True)
     def _update_cmap_and_extended_description(self):
         var_info = self.variable_options_df[self.variable_options_df["display_name"] == self.variable] # Get info for just that variable
         self.colormap = var_info.colormap.item()
