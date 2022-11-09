@@ -37,8 +37,8 @@ def _compute(xr_da):
     avail_mem = psutil.virtual_memory().available # Available system memory 
     xr_data_nbytes = xr_da.nbytes # Memory of data 
 
-    # If it will cause the system to have less than 10MB after loading the data, do not allow the compute to proceed. 
-    if avail_mem - xr_data_nbytes < 10000000: 
+    # If it will cause the system to have less than 256MB after loading the data, do not allow the compute to proceed. 
+    if avail_mem - xr_data_nbytes < 268435456: 
         print("Available memory: {0}".format(_readable_bytes(avail_mem)))
         print("Total memory of input data: {0}".format(_readable_bytes(xr_data_nbytes)))
         raise MemoryError("Your input dataset is too large to read into memory!")
