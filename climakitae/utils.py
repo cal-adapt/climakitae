@@ -13,6 +13,24 @@ ae_orange = pkg_resources.resource_filename('climakitae', 'data/cmaps/ae_orange.
 ae_diverging = pkg_resources.resource_filename('climakitae', 'data/cmaps/ae_diverging.txt')
 ae_blue = pkg_resources.resource_filename('climakitae', 'data/cmaps/ae_blue.txt')
 
+
+def _readable_bytes(B):
+    """
+    Return the given bytes as a human friendly KB, MB, GB, or TB string.
+    Modified code from stackoverflow: https://stackoverflow.com/questions/12523586/python-format-size-application-converting-b-to-kb-mb-gb-tb
+    """
+    B = int(B)
+    KB = int(1024)
+    MB = int(KB ** 2) # 1,048,576
+    GB = int(KB ** 3) # 1,073,741,824
+
+    if B < MB:
+        return '{0} {1}'.format(B,'bytes')
+    elif MB <= B < GB:
+        return '{0:.2f} MB'.format(B / MB)
+    else:
+        return '{0:.2f} GB'.format(B / GB)
+
 def _read_ae_colormap(cmap = "ae_orange", cmap_hex = False):
     """Read in AE colormap by name
 

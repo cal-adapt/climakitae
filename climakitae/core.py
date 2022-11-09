@@ -1,6 +1,9 @@
 import intake
 from .data_export import _export_to_user
-from .data_loaders import _read_from_catalog
+from .data_loaders import ( 
+    _read_from_catalog, 
+    _compute
+) 
 from .explore import AppExplore
 from .selectors import (
     DataSelector,
@@ -35,6 +38,12 @@ class Application(object):
         """
         select_panel = _display_select(self.selections, self.location)
         return select_panel
+    
+    # === Read data into memory =====================================
+    def load(self, data): 
+        """Read lazily loaded dask data into memory"""
+        return _compute(data)
+    
 
     # === Retrieve ===================================
     def retrieve(self):
