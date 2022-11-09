@@ -10,19 +10,17 @@ from .catalog_convert import (
     _scenario_to_experiment_id
 )
 from .unit_conversions import _convert_units
+from .derive_variables import (
+    _compute_total_precip, 
+    _compute_relative_humidity, 
+    _compute_wind_mag
+) 
 
 # Set options 
 xr.set_options(keep_attrs = True)
 dask.config.set({"array.slicing.split_large_chunks": True})
 
 # ============================ Helper functions ================================
-
-def add_sim_coord(ds):
-    """Add simulation as Dataset coords and dimensions.
-    Used when reading in data from catalog. 
-    """
-    ds = ds.assign_coords({"simulation": ds.attrs["source_id"]})
-    return ds
 
 def _get_as_shapely(location):
     """
@@ -99,7 +97,6 @@ def _get_data_dict_and_names(cat_subset):
     data_dict = cat_subset.to_dataset_dict(
         zarr_kwargs = {'consolidated': True},
         storage_options = {'anon': True},
-        preprocess = add_sim_coord,
         progressbar = False
     )
     return data_dict
@@ -220,20 +217,71 @@ def _process_and_concat(selections, dsets, cat_subset):
     # Add attributes
     orig_attrs = dsets[list(dsets.keys())[0]].attrs
     da_final.attrs = { # Add descriptive attributes to DataArray
-        #"conventions": orig_attrs["conventions"],
         "institution": orig_attrs["institution"],
         "source": orig_attrs["source"],
         "resolution": selections.resolution,
         "frequency": selections.timescale,
         "grid_mapping": da_final.attrs["grid_mapping"],
         "variable_id": selections.variable_id,
-        #"long_name": da_final.attrs["long_name"],
         "extended_description": selections.extended_description,
         "units": da_final.attrs["units"]
     }
     return da_final
 
 # ============ Read from catalog function used by ck.Application ===============
+
+
+def _get_data_one_var(selections, location, cat): 
+    """Get data for one variable"""
+    
+    # Get catalog subset for a set of user selections
+    cat_subset = _get_cat_subset(selections = selections, cat = cat)
+    
+    # Read data from AWS.
+    data_dict = _get_data_dict_and_names(cat_subset = cat_subset)
+    
+    # Perform subsetting operations
+    for dname, dset in data_dict.items():
+        
+        # Add simulation as a coord 
+        dset = dset.assign_coords({"simulation": dset.attrs["source_id"]})
+        
+        # Time slice
+        dset = dset.sel(
+            time = slice(
+                str(selections.time_slice[0]),
+                str(selections.time_slice[1]))
+        )
+
+        # Perform area subsetting and area averaging
+        ds_region = _get_area_subset(location = location)
+        if ds_region is not None: # Perform subsetting
+            dset = dset.rio.clip(
+                geometries = ds_region,
+                crs = 4326,
+                drop = True
+            )
+
+        # Perform area averaging
+        if selections.area_average == True:
+            weights = np.cos(np.deg2rad(dset.lat))
+            dset = dset.weighted(weights).mean("x").mean("y")
+        
+        # Update dataset in dictionary 
+        data_dict.update(
+            { dname : dset }
+        )
+
+    # Process data if append_historical was selected.
+    # Merge individual Datasets into one DataArray object.
+    da = _process_and_concat(
+        selections = selections,
+        dsets = data_dict,
+        cat_subset = cat_subset
+    )
+
+    return da
+
 
 def _read_from_catalog(selections, location, cat):
     """
@@ -258,42 +306,76 @@ def _read_from_catalog(selections, location, cat):
         if not any(['SSP' in s for s in selections.scenario]):
             raise ValueError('Please also select at least one SSP to '
                      'which the historical simulation should be appended.')
+    
+    # Deal with derived variables 
+    if selections.variable_id == "precip_tot_derived":
+        
+        # Load cumulus precip data
+        selections.variable_id = "rainc"
+        cumulus_precip_da = _get_data_one_var(selections, location, cat)
+        
+        # Load grid-scale precip data 
+        selections.variable_id = "rainnc"
+        gridscale_precip_da = _get_data_one_var(selections, location, cat)
+        
+        # Derive precip total
+        da = _compute_total_precip(
+            cumulus_precip = cumulus_precip_da,
+            gridcell_precip = gridscale_precip_da,
+            variable_name = selections.variable
+        ) 
+        
+        # Reset variable id 
+        selections.variable_id = "precip_tot_derived"
+        da.attrs["variable_id"] = "precip_tot_derived"
+        
+    elif selections.variable_id == "wind_speed_derived": 
+        
+        # Load u10 data
+        selections.variable_id = "u10"
+        u10_da = _get_data_one_var(selections, location, cat)
+        
+        # Load v10 data 
+        selections.variable_id = "v10"
+        v10_da = _get_data_one_var(selections, location, cat)
+        
+        # Derive wind magnitude
+        da = _compute_wind_mag(
+            u10 = u10_da,
+            v10 = v10_da,
+            variable_name = selections.variable
+        ) 
+        selections.variable_id = "wind_speed_derived"
+        da.attrs["variable_id"] = "wind_speed_derived"
 
-    # Get catalog subset for a set of user selections
-    cat_subset = _get_cat_subset(selections = selections, cat = cat)
-
-    # Read data from AWS.
-    data_dict = _get_data_dict_and_names(cat_subset = cat_subset)
-
-    # Process data if append_historical was selected.
-    # Merge individual Datasets into one DataArray object.
-    da = _process_and_concat(
-        selections = selections,
-        dsets = data_dict,
-        cat_subset = cat_subset
-    )
-
-    # Time slice
-    da = da.sel(
-        time = slice(
-            str(selections.time_slice[0]),
-            str(selections.time_slice[1]))
-    )
-
-    # Perform area subsetting and area averaging
-    ds_region = _get_area_subset(location = location)
-    if ds_region is not None: # Perform subsetting
-        da = da.rio.clip(
-            geometries = ds_region,
-            crs = 4326,
-            drop = True
+    elif selections.variable_id == "rh_derived": 
+        
+        # Load pressure data 
+        selections.variable_id = "psfc"
+        pressure_da = _get_data_one_var(selections, location, cat)
+        
+        # Load temperature data 
+        selections.variable_id = "t2"
+        t2_da = _get_data_one_var(selections, location, cat)
+        
+        # Load mixing ratio data 
+        selections.variable_id = "q2"
+        q2_da = _get_data_one_var(selections, location, cat)
+        
+        # Derive relative humidity 
+        da = _compute_relative_humidity(
+            pressure = pressure_da, 
+            temperature = t2_da,
+            mixing_ratio = q2_da,
+            variable_name = selections.variable
         )
-
-    # Perform area averaging
-    if selections.area_average == True:
-        weights = np.cos(np.deg2rad(da.lat))
-        da = da.weighted(weights).mean("x").mean("y")
+        selections.variable_id = "rh_derived" 
+        da.attrs["variable_id"] = "rh_derived" 
+        
+    else: 
+        da = _get_data_one_var(selections, location, cat)
 
     # Convert units
     da = _convert_units(da = da, selected_units = selections.units)
+    
     return da

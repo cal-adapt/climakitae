@@ -167,7 +167,7 @@ class WarmingLevels(param.Parameterized):
         # Selectors defaults
         self.selections.append_historical = True
         self.selections.area_average = False
-        self.selections.resolution = "45km"
+        self.selections.resolution = "45 km"
         self.selections.scenario = ["SSP 3-7.0 -- Business as Usual"]
         self.selections.time_slice = (1980, 2100)
         self.selections.timescale = "monthly"
