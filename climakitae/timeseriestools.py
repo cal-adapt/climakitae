@@ -258,6 +258,7 @@ class Timeseries:
         not_xr_da = type(data) != xr.core.dataarray.DataArray # Data is NOT in the form of xr.DataArray 
         not_area_averaged = "lat" in data.coords # Data is NOT area averaged 
         not_append_historical = any(["Historical + " in v for v in data.scenario.values]) == False # Append historical = False 
+        
         # Raise errors with unique error messages 
         error_message = ""
         if not_xr_da: 
