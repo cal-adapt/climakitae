@@ -10,6 +10,7 @@ import datetime as dt
 import pytest
 import os
 import xarray as xr
+import numpy as np
 
 #-------- Read in the test dataset and return a TimeSeriesParams object -------
 
@@ -19,6 +20,11 @@ def test_TSP(rootdir):
     test_filename= "test_data/timeseries_data_T2_2014_2016_monthly_45km.nc"
     test_filepath = os.path.join(rootdir, test_filename)
     test_data = xr.open_dataset(test_filepath).T2
+    
+    # Compute area average 
+    weights = np.cos(np.deg2rad(test_data.lat))
+    test_data = test_data.weighted(weights).mean("x").mean("y")
+        
     ts = tst.Timeseries(test_data) # make Timeseries object
     return ts.choices # return the underlying TimeSeriesParams object for testing
 
