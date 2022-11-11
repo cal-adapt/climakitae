@@ -3,6 +3,7 @@ import dask
 import rioxarray
 import intake
 import numpy as np
+import psutil
 from shapely.geometry import box
 from .catalog_convert import (
     _resolution_to_gridlabel,
@@ -10,6 +11,7 @@ from .catalog_convert import (
     _scenario_to_experiment_id
 )
 from .unit_conversions import _convert_units
+from .utils import _readable_bytes
 from .derive_variables import (
     _compute_total_precip, 
     _compute_relative_humidity, 
@@ -19,6 +21,33 @@ from .derive_variables import (
 # Set options 
 xr.set_options(keep_attrs = True)
 dask.config.set({"array.slicing.split_large_chunks": True})
+
+
+# ============================ Read data into memory ================================
+
+def _compute(xr_da):  
+    """Read data into memory"""
+
+    # Check if data is already loaded into memory 
+    if xr_da.chunks is None: 
+        print("Your data is already loaded into memory") 
+        return xr_da 
+
+    # Get memory information
+    avail_mem = psutil.virtual_memory().available # Available system memory 
+    xr_data_nbytes = xr_da.nbytes # Memory of data 
+
+    # If it will cause the system to have less than 256MB after loading the data, do not allow the compute to proceed. 
+    if avail_mem - xr_data_nbytes < 268435456: 
+        print("Available memory: {0}".format(_readable_bytes(avail_mem)))
+        print("Total memory of input data: {0}".format(_readable_bytes(xr_data_nbytes)))
+        raise MemoryError("Your input dataset is too large to read into memory!")
+
+    else: 
+        print("Reading {0} of data into memory... ".format(_readable_bytes(xr_data_nbytes)), end="")
+        da_computed = xr_da.compute()
+        print("complete!")
+        return da_computed # Load data into memory and return
 
 # ============================ Helper functions ================================
 
@@ -374,7 +403,7 @@ def _read_from_catalog(selections, location, cat):
         
     else: 
         da = _get_data_one_var(selections, location, cat)
-
+        
     # Convert units
     da = _convert_units(da = da, selected_units = selections.units)
     
