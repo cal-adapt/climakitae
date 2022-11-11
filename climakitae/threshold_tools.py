@@ -55,6 +55,8 @@ def get_lmom_distr(distr):
     distribution name.
     """
 
+    distrs = ["gev", "gumbel", "weibull", "pearson3", "genpareto"]
+
     if distr == "gev":
         lmom_distr = ldistr.gev
     elif distr == "gumbel":
@@ -447,13 +449,13 @@ def get_return_period(
             return_period = np.nan
             
         conf_int_lower_limit, conf_int_upper_limit = conf_int(
-            ams=ams,
-            distr=distr,
-            data_variable=data_variable,
-            arg_value=return_value,
-            bootstrap_runs=bootstrap_runs,
-            conf_int_lower_bound=conf_int_lower_bound,
-            conf_int_upper_bound=conf_int_upper_bound,
+            ams = ams,
+            distr = distr,
+            data_variable = data_variable,
+            arg_value = return_value,
+            bootstrap_runs = bootstrap_runs,
+            conf_int_lower_bound = conf_int_lower_bound,
+            conf_int_upper_bound = conf_int_upper_bound,
         )
 
         return return_period, conf_int_lower_limit, conf_int_upper_limit
