@@ -19,7 +19,9 @@ def T2_hourly(rootdir):
     """ Small hourly temperature data set"""
     test_filename= "test_data/threshold_data_T2_2050_2051_hourly_45km.nc"
     test_filepath = os.path.join(rootdir, test_filename)
-    return xr.open_dataset(test_filepath)["Air Temperature at 2m"]
+    da = xr.open_dataset(test_filepath)["Air Temperature at 2m"]
+    da.attrs["frequency"] = "hourly"
+    return da
 
 #------------- Test kwarg compatibility and Exceptions ------------------------
 
@@ -67,7 +69,7 @@ def test_hourly_ex4(T2_hourly):
 # test current behavior of `duration` options: a six events in a row is counted as 4 3-hour events
 def test_duration():
     da = xr.DataArray([1,1,1,1,1,1], coords = {"time":pd.date_range("2000-01-01", freq="1H", periods=6)},
-        attrs={"frequency":"1hr", "units":"T"})
+        attrs={"frequency":"hourly", "units":"T"})
     exc_counts = threshold_tools.get_exceedance_count(da, 0, duration1=(3, "hour"))
     assert exc_counts == 4 # four of the six hours are the start of a 3-hour event
 
@@ -76,7 +78,7 @@ def test_duration():
 # example name 1: Number of hours each year
 def test_name1():
     ex1 = xr.DataArray(attrs = {
-        "frequency" : "1hr",
+        "frequency" : "hourly",
         "period" : (1, "year"),
         "duration1" : None,
         "group" : None,
@@ -94,7 +96,7 @@ def test_name1():
 # example name 2: Number of days each year with conditions lasting at least 1 hour
 def test_name2():
     ex2 = xr.DataArray(attrs = {
-        "frequency" : "1hr",
+        "frequency" : "hourly",
         "period" : (1, "year"),
         "duration1" : (1, "hour"),
         "group" : (1, "day"),
@@ -112,7 +114,7 @@ def test_name2():
 # example name 3: Number of 3-day events per 1 year
 def test_name3():
     ex3 = xr.DataArray(attrs = {
-        "frequency" : "1hr",
+        "frequency" : "hourly",
         "period" : (1, "year"),
         "duration1" : (4, "hour"),
         "group" : (1, "day"),
