@@ -1,9 +1,11 @@
-# Test the available extreme value theory functions for calcualting 
-# return values, periods, and probabilities
+"""
+Test the available extreme value theory functions for calculating return
+values and periods. These tests do not check the correctness of the
+calculations; they just ensure that the functions run without error, or raise
+the expected error messages for invalid argument specifications.
+"""
 
-import numpy as np
 import os
-import pandas as pd
 import pytest
 import xarray as xr
 
@@ -20,7 +22,7 @@ def T2_ams(rootdir):
     test_data = xr.open_dataset(test_filepath).T2
     return threshold_tools.get_ams(test_data).isel(simulation = 0)
 
-#------------- Test  -----------------------------------------------
+#------------- Test return values and periods ----------------------------------
 
 # Test Return Values
 def test_return_value(T2_ams):
