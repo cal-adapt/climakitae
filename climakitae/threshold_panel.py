@@ -177,7 +177,6 @@ class ThresholdDataParams(param.Parameterized):
             _exceedance_plot_subtitle(to_plot),
             obj
         )
-        return obj
 
     @param.depends("smoothing")
     def smoothing_card(self):
