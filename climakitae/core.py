@@ -40,7 +40,7 @@ class Application(object):
         return select_panel
     
     # === Read data into memory =====================================
-    def compute(self, data): 
+    def load(self, data): 
         """Read lazily loaded dask data into memory"""
         return _compute(data)
     
