@@ -403,5 +403,8 @@ def _read_from_catalog(selections, location, cat):
         
     else: 
         da = _get_data_one_var(selections, location, cat)
+        
+    # Convert units
+    da = _convert_units(da = da, selected_units = selections.units)
     
     return da
