@@ -27,11 +27,25 @@ def test_return_value(T2_ams):
     rvs = threshold_tools.get_return_value(
         T2_ams, return_period=10, distr='gev', bootstrap_runs=1
     )
-    assert length(rvs['return_value'].shape) == 2
+    assert len(rvs['return_value'].shape) == 2
 
 # Test invalid distribution argument for Return Values
 def test_return_value_invalid_distr(T2_ams):
     with pytest.raises(ValueError, match="invalid distr type"):
             rvs = threshold_tools.get_return_value(
                 T2_ams, return_period=10, distr='foo', bootstrap_runs=1
+            )   
+
+# Test Return Periods
+def test_return_period(T2_ams):
+    rvs = threshold_tools.get_return_period(
+        T2_ams, return_value=290, distr='gumbel', bootstrap_runs=1
+    )
+    assert len(rvs['return_period'].shape) == 2
+
+# Test invalid distribution argument for Return Periods
+def test_return_period_invalid_distr(T2_ams):
+    with pytest.raises(ValueError, match="invalid distr type"):
+            rvs = threshold_tools.get_return_period(
+                T2_ams, return_value=290, distr='foo', bootstrap_runs=1
             )   
