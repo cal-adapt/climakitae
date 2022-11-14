@@ -3,6 +3,7 @@
 
 from functools import wraps
 
+
 def transform_details(func):
     @wraps(func)
     def update_metadata(*args, **kwargs):
@@ -27,24 +28,24 @@ def transform_details(func):
         ds = args[0]
         func_args = args[1:]
         func_kwargs = kwargs
-        
+
         # get existing ds/da attributes as a dictionary
         # which can be updated with new information.
         orig_attrs = ds.attrs
 
         # flag that climakitae transform has been applied
         transform_attrs = {
-            'post_processed' : 'true',
-            'post_processed_by' : 'Cal-Adapt Analytics Engine v 0.0.1'
+            "post_processed": "true",
+            "post_processed_by": "Cal-Adapt Analytics Engine v 0.0.1",
         }
 
         # build the transform and transform details dict
         # this is to make the process as traceable as possible
         # first get transform name
-        transform_command = 'climakitae.transform.' + str(fname)
+        transform_command = "climakitae.transform." + str(fname)
         transform_details = {
-            'transform_function' : transform_command,
-            'transform_arguments' : func_args
+            "transform_function": transform_command,
+            "transform_arguments": func_args,
         }
 
         # add details to existing attrs dict
@@ -55,5 +56,6 @@ def transform_details(func):
         # execute the transform and update attributes
         ds_transformed = func(*args, **kwargs)
         ds_transformed.attrs = orig_attrs
-        return(ds_transformed)
-    return(update_metadata)
+        return ds_transformed
+
+    return update_metadata
