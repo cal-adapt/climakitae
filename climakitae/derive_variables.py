@@ -1,8 +1,8 @@
 import numpy as np
 
-def _compute_total_precip(cumulus_precip, gridcell_precip,
-                          variable_name = "TOT_PRECIP"):
-    """ Compute total precipitation
+
+def _compute_total_precip(cumulus_precip, gridcell_precip, variable_name="TOT_PRECIP"):
+    """Compute total precipitation
 
     Args:
         cumulus_precip (xr.DataArray): Accumulated total cumulus precipitation (mm)
@@ -17,9 +17,11 @@ def _compute_total_precip(cumulus_precip, gridcell_precip,
     total_precip.name = variable_name
     return total_precip
 
-def _compute_relative_humidity(pressure, temperature, mixing_ratio,
-                               variable_name = "REL_HUMIDITY"):
-    """Compute relative humidity. 
+
+def _compute_relative_humidity(
+    pressure, temperature, mixing_ratio, variable_name="REL_HUMIDITY"
+):
+    """Compute relative humidity.
     Variable attributes need to be assigned outside of this function because the metpy function removes them
 
 
@@ -33,24 +35,24 @@ def _compute_relative_humidity(pressure, temperature, mixing_ratio,
         rel_hum (xr.DataArray): Relative humidity
 
     """
-    
-    
+
     # Calculates saturated vapor pressure, unit is in kPa
-    e_s = 0.611 * np.exp((2500000/461) * ((1/273)-(1/temperature))) 
-    
+    e_s = 0.611 * np.exp((2500000 / 461) * ((1 / 273) - (1 / temperature)))
+
     # Calculates saturated mixing ratio, unit is kg/kg, pressure has to be divided by 1000 to get to kPa at this step
-    r_s = (0.622 * e_s)/((pressure/1000) - e_s) 
-    
+    r_s = (0.622 * e_s) / ((pressure / 1000) - e_s)
+
     # Calculates relative humidity, unit is 0 to 100
-    rel_hum = 100 * (mixing_ratio / r_s) 
-    
-    # Assign descriptive name 
-    rel_hum.name = variable_name  
+    rel_hum = 100 * (mixing_ratio / r_s)
+
+    # Assign descriptive name
+    rel_hum.name = variable_name
     rel_hum.attrs["units"] = "[0 to 100]"
-    
+
     return rel_hum
 
-def _compute_wind_mag(u10, v10, variable_name = "WIND_MAG"):
+
+def _compute_wind_mag(u10, v10, variable_name="WIND_MAG"):
     """Compute wind magnitude at 10 meters
 
     Args:
