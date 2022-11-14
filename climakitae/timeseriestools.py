@@ -265,8 +265,6 @@ class Timeseries:
 
     def __init__(self, data):
         # Raise errors with unique error messages
-        raise_error = False
-        error_message = ""
         if (
             type(data) != xr.core.dataarray.DataArray
         ):  # Data is NOT in the form of xr.DataArray
@@ -274,6 +272,8 @@ class Timeseries:
                 "Please pass an xarray DataArray (e.g. as output by app.retrieve())."
             )
         else:
+            raise_error = False
+            error_message = ""
             if "lat" in data.coords:  # Data is NOT area averaged
                 raise_error = True
                 error_message += "Please pass a timeseries (area average)."
