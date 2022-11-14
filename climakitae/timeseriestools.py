@@ -20,39 +20,39 @@ class TimeSeriesParams(param.Parameterized):
         super().__init__(**params)
         self.data = dataset
 
-    anomaly = param.Boolean(default = True, label = "Difference from a historical mean")
+    anomaly = param.Boolean(default=True, label="Difference from a historical mean")
     reference_range = param.CalendarDateRange(
         default=(dt.datetime(1980, 1, 1), dt.datetime(2012, 12, 31)),
         bounds=(dt.datetime(1980, 1, 1), dt.datetime(2021, 12, 31)),
     )
-    remove_seasonal_cycle = param.Boolean(default = False)
-    smoothing = param.ObjectSelector(default = "None", objects = ["None", "running mean"])
+    remove_seasonal_cycle = param.Boolean(default=False)
+    smoothing = param.ObjectSelector(default="None", objects=["None", "running mean"])
     _time_scales = dict(
         [("hours", "H"), ("days", "D"), ("months", "MS"), ("years", "AS-SEP")]
     )
-    num_timesteps = param.Integer(default = 0, bounds = (0, 240))
+    num_timesteps = param.Integer(default=0, bounds=(0, 240))
     separate_seasons = param.Boolean(
-        default = False, label = "Disaggregate into four seasons"
+        default=False, label="Disaggregate into four seasons"
     )
 
     extremes = param.ObjectSelector(
-        default = "None", objects = ["None", "min", "max", "percentile"]
+        default="None", objects=["None", "min", "max", "percentile"]
     )
-    resample_window = param.Integer(default = 1, bounds = (1, 30))
-    resample_period = param.ObjectSelector(default = "AS-SEP", objects = _time_scales)
+    resample_window = param.Integer(default=1, bounds=(1, 30))
+    resample_period = param.ObjectSelector(default="AS-SEP", objects=_time_scales)
     percentile = param.Number(
-        default = 0,
-        bounds = (0, 1),
-        step = 0.01,
-        doc = "Relevant if 'running extremes' is 'percentile.",
+        default=0,
+        bounds=(0, 1),
+        step=0.01,
+        doc="Relevant if 'running extremes' is 'percentile.",
     )
 
-    @param.depends("anomaly", watch = True)
+    @param.depends("anomaly", watch=True)
     def update_seasonal_cycle(self):
         if not self.anomaly:
             self.remove_seasonal_cycle = False
 
-    @param.depends("remove_seasonal_cycle", watch = True)
+    @param.depends("remove_seasonal_cycle", watch=True)
     def update_anom(self):
         if self.remove_seasonal_cycle:
             self.anomaly = True
@@ -75,14 +75,18 @@ class TimeSeriesParams(param.Parameterized):
             Returns the difference with respect to the average across a historical range.
             """
             if y.attrs["frequency"] == "1month":
-                # If frequency is monthly, then the reference period average needs to be a 
+                # If frequency is monthly, then the reference period average needs to be a
                 # weighted average, with weights equal to the number of days in each month
-                reference_slice = y.sel(time = slice(*self.reference_range))
-                month_weights = reference_slice.time.dt.daysinmonth # Number of days in each month of the reference range
-                reference_avg = reference_slice.weighted(month_weights).mean("time") # Calculate the weighted average of this period
-                return y - reference_avg # return the difference
+                reference_slice = y.sel(time=slice(*self.reference_range))
+                month_weights = (
+                    reference_slice.time.dt.daysinmonth
+                )  # Number of days in each month of the reference range
+                reference_avg = reference_slice.weighted(month_weights).mean(
+                    "time"
+                )  # Calculate the weighted average of this period
+                return y - reference_avg  # return the difference
             else:
-                return y - y.sel(time = slice(*self.reference_range)).mean("time")
+                return y - y.sel(time=slice(*self.reference_range)).mean("time")
 
         def _running_mean(y):
             # If timescale is monthly, need to weight the rolling average by the number of days in each month
@@ -91,14 +95,20 @@ class TimeSeriesParams(param.Parameterized):
                 month_weights = y.time.dt.daysinmonth
 
                 # Construct DataArrayRolling objects for both the data and the weights
-                rolling_y = y.rolling(time = self.num_timesteps, center = True).construct("window")
-                rolling_weights = month_weights.rolling(time = self.num_timesteps, center = True).construct("window")
-                
+                rolling_y = y.rolling(time=self.num_timesteps, center=True).construct(
+                    "window"
+                )
+                rolling_weights = month_weights.rolling(
+                    time=self.num_timesteps, center=True
+                ).construct("window")
+
                 # Build a DataArrayWeighted and collapse across the window dimension with mean
-                result = rolling_y.weighted(rolling_weights.fillna(0)).mean("window", skipna = False)
+                result = rolling_y.weighted(rolling_weights.fillna(0)).mean(
+                    "window", skipna=False
+                )
                 return result
             else:
-                return y.rolling(time = self.num_timesteps, center = True).mean("time")
+                return y.rolling(time=self.num_timesteps, center=True).mean("time")
 
         if self.anomaly and not self.separate_seasons:
             to_plot = _getAnom(to_plot)
@@ -134,7 +144,7 @@ class TimeSeriesParams(param.Parameterized):
             elif self.extremes == "percentile":
                 to_plot = to_plot.resample(
                     time=str(self.resample_window) + self.resample_period
-                ).quantile(q = self.percentile)
+                ).quantile(q=self.percentile)
                 new_name = (
                     to_plot.name
                     + " -- "
@@ -156,7 +166,7 @@ class TimeSeriesParams(param.Parameterized):
         "resample_window",
         "resample_period",
         "percentile",
-        watch = False,
+        watch=False,
     )
     def view(self):
         """
@@ -171,12 +181,10 @@ class TimeSeriesParams(param.Parameterized):
             menu_list = ["scenario"]
 
         obj = to_plot.hvplot.line(
-            x = "time",
-            widget_location = "bottom",
-            by = "simulation",
-            groupby = menu_list
+            x="time", widget_location="bottom", by="simulation", groupby=menu_list
         )
         return obj
+
 
 def _timeseries_visualize(choices):
     """
@@ -193,19 +201,20 @@ def _timeseries_visualize(choices):
                 choices.param.num_timesteps,
                 choices.param.separate_seasons,
             ),
-            pn.Spacer(width = 50),
+            pn.Spacer(width=50),
             pn.Column(
                 choices.param.extremes,
                 pn.Row(
                     choices.param.resample_window,
                     choices.param.resample_period,
-                    width = 320,
+                    width=320,
                 ),
                 choices.param.percentile,
             ),
         ),
         choices.view,
     )
+
 
 def _update_attrs(data_to_output, attrs_to_add):
     """
@@ -215,28 +224,30 @@ def _update_attrs(data_to_output, attrs_to_add):
     Called only in Timeseries.output_current
     """
     attributes = data_to_output.attrs
-    attrs_to_add.pop('name')
-    attrs_to_add.pop('separate_seasons')
-    if attrs_to_add['extremes'] != 'percentile':
-        attrs_to_add.pop('percentile')
-    if attrs_to_add['extremes'] == 'None':
-        attrs_to_add.pop('resample_period')
-        attrs_to_add.pop('resample_window')
-    if attrs_to_add['smoothing'] != 'None':
-        attrs_to_add['smoothing_timesteps'] = attrs_to_add['num_timesteps']
-    attrs_to_add.pop('num_timesteps')
-    if not attrs_to_add['anomaly']:
-        attrs_to_add.pop('reference_range')  
+    attrs_to_add.pop("name")
+    attrs_to_add.pop("separate_seasons")
+    if attrs_to_add["extremes"] != "percentile":
+        attrs_to_add.pop("percentile")
+    if attrs_to_add["extremes"] == "None":
+        attrs_to_add.pop("resample_period")
+        attrs_to_add.pop("resample_window")
+    if attrs_to_add["smoothing"] != "None":
+        attrs_to_add["smoothing_timesteps"] = attrs_to_add["num_timesteps"]
+    attrs_to_add.pop("num_timesteps")
+    if not attrs_to_add["anomaly"]:
+        attrs_to_add.pop("reference_range")
 
-    attrs_to_add = {'timeseries: ' + k:( str(v) if type(v) == bool or \
-                  None else v ) for k,v in attrs_to_add.items()}
+    attrs_to_add = {
+        "timeseries: " + k: (str(v) if type(v) == bool or None else v)
+        for k, v in attrs_to_add.items()
+    }
 
-    datefmt = '%b %d %Y (%H:%M)'
-    for att,v in attrs_to_add.items():
+    datefmt = "%b %d %Y (%H:%M)"
+    for att, v in attrs_to_add.items():
         if type(v) == tuple:
-            if ((type(v[0])) == dt.datetime):
+            if (type(v[0])) == dt.datetime:
                 dates = [atti.strftime(datefmt) for atti in v]
-                date_str = ' - '.join(dates)
+                date_str = " - ".join(dates)
                 attrs_to_add[att] = date_str
 
     attributes.update(attrs_to_add)
@@ -253,23 +264,32 @@ class Timeseries:
     """
 
     def __init__(self, data):
-        
-        # Confirm that the user has input a valid dataset
-        not_xr_da = type(data) != xr.core.dataarray.DataArray # Data is NOT in the form of xr.DataArray 
-        not_area_averaged = "lat" in data.coords # Data is NOT area averaged 
-        not_append_historical = any(["Historical + " in v for v in data.scenario.values]) == False # Append historical = False 
-        
-        # Raise errors with unique error messages 
+        # Raise errors with unique error messages
+        raise_error = False
         error_message = ""
-        if not_xr_da: 
-            error_message += "Please pass an xarray DataArray (e.g. as output by app.retrieve()).\n"
-        if not_area_averaged: 
-            error_message += "Please pass a timeseries (area average).\n"
-        if not_append_historical: 
-            error_message += "Please append the historical period in your data retrieval."
-        if len(error_message) > 0: # If any errors 
-            raise ValueError(error_message)
-                             
+        if (
+            type(data) != xr.core.dataarray.DataArray
+        ):  # Data is NOT in the form of xr.DataArray
+            raise ValueError(
+                "Please pass an xarray DataArray (e.g. as output by app.retrieve())."
+            )
+        else:
+            if "lat" in data.coords:  # Data is NOT area averaged
+                raise_error = True
+                error_message += "Please pass a timeseries (area average)."
+            if not any(
+                ["Historical + " in v for v in data.scenario.values]
+            ):  # Append historical = False
+                if raise_error == True:
+                    error_message += "\n"
+                else:
+                    raise_error = True
+                error_message += (
+                    "Please append the historical period in your data retrieval."
+                )
+            if raise_error:  # If any errors
+                raise ValueError(error_message)
+
         self.choices = TimeSeriesParams(data)
 
     def explore(self):
@@ -278,5 +298,5 @@ class Timeseries:
     def output_current(self):
         to_output = self.choices.transform_data()
         attrs_to_add = dict(self.choices.get_param_values())
-        to_output = _update_attrs(to_output,attrs_to_add)
+        to_output = _update_attrs(to_output, attrs_to_add)
         return to_output
