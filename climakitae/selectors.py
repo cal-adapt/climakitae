@@ -14,12 +14,14 @@ from .unit_conversions import _get_unit_conversion_options
 from .catalog_convert import (
     _resolution_to_gridlabel,
     _timescale_to_table_id,
-    _scenario_to_experiment_id
+    _scenario_to_experiment_id,
 )
 
-# Import package data 
-var_catalog_resource = pkg_resources.resource_filename('climakitae', 'data/variable_catalog.csv')
-var_catalog = pd.read_csv(var_catalog_resource, index_col = None)
+# Import package data
+var_catalog_resource = pkg_resources.resource_filename(
+    "climakitae", "data/variable_catalog.csv"
+)
+var_catalog = pd.read_csv(var_catalog_resource, index_col=None)
 unit_options_dict = _get_unit_conversion_options()
 
 # =========================== LOCATION SELECTIONS ==============================
@@ -61,7 +63,9 @@ _cached_stations = [
 
 class Boundaries:
     def __init__(self):
-        self._cat = intake.open_catalog("https://cadcat.s3.amazonaws.com/parquet/catalog.yaml")
+        self._cat = intake.open_catalog(
+            "https://cadcat.s3.amazonaws.com/parquet/catalog.yaml"
+        )
         self._us_states = self._cat.states.read()
         self._ca_counties = self._cat.counties.read().sort_values("NAME")
         self._ca_watersheds = self._cat.huc8.read().sort_values("Name")
@@ -70,12 +74,26 @@ class Boundaries:
         """
         Returns a custom sorted dictionary of state abbreviations and indices.
         """
-        _states_subset_list = ["CA", "NV", "OR", "WA", "UT", "MT", "ID", "AZ", "CO", "NM", "WY"]
-        _us_states_subset = self._us_states.query("abbrevs in @_states_subset_list")[["abbrevs"]]
+        _states_subset_list = [
+            "CA",
+            "NV",
+            "OR",
+            "WA",
+            "UT",
+            "MT",
+            "ID",
+            "AZ",
+            "CO",
+            "NM",
+            "WY",
+        ]
+        _us_states_subset = self._us_states.query("abbrevs in @_states_subset_list")[
+            ["abbrevs"]
+        ]
         _us_states_subset["abbrevs"] = pd.Categorical(
             _us_states_subset["abbrevs"], categories=_states_subset_list
         )
-        _us_states_subset.sort_values(by = "abbrevs", inplace = True)
+        _us_states_subset.sort_values(by="abbrevs", inplace=True)
         return dict(zip(_us_states_subset.abbrevs, _us_states_subset.index))
 
     def get_ca_counties(self):
@@ -84,7 +102,7 @@ class Boundaries:
         in the geoparquet file.
         """
         return pd.Series(
-            self._ca_counties.index, index = self._ca_counties["NAME"]
+            self._ca_counties.index, index=self._ca_counties["NAME"]
         ).to_dict()
 
     def get_ca_watersheds(self):
@@ -93,7 +111,7 @@ class Boundaries:
         the geoparquet file.
         """
         return pd.Series(
-            self._ca_watersheds.index, index = self._ca_watersheds["Name"]
+            self._ca_watersheds.index, index=self._ca_watersheds["Name"]
         ).to_dict()
 
     def boundary_dict(self):
@@ -128,24 +146,20 @@ class LocSelectorArea(param.Parameterized):
     """
 
     area_subset = param.ObjectSelector(
-        default = "none",
-        objects = ["none", "lat/lon", "states", "CA counties", "CA watersheds"],
+        default="none",
+        objects=["none", "lat/lon", "states", "CA counties", "CA watersheds"],
     )
     # would be nice if these lat/lon sliders were greyed-out when lat/lon subset
     # option is not selected
-    latitude = param.Range(default = (32.5, 42), bounds = (10, 67))
-    longitude = param.Range(
-        default = (-125.5, -114), bounds = (-156.82317, -84.18701)
-    )
-    cached_area = param.ObjectSelector(objects = dict())
+    latitude = param.Range(default=(32.5, 42), bounds=(10, 67))
+    longitude = param.Range(default=(-125.5, -114), bounds=(-156.82317, -84.18701))
+    cached_area = param.ObjectSelector(objects=dict())
 
     def __init__(self, **params):
         super().__init__(**params)
         self._geographies = Boundaries()
         self._geography_choose = self._geographies.boundary_dict()
-        self.param["cached_area"].objects = list(
-            self._geography_choose["none"].keys()
-        )
+        self.param["cached_area"].objects = list(self._geography_choose["none"].keys())
 
     _wrf_bb = {
         "45 km": Polygon(
@@ -153,7 +167,7 @@ class LocSelectorArea(param.Parameterized):
                 (-123.52125549316406, 9.475631713867188),
                 (-156.8231658935547, 35.449039459228516),
                 (-102.43182373046875, 67.32866668701172),
-                (-84.18701171875, 26.643436431884766)
+                (-84.18701171875, 26.643436431884766),
             ]
         ),
         "9 km": Polygon(
@@ -161,20 +175,20 @@ class LocSelectorArea(param.Parameterized):
                 (-116.69509887695312, 22.267112731933594),
                 (-138.42117309570312, 43.23344802856445),
                 (-110.90779113769531, 57.5806770324707),
-                (-94.9368896484375, 31.627288818359375)
+                (-94.9368896484375, 31.627288818359375),
             ]
         ),
-        '3 km': Polygon(
+        "3 km": Polygon(
             [
                 (-117.80029, 29.978943),
                 (-127.95593, 40.654625),
                 (-120.79376, 44.8999),
-                (-111.23247, 33.452168)
+                (-111.23247, 33.452168),
             ]
-        )
+        ),
     }
 
-    @param.depends("cached_area", watch = True)
+    @param.depends("cached_area", watch=True)
     def _update_area_subset(self):
         """
         Makes the dropdown options for 'area subset' reflect the kind of
@@ -187,7 +201,7 @@ class LocSelectorArea(param.Parameterized):
                     self.area_subset = option
                     self.cached_area = _previous
 
-    @param.depends("latitude", "longitude", watch = True)
+    @param.depends("latitude", "longitude", watch=True)
     def _update_area_subset_to_lat_lon(self):
         """
         Makes the dropdown options for 'area subset' reflect that the user is
@@ -196,7 +210,7 @@ class LocSelectorArea(param.Parameterized):
         if self.area_subset != "lat/lon":
             self.area_subset = "lat/lon"
 
-    @param.depends("area_subset", watch = True)
+    @param.depends("area_subset", watch=True)
     def _update_cached_area(self):
         """
         Makes the dropdown options for 'cached area' reflect the type of area
@@ -210,21 +224,18 @@ class LocSelectorArea(param.Parameterized):
         )
         self.cached_area = list(self._geography_choose[self.area_subset].keys())[0]
 
-    @param.depends("latitude", "longitude", "area_subset", "cached_area", watch = False)
+    @param.depends("latitude", "longitude", "area_subset", "cached_area", watch=False)
     def view(self):
         geometry = box(
-            self.longitude[0],
-            self.latitude[0],
-            self.longitude[1],
-            self.latitude[1]
+            self.longitude[0], self.latitude[0], self.longitude[1], self.latitude[1]
         )
 
-        fig0 = Figure(figsize = (3, 3))
+        fig0 = Figure(figsize=(3, 3))
         proj = ccrs.Orthographic(-118, 40)
         crs_proj4 = proj.proj4_init  # used below
         xy = ccrs.PlateCarree()
-        ax = fig0.add_subplot(111, projection = proj)
-        ax.set_extent([-150, -88, 8, 66], crs = xy)
+        ax = fig0.add_subplot(111, projection=proj)
+        ax.set_extent([-150, -88, 8, 66], crs=xy)
         ax.set_facecolor("grey")
 
         # Plot the boundaries of the WRF domains on an existing set of axes for
@@ -234,50 +245,47 @@ class LocSelectorArea(param.Parameterized):
             # Plot domain:
             ax.add_geometries(
                 [self._wrf_bb[domain]],
-                crs = ccrs.PlateCarree(),
-                edgecolor = _colors[i],
-                facecolor = "white",
+                crs=ccrs.PlateCarree(),
+                edgecolor=_colors[i],
+                facecolor="white",
             )
 
         ax.coastlines()
         ax.add_feature(cfeature.BORDERS)
-        ax.add_feature(cfeature.STATES, linewidth = 0.5)
+        ax.add_feature(cfeature.STATES, linewidth=0.5)
         ax.annotate(
             "45-km grid",
-            xy = (-154, 33.8),
-            rotation = 28,
-            xycoords = xy._as_mpl_transform(ax),
+            xy=(-154, 33.8),
+            rotation=28,
+            xycoords=xy._as_mpl_transform(ax),
         )
         ax.annotate(
             "9-km",
-            xy = (-135, 42),
-            rotation = 32,
-            xycoords = xy._as_mpl_transform(ax),
-            color = "k",
+            xy=(-135, 42),
+            rotation=32,
+            xycoords=xy._as_mpl_transform(ax),
+            color="k",
         )
         ax.annotate(
             "3-km",
-            xy = (-127, 39),
-            rotation = 32,
-            xycoords = xy._as_mpl_transform(ax),
-            color = "k",
+            xy=(-127, 39),
+            rotation=32,
+            xycoords=xy._as_mpl_transform(ax),
+            color="k",
         )
-        mpl_pane = pn.pane.Matplotlib(fig0, dpi = 144)
+        mpl_pane = pn.pane.Matplotlib(fig0, dpi=144)
 
         def plot_subarea(boundary_dataset, extent):
-            ax.set_extent(extent, crs = xy)
+            ax.set_extent(extent, crs=xy)
             subarea = boundary_dataset[boundary_dataset.index == shape_index]
             df_ae = subarea.to_crs(crs_proj4)
-            df_ae.plot(ax = ax, color = "b", zorder = 2)
+            df_ae.plot(ax=ax, color="b", zorder=2)
             mpl_pane.param.trigger("object")
 
         if self.area_subset == "lat/lon":
-            ax.set_extent([-150, -88, 8, 66], crs = xy)
+            ax.set_extent([-150, -88, 8, 66], crs=xy)
             ax.add_geometries(
-                [geometry],
-                crs = ccrs.PlateCarree(),
-                edgecolor = "b",
-                facecolor = "None"
+                [geometry], crs=ccrs.PlateCarree(), edgecolor="b", facecolor="None"
             )
         elif self.area_subset != "none":
             shape_index = int(
@@ -301,16 +309,18 @@ class LocSelectorPoint(param.Parameterized):
     object accordingly.
     """
 
-    cached_station = param.Selector(objects = _cached_stations)
+    cached_station = param.Selector(objects=_cached_stations)
 
-    @param.depends("cached_station", watch = True)
+    @param.depends("cached_station", watch=True)
     def _update_location(self):
         """Updates the 'location' object to be the point associated with the selected station."""
         location = _stations_database[self.cached_station]
 
+
 # ============================ DATA SELECTIONS =================================
 
-def _get_unique_variables(cat, activity_id, table_id, grid_label): 
+
+def _get_unique_variables(cat, activity_id, table_id, grid_label):
     """Get unique variables for an input catalog subset.
 
     Args:
@@ -325,9 +335,7 @@ def _get_unique_variables(cat, activity_id, table_id, grid_label):
     """
     # Get catalog subset from user inputs
     cat_subset = cat.search(
-        activity_id = activity_id,
-        table_id = table_id,
-        grid_label = grid_label
+        activity_id=activity_id, table_id=table_id, grid_label=grid_label
     )
     # Get all unique variable id options from catalog selection
     variable_id_options = cat_subset.unique()["variable_id"]["values"]
@@ -335,6 +343,7 @@ def _get_unique_variables(cat, activity_id, table_id, grid_label):
     # Get all unique scenario options from catalog selection
     scenario_options = cat_subset.unique()["experiment_id"]["values"]
     return variable_id_options, scenario_options
+
 
 def _get_variable_options_df(var_catalog, unique_variable_ids, timescale):
     """Get variable information for a subset of unique variable ids.
@@ -348,21 +357,20 @@ def _get_variable_options_df(var_catalog, unique_variable_ids, timescale):
         variable_options_df (pd.DataFrame): var_catalog information subsetted by unique_variable_ids
 
     """
-    if timescale == "hourly": 
+    if timescale == "hourly":
         unique_variable_ids.extend(
-            [
-                "precip_tot_derived", 
-                "rh_derived", 
-                "wind_speed_derived"
-            ]
+            ["precip_tot_derived", "rh_derived", "wind_speed_derived"]
         )
-    
+
     if timescale in ["daily", "monthly"]:
         timescale = "daily/monthly"
     variable_options_df = var_catalog[
-        (var_catalog["show"] == True) & # Make sure it's a valid variable selection
-        (var_catalog["variable_id"].isin(unique_variable_ids) & # Make sure variable_id is part of the catalog options for user selections
-        (var_catalog["timescale"] == timescale) # Make sure its the right timescale
+        (var_catalog["show"] == True)
+        & (  # Make sure it's a valid variable selection
+            var_catalog["variable_id"].isin(unique_variable_ids)
+            & (  # Make sure variable_id is part of the catalog options for user selections
+                var_catalog["timescale"] == timescale
+            )  # Make sure its the right timescale
         )
     ]
     return variable_options_df
@@ -379,26 +387,24 @@ class DataSelector(param.Parameterized):
     # Defaults
     default_variable = "Air Temperature at 2m"
     default_scenario = ["Historical Climate"]
-    time_slice = param.Range(default = (1980, 2015), bounds = (1950, 2100))
-    append_historical = param.Boolean(default = False)
-    area_average = param.Boolean(default = False)
+    time_slice = param.Range(default=(1980, 2015), bounds=(1950, 2100))
+    append_historical = param.Boolean(default=False)
+    area_average = param.Boolean(default=False)
 
     resolution = param.ObjectSelector(
-        default = "45 km",
-        objects = ["45 km", "9 km", "3 km"]
+        default="45 km", objects=["45 km", "9 km", "3 km"]
     )
     timescale = param.ObjectSelector(
-        default = "monthly",
-        objects = ["hourly", "daily", "monthly"]
+        default="monthly", objects=["hourly", "daily", "monthly"]
     )
 
     # Empty params, initialized in __init__
-    downscaling_method = param.ObjectSelector(objects = dict())
-    scenario = param.ListSelector(objects = dict())
-    variable = param.ObjectSelector(objects = dict())
-    units = param.ObjectSelector(objects = dict())
-    extended_description = param.ObjectSelector(objects = dict())
-    variable_id = param.ObjectSelector(objects = dict())
+    downscaling_method = param.ObjectSelector(objects=dict())
+    scenario = param.ListSelector(objects=dict())
+    variable = param.ObjectSelector(objects=dict())
+    units = param.ObjectSelector(objects=dict())
+    extended_description = param.ObjectSelector(objects=dict())
+    variable_id = param.ObjectSelector(objects=dict())
 
     def __init__(self, **params):
         # Set default values
@@ -408,21 +414,26 @@ class DataSelector(param.Parameterized):
         self.downscaling_method = "WRF"
 
         # Variable catalog info
-        self.unique_variable_ids, self.scenario_options = _get_unique_variables( # Get a list of unique variable ids for that catalog subset
-            cat = self.cat,
-            activity_id = self.downscaling_method,
-            table_id = _timescale_to_table_id(self.timescale),
-            grid_label = _resolution_to_gridlabel(self.resolution)
+        (
+            self.unique_variable_ids,
+            self.scenario_options,
+        ) = _get_unique_variables(  # Get a list of unique variable ids for that catalog subset
+            cat=self.cat,
+            activity_id=self.downscaling_method,
+            table_id=_timescale_to_table_id(self.timescale),
+            grid_label=_resolution_to_gridlabel(self.resolution),
         )
 
-        self.variable_options_df = _get_variable_options_df( # Get more info about that subset of unique variable ids 
-            var_catalog = var_catalog,
-            unique_variable_ids = self.unique_variable_ids,
-            timescale = self.timescale
+        self.variable_options_df = _get_variable_options_df(  # Get more info about that subset of unique variable ids
+            var_catalog=var_catalog,
+            unique_variable_ids=self.unique_variable_ids,
+            timescale=self.timescale,
         )
 
         # Set scenario param
-        scenario_options = [_scenario_to_experiment_id(x, reverse = True) for x in self.scenario_options]
+        scenario_options = [
+            _scenario_to_experiment_id(x, reverse=True) for x in self.scenario_options
+        ]
 
         # Reorder list
         for scenario_i in [
@@ -430,11 +441,11 @@ class DataSelector(param.Parameterized):
             "Historical Reconstruction",
             "SSP 3-7.0 -- Business as Usual",
             "SSP 5-8.5 -- Burn it All",
-            "SSP 2-4.5 -- Middle of the Road"
+            "SSP 2-4.5 -- Middle of the Road",
         ]:
-            if scenario_i in scenario_options :
-                scenario_options.remove(scenario_i) # Remove item
-                scenario_options.append(scenario_i) # Add to back of list
+            if scenario_i in scenario_options:
+                scenario_options.remove(scenario_i)  # Remove item
+                scenario_options.append(scenario_i)  # Add to back of list
 
         self.param["scenario"].objects = scenario_options
         self.scenario = self.default_scenario
@@ -442,101 +453,123 @@ class DataSelector(param.Parameterized):
         # Set variable param
         self.param["variable"].objects = self.variable_options_df.display_name.values
         self.variable = self.default_variable
-        
+
         # Set colormap, units, & extended description
-        var_info = self.variable_options_df[self.variable_options_df["display_name"] == self.variable] # Get info for just that variable
+        var_info = self.variable_options_df[
+            self.variable_options_df["display_name"] == self.variable
+        ]  # Get info for just that variable
         self.colormap = var_info.colormap.item()
         self.units = var_info.unit.item()
         self.extended_description = var_info.extended_description.item()
         self.variable_id = var_info.variable_id.item()
 
-    @param.depends("timescale", "resolution", watch = True)
+    @param.depends("timescale", "resolution", watch=True)
     def _update_var_options(self):
         """Update unique variable options"""
 
         # Get a list of unique variable ids for that catalog subset
         self.unique_variable_ids, self.scenario_options = _get_unique_variables(
-            cat = self.cat,
-            activity_id = self.downscaling_method,
-            table_id = _timescale_to_table_id(self.timescale),
-            grid_label = _resolution_to_gridlabel(self.resolution)
+            cat=self.cat,
+            activity_id=self.downscaling_method,
+            table_id=_timescale_to_table_id(self.timescale),
+            grid_label=_resolution_to_gridlabel(self.resolution),
         )
 
         # Get more info about that subset of unique variable ids
         self.variable_options_df = _get_variable_options_df(
-            var_catalog = var_catalog,
-            unique_variable_ids = self.unique_variable_ids,
-            timescale = self.timescale
+            var_catalog=var_catalog,
+            unique_variable_ids=self.unique_variable_ids,
+            timescale=self.timescale,
         )
 
-        # Reset variable dropdown 
+        # Reset variable dropdown
         var_options = self.variable_options_df.display_name.values
         self.param["variable"].objects = var_options
         if self.variable not in var_options:
             self.variable = var_options[0]
 
-    @param.depends("resolution", "location.area_subset", watch = True)
+    @param.depends("resolution", "location.area_subset", watch=True)
     def _update_states_3km(self):
         if self.location.area_subset == "states":
             if self.resolution == "3 km":
-                self.location.param["cached_area"].objects = ["CA", "NV", "OR", "UT", "AZ"]
+                self.location.param["cached_area"].objects = [
+                    "CA",
+                    "NV",
+                    "OR",
+                    "UT",
+                    "AZ",
+                ]
                 self.location.cached_area = "CA"
             else:
-                self.location.param["cached_area"].objects = self.location._geography_choose["states"].keys()
+                self.location.param[
+                    "cached_area"
+                ].objects = self.location._geography_choose["states"].keys()
 
-    @param.depends("variable", "timescale", watch = True)
+    @param.depends("variable", "timescale", watch=True)
     def _update_unit_options(self):
-        """ Update unit options and native units for selected variable. """
-        var_info = self.variable_options_df[self.variable_options_df["display_name"] == self.variable] # Get info for just that variable
+        """Update unit options and native units for selected variable."""
+        var_info = self.variable_options_df[
+            self.variable_options_df["display_name"] == self.variable
+        ]  # Get info for just that variable
         native_unit = var_info.unit.item()
-        if native_unit in unit_options_dict.keys(): # See if there's unit conversion options for native variable
+        if (
+            native_unit in unit_options_dict.keys()
+        ):  # See if there's unit conversion options for native variable
             self.param["units"].objects = unit_options_dict[native_unit]
-        else: # Just use native units if no conversion options available 
+        else:  # Just use native units if no conversion options available
             self.param["units"].objects = [native_unit]
         self.units = native_unit
 
-    @param.depends("variable", "timescale", "resolution", watch = True)
+    @param.depends("variable", "timescale", "resolution", watch=True)
     def _update_cmap_and_extended_description(self):
-        var_info = self.variable_options_df[self.variable_options_df["display_name"] == self.variable] # Get info for just that variable
+        var_info = self.variable_options_df[
+            self.variable_options_df["display_name"] == self.variable
+        ]  # Get info for just that variable
         self.colormap = var_info.colormap.item()
         self.extended_description = var_info.extended_description.item()
         self.variable_id = var_info.variable_id.item()
 
-    @param.depends("resolution", "append_historical", "scenario", watch = True)
+    @param.depends("resolution", "append_historical", "scenario", watch=True)
     def _update_scenarios(self):
         """
         The scenarios available will depend on the resolution (more will be
         available for 9km than 3km for WRF eventually). Also ensures that
         "Historical Climate" is not redundantly displayed when
         "Append historical" is also selected.
-        """ 
+        """
         # Get scenario options in catalog format
-        scenario_options = [_scenario_to_experiment_id(x, reverse = True) for x in self.scenario_options]
-        
+        scenario_options = [
+            _scenario_to_experiment_id(x, reverse=True) for x in self.scenario_options
+        ]
+
         # Reorder list
         for scenario_i in [
             "Historical Climate",
             "Historical Reconstruction",
             "SSP 3-7.0 -- Business as Usual",
             "SSP 5-8.5 -- Burn it All",
-            "SSP 2-4.5 -- Middle of the Road"
+            "SSP 2-4.5 -- Middle of the Road",
         ]:
             if scenario_i in scenario_options:
-                scenario_options.remove(scenario_i) # Remove item
-                scenario_options.append(scenario_i) # Add to back of list
+                scenario_options.remove(scenario_i)  # Remove item
+                scenario_options.append(scenario_i)  # Add to back of list
 
         # Reset param values
         self.param["scenario"].objects = scenario_options
         self.scenario = [x for x in self.scenario if x in scenario_options]
-        
+
         # Remove Historical Climate as option if append_historical is selected
-        if self.append_historical and self.scenario is not None and self.scenario != ["Historical Climate"]:
+        if (
+            self.append_historical
+            and self.scenario is not None
+            and self.scenario != ["Historical Climate"]
+        ):
             if "Historical Climate" in self.scenario:
                 _scenarios = self.scenario
                 _scenarios.remove("Historical Climate")
                 self.scenario = _scenarios
 
-    @param.depends("scenario", "append_historical", watch = True)
+    @param.depends("scenario", "append_historical", watch=True)
     def _update_time_slice_range(self):
         """
         Will discourage the user from selecting a time slice that does not exist
@@ -561,15 +594,15 @@ class DataSelector(param.Parameterized):
 
         self.time_slice = (low_bound, upper_bound)
 
-    area_average = param.Boolean(default = False)
+    area_average = param.Boolean(default=False)
 
-    @param.depends("time_slice", "scenario", "append_historical", watch = False)
+    @param.depends("time_slice", "scenario", "append_historical", watch=False)
     def view(self):
         """
         Displays a timeline to help the user visualize the time ranges
         available, and the subset of time slice selected.
         """
-        fig0 = Figure(figsize = (3, 2))
+        fig0 = Figure(figsize=(3, 2))
         ax = fig0.add_subplot(111)
         ax.spines["right"].set_color("none")
         ax.spines["left"].set_color("none")
@@ -580,7 +613,7 @@ class DataSelector(param.Parameterized):
         ax.set_ylim(0, 1)
         ax.xaxis.set_major_locator(ticker.AutoLocator())
         ax.xaxis.set_minor_locator(ticker.AutoMinorLocator())
-        mpl_pane = pn.pane.Matplotlib(fig0, dpi = 144)
+        mpl_pane = pn.pane.Matplotlib(fig0, dpi=144)
 
         def update_bars(scenario, y_offset):
             """
@@ -605,21 +638,9 @@ class DataSelector(param.Parameterized):
                 elif "5-8.5" in one:
                     color = "r"
                 if self.append_historical:
-                    ax.errorbar(
-                        x = 1997.5,
-                        y = y_offset,
-                        xerr = 17.5,
-                        linewidth = 8,
-                        color = "c"
-                    )
-            ax.errorbar(
-                x = center,
-                y = y_offset,
-                xerr = x_width,
-                linewidth = 8,
-                color = color
-            )
-            ax.annotate(scenario[:10], xy = (center - x_width, y_offset + 0.06))
+                    ax.errorbar(x=1997.5, y=y_offset, xerr=17.5, linewidth=8, color="c")
+            ax.errorbar(x=center, y=y_offset, xerr=x_width, linewidth=8, color=color)
+            ax.annotate(scenario[:10], xy=(center - x_width, y_offset + 0.06))
 
         y_offset = 0.15
         if self.scenario is not None:
@@ -627,25 +648,15 @@ class DataSelector(param.Parameterized):
                 update_bars(one, y_offset)
                 y_offset += 0.15
 
-        ax.fill_betweenx(
-            [0, 1],
-            1950,
-            self.time_slice[0],
-            alpha = 0.8,
-            facecolor = "grey"
-        )
-        ax.fill_betweenx(
-            [0, 1],
-            self.time_slice[1],
-            2100,
-            alpha = 0.8,
-            facecolor="grey"
-        )
+        ax.fill_betweenx([0, 1], 1950, self.time_slice[0], alpha=0.8, facecolor="grey")
+        ax.fill_betweenx([0, 1], self.time_slice[1], 2100, alpha=0.8, facecolor="grey")
         return mpl_pane
+
 
 # ================ DISPLAY LOCATION/DATA SELECTIONS IN PANEL ===================
 
-def _display_select(selections, location, location_type = "area average"):
+
+def _display_select(selections, location, location_type="area average"):
     """
     Called by 'select' at the beginning of the workflow, to capture user
     selections. Displays panel of widgets from which to make selections.
@@ -663,21 +674,23 @@ def _display_select(selections, location, location_type = "area average"):
 
     # _which_loc_input = {'area average': LocSelectorArea, 'station': LocSelectorPoint}
     location_chooser = pn.Row(location.param, location.view)
-    
+
     first_row = pn.Row(
         pn.Column(
             selections.param.timescale,
             selections.param.time_slice,
             pn.layout.VSpacer(),
             selections.param.variable,
-            pn.widgets.StaticText.from_param(selections.param.extended_description, name = ""),
+            pn.widgets.StaticText.from_param(
+                selections.param.extended_description, name=""
+            ),
             pn.layout.VSpacer(),
-            pn.widgets.StaticText(name = "", value = "Variable Units"),
+            pn.widgets.StaticText(name="", value="Variable Units"),
             pn.widgets.RadioButtonGroup.from_param(selections.param.units),
-            pn.widgets.StaticText(name = "", value = "Model Resolution"),
+            pn.widgets.StaticText(name="", value="Model Resolution"),
             pn.widgets.RadioButtonGroup.from_param(selections.param.resolution),
             selections.param.area_average,
-            pn.layout.VSpacer()
+            pn.layout.VSpacer(),
         ),
         pn.Column(
             selections.view,
@@ -686,6 +699,7 @@ def _display_select(selections, location, location_type = "area average"):
         ),
     )
     return pn.Column(first_row, location_chooser)
+
 
 # =============================== EXPORT DATA ==================================
 
@@ -710,12 +724,13 @@ class FileTypeSelector(param.Parameterized):
 
     user_options = UserFileChoices()
     output_file_format = param.ObjectSelector(
-        objects = user_options._export_format_choices
+        objects=user_options._export_format_choices
     )
 
     def _export_file_type(self):
         """Updates the 'user_export_format' object to be the format specified by the user."""
         user_export_format = self.output_file_format
+
 
 def _user_export_select(user_export_format):
     """
@@ -726,7 +741,7 @@ def _user_export_select(user_export_format):
     """
 
     data_to_export = pn.widgets.TextInput(
-        name = "Data to export", placeholder = "Type name of dataset here"
+        name="Data to export", placeholder="Type name of dataset here"
     )
 
     # reserved for later: text boxes for dataset to export

@@ -1,6 +1,6 @@
 import intake
 from .data_export import _export_to_user
-from .data_loaders import _read_from_catalog
+from .data_loaders import _read_from_catalog, _compute
 from .explore import AppExplore
 from .selectors import (
     DataSelector,
@@ -8,7 +8,7 @@ from .selectors import (
     LocSelectorArea,
     UserFileChoices,
     _user_export_select,
-    FileTypeSelector
+    FileTypeSelector,
 )
 from .view import _visualize
 
@@ -20,8 +20,12 @@ class Application(object):
     """
 
     def __init__(self):
-        self._cat = intake.open_esm_datastore("https://cadcat.s3.amazonaws.com/cae-collection.json")
-        self._multi_ensemble_means = intake.open_esm_datastore('https://cadcat.s3.amazonaws.com/cae-derived.json')
+        self._cat = intake.open_esm_datastore(
+            "https://cadcat.s3.amazonaws.com/cae-collection.json"
+        )
+        self._multi_ensemble_means = intake.open_esm_datastore(
+            "https://cadcat.s3.amazonaws.com/cae-derived.json"
+        )
         self.location = LocSelectorArea(name="Location Selections")
         self.selections = DataSelector(cat=self._cat, location=self.location)
         self.user_export_format = FileTypeSelector()
@@ -37,6 +41,11 @@ class Application(object):
         select_panel = _display_select(self.selections, self.location)
         return select_panel
 
+    # === Read data into memory =====================================
+    def load(self, data):
+        """Read lazily loaded dask data into memory"""
+        return _compute(data)
+
     # === Retrieve ===================================
     def retrieve(self):
         """
@@ -48,7 +57,7 @@ class Application(object):
         return _read_from_catalog(self.selections, self.location, self._cat)
 
     # === View =======================================
-    def view(self, data, lat_lon = True, width = None, height = None, cmap = None):
+    def view(self, data, lat_lon=True, width=None, height=None, cmap=None):
         """Create a generic visualization of the data
 
         Args:
@@ -63,8 +72,7 @@ class Application(object):
             hvplot.image()
 
         """
-        return _visualize(data, lat_lon = lat_lon, width = width,
-                          height = height, cmap = cmap)
+        return _visualize(data, lat_lon=lat_lon, width=width, height=height, cmap=cmap)
 
     # === Export =====================================
     def export_as(self):
