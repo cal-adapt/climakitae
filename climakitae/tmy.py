@@ -67,7 +67,7 @@ def _get_historical_tmy_data(cat, selections, location):
         location = location, 
         cat = cat, 
         source_id = "ensmean"
-    )
+    ).isel(scenario = 0, simulation = 0)
     return historical_da_mean.compute()
 
 def _get_future_heatmap_data(cat, selections, location, warmlevel):
@@ -87,7 +87,7 @@ def _get_future_heatmap_data(cat, selections, location, warmlevel):
         location = location, 
         cat = cat, 
         source_id = "ensmean"
-    ) 
+    ).isel(scenario = 0, simulation = 0)
     return future_da_mean.compute()
 
 def remove_repeats(xr_data):
