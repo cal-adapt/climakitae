@@ -419,7 +419,7 @@ def _amy_visualize(tmy_ob, selections, location):
                 pn.widgets.RadioButtonGroup.from_param(selections.param.units),
                 pn.widgets.StaticText(name = "", value = "Model Resolution"),
                 pn.widgets.RadioButtonGroup.from_param(selections.param.resolution),
-                width = 250
+                width = 270
             ),
             pn.Column(
                 location.param.area_subset,
@@ -438,7 +438,7 @@ def _amy_visualize(tmy_ob, selections, location):
         ),
         title=" How do you want to investigate AMY?",
         collapsible=False,
-        width=480,
+        width=500,
         height=580,
     )
 
