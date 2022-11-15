@@ -41,9 +41,7 @@ from .catalog_convert import (
     _timescale_to_table_id,
     _scenario_to_experiment_id
 )
-from .data_loaders import _get_area_subset
-from .unit_conversions import _convert_units
-
+from .data_loaders import _read_from_catalog
 
 import logging  # Silence warnings
 
@@ -57,62 +55,14 @@ var_catalog = pd.read_csv(var_catalog_resource, index_col="variable_id")
 
 xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
 
-def _read_tmy_data(cat, selections, location, scenario, time_slice): 
-
-    # Get catalog subset for user selections
-    cat_subset = cat.search(
-        variable_id = selections.variable_id, 
-        experiment_id = [_scenario_to_experiment_id(scen) for scen in scenario],
-        grid_label = _resolution_to_gridlabel(selections.resolution),
-        table_id = "1hr",
-    ) 
-    
-    # Read in data from catalog 
-    data_dict = cat_subset.to_dataset_dict(
-        zarr_kwargs = {'consolidated': True},
-        storage_options = {'anon': True},
-        progressbar = False
-    )
-
-    # Get first item from data dictionary 
-    da = list(data_dict.values())[0][selections.variable_id]
-    
-    # Time slice
-    da = da.sel(
-        time = slice(
-            str(time_slice[0]),
-            str(time_slice[1]))
-    )
-    
-    # Perform area subsetting and area averaging
-    ds_region = _get_area_subset(location = location)
-    if ds_region is not None: # Perform subsetting
-        da = da.rio.clip(
-            geometries = ds_region,
-            crs = 4326,
-            drop = True
-        )    
-        
-    # Perform area averaging
-    weights = np.cos(np.deg2rad(da.lat))
-    da = da.weighted(weights).mean("x").mean("y")
-        
-    # Convert units
-    da = _convert_units(
-        da = da, 
-        selected_units = selections.units
-    )
-    
-    return da 
-
 def _get_historical_tmy_data(cat, selections, location):
     """Get historical data from AWS catalog"""
-    historical_da_mean = _read_tmy_data(
-        cat = cat, 
+    selections.scenario = ["Historical Climate"]
+    selections.time_slice = (1981, 2010)
+    historical_da_mean = _read_from_catalog(
         selections = selections, 
         location = location, 
-        scenario = ["Historical Climate"], 
-        time_slice = (1981, 2010)
+        cat = cat
     )
     return historical_da_mean.compute()
 
@@ -123,13 +73,13 @@ def _get_future_heatmap_data(cat, selections, location, warmlevel):
         2: (2047, 2076),
         3: (2061, 2090),
     }
-    future_da_mean = _read_tmy_data(
-        cat = cat, 
+    selections.scenario = ["SSP 3-7.0 -- Business as Usual"]
+    selections.time_slice = warming_year_average_range[warmlevel]
+    future_da_mean = _read_from_catalog(
         selections = selections, 
         location = location, 
-        scenario = ["SSP 3-7.0 -- Business as Usual"], 
-        time_slice = warming_year_average_range[warmlevel]
-    )
+        cat = cat
+    ) 
     return future_da_mean.compute()
 
 def remove_repeats(xr_data):
@@ -263,6 +213,15 @@ class AverageMeteorologicalYear(param.Parameterized):
         # Location defaults
         self.location.area_subset = "CA counties"
         self.location.cached_area = "Los Angeles County"
+        
+        # Selectors defaults
+        self.selections.append_historical = False
+        self.selections.area_average = True
+        self.selections.resolution = "45 km"
+        self.selections.scenario = ["Historical Climate"]  # setting for historical
+        self.selections.time_slice = (1981, 2010)
+        self.selections.timescale = "hourly"
+        self.selections.variable = "Air Temperature at 2m"
 
         # Initialze tmy_adanced_options param
         self.param["tmy_advanced_options"].objects = self.tmy_advanced_options_dict[
@@ -289,16 +248,8 @@ class AverageMeteorologicalYear(param.Parameterized):
             location = self.location,
             warmlevel = 1.5
         )
-
-        # Selectors defaults
-        self.selections.append_historical = False
-        self.selections.area_average = True
-        self.selections.resolution = "45 km"
-        self.selections.scenario = ["Historical Climate"]  # setting for historical
-        self.selections.time_slice = (1981, 2010)
-        self.selections.timescale = "hourly"
-        self.selections.variable = "Air Temperature at 2m"
-
+        
+        # Colormap 
         self.cmap = _read_ae_colormap(cmap="ae_orange", cmap_hex=True)
 
     # For reloading data and plots
@@ -460,7 +411,7 @@ def _amy_visualize(tmy_ob, selections, location):
                 pn.widgets.RadioButtonGroup.from_param(selections.param.units),
                 pn.widgets.StaticText(name = "", value = "Model Resolution"),
                 pn.widgets.RadioButtonGroup.from_param(selections.param.resolution),
-                width = 230
+                width = 250
             ),
             pn.Column(
                 location.param.area_subset,
@@ -479,7 +430,7 @@ def _amy_visualize(tmy_ob, selections, location):
         ),
         title=" How do you want to investigate AMY?",
         collapsible=False,
-        width=460,
+        width=480,
         height=580,
     )
 
