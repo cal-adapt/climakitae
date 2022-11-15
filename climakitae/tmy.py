@@ -65,7 +65,8 @@ def _get_historical_tmy_data(cat, selections, location):
     historical_da_mean = _read_from_catalog(
         selections = selections, 
         location = location, 
-        cat = cat
+        cat = cat, 
+        source_id = "ensmean"
     )
     return historical_da_mean.compute()
 
@@ -84,7 +85,8 @@ def _get_future_heatmap_data(cat, selections, location, warmlevel):
     future_da_mean = _read_from_catalog(
         selections = selections, 
         location = location, 
-        cat = cat
+        cat = cat, 
+        source_id = "ensmean"
     ) 
     return future_da_mean.compute()
 
