@@ -419,7 +419,7 @@ def _amy_visualize(tmy_ob, selections, location):
                 pn.widgets.RadioButtonGroup.from_param(selections.param.units),
                 pn.widgets.StaticText(name = "", value = "Model Resolution"),
                 pn.widgets.RadioButtonGroup.from_param(selections.param.resolution),
-                width = 270
+                width = 280
             ),
             pn.Column(
                 location.param.area_subset,
@@ -438,8 +438,8 @@ def _amy_visualize(tmy_ob, selections, location):
         ),
         title=" How do you want to investigate AMY?",
         collapsible=False,
-        width=500,
-        height=580,
+        width=510,
+        height=600,
     )
 
     mthd_bx = pn.Column(
@@ -468,7 +468,7 @@ def _amy_visualize(tmy_ob, selections, location):
         pn.Tabs(("AMY Heatmap", tmy_ob._tmy_hourly_heatmap), ("Methodology", mthd_bx)),
         title=" Average Meteorological Year",
         width=850,
-        height=580,
+        height=600,
         collapsible=False,
     )
 
