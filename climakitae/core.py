@@ -23,13 +23,10 @@ class Application(object):
         self._cat = intake.open_esm_datastore(
             "https://cadcat.s3.amazonaws.com/cae-collection.json"
         )
-        self._multi_ensemble_means = intake.open_esm_datastore(
-            "https://cadcat.s3.amazonaws.com/cae-derived.json"
-        )
         self.location = LocSelectorArea(name="Location Selections")
         self.selections = DataSelector(cat=self._cat, location=self.location)
         self.user_export_format = FileTypeSelector()
-        self.explore = AppExplore(self.selections, self.location, self._cat, self._multi_ensemble_means)
+        self.explore = AppExplore(self.selections, self.location, self._cat)
 
     # === Select =====================================
     def select(self):
