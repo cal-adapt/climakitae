@@ -62,7 +62,7 @@ def _get_historical_tmy_data(cat, selections, location):
     selections.append_historical = False
     selections.area_average = True
     selections.timescale = "hourly"
-    selections.simulation = "ensmean"
+    selections.simulation = ["ensmean"]
     historical_da_mean = _read_from_catalog(
         selections = selections, 
         location = location, 
@@ -82,7 +82,7 @@ def _get_future_heatmap_data(cat, selections, location, warmlevel):
     selections.append_historical = False
     selections.area_average = True
     selections.timescale = "hourly"
-    selections.simulation = "ensmean"
+    selections.simulation = ["ensmean"]
     future_da_mean = _read_from_catalog(
         selections = selections, 
         location = location, 
