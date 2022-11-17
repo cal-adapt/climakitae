@@ -264,15 +264,31 @@ class Timeseries:
     """
 
     def __init__(self, data):
-        assert "xarray" in str(
-            type(data)
-        ), "Please pass an xarray DataArray (e.g. as output by generate)."
-        assert (
-            "lat" not in data.dims
-        ), "Please pass a timeseries (area average or individual station)."
-        assert True in [
-            "Historical + " in v for v in data.scenario.values
-        ], "Please append the historical period in your data retrieval."
+        # Raise errors with unique error messages
+        if (
+            type(data) != xr.core.dataarray.DataArray
+        ):  # Data is NOT in the form of xr.DataArray
+            raise ValueError(
+                "Please pass an xarray DataArray (e.g. as output by app.retrieve())."
+            )
+        else:
+            raise_error = False
+            error_message = ""
+            if "lat" in data.coords:  # Data is NOT area averaged
+                raise_error = True
+                error_message += "Please pass a timeseries (area average)."
+            if not any(
+                ["Historical + " in v for v in data.scenario.values]
+            ):  # Append historical = False
+                if raise_error == True:
+                    error_message += "\n"
+                else:
+                    raise_error = True
+                error_message += (
+                    "Please append the historical period in your data retrieval."
+                )
+            if raise_error:  # If any errors
+                raise ValueError(error_message)
 
         self.choices = TimeSeriesParams(data)
 
