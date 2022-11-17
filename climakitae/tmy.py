@@ -216,12 +216,12 @@ class AverageMeteorologicalYear(param.Parameterized):
     }
 
     # Define TMY params
-    tmy_options = param.ObjectSelector(
+    data_type = param.ObjectSelector(
         default="Absolute", objects=["Absolute", "Difference"]
     )
 
-    # Define new advanced options param, that is dependent on the user selection in tmy_options
-    tmy_advanced_options = param.ObjectSelector(objects=dict())
+    # Define new advanced options param, that is dependent on the user selection in data_type
+    computation_method = param.ObjectSelector(objects=dict())
 
     # Define new computation description param
     # This will provide a string description of the computation option selected
@@ -251,17 +251,17 @@ class AverageMeteorologicalYear(param.Parameterized):
         self.selections.variable = "Air Temperature at 2m"
 
         # Initialze tmy_adanced_options param
-        self.param["tmy_advanced_options"].objects = self.tmy_advanced_options_dict[
-            self.tmy_options
+        self.param["computation_method"].objects = self.tmy_advanced_options_dict[
+            self.data_type
         ]["objects"]
-        self.tmy_advanced_options = self.tmy_advanced_options_dict[self.tmy_options][
+        self.computation_method = self.tmy_advanced_options_dict[self.data_type][
             "default"
         ]
 
         # Initialize tmy_computation_description param
         self.tmy_computation_description = self.computatation_description_dict[
-            self.tmy_options
-        ][self.tmy_advanced_options]
+            self.data_type
+        ][self.computation_method]
 
         # Postage data and anomalies defaults
         self.historical_tmy_data = _get_historical_tmy_data(
@@ -284,7 +284,7 @@ class AverageMeteorologicalYear(param.Parameterized):
         lambda x: x.param.trigger("reload_data"), label="Reload Data"
     )
 
-    @param.depends("selections.variable", "tmy_options", watch=True)
+    @param.depends("selections.variable", "data_type", watch=True)
     def _update_cmap(self):
         """Set colormap depending on variable"""
         cmap_name = var_catalog[
@@ -293,23 +293,23 @@ class AverageMeteorologicalYear(param.Parameterized):
         ].colormap.item()
 
         # Set to diverging colormap if difference is selected
-        if self.tmy_options == "Difference":
+        if self.data_type == "Difference":
             cmap_name = "ae_diverging"
 
         # Read colormap hex
         self.cmap = _read_ae_colormap(cmap=cmap_name, cmap_hex=True)
 
-    @param.depends("tmy_advanced_options", "reload_data", "warmlevel", watch=True)
+    @param.depends("computation_method", "reload_data", "warmlevel", watch=True)
     def _update_data_to_be_returned(self):
         """Update self.selections so that the correct data is returned by app.retrieve()"""
-        if self.tmy_advanced_options == "Historical":
+        if self.computation_method == "Historical":
             self.selections.scenario = ["Historical Climate"]
             self.selections.time_slice = (
                 1981,
                 2010,
             )  # to match historical 30-year average
 
-        elif self.tmy_advanced_options == "Warming Level Future":
+        elif self.computation_method == "Warming Level Future":
             warming_year_average_range = {
                 1.5: (2034, 2063),
                 2: (2047, 2076),
@@ -334,31 +334,31 @@ class AverageMeteorologicalYear(param.Parameterized):
             warmlevel = self.warmlevel
         )
 
-    # Create a function that will update tmy_advanced_options when tmy_options is modified
-    @param.depends("tmy_options", watch=True)
-    def _update_tmy_advanced_options(self):
-        self.param["tmy_advanced_options"].objects = self.tmy_advanced_options_dict[
-            self.tmy_options
+    # Create a function that will update computation_method when data_type is modified
+    @param.depends("data_type", watch=True)
+    def _update_computation_method(self):
+        self.param["computation_method"].objects = self.tmy_advanced_options_dict[
+            self.data_type
         ]["objects"]
-        self.tmy_advanced_options = self.tmy_advanced_options_dict[self.tmy_options][
+        self.computation_method = self.tmy_advanced_options_dict[self.data_type][
             "default"
         ]
 
-    @param.depends("tmy_options", "tmy_advanced_options", watch=True)
+    @param.depends("data_type", "computation_method", watch=True)
     def _update_tmy_computatation_description(self):
         self.tmy_computation_description = self.computatation_description_dict[
-            self.tmy_options
-        ][self.tmy_advanced_options]
+            self.data_type
+        ][self.computation_method]
 
     @param.depends("reload_data", watch=False)
     def _tmy_hourly_heatmap(self):
         # update heatmap df and title with selections
         days_in_year = 366
-        if self.tmy_options == "Absolute":
-            if self.tmy_advanced_options == "Historical":
+        if self.data_type == "Absolute":
+            if self.computation_method == "Historical":
                 df = tmy_calc(self.historical_tmy_data, days_in_year=days_in_year)
                 title = "Average Meteorological Year: {}\nAbsolute {} Baseline".format(
-                    self.location.cached_area, self.tmy_advanced_options
+                    self.location.cached_area, self.computation_method
                 )
                 clabel = (
                     self.selections.variable
@@ -369,17 +369,17 @@ class AverageMeteorologicalYear(param.Parameterized):
             else:
                 df = tmy_calc(self.future_tmy_data, days_in_year=days_in_year)
                 title = "Average Meteorological Year: {}\nAbsolute {} at {}°C".format(
-                    self.location.cached_area, self.tmy_advanced_options, self.warmlevel
+                    self.location.cached_area, self.computation_method, self.warmlevel
                 )
                 clabel = self.selections.variable + " (" + self.selections.units + ")"
-        elif self.tmy_options == "Difference":
+        elif self.data_type == "Difference":
             cmap = _read_ae_colormap("ae_diverging", cmap_hex=True)
-            if self.tmy_advanced_options == "Warming Level Future":
+            if self.computation_method == "Warming Level Future":
                 df = tmy_calc(
                     self.future_tmy_data, days_in_year=days_in_year
                 ) - tmy_calc(self.historical_tmy_data, days_in_year=days_in_year)
                 title = "Average Meteorological Year: {}\nDifference between {} at {}°C and Historical Baseline".format(
-                    self.location.cached_area, self.tmy_advanced_options, self.warmlevel
+                    self.location.cached_area, self.computation_method, self.warmlevel
                 )
                 clabel = self.selections.variable + " (" + self.selections.units + ")"
             else:  # placeholder for now for severe amy
@@ -387,7 +387,7 @@ class AverageMeteorologicalYear(param.Parameterized):
                     self.future_tmy_data, days_in_year=days_in_year
                 ) - tmy_calc(self.historical_tmy_data, days_in_year=days_in_year)
                 title = "Average Meteorological Year: {}\nDifference between {} at 90th percentile and Historical Baseline".format(
-                    self.location.cached_area, self.tmy_advanced_options
+                    self.location.cached_area, self.computation_method
                 )
                 clabel = self.selections.variable + " (" + self.selections.units + ")"
         else:
@@ -419,9 +419,9 @@ def _amy_visualize(tmy_ob, selections, location):
                 pn.widgets.StaticText(
                     name="", value="Average Meteorological Year Type"
                 ),
-                pn.widgets.RadioButtonGroup.from_param(tmy_ob.param.tmy_options),
+                pn.widgets.RadioButtonGroup.from_param(tmy_ob.param.data_type),
                 pn.widgets.Select.from_param(
-                    tmy_ob.param.tmy_advanced_options, name="Computation Options"
+                    tmy_ob.param.computation_method, name="Computation Options"
                 ),
                 pn.widgets.StaticText.from_param(
                     tmy_ob.param.tmy_computation_description, name=""
