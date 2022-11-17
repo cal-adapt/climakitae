@@ -33,7 +33,9 @@ class AppExplore(object):
     def amy(self):
         """Display Average Meteorological Year panel."""
         tmy_ob = AverageMeteorologicalYear(
-            selections=self.selections, location=self.location, catalog=self._cat
+            selections = self.selections,
+            location = self.location,
+            cat = self._cat
         )
         return _amy_visualize(
             tmy_ob=tmy_ob, selections=self.selections, location=self.location
