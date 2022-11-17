@@ -13,7 +13,6 @@ from .catalog_convert import (
 from .unit_conversions import _convert_units
 from .utils import _readable_bytes
 from .derive_variables import (
-    _compute_total_precip,
     _compute_relative_humidity,
     _compute_wind_mag,
 )
