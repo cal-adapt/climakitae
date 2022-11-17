@@ -126,26 +126,6 @@ def _get_cat_subset(selections, cat):
     )
     return cat_subset
 
-
-def _get_data_dict_and_names(cat_subset):
-    """For an input catalog subset, grab the data.
-
-    Args:
-        cat_subset (intake_esm.core.esm_datastore): catalog subset
-
-    Returns:
-        data_dict (dictionary): dictionary of zarrs from catalog, with each key
-        being its name and each item the zarr store
-
-    """
-    data_dict = cat_subset.to_dataset_dict(
-        zarr_kwargs={"consolidated": True},
-        storage_options={"anon": True},
-        progressbar=False,
-    )
-    return data_dict
-
-
 def _get_area_subset(location):
     """Get geometry to perform area subsetting with.
 
@@ -290,7 +270,11 @@ def _get_data_one_var(selections, location, cat):
     cat_subset = _get_cat_subset(selections=selections, cat=cat)
 
     # Read data from AWS.
-    data_dict = _get_data_dict_and_names(cat_subset=cat_subset)
+    data_dict = cat_subset.to_dataset_dict(
+        zarr_kwargs={"consolidated": True},
+        storage_options={"anon": True},
+        progressbar=False,
+    )
 
     # Perform subsetting operations
     for dname, dset in data_dict.items():
