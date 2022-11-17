@@ -158,6 +158,25 @@ def tmy_calc(data, days_in_year = 366):
     return df_amy
 
 
+def amy_month(sel_month):
+    """Returns julian day bounds for AMY months"""
+    amy_month_dict = {
+        'Jan': (0, 31),
+        'Feb': (31, 60),
+        'Mar': (60, 91),
+        'Apr': (91, 122),
+        'May': (122, 152),
+        'Jun': (152, 183),
+        'Jul': (183, 213),
+        'Aug': (213, 243),
+        'Sep': (243, 274),
+        'Oct': (274, 304),
+        'Nov': (304, 335),
+        'Dec': (335, 366)
+    }
+    return amy_month_dict[sel_month]
+
+
 class AverageMeteorologicalYear(param.Parameterized):
     """
     An object that holds the "Data Options" paramters for the
