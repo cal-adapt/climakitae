@@ -86,13 +86,12 @@ def _get_as_shapely(location):
 # ============= Main functions used in data reading/processing =================
 
 
-def _get_cat_subset(selections, cat, source_id=None):
+def _get_cat_subset(selections, cat):
     """For an input set of data selections, get the catalog subset.
 
     Args:
         selections (DataLoaders): object holding user's selections
         cat (intake_esm.core.esm_datastore): catalog
-        source_id (string): optional source_id filter 
 
     Returns:
         cat_subset (intake_esm.core.esm_datastore): catalog subset
@@ -113,6 +112,7 @@ def _get_cat_subset(selections, cat, source_id=None):
     table_id = _timescale_to_table_id(selections.timescale)
     grid_label = _resolution_to_gridlabel(selections.resolution)
     experiment_id = [_scenario_to_experiment_id(x) for x in scenario_selections]
+    source_id = selections.simulation
     variable_id = selections.variable_id
 
     # Get catalog subset
@@ -122,17 +122,8 @@ def _get_cat_subset(selections, cat, source_id=None):
         grid_label=grid_label,
         variable_id=variable_id,
         experiment_id=experiment_id,
+        source_id=source_id
     )
-    
-    # Further limit by source_id 
-    if source_id is not None: 
-        source_id_options = cat_subset.unique()["source_id"]["values"]
-        if source_id in source_id_options: 
-            cat_subset = cat_subset.search(source_id = source_id) 
-        else: 
-            print("Valid options for argument source_id: ", end="")
-            print(", ".join(source_id_options))
-            raise ValueError("Your input source_id is not a valid option")
     return cat_subset
 
 
@@ -292,11 +283,11 @@ def _process_and_concat(selections, dsets, cat_subset):
 # ============ Read from catalog function used by ck.Application ===============
 
 
-def _get_data_one_var(selections, location, cat, source_id=None):
+def _get_data_one_var(selections, location, cat):
     """Get data for one variable"""
 
     # Get catalog subset for a set of user selections
-    cat_subset = _get_cat_subset(selections=selections, cat=cat, source_id=source_id)
+    cat_subset = _get_cat_subset(selections=selections, cat=cat)
 
     # Read data from AWS.
     data_dict = _get_data_dict_and_names(cat_subset=cat_subset)
@@ -334,7 +325,7 @@ def _get_data_one_var(selections, location, cat, source_id=None):
     return da
 
 
-def _read_from_catalog(selections, location, cat, source_id=None):
+def _read_from_catalog(selections, location, cat):
     """
     The primary and first data loading method, called by
     core.Application.retrieve, it returns a DataArray (which can be quite large)
@@ -365,11 +356,11 @@ def _read_from_catalog(selections, location, cat, source_id=None):
 
         # Load cumulus precip data
         selections.variable_id = "rainc"
-        cumulus_precip_da = _get_data_one_var(selections, location, cat, source_id)
+        cumulus_precip_da = _get_data_one_var(selections, location, cat)
 
         # Load grid-scale precip data
         selections.variable_id = "rainnc"
-        gridscale_precip_da = _get_data_one_var(selections, location, cat, source_id)
+        gridscale_precip_da = _get_data_one_var(selections, location, cat)
 
         # Derive precip total
         da = _compute_total_precip(
@@ -386,11 +377,11 @@ def _read_from_catalog(selections, location, cat, source_id=None):
 
         # Load u10 data
         selections.variable_id = "u10"
-        u10_da = _get_data_one_var(selections, location, cat, source_id)
+        u10_da = _get_data_one_var(selections, location, cat)
 
         # Load v10 data
         selections.variable_id = "v10"
-        v10_da = _get_data_one_var(selections, location, cat, source_id)
+        v10_da = _get_data_one_var(selections, location, cat)
 
         # Derive wind magnitude
         da = _compute_wind_mag(
@@ -403,15 +394,15 @@ def _read_from_catalog(selections, location, cat, source_id=None):
 
         # Load pressure data
         selections.variable_id = "psfc"
-        pressure_da = _get_data_one_var(selections, location, cat, source_id)
+        pressure_da = _get_data_one_var(selections, location, cat)
 
         # Load temperature data
         selections.variable_id = "t2"
-        t2_da = _get_data_one_var(selections, location, cat, source_id)
+        t2_da = _get_data_one_var(selections, location, cat)
 
         # Load mixing ratio data
         selections.variable_id = "q2"
-        q2_da = _get_data_one_var(selections, location, cat, source_id)
+        q2_da = _get_data_one_var(selections, location, cat)
 
         # Derive relative humidity
         da = _compute_relative_humidity(
@@ -424,7 +415,7 @@ def _read_from_catalog(selections, location, cat, source_id=None):
         da.attrs["variable_id"] = "rh_derived"
 
     else:
-        da = _get_data_one_var(selections, location, cat, source_id)
+        da = _get_data_one_var(selections, location, cat)
 
     # Convert units
     da = _convert_units(da=da, selected_units=selections.units)
