@@ -347,7 +347,7 @@ def _get_unique_variables(cat, activity_id, table_id, grid_label):
     return variable_id_options, scenario_options
 
 
-def _get_simulation_options(cat, activity_id, table_id, grid_label, experiment_id, variable_id): 
+def _get_simulation_options(cat, activity_id, table_id, grid_label, experiment_id): 
     """Get simulations for user selections. This function is not intended to provide user options, 
     but is rather used to provide information only. It also serves to remove ensmean as an option.
     
@@ -357,7 +357,6 @@ def _get_simulation_options(cat, activity_id, table_id, grid_label, experiment_i
         table_id (str): timescale
         grid_label (str): resolution
         experiment_id (list of str): selected scenario/s
-        variable_id (str): variable
     
     Returns: 
         simulation_options (list of strs): valid simulation (source_id) options for input 
@@ -370,8 +369,7 @@ def _get_simulation_options(cat, activity_id, table_id, grid_label, experiment_i
             activity_id=activity_id, 
             table_id=table_id, 
             grid_label=grid_label, 
-            experiment_id=experiment_id, 
-            variable_id=variable_id
+            experiment_id=experiment_id
         )
     
     # Get all unique simulation options from catalog selection 
@@ -510,8 +508,7 @@ class DataSelector(param.Parameterized):
             activity_id=self.downscaling_method,
             table_id=_timescale_to_table_id(self.timescale),
             grid_label=_resolution_to_gridlabel(self.resolution),
-            experiment_id=[_scenario_to_experiment_id(scen) for scen in self.scenario], 
-            variable_id=self.variable_id
+            experiment_id=[_scenario_to_experiment_id(scen) for scen in self.scenario]
         )
 
     @param.depends("timescale", "resolution", watch=True)
@@ -658,8 +655,7 @@ class DataSelector(param.Parameterized):
             activity_id=self.downscaling_method,
             table_id=_timescale_to_table_id(self.timescale),
             grid_label=_resolution_to_gridlabel(self.resolution),
-            experiment_id=[_scenario_to_experiment_id(scen) for scen in self.scenario], 
-            variable_id=self.variable_id
+            experiment_id=[_scenario_to_experiment_id(scen) for scen in self.scenario]
         )
 
     @param.depends("time_slice", "scenario", "append_historical", watch=False)
