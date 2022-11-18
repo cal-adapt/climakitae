@@ -2,6 +2,7 @@
 # details as metadata to ds/da
 
 from functools import wraps
+from . import __version__
 
 
 def transform_details(func):
@@ -36,7 +37,7 @@ def transform_details(func):
         # flag that climakitae transform has been applied
         transform_attrs = {
             "post_processed": "true",
-            "post_processed_by": "Cal-Adapt Analytics Engine v 0.0.1",
+            "post_processed_by": "Cal-Adapt Analytics Engine v " + __version__,
         }
 
         # build the transform and transform details dict
