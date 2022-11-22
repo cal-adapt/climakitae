@@ -110,6 +110,7 @@ def _get_cat_subset(selections, cat):
     table_id = _timescale_to_table_id(selections.timescale)
     grid_label = _resolution_to_gridlabel(selections.resolution)
     experiment_id = [_scenario_to_experiment_id(x) for x in scenario_selections]
+    source_id = selections.simulation
     variable_id = selections.variable_id
 
     # Get catalog subset
@@ -119,6 +120,7 @@ def _get_cat_subset(selections, cat):
         grid_label=grid_label,
         variable_id=variable_id,
         experiment_id=experiment_id,
+        source_id=source_id
     )
     return cat_subset
 

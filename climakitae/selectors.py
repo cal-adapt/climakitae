@@ -10,6 +10,7 @@ import cartopy.feature as cfeature
 import geopandas as gpd
 import pandas as pd
 import pkg_resources
+import warnings
 from .unit_conversions import _get_unit_conversion_options
 from .catalog_convert import (
     _resolution_to_gridlabel,
@@ -319,6 +320,67 @@ class LocSelectorPoint(param.Parameterized):
 
 # ============================ DATA SELECTIONS =================================
 
+def _get_unique_variables(cat, activity_id, table_id, grid_label):
+    """Get unique variables for an input catalog subset.
+
+    Args:
+        cat (intake catalog): catalog
+        activity_id (str): dataset name (i.e. "WRF")
+        table_id (str): timescale
+        grid_label (str): resolution
+
+    Returns: tuple
+        variable_id_options (list of strs): valid variable id options for input
+        scenario_options (list of strs): valid scenario (experiment_id) options for input
+    
+    """
+    # Get catalog subset from user inputs
+    cat_subset = cat.search(
+        activity_id=activity_id, table_id=table_id, grid_label=grid_label
+    )
+    # Get all unique variable id options from catalog selection
+    variable_id_options = cat_subset.unique()["variable_id"]["values"]
+
+    # Get all unique scenario options from catalog selection
+    scenario_options = cat_subset.unique()["experiment_id"]["values"]
+    return variable_id_options, scenario_options
+
+
+def _get_simulation_options(cat, activity_id, table_id, grid_label, experiment_id): 
+    """Get simulations for user selections. This function is not intended to provide user options, 
+    but is rather used to provide information only. It also serves to remove ensmean as an option.
+    
+    Args: 
+        cat (intake catalog): catalog
+        activity_id (str): dataset name (i.e. "WRF")
+        table_id (str): timescale
+        grid_label (str): resolution
+        experiment_id (list of str): selected scenario/s
+    
+    Returns: 
+        simulation_options (list of strs): valid simulation (source_id) options for input 
+    
+    """
+    
+    # Get catalog subset from user inputs
+    with warnings.catch_warnings(record=True):
+        cat_subset = cat.search(
+            activity_id=activity_id, 
+            table_id=table_id, 
+            grid_label=grid_label, 
+            experiment_id=experiment_id
+        )
+    
+    # Get all unique simulation options from catalog selection 
+    try: 
+        simulation_options = cat_subset.unique()["source_id"]["values"] 
+        if "ensmean" in simulation_options: 
+            simulation_options.remove("ensmean") # Remove ensemble means
+    except: 
+        simulation_options = []
+        
+    return simulation_options 
+
 def _get_variable_options_df(var_catalog, unique_variable_ids, timescale):
     """Get variable information for a subset of unique variable ids.
 
@@ -391,10 +453,14 @@ class DataSelector(param.Parameterized):
         self.downscaling_method = "WRF"
 
         # Variable catalog info
-        self.cat_subset = self.cat.search(
-            activity_id = self.downscaling_method,
-            table_id = _timescale_to_table_id(self.timescale),
-            grid_label = _resolution_to_gridlabel(self.resolution)
+        (
+            self.unique_variable_ids,
+            self.scenario_options
+        ) = _get_unique_variables(  # Get a list of unique variable ids for that catalog subset
+            cat=self.cat,
+            activity_id=self.downscaling_method,
+            table_id=_timescale_to_table_id(self.timescale),
+            grid_label=_resolution_to_gridlabel(self.resolution),
         )
         self.unique_variable_ids = self.cat_subset.unique()["variable_id"]["values"]
         self.variable_options_df = _get_variable_options_df( # Get more info about that subset of unique variable ids 
@@ -429,16 +495,28 @@ class DataSelector(param.Parameterized):
         self.extended_description = var_info.extended_description.item()
         self.variable_id = var_info.variable_id.item()
         self._data_warning = ""
+        
+        # Set simulation param 
+        self.simulation = _get_simulation_options(
+            cat=self.cat,
+            activity_id=self.downscaling_method,
+            table_id=_timescale_to_table_id(self.timescale),
+            grid_label=_resolution_to_gridlabel(self.resolution),
+            experiment_id=[_scenario_to_experiment_id(scen) for scen in self.scenario]
+        )
 
     @param.depends("timescale", "resolution", watch=True)
     def _update_var_options(self):
         """Update unique variable options"""
-        
-        # Variable catalog info
-        self.cat_subset = self.cat.search(
-            activity_id = self.downscaling_method,
-            table_id = _timescale_to_table_id(self.timescale),
-            grid_label = _resolution_to_gridlabel(self.resolution)
+        # Get a list of unique variable ids for that catalog subset
+        (
+            self.unique_variable_ids,
+            self.scenario_options
+        ) = _get_unique_variables(
+            cat=self.cat,
+            activity_id=self.downscaling_method,
+            table_id=_timescale_to_table_id(self.timescale),
+            grid_label=_resolution_to_gridlabel(self.resolution),
         )
         self.unique_variable_ids = self.cat_subset.unique()["variable_id"]["values"]
 
@@ -556,6 +634,19 @@ class DataSelector(param.Parameterized):
             upper_bound = 2100
 
         self.time_slice = (low_bound, upper_bound)
+    
+    @param.depends("scenario", "append_historical", "timescale", watch=True)
+    def _update_simulation(self): 
+        """Simulation options will change if the scenario changes, 
+        or if the timescale changes, due to the fact that the ensmean
+        data is available (and needs to be removed) for hourly data."""
+        self.simulation = _get_simulation_options(
+            cat=self.cat,
+            activity_id=self.downscaling_method,
+            table_id=_timescale_to_table_id(self.timescale),
+            grid_label=_resolution_to_gridlabel(self.resolution),
+            experiment_id=[_scenario_to_experiment_id(scen) for scen in self.scenario]
+        )
 
     @param.depends("time_slice", "scenario_ssp", "scenario_historical", "append_historical", watch = False)
     def view(self):
