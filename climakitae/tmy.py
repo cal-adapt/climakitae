@@ -217,7 +217,7 @@ def _amy_heatmap(amy_df, title=None, cmap="viridis", cbar_label=None):
     return fig
 
 
-def lineplot_from_amy_data1(amy_data, computation_method=None, location_subset=None, warmlevel=None, variable=None):
+def lineplot_from_amy_data(amy_data, computation_method=None, location_subset=None, warmlevel=None, variable=None):
     """Generate a lineplot of AMY data, with mon-day-hr on the x-axis
     
     Args: 
