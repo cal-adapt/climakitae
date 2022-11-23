@@ -25,6 +25,7 @@ available for Analytics Engine Beta Launch. The AMY is comparable to a typical
 
 import matplotlib.pyplot as plt 
 from matplotlib.ticker import MaxNLocator
+import datetime
 import xarray as xr
 import numpy as np
 import pandas as pd
@@ -216,12 +217,15 @@ def _amy_heatmap(amy_df, title=None, cmap="viridis", cbar_label=None):
     return fig
 
 
-def lineplot_from_amy_data(amy_data, orig_xr_da=None):
+def lineplot_from_amy_data1(amy_data, computation_method=None, location_subset=None, warmlevel=None, variable=None):
     """Generate a lineplot of AMY data, with mon-day-hr on the x-axis
     
     Args: 
         amy_data (pd.DataFrame): data in the format of the dataframe returned by _amy_calc 
-        orig_xr_da (xr.DataArray): original data used to produce amy_data. used to populate title and ylabel 
+        computation_method (str): AMY computation method of data 
+        location_subset (str): location subset of data 
+        warmlevel (str): warming level used to generate data 
+        variable (str): Name of data variable 
     
     Returns: 
         fig (matplotlib.figure.Figure)
@@ -234,36 +238,30 @@ def lineplot_from_amy_data(amy_data, orig_xr_da=None):
     amy_stacked = amy_stacked.drop(columns = ["Day of Year", "Hour"]).set_index("Date")
     
     # Set plot title, suptitle, and ylabel using original xr DataArray
-    if orig_xr_da is not None: 
-        
-        # Set title 
-        amy_selections = app.explore.amy_selections()
-        suptitle = "Average Meterological Year: "+amy_selections.computation_method 
-        title = "Location Subset: "+my_data.location_subset
-        if amy_selections.computation_method == "Warming Level Future": 
-            suptitle += " at " + str(amy_selections.warmlevel) +"°C "
-        elif amy_selections.computation_method == "Historical": 
+    suptitle = "Average Meterological Year"
+    title = ""
+    if computation_method is not None: 
+        suptitle += ": "+computation_method 
+        if computation_method == "Warming Level Future": 
+            if warmlevel is not None: 
+                suptitle += " at " + str(warmlevel) +"°C "
+        if computation_method == "Historical": 
             suptitle += " Data"
             
-        # Check if input data is just one month of data 
-        try: # Try leap year 
-            months = [datetime.datetime.strptime("2024."+idx_i, "%Y.%b-%d %I%p").strftime("%B") for idx_i in amy_stacked.index]
-        except: # Try non leap year 
-            months = [datetime.datetime.strptime("2024."+idx_i, "%Y.%b-%d %I%p").strftime("%B") for idx_i in amy_stacked.index]
-        def check_if_all_identical(l):
-            return all(i == l[0] for i in l)
-        if check_if_all_identical(months): # Add month to title 
-            title += "\nMonth: "+months[0]
-        else: 
-            title += "\nMonths: "+months[0]+"-"+months[-1]
-            
-        # Set ylabel
-        ylabel = my_data.name + "(" + my_data.units + ")"
-    
+    # Add months information
+    try: # Try leap year 
+        months = [datetime.datetime.strptime("2024."+idx_i, "%Y.%b-%d %I%p").strftime("%B") for idx_i in amy_stacked.index]
+    except: # Try non leap year 
+        months = [datetime.datetime.strptime("2024."+idx_i, "%Y.%b-%d %I%p").strftime("%B") for idx_i in amy_stacked.index]
+    def check_if_all_identical(l):
+        return all(i == l[0] for i in l)
+    if check_if_all_identical(months): # Add month to title  
+        title += "Month: "+months[0]+"\n"  
     else: 
-        suptitle = None
-        title = "Average Meteorological Year" 
-        ylabel = None
+        title += "Months: "+months[0]+"-"+months[-1]+"\n"
+        
+    if location_subset is not None:  
+        title += "Location Subset: "+location_subset
     
     # Make plot 
     fig, axes = plt.subplots(1,1, figsize=(7,4))
@@ -271,13 +269,9 @@ def lineplot_from_amy_data(amy_data, orig_xr_da=None):
     axes.grid(alpha=0.25)
     plt.xticks(rotation=45)
     axes.xaxis.set_major_locator(MaxNLocator(10)) 
-    if ylabel is not None: 
-        axes.set_ylabel(ylabel)
-    if suptitle is not None: 
-        plt.suptitle(suptitle, fontsize=13, y=1.03)
-        axes.set_title(title, fontsize=10, y=1)
-    else: 
-        axes.set_title(title)
+    axes.set_ylabel(variable)
+    plt.suptitle(suptitle, fontsize=13, y=1.025)
+    axes.set_title(title, fontsize=10, y=1)
     plt.close()
     return fig
 
