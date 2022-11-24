@@ -44,11 +44,14 @@ class Application(object):
         # Reset simulation options
         # This will remove ensmean if the use has just called app.explore.amy()
         self.selections.simulation = _get_simulation_options( 
-            cat=self._cat,
-            activity_id=self.selections.downscaling_method,
-            table_id=_timescale_to_table_id(self.selections.timescale),
-            grid_label=_resolution_to_gridlabel(self.selections.resolution),
-            experiment_id=[_scenario_to_experiment_id(scen) for scen in self.selections.scenario]
+            cat = self._cat,
+            activity_id = self.selections.downscaling_method,
+            table_id = _timescale_to_table_id(self.selections.timescale),
+            grid_label = _resolution_to_gridlabel(self.selections.resolution),
+            experiment_id = [
+                _scenario_to_experiment_id(scen) for scen in 
+                self.selections.scenario_historical+self.selections.scenario_ssp
+            ]
         )
         # Display panel 
         select_panel = _display_select(self.selections, self.location)
