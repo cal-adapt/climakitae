@@ -99,11 +99,7 @@ def _get_cat_subset(selections, cat):
     """
 
     scenario_selections = selections.scenario_ssp + selections.scenario_historical
-    # Add back in Historical Climate if append_historical was selected
-    if (selections.append_historical == True and
-        "Historical Climate" not in scenario_selections):
-        scenario_selections += ["Historical Climate"]
-
+    
     # Get catalog keys
     # Convert user-friendly names to catalog names (i.e. "45km" to "d01")
     activity_id = selections.downscaling_method
@@ -182,8 +178,7 @@ def _get_area_subset(location):
 
 
 def _process_and_concat(selections, dsets, cat_subset):
-    """Process data if append_historical was selected.
-    Merge all datasets into one.
+    """Process all data; merge all datasets into one.
 
     Args:
         selections (DataLoaders): object holding user's selections
@@ -196,23 +191,25 @@ def _process_and_concat(selections, dsets, cat_subset):
 
     """
     da_list = []
-    scenario_list = cat_subset.unique()["experiment_id"]["values"]
-
-    # If append historical is true, we don't need to have an additional
-    # Historical Climate scenario coordinate
-    if "historical" in scenario_list and selections.append_historical == True:
-        scenario_list.remove("historical")
+    scenario_list = selections.scenario_historical + selections.scenario_ssp
+    
+    # If append historical is true, we don't need to have an additional Historical Climate scenario coordinate
+    if (
+        (selections.scenario_historical == ["Historical Climate"]) and 
+        (True in ["SSP" in one for one in selections.scenario_ssp])
+    ):
+        append_historical = True
+        scenario_list.remove("Historical Climate") 
+    else: 
+        append_historical = False
 
     for scenario in scenario_list:
         sim_list = []
-        da_name = _scenario_to_experiment_id(scenario, reverse=True)
-        for simulation in cat_subset.unique()["source_id"]["values"]:
-            if selections.append_historical and "ssp" in scenario:
-
+        da_name = _scenario_to_experiment_id(scenario)
+        for simulation in selections.simulation:
+            if append_historical:
                 # Reset name
-                da_name = "Historical + " + _scenario_to_experiment_id(
-                    scenario, reverse=True
-                )
+                da_name = "Historical + " + scenario
 
                 # Get filenames
                 try:
@@ -224,7 +221,7 @@ def _process_and_concat(selections, dsets, cat_subset):
                     ssp_filename = [
                         name
                         for name in dsets.keys()
-                        if simulation + "." + scenario in name
+                        if simulation + "." + _scenario_to_experiment_id(scenario) in name
                     ][0]
                 except:  # Some simulation + ssp options are not available. Just continue with the loop if no filename is found
                     continue
@@ -247,7 +244,7 @@ def _process_and_concat(selections, dsets, cat_subset):
                     filename = [
                         name
                         for name in dsets.keys()
-                        if simulation + "." + scenario in name
+                        if simulation + "." + _scenario_to_experiment_id(scenario) in name
                     ][0]
                 except:
                     continue
@@ -314,7 +311,6 @@ def _get_data_one_var(selections, location, cat):
         # Update dataset in dictionary
         data_dict.update({dname: dset})
 
-    # Process data if append_historical was selected.
     # Merge individual Datasets into one DataArray object.
     da = _process_and_concat(
         selections=selections, dsets=data_dict, cat_subset=cat_subset
@@ -342,12 +338,6 @@ def _read_from_catalog(selections, location, cat):
     
     # Raise error if no scenarios are selected
     assert not scenario_selections == [], "Please select as least one dataset."
-    
-    # Raise error if no simulation is selected and append_historical == True
-    if selections.append_historical:
-        if not any(['SSP' in s for s in scenario_selections]):
-            raise ValueError('Please also select at least one SSP to '
-                     'which the historical simulation should be appended.')
     
     # Deal with derived variables 
     if selections.variable_id == "precip_tot_derived":
