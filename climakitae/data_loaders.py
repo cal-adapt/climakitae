@@ -334,7 +334,7 @@ def _read_from_catalog(selections, location, cat):
                 "which the historical simulation should be appended."
             )
 
-    elif selections.variable_id == "wind_speed_derived":
+    if selections.variable_id == "wind_speed_derived":
 
         # Load u10 data
         selections.variable_id = "u10"
