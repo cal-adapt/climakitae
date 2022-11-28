@@ -8,6 +8,11 @@ name: ci
 on: [push, pull_request]
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: psf/black@stable
   build:
     strategy:
       fail-fast: false
