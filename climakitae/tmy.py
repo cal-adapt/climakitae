@@ -338,15 +338,6 @@ class AverageMeteorologicalYear(param.Parameterized):
         # Location defaults
         self.location.area_subset = "CA counties"
         self.location.cached_area = "Los Angeles County"
-        
-        # Selectors defaults
-        self.selections.append_historical = False
-        self.selections.area_average = True
-        self.selections.resolution = "45 km"
-        self.selections.scenario = ["Historical Climate"]  # setting for historical
-        self.selections.time_slice = (1981, 2010)
-        self.selections.timescale = "hourly"
-        self.selections.variable = "Air Temperature at 2m"
 
         # Initialze tmy_adanced_options param
         self.param["computation_method"].objects = self.tmy_advanced_options_dict[
@@ -376,6 +367,16 @@ class AverageMeteorologicalYear(param.Parameterized):
         
         # Colormap 
         self.cmap = _read_ae_colormap(cmap="ae_orange", cmap_hex=False)
+        
+        # Selectors defaults
+        self.selections.append_historical = False
+        self.selections.area_average = True
+        self.selections.resolution = "45 km"
+        self.selections.scenario = ["Historical Climate"]  # setting for historical
+        self.selections.time_slice = (1981, 2010)
+        self.selections.timescale = "hourly"
+        self.selections.variable = "Air Temperature at 2m"
+        self.selections.simulation = ["ensmean"]
 
     # For reloading data and plots
     reload_data = param.Action(
@@ -400,12 +401,10 @@ class AverageMeteorologicalYear(param.Parameterized):
     @param.depends("computation_method", "reload_data", "warmlevel", watch=True)
     def _update_data_to_be_returned(self):
         """Update self.selections so that the correct data is returned by app.retrieve()"""
+        
         if self.computation_method == "Historical":
             self.selections.scenario = ["Historical Climate"]
-            self.selections.time_slice = (
-                1981,
-                2010,
-            )  # to match historical 30-year average
+            self.selections.time_slice = (1981,2010,) 
 
         elif self.computation_method == "Warming Level Future":
             warming_year_average_range = {
@@ -415,6 +414,11 @@ class AverageMeteorologicalYear(param.Parameterized):
             }
             self.selections.scenario = ["SSP 3-7.0 -- Business as Usual"]
             self.selections.time_slice = warming_year_average_range[self.warmlevel]
+            
+        self.selections.simulation = ["ensmean"]
+        self.selections.append_historical = False
+        self.selections.area_average = True
+        self.selections.timescale = "hourly"
 
     @param.depends("reload_data", watch=True)
     def _update_tmy_data(self):
@@ -550,7 +554,7 @@ def _amy_visualize(tmy_ob, selections, location):
         title=" How do you want to investigate AMY?",
         collapsible=False,
         width=510,
-        height=600,
+        height=615,
     )
 
     mthd_bx = pn.Column(
