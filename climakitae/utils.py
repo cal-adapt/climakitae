@@ -1,4 +1,5 @@
 import numpy as np
+import datetime
 import xarray as xr
 import rioxarray as rio
 import pandas as pd
@@ -14,6 +15,26 @@ ae_diverging = pkg_resources.resource_filename(
     "climakitae", "data/cmaps/ae_diverging.txt"
 )
 ae_blue = pkg_resources.resource_filename("climakitae", "data/cmaps/ae_blue.txt")
+
+
+def julianDay_to_str_date(julday, leap_year=True, str_format="%b-%d"): 
+    """Convert julian day of year to string format 
+    i.e. if str_format = "%b-%d", the output will be Mon-Day ("Jan-01") 
+    
+    Args: 
+        julday (int): Julian day 
+        leap_year (boolean): leap year? (default to True)
+        str_format (str): string format of output date 
+        
+    Return: 
+        date (str): Julian day in the input format month-day (i.e. "Jan-01")  
+    """
+    if leap_year: 
+        year = "2024"
+    else: 
+        year = "2023" 
+    date = datetime.datetime.strptime(year+"."+str(julday), '%Y.%j').strftime(str_format)
+    return date 
 
 
 def _readable_bytes(B):
