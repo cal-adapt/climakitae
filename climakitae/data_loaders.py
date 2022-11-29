@@ -176,7 +176,7 @@ def _get_area_subset(location):
         ds_region = None
     return ds_region
 
-def _process_and_concat(selections, dsets, cat_subset):
+def _process_and_concat(selections, location, dsets, cat_subset):
     """Process all data; merge all datasets into one.
 
     Args:
@@ -268,6 +268,7 @@ def _process_and_concat(selections, dsets, cat_subset):
         "resolution": selections.resolution,
         "frequency": selections.timescale,
         "grid_mapping": da_final.attrs["grid_mapping"],
+        "location_subset": location.cached_area,
         "variable_id": selections.variable_id,
         "extended_description": selections.extended_description,
         "units": da_final.attrs["units"],

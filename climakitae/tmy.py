@@ -58,7 +58,8 @@ xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
 
 def _get_historical_tmy_data(cat, selections, location):
     """Get historical data from AWS catalog"""
-    selections.scenario = ["Historical Climate"]
+    selections.scenario_historical = ["Historical Climate"]
+    selections.scenario_ssp = []
     selections.time_slice = (1981, 2010)
     selections.append_historical = False
     selections.area_average = True
@@ -78,7 +79,8 @@ def _get_future_tmy_data(cat, selections, location, warmlevel):
         2: (2047, 2076),
         3: (2061, 2090),
     }
-    selections.scenario = ["SSP 3-7.0 -- Business as Usual"]
+    selections.scenario_ssp = ["SSP 3-7.0 -- Business as Usual"]
+    selections.scenario_historical = ["Historical Climate"]
     selections.time_slice = warming_year_average_range[warmlevel]
     selections.append_historical = False
     selections.area_average = True
@@ -372,7 +374,8 @@ class AverageMeteorologicalYear(param.Parameterized):
         self.selections.append_historical = False
         self.selections.area_average = True
         self.selections.resolution = "45 km"
-        self.selections.scenario = ["Historical Climate"]  # setting for historical
+        self.selections.scenario_historical = ["Historical Climate"]  
+        self.selections.scenario_ssp = []
         self.selections.time_slice = (1981, 2010)
         self.selections.timescale = "hourly"
         self.selections.variable = "Air Temperature at 2m"
@@ -403,7 +406,8 @@ class AverageMeteorologicalYear(param.Parameterized):
         """Update self.selections so that the correct data is returned by app.retrieve()"""
         
         if self.computation_method == "Historical":
-            self.selections.scenario = ["Historical Climate"]
+            self.selections.scenario_historical = ["Historical Climate"]
+            self.selections.scenario_ssp = []
             self.selections.time_slice = (1981,2010,) 
 
         elif self.computation_method == "Warming Level Future":
@@ -412,7 +416,8 @@ class AverageMeteorologicalYear(param.Parameterized):
                 2: (2047, 2076),
                 3: (2061, 2090),
             }
-            self.selections.scenario = ["SSP 3-7.0 -- Business as Usual"]
+            self.selections.scenario_ssp = ["SSP 3-7.0 -- Business as Usual"]
+            self.selections.scenario_historical = []
             self.selections.time_slice = warming_year_average_range[self.warmlevel]
             
         self.selections.simulation = ["ensmean"]
