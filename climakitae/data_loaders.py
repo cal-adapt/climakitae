@@ -194,9 +194,12 @@ def _process_and_concat(selections, location, dsets, cat_subset):
     
     if (True in ["SSP" in one for one in selections.scenario_ssp]):
         if "Historical Climate" in selections.scenario_historical: 
+            # Historical climate will be appended to the SSP data
             append_historical = True
             scenario_list.remove("Historical Climate")
         if "Historical Reconstruction (ERA5-WRF)" in selections.scenario_historical: 
+            # We are not allowing users to select historical reconstruction data and SSP data at the same time, 
+            # due to the memory restrictions at the moment 
             scenario_list.remove("Historical Reconstruction (ERA5-WRF)")
         
     else: 
