@@ -192,13 +192,13 @@ def _process_and_concat(selections, location, dsets, cat_subset):
     da_list = []
     scenario_list = selections.scenario_historical + selections.scenario_ssp
     
-    # If append historical is true, we don't need to have an additional Historical Climate scenario coordinate
-    if (
-        (selections.scenario_historical == ["Historical Climate"]) and 
-        (True in ["SSP" in one for one in selections.scenario_ssp])
-    ):
-        append_historical = True
-        scenario_list.remove("Historical Climate") 
+    if (True in ["SSP" in one for one in selections.scenario_ssp]):
+        if "Historical Climate" in selections.scenario_historical: 
+            append_historical = True
+            scenario_list.remove("Historical Climate")
+        if "Historical Reconstruction (ERA5-WRF)" in selections.scenario_historical: 
+            scenario_list.remove("Historical Reconstruction (ERA5-WRF)")
+        
     else: 
         append_historical = False
 

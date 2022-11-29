@@ -540,12 +540,8 @@ class DataSelector(param.Parameterized):
     @param.depends("resolution", "scenario_ssp", "scenario_historical", watch=True)
     def _update_scenarios(self):
         """
-        The scenarios available will depend on the resolution (more will be
-        available for 9km than 3km for WRF eventually). Also ensures that
-        "Historical Climate" is not redundantly displayed when
-        "Append historical" is also selected.
-        """         
-        self._data_warning = ""
+        Update scenario options. Raise data warning if a bad selection is made.
+        """     
         
         # Get scenario options in catalog format
         scenario_ssp_options = [
@@ -569,20 +565,21 @@ class DataSelector(param.Parameterized):
         ) :
             self._data_warning = "Historical Reconstruction (ERA5-WRF) data is not available with SSP data. \
             Try using the Historical Climate data instead."
-            self.scenario_historical.remove("Historical Reconstruction (ERA5-WRF)")
             
-        if ( # Warn user if no data is selected
+        elif ( # Warn user if no data is selected
             (not True in ["SSP" in one for one in self.scenario_ssp]) and 
             (not True in ["Historical" in one for one in self.scenario_historical])
         ):
             self._data_warning = "Please select as least one dataset."
             
-        if ( # If both historical options are selected, warn user the data will be cut
+        elif ( # If both historical options are selected, warn user the data will be cut
             ("Historical Reconstruction (ERA5-WRF)" in self.scenario_historical) and 
             ("Historical Climate" in self.scenario_historical)
         ):  
             self._data_warning = "The timescale of Historical Reconstruction (ERA5-WRF) data will be cut \
             to match the timescale of the Historical Climate data if both are retrieved together."
+        else: 
+            self._data_warning = ""
 
     @param.depends("scenario_ssp", "scenario_historical", watch = True)
     def _update_time_slice_range(self):
@@ -653,9 +650,10 @@ class DataSelector(param.Parameterized):
         if (self.scenario_ssp is not None) and (self.scenario_historical is not None):
             for scen in self.scenario_ssp + self.scenario_historical:
                 
-                if scen == "Historical Climate" and (["SSP" in one for one in self.scenario_ssp]): 
-                    continue
-
+                if (["SSP" in one for one in self.scenario_ssp]): 
+                    if scen in ["Historical Climate","Historical Reconstruction (ERA5-WRF)"]: 
+                        continue 
+                        
                 if scen == "Historical Reconstruction (ERA5-WRF)":
                     color = "darkblue"
                     if "Historical Climate" in self.scenario_historical: 
