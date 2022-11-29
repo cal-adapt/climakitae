@@ -9,7 +9,7 @@ from .utils import _reproject_data, _read_ae_colormap
 
 # Import package data
 var_catalog_resource = pkg_resources.resource_filename(
-    "climakitae", "data/variable_catalog.csv"
+    "climakitae", "data/variable_descriptions.csv"
 )
 var_catalog = pd.read_csv(var_catalog_resource, index_col=None)
 
