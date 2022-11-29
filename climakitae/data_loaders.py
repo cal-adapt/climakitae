@@ -176,7 +176,6 @@ def _get_area_subset(location):
         ds_region = None
     return ds_region
 
-
 def _process_and_concat(selections, dsets, cat_subset):
     """Process all data; merge all datasets into one.
 
@@ -265,12 +264,14 @@ def _process_and_concat(selections, dsets, cat_subset):
     da_final.attrs = {  # Add descriptive attributes to DataArray
         "institution": orig_attrs["institution"],
         "source": orig_attrs["source"],
+        "location_subset": location.cached_area,
         "resolution": selections.resolution,
         "frequency": selections.timescale,
         "grid_mapping": da_final.attrs["grid_mapping"],
         "variable_id": selections.variable_id,
         "extended_description": selections.extended_description,
         "units": da_final.attrs["units"],
+        
     }
     return da_final
 
@@ -313,7 +314,7 @@ def _get_data_one_var(selections, location, cat):
 
     # Merge individual Datasets into one DataArray object.
     da = _process_and_concat(
-        selections=selections, dsets=data_dict, cat_subset=cat_subset
+        selections=selections, location=location, dsets=data_dict, cat_subset=cat_subset
     )
 
     return da
