@@ -597,7 +597,8 @@ class DataSelector(param.Parameterized):
             upper_bound = 2022
         elif ( # If both are selected 
             ("Historical Reconstruction (ERA5-WRF)" in self.scenario_historical) and 
-            ("Historical Climate" in self.scenario_historical)
+            ("Historical Climate" in self.scenario_historical) and 
+            (not True in ["SSP" in one for one in self.scenario_ssp])
         ): 
             low_bound = 1980 
             upper_bound = 2015  
