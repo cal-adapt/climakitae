@@ -50,7 +50,7 @@ logging.getLogger("param").setLevel(logging.CRITICAL)
 
 # Variable info
 var_catalog_resource = pkg_resources.resource_filename(
-    "climakitae", "data/variable_catalog.csv"
+    "climakitae", "data/variable_descriptions.csv"
 )
 var_catalog = pd.read_csv(var_catalog_resource, index_col="variable_id")
 
