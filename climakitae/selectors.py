@@ -721,10 +721,8 @@ def _display_select(selections, location, location_type = "area average"):
     for location_type -- 'area average' is the only choice, until station-based
     data are available.
     """
-    assert location_type in [
-        "area average",
-        "station",
-    ], "Please enter either 'area average' or 'station'."
+    if location_type not in ["area average", "station"]:
+        raise ValueError("Please enter either 'area average' or 'station'.")
 
     # _which_loc_input = {'area average': LocSelectorArea, 'station': LocSelectorPoint}
     location_chooser = pn.Row(location.param, location.view)
