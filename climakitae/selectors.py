@@ -20,7 +20,7 @@ from .catalog_convert import (
 
 # Import package data
 var_catalog_resource = pkg_resources.resource_filename(
-    "climakitae", "data/variable_catalog.csv"
+    "climakitae", "data/variable_descriptions.csv"
 )
 var_catalog = pd.read_csv(var_catalog_resource, index_col=None)
 unit_options_dict = _get_unit_conversion_options()
