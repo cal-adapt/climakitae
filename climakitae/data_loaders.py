@@ -97,14 +97,8 @@ def _get_cat_subset(selections, cat):
 
     """
 
-    # Add back in Historical Climate if append_historical was selected
-    scenario_selections = selections.scenario.copy()
-    if (
-        selections.append_historical == True
-        and "Historical Climate" not in scenario_selections
-    ):
-        scenario_selections += ["Historical Climate"]
-
+    scenario_selections = selections.scenario_ssp + selections.scenario_historical
+    
     # Get catalog keys
     # Convert user-friendly names to catalog names (i.e. "45km" to "d01")
     activity_id = selections.downscaling_method
@@ -161,10 +155,8 @@ def _get_area_subset(location):
         ds_region = None
     return ds_region
 
-
 def _process_and_concat(selections, location, dsets, cat_subset):
-    """Process data if append_historical was selected.
-    Merge all datasets into one.
+    """Process all data; merge all datasets into one.
 
     Args:
         selections (DataLoaders): object holding user's selections
@@ -177,23 +169,26 @@ def _process_and_concat(selections, location, dsets, cat_subset):
 
     """
     da_list = []
-    scenario_list = cat_subset.unique()["experiment_id"]["values"]
-
-    # If append historical is true, we don't need to have an additional
-    # Historical Climate scenario coordinate
-    if "historical" in scenario_list and selections.append_historical == True:
-        scenario_list.remove("historical")
+    scenario_list = selections.scenario_historical + selections.scenario_ssp
+    append_historical = False
+    
+    if (True in ["SSP" in one for one in selections.scenario_ssp]):
+        if "Historical Climate" in selections.scenario_historical: 
+            # Historical climate will be appended to the SSP data
+            append_historical = True
+            scenario_list.remove("Historical Climate")
+        if "Historical Reconstruction (ERA5-WRF)" in selections.scenario_historical: 
+            # We are not allowing users to select historical reconstruction data and SSP data at the same time, 
+            # due to the memory restrictions at the moment 
+            scenario_list.remove("Historical Reconstruction (ERA5-WRF)")
 
     for scenario in scenario_list:
         sim_list = []
-        da_name = _scenario_to_experiment_id(scenario, reverse=True)
-        for simulation in cat_subset.unique()["source_id"]["values"]:
-            if selections.append_historical and "ssp" in scenario:
-
+        da_name = _scenario_to_experiment_id(scenario)
+        for simulation in selections.simulation:
+            if append_historical:
                 # Reset name
-                da_name = "Historical + " + _scenario_to_experiment_id(
-                    scenario, reverse=True
-                )
+                da_name = "Historical + " + scenario
 
                 # Get filenames
                 try:
@@ -205,7 +200,7 @@ def _process_and_concat(selections, location, dsets, cat_subset):
                     ssp_filename = [
                         name
                         for name in dsets.keys()
-                        if simulation + "." + scenario in name
+                        if simulation + "." + _scenario_to_experiment_id(scenario) in name
                     ][0]
                 except:  # Some simulation + ssp options are not available. Just continue with the loop if no filename is found
                     continue
@@ -228,7 +223,7 @@ def _process_and_concat(selections, location, dsets, cat_subset):
                     filename = [
                         name
                         for name in dsets.keys()
-                        if simulation + "." + scenario in name
+                        if simulation + "." + _scenario_to_experiment_id(scenario) in name
                     ][0]
                 except:
                     continue
@@ -253,6 +248,7 @@ def _process_and_concat(selections, location, dsets, cat_subset):
         "resolution": selections.resolution,
         "frequency": selections.timescale,
         "grid_mapping": da_final.attrs["grid_mapping"],
+        "location_subset": location.cached_area,
         "variable_id": selections.variable_id,
         "extended_description": selections.extended_description,
         "units": da_final.attrs["units"],
@@ -301,7 +297,6 @@ def _get_data_one_var(selections, location, cat):
         # Update dataset in dictionary
         data_dict.update({dname: dset})
 
-    # Process data if append_historical was selected.
     # Merge individual Datasets into one DataArray object.
     da = _process_and_concat(
         selections=selections, location=location, dsets=data_dict, cat_subset=cat_subset
@@ -325,18 +320,34 @@ def _read_from_catalog(selections, location, cat):
         da (xr.DataArray): output data
 
     """
+    scenario_selections = selections.scenario_ssp + selections.scenario_historical
+    
     # Raise error if no scenarios are selected
-    assert not selections.scenario == [], "Please select as least one scenario."
+    assert not scenario_selections == [], "Please select as least one dataset."
+    
+    # Deal with derived variables 
+    if selections.variable_id == "precip_tot_derived":
 
-    # Raise error if no simulation is selected and append_historical == True
-    if selections.append_historical:
-        if not any(["SSP" in s for s in selections.scenario]):
-            raise ValueError(
-                "Please also select at least one SSP to "
-                "which the historical simulation should be appended."
-            )
+        # Load cumulus precip data
+        selections.variable_id = "rainc"
+        cumulus_precip_da = _get_data_one_var(selections, location, cat)
 
-    if selections.variable_id == "wind_speed_derived":
+        # Load grid-scale precip data
+        selections.variable_id = "rainnc"
+        gridscale_precip_da = _get_data_one_var(selections, location, cat)
+
+        # Derive precip total
+        da = _compute_total_precip(
+            cumulus_precip=cumulus_precip_da,
+            gridcell_precip=gridscale_precip_da,
+            variable_name=selections.variable,
+        )
+
+        # Reset variable id
+        selections.variable_id = "precip_tot_derived"
+        da.attrs["variable_id"] = "precip_tot_derived"
+
+    elif selections.variable_id == "wind_speed_derived":
 
         # Load u10 data
         selections.variable_id = "u10"

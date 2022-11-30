@@ -182,10 +182,10 @@ class WarmingLevels(param.Parameterized):
         super().__init__(*args, **params)
 
         # Selectors defaults
-        self.selections.append_historical = True
+        self.selections.scenario_historical = ["Historical Climate"] 
         self.selections.area_average = False
         self.selections.resolution = "45 km"
-        self.selections.scenario = ["SSP 3-7.0 -- Business as Usual"]
+        self.selections.scenario_ssp = ["SSP 3-7.0 -- Business as Usual"]
         self.selections.time_slice = (1980, 2100)
         self.selections.timescale = "monthly"
         self.selections.variable = "Air Temperature at 2m"
