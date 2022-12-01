@@ -33,7 +33,7 @@ class TimeSeriesParams(param.Parameterized):
     _time_scales = dict(
         [("hours", "H"), ("days", "D"), ("months", "MS"), ("years", "AS-SEP")]
     )
-    num_timesteps = param.Integer(default = 0, bounds = (0, 240))
+    # num_timesteps = param.Integer(default = 0, bounds = (0, 240))
     separate_seasons = param.Boolean(
         default = False, label = "Disaggregate into four seasons"
     )
@@ -305,15 +305,16 @@ def _update_attrs(data_to_output, attrs_to_add):
     attributes = data_to_output.attrs
     attrs_to_add.pop('name')
     attrs_to_add.pop('separate_seasons')
+    attrs_to_add.pop('_data_warning')
     if attrs_to_add['extremes'] != 'percentile':
         attrs_to_add.pop('percentile')
-    # if attrs_to_add['extremes'] == 'None':
-        # attrs_to_add.pop('resample_period')
-        # attrs_to_add.pop('resample_window')
-    if attrs_to_add['smoothing'] != 'None':
+    if attrs_to_add['smoothing'] == 'None':
         # attrs_to_add.pop('smoothing_timesteps') = attrs_to_add['resample_window']
         attrs_to_add.pop('resample_period')
         attrs_to_add.pop('resample_window')
+    # if attrs_to_add['extremes'] == 'None':
+    #     attrs_to_add.pop('resample_period')
+    #     attrs_to_add.pop('resample_window')
     if not attrs_to_add['anomaly']:
         attrs_to_add.pop('reference_range')
 
