@@ -27,18 +27,16 @@ unit_options_dict = _get_unit_conversion_options()
 
 # Read in utilties shapefile from package data 
 utitilies_file = pkg_resources.resource_filename(
-    "climakitae", "data/Electric_Load_Serving_Entities_(IOU_%26_POU).zip"
+    "climakitae", "data/Electric_Load_Serving_Entities_(IOU_%26_POU)"
 )
-utilities = gpd.read_file(utitilies_file)
-utilities = utilities.to_crs(4326) # Convert geometries to lat/lon 
+utilities = gpd.read_parquet(utitilies_file)
 utilties = utilities[["OBJECTID","Acronym","Utility","Type","geometry"]]
 
 # Read in forecast zones 
 forecast_zones_file = pkg_resources.resource_filename(
-    "climakitae", "data/California_Electricity_Demand_Forecast_Zones.zip"
+    "climakitae", "data/California_Electricity_Demand_Forecast_Zones"
 )
-forecast_zones = gpd.read_file(forecast_zones_file)
-forecast_zones = forecast_zones.to_crs(4326) # Convert geometries to lat/lon 
+forecast_zones = gpd.read_parquet(forecast_zones_file)
 
 # For Forecast Zones named "Other", replace that with the name of the county
 forecast_zones.loc[forecast_zones["FZ_Name"] == "Other", "FZ_Name"] = forecast_zones["FZ_Def"]
