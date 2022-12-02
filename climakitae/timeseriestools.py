@@ -23,39 +23,53 @@ class TimeSeriesParams(param.Parameterized):
         self.data = dataset
         self._data_warning = ""
 
-    anomaly = param.Boolean(default=True, label="Difference from a historical mean")
+    anomaly = param.Boolean(
+        default = True, 
+        label = "Difference from a historical mean"
+    )
     reference_range = param.CalendarDateRange(
-        default=(dt.datetime(1981, 1, 1), dt.datetime(2010, 12, 31)),
-        bounds=(dt.datetime(1980, 1, 1), dt.datetime(2021, 12, 31)),
+        default = (dt.datetime(1981, 1, 1), dt.datetime(2010, 12, 31)),
+        bounds = (dt.datetime(1980, 1, 1), dt.datetime(2021, 12, 31)),
     )
     remove_seasonal_cycle = param.Boolean(default = False)
-    smoothing = param.ObjectSelector(default = "None", objects = ["None", "Running Mean"])
+    smoothing = param.ObjectSelector(
+        default = "None", 
+        objects = ["None", "Running Mean"]
+    )
     _time_scales = dict(
         [("hours", "H"), ("days", "D"), ("months", "MS"), ("years", "AS-SEP")]
     )
     # num_timesteps = param.Integer(default = 0, bounds = (0, 240))
     separate_seasons = param.Boolean(
-        default=False, label="Disaggregate into four seasons"
+        default = False, 
+        label = "Disaggregate into four seasons"
     )
 
     extremes = param.ObjectSelector(
-        default = "None", objects = ["None", "Min", "Max", "Percentile"]
+        default = "None", 
+        objects = ["None", "Min", "Max", "Percentile"]
     )
-    resample_window = param.Integer(default=1, bounds=(1, 30))
-    resample_period = param.ObjectSelector(default="AS-SEP", objects=_time_scales)
+    resample_window = param.Integer(
+        default = 1, 
+        bounds = (1, 30)
+    )
+    resample_period = param.ObjectSelector(
+        default = "AS-SEP", 
+        objects = _time_scales
+    )
     percentile = param.Number(
-        default=0,
-        bounds=(0, 1),
-        step=0.01,
-        doc="Relevant if 'running extremes' is 'percentile.",
+        default = 0,
+        bounds = (0, 1),
+        step = 0.01,
+        doc = "Relevant if 'running extremes' is 'percentile.",
     )
 
-    @param.depends("anomaly", watch=True)
+    @param.depends("anomaly", watch = True)
     def update_seasonal_cycle(self):
         if not self.anomaly:
             self.remove_seasonal_cycle = False
 
-    @param.depends("remove_seasonal_cycle", watch=True)
+    @param.depends("remove_seasonal_cycle", watch = True)
     def update_anom(self):
         if self.remove_seasonal_cycle:
             self.anomaly = True
@@ -80,7 +94,7 @@ class TimeSeriesParams(param.Parameterized):
             if y.attrs["frequency"] == "1month":
                 # If frequency is monthly, then the reference period average needs to be a
                 # weighted average, with weights equal to the number of days in each month
-                reference_slice = y.sel(time=slice(*self.reference_range))
+                reference_slice = y.sel(time = slice(*self.reference_range))
                 month_weights = (
                     reference_slice.time.dt.daysinmonth
                 )  # Number of days in each month of the reference range
@@ -89,7 +103,7 @@ class TimeSeriesParams(param.Parameterized):
                 )  # Calculate the weighted average of this period
                 return y - reference_avg  # return the difference
             else:
-                return y - y.sel(time=slice(*self.reference_range)).mean("time")
+                return y - y.sel(time = slice(*self.reference_range)).mean("time")
 
         def _running_mean(y):
             # If timescale is monthly, need to weight the rolling average by the number of days in each month
@@ -98,8 +112,14 @@ class TimeSeriesParams(param.Parameterized):
                 month_weights = y.time.dt.daysinmonth
 
                 # Construct DataArrayRolling objects for both the data and the weights
-                rolling_y = y.rolling(time = self.resample_window, center = True).construct("window")
-                rolling_weights = month_weights.rolling(time = self.resample_window, center = True).construct("window")
+                rolling_y = y.rolling(
+                    time = self.resample_window, 
+                    center = True
+                ).construct("window")
+                rolling_weights = month_weights.rolling(
+                    time = self.resample_window, 
+                    center = True
+                ).construct("window")
 
                 # Build a DataArrayWeighted and collapse across the window dimension with mean
                 result = rolling_y.weighted(rolling_weights.fillna(0)).mean(
@@ -107,7 +127,10 @@ class TimeSeriesParams(param.Parameterized):
                 )
                 return result
             else:
-                return y.rolling(time = self.resample_window, center = True).mean("time")
+                return y.rolling(
+                    time = self.resample_window, 
+                    center = True
+                ).mean("time")
 
         if self.anomaly and not self.separate_seasons:
             to_plot = _getAnom(to_plot)
@@ -127,15 +150,15 @@ class TimeSeriesParams(param.Parameterized):
                 self._data_warning = ""
                 if self.extremes == "Max":
                     to_plot = to_plot.resample(
-                        time=str(self.resample_window) + self.resample_period
+                        time = str(self.resample_window) + self.resample_period
                     ).max("time")
                 elif self.extremes == "Min":
                     to_plot = to_plot.resample(
-                        time=str(self.resample_window) + self.resample_period
+                        time = str(self.resample_window) + self.resample_period
                     ).min("time")
                 elif self.extremes == "Percentile":
                     to_plot = to_plot.resample(
-                        time=str(self.resample_window) + self.resample_period
+                        time = str(self.resample_window) + self.resample_period
                     ).quantile(q = self.percentile)
         else:
             if self.extremes != "None":
