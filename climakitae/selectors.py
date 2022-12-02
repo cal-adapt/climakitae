@@ -27,14 +27,14 @@ unit_options_dict = _get_unit_conversion_options()
 
 # Read in utilties shapefile from package data 
 utitilies_file = pkg_resources.resource_filename(
-    "climakitae", "data/Electric_Load_Serving_Entities_(IOU_%26_POU)"
+    "climakitae", "data/Electric_Load_Serving_Entities_(IOU_%26_POU).parquet"
 )
 utilities = gpd.read_parquet(utitilies_file)
 utilties = utilities[["OBJECTID","Acronym","Utility","Type","geometry"]]
 
 # Read in forecast zones 
 forecast_zones_file = pkg_resources.resource_filename(
-    "climakitae", "data/California_Electricity_Demand_Forecast_Zones"
+    "climakitae", "data/California_Electricity_Demand_Forecast_Zones.parquet"
 )
 forecast_zones = gpd.read_parquet(forecast_zones_file)
 
