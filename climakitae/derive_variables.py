@@ -1,30 +1,11 @@
-import metpy.calc
-import metpy
 import numpy as np
 
-def _compute_total_precip(cumulus_precip, gridcell_precip,
-                          variable_name = "TOT_PRECIP"):
-    """ Compute total precipitation
+def _compute_relative_humidity(
+    pressure, temperature, mixing_ratio, variable_name="REL_HUMIDITY"
+):
+    """Compute relative humidity.
+    Variable attributes need to be assigned outside of this function because the metpy function removes them
 
-    Args:
-        cumulus_precip (xr.DataArray): Accumulated total cumulus precipitation (mm)
-        gridcell_precip (xr.DataArray): Accumulated total grid scale precipitation (mm)
-        variable_name (string): Name to assign DataArray object (default to "TOT_PRECIP")
-
-    Returns:
-        total_precip (xr.DataArray): Total precipitation (mm)
-    """
-
-    total_precip = cumulus_precip + gridcell_precip
-
-    # Assign descriptive name and attributes
-    total_precip.name = variable_name
-    total_precip.attrs["description"] = "Total precipitation"
-    return total_precip
-
-def _compute_relative_humidity(pressure, temperature, mixing_ratio,
-                               variable_name = "REL_HUMIDITY"):
-    """Compute relative humidity
 
     Args:
         pressure (xr.DataArray): Pressure in Pascals
@@ -36,27 +17,24 @@ def _compute_relative_humidity(pressure, temperature, mixing_ratio,
         rel_hum (xr.DataArray): Relative humidity
 
     """
-    rel_hum = metpy.calc.relative_humidity_from_mixing_ratio(
-        pressure = pressure,
-        temperature = temperature,
-        mixing_ratio = mixing_ratio
-    )
-    rel_hum = rel_hum.metpy.dequantify() # metpy function returns a pint.Quantity
-    # object, which can cause issues with dask. This can be undone using the dequantify function.
-    # For more info: https://unidata.github.io/MetPy/latest/tutorials/xarray_tutorial.html
 
-    # Assign descriptive name and attributes
+    # Calculates saturated vapor pressure, unit is in kPa
+    e_s = 0.611 * np.exp((2500000 / 461) * ((1 / 273) - (1 / temperature)))
+
+    # Calculates saturated mixing ratio, unit is kg/kg, pressure has to be divided by 1000 to get to kPa at this step
+    r_s = (0.622 * e_s) / ((pressure / 1000) - e_s)
+
+    # Calculates relative humidity, unit is 0 to 100
+    rel_hum = 100 * (mixing_ratio / r_s)
+
+    # Assign descriptive name
     rel_hum.name = variable_name
-    rel_hum.attrs["description"] = "Relative humidity"
+    rel_hum.attrs["units"] = "[0 to 100]"
 
-    # For some reason, the grid_mapping attr is lost by the metpy function
-    # We want to add it back in to allow for projecting the data
-    for var in [pressure, temperature, mixing_ratio]:
-        if "grid_mapping" in var.attrs:
-            rel_hum.attrs["grid_mapping"] = var.attrs["grid_mapping"]
     return rel_hum
 
-def _compute_wind_mag(u10, v10, variable_name = "WIND_MAG"):
+
+def _compute_wind_mag(u10, v10, variable_name="WIND_MAG"):
     """Compute wind magnitude at 10 meters
 
     Args:
@@ -69,9 +47,5 @@ def _compute_wind_mag(u10, v10, variable_name = "WIND_MAG"):
 
     """
     wind_mag = np.sqrt(np.square(u10) + np.square(v10))
-
-    # Assign descriptive name and attributes
     wind_mag.name = variable_name
-    wind_mag.attrs["description"] = "Wind magnitude at 10 m"
-    wind_mag.attrs["units"] = "m s-1"
     return wind_mag

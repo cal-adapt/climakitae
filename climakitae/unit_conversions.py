@@ -5,6 +5,7 @@ Wind speed: https://www.weather.gov/media/epz/wxcalc/windConversion.pdf
 Pressure: https://www.weather.gov/media/epz/wxcalc/pressureConversion.pdf
 """
 
+
 def _get_unit_conversion_options():
     """Get dictionary of unit conversion options offered for each unit"""
     options = {
@@ -16,12 +17,13 @@ def _get_unit_conversion_options():
         "[0 to 100]": ["[0 to 100]", "fraction"],
         "mm": ["mm", "inches"],
         "kg/kg": ["kg/kg", "g/kg"],
-        "kg kg-1": ["kg kg-1", "g kg-1"]
+        "kg kg-1": ["kg kg-1", "g kg-1"],
     }
     return options
 
+
 def _convert_units(da, selected_units):
-    """ Converts units for any variable
+    """Converts units for any variable
 
     Args:
       da (xr.DataArray): Data
@@ -35,15 +37,24 @@ def _convert_units(da, selected_units):
     try:
         native_units = da.attrs["units"]
     except:
-        raise ValueError(("You've encountered a bug in the code. This variable"
-                          "does not have identifiable native units. The data"
-                          " for this variable will need to have a 'units'"
-                          " attribute added in the catalog."))
+        raise ValueError(
+            (
+                "You've encountered a bug in the code. This variable"
+                "does not have identifiable native units. The data"
+                " for this variable will need to have a 'units'"
+                " attribute added in the catalog."
+            )
+        )
+
+    # Convert daily precip mm/d to mm
+    if native_units == "mm/d":
+        da.attrs["units"] = "mm"
+        native_units = "mm"
 
     # Convert hPa to Pa to make conversions easier
     # Monthly data native unit is hPa, hourly is Pa
     if native_units == "hPa" and selected_units != "hPa":
-        da = da * 100.
+        da = da / 100.0
         da.attrs["units"] = "Pa"
         native_units = "Pa"
 
@@ -66,10 +77,10 @@ def _convert_units(da, selected_units):
     # Pressure units
     elif native_units == "Pa":
         if selected_units == "hPa":
-            da = da / 100.
+            da = da / 100.0
             da.attrs["units"] = selected_units
         elif selected_units == "mb":
-            da = da / 100.
+            da = da / 100.0
             da.attrs["units"] = selected_units
         elif selected_units == "inHg":
             da = da * 0.000295300
@@ -93,6 +104,6 @@ def _convert_units(da, selected_units):
     # Fraction/percentage units (relative humidity)
     elif native_units == "[0 to 100]":
         if selected_units == "fraction":
-            da = da / 100.
+            da = da / 100.0
             da.attrs["units"] = selected_units
     return da

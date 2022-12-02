@@ -23,7 +23,7 @@ class TimeSeriesParams(param.Parameterized):
         self.data = dataset
         self._data_warning = ""
 
-    anomaly = param.Boolean(default = True, label = "Difference from a historical mean")
+    anomaly = param.Boolean(default=True, label="Difference from a historical mean")
     reference_range = param.CalendarDateRange(
         default=(dt.datetime(1981, 1, 1), dt.datetime(2010, 12, 31)),
         bounds=(dt.datetime(1980, 1, 1), dt.datetime(2021, 12, 31)),
@@ -35,27 +35,27 @@ class TimeSeriesParams(param.Parameterized):
     )
     # num_timesteps = param.Integer(default = 0, bounds = (0, 240))
     separate_seasons = param.Boolean(
-        default = False, label = "Disaggregate into four seasons"
+        default=False, label="Disaggregate into four seasons"
     )
 
     extremes = param.ObjectSelector(
         default = "None", objects = ["None", "Min", "Max", "Percentile"]
     )
-    resample_window = param.Integer(default = 1, bounds = (1, 30))
-    resample_period = param.ObjectSelector(default = "AS-SEP", objects = _time_scales)
+    resample_window = param.Integer(default=1, bounds=(1, 30))
+    resample_period = param.ObjectSelector(default="AS-SEP", objects=_time_scales)
     percentile = param.Number(
-        default = 0,
-        bounds = (0, 1),
-        step = 0.01,
-        doc = "Relevant if 'running extremes' is 'percentile.",
+        default=0,
+        bounds=(0, 1),
+        step=0.01,
+        doc="Relevant if 'running extremes' is 'percentile.",
     )
 
-    @param.depends("anomaly", watch = True)
+    @param.depends("anomaly", watch=True)
     def update_seasonal_cycle(self):
         if not self.anomaly:
             self.remove_seasonal_cycle = False
 
-    @param.depends("remove_seasonal_cycle", watch = True)
+    @param.depends("remove_seasonal_cycle", watch=True)
     def update_anom(self):
         if self.remove_seasonal_cycle:
             self.anomaly = True
@@ -80,12 +80,16 @@ class TimeSeriesParams(param.Parameterized):
             if y.attrs["frequency"] == "1month":
                 # If frequency is monthly, then the reference period average needs to be a
                 # weighted average, with weights equal to the number of days in each month
-                reference_slice = y.sel(time = slice(*self.reference_range))
-                month_weights = reference_slice.time.dt.daysinmonth # Number of days in each month of the reference range
-                reference_avg = reference_slice.weighted(month_weights).mean("time") # Calculate the weighted average of this period
-                return y - reference_avg # return the difference
+                reference_slice = y.sel(time=slice(*self.reference_range))
+                month_weights = (
+                    reference_slice.time.dt.daysinmonth
+                )  # Number of days in each month of the reference range
+                reference_avg = reference_slice.weighted(month_weights).mean(
+                    "time"
+                )  # Calculate the weighted average of this period
+                return y - reference_avg  # return the difference
             else:
-                return y - y.sel(time = slice(*self.reference_range)).mean("time")
+                return y - y.sel(time=slice(*self.reference_range)).mean("time")
 
         def _running_mean(y):
             # If timescale is monthly, need to weight the rolling average by the number of days in each month
@@ -98,7 +102,9 @@ class TimeSeriesParams(param.Parameterized):
                 rolling_weights = month_weights.rolling(time = self.resample_window, center = True).construct("window")
 
                 # Build a DataArrayWeighted and collapse across the window dimension with mean
-                result = rolling_y.weighted(rolling_weights.fillna(0)).mean("window", skipna = False)
+                result = rolling_y.weighted(rolling_weights.fillna(0)).mean(
+                    "window", skipna=False
+                )
                 return result
             else:
                 return y.rolling(time = self.resample_window, center = True).mean("time")
@@ -149,7 +155,7 @@ class TimeSeriesParams(param.Parameterized):
         "resample_window",
         "resample_period",
         "percentile",
-        watch = False,
+        watch=False,
     )
     def view(self):
         """
@@ -260,6 +266,7 @@ class TimeSeriesParams(param.Parameterized):
         )
         return obj
 
+
 def _timeseries_visualize(choices):
     """
     Uses holoviz 'panel' library to display the parameters and view defined in
@@ -280,13 +287,13 @@ def _timeseries_visualize(choices):
                     style = {"color":"red"}
                     ),
             ),
-            pn.Spacer(width = 50),
+            pn.Spacer(width=50),
             pn.Column(
                 choices.param.smoothing,
                 pn.Row(
                     choices.param.resample_window,
                     choices.param.resample_period,
-                    width = 320,
+                    width=320,
                 ),
                 choices.param.extremes,
                 choices.param.percentile,
@@ -294,6 +301,7 @@ def _timeseries_visualize(choices):
         ),
         choices.view,
     )
+
 
 def _update_attrs(data_to_output, attrs_to_add):
     """
@@ -317,16 +325,17 @@ def _update_attrs(data_to_output, attrs_to_add):
     #     attrs_to_add.pop('resample_window')
     if not attrs_to_add['anomaly']:
         attrs_to_add.pop('reference_range')
+    attrs_to_add = {
+        "timeseries: " + k: (str(v) if type(v) == bool or None else v)
+        for k, v in attrs_to_add.items()
+    }
 
-    attrs_to_add = {'timeseries: ' + k:( str(v) if type(v) == bool or \
-                  None else v ) for k,v in attrs_to_add.items()}
-
-    datefmt = '%b %d %Y (%H:%M)'
-    for att,v in attrs_to_add.items():
+    datefmt = "%b %d %Y (%H:%M)"
+    for att, v in attrs_to_add.items():
         if type(v) == tuple:
-            if ((type(v[0])) == dt.datetime):
+            if (type(v[0])) == dt.datetime:
                 dates = [atti.strftime(datefmt) for atti in v]
-                date_str = ' - '.join(dates)
+                date_str = " - ".join(dates)
                 attrs_to_add[att] = date_str
 
     attributes.update(attrs_to_add)
@@ -343,15 +352,31 @@ class Timeseries:
     """
 
     def __init__(self, data):
-        assert "xarray" in str(
-            type(data)
-        ), "Please pass an xarray DataArray (e.g. as output by generate)."
-        assert (
-            "lat" not in data.dims
-        ), "Please pass a timeseries (area average or individual station)."
-        assert (
-            True in ["Historical + " in v for v in data.scenario.values]
-        ), "Please append the historical period in your data retrieval."
+        # Raise errors with unique error messages
+        if (
+            type(data) != xr.core.dataarray.DataArray
+        ):  # Data is NOT in the form of xr.DataArray
+            raise ValueError(
+                "Please pass an xarray DataArray (e.g. as output by app.retrieve())."
+            )
+        else:
+            raise_error = False
+            error_message = ""
+            if "lat" in data.coords:  # Data is NOT area averaged
+                raise_error = True
+                error_message += "Please pass a timeseries (area average)."
+            if not any(
+                ["Historical + " in v for v in data.scenario.values]
+            ):  # Append historical = False
+                if raise_error == True:
+                    error_message += "\n"
+                else:
+                    raise_error = True
+                error_message += (
+                    "Please append the historical period in your data retrieval."
+                )
+            if raise_error:  # If any errors
+                raise ValueError(error_message)
 
         self.choices = TimeSeriesParams(data)
 
@@ -361,5 +386,5 @@ class Timeseries:
     def output_current(self):
         to_output = self.choices.transform_data()
         attrs_to_add = dict(self.choices.get_param_values())
-        to_output = _update_attrs(to_output,attrs_to_add)
+        to_output = _update_attrs(to_output, attrs_to_add)
         return to_output
