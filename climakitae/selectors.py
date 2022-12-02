@@ -286,7 +286,7 @@ class LocSelectorArea(param.Parameterized):
             self.longitude[0], self.latitude[0], self.longitude[1], self.latitude[1]
         )
 
-        fig0 = Figure(figsize=(4, 4))
+        fig0 = Figure(figsize=(4.25, 4.25))
         proj = ccrs.Orthographic(-118, 40)
         crs_proj4 = proj.proj4_init  # used below
         xy = ccrs.PlateCarree()
@@ -454,7 +454,7 @@ def _get_data_selection_description(variable, units, timescale, resolution,
     if location.area_subset == "lat/lon":
         #bbox = min Longitude , min Latitude , max Longitude , max Latitude 
         cached_area_print = "bounding box <br>\
-            bbox = ({:.2f}".format(location.longitude[0]) + ", {:.2f}".format(location.latitude[0]) + "\
+            ({:.2f}".format(location.longitude[0]) + ", {:.2f}".format(location.latitude[0]) + "\
             , {:.2f}".format(location.longitude[1]) + ", {:.2f}".format(location.latitude[1]) + ")"
     elif location.area_subset == "none": 
         cached_area_print = "entire " + str(resolution) + " grid"
@@ -462,7 +462,7 @@ def _get_data_selection_description(variable, units, timescale, resolution,
         cached_area_print = str(location.cached_area)
     
 
-    _data_selection_description = "Data selections: <br> \
+    _data_selection_description = "<font size='+0.10'>Data selections: </font><br> \
         <ul> \
             <li><b>variable:</b> " + str(variable) +"</li> \
             <li><b>units:</b> "+ str(units) + "</li> \
@@ -471,11 +471,10 @@ def _get_data_selection_description(variable, units, timescale, resolution,
             <li><b>timeslice: </b>" + str(time_slice[0]) + " - " + str(time_slice[1]) + "</li> \
             <li><b>datasets:</b> " + ", ".join(scenario_print) + "</li> \
         </ul>"
-    _location_selection_description = "Location subset selections: <br> \
+    _location_selection_description = "<font size='+0.10'>Location selections: </font><br> \
         <ul> \
+            <li><b>location:</b> " + cached_area_print +"</li> \
             <li><b>compute area average?</b> " + str(_area_average_yes_no) + "</li> \
-            <li><b>area subset:</b> " + str(location.area_subset) +"</li> \
-            <li><b>cached area:</b> "+ cached_area_print + "</li> \
         </ul>"
     return _data_selection_description + _location_selection_description
 
@@ -742,7 +741,7 @@ class DataSelector(param.Parameterized):
             ("Historical Climate" in self.scenario_historical)
         ):  
             data_warning = "The timescale of Historical Reconstruction (ERA5-WRF) data will be cut \
-            to match the timescale of the Historical Climate data if both are retrieved together."
+            to match that of the Historical Climate data if both are retrieved."
        
         # Warnings based on time slice selections
         if ( 
@@ -827,7 +826,7 @@ class DataSelector(param.Parameterized):
         Displays a timeline to help the user visualize the time ranges
         available, and the subset of time slice selected.
         """
-        fig0 = Figure(figsize=(3.75,1.75))
+        fig0 = Figure(figsize=(4,2))
         ax = fig0.add_subplot(111)
         ax.spines["right"].set_color("none")
         ax.spines["left"].set_color("none")
@@ -836,11 +835,12 @@ class DataSelector(param.Parameterized):
         ax.xaxis.set_ticks_position("bottom")
         ax.set_xlim(1950, 2100)
         ax.set_ylim(0, 1)
+        ax.tick_params(labelsize=11)
         ax.xaxis.set_major_locator(ticker.AutoLocator())
         ax.xaxis.set_minor_locator(ticker.AutoMinorLocator())
         mpl_pane = pn.pane.Matplotlib(fig0, dpi=144)
 
-        y_offset = 0.17
+        y_offset = 0.15
         if (self.scenario_ssp is not None) and (self.scenario_historical is not None):
             for scen in self.scenario_ssp + self.scenario_historical:
                 
@@ -853,17 +853,17 @@ class DataSelector(param.Parameterized):
                     if "Historical Climate" in self.scenario_historical: 
                         center = 1997.5  # 1980-2014
                         x_width = 17.5
-                        ax.annotate("Reconstruction", xy = (1970, y_offset + 0.06))
+                        ax.annotate("Reconstruction", xy = (1967, y_offset + 0.06), fontsize = 12)
                     else: 
                         center = 1986  # 1950-2022
                         x_width = 36
-                        ax.annotate("Reconstruction", xy = (center - x_width, y_offset + 0.06))
+                        ax.annotate("Reconstruction", xy = (1955, y_offset + 0.06), fontsize = 12)
                     
                 elif scen == "Historical Climate":
                     color = "c"
                     center = 1997.5  # 1980-2014
                     x_width = 17.5
-                    ax.annotate("Historical", xy = (center - x_width, y_offset + 0.06)) 
+                    ax.annotate("Historical", xy = (1978, y_offset + 0.06), fontsize = 12) 
                     
                 elif "SSP" in scen:
                     center = 2057.5  # 2015-2100
@@ -883,8 +883,8 @@ class DataSelector(param.Parameterized):
                             linewidth = 8,
                             color = "c"
                         ) 
-                        ax.annotate("Historical", xy = (1980, y_offset + 0.06))
-                    ax.annotate(scen[:10], xy = (center+10 - x_width, y_offset + 0.06))
+                        ax.annotate("Historical", xy = (1978, y_offset + 0.06), fontsize = 12)
+                    ax.annotate(scen[:10], xy = (2035, y_offset + 0.06), fontsize = 12)
 
                 ax.errorbar(
                     x = center,
@@ -894,7 +894,7 @@ class DataSelector(param.Parameterized):
                     color = color
                 )
                 
-                y_offset += 0.20
+                y_offset += 0.28
                 
         ax.fill_betweenx(
             [0, 1], 
@@ -926,8 +926,8 @@ def _display_select(selections, location, location_type = "area average"):
 
     location_chooser = pn.Row(
         pn.Column(
-            location.param.area_subset,
-            location.param.cached_area, 
+            pn.widgets.Select.from_param(location.param.area_subset, name="Subset the data by..."),
+            pn.widgets.Select.from_param(location.param.cached_area, name="Location selection"), 
             location.param.latitude, 
             location.param.longitude,
             pn.widgets.StaticText(
@@ -954,7 +954,7 @@ def _display_select(selections, location, location_type = "area average"):
         selections.param.timescale,
         pn.widgets.StaticText(name="", value="Model Resolution"),
         pn.widgets.RadioButtonGroup.from_param(selections.param.resolution),
-        width = 275
+        width = 285
     )
     
     scenario_options = pn.Column(
@@ -975,7 +975,7 @@ def _display_select(selections, location, location_type = "area average"):
             name = "", 
             style = {"color":"red"}
         ), 
-        width = 300
+        width = 310
     )
 
     tabs = pn.Card(
@@ -985,8 +985,21 @@ def _display_select(selections, location, location_type = "area average"):
         ),
         title = "Select your data and region of interest",
         height = 550, 
-        width = 575, 
+        width = 595, 
         collapsible = False,
+    )
+    
+    how_to_use = pn.Card(
+        pn.widgets.StaticText(
+            value = "In the first tab, select the data. In the second tab, subset your selected \
+            data by location and choose whether or not to compute an area average over the \
+            selected region. To retrieve the data, use the climakitae function app.retrieve().", 
+            name = ""
+        ),
+        title = "How to use this panel", 
+        width = 285,
+        height = 165, 
+        collapsible = False
     )
     
     your_selections = pn.Card(
@@ -995,21 +1008,8 @@ def _display_select(selections, location, location_type = "area average"):
             name = ""
         ),
         title = "Current selections", 
-        width = 275,
-        height = 350,
-        collapsible = False
-    )
-    
-    how_to_use = pn.Card(
-        pn.widgets.StaticText(
-            value = "In the first tab, select your data. In the second tab, subset your \
-            selected data by location and choose whether or not to compute an area average \
-            over the selected region.", 
-            name = ""
-        ),
-        title = "How to use this panel", 
-        width = 275,
-        height = 150, 
+        width = 285,
+        height = 310,
         collapsible = False
     )
     
