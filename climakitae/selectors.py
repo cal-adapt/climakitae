@@ -424,9 +424,11 @@ def _get_variable_options_df(var_catalog, unique_variable_ids, timescale):
     """
     if timescale in ["daily", "monthly"]:
         timescale = "daily/monthly"
+    # Catalog options and derived options together 
+    var_options_plus_derived = unique_variable_ids+["rh_derived", "wind_speed_derived"]
     variable_options_df = var_catalog[
         (var_catalog["show"] == True) & # Make sure it's a valid variable selection
-        (var_catalog["variable_id"].isin(unique_variable_ids) & # Make sure variable_id is part of the catalog options for user selections
+        (var_catalog["variable_id"].isin(var_options_plus_derived) & # Make sure variable_id is part of the catalog options for user selections
         (var_catalog["timescale"] == timescale) # Make sure its the right timescale
         )
     ]

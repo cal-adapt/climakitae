@@ -342,7 +342,7 @@ def _read_from_catalog(selections, location, cat):
 
         # Derive wind magnitude
         da = _compute_wind_mag(
-            u10=u10_da, v10=v10_da, variable_name=selections.variable
+            u10=u10_da, v10=v10_da
         )
         selections.variable_id = "wind_speed_derived"
         da.attrs["variable_id"] = "wind_speed_derived"
@@ -365,8 +365,7 @@ def _read_from_catalog(selections, location, cat):
         da = _compute_relative_humidity(
             pressure=pressure_da,
             temperature=t2_da,
-            mixing_ratio=q2_da,
-            variable_name=selections.variable,
+            mixing_ratio=q2_da
         )
         selections.variable_id = "rh_derived"
         da.attrs["variable_id"] = "rh_derived"
