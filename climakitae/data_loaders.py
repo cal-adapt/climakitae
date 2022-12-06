@@ -330,28 +330,7 @@ def _read_from_catalog(selections, location, cat):
     assert not scenario_selections == [], "Please select as least one dataset."
     
     # Deal with derived variables 
-    if selections.variable_id == "precip_tot_derived":
-
-        # Load cumulus precip data
-        selections.variable_id = "rainc"
-        cumulus_precip_da = _get_data_one_var(selections, location, cat)
-
-        # Load grid-scale precip data
-        selections.variable_id = "rainnc"
-        gridscale_precip_da = _get_data_one_var(selections, location, cat)
-
-        # Derive precip total
-        da = _compute_total_precip(
-            cumulus_precip=cumulus_precip_da,
-            gridcell_precip=gridscale_precip_da,
-            variable_name=selections.variable,
-        )
-
-        # Reset variable id
-        selections.variable_id = "precip_tot_derived"
-        da.attrs["variable_id"] = "precip_tot_derived"
-
-    elif selections.variable_id == "wind_speed_derived":
+    if selections.variable_id == "wind_speed_derived":
 
         # Load u10 data
         selections.variable_id = "u10"
