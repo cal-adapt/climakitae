@@ -323,8 +323,9 @@ def _read_from_catalog(selections, location, cat):
     scenario_selections = selections.scenario_ssp + selections.scenario_historical
     
     # Raise error if no scenarios are selected
-    assert not scenario_selections == [], "Please select as least one dataset."
-    
+    if scenario_selections == []:
+        raise ValueError("Please select as least one dataset.")
+
     # Deal with derived variables 
     if selections.variable_id == "precip_tot_derived":
 
