@@ -25,23 +25,6 @@ var_catalog_resource = pkg_resources.resource_filename(
 var_catalog = pd.read_csv(var_catalog_resource, index_col=None)
 unit_options_dict = _get_unit_conversion_options()
 
-# Read in utilties shapefile from package data 
-utitilies_file = pkg_resources.resource_filename(
-    "climakitae", "data/Electric_Load_Serving_Entities_(IOU_%26_POU).parquet"
-)
-utilities = gpd.read_parquet(utitilies_file)
-utilties = utilities[["OBJECTID","Acronym","Utility","Type","geometry"]]
-
-# Read in forecast zones 
-forecast_zones_file = pkg_resources.resource_filename(
-    "climakitae", "data/California_Electricity_Demand_Forecast_Zones.parquet"
-)
-forecast_zones = gpd.read_parquet(forecast_zones_file)
-
-# For Forecast Zones named "Other", replace that with the name of the county
-forecast_zones.loc[forecast_zones["FZ_Name"] == "Other", "FZ_Name"] = forecast_zones["FZ_Def"]
-forecast_zones[["OBJECTID","FZ_Name","geometry"]]
-
 
 # =========================== LOCATION SELECTIONS ==============================
 
@@ -88,8 +71,14 @@ class Boundaries:
         self._us_states = self._cat.states.read()
         self._ca_counties = self._cat.counties.read().sort_values("NAME")
         self._ca_watersheds = self._cat.huc8.read().sort_values("Name")
-        self._ca_utilities = utilties
-        self._ca_forecast_zones = forecast_zones
+        self._ca_utilities = self._cat.utilities.read()
+        self._ca_forecast_zones = self._cat.dfz.read()
+        
+        # For Forecast Zones named "Other", replace that with the name of the county
+        self._ca_forecast_zones.loc[
+            self._ca_forecast_zones["FZ_Name"] == "Other", "FZ_Name"
+        ] = self._ca_forecast_zones["FZ_Def"]
+        #self._ca_forecast_zones = self._ca_forecast_zones[["OBJECTID","FZ_Name","geometry"]]
 
     def get_us_states(self):
         """
@@ -139,7 +128,7 @@ class Boundaries:
         """
         Returns a lookup dictionary for CA watersheds that references
         the geoparquet file.
-        """
+        """        
         return pd.Series(
             self._ca_forecast_zones.index, index = self._ca_forecast_zones["FZ_Name"]
         ).to_dict()
