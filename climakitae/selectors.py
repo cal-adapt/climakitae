@@ -141,7 +141,7 @@ class Boundaries:
         the geoparquet file.
         """
         return pd.Series(
-            self._ca_forecast_zones.index, index=self._ca_forecast_zones["FZ_Name"]
+            self._ca_forecast_zones.index, index = self._ca_forecast_zones["FZ_Name"]
         ).to_dict()
     
     def get_ious_pous(self): 
@@ -290,8 +290,8 @@ class LocSelectorArea(param.Parameterized):
         proj = ccrs.Orthographic(-118, 40)
         crs_proj4 = proj.proj4_init  # used below
         xy = ccrs.PlateCarree()
-        ax = fig0.add_subplot(111, projection=proj)
-        ax.set_extent([-150, -88, 8, 66], crs=xy)
+        ax = fig0.add_subplot(111, projection = proj)
+        ax.set_extent([-150, -88, 8, 66], crs = xy)
         ax.set_facecolor("grey")
 
         # Plot the boundaries of the WRF domains on an existing set of axes for
@@ -317,31 +317,31 @@ class LocSelectorArea(param.Parameterized):
         )
         ax.annotate(
             "9-km",
-            xy=(-135, 42),
-            rotation=32,
-            xycoords=xy._as_mpl_transform(ax),
-            color="k",
+            xy = (-135, 42),
+            rotation = 32,
+            xycoords = xy._as_mpl_transform(ax),
+            color = "k",
         )
         ax.annotate(
             "3-km",
-            xy=(-127, 39),
-            rotation=32,
-            xycoords=xy._as_mpl_transform(ax),
-            color="k",
+            xy = (-127, 39),
+            rotation = 32,
+            xycoords = xy._as_mpl_transform(ax),
+            color = "k",
         )
         mpl_pane = pn.pane.Matplotlib(fig0, dpi=144)
 
         def plot_subarea(boundary_dataset, extent):
-            ax.set_extent(extent, crs=xy)
+            ax.set_extent(extent, crs = xy)
             subarea = boundary_dataset[boundary_dataset.index == shape_index]
             df_ae = subarea.to_crs(crs_proj4)
-            df_ae.plot(ax=ax, color="b", zorder=2)
+            df_ae.plot(ax = ax, color = "b", zorder = 2)
             mpl_pane.param.trigger("object")
 
         if self.area_subset == "lat/lon":
-            ax.set_extent([-150, -88, 8, 66], crs=xy)
+            ax.set_extent([-150, -88, 8, 66], crs = xy)
             ax.add_geometries(
-                [geometry], crs=ccrs.PlateCarree(), edgecolor="b", facecolor="None"
+                [geometry], crs = ccrs.PlateCarree(), edgecolor = "b", facecolor = "None"
             )
         elif self.area_subset != "none":
             shape_index = int(
@@ -425,7 +425,7 @@ def _get_variable_options_df(var_catalog, unique_variable_ids, timescale):
     if timescale in ["daily", "monthly"]:
         timescale = "daily/monthly"
     # Catalog options and derived options together 
-    var_options_plus_derived = unique_variable_ids+["rh_derived", "wind_speed_derived"]
+    var_options_plus_derived = unique_variable_ids+["rh_derived", "wind_speed_derived","dew_point_derived"]
     variable_options_df = var_catalog[
         (var_catalog["show"] == True) & # Make sure it's a valid variable selection
         (var_catalog["variable_id"].isin(var_options_plus_derived) & # Make sure variable_id is part of the catalog options for user selections
@@ -865,7 +865,7 @@ class DataSelector(param.Parameterized):
                     color = "c"
                     center = 1997.5  # 1980-2014
                     x_width = 17.5
-                    ax.annotate("Historical", xy = (1978, y_offset + 0.06), fontsize = 12) 
+                    ax.annotate("Historical", xy = (1979, y_offset + 0.06), fontsize = 12) 
                     
                 elif "SSP" in scen:
                     center = 2057.5  # 2015-2100
@@ -885,7 +885,7 @@ class DataSelector(param.Parameterized):
                             linewidth = 8,
                             color = "c"
                         ) 
-                        ax.annotate("Historical", xy = (1978, y_offset + 0.06), fontsize = 12)
+                        ax.annotate("Historical", xy = (1979, y_offset + 0.06), fontsize = 12)
                     ax.annotate(scen[:10], xy = (2035, y_offset + 0.06), fontsize = 12)
 
                 ax.errorbar(
