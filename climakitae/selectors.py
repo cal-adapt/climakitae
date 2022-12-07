@@ -895,6 +895,13 @@ class DataSelector(param.Parameterized):
             facecolor = "lightgrey"
         )
         return mpl_pane
+    
+class SelectionDescription(param.Parameterized):
+    """
+    An object to hold a description of the user's data and location selections. 
+    """ 
+    def __init__(self, **params):
+        super().__init__(**params)
 
     
 # ================ DISPLAY LOCATION/DATA SELECTIONS IN PANEL ===================
