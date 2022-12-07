@@ -899,21 +899,13 @@ class DataSelector(param.Parameterized):
     
 # ================ DISPLAY LOCATION/DATA SELECTIONS IN PANEL ===================
 
-def _display_select(selections, location, location_type = "area average"):
+def _display_select(selections, location):
     """
     Called by 'select' at the beginning of the workflow, to capture user
     selections. Displays panel of widgets from which to make selections.
-    Location selection widgets depend on location_type argument, which can
-    have only one of two values: 'area average' or 'station'. Modifies
-    'selections' object, which is used by generate() to build an appropriate
-    xarray Dataset. Currently, core.Application.select does not pass an argument
-    for location_type -- 'area average' is the only choice, until station-based
-    data are available.
+    Modifies 'selections' object, which is used by generate() to build an 
+    appropriate xarray Dataset. 
     """
-    assert location_type in [
-        "area average",
-        "station",
-    ], "Please enter either 'area average' or 'station'."
 
     location_chooser = pn.Row(
         pn.Column(
