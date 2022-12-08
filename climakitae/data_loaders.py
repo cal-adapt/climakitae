@@ -336,6 +336,7 @@ def _read_from_catalog(selections, location, cat):
         
     # Deal with derived variables
     orig_var_id_selection = selections.variable_id
+    orig_variable_selection = selections.variable
     if orig_var_id_selection in ["wind_speed_derived","rh_derived","dew_point_derived"]:
         
         if orig_var_id_selection == "wind_speed_derived":
@@ -379,7 +380,8 @@ def _read_from_catalog(selections, location, cat):
                 da = rh_da
 
         selections.variable_id = orig_var_id_selection
-        da.attrs["variable_id"] = orig_var_id_selection
+        da.attrs["variable_id"] = orig_var_id_selection # Reset variable ID attribute
+        da.name = orig_variable_selection # Set name of DataArray
 
     else:
         da = _get_data_one_var(selections, location, cat)
