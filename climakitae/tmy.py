@@ -23,7 +23,7 @@ available for Analytics Engine Beta Launch. The AMY is comparable to a typical
 ## 2: Future-minus-historical warming level AMY (see warming_levels)
 ## 3: Severe AMY based upon historical baseline and a designated threshold/percentile
 
-import matplotlib.pyplot as plt 
+import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import datetime
 import xarray as xr
@@ -33,14 +33,11 @@ import param
 import panel as pn
 import warnings
 import pkg_resources
-from .utils import (
-    _read_ae_colormap, 
-    julianDay_to_str_date
-) 
+from .utils import _read_ae_colormap, julianDay_to_str_date
 from .catalog_convert import (
     _resolution_to_gridlabel,
     _timescale_to_table_id,
-    _scenario_to_experiment_id
+    _scenario_to_experiment_id,
 )
 from .data_loaders import _read_from_catalog
 
@@ -56,6 +53,7 @@ var_catalog = pd.read_csv(var_catalog_resource, index_col="variable_id")
 
 xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
 
+
 def _get_historical_tmy_data(cat, selections, location):
     """Get historical data from AWS catalog"""
     selections.scenario_historical = ["Historical Climate"]
@@ -66,11 +64,10 @@ def _get_historical_tmy_data(cat, selections, location):
     selections.timescale = "hourly"
     selections.simulation = ["ensmean"]
     historical_da_mean = _read_from_catalog(
-        selections = selections, 
-        location = location, 
-        cat = cat
-    ).isel(scenario = 0, simulation = 0)
+        selections=selections, location=location, cat=cat
+    ).isel(scenario=0, simulation=0)
     return historical_da_mean.compute()
+
 
 def _get_future_tmy_data(cat, selections, location, warmlevel):
     """Gets data from AWS catalog based upon desired warming level"""
@@ -87,11 +84,10 @@ def _get_future_tmy_data(cat, selections, location, warmlevel):
     selections.timescale = "hourly"
     selections.simulation = ["ensmean"]
     future_da_mean = _read_from_catalog(
-        selections = selections, 
-        location = location, 
-        cat = cat
-    ).isel(scenario = 0, simulation = 0)
+        selections=selections, location=location, cat=cat
+    ).isel(scenario=0, simulation=0)
     return future_da_mean.compute()
+
 
 def remove_repeats(xr_data):
     """
@@ -117,7 +113,8 @@ def remove_repeats(xr_data):
     else:
         return xr_data.values
 
-def tmy_calc(data, days_in_year = 366):
+
+def tmy_calc(data, days_in_year=366):
     """
     Calculates the average meteorological year based on a designated period of time.
     Applicable for both the historical and future periods.
@@ -156,126 +153,138 @@ def tmy_calc(data, days_in_year = 366):
         n_col_lst = n_col_lst + hr_lst
     df_amy.columns = n_col_lst
     df_amy.columns.name = "Hour"
-    
+
     # Convert Julian date index to Month-Day format
     if days_in_year == 366:
-        leap_year = True 
-    else: 
+        leap_year = True
+    else:
         leap_year = False
     new_index = [
-        julianDay_to_str_date(
-            julday, 
-            leap_year=leap_year, 
-            str_format="%b-%d"
-        ) for julday in df_amy.index
-    ] 
+        julianDay_to_str_date(julday, leap_year=leap_year, str_format="%b-%d")
+        for julday in df_amy.index
+    ]
     df_amy.index = pd.Index(new_index, name="Day of Year")
     return df_amy
 
-def _amy_heatmap(amy_df, title=None, cmap="viridis", cbar_label=None): 
-    """Create AMY heatmap using matplotlib 
-    
-    Args: 
-        amy_df (pd.DataFrame): AMY dataframe, with hour of day as columns and day of year as index 
-        title (str): title to give heatmap 
-        cmap (str): colormap 
-        cbar_label (str): name of variable being plotted 
-    
-    Returns: 
-        fig (matplotlib.figure.Figure)
-    
-    """ 
-    fig, ax = plt.subplots(1,1, figsize=(9,5))
-    heatmap = ax.imshow(
-        amy_df.values, 
-        cmap=cmap, 
-        aspect=0.03, 
-        origin='lower' # Flip y axis 
-    );
 
-    # Set xticks 
-    ax.set_xticks(np.arange(len(amy_df.columns)))
-    ax.set_xticklabels(amy_df.columns.values, rotation=45)
+def _amy_heatmap(amy_df, title=None, cmap="viridis", cbar_label=None):
+    """Create AMY heatmap using matplotlib
 
-    # Set yticks 
-    if len(amy_df.index) == 366: # Leap year 
-        first_days_of_month = [0,31,60,91,121,152,182,213,244,274,305,335]
-    else: # Not a leap year 
-        first_days_of_month = [0,31,59,90,120,151,181,212,243,273,304,334]
-    ax.set_yticks(first_days_of_month)
-    ax.set_yticklabels(amy_df.index[first_days_of_month])
+    Args:
+        amy_df (pd.DataFrame): AMY dataframe, with hour of day as columns and day of year as index
+        title (str): title to give heatmap
+        cmap (str): colormap
+        cbar_label (str): name of variable being plotted
 
-    # Set title and labels 
-    if title is not None: 
-        ax.set_title(title) 
-    ax.set_ylabel(amy_df.index.name) 
-    ax.set_xlabel(amy_df.columns.name)
-    
-    # Make colorbar 
-    cax = fig.add_axes([0.92, 0.24, 0.02, 0.53])
-    fig.colorbar(heatmap, cax=cax, orientation='vertical', label=cbar_label)
-
-    plt.close() # Close figure 
-    return fig
-
-
-def lineplot_from_amy_data(amy_data, computation_method=None, location_subset=None, warmlevel=None, variable=None):
-    """Generate a lineplot of AMY data, with mon-day-hr on the x-axis
-    
-    Args: 
-        amy_data (pd.DataFrame): data in the format of the dataframe returned by _amy_calc 
-        computation_method (str): AMY computation method of data 
-        location_subset (str): location subset of data 
-        warmlevel (str): warming level used to generate data 
-        variable (str): Name of data variable 
-    
-    Returns: 
+    Returns:
         fig (matplotlib.figure.Figure)
 
     """
-    
+    fig, ax = plt.subplots(1, 1, figsize=(9, 5))
+    heatmap = ax.imshow(
+        amy_df.values, cmap=cmap, aspect=0.03, origin="lower"  # Flip y axis
+    )
+
+    # Set xticks
+    ax.set_xticks(np.arange(len(amy_df.columns)))
+    ax.set_xticklabels(amy_df.columns.values, rotation=45)
+
+    # Set yticks
+    if len(amy_df.index) == 366:  # Leap year
+        first_days_of_month = [0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335]
+    else:  # Not a leap year
+        first_days_of_month = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
+    ax.set_yticks(first_days_of_month)
+    ax.set_yticklabels(amy_df.index[first_days_of_month])
+
+    # Set title and labels
+    if title is not None:
+        ax.set_title(title)
+    ax.set_ylabel(amy_df.index.name)
+    ax.set_xlabel(amy_df.columns.name)
+
+    # Make colorbar
+    cax = fig.add_axes([0.92, 0.24, 0.02, 0.53])
+    fig.colorbar(heatmap, cax=cax, orientation="vertical", label=cbar_label)
+
+    plt.close()  # Close figure
+    return fig
+
+
+def lineplot_from_amy_data(
+    amy_data,
+    computation_method=None,
+    location_subset=None,
+    warmlevel=None,
+    variable=None,
+):
+    """Generate a lineplot of AMY data, with mon-day-hr on the x-axis
+
+    Args:
+        amy_data (pd.DataFrame): data in the format of the dataframe returned by _amy_calc
+        computation_method (str): AMY computation method of data
+        location_subset (str): location subset of data
+        warmlevel (str): warming level used to generate data
+        variable (str): Name of data variable
+
+    Returns:
+        fig (matplotlib.figure.Figure)
+
+    """
+
     # Stack data
-    amy_stacked = pd.DataFrame(amy_data.stack()).rename(columns = {0:"data"}).reset_index()
-    amy_stacked["Date"] = amy_stacked["Day of Year"] + " " + amy_stacked["Hour"] 
-    amy_stacked = amy_stacked.drop(columns = ["Day of Year", "Hour"]).set_index("Date")
-    
+    amy_stacked = (
+        pd.DataFrame(amy_data.stack()).rename(columns={0: "data"}).reset_index()
+    )
+    amy_stacked["Date"] = amy_stacked["Day of Year"] + " " + amy_stacked["Hour"]
+    amy_stacked = amy_stacked.drop(columns=["Day of Year", "Hour"]).set_index("Date")
+
     # Set plot title, suptitle, and ylabel using original xr DataArray
     suptitle = "Average Meterological Year"
     title = ""
-    if computation_method is not None: 
-        suptitle += ": "+computation_method 
-        if computation_method == "Warming Level Future": 
-            if warmlevel is not None: 
-                suptitle += " at " + str(warmlevel) +"°C "
-        if computation_method == "Historical": 
+    if computation_method is not None:
+        suptitle += ": " + computation_method
+        if computation_method == "Warming Level Future":
+            if warmlevel is not None:
+                suptitle += " at " + str(warmlevel) + "°C "
+        if computation_method == "Historical":
             suptitle += " Data"
-            
+
     # Add months information
-    try: # Try leap year 
-        months = [datetime.datetime.strptime("2024."+idx_i, "%Y.%b-%d %I%p").strftime("%B") for idx_i in amy_stacked.index]
-    except: # Try non leap year 
-        months = [datetime.datetime.strptime("2024."+idx_i, "%Y.%b-%d %I%p").strftime("%B") for idx_i in amy_stacked.index]
+    try:  # Try leap year
+        months = [
+            datetime.datetime.strptime("2024." + idx_i, "%Y.%b-%d %I%p").strftime("%B")
+            for idx_i in amy_stacked.index
+        ]
+    except:  # Try non leap year
+        months = [
+            datetime.datetime.strptime("2024." + idx_i, "%Y.%b-%d %I%p").strftime("%B")
+            for idx_i in amy_stacked.index
+        ]
+
     def check_if_all_identical(l):
         return all(i == l[0] for i in l)
-    if check_if_all_identical(months): # Add month to title  
-        title += "Month: "+months[0]+"\n"  
-    else: 
-        title += "Months: "+months[0]+"-"+months[-1]+"\n"
-        
-    if location_subset is not None:  
-        title += "Location Subset: "+location_subset
-    
-    # Make plot 
-    fig, axes = plt.subplots(1,1, figsize=(7,4))
+
+    if check_if_all_identical(months):  # Add month to title
+        title += "Month: " + months[0] + "\n"
+    else:
+        title += "Months: " + months[0] + "-" + months[-1] + "\n"
+
+    if location_subset is not None:
+        title += "Location Subset: " + location_subset
+
+    # Make plot
+    fig, axes = plt.subplots(1, 1, figsize=(7, 4))
     amy_lineplot = axes.plot(amy_stacked)
     axes.grid(alpha=0.25)
     plt.xticks(rotation=45)
-    axes.xaxis.set_major_locator(MaxNLocator(10)) 
+    axes.xaxis.set_major_locator(MaxNLocator(10))
     axes.set_ylabel(variable)
     plt.suptitle(suptitle, fontsize=13, y=1.025)
     axes.set_title(title, fontsize=10, y=1)
     plt.close()
     return fig
+
 
 class AverageMeteorologicalYear(param.Parameterized):
     """
@@ -356,25 +365,25 @@ class AverageMeteorologicalYear(param.Parameterized):
 
         # Postage data and anomalies defaults
         self.historical_tmy_data = _get_historical_tmy_data(
-            cat = self.cat,
-            selections = self.selections,
-            location = self.location,
+            cat=self.cat,
+            selections=self.selections,
+            location=self.location,
         )
         self.future_tmy_data = _get_future_tmy_data(
-            cat = self.cat,
-            selections = self.selections,
-            location = self.location,
-            warmlevel = 1.5
+            cat=self.cat,
+            selections=self.selections,
+            location=self.location,
+            warmlevel=1.5,
         )
-        
-        # Colormap 
+
+        # Colormap
         self.cmap = _read_ae_colormap(cmap="ae_orange", cmap_hex=False)
-        
+
         # Selectors defaults
         self.selections.append_historical = False
         self.selections.area_average = True
         self.selections.resolution = "45 km"
-        self.selections.scenario_historical = ["Historical Climate"]  
+        self.selections.scenario_historical = ["Historical Climate"]
         self.selections.scenario_ssp = []
         self.selections.time_slice = (1981, 2010)
         self.selections.timescale = "hourly"
@@ -404,11 +413,14 @@ class AverageMeteorologicalYear(param.Parameterized):
     @param.depends("computation_method", "reload_data", "warmlevel", watch=True)
     def _update_data_to_be_returned(self):
         """Update self.selections so that the correct data is returned by app.retrieve()"""
-        
+
         if self.computation_method == "Historical":
             self.selections.scenario_historical = ["Historical Climate"]
             self.selections.scenario_ssp = []
-            self.selections.time_slice = (1981,2010,) 
+            self.selections.time_slice = (
+                1981,
+                2010,
+            )
 
         elif self.computation_method == "Warming Level Future":
             warming_year_average_range = {
@@ -419,7 +431,7 @@ class AverageMeteorologicalYear(param.Parameterized):
             self.selections.scenario_ssp = ["SSP 3-7.0 -- Business as Usual"]
             self.selections.scenario_historical = []
             self.selections.time_slice = warming_year_average_range[self.warmlevel]
-            
+
         self.selections.simulation = ["ensmean"]
         self.selections.append_historical = False
         self.selections.area_average = True
@@ -430,15 +442,15 @@ class AverageMeteorologicalYear(param.Parameterized):
         """If the button was clicked and the location or variable was changed,
         reload the tmy data from AWS"""
         self.historical_tmy_data = _get_historical_tmy_data(
-            cat = self.cat,
-            selections = self.selections,
-            location = self.location,
+            cat=self.cat,
+            selections=self.selections,
+            location=self.location,
         )
         self.future_tmy_data = _get_future_tmy_data(
-            cat = self.cat,
-            selections = self.selections,
-            location = self.location,
-            warmlevel = self.warmlevel
+            cat=self.cat,
+            selections=self.selections,
+            location=self.location,
+            warmlevel=self.warmlevel,
         )
 
     # Create a function that will update computation_method when data_type is modified
@@ -501,10 +513,10 @@ class AverageMeteorologicalYear(param.Parameterized):
             title = "Average Meteorological Year\n{}".format(self.location.cached_area)
 
         heatmap = _amy_heatmap(
-            amy_df=df, 
-            title=title, 
-            cmap=self.cmap, 
-            cbar_label=self.selections.variable+"("+self.selections.units+")"
+            amy_df=df,
+            title=title,
+            cmap=self.cmap,
+            cbar_label=self.selections.variable + "(" + self.selections.units + ")",
         )
 
         return heatmap
@@ -537,9 +549,9 @@ def _amy_visualize(tmy_ob, selections, location):
                 ),
                 pn.widgets.StaticText(name="", value="Variable Units"),
                 pn.widgets.RadioButtonGroup.from_param(selections.param.units),
-                pn.widgets.StaticText(name = "", value = "Model Resolution"),
+                pn.widgets.StaticText(name="", value="Model Resolution"),
                 pn.widgets.RadioButtonGroup.from_param(selections.param.resolution),
-                width = 280
+                width=280,
             ),
             pn.Column(
                 location.param.area_subset,

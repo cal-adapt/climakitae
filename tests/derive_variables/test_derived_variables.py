@@ -10,6 +10,7 @@ from climakitae.derive_variables import (
     _compute_dewpointtemp
 )
 
+
 @pytest.fixture
 def rel_humidity(test_data_2022_monthly_45km):
     """Compute relative humidity and return data"""
@@ -19,6 +20,7 @@ def rel_humidity(test_data_2022_monthly_45km):
         mixing_ratio = test_data_2022_monthly_45km["Q2"],
     )
     return da
+
 
 @pytest.fixture
 def wind_mag(test_data_2022_monthly_45km):

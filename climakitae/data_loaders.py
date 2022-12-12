@@ -99,7 +99,7 @@ def _get_cat_subset(selections, cat):
     """
 
     scenario_selections = selections.scenario_ssp + selections.scenario_historical
-    
+
     # Get catalog keys
     # Convert user-friendly names to catalog names (i.e. "45km" to "d01")
     activity_id = selections.downscaling_method
@@ -111,14 +111,15 @@ def _get_cat_subset(selections, cat):
 
     # Get catalog subset
     cat_subset = cat.search(
-        activity_id = activity_id,
-        table_id = table_id,
-        grid_label = grid_label,
-        variable_id = variable_id,
-        experiment_id = experiment_id,
-        source_id = source_id
+        activity_id=activity_id,
+        table_id=table_id,
+        grid_label=grid_label,
+        variable_id=variable_id,
+        experiment_id=experiment_id,
+        source_id=source_id,
     )
     return cat_subset
+
 
 def _get_area_subset(location):
     """Get geometry to perform area subsetting with.
@@ -160,6 +161,7 @@ def _get_area_subset(location):
         ds_region = None
     return ds_region
 
+
 def _process_and_concat(selections, location, dsets, cat_subset):
     """Process all data; merge all datasets into one.
 
@@ -176,15 +178,15 @@ def _process_and_concat(selections, location, dsets, cat_subset):
     da_list = []
     scenario_list = selections.scenario_historical + selections.scenario_ssp
     append_historical = False
-    
-    if (True in ["SSP" in one for one in selections.scenario_ssp]):
-        if "Historical Climate" in selections.scenario_historical: 
+
+    if True in ["SSP" in one for one in selections.scenario_ssp]:
+        if "Historical Climate" in selections.scenario_historical:
             # Historical climate will be appended to the SSP data
             append_historical = True
             scenario_list.remove("Historical Climate")
-        if "Historical Reconstruction (ERA5-WRF)" in selections.scenario_historical: 
-            # We are not allowing users to select historical reconstruction data and SSP data at the same time, 
-            # due to the memory restrictions at the moment 
+        if "Historical Reconstruction (ERA5-WRF)" in selections.scenario_historical:
+            # We are not allowing users to select historical reconstruction data and SSP data at the same time,
+            # due to the memory restrictions at the moment
             scenario_list.remove("Historical Reconstruction (ERA5-WRF)")
 
     for scenario in scenario_list:
@@ -205,7 +207,8 @@ def _process_and_concat(selections, location, dsets, cat_subset):
                     ssp_filename = [
                         name
                         for name in dsets.keys()
-                        if simulation + "." + _scenario_to_experiment_id(scenario) in name
+                        if simulation + "." + _scenario_to_experiment_id(scenario)
+                        in name
                     ][0]
                 except:  # Some simulation + ssp options are not available. Just continue with the loop if no filename is found
                     continue
@@ -228,7 +231,8 @@ def _process_and_concat(selections, location, dsets, cat_subset):
                     filename = [
                         name
                         for name in dsets.keys()
-                        if simulation + "." + _scenario_to_experiment_id(scenario) in name
+                        if simulation + "." + _scenario_to_experiment_id(scenario)
+                        in name
                     ][0]
                 except:
                     continue
@@ -257,7 +261,6 @@ def _process_and_concat(selections, location, dsets, cat_subset):
         "variable_id": selections.variable_id,
         "extended_description": selections.extended_description,
         "units": da_final.attrs["units"],
-        
     }
     return da_final
 
@@ -329,7 +332,7 @@ def _read_from_catalog(selections, location, cat):
 
     """
     scenario_selections = selections.scenario_ssp + selections.scenario_historical
-    
+
     # Raise error if no scenarios are selected
     if scenario_selections == []:
         raise ValueError("Please select as least one dataset.")
@@ -370,7 +373,6 @@ def _read_from_catalog(selections, location, cat):
                 temperature = t2_da,
                 mixing_ratio = q2_da
             )
-
             if orig_var_id_selection == "dew_point_derived": 
                 da = _compute_dewpointtemp(
                     temperature = t2_da, 

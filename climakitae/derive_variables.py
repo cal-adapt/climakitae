@@ -1,6 +1,5 @@
 import numpy as np
 
-
 def _compute_dewpointtemp(temperature, rel_hum):
     """Calculate dew point temperature
 
@@ -20,7 +19,6 @@ def _compute_dewpointtemp(temperature, rel_hum):
     tdps.name = "dew_point_derived"
     tdps.attrs["units"] = "K"
     return tdps
-
 
 def _compute_relative_humidity(
     pressure, temperature, mixing_ratio
