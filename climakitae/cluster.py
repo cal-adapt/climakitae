@@ -11,8 +11,7 @@ class Cluster(GatewayCluster):
     def get_client(self, set_as_default=True):
         clusters = self.gateway.list_clusters()
         if clusters:
-            cluster = self.gateway.connect(
-                clusters.pop().name, shutdown_on_close=True)
+            cluster = self.gateway.connect(clusters.pop().name, shutdown_on_close=True)
             for c in clusters:
                 self.gateway.stop_cluster(c.name)
             return cluster.get_client()

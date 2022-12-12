@@ -9,6 +9,7 @@ from climakitae.derive_variables import (
     _compute_wind_mag,
 )
 
+
 @pytest.fixture
 def rel_humidity(test_data_2022_monthly_45km):
     """Compute relative humidity and return data"""
@@ -19,6 +20,7 @@ def rel_humidity(test_data_2022_monthly_45km):
     )
     return da
 
+
 @pytest.fixture
 def wind_mag(test_data_2022_monthly_45km):
     """Compute relative humidity and return data"""
@@ -26,6 +28,7 @@ def wind_mag(test_data_2022_monthly_45km):
         u10=test_data_2022_monthly_45km["U10"], v10=test_data_2022_monthly_45km["V10"]
     )
     return da
+
 
 def test_expected_data_name(rel_humidity, wind_mag):
     """Ensure that xr.DataArray has the correct assigned name"""
