@@ -218,7 +218,7 @@ class TimeSeriesParams(param.Parameterized):
                         + " timesteps running mean"
                     )
                 else: # Unsmoothed, anomaly timeseries, no extremes
-                    new_title = smoothing_str+"Difference for "+year1+"-"+year2
+                    new_title = smoothing_str+"Difference for "+year1+ "- "+year2
             else:
                 if self.smoothing == "Running Mean": # Smoothed, timeseries, no extremes
                     new_title = (
@@ -232,7 +232,7 @@ class TimeSeriesParams(param.Parameterized):
                         + " timesteps running mean"
                     )
                 else: # Unsmoothed, timeseries, no extremes
-                    new_title = smoothing_str+"Timeseries for "+year1+"-"+year2
+                    new_title = smoothing_str+"Timeseries for "+year1+" - "+year2
 
         elif self.extremes != "None":
             if self.smoothing == "None":
@@ -242,7 +242,7 @@ class TimeSeriesParams(param.Parameterized):
                         + percentrile_str
                         + " percentile extremes with a "
                         + str(self.resample_window)
-                        + " - "
+                        + "-"
                         + resample_per_str
                         + " resample"
                     )
@@ -252,7 +252,7 @@ class TimeSeriesParams(param.Parameterized):
                         + extremes_str
                         + " extremes with a "
                         + str(self.resample_window)
-                        + " - "
+                        + "-"
                         + resample_per_str
                         + " resample"
                     )
@@ -263,7 +263,7 @@ class TimeSeriesParams(param.Parameterized):
                         + percentrile_str
                         + " percentile extremes with a "
                         + str(self.resample_window)
-                        + " - "
+                        + "-"
                         + resample_per_str
                         + " resample"
                     )
@@ -273,7 +273,7 @@ class TimeSeriesParams(param.Parameterized):
                         + extremes_str
                         + " extremes with a "
                         + str(self.resample_window)
-                        + " - "
+                        + "-"
                         + resample_per_str
                         + " resample"
                     )
