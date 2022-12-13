@@ -196,7 +196,7 @@ class LocSelectorArea(param.Parameterized):
     _lat_lon_warning = param.String(
         default="",
         doc="Warning if user is messing with lat/lon slider,"
-        "but lat/lon is not selected for area subset."
+        "but lat/lon is not selected for area subset.",
     )
 
     def __init__(self, **params):
@@ -424,6 +424,7 @@ def _get_variable_options_df(var_catalog, unique_variable_ids, timescale):
         )
     ]
     return variable_options_df
+
 
 class DataSelector(param.Parameterized):
     """
@@ -816,8 +817,9 @@ class DataSelector(param.Parameterized):
         )
         return mpl_pane
 
-    
+
 # ================ PRINT STATEMENT EXPLAINING CURRENT USER SELECTIONS ===================
+
 
 def _get_data_selection_description(selections, location):
 
@@ -829,7 +831,9 @@ def _get_data_selection_description(selections, location):
     # Edit how the scenarios are printed in the description to make it reader-friendly
     if True in ["SSP" in one for one in selections.scenario_ssp]:
         if "Historical Climate" in selections.scenario_historical:
-            scenario_print = ["Historical + " + ssp[:9] for ssp in selections.scenario_ssp]
+            scenario_print = [
+                "Historical + " + ssp[:9] for ssp in selections.scenario_ssp
+            ]
         else:
             scenario_print = [ssp[:9] for ssp in selections.scenario_ssp]
     else:
@@ -854,56 +858,44 @@ def _get_data_selection_description(selections, location):
     _data_selection_description = (
         "<font size='+0.10'>Data selections: </font><br>"
         "<ul>"
-            "<li><b>variable: </b>"
-        + str(selections.variable)
-        + "</li>"
-            "<li><b>units: </b>"
-        + str(selections.units)
-        + "</li>"
-            "<li><b>temporal resolution: </b>"
-        + str(selections.timescale)
-        + "</li>"
-            "<li><b>model resolution: </b>"
-        + str(selections.resolution)
-        + "</li>"
-            "<li><b>timeslice: </b>"
+        "<li><b>variable: </b>" + str(selections.variable) + "</li>"
+        "<li><b>units: </b>" + str(selections.units) + "</li>"
+        "<li><b>temporal resolution: </b>" + str(selections.timescale) + "</li>"
+        "<li><b>model resolution: </b>" + str(selections.resolution) + "</li>"
+        "<li><b>timeslice: </b>"
         + str(selections.time_slice[0])
         + " - "
         + str(selections.time_slice[1])
         + "</li>"
-            "<li><b>datasets: </b>"
-        + ", ".join(scenario_print)
-        + "</li>"
+        "<li><b>datasets: </b>" + ", ".join(scenario_print) + "</li>"
         "</ul>"
     )
     _location_selection_description = (
         "<font size='+0.10'>Location selections: </font><br>"
         "<ul>"
-            "<li><b>location: </b>"
-        + cached_area_print
-        + "</li>"
-            "<li><b>compute area average? </b>"
+        "<li><b>location: </b>" + cached_area_print + "</li>"
+        "<li><b>compute area average? </b>"
         + str(selections._area_average_yes_no)
         + "</li>"
         "</ul>"
     )
     return _data_selection_description + _location_selection_description
-    
+
 
 class SelectionDescription(param.Parameterized):
     """
     Make a long string to output to the user to show all their current selections.
     Updates whenever any of the input values are changed.
     """
+
     _data_selection_description = param.String(
-        default="", 
-        doc="Description of the user data selections."
+        default="", doc="Description of the user data selections."
     )
 
     def __init__(self, **params):
-        
+
         super().__init__(**params)
-        
+
         self._data_selection_description = _get_data_selection_description(
             selections=self.selections,
             location=self.location,
@@ -941,10 +933,9 @@ def _display_select(selections, location):
     Modifies 'selections' object, which is used by generate() to build an
     appropriate xarray Dataset.
     """
-    
+
     selection_description = SelectionDescription(
-        selections=selections, 
-        location=location
+        selections=selections, location=location
     )
 
     location_chooser = pn.Row(
