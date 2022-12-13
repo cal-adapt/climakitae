@@ -425,88 +425,6 @@ def _get_variable_options_df(var_catalog, unique_variable_ids, timescale):
     ]
     return variable_options_df
 
-
-def _get_data_selection_description(
-    variable,
-    units,
-    timescale,
-    resolution,
-    time_slice,
-    scenario_historical,
-    scenario_ssp,
-    _area_average_yes_no,
-    location,
-):
-
-    """
-    Make a long string to output to the user to show all their current selections.
-    Updates whenever any of the input values are changed.
-    """
-
-    # Edit how the scenarios are printed in the description to make it reader-friendly
-    if True in ["SSP" in one for one in scenario_ssp]:
-        if "Historical Climate" in scenario_historical:
-            scenario_print = ["Historical + " + ssp[:9] for ssp in scenario_ssp]
-        else:
-            scenario_print = [ssp[:9] for ssp in scenario_ssp]
-    else:
-        scenario_print = scenario_ssp + scenario_historical
-
-    # Show lat/lon selection only if area_subset == lat/lon
-    if location.area_subset == "lat/lon":
-        # bbox = min Longitude , min Latitude , max Longitude , max Latitude
-        cached_area_print = (
-            "bounding box <br>"
-            "({:.2f}".format(location.longitude[0])
-            + ", {:.2f}".format(location.latitude[0])
-            + ", {:.2f}".format(location.longitude[1])
-            + ", {:.2f}".format(location.latitude[1])
-            + ")"
-        )
-    elif location.area_subset == "none":
-        cached_area_print = "entire " + str(resolution) + " grid"
-    else:
-        cached_area_print = str(location.cached_area)
-
-    _data_selection_description = (
-        "<font size='+0.10'>Data selections: </font><br>"
-        "<ul>"
-            "<li><b>variable: </b>"
-        + str(variable)
-        + "</li>"
-            "<li><b>units: </b>"
-        + str(units)
-        + "</li>"
-            "<li><b>temporal resolution: </b>"
-        + str(timescale)
-        + "</li>"
-            "<li><b>model resolution: </b>"
-        + str(resolution)
-        + "</li>"
-            "<li><b>timeslice: </b>"
-        + str(time_slice[0])
-        + " - "
-        + str(time_slice[1])
-        + "</li>"
-            "<li><b>datasets: </b>"
-        + ", ".join(scenario_print)
-        + "</li>"
-        "</ul>"
-    )
-    _location_selection_description = (
-        "<font size='+0.10'>Location selections: </font><br>"
-        "<ul>"
-            "<li><b>location: </b>"
-        + cached_area_print
-        + "</li>"
-            "<li><b>compute area average? </b>"
-        + str(_area_average_yes_no)
-        + "</li>"
-        "</ul>"
-    )
-    return _data_selection_description + _location_selection_description
-
-
 class DataSelector(param.Parameterized):
     """
     An object to hold data parameters, which depends only on the 'param'
@@ -546,9 +464,6 @@ class DataSelector(param.Parameterized):
     area_average = param.Boolean()
     _data_warning = param.String(
         default="", doc="Warning if user has made a bad selection"
-    )
-    _data_selection_description = param.String(
-        default="", doc="Description of the user data selections."
     )
 
     # Temporal range of each dataset
@@ -621,46 +536,6 @@ class DataSelector(param.Parameterized):
         self.extended_description = var_info.extended_description.item()
         self.variable_id = var_info.variable_id.item()
         self._data_warning = ""
-        self._data_selection_description = _get_data_selection_description(
-            variable=self.variable,
-            units=self.units,
-            timescale=self.timescale,
-            resolution=self.resolution,
-            time_slice=self.time_slice,
-            scenario_historical=self.scenario_historical,
-            scenario_ssp=self.scenario_ssp,
-            _area_average_yes_no=self._area_average_yes_no,
-            location=self.location,
-        )
-
-    @param.depends(
-        "area_average",
-        "units",
-        "variable",
-        "scenario_historical",
-        "scenario_ssp",
-        "timescale",
-        "resolution",
-        "time_slice",
-        "_area_average_yes_no",
-        "location.area_subset",
-        "location.cached_area",
-        "location.longitude",
-        "location.latitude",
-        watch=True,
-    )
-    def _update_data_selection_description(self):
-        self._data_selection_description = _get_data_selection_description(
-            variable=self.variable,
-            units=self.units,
-            timescale=self.timescale,
-            resolution=self.resolution,
-            time_slice=self.time_slice,
-            scenario_historical=self.scenario_historical,
-            scenario_ssp=self.scenario_ssp,
-            _area_average_yes_no=self._area_average_yes_no,
-            location=self.location,
-        )
 
     @param.depends("_area_average_yes_no", watch=True)
     def _update_area_average_yes_no(self):
@@ -941,16 +816,119 @@ class DataSelector(param.Parameterized):
         )
         return mpl_pane
 
+    
+# ================ PRINT STATEMENT EXPLAINING CURRENT USER SELECTIONS ===================
+
+def _get_data_selection_description(selections, location):
+
+    """
+    Make a long string to output to the user to show all their current selections.
+    Updates whenever any of the input values are changed.
+    """
+
+    # Edit how the scenarios are printed in the description to make it reader-friendly
+    if True in ["SSP" in one for one in selections.scenario_ssp]:
+        if "Historical Climate" in selections.scenario_historical:
+            scenario_print = ["Historical + " + ssp[:9] for ssp in selections.scenario_ssp]
+        else:
+            scenario_print = [ssp[:9] for ssp in selections.scenario_ssp]
+    else:
+        scenario_print = selections.scenario_ssp + selections.scenario_historical
+
+    # Show lat/lon selection only if area_subset == lat/lon
+    if location.area_subset == "lat/lon":
+        # bbox = min Longitude , min Latitude , max Longitude , max Latitude
+        cached_area_print = (
+            "bounding box <br>"
+            "({:.2f}".format(location.longitude[0])
+            + ", {:.2f}".format(location.latitude[0])
+            + ", {:.2f}".format(location.longitude[1])
+            + ", {:.2f}".format(location.latitude[1])
+            + ")"
+        )
+    elif location.area_subset == "none":
+        cached_area_print = "entire " + str(selections.resolution) + " grid"
+    else:
+        cached_area_print = str(location.cached_area)
+
+    _data_selection_description = (
+        "<font size='+0.10'>Data selections: </font><br>"
+        "<ul>"
+            "<li><b>variable: </b>"
+        + str(selections.variable)
+        + "</li>"
+            "<li><b>units: </b>"
+        + str(selections.units)
+        + "</li>"
+            "<li><b>temporal resolution: </b>"
+        + str(selections.timescale)
+        + "</li>"
+            "<li><b>model resolution: </b>"
+        + str(selections.resolution)
+        + "</li>"
+            "<li><b>timeslice: </b>"
+        + str(selections.time_slice[0])
+        + " - "
+        + str(selections.time_slice[1])
+        + "</li>"
+            "<li><b>datasets: </b>"
+        + ", ".join(scenario_print)
+        + "</li>"
+        "</ul>"
+    )
+    _location_selection_description = (
+        "<font size='+0.10'>Location selections: </font><br>"
+        "<ul>"
+            "<li><b>location: </b>"
+        + cached_area_print
+        + "</li>"
+            "<li><b>compute area average? </b>"
+        + str(selections._area_average_yes_no)
+        + "</li>"
+        "</ul>"
+    )
+    return _data_selection_description + _location_selection_description
+    
 
 class SelectionDescription(param.Parameterized):
     """
-    An object to hold a description of the user's data and location selections.
+    Make a long string to output to the user to show all their current selections.
+    Updates whenever any of the input values are changed.
     """
+    _data_selection_description = param.String(
+        default="", 
+        doc="Description of the user data selections."
+    )
 
     def __init__(self, **params):
+        
         super().__init__(**params)
         
-    
+        self._data_selection_description = _get_data_selection_description(
+            selections=self.selections,
+            location=self.location,
+        )
+
+    @param.depends(
+        "selections.units",
+        "selections.variable",
+        "selections.scenario_historical",
+        "selections.scenario_ssp",
+        "selections.timescale",
+        "selections.resolution",
+        "selections.time_slice",
+        "selections._area_average_yes_no",
+        "location.area_subset",
+        "location.cached_area",
+        "location.longitude",
+        "location.latitude",
+        watch=True,
+    )
+    def _update_data_selection_description(self):
+        self._data_selection_description = _get_data_selection_description(
+            selections=self.selections,
+            location=self.location,
+        )
 
 
 # ================ DISPLAY LOCATION/DATA SELECTIONS IN PANEL ===================
@@ -964,7 +942,10 @@ def _display_select(selections, location):
     appropriate xarray Dataset.
     """
     
-    selection_description = SelectionDescription(selections, location)
+    selection_description = SelectionDescription(
+        selections=selections, 
+        location=location
+    )
 
     location_chooser = pn.Row(
         pn.Column(
@@ -1048,11 +1029,11 @@ def _display_select(selections, location):
 
     your_selections = pn.Card(
         pn.widgets.StaticText.from_param(
-            selections.param._data_selection_description, name=""
+            selection_description.param._data_selection_description, name=""
         ),
         title="Current selections",
         width=285,
-        height=330,
+        height=350,
         collapsible=False,
     )
 
