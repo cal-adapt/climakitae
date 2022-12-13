@@ -1,11 +1,9 @@
-import os
-import tempfile
 import datetime as dt
 import xarray as xr
 import param
 import panel as pn
 import hvplot.xarray
-import dask
+import pandas as pd 
 
 
 class TimeSeriesParams(param.Parameterized):
@@ -200,10 +198,11 @@ class TimeSeriesParams(param.Parameterized):
         else:
             smoothing_str = ""
 
-        # Updates title of view depending on extremes panel choices
-        date1, date2 = self.reference_range ## fix to be data years, not reference range years
-        year1, year2 = str(date1.year), str(date2.year)
-        new_title = smoothing_str+"Difference for "+year1+"-"+year2
+        # Get start and end years of input data 
+        # Use that to build a title 
+        pd_datetime = pd.DatetimeIndex(self.data.time.values) 
+        year1, year2 = str(pd_datetime[0].year), str(pd_datetime[-1].year) 
+        new_title = smoothing_str+"Difference for "+year1+" - "+year2
 
         if self.extremes == "None":
             if self.anomaly:
@@ -212,7 +211,7 @@ class TimeSeriesParams(param.Parameterized):
                         smoothing_str
                         + "Difference for ".lower()
                         + year1
-                        + "-"
+                        + " - "
                         + year2
                         + " with a "
                         + str(self.num_timesteps)
@@ -226,7 +225,7 @@ class TimeSeriesParams(param.Parameterized):
                         smoothing_str
                         + "Timeseries for ".lower()
                         + year1
-                        + "-"
+                        + " - "
                         + year2
                         + " with a "
                         + str(self.num_timesteps)
@@ -243,7 +242,7 @@ class TimeSeriesParams(param.Parameterized):
                         + percentrile_str
                         + " percentile extremes with a "
                         + str(self.resample_window)
-                        + "-"
+                        + " - "
                         + resample_per_str
                         + " resample"
                     )
@@ -253,7 +252,7 @@ class TimeSeriesParams(param.Parameterized):
                         + extremes_str
                         + " extremes with a "
                         + str(self.resample_window)
-                        + "-"
+                        + " - "
                         + resample_per_str
                         + " resample"
                     )
@@ -264,7 +263,7 @@ class TimeSeriesParams(param.Parameterized):
                         + percentrile_str
                         + " percentile extremes with a "
                         + str(self.resample_window)
-                        + "-"
+                        + " - "
                         + resample_per_str
                         + " resample"
                     )
@@ -274,7 +273,7 @@ class TimeSeriesParams(param.Parameterized):
                         + extremes_str
                         + " extremes with a "
                         + str(self.resample_window)
-                        + "-"
+                        + " - "
                         + resample_per_str
                         + " resample"
                     )
