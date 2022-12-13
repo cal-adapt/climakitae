@@ -218,7 +218,7 @@ class TimeSeriesParams(param.Parameterized):
                         + " timesteps running mean"
                     )
                 else: # Unsmoothed, anomaly timeseries, no extremes
-                    new_title = smoothing_str+"Difference for "+year1+ "- "+year2
+                    new_title = smoothing_str+"Difference for "+year1+ " - "+year2
             else:
                 if self.smoothing == "Running Mean": # Smoothed, timeseries, no extremes
                     new_title = (
