@@ -13,7 +13,6 @@ from .catalog_convert import (
 from .unit_conversions import _convert_units
 from .utils import _readable_bytes
 from .derive_variables import (
-    _compute_total_precip,
     _compute_relative_humidity,
     _compute_wind_mag,
 )
@@ -98,13 +97,7 @@ def _get_cat_subset(selections, cat):
 
     """
 
-    # Add back in Historical Climate if append_historical was selected
-    scenario_selections = selections.scenario.copy()
-    if (
-        selections.append_historical == True
-        and "Historical Climate" not in scenario_selections
-    ):
-        scenario_selections += ["Historical Climate"]
+    scenario_selections = selections.scenario_ssp + selections.scenario_historical
 
     # Get catalog keys
     # Convert user-friendly names to catalog names (i.e. "45km" to "d01")
@@ -112,6 +105,7 @@ def _get_cat_subset(selections, cat):
     table_id = _timescale_to_table_id(selections.timescale)
     grid_label = _resolution_to_gridlabel(selections.resolution)
     experiment_id = [_scenario_to_experiment_id(x) for x in scenario_selections]
+    source_id = selections.simulation
     variable_id = selections.variable_id
 
     # Get catalog subset
@@ -121,27 +115,9 @@ def _get_cat_subset(selections, cat):
         grid_label=grid_label,
         variable_id=variable_id,
         experiment_id=experiment_id,
+        source_id=source_id,
     )
     return cat_subset
-
-
-def _get_data_dict_and_names(cat_subset):
-    """For an input catalog subset, grab the data.
-
-    Args:
-        cat_subset (intake_esm.core.esm_datastore): catalog subset
-
-    Returns:
-        data_dict (dictionary): dictionary of zarrs from catalog, with each key
-        being its name and each item the zarr store
-
-    """
-    data_dict = cat_subset.to_dataset_dict(
-        zarr_kwargs={"consolidated": True},
-        storage_options={"anon": True},
-        progressbar=False,
-    )
-    return data_dict
 
 
 def _get_area_subset(location):
@@ -181,9 +157,8 @@ def _get_area_subset(location):
     return ds_region
 
 
-def _process_and_concat(selections, dsets, cat_subset):
-    """Process data if append_historical was selected.
-    Merge all datasets into one.
+def _process_and_concat(selections, location, dsets, cat_subset):
+    """Process all data; merge all datasets into one.
 
     Args:
         selections (DataLoaders): object holding user's selections
@@ -196,23 +171,26 @@ def _process_and_concat(selections, dsets, cat_subset):
 
     """
     da_list = []
-    scenario_list = cat_subset.unique()["experiment_id"]["values"]
+    scenario_list = selections.scenario_historical + selections.scenario_ssp
+    append_historical = False
 
-    # If append historical is true, we don't need to have an additional
-    # Historical Climate scenario coordinate
-    if "historical" in scenario_list and selections.append_historical == True:
-        scenario_list.remove("historical")
+    if True in ["SSP" in one for one in selections.scenario_ssp]:
+        if "Historical Climate" in selections.scenario_historical:
+            # Historical climate will be appended to the SSP data
+            append_historical = True
+            scenario_list.remove("Historical Climate")
+        if "Historical Reconstruction (ERA5-WRF)" in selections.scenario_historical:
+            # We are not allowing users to select historical reconstruction data and SSP data at the same time,
+            # due to the memory restrictions at the moment
+            scenario_list.remove("Historical Reconstruction (ERA5-WRF)")
 
     for scenario in scenario_list:
         sim_list = []
-        da_name = _scenario_to_experiment_id(scenario, reverse=True)
-        for simulation in cat_subset.unique()["source_id"]["values"]:
-            if selections.append_historical and "ssp" in scenario:
-
+        da_name = _scenario_to_experiment_id(scenario)
+        for simulation in selections.simulation:
+            if append_historical:
                 # Reset name
-                da_name = "Historical + " + _scenario_to_experiment_id(
-                    scenario, reverse=True
-                )
+                da_name = "Historical + " + scenario
 
                 # Get filenames
                 try:
@@ -224,7 +202,8 @@ def _process_and_concat(selections, dsets, cat_subset):
                     ssp_filename = [
                         name
                         for name in dsets.keys()
-                        if simulation + "." + scenario in name
+                        if simulation + "." + _scenario_to_experiment_id(scenario)
+                        in name
                     ][0]
                 except:  # Some simulation + ssp options are not available. Just continue with the loop if no filename is found
                     continue
@@ -247,7 +226,8 @@ def _process_and_concat(selections, dsets, cat_subset):
                     filename = [
                         name
                         for name in dsets.keys()
-                        if simulation + "." + scenario in name
+                        if simulation + "." + _scenario_to_experiment_id(scenario)
+                        in name
                     ][0]
                 except:
                     continue
@@ -268,9 +248,11 @@ def _process_and_concat(selections, dsets, cat_subset):
     da_final.attrs = {  # Add descriptive attributes to DataArray
         "institution": orig_attrs["institution"],
         "source": orig_attrs["source"],
+        "location_subset": location.cached_area,
         "resolution": selections.resolution,
         "frequency": selections.timescale,
         "grid_mapping": da_final.attrs["grid_mapping"],
+        "location_subset": location.cached_area,
         "variable_id": selections.variable_id,
         "extended_description": selections.extended_description,
         "units": da_final.attrs["units"],
@@ -288,7 +270,11 @@ def _get_data_one_var(selections, location, cat):
     cat_subset = _get_cat_subset(selections=selections, cat=cat)
 
     # Read data from AWS.
-    data_dict = _get_data_dict_and_names(cat_subset=cat_subset)
+    data_dict = cat_subset.to_dataset_dict(
+        zarr_kwargs={"consolidated": True},
+        storage_options={"anon": True},
+        progressbar=False,
+    )
 
     # Perform subsetting operations
     for dname, dset in data_dict.items():
@@ -314,10 +300,9 @@ def _get_data_one_var(selections, location, cat):
         # Update dataset in dictionary
         data_dict.update({dname: dset})
 
-    # Process data if append_historical was selected.
     # Merge individual Datasets into one DataArray object.
     da = _process_and_concat(
-        selections=selections, dsets=data_dict, cat_subset=cat_subset
+        selections=selections, location=location, dsets=data_dict, cat_subset=cat_subset
     )
 
     return da
@@ -338,16 +323,11 @@ def _read_from_catalog(selections, location, cat):
         da (xr.DataArray): output data
 
     """
-    # Raise error if no scenarios are selected
-    assert not selections.scenario == [], "Please select as least one scenario."
+    scenario_selections = selections.scenario_ssp + selections.scenario_historical
 
-    # Raise error if no simulation is selected and append_historical == True
-    if selections.append_historical:
-        if not any(["SSP" in s for s in selections.scenario]):
-            raise ValueError(
-                "Please also select at least one SSP to "
-                "which the historical simulation should be appended."
-            )
+    # Raise error if no scenarios are selected
+    if scenario_selections == []:
+        raise ValueError("Please select as least one dataset.")
 
     # Deal with derived variables
     if selections.variable_id == "precip_tot_derived":

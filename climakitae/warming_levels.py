@@ -20,7 +20,7 @@ xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
 
 # Variable info
 var_catalog_resource = pkg_resources.resource_filename(
-    "climakitae", "data/variable_catalog.csv"
+    "climakitae", "data/variable_descriptions.csv"
 )
 var_catalog = pd.read_csv(var_catalog_resource, index_col="variable_id")
 
@@ -182,10 +182,10 @@ class WarmingLevels(param.Parameterized):
         super().__init__(*args, **params)
 
         # Selectors defaults
-        self.selections.append_historical = True
+        self.selections.scenario_historical = ["Historical Climate"]
         self.selections.area_average = False
         self.selections.resolution = "45 km"
-        self.selections.scenario = ["SSP 3-7.0 -- Business as Usual"]
+        self.selections.scenario_ssp = ["SSP 3-7.0 -- Business as Usual"]
         self.selections.time_slice = (1980, 2100)
         self.selections.timescale = "monthly"
         self.selections.variable = "Air Temperature at 2m"

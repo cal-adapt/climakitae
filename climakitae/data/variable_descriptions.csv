@@ -1,6 +1,6 @@
 variable_id,long_name,timescale,unit,display_name,extended_description,colormap,show
 t2,temp at 2 m,hourly,K,Air Temperature at 2m,Temperature of the air 2m above Earth's surface. This is the measure of air temperature used for most modeling applications.,ae_orange,TRUE
-precip_tot_derived,Precipitation (total),hourly,mm,Precipitation (total),Total precipitation. Computed by summing total gridscale precipitation and total cumulus precipitation.,ae_blue,TRUE
+prec,precipitation,hourly,mm,Precipitation (total),Total precipitation. Computed by summing total gridscale precipitation and total cumulus precipitation.,ae_blue,TRUE
 rh_derived,Relative Humidity,hourly,[0 to 100],Relative Humidity,The percentage of water vapor (i.e. moisture) relative to the amount of water vapor needed to saturate the air at the current air temperature and pressure.,ae_blue,TRUE
 wind_speed_derived,Wind speed,hourly,m s-1,Wind speed at 10m,Wind speed at 10 meters above the Earth's surface. Computed by taking the vector magnitude of the west-east (u) component of wind and the north-south (v) component of wind.,ae_orange,TRUE
 u10,u at 10 m,hourly,m s-1,West-East component of Wind at 10m,"Wind coming from the west, measured at 10m above Earth's surface. By convention, wind coming from the east is negative.",ae_diverging,TRUE
@@ -24,7 +24,7 @@ runsb,subsurface runoff,hourly,mm/s,Subsurface runoff,"The rate at which  water 
 runsf,surface runoff,hourly,mm/s,Surface runoff,"The rate at which water travels over the ground surface until it reaches a body of water (stream, river, etc.)",ae_blue,FALSE
 snow,snow water equivalent,hourly,kg m-2,Snow water equivalent,The amount of water on surface that would be present if all snow melted. ,ae_blue,FALSE
 t2,2-meter temperature ,daily/monthly,K,Air Temperature at 2m,Temperature of the air 2m above Earth's surface. This is the measure of air temperature used for most modeling applications.,ae_orange,TRUE
-prec,precipitation,daily/monthly,mm,Precipitation (total),Total precipitation (liquid and frozen). Computed by summing total gridscale precipitation and total cumulus precipitation.,ae_blue,TRUE
+prec,precipitation,daily/monthly,mm,Precipitation (total),Total precipitation. Computed by summing total gridscale precipitation and total cumulus precipitation.,ae_blue,TRUE
 rh,2-meter relative humidity,daily/monthly,[0 to 100],Relative Humidity,The percentage of water vapor (i.e. moisture) relative to the amount of water vapor needed to saturate the air at the current air temperature and pressure.,ae_blue,TRUE
 wspd10mean,mean 10-meter wind speed,daily/monthly,m/s,Mean wind speed at 10m,The average wind speed (magnitude) at 10m above the Earth's surface. ,ae_orange,TRUE
 wspd10max,maximum 10-meter wind speed,daily/monthly,m/s,Maximum wind speed at 10m,The maximum wind speed at 10m above the Earth's surface. ,ae_orange,TRUE

@@ -1,23 +1,6 @@
 import numpy as np
 
 
-def _compute_total_precip(cumulus_precip, gridcell_precip, variable_name="TOT_PRECIP"):
-    """Compute total precipitation
-
-    Args:
-        cumulus_precip (xr.DataArray): Accumulated total cumulus precipitation (mm)
-        gridcell_precip (xr.DataArray): Accumulated total grid scale precipitation (mm)
-        variable_name (string): Name to assign DataArray object (default to "TOT_PRECIP")
-
-    Returns:
-        total_precip (xr.DataArray): Total precipitation (mm)
-    """
-
-    total_precip = cumulus_precip + gridcell_precip
-    total_precip.name = variable_name
-    return total_precip
-
-
 def _compute_relative_humidity(
     pressure, temperature, mixing_ratio, variable_name="REL_HUMIDITY"
 ):
