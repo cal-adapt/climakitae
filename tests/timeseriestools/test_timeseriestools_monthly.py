@@ -22,12 +22,13 @@ def test_TSP(rootdir):
     test_filepath = os.path.join(rootdir, test_filename)
     test_data = xr.open_dataset(test_filepath).T2
 
-    # Compute area average 
+    # Compute area average
     weights = np.cos(np.deg2rad(test_data.lat))
     test_data = test_data.weighted(weights).mean("x").mean("y")
-        
-    ts = tst.Timeseries(test_data) # make Timeseries object
-    return ts.choices # return the underlying TimeSeriesParams object for testing
+
+    ts = tst.Timeseries(test_data)  # make Timeseries object
+    return ts.choices  # return the underlying TimeSeriesParams object for testing
+
 
 def test_monthly_smoothing(test_TSP):
     # Specify Params options

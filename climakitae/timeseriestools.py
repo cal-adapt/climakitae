@@ -3,7 +3,7 @@ import xarray as xr
 import param
 import panel as pn
 import hvplot.xarray
-import pandas as pd 
+import pandas as pd
 
 
 class TimeSeriesParams(param.Parameterized):
@@ -18,53 +18,39 @@ class TimeSeriesParams(param.Parameterized):
         super().__init__(**params)
         self.data = dataset
 
-    anomaly = param.Boolean(
-        default = True,
-        label = "Difference from a historical mean"
-    )
+    anomaly = param.Boolean(default=True, label="Difference from a historical mean")
     reference_range = param.CalendarDateRange(
-        default = (dt.datetime(1981, 1, 1), dt.datetime(2010, 12, 31)),
-        bounds = (dt.datetime(1980, 1, 1), dt.datetime(2021, 12, 31)),
+        default=(dt.datetime(1981, 1, 1), dt.datetime(2010, 12, 31)),
+        bounds=(dt.datetime(1980, 1, 1), dt.datetime(2021, 12, 31)),
     )
-    remove_seasonal_cycle = param.Boolean(default = False)
-    smoothing = param.ObjectSelector(
-        default = "None",
-        objects = ["None", "Running Mean"]
-    )
+    remove_seasonal_cycle = param.Boolean(default=False)
+    smoothing = param.ObjectSelector(default="None", objects=["None", "Running Mean"])
     _time_scales = dict(
         [("hours", "H"), ("days", "D"), ("months", "MS"), ("years", "AS-SEP")]
     )
-    num_timesteps = param.Integer(default = 0, bounds = (0, 240))
+    num_timesteps = param.Integer(default=0, bounds=(0, 240))
     separate_seasons = param.Boolean(
-        default = False,
-        label = "Disaggregate into four seasons"
+        default=False, label="Disaggregate into four seasons"
     )
 
     extremes = param.ObjectSelector(
-        default = "None",
-        objects = ["None", "Min", "Max", "Percentile"]
+        default="None", objects=["None", "Min", "Max", "Percentile"]
     )
-    resample_window = param.Integer(
-        default = 1,
-        bounds = (1, 30)
-    )
-    resample_period = param.ObjectSelector(
-        default = "AS-SEP",
-        objects = _time_scales
-    )
+    resample_window = param.Integer(default=1, bounds=(1, 30))
+    resample_period = param.ObjectSelector(default="AS-SEP", objects=_time_scales)
     percentile = param.Number(
-        default = 0,
-        bounds = (0, 1),
-        step = 0.01,
-        doc = "Relevant if 'running extremes' is 'percentile.",
+        default=0,
+        bounds=(0, 1),
+        step=0.01,
+        doc="Relevant if 'running extremes' is 'percentile.",
     )
 
-    @param.depends("anomaly", watch = True)
+    @param.depends("anomaly", watch=True)
     def update_seasonal_cycle(self):
         if not self.anomaly:
             self.remove_seasonal_cycle = False
 
-    @param.depends("remove_seasonal_cycle", watch = True)
+    @param.depends("remove_seasonal_cycle", watch=True)
     def update_anom(self):
         if self.remove_seasonal_cycle:
             self.anomaly = True
@@ -89,7 +75,7 @@ class TimeSeriesParams(param.Parameterized):
             if y.attrs["frequency"] == "1month":
                 # If frequency is monthly, then the reference period average needs to be a
                 # weighted average, with weights equal to the number of days in each month
-                reference_slice = y.sel(time = slice(*self.reference_range))
+                reference_slice = y.sel(time=slice(*self.reference_range))
                 month_weights = (
                     reference_slice.time.dt.daysinmonth
                 )  # Number of days in each month of the reference range
@@ -98,7 +84,7 @@ class TimeSeriesParams(param.Parameterized):
                 )  # Calculate the weighted average of this period
                 return y - reference_avg  # return the difference
             else:
-                return y - y.sel(time = slice(*self.reference_range)).mean("time")
+                return y - y.sel(time=slice(*self.reference_range)).mean("time")
 
         def _running_mean(y):
             # If timescale is monthly, need to weight the rolling average by the number of days in each month
@@ -138,16 +124,16 @@ class TimeSeriesParams(param.Parameterized):
         if self.extremes != "None":
             if self.extremes == "Max":
                 to_plot = to_plot.resample(
-                    time = str(self.resample_window) + self.resample_period
+                    time=str(self.resample_window) + self.resample_period
                 ).max("time")
             elif self.extremes == "Min":
                 to_plot = to_plot.resample(
-                    time = str(self.resample_window) + self.resample_period
+                    time=str(self.resample_window) + self.resample_period
                 ).min("time")
             elif self.extremes == "Percentile":
                 to_plot = to_plot.resample(
-                    time = str(self.resample_window) + self.resample_period
-                ).quantile(q = self.percentile)
+                    time=str(self.resample_window) + self.resample_period
+                ).quantile(q=self.percentile)
         return to_plot
 
     @param.depends(
@@ -176,12 +162,19 @@ class TimeSeriesParams(param.Parameterized):
             menu_list = ["scenario"]
 
         # Resample period user-friendly (used in title)
-        resample_per_str = {v: k for k, v in self._time_scales.items()}[self.resample_period]
-        resample_per_str = resample_per_str[:-1] # Remove plural (i.e. "months" --> "month")
+        resample_per_str = {v: k for k, v in self._time_scales.items()}[
+            self.resample_period
+        ]
+        resample_per_str = resample_per_str[
+            :-1
+        ]  # Remove plural (i.e. "months" --> "month")
 
         # Percentile string user-friendly (used in title)
-        percentile_int = int(self.percentile*100)
-        ordinal = lambda n: "%d%s" % (n,"tsnrhtdd"[(n//10%10!=1)*(n%10<4)*n%10::4])
+        percentile_int = int(self.percentile * 100)
+        ordinal = lambda n: "%d%s" % (
+            n,
+            "tsnrhtdd"[(n // 10 % 10 != 1) * (n % 10 < 4) * n % 10 :: 4],
+        )
         percentrile_str = ordinal(percentile_int)
 
         # Extremes string user-friendly (used in title)
@@ -198,15 +191,17 @@ class TimeSeriesParams(param.Parameterized):
         else:
             smoothing_str = ""
 
-        # Get start and end years of input data 
-        # Use that to build a title 
-        pd_datetime = pd.DatetimeIndex(self.data.time.values) 
-        year1, year2 = str(pd_datetime[0].year), str(pd_datetime[-1].year) 
-        new_title = smoothing_str+"Difference for "+year1+" - "+year2
+        # Get start and end years of input data
+        # Use that to build a title
+        pd_datetime = pd.DatetimeIndex(self.data.time.values)
+        year1, year2 = str(pd_datetime[0].year), str(pd_datetime[-1].year)
+        new_title = smoothing_str + "Difference for " + year1 + " - " + year2
 
         if self.extremes == "None":
             if self.anomaly:
-                if self.smoothing == "Running Mean": #Smoothed, anomaly timeseries, no extremes
+                if (
+                    self.smoothing == "Running Mean"
+                ):  # Smoothed, anomaly timeseries, no extremes
                     new_title = (
                         smoothing_str
                         + "Difference for ".lower()
@@ -217,10 +212,14 @@ class TimeSeriesParams(param.Parameterized):
                         + str(self.num_timesteps)
                         + " timesteps running mean"
                     )
-                else: # Unsmoothed, anomaly timeseries, no extremes
-                    new_title = smoothing_str+"Difference for "+year1+ " - "+year2
+                else:  # Unsmoothed, anomaly timeseries, no extremes
+                    new_title = (
+                        smoothing_str + "Difference for " + year1 + " - " + year2
+                    )
             else:
-                if self.smoothing == "Running Mean": # Smoothed, timeseries, no extremes
+                if (
+                    self.smoothing == "Running Mean"
+                ):  # Smoothed, timeseries, no extremes
                     new_title = (
                         smoothing_str
                         + "Timeseries for ".lower()
@@ -231,12 +230,14 @@ class TimeSeriesParams(param.Parameterized):
                         + str(self.num_timesteps)
                         + " timesteps running mean"
                     )
-                else: # Unsmoothed, timeseries, no extremes
-                    new_title = smoothing_str+"Timeseries for "+year1+" - "+year2
+                else:  # Unsmoothed, timeseries, no extremes
+                    new_title = (
+                        smoothing_str + "Timeseries for " + year1 + " - " + year2
+                    )
 
         elif self.extremes != "None":
             if self.smoothing == "None":
-                if self.extremes == "Percentile": # Unsmoothed, percentile extremes
+                if self.extremes == "Percentile":  # Unsmoothed, percentile extremes
                     new_title = (
                         smoothing_str
                         + percentrile_str
@@ -246,7 +247,7 @@ class TimeSeriesParams(param.Parameterized):
                         + resample_per_str
                         + " resample"
                     )
-                else: # Unsmoothed, min/max/mean extremes
+                else:  # Unsmoothed, min/max/mean extremes
                     new_title = (
                         smoothing_str
                         + extremes_str
@@ -267,7 +268,7 @@ class TimeSeriesParams(param.Parameterized):
                         + resample_per_str
                         + " resample"
                     )
-                else: # Smoothed, min/max/mean extremes
+                else:  # Smoothed, min/max/mean extremes
                     new_title = (
                         smoothing_str
                         + extremes_str
@@ -279,11 +280,11 @@ class TimeSeriesParams(param.Parameterized):
                     )
 
         obj = to_plot.hvplot.line(
-            x = "time",
-            widget_location = "bottom",
-            by = "simulation",
-            groupby = menu_list,
-            title = new_title
+            x="time",
+            widget_location="bottom",
+            by="simulation",
+            groupby=menu_list,
+            title=new_title,
         )
         return obj
 
@@ -294,7 +295,9 @@ def _timeseries_visualize(choices):
     an instance of TimeSeriesParams.
     """
     smooth_text = "Smoothing applies a running mean to remove noise from the data."
-    resample_text = "Resampling is required in extremes to determine the frequency of the extreme."
+    resample_text = (
+        "Resampling is required in extremes to determine the frequency of the extreme."
+    )
 
     return pn.Column(
         pn.Row(
@@ -306,7 +309,7 @@ def _timeseries_visualize(choices):
                 choices.param.separate_seasons,
                 choices.param.smoothing,
                 choices.param.num_timesteps,
-                pn.Spacer(height = 10),
+                pn.Spacer(height=10),
             ),
             pn.Spacer(width=50),
             pn.Column(
@@ -318,7 +321,7 @@ def _timeseries_visualize(choices):
                     width=320,
                 ),
                 pn.widgets.StaticText(name="", value=smooth_text),
-                pn.widgets.StaticText(name="", value=resample_text)
+                pn.widgets.StaticText(name="", value=resample_text),
             ),
         ),
         choices.view,

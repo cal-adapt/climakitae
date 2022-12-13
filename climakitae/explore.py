@@ -14,9 +14,9 @@ class AppExplore(object):
         app.explore.amy(): AMY panel GUI
         app.explore.thresholds(): thresholds panel GUI
         app.explore.warming_levels(): warming levels panel GUI
-        app.explore.amy_selections(): AverageMeteorologicalYear object generated in app.explore.amy(); 
-            only accessible if app.explore.amy() has already been run. 
-    
+        app.explore.amy_selections(): AverageMeteorologicalYear object generated in app.explore.amy();
+            only accessible if app.explore.amy() has already been run.
+
     """
 
     def __init__(self, selections, location, _cat):
@@ -37,21 +37,21 @@ class AppExplore(object):
         """Display Average Meteorological Year panel."""
         global tmy_ob
         tmy_ob = AverageMeteorologicalYear(
-            selections = self.selections,
-            location = self.location,
-            cat = self._cat
+            selections=self.selections, location=self.location, cat=self._cat
         )
         return _amy_visualize(
             tmy_ob=tmy_ob, selections=self.selections, location=self.location
         )
-    
+
     def amy_selections(self):
-        """Return the Average Meteorological Year panel object such that the user 
+        """Return the Average Meteorological Year panel object such that the user
         can pull information from the AMY panel or directly modify the values."""
-        if 'tmy_ob' in globals(): # First, check if amy() has been run and the object has been created 
+        if (
+            "tmy_ob" in globals()
+        ):  # First, check if amy() has been run and the object has been created
             return tmy_ob
-        else: 
-            print("Please first initialize the AMY panel by calling app.explore.amy()") 
+        else:
+            print("Please first initialize the AMY panel by calling app.explore.amy()")
             return None
 
     def thresholds(self, option=1):
