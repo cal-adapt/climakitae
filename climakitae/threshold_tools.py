@@ -24,9 +24,20 @@ import panel as pn
 from .visualize import get_geospatial_plot
 
 
-def get_ams(da, extremes_type="max"):
+def get_ams(
+    da, 
+    extremes_type="max",
+    duration1=None,
+    groupby=None,
+    duration2=None,
+    ):
     """
     Returns a data array of annual maximums.
+    
+    Not yet implemented:
+    Optional arguments `duration1`, `groupby`, and `duration2` define the type
+    of event to find the annual maximums of. These correspond to the event
+    types defined in the `get_exceedance_count` function. 
     """
 
     extremes_types = ["max"]
@@ -35,19 +46,43 @@ def get_ams(da, extremes_type="max"):
             "invalid extremes type. expected one of the following: %s" % extremes_types
         )
 
-    if extremes_type == "max":
-        ams = da.resample(time="A").max(keep_attrs=True)
-        ams.attrs["extreme value extraction method"] = "block maxima"
-        ams.attrs["extremes type"] = "maxima"
-        ams.attrs["block size"] = "1 year"
-        ams.attrs["timeseries type"] = "annual max series"
+    if (duration1 == None) and (groupby == None) and (duration2 == None):
+        # In this case, return the simple annual extreme values
 
-    # if extremes_type == 'min':
-    #     ams = da.resample(time='A').min(keep_attrs = True)
-    #     ams.attrs['extreme value extraction method'] = 'block maxima'
-    #     ams.attrs['extremes type'] = 'minima'
-    #     ams.attrs['block size'] = '1 year'
-    #     ams.attrs['timeseries type'] = 'annual min series'
+        if extremes_type == "max":
+            ams = da.resample(time="A").max(keep_attrs=True)
+            ams.attrs["extreme value extraction method"] = "block maxima"
+            ams.attrs["extremes type"] = "maxima"
+            ams.attrs["block size"] = "1 year"
+            ams.attrs["timeseries type"] = "annual max series"
+
+        # if extremes_type == 'min':
+        #     ams = da.resample(time='A').min(keep_attrs = True)
+        #     ams.attrs['extreme value extraction method'] = 'block maxima'
+        #     ams.attrs['extremes type'] = 'minima'
+        #     ams.attrs['block size'] = '1 year'
+        #     ams.attrs['timeseries type'] = 'annual min series'
+
+    else:
+        raise ValueError("Complex event types not yet implemented for calculating annual maximum series.")
+        # To implement:
+
+        # Need to check the duration and groupby arguments 
+        #   make sure duration1 < groupby < duration2 (as is checked in the `get_exceedance_count` functions)
+
+        # Then implement the actual series calculations for the different types of events
+        # this will involve similar resampling logic as is used in `get_exceedance_count` functions
+        if (duration1 != None) and (groupby == None) and (duration2 == None):
+            # In this case, user is interested in continuous extreme events lasting 
+            # the length of duration1. Need to use a rolling window operation or resample function to 
+            # identify the minimum value for each window in each year, and then 
+            # return the maximum of all the window values in each year.
+            raise ValueError("Not yet implemented")
+
+        else:
+            # Need to implement other cases/combos of the duration and groupby arguments
+            raise ValueError("Not yet implemented")
+
     return ams
 
 
