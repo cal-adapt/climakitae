@@ -1,28 +1,32 @@
 import numpy as np
 
+
 def _compute_dewpointtemp(temperature, rel_hum):
     """Calculate dew point temperature
 
-    Args: 
+    Args:
         temperature (xr.DataArray): Temperature in Kelvin
-        rel_hum (xr.DataArray): Relative humidity (0-100 scale) 
-    
-    Returns 
+        rel_hum (xr.DataArray): Relative humidity (0-100 scale)
+
+    Returns
         dew_point (xr.DataArray): Dew point (K)
-        
+
     """
-    es = 0.611 * np.exp(5423 * ((1/273) - (1/temperature)))   # calculates saturation vapor pressure
-    e_vap = (es * rel_hum)/100.    # calculates vapor pressure
-    tdps = ((1/273) - 0.0001844 * np.log(e_vap/0.611))**-1   # calculates dew point temperature, units = K
-    
+    es = 0.611 * np.exp(
+        5423 * ((1 / 273) - (1 / temperature))
+    )  # calculates saturation vapor pressure
+    e_vap = (es * rel_hum) / 100.0  # calculates vapor pressure
+    tdps = (
+        (1 / 273) - 0.0001844 * np.log(e_vap / 0.611)
+    ) ** -1  # calculates dew point temperature, units = K
+
     # Assign descriptive name
     tdps.name = "dew_point_derived"
     tdps.attrs["units"] = "K"
     return tdps
 
-def _compute_relative_humidity(
-    pressure, temperature, mixing_ratio
-):
+
+def _compute_relative_humidity(pressure, temperature, mixing_ratio):
     """Compute relative humidity.
     Variable attributes need to be assigned outside of this function because the metpy function removes them
 
