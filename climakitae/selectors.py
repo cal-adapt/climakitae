@@ -195,8 +195,8 @@ class LocSelectorArea(param.Parameterized):
     longitude = param.Range(default=default_lon, bounds=(-156.82317, -84.18701))
     _lat_lon_warning = param.String(
         default="",
-        doc="Warning if user is messing with lat/lon slider, \
-        but lat/lon is not selected for area subset.",
+        doc="Warning if user is messing with lat/lon slider,"
+        "but lat/lon is not selected for area subset."
     )
 
     def __init__(self, **params):
@@ -456,15 +456,10 @@ def _get_data_selection_description(
     if location.area_subset == "lat/lon":
         # bbox = min Longitude , min Latitude , max Longitude , max Latitude
         cached_area_print = (
-            "bounding box <br>\
-            ({:.2f}".format(
-                location.longitude[0]
-            )
+            "bounding box <br>"
+            "({:.2f}".format(location.longitude[0])
             + ", {:.2f}".format(location.latitude[0])
-            + "\
-            , {:.2f}".format(
-                location.longitude[1]
-            )
+            + ", {:.2f}".format(location.longitude[1])
             + ", {:.2f}".format(location.latitude[1])
             + ")"
         )
@@ -474,40 +469,40 @@ def _get_data_selection_description(
         cached_area_print = str(location.cached_area)
 
     _data_selection_description = (
-        "<font size='+0.10'>Data selections: </font><br> \
-        <ul> \
-            <li><b>variable:</b> "
+        "<font size='+0.10'>Data selections: </font><br>"
+        "<ul>"
+            "<li><b>variable: </b>"
         + str(variable)
-        + "</li> \
-            <li><b>units:</b> "
+        + "</li>"
+            "<li><b>units: </b>"
         + str(units)
-        + "</li> \
-            <li><b>temporal resolution: </b>"
+        + "</li>"
+            "<li><b>temporal resolution: </b>"
         + str(timescale)
-        + "</li> \
-            <li><b>model resolution: </b>"
+        + "</li>"
+            "<li><b>model resolution: </b>"
         + str(resolution)
-        + "</li> \
-            <li><b>timeslice: </b>"
+        + "</li>"
+            "<li><b>timeslice: </b>"
         + str(time_slice[0])
         + " - "
         + str(time_slice[1])
-        + "</li> \
-            <li><b>datasets:</b> "
+        + "</li>"
+            "<li><b>datasets: </b>"
         + ", ".join(scenario_print)
-        + "</li> \
-        </ul>"
+        + "</li>"
+        "</ul>"
     )
     _location_selection_description = (
-        "<font size='+0.10'>Location selections: </font><br> \
-        <ul> \
-            <li><b>location:</b> "
+        "<font size='+0.10'>Location selections: </font><br>"
+        "<ul>"
+            "<li><b>location: </b>"
         + cached_area_print
-        + "</li> \
-            <li><b>compute area average?</b> "
+        + "</li>"
+            "<li><b>compute area average? </b>"
         + str(_area_average_yes_no)
-        + "</li> \
-        </ul>"
+        + "</li>"
+        "</ul>"
     )
     return _data_selection_description + _location_selection_description
 
@@ -536,8 +531,8 @@ class DataSelector(param.Parameterized):
     _area_average_yes_no = param.ObjectSelector(
         default="No",
         objects=["Yes", "No"],
-        doc="Used to make the select panel more readable. \
-        Set to Yes if area_average = True, and No if not.",
+        doc="""Used to make the select panel more readable.
+        Set to Yes if area_average = True, and No if not.""",
     )
 
     # Empty params, initialized in __init__
@@ -762,14 +757,14 @@ class DataSelector(param.Parameterized):
     def _update_data_warning(self):
         """Update warning raised to user based on their data selections."""
         data_warning = ""
-        bad_time_slice_warning = "You've selected a time slice that is outside the temporal range of the \
-            selected data."
+        bad_time_slice_warning = """You've selected a time slice that is outside the temporal range 
+        of the selected data."""
         # Warning based on data scenario selections
         if (  # Warn user that they cannot have SSP data and ERA5-WRF data
             True in ["SSP" in one for one in self.scenario_ssp]
         ) and ("Historical Reconstruction (ERA5-WRF)" in self.scenario_historical):
-            data_warning = "Historical Reconstruction (ERA5-WRF) data is not available with SSP data. \
-            Try using the Historical Climate data instead."
+            data_warning = """Historical Reconstruction (ERA5-WRF) data is not available with SSP data.
+            Try using the Historical Climate data instead."""
 
         elif (  # Warn user if no data is selected
             not True in ["SSP" in one for one in self.scenario_ssp]
@@ -782,8 +777,8 @@ class DataSelector(param.Parameterized):
             )
             and ("Historical Climate" in self.scenario_historical)
         ):
-            data_warning = "The timescale of Historical Reconstruction (ERA5-WRF) data will be cut \
-            to match that of the Historical Climate data if both are retrieved."
+            data_warning = """The timescale of Historical Reconstruction (ERA5-WRF) data will be cut 
+            to match that of the Historical Climate data if both are retrieved."""
 
         # Warnings based on time slice selections
         if (not True in ["SSP" in one for one in self.scenario_ssp]) and (
@@ -954,6 +949,8 @@ class SelectionDescription(param.Parameterized):
 
     def __init__(self, **params):
         super().__init__(**params)
+        
+    
 
 
 # ================ DISPLAY LOCATION/DATA SELECTIONS IN PANEL ===================
@@ -966,6 +963,8 @@ def _display_select(selections, location):
     Modifies 'selections' object, which is used by generate() to build an
     appropriate xarray Dataset.
     """
+    
+    selection_description = SelectionDescription(selections, location)
 
     location_chooser = pn.Row(
         pn.Column(
@@ -978,8 +977,7 @@ def _display_select(selections, location):
             location.param.latitude,
             location.param.longitude,
             pn.widgets.StaticText(
-                value="<b>Compute an area average of your data over \
-                        the selected region?</b>",
+                value="<b>Compute an area average across grid cells within your selected region?</b>",
                 name="",
             ),
             pn.widgets.RadioButtonGroup.from_param(
@@ -1035,9 +1033,11 @@ def _display_select(selections, location):
 
     how_to_use = pn.Card(
         pn.widgets.StaticText(
-            value="In the first tab, select the data. In the second tab, subset your selected \
-            data by location and choose whether or not to compute an area average over the \
-            selected region. To retrieve the data, use the climakitae function app.retrieve().",
+            value="""
+            In the first tab, <b>make your data selections.</b>. In the second tab, <b>subset the 
+            data by location</b> and choose whether or not to compute an area average over the 
+            selected region. To retrieve the data, use the climakitae function <b>app.retrieve()</b>.
+            """,
             name="",
         ),
         title="How to use this panel",
@@ -1052,7 +1052,7 @@ def _display_select(selections, location):
         ),
         title="Current selections",
         width=285,
-        height=310,
+        height=330,
         collapsible=False,
     )
 
