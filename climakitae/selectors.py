@@ -1014,7 +1014,7 @@ def _display_select(selections, location):
         ),
         title="How to use this panel",
         width=285,
-        height=165,
+        height=170,
         collapsible=False,
     )
 
@@ -1024,7 +1024,7 @@ def _display_select(selections, location):
         ),
         title="Current selections",
         width=285,
-        height=350,
+        height=380,
         collapsible=False,
     )
 
