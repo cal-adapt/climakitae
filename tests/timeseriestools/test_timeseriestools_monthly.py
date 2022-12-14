@@ -32,7 +32,7 @@ def test_TSP(rootdir):
 
 def test_monthly_smoothing(test_TSP):
     # Specify Params options
-    test_TSP.smoothing = "running mean"
+    test_TSP.smoothing = "Running Mean"
     test_TSP.num_timesteps = 3
     test_TSP.anomaly = False
 
@@ -59,7 +59,7 @@ def test_monthly_anomaly(test_TSP):
 
 def test_monthly_anomaly_and_smoothing(test_TSP):
     # Specify Params options
-    test_TSP.smoothing = "running mean"
+    test_TSP.smoothing = "Running Mean"
     test_TSP.num_timesteps = 3
     test_TSP.anomaly = True
     test_TSP.reference_range = (dt.datetime(2014, 1, 1), dt.datetime(2014, 12, 31))
@@ -84,7 +84,7 @@ def test_seasonal(test_TSP):
 
 def test_seasonal_and_smoothing(test_TSP):
     # Specify Params options
-    test_TSP.smoothing = "running mean"
+    test_TSP.smoothing = "Running Mean"
     test_TSP.num_timesteps = 3
     test_TSP.anomaly = False
     test_TSP.remove_seasonal_cycle = True
@@ -100,9 +100,9 @@ def test_seasonal_and_smoothing(test_TSP):
 def test_extremes_smoothing(test_TSP):
     # Specify Params options
     test_TSP.anomaly = False
-    test_TSP.smoothing = "running mean"
+    test_TSP.smoothing = "Running Mean"
     test_TSP.num_timesteps = 3
-    test_TSP.extremes = "min"
+    test_TSP.extremes = "Min"
     test_TSP.resample_window = 2
 
     # Transform data and test
@@ -113,7 +113,7 @@ def test_extremes_smoothing(test_TSP):
 def test_extremes_min(test_TSP):
     # Specify Params options
     test_TSP.anomaly = False
-    test_TSP.extremes = "min"
+    test_TSP.extremes = "Min"
     test_TSP.resample_window = 2
 
     # Transform data and test
@@ -124,7 +124,7 @@ def test_extremes_min(test_TSP):
 def test_extremes_percentile(test_TSP):
     # Specify Params options
     test_TSP.anomaly = False
-    test_TSP.extremes = "percentile"
+    test_TSP.extremes = "Percentile"
     test_TSP.resample_window = 2
     test_TSP.percentile = 0.95
 

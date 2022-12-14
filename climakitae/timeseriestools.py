@@ -1,11 +1,9 @@
-import os
-import tempfile
 import datetime as dt
 import xarray as xr
 import param
 import panel as pn
 import hvplot.xarray
-import dask
+import pandas as pd
 
 
 class TimeSeriesParams(param.Parameterized):
@@ -22,11 +20,11 @@ class TimeSeriesParams(param.Parameterized):
 
     anomaly = param.Boolean(default=True, label="Difference from a historical mean")
     reference_range = param.CalendarDateRange(
-        default=(dt.datetime(1980, 1, 1), dt.datetime(2012, 12, 31)),
+        default=(dt.datetime(1981, 1, 1), dt.datetime(2010, 12, 31)),
         bounds=(dt.datetime(1980, 1, 1), dt.datetime(2021, 12, 31)),
     )
     remove_seasonal_cycle = param.Boolean(default=False)
-    smoothing = param.ObjectSelector(default="None", objects=["None", "running mean"])
+    smoothing = param.ObjectSelector(default="None", objects=["None", "Running Mean"])
     _time_scales = dict(
         [("hours", "H"), ("days", "D"), ("months", "MS"), ("years", "AS-SEP")]
     )
@@ -36,7 +34,7 @@ class TimeSeriesParams(param.Parameterized):
     )
 
     extremes = param.ObjectSelector(
-        default="None", objects=["None", "min", "max", "percentile"]
+        default="None", objects=["None", "Min", "Max", "Percentile"]
     )
     resample_window = param.Integer(default=1, bounds=(1, 30))
     resample_period = param.ObjectSelector(default="AS-SEP", objects=_time_scales)
@@ -117,42 +115,25 @@ class TimeSeriesParams(param.Parameterized):
         else:
             to_plot = to_plot
 
-        if self.smoothing == "running mean" and self.num_timesteps > 0:
+        if self.smoothing == "Running Mean" and self.num_timesteps > 0:
             if self.separate_seasons:
                 to_plot = to_plot.groupby("time.season").apply(_running_mean)
             else:
                 to_plot = _running_mean(to_plot)
-            to_plot.name = str(self.num_timesteps) + " timesteps running mean"
 
         if self.extremes != "None":
-            new_name = (
-                to_plot.name
-                + " -- "
-                + str(self.resample_window)
-                + self.resample_period
-                + " "
-                + self.extremes
-            )
-            if self.extremes == "max":
+            if self.extremes == "Max":
                 to_plot = to_plot.resample(
                     time=str(self.resample_window) + self.resample_period
                 ).max("time")
-            elif self.extremes == "min":
+            elif self.extremes == "Min":
                 to_plot = to_plot.resample(
                     time=str(self.resample_window) + self.resample_period
                 ).min("time")
-            elif self.extremes == "percentile":
+            elif self.extremes == "Percentile":
                 to_plot = to_plot.resample(
                     time=str(self.resample_window) + self.resample_period
                 ).quantile(q=self.percentile)
-                new_name = (
-                    to_plot.name
-                    + " -- "
-                    + "{:.0f}".format(self.percentile * 100)
-                    + " "
-                    + self.extremes
-                )
-            to_plot.name = new_name
         return to_plot
 
     @param.depends(
@@ -180,8 +161,130 @@ class TimeSeriesParams(param.Parameterized):
         else:
             menu_list = ["scenario"]
 
+        # Resample period user-friendly (used in title)
+        resample_per_str = {v: k for k, v in self._time_scales.items()}[
+            self.resample_period
+        ]
+        resample_per_str = resample_per_str[
+            :-1
+        ]  # Remove plural (i.e. "months" --> "month")
+
+        # Percentile string user-friendly (used in title)
+        percentile_int = int(self.percentile * 100)
+        ordinal = lambda n: "%d%s" % (
+            n,
+            "tsnrhtdd"[(n // 10 % 10 != 1) * (n % 10 < 4) * n % 10 :: 4],
+        )
+        percentrile_str = ordinal(percentile_int)
+
+        # Extremes string user-friendly (used in title)
+        if self.extremes == "Min":
+            extremes_str = "minumum"
+        elif self.extremes == "Max":
+            extremes_str = "maximum"
+        else:
+            extremes_str = self.extremes
+
+        # Smoothing string user-friendly (used in title)
+        if self.smoothing == "Running Mean":
+            smoothing_str = "Smoothed "
+        else:
+            smoothing_str = ""
+
+        # Get start and end years of input data
+        # Use that to build a title
+        pd_datetime = pd.DatetimeIndex(self.data.time.values)
+        year1, year2 = str(pd_datetime[0].year), str(pd_datetime[-1].year)
+        new_title = smoothing_str + "Difference for " + year1 + " - " + year2
+
+        if self.extremes == "None":
+            if self.anomaly:
+                if (
+                    self.smoothing == "Running Mean"
+                ):  # Smoothed, anomaly timeseries, no extremes
+                    new_title = (
+                        smoothing_str
+                        + "Difference for ".lower()
+                        + year1
+                        + " - "
+                        + year2
+                        + " with a "
+                        + str(self.num_timesteps)
+                        + " timesteps running mean"
+                    )
+                else:  # Unsmoothed, anomaly timeseries, no extremes
+                    new_title = (
+                        smoothing_str + "Difference for " + year1 + " - " + year2
+                    )
+            else:
+                if (
+                    self.smoothing == "Running Mean"
+                ):  # Smoothed, timeseries, no extremes
+                    new_title = (
+                        smoothing_str
+                        + "Timeseries for ".lower()
+                        + year1
+                        + " - "
+                        + year2
+                        + " with a "
+                        + str(self.num_timesteps)
+                        + " timesteps running mean"
+                    )
+                else:  # Unsmoothed, timeseries, no extremes
+                    new_title = (
+                        smoothing_str + "Timeseries for " + year1 + " - " + year2
+                    )
+
+        elif self.extremes != "None":
+            if self.smoothing == "None":
+                if self.extremes == "Percentile":  # Unsmoothed, percentile extremes
+                    new_title = (
+                        smoothing_str
+                        + percentrile_str
+                        + " percentile extremes with a "
+                        + str(self.resample_window)
+                        + "-"
+                        + resample_per_str
+                        + " resample"
+                    )
+                else:  # Unsmoothed, min/max/mean extremes
+                    new_title = (
+                        smoothing_str
+                        + extremes_str
+                        + " extremes with a "
+                        + str(self.resample_window)
+                        + "-"
+                        + resample_per_str
+                        + " resample"
+                    )
+            elif self.smoothing != "None":
+                if self.extremes == "Percentile":  # Smoothed, percentile extremes
+                    new_title = (
+                        smoothing_str
+                        + percentrile_str
+                        + " percentile extremes with a "
+                        + str(self.resample_window)
+                        + "-"
+                        + resample_per_str
+                        + " resample"
+                    )
+                else:  # Smoothed, min/max/mean extremes
+                    new_title = (
+                        smoothing_str
+                        + extremes_str
+                        + " extremes with a "
+                        + str(self.resample_window)
+                        + "-"
+                        + resample_per_str
+                        + " resample"
+                    )
+
         obj = to_plot.hvplot.line(
-            x="time", widget_location="bottom", by="simulation", groupby=menu_list
+            x="time",
+            widget_location="bottom",
+            by="simulation",
+            groupby=menu_list,
+            title=new_title,
         )
         return obj
 
@@ -191,25 +294,34 @@ def _timeseries_visualize(choices):
     Uses holoviz 'panel' library to display the parameters and view defined in
     an instance of TimeSeriesParams.
     """
+    smooth_text = "Smoothing applies a running mean to remove noise from the data."
+    resample_text = (
+        "Resampling is required in extremes to determine the frequency of the extreme."
+    )
+
     return pn.Column(
         pn.Row(
             pn.Column(
+                pn.widgets.StaticText(name="", value="Transformation Options"),
                 choices.param.anomaly,
                 choices.param.reference_range,
                 choices.param.remove_seasonal_cycle,
+                choices.param.separate_seasons,
                 choices.param.smoothing,
                 choices.param.num_timesteps,
-                choices.param.separate_seasons,
+                pn.Spacer(height=10),
             ),
             pn.Spacer(width=50),
             pn.Column(
                 choices.param.extremes,
+                choices.param.percentile,
                 pn.Row(
                     choices.param.resample_window,
                     choices.param.resample_period,
                     width=320,
                 ),
-                choices.param.percentile,
+                pn.widgets.StaticText(name="", value=smooth_text),
+                pn.widgets.StaticText(name="", value=resample_text),
             ),
         ),
         choices.view,
@@ -236,7 +348,6 @@ def _update_attrs(data_to_output, attrs_to_add):
     attrs_to_add.pop("num_timesteps")
     if not attrs_to_add["anomaly"]:
         attrs_to_add.pop("reference_range")
-
     attrs_to_add = {
         "timeseries: " + k: (str(v) if type(v) == bool or None else v)
         for k, v in attrs_to_add.items()
