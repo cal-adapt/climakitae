@@ -15,6 +15,7 @@ from .utils import _readable_bytes
 from .derive_variables import (
     _compute_relative_humidity,
     _compute_wind_mag,
+    _compute_dewpointtemp,
 )
 
 # Set options
@@ -151,6 +152,10 @@ def _get_area_subset(location):
             shape = set_subarea(location._geographies._ca_counties)
         elif location.area_subset == "CA watersheds":
             shape = set_subarea(location._geographies._ca_watersheds)
+        elif location.area_subset == "CA Electric Load Serving Entities (IOU & POU)":
+            shape = set_subarea(location._geographies._ca_utilities)
+        elif location.area_subset == "CA Electricity Demand Forecast Zones":
+            shape = set_subarea(location._geographies._ca_forecast_zones)
         ds_region = [shape]
     else:
         ds_region = None
@@ -330,72 +335,54 @@ def _read_from_catalog(selections, location, cat):
         raise ValueError("Please select as least one dataset.")
 
     # Deal with derived variables
-    if selections.variable_id == "precip_tot_derived":
+    orig_var_id_selection = selections.variable_id
+    orig_variable_selection = selections.variable
+    if orig_var_id_selection in [
+        "wind_speed_derived",
+        "rh_derived",
+        "dew_point_derived",
+    ]:
 
-        # Load cumulus precip data
-        selections.variable_id = "rainc"
-        cumulus_precip_da = _get_data_one_var(selections, location, cat)
+        if orig_var_id_selection == "wind_speed_derived":
+            # Load u10 data
+            selections.variable_id = "u10"
+            u10_da = _get_data_one_var(selections, location, cat)
 
-        # Load grid-scale precip data
-        selections.variable_id = "rainnc"
-        gridscale_precip_da = _get_data_one_var(selections, location, cat)
+            # Load v10 data
+            selections.variable_id = "v10"
+            v10_da = _get_data_one_var(selections, location, cat)
 
-        # Derive precip total
-        da = _compute_total_precip(
-            cumulus_precip=cumulus_precip_da,
-            gridcell_precip=gridscale_precip_da,
-            variable_name=selections.variable,
-        )
+            # Derive wind magnitude
+            da = _compute_wind_mag(u10=u10_da, v10=v10_da)
 
-        # Reset variable id
-        selections.variable_id = "precip_tot_derived"
-        da.attrs["variable_id"] = "precip_tot_derived"
+        else:
+            # Load pressure data
+            selections.variable_id = "psfc"
+            pressure_da = _get_data_one_var(selections, location, cat)
 
-    elif selections.variable_id == "wind_speed_derived":
+            # Load temperature data
+            selections.variable_id = "t2"
+            t2_da = _get_data_one_var(selections, location, cat)
 
-        # Load u10 data
-        selections.variable_id = "u10"
-        u10_da = _get_data_one_var(selections, location, cat)
+            # Load mixing ratio data
+            selections.variable_id = "q2"
+            q2_da = _get_data_one_var(selections, location, cat)
 
-        # Load v10 data
-        selections.variable_id = "v10"
-        v10_da = _get_data_one_var(selections, location, cat)
+            # Derive relative humidity
+            rh_da = _compute_relative_humidity(
+                pressure=pressure_da, temperature=t2_da, mixing_ratio=q2_da
+            )
+            if orig_var_id_selection == "dew_point_derived":
+                da = _compute_dewpointtemp(temperature=t2_da, rel_hum=rh_da)
+            elif orig_var_id_selection == "rh_derived":
+                da = rh_da
 
-        # Derive wind magnitude
-        da = _compute_wind_mag(
-            u10=u10_da, v10=v10_da, variable_name=selections.variable
-        )
-        selections.variable_id = "wind_speed_derived"
-        da.attrs["variable_id"] = "wind_speed_derived"
-
-    elif selections.variable_id == "rh_derived":
-
-        # Load pressure data
-        selections.variable_id = "psfc"
-        pressure_da = _get_data_one_var(selections, location, cat)
-
-        # Load temperature data
-        selections.variable_id = "t2"
-        t2_da = _get_data_one_var(selections, location, cat)
-
-        # Load mixing ratio data
-        selections.variable_id = "q2"
-        q2_da = _get_data_one_var(selections, location, cat)
-
-        # Derive relative humidity
-        da = _compute_relative_humidity(
-            pressure=pressure_da,
-            temperature=t2_da,
-            mixing_ratio=q2_da,
-            variable_name=selections.variable,
-        )
-        selections.variable_id = "rh_derived"
-        da.attrs["variable_id"] = "rh_derived"
+        selections.variable_id = orig_var_id_selection
+        da.attrs["variable_id"] = orig_var_id_selection  # Reset variable ID attribute
+        da.name = orig_variable_selection  # Set name of DataArray
 
     else:
         da = _get_data_one_var(selections, location, cat)
 
-    # Convert units
-    da = _convert_units(da=da, selected_units=selections.units)
-
+    da = _convert_units(da=da, selected_units=selections.units)  # Convert units
     return da

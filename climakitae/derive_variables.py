@@ -1,9 +1,32 @@
 import numpy as np
 
 
-def _compute_relative_humidity(
-    pressure, temperature, mixing_ratio, variable_name="REL_HUMIDITY"
-):
+def _compute_dewpointtemp(temperature, rel_hum):
+    """Calculate dew point temperature
+
+    Args:
+        temperature (xr.DataArray): Temperature in Kelvin
+        rel_hum (xr.DataArray): Relative humidity (0-100 scale)
+
+    Returns
+        dew_point (xr.DataArray): Dew point (K)
+
+    """
+    es = 0.611 * np.exp(
+        5423 * ((1 / 273) - (1 / temperature))
+    )  # calculates saturation vapor pressure
+    e_vap = (es * rel_hum) / 100.0  # calculates vapor pressure
+    tdps = (
+        (1 / 273) - 0.0001844 * np.log(e_vap / 0.611)
+    ) ** -1  # calculates dew point temperature, units = K
+
+    # Assign descriptive name
+    tdps.name = "dew_point_derived"
+    tdps.attrs["units"] = "K"
+    return tdps
+
+
+def _compute_relative_humidity(pressure, temperature, mixing_ratio):
     """Compute relative humidity.
     Variable attributes need to be assigned outside of this function because the metpy function removes them
 
@@ -12,7 +35,6 @@ def _compute_relative_humidity(
         pressure (xr.DataArray): Pressure in Pascals
         temperature (xr.DataArray): Temperature in Kelvin
         mixing_ratio (xr.DataArray): Dimensionless mass mixing ratio in kg/kg
-        variable_name (string): Name to assign DataArray object (default to "REL_HUMIDITY")
 
     Returns:
         rel_hum (xr.DataArray): Relative humidity
@@ -29,24 +51,22 @@ def _compute_relative_humidity(
     rel_hum = 100 * (mixing_ratio / r_s)
 
     # Assign descriptive name
-    rel_hum.name = variable_name
+    rel_hum.name = "rh_derived"
     rel_hum.attrs["units"] = "[0 to 100]"
-
     return rel_hum
 
 
-def _compute_wind_mag(u10, v10, variable_name="WIND_MAG"):
+def _compute_wind_mag(u10, v10):
     """Compute wind magnitude at 10 meters
 
     Args:
         u10 (xr.DataArray): Zonal velocity at 10 meters height in m/s
         v10 (xr.DataArray): Meridonal velocity at 10 meters height in m/s
-        variable_name (string): Name to assign DataArray object (default to "WIND_MAG")
 
     Returns:
         wind_mag (xr.DataArray): Wind magnitude
 
     """
     wind_mag = np.sqrt(np.square(u10) + np.square(v10))
-    wind_mag.name = variable_name
+    wind_mag.name = "wind_speed_derived"
     return wind_mag
