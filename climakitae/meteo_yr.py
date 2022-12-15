@@ -40,8 +40,9 @@ from .catalog_convert import (
     _scenario_to_experiment_id,
 )
 from .data_loaders import _read_from_catalog
-from tqdm.auto import tqdm # Progress bar 
+from tqdm.auto import tqdm  # Progress bar
 import logging  # Silence warnings
+
 logging.getLogger("param").setLevel(logging.CRITICAL)
 xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
 
@@ -54,80 +55,86 @@ var_catalog = pd.read_csv(var_catalog_resource, index_col="variable_id")
 
 # =========================== HELPER FUNCTIONS: DATA RETRIEVAL ==============================
 
-def _set_amy_year_inputs(year_start, year_end): 
+
+def _set_amy_year_inputs(year_start, year_end):
     """
     Helper function for retrieve_amy_data.
-    Checks that the user has input valid values. 
-    Sets year end if it hasn't been set; default is 30 year range (year_start + 30). Minimum is 5 year range. 
+    Checks that the user has input valid values.
+    Sets year end if it hasn't been set; default is 30 year range (year_start + 30). Minimum is 5 year range.
     """
-    if year_end is None: 
-        year_end = year_start + 30 if (year_start+30 < 2100) else 2100 # Default is +30 years 
-    elif year_end > 2100: 
+    if year_end is None:
+        year_end = (
+            year_start + 30 if (year_start + 30 < 2100) else 2100
+        )  # Default is +30 years
+    elif year_end > 2100:
         print("Your end year cannot exceed 2100. Resetting end year to 2100.")
-        year_end = 2100 
-    if (year_end - year_start < 5): 
+        year_end = 2100
+    if year_end - year_start < 5:
         raise ValueError(
             """To compute an Average Meteorological Year, you must input a date range with a difference 
             of at least 5 years, where the end year is no later than 2100 and the start year is no later than
             2095."""
-        ) 
-    if year_start < 1980: 
+        )
+    if year_start < 1980:
         raise ValueError(
-            """You've input an invalid start year. The start year must be 1980 or later.""") 
-    return (year_start, year_end) 
+            """You've input an invalid start year. The start year must be 1980 or later."""
+        )
+    return (year_start, year_end)
 
-def retrieve_amy_data(app=None, selections=None, location=None, _cat=None, year_start=2015, year_end=None): 
-    """Get average meteorological year data. 
-    Input one of the two: 
-        (1) app: climakitae Applications object, or (user-facing) 
-        (2) all the following: selections, location, _cat (backend) 
-    
-    Args: 
-        app (climakitae Application): user-facing object for using within a notebook environment 
-        selections (climakitae DataSelector) 
-        location (climakitae LocationSelector) 
-        _cat (intake catalog) 
-        year_start (int, optional): year between 1980-2095 
-        year_end (int, optional) year between 1985-2100 
-        
-    Returns: 
+
+def retrieve_amy_data(
+    app=None, selections=None, location=None, _cat=None, year_start=2015, year_end=None
+):
+    """Get average meteorological year data.
+    Input one of the two:
+        (1) app: climakitae Applications object, or (user-facing)
+        (2) all the following: selections, location, _cat (backend)
+
+    Args:
+        app (climakitae Application): user-facing object for using within a notebook environment
+        selections (climakitae DataSelector)
+        location (climakitae LocationSelector)
+        _cat (intake catalog)
+        year_start (int, optional): year between 1980-2095
+        year_end (int, optional) year between 1985-2100
+
+    Returns:
         amy_data (xr.DataArray)
-    
+
     """
-    
-    # Deal with input issues 
-    if (app is None) and (
-        (selections is None) or (location is None) or (_cat is None) 
-    ): 
+
+    # Deal with input issues
+    if (app is None) and ((selections is None) or (location is None) or (_cat is None)):
         raise ValueError(
             """You must input one either one climakitae Application object or 
-            the following three objects: selections, location, and _cat""")
-    
-    if app is not None: 
-        selections = app.selections 
+            the following three objects: selections, location, and _cat"""
+        )
+
+    if app is not None:
+        selections = app.selections
         location = app.location
         _cat = app._cat
-        
-    # Check year start and end inputs 
+
+    # Check year start and end inputs
     year_start, year_end = _set_amy_year_inputs(year_start, year_end)
-    
+
     # Set scenario selections
-    if year_end >= 2015: 
+    if year_end >= 2015:
         selections.scenario_ssp = ["SSP 3-7.0 -- Business as Usual"]
-    else: 
+    else:
         selections.scenario_ssp = []
-    if year_start < 2015:  
+    if year_start < 2015:
         selections.scenario_historical = ["Historical Climate"]
-    else: 
+    else:
         selections.scenario_historical = []
-        
-    # Set other data parameters 
+
+    # Set other data parameters
     selections.time_slice = (year_start, year_end)
-    selections.area_average = "Yes" 
+    selections.area_average = "Yes"
     selections.timescale = "hourly"
-    selections.simulation = ["ensmean"] # Read from ensemble means 
-    
-    # Grab data from the catalog 
+    selections.simulation = ["ensmean"]  # Read from ensemble means
+
+    # Grab data from the catalog
     amy_data = _read_from_catalog(
         selections=selections, location=location, cat=_cat
     ).isel(scenario=0, simulation=0)
@@ -135,6 +142,7 @@ def retrieve_amy_data(app=None, selections=None, location=None, _cat=None, year_
 
 
 # =========================== HELPER FUNCTIONS: AMY/TMY CALCULATION ==============================
+
 
 def _remove_repeats(xr_data):
     """
@@ -159,9 +167,10 @@ def _remove_repeats(xr_data):
         return cleaned_np
     else:
         return xr_data.values
-    
-    
+
+
 # =========================== HELPER FUNCTIONS: AMY/TMY PLOTTING ==============================
+
 
 def compute_amy(data, days_in_year=366, show_pbar=False):
     """
@@ -170,7 +179,7 @@ def compute_amy(data, days_in_year=366, show_pbar=False):
     Returns: dataframe of amy
     """
     hourly_list = []
-    for x in tqdm(np.arange(1, days_in_year + 1, 1),disable = not show_pbar):
+    for x in tqdm(np.arange(1, days_in_year + 1, 1), disable=not show_pbar):
         data_on_day_x = data.where(data.time.dt.dayofyear == x, drop=True)
         data_grouped = data_on_day_x.groupby("time.hour")
         mean_by_hour = data_grouped.mean()
@@ -215,6 +224,7 @@ def compute_amy(data, days_in_year=366, show_pbar=False):
     df_amy.index = pd.Index(new_index, name="Day of Year")
     return df_amy
 
+
 def _amy_heatmap(amy_df, title=None, cmap="viridis", cbar_label=None):
     """Create AMY heatmap using matplotlib
 
@@ -257,6 +267,7 @@ def _amy_heatmap(amy_df, title=None, cmap="viridis", cbar_label=None):
 
     plt.close()  # Close figure
     return fig
+
 
 def lineplot_from_amy_data(
     amy_data,
@@ -335,6 +346,7 @@ def lineplot_from_amy_data(
 
 # =========================== MAIN AVERAGE METEO YR OBJECT ==============================
 
+
 class AverageMeteorologicalYear(param.Parameterized):
     """
     An object that holds the "Data Options" paramters for the
@@ -391,8 +403,8 @@ class AverageMeteorologicalYear(param.Parameterized):
 
     # Warming level selection
     warmlevel = param.ObjectSelector(default=1.5, objects=[1.5, 2, 3])
-    
-    # 30-yr ranges to use for AMY computation 
+
+    # 30-yr ranges to use for AMY computation
     warming_year_average_range = {
         1.5: (2034, 2063),
         2: (2047, 2076),
@@ -425,14 +437,14 @@ class AverageMeteorologicalYear(param.Parameterized):
             location=self.location,
             _cat=self.cat,
             year_start=1981,
-            year_end=2010
+            year_end=2010,
         ).compute()
         self.future_tmy_data = retrieve_amy_data(
             _cat=self.cat,
             selections=self.selections,
             location=self.location,
             year_start=self.warming_year_average_range[self.warmlevel][0],
-            year_end=self.warming_year_average_range[self.warmlevel][1]
+            year_end=self.warming_year_average_range[self.warmlevel][1],
         ).compute()
 
         # Colormap
@@ -476,7 +488,7 @@ class AverageMeteorologicalYear(param.Parameterized):
         if self.computation_method == "Historical":
             self.selections.scenario_historical = ["Historical Climate"]
             self.selections.scenario_ssp = []
-            self.selections.time_slice = (1981,2010)
+            self.selections.time_slice = (1981, 2010)
 
         elif self.computation_method == "Warming Level Future":
             self.selections.scenario_ssp = ["SSP 3-7.0 -- Business as Usual"]
@@ -492,20 +504,20 @@ class AverageMeteorologicalYear(param.Parameterized):
     def _update_tmy_data(self):
         """If the button was clicked and the location or variable was changed,
         reload the tmy data from AWS"""
-        
+
         self.historical_tmy_data = retrieve_amy_data(
             selections=self.selections,
             location=self.location,
             _cat=self.cat,
             year_start=1981,
-            year_end=2010
+            year_end=2010,
         ).compute()
         self.future_tmy_data = retrieve_amy_data(
             _cat=self.cat,
             selections=self.selections,
             location=self.location,
             year_start=self.warming_year_average_range[self.warmlevel][0],
-            year_end=self.warming_year_average_range[self.warmlevel][1]
+            year_end=self.warming_year_average_range[self.warmlevel][1],
         ).compute()
 
     # Create a function that will update computation_method when data_type is modified
@@ -576,7 +588,9 @@ class AverageMeteorologicalYear(param.Parameterized):
 
         return heatmap
 
+
 # =========================== OBJECT VISUALIZATION USING PARAM ==============================
+
 
 def _amy_visualize(tmy_ob, selections, location):
     """

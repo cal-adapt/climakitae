@@ -868,9 +868,7 @@ def _get_data_selection_description(selections, location):
         "<font size='+0.10'>Location selections: </font><br>"
         "<ul>"
         "<li><b>location: </b>" + cached_area_print + "</li>"
-        "<li><b>compute area average? </b>"
-        + str(selections.area_average)
-        + "</li>"
+        "<li><b>compute area average? </b>" + str(selections.area_average) + "</li>"
         "</ul>"
     )
     return _data_selection_description + _location_selection_description
