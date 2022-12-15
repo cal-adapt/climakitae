@@ -447,11 +447,10 @@ class DataSelector(param.Parameterized):
         default=["Historical Climate"],
         objects=["Historical Reconstruction (ERA5-WRF)", "Historical Climate"],
     )
-    _area_average_yes_no = param.ObjectSelector(
+    area_average = param.ObjectSelector(
         default="No",
         objects=["Yes", "No"],
-        doc="""Used to make the select panel more readable.
-        Set to Yes if area_average = True, and No if not.""",
+        doc="""Compute an area average?""",
     )
 
     # Empty params, initialized in __init__
@@ -462,7 +461,6 @@ class DataSelector(param.Parameterized):
     units = param.ObjectSelector(objects=dict())
     extended_description = param.ObjectSelector(objects=dict())
     variable_id = param.ObjectSelector(objects=dict())
-    area_average = param.Boolean()
     _data_warning = param.String(
         default="", doc="Warning if user has made a bad selection"
     )
@@ -537,10 +535,6 @@ class DataSelector(param.Parameterized):
         self.extended_description = var_info.extended_description.item()
         self.variable_id = var_info.variable_id.item()
         self._data_warning = ""
-
-    @param.depends("_area_average_yes_no", watch=True)
-    def _update_area_average_yes_no(self):
-        self.area_average = True if self._area_average_yes_no == "Yes" else False
 
     @param.depends("timescale", "resolution", watch=True)
     def _update_var_options(self):
@@ -875,7 +869,7 @@ def _get_data_selection_description(selections, location):
         "<ul>"
         "<li><b>location: </b>" + cached_area_print + "</li>"
         "<li><b>compute area average? </b>"
-        + str(selections._area_average_yes_no)
+        + str(selections.area_average)
         + "</li>"
         "</ul>"
     )
@@ -909,7 +903,7 @@ class SelectionDescription(param.Parameterized):
         "selections.timescale",
         "selections.resolution",
         "selections.time_slice",
-        "selections._area_average_yes_no",
+        "selections.area_average",
         "location.area_subset",
         "location.cached_area",
         "location.longitude",
@@ -953,7 +947,7 @@ def _display_select(selections, location):
                 name="",
             ),
             pn.widgets.RadioButtonGroup.from_param(
-                selections.param._area_average_yes_no, inline=True
+                selections.param.area_average, inline=True
             ),
             width=275,
         ),

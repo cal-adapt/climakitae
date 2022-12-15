@@ -298,7 +298,7 @@ def _get_data_one_var(selections, location, cat):
             dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
 
         # Perform area averaging
-        if selections.area_average == True:
+        if selections.area_average == "Yes":
             weights = np.cos(np.deg2rad(dset.lat))
             dset = dset.weighted(weights).mean("x").mean("y")
 
