@@ -59,7 +59,6 @@ def _get_historical_tmy_data(cat, selections, location):
     selections.scenario_historical = ["Historical Climate"]
     selections.scenario_ssp = []
     selections.time_slice = (1981, 2010)
-    selections.append_historical = False
     selections.area_average = True
     selections.timescale = "hourly"
     selections.simulation = ["ensmean"]
@@ -79,7 +78,6 @@ def _get_future_tmy_data(cat, selections, location, warmlevel):
     selections.scenario_ssp = ["SSP 3-7.0 -- Business as Usual"]
     selections.scenario_historical = ["Historical Climate"]
     selections.time_slice = warming_year_average_range[warmlevel]
-    selections.append_historical = False
     selections.area_average = True
     selections.timescale = "hourly"
     selections.simulation = ["ensmean"]
