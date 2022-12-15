@@ -59,7 +59,7 @@ def _get_historical_tmy_data(cat, selections, location):
     selections.scenario_historical = ["Historical Climate"]
     selections.scenario_ssp = []
     selections.time_slice = (1981, 2010)
-    selections.area_average = True
+    selections.area_average = "Yes"
     selections.timescale = "hourly"
     selections.simulation = ["ensmean"]
     historical_da_mean = _read_from_catalog(
@@ -76,9 +76,9 @@ def _get_future_tmy_data(cat, selections, location, warmlevel):
         3: (2061, 2090),
     }
     selections.scenario_ssp = ["SSP 3-7.0 -- Business as Usual"]
-    selections.scenario_historical = ["Historical Climate"]
+    selections.scenario_historical = []
     selections.time_slice = warming_year_average_range[warmlevel]
-    selections.area_average = True
+    selections.area_average = "Yes"
     selections.timescale = "hourly"
     selections.simulation = ["ensmean"]
     future_da_mean = _read_from_catalog(
@@ -379,7 +379,7 @@ class AverageMeteorologicalYear(param.Parameterized):
 
         # Selectors defaults
         self.selections.append_historical = False
-        self.selections.area_average = True
+        self.selections.area_average = "Yes"
         self.selections.resolution = "45 km"
         self.selections.scenario_historical = ["Historical Climate"]
         self.selections.scenario_ssp = []
@@ -432,7 +432,7 @@ class AverageMeteorologicalYear(param.Parameterized):
 
         self.selections.simulation = ["ensmean"]
         self.selections.append_historical = False
-        self.selections.area_average = True
+        self.selections.area_average = "Yes"
         self.selections.timescale = "hourly"
 
     @param.depends("reload_data", watch=True)

@@ -183,7 +183,7 @@ class WarmingLevels(param.Parameterized):
 
         # Selectors defaults
         self.selections.scenario_historical = ["Historical Climate"]
-        self.selections.area_average = False
+        self.selections.area_average = "No"
         self.selections.resolution = "45 km"
         self.selections.scenario_ssp = ["SSP 3-7.0 -- Business as Usual"]
         self.selections.time_slice = (1980, 2100)

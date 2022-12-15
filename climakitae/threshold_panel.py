@@ -72,7 +72,7 @@ class ThresholdDataParams(param.Parameterized):
 
         # Selectors defaults
         self.selections.append_historical = False
-        self.selections.area_average = True
+        self.selections.area_average = "Yes"
         self.selections.resolution = "45 km"
         self.selections.scenario_ssp = ["SSP 3-7.0 -- Business as Usual"]
         self.selections.scenario_historical = []
