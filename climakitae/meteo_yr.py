@@ -431,10 +431,11 @@ class AverageMeteorologicalYear(param.Parameterized):
             "Warming Level Future": (
                 "AMY computed by taking the difference between"
                 " the 30-year future period centered around the selected warming"
-                " level and the historical baseline.",
-            "Severe AMY": ("AMY computed by taking the difference between the 90th percentile of the 30-year future"
-                           " period centered around the selected warming level and the historical baseline."
-                           )
+                " level and the historical baseline."),
+            "Severe AMY": (
+                "AMY computed by taking the difference between the 90th percentile of the 30-year future"
+                " period centered around the selected warming level and the historical baseline."
+            )
         },
     }
 
