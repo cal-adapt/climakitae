@@ -71,7 +71,7 @@ def _set_amy_year_inputs(year_start, year_end):
         year_end = 2100
     if year_end - year_start < 5:
         raise ValueError(
-            """To compute an Average Meteorological Year, you must input a date range with a difference 
+            """To compute an Average Meteorological Year, you must input a date range with a difference
             of at least 5 years, where the end year is no later than 2100 and the start year is no later than
             2095."""
         )
@@ -106,7 +106,7 @@ def retrieve_amy_data(
     # Deal with input issues
     if (app is None) and ((selections is None) or (location is None) or (_cat is None)):
         raise ValueError(
-            """You must input one either one climakitae Application object or 
+            """You must input one either one climakitae Application object or
             the following three objects: selections, location, and _cat"""
         )
 
@@ -223,6 +223,60 @@ def compute_amy(data, days_in_year=366, show_pbar=False):
     ]
     df_amy.index = pd.Index(new_index, name="Day of Year")
     return df_amy
+
+
+def compute_severe_yr(data, days_in_year=366, show_pbar=False):
+    """
+    Calculates the severe meteorological year based on the 90th percentile of data.
+    Applicable for both the historical and future periods.
+    Returns: dataframe of severe meteorological year
+    """
+    hourly_list = []
+    for x in tqdm(np.arange(1, days_in_year + 1, 1), disable=not show_pbar):
+        data_on_day_x = data.where(data.time.dt.dayofyear == x, drop=True)
+        data_grouped = data_on_day_x.groupby("time.hour")
+        severe_by_hour = data_grouped.quantile(q=0.90)
+        min_diff = abs(data_grouped - severe_by_hour).groupby("time.hour").min()
+        typical_hourly_data_on_day_x = data_on_day_x.where(
+            abs(data_grouped - severe_by_hour).groupby("time.hour") == min_diff,
+            drop=True,
+        ).sortby("time.hour")
+        np_typical_hourly_data_on_day_x = _remove_repeats(typical_hourly_data_on_day_x)
+        hourly_list.append(np_typical_hourly_data_on_day_x)
+
+    ## Funnel data into pandas DataFrame object
+    df_severe_yr = pd.DataFrame(
+        hourly_list,
+        columns=np.arange(1, 25, 1),
+        index=np.arange(1, days_in_year + 1, 1),
+    )
+
+    ## Re-order columns for PST, with easy to read time labels
+    cols = df_severe_yr.columns.tolist()
+    cols = cols[7:] + cols[:7]
+    df_severe_yr = df_severe_yr[cols]
+
+    n_col_lst = []
+    for ampm in ["am", "pm"]:
+        hr_lst = []
+        for hr in range(1, 13, 1):
+            hr_lst.append(str(hr) + ampm)
+        hr_lst = hr_lst[-1:] + hr_lst[:-1]
+        n_col_lst = n_col_lst + hr_lst
+    df_severe_yr.columns = n_col_lst
+    df_severe_yr.columns.name = "Hour"
+
+    # Convert Julian date index to Month-Day format
+    if days_in_year == 366:
+        leap_year = True
+    else:
+        leap_year = False
+    new_index = [
+        julianDay_to_str_date(julday, leap_year=leap_year, str_format="%b-%d")
+        for julday in df_severe_yr.index
+    ]
+    df_severe_yr.index = pd.Index(new_index, name="Day of Year")
+    return df_severe_yr
 
 
 def _amy_heatmap(amy_df, title=None, cmap="viridis", cbar_label=None):
@@ -361,7 +415,7 @@ class AverageMeteorologicalYear(param.Parameterized):
         },
         "Difference": {
             "default": "Warming Level Future",
-            "objects": ["Warming Level Future"],  # , "Severe AMY"]
+            "objects": ["Warming Level Future", "Severe AMY"],
         },
     }
 
@@ -379,9 +433,11 @@ class AverageMeteorologicalYear(param.Parameterized):
                 "AMY computed by taking the difference between"
                 " the 30-year future period centered around the selected warming"
                 " level and the historical baseline."
-            )
-            # "Severe AMY": ("AMY computed by taking the difference between the 90th percentile of the 30-year future"
-            #                " period centered around the selected warming level and the historical baseline.")
+            ),
+            "Severe AMY": (
+                "AMY computed by taking the difference between the 90th percentile of the 30-year future"
+                " period centered around the selected warming level and the historical baseline."
+            ),
         },
     }
 
@@ -568,11 +624,11 @@ class AverageMeteorologicalYear(param.Parameterized):
                     self.location.cached_area, self.computation_method, self.warmlevel
                 )
                 clabel = self.selections.variable + " (" + self.selections.units + ")"
-            else:  # placeholder for now for severe amy
-                df = compute_amy(
+            else:
+                df = compute_severe_yr(
                     self.future_tmy_data, days_in_year=days_in_year
                 ) - compute_amy(self.historical_tmy_data, days_in_year=days_in_year)
-                title = "Average Meteorological Year: {}\nDifference between {} at 90th percentile and Historical Baseline".format(
+                title = "Severe Meteorological Year: {}\nDifference between {} at 90th percentile and Historical Baseline".format(
                     self.location.cached_area, self.computation_method
                 )
                 clabel = self.selections.variable + " (" + self.selections.units + ")"
