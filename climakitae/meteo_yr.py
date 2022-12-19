@@ -238,7 +238,8 @@ def compute_severe_yr(data, days_in_year=366, show_pbar=False):
         severe_by_hour = data_grouped.quantile(q=0.90)
         min_diff = abs(data_grouped - severe_by_hour).groupby("time.hour").min()
         typical_hourly_data_on_day_x = data_on_day_x.where(
-            abs(data_grouped - severe_by_hour).groupby("time.hour") == min_diff, drop=True
+            abs(data_grouped - severe_by_hour).groupby("time.hour") == min_diff,
+            drop=True,
         ).sortby("time.hour")
         np_typical_hourly_data_on_day_x = _remove_repeats(typical_hourly_data_on_day_x)
         hourly_list.append(np_typical_hourly_data_on_day_x)
@@ -414,7 +415,7 @@ class AverageMeteorologicalYear(param.Parameterized):
         },
         "Difference": {
             "default": "Warming Level Future",
-            "objects": ["Warming Level Future", "Severe AMY"]
+            "objects": ["Warming Level Future", "Severe AMY"],
         },
     }
 
@@ -431,11 +432,12 @@ class AverageMeteorologicalYear(param.Parameterized):
             "Warming Level Future": (
                 "AMY computed by taking the difference between"
                 " the 30-year future period centered around the selected warming"
-                " level and the historical baseline."),
+                " level and the historical baseline."
+            ),
             "Severe AMY": (
                 "AMY computed by taking the difference between the 90th percentile of the 30-year future"
                 " period centered around the selected warming level and the historical baseline."
-            )
+            ),
         },
     }
 
