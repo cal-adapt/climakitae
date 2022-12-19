@@ -414,7 +414,7 @@ class AverageMeteorologicalYear(param.Parameterized):
         },
         "Difference": {
             "default": "Warming Level Future",
-            "objects": ["Warming Level Future"],  # , "Severe AMY"]
+            "objects": ["Warming Level Future", "Severe AMY"]
         },
     }
 
@@ -431,10 +431,10 @@ class AverageMeteorologicalYear(param.Parameterized):
             "Warming Level Future": (
                 "AMY computed by taking the difference between"
                 " the 30-year future period centered around the selected warming"
-                " level and the historical baseline."
-            )
-            # "Severe AMY": ("AMY computed by taking the difference between the 90th percentile of the 30-year future"
-            #                " period centered around the selected warming level and the historical baseline.")
+                " level and the historical baseline.",
+            "Severe AMY": ("AMY computed by taking the difference between the 90th percentile of the 30-year future"
+                           " period centered around the selected warming level and the historical baseline."
+                           )
         },
     }
 
@@ -621,11 +621,11 @@ class AverageMeteorologicalYear(param.Parameterized):
                     self.location.cached_area, self.computation_method, self.warmlevel
                 )
                 clabel = self.selections.variable + " (" + self.selections.units + ")"
-            else:  # placeholder for now for severe amy
-                df = compute_amy(
+            else:
+                df = compute_severe_yr(
                     self.future_tmy_data, days_in_year=days_in_year
                 ) - compute_amy(self.historical_tmy_data, days_in_year=days_in_year)
-                title = "Average Meteorological Year: {}\nDifference between {} at 90th percentile and Historical Baseline".format(
+                title = "Severe Meteorological Year: {}\nDifference between {} at 90th percentile and Historical Baseline".format(
                     self.location.cached_area, self.computation_method
                 )
                 clabel = self.selections.variable + " (" + self.selections.units + ")"
