@@ -295,9 +295,7 @@ def _timeseries_visualize(choices):
     an instance of TimeSeriesParams.
     """
     smooth_text = "Smoothing applies a running mean to remove noise from the data."
-    resample_text = (
-        "The resample window and period define the length of time over which to calculate the extreme."
-    )
+    resample_text = "The resample window and period define the length of time over which to calculate the extreme."
 
     return pn.Column(
         pn.Row(
