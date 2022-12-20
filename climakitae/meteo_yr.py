@@ -84,7 +84,7 @@ def _set_amy_year_inputs(year_start, year_end):
 
 
 def retrieve_amy_data(
-    app=None, selections=None, location=None, _cat=None, year_start=2015, year_end=None
+    app=None, selections=None, location=None, _cat=None, ssp=None, year_start=2015, year_end=None
 ):
     """Get average meteorological year data.
     Input one of the two:
@@ -96,6 +96,7 @@ def retrieve_amy_data(
         selections (climakitae DataSelector)
         location (climakitae LocationSelector)
         _cat (intake catalog)
+        ssp (str): one of the 3 SSP options 
         year_start (int, optional): year between 1980-2095
         year_end (int, optional) year between 1985-2100
 
@@ -125,16 +126,21 @@ def retrieve_amy_data(
     # Set scenario selections
     if year_end < 2015:
         selections.scenario_ssp = []
+    elif (year_end >= 2015) and (selections.scenario_ssp) == []: 
+        selections.scenario_ssp = ["SSP 3-7.0 -- Business as Usual"] # Default 
     if year_start < 2015: # Append historical data 
         selections.scenario_historical = ["Historical Climate"] 
     else:
         selections.scenario_historical = []
     
     # Set simulations. Ensemble mean only available for 3-7.0
-    if selections.scenario_ssp == "SSP 3-7.0 -- Business as Usual":
-        selections.simulation = ["ensmean"] 
+    if (ssp is not None) and (year_start >= 2015): 
+        selections.scenario_ssp == [ssp]
+    if len(selections.scenario_ssp) > 1: 
+        selections.scenario_ssp == selections.scenario_ssp[0]
         
     # Set other data parameters
+    selections.simulation = ["ensmean"] 
     selections.time_slice = (year_start, year_end)
     selections.area_average = "Yes"
     selections.timescale = "hourly"

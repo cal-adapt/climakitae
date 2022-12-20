@@ -25,7 +25,6 @@ dask.config.set({"array.slicing.split_large_chunks": True})
 
 # ============================ Read data into memory ================================
 
-
 def _compute(xr_da):
     """Read data into memory"""
 
@@ -109,7 +108,6 @@ def _get_cat_subset(selections, cat):
     source_id = selections.simulation
     variable_id = selections.variable_id
 
-    # Get catalog subset
     cat_subset = cat.search(
         activity_id=activity_id,
         table_id=table_id,
@@ -204,12 +202,23 @@ def _process_and_concat(selections, location, dsets, cat_subset):
                         for name in dsets.keys()
                         if simulation + "." + "historical" in name
                     ][0]
-                    ssp_filename = [
-                        name
-                        for name in dsets.keys()
-                        if simulation + "." + _scenario_to_experiment_id(scenario)
-                        in name
-                    ][0]
+                    if ( # Need to get CESM2 data if ensmean is selected for ssp2-4.5 or ssp5-8.5
+                        (simulation == "ensmean") and 
+                        (scenario in ["SSP 2-4.5 -- Middle of the Road","SSP 5-8.5 -- Burn it All"])
+                    ):
+                        ssp_filename = [
+                            name
+                            for name in dsets.keys()
+                            if "CESM2." + _scenario_to_experiment_id(scenario)
+                            in name
+                        ][0]
+                    else: 
+                        ssp_filename = [
+                            name
+                            for name in dsets.keys()
+                            if simulation + "." + _scenario_to_experiment_id(scenario)
+                            in name
+                        ][0]
                 except:  # Some simulation + ssp options are not available. Just continue with the loop if no filename is found
                     continue
                 # Grab data
@@ -280,6 +289,29 @@ def _get_data_one_var(selections, location, cat):
         storage_options={"anon": True},
         progressbar=False,
     )
+    
+    # If SSP 2-4.5 or SSP 5-8.5 are selected, along with ensmean as the simulation, 
+    # We want to return the single available CESM2 model 
+    if (
+        ("ensmean" in selections.simulation) and 
+        ({"SSP 2-4.5 -- Middle of the Road",
+          "SSP 5-8.5 -- Burn it All"
+         }.intersection(set(selections.scenario_ssp)))
+    ): 
+        cat_subset2 = cat.search(
+            activity_id=selections.downscaling_method,
+            table_id=_timescale_to_table_id(selections.timescale),
+            grid_label=_resolution_to_gridlabel(selections.resolution),
+            variable_id=selections.variable_id,
+            experiment_id=[_scenario_to_experiment_id(x) for x in selections.scenario_ssp],
+            source_id=["CESM2"]
+        )
+        data_dict2 = cat_subset2.to_dataset_dict(
+            zarr_kwargs={"consolidated": True},
+            storage_options={"anon": True},
+            progressbar=False,
+        )
+        data_dict = {**data_dict, **data_dict2}
 
     # Perform subsetting operations
     for dname, dset in data_dict.items():
