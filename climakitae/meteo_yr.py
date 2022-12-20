@@ -172,6 +172,35 @@ def _remove_repeats(xr_data):
         return cleaned_np
     else:
         return xr_data.values
+    
+def _format_meteo_yr_df(df): 
+    """Format dataframe output from compute_amy and compute_severe_yr"""
+    ## Re-order columns for PST, with easy to read time labels
+    cols = df.columns.tolist()
+    cols = cols[7:] + cols[:7]
+    df = df[cols]
+
+    n_col_lst = []
+    for ampm in ["am", "pm"]:
+        hr_lst = []
+        for hr in range(1, 13, 1):
+            hr_lst.append(str(hr) + ampm)
+        hr_lst = hr_lst[-1:] + hr_lst[:-1]
+        n_col_lst = n_col_lst + hr_lst
+    df.columns = n_col_lst
+    df.columns.name = "Hour"
+
+    # Convert Julian date index to Month-Day format
+    if days_in_year == 366:
+        leap_year = True
+    else:
+        leap_year = False
+    new_index = [
+        julianDay_to_str_date(julday, leap_year=leap_year, str_format="%b-%d")
+        for julday in df.index
+    ]
+    df.index = pd.Index(new_index, name="Day of Year")
+    return df
 
 def compute_amy(data, days_in_year=366, show_pbar=False):
     """
@@ -191,38 +220,14 @@ def compute_amy(data, days_in_year=366, show_pbar=False):
         np_typical_hourly_data_on_day_x = _remove_repeats(typical_hourly_data_on_day_x)
         hourly_list.append(np_typical_hourly_data_on_day_x)
 
-    ## Funnel data into pandas DataFrame object
+    # Funnel data into pandas DataFrame object
     df_amy = pd.DataFrame(
         hourly_list,
         columns=np.arange(1, 25, 1),
         index=np.arange(1, days_in_year + 1, 1),
     )
-
-    ## Re-order columns for PST, with easy to read time labels
-    cols = df_amy.columns.tolist()
-    cols = cols[7:] + cols[:7]
-    df_amy = df_amy[cols]
-
-    n_col_lst = []
-    for ampm in ["am", "pm"]:
-        hr_lst = []
-        for hr in range(1, 13, 1):
-            hr_lst.append(str(hr) + ampm)
-        hr_lst = hr_lst[-1:] + hr_lst[:-1]
-        n_col_lst = n_col_lst + hr_lst
-    df_amy.columns = n_col_lst
-    df_amy.columns.name = "Hour"
-
-    # Convert Julian date index to Month-Day format
-    if days_in_year == 366:
-        leap_year = True
-    else:
-        leap_year = False
-    new_index = [
-        julianDay_to_str_date(julday, leap_year=leap_year, str_format="%b-%d")
-        for julday in df_amy.index
-    ]
-    df_amy.index = pd.Index(new_index, name="Day of Year")
+    # Format dataframe 
+    df_amy = _format_meteo_yr_df(df_amy)
     return df_amy
 
 def compute_severe_yr(data, days_in_year=366, show_pbar=False):
@@ -251,31 +256,8 @@ def compute_severe_yr(data, days_in_year=366, show_pbar=False):
         index=np.arange(1, days_in_year + 1, 1),
     )
 
-    ## Re-order columns for PST, with easy to read time labels
-    cols = df_severe_yr.columns.tolist()
-    cols = cols[7:] + cols[:7]
-    df_severe_yr = df_severe_yr[cols]
-
-    n_col_lst = []
-    for ampm in ["am", "pm"]:
-        hr_lst = []
-        for hr in range(1, 13, 1):
-            hr_lst.append(str(hr) + ampm)
-        hr_lst = hr_lst[-1:] + hr_lst[:-1]
-        n_col_lst = n_col_lst + hr_lst
-    df_severe_yr.columns = n_col_lst
-    df_severe_yr.columns.name = "Hour"
-
-    # Convert Julian date index to Month-Day format
-    if days_in_year == 366:
-        leap_year = True
-    else:
-        leap_year = False
-    new_index = [
-        julianDay_to_str_date(julday, leap_year=leap_year, str_format="%b-%d")
-        for julday in df_severe_yr.index
-    ]
-    df_severe_yr.index = pd.Index(new_index, name="Day of Year")
+    # Format dataframe 
+    df_severe_yr = _format_meteo_yr_df(df_severe_yr)
     return df_severe_yr
 
 # =========================== HELPER FUNCTIONS: AMY/TMY PLOTTING ==============================
