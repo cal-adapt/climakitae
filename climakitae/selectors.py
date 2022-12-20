@@ -267,7 +267,7 @@ class LocSelectorArea(param.Parameterized):
             self.longitude[0], self.latitude[0], self.longitude[1], self.latitude[1]
         )
 
-        fig0 = Figure(figsize=(4.25, 4.25))
+        fig0 = Figure(figsize=(4, 4.5))
         proj = ccrs.Orthographic(-118, 40)
         crs_proj4 = proj.proj4_init  # used below
         xy = ccrs.PlateCarree()
@@ -990,7 +990,7 @@ def _display_select(selections, location):
             ("Subset data by location", location_chooser),
         ),
         title="Select your data and region of interest",
-        height=550,
+        height=530,
         width=595,
         collapsible=False,
     )
@@ -1016,7 +1016,7 @@ def _display_select(selections, location):
         ),
         title="Current selections",
         width=285,
-        height=380,
+        height=350,
         collapsible=False,
     )
 
