@@ -24,6 +24,7 @@ available for Analytics Engine Beta Launch. The AMY is comparable to a typical
 ## 3: Severe AMY based upon historical baseline and a designated threshold/percentile
 
 import matplotlib.pyplot as plt
+import hvplot.pandas 
 from matplotlib.ticker import MaxNLocator
 import datetime
 import xarray as xr
@@ -114,6 +115,9 @@ def retrieve_amy_data(
         selections = app.selections
         location = app.location
         _cat = app._cat
+    
+    # Save units. Sometimes they get lost. 
+    units = selections.units 
 
     # Check year start and end inputs
     year_start, year_end = _set_amy_year_inputs(year_start, year_end)
@@ -133,6 +137,7 @@ def retrieve_amy_data(
     selections.area_average = "Yes"
     selections.timescale = "hourly"
     selections.simulation = ["ensmean"]  # Read from ensemble means
+    selections.units = units 
 
     # Grab data from the catalog
     amy_data = _read_from_catalog(
@@ -167,10 +172,6 @@ def _remove_repeats(xr_data):
         return cleaned_np
     else:
         return xr_data.values
-
-
-# =========================== HELPER FUNCTIONS: AMY/TMY PLOTTING ==============================
-
 
 def compute_amy(data, days_in_year=366, show_pbar=False):
     """
@@ -223,7 +224,6 @@ def compute_amy(data, days_in_year=366, show_pbar=False):
     ]
     df_amy.index = pd.Index(new_index, name="Day of Year")
     return df_amy
-
 
 def compute_severe_yr(data, days_in_year=366, show_pbar=False):
     """
@@ -278,15 +278,56 @@ def compute_severe_yr(data, days_in_year=366, show_pbar=False):
     df_severe_yr.index = pd.Index(new_index, name="Day of Year")
     return df_severe_yr
 
+# =========================== HELPER FUNCTIONS: AMY/TMY PLOTTING ==============================
 
-def _amy_heatmap(amy_df, title=None, cmap="viridis", cbar_label=None):
+def meteo_yr_heatmap(amy_df, title="Meteorological Year", cmap="viridis", clabel=None, width=500, height=250):
+    """Create interactive AMY heatmap using hvplot 
+
+    Args:
+        amy_df (pd.DataFrame): AMY dataframe, with hour of day as columns and day of year as index
+        title (str): title to give heatmap
+        cmap (str): colormap
+        clabel (str): name of variable being plotted
+
+    Returns:
+        fig (hvplot)
+
+    """
+    # Set yticks 
+    idx = [
+        (31,"Feb-01"),
+        (91,"Apr-01"), 
+        (152,"Jun-01"), 
+        (213,"Aug-01"), 
+        (274,"Oct-01"),
+        (335,"Dec-01")
+    ]
+    if len(amy_df) == 366: # Leap year 
+        idx = idx 
+    elif len(amy_df) == 365: # Normal year
+        idx = [(i-1,mon) for i,mon in idx]
+    else: 
+        raise ValueError("Length of dataframe is invalid. Must contain either 366 or 365 days.") 
+        
+    to_plot = amy_df.reset_index(drop=True) # Remove day of year index 
+    fig = to_plot.hvplot.heatmap(
+        yticks=idx, 
+        frame_width=width, frame_height=height,
+        ylabel="Day of Year", 
+        xlabel="Hour of Day", 
+        title=title, 
+        clabel=clabel
+    ).opts(xrotation=45)
+    return fig
+
+def meteo_yr_heatmap_static(amy_df, title=None, cmap="viridis", clabel=None):
     """Create AMY heatmap using matplotlib
 
     Args:
         amy_df (pd.DataFrame): AMY dataframe, with hour of day as columns and day of year as index
         title (str): title to give heatmap
         cmap (str): colormap
-        cbar_label (str): name of variable being plotted
+        clabel (str): name of variable being plotted
 
     Returns:
         fig (matplotlib.figure.Figure)
@@ -317,7 +358,7 @@ def _amy_heatmap(amy_df, title=None, cmap="viridis", cbar_label=None):
 
     # Make colorbar
     cax = fig.add_axes([0.92, 0.24, 0.02, 0.53])
-    fig.colorbar(heatmap, cax=cax, orientation="vertical", label=cbar_label)
+    fig.colorbar(heatmap, cax=cax, orientation="vertical", label=clabel)
 
     plt.close()  # Close figure
     return fig
@@ -635,11 +676,11 @@ class AverageMeteorologicalYear(param.Parameterized):
         else:
             title = "Average Meteorological Year\n{}".format(self.location.cached_area)
 
-        heatmap = _amy_heatmap(
+        heatmap = meteo_yr_heatmap(
             amy_df=df,
             title=title,
             cmap=self.cmap,
-            cbar_label=self.selections.variable + "(" + self.selections.units + ")",
+            clabel=self.selections.variable + "(" + self.selections.units + ")",
         )
 
         return heatmap
