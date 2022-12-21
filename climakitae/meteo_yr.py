@@ -24,7 +24,7 @@ available for Analytics Engine Beta Launch. The AMY is comparable to a typical
 ## 3: Severe AMY based upon historical baseline and a designated threshold/percentile
 
 import matplotlib.pyplot as plt
-import hvplot.pandas 
+import hvplot.pandas
 from matplotlib.ticker import MaxNLocator
 import datetime
 import xarray as xr
@@ -84,7 +84,13 @@ def _set_amy_year_inputs(year_start, year_end):
 
 
 def retrieve_meteo_yr_data(
-    app=None, selections=None, location=None, _cat=None, ssp=None, year_start=2015, year_end=None
+    app=None,
+    selections=None,
+    location=None,
+    _cat=None,
+    ssp=None,
+    year_start=2015,
+    year_end=None,
 ):
     """Get average meteorological year data.
     Input one of the two:
@@ -96,7 +102,7 @@ def retrieve_meteo_yr_data(
         selections (climakitae DataSelector)
         location (climakitae LocationSelector)
         _cat (intake catalog)
-        ssp (str): one of the 3 SSP options 
+        ssp (str): one of the 3 SSP options
         year_start (int, optional): year between 1980-2095
         year_end (int, optional) year between 1985-2100
 
@@ -116,9 +122,9 @@ def retrieve_meteo_yr_data(
         selections = app.selections
         location = app.location
         _cat = app._cat
-    
-    # Save units. Sometimes they get lost. 
-    units = selections.units 
+
+    # Save units. Sometimes they get lost.
+    units = selections.units
 
     # Check year start and end inputs
     year_start, year_end = _set_amy_year_inputs(year_start, year_end)
@@ -128,21 +134,21 @@ def retrieve_meteo_yr_data(
         selections.scenario_ssp = [ssp]
     if year_end < 2015:
         selections.scenario_ssp = []
-    elif (year_end >= 2015) and (selections.scenario_ssp) == []: 
-        selections.scenario_ssp = ["SSP 3-7.0 -- Business as Usual"] # Default 
-    if year_start < 2015: # Append historical data 
-        selections.scenario_historical = ["Historical Climate"] 
+    elif (year_end >= 2015) and (selections.scenario_ssp) == []:
+        selections.scenario_ssp = ["SSP 3-7.0 -- Business as Usual"]  # Default
+    if year_start < 2015:  # Append historical data
+        selections.scenario_historical = ["Historical Climate"]
     else:
         selections.scenario_historical = []
-    if len(selections.scenario_ssp) > 1: 
+    if len(selections.scenario_ssp) > 1:
         selections.scenario_ssp == selections.scenario_ssp[0]
-        
+
     # Set other data parameters
-    selections.simulation = ["ensmean"] 
+    selections.simulation = ["ensmean"]
     selections.time_slice = (year_start, year_end)
     selections.area_average = "Yes"
     selections.timescale = "hourly"
-    selections.units = units 
+    selections.units = units
 
     # Grab data from the catalog
     amy_data = _read_from_catalog(
@@ -177,8 +183,9 @@ def _remove_repeats(xr_data):
         return cleaned_np
     else:
         return xr_data.values
-    
-def _format_meteo_yr_df(df): 
+
+
+def _format_meteo_yr_df(df):
     """Format dataframe output from compute_amy and compute_severe_yr"""
     ## Re-order columns for PST, with easy to read time labels
     cols = df.columns.tolist()
@@ -207,6 +214,7 @@ def _format_meteo_yr_df(df):
     df.index = pd.Index(new_index, name="Day of Year")
     return df
 
+
 def compute_amy(data, days_in_year=366, show_pbar=False):
     """
     Calculates the average meteorological year based on a designated period of time.
@@ -231,9 +239,10 @@ def compute_amy(data, days_in_year=366, show_pbar=False):
         columns=np.arange(1, 25, 1),
         index=np.arange(1, days_in_year + 1, 1),
     )
-    # Format dataframe 
+    # Format dataframe
     df_amy = _format_meteo_yr_df(df_amy)
     return df_amy
+
 
 def compute_severe_yr(data, days_in_year=366, show_pbar=False):
     """
@@ -261,42 +270,55 @@ def compute_severe_yr(data, days_in_year=366, show_pbar=False):
         index=np.arange(1, days_in_year + 1, 1),
     )
 
-    # Format dataframe 
+    # Format dataframe
     df_severe_yr = _format_meteo_yr_df(df_severe_yr)
     return df_severe_yr
 
+
 # =========================== HELPER FUNCTIONS: MISC ==============================
+
 
 def compute_mean_monthly_meteo_yr(tmy_df, col_name="mean_value"):
     """Compute mean monthly values for input meteorological year data
-    
-    Args: 
-        tmy_df (pd.DataFrame): matrix with day of year as index and hour as columns 
-        col_name (str, optional): name to give single output column 
-    Returns: 
+
+    Args:
+        tmy_df (pd.DataFrame): matrix with day of year as index and hour as columns
+        col_name (str, optional): name to give single output column
+    Returns:
         tmy_monthly_mean (pd.DataFrame): table with month as index and monthly mean as column
     """
-    # Convert from matrix --> hour and data as individual columns 
+    # Convert from matrix --> hour and data as individual columns
     tmy_stacked = (
-        pd.DataFrame(tmy_df.stack()).rename(columns={0:col_name}).reset_index()
+        pd.DataFrame(tmy_df.stack()).rename(columns={0: col_name}).reset_index()
     )
     # Combine Hour and Day of Year to get combined date. Assign as index
     tmy_stacked["Date"] = tmy_stacked["Day of Year"] + " " + tmy_stacked["Hour"]
     tmy_stacked = tmy_stacked.drop(columns=["Day of Year", "Hour"]).set_index("Date")
-    
-    # Reformat index to datetime so that you can resample the data monthly 
-    reformatted_idx = pd.to_datetime(["2024."+idx for idx in tmy_stacked.index], format="%Y.%b-%d %I%p")
-    tmy_monthly_mean = tmy_stacked.set_index(reformatted_idx).resample('MS').mean()
-    
-    # Reset index to be user-friendly month strings 
+
+    # Reformat index to datetime so that you can resample the data monthly
+    reformatted_idx = pd.to_datetime(
+        ["2024." + idx for idx in tmy_stacked.index], format="%Y.%b-%d %I%p"
+    )
+    tmy_monthly_mean = tmy_stacked.set_index(reformatted_idx).resample("MS").mean()
+
+    # Reset index to be user-friendly month strings
     tmy_monthly_mean = tmy_monthly_mean.set_index(tmy_monthly_mean.index.strftime("%b"))
     tmy_monthly_mean.index.name = "Month"
     return tmy_monthly_mean
 
+
 # =========================== HELPER FUNCTIONS: AMY/TMY PLOTTING ==============================
 
-def meteo_yr_heatmap(meteo_yr_df, title="Meteorological Year", cmap="viridis", clabel=None, width=500, height=250):
-    """Create interactive meteorological year heatmap using hvplot 
+
+def meteo_yr_heatmap(
+    meteo_yr_df,
+    title="Meteorological Year",
+    cmap="viridis",
+    clabel=None,
+    width=500,
+    height=250,
+):
+    """Create interactive meteorological year heatmap using hvplot
 
     Args:
         meteo_yr_df (pd.DataFrame): meteorological year dataframe, with hour of day as columns and day of year as index
@@ -308,32 +330,36 @@ def meteo_yr_heatmap(meteo_yr_df, title="Meteorological Year", cmap="viridis", c
         fig (hvplot)
 
     """
-    # Set yticks 
+    # Set yticks
     idx = [
-        (31,"Feb-01"),
-        (91,"Apr-01"), 
-        (152,"Jun-01"), 
-        (213,"Aug-01"), 
-        (274,"Oct-01"),
-        (335,"Dec-01")
+        (31, "Feb-01"),
+        (91, "Apr-01"),
+        (152, "Jun-01"),
+        (213, "Aug-01"),
+        (274, "Oct-01"),
+        (335, "Dec-01"),
     ]
-    if len(meteo_yr_df) == 366: # Leap year 
-        idx = idx 
-    elif len(meteo_yr_df) == 365: # Normal year
-        idx = [(i-1,mon) for i,mon in idx]
-    else: 
-        raise ValueError("Length of dataframe is invalid. Must contain either 366 or 365 days.") 
-        
-    to_plot = meteo_yr_df.reset_index(drop=True) # Remove day of year index 
+    if len(meteo_yr_df) == 366:  # Leap year
+        idx = idx
+    elif len(meteo_yr_df) == 365:  # Normal year
+        idx = [(i - 1, mon) for i, mon in idx]
+    else:
+        raise ValueError(
+            "Length of dataframe is invalid. Must contain either 366 or 365 days."
+        )
+
+    to_plot = meteo_yr_df.reset_index(drop=True)  # Remove day of year index
     fig = to_plot.hvplot.heatmap(
-        yticks=idx, 
-        frame_width=width, frame_height=height,
-        ylabel="Day of Year", 
-        xlabel="Hour of Day", 
-        title=title, 
-        clabel=clabel
+        yticks=idx,
+        frame_width=width,
+        frame_height=height,
+        ylabel="Day of Year",
+        xlabel="Hour of Day",
+        title=title,
+        clabel=clabel,
     ).opts(xrotation=45)
     return fig
+
 
 def meteo_yr_heatmap_static(meteo_yr_df, title=None, cmap="viridis", clabel=None):
     """Create meteorological year heatmap using matplotlib
