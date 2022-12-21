@@ -335,7 +335,7 @@ def _get_data_one_var(selections, location, cat):
             time=slice(str(selections.time_slice[0]), str(selections.time_slice[1]))
         )
 
-        # Perform area subsetting and area averaging
+        # Perform area subsetting 
         ds_region = _get_area_subset(location=location)
         if ds_region is not None:  # Perform subsetting
             dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
