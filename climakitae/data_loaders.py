@@ -237,12 +237,23 @@ def _process_and_concat(selections, location, dsets, cat_subset):
 
             else:
                 try:
-                    filename = [
-                        name
-                        for name in dsets.keys()
-                        if simulation + "." + _scenario_to_experiment_id(scenario)
-                        in name
-                    ][0]
+                    if ( # Need to get CESM2 data if ensmean is selected for ssp2-4.5 or ssp5-8.5
+                        (simulation == "ensmean") and 
+                        (scenario in ["SSP 2-4.5 -- Middle of the Road","SSP 5-8.5 -- Burn it All"])
+                    ):
+                        filename = [
+                            name
+                            for name in dsets.keys()
+                            if "CESM2." + _scenario_to_experiment_id(scenario)
+                            in name
+                        ][0]
+                    else: 
+                        filename = [
+                            name
+                            for name in dsets.keys()
+                            if simulation + "." + _scenario_to_experiment_id(scenario)
+                            in name
+                        ][0]
                 except:
                     continue
                 sim_list.append(dsets[filename][selections.variable_id])

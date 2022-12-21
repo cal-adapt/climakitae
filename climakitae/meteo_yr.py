@@ -124,6 +124,8 @@ def retrieve_amy_data(
     year_start, year_end = _set_amy_year_inputs(year_start, year_end)
 
     # Set scenario selections
+    if (ssp is not None) and (year_end >= 2015):
+        selections.scenario_ssp = [ssp]
     if year_end < 2015:
         selections.scenario_ssp = []
     elif (year_end >= 2015) and (selections.scenario_ssp) == []: 
@@ -132,10 +134,6 @@ def retrieve_amy_data(
         selections.scenario_historical = ["Historical Climate"] 
     else:
         selections.scenario_historical = []
-    
-    # Set simulations. Ensemble mean only available for 3-7.0
-    if (ssp is not None) and (year_start >= 2015): 
-        selections.scenario_ssp == [ssp]
     if len(selections.scenario_ssp) > 1: 
         selections.scenario_ssp == selections.scenario_ssp[0]
         
@@ -145,6 +143,7 @@ def retrieve_amy_data(
     selections.area_average = "Yes"
     selections.timescale = "hourly"
     selections.units = units 
+    print(selections.scenario_ssp)
 
     # Grab data from the catalog
     amy_data = _read_from_catalog(
