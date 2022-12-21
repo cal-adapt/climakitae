@@ -4,6 +4,7 @@ import rioxarray
 import intake
 import numpy as np
 import psutil
+import warnings
 from shapely.geometry import box
 from .catalog_convert import (
     _resolution_to_gridlabel,
@@ -291,15 +292,18 @@ def _process_and_concat(selections, location, dsets, cat_subset):
 def _get_data_one_var(selections, location, cat):
     """Get data for one variable"""
 
-    # Get catalog subset for a set of user selections
-    cat_subset = _get_cat_subset(selections=selections, cat=cat)
-
-    # Read data from AWS.
-    data_dict = cat_subset.to_dataset_dict(
-        zarr_kwargs={"consolidated": True},
-        storage_options={"anon": True},
-        progressbar=False,
-    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore") # Silence warning if empty dataset returned
+        
+        # Get catalog subset for a set of user selections
+        cat_subset = _get_cat_subset(selections=selections, cat=cat)
+    
+        # Read data from AWS.
+        data_dict = cat_subset.to_dataset_dict(
+            zarr_kwargs={"consolidated": True},
+            storage_options={"anon": True},
+            progressbar=False,
+        )
     
     # If SSP 2-4.5 or SSP 5-8.5 are selected, along with ensmean as the simulation, 
     # We want to return the single available CESM2 model 

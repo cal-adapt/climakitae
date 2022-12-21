@@ -59,7 +59,7 @@ var_catalog = pd.read_csv(var_catalog_resource, index_col="variable_id")
 
 def _set_amy_year_inputs(year_start, year_end):
     """
-    Helper function for retrieve_amy_data.
+    Helper function for retrieve_meteo_yr_data.
     Checks that the user has input valid values.
     Sets year end if it hasn't been set; default is 30 year range (year_start + 30). Minimum is 5 year range.
     """
@@ -83,7 +83,7 @@ def _set_amy_year_inputs(year_start, year_end):
     return (year_start, year_end)
 
 
-def retrieve_amy_data(
+def retrieve_meteo_yr_data(
     app=None, selections=None, location=None, _cat=None, ssp=None, year_start=2015, year_end=None
 ):
     """Get average meteorological year data.
@@ -143,7 +143,6 @@ def retrieve_amy_data(
     selections.area_average = "Yes"
     selections.timescale = "hourly"
     selections.units = units 
-    print(selections.scenario_ssp)
 
     # Grab data from the catalog
     amy_data = _read_from_catalog(
@@ -265,6 +264,34 @@ def compute_severe_yr(data, days_in_year=366, show_pbar=False):
     # Format dataframe 
     df_severe_yr = _format_meteo_yr_df(df_severe_yr)
     return df_severe_yr
+
+# =========================== HELPER FUNCTIONS: MISC ==============================
+
+def compute_mean_monthly_meteo_yr(tmy_df, col_name="mean_value"):
+    """Compute mean monthly values for input meteorological year data
+    
+    Args: 
+        tmy_df (pd.DataFrame): matrix with day of year as index and hour as columns 
+        col_name (str, optional): name to give single output column 
+    Returns: 
+        tmy_monthly_mean (pd.DataFrame): table with month as index and monthly mean as column
+    """
+    # Convert from matrix --> hour and data as individual columns 
+    tmy_stacked = (
+        pd.DataFrame(tmy_df.stack()).rename(columns={0:col_name}).reset_index()
+    )
+    # Combine Hour and Day of Year to get combined date. Assign as index
+    tmy_stacked["Date"] = tmy_stacked["Day of Year"] + " " + tmy_stacked["Hour"]
+    tmy_stacked = tmy_stacked.drop(columns=["Day of Year", "Hour"]).set_index("Date")
+    
+    # Reformat index to datetime so that you can resample the data monthly 
+    reformatted_idx = pd.to_datetime(["2024."+idx for idx in tmy_stacked.index], format="%Y.%b-%d %I%p")
+    tmy_monthly_mean = tmy_stacked.set_index(reformatted_idx).resample('MS').mean()
+    
+    # Reset index to be user-friendly month strings 
+    tmy_monthly_mean = tmy_monthly_mean.set_index(tmy_monthly_mean.index.strftime("%b"))
+    tmy_monthly_mean.index.name = "Month"
+    return tmy_monthly_mean
 
 # =========================== HELPER FUNCTIONS: AMY/TMY PLOTTING ==============================
 
@@ -399,7 +426,7 @@ def lineplot_from_amy_data(
         ]
     except:  # Try non leap year
         months = [
-            datetime.datetime.strptime("2024." + idx_i, "%Y.%b-%d %I%p").strftime("%B")
+            datetime.datetime.strptime("2023." + idx_i, "%Y.%b-%d %I%p").strftime("%B")
             for idx_i in amy_stacked.index
         ]
 
@@ -517,14 +544,14 @@ class AverageMeteorologicalYear(param.Parameterized):
         ][self.computation_method]
 
         # Postage data and anomalies defaults
-        self.historical_tmy_data = retrieve_amy_data(
+        self.historical_tmy_data = retrieve_meteo_yr_data(
             selections=self.selections,
             location=self.location,
             _cat=self.cat,
             year_start=1981,
             year_end=2010,
         ).compute()
-        self.future_tmy_data = retrieve_amy_data(
+        self.future_tmy_data = retrieve_meteo_yr_data(
             _cat=self.cat,
             selections=self.selections,
             location=self.location,
@@ -590,14 +617,14 @@ class AverageMeteorologicalYear(param.Parameterized):
         """If the button was clicked and the location or variable was changed,
         reload the tmy data from AWS"""
 
-        self.historical_tmy_data = retrieve_amy_data(
+        self.historical_tmy_data = retrieve_meteo_yr_data(
             selections=self.selections,
             location=self.location,
             _cat=self.cat,
             year_start=1981,
             year_end=2010,
         ).compute()
-        self.future_tmy_data = retrieve_amy_data(
+        self.future_tmy_data = retrieve_meteo_yr_data(
             _cat=self.cat,
             selections=self.selections,
             location=self.location,
