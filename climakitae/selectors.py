@@ -998,7 +998,7 @@ def _display_select(selections, location):
     how_to_use = pn.Card(
         pn.widgets.StaticText(
             value="""
-            In the first tab, <b>make your data selections.</b>. In the second tab, <b>subset the 
+            In the first tab, <b>make your data selections.</b> In the second tab, <b>subset the 
             data by location</b> and choose whether or not to compute an area average over the 
             selected region. To retrieve the data, use the climakitae function <b>app.retrieve()</b>.
             """,
