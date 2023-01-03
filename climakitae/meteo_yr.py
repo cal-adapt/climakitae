@@ -795,7 +795,7 @@ def _amy_visualize(tmy_ob, selections, location):
                 " warming level data at the selected warming level, and is compared"
                 " to the historical baseline."
             ),
-            width=400,
+            width=700
         ),
     )
 
@@ -807,8 +807,8 @@ def _amy_visualize(tmy_ob, selections, location):
     tmy_tabs = pn.Card(
         pn.Tabs(("AMY Heatmap", tmy_ob._tmy_hourly_heatmap), ("Methodology", mthd_bx)),
         title=" Average Meteorological Year",
-        width=850,
-        height=420,
+        width=725,
+        height=450,
         collapsible=False,
     )
 
