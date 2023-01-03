@@ -795,7 +795,7 @@ def _amy_visualize(tmy_ob, selections, location):
                 " warming level data at the selected warming level, and is compared"
                 " to the historical baseline."
             ),
-            width=700
+            width=700,
         ),
     )
 
