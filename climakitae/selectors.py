@@ -267,7 +267,7 @@ class LocSelectorArea(param.Parameterized):
             self.longitude[0], self.latitude[0], self.longitude[1], self.latitude[1]
         )
 
-        fig0 = Figure(figsize=(4.25, 4.25))
+        fig0 = Figure(figsize=(4, 4.5))
         proj = ccrs.Orthographic(-118, 40)
         crs_proj4 = proj.proj4_init  # used below
         xy = ccrs.PlateCarree()
@@ -447,11 +447,10 @@ class DataSelector(param.Parameterized):
         default=["Historical Climate"],
         objects=["Historical Reconstruction (ERA5-WRF)", "Historical Climate"],
     )
-    _area_average_yes_no = param.ObjectSelector(
+    area_average = param.ObjectSelector(
         default="No",
         objects=["Yes", "No"],
-        doc="""Used to make the select panel more readable.
-        Set to Yes if area_average = True, and No if not.""",
+        doc="""Compute an area average?""",
     )
 
     # Empty params, initialized in __init__
@@ -462,7 +461,6 @@ class DataSelector(param.Parameterized):
     units = param.ObjectSelector(objects=dict())
     extended_description = param.ObjectSelector(objects=dict())
     variable_id = param.ObjectSelector(objects=dict())
-    area_average = param.Boolean()
     _data_warning = param.String(
         default="", doc="Warning if user has made a bad selection"
     )
@@ -537,10 +535,6 @@ class DataSelector(param.Parameterized):
         self.extended_description = var_info.extended_description.item()
         self.variable_id = var_info.variable_id.item()
         self._data_warning = ""
-
-    @param.depends("_area_average_yes_no", watch=True)
-    def _update_area_average_yes_no(self):
-        self.area_average = True if self._area_average_yes_no == "Yes" else False
 
     @param.depends("timescale", "resolution", watch=True)
     def _update_var_options(self):
@@ -874,9 +868,7 @@ def _get_data_selection_description(selections, location):
         "<font size='+0.10'>Location selections: </font><br>"
         "<ul>"
         "<li><b>location: </b>" + cached_area_print + "</li>"
-        "<li><b>compute area average? </b>"
-        + str(selections._area_average_yes_no)
-        + "</li>"
+        "<li><b>compute area average? </b>" + str(selections.area_average) + "</li>"
         "</ul>"
     )
     return _data_selection_description + _location_selection_description
@@ -909,7 +901,7 @@ class SelectionDescription(param.Parameterized):
         "selections.timescale",
         "selections.resolution",
         "selections.time_slice",
-        "selections._area_average_yes_no",
+        "selections.area_average",
         "location.area_subset",
         "location.cached_area",
         "location.longitude",
@@ -953,7 +945,7 @@ def _display_select(selections, location):
                 name="",
             ),
             pn.widgets.RadioButtonGroup.from_param(
-                selections.param._area_average_yes_no, inline=True
+                selections.param.area_average, inline=True
             ),
             width=275,
         ),
@@ -998,7 +990,7 @@ def _display_select(selections, location):
             ("Subset data by location", location_chooser),
         ),
         title="Select your data and region of interest",
-        height=550,
+        height=530,
         width=595,
         collapsible=False,
     )
@@ -1006,7 +998,7 @@ def _display_select(selections, location):
     how_to_use = pn.Card(
         pn.widgets.StaticText(
             value="""
-            In the first tab, <b>make your data selections.</b>. In the second tab, <b>subset the 
+            In the first tab, <b>make your data selections.</b> In the second tab, <b>subset the 
             data by location</b> and choose whether or not to compute an area average over the 
             selected region. To retrieve the data, use the climakitae function <b>app.retrieve()</b>.
             """,
@@ -1024,7 +1016,7 @@ def _display_select(selections, location):
         ),
         title="Current selections",
         width=285,
-        height=380,
+        height=350,
         collapsible=False,
     )
 

@@ -3,7 +3,7 @@
 import panel as pn
 import param
 
-from .tmy import AverageMeteorologicalYear, _amy_visualize
+from .meteo_yr import AverageMeteorologicalYear, _amy_visualize
 from .threshold_panel import ThresholdDataParams, _thresholds_visualize
 from .warming_levels import WarmingLevels, _display_warming_levels
 
