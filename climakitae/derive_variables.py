@@ -15,11 +15,11 @@ def compute_hdd_cdd(t2, standard_temp=65):
 
     # Compute HDD: Find positive difference (i.e. days < 65 degF) 
     hdd = deg_less_than_standard.where(deg_less_than_standard > 0, 0) # Replace negative values with 0
-    hdd.name = “Heating Degree Days” 
+    hdd.name = "Heating Degree Days"
 
     # Compute CDD: Find negative difference (i.e. days > 65 degF)
     cdd = (-1)*deg_less_than_standard.where(deg_less_than_standard < 0, 0) # Replace positive values with 0
-    cdd.name = “Cooling Degree Days” 
+    cdd.name = "Cooling Degree Days"
     
     return (hdd, cdd) 
 

@@ -33,7 +33,7 @@ def get_closest_gridcell(data, lat, lon):
     """
     # Make Transformer object 
     lat_lon_to_model_projection = pyproj.Transformer.from_crs(
-        crs_from=“epsg:4326”, # Lat/lon
+        crs_from="epsg:4326", # Lat/lon
         crs_to=data.rio.crs, # Model projection
         always_xy=True
     )
@@ -42,7 +42,7 @@ def get_closest_gridcell(data, lat, lon):
     x, y = lat_lon_to_model_projection.transform(lon, lat) 
 
     # Get closest gridcell 
-    closest_gridcell = data.sel(x=x, y=y, method=‘nearest’)
+    closest_gridcell = data.sel(x=x, y=y, method="nearest")
     return closest_gridcell
 
 
