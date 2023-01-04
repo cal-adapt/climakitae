@@ -356,6 +356,7 @@ def meteo_yr_heatmap(
         ylabel="Day of Year",
         xlabel="Hour of Day",
         title=title,
+        cmap=cmap,
         clabel=clabel,
     ).opts(xrotation=45)
     return fig
@@ -586,7 +587,7 @@ class AverageMeteorologicalYear(param.Parameterized):
         ).compute()
 
         # Colormap
-        self.cmap = _read_ae_colormap(cmap="ae_orange", cmap_hex=False)
+        self.cmap = _read_ae_colormap(cmap="ae_orange", cmap_hex=True)
 
         # Selectors defaults
         self.selections.append_historical = False
@@ -617,7 +618,7 @@ class AverageMeteorologicalYear(param.Parameterized):
             cmap_name = "ae_diverging"
 
         # Read colormap hex
-        self.cmap = _read_ae_colormap(cmap=cmap_name, cmap_hex=False)
+        self.cmap = _read_ae_colormap(cmap=cmap_name, cmap_hex=True)
 
     @param.depends("computation_method", "reload_data", "warmlevel", watch=True)
     def _update_data_to_be_returned(self):
@@ -697,7 +698,7 @@ class AverageMeteorologicalYear(param.Parameterized):
                 )
                 clabel = self.selections.variable + " (" + self.selections.units + ")"
         elif self.data_type == "Difference":
-            cmap = _read_ae_colormap("ae_diverging", cmap_hex=False)
+            cmap = _read_ae_colormap("ae_diverging", cmap_hex=True)
             if self.computation_method == "Warming Level Future":
                 df = compute_amy(
                     self.future_tmy_data, days_in_year=days_in_year
