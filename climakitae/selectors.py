@@ -990,7 +990,7 @@ def _display_select(selections, location):
             ("Subset data by location", location_chooser),
         ),
         title="Select your data and region of interest",
-        height=530,
+        height=545,
         width=595,
         collapsible=False,
     )
@@ -1016,7 +1016,7 @@ def _display_select(selections, location):
         ),
         title="Current selections",
         width=285,
-        height=350,
+        height=365,
         collapsible=False,
     )
 

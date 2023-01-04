@@ -1,7 +1,12 @@
 import intake
 from .data_export import _export_to_user
-from .data_loaders import _read_from_catalog, _compute
 from .explore import AppExplore
+from .view import _visualize
+from .data_loaders import (
+    _read_from_catalog, 
+    _compute, 
+    _read_data_from_csv
+)
 from .selectors import (
     DataSelector,
     _display_select,
@@ -16,7 +21,6 @@ from .catalog_convert import (
     _timescale_to_table_id,
     _scenario_to_experiment_id,
 )
-from .view import _visualize
 
 
 class Application(object):
@@ -66,12 +70,40 @@ class Application(object):
     # === Retrieve ===================================
     def retrieve(self):
         """
-        Uses the information gathered in 'select' and stored in 'selections' and
-        'location' to generate an xarray DataArray as specified, and return that
-        DataArray object.
+        The primary and first data loading method, called by
+        core.Application.retrieve, it returns a DataArray (which can be quite large)
+        containing everything requested by the user (which is stored in 'selections'
+        and 'location').
+
+        Args:
+            selections (DataLoaders): object holding user's selections
+            location (LocSelectorArea): object holding user's location selections
+            cat (intake_esm.core.esm_datastore): catalog
+
+        Returns:
+            da (xr.DataArray): output data
         """
-        # TODO: insert additional 'hang in there' statement if it's taking a while
         return _read_from_catalog(self.selections, self.location, self._cat)
+    
+    def retrieve_from_csv(self, csv, merge=True): 
+        """
+        Retrieve data from csv input. Allows user to bypass app.select GUI and allows 
+        developers to pre-set inputs in a csv file for ease of use in a notebook. 
+
+        Args: 
+            selections (DataLoaders): object holding user's data selections
+            location (LocSelectorArea): object holding user's location selections
+            cat (intake_esm.core.esm_datastore): catalog
+            csv (str): path to local csv file 
+            merge (bool, options): if multiple datasets desired, merge to form a single object? 
+
+        Returns: one of the following, depending on csv input and merge 
+            xr_ds (xr.Dataset): if multiple rows are in the csv, each row is a data_variable 
+            xr_da (xr.DataArray): if csv only has one row 
+            xr_list (list of xr.DataArrays): if multiple rows are in the csv and merge=True, 
+                multiple DataArrays are returned in a single list. 
+        """
+        return _read_data_from_csv(self.selections, self.location, self._cat, csv, merge)
 
     # === View =======================================
     def view(self, data, lat_lon=True, width=None, height=None, cmap=None):
@@ -79,15 +111,13 @@ class Application(object):
 
         Args:
             data (xr.DataArray)
-            lat_lon (boolean): reproject to lat/lon coords? (default to True)
-            width (int): width of plot (default to hvplot.image default)
-            height (int): hight of plot (default to hvplot.image default)
-            cmap (str): colormap to apply to data (default to "viridis");
-                        applies only to mapped data
+            lat_lon (boolean, optional): reproject to lat/lon coords? (default to True)
+            width (int, optional): width of plot (default to hvplot.image default)
+            height (int, optional): hight of plot (default to hvplot.image default)
+            cmap (str, optional): colormap to apply to data (default to "ae_orange"); applies only to mapped data
 
         Returns:
-            hvplot.image()
-
+            hvplot.image() or matplotlib object, depending on input data
         """
         return _visualize(data, lat_lon=lat_lon, width=width, height=height, cmap=cmap)
 
