@@ -10,6 +10,7 @@ def compute_hdd_cdd(t2, standard_temp=65):
     Returns: 
         hdd, cdd (xr.DataArray) 
     """
+
     # Subtract t2 from the standard reference temperature 
     deg_less_than_standard = standard_temp - t2
 
