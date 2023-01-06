@@ -2,11 +2,7 @@ import intake
 from .data_export import _export_to_user
 from .explore import AppExplore
 from .view import _visualize
-from .data_loaders import (
-    _read_from_catalog, 
-    _compute, 
-    _read_data_from_csv
-)
+from .data_loaders import _read_from_catalog, _compute, _read_data_from_csv
 from .selectors import (
     DataSelector,
     _display_select,
@@ -84,26 +80,28 @@ class Application(object):
             da (xr.DataArray): output data
         """
         return _read_from_catalog(self.selections, self.location, self._cat)
-    
-    def retrieve_from_csv(self, csv, merge=True): 
-        """
-        Retrieve data from csv input. Allows user to bypass app.select GUI and allows 
-        developers to pre-set inputs in a csv file for ease of use in a notebook. 
 
-        Args: 
+    def retrieve_from_csv(self, csv, merge=True):
+        """
+        Retrieve data from csv input. Allows user to bypass app.select GUI and allows
+        developers to pre-set inputs in a csv file for ease of use in a notebook.
+
+        Args:
             selections (DataLoaders): object holding user's data selections
             location (LocSelectorArea): object holding user's location selections
             cat (intake_esm.core.esm_datastore): catalog
-            csv (str): path to local csv file 
-            merge (bool, options): if multiple datasets desired, merge to form a single object? 
+            csv (str): path to local csv file
+            merge (bool, options): if multiple datasets desired, merge to form a single object?
 
-        Returns: one of the following, depending on csv input and merge 
-            xr_ds (xr.Dataset): if multiple rows are in the csv, each row is a data_variable 
-            xr_da (xr.DataArray): if csv only has one row 
-            xr_list (list of xr.DataArrays): if multiple rows are in the csv and merge=True, 
-                multiple DataArrays are returned in a single list. 
+        Returns: one of the following, depending on csv input and merge
+            xr_ds (xr.Dataset): if multiple rows are in the csv, each row is a data_variable
+            xr_da (xr.DataArray): if csv only has one row
+            xr_list (list of xr.DataArrays): if multiple rows are in the csv and merge=True,
+                multiple DataArrays are returned in a single list.
         """
-        return _read_data_from_csv(self.selections, self.location, self._cat, csv, merge)
+        return _read_data_from_csv(
+            self.selections, self.location, self._cat, csv, merge
+        )
 
     # === View =======================================
     def view(self, data, lat_lon=True, width=None, height=None, cmap=None):

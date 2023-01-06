@@ -1,28 +1,34 @@
 import numpy as np
 
-def compute_hdd_cdd(t2, standard_temp=65): 
-    """Compute heating degree days (HDD) and cooling degree days (CDD) 
-    
-    Args: 
-        t2 (xr.DataArray): Air temperature at 2m gridded data 
+
+def compute_hdd_cdd(t2, standard_temp=65):
+    """Compute heating degree days (HDD) and cooling degree days (CDD)
+
+    Args:
+        t2 (xr.DataArray): Air temperature at 2m gridded data
         standard_temp (int, optional): standard temperature in Fahrenheit (default to 65)
-        
-    Returns: 
-        hdd, cdd (xr.DataArray) 
+
+    Returns:
+        hdd, cdd (xr.DataArray)
     """
 
-    # Subtract t2 from the standard reference temperature 
+    # Subtract t2 from the standard reference temperature
     deg_less_than_standard = standard_temp - t2
 
-    # Compute HDD: Find positive difference (i.e. days < 65 degF) 
-    hdd = deg_less_than_standard.where(deg_less_than_standard > 0, 0) # Replace negative values with 0
+    # Compute HDD: Find positive difference (i.e. days < 65 degF)
+    hdd = deg_less_than_standard.where(
+        deg_less_than_standard > 0, 0
+    )  # Replace negative values with 0
     hdd.name = "Heating Degree Days"
 
     # Compute CDD: Find negative difference (i.e. days > 65 degF)
-    cdd = (-1)*deg_less_than_standard.where(deg_less_than_standard < 0, 0) # Replace positive values with 0
+    cdd = (-1) * deg_less_than_standard.where(
+        deg_less_than_standard < 0, 0
+    )  # Replace positive values with 0
     cdd.name = "Cooling Degree Days"
-    
-    return (hdd, cdd) 
+
+    return (hdd, cdd)
+
 
 def _compute_dewpointtemp(temperature, rel_hum):
     """Calculate dew point temperature
