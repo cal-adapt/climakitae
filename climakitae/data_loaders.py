@@ -467,7 +467,6 @@ def _read_data_from_csv(selections, location, cat, csv, merge=True):
     xr_list = []
     for index, row in df.iterrows():
         selections.variable = row.variable 
-        selections.units = row.units 
         selections.scenario_historical = [] if (row.scenario_historical == "") else [
             # This fancy list comprehension deals with the fact that scenario_historical 
             # can be set to an empty list, which would coded as an empty string in the csv
@@ -481,6 +480,7 @@ def _read_data_from_csv(selections, location, cat, csv, merge=True):
         selections.resolution = row.resolution 
         # Evaluate string time slice as tuple... i.e "(1980,2000)" --> (1980,2000)
         selections.time_slice = literal_eval(row.time_slice) 
+        selections.units = row.units 
         location.area_subset = row.area_subset 
         location.cached_area = row.cached_area 
         
