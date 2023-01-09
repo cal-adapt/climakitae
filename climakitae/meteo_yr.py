@@ -767,20 +767,20 @@ def _amy_visualize(tmy_ob, selections, location):
                 location.param.latitude,
                 location.param.longitude,
                 location.param.cached_area,
-                location.view,
+                location.view(figsize=(3.7,3.7)),
                 pn.widgets.Button.from_param(
                     tmy_ob.param.reload_data,
                     button_type="primary",
                     width=150,
                     height=30,
                 ),
-                width=250,
+                width=270,
             ),
         ),
         title=" How do you want to investigate AMY?",
         collapsible=False,
         width=550,
-        height=640,
+        height=590,
     )
 
     mthd_bx = pn.Column(
