@@ -337,3 +337,48 @@ def write_gwl_files():
         keys=list(models.keys()),
     )
     all_gw_levels2.to_csv("../data/gwl_1981-2010ref.csv")
+
+
+### utils for uncertainty notebooks
+def drop_member_id(dset_dict):
+    """Drop member_id coordinate/dimensions
+    Args:
+        dset_dict (dict): dictionary in the format {dataset_name:xr.Dataset}
+    """
+    for dname, dset in dset_dict.items():
+        if "member_id" in dset.coords:
+            dset = dset.isel(member_id=0).drop("member_id") # Drop coord
+            dset_dict.update({dname: dset}) # Update dataset in dictionary
+    return dset_dict
+
+def cmip_annual(ds):
+    """Processes CMIP6 dataset into annual smoothed timeseries"""
+    ds_degC = ds - 273.15 # convert to degC
+    ds_degC = ds_degC.groupby("time.year").mean(dim=["x","y"])
+    ds_degC = ds_degC.groupby("time.year").mean(dim="time")
+    return ds_degC
+
+def calc_anom(ds):
+    """
+    Calculates the temperature change relative to a historical baseline (1850-1900) for each model.
+    Returns the difference from the input ds and the respective model baseline.
+    """
+    mdl_baseline = cmip_ds_yr.sel(year=slice(1850,1900)).mean("year")
+    mdl_temp_anom = ds - mdl_baseline
+    return mdl_temp_anom
+
+def cmip_mmm(ds):
+    """Calculate CMIP6 multi-model mean."""
+    ds_mmm = ds.mean("simulation")
+    return ds_mmm
+
+def _compute_vmin_vmax(da_min, da_max):
+    """Compute min, max, and center for plotting"""
+    vmin = np.nanpercentile(da_min, 1)
+    vmax = np.nanpercentile(da_max, 99)
+    # define center for diverging symmetric data
+    if (vmin < 0) and (vmax > 0):
+        sopt = True
+    else:
+        sopt = None
+    return vmin, vmax, sopt
