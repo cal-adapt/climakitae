@@ -358,14 +358,14 @@ def drop_member_id(dset_dict):
 #     ds_degC = ds_degC.groupby("time.year").mean(dim="time")
 #     return ds_degC
 
-def calc_anom(ds):
+def calc_anom(ds, base_start=1850, base_end=1900):
     """
     Calculates the temperature change relative to a historical baseline (1850-1900) for each model.
     Returns the difference from the annual timeseries and the respective model baseline.
     """
     ds_degC = ds - 273.15 # convert to degC
     ds_degC = ds_degC.groupby("time.year").mean(dim=["x","y","time"]) # calculate annual timeseries
-    mdl_baseline = ds_degC.sel(year=slice(1850,1900)).mean("year") # confirm that this is the baseline desired
+    mdl_baseline = ds_degC.sel(year=slice(base_start,base_end)).mean("year") # confirm that this is the baseline desired
     mdl_temp_anom = ds_degC - mdl_baseline
     return mdl_temp_anom
 
