@@ -82,7 +82,7 @@ def _read_ae_colormap(cmap="ae_orange", cmap_hex=False):
         cmap_data = ae_diverging
     elif cmap == "ae_blue":
         cmap_data = ae_blue
-    elif cmap == "ae_dirverging_r":
+    elif cmap == "ae_diverging_r":
         cmap_data = ae_diverging_r
 
     # Load text file
