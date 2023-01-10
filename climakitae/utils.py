@@ -8,7 +8,6 @@ import intake
 import matplotlib.colors as mcolors
 import matplotlib
 import pkg_resources
-
 from .selectors import Boundaries
 
 
@@ -457,7 +456,7 @@ def cmip_annual(ds):
     ds_degC = ds_degC.groupby("time.year").mean(dim=["x","y", "time"])
     return ds_degC
 
-def calc_anom(ds_yr, ds, base_start, base_end):
+def calc_anom(ds_yr, base_start, base_end):
     """
     Calculates the temperature change relative to a historical baseline (1850-1900) for each model.
     Returns the difference from the annual timeseries and the respective model baseline.
@@ -467,7 +466,7 @@ def calc_anom(ds_yr, ds, base_start, base_end):
         (3-4) base_start and base_end: start and end years of the baseline to calculate
     """
     mdl_baseline = ds_yr.sel(year=slice(base_start,base_end)).mean("year") # confirm that this is the baseline desired
-    mdl_temp_anom = ds - mdl_baseline
+    mdl_temp_anom = ds_yr - mdl_baseline
     return mdl_temp_anom
 
 def cmip_mmm(ds):
