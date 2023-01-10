@@ -15,6 +15,9 @@ ae_diverging = pkg_resources.resource_filename(
     "climakitae", "data/cmaps/ae_diverging.txt"
 )
 ae_blue = pkg_resources.resource_filename("climakitae", "data/cmaps/ae_blue.txt")
+ae_diverging_r = pkg_resources.resource_filename(
+    "climakitae", "data/cmaps/ae_diverging_r.txt"
+)
 
 
 def julianDay_to_str_date(julday, leap_year=True, str_format="%b-%d"):
