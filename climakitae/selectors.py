@@ -448,7 +448,9 @@ class DataSelector(param.Parameterized):
         objects=["Historical Reconstruction (ERA5-WRF)", "Historical Climate"],
     )
     area_average = param.ObjectSelector(
-        default="No", objects=["Yes", "No"], doc="""Compute an area average?""",
+        default="No",
+        objects=["Yes", "No"],
+        doc="""Compute an area average?""",
     )
 
     # Empty params, initialized in __init__
@@ -639,10 +641,11 @@ class DataSelector(param.Parameterized):
         ) and (not True in ["Historical" in one for one in self.scenario_historical]):
             data_warning = "Please select as least one dataset."
 
-        elif (  # If both historical options are selected, warn user the data will be cut
-            "Historical Reconstruction (ERA5-WRF)" in self.scenario_historical
-        ) and (
-            "Historical Climate" in self.scenario_historical
+        elif (
+            (  # If both historical options are selected, warn user the data will be cut
+                "Historical Reconstruction (ERA5-WRF)" in self.scenario_historical
+            )
+            and ("Historical Climate" in self.scenario_historical)
         ):
             data_warning = """The timescale of Historical Reconstruction (ERA5-WRF) data will be cut 
             to match that of the Historical Climate data if both are retrieved."""
@@ -886,7 +889,8 @@ class SelectionDescription(param.Parameterized):
         super().__init__(**params)
 
         self._data_selection_description = _get_data_selection_description(
-            selections=self.selections, location=self.location,
+            selections=self.selections,
+            location=self.location,
         )
 
     @param.depends(
@@ -906,7 +910,8 @@ class SelectionDescription(param.Parameterized):
     )
     def _update_data_selection_description(self):
         self._data_selection_description = _get_data_selection_description(
-            selections=self.selections, location=self.location,
+            selections=self.selections,
+            location=self.location,
         )
 
 
