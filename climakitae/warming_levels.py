@@ -28,7 +28,9 @@ var_catalog = pd.read_csv(var_catalog_resource, index_col="variable_id")
 
 # Global warming levels file (years when warming level is reached)
 gwl_file = pkg_resources.resource_filename("climakitae", "data/gwl_1981-2010ref.csv")
-gwl_times = pd.read_csv(gwl_file).rename(columns={"Unnamed: 0":"simulation","Unnamed: 1":"run"})
+gwl_times = pd.read_csv(gwl_file).rename(
+    columns={"Unnamed: 0": "simulation", "Unnamed: 1": "run"}
+)
 
 # Read in GMT context plot data
 ssp119 = pkg_resources.resource_filename("climakitae", "data/tas_global_SSP1_1_9.csv")
@@ -86,19 +88,17 @@ def get_anomaly_data(data, warmlevel=3.0, scenario="ssp370"):
         "cesm2": "r11i1p1f1",
         "cnrm-esm2-1": "r1i1p1f2",
         "fgoals-g3": "r1i1p1f1",
-        "ec-earth3-veg": "r1i1p1f1"
-    } 
+        "ec-earth3-veg": "r1i1p1f1",
+    }
     all_sims = xr.Dataset()
     all_sims.attrs = data.attrs
-    central_year_l, year_start_l, year_end_l = [],[],[]
+    central_year_l, year_start_l, year_end_l = [], [], []
     for simulation in data.simulation.values:
-        one_ts = data.sel(
-            simulation=simulation
-        ).squeeze() 
+        one_ts = data.sel(simulation=simulation).squeeze()
         gwl_times_subset = gwl_times[
-            (gwl_times["simulation"] == sim_names[simulation]) & 
-            (gwl_times["run"] == sim_and_runs_dict[simulation]) & 
-            (gwl_times["scenario"] == scenario)
+            (gwl_times["simulation"] == sim_names[simulation])
+            & (gwl_times["run"] == sim_and_runs_dict[simulation])
+            & (gwl_times["scenario"] == scenario)
         ]
         centered_time_pd = gwl_times_subset[str(float(warmlevel))]
         centered_time = pd.to_datetime(centered_time_pd.item()).year
