@@ -340,6 +340,116 @@ def write_gwl_files():
 
 
 ### utils for uncertainty notebooks
+class cmip_opt():
+    def __init__(self, variable='tas',
+                  area_subset='states',
+                 location='California',
+                 timescale='monthly',
+                area_average=True):
+        self.variable = variable
+        self.area_subset = area_subset
+        self.location = location
+        self.area_average = area_average
+        self.timescale = timescale
+
+    def cmip_clip(self, ds):
+        variable = self.variable
+        location = self.location
+        area_average = self.area_average
+        area_subset = self.area_subset
+        timescale = self.timescale
+
+        to_drop = [v for v in list(
+                    ds.data_vars)
+                  if v != variable]
+        ds = ds.drop_vars(to_drop)
+        ds = clip_region(ds,area_subset,location)
+        if area_average:
+            ds = area_wgt_average(ds)
+        return ds
+
+def cf_to_dt(ds):
+    """convert cftime to pandas datetime"""
+    if (
+        type(ds.indexes['time']) not in
+        [pd.core.indexes.datetimes.DatetimeIndex]
+    ):
+        datetimeindex = ds.indexes['time'].to_datetimeindex()
+        ds['time'] = datetimeindex
+    return ds
+
+def calendar_align(ds):
+    '''
+    different models have different calendars
+    (some no leap, some 360 day). this results
+    in a huge dataset with lots of empty
+    values in time when concatenated.
+    the following function sets the day for all monthly
+    values to the 1st of each month -
+    WARNING this can impact functions which use
+    the number of days in each month (eg
+    precip flux to total monthly accumulation).
+    '''
+    ds['time'] = pd.to_datetime(ds.time.dt.strftime('%Y-%m'))
+    return ds
+
+def wrapper(ds):
+    ds_simulation = ds.attrs["source_id"]
+    ds_scenario = ds.attrs["experiment_id"]
+    ds_freq = ds.attrs["frequency"]
+
+    ds = rename_cmip6(ds) # will figure out alternative
+    ds = cf_to_dt(ds)
+    if ds_freq in ('mon'):
+        ds = calendar_align(ds)
+    ds = ds.drop_vars(["lon","lat","height"],
+                     errors="ignore")
+    ds = ds.assign_coords({'simulation' :
+                           ds_simulation,
+                          'scenario' :
+                          ds_scenario})
+    ds = ds.squeeze(drop=True)
+    return ds
+
+def clip_region(ds,area_subset,location):
+    """
+    clips CMIP6 dataset using a polygon.
+    ds is the dataset
+    state is a string ("California")
+    (check catalog for other names)
+    opt = 'True' to burn in all cells
+    which touch the boundary (keep as False)
+    """
+    ds = ds.rio.write_crs(4326)
+
+    if 'counties' in area_subset:
+        ds_region = us_counties[us_counties.NAME
+                    == location].geometry
+    elif 'states' in area_subset:
+        ds_region = us_states[us_states.NAME
+                    == location].geometry
+
+    try:
+        ds = ds.rio.clip(
+            geometries=ds_region,crs=4326, drop=True,
+        all_touched=False)
+    except:
+        # if no grid centers in region
+        # instead select all cells which
+        # intersect the region
+        print('selecting all cells which intersect region')
+        ds = ds.rio.clip(
+            geometries=ds_region,crs=4326, drop=True,
+        all_touched=True)
+    return ds
+
+def area_wgt_average(ds):
+    weights = np.cos(np.deg2rad(ds.y))
+    weights.name = "weights"
+    ds_weighted = ds.weighted(weights)
+    ds = ds_weighted.mean(("x","y"))
+    return ds
+
 def drop_member_id(dset_dict):
     """Drop member_id coordinate/dimensions
     Args:
@@ -351,22 +461,23 @@ def drop_member_id(dset_dict):
             dset_dict.update({dname: dset}) # Update dataset in dictionary
     return dset_dict
 
-# def cmip_annual(ds):
-#     """Processes CMIP6 dataset into annual smoothed timeseries"""
-#     ds_degC = ds - 273.15 # convert to degC
-#     ds_degC = ds_degC.groupby("time.year").mean(dim=["x","y"])
-#     ds_degC = ds_degC.groupby("time.year").mean(dim="time")
-#     return ds_degC
+def cmip_annual(ds):
+    """Processes CMIP6 dataset into annual smoothed timeseries"""
+    ds_degC = ds - 273.15 # convert to degC
+    ds_degC = ds_degC.groupby("time.year").mean(dim=["x","y", "time"])
+    return ds_degC
 
-def calc_anom(ds, base_start=1850, base_end=1900):
+def calc_anom(ds_yr, ds, base_start, base_end):
     """
     Calculates the temperature change relative to a historical baseline (1850-1900) for each model.
     Returns the difference from the annual timeseries and the respective model baseline.
+    Args:
+        (1) ds_yr: must be the output from cmip_annual
+        (2) ds: full dataset
+        (3-4) base_start and base_end: start and end years of the baseline to calculate
     """
-    ds_degC = ds - 273.15 # convert to degC
-    ds_degC = ds_degC.groupby("time.year").mean(dim=["x","y","time"]) # calculate annual timeseries
-    mdl_baseline = ds_degC.sel(year=slice(base_start,base_end)).mean("year") # confirm that this is the baseline desired
-    mdl_temp_anom = ds_degC - mdl_baseline
+    mdl_baseline = ds_yr.sel(year=slice(base_start,base_end)).mean("year") # confirm that this is the baseline desired
+    mdl_temp_anom = ds - mdl_baseline
     return mdl_temp_anom
 
 def cmip_mmm(ds):
