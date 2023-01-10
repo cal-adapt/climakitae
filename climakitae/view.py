@@ -19,14 +19,13 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
 
     Args:
         data (xr.DataArray)
-        lat_lon (boolean): reproject to lat/lon coords? (default to True)
-        width (int): width of plot (default to hvplot.image default)
-        height (int): hight of plot (default to hvplot.image default)
-        cmap (str): colormap to apply to data (default to "ae_orange"); applies only to mapped data
+        lat_lon (boolean, optional): reproject to lat/lon coords? (default to True)
+        width (int, optional): width of plot (default to hvplot.image default)
+        height (int, optional): hight of plot (default to hvplot.image default)
+        cmap (str, optional): colormap to apply to data (default to "ae_orange"); applies only to mapped data
 
     Returns:
         hvplot.image() or matplotlib object, depending on input data
-
     """
 
     # Warn user about speed if passing a zarr to the function

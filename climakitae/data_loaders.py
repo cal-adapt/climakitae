@@ -3,8 +3,10 @@ import dask
 import rioxarray
 import intake
 import numpy as np
+import pandas as pd
 import psutil
 import warnings
+from ast import literal_eval
 from shapely.geometry import box
 from .catalog_convert import (
     _resolution_to_gridlabel,
@@ -371,19 +373,18 @@ def _get_data_one_var(selections, location, cat):
 
 
 def _read_from_catalog(selections, location, cat):
-    """
-    The primary and first data loading method, called by
+    """The primary and first data loading method, called by
     core.Application.retrieve, it returns a DataArray (which can be quite large)
     containing everything requested by the user (which is stored in 'selections'
     and 'location').
 
     Args:
         selections (DataLoaders): object holding user's selections
+        location (LocSelectorArea): object holding user's location selections
         cat (intake_esm.core.esm_datastore): catalog
 
     Returns:
         da (xr.DataArray): output data
-
     """
     scenario_selections = selections.scenario_ssp + selections.scenario_historical
 
@@ -443,3 +444,77 @@ def _read_from_catalog(selections, location, cat):
 
     da = _convert_units(da=da, selected_units=selections.units)  # Convert units
     return da
+
+
+# ============ Retrieve data from a csv input ===============
+
+
+def _read_data_from_csv(selections, location, cat, csv, merge=True):
+    """Retrieve data from csv input. Allows user to bypass app.select GUI and allows
+    developers to pre-set inputs in a csv file for ease of use in a notebook.
+
+    Args:
+        selections (DataLoaders): object holding user's data selections
+        location (LocSelectorArea): object holding user's location selections
+        cat (intake_esm.core.esm_datastore): catalog
+        csv (str): path to local csv file
+        merge (bool, options): if multiple datasets desired, merge to form a single object?
+
+    Returns: one of the following, depending on csv input and merge
+        xr_ds (xr.Dataset): if multiple rows are in the csv, each row is a data_variable
+        xr_da (xr.DataArray): if csv only has one row
+        xr_list (list of xr.DataArrays): if multiple rows are in the csv and merge=True,
+            multiple DataArrays are returned in a single list.
+    """
+
+    df = pd.read_csv(csv)
+    df = df.apply(
+        lambda x: x.str.strip()
+    )  # Strip any accidental white space before or after each input
+    xr_list = []
+    for index, row in df.iterrows():
+        selections.variable = row.variable
+        selections.scenario_historical = (
+            []
+            if (row.scenario_historical == "")
+            else [
+                # This fancy list comprehension deals with the fact that scenario_historical
+                # can be set to an empty list, which would coded as an empty string in the csv
+                item.strip()
+                for item in row.scenario_historical.split(",")
+            ]
+        )
+        selections.scenario_ssp = (
+            []
+            if (row.scenario_ssp == "")
+            else [item.strip() for item in row.scenario_ssp.split(",")]
+        )
+        selections.area_average = row.area_average
+        selections.timescale = row.timescale
+        selections.resolution = row.resolution
+        # Evaluate string time slice as tuple... i.e "(1980,2000)" --> (1980,2000)
+        selections.time_slice = literal_eval(row.time_slice)
+        selections.units = row.units
+        location.area_subset = row.area_subset
+        location.cached_area = row.cached_area
+
+        # Retrieve data
+        xr_da = _read_from_catalog(selections, location, cat)
+        xr_list.append(xr_da)
+
+    if len(xr_list) > 1:  # If there's more than one element in the list
+        if merge:  # Should we merge each element in the list?
+            try:  # Try to merge
+                xr_ds = xr.merge(
+                    xr_list, combine_attrs="drop_conflicts"
+                )  # Merge to form one Dataset object
+                return xr_ds
+            except:  # If data is incompatable with merging
+                print(
+                    "Unable to merge datasets. Function returning a list of each item"
+                )
+                pass
+        else:  # If user does not want to merge elements, return a list of DataArrays
+            return xr_list
+    else:  # If only one DataArray is in the list, just return the single DataArray
+        return xr_da

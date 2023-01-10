@@ -1,6 +1,7 @@
 import numpy as np
 import datetime
 import xarray as xr
+import pyproj
 import rioxarray as rio
 import pandas as pd
 import s3fs
@@ -8,6 +9,7 @@ import intake
 import matplotlib.colors as mcolors
 import matplotlib
 import pkg_resources
+import warnings
 
 # Read colormap text files
 ae_orange = pkg_resources.resource_filename("climakitae", "data/cmaps/ae_orange.txt")
@@ -15,6 +17,46 @@ ae_diverging = pkg_resources.resource_filename(
     "climakitae", "data/cmaps/ae_diverging.txt"
 )
 ae_blue = pkg_resources.resource_filename("climakitae", "data/cmaps/ae_blue.txt")
+
+
+def get_closest_gridcell(data, lat, lon):
+    """From input gridded data, get the closest gridcell to a lat, lon coordinate pair.
+    This function first transforms the lat,lon coords to the gridded data’s projection.
+    Then, it uses xarray’s built in method .sel to get the nearest gridcell.
+
+    Args:
+        data (xr.DataArray): gridded data
+        lat (float): latitude
+        lon (float): longitude
+
+    Returns:
+        closest_gridcell (xr.DataArray): grid cell closest to input lat,lon
+
+    """
+    print(
+        "WARNING: Due to the inconsistency between a station and an area-average, when comparing a grid cell with historical observed station data, consider using a bias-correction function for that location instead.\n"
+    )
+
+    # Make Transformer object
+    lat_lon_to_model_projection = pyproj.Transformer.from_crs(
+        crs_from="epsg:4326",  # Lat/lon
+        crs_to=data.rio.crs,  # Model projection
+        always_xy=True,
+    )
+
+    # Convert coordinates to x,y
+    x, y = lat_lon_to_model_projection.transform(lon, lat)
+
+    # Get closest gridcell
+    closest_gridcell = data.sel(x=x, y=y, method="nearest")
+
+    # Output information
+    print(
+        "Input coordinates: (%.2f, %.2f)" % (lat, lon)
+        + "\nNearest grid cell coordinates: (%.2f, %.2f)"
+        % (closest_gridcell.lat.item(), closest_gridcell.lon.item())
+    )
+    return closest_gridcell
 
 
 def julianDay_to_str_date(julday, leap_year=True, str_format="%b-%d"):
