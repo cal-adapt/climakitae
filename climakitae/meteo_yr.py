@@ -313,7 +313,7 @@ def compute_mean_monthly_meteo_yr(tmy_df, col_name="mean_value"):
 def meteo_yr_heatmap(
     meteo_yr_df,
     title="Meteorological Year",
-    cmap="viridis",
+    cmap="ae_orange",
     clabel=None,
     width=500,
     height=250,
@@ -330,6 +330,11 @@ def meteo_yr_heatmap(
         fig (hvplot)
 
     """
+    # Set colormap if it's an ae colormap 
+    # If using hvplot, set cmap_hex = True 
+    if cmap in ["ae_orange", "ae_diverging", "ae_blue"]:
+        cmap = _read_ae_colormap(cmap=cmap, cmap_hex=True)
+        
     # Set yticks
     idx = [
         (31, "Feb-01"),
@@ -362,7 +367,7 @@ def meteo_yr_heatmap(
     return fig
 
 
-def meteo_yr_heatmap_static(meteo_yr_df, title=None, cmap="viridis", clabel=None):
+def meteo_yr_heatmap_static(meteo_yr_df, title=None, cmap="ae_orange", clabel=None):
     """Create meteorological year heatmap using matplotlib
 
     Args:
@@ -375,6 +380,11 @@ def meteo_yr_heatmap_static(meteo_yr_df, title=None, cmap="viridis", clabel=None
         fig (matplotlib.figure.Figure)
 
     """
+    # Set colormap if it's an ae colormap 
+    # If using hvplot, set cmap_hex = True 
+    if cmap in ["ae_orange", "ae_diverging", "ae_blue"]:
+        cmap = _read_ae_colormap(cmap=cmap, cmap_hex=False)
+        
     fig, ax = plt.subplots(1, 1, figsize=(9, 5))
     heatmap = ax.imshow(
         meteo_yr_df.values, cmap=cmap, aspect=0.03, origin="lower"  # Flip y axis
