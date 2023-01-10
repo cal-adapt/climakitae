@@ -358,12 +358,12 @@ def cmip_annual(ds):
     ds_degC = ds_degC.groupby("time.year").mean(dim="time")
     return ds_degC
 
-def calc_anom(ds):
+def calc_anom(ds_yr, ds):
     """
     Calculates the temperature change relative to a historical baseline (1850-1900) for each model.
     Returns the difference from the input ds and the respective model baseline.
     """
-    mdl_baseline = cmip_ds_yr.sel(year=slice(1850,1900)).mean("year")
+    mdl_baseline = ds_yr.sel(year=slice(1850,1900)).mean("year")
     mdl_temp_anom = ds - mdl_baseline
     return mdl_temp_anom
 
