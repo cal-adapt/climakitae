@@ -351,19 +351,22 @@ def drop_member_id(dset_dict):
             dset_dict.update({dname: dset}) # Update dataset in dictionary
     return dset_dict
 
-def cmip_annual(ds):
-    """Processes CMIP6 dataset into annual smoothed timeseries"""
-    ds_degC = ds - 273.15 # convert to degC
-    ds_degC = ds_degC.groupby("time.year").mean(dim=["x","y"])
-    ds_degC = ds_degC.groupby("time.year").mean(dim="time")
-    return ds_degC
+# def cmip_annual(ds):
+#     """Processes CMIP6 dataset into annual smoothed timeseries"""
+#     ds_degC = ds - 273.15 # convert to degC
+#     ds_degC = ds_degC.groupby("time.year").mean(dim=["x","y"])
+#     ds_degC = ds_degC.groupby("time.year").mean(dim="time")
+#     return ds_degC
 
-def calc_anom(ds_yr, ds):
+def calc_anom(ds):
     """
     Calculates the temperature change relative to a historical baseline (1850-1900) for each model.
     Returns the difference from the input ds and the respective model baseline.
     """
-    mdl_baseline = ds_yr.sel(year=slice(1850,1900)).mean("year")
+    ds_degC = ds - 273.15 # convert to degC
+    ds_degC = ds_degC.groupby("time.year").mean(dim=["x","y"])
+    ds_degC = ds_degC.groupby("time.year").mean(dim="time")
+    mdl_baseline = ds_degC.sel(year=slice(1850,1900)).mean("year") # confirm that this is the baseline desired
     mdl_temp_anom = ds - mdl_baseline
     return mdl_temp_anom
 
