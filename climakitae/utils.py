@@ -462,8 +462,7 @@ def calc_anom(ds_yr, base_start, base_end):
     Returns the difference from the annual timeseries and the respective model baseline.
     Args:
         (1) ds_yr: must be the output from cmip_annual
-        (2) ds: full dataset
-        (3-4) base_start and base_end: start and end years of the baseline to calculate
+        (2-3) base_start and base_end: start and end years of the baseline to calculate
     """
     mdl_baseline = ds_yr.sel(year=slice(base_start,base_end)).mean("year") # confirm that this is the baseline desired
     mdl_temp_anom = ds_yr - mdl_baseline
