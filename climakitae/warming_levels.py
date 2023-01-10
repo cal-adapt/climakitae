@@ -10,6 +10,8 @@ import panel as pn
 import pkg_resources
 from .utils import _read_ae_colormap
 from .data_loaders import _read_from_catalog
+from .catalog_convert import _scenario_to_experiment_id
+
 
 # Silence warnings
 import logging
@@ -26,7 +28,7 @@ var_catalog = pd.read_csv(var_catalog_resource, index_col="variable_id")
 
 # Global warming levels file (years when warming level is reached)
 gwl_file = pkg_resources.resource_filename("climakitae", "data/gwl_1981-2010ref.csv")
-gwl_times = pd.read_csv(gwl_file, index_col=[0, 1])
+gwl_times = pd.read_csv(gwl_file).rename(columns={"Unnamed: 0":"simulation","Unnamed: 1":"run"})
 
 # Read in GMT context plot data
 ssp119 = pkg_resources.resource_filename("climakitae", "data/tas_global_SSP1_1_9.csv")
@@ -62,7 +64,7 @@ def _get_postage_data(selections, location, cat):
     return data
 
 
-def get_anomaly_data(data, warmlevel=3.0):
+def get_anomaly_data(data, warmlevel=3.0, scenario="ssp370"):
     """
     Helper function for calculating warming level anomalies.
 
@@ -73,37 +75,45 @@ def get_anomaly_data(data, warmlevel=3.0):
     Returns:
         warm_all_anoms (xr.DataArray): warming level anomalies computed from input data
     """
-    model_case = {
+    sim_names = {
         "cesm2": "CESM2",
         "cnrm-esm2-1": "CNRM-ESM2-1",
         "ec-earth3-veg": "EC-Earth3-Veg",
         "fgoals-g3": "FGOALS-g3",
         "mpi-esm1-2-lr": "MPI-ESM1-2-LR",
     }
-    ssp = "ssp370"
+    sim_and_runs_dict = {
+        "cesm2": "r11i1p1f1",
+        "cnrm-esm2-1": "r1i1p1f2",
+        "fgoals-g3": "r1i1p1f1",
+        "ec-earth3-veg": "r1i1p1f1"
+    } 
     all_sims = xr.Dataset()
     all_sims.attrs = data.attrs
-    central_year_l, year_start_l, year_end_l = [], [], []
+    central_year_l, year_start_l, year_end_l = [],[],[]
     for simulation in data.simulation.values:
-        for scenario in [ssp]:
-            one_ts = data.sel(
-                simulation=simulation
-            ).squeeze()  # ,scenario=scenario) #scenario names are longer strings
-            centered_time = pd.to_datetime(
-                gwl_times[str(float(warmlevel))][model_case[simulation]][scenario]
-            ).year
-            if not np.isnan(centered_time):
-                start_year = centered_time - 15
-                end_year = centered_time + 14
-                anom = one_ts.sel(time=slice(str(start_year), str(end_year))).mean(
-                    "time"
-                ) - one_ts.sel(time=slice("1981", "2010")).mean("time")
-                all_sims[simulation] = anom
+        one_ts = data.sel(
+            simulation=simulation
+        ).squeeze() 
+        gwl_times_subset = gwl_times[
+            (gwl_times["simulation"] == sim_names[simulation]) & 
+            (gwl_times["run"] == sim_and_runs_dict[simulation]) & 
+            (gwl_times["scenario"] == scenario)
+        ]
+        centered_time_pd = gwl_times_subset[str(float(warmlevel))]
+        centered_time = pd.to_datetime(centered_time_pd.item()).year
+        if not np.isnan(centered_time):
+            start_year = centered_time - 15
+            end_year = centered_time + 14
+            anom = one_ts.sel(time=slice(str(start_year), str(end_year))).mean(
+                "time"
+            ) - one_ts.sel(time=slice("1981", "2010")).mean("time")
+            all_sims[simulation] = anom
 
-                # Append to list. Used to assign descriptive attributes & coordinates to final dataset
-                central_year_l.append(centered_time)
-                year_start_l.append(start_year)
-                year_end_l.append(end_year)
+            # Append to list. Used to assign descriptive attributes & coordinates to final dataset
+            central_year_l.append(centered_time)
+            year_start_l.append(start_year)
+            year_end_l.append(end_year)
     anomaly_da = all_sims.to_array("simulation")
 
     # Assign descriptivie coordinates
