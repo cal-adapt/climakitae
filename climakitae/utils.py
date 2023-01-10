@@ -9,6 +9,7 @@ import matplotlib.colors as mcolors
 import matplotlib
 import pkg_resources
 
+
 # Read colormap text files
 ae_orange = pkg_resources.resource_filename("climakitae", "data/cmaps/ae_orange.txt")
 ae_diverging = pkg_resources.resource_filename(
@@ -393,23 +394,6 @@ def calendar_align(ds):
     ds['time'] = pd.to_datetime(ds.time.dt.strftime('%Y-%m'))
     return ds
 
-def wrapper(ds):
-    ds_simulation = ds.attrs["source_id"]
-    ds_scenario = ds.attrs["experiment_id"]
-    ds_freq = ds.attrs["frequency"]
-
-    ds = rename_cmip6(ds) # will figure out alternative
-    ds = cf_to_dt(ds)
-    if ds_freq in ('mon'):
-        ds = calendar_align(ds)
-    ds = ds.drop_vars(["lon","lat","height"],
-                     errors="ignore")
-    ds = ds.assign_coords({'simulation' :
-                           ds_simulation,
-                          'scenario' :
-                          ds_scenario})
-    ds = ds.squeeze(drop=True)
-    return ds
 
 def clip_region(ds,area_subset,location):
     """
