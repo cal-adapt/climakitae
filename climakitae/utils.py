@@ -9,6 +9,8 @@ import matplotlib.colors as mcolors
 import matplotlib
 import pkg_resources
 
+from .selectors import Boundaries
+
 
 # Read colormap text files
 ae_orange = pkg_resources.resource_filename("climakitae", "data/cmaps/ae_orange.txt")
@@ -394,6 +396,10 @@ def calendar_align(ds):
     ds['time'] = pd.to_datetime(ds.time.dt.strftime('%Y-%m'))
     return ds
 
+geographies = Boundaries()
+us_states = geographies._us_states
+us_counties = geographies._ca_counties
+us_watersheds = geographies._ca_watersheds
 
 def clip_region(ds,area_subset,location):
     """
