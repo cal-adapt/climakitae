@@ -22,6 +22,7 @@ import hvplot.pandas
 import hvplot.xarray
 import panel as pn
 from .visualize import get_geospatial_plot
+from .visualize import get_geospatial_plot_test
 
 
 def get_ams(da, extremes_type="max"):
