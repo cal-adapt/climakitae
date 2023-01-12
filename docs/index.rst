@@ -3,7 +3,7 @@ Climakitae Documentation
 
 .. note::
 
-   This project is actively in development working towards an alpha release.
+   This project is actively in development working towards an alpha release. Test.
 
 .. include:: ../README.rst
 
