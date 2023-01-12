@@ -8,10 +8,26 @@ Climakitae Documentation
 .. include:: ../README.rst
 
 .. toctree::
-   :maxdepth: 2
-   :caption: 
-   Overview
-   First Steps Tutorial
+   :maxdepth: 1
+   :hidden:
+   overview
+   first_steps_tutorial
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: Scientific Analysis 
+   warming_levels 
+   meteorological_year
+   thresholds
+   timeseries 
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: Additional Resources
+   frqs
+   examples
 
 
    API reference <modules>
