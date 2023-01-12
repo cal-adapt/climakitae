@@ -9,7 +9,10 @@ Climakitae Documentation
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: 
+   Overview
+   First Steps Tutorial
+
 
    API reference <modules>
 
