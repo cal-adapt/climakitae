@@ -12,6 +12,7 @@ Climakitae Documentation
    :hidden:
    overview
    first_steps_tutorial
+   accessing_data
 
 .. toctree::
    :maxdepth: 1
