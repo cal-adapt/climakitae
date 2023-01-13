@@ -495,7 +495,7 @@ def drop_member_id(dset_dict):
 def cmip_annual(ds):
     """Processes CMIP6 dataset into annual smoothed timeseries"""
     ds_degC = ds - 273.15 # convert to degC
-    ds_degC = ds_degC.groupby("time.year").mean(dim=["x","y", "time"])
+    ds_degC = ds_degC.groupby("time.year").mean(dim=["x","y","time"])
     return ds_degC
 
 def calc_anom(ds_yr, base_start, base_end):
@@ -506,7 +506,7 @@ def calc_anom(ds_yr, base_start, base_end):
         (1) ds_yr: must be the output from cmip_annual
         (2-3) base_start and base_end: start and end years of the baseline to calculate
     """
-    mdl_baseline = ds_yr.sel(year=slice(base_start,base_end)).mean("year") # confirm that this is the baseline desired
+    mdl_baseline = ds_yr.sel(year=slice(base_start,base_end)).mean("year")
     mdl_temp_anom = ds_yr - mdl_baseline
     return mdl_temp_anom
 
@@ -525,3 +525,18 @@ def _compute_vmin_vmax(da_min, da_max):
     else:
         sopt = None
     return vmin, vmax, sopt
+
+def _make_hvplot(data, title, clim, sopt, width=200, height=200):
+    """Make single map"""
+    _plot = data.hvplot.image(
+        x="x", y="y",
+        grid=True,
+        width=width, height=height,
+        xaxis=None, yaxis=None,
+        symmetric=sopt,
+        clim=(vmin, vmax),
+        clabel="Air Temperature (°C)",
+        features=["coastline"],
+        cmap=cmap,
+        title=title)
+    return _plot
