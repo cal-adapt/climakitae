@@ -3,39 +3,47 @@ Climakitae Documentation
 
 .. note::
 
-   This project is actively in development working towards an alpha release. Test.
+   This project is actively in development working towards an alpha release.
 
 .. include:: ../README.rst
 
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   overview
-   first_steps_tutorial
-   accessing_data
+* :doc:`overview`
+* :doc:`first_steps`
+* :doc:`data`
 
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Scientific Analysis 
-   warming_levels 
-   meteorological_year
-   thresholds
-   timeseries 
+   :caption: Overview
+   
+   overview/project_motivation 
+   overview/first_steps
+   overview/data
+
+* :doc:`guide/warming_levels`
+* :doc:`guide/meteo_yr`
+* :doc:`guide/timeseries`
+* :doc:`guide/thresholds`
 
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Additional Resources
-   frqs
-   examples
+   :caption: scientific analysis
 
+   guide/warming_levels
+   guide/meteo_yr
+   guide/timeseries
+   guide/thresholds
 
-   API reference <modules>
+* :doc:`gallery/notebook_1`
+* :doc:`gallery/notebook_2`
+* :doc:`gallery/tutorial_videos`
 
-Indices and Tables
-------------------
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: gallery 
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+   gallery/notebook_1
+   gallery/notebook_2
+   gallery/tutorial_videos
