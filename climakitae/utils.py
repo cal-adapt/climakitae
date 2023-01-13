@@ -438,12 +438,6 @@ def calendar_align(ds):
     return ds
 
 
-geographies = Boundaries()
-us_states = geographies._us_states
-us_counties = geographies._ca_counties
-us_watersheds = geographies._ca_watersheds
-
-
 def clip_region(ds, area_subset, location):
     """
     clips CMIP6 dataset using a polygon.
@@ -453,6 +447,9 @@ def clip_region(ds, area_subset, location):
     opt = 'True' to burn in all cells
     which touch the boundary (keep as False)
     """
+    geographies = Boundaries()
+    us_states = geographies._us_states
+    us_counties = geographies._ca_counties
     ds = ds.rio.write_crs(4326)
 
     if "counties" in area_subset:
