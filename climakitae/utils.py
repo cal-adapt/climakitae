@@ -525,18 +525,3 @@ def _compute_vmin_vmax(da_min, da_max):
     else:
         sopt = None
     return vmin, vmax, sopt
-
-def _make_hvplot(data, title, clim, sopt, width=200, height=200):
-    """Make single map"""
-    _plot = data.hvplot.image(
-        x="x", y="y",
-        grid=True,
-        width=width, height=height,
-        xaxis=None, yaxis=None,
-        symmetric=sopt,
-        clim=(vmin, vmax),
-        clabel="Air Temperature (°C)",
-        features=["coastline"],
-        cmap=cmap,
-        title=title)
-    return _plot
