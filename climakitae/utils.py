@@ -495,7 +495,7 @@ def drop_member_id(dset_dict):
 def cmip_annual(ds):
     """Processes CMIP6 dataset into annual smoothed timeseries"""
     ds_degC = ds - 273.15 # convert to degC
-    ds_degC = ds_degC.groupby("time.year").mean(dim=["x","y","time"])
+    ds_degC = ds_degC.groupby("time.year").mean(dim=["time"])
     return ds_degC
 
 def calc_anom(ds_yr, base_start, base_end):
