@@ -262,12 +262,12 @@ class LocSelectorArea(param.Parameterized):
         self.cached_area = list(self._geography_choose[self.area_subset].keys())[0]
 
     @param.depends("latitude", "longitude", "area_subset", "cached_area", watch=False)
-    def view(self):
+    def view(self, figsize=(3, 3)):
         geometry = box(
             self.longitude[0], self.latitude[0], self.longitude[1], self.latitude[1]
         )
 
-        fig0 = Figure(figsize=(4, 4.5))
+        fig0 = Figure(figsize=figsize)
         proj = ccrs.Orthographic(-118, 40)
         crs_proj4 = proj.proj4_init  # used below
         xy = ccrs.PlateCarree()
@@ -949,7 +949,7 @@ def _display_select(selections, location):
             ),
             width=275,
         ),
-        location.view,
+        location.view(figsize=(4, 4)),
     )
 
     data_options = pn.Column(
@@ -990,7 +990,7 @@ def _display_select(selections, location):
             ("Subset data by location", location_chooser),
         ),
         title="Select your data and region of interest",
-        height=530,
+        height=545,
         width=595,
         collapsible=False,
     )
@@ -1016,7 +1016,7 @@ def _display_select(selections, location):
         ),
         title="Current selections",
         width=285,
-        height=350,
+        height=365,
         collapsible=False,
     )
 

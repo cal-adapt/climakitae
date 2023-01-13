@@ -313,7 +313,7 @@ def compute_mean_monthly_meteo_yr(tmy_df, col_name="mean_value"):
 def meteo_yr_heatmap(
     meteo_yr_df,
     title="Meteorological Year",
-    cmap="viridis",
+    cmap="ae_orange",
     clabel=None,
     width=500,
     height=250,
@@ -330,6 +330,11 @@ def meteo_yr_heatmap(
         fig (hvplot)
 
     """
+    # Set colormap if it's an ae colormap
+    # If using hvplot, set cmap_hex = True
+    if cmap in ["ae_orange", "ae_diverging", "ae_blue"]:
+        cmap = _read_ae_colormap(cmap=cmap, cmap_hex=True)
+
     # Set yticks
     idx = [
         (31, "Feb-01"),
@@ -356,12 +361,13 @@ def meteo_yr_heatmap(
         ylabel="Day of Year",
         xlabel="Hour of Day",
         title=title,
+        cmap=cmap,
         clabel=clabel,
     ).opts(xrotation=45)
     return fig
 
 
-def meteo_yr_heatmap_static(meteo_yr_df, title=None, cmap="viridis", clabel=None):
+def meteo_yr_heatmap_static(meteo_yr_df, title=None, cmap="ae_orange", clabel=None):
     """Create meteorological year heatmap using matplotlib
 
     Args:
@@ -374,6 +380,11 @@ def meteo_yr_heatmap_static(meteo_yr_df, title=None, cmap="viridis", clabel=None
         fig (matplotlib.figure.Figure)
 
     """
+    # Set colormap if it's an ae colormap
+    # If using hvplot, set cmap_hex = True
+    if cmap in ["ae_orange", "ae_diverging", "ae_blue"]:
+        cmap = _read_ae_colormap(cmap=cmap, cmap_hex=False)
+
     fig, ax = plt.subplots(1, 1, figsize=(9, 5))
     heatmap = ax.imshow(
         meteo_yr_df.values, cmap=cmap, aspect=0.03, origin="lower"  # Flip y axis
@@ -586,7 +597,7 @@ class AverageMeteorologicalYear(param.Parameterized):
         ).compute()
 
         # Colormap
-        self.cmap = _read_ae_colormap(cmap="ae_orange", cmap_hex=False)
+        self.cmap = _read_ae_colormap(cmap="ae_orange", cmap_hex=True)
 
         # Selectors defaults
         self.selections.append_historical = False
@@ -617,7 +628,7 @@ class AverageMeteorologicalYear(param.Parameterized):
             cmap_name = "ae_diverging"
 
         # Read colormap hex
-        self.cmap = _read_ae_colormap(cmap=cmap_name, cmap_hex=False)
+        self.cmap = _read_ae_colormap(cmap=cmap_name, cmap_hex=True)
 
     @param.depends("computation_method", "reload_data", "warmlevel", watch=True)
     def _update_data_to_be_returned(self):
@@ -697,7 +708,7 @@ class AverageMeteorologicalYear(param.Parameterized):
                 )
                 clabel = self.selections.variable + " (" + self.selections.units + ")"
         elif self.data_type == "Difference":
-            cmap = _read_ae_colormap("ae_diverging", cmap_hex=False)
+            cmap = _read_ae_colormap("ae_diverging", cmap_hex=True)
             if self.computation_method == "Warming Level Future":
                 df = compute_amy(
                     self.future_tmy_data, days_in_year=days_in_year
@@ -766,20 +777,20 @@ def _amy_visualize(tmy_ob, selections, location):
                 location.param.latitude,
                 location.param.longitude,
                 location.param.cached_area,
-                location.view,
+                location.view(figsize=(3.7, 3.7)),
                 pn.widgets.Button.from_param(
                     tmy_ob.param.reload_data,
                     button_type="primary",
                     width=150,
                     height=30,
                 ),
-                width=250,
+                width=270,
             ),
         ),
         title=" How do you want to investigate AMY?",
         collapsible=False,
         width=550,
-        height=640,
+        height=590,
     )
 
     mthd_bx = pn.Column(
