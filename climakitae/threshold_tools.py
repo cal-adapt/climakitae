@@ -418,17 +418,16 @@ def get_return_prob(
     if multiple_points:
         new_ds = new_ds.unstack("allpoints")
 
-    unit_threshold = new_ds.attrs["units"]
-    new_ds["return_prob"].attrs["threshold"] = \
-        "exceedance of {} {} event".format(str(threshold), unit_threshold)
     new_ds["conf_int_lower_limit"].attrs[
         "confidence interval lower bound"
     ] = "{}th percentile".format(str(conf_int_lower_bound))
     new_ds["conf_int_upper_limit"].attrs[
         "confidence interval upper bound"
     ] = "{}th percentile".format(str(conf_int_upper_bound))
-
     new_ds.attrs = ams_attributes
+    unit_threshold = new_ds.attrs["units"]
+    new_ds["return_prob"].attrs["threshold"] = \
+        "exceedance of {} {} event".format(str(threshold), unit_threshold)
     new_ds.attrs["distribution"] = "{}".format(str(distr))
     new_ds['return_prob'].attrs['units'] = None
     return new_ds
@@ -494,18 +493,17 @@ def get_return_period(
     if multiple_points:
         new_ds = new_ds.unstack("allpoints")
 
-    unit_return_value = new_ds.attrs["units"]
-    new_ds["return_period"].attrs[
-        "return value"
-    ] = "{} {} event".format(str(return_value), unit_return_value)
     new_ds["conf_int_lower_limit"].attrs[
         "confidence interval lower bound"
     ] = "{}th percentile".format(str(conf_int_lower_bound))
     new_ds["conf_int_upper_limit"].attrs[
         "confidence interval upper bound"
     ] = "{}th percentile".format(str(conf_int_upper_bound))
-    
     new_ds.attrs = ams_attributes
+    unit_return_value = new_ds.attrs["units"]
+    new_ds["return_period"].attrs[
+        "return value"
+    ] = "{} {} event".format(str(return_value), unit_return_value)
     new_ds.attrs["distribution"] = "{}".format(str(distr))
     new_ds['return_period'].attrs['units'] = 'years'
     return new_ds
