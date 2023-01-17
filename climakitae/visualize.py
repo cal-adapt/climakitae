@@ -16,6 +16,10 @@ import holoviews as hv
 from holoviews import opts
 import hvplot.pandas
 import hvplot.xarray
+from .utils import _read_ae_colormap
+
+
+ae_orange_cmap = _read_ae_colormap(cmap="ae_orange", cmap_hex=True)
 
 
 def rename_distr_abbrev(distr):
@@ -38,7 +42,7 @@ def get_geospatial_plot(
     bar_max=None,
     border_color="black",
     line_width=0.5,
-    cmap="ae_orange",
+    cmap=ae_orange_cmap,
     hover_fill_color="blue",
 ):
     """
