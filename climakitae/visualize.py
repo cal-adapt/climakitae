@@ -101,7 +101,7 @@ def get_geospatial_plot(
     cmap_label = variable_name
     variable_unit = ds[data_variable].attrs['units']
     if variable_unit:
-        cmap_label = ''.join([cmap_label, '({})'.format(variable_unit)])
+        cmap_label = ' '.join([cmap_label, '({})'.format(variable_unit)])
 
     geospatial_plot = (
         ds.hvplot.quadmesh(
