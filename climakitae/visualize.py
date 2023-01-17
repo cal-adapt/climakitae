@@ -19,10 +19,15 @@ import hvplot.xarray
 
 
 def rename_distr_abbrev(distr):
-    '''Makes abbreviated distribution name human-readable''' 
+    """Makes abbreviated distribution name human-readable"""
     distr_abbrev = ["gev", "gumbel", "weibull", "pearson3", "genpareto"]
-    distr_readable = \
-        ['GEV', 'Gumbel', 'Weibull', 'Pearson Type III', 'Generalized Pareto']
+    distr_readable = [
+        "GEV",
+        "Gumbel",
+        "Weibull",
+        "Pearson Type III",
+        "Generalized Pareto",
+    ]
     return distr_readable[distr_abbrev.index(distr)]
 
 
@@ -53,8 +58,8 @@ def get_geospatial_plot(
             % data_variables
         )
 
-    if data_variable == 'p_value':
-        variable_name = 'p-value'
+    if data_variable == "p_value":
+        variable_name = "p-value"
     else:
         variable_name = data_variable.replace("_", " ").replace("'", "")
 
@@ -99,9 +104,9 @@ def get_geospatial_plot(
         )
 
     cmap_label = variable_name
-    variable_unit = ds[data_variable].attrs['units']
+    variable_unit = ds[data_variable].attrs["units"]
     if variable_unit:
-        cmap_label = ' '.join([cmap_label, '({})'.format(variable_unit)])
+        cmap_label = " ".join([cmap_label, "({})".format(variable_unit)])
 
     geospatial_plot = (
         ds.hvplot.quadmesh(
