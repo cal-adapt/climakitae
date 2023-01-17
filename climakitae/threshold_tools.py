@@ -22,7 +22,6 @@ import hvplot.pandas
 import hvplot.xarray
 import panel as pn
 from .visualize import get_geospatial_plot
-from .visualize import get_geospatial_plot_test
 
 
 def get_ams(da, extremes_type="max"):
@@ -346,9 +345,8 @@ def get_return_value(
     if multiple_points:
         new_ds = new_ds.unstack("allpoints")
 
-    new_ds["return_value"].attrs["return period"] = "1-in-{}-year event".format(
-        str(return_period)
-    )
+    new_ds["return_value"].attrs["return period"] = \
+        "1-in-{}-year event".format(str(return_period))
     new_ds["conf_int_lower_limit"].attrs[
         "confidence interval lower bound"
     ] = "{}th percentile".format(str(conf_int_lower_bound))
