@@ -386,12 +386,13 @@ def write_gwl_files():
 ### utils for uncertainty notebooks
 class CmipOpt:
     """A class for holding the following data options for input to cmip_clip:
-        variable: variable name, cf-compliant (or cmip6 variable name)
-        area_subset: geographic boundary name (states/counties)
-        location: geographic area name (name of county/state)
-        timescale: frequency of data
-        area_average (bool): average computed across domain
+    variable: variable name, cf-compliant (or cmip6 variable name)
+    area_subset: geographic boundary name (states/counties)
+    location: geographic area name (name of county/state)
+    timescale: frequency of data
+    area_average (bool): average computed across domain
     """
+
     def __init__(
         self,
         variable="tas",
