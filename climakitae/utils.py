@@ -419,7 +419,7 @@ class CmipOpt:
 
         to_drop = [v for v in list(ds.data_vars) if v != variable]
         ds = ds.drop_vars(to_drop)
-        ds = _clip_region(ds, area_subset, location)
+        ds = clip_region(ds, area_subset, location)
         if area_average:
             ds = _area_wgt_average(ds)
         return ds
