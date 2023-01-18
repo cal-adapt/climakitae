@@ -407,10 +407,10 @@ class CmipOpt:
         self.timescale = timescale
 
     def cmip_clip(self, ds):
-    """CMIP6 function to subset dataset based on the data selection options.
-    Args:
-        (1) ds (xr.Dataset)
-    """
+        """CMIP6 function to subset dataset based on the data selection options.
+        Args:
+            (1) ds (xr.Dataset)
+        """
         variable = self.variable
         location = self.location
         area_average = self.area_average
