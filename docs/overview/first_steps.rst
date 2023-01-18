@@ -3,6 +3,7 @@
 First steps tutorial
 ========================
 
+* How to install 
 * Should be a loose copy of the getting_started notebook 
 * app = ck.Application()
 * How to select the data with app.select()

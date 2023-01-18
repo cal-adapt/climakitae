@@ -7,18 +7,20 @@ Climakitae Documentation
 
 .. include:: ../README.rst
 
-* :doc:`overview`
-* :doc:`first_steps`
-* :doc:`data`
+* :doc:`overview/motivation `
+* :doc:`overview/first_steps`
+* :doc:`overview/data`
+* :doc:`api`
 
 .. toctree::
    :maxdepth: 1
    :hidden:
    :caption: Overview
    
-   overview/project_motivation 
+   overview/motivation 
    overview/first_steps
    overview/data
+   api
 
 * :doc:`guide/warming_levels`
 * :doc:`guide/meteo_yr`
