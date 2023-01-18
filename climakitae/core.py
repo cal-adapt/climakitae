@@ -60,7 +60,14 @@ class Application(object):
 
     # === Read data into memory =====================================
     def load(self, data):
-        """Read lazily loaded dask data into memory"""
+        """Read lazily loaded dask data into memory
+
+        Args: 
+            data (xarray.DataArray): input data
+
+        Returns 
+            xarray.DataArray: same as input data
+        """
         return _compute(data)
 
     # === Retrieve ===================================
@@ -71,13 +78,9 @@ class Application(object):
         containing everything requested by the user (which is stored in 'selections'
         and 'location').
 
-        Args:
-            selections (DataLoaders): object holding user's selections
-            location (LocSelectorArea): object holding user's location selections
-            cat (intake_esm.core.esm_datastore): catalog
+        Returns: 
+            DataArray: output data
 
-        Returns:
-            da (xr.DataArray): output data
         """
         return _read_from_catalog(self.selections, self.location, self._cat)
 
@@ -86,18 +89,14 @@ class Application(object):
         Retrieve data from csv input. Allows user to bypass app.select GUI and allows
         developers to pre-set inputs in a csv file for ease of use in a notebook.
 
-        Args:
-            selections (DataLoaders): object holding user's data selections
-            location (LocSelectorArea): object holding user's location selections
-            cat (intake_esm.core.esm_datastore): catalog
+        Args: 
             csv (str): path to local csv file
-            merge (bool, options): if multiple datasets desired, merge to form a single object?
+            merge (bool, optional): if multiple datasets desired, merge to form a single object? Defaults to True
 
-        Returns: one of the following, depending on csv input and merge
-            xr_ds (xr.Dataset): if multiple rows are in the csv, each row is a data_variable
-            xr_da (xr.DataArray): if csv only has one row
-            xr_list (list of xr.DataArrays): if multiple rows are in the csv and merge=True,
-                multiple DataArrays are returned in a single list.
+        Returns: 
+            Dataset: if multiple rows are in the csv, each row is a data_variable
+            DataArray: if csv only has one row
+            list: if multiple rows are in the csv and merge=True, multiple DataArrays are returned in a single list.
         """
         return _read_data_from_csv(
             self.selections, self.location, self._cat, csv, merge
@@ -108,11 +107,12 @@ class Application(object):
         """Create a generic visualization of the data
 
         Args:
-            data (xr.DataArray)
-            lat_lon (boolean, optional): reproject to lat/lon coords? (default to True)
+            data (xarray.DataArray)
+            lat_lon (bool, optional): reproject to lat/lon coords? (default to True)
             width (int, optional): width of plot (default to hvplot.image default)
             height (int, optional): hight of plot (default to hvplot.image default)
-            cmap (str, optional): colormap to apply to data (default to "ae_orange"); applies only to mapped data
+            test (array-like): test
+            cmap (matplotlib colormap name): colormap to apply to data (default to "ae_orange"); applies only to mapped data
 
         Returns:
             hvplot.image() or matplotlib object, depending on input data
