@@ -384,7 +384,14 @@ def write_gwl_files():
 
 
 ### utils for uncertainty notebooks
-class cmip_opt:
+class CmipOpt:
+    """A class for holding the following data options for input to cmip_clip:
+        variable: variable name, cf-compliant (or cmip6 variable name)
+        area_subset: geographic boundary name (states/counties)
+        location: geographic area name (name of county/state)
+        timescale: frequency of data
+        area_average (bool): average computed across domain
+    """
     def __init__(
         self,
         variable="tas",
@@ -400,6 +407,10 @@ class cmip_opt:
         self.timescale = timescale
 
     def cmip_clip(self, ds):
+    """CMIP6 function to subset dataset based on the data selection options.
+    Args:
+        (1) ds (xr.Dataset)
+    """
         variable = self.variable
         location = self.location
         area_average = self.area_average
@@ -408,14 +419,17 @@ class cmip_opt:
 
         to_drop = [v for v in list(ds.data_vars) if v != variable]
         ds = ds.drop_vars(to_drop)
-        ds = clip_region(ds, area_subset, location)
+        ds = _clip_region(ds, area_subset, location)
         if area_average:
-            ds = area_wgt_average(ds)
+            ds = _area_wgt_average(ds)
         return ds
 
 
 def cf_to_dt(ds):
-    """convert cftime to pandas datetime"""
+    """CMIP6 function to convert non-standard calendars using cftime to pandas datetime
+    Args:
+        (1) ds (xr.Dataset): CMIP6 dataset
+    """
     if type(ds.indexes["time"]) not in [pd.core.indexes.datetimes.DatetimeIndex]:
         datetimeindex = ds.indexes["time"].to_datetimeindex()
         ds["time"] = datetimeindex
@@ -423,29 +437,27 @@ def cf_to_dt(ds):
 
 
 def calendar_align(ds):
-    """
-    different models have different calendars
-    (some no leap, some 360 day). this results
-    in a huge dataset with lots of empty
-    values in time when concatenated.
-    the following function sets the day for all monthly
-    values to the 1st of each month -
-    WARNING this can impact functions which use
-    the number of days in each month (eg
-    precip flux to total monthly accumulation).
+    """CMIP6 function to set the day for all monthly values to the the 1st of
+    each month, as models have different calendars (e.g., no leap day, 360 days),
+    which can result in a large dataset with empty values in time when concatenated.
+    WARNING: can impact functions which use number of days in each month (e.g.,
+    precipitation flux to total monthly accumulation).
+    Args:
+        (1) ds (xr.Dataset): CMIP6 dataset
     """
     ds["time"] = pd.to_datetime(ds.time.dt.strftime("%Y-%m"))
     return ds
 
 
 def clip_region(ds, area_subset, location):
-    """
-    clips CMIP6 dataset using a polygon.
-    ds is the dataset
-    state is a string ("California")
-    (check catalog for other names)
-    opt = 'True' to burn in all cells
-    which touch the boundary (keep as False)
+    """Clips CMIP6 dataset using a polygon.
+    Args:
+        (1) ds (xr.Dataset): input dataset
+        (2) area_subset (string): "counties"/"states" as options
+        (3) location (string): county/state name
+    Optional:
+        (1) all_touched (bool): include all cells that intersect boundary.
+        Default is False.
     """
     geographies = Boundaries()
     us_states = geographies._us_states
@@ -460,15 +472,18 @@ def clip_region(ds, area_subset, location):
     try:
         ds = ds.rio.clip(geometries=ds_region, crs=4326, drop=True, all_touched=False)
     except:
-        # if no grid centers in region
-        # instead select all cells which
+        # if no grid centers in region instead select all cells which
         # intersect the region
         print("selecting all cells which intersect region")
         ds = ds.rio.clip(geometries=ds_region, crs=4326, drop=True, all_touched=True)
     return ds
 
 
-def area_wgt_average(ds):
+def _area_wgt_average(ds):
+    """Calculates the weighted area average for CMIP6 model input.
+    Args:
+        (1) ds (xr.Dataset)
+    """
     weights = np.cos(np.deg2rad(ds.y))
     weights.name = "weights"
     ds_weighted = ds.weighted(weights)
@@ -489,19 +504,24 @@ def drop_member_id(dset_dict):
 
 
 def cmip_annual(ds):
-    """Processes CMIP6 dataset into annual smoothed timeseries"""
+    """Calculates the annual average temperature across CMIP6 models
+    and converts from Kelvin to degC.
+    Args:
+        ds (xr.Dataset): dataset of CMIP6 models
+    """
     ds_degC = ds - 273.15  # convert to degC
     ds_degC = ds_degC.groupby("time.year").mean(dim=["time"])
     return ds_degC
 
 
 def calc_anom(ds_yr, base_start, base_end):
-    """
-    Calculates the temperature change relative to a historical baseline (1850-1900) for each model.
-    Returns the difference from the annual timeseries and the respective model baseline.
+    """Calculates the temperature change relative to a historical baseline
+    (1850-1900) for each model. Returns the difference from the annual
+    timeseries and the respective model baseline.
     Args:
-        (1) ds_yr: must be the output from cmip_annual
-        (2-3) base_start and base_end: start and end years of the baseline to calculate
+        (1) ds_yr (xr.Dataset): must be the output from cmip_annual
+        (2) base_start (int): start year of baseline to calculate
+        (3) base_end (int): end year of the baseline to calculate
     """
     mdl_baseline = ds_yr.sel(year=slice(base_start, base_end)).mean("year")
     mdl_temp_anom = ds_yr - mdl_baseline
@@ -509,13 +529,24 @@ def calc_anom(ds_yr, base_start, base_end):
 
 
 def cmip_mmm(ds):
-    """Calculate CMIP6 multi-model mean."""
+    """Calculate the CMIP6 multi-model mean by collapsing across simulations.
+    Args:
+        (1) ds (xr.Dataset): dataset of CMIP6 model output
+    """
     ds_mmm = ds.mean("simulation")
     return ds_mmm
 
 
-def _compute_vmin_vmax(da_min, da_max):
-    """Compute min, max, and center for plotting"""
+def compute_vmin_vmax(da_min, da_max):
+    """Computes min, max, and center for plotting.
+    Args:
+        (1) da_min (xr.Dataset): data input to calculate the minimum
+        (2) da_max (xr.Dataset): data input to calculate the maximum
+    Returns:
+        (1) vmin: minimum value
+        (2) vmax: maximum value
+        (3) sopt (bool): indicates symmetry if vmin and vmax have opposite signs
+    """
     vmin = np.nanpercentile(da_min, 1)
     vmax = np.nanpercentile(da_max, 99)
     # define center for diverging symmetric data
