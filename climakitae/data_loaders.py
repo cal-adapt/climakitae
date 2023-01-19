@@ -468,7 +468,7 @@ def _read_data_from_csv(selections, location, cat, csv, merge=True):
     """
 
     df = pd.read_csv(csv)
-    df = df.fillna('') # Replace empty cells (set to NaN by read_csv) with empty string 
+    df = df.fillna("")  # Replace empty cells (set to NaN by read_csv) with empty string
     df = df.apply(
         lambda x: x.str.strip()
     )  # Strip any accidental white space before or after each input
