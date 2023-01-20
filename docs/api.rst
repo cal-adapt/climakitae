@@ -21,6 +21,7 @@ For example, climakitae.Application.select can be easily accessed in the followi
 .. autosummary::
    :toctree: generated/
 
+   Application
    Application.select
    Application.retrieve
    Application.retrieve_from_csv
