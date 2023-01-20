@@ -203,7 +203,7 @@ class Application(object):
 
         Returns
         -------
-        panel.layout.base
+        panel.layout.base.Row
             Panel displayed in notebook
         """
         export_select_panel = _user_export_select(self.user_export_format)
@@ -222,7 +222,7 @@ class Application(object):
             Data to be exported
         file_name: str
             Filename to give output
-            Should not include file extension (i.e. "nicole" instead of "nicole.nc")
+            Should not include file extension (i.e. "my_filename" instead of "my_filename.nc")
         """
         return _export_to_user(
             self.user_export_format, data_to_export, file_name, **kwargs
