@@ -1,7 +1,4 @@
-:orphan:
-
-For developers: How to build and develop the docs
---------------------------------------------------
+# For developers: How to build and develop the docs
 
 1. Activate the conda environment for this project: ``conda activate climakitae-tests``
 2. Install the sphinx book theme: ``pip install sphinx-book-theme``
