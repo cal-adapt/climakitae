@@ -2,11 +2,7 @@ import intake
 from .data_export import _export_to_user
 from .explore import AppExplore
 from .view import _visualize
-from .data_loaders import (
-    _read_from_catalog, 
-    _compute, 
-    _read_data_from_csv
-) 
+from .data_loaders import _read_from_catalog, _compute, _read_data_from_csv
 from .selectors import (
     DataSelector,
     _display_select,
@@ -107,13 +103,13 @@ class Application(object):
         return _read_data_from_csv(
             self.selections, self.location, self._cat, csv, merge
         )
-    
-    def retrieve_meteo_yr_data(self, ssp=None, year_start=2015, year_end=None): 
+
+    def retrieve_meteo_yr_data(self, ssp=None, year_start=2015, year_end=None):
         """User-facing function for retrieving data needed for computing a meteorological year.
 
-        Reads in the hourly ensemble means instead of the hourly data. 
-        Reads in future SSP data, historical climate data, or a combination 
-        of both, depending on year_start and year_end 
+        Reads in the hourly ensemble means instead of the hourly data.
+        Reads in future SSP data, historical climate data, or a combination
+        of both, depending on year_start and year_end
 
         Parameters
         ----------
@@ -129,7 +125,9 @@ class Application(object):
         xr.DataArray
             Hourly ensemble means from year_start-year_end for the ssp specified.
         """
-        return _retrieve_meteo_yr_data(self.selections, self.location, self._cat, ssp, year_start, year_end)
+        return _retrieve_meteo_yr_data(
+            self.selections, self.location, self._cat, ssp, year_start, year_end
+        )
 
     # === View =======================================
     def view(self, data, lat_lon=True, width=None, height=None, cmap=None):

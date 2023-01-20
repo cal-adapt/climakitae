@@ -92,10 +92,10 @@ def _retrieve_meteo_yr_data(
     year_end=None,
 ):
     """Backend function for retrieving data needed for computing a meteorological year.
-    
-    Reads in the hourly ensemble means instead of the hourly data. 
-    Reads in future SSP data, historical climate data, or a combination 
-    of both, depending on year_start and year_end 
+
+    Reads in the hourly ensemble means instead of the hourly data.
+    Reads in future SSP data, historical climate data, or a combination
+    of both, depending on year_start and year_end
 
     Parameters
     ----------
