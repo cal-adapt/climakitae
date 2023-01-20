@@ -59,7 +59,7 @@ var_catalog = pd.read_csv(var_catalog_resource, index_col="variable_id")
 
 def _set_amy_year_inputs(year_start, year_end):
     """
-    Helper function for retrieve_meteo_yr_data.
+    Helper function for _retrieve_meteo_yr_data.
     Checks that the user has input valid values.
     Sets year end if it hasn't been set; default is 30 year range (year_start + 30). Minimum is 5 year range.
     """
@@ -83,8 +83,7 @@ def _set_amy_year_inputs(year_start, year_end):
     return (year_start, year_end)
 
 
-def retrieve_meteo_yr_data(
-    app=None,
+def _retrieve_meteo_yr_data(
     selections=None,
     location=None,
     _cat=None,
@@ -92,37 +91,32 @@ def retrieve_meteo_yr_data(
     year_start=2015,
     year_end=None,
 ):
-    """Get average meteorological year data.
-    Input one of the two:
-        (1) app: climakitae Applications object, or (user-facing)
-        (2) all the following: selections, location, _cat (backend)
+    """Backend function for retrieving data needed for computing a meteorological year.
+    
+    Reads in the hourly ensemble means instead of the hourly data. 
+    Reads in future SSP data, historical climate data, or a combination 
+    of both, depending on year_start and year_end 
 
-    Args:
-        app (climakitae Application): user-facing object for using within a notebook environment
-        selections (climakitae DataSelector)
-        location (climakitae LocationSelector)
-        _cat (intake catalog)
-        ssp (str): one of the 3 SSP options
-        year_start (int, optional): year between 1980-2095
-        year_end (int, optional) year between 1985-2100
+    Parameters
+    ----------
+    selections: DataSelector
+        Data settings (variable, unit, timescale, etc)
+    location: LocSelectorArea
+        Location settings
+    _cat: intake_esm.core.esm_datastore
+        AE data catalog
+    ssp: str, one of "SSP 2-4.5 -- Middle of the Road", "SSP 2-4.5 -- Middle of the Road", "SSP 3-7.0 -- Business as Usual", "SSP 5-8.5 -- Burn it All"
+        Shared Socioeconomic Pathway. Defaults to SSP 3-7.0 -- Business as Usual
+    year_start: int, optional
+        Year between 1980-2095. Default to 2015
+    year_end: int, optional
+        Year between 1985-2100. Default to year_start+30
 
-    Returns:
-        amy_data (xr.DataArray)
-
+    Returns
+    --------
+    xr.DataArray
+        Hourly ensemble means from year_start-year_end for the ssp specified.
     """
-
-    # Deal with input issues
-    if (app is None) and ((selections is None) or (location is None) or (_cat is None)):
-        raise ValueError(
-            """You must input one either one climakitae Application object or
-            the following three objects: selections, location, and _cat"""
-        )
-
-    if app is not None:
-        selections = app.selections
-        location = app.location
-        _cat = app._cat
-
     # Save units. Sometimes they get lost.
     units = selections.units
 
@@ -581,14 +575,14 @@ class AverageMeteorologicalYear(param.Parameterized):
         ][self.computation_method]
 
         # Postage data and anomalies defaults
-        self.historical_tmy_data = retrieve_meteo_yr_data(
+        self.historical_tmy_data = _retrieve_meteo_yr_data(
             selections=self.selections,
             location=self.location,
             _cat=self.cat,
             year_start=1981,
             year_end=2010,
         ).compute()
-        self.future_tmy_data = retrieve_meteo_yr_data(
+        self.future_tmy_data = _retrieve_meteo_yr_data(
             _cat=self.cat,
             selections=self.selections,
             location=self.location,
@@ -654,14 +648,14 @@ class AverageMeteorologicalYear(param.Parameterized):
         """If the button was clicked and the location or variable was changed,
         reload the tmy data from AWS"""
 
-        self.historical_tmy_data = retrieve_meteo_yr_data(
+        self.historical_tmy_data = _retrieve_meteo_yr_data(
             selections=self.selections,
             location=self.location,
             _cat=self.cat,
             year_start=1981,
             year_end=2010,
         ).compute()
-        self.future_tmy_data = retrieve_meteo_yr_data(
+        self.future_tmy_data = _retrieve_meteo_yr_data(
             _cat=self.cat,
             selections=self.selections,
             location=self.location,
