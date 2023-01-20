@@ -5,8 +5,6 @@ Climakitae Documentation
 
    This project is actively in development working towards an alpha release.
 
-.. include:: ../README.rst
-
 * :doc:`overview/motivation `
 * :doc:`overview/first_steps`
 * :doc:`overview/data`
