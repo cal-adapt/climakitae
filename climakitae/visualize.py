@@ -16,6 +16,23 @@ import holoviews as hv
 from holoviews import opts
 import hvplot.pandas
 import hvplot.xarray
+from .utils import _read_ae_colormap
+
+
+ae_orange_cmap = _read_ae_colormap(cmap="ae_orange", cmap_hex=True)
+
+
+def rename_distr_abbrev(distr):
+    """Makes abbreviated distribution name human-readable"""
+    distr_abbrev = ["gev", "gumbel", "weibull", "pearson3", "genpareto"]
+    distr_readable = [
+        "GEV",
+        "Gumbel",
+        "Weibull",
+        "Pearson Type III",
+        "Generalized Pareto",
+    ]
+    return distr_readable[distr_abbrev.index(distr)]
 
 
 def get_geospatial_plot(
@@ -25,7 +42,7 @@ def get_geospatial_plot(
     bar_max=None,
     border_color="black",
     line_width=0.5,
-    cmap="Wistia",
+    cmap=ae_orange_cmap,
     hover_fill_color="blue",
 ):
     """
@@ -45,9 +62,12 @@ def get_geospatial_plot(
             % data_variables
         )
 
-    variable_name = data_variable.replace("_", " ").replace("'", "").title()
+    if data_variable == "p_value":
+        variable_name = "p-value"
+    else:
+        variable_name = data_variable.replace("_", " ").replace("'", "")
 
-    distr_name = ds.attrs["distribution"].replace("'", "").title()
+    distr_name = rename_distr_abbrev(ds.attrs["distribution"])
 
     borders = gv.Path(gv.feature.states.geoms(scale="50m", as_element=False)).opts(
         color=border_color, line_width=line_width
@@ -61,7 +81,6 @@ def get_geospatial_plot(
             .replace("{", "")
             .replace("}", "")
             .replace("'", "")
-            .title()
         )
 
     if data_variable in ["return_value"]:
@@ -70,7 +89,6 @@ def get_geospatial_plot(
             .replace("{", "")
             .replace("}", "")
             .replace("'", "")
-            .title()
         )
 
     if data_variable in ["return_prob"]:
@@ -79,7 +97,6 @@ def get_geospatial_plot(
             .replace("{", "")
             .replace("}", "")
             .replace("'", "")
-            .title()
         )
 
     if data_variable in ["return_period"]:
@@ -88,8 +105,12 @@ def get_geospatial_plot(
             .replace("{", "")
             .replace("}", "")
             .replace("'", "")
-            .title()
         )
+
+    cmap_label = variable_name
+    variable_unit = ds[data_variable].attrs["units"]
+    if variable_unit:
+        cmap_label = " ".join([cmap_label, "({})".format(variable_unit)])
 
     geospatial_plot = (
         ds.hvplot.quadmesh(
@@ -100,10 +121,11 @@ def get_geospatial_plot(
             projection=ccrs.PlateCarree(),
             ylim=(30, 50),
             xlim=(-130, -100),
-            title="{} For A {} ({} Distribution)".format(
+            title="{} for a {}\n({} distribution)".format(
                 variable_name, attribute_name, distr_name
             ),
             cmap=cmap,
+            clabel=cmap_label,
             hover_fill_color=hover_fill_color,
         )
         * borders
