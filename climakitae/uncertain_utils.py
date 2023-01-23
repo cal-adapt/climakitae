@@ -11,7 +11,7 @@ from cmip6_preprocessing.preprocessing import rename_cmip6
 
 
 ### Utility functions for uncertainty analyses and notebooks
-class CmipOpt():
+class CmipOpt:
     """A class for holding relevant data options for cmip preprocessing
 
     Attributes
@@ -35,7 +35,7 @@ class CmipOpt():
 
     def __init__(
         self,
-        variable="tas", ## set up for temp uncertainty notebook
+        variable="tas",  ## set up for temp uncertainty notebook
         area_subset="states",
         location="California",
         timescale="monthly",
@@ -182,12 +182,10 @@ def _wrapper(ds):
 
     ds = rename_cmip6(ds)
     ds = _cf_to_dt(ds)
-    if ds_freq in ('mon'):
+    if ds_freq in ("mon"):
         ds = _calendar_align(ds)
-    ds = ds.drop_vars(["lon","lat","height"],
-                     errors="ignore")
-    ds = ds.assign_coords({'simulation': ds_simulation,
-                          'scenario': ds_scenario})
+    ds = ds.drop_vars(["lon", "lat", "height"], errors="ignore")
+    ds = ds.assign_coords({"simulation": ds_simulation, "scenario": ds_scenario})
     ds = ds.squeeze(drop=True)
     return ds
 
@@ -232,7 +230,6 @@ def _drop_member_id(dset_dict):
     return dset_dict
 
 
-
 ## Grab temperature data - model uncertainty analysis (explore_model_uncertainty nb)
 def grab_temp_data(copt):
     """Returns processed data from multiple CMIP6 models for uncertainty analysis.
@@ -253,47 +250,55 @@ def grab_temp_data(copt):
             Processed CMIP6 models concatenated into a single ds
 
     """
-    col = intake.open_esm_datastore("https://cadcat.s3.amazonaws.com/tmp/cmip6-regrid.json") # data catalog
+    col = intake.open_esm_datastore(
+        "https://cadcat.s3.amazonaws.com/tmp/cmip6-regrid.json"
+    )  # data catalog
 
     # searches catalog for data from the cmip6 archive using our specific data options
     cat = col.search(
-        table_id = copt.timescale,
-        variable_id = copt.variable,
-        experiment_id = ["historical","ssp370"], # identifies models that have both historical and ssp3-7.0 runs
-        member_id = "r1i1p1f1", # ensures specific ensemble member 1
-        require_all_on="source_id"
-    ).search(activity_id = ["CMIP","ScenarioMIP"])
+        table_id=copt.timescale,
+        variable_id=copt.variable,
+        experiment_id=[
+            "historical",
+            "ssp370",
+        ],  # identifies models that have both historical and ssp3-7.0 runs
+        member_id="r1i1p1f1",  # ensures specific ensemble member 1
+        require_all_on="source_id",
+    ).search(activity_id=["CMIP", "ScenarioMIP"])
 
     # grabs the data from the catalog, and processes it using the wrapper function defined above
     dsets = cat.to_dataset_dict(
-        zarr_kwargs={'consolidated': True},
-        storage_options={'anon': True},
-        preprocess=_wrapper)
+        zarr_kwargs={"consolidated": True},
+        storage_options={"anon": True},
+        preprocess=_wrapper,
+    )
 
     # searches the catalog for the additional cal-adapt simulations
-    paths = ['CESM2.*r11i1p1f1', 'CNRM-ESM2-1.*r1i1p1f2'] # note, two of the Cal-Adapt models use a different ensemble member
-    cat = col.search(table_id=copt.timescale,
-               variable_id=copt.variable,
-               path=paths,
-               activity_id=['CMIP', 'ScenarioMIP'])
+    paths = [
+        "CESM2.*r11i1p1f1",
+        "CNRM-ESM2-1.*r1i1p1f2",
+    ]  # note, two of the Cal-Adapt models use a different ensemble member
+    cat = col.search(
+        table_id=copt.timescale,
+        variable_id=copt.variable,
+        path=paths,
+        activity_id=["CMIP", "ScenarioMIP"],
+    )
 
     # grabs the cal-adapt simulations from the catalog, and processes it using the wrapper function
     cal_dsets = cat.to_dataset_dict(
-        zarr_kwargs={'consolidated': True},
-        storage_options={'anon': True},
-        preprocess=_wrapper)
+        zarr_kwargs={"consolidated": True},
+        storage_options={"anon": True},
+        preprocess=_wrapper,
+    )
 
     # subsets the cmip6 and cal-adapt models in the historical period
-    hist_dsets = {key: val for key,val in dsets.items()
-                 if "historical" in key}
-    cal_hist_dsets = {key: val for key,val in cal_dsets.items()
-                 if "historical" in key}
+    hist_dsets = {key: val for key, val in dsets.items() if "historical" in key}
+    cal_hist_dsets = {key: val for key, val in cal_dsets.items() if "historical" in key}
 
     # subsets the cmip6 and cal-adapt models in the future (ssp370) period
-    ssp_dsets = {key: val for key,val in dsets.items()
-                   if "ssp370" in key}
-    cal_ssp_dsets = {key: val for key,val in cal_dsets.items()
-                   if "ssp370" in key}
+    ssp_dsets = {key: val for key, val in dsets.items() if "ssp370" in key}
+    cal_ssp_dsets = {key: val for key, val in cal_dsets.items() if "ssp370" in key}
 
     # drop member id, in order to ensure that merging is along the same data axis
     hist_dsets = _drop_member_id(hist_dsets)
@@ -306,9 +311,11 @@ def grab_temp_data(copt):
     all_ssp_mdls = ssp_dsets | cal_ssp_dsets
 
     # concatenate historical data based on the model, and subset for California
-    hist_ds = xr.concat(list(all_hist_mdls.values()), dim='simulation').squeeze()
-    hist_ds = copt._cmip_clip(hist_ds.sel(time=slice('1850','2014'))) # time slice ensures the same historical timeframe
-    ssp_ds = xr.concat(list(all_ssp_mdls.values()), dim='simulation').squeeze()
+    hist_ds = xr.concat(list(all_hist_mdls.values()), dim="simulation").squeeze()
+    hist_ds = copt._cmip_clip(
+        hist_ds.sel(time=slice("1850", "2014"))
+    )  # time slice ensures the same historical timeframe
+    ssp_ds = xr.concat(list(all_ssp_mdls.values()), dim="simulation").squeeze()
     ssp_ds = copt._cmip_clip(ssp_ds)
 
     # concatenate all data together based on model
@@ -322,8 +329,10 @@ def grab_temp_data(copt):
 
     return mdls_ds
 
+
 ## -----------------------------------------------------------------------------
 ## Useful individual analysis functions
+
 
 def cmip_annual(ds):
     """Calculates the annual average temperature timeseries in degC from monthly data.
