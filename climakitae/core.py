@@ -17,6 +17,7 @@ from .catalog_convert import (
     _timescale_to_table_id,
     _scenario_to_experiment_id,
 )
+from .meteo_yr import _retrieve_meteo_yr_data
 
 
 class Application(object):
@@ -154,6 +155,31 @@ class Application(object):
         """
         return _read_data_from_csv(
             self.selections, self.location, self._cat, csv, merge
+        )
+
+    def retrieve_meteo_yr_data(self, ssp=None, year_start=2015, year_end=None):
+        """User-facing function for retrieving data needed for computing a meteorological year.
+
+        Reads in the hourly ensemble means instead of the hourly data.
+        Reads in future SSP data, historical climate data, or a combination
+        of both, depending on year_start and year_end
+
+        Parameters
+        ----------
+        ssp: str, one of "SSP 2-4.5 -- Middle of the Road", "SSP 2-4.5 -- Middle of the Road", "SSP 3-7.0 -- Business as Usual", "SSP 5-8.5 -- Burn it All"
+            Shared Socioeconomic Pathway. Defaults to SSP 3-7.0 -- Business as Usual
+        year_start: int, optional
+            Year between 1980-2095. Default to 2015
+        year_end: int, optional
+            Year between 1985-2100. Default to year_start+30
+
+        Returns
+        -------
+        xr.DataArray
+            Hourly ensemble means from year_start-year_end for the ssp specified.
+        """
+        return _retrieve_meteo_yr_data(
+            self.selections, self.location, self._cat, ssp, year_start, year_end
         )
 
     # === View =======================================
