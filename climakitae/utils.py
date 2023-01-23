@@ -10,7 +10,6 @@ import matplotlib.colors as mcolors
 import matplotlib
 import pkg_resources
 import warnings
-from .selectors import Boundaries
 
 
 # Read colormap text files
