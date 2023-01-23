@@ -1,15 +1,19 @@
 import numpy as np
 
-
 def compute_hdd_cdd(t2, standard_temp=65):
     """Compute heating degree days (HDD) and cooling degree days (CDD)
 
-    Args:
-        t2 (xr.DataArray): Air temperature at 2m gridded data
-        standard_temp (int, optional): standard temperature in Fahrenheit (default to 65)
+    Parameters
+    -----------
+    t2: xr.DataArray
+        Air temperature at 2m gridded data
+    standard_temp: int, optional
+        Standard temperature in Fahrenheit (default to 65)
 
-    Returns:
-        hdd, cdd (xr.DataArray)
+    Returns
+    -------
+    tuple of xr.DataArray 
+        (hdd, cdd)
     """
 
     # Subtract t2 from the standard reference temperature
