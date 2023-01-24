@@ -16,13 +16,13 @@ class CmipOpt:
 
     Attributes
     ----------
-    variable
+    variable: str
         variable name, cf-compliant (or cmip6 variable name)
-    area_subset
+    area_subset: str
         geographic boundary name (states/counties)
-    location
+    location: str
         geographic area name (name of county/state)
-    timescale
+    timescale: str
         frequency of data
     area_average: bool
         average computed across domain
@@ -52,13 +52,13 @@ class CmipOpt:
 
         Parameters
         ----------
-            ds: xr.Dataset
-                Input data
+        ds: xr.Dataset
+            Input data
 
         Returns
         -------
-            ds: xr.Dataset
-                Subsetted data, area-weighting applied if area_average is true
+        xr.Dataset
+            Subsetted data, area-weighting applied if area_average is true
         """
         variable = self.variable
         location = self.location
@@ -79,13 +79,13 @@ def _cf_to_dt(ds):
 
     Parameters
     ----------
-        ds: xr.Dataset
-            Input data
+    ds: xr.Dataset
+        Input data
 
     Returns
     -------
-        ds: xr.Dataset
-            Converted calendar data
+    xr.Dataset
+        Converted calendar data
     """
     if type(ds.indexes["time"]) not in [pd.core.indexes.datetimes.DatetimeIndex]:
         datetimeindex = ds.indexes["time"].to_datetimeindex()
@@ -105,13 +105,13 @@ def _calendar_align(ds):
 
     Parameters
     ----------
-        ds: xr.Dataset
-            Input data
+    ds: xr.Dataset
+        Input data
 
     Returns
     -------
-        ds: xr.Dataset
-            Calendar-aligned data
+    xr.Dataset
+        Calendar-aligned data
     """
     ds["time"] = pd.to_datetime(ds.time.dt.strftime("%Y-%m"))
     return ds
@@ -122,22 +122,22 @@ def _clip_region(ds, area_subset, location):
 
     Parameters
     ----------
-        ds: xr.Dataset
-            Input data
-        area_subset: string
-            "counties"/"states" as options
-        location: string
-            county/state name
+    ds: xr.Dataset
+        Input data
+    area_subset: LocSelectorArea
+        "counties"/"states" as options
+    location: LocSelectorArea
+        county/state name
 
     Optional
     --------
-        all_touched: bool
-            Include all cells that intersect boundary, default is false
+    all_touched: bool
+        Include all cells that intersect boundary, default is false
 
     Returns
     -------
-        ds: xr.Dataset
-            Clipped dataset to region of interest
+    xr.Dataset
+        Clipped dataset to region of interest
     """
     geographies = Boundaries()
     us_states = geographies._us_states
@@ -167,13 +167,13 @@ def _wrapper(ds):
 
     Parameters
     ----------
-        ds: xr.Dataset
-            Input data
+    ds: xr.Dataset
+        Input data
 
     Returns
     -------
-        ds: xr.Dataset
-            CMIP6 data with consistent dimensions, names, and calendars.
+    xr.Dataset
+        CMIP6 data with consistent dimensions, names, and calendars.
     """
 
     ds_simulation = ds.attrs["source_id"]
@@ -195,13 +195,13 @@ def _area_wgt_average(ds):
 
     Parameters
     ----------
-        ds: xr.Dataset
-            Input data
+    ds: xr.Dataset
+        Input data
 
     Returns
     -------
-        ds: xr.Dataset
-            Area-averaged data by weights
+    xr.Dataset
+        Area-averaged data by weights
     """
     weights = np.cos(np.deg2rad(ds.y))
     weights.name = "weights"
@@ -215,13 +215,13 @@ def _drop_member_id(dset_dict):
 
     Parameters
     ----------
-        dset_dict: dict
-            dictionary in the format {dataset_name:xr.Dataset}
+    dset_dict: dict
+        dictionary in the format {dataset_name:xr.Dataset}
 
     Returns
     -------
-        dset_dict: xr.Dataset
-            Data, with member_id dim removed
+    xr.Dataset
+        Data, with member_id dim removed
     """
     for dname, dset in dset_dict.items():
         if "member_id" in dset.coords:
@@ -241,14 +241,13 @@ def grab_temp_data(copt):
 
     Attributes
     ----------
-        copt: object
-            Selections: variable, area_subset, location, area_average, timescale
+    copt: object
+        Selections: variable, area_subset, location, area_average, timescale
 
     Returns
     -------
-        mdls_ds: xr.Dataset
-            Processed CMIP6 models concatenated into a single ds
-
+    xr.Dataset
+        Processed CMIP6 models concatenated into a single ds
     """
     col = intake.open_esm_datastore(
         "https://cadcat.s3.amazonaws.com/tmp/cmip6-regrid.json"
@@ -342,13 +341,13 @@ def cmip_annual(ds):
 
     Parameters
     ----------
-        ds: xr.Dataset
-            Input data, default temperature unit is K
+    ds: xr.Dataset
+        Input data, default temperature unit is K
 
     Returns
     -------
-        ds_degC: xr.Dataset
-            Annual temperature timeseries in degC
+    xr.Dataset
+        Annual temperature timeseries in degC
     """
     ds_degC = ds - 273.15  # convert to degC
     ds_degC = ds_degC.groupby("time.year").mean(dim=["time"])
@@ -363,17 +362,17 @@ def calc_anom(ds_yr, base_start, base_end):
 
     Parameters
     ----------
-        ds_yr: xr.Dataset
-            must be the output from cmip_annual
-        base_start: int
-            start year of baseline to calculate
-        base_end: int
-            end year of the baseline to calculate
+    ds_yr: xr.Dataset
+        must be the output from cmip_annual
+    base_start: int
+        start year of baseline to calculate
+    base_end: int
+        end year of the baseline to calculate
 
     Returns
     -------
-        mdl_temp_anom: xr.Dataset
-            Anomaly data calculated with input baseline start and end
+    xr.Dataset
+        Anomaly data calculated with input baseline start and end
     """
     mdl_baseline = ds_yr.sel(year=slice(base_start, base_end)).mean("year")
     mdl_temp_anom = ds_yr - mdl_baseline
@@ -385,13 +384,13 @@ def cmip_mmm(ds):
 
     Parameters
     ----------
-        ds: xr.Dataset
-            Input data, multiple simulations
+    ds: xr.Dataset
+        Input data, multiple simulations
 
     Returns
     -------
-        ds_mmm: xr.Dataset
-            Mean across input data taken on simulation dim
+    xr.Dataset
+        Mean across input data taken on simulation dim
     """
     ds_mmm = ds.mean("simulation")
     return ds_mmm
@@ -402,19 +401,19 @@ def compute_vmin_vmax(da_min, da_max):
 
     Parameters
     ----------
-        da_min: xr.Dataset
-            data input to calculate the minimum
-        da_max: xr.Dataset
-            data input to calculate the maximum
+    da_min: xr.Dataset
+        data input to calculate the minimum
+    da_max: xr.Dataset
+        data input to calculate the maximum
 
     Returns
     -------
-        vmin: int
-            minimum value
-        vmax: int
-            maximum value
-        sopt: bool
-            indicates symmetry if vmin and vmax have opposite signs
+    int
+        minimum value
+    int
+        maximum value
+    bool
+        indicates symmetry if vmin and vmax have opposite signs
     """
     vmin = np.nanpercentile(da_min, 1)
     vmax = np.nanpercentile(da_max, 99)
