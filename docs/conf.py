@@ -30,7 +30,8 @@ extensions = [
     "sphinx.ext.napoleon", 
     "sphinx.ext.intersphinx", 
     "sphinx.ext.extlinks",
-    "nbsphinx"
+    "nbsphinx", 
+    "sphinx_design"
 ]
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
@@ -62,8 +63,8 @@ html_theme_options = {
 }
 # The name of an image file (relative to this directory) to place at the top of
 # the sidebar.
-html_logo = "_static/cae-logo.svg"
-html_favicon = "_static/cae-logo.svg"
+html_logo = "_static/cae-map.png"
+html_favicon = "_static/cae-map.png"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
