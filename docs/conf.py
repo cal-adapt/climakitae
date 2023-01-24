@@ -27,11 +27,11 @@ release = "0.0.1"
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
-    "sphinx.ext.napoleon", 
-    "sphinx.ext.intersphinx", 
+    "sphinx.ext.napoleon",
+    "sphinx.ext.intersphinx",
     "sphinx.ext.extlinks",
-    "nbsphinx", 
-    "sphinx_design"
+    "nbsphinx",
+    "sphinx_design",
 ]
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
@@ -130,7 +130,7 @@ napoleon_type_aliases = {
     # objects with abbreviated namespace (from pandas)
     "pd.Index": "~pandas.Index",
     "pd.NaT": "~pandas.NaT",
-    "pd.DataFrame": "~pandas.DataFrame"
+    "pd.DataFrame": "~pandas.DataFrame",
 }
 
 # Example configuration for intersphinx: refer to the Python standard library.
@@ -147,9 +147,9 @@ intersphinx_mapping = {
     "rasterio": ("https://rasterio.readthedocs.io/en/latest", None),
     "sparse": ("https://sparse.pydata.org/en/latest/", None),
     "sparse": ("https://sparse.pydata.org/en/latest/", None),
-    "xarray": ("https://docs.xarray.dev/en/stable/", None), 
-    "panel": ("https://panel.holoviz.org/", None), 
-    "hvplot": ("https://hvplot.holoviz.org/", None), 
-    "holoviews": ("https://holoviews.org/", None), 
+    "xarray": ("https://docs.xarray.dev/en/stable/", None),
+    "panel": ("https://panel.holoviz.org/", None),
+    "hvplot": ("https://hvplot.holoviz.org/", None),
+    "holoviews": ("https://holoviews.org/", None),
     "intake_esm": ("https://intake-esm.readthedocs.io/en/latest/", None),
 }
