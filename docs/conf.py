@@ -29,8 +29,11 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon", 
     "sphinx.ext.intersphinx", 
-    "sphinx.ext.extlinks"
+    "sphinx.ext.extlinks",
+    "nbsphinx"
 ]
+# extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
+# ones.
 
 # Generate autosummary of package
 autosummary_generate = True  # Turn on sphinx.ext.autosummary
@@ -66,7 +69,6 @@ html_favicon = "_static/cae-logo.svg"
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
-
 
 # Napoleon configurations
 napoleon_google_docstring = False
@@ -127,6 +129,7 @@ napoleon_type_aliases = {
     # objects with abbreviated namespace (from pandas)
     "pd.Index": "~pandas.Index",
     "pd.NaT": "~pandas.NaT",
+    "pd.DataFrame": "~pandas.DataFrame"
 }
 
 # Example configuration for intersphinx: refer to the Python standard library.
@@ -146,5 +149,6 @@ intersphinx_mapping = {
     "xarray": ("https://docs.xarray.dev/en/stable/", None), 
     "panel": ("https://panel.holoviz.org/", None), 
     "hvplot": ("https://hvplot.holoviz.org/", None), 
-    "holoviews": ("https://holoviews.org/", None)
+    "holoviews": ("https://holoviews.org/", None), 
+    "intake_esm": ("https://intake-esm.readthedocs.io/en/latest/", None),
 }

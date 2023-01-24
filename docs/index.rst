@@ -5,6 +5,8 @@ Climakitae Documentation
    
    This project is actively in development working towards an alpha release.
 
+.. include:: ../README.rst
+
 .. toctree::
    :maxdepth: 1
    :hidden:
