@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def compute_hdd_cdd(t2, standard_temp=65):
     """Compute heating degree days (HDD) and cooling degree days (CDD)
 
@@ -12,7 +13,7 @@ def compute_hdd_cdd(t2, standard_temp=65):
 
     Returns
     -------
-    tuple of xr.DataArray 
+    tuple of xr.DataArray
         (hdd, cdd)
     """
 

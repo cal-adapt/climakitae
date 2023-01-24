@@ -51,21 +51,21 @@ class Application(object):
         Read lazily-loaded dask array into memory
     view
         Display a generic visualization of the data
-    
+
     Examples
     --------
-    
-    To view the explore panels in a notebook environment, 
-    you can use the following code: 
-    
-    >>> import climakitae as ck 
+
+    To view the explore panels in a notebook environment,
+    you can use the following code:
+
+    >>> import climakitae as ck
     >>> app = ck.Application()
     >>> app.explore.warming_levels()  # Global warming levels panel
     >>> app.explore.thresholds()  # Climate thresholds panel
     >>> app.explore.amy()  # Average meteorological year Panel
 
-    To view a short description panel, simply type ``app.explore`` and 
-    observe the output. 
+    To view a short description panel, simply type ``app.explore`` and
+    observe the output.
     """
 
     def __init__(self):
@@ -148,7 +148,7 @@ class Application(object):
         return _read_from_catalog(self.selections, self.location, self._cat)
 
     def retrieve_from_csv(self, csv, merge=True):
-        """Retrieve data from csv input. Return type will depend on how many rows exist in the input csv file and the argument merge. 
+        """Retrieve data from csv input. Return type will depend on how many rows exist in the input csv file and the argument merge.
 
         Allows user to bypass app.select GUI and allows
         developers to pre-set inputs in a csv file for ease of use in a notebook.
@@ -199,15 +199,15 @@ class Application(object):
 
         Examples
         --------
-        
-        Make sure you've initialized an Application object. 
-        Then, simply call this method to retrieve the data needed for computing 
-        an average or severe meteorological year in a subsequent step. 
-        
-        >>> import climakitae as ck 
+
+        Make sure you've initialized an Application object.
+        Then, simply call this method to retrieve the data needed for computing
+        an average or severe meteorological year in a subsequent step.
+
+        >>> import climakitae as ck
         >>> app = ck.Application()
         >>> data = app.retrieve_meteo_yr_data(
-        ...     ssp="SSP 2-4.5 -- Middle of the Road", 
+        ...     ssp="SSP 2-4.5 -- Middle of the Road",
         ...     year_start=2020,
         ...     year_end=2050
         ... )

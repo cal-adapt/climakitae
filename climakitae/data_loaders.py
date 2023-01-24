@@ -450,9 +450,9 @@ def _read_from_catalog(selections, location, cat):
 
 
 def _read_data_from_csv(selections, location, cat, csv, merge=True):
-    """Retrieve data from csv input. 
+    """Retrieve data from csv input.
 
-    Allows user to bypass app.select GUI and allows developers to 
+    Allows user to bypass app.select GUI and allows developers to
     pre-set inputs in a csv file for ease of use in a notebook.
     location: LocSelectorArea
         Location settings
@@ -466,7 +466,7 @@ def _read_data_from_csv(selections, location, cat, csv, merge=True):
         Location settings.
     cat: intake_esm.core.esm_datastore
         AE data catalog.
-    csv: str 
+    csv: str
         Filepath to local csv file.
     merge: bool, optional
         If multiple datasets desired, merge to form a single object?

@@ -211,25 +211,25 @@ def _format_meteo_yr_df(df):
 
 def compute_amy(data, days_in_year=366, show_pbar=False):
     """Calculates the average meteorological year based on a designated period of time
-    
+
     Applicable for both the historical and future periods.
-    
+
     Parameters
     ----------
-    data: xr.DataArray 
-        Hourly data for one variable 
+    data: xr.DataArray
+        Hourly data for one variable
     days_in_year: int, optional
-        Either 366 or 365, depending on whether or not the year is a leap year. 
+        Either 366 or 365, depending on whether or not the year is a leap year.
         Default to 366 days (leap year)
     show_pbar: bool, optional
-        Show progress bar? Default to false. 
+        Show progress bar? Default to false.
         Progress bar is nice for using this function within a notebook.
 
     Returns
     --------
-    pd.DataFrame 
-        Average meteorological year table, with days of year as 
-        the index and hour of day as the columns. 
+    pd.DataFrame
+        Average meteorological year table, with days of year as
+        the index and hour of day as the columns.
     """
     hourly_list = []
     for x in tqdm(np.arange(1, days_in_year + 1, 1), disable=not show_pbar):
@@ -256,25 +256,25 @@ def compute_amy(data, days_in_year=366, show_pbar=False):
 
 def compute_severe_yr(data, days_in_year=366, show_pbar=False):
     """Calculate the severe meteorological year based on the 90th percentile of data.
-    
+
     Applicable for both the historical and future periods.
-    
+
     Parameters
     ----------
-    data: xr.DataArray 
-        Hourly data for one variable 
+    data: xr.DataArray
+        Hourly data for one variable
     days_in_year: int, optional
-        Either 366 or 365, depending on whether or not the year is a leap year. 
+        Either 366 or 365, depending on whether or not the year is a leap year.
         Default to 366 days (leap year)
-    show_pbar: bool, optional 
-        Show progress bar? Default to false. 
+    show_pbar: bool, optional
+        Show progress bar? Default to false.
         Progress bar is nice for using this function within a notebook.
 
     Returns
     --------
-    pd.DataFrame 
-        Severe meteorological year table, with days of year as 
-        the index and hour of day as the columns. 
+    pd.DataFrame
+        Severe meteorological year table, with days of year as
+        the index and hour of day as the columns.
     """
     hourly_list = []
     for x in tqdm(np.arange(1, days_in_year + 1, 1), disable=not show_pbar):
@@ -305,17 +305,17 @@ def compute_severe_yr(data, days_in_year=366, show_pbar=False):
 
 
 def compute_mean_monthly_meteo_yr(tmy_df, col_name="mean_value"):
-    """Compute mean monthly values for input meteorological year data. 
+    """Compute mean monthly values for input meteorological year data.
 
     Parameters
     -----------
     tmy_df: pd.DataFrame
         Matrix with day of year as index and hour as columns
-        Output of either compute_severe_yr or compute_meteo_yr 
+        Output of either compute_severe_yr or compute_meteo_yr
     col_name: str, optional
         Name to give single output column
-        It may be informative to assign this to the name of the data variable 
-    
+        It may be informative to assign this to the name of the data variable
+
     Returns
     --------
     pd.DataFrame
@@ -358,23 +358,23 @@ def meteo_yr_heatmap(
     ----------
     meteo_yr_df: pd.DataFrame
         Meteorological year dataframe, with hour of day as columns and day of year as index
-        Output of either compute_severe_yr or compute_meteo_yr 
-    title: str, optional 
+        Output of either compute_severe_yr or compute_meteo_yr
+    title: str, optional
         Title to give heatmap. Default to "Meteorological Year"
     cmap: matplotlib colormap name or AE colormap names, optional
         Colormap to apply to heatmap. Default to "ae_orange"
-    clabel: str, optional 
-        Name of variable being plotted. Default to None. 
-        Will be applied to label of colorbar. 
+    clabel: str, optional
+        Name of variable being plotted. Default to None.
+        Will be applied to label of colorbar.
     width: int, optional
-        Width of heatmap. Default to 500 
-    height: int, optional 
-        Height of heatmap. Default to 250. 
+        Width of heatmap. Default to 500
+    height: int, optional
+        Height of heatmap. Default to 250.
 
     Returns
     -------
-    holoviews.element.raster.HeatMap 
-        Interactive heatmap 
+    holoviews.element.raster.HeatMap
+        Interactive heatmap
     """
     # Set colormap if it's an ae colormap
     # If using hvplot, set cmap_hex = True
@@ -413,26 +413,28 @@ def meteo_yr_heatmap(
     return fig
 
 
-def meteo_yr_heatmap_static(meteo_yr_df, title="Meteorological Year", cmap="ae_orange", clabel=None):
-    """Create static (matplotlib) meteorological year heatmap 
+def meteo_yr_heatmap_static(
+    meteo_yr_df, title="Meteorological Year", cmap="ae_orange", clabel=None
+):
+    """Create static (matplotlib) meteorological year heatmap
 
     Parameters
     ----------
     meteo_yr_df: pd.DataFrame
         Meteorological year dataframe, with hour of day as columns and day of year as index
-        Output of either compute_severe_yr or compute_meteo_yr 
-    title: str, optional 
+        Output of either compute_severe_yr or compute_meteo_yr
+    title: str, optional
         Title to give heatmap. Default to "Meteorological Year"
     cmap: matplotlib colormap name or AE colormap names, optional
         Colormap to apply to heatmap. Default to "ae_orange"
-    clabel: str, optional 
-        Name of variable being plotted. Default to None. 
-        Will be applied to label of colorbar. 
-    
+    clabel: str, optional
+        Name of variable being plotted. Default to None.
+        Will be applied to label of colorbar.
+
     Returns
     -------
     matplotlib.figure.Figure
-        Static heatmap 
+        Static heatmap
     """
     # Set colormap if it's an ae colormap
     # If using hvplot, set cmap_hex = True
@@ -483,23 +485,23 @@ def lineplot_from_amy_data(
     amy_data: pd.DataFrame
         Meteorological year dataframe, with hour of day as columns and day of year as index
         Output of either compute_severe_yr or compute_meteo_yr
-    computation_method: str, optional 
-        Method used to compute the meteorological year. 
+    computation_method: str, optional
+        Method used to compute the meteorological year.
         Used to add descriptive information to the plot title.
     location_subset: str, optional
         Location subset of data.
         Used to add descriptive information to the plot title.
     warmlevel: str, optional
-        Warming level used to generate data. 
+        Warming level used to generate data.
         Used to add descriptive information to the plot title.
-    variable: str, optional 
-        Name of data variable. 
+    variable: str, optional
+        Name of data variable.
         Used to add descriptive information to the plot title.
 
     Returns
     --------
     matplotlib.figure.Figure
-        Lineplot of the data 
+        Lineplot of the data
 
     """
 
@@ -558,6 +560,7 @@ def lineplot_from_amy_data(
 
 
 # =========================== MAIN AVERAGE METEO YR OBJECT ==============================
+
 
 class AverageMeteorologicalYear(param.Parameterized):
     """

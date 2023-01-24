@@ -21,7 +21,7 @@ ae_blue = pkg_resources.resource_filename("climakitae", "data/cmaps/ae_blue.txt"
 
 def get_closest_gridcell(data, lat, lon):
     """From input gridded data, get the closest gridcell to a lat, lon coordinate pair.
-    
+
     This function first transforms the lat,lon coords to the gridded data’s projection.
     Then, it uses xarray’s built in method .sel to get the nearest gridcell.
 
@@ -30,9 +30,9 @@ def get_closest_gridcell(data, lat, lon):
     data: xr.DataArray
         Gridded data
     lat: float
-        Latitude of coordinate pair 
+        Latitude of coordinate pair
     lon: float
-        Longitude of coordinate pair 
+        Longitude of coordinate pair
 
     Returns
     --------
