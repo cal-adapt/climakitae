@@ -29,7 +29,7 @@ class Application(object):
     Attributes
     ----------
     _cat: intake_esm.core.esm_datastore
-        Data catalog
+        AE data catalog
     location: LocSelectorArea
         Location settings
     selections: DataSelector
@@ -109,6 +109,10 @@ class Application(object):
         -------
         xr.DataArray
             Input data, loaded into memory
+
+        See also
+        --------
+        xarray.DataArray.compute
         """
         return _compute(data)
 
@@ -129,7 +133,7 @@ class Application(object):
         return _read_from_catalog(self.selections, self.location, self._cat)
 
     def retrieve_from_csv(self, csv, merge=True):
-        """Retrieve data from csv input
+        """Retrieve data from csv input. Return type will depend on how many rows exist in the input csv file and the argument merge. 
 
         Allows user to bypass app.select GUI and allows
         developers to pre-set inputs in a csv file for ease of use in a notebook.
@@ -137,21 +141,21 @@ class Application(object):
 
         Parameters
         ----------
-            csv: str
-                Path to local csv file
-            merge: bool, optional
-                If multiple datasets desired, merge to form a single object?
-                Defaults to True
+        csv: str
+            Path to local csv file
+        merge: bool, optional
+            If multiple datasets desired, merge to form a single object?
+            Defaults to True
 
         Returns
         -------
-            xr.Dataset
-                If multiple rows are in the csv, each row is a data_variable
-            xr.DataArray
-                If csv only has one row
-            list of xr.DataArray
-                If multiple rows are in the csv and merge=True,
-                multiple DataArrays are returned in a single list.
+        xr.Dataset
+            If multiple rows are in the csv, each row is a data_variable
+        xr.DataArray
+            If csv only has one row
+        list of xr.DataArray
+            If multiple rows are in the csv and merge=True,
+            multiple DataArrays are returned in a single list.
         """
         return _read_data_from_csv(
             self.selections, self.location, self._cat, csv, merge
@@ -177,6 +181,21 @@ class Application(object):
         -------
         xr.DataArray
             Hourly ensemble means from year_start-year_end for the ssp specified.
+
+        Examples
+        --------
+        
+        Make sure you've initialized an Application object. 
+        Then, simply call this method to retrieve the data needed for computing 
+        an average or severe meteorological year in a subsequent step. 
+        
+        >>> import climakitae as ck 
+        >>> app = ck.Application()
+        >>> data = app.retrieve_meteo_yr_data(
+        ...     ssp="SSP 2-4.5 -- Middle of the Road", 
+        ...     year_start=2020,
+        ...     year_end=2050
+        ... )
         """
         return _retrieve_meteo_yr_data(
             self.selections, self.location, self._cat, ssp, year_start, year_end

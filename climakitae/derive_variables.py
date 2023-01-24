@@ -8,7 +8,7 @@ def compute_hdd_cdd(t2, standard_temp=65):
     t2: xr.DataArray
         Air temperature at 2m gridded data
     standard_temp: int, optional
-        Standard temperature in Fahrenheit (default to 65)
+        Standard temperature in Fahrenheit. Default to 65 degF
 
     Returns
     -------
