@@ -9,7 +9,7 @@ Climakitae Documentation
    This project is actively in development working towards an alpha release.
 
 Climakitae provides a python toolkit for retrieving, visualizing, and performing 
-scientific analyses with the Cal-Adapt Analytics Engine data. 
+scientific analyses with data from the Cal-Adapt Analytics Engine. 
 
 .. grid:: 1 1 2 2
     :gutter: 2
@@ -17,7 +17,7 @@ scientific analyses with the Cal-Adapt Analytics Engine data.
     .. grid-item-card:: Cal-Adapt Analytics Engine
         :img-top: _static/cae-logo.svg
         :link: https://analytics.cal-adapt.org/
-        :padding: 4
+        :columns: 3
 
         Cal-Adapt is the larger project through which *climakitae* 
         is being developed.  
@@ -26,7 +26,7 @@ scientific analyses with the Cal-Adapt Analytics Engine data.
         :img-top: _static/runner.svg
         :link: overview/first_steps
         :link-type: doc
-        :padding: 4
+        :columns: 3
 
         The basics for getting started with *climakitae*. 
 
@@ -34,14 +34,14 @@ scientific analyses with the Cal-Adapt Analytics Engine data.
         :img-top: _static/book.svg
         :link: api
         :link-type: doc
-        :padding: 4
+        :columns: 3
 
         A detailed description of the climakitae API. 
 
     .. grid-item-card::  GitHub
         :img-top: _static/github.svg
         :link: https://github.com/cal-adapt/climakitae
-        :padding: 4
+        :columns: 3
 
         Interested in seeing the source code? 
         Check out the repository on GitHub!
