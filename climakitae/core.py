@@ -51,6 +51,21 @@ class Application(object):
         Read lazily-loaded dask array into memory
     view
         Display a generic visualization of the data
+    
+    Examples
+    --------
+    
+    To view the explore panels in a notebook environment, 
+    you can use the following code: 
+    
+    >>> import climakitae as ck 
+    >>> app = ck.Application()
+    >>> app.explore.warming_levels()  # Global warming levels panel
+    >>> app.explore.thresholds()  # Climate thresholds panel
+    >>> app.explore.amy()  # Average meteorological year Panel
+
+    To view a short description panel, simply type ``app.explore`` and 
+    observe the output. 
     """
 
     def __init__(self):

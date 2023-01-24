@@ -218,10 +218,10 @@ def compute_amy(data, days_in_year=366, show_pbar=False):
     ----------
     data: xr.DataArray 
         Hourly data for one variable 
-    days_in_year: int 
+    days_in_year: int, optional
         Either 366 or 365, depending on whether or not the year is a leap year. 
         Default to 366 days (leap year)
-    show_pbar: bool
+    show_pbar: bool, optional
         Show progress bar? Default to false. 
         Progress bar is nice for using this function within a notebook.
 
