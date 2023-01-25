@@ -9,8 +9,7 @@ You'll only need to do steps 1 and 3 **once** to build the environment. Then, ju
 5. To see the locally served docs: http://localhost:8000/
 
 ## If you're working on a windows device 
-You may encounter issues when trying to build the docs due to path issues. 
-If you encounter this error message when building the docs: 
-`Makefile error make (e=2): The system cannot find the file specified` 
-We were able to do the following to solve the issue (based off (this)[https://stackoverflow.com/questions/33674973/makefile-error-make-e-2-the-system-cannot-find-the-file-specified] stack overflow question): <br>
+You may encounter issues when trying to build the docs due to path issues.<br><br> If you encounter this error message when building the docs:<br> 
+``Makefile error make (e=2): The system cannot find the file specified``<br><br>
+We were able to do the following to solve the issue (based off [this](https://stackoverflow.com/questions/33674973/makefile-error-make-e-2-the-system-cannot-find-the-file-specified) stack overflow question):<br>
 Add the ``<git-installation-directory>/usr/bin`` directory to your PATH variable too. This basically adds the rest of the linux-like commands that come with the "GIT bash" to your environment. After applying this, the Makefile should run normally again
