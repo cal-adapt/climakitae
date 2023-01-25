@@ -24,8 +24,7 @@ scientific analyses with data from the Cal-Adapt Analytics Engine.
 
     .. grid-item-card:: Getting Started
         :img-top: _static/runner.svg
-        :link: overview/first_steps
-        :link-type: doc
+        :link: https://analytics.cal-adapt.org/docs/applications/getting-started/
         :columns: 3
 
         The basics for getting started with *climakitae*. 
