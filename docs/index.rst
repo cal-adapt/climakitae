@@ -35,7 +35,7 @@ scientific analyses with data from the Cal-Adapt Analytics Engine.
         :link-type: doc
         :columns: 3
 
-        A detailed description of the climakitae API. 
+        A detailed description of the *climakitae* API. 
 
     .. grid-item-card::  GitHub
         :img-top: _static/github.svg
@@ -45,6 +45,14 @@ scientific analyses with data from the Cal-Adapt Analytics Engine.
         Interested in seeing the source code? 
         Check out the repository on GitHub!
 
+
+*************
+Installation
+*************
+To begin working with *climakitae*, you can install the current version of the package 
+directly from pip: :: 
+
+    pip install https://github.com/cal-adapt/climakitae/archive/main.zip
 
 .. toctree::
    :maxdepth: 1
