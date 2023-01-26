@@ -128,10 +128,7 @@ def _clip_region(ds, area_subset, location):
         "counties"/"states" as options
     location: LocSelectorArea
         county/state name
-
-    Optional
-    --------
-    all_touched: bool
+    all_touched: bool, optional
         Include all cells that intersect boundary, default is false
 
     Returns
