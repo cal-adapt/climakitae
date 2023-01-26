@@ -450,15 +450,27 @@ def _read_from_catalog(selections, location, cat):
 
 
 def _read_data_from_csv(selections, location, cat, csv, merge=True):
-    """Retrieve data from csv input. Allows user to bypass app.select GUI and allows
-    developers to pre-set inputs in a csv file for ease of use in a notebook.
+    """Retrieve data from csv input.
 
-    Args:
-        selections (DataLoaders): object holding user's data selections
-        location (LocSelectorArea): object holding user's location selections
-        cat (intake_esm.core.esm_datastore): catalog
-        csv (str): path to local csv file
-        merge (bool, options): if multiple datasets desired, merge to form a single object?
+    Allows user to bypass app.select GUI and allows developers to
+    pre-set inputs in a csv file for ease of use in a notebook.
+    location: LocSelectorArea
+        Location settings
+    selections: DataSelector
+        Data settings (variable, unit, timescale, etc)
+    Parameters
+    ----------
+    selections: DataLoaders
+        Data settings (variable, unit, timescale, etc).
+    location: LocSelectorArea
+        Location settings.
+    cat: intake_esm.core.esm_datastore
+        AE data catalog.
+    csv: str
+        Filepath to local csv file.
+    merge: bool, optional
+        If multiple datasets desired, merge to form a single object?
+        Default to True.
 
     Returns: one of the following, depending on csv input and merge
         xr_ds (xr.Dataset): if multiple rows are in the csv, each row is a data_variable
@@ -468,6 +480,7 @@ def _read_data_from_csv(selections, location, cat, csv, merge=True):
     """
 
     df = pd.read_csv(csv)
+    df = df.fillna("")  # Replace empty cells (set to NaN by read_csv) with empty string
     df = df.apply(
         lambda x: x.str.strip()
     )  # Strip any accidental white space before or after each input

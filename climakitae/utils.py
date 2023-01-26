@@ -25,17 +25,27 @@ ae_diverging_r = pkg_resources.resource_filename(
 
 def get_closest_gridcell(data, lat, lon):
     """From input gridded data, get the closest gridcell to a lat, lon coordinate pair.
+
     This function first transforms the lat,lon coords to the gridded data’s projection.
     Then, it uses xarray’s built in method .sel to get the nearest gridcell.
 
-    Args:
-        data (xr.DataArray): gridded data
-        lat (float): latitude
-        lon (float): longitude
+    Parameters
+    -----------
+    data: xr.DataArray
+        Gridded data
+    lat: float
+        Latitude of coordinate pair
+    lon: float
+        Longitude of coordinate pair
 
-    Returns:
-        closest_gridcell (xr.DataArray): grid cell closest to input lat,lon
+    Returns
+    --------
+    xr.DataArray
+        Grid cell closest to input lat,lon coordinate pair
 
+    See also
+    --------
+    xarray.DataArray.sel
     """
     print(
         "WARNING: Due to the inconsistency between a station and an area-average, when comparing a grid cell with historical observed station data, consider using a bias-correction function for that location instead.\n"

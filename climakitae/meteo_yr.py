@@ -59,7 +59,7 @@ var_catalog = pd.read_csv(var_catalog_resource, index_col="variable_id")
 
 def _set_amy_year_inputs(year_start, year_end):
     """
-    Helper function for retrieve_meteo_yr_data.
+    Helper function for _retrieve_meteo_yr_data.
     Checks that the user has input valid values.
     Sets year end if it hasn't been set; default is 30 year range (year_start + 30). Minimum is 5 year range.
     """
@@ -83,8 +83,7 @@ def _set_amy_year_inputs(year_start, year_end):
     return (year_start, year_end)
 
 
-def retrieve_meteo_yr_data(
-    app=None,
+def _retrieve_meteo_yr_data(
     selections=None,
     location=None,
     _cat=None,
@@ -92,37 +91,32 @@ def retrieve_meteo_yr_data(
     year_start=2015,
     year_end=None,
 ):
-    """Get average meteorological year data.
-    Input one of the two:
-        (1) app: climakitae Applications object, or (user-facing)
-        (2) all the following: selections, location, _cat (backend)
+    """Backend function for retrieving data needed for computing a meteorological year.
 
-    Args:
-        app (climakitae Application): user-facing object for using within a notebook environment
-        selections (climakitae DataSelector)
-        location (climakitae LocationSelector)
-        _cat (intake catalog)
-        ssp (str): one of the 3 SSP options
-        year_start (int, optional): year between 1980-2095
-        year_end (int, optional) year between 1985-2100
+    Reads in the hourly ensemble means instead of the hourly data.
+    Reads in future SSP data, historical climate data, or a combination
+    of both, depending on year_start and year_end
 
-    Returns:
-        amy_data (xr.DataArray)
+    Parameters
+    ----------
+    selections: DataSelector
+        Data settings (variable, unit, timescale, etc)
+    location: LocSelectorArea
+        Location settings
+    _cat: intake_esm.core.esm_datastore
+        AE data catalog
+    ssp: str, one of "SSP 2-4.5 -- Middle of the Road", "SSP 2-4.5 -- Middle of the Road", "SSP 3-7.0 -- Business as Usual", "SSP 5-8.5 -- Burn it All"
+        Shared Socioeconomic Pathway. Defaults to SSP 3-7.0 -- Business as Usual
+    year_start: int, optional
+        Year between 1980-2095. Default to 2015
+    year_end: int, optional
+        Year between 1985-2100. Default to year_start+30
 
+    Returns
+    --------
+    xr.DataArray
+        Hourly ensemble means from year_start-year_end for the ssp specified.
     """
-
-    # Deal with input issues
-    if (app is None) and ((selections is None) or (location is None) or (_cat is None)):
-        raise ValueError(
-            """You must input one either one climakitae Application object or
-            the following three objects: selections, location, and _cat"""
-        )
-
-    if app is not None:
-        selections = app.selections
-        location = app.location
-        _cat = app._cat
-
     # Save units. Sometimes they get lost.
     units = selections.units
 
@@ -216,10 +210,26 @@ def _format_meteo_yr_df(df):
 
 
 def compute_amy(data, days_in_year=366, show_pbar=False):
-    """
-    Calculates the average meteorological year based on a designated period of time.
+    """Calculates the average meteorological year based on a designated period of time
+
     Applicable for both the historical and future periods.
-    Returns: dataframe of amy
+
+    Parameters
+    ----------
+    data: xr.DataArray
+        Hourly data for one variable
+    days_in_year: int, optional
+        Either 366 or 365, depending on whether or not the year is a leap year.
+        Default to 366 days (leap year)
+    show_pbar: bool, optional
+        Show progress bar? Default to false.
+        Progress bar is nice for using this function within a notebook.
+
+    Returns
+    --------
+    pd.DataFrame
+        Average meteorological year table, with days of year as
+        the index and hour of day as the columns.
     """
     hourly_list = []
     for x in tqdm(np.arange(1, days_in_year + 1, 1), disable=not show_pbar):
@@ -245,10 +255,26 @@ def compute_amy(data, days_in_year=366, show_pbar=False):
 
 
 def compute_severe_yr(data, days_in_year=366, show_pbar=False):
-    """
-    Calculates the severe meteorological year based on the 90th percentile of data.
+    """Calculate the severe meteorological year based on the 90th percentile of data.
+
     Applicable for both the historical and future periods.
-    Returns: dataframe of severe meteorological year
+
+    Parameters
+    ----------
+    data: xr.DataArray
+        Hourly data for one variable
+    days_in_year: int, optional
+        Either 366 or 365, depending on whether or not the year is a leap year.
+        Default to 366 days (leap year)
+    show_pbar: bool, optional
+        Show progress bar? Default to false.
+        Progress bar is nice for using this function within a notebook.
+
+    Returns
+    --------
+    pd.DataFrame
+        Severe meteorological year table, with days of year as
+        the index and hour of day as the columns.
     """
     hourly_list = []
     for x in tqdm(np.arange(1, days_in_year + 1, 1), disable=not show_pbar):
@@ -279,13 +305,21 @@ def compute_severe_yr(data, days_in_year=366, show_pbar=False):
 
 
 def compute_mean_monthly_meteo_yr(tmy_df, col_name="mean_value"):
-    """Compute mean monthly values for input meteorological year data
+    """Compute mean monthly values for input meteorological year data.
 
-    Args:
-        tmy_df (pd.DataFrame): matrix with day of year as index and hour as columns
-        col_name (str, optional): name to give single output column
-    Returns:
-        tmy_monthly_mean (pd.DataFrame): table with month as index and monthly mean as column
+    Parameters
+    -----------
+    tmy_df: pd.DataFrame
+        Matrix with day of year as index and hour as columns
+        Output of either compute_severe_yr or compute_meteo_yr
+    col_name: str, optional
+        Name to give single output column
+        It may be informative to assign this to the name of the data variable
+
+    Returns
+    --------
+    pd.DataFrame
+        Table with month as index and monthly mean as column
     """
     # Convert from matrix --> hour and data as individual columns
     tmy_stacked = (
@@ -318,17 +352,29 @@ def meteo_yr_heatmap(
     width=500,
     height=250,
 ):
-    """Create interactive meteorological year heatmap using hvplot
+    """Create interactive (hvplot) meteorological year heatmap.
 
-    Args:
-        meteo_yr_df (pd.DataFrame): meteorological year dataframe, with hour of day as columns and day of year as index
-        title (str): title to give heatmap
-        cmap (str): colormap
-        clabel (str): name of variable being plotted
+    Parameters
+    ----------
+    meteo_yr_df: pd.DataFrame
+        Meteorological year dataframe, with hour of day as columns and day of year as index
+        Output of either compute_severe_yr or compute_meteo_yr
+    title: str, optional
+        Title to give heatmap. Default to "Meteorological Year"
+    cmap: matplotlib colormap name or AE colormap names, optional
+        Colormap to apply to heatmap. Default to "ae_orange"
+    clabel: str, optional
+        Name of variable being plotted. Default to None.
+        Will be applied to label of colorbar.
+    width: int, optional
+        Width of heatmap. Default to 500
+    height: int, optional
+        Height of heatmap. Default to 250.
 
-    Returns:
-        fig (hvplot)
-
+    Returns
+    -------
+    holoviews.element.raster.HeatMap
+        Interactive heatmap
     """
     # Set colormap if it's an ae colormap
     # If using hvplot, set cmap_hex = True
@@ -367,18 +413,28 @@ def meteo_yr_heatmap(
     return fig
 
 
-def meteo_yr_heatmap_static(meteo_yr_df, title=None, cmap="ae_orange", clabel=None):
-    """Create meteorological year heatmap using matplotlib
+def meteo_yr_heatmap_static(
+    meteo_yr_df, title="Meteorological Year", cmap="ae_orange", clabel=None
+):
+    """Create static (matplotlib) meteorological year heatmap
 
-    Args:
-        meteo_yr_df (pd.DataFrame): meteorological year dataframe, with hour of day as columns and day of year as index
-        title (str): title to give heatmap
-        cmap (str): colormap
-        clabel (str): name of variable being plotted
+    Parameters
+    ----------
+    meteo_yr_df: pd.DataFrame
+        Meteorological year dataframe, with hour of day as columns and day of year as index
+        Output of either compute_severe_yr or compute_meteo_yr
+    title: str, optional
+        Title to give heatmap. Default to "Meteorological Year"
+    cmap: matplotlib colormap name or AE colormap names, optional
+        Colormap to apply to heatmap. Default to "ae_orange"
+    clabel: str, optional
+        Name of variable being plotted. Default to None.
+        Will be applied to label of colorbar.
 
-    Returns:
-        fig (matplotlib.figure.Figure)
-
+    Returns
+    -------
+    matplotlib.figure.Figure
+        Static heatmap
     """
     # Set colormap if it's an ae colormap
     # If using hvplot, set cmap_hex = True
@@ -403,8 +459,7 @@ def meteo_yr_heatmap_static(meteo_yr_df, title=None, cmap="ae_orange", clabel=No
     ax.set_yticklabels(meteo_yr_df.index[first_days_of_month])
 
     # Set title and labels
-    if title is not None:
-        ax.set_title(title)
+    ax.set_title(title)
     ax.set_ylabel(meteo_yr_df.index.name)
     ax.set_xlabel(meteo_yr_df.columns.name)
 
@@ -423,17 +478,30 @@ def lineplot_from_amy_data(
     warmlevel=None,
     variable=None,
 ):
-    """Generate a lineplot of AMY data, with mon-day-hr on the x-axis
+    """Generate a lineplot of meteorological year data, with mon-day-hr on the x-axis
 
-    Args:
-        amy_data (pd.DataFrame): data in the format of the dataframe returned by _amy_calc
-        computation_method (str): AMY computation method of data
-        location_subset (str): location subset of data
-        warmlevel (str): warming level used to generate data
-        variable (str): Name of data variable
+    Parameters
+    -----------
+    amy_data: pd.DataFrame
+        Meteorological year dataframe, with hour of day as columns and day of year as index
+        Output of either compute_severe_yr or compute_meteo_yr
+    computation_method: str, optional
+        Method used to compute the meteorological year.
+        Used to add descriptive information to the plot title.
+    location_subset: str, optional
+        Location subset of data.
+        Used to add descriptive information to the plot title.
+    warmlevel: str, optional
+        Warming level used to generate data.
+        Used to add descriptive information to the plot title.
+    variable: str, optional
+        Name of data variable.
+        Used to add descriptive information to the plot title.
 
-    Returns:
-        fig (matplotlib.figure.Figure)
+    Returns
+    --------
+    matplotlib.figure.Figure
+        Lineplot of the data
 
     """
 
@@ -581,14 +649,14 @@ class AverageMeteorologicalYear(param.Parameterized):
         ][self.computation_method]
 
         # Postage data and anomalies defaults
-        self.historical_tmy_data = retrieve_meteo_yr_data(
+        self.historical_tmy_data = _retrieve_meteo_yr_data(
             selections=self.selections,
             location=self.location,
             _cat=self.cat,
             year_start=1981,
             year_end=2010,
         ).compute()
-        self.future_tmy_data = retrieve_meteo_yr_data(
+        self.future_tmy_data = _retrieve_meteo_yr_data(
             _cat=self.cat,
             selections=self.selections,
             location=self.location,
@@ -654,14 +722,14 @@ class AverageMeteorologicalYear(param.Parameterized):
         """If the button was clicked and the location or variable was changed,
         reload the tmy data from AWS"""
 
-        self.historical_tmy_data = retrieve_meteo_yr_data(
+        self.historical_tmy_data = _retrieve_meteo_yr_data(
             selections=self.selections,
             location=self.location,
             _cat=self.cat,
             year_start=1981,
             year_end=2010,
         ).compute()
-        self.future_tmy_data = retrieve_meteo_yr_data(
+        self.future_tmy_data = _retrieve_meteo_yr_data(
             _cat=self.cat,
             selections=self.selections,
             location=self.location,

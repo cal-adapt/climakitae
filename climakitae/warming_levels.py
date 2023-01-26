@@ -67,15 +67,21 @@ def _get_postage_data(selections, location, cat):
 
 
 def get_anomaly_data(data, warmlevel=3.0, scenario="ssp370"):
-    """
-    Helper function for calculating warming level anomalies.
+    """Calculating warming level anomalies.
 
-    Args:
-        data (xr.DataArray)
-        warmlevel (float): warming level
+    Parameters
+    ----------
+    data: xr.DataArray
+        Data to compute warming level anomolies
+    warmlevel: float, optional
+        Warming level (in deg C) to use. Default to 3 degC
+    scenario: str, one of "ssp370", "ssp585", "ssp245"
+        Shared Socioeconomic Pathway. Default to SSP 3-7.0
 
-    Returns:
-        warm_all_anoms (xr.DataArray): warming level anomalies computed from input data
+    Returns
+    --------
+    xr.DataArray
+        Warming level anomalies at the input warming level and scenario
     """
     sim_names = {
         "cesm2": "CESM2",
@@ -174,7 +180,28 @@ def _make_hvplot(data, clabel, clim, cmap, sopt, title, width=225, height=210):
 
 
 class WarmingLevels(param.Parameterized):
-    warmlevel = param.ObjectSelector(default=1.5, objects=[1.5, 2, 3, 4])
+    """Generate warming levels panel GUI in notebook.
+
+    Intended to be accessed through app.explore.warming_levels()
+    Allows the user to toggle between several data options.
+    Produces dynamically updating postage stamp maps.
+
+    Attributes
+    ----------
+    warmlevel: param.ObjectSelector
+        Warming level in degrees Celcius.
+    ssp: param.ObjectSelector
+        Shared socioeconomic pathway.
+    cmap: param.ObjectSelector
+        Colormap used to color maps
+    changed_loc_and_var: param.Boolean
+        Has the location and variable been changed?
+        If so, reload the warming level anomolies.
+    """
+
+    warmlevel = param.ObjectSelector(
+        default=1.5, objects=[1.5, 2, 3, 4], doc="Warming level in degrees Celcius."
+    )
     ssp = param.ObjectSelector(
         default="All",
         objects=[
@@ -185,8 +212,9 @@ class WarmingLevels(param.Parameterized):
             "SSP 3-7.0 -- Business as Usual",
             "SSP 5-8.5 -- Burn it All",
         ],
+        doc="Shared Socioeconomic Pathway.",
     )
-    cmap = param.ObjectSelector(dict())
+    cmap = param.ObjectSelector(dict(), doc="Colormap")
 
     def __init__(self, *args, **params):
         super().__init__(*args, **params)
@@ -214,9 +242,12 @@ class WarmingLevels(param.Parameterized):
 
     # For reloading postage stamp data and plots
     reload_data = param.Action(
-        lambda x: x.param.trigger("reload_data"), label="Reload Data"
+        lambda x: x.param.trigger("reload_data"), label="Reload Data", doc="Reload data"
     )
-    changed_loc_and_var = param.Boolean(default=True)
+    changed_loc_and_var = param.Boolean(
+        default=True,
+        doc="Has the location and variable been changed? If so, reload the warming level anomolies.",
+    )
 
     @param.depends("selections.variable", watch=True)
     def _update_cmap(self):
