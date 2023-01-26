@@ -4,7 +4,8 @@
 Working with our Data
 **********************
 Data from the Cal-Adapt Analytics Engine can be retrieved, subsetted, visualized, and 
-exported using the *climakitae library*. 
+exported using the *climakitae library*. Visit the `Analytics Engine website <https://analytics.cal-adapt.org/data/>`_ 
+to see more information about the various datasets available in our catalog. 
 
 
 Retrieve and subset the data
@@ -16,7 +17,7 @@ Use the app.select() panel GUI
 If you are working in a Jupyter notebook environment, you can view and set your data and location 
 options in the :py:func:`climakitae.Application.select()` GUI (graphical user interface). This GUI also provides a visual overview of the various 
 datasets available in the AE data catalog. Using this GUI, you can chose what dataset you'd like to 
-retrieve-- chosing a variable, timeslice, resolution, etc.-- and the location for which you'd like to 
+retrieve-- choosing a variable, timeslice, resolution, etc.-- and the location for which you'd like to 
 retrieve the data.::
    
    import climakitae as ck  # Import the package
@@ -109,7 +110,7 @@ The row values must match valid options in our data catalog, and the headers of 
 
 Read the data into memory 
 ###########################
-The data is retrieved as lazily loaded Dask arrays until you chose to read the data into 
+The data is retrieved as lazily loaded Dask arrays until you choose to read the data into 
 memory. You'll want to read your data into memory before plotting it, exporting it,
 or performing certain computations in order to optimize performance. To read the data 
 into memory, use the :py:func:`climakitae.Application.load()` method. ::
@@ -131,16 +132,24 @@ the documentation in the API for more information.
 
 Export the data 
 ################
-To export the data, first chose the filetype you want to export the data to using the 
-:py:func:`climakitae.Application.export_as()` dropdown menu. This will allow you to choose 
-between three options: netcdf, csv, and geotiff.::
+To export your final data (which should be an :py:class:`xarray.DataArray` object), first choose the 
+filetype you want to export the data to using the :py:func:`climakitae.Application.export_as()` dropdown menu. 
+This will allow you to choose between three options: NetCDF, CSV, and GeoTIFF. ::
 
    app.export_as() 
+
+We recommend exporting the data to NetCDF, which will work with any number of variables and dimensions. 
+CSV and GeoTIFF can only be used for datasets with a single variable.
+CSV works best for up to 2-dimensional data (e.g., lon x lat), and will be compressed and exported 
+with a separate metadata file. 
+For GeoTIFF exports, metadata will be accessible as "tags" in the tif file. 
+GeoTIFF can accept 3 dimensions total:
+
+* Horizontal dimensions; i.e. x and y (required)
+* The third dimension is flexible and will be a "band" in the file: time, simulation, or scenario could go here
 
 After selecting your desired output filetype, input the data you want to export and the 
 desired filename (excluding the file extension) as arguments to the 
 :py:func:`climakitae.Application.export_dataset()` function. :: 
 
    export_dataset(data, "my_filename")
-
-**Note:** This data export functionality will only work within a notebook environment. 

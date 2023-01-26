@@ -24,10 +24,11 @@ scientific analyses with data from the Cal-Adapt Analytics Engine.
 
     .. grid-item-card:: Getting Started
         :img-top: _static/runner.svg
-        :link: https://analytics.cal-adapt.org/docs/applications/getting-started/
+        :link: https://github.com/cal-adapt/cae-notebooks/blob/main/getting_started.ipynb
         :columns: 3
 
-        The basics for getting started with *climakitae*. 
+        An introductory notebook demonstrating how to get started with *climakitae* and 
+        the Cal-Adapt Analytics Engine.
 
     .. grid-item-card::  API Reference
         :img-top: _static/book.svg
@@ -59,7 +60,7 @@ directly from pip: ::
    :hidden:
    :caption: Overview
    
-   Getting Started <https://analytics.cal-adapt.org/docs/applications/getting-started/>
+   Getting Started <https://github.com/cal-adapt/cae-notebooks/blob/main/getting_started.ipynb>
    Working with the Data <data>
    climakitae API <api>
 
