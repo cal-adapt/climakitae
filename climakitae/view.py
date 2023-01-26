@@ -58,7 +58,7 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
 
             # Set default cmap if no user input
             # Different if using matplotlib (no "hex")
-            if cmap in ["ae_orange", "ae_diverging", "ae_blue"]:
+            if cmap in ["ae_orange", "ae_diverging", "ae_blue", "ae_diverging_r"]:
                 cmap = _read_ae_colormap(cmap=cmap, cmap_hex=False)
 
             with warnings.catch_warnings():
@@ -85,7 +85,7 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
 
             # Set default cmap if no user input
             # Different if using hvplot (we need "hex")
-            if cmap in ["ae_orange", "ae_diverging", "ae_blue"]:
+            if cmap in ["ae_orange", "ae_diverging", "ae_blue", "ae_diverging_r"]:
                 cmap = _read_ae_colormap(cmap=cmap, cmap_hex=True)
 
             # Set default width & height

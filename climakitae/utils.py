@@ -11,12 +11,16 @@ import matplotlib
 import pkg_resources
 import warnings
 
+
 # Read colormap text files
 ae_orange = pkg_resources.resource_filename("climakitae", "data/cmaps/ae_orange.txt")
 ae_diverging = pkg_resources.resource_filename(
     "climakitae", "data/cmaps/ae_diverging.txt"
 )
 ae_blue = pkg_resources.resource_filename("climakitae", "data/cmaps/ae_blue.txt")
+ae_diverging_r = pkg_resources.resource_filename(
+    "climakitae", "data/cmaps/ae_diverging_r.txt"
+)
 
 
 def get_closest_gridcell(data, lat, lon):
@@ -134,6 +138,8 @@ def _read_ae_colormap(cmap="ae_orange", cmap_hex=False):
         cmap_data = ae_diverging
     elif cmap == "ae_blue":
         cmap_data = ae_blue
+    elif cmap == "ae_diverging_r":
+        cmap_data = ae_diverging_r
 
     # Load text file
     cmap_np = np.loadtxt(cmap_data, dtype=float)
