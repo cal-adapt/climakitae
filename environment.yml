@@ -5,6 +5,7 @@ channels:
 dependencies:
   - python=3.9.7
   - cartopy=0.20.1
+  - cmip6_preprocessing
   - dask-gateway=0.9.0
   - geopandas=0.10.2
   - geoviews=1.9.2
