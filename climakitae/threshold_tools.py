@@ -48,7 +48,7 @@ def get_ams(da, extremes_type="max"):
     return ams
 
 
-def get_distr(distr):
+def get_distr_func(distr):
     """
     Returns corresponding distribution function from selected
     distribution name.
