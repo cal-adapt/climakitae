@@ -31,7 +31,7 @@ def get_closest_gridcell(data, lat, lon):
 
     Parameters
     -----------
-    data: xr.DataArray
+    data: xr.DataArray or xr.Dataset
         Gridded data
     lat: float
         Latitude of coordinate pair
