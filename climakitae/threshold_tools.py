@@ -8,9 +8,6 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from scipy import stats
-import lmoments3 as lm
-from lmoments3 import distr as ldistr
-from lmoments3 import stats as lstats
 import matplotlib.pyplot as plt
 from matplotlib import cm
 import cartopy.crs as ccrs
