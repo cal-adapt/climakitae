@@ -68,7 +68,7 @@ def get_closest_gridcell(data, lat, lon):
     print(
         "Input coordinates: (%.2f, %.2f)" % (lat, lon)
         + "\nNearest grid cell coordinates: (%.2f, %.2f)"
-        % (closest_gridcell.lat.item(), closest_gridcell.lon.item())
+        % (closest_gridcell.lat.values.item(), closest_gridcell.lon.values.item())
     )
     return closest_gridcell
 
