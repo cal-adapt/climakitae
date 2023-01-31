@@ -74,24 +74,39 @@ def get_distr_func(distr):
     return distr_func
 
 
-def get_fitted_distr(ams, distr, lmom_distr):
+def get_fitted_distr(ams, distr, distr_func):
     """
-    Returns fitted l-moments distribution function from l-moments.
+    Returns fitted distribution function from parameters.
     """
 
-    lmoments = lmom_distr.lmom_fit(ams)
+    def get_parameters(p, p_values):
+        return {p[i] : p_values[i] for i, _ in enumerate(p_values)}
+
+    parameters = {}
+
+    p_values = distr_func.fit(ams)
 
     if distr == "gev":
-        fitted_distr = stats.genextreme(**lmoments)
+        p = ("c", "loc", "scale")
+        parameters = get_parameters(p, p_values)
+        fitted_distr = stats.genextreme(**parameters)
     elif distr == "gumbel":
-        fitted_distr = stats.gumbel_r(**lmoments)
+        p = ("loc", "scale")
+        parameters = get_parameters(p, p_values)
+        fitted_distr = stats.gumbel_r(**parameters)
     elif distr == "weibull":
-        fitted_distr = stats.weibull_min(**lmoments)
+        p = ("c", "loc", "scale")
+        parameters = get_parameters(p, p_values)
+        fitted_distr = stats.weibull_min(**parameters)
     elif distr == "pearson3":
-        fitted_distr = stats.pearson3(**lmoments)
+        p = ("skew", "loc", "scale")
+        parameters = get_parameters(p, p_values)
+        fitted_distr = stats.pearson3(**parameters)
     elif distr == "genpareto":
-        fitted_distr = stats.genpareto(**lmoments)
-    return lmoments, fitted_distr
+        p = ("c", "loc", "scale")
+        parameters = get_parameters(p, p_values)
+        fitted_distr = stats.genpareto(**parameters)
+    return parameters, fitted_distr
 
 
 def get_lmoments(ams, distr="gev", multiple_points=True):
