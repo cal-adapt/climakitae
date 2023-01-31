@@ -48,30 +48,30 @@ def get_ams(da, extremes_type="max"):
     return ams
 
 
-def get_lmom_distr(distr):
+def get_distr(distr):
     """
-    Returns corresponding l-moments distribution function from selected
+    Returns corresponding distribution function from selected
     distribution name.
     """
 
     distrs = ["gev", "gumbel", "weibull", "pearson3", "genpareto"]
 
     if distr == "gev":
-        lmom_distr = ldistr.gev
+        distr_func = stats.genextreme
     elif distr == "gumbel":
-        lmom_distr = ldistr.gum
+        distr_func = stats.gumbel_r
     elif distr == "weibull":
-        lmom_distr = ldistr.wei
+        distr_func = stats.weibull_min
     elif distr == "pearson3":
-        lmom_distr = ldistr.pe3
+        distr_func = stats.pearson3
     elif distr == "genpareto":
-        lmom_distr = ldistr.gpa
+        distr_func = stats.genpareto
     else:
         raise ValueError(
             "invalid distr type. expected one of the following: %s" % distrs
         )
 
-    return lmom_distr
+    return distr_func
 
 
 def get_fitted_distr(ams, distr, lmom_distr):
