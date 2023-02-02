@@ -461,7 +461,7 @@ def get_return_period(
     """
 
     data_variable = "return_period"
-    lmom_distr = get_dist_func(distr)
+    distr_func = get_dist_func(distr)
     ams_attributes = ams.attrs
 
     if multiple_points:
@@ -470,7 +470,7 @@ def get_return_period(
     def return_period(ams):
 
         try:
-            lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
+            parameters, fitted_distr = get_fitted_distr(ams, distr, distr_func)
             return_period = calculate_return(
                 fitted_distr=fitted_distr,
                 data_variable=data_variable,
