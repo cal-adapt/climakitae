@@ -68,7 +68,7 @@ def get_distr_func(distr):
         distr_func = stats.genpareto
     else:
         raise ValueError(
-            "invalid distr type. expected one of the following: %s" % distrs
+            "invalid distribution type. expected one of the following: %s" % distrs
         )
 
     return distr_func
