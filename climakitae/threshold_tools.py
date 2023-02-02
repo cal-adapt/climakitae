@@ -80,7 +80,7 @@ def get_fitted_distr(ams, distr, distr_func):
     """
 
     def get_parameters(p, p_values):
-        return {p[i] : p_values[i] for i, _ in enumerate(p_values)}
+        return {p[i]: p_values[i] for i, _ in enumerate(p_values)}
 
     parameters = {}
 
