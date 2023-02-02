@@ -456,7 +456,6 @@ def get_return_period(
         ams = ams.stack(allpoints=["y", "x"]).squeeze().groupby("allpoints")
 
     def return_period(ams):
-
         try:
             lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
             return_period = calculate_return(

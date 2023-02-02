@@ -748,7 +748,6 @@ class DataSelector(param.Parameterized):
         y_offset = 0.15
         if (self.scenario_ssp is not None) and (self.scenario_historical is not None):
             for scen in self.scenario_ssp + self.scenario_historical:
-
                 if ["SSP" in one for one in self.scenario_ssp]:
                     if scen in [
                         "Historical Climate",
@@ -816,7 +815,6 @@ class DataSelector(param.Parameterized):
 
 
 def _get_data_selection_description(selections, location):
-
     """
     Make a long string to output to the user to show all their current selections.
     Updates whenever any of the input values are changed.
@@ -885,7 +883,6 @@ class SelectionDescription(param.Parameterized):
     )
 
     def __init__(self, **params):
-
         super().__init__(**params)
 
         self._data_selection_description = _get_data_selection_description(
@@ -1027,7 +1024,6 @@ def _display_select(selections, location):
 
 
 class UserFileChoices:
-
     # reserved for later: text boxes for dataset to export
     # as well as a file name
     # data_var_name = param.String()

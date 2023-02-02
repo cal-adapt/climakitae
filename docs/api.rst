@@ -50,21 +50,33 @@ Functions help with data retrieval, comutation of the meteorological year, and p
 
 Warming Levels  
 -------------------
-
+Helper functions for performing analyses using climate warming levels. 
 .. autosummary::
    :toctree: generated/
 
    warming_levels.get_anomaly_data
 
-Threshold tools 
+Threshold Tools 
 ----------------
 Helper functions for thresholds-related analyses. Documentation in progress.
 
-Timeseries tools
+Timeseries Tools
 -----------------
 Helper functions for working with timeseries data. Documentation in progess. 
 
+Model Uncertainty
+-------------------
+Helper functions for performing analyses related to assessing uncertainty quantification in climate models.
 
+.. autosummary::
+   :toctree: generated/
+
+   uncertain_utils.CmipOpt
+   uncertain_utils.grab_temp_data
+   uncertain_utils.cmip_annual
+   uncertain_utils.cmip_annual
+   uncertain_utils.compute_vmin_vmax
+   
 Misc
 -----
 Other uncatecorized functions that may be useful to users. 

@@ -238,8 +238,8 @@ def grab_temp_data(copt):
 
     Attributes
     ----------
-    copt: object
-        Selections: variable, area_subset, location, area_average, timescale
+    copt: CmipOpt
+        Selections for variable, area_subset, location, area_average, timescale
 
     Returns
     -------
