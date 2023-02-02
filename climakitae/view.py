@@ -62,7 +62,6 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
                 cmap = _read_ae_colormap(cmap=cmap, cmap_hex=False)
 
             with warnings.catch_warnings():
-
                 # Silence annoying matplotlib deprecation error
                 warnings.simplefilter("ignore")
 
