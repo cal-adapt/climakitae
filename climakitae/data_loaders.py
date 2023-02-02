@@ -342,7 +342,6 @@ def _get_data_one_var(selections, location, cat):
 
     # Perform subsetting operations
     for dname, dset in data_dict.items():
-
         # Add simulation as a coord
         dset = dset.assign_coords({"simulation": dset.attrs["source_id"]})
 
@@ -400,7 +399,6 @@ def _read_from_catalog(selections, location, cat):
         "rh_derived",
         "dew_point_derived",
     ]:
-
         if orig_var_id_selection == "wind_speed_derived":
             # Load u10 data
             selections.variable_id = "u10"

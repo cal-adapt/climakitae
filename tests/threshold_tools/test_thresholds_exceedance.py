@@ -28,6 +28,7 @@ def T2_hourly(rootdir):
 
 # ------------- Test kwarg compatibility and Exceptions ------------------------
 
+
 # incompatible: cannot specify a 1-day groupy for monthly data
 def test_error1(test_data_2022_monthly_45km):
     with pytest.raises(ValueError, match="Incompatible `group` specification"):
@@ -48,6 +49,7 @@ def test_error2(T2_hourly):
 
 
 # ------------- Tests with hourly data -----------------------------------------
+
 
 # example 1: count number of hours in each year exceeding the threshold
 def test_hourly_ex1(T2_hourly):
@@ -109,6 +111,7 @@ def test_duration():
 
 
 # ------------- Test helper functions for plotting -----------------------------
+
 
 # example name 1: Number of hours each year
 def test_name1():
