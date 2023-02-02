@@ -109,34 +109,34 @@ def get_fitted_distr(ams, distr, distr_func):
     return parameters, fitted_distr
 
 
-def get_lmoments(ams, distr="gev", multiple_points=True):
-    """
-    Returns dataset of l-moments ratios from an inputed maximum series.
-    """
+# def get_lmoments(ams, distr="gev", multiple_points=True):
+#     """
+#     Returns dataset of l-moments ratios from an inputed maximum series.
+#     """
 
-    lmom_distr = get_dist_func(distr)
-    ams_attributes = ams.attrs
+#     lmom_distr = get_dist_func(distr)
+#     ams_attributes = ams.attrs
 
-    if multiple_points:
-        ams = ams.stack(allpoints=["y", "x"]).squeeze().groupby("allpoints")
+#     if multiple_points:
+#         ams = ams.stack(allpoints=["y", "x"]).squeeze().groupby("allpoints")
 
-    lmoments = xr.apply_ufunc(
-        lmom_distr.lmom_fit,
-        ams,
-        input_core_dims=[["time"]],
-        exclude_dims=set(("time",)),
-        output_core_dims=[[]],
-    )
+#     lmoments = xr.apply_ufunc(
+#         lmom_distr.lmom_fit,
+#         ams,
+#         input_core_dims=[["time"]],
+#         exclude_dims=set(("time",)),
+#         output_core_dims=[[]],
+#     )
 
-    lmoments = lmoments.rename("lmoments")
-    new_ds = lmoments.to_dataset().to_array()
+#     lmoments = lmoments.rename("lmoments")
+#     new_ds = lmoments.to_dataset().to_array()
 
-    if multiple_points:
-        new_ds = new_ds.unstack("allpoints")
+#     if multiple_points:
+#         new_ds = new_ds.unstack("allpoints")
 
-    new_ds.attrs = ams_attributes
-    new_ds.attrs["distribution"] = "{}".format(str(distr))
-    return new_ds
+#     new_ds.attrs = ams_attributes
+#     new_ds.attrs["distribution"] = "{}".format(str(distr))
+#     return new_ds
 
 
 def get_ks_stat(ams, distr="gev", multiple_points=True):
