@@ -30,7 +30,6 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
     "sphinx.ext.extlinks",
-    "nbsphinx",
     "sphinx_design",
 ]
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
