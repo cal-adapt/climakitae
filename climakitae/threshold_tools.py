@@ -386,7 +386,7 @@ def get_return_prob(
     """
 
     data_variable = "return_prob"
-    lmom_distr = get_dist_func(distr)
+    distr_func = get_dist_func(distr)
     ams_attributes = ams.attrs
 
     if multiple_points:
@@ -394,7 +394,7 @@ def get_return_prob(
 
     def return_prob(ams):
         try:
-            lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
+            parameters, fitted_distr = get_fitted_distr(ams, distr, distr_func)
             return_prob = calculate_return(
                 fitted_distr=fitted_distr,
                 data_variable=data_variable,
