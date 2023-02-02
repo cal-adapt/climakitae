@@ -114,7 +114,7 @@ def get_fitted_distr(ams, distr, distr_func):
 #     Returns dataset of l-moments ratios from an inputed maximum series.
 #     """
 
-#     lmom_distr = get_dist_func(distr)
+#     lmom_distr = get_distr_func(distr)
 #     ams_attributes = ams.attrs
 
 #     if multiple_points:
@@ -145,7 +145,7 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
     maximum series.
     """
 
-    distr_func = get_dist_func(distr)
+    distr_func = get_distr_func(distr)
     ams_attributes = ams.attrs
 
     if multiple_points:
@@ -247,7 +247,7 @@ def bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
             % data_variables
         )
 
-    distr_func = get_dist_func(distr)
+    distr_func = get_distr_func(distr)
 
     sample_size = len(ams)
     new_ams = np.random.choice(ams, size=sample_size, replace=True)
@@ -312,7 +312,7 @@ def get_return_value(
     """
 
     data_variable = "return_value"
-    distr_func = get_dist_func(distr)
+    distr_func = get_distr_func(distr)
     ams_attributes = ams.attrs
 
     if multiple_points:
@@ -386,7 +386,7 @@ def get_return_prob(
     """
 
     data_variable = "return_prob"
-    distr_func = get_dist_func(distr)
+    distr_func = get_distr_func(distr)
     ams_attributes = ams.attrs
 
     if multiple_points:
@@ -461,7 +461,7 @@ def get_return_period(
     """
 
     data_variable = "return_period"
-    distr_func = get_dist_func(distr)
+    distr_func = get_distr_func(distr)
     ams_attributes = ams.attrs
 
     if multiple_points:
