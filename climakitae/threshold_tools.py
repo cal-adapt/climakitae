@@ -247,13 +247,13 @@ def bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
             % data_variables
         )
 
-    lmom_distr = get_dist_func(distr)
+    distr_func = get_dist_func(distr)
 
     sample_size = len(ams)
     new_ams = np.random.choice(ams, size=sample_size, replace=True)
 
     try:
-        lmoments, fitted_distr = get_fitted_distr(new_ams, distr, lmom_distr)
+        parameters, fitted_distr = get_fitted_distr(new_ams, distr, distr_func)
         result = calculate_return(
             fitted_distr=fitted_distr,
             data_variable=data_variable,
