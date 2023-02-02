@@ -145,30 +145,30 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
     maximum series.
     """
 
-    lmom_distr = get_dist_func(distr)
+    distr_func = get_dist_func(distr)
     ams_attributes = ams.attrs
 
     if multiple_points:
         ams = ams.stack(allpoints=["y", "x"]).squeeze().groupby("allpoints")
 
     def ks_stat(ams):
-        lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
+        parameters, fitted_distr = get_fitted_distr(ams, distr, distr_func)
 
         if distr == "gev":
             cdf = "genextreme"
-            args = (lmoments["c"], lmoments["loc"], lmoments["scale"])
+            args = (parameters["c"], parameters["loc"], parameters["scale"])
         elif distr == "gumbel":
             cdf = "gumbel_r"
-            args = (lmoments["loc"], lmoments["scale"])
+            args = (parameters["loc"], parameters["scale"])
         elif distr == "weibull":
             cdf = "weibull_min"
-            args = (lmoments["c"], lmoments["loc"], lmoments["scale"])
+            args = (parameters["c"], parameters["loc"], parameters["scale"])
         elif distr == "pearson3":
             cdf = "pearson3"
-            args = (lmoments["skew"], lmoments["loc"], lmoments["scale"])
+            args = (parameters["skew"], parameters["loc"], parameters["scale"])
         elif distr == "genpareto":
             cdf = "genpareto"
-            args = (lmoments["c"], lmoments["loc"], lmoments["scale"])
+            args = (parameters["c"], parameters["loc"], parameters["scale"])
 
         try:
             ks = stats.kstest(ams, cdf, args=args)
