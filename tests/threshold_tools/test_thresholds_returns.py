@@ -13,6 +13,7 @@ from climakitae import threshold_tools
 
 # ------------- Data for testing -----------------------------------------------
 
+
 # Generate an annual maximum series (ams) datarray for testing
 @pytest.fixture
 def T2_ams(rootdir):
@@ -24,6 +25,7 @@ def T2_ams(rootdir):
 
 
 # ------------- Test return values and periods ----------------------------------
+
 
 # Test Return Values
 def test_return_value(T2_ams):
