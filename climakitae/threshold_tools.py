@@ -16,8 +16,21 @@ from .visualize import get_geospatial_plot
 
 
 def get_ams(da, extremes_type="max"):
-    """
-    Returns a data array of annual maximums.
+    """Function that converts data into annual maximums
+
+    Takes input array and resamples annually and takes the maximum value.
+
+    Parameters
+    ----------
+    da: xarray.DataArray
+        DataArray from app.retrieve
+    extremes_type: str
+        option for max or min (min not implemented yet)
+        Defaults to max
+
+    Returns
+    -------
+    xarray.DataArray
     """
 
     extremes_types = ["max"]
@@ -37,9 +50,19 @@ def get_ams(da, extremes_type="max"):
 
 
 def get_distr_func(distr):
-    """
-    Returns corresponding distribution function from selected
+    """Function that sets the scipy distribution object
+
+    Sets corresponding distribution function from selected
     distribution name.
+
+    Parameters
+    ----------
+    distr: str
+        name of distribution to use
+
+    Returns
+    -------
+    scipy.stats
     """
 
     distrs = ["gev", "gumbel", "weibull", "pearson3", "genpareto"]
@@ -63,8 +86,22 @@ def get_distr_func(distr):
 
 
 def get_fitted_distr(ams, distr, distr_func):
-    """
-    Returns fitted distribution function from parameters.
+    """Function for fitting data to distribution function
+
+    Takes data array and fits it to distribution function.
+
+    Parameters
+    ----------
+    ams: xarray.DataArray
+    distr: str
+    distr_func: scipy.stats
+
+    Returns
+    -------
+    parameters: dict
+        dictionary of distribution function parameters
+    fitted_distr: scipy.rv_frozen
+        frozen fitted distribution
     """
 
     def get_parameters(p, p_values):
@@ -101,9 +138,20 @@ def get_fitted_distr(ams, distr, distr_func):
 
 
 def get_ks_stat(ams, distr="gev", multiple_points=True):
-    """
-    Returns a dataset of ks test d-statistics and p-values from an inputed
+    """Function to perform kstest on input DataArray
+
+    Creates a dataset of ks test d-statistics and p-values from an inputed
     maximum series.
+
+    Parameters
+    ----------
+    ams: xarray.DataArray
+    distr: str
+    multiple_points: boolean
+
+    Returns
+    -------
+    xarray.Dataset
     """
 
     distr_func = get_distr_func(distr)
@@ -166,9 +214,25 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
 
 
 def calculate_return(fitted_distr, data_variable, arg_value):
+    """Function to perform extreme value calculation on fitted distribution
+
+    Runs corresponding extreme value calculation for selected data variable.
+    Can be the return value, probability, or period.
+
+    Parameters
+    ----------
+    fitted_distr: scipy.rv_frozen
+        frozen fitted distribution
+    data_variable: str
+        can be return_value, return_prob, return_period
+    arg_value: float
+        value to do the calucation to
+
+    Returns
+    -------
+    float
     """
-    Returns corresponding extreme value calculation for selected data variable.
-    """
+
 
     if data_variable == "return_value":
         try:
@@ -196,9 +260,23 @@ def calculate_return(fitted_distr, data_variable, arg_value):
 
 
 def bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
-    """
-    Returns a bootstrap-calculated value for relevant parameters from an
+    """Function for making a bootstrap-calculated value from input array
+
+    Determines a bootstrap-calculated value for relevant parameters from an
     inputed maximum series.
+
+    Parameters
+    ----------
+    ams: xarray.DataArray
+    distr: str
+    data_variable: str
+        can be return_value, return_prob, return_period
+    arg_value: float
+        value to do the calucation to
+
+    Returns
+    -------
+    float
     """
 
     data_variables = ["return_value", "return_prob", "return_period"]
@@ -235,8 +313,24 @@ def conf_int(
     conf_int_lower_bound,
     conf_int_upper_bound,
 ):
-    """
+    """Function for genearating lower and upper limits of confidence interval
+
     Returns lower and upper limits of confidence interval given selected parameters.
+
+    Parameters
+    ----------
+    ams: xarray.DataArray
+    distr: str
+    data_variable: str
+        can be return_value, return_prob, return_period
+    arg_value: float
+        value to do the calucation to
+    conf_int_lower_bound: float
+    conf_int_upper_bound: float
+
+    Returns
+    -------
+    float, float
     """
 
     bootstrap_values = []
@@ -268,8 +362,23 @@ def get_return_value(
     conf_int_upper_bound=97.5,
     multiple_points=True,
 ):
-    """
+    """Creates xarray Dataset with return values and confidence intervals from maximum series
+
     Returns dataset with return values and confidence intervals from maximum series.
+
+    Parameters
+    ----------
+    ams: xarray.DataArray
+    return_period: float
+    distr: str
+    bootstrap_runs: int
+    conf_int_lower_bound: float
+    conf_int_upper_bound: float
+    multiple_points: boolean
+
+    Returns
+    -------
+    xarray.Dataset
     """
 
     data_variable = "return_value"
@@ -342,8 +451,23 @@ def get_return_prob(
     conf_int_upper_bound=97.5,
     multiple_points=True,
 ):
-    """
+    """Creates xarray Dataset with return probabilities and confidence intervals from maximum series
+
     Returns dataset with return probabilities and confidence intervals from maximum series.
+
+    Parameters
+    ----------
+    ams: xarray.DataArray
+    threshold: float
+    distr: str
+    bootstrap_runs: int
+    conf_int_lower_bound: float
+    conf_int_upper_bound: float
+    multiple_points: boolean
+
+    Returns
+    -------
+    xarray.Dataset
     """
 
     data_variable = "return_prob"
@@ -417,8 +541,23 @@ def get_return_period(
     conf_int_upper_bound=97.5,
     multiple_points=True,
 ):
-    """
+    """Creates xarray Dataset with return periods and confidence intervals from maximum series
+
     Returns dataset with return periods and confidence intervals from maximum series.
+
+    Parameters
+    ----------
+    ams: xarray.DataArray
+    return_value: float
+    distr: str
+    bootstrap_runs: int
+    conf_int_lower_bound: float
+    conf_int_upper_bound: float
+    multiple_points: boolean
+
+    Returns
+    -------
+    xarray.Dataset
     """
 
     data_variable = "return_period"
@@ -496,30 +635,40 @@ def get_exceedance_count(
     groupby=None,
     smoothing=None,
 ):
-    """
-    Calculate the number of occurances of exceeding the specified threshold
+    """Calculate the number of occurances of exceeding the specified threshold
     within each period.
 
-    Returns an xarray with the same coordinates as the input data except for
+    Returns an xarray.DataArray with the same coordinates as the input data except for
     the time dimension, which will be collapsed to one value per period (equal
     to the number of event occurances in each period).
 
-    Arguments:
-    da -- an xarray.DataArray of some climate variable. Can have multiple
+    Parameters
+    ----------
+    da: xarray.DataArray
+        array of some climate variable. Can have multiple
         scenarios, simulations, or x and y coordinates.
-    threshold_value -- value against which to test exceedance
-
-    Optional Keyword Arguments:
-    period -- amount of time across which to sum the number of occurances,
+    threshold_value: float
+        value against which to test exceedance
+    period: int
+        amount of time across which to sum the number of occurances,
         default is (1, "year"). Specified as a tuple: (x, time) where x is an
         integer, and time is one of: ["day", "month", "year"]
-    threshold_direction -- string either "above" or "below", default is above.
-    duration1 -- length of exceedance in order to qualify as an event (before grouping)
-    groupby -- see examples for explanation. Typical grouping could be (1, "day")
-    duration2 -- length of exceedance in order to qualify as an event (after grouping)
-    smoothing -- option to average the result across multiple periods with a
+    threshold_direction: str
+        either "above" or "below", default is above.
+    duration1: tuple
+        length of exceedance in order to qualify as an event (before grouping)
+    groupby: tuple
+        see examples for explanation. Typical grouping could be (1, "day")
+    duration2: tuple
+        length of exceedance in order to qualify as an event (after grouping)
+    smoothing: int
+        option to average the result across multiple periods with a
         rolling average; value is either None or the number of timesteps to use
         as the window size
+
+    Returns
+    -------
+    xarray.DataArray
     """
 
     # --------- Type check arguments -------------------------------------------
@@ -623,9 +772,23 @@ def get_exceedance_count(
 
 
 def _is_greater(time1, time2):
-    """
-    Helper function for comparing user specifications of period, duration, and groupby.
-    Examples:
+    """Function that compares period, duration.
+
+    Helper function for comparing user specifications of period, duration.
+
+    Parameters
+    ----------
+    time1: tuple
+        tuple of period (int), duration (str)
+    time2: tuple
+        tuple of period (int), duration (str)
+
+    Returns
+    -------
+    boolean
+
+    Examples
+    --------
         (1, "day"), (1, "year") --> False
         (3, "month"), (1, "month") --> True
     """
@@ -641,9 +804,26 @@ def _is_greater(time1, time2):
 def get_exceedance_events(
     da, threshold_value, threshold_direction="above", duration1=None, groupby=None
 ):
-    """
+    """Function for generating logical array of threshold event occurance
+
     Returns an xarray that specifies whether each entry of `da` is a qualifying
     threshold event. Values are 0 for False, 1 for True, or NaN for NaNs.
+
+    Parameters
+    ----------
+    da: xarray.DataArray
+    threshold_value: float
+        value against which to test exceedance
+    threshold_direction: str
+        either "above" or "below", default is above.
+    duration1: tuple
+        length of exceedance in order to qualify as an event (before grouping)
+    groupby: tuple
+        see examples for explanation. Typical grouping could be (1, "day")
+
+    Returns
+    -------
+    xarray.DataArray
     """
 
     # Identify occurances (and preserve NaNs)
@@ -692,9 +872,20 @@ def get_exceedance_events(
 
 
 def _exceedance_count_name(exceedance_count):
-    """
+    """Function to generate exceedance count name
+
     Helper function to build the appropriate name for the queried exceedance count.
-    Examples:
+
+    Parameters
+    ----------
+    exceedance_count: xarray.DataArray
+
+    Returns
+    -------
+    string
+
+    Examples
+    --------
         'Number of hours'
         'Number of days'
         'Number of 3-day events'
@@ -728,10 +919,19 @@ def _exceedance_count_name(exceedance_count):
 
 
 def plot_exceedance_count(exceedance_count):
-    """
+    """Create panel column object with embedded plots
+
     Plots each simulation as a different color line.
     Drop down option to select different scenario.
     Currently can only plot for one location, so is expecting input to already be subsetted or an area average.
+
+    Parameters
+    ----------
+    exceedance_count: xarray.DataArray
+
+    Returns
+    -------
+    panel.Column
     """
     plot_obj = exceedance_count.hvplot.line(
         x="time",
@@ -746,9 +946,20 @@ def plot_exceedance_count(exceedance_count):
 
 
 def _exceedance_plot_title(exceedance_count):
-    """
+    """Function to build title for exceedance plots
+
     Helper function for making the title for exceedance plots.
-    Examples:
+
+    Parameters
+    ----------
+    exceedance_count: xarray.DataArray
+
+    Returns
+    -------
+    string
+
+    Examples
+    --------
         'Air Temperatue at 2m: events above 35C'
         'Preciptation (total): events below 10mm'
     """
@@ -756,8 +967,20 @@ def _exceedance_plot_title(exceedance_count):
 
 
 def _exceedance_plot_subtitle(exceedance_count):
-    """
-    Examples:
+    """Function of build exceedance plot subtitle
+
+    Helper function for making the subtile for exceedance plots.
+
+    Parameters
+    ----------
+    exceedance_count: xarray.DataArray
+
+    Returns
+    -------
+    string
+
+    Examples
+    --------
         'Number of hours per year'
         'Number of 4-hour events per 3-months'
         'Number of days per year with conditions lasting at least 4-hours'
