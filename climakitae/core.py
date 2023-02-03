@@ -134,22 +134,22 @@ class Application(object):
     # === Retrieve ===================================
     def retrieve(self, config=None, merge=True):
         """Retrieve data from catalog
-        
-        By default, Application.selections and Application.location determines the data retrieved. 
-        To retrieve data using the settings in a configuration csv file, set config to the local 
+
+        By default, Application.selections and Application.location determines the data retrieved.
+        To retrieve data using the settings in a configuration csv file, set config to the local
         filepath of the csv.
         Grabs the data from the AWS S3 bucket, returns lazily loaded dask array.
-        User-facing function that provides a wrapper for _read_from_catalog and _read_data_from_csv. 
-        
+        User-facing function that provides a wrapper for _read_from_catalog and _read_data_from_csv.
+
         Parameters
         ----------
-        config: str, optional. 
+        config: str, optional.
             Local filepath to configuration csv file
             Default to None-- retrieve settings in app.selections and app.location
         merge: bool, optional
             If config is TRUE and multiple datasets desired, merge to form a single object?
             Defaults to True.
-        
+
         Returns
         -------
         xr.DataArray
