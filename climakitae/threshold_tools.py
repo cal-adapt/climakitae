@@ -70,7 +70,8 @@ def get_fitted_distr(ams, distr, distr_func):
     def get_parameters(p, p_values):
         return {p[i]: p_values[i] for i, _ in enumerate(p_values)}
 
-    parameters = {}
+    parameters = None
+    fitted_distr = None
 
     p_values = distr_func.fit(ams)
 
@@ -94,6 +95,8 @@ def get_fitted_distr(ams, distr, distr_func):
         p = ("c", "loc", "scale")
         parameters = get_parameters(p, p_values)
         fitted_distr = stats.genpareto(**parameters)
+    else:
+        raise ValueError("invalid distribution type.")
     return parameters, fitted_distr
 
 
