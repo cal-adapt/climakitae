@@ -27,61 +27,89 @@ from .visualize import get_geospatial_plot
 def get_ams(
     da, 
     extremes_type="max",
-    duration1=None,
+    duration=None,
     groupby=None,
     duration2=None,
     ):
     """
     Returns a data array of annual maximums.
     
-    Not yet implemented:
-    Optional arguments `duration1`, `groupby`, and `duration2` define the type
+    Optional arguments `duration`, `groupby`, and `duration2` define the type
     of event to find the annual maximums of. These correspond to the event
     types defined in the `get_exceedance_count` function. 
+
+    `duration` must be specified as (X, 'hour')
+    `groupby` must be specified as (Y, 'day')
+    `duration2` must be specified as (Z, 'day')
     """
 
-    extremes_types = ["max"]
+    extremes_types = ["max", "min"]
     if extremes_type not in extremes_types:
         raise ValueError(
             "invalid extremes type. expected one of the following: %s" % extremes_types
         )
 
-    if (duration1 == None) and (groupby == None) and (duration2 == None):
-        # In this case, return the simple annual extreme values
+    # To implement:
+    # Need to check the duration and groupby arguments 
+    #   make sure duration1 < groupby < duration2 (as is checked in the `get_exceedance_count` functions)
 
+    # In the simplest case, we use the original data array to take annual 
+    # extreme values from
+    da_series = da
+
+    if duration != None:
+        # In this case, user is interested in extreme events lasting at least 
+        # as long as the length of `duration`. 
+        dur_len, dur_type = duration
+        if dur_type != "hour" or da_series.frequency != "1hr":
+            raise ValueError("Current specifications not yet implemented. `duration` options only implemented for `hour` specifications.")
+
+        # First identify the min (max) value for each window of length `duration`
         if extremes_type == "max":
-            ams = da.resample(time="A").max(keep_attrs=True)
-            ams.attrs["extreme value extraction method"] = "block maxima"
-            ams.attrs["extremes type"] = "maxima"
-            ams.attrs["block size"] = "1 year"
-            ams.attrs["timeseries type"] = "annual max series"
+            da_series = da_series.rolling(time=dur_len, center=False).min("time")
+        elif extremes_type == "min":
+            da_series = da_series.rolling(time=dur_len, center=False).max("time")
+    
+    if groupby != None:
+        # In this case, select the max (min) in each group. (This option is
+        # really only meaningful when coupled with the `duration2` option.)
+        group_len, group_type = groupby
+        if group_type != 'day': 
+            raise ValueError("`groupby` specifications only implemented for 'day' groupings.")
+        
+        # select the max (min) in each group
+        if extremes_type == "max":
+            da_series = da_series.resample(time=f"{group_len}D", label="left").max()
+        elif extremes_type == "min":
+            da_series = da_series.resample(time=f"{group_len}D", label="left").max()
 
-        # if extremes_type == 'min':
-        #     ams = da.resample(time='A').min(keep_attrs = True)
-        #     ams.attrs['extreme value extraction method'] = 'block maxima'
-        #     ams.attrs['extremes type'] = 'minima'
-        #     ams.attrs['block size'] = '1 year'
-        #     ams.attrs['timeseries type'] = 'annual min series'
+    if duration2 != None:
+        if groupby == None:
+            raise ValueError("To use `duration2` option, must first use groupby.")
+        # In this case, identify the min (max) value of the grouped values for
+        # each window of length duration2. Must be in `days`.
+        dur2_len, dur2_type = duration2
+        if dur2_type != 'day':
+            raise ValueError("`duration2` specification must be in days. example: `duration2 = (3, 'day')`.")
 
-    else:
-        raise ValueError("Complex event types not yet implemented for calculating annual maximum series.")
-        # To implement:
-
-        # Need to check the duration and groupby arguments 
-        #   make sure duration1 < groupby < duration2 (as is checked in the `get_exceedance_count` functions)
-
-        # Then implement the actual series calculations for the different types of events
-        # this will involve similar resampling logic as is used in `get_exceedance_count` functions
-        if (duration1 != None) and (groupby == None) and (duration2 == None):
-            # In this case, user is interested in continuous extreme events lasting 
-            # the length of duration1. Need to use a rolling window operation or resample function to 
-            # identify the minimum value for each window in each year, and then 
-            # return the maximum of all the window values in each year.
-            raise ValueError("Not yet implemented")
-
-        else:
-            # Need to implement other cases/combos of the duration and groupby arguments
-            raise ValueError("Not yet implemented")
+        # Now select the min (max) from the duration period
+        if extremes_type == "max":
+            da_series = da.rolling(time=dur2_len, center=False).min("time")
+        elif extremes_type == "min":
+            da_series = da.rolling(time=dur2_len, center=False).max("time")
+    
+    # Now select the most extreme value for each year in the series
+    if extremes_type == "max":
+        ams = da_series.resample(time="A").max(keep_attrs=True)
+        ams.attrs["extremes type"] = "maxima"
+    elif extremes_type == 'min':
+        ams = da_series.resample(time='A').min(keep_attrs = True)
+        ams.attrs['extremes type'] = 'minima'
+    
+    # Common attributes
+    ams.attrs["extreme value extraction method"] = "block maxima"
+    ams.attrs["block size"] = "1 year"
+    ams.attrs["timeseries type"] = "annual max series"
 
     return ams
 
