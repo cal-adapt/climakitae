@@ -14,7 +14,7 @@ var_catalog_resource = pkg_resources.resource_filename(
 var_catalog = pd.read_csv(var_catalog_resource, index_col=None)
 
 
-def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
+def _visualize(data, lat_lon=True, width=None, height=None, cmap=None, color=None):
     """Create a generic visualization of the data
 
     Args:
@@ -23,6 +23,7 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
         width (int, optional): width of plot (default to hvplot.image default)
         height (int, optional): hight of plot (default to hvplot.image default)
         cmap (str, optional): colormap to apply to data (default to "ae_orange"); applies only to mapped data
+        color (str, optional): colors to apply to data; applies only to timeseries data
 
     Returns:
         hvplot.image() or matplotlib object, depending on input data
@@ -127,8 +128,10 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
         if height is None:
             height = 300
 
+        cmap = _read_ae_colormap(cmap="categorical_cb", cmap_hex=True)
+
         # Create lineplot
-        _plot = data.hvplot.line(x="time", width=width, height=height)
+        _plot = data.hvplot.line(x="time", width=width, height=height, color=cmap)
 
     # Error raised if data does not contain [x,y] or time dimensions
     else:

@@ -217,7 +217,7 @@ class Application(object):
         )
 
     # === View =======================================
-    def view(self, data, lat_lon=True, width=None, height=None, cmap=None):
+    def view(self, data, lat_lon=True, width=None, height=None, cmap=None, color=None):
         """Create a generic visualization of the data
 
         Visualization will depend on the shape of the input data.
@@ -239,6 +239,9 @@ class Application(object):
         cmap: matplotlib colormap name or AE colormap names
             Colormap to apply to mapped data (will not effect lineplots)
             Default to "ae_orange"
+        color: matplotlib colormap name or color-blind friendly colormap name
+            Colormap to apply to timeseries data (will not affect mapped data)
+            Default to "categorical_cb"
 
         Returns
         -------
@@ -253,7 +256,9 @@ class Application(object):
         UserWarning
             Warn user that the function will be slow if data has not been loaded into memory
         """
-        return _visualize(data, lat_lon=lat_lon, width=width, height=height, cmap=cmap)
+        return _visualize(
+            data, lat_lon=lat_lon, width=width, height=height, cmap=cmap, color=color
+        )
 
     # === Export =====================================
     def export_as(self):
