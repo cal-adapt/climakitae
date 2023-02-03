@@ -250,6 +250,8 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
     new_ds["p_value"].attrs["stat test"] = "KS test"
     new_ds.attrs = ams_attributes
     new_ds.attrs["distribution"] = "{}".format(str(distr))
+    new_ds["p_value"].attrs["units"] = None
+    new_ds["d_statistic"].attrs["units"] = None
     return new_ds
 
 
@@ -418,11 +420,15 @@ def get_return_variable(
         new_ds = new_ds.unstack("allpoints")
 
     if data_variable == "return_value":
-        new_ds[data_variable].attrs["return period"] = f"1 in {arg_value} year event"
+        new_ds[data_variable].attrs["return period"] = f"1-in-{arg_value}-year event"
     elif data_variable == "return_prob":
-        new_ds[data_variable].attrs["threshold"] = f"exceedance of {arg_value} value event"
+        unit_threshold = ams_attributes["units"]
+        new_ds[data_variable].attrs["threshold"] = f"exceedance of {arg_value} {unit_threshold} value event"
+        new_ds[data_variable].attrs["units"] = None
     elif data_variable == "return_period":
-        new_ds[data_variable].attrs["return value"] = f"occurrence of a {arg_value} value event"
+        unit_return_value = ams_attributes["units"]
+        new_ds[data_variable].attrs["return value"] = f"{arg_value} {unit_return_value} event"
+        new_ds[data_variable].attrs["units"] = "years"
 
     new_ds["conf_int_lower_limit"].attrs[
         "confidence interval lower bound"

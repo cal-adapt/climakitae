@@ -71,6 +71,14 @@ class Boundaries:
         self._us_states = self._cat.states.read()
         self._ca_counties = self._cat.counties.read().sort_values("NAME")
         self._ca_watersheds = self._cat.huc8.read().sort_values("Name")
+        self._ca_utilities = self._cat.utilities.read()
+        self._ca_forecast_zones = self._cat.dfz.read()
+
+        # For Forecast Zones named "Other", replace that with the name of the county
+        self._ca_forecast_zones.loc[
+            self._ca_forecast_zones["FZ_Name"] == "Other", "FZ_Name"
+        ] = self._ca_forecast_zones["FZ_Def"]
+        # self._ca_forecast_zones = self._ca_forecast_zones[["OBJECTID","FZ_Name","geometry"]]
 
     def get_us_states(self):
         """
@@ -116,6 +124,37 @@ class Boundaries:
             self._ca_watersheds.index, index=self._ca_watersheds["Name"]
         ).to_dict()
 
+    def get_forecast_zones(self):
+        """
+        Returns a lookup dictionary for CA watersheds that references
+        the geoparquet file.
+        """
+        return pd.Series(
+            self._ca_forecast_zones.index, index=self._ca_forecast_zones["FZ_Name"]
+        ).to_dict()
+
+    def get_ious_pous(self):
+        """
+        Returns a lookup dictionary for IOUs & POUs that references
+        the geoparquet file.
+        """
+        put_at_top = [  # Put in the order you want it to appear in the dropdown
+            "Pacific Gas & Electric Company",
+            "San Diego Gas & Electric",
+            "Southern California Edison",
+            "Los Angeles Department of Water & Power",
+            "Sacramento Municipal Utility District",
+        ]
+        other_IOUs_POUs_list = [
+            ut for ut in self._ca_utilities["Utility"] if ut not in put_at_top
+        ]
+        other_IOUs_POUs_list = sorted(other_IOUs_POUs_list)  # Put in alphabetical order
+        ordered_list = put_at_top + other_IOUs_POUs_list
+        _subset = self._ca_utilities.query("Utility in @ordered_list")[["Utility"]]
+        _subset["Utility"] = pd.Categorical(_subset["Utility"], categories=ordered_list)
+        _subset.sort_values(by="Utility", inplace=True)
+        return dict(zip(_subset["Utility"], _subset.index))
+
     def boundary_dict(self):
         """
         This returns a dictionary of lookup dictionaries for each set of
@@ -123,13 +162,14 @@ class Boundaries:
         populate the selector object dynamically as the category in
         'LocSelectorArea.area_subset' changes.
         """
-
         _all_options = {
             "none": {"entire domain": 0},
             "lat/lon": {"coordinate selection": 0},
             "states": self.get_us_states(),
             "CA counties": self.get_ca_counties(),
             "CA watersheds": self.get_ca_watersheds(),
+            "CA Electric Load Serving Entities (IOU & POU)": self.get_ious_pous(),
+            "CA Electricity Demand Forecast Zones": self.get_forecast_zones(),
         }
         return _all_options
 
@@ -147,21 +187,31 @@ class LocSelectorArea(param.Parameterized):
         administrative geographic area]
     """
 
-    area_subset = param.ObjectSelector(
-        default="none",
-        objects=["none", "lat/lon", "states", "CA counties", "CA watersheds"],
-    )
-    # would be nice if these lat/lon sliders were greyed-out when lat/lon subset
-    # option is not selected
-    latitude = param.Range(default=(32.5, 42), bounds=(10, 67))
-    longitude = param.Range(default=(-125.5, -114), bounds=(-156.82317, -84.18701))
+    area_subset = param.ObjectSelector(objects=dict())
     cached_area = param.ObjectSelector(objects=dict())
+    default_lat = (32.5, 42)
+    default_lon = (-125.5, -114)
+    latitude = param.Range(default=default_lat, bounds=(10, 67))
+    longitude = param.Range(default=default_lon, bounds=(-156.82317, -84.18701))
+    _lat_lon_warning = param.String(
+        default="",
+        doc="Warning if user is messing with lat/lon slider,"
+        "but lat/lon is not selected for area subset.",
+    )
 
     def __init__(self, **params):
         super().__init__(**params)
+
+        # Get geography boundaries and selection options
         self._geographies = Boundaries()
         self._geography_choose = self._geographies.boundary_dict()
-        self.param["cached_area"].objects = list(self._geography_choose["none"].keys())
+
+        # Set params
+        self.area_subset = "none"
+        self.param["area_subset"].objects = list(self._geography_choose.keys())
+        self.param["cached_area"].objects = list(
+            self._geography_choose[self.area_subset].keys()
+        )
 
     _wrf_bb = {
         "45 km": Polygon(
@@ -190,19 +240,6 @@ class LocSelectorArea(param.Parameterized):
         ),
     }
 
-    @param.depends("cached_area", watch=True)
-    def _update_area_subset(self):
-        """
-        Makes the dropdown options for 'area subset' reflect the kind of
-        subsetting that the user is adjusting.
-        """
-        _previous = self.cached_area
-        if (self.area_subset == "none") or (self.area_subset == "lat/lon"):
-            for option in ["states", "CA counties", "CA watersheds"]:
-                if _previous in list(self._geography_choose[option].keys()):
-                    self.area_subset = option
-                    self.cached_area = _previous
-
     @param.depends("latitude", "longitude", watch=True)
     def _update_area_subset_to_lat_lon(self):
         """
@@ -219,20 +256,18 @@ class LocSelectorArea(param.Parameterized):
         subsetting selected in 'area_subset' (currently state, county, or
         watershed boundaries).
         """
-        # setting this to the dict works for initializing, but not updating an
-        # objects list:
         self.param["cached_area"].objects = list(
             self._geography_choose[self.area_subset].keys()
         )
         self.cached_area = list(self._geography_choose[self.area_subset].keys())[0]
 
     @param.depends("latitude", "longitude", "area_subset", "cached_area", watch=False)
-    def view(self):
+    def view(self, figsize=(3, 3)):
         geometry = box(
             self.longitude[0], self.latitude[0], self.longitude[1], self.latitude[1]
         )
 
-        fig0 = Figure(figsize=(3, 3))
+        fig0 = Figure(figsize=figsize)
         proj = ccrs.Orthographic(-118, 40)
         crs_proj4 = proj.proj4_init  # used below
         xy = ccrs.PlateCarree()
@@ -299,6 +334,11 @@ class LocSelectorArea(param.Parameterized):
                 plot_subarea(self._geographies._ca_counties, [-125, -114, 31, 43])
             elif self.area_subset == "CA watersheds":
                 plot_subarea(self._geographies._ca_watersheds, [-125, -114, 31, 43])
+            elif self.area_subset == "CA Electric Load Serving Entities (IOU & POU)":
+                plot_subarea(self._geographies._ca_utilities, [-125, -114, 31, 43])
+            elif self.area_subset == "CA Electricity Demand Forecast Zones":
+                plot_subarea(self._geographies._ca_forecast_zones, [-125, -114, 31, 43])
+
         return mpl_pane
 
 
@@ -368,10 +408,16 @@ def _get_variable_options_df(var_catalog, unique_variable_ids, timescale):
     """
     if timescale in ["daily", "monthly"]:
         timescale = "daily/monthly"
+    # Catalog options and derived options together
+    var_options_plus_derived = unique_variable_ids + [
+        "rh_derived",
+        "wind_speed_derived",
+        "dew_point_derived",
+    ]
     variable_options_df = var_catalog[
         (var_catalog["show"] == True)
         & (  # Make sure it's a valid variable selection
-            var_catalog["variable_id"].isin(unique_variable_ids)
+            var_catalog["variable_id"].isin(var_options_plus_derived)
             & (  # Make sure variable_id is part of the catalog options for user selections
                 var_catalog["timescale"] == timescale
             )  # Make sure its the right timescale
@@ -391,8 +437,6 @@ class DataSelector(param.Parameterized):
     # Defaults
     default_variable = "Air Temperature at 2m"
     time_slice = param.Range(default=(1980, 2015), bounds=(1950, 2100))
-    area_average = param.Boolean(default=False)
-
     resolution = param.ObjectSelector(
         default="45 km", objects=["45 km", "9 km", "3 km"]
     )
@@ -403,6 +447,11 @@ class DataSelector(param.Parameterized):
         default=["Historical Climate"],
         objects=["Historical Reconstruction (ERA5-WRF)", "Historical Climate"],
     )
+    area_average = param.ObjectSelector(
+        default="No",
+        objects=["Yes", "No"],
+        doc="""Compute an area average?""",
+    )
 
     # Empty params, initialized in __init__
     downscaling_method = param.ObjectSelector(objects=dict())
@@ -412,7 +461,14 @@ class DataSelector(param.Parameterized):
     units = param.ObjectSelector(objects=dict())
     extended_description = param.ObjectSelector(objects=dict())
     variable_id = param.ObjectSelector(objects=dict())
-    _data_warning = param.ObjectSelector(objects=dict())
+    _data_warning = param.String(
+        default="", doc="Warning if user has made a bad selection"
+    )
+
+    # Temporal range of each dataset
+    historical_climate_range = (1980, 2015)
+    historical_reconstruction_range = (1950, 2022)
+    ssp_range = (2015, 2100)
 
     def __init__(self, **params):
         # Set default values
@@ -567,16 +623,23 @@ class DataSelector(param.Parameterized):
         self.param["scenario_ssp"].objects = scenario_ssp_options
         self.scenario_ssp = [x for x in self.scenario_ssp if x in scenario_ssp_options]
 
+    @param.depends("scenario_ssp", "scenario_historical", "time_slice", watch=True)
+    def _update_data_warning(self):
+        """Update warning raised to user based on their data selections."""
+        data_warning = ""
+        bad_time_slice_warning = """You've selected a time slice that is outside the temporal range 
+        of the selected data."""
+        # Warning based on data scenario selections
         if (  # Warn user that they cannot have SSP data and ERA5-WRF data
             True in ["SSP" in one for one in self.scenario_ssp]
         ) and ("Historical Reconstruction (ERA5-WRF)" in self.scenario_historical):
-            self._data_warning = "Historical Reconstruction (ERA5-WRF) data is not available with SSP data. \
-            Try using the Historical Climate data instead."
+            data_warning = """Historical Reconstruction (ERA5-WRF) data is not available with SSP data.
+            Try using the Historical Climate data instead."""
 
         elif (  # Warn user if no data is selected
             not True in ["SSP" in one for one in self.scenario_ssp]
         ) and (not True in ["Historical" in one for one in self.scenario_historical]):
-            self._data_warning = "Please select as least one dataset."
+            data_warning = "Please select as least one dataset."
 
         elif (
             (  # If both historical options are selected, warn user the data will be cut
@@ -584,10 +647,36 @@ class DataSelector(param.Parameterized):
             )
             and ("Historical Climate" in self.scenario_historical)
         ):
-            self._data_warning = "The timescale of Historical Reconstruction (ERA5-WRF) data will be cut \
-            to match the timescale of the Historical Climate data if both are retrieved together."
-        else:
-            self._data_warning = ""
+            data_warning = """The timescale of Historical Reconstruction (ERA5-WRF) data will be cut 
+            to match that of the Historical Climate data if both are retrieved."""
+
+        # Warnings based on time slice selections
+        if (not True in ["SSP" in one for one in self.scenario_ssp]) and (
+            "Historical Climate" in self.scenario_historical
+        ):
+            if (self.time_slice[0] < self.historical_climate_range[0]) or (
+                self.time_slice[1] > self.historical_climate_range[1]
+            ):
+                data_warning = bad_time_slice_warning
+        elif True in ["SSP" in one for one in self.scenario_ssp]:
+            if not True in ["Historical" in one for one in self.scenario_historical]:
+                if (self.time_slice[0] < self.ssp_range[0]) or (
+                    self.time_slice[1] > self.ssp_range[1]
+                ):
+                    data_warning = bad_time_slice_warning
+            else:
+                if (self.time_slice[0] < self.historical_climate_range[0]) or (
+                    self.time_slice[1] > self.ssp_range[1]
+                ):
+                    data_warning = bad_time_slice_warning
+        elif self.scenario_historical == ["Historical Reconstruction (ERA5-WRF)"]:
+            if (self.time_slice[0] < self.historical_reconstruction_range[0]) or (
+                self.time_slice[1] > self.historical_reconstruction_range[1]
+            ):
+                data_warning = bad_time_slice_warning
+
+        # Show warning
+        self._data_warning = data_warning
 
     @param.depends("scenario_ssp", "scenario_historical", watch=True)
     def _update_time_slice_range(self):
@@ -598,28 +687,25 @@ class DataSelector(param.Parameterized):
         low_bound, upper_bound = self.time_slice
 
         if self.scenario_historical == ["Historical Climate"]:
-            low_bound = 1980
-            upper_bound = 2015
+            low_bound, upper_bound = self.historical_climate_range
         elif self.scenario_historical == ["Historical Reconstruction (ERA5-WRF)"]:
-            low_bound = 1950
-            upper_bound = 2022
+            low_bound, upper_bound = self.historical_reconstruction_range
         elif all(  # If both historical options are selected, and no SSP is selected
             [
                 x in ["Historical Reconstruction (ERA5-WRF)", "Historical Climate"]
                 for x in self.scenario_historical
             ]
         ) and (not True in ["SSP" in one for one in self.scenario_ssp]):
-            low_bound = 1980
-            upper_bound = 2015
+            low_bound, upper_bound = self.historical_climate_range
 
         if True in ["SSP" in one for one in self.scenario_ssp]:
             if (
                 "Historical Climate" in self.scenario_historical
             ):  # If also append historical
-                low_bound = 1980
+                low_bound = self.historical_climate_range[0]
             else:
-                low_bound = 2015
-            upper_bound = 2100
+                low_bound = self.ssp_range[0]
+            upper_bound = self.ssp_range[1]
 
         self.time_slice = (low_bound, upper_bound)
 
@@ -645,7 +731,7 @@ class DataSelector(param.Parameterized):
         Displays a timeline to help the user visualize the time ranges
         available, and the subset of time slice selected.
         """
-        fig0 = Figure(figsize=(3.75, 2.5))
+        fig0 = Figure(figsize=(4.25, 2))
         ax = fig0.add_subplot(111)
         ax.spines["right"].set_color("none")
         ax.spines["left"].set_color("none")
@@ -654,14 +740,14 @@ class DataSelector(param.Parameterized):
         ax.xaxis.set_ticks_position("bottom")
         ax.set_xlim(1950, 2100)
         ax.set_ylim(0, 1)
+        ax.tick_params(labelsize=11)
         ax.xaxis.set_major_locator(ticker.AutoLocator())
         ax.xaxis.set_minor_locator(ticker.AutoMinorLocator())
         mpl_pane = pn.pane.Matplotlib(fig0, dpi=144)
 
-        y_offset = 0.17
+        y_offset = 0.15
         if (self.scenario_ssp is not None) and (self.scenario_historical is not None):
             for scen in self.scenario_ssp + self.scenario_historical:
-
                 if ["SSP" in one for one in self.scenario_ssp]:
                     if scen in [
                         "Historical Climate",
@@ -674,19 +760,21 @@ class DataSelector(param.Parameterized):
                     if "Historical Climate" in self.scenario_historical:
                         center = 1997.5  # 1980-2014
                         x_width = 17.5
-                        ax.annotate("Reconstruction", xy=(1970, y_offset + 0.06))
+                        ax.annotate(
+                            "Reconstruction", xy=(1967, y_offset + 0.06), fontsize=12
+                        )
                     else:
                         center = 1986  # 1950-2022
                         x_width = 36
                         ax.annotate(
-                            "Reconstruction", xy=(center - x_width, y_offset + 0.06)
+                            "Reconstruction", xy=(1955, y_offset + 0.06), fontsize=12
                         )
 
                 elif scen == "Historical Climate":
                     color = "c"
                     center = 1997.5  # 1980-2014
                     x_width = 17.5
-                    ax.annotate("Historical", xy=(center - x_width, y_offset + 0.06))
+                    ax.annotate("Historical", xy=(1979, y_offset + 0.06), fontsize=12)
 
                 elif "SSP" in scen:
                     center = 2057.5  # 2015-2100
@@ -702,18 +790,126 @@ class DataSelector(param.Parameterized):
                         ax.errorbar(
                             x=1997.5, y=y_offset, xerr=17.5, linewidth=8, color="c"
                         )
-                        ax.annotate("Historical", xy=(1980, y_offset + 0.06))
-                    ax.annotate(scen[:10], xy=(center + 10 - x_width, y_offset + 0.06))
+                        ax.annotate(
+                            "Historical", xy=(1979, y_offset + 0.06), fontsize=12
+                        )
+                    ax.annotate(scen[:10], xy=(2035, y_offset + 0.06), fontsize=12)
 
                 ax.errorbar(
                     x=center, y=y_offset, xerr=x_width, linewidth=8, color=color
                 )
 
-                y_offset += 0.20
+                y_offset += 0.28
 
-        ax.fill_betweenx([0, 1], 1950, self.time_slice[0], alpha=0.8, facecolor="grey")
-        ax.fill_betweenx([0, 1], self.time_slice[1], 2100, alpha=0.8, facecolor="grey")
+        ax.fill_betweenx(
+            [0, 1],
+            self.time_slice[0],
+            self.time_slice[1],
+            alpha=0.8,
+            facecolor="lightgrey",
+        )
         return mpl_pane
+
+
+# ================ PRINT STATEMENT EXPLAINING CURRENT USER SELECTIONS ===================
+
+
+def _get_data_selection_description(selections, location):
+    """
+    Make a long string to output to the user to show all their current selections.
+    Updates whenever any of the input values are changed.
+    """
+
+    # Edit how the scenarios are printed in the description to make it reader-friendly
+    if True in ["SSP" in one for one in selections.scenario_ssp]:
+        if "Historical Climate" in selections.scenario_historical:
+            scenario_print = [
+                "Historical + " + ssp[:9] for ssp in selections.scenario_ssp
+            ]
+        else:
+            scenario_print = [ssp[:9] for ssp in selections.scenario_ssp]
+    else:
+        scenario_print = selections.scenario_ssp + selections.scenario_historical
+
+    # Show lat/lon selection only if area_subset == lat/lon
+    if location.area_subset == "lat/lon":
+        # bbox = min Longitude , min Latitude , max Longitude , max Latitude
+        cached_area_print = (
+            "bounding box <br>"
+            "({:.2f}".format(location.longitude[0])
+            + ", {:.2f}".format(location.latitude[0])
+            + ", {:.2f}".format(location.longitude[1])
+            + ", {:.2f}".format(location.latitude[1])
+            + ")"
+        )
+    elif location.area_subset == "none":
+        cached_area_print = "entire " + str(selections.resolution) + " grid"
+    else:
+        cached_area_print = str(location.cached_area)
+
+    _data_selection_description = (
+        "<font size='+0.10'>Data selections: </font><br>"
+        "<ul>"
+        "<li><b>variable: </b>" + str(selections.variable) + "</li>"
+        "<li><b>units: </b>" + str(selections.units) + "</li>"
+        "<li><b>temporal resolution: </b>" + str(selections.timescale) + "</li>"
+        "<li><b>model resolution: </b>" + str(selections.resolution) + "</li>"
+        "<li><b>timeslice: </b>"
+        + str(selections.time_slice[0])
+        + " - "
+        + str(selections.time_slice[1])
+        + "</li>"
+        "<li><b>datasets: </b>" + ", ".join(scenario_print) + "</li>"
+        "</ul>"
+    )
+    _location_selection_description = (
+        "<font size='+0.10'>Location selections: </font><br>"
+        "<ul>"
+        "<li><b>location: </b>" + cached_area_print + "</li>"
+        "<li><b>compute area average? </b>" + str(selections.area_average) + "</li>"
+        "</ul>"
+    )
+    return _data_selection_description + _location_selection_description
+
+
+class SelectionDescription(param.Parameterized):
+    """
+    Make a long string to output to the user to show all their current selections.
+    Updates whenever any of the input values are changed.
+    """
+
+    _data_selection_description = param.String(
+        default="", doc="Description of the user data selections."
+    )
+
+    def __init__(self, **params):
+        super().__init__(**params)
+
+        self._data_selection_description = _get_data_selection_description(
+            selections=self.selections,
+            location=self.location,
+        )
+
+    @param.depends(
+        "selections.units",
+        "selections.variable",
+        "selections.scenario_historical",
+        "selections.scenario_ssp",
+        "selections.timescale",
+        "selections.resolution",
+        "selections.time_slice",
+        "selections.area_average",
+        "location.area_subset",
+        "location.cached_area",
+        "location.longitude",
+        "location.latitude",
+        watch=True,
+    )
+    def _update_data_selection_description(self):
+        self._data_selection_description = _get_data_selection_description(
+            selections=self.selections,
+            location=self.location,
+        )
 
 
 # ================ DISPLAY LOCATION/DATA SELECTIONS IN PANEL ===================
@@ -727,54 +923,107 @@ def _display_select(selections, location):
     appropriate xarray Dataset.
     """
 
-    location_chooser = pn.Row(location.param, location.view)
-
-    first_row = pn.Row(
-        pn.Column(
-            selections.param.timescale,
-            selections.param.time_slice,
-            pn.layout.VSpacer(),
-            selections.param.variable,
-            pn.widgets.StaticText.from_param(
-                selections.param.extended_description, name=""
-            ),
-            pn.layout.VSpacer(),
-            pn.widgets.StaticText(name="", value="Variable Units"),
-            pn.widgets.RadioButtonGroup.from_param(selections.param.units),
-            pn.widgets.StaticText(name="", value="Model Resolution"),
-            pn.widgets.RadioButtonGroup.from_param(selections.param.resolution),
-            selections.param.area_average,
-            pn.layout.VSpacer(),
-        ),
-        pn.Column(
-            pn.widgets.StaticText(
-                value="<br>Data that will be returned upon calling .retrieve()",
-                name="Selected Data",
-            ),
-            selections.view,
-            pn.widgets.StaticText(
-                value="<br>Estimates of recent historical climatic conditions",
-                name="Historical Data",
-            ),
-            pn.widgets.CheckBoxGroup.from_param(selections.param.scenario_historical),
-            pn.widgets.StaticText(
-                value="<br>SSP options represent end-of-century range",
-                name="Future Model Data",
-            ),
-            pn.widgets.CheckBoxGroup.from_param(selections.param.scenario_ssp),
-            pn.widgets.StaticText.from_param(
-                selections.param._data_warning, name="", style={"color": "red"}
-            ),
-        ),
+    selection_description = SelectionDescription(
+        selections=selections, location=location
     )
-    return pn.Column(first_row, location_chooser)
+
+    location_chooser = pn.Row(
+        pn.Column(
+            pn.widgets.Select.from_param(
+                location.param.area_subset, name="Subset the data by..."
+            ),
+            pn.widgets.Select.from_param(
+                location.param.cached_area, name="Location selection"
+            ),
+            location.param.latitude,
+            location.param.longitude,
+            pn.widgets.StaticText(
+                value="<b>Compute an area average across grid cells within your selected region?</b>",
+                name="",
+            ),
+            pn.widgets.RadioButtonGroup.from_param(
+                selections.param.area_average, inline=True
+            ),
+            width=275,
+        ),
+        location.view(figsize=(4, 4)),
+    )
+
+    data_options = pn.Column(
+        selections.param.variable,
+        pn.widgets.StaticText.from_param(
+            selections.param.extended_description, name=""
+        ),
+        pn.widgets.StaticText(name="", value="Variable Units"),
+        pn.widgets.RadioButtonGroup.from_param(selections.param.units),
+        selections.param.timescale,
+        pn.widgets.StaticText(name="", value="Model Resolution"),
+        pn.widgets.RadioButtonGroup.from_param(selections.param.resolution),
+        width=285,
+    )
+
+    scenario_options = pn.Column(
+        selections.view,
+        selections.param.time_slice,
+        pn.widgets.StaticText(
+            value="<br>Estimates of recent historical climatic conditions",
+            name="Historical Data",
+        ),
+        pn.widgets.CheckBoxGroup.from_param(selections.param.scenario_historical),
+        pn.widgets.StaticText(
+            value="<br>SSP options represent end-of-century range",
+            name="Future Model Data",
+        ),
+        pn.widgets.CheckBoxGroup.from_param(selections.param.scenario_ssp),
+        pn.widgets.StaticText.from_param(
+            selections.param._data_warning, name="", style={"color": "red"}
+        ),
+        width=310,
+    )
+
+    tabs = pn.Card(
+        pn.Tabs(
+            ("Make your data selections", pn.Row(scenario_options, data_options)),
+            ("Subset data by location", location_chooser),
+        ),
+        title="Select your data and region of interest",
+        height=545,
+        width=595,
+        collapsible=False,
+    )
+
+    how_to_use = pn.Card(
+        pn.widgets.StaticText(
+            value="""
+            In the first tab, <b>make your data selections.</b> In the second tab, <b>subset the 
+            data by location</b> and choose whether or not to compute an area average over the 
+            selected region. To retrieve the data, use the climakitae function <b>app.retrieve()</b>.
+            """,
+            name="",
+        ),
+        title="How to use this panel",
+        width=285,
+        height=170,
+        collapsible=False,
+    )
+
+    your_selections = pn.Card(
+        pn.widgets.StaticText.from_param(
+            selection_description.param._data_selection_description, name=""
+        ),
+        title="Current selections",
+        width=285,
+        height=365,
+        collapsible=False,
+    )
+
+    return pn.Row(tabs, pn.Column(how_to_use, your_selections))
 
 
 # =============================== EXPORT DATA ==================================
 
 
 class UserFileChoices:
-
     # reserved for later: text boxes for dataset to export
     # as well as a file name
     # data_var_name = param.String()

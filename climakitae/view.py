@@ -19,14 +19,13 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
 
     Args:
         data (xr.DataArray)
-        lat_lon (boolean): reproject to lat/lon coords? (default to True)
-        width (int): width of plot (default to hvplot.image default)
-        height (int): hight of plot (default to hvplot.image default)
-        cmap (str): colormap to apply to data (default to "ae_orange"); applies only to mapped data
+        lat_lon (boolean, optional): reproject to lat/lon coords? (default to True)
+        width (int, optional): width of plot (default to hvplot.image default)
+        height (int, optional): hight of plot (default to hvplot.image default)
+        cmap (str, optional): colormap to apply to data (default to "ae_orange"); applies only to mapped data
 
     Returns:
         hvplot.image() or matplotlib object, depending on input data
-
     """
 
     # Warn user about speed if passing a zarr to the function
@@ -59,11 +58,10 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
 
             # Set default cmap if no user input
             # Different if using matplotlib (no "hex")
-            if cmap in ["ae_orange", "ae_diverging", "ae_blue"]:
+            if cmap in ["ae_orange", "ae_diverging", "ae_blue", "ae_diverging_r"]:
                 cmap = _read_ae_colormap(cmap=cmap, cmap_hex=False)
 
             with warnings.catch_warnings():
-
                 # Silence annoying matplotlib deprecation error
                 warnings.simplefilter("ignore")
 
@@ -86,7 +84,7 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
 
             # Set default cmap if no user input
             # Different if using hvplot (we need "hex")
-            if cmap in ["ae_orange", "ae_diverging", "ae_blue"]:
+            if cmap in ["ae_orange", "ae_diverging", "ae_blue", "ae_diverging_r"]:
                 cmap = _read_ae_colormap(cmap=cmap, cmap_hex=True)
 
             # Set default width & height
