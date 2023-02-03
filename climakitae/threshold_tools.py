@@ -149,7 +149,7 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
     ams_attributes = ams.attrs
 
     if multiple_points:
-        ams = ams.stack(allpoints=["y", "x"]).squeeze().groupby("allpoints")
+        ams = ams.stack(allpoints=["y", "x"]).dropna(dim="allpoints").squeeze().groupby("allpoints")
 
     def ks_stat(ams):
         parameters, fitted_distr = get_fitted_distr(ams, distr, distr_func)
@@ -316,7 +316,7 @@ def get_return_value(
     ams_attributes = ams.attrs
 
     if multiple_points:
-        ams = ams.stack(allpoints=["y", "x"]).squeeze().groupby("allpoints")
+        ams = ams.stack(allpoints=["y", "x"]).dropna(dim="allpoints").squeeze().groupby("allpoints")
 
     def return_value(ams):
         try:
@@ -390,7 +390,7 @@ def get_return_prob(
     ams_attributes = ams.attrs
 
     if multiple_points:
-        ams = ams.stack(allpoints=["y", "x"]).squeeze().groupby("allpoints")
+        ams = ams.stack(allpoints=["y", "x"]).dropna(dim="allpoints").squeeze().groupby("allpoints")
 
     def return_prob(ams):
         try:
@@ -465,7 +465,7 @@ def get_return_period(
     ams_attributes = ams.attrs
 
     if multiple_points:
-        ams = ams.stack(allpoints=["y", "x"]).squeeze().groupby("allpoints")
+        ams = ams.stack(allpoints=["y", "x"]).dropna(dim="allpoints").squeeze().groupby("allpoints")
 
     def return_period(ams):
         try:
