@@ -156,11 +156,15 @@ class Application(object):
             Lazily loaded dask array
 
         """
-        if config is not None: 
-            if type(config) == str: 
-                return _read_data_from_csv(self.selections, self.location, self._cat, config, merge)
-            else: 
-                raise ValueError("To retrieve data from a configuration file, please input the path to your local configuration csv as a string") 
+        if config is not None:
+            if type(config) == str:
+                return _read_data_from_csv(
+                    self.selections, self.location, self._cat, config, merge
+                )
+            else:
+                raise ValueError(
+                    "To retrieve data from a configuration file, please input the path to your local configuration csv as a string"
+                )
         return _read_from_catalog(self.selections, self.location, self._cat)
 
     def retrieve_from_csv(self, csv, merge=True):
