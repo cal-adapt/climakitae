@@ -18,7 +18,7 @@ from .visualize import get_geospatial_plot
 def get_ams(da, extremes_type="max"):
     """Function that converts data into annual maximums
 
-    Takes input array and resamples annually and takes the maximum value.
+    Takes input array and resamples annually by taking the maximum value.
 
     Parameters
     ----------
