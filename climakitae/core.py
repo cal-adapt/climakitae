@@ -238,8 +238,8 @@ class Application(object):
             Default to hvplot.image default
         cmap: matplotlib colormap name or AE colormap names
             Colormap to apply to data
-            Default to "ae_orange" for mapped data or color-blind friendly "categorical_cb" for timeseries data. 
-            
+            Default to "ae_orange" for mapped data or color-blind friendly "categorical_cb" for timeseries data.
+
         Returns
         -------
         holoviews.core.spaces.DynamicMap
@@ -253,9 +253,7 @@ class Application(object):
         UserWarning
             Warn user that the function will be slow if data has not been loaded into memory
         """
-        return _visualize(
-            data, lat_lon=lat_lon, width=width, height=height, cmap=cmap
-        )
+        return _visualize(data, lat_lon=lat_lon, width=width, height=height, cmap=cmap)
 
     # === Export =====================================
     def export_as(self):

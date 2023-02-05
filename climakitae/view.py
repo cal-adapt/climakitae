@@ -35,7 +35,7 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
         Default to hvplot.image default
     cmap: matplotlib colormap name or AE colormap names
         Colormap to apply to data
-        Default to "ae_orange" for mapped data or color-blind friendly "categorical_cb" for timeseries data. 
+        Default to "ae_orange" for mapped data or color-blind friendly "categorical_cb" for timeseries data.
 
     Returns
     -------
@@ -50,7 +50,7 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
     UserWarning
         Warn user that the function will be slow if data has not been loaded into memory
     """
-    
+
     # Warn user about speed if passing a zarr to the function
     if data.chunks is not None:
         warnings.warn(
@@ -59,7 +59,6 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
 
     # Workflow if data contains spatial coordinates
     if set(["x", "y"]).issubset(set(data.dims)):
-        
         # Set default cmap if no user input
         if cmap is None:
             try:
@@ -82,7 +81,13 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
 
             # Set default cmap if no user input
             # Different if using matplotlib (no "hex")
-            if cmap in ["categorical_cb","ae_orange", "ae_diverging", "ae_blue", "ae_diverging_r"]:
+            if cmap in [
+                "categorical_cb",
+                "ae_orange",
+                "ae_diverging",
+                "ae_blue",
+                "ae_diverging_r",
+            ]:
                 cmap = _read_ae_colormap(cmap=cmap, cmap_hex=False)
 
             with warnings.catch_warnings():
@@ -108,7 +113,13 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
 
             # Set default cmap if no user input
             # Different if using hvplot (we need "hex")
-            if cmap in ["categorical_cb", "ae_orange", "ae_diverging", "ae_blue", "ae_diverging_r"]:
+            if cmap in [
+                "categorical_cb",
+                "ae_orange",
+                "ae_diverging",
+                "ae_blue",
+                "ae_diverging_r",
+            ]:
                 cmap = _read_ae_colormap(cmap=cmap, cmap_hex=True)
 
             # Set default width & height
@@ -145,13 +156,18 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
             )
     # Workflow if data contains only time dimension
     elif "time" in data.dims:
-        
-        # Default colormap for timeseries data  
-        if cmap is None: 
+        # Default colormap for timeseries data
+        if cmap is None:
             cmap = "categorical_cb"
-        if cmap in ["categorical_cb","ae_orange", "ae_diverging", "ae_blue", "ae_diverging_r"]:
+        if cmap in [
+            "categorical_cb",
+            "ae_orange",
+            "ae_diverging",
+            "ae_blue",
+            "ae_diverging_r",
+        ]:
             cmap = _read_ae_colormap(cmap=cmap, cmap_hex=True)
-        
+
         # Set default width & height
         if width is None:
             width = 600
@@ -159,12 +175,7 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
             height = 300
 
         # Create lineplot
-        _plot = data.hvplot.line(
-            x="time", 
-            width=width, 
-            height=height, 
-            color=cmap
-        )
+        _plot = data.hvplot.line(x="time", width=width, height=height, color=cmap)
 
     # Error raised if data does not contain [x,y] or time dimensions
     else:
