@@ -217,7 +217,7 @@ class Application(object):
         )
 
     # === View =======================================
-    def view(self, data, lat_lon=True, width=None, height=None, cmap=None, color=None):
+    def view(self, data, lat_lon=True, width=None, height=None, cmap=None):
         """Create a generic visualization of the data
 
         Visualization will depend on the shape of the input data.
@@ -237,12 +237,9 @@ class Application(object):
             Height of plot
             Default to hvplot.image default
         cmap: matplotlib colormap name or AE colormap names
-            Colormap to apply to mapped data (will not effect lineplots)
-            Default to "ae_orange"
-        color: matplotlib colormap name or color-blind friendly colormap name
-            Colormap to apply to timeseries data (will not affect mapped data)
-            Default to "categorical_cb"
-
+            Colormap to apply to data
+            Default to "ae_orange" for mapped data or color-blind friendly "categorical_cb" for timeseries data. 
+            
         Returns
         -------
         holoviews.core.spaces.DynamicMap
@@ -257,7 +254,7 @@ class Application(object):
             Warn user that the function will be slow if data has not been loaded into memory
         """
         return _visualize(
-            data, lat_lon=lat_lon, width=width, height=height, cmap=cmap, color=color
+            data, lat_lon=lat_lon, width=width, height=height, cmap=cmap
         )
 
     # === Export =====================================
