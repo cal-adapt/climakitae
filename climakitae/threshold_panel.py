@@ -2,7 +2,7 @@ import math
 import pandas as pd
 import panel as pn
 import param
-from .data_loaders import _read_from_catalog
+from .data_loaders import _read_catalog_from_select
 from .unit_conversions import _convert_units
 from .threshold_tools import (
     get_exceedance_count,
@@ -28,7 +28,7 @@ def _get_threshold_data(selections, location, cat):
 
     """
     # Read data from catalog
-    data = _read_from_catalog(selections=selections, location=location, cat=cat)
+    data = _read_catalog_from_select(selections=selections, location=location, cat=cat)
     data = data.compute()  # Read into memory
     return data
 

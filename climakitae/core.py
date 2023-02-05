@@ -2,7 +2,7 @@ import intake
 from .data_export import _export_to_user
 from .explore import AppExplore
 from .view import _visualize
-from .data_loaders import _read_from_catalog, _compute, _read_data_from_csv
+from .data_loaders import _read_catalog_from_select, _read_catalog_from_csv, _compute
 from .selectors import (
     DataSelector,
     _display_select,
@@ -139,7 +139,7 @@ class Application(object):
         To retrieve data using the settings in a configuration csv file, set config to the local
         filepath of the csv.
         Grabs the data from the AWS S3 bucket, returns lazily loaded dask array.
-        User-facing function that provides a wrapper for _read_from_catalog and _read_data_from_csv.
+        User-facing function that provides a wrapper for _read_catalog_from_csv and _read_catalog_from_select.
 
         Parameters
         ----------
@@ -154,18 +154,26 @@ class Application(object):
         -------
         xr.DataArray
             Lazily loaded dask array
+            Default if no config file provided
+        xr.Dataset
+            If multiple rows are in the csv, each row is a data_variable
+            Only an option if a config file is provided
+        list of xr.DataArray
+            If multiple rows are in the csv and merge=True,
+            multiple DataArrays are returned in a single list.
+            Only an option if a config file is provided.
 
         """
         if config is not None:
             if type(config) == str:
-                return _read_data_from_csv(
+                return _read_catalog_from_csv(
                     self.selections, self.location, self._cat, config, merge
                 )
             else:
                 raise ValueError(
-                    "To retrieve data from a configuration file, please input the path to your local configuration csv as a string"
+                    "To retrieve data specified in a configuration file, please input the path to your local configuration csv as a string"
                 )
-        return _read_from_catalog(self.selections, self.location, self._cat)
+        return _read_catalog_from_select(self.selections, self.location, self._cat)
 
     def retrieve_from_csv(self, csv, merge=True):
         """Retrieve data from csv input. Return type will depend on how many rows exist in the input csv file and the argument merge.
