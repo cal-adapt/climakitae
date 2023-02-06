@@ -166,6 +166,8 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
             "ae_blue",
             "ae_diverging_r",
         ]:
+            # Other cmap options should never be used, to ensure accessibility
+            cmap = "categorical_cb"
             cmap = _read_ae_colormap(cmap=cmap, cmap_hex=True)
 
         # Set default width & height
