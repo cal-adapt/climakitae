@@ -159,15 +159,6 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
         # Default colormap for timeseries data
         if cmap is None:
             cmap = "categorical_cb"
-        if cmap in [
-            "categorical_cb",
-            "ae_orange",
-            "ae_diverging",
-            "ae_blue",
-            "ae_diverging_r",
-        ]:
-            # Other cmap options should never be used, to ensure accessibility
-            cmap = "categorical_cb"
             cmap = _read_ae_colormap(cmap=cmap, cmap_hex=True)
 
         # Set default width & height
