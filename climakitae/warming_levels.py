@@ -9,7 +9,7 @@ import param
 import panel as pn
 import pkg_resources
 from .utils import _read_ae_colormap
-from .data_loaders import _read_from_catalog
+from .data_loaders import _read_catalog_from_select
 from .catalog_convert import _scenario_to_experiment_id
 
 
@@ -61,7 +61,7 @@ def _get_postage_data(selections, location, cat):
 
     """
     # Read data from catalog
-    data = _read_from_catalog(selections=selections, location=location, cat=cat)
+    data = _read_catalog_from_select(selections=selections, location=location, cat=cat)
     data = data.compute()  # Read into memory
     return data
 

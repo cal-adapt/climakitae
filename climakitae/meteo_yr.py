@@ -40,7 +40,7 @@ from .catalog_convert import (
     _timescale_to_table_id,
     _scenario_to_experiment_id,
 )
-from .data_loaders import _read_from_catalog
+from .data_loaders import _read_catalog_from_select
 from tqdm.auto import tqdm  # Progress bar
 import logging  # Silence warnings
 
@@ -145,7 +145,7 @@ def _retrieve_meteo_yr_data(
     selections.units = units
 
     # Grab data from the catalog
-    amy_data = _read_from_catalog(
+    amy_data = _read_catalog_from_select(
         selections=selections, location=location, cat=_cat
     ).isel(scenario=0, simulation=0)
     return amy_data
