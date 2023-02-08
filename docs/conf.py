@@ -94,6 +94,7 @@ napoleon_type_aliases = {
     "sys.stdout": ":obj:`sys.stdout`",
     "timedelta": "~datetime.timedelta",
     "string": ":class:`string <str>`",
+    "boolean": ":class:`boolean <bool>`",
     # numpy terms
     "array_like": ":term:`array_like`",
     "array-like": ":term:`array-like <array_like>`",
