@@ -49,7 +49,7 @@ def get_ams(da, extremes_type="max"):
     return ams
 
 
-def get_distr_func(distr):
+def _get_distr_func(distr):
     """Function that sets the scipy distribution object
 
     Sets corresponding distribution function from selected
@@ -85,7 +85,7 @@ def get_distr_func(distr):
     return distr_func
 
 
-def get_fitted_distr(ams, distr, distr_func):
+def _get_fitted_distr(ams, distr, distr_func):
     """Function for fitting data to distribution function
 
     Takes data array and fits it to distribution function.
@@ -154,7 +154,7 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
     xarray.Dataset
     """
 
-    distr_func = get_distr_func(distr)
+    distr_func = _get_distr_func(distr)
     ams_attributes = ams.attrs
 
     if multiple_points:
@@ -166,7 +166,7 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
         )
 
     def ks_stat(ams):
-        parameters, fitted_distr = get_fitted_distr(ams, distr, distr_func)
+        parameters, fitted_distr = _get_fitted_distr(ams, distr, distr_func)
 
         if distr == "gev":
             cdf = "genextreme"
@@ -218,7 +218,7 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
     return new_ds
 
 
-def calculate_return(fitted_distr, data_variable, arg_value):
+def _calculate_return(fitted_distr, data_variable, arg_value):
     """Function to perform extreme value calculation on fitted distribution
 
     Runs corresponding extreme value calculation for selected data variable.
@@ -263,7 +263,7 @@ def calculate_return(fitted_distr, data_variable, arg_value):
     return result
 
 
-def bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
+def _bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
     """Function for making a bootstrap-calculated value from input array
 
     Determines a bootstrap-calculated value for relevant parameters from an
@@ -290,14 +290,14 @@ def bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
             % data_variables
         )
 
-    distr_func = get_distr_func(distr)
+    distr_func = _get_distr_func(distr)
 
     sample_size = len(ams)
     new_ams = np.random.choice(ams, size=sample_size, replace=True)
 
     try:
-        parameters, fitted_distr = get_fitted_distr(new_ams, distr, distr_func)
-        result = calculate_return(
+        parameters, fitted_distr = _get_fitted_distr(new_ams, distr, distr_func)
+        result = _calculate_return(
             fitted_distr=fitted_distr,
             data_variable=data_variable,
             arg_value=arg_value,
@@ -308,7 +308,7 @@ def bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
     return result
 
 
-def conf_int(
+def _conf_int(
     ams,
     distr,
     data_variable,
@@ -340,7 +340,7 @@ def conf_int(
     bootstrap_values = []
 
     for _ in range(bootstrap_runs):
-        result = bootstrap(
+        result = _bootstrap(
             ams,
             distr,
             data_variable,
@@ -386,7 +386,7 @@ def get_return_value(
     """
 
     data_variable = "return_value"
-    distr_func = get_distr_func(distr)
+    distr_func = _get_distr_func(distr)
     ams_attributes = ams.attrs
 
     if multiple_points:
@@ -399,8 +399,8 @@ def get_return_value(
 
     def return_value(ams):
         try:
-            parameters, fitted_distr = get_fitted_distr(ams, distr, distr_func)
-            return_value = calculate_return(
+            parameters, fitted_distr = _get_fitted_distr(ams, distr, distr_func)
+            return_value = _calculate_return(
                 fitted_distr=fitted_distr,
                 data_variable=data_variable,
                 arg_value=return_period,
@@ -408,7 +408,7 @@ def get_return_value(
         except (ValueError, ZeroDivisionError):
             return_value = np.nan
 
-        conf_int_lower_limit, conf_int_upper_limit = conf_int(
+        conf_int_lower_limit, conf_int_upper_limit = _conf_int(
             ams=ams,
             distr=distr,
             data_variable=data_variable,
@@ -480,7 +480,7 @@ def get_return_prob(
     """
 
     data_variable = "return_prob"
-    distr_func = get_distr_func(distr)
+    distr_func = _get_distr_func(distr)
     ams_attributes = ams.attrs
 
     if multiple_points:
@@ -493,8 +493,8 @@ def get_return_prob(
 
     def return_prob(ams):
         try:
-            parameters, fitted_distr = get_fitted_distr(ams, distr, distr_func)
-            return_prob = calculate_return(
+            parameters, fitted_distr = _get_fitted_distr(ams, distr, distr_func)
+            return_prob = _calculate_return(
                 fitted_distr=fitted_distr,
                 data_variable=data_variable,
                 arg_value=threshold,
@@ -502,7 +502,7 @@ def get_return_prob(
         except (ValueError, ZeroDivisionError):
             return_prob = np.nan
 
-        conf_int_lower_limit, conf_int_upper_limit = conf_int(
+        conf_int_lower_limit, conf_int_upper_limit = _conf_int(
             ams=ams,
             distr=distr,
             data_variable=data_variable,
@@ -575,7 +575,7 @@ def get_return_period(
     """
 
     data_variable = "return_period"
-    distr_func = get_distr_func(distr)
+    distr_func = _get_distr_func(distr)
     ams_attributes = ams.attrs
 
     if multiple_points:
@@ -588,8 +588,8 @@ def get_return_period(
 
     def return_period(ams):
         try:
-            parameters, fitted_distr = get_fitted_distr(ams, distr, distr_func)
-            return_period = calculate_return(
+            parameters, fitted_distr = _get_fitted_distr(ams, distr, distr_func)
+            return_period = _calculate_return(
                 fitted_distr=fitted_distr,
                 data_variable=data_variable,
                 arg_value=return_value,
@@ -597,7 +597,7 @@ def get_return_period(
         except (ValueError, ZeroDivisionError):
             return_period = np.nan
 
-        conf_int_lower_limit, conf_int_upper_limit = conf_int(
+        conf_int_lower_limit, conf_int_upper_limit = _conf_int(
             ams=ams,
             distr=distr,
             data_variable=data_variable,
@@ -644,7 +644,7 @@ def get_return_period(
 # ===================== Functions for exceedance count =========================
 
 
-def get_exceedance_count(
+def _get_exceedance_count(
     da,
     threshold_value,
     duration1=None,
@@ -731,7 +731,7 @@ def get_exceedance_count(
 
     # --------- Calculate occurances -------------------------------------------
 
-    events_da = get_exceedance_events(
+    events_da = _get_exceedance_events(
         da, threshold_value, threshold_direction, duration1, groupby
     )
 
@@ -820,7 +820,7 @@ def _is_greater(time1, time2):
         return order.index(time1[1]) > order.index(time2[1])
 
 
-def get_exceedance_events(
+def _get_exceedance_events(
     da, threshold_value, threshold_direction="above", duration1=None, groupby=None
 ):
     """Function for generating logical array of threshold event occurance
@@ -937,7 +937,7 @@ def _exceedance_count_name(exceedance_count):
     return f"Number of {event}"
 
 
-def plot_exceedance_count(exceedance_count):
+def _plot_exceedance_count(exceedance_count):
     """Create panel column object with embedded plots
 
     Plots each simulation as a different color line.
