@@ -265,8 +265,8 @@ class Application(object):
             Height of plot
             Default to hvplot.image default
         cmap: matplotlib colormap name or AE colormap names
-            Colormap to apply to mapped data (will not effect lineplots)
-            Default to "ae_orange"
+            Colormap to apply to data
+            Default to "ae_orange" for mapped data or color-blind friendly "categorical_cb" for timeseries data.
 
         Returns
         -------
