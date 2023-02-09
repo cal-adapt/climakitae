@@ -67,8 +67,8 @@ class AppExplore(object):
             thresh_data=thresh_data,
             selections=self.selections,
             location=self.location,
+            map_view=self.map_view,
             option=option,
-            map_view=map_view,
         )
 
     def warming_levels(self):
