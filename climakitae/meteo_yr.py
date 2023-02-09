@@ -845,7 +845,7 @@ def _amy_visualize(tmy_ob, selections, location):
                 location.param.latitude,
                 location.param.longitude,
                 location.param.cached_area,
-                location.view,
+                map_view.view,
                 pn.widgets.Button.from_param(
                     tmy_ob.param.reload_data,
                     button_type="primary",

@@ -5,6 +5,7 @@ from .view import _visualize
 from .data_loaders import _read_catalog_from_select, _read_catalog_from_csv, _compute
 from .selectors import (
     DataSelector,
+    _ViewLocationSelections,
     _display_select,
     LocSelectorArea,
     UserFileChoices,
@@ -74,8 +75,13 @@ class Application(object):
         )
         self.location = LocSelectorArea(name="Location Selections")
         self.selections = DataSelector(cat=self._cat, location=self.location)
+        self.map_view = _ViewLocationSelections(
+            location=self.location, selections=self.selections
+        )
         self.user_export_format = FileTypeSelector()
-        self.explore = AppExplore(self.selections, self.location, self._cat)
+        self.explore = AppExplore(
+            self.selections, self.location, self._cat, self.map_view
+        )
 
     # === Select =====================================
     def select(self):
@@ -106,7 +112,7 @@ class Application(object):
             ],
         )
         # Display panel
-        select_panel = _display_select(self.selections, self.location)
+        select_panel = _display_select(self.selections, self.location, self.map_view)
         return select_panel
 
     # === Read data into memory =====================================

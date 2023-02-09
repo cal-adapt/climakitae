@@ -283,7 +283,7 @@ def _thresholds_visualize(thresh_data, selections, location, option=1):
                 location.param.cached_area,
                 width=230,
             ),
-            pn.Column(location.view, width=180),
+            pn.Column(map_view.view, width=180),
         ),
         title="Data Options",
         collapsible=False,

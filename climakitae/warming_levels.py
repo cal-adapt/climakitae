@@ -612,7 +612,7 @@ class WarmingLevels(param.Parameterized):
         return to_plot
 
 
-def _display_warming_levels(warming_data, selections, location):
+def _display_warming_levels(warming_data, selections, location, map_view):
     # Create panel doodad!
     data_options = pn.Card(
         pn.Row(
@@ -643,7 +643,7 @@ def _display_warming_levels(warming_data, selections, location):
                 location.param.latitude,
                 location.param.longitude,
                 location.param.cached_area,
-                location.view,
+                map_view.view,
                 width=230,
             ),
         ),
