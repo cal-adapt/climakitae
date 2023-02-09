@@ -2,7 +2,11 @@ import intake
 from .data_export import _export_to_user
 from .explore import AppExplore
 from .view import _visualize
-from .data_loaders import _read_catalog_from_select, _read_catalog_from_csv, _compute
+from .data_loaders import (
+    _read_catalog_from_select, 
+    _read_catalog_from_csv, 
+    _compute
+)
 from .selectors import (
     DataSelector,
     _display_select,
@@ -200,7 +204,7 @@ class Application(object):
             If multiple rows are in the csv and merge=True,
             multiple DataArrays are returned in a single list.
         """
-        return _read_data_from_csv(
+        return _read_catalog_from_csv(
             self.selections, self.location, self._cat, csv, merge
         )
 
