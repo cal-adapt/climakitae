@@ -37,6 +37,8 @@ class Application(object):
         Data settings (variable, unit, timescale, etc)
     explore: AppExplore
         Module hosting the explore panel options
+    map_view: _ViewLocationSelections
+        Class for producing visualization of the selected data on a map
 
     Methods
     -------

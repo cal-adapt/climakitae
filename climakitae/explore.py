@@ -3,15 +3,23 @@
 import panel as pn
 import param
 
-from .meteo_yr import AverageMeteorologicalYear, _amy_visualize
+from .meteo_yr import _AverageMeteorologicalYear, _amy_visualize
 from .threshold_panel import ThresholdDataParams, _thresholds_visualize
-from .warming_levels import WarmingLevels, _display_warming_levels
+from .warming_levels import _WarmingLevels, _display_warming_levels
 
 
 class AppExplore(object):
-    """
-    A class for holding the following app explore options:
-        app.explore.amy(): AMY panel GUI
+    """Explore the data using interactive GUIs.
+    
+    Methods
+    -------
+    amy 
+        Display Average Meteorological Year panel
+    amy_selections
+        
+    
+    
+    AMY panel GUI
         app.explore.thresholds(): thresholds panel GUI
         app.explore.warming_levels(): warming levels panel GUI
         app.explore.amy_selections(): AverageMeteorologicalYear object generated in app.explore.amy();
@@ -20,6 +28,21 @@ class AppExplore(object):
     """
 
     def __init__(self, selections, location, _cat, map_view):
+        
+        """Constructor
+        
+        Parameters
+        ----------
+        selections: DataSelector 
+            Data settings (variable, unit, timescale, etc)
+        location: LocSelectorArea
+            Location Settings
+        _cat: intake_esm.core.esm_datastore
+            AE data catalog
+        map_view: _ViewLocationSelections
+            Class for producing visualization of the selected data on a map
+            
+        """
         self.selections = selections
         self.location = location
         self._cat = _cat
@@ -37,7 +60,7 @@ class AppExplore(object):
     def amy(self):
         """Display Average Meteorological Year panel."""
         global tmy_ob
-        tmy_ob = AverageMeteorologicalYear(
+        tmy_ob = _AverageMeteorologicalYear(
             selections=self.selections, location=self.location, cat=self._cat
         )
         return _amy_visualize(
@@ -73,7 +96,7 @@ class AppExplore(object):
 
     def warming_levels(self):
         """Display Warming Levels panel."""
-        warming_data = WarmingLevels(
+        warming_data = _WarmingLevels(
             selections=self.selections, location=self.location, cat=self._cat
         )
         return _display_warming_levels(

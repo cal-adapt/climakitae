@@ -562,7 +562,7 @@ def lineplot_from_amy_data(
 # =========================== MAIN AVERAGE METEO YR OBJECT ==============================
 
 
-class AverageMeteorologicalYear(param.Parameterized):
+class _AverageMeteorologicalYear(param.Parameterized):
     """
     An object that holds the "Data Options" paramters for the
     explore.tmy panel.
