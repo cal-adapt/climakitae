@@ -1,47 +1,37 @@
-# A class for holding the app explore options
+"""
+Contains source code for the AppExplore object, used to access panel GUIs for exploring several climatological topics of interest: 
+1. Average meteorological year
+2. Thresholds 
+3. Global warming levels 
+See the AppExplore object documentation for more information. 
+"""
 
 import panel as pn
 import param
-
 from .meteo_yr import _AverageMeteorologicalYear, _amy_visualize
 from .threshold_panel import ThresholdDataParams, _thresholds_visualize
 from .warming_levels import _WarmingLevels, _display_warming_levels
 
 
-class AppExplore(object):
+class _AppExplore(object):
     """Explore the data using interactive GUIs.
-    
-    Methods
-    -------
-    amy 
-        Display Average Meteorological Year panel
-    amy_selections
-        
-    
-    
-    AMY panel GUI
-        app.explore.thresholds(): thresholds panel GUI
-        app.explore.warming_levels(): warming levels panel GUI
-        app.explore.amy_selections(): AverageMeteorologicalYear object generated in app.explore.amy();
-            only accessible if app.explore.amy() has already been run.
-
+    Only functional in a jupyter notebook environment.
     """
 
     def __init__(self, selections, location, _cat, map_view):
-        
         """Constructor
-        
+
         Parameters
         ----------
-        selections: DataSelector 
+        selections: _DataSelector
             Data settings (variable, unit, timescale, etc)
-        location: LocSelectorArea
+        location: _LocSelectorArea
             Location Settings
         _cat: intake_esm.core.esm_datastore
             AE data catalog
         map_view: _ViewLocationSelections
             Class for producing visualization of the selected data on a map
-            
+
         """
         self.selections = selections
         self.location = location

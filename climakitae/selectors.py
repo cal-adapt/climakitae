@@ -1,3 +1,6 @@
+"""Backend functions related to providing and dynamically setting data selections.
+Boundaries function for storing parquet geometries for spatial subsetting."""
+
 import datetime as dt
 import param
 import panel as pn
@@ -64,7 +67,29 @@ _cached_stations = [
 
 
 class Boundaries:
+    """Get geospatial polygon data from the AE catalog.
+    Used to access boundaries for subsetting data by state, county, etc.
+    """
+
     def __init__(self):
+        """
+        Parameters
+        -----------
+        _cat: intake.catalog.local.YAMLFileCatalog
+            Catalog for parquet files
+        _us_states: pd.DataFrame
+            Table of US state names and geometries
+        _ca_counties: pd.DataFrame
+            Table of California county names and geometries
+            Sorted by county name alphabetical order
+        _ca_watersheds: pd.DataFrame
+            Table of California watershed names and geometries
+            Sorted by watershed name alphabetical order
+        _ca_utilities: pd.DataFrame
+            Table of California IOUs and POUs, names and geometries
+        _ca_forecast_zones: pd.DataFrame
+            Table of California Demand Forecast Zones
+        """
         self._cat = intake.open_catalog(
             "https://cadcat.s3.amazonaws.com/parquet/catalog.yaml"
         )
@@ -78,11 +103,15 @@ class Boundaries:
         self._ca_forecast_zones.loc[
             self._ca_forecast_zones["FZ_Name"] == "Other", "FZ_Name"
         ] = self._ca_forecast_zones["FZ_Def"]
-        # self._ca_forecast_zones = self._ca_forecast_zones[["OBJECTID","FZ_Name","geometry"]]
 
     def get_us_states(self):
         """
         Returns a custom sorted dictionary of state abbreviations and indices.
+
+        Returns
+        -------
+        dict
+
         """
         _states_subset_list = [
             "CA",
@@ -110,6 +139,11 @@ class Boundaries:
         """
         Returns a dictionary of California counties and their indices
         in the geoparquet file.
+
+        Returns
+        -------
+        dict
+
         """
         return pd.Series(
             self._ca_counties.index, index=self._ca_counties["NAME"]
@@ -119,6 +153,11 @@ class Boundaries:
         """
         Returns a lookup dictionary for CA watersheds that references
         the geoparquet file.
+
+        Returns
+        -------
+        dict
+
         """
         return pd.Series(
             self._ca_watersheds.index, index=self._ca_watersheds["Name"]
@@ -128,6 +167,11 @@ class Boundaries:
         """
         Returns a lookup dictionary for CA watersheds that references
         the geoparquet file.
+
+        Returns
+        -------
+        dict
+
         """
         return pd.Series(
             self._ca_forecast_zones.index, index=self._ca_forecast_zones["FZ_Name"]
@@ -137,6 +181,11 @@ class Boundaries:
         """
         Returns a lookup dictionary for IOUs & POUs that references
         the geoparquet file.
+
+        Returns
+        -------
+        dict
+
         """
         put_at_top = [  # Put in the order you want it to appear in the dropdown
             "Pacific Gas & Electric Company",
@@ -160,7 +209,12 @@ class Boundaries:
         This returns a dictionary of lookup dictionaries for each set of
         geoparquet files that the user might be choosing from. It is used to
         populate the selector object dynamically as the category in
-        'LocSelectorArea.area_subset' changes.
+        '_LocSelectorArea.area_subset' changes.
+
+        Returns
+        -------
+        dict
+
         """
         _all_options = {
             "none": {"entire domain": 0},
@@ -174,7 +228,7 @@ class Boundaries:
         return _all_options
 
 
-class LocSelectorArea(param.Parameterized):
+class _LocSelectorArea(param.Parameterized):
     """
     Used to produce a panel of widgets for entering one of the types of location
     information used to define a timeseries from an average over an area. Will
@@ -420,7 +474,7 @@ class _ViewLocationSelections(param.Parameterized):
         return mpl_pane
 
 
-class LocSelectorPoint(param.Parameterized):
+class _LocSelectorPoint(param.Parameterized):
     """
     If the user wants a timeseries that pertains to a point, they may choose
     from among a set of pre-calculated station locations. Later this class can
@@ -504,7 +558,7 @@ def _get_variable_options_df(var_catalog, unique_variable_ids, timescale):
     return variable_options_df
 
 
-class DataSelector(param.Parameterized):
+class _DataSelector(param.Parameterized):
     """
     An object to hold data parameters, which depends only on the 'param'
     library. Currently used in '_display_select', which uses 'panel' to draw the
@@ -950,7 +1004,7 @@ def _get_data_selection_description(selections, location):
     return _data_selection_description + _location_selection_description
 
 
-class SelectionDescription(param.Parameterized):
+class _SelectionDescription(param.Parameterized):
     """
     Make a long string to output to the user to show all their current selections.
     Updates whenever any of the input values are changed.
@@ -1001,7 +1055,7 @@ def _display_select(selections, location, map_view):
     appropriate xarray Dataset.
     """
 
-    selection_description = SelectionDescription(
+    selection_description = _SelectionDescription(
         selections=selections, location=location
     )
 
@@ -1101,7 +1155,7 @@ def _display_select(selections, location, map_view):
 # =============================== EXPORT DATA ==================================
 
 
-class UserFileChoices:
+class _UserFileChoices:
     # reserved for later: text boxes for dataset to export
     # as well as a file name
     # data_var_name = param.String()
@@ -1111,14 +1165,14 @@ class UserFileChoices:
         self._export_format_choices = ["Pick a file format", "CSV", "GeoTIFF", "NetCDF"]
 
 
-class FileTypeSelector(param.Parameterized):
+class _FileTypeSelector(param.Parameterized):
     """
     If the user wants to export an xarray dataset, they can choose
     their preferred format here. Produces a panel from which to select a
     supported file type.
     """
 
-    user_options = UserFileChoices()
+    user_options = _UserFileChoices()
     output_file_format = param.ObjectSelector(
         objects=user_options._export_format_choices
     )

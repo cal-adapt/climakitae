@@ -1,3 +1,5 @@
+"""Miscellaneous utility functions."""
+
 import numpy as np
 import datetime
 import xarray as xr
@@ -73,7 +75,7 @@ def get_closest_gridcell(data, lat, lon):
     return closest_gridcell
 
 
-def julianDay_to_str_date(julday, leap_year=True, str_format="%b-%d"):
+def _julianDay_to_str_date(julday, leap_year=True, str_format="%b-%d"):
     """Convert julian day of year to string format
     i.e. if str_format = "%b-%d", the output will be Mon-Day ("Jan-01")
 
@@ -270,7 +272,7 @@ def _reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
 
 
 ### some utils for generating warming level reference data in ../data/ ###
-def write_gwl_files():
+def _write_gwl_files():
     """Call everything needed to write the global warming level reference files
     for all of the currently downscaled GCMs."""
 

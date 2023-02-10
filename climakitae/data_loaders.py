@@ -1,3 +1,5 @@
+"""Backend functions for retrieving and subsetting data from the AE catalog"""
+
 import xarray as xr
 import dask
 import rioxarray

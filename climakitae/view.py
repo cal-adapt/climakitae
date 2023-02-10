@@ -1,3 +1,5 @@
+"""Backend function for creating generic visualizations of xarray DataArray."""
+
 import warnings
 import xarray as xr
 import numpy as np

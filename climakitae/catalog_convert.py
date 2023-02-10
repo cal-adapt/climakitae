@@ -1,4 +1,4 @@
-"""Helper functions for working with ESM catalog and user data selections"""
+"""Backend functions for working with ESM catalog and user data selections"""
 
 
 def _resolution_to_gridlabel(resolution, reverse=False):

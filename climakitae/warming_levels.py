@@ -1,3 +1,5 @@
+"""Backend helper functions for performing analyses related to global warming levels."""
+
 import hvplot.xarray
 import hvplot.pandas
 import xarray as xr
