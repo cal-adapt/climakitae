@@ -104,8 +104,11 @@ def _get_fitted_distr(ams, distr, distr_func):
         frozen fitted distribution
     """
 
-    def get_parameters(p, p_values):
-        return {p[i]: p_values[i] for i, _ in enumerate(p_values)}
+    def get_param_dict(p_names, p_values):
+        """Function for building the dictionary of parameters used as argument
+           to scipy.stats distribution functions.
+        """
+        return dict(zip(p_names, p_values))
 
     parameters = None
     fitted_distr = None
@@ -113,24 +116,24 @@ def _get_fitted_distr(ams, distr, distr_func):
     p_values = distr_func.fit(ams)
 
     if distr == "gev":
-        p = ("c", "loc", "scale")
-        parameters = get_parameters(p, p_values)
+        p_names = ("c", "loc", "scale")
+        parameters = get_param_dict(p_names, p_values)
         fitted_distr = stats.genextreme(**parameters)
     elif distr == "gumbel":
-        p = ("loc", "scale")
-        parameters = get_parameters(p, p_values)
+        p_names = ("loc", "scale")
+        parameters = get_param_dict(p_names, p_values)
         fitted_distr = stats.gumbel_r(**parameters)
     elif distr == "weibull":
-        p = ("c", "loc", "scale")
-        parameters = get_parameters(p, p_values)
+        p_names = ("c", "loc", "scale")
+        parameters = get_param_dict(p_names, p_values)
         fitted_distr = stats.weibull_min(**parameters)
     elif distr == "pearson3":
-        p = ("skew", "loc", "scale")
-        parameters = get_parameters(p, p_values)
+        p_names = ("skew", "loc", "scale")
+        parameters = get_param_dict(p_names, p_values)
         fitted_distr = stats.pearson3(**parameters)
     elif distr == "genpareto":
-        p = ("c", "loc", "scale")
-        parameters = get_parameters(p, p_values)
+        p_names = ("c", "loc", "scale")
+        parameters = get_param_dict(p_names, p_values)
         fitted_distr = stats.genpareto(**parameters)
     else:
         raise ValueError("invalid distribution type.")
