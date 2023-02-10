@@ -8,6 +8,7 @@ import intake
 import warnings
 from .selectors import Boundaries
 from cmip6_preprocessing.preprocessing import rename_cmip6
+from scipy import stats
 
 
 ### Utility functions for uncertainty analyses and notebooks
@@ -69,6 +70,8 @@ class CmipOpt:
         to_drop = [v for v in list(ds.data_vars) if v != variable]
         ds = ds.drop_vars(to_drop)
         ds = _clip_region(ds, area_subset, location)
+        if variable in ("pr"):
+            ds = _precip_flux_to_total(ds)
         if area_average:
             ds = _area_wgt_average(ds)
         return ds
@@ -226,9 +229,25 @@ def _drop_member_id(dset_dict):
             dset_dict.update({dname: dset})  # Update dataset in dictionary
     return dset_dict
 
+def _precip_flux_to_total(ds):
+    """
+    converts precip flux units 
+    (kg m-2 s-1) to total precip
+    per month (mm)
+    NOTE: assumes regular calendar
+    """
+    ds_attrs = ds.attrs
+    days_month = ds.time.dt.days_in_month
+    seconds_month = 86400*days_month
+    ds = ds*seconds_month
+    ds = xr.where(ds>0.1,ds,np.nan)
+    ds.attrs = ds_attrs
+    ds.pr.attrs["units"] = 'mm'
+    return ds
 
-## Grab temperature data - model uncertainty analysis (explore_model_uncertainty nb)
-def grab_temp_data(copt):
+
+## Grab data - model uncertainty analysis
+def grab_multimodel_data(copt,alpha_sort=False):
     """Returns processed data from multiple CMIP6 models for uncertainty analysis.
 
     Searches the CMIP6 data catalog for data from models that have specific
@@ -238,8 +257,10 @@ def grab_temp_data(copt):
 
     Attributes
     ----------
-    copt: CmipOpt
-        Selections for variable, area_subset, location, area_average, timescale
+    copt: object
+        Selections: variable, area_subset, location, area_average, timescale
+    alpha_sort: bool
+        Set to True if sorting model names alphabetically is desired
 
     Returns
     -------
@@ -270,10 +291,18 @@ def grab_temp_data(copt):
     )
 
     # searches the catalog for the additional cal-adapt simulations
-    paths = [
-        "CESM2.*r11i1p1f1",
-        "CNRM-ESM2-1.*r1i1p1f2",
-    ]  # note, two of the Cal-Adapt models use a different ensemble member
+    if "pr" in copt.variable:
+        paths = [
+            "CESM2.*r11i1p1f1",
+            "CNRM-ESM2-1.*r1i1p1f2",
+            'MPI-ESM1-2-LR.*r7i1p1f1',
+        ]  # note, three of the Cal-Adapt models (precip only) use a different ensemble member        
+    else:
+        paths = [
+            "CESM2.*r11i1p1f1",
+            "CNRM-ESM2-1.*r1i1p1f2",
+        ]  # note, two of the Cal-Adapt models (temperature) use a different ensemble member
+    
     cat = col.search(
         table_id=copt.timescale,
         variable_id=copt.variable,
@@ -304,7 +333,14 @@ def grab_temp_data(copt):
 
     # merge datasets together
     all_hist_mdls = hist_dsets | cal_hist_dsets
-    all_ssp_mdls = ssp_dsets | cal_ssp_dsets
+    all_ssp_mdls = ssp_dsets | cal_ssp_dsets   
+        
+    if alpha_sort:
+        # sort models alphabetically
+        all_hist_mdls = dict(sorted(all_hist_mdls.items(),
+        key = lambda x: x[0].split(".")[2]))
+        all_ssp_mdls = dict(sorted(all_ssp_mdls.items(),
+        key = lambda x: x[0].split(".")[2]))
 
     # concatenate historical data based on the model, and subset for California
     hist_ds = xr.concat(list(all_hist_mdls.values()), dim="simulation").squeeze()
@@ -324,6 +360,80 @@ def grab_temp_data(copt):
     )
 
     return mdls_ds
+
+## Grab data - internal variability analysis
+def grab_ensemble_data(copt,cmip_names,alpha_sort=True):
+    """Returns processed data from multiple CMIP6 models for uncertainty analysis.
+
+    Searches the CMIP6 data catalog for data from models that have specific
+    ensemble member id in the historical and ssp370 runs. Preprocessing includes
+    subsetting for specific location and dropping the member_id for easier
+    analysis.
+
+    Attributes
+    ----------
+    copt: object
+        Selections: variable, area_subset, location, area_average, timescale
+    alpha_sort: bool
+        Set to True if sorting model names alphabetically is desired
+    cmip_names: list
+        Specific models
+
+    Returns
+    -------
+    List
+        Historical (1981-2010) CMIP6 xr.Datasets concatenated along member_id
+        for each specified model
+    List
+        Warming level CMIP6 xr.Datasets w/ multiple member_ids
+        for each specified model
+    """        
+    num_simulations_ds = len(cmip_names)
+    sim_range = range(num_simulations_ds)
+
+    col = intake.open_esm_datastore(
+        "https://cadcat.s3.amazonaws.com/tmp/cmip6-regrid.json"
+    )  # data catalog
+
+    # searches catalog for data from the cmip6 archive using our specific data options
+    cat = col.search(
+        table_id = "Amon",
+        variable_id = copt.variable,
+        experiment_id = ["historical","ssp370"],
+        source_id = cmip_names
+    )
+
+    # grabs the data from the catalog, and processes it using the wrapper function defined above
+    dsets = cat.to_dataset_dict(
+        zarr_kwargs={"consolidated": True},
+        storage_options={"anon": True},
+        preprocess=_wrapper,
+    )
+    
+    # sort by models so indexing is easy
+    dsets = dict(sorted(dsets.items(),
+            key = lambda x: x[0].split(".")[2]))
+
+    # Subsets the historical scenario
+    hist_dsets = {key: val for key,val in dsets.items()
+                 if "historical" in key}
+
+    # Subsets the future scenario
+    ssp_dsets = {key: val for key,val in dsets.items()
+                   if "ssp370" in key}
+    
+    hist_list = list(hist_dsets.values())
+    hist_list = [hist_list[s].sel(
+                    time=slice('1981','2010')
+                    ) for s in sim_range]
+    ssp_list = list(ssp_dsets.values())
+    
+    hist_cae_ds = [copt._cmip_clip(ds)
+                    for ds in hist_list]
+    ssp_cae_ds = [copt._cmip_clip(ds) for
+                    ds in ssp_list]
+    
+    return hist_cae_ds,ssp_cae_ds
 
 
 ## -----------------------------------------------------------------------------
@@ -420,3 +530,55 @@ def compute_vmin_vmax(da_min, da_max):
     else:
         sopt = None
     return vmin, vmax, sopt
+
+
+def get_ks_pval_df(sample1, sample2, sig_lvl=0.05):
+    """Performs a Kolmogorov-Smirnov test at all lat, lon points
+
+    Parameters
+    ----------
+    sample1: xr.Dataset
+        first sample for comparison
+    sample2: xr.Dataset
+        sample against which to compare sample1
+    sig_lvl: Float
+        alpha level for statistical significance
+
+    Returns
+    -------
+    pandas.dataframe
+        columns are lat, lon, and p_value;
+        only retains spatial points where
+        p_value < sig_lvl
+    """
+        
+    sample1 = sample1.stack(allpoints=["y", "x"]).squeeze().groupby("allpoints")
+    sample2 = sample2.stack(allpoints=["y", "x"]).squeeze().groupby("allpoints")
+         
+    def ks_stat_2sample(sample1, sample2):
+        try:
+            ks = stats.kstest(sample1, sample2)
+            d_statistic = ks[0]
+            p_value = ks[1]
+        except (ValueError, ZeroDivisionError):
+            d_statistic = np.nan
+            p_value = np.nan
+
+        return d_statistic, p_value
+
+    d_statistic, p_value = xr.apply_ufunc(
+        ks_stat_2sample,
+        sample1, sample2,
+        input_core_dims=[["index"],["index"]],
+        exclude_dims=set(("index",)),
+        output_core_dims=[[], []],
+    )
+        
+    p_df = p_value.rename("p_value")
+    p_df = p_df.unstack("allpoints")
+    p_df = p_df.to_dataframe().reset_index()
+    p_df = p_df[["lat","lon","p_value"]]
+    p_df = p_df.loc[:,['lon','lat','p_value']]
+    p_df = p_df[p_df["p_value"] < sig_lvl]
+    
+    return p_df
