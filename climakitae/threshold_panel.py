@@ -5,8 +5,8 @@ import param
 from .data_loaders import _read_catalog_from_select
 from .unit_conversions import _convert_units
 from .threshold_tools import (
-    get_exceedance_count,
-    plot_exceedance_count,
+    _get_exceedance_count,
+    _plot_exceedance_count,
     _exceedance_plot_title,
     _exceedance_plot_subtitle,
 )
@@ -135,7 +135,7 @@ class ThresholdDataParams(param.Parameterized):
             self.changed_units = False
 
     def transform_data(self):
-        return get_exceedance_count(
+        return _get_exceedance_count(
             self.da,
             threshold_value=self.threshold_value,
             threshold_direction=self.threshold_direction,
@@ -150,7 +150,7 @@ class ThresholdDataParams(param.Parameterized):
     def view(self):
         try:
             to_plot = self.transform_data()
-            obj = plot_exceedance_count(to_plot)
+            obj = _plot_exceedance_count(to_plot)
         except Exception as e:
             # Display any raised Errors (instead of plotting) if any of the
             # user specifications are incompatible or not yet implemented.
