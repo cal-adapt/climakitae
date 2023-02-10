@@ -196,7 +196,7 @@ class Application(object):
             If multiple rows are in the csv and merge=True,
             multiple DataArrays are returned in a single list.
         """
-        return _read_data_from_csv(
+        return _read_catalog_from_csv(
             self.selections, self.location, self.catalog, csv, merge
         )
 
