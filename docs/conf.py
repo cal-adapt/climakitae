@@ -39,7 +39,7 @@ extensions = [
 autosummary_generate = True  # Turn on sphinx.ext.autosummary
 
 # Add any paths that contain templates here, relative to this directory.
-#templates_path = ["_templates"]
+# templates_path = ["_templates"]
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
@@ -78,7 +78,7 @@ html_static_path = ["_static"]
 # Document special functions; i.e. __init__ or __repr__ if it has a docstring
 napoleon_include_special_with_doc = True
 napoleon_google_docstring = False
-napoleon_numpy_docstring = True # Use numpy style docstrings only 
+napoleon_numpy_docstring = True  # Use numpy style docstrings only
 napoleon_use_param = False
 napoleon_use_rtype = False
 napoleon_preprocess_types = True
