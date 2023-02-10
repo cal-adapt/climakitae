@@ -241,7 +241,7 @@ def _calculate_return(fitted_distr, data_variable, arg_value):
     float
     """
 
-    try: 
+    try:
         if data_variable == "return_value":
             return_event = 1.0 - (1.0 / arg_value)
             return_value = fitted_distr.ppf(return_event)
@@ -295,9 +295,7 @@ def _bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
     try:
         parameters, fitted_distr = _get_fitted_distr(new_ams, distr, distr_func)
         result = _calculate_return(
-            fitted_distr=fitted_distr,
-            data_variable=data_variable,
-            arg_value=arg_value,
+            fitted_distr=fitted_distr, data_variable=data_variable, arg_value=arg_value,
         )
     except (ValueError, ZeroDivisionError):
         result = np.nan
@@ -337,12 +335,7 @@ def _conf_int(
     bootstrap_values = []
 
     for _ in range(bootstrap_runs):
-        result = _bootstrap(
-            ams,
-            distr,
-            data_variable,
-            arg_value,
-        )
+        result = _bootstrap(ams, distr, data_variable, arg_value,)
         bootstrap_values.append(result)
 
     conf_int_array = np.percentile(
@@ -352,6 +345,7 @@ def _conf_int(
     conf_int_lower_limit = conf_int_array[0]
     conf_int_upper_limit = conf_int_array[1]
     return conf_int_lower_limit, conf_int_upper_limit
+
 
 def _get_return_variable(
     ams,
@@ -389,11 +383,9 @@ def _get_return_variable(
     xarray.Dataset
     """
 
-    data_variables = ['return_value', 'return_period', 'return_prob']
+    data_variables = ["return_value", "return_period", "return_prob"]
     if data_variable not in data_variables:
-        raise ValueError(
-            f"Invalid `data_variable`. Must be one of: {data_variables}"
-        )
+        raise ValueError(f"Invalid `data_variable`. Must be one of: {data_variables}")
 
     distr_func = _get_distr_func(distr)
     ams_attributes = ams.attrs
@@ -451,11 +443,15 @@ def _get_return_variable(
         new_ds["return_value"].attrs["return period"] = f"1-in-{arg_value}-year event"
     elif data_variable == "return_prob":
         threshold_unit = ams_attributes["units"]
-        new_ds["return_prob"].attrs["threshold"] = f"exceedance of {arg_value} {threshold_unit} event"
+        new_ds["return_prob"].attrs[
+            "threshold"
+        ] = f"exceedance of {arg_value} {threshold_unit} event"
         new_ds["return_prob"].attrs["units"] = None
     elif data_variable == "return_period":
         return_value_unit = ams_attributes["units"]
-        new_ds["return_period"].attrs["return value"] = f"{arg_value} {return_value_unit} event"
+        new_ds["return_period"].attrs[
+            "return value"
+        ] = f"{arg_value} {return_value_unit} event"
         new_ds["return_period"].attrs["units"] = "years"
 
     new_ds["conf_int_lower_limit"].attrs[
@@ -467,6 +463,7 @@ def _get_return_variable(
 
     new_ds.attrs["distribution"] = f"{distr}"
     return new_ds
+
 
 def get_return_value(
     ams,
@@ -496,8 +493,14 @@ def get_return_value(
     xarray.Dataset
     """
     return _get_return_variable(
-        ams, "return_value", return_period, distr, bootstrap_runs, 
-        conf_int_lower_bound, conf_int_upper_bound, multiple_points
+        ams,
+        "return_value",
+        return_period,
+        distr,
+        bootstrap_runs,
+        conf_int_lower_bound,
+        conf_int_upper_bound,
+        multiple_points,
     )
 
 
@@ -529,8 +532,14 @@ def get_return_prob(
     xarray.Dataset
     """
     return _get_return_variable(
-        ams, "return_prob", threshold, distr, bootstrap_runs, 
-        conf_int_lower_bound, conf_int_upper_bound, multiple_points
+        ams,
+        "return_prob",
+        threshold,
+        distr,
+        bootstrap_runs,
+        conf_int_lower_bound,
+        conf_int_upper_bound,
+        multiple_points,
     )
 
 
@@ -562,8 +571,14 @@ def get_return_period(
     xarray.Dataset
     """
     return _get_return_variable(
-        ams, "return_period", return_value, distr, bootstrap_runs, 
-        conf_int_lower_bound, conf_int_upper_bound, multiple_points
+        ams,
+        "return_period",
+        return_value,
+        distr,
+        bootstrap_runs,
+        conf_int_lower_bound,
+        conf_int_upper_bound,
+        multiple_points,
     )
 
 
