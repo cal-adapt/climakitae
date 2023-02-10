@@ -295,8 +295,8 @@ def _bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
     try:
         parameters, fitted_distr = _get_fitted_distr(new_ams, distr, distr_func)
         result = _calculate_return(
-            fitted_distr=fitted_distr, 
-            data_variable=data_variable, 
+            fitted_distr=fitted_distr,
+            data_variable=data_variable,
             arg_value=arg_value,
         )
     except (ValueError, ZeroDivisionError):
@@ -338,9 +338,9 @@ def _conf_int(
 
     for _ in range(bootstrap_runs):
         result = _bootstrap(
-            ams, 
-            distr, 
-            data_variable, 
+            ams,
+            distr,
+            data_variable,
             arg_value,
         )
         bootstrap_values.append(result)
