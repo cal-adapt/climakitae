@@ -377,7 +377,7 @@ def _get_return_variable(
     Parameters
     ----------
     ams: xarray.DataArray
-    return_variable: str
+    data_variable: str
     arg_value: float
     distr: str
     bootstrap_runs: int
