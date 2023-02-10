@@ -18,6 +18,7 @@ from .utils import _read_ae_colormap
 
 ae_orange_cmap = _read_ae_colormap(cmap="ae_orange", cmap_hex=True)
 
+
 def get_ams(da, extremes_type="max"):
     """Function that converts data into annual maximums
 
@@ -1039,7 +1040,7 @@ def _exceedance_plot_subtitle(exceedance_count):
     return _subtitle
 
 
-##### Visualize the data 
+##### Visualize the data
 def _rename_distr_abbrev(distr):
     """Makes abbreviated distribution name human-readable"""
     distr_abbrev = ["gev", "gumbel", "weibull", "pearson3", "genpareto"]
