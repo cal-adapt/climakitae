@@ -1,3 +1,4 @@
+"""Helper functions and classes for working with timeseries data"""
 import datetime as dt
 import xarray as xr
 import param

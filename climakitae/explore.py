@@ -9,7 +9,7 @@ See the AppExplore object documentation for more information.
 import panel as pn
 import param
 from .meteo_yr import _AverageMeteorologicalYear, _amy_visualize
-from .threshold_panel import ThresholdDataParams, _thresholds_visualize
+from .threshold_panel import _ThresholdDataParams, _thresholds_visualize
 from .warming_levels import _WarmingLevels, _display_warming_levels
 
 
@@ -73,7 +73,7 @@ class _AppExplore(object):
 
     def thresholds(self, option=1):
         """Display Thresholds panel."""
-        thresh_data = ThresholdDataParams(
+        thresh_data = _ThresholdDataParams(
             selections=self.selections, location=self.location, cat=self._cat
         )
         return _thresholds_visualize(
