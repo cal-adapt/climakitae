@@ -181,7 +181,7 @@ class Application(object):
                 )
         return _read_catalog_from_select(self.selections, self.location, self._cat)
 
-    def retrieve_from_csv(self, csv, merge=True):
+    def retrieve_from_csv(self, config, merge=True):
         """Retrieve data from csv input. Return type will depend on how many rows exist in the input csv file and the argument merge.
 
         Allows user to bypass app.select GUI and allows
@@ -190,7 +190,7 @@ class Application(object):
 
         Parameters
         ----------
-        csv: str
+        config: str
             Path to local csv file
         merge: bool, optional
             If multiple datasets desired, merge to form a single object?
@@ -206,8 +206,8 @@ class Application(object):
             If multiple rows are in the csv and merge=True,
             multiple DataArrays are returned in a single list.
         """
-        return _read_data_from_csv(
-            self.selections, self.location, self._cat, csv, merge
+        return _read_catalog_from_csv(
+            self.selections, self.location, self._cat, config, merge
         )
 
     def retrieve_meteo_yr_data(self, ssp=None, year_start=2015, year_end=None):
