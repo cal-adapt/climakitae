@@ -106,7 +106,7 @@ def _get_fitted_distr(ams, distr, distr_func):
 
     def get_param_dict(p_names, p_values):
         """Function for building the dictionary of parameters used as argument
-           to scipy.stats distribution functions.
+        to scipy.stats distribution functions.
         """
         return dict(zip(p_names, p_values))
 
