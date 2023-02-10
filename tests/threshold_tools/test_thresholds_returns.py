@@ -37,7 +37,7 @@ def test_return_value(T2_ams):
 
 # Test invalid distribution argument for Return Values
 def test_return_value_invalid_distr(T2_ams):
-    with pytest.raises(ValueError, match="invalid distr type"):
+    with pytest.raises(ValueError, match="invalid distribution type"):
         rvs = threshold_tools.get_return_value(
             T2_ams, return_period=10, distr="foo", bootstrap_runs=1
         )
@@ -53,7 +53,7 @@ def test_return_period(T2_ams):
 
 # Test invalid distribution argument for Return Periods
 def test_return_period_invalid_distr(T2_ams):
-    with pytest.raises(ValueError, match="invalid distr type"):
+    with pytest.raises(ValueError, match="invalid distribution type"):
         rvs = threshold_tools.get_return_period(
             T2_ams, return_value=290, distr="foo", bootstrap_runs=1
         )

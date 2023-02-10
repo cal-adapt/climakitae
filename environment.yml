@@ -29,6 +29,3 @@ dependencies:
   - scipy=1.7.1
   - shapely=1.7.1
   - xarray=0.19.0
-  - pip
-  - pip:
-    - git+https://github.com/OpenHydrology/lmoments3.git@7e19f97c23019ca68cbd526b8bd417c412438f1c

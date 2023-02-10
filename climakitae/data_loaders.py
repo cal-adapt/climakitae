@@ -512,7 +512,7 @@ def _read_catalog_from_csv(selections, location, cat, csv, merge=True):
         location.cached_area = row.cached_area
 
         # Retrieve data
-        xr_da = _read_from_catalog(selections, location, cat)
+        xr_da = _read_catalog_from_select(selections, location, cat)
         xr_list.append(xr_da)
 
     if len(xr_list) > 1:  # If there's more than one element in the list
