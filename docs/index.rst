@@ -62,7 +62,7 @@ directly from pip: ::
    
    Getting Started <https://github.com/cal-adapt/cae-notebooks/blob/main/getting_started.ipynb>
    Working with the Data <data>
-   climakitae API <api>
+   climakitae API <climakitae>
 
 .. .. toctree::
 ..    :maxdepth: 1
