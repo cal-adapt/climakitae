@@ -349,7 +349,7 @@ def _conf_int(
 
 def _get_return_variable(
     ams,
-    return_variable,
+    data_variable,
     arg_value,
     distr="gev",
     bootstrap_runs=100,
@@ -401,7 +401,7 @@ def _get_return_variable(
     def _return_variable(ams):
         try:
             parameters, fitted_distr = _get_fitted_distr(ams, distr, distr_func)
-            return_value = _calculate_return(
+            return_variable = _calculate_return(
                 fitted_distr=fitted_distr,
                 data_variable=data_variable,
                 arg_value=arg_value,
