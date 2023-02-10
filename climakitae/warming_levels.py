@@ -1,4 +1,4 @@
-"""Backend helper functions for performing analyses related to global warming levels."""
+"""Helper functions for performing analyses related to global warming levels, along with backend code for building the warming levels GUI"""
 
 import hvplot.xarray
 import hvplot.pandas
