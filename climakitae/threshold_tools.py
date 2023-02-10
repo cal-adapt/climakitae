@@ -241,28 +241,22 @@ def _calculate_return(fitted_distr, data_variable, arg_value):
     float
     """
 
-    if data_variable == "return_value":
-        try:
+    try: 
+        if data_variable == "return_value":
             return_event = 1.0 - (1.0 / arg_value)
             return_value = fitted_distr.ppf(return_event)
             result = round(return_value, 5)
-        except (ValueError, ZeroDivisionError, AttributeError):
-            result = np.nan
-    elif data_variable == "return_prob":
-        try:
+        elif data_variable == "return_prob":
             result = 1 - (fitted_distr.cdf(arg_value))
-        except (ValueError, ZeroDivisionError, AttributeError):
-            result = np.nan
-    elif data_variable == "return_period":
-        try:
+        elif data_variable == "return_period":
             return_prob = fitted_distr.cdf(arg_value)
             if return_prob == 1.0:
                 result = np.nan
             else:
                 return_period = -1.0 / (return_prob - 1.0)
                 result = round(return_period, 3)
-        except (ValueError, ZeroDivisionError, AttributeError):
-            result = np.nan
+    except (ValueError, ZeroDivisionError, AttributeError):
+        result = np.nan
     return result
 
 
@@ -359,6 +353,120 @@ def _conf_int(
     conf_int_upper_limit = conf_int_array[1]
     return conf_int_lower_limit, conf_int_upper_limit
 
+def _get_return_variable(
+    ams,
+    return_variable,
+    arg_value,
+    distr="gev",
+    bootstrap_runs=100,
+    conf_int_lower_bound=2.5,
+    conf_int_upper_bound=97.5,
+    multiple_points=True,
+):
+    """Generic function used by `get_return_value`, `get_return_period`, and
+    `get_return_prob`.
+
+    Returns a dataset with the estimate of the requested data_variable and
+    confidence intervals.
+
+    If data_variable == "return_value", then arg_value is the return period.
+    If data_variable == "return_prob", then arg_value is the threshold value.
+    If data_variable == "return_period", then arg_value is the return value.
+
+    Parameters
+    ----------
+    ams: xarray.DataArray
+    return_variable: str
+    arg_value: float
+    distr: str
+    bootstrap_runs: int
+    conf_int_lower_bound: float
+    conf_int_upper_bound: float
+    multiple_points: boolean
+
+    Returns
+    -------
+    xarray.Dataset
+    """
+
+    data_variables = ['return_value', 'return_period', 'return_prob']
+    if data_variable not in data_variables:
+        raise ValueError(
+            f"Invalid `data_variable`. Must be one of: {data_variables}"
+        )
+
+    distr_func = _get_distr_func(distr)
+    ams_attributes = ams.attrs
+
+    if multiple_points:
+        ams = (
+            ams.stack(allpoints=["y", "x"])
+            .dropna(dim="allpoints")
+            .squeeze()
+            .groupby("allpoints")
+        )
+
+    def _return_variable(ams):
+        try:
+            parameters, fitted_distr = _get_fitted_distr(ams, distr, distr_func)
+            return_value = _calculate_return(
+                fitted_distr=fitted_distr,
+                data_variable=data_variable,
+                arg_value=arg_value,
+            )
+        except (ValueError, ZeroDivisionError):
+            return_variable = np.nan
+
+        conf_int_lower_limit, conf_int_upper_limit = _conf_int(
+            ams=ams,
+            distr=distr,
+            data_variable=data_variable,
+            arg_value=arg_value,
+            bootstrap_runs=bootstrap_runs,
+            conf_int_lower_bound=conf_int_lower_bound,
+            conf_int_upper_bound=conf_int_upper_bound,
+        )
+
+        return return_variable, conf_int_lower_limit, conf_int_upper_limit
+
+    return_variable, conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
+        _return_variable,
+        ams,
+        input_core_dims=[["time"]],
+        exclude_dims=set(("time",)),
+        output_core_dims=[[], [], []],
+    )
+
+    return_variable = return_variable.rename(data_variable)
+    new_ds = return_variable.to_dataset()
+    new_ds["conf_int_lower_limit"] = conf_int_lower_limit
+    new_ds["conf_int_upper_limit"] = conf_int_upper_limit
+
+    if multiple_points:
+        new_ds = new_ds.unstack("allpoints")
+
+    new_ds.attrs = ams_attributes
+
+    if data_variable == "return_value":
+        new_ds["return_value"].attrs["return period"] = f"1-in-{arg_value}-year event"
+    elif data_variable == "return_prob":
+        threshold_unit = ams_attributes["units"]
+        new_ds["return_prob"].attrs["threshold"] = f"exceedance of {arg_value} {threshold_unit} event"
+        new_ds["return_prob"].attrs["units"] = None
+    elif data_variable == "return_period":
+        return_value_unit = ams_attributes["units"]
+        new_ds["return_period"].attrs["return value"] = f"{arg_value} {return_value_unit} event"
+        new_ds["return_period"].attrs["units"] = "years"
+
+    new_ds["conf_int_lower_limit"].attrs[
+        "confidence interval lower bound"
+    ] = "{}th percentile".format(str(conf_int_lower_bound))
+    new_ds["conf_int_upper_limit"].attrs[
+        "confidence interval upper bound"
+    ] = "{}th percentile".format(str(conf_int_upper_bound))
+
+    new_ds.attrs["distribution"] = f"{distr}"
+    return new_ds
 
 def get_return_value(
     ams,
@@ -387,71 +495,10 @@ def get_return_value(
     -------
     xarray.Dataset
     """
-
-    data_variable = "return_value"
-    distr_func = _get_distr_func(distr)
-    ams_attributes = ams.attrs
-
-    if multiple_points:
-        ams = (
-            ams.stack(allpoints=["y", "x"])
-            .dropna(dim="allpoints")
-            .squeeze()
-            .groupby("allpoints")
-        )
-
-    def return_value(ams):
-        try:
-            parameters, fitted_distr = _get_fitted_distr(ams, distr, distr_func)
-            return_value = _calculate_return(
-                fitted_distr=fitted_distr,
-                data_variable=data_variable,
-                arg_value=return_period,
-            )
-        except (ValueError, ZeroDivisionError):
-            return_value = np.nan
-
-        conf_int_lower_limit, conf_int_upper_limit = _conf_int(
-            ams=ams,
-            distr=distr,
-            data_variable=data_variable,
-            arg_value=return_period,
-            bootstrap_runs=bootstrap_runs,
-            conf_int_lower_bound=conf_int_lower_bound,
-            conf_int_upper_bound=conf_int_upper_bound,
-        )
-
-        return return_value, conf_int_lower_limit, conf_int_upper_limit
-
-    return_value, conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
-        return_value,
-        ams,
-        input_core_dims=[["time"]],
-        exclude_dims=set(("time",)),
-        output_core_dims=[[], [], []],
+    return _get_return_variable(
+        ams, "return_value", return_period, distr, bootstrap_runs, 
+        conf_int_lower_bound, conf_int_upper_bound, multiple_points
     )
-
-    return_value = return_value.rename("return_value")
-    new_ds = return_value.to_dataset()
-    new_ds["conf_int_lower_limit"] = conf_int_lower_limit
-    new_ds["conf_int_upper_limit"] = conf_int_upper_limit
-
-    if multiple_points:
-        new_ds = new_ds.unstack("allpoints")
-
-    new_ds["return_value"].attrs["return period"] = "1-in-{}-year event".format(
-        str(return_period)
-    )
-    new_ds["conf_int_lower_limit"].attrs[
-        "confidence interval lower bound"
-    ] = "{}th percentile".format(str(conf_int_lower_bound))
-    new_ds["conf_int_upper_limit"].attrs[
-        "confidence interval upper bound"
-    ] = "{}th percentile".format(str(conf_int_upper_bound))
-
-    new_ds.attrs = ams_attributes
-    new_ds.attrs["distribution"] = "{}".format(str(distr))
-    return new_ds
 
 
 def get_return_prob(
@@ -481,72 +528,10 @@ def get_return_prob(
     -------
     xarray.Dataset
     """
-
-    data_variable = "return_prob"
-    distr_func = _get_distr_func(distr)
-    ams_attributes = ams.attrs
-
-    if multiple_points:
-        ams = (
-            ams.stack(allpoints=["y", "x"])
-            .dropna(dim="allpoints")
-            .squeeze()
-            .groupby("allpoints")
-        )
-
-    def return_prob(ams):
-        try:
-            parameters, fitted_distr = _get_fitted_distr(ams, distr, distr_func)
-            return_prob = _calculate_return(
-                fitted_distr=fitted_distr,
-                data_variable=data_variable,
-                arg_value=threshold,
-            )
-        except (ValueError, ZeroDivisionError):
-            return_prob = np.nan
-
-        conf_int_lower_limit, conf_int_upper_limit = _conf_int(
-            ams=ams,
-            distr=distr,
-            data_variable=data_variable,
-            arg_value=threshold,
-            bootstrap_runs=bootstrap_runs,
-            conf_int_lower_bound=conf_int_lower_bound,
-            conf_int_upper_bound=conf_int_upper_bound,
-        )
-
-        return return_prob, conf_int_lower_limit, conf_int_upper_limit
-
-    return_prob, conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
-        return_prob,
-        ams,
-        input_core_dims=[["time"]],
-        exclude_dims=set(("time",)),
-        output_core_dims=[[], [], []],
+    return _get_return_variable(
+        ams, "return_prob", threshold, distr, bootstrap_runs, 
+        conf_int_lower_bound, conf_int_upper_bound, multiple_points
     )
-
-    return_prob = return_prob.rename("return_prob")
-    new_ds = return_prob.to_dataset()
-    new_ds["conf_int_lower_limit"] = conf_int_lower_limit
-    new_ds["conf_int_upper_limit"] = conf_int_upper_limit
-
-    if multiple_points:
-        new_ds = new_ds.unstack("allpoints")
-
-    new_ds["conf_int_lower_limit"].attrs[
-        "confidence interval lower bound"
-    ] = "{}th percentile".format(str(conf_int_lower_bound))
-    new_ds["conf_int_upper_limit"].attrs[
-        "confidence interval upper bound"
-    ] = "{}th percentile".format(str(conf_int_upper_bound))
-    new_ds.attrs = ams_attributes
-    unit_threshold = new_ds.attrs["units"]
-    new_ds["return_prob"].attrs["threshold"] = "exceedance of {} {} event".format(
-        str(threshold), unit_threshold
-    )
-    new_ds.attrs["distribution"] = "{}".format(str(distr))
-    new_ds["return_prob"].attrs["units"] = None
-    return new_ds
 
 
 def get_return_period(
@@ -576,72 +561,10 @@ def get_return_period(
     -------
     xarray.Dataset
     """
-
-    data_variable = "return_period"
-    distr_func = _get_distr_func(distr)
-    ams_attributes = ams.attrs
-
-    if multiple_points:
-        ams = (
-            ams.stack(allpoints=["y", "x"])
-            .dropna(dim="allpoints")
-            .squeeze()
-            .groupby("allpoints")
-        )
-
-    def return_period(ams):
-        try:
-            parameters, fitted_distr = _get_fitted_distr(ams, distr, distr_func)
-            return_period = _calculate_return(
-                fitted_distr=fitted_distr,
-                data_variable=data_variable,
-                arg_value=return_value,
-            )
-        except (ValueError, ZeroDivisionError):
-            return_period = np.nan
-
-        conf_int_lower_limit, conf_int_upper_limit = _conf_int(
-            ams=ams,
-            distr=distr,
-            data_variable=data_variable,
-            arg_value=return_value,
-            bootstrap_runs=bootstrap_runs,
-            conf_int_lower_bound=conf_int_lower_bound,
-            conf_int_upper_bound=conf_int_upper_bound,
-        )
-
-        return return_period, conf_int_lower_limit, conf_int_upper_limit
-
-    return_period, conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
-        return_period,
-        ams,
-        input_core_dims=[["time"]],
-        exclude_dims=set(("time",)),
-        output_core_dims=[[], [], []],
+    return _get_return_variable(
+        ams, "return_period", return_value, distr, bootstrap_runs, 
+        conf_int_lower_bound, conf_int_upper_bound, multiple_points
     )
-
-    return_period = return_period.rename("return_period")
-    new_ds = return_period.to_dataset()
-    new_ds["conf_int_lower_limit"] = conf_int_lower_limit
-    new_ds["conf_int_upper_limit"] = conf_int_upper_limit
-
-    if multiple_points:
-        new_ds = new_ds.unstack("allpoints")
-
-    new_ds["conf_int_lower_limit"].attrs[
-        "confidence interval lower bound"
-    ] = "{}th percentile".format(str(conf_int_lower_bound))
-    new_ds["conf_int_upper_limit"].attrs[
-        "confidence interval upper bound"
-    ] = "{}th percentile".format(str(conf_int_upper_bound))
-    new_ds.attrs = ams_attributes
-    unit_return_value = new_ds.attrs["units"]
-    new_ds["return_period"].attrs["return value"] = "{} {} event".format(
-        str(return_value), unit_return_value
-    )
-    new_ds.attrs["distribution"] = "{}".format(str(distr))
-    new_ds["return_period"].attrs["units"] = "years"
-    return new_ds
 
 
 # ===================== Functions for exceedance count =========================
