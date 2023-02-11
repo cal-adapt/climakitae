@@ -18,3 +18,12 @@ def test_data_2022_monthly_45km(rootdir):
     filepath = os.path.join(rootdir, filename)
     ds = xr.open_dataset(filepath)
     return ds
+
+@pytest.fixture
+def T2_hourly(rootdir):
+    """Small hourly temperature data set"""
+    test_filename = "test_data/threshold_data_T2_2050_2051_hourly_45km.nc"
+    test_filepath = os.path.join(rootdir, test_filename)
+    da = xr.open_dataset(test_filepath)["Air Temperature at 2m"]
+    da.attrs["frequency"] = "hourly"
+    return da

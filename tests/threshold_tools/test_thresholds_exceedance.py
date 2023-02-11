@@ -16,14 +16,6 @@ def T2_monthly(test_data):
     return test_data["RAINC"].isel(scenario=0, simulation=0)
 
 
-@pytest.fixture
-def T2_hourly(rootdir):
-    """Small hourly temperature data set"""
-    test_filename = "test_data/threshold_data_T2_2050_2051_hourly_45km.nc"
-    test_filepath = os.path.join(rootdir, test_filename)
-    da = xr.open_dataset(test_filepath)["Air Temperature at 2m"]
-    da.attrs["frequency"] = "hourly"
-    return da
 
 
 # ------------- Test kwarg compatibility and Exceptions ------------------------
