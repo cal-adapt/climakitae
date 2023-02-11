@@ -81,7 +81,7 @@ def get_ams(
         if extremes_type == "max":
             da_series = da_series.resample(time=f"{group_len}D", label="left").max()
         elif extremes_type == "min":
-            da_series = da_series.resample(time=f"{group_len}D", label="left").max()
+            da_series = da_series.resample(time=f"{group_len}D", label="left").min()
 
     if duration2 != None:
         if groupby == None:
@@ -94,9 +94,9 @@ def get_ams(
 
         # Now select the min (max) from the duration period
         if extremes_type == "max":
-            da_series = da.rolling(time=dur2_len, center=False).min("time")
+            da_series = da_series.rolling(time=dur2_len, center=False).min("time")
         elif extremes_type == "min":
-            da_series = da.rolling(time=dur2_len, center=False).max("time")
+            da_series = da_series.rolling(time=dur2_len, center=False).max("time")
     
     # Now select the most extreme value for each year in the series
     if extremes_type == "max":
