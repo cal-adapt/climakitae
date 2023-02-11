@@ -61,7 +61,7 @@ def get_ams(
         # In this case, user is interested in extreme events lasting at least 
         # as long as the length of `duration`. 
         dur_len, dur_type = duration
-        if dur_type != "hour" or da_series.frequency != "1hr":
+        if dur_type != "hour" or da_series.frequency not in ["1hr", "hourly"]:
             raise ValueError("Current specifications not yet implemented. `duration` options only implemented for `hour` specifications.")
 
         # First identify the min (max) value for each window of length `duration`
