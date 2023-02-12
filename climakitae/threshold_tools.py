@@ -16,9 +16,6 @@ import hvplot.xarray
 import panel as pn
 from .utils import _read_ae_colormap
 
-ae_orange_cmap = _read_ae_colormap(cmap="ae_orange", cmap_hex=True)
-
-
 def get_ams(da, extremes_type="max"):
     """Function that converts data into annual maximums
 
@@ -1053,7 +1050,6 @@ def _rename_distr_abbrev(distr):
     ]
     return distr_readable[distr_abbrev.index(distr)]
 
-
 def get_geospatial_plot(
     ds,
     data_variable,
@@ -1061,12 +1057,39 @@ def get_geospatial_plot(
     bar_max=None,
     border_color="black",
     line_width=0.5,
-    cmap=ae_orange_cmap,
+    cmap="ae_orange",
     hover_fill_color="blue",
 ):
+    """Returns an interactive map from inputed dataset and selected data variable.
+
+    Parameters
+    ----------
+    ds: xr.Dataset
+        Thresholds data to plot
+    data_variable: str, one of "d_statistic","p_value","return_value","return_prob","return_period"
+        Valid variable option in input dataset
+    bar_min: float, optional
+        Colorbar minimum value
+    bar_max: float, optional
+        Colorbar maximum value
+    border_color: str, optional
+        Color to give 
+        Default to black 
+    cmap: matplotlib colormap name or AE colormap names, optional
+        Colormap to apply to data
+        Default to "ae_orange" for mapped data or color-blind friendly "categorical_cb" for timeseries data.
+    hover_fill_color: str, optional
+
     """
-    Returns a geospatial plot (hvplot) from inputed dataset and selected data variable.
-    """
+
+    if cmap in [
+        "categorical_cb",
+        "ae_orange",
+        "ae_diverging",
+        "ae_blue",
+        "ae_diverging_r",
+    ]:
+        cmap = _read_ae_colormap(cmap=cmap, cmap_hex=True)
 
     data_variables = [
         "d_statistic",
