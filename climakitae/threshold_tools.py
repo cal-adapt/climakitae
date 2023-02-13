@@ -16,6 +16,7 @@ import hvplot.xarray
 import panel as pn
 from .utils import _read_ae_colormap
 
+
 def get_ams(da, extremes_type="max"):
     """Function that converts data into annual maximums
 
@@ -1050,6 +1051,7 @@ def _rename_distr_abbrev(distr):
     ]
     return distr_readable[distr_abbrev.index(distr)]
 
+
 def get_geospatial_plot(
     ds,
     data_variable,
@@ -1065,7 +1067,7 @@ def get_geospatial_plot(
     Parameters
     ----------
     ds: xr.Dataset
-        Data to plot 
+        Data to plot
     data_variable: str
         Valid variable option in input dataset
         Valid options: "d_statistic","p_value","return_value","return_prob","return_period"
@@ -1075,14 +1077,14 @@ def get_geospatial_plot(
         Colorbar maximum value
     border_color: str, optional
         Color for state lines and international borders
-        Default to black 
+        Default to black
     cmap: matplotlib colormap name or AE colormap names, optional
         Colormap to apply to data
         Default to "ae_orange" for mapped data or color-blind friendly "categorical_cb" for timeseries data.
     hover_fill_color: str, optional
         Default to "blue"
 
-    Returns: 
+    Returns:
     holoviews.core.overlay.Overlay
         Map of input data
     """
