@@ -11,6 +11,7 @@ dependencies:
   - holoviews
   - hvplot
   - intake
+  - intake-geopandas
   - intake-xarray
   - jinja2
   - matplotlib
