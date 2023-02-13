@@ -1082,6 +1082,9 @@ def get_geospatial_plot(
     hover_fill_color: str, optional
         Default to "blue"
 
+    Returns: 
+    holoviews.core.overlay.Overlay
+        Map of input data
     """
 
     if cmap in [
