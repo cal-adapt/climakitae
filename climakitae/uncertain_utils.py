@@ -7,7 +7,7 @@ import pandas as pd
 import intake
 import warnings
 from .selectors import Boundaries
-from cmip6_preprocessing.preprocessing import rename_cmip6
+from xmip import rename_cmip6
 
 
 ### Utility functions for uncertainty analyses and notebooks
