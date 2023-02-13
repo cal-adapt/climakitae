@@ -6,6 +6,7 @@ dependencies:
   - python=3.9.7
   - cartopy
   - dask-gateway
+  - dask-geopandas
   - geopandas
   - geoviews
   - holoviews
