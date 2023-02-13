@@ -1066,8 +1066,9 @@ def get_geospatial_plot(
     ----------
     ds: xr.Dataset
         Data to plot 
-    data_variable: str, one of "d_statistic","p_value","return_value","return_prob","return_period"
+    data_variable: str
         Valid variable option in input dataset
+        Valid options: "d_statistic","p_value","return_value","return_prob","return_period"
     bar_min: float, optional
         Colorbar minimum value
     bar_max: float, optional
