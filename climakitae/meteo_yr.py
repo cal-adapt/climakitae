@@ -1,7 +1,6 @@
 """
 Calculates the Average Meterological Year (AMY) and Severe Meteorological Year (SMY) for the Cal-Adapt: Analytics Engine using a standard climatological period (1981-2010) for the historical baseline, and uses a 30-year window around when a designated warming level is exceeded for the SSP3-7.0 future scenario for 1.5°C, 2°C, and 3°C. 
-
-Additional functionality for 4°C is forthcoming. Working Group 4 (Aug 31, 2022) version focuses on air temperature and relative humidity, with all variables being available for Analytics Engine Beta Launch. The AMY is comparable to a typical meteorological year, but not quite the same full methodology.
+The AMY is comparable to a typical meteorological year, but not quite the same full methodology.
 """
 
 ## PROCESS: average meteorological year
