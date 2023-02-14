@@ -467,7 +467,7 @@ def _get_simulation_options(cat, activity_id, table_id, grid_label, experiment_i
 
     # Get all unique simulation options from catalog selection
     try:
-        simulation_options = cat_subset.unique()["source_id"]["values"]
+        simulation_options = cat_subset.unique()["source_id"]
         if "ensmean" in simulation_options:
             simulation_options.remove("ensmean")  # Remove ensemble means
     except:
@@ -558,7 +558,7 @@ class DataSelector(param.Parameterized):
             table_id=_timescale_to_table_id(self.timescale),
             grid_label=_resolution_to_gridlabel(self.resolution),
         )
-        self.unique_variable_ids = self.cat_subset.unique()["variable_id"]["values"]
+        self.unique_variable_ids = self.cat_subset.unique()["variable_id"]
         # Get more info about that subset of unique variable ids
         self.variable_options_df = _get_variable_options_df(
             var_catalog=var_catalog,
@@ -569,7 +569,7 @@ class DataSelector(param.Parameterized):
         # Set scenario param
         scenario_ssp_options = [
             _scenario_to_experiment_id(scen, reverse=True)
-            for scen in self.cat_subset.unique()["experiment_id"]["values"]
+            for scen in self.cat_subset.unique()["experiment_id"]
             if "ssp" in scen
         ]
         for scenario_i in [
@@ -619,7 +619,7 @@ class DataSelector(param.Parameterized):
             table_id=_timescale_to_table_id(self.timescale),
             grid_label=_resolution_to_gridlabel(self.resolution),
         )
-        self.unique_variable_ids = self.cat_subset.unique()["variable_id"]["values"]
+        self.unique_variable_ids = self.cat_subset.unique()["variable_id"]
 
         # Get more info about that subset of unique variable ids
         self.variable_options_df = _get_variable_options_df(
@@ -687,7 +687,7 @@ class DataSelector(param.Parameterized):
         # Get scenario options in catalog format
         scenario_ssp_options = [
             _scenario_to_experiment_id(scen, reverse=True)
-            for scen in self.cat_subset.unique()["experiment_id"]["values"]
+            for scen in self.cat_subset.unique()["experiment_id"]
             if "ssp" in scen
         ]
         for scenario_i in [
