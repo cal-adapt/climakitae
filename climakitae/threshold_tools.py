@@ -481,23 +481,29 @@ def get_return_value(
     conf_int_upper_bound=97.5,
     multiple_points=True,
 ):
-    """Creates xarray Dataset with return values and confidence intervals from maximum series
-
-    Returns dataset with return values and confidence intervals from maximum series.
+    """Creates xarray Dataset with return values and confidence intervals from maximum series.
 
     Parameters
     ----------
     ams: xarray.DataArray
+        Annual maximum data, can be output from the function get_ams()
     return_period: float
+        The recurrence interval (in years) for which to calculate the return value
     distr: str
+        The type of extreme value distribution to fit
     bootstrap_runs: int
+        Number of bootstrap samples 
     conf_int_lower_bound: float
+        Confidence interval lower bound
     conf_int_upper_bound: float
+        Confidence interval upper bound
     multiple_points: boolean
+        Whether or not the data contains multiple points (has x, y dimensions)
 
     Returns
     -------
     xarray.Dataset
+        Dataset with return values and confidence intervals
     """
     return _get_return_variable(
         ams,
@@ -520,23 +526,29 @@ def get_return_prob(
     conf_int_upper_bound=97.5,
     multiple_points=True,
 ):
-    """Creates xarray Dataset with return probabilities and confidence intervals from maximum series
-
-    Returns dataset with return probabilities and confidence intervals from maximum series.
+    """Creates xarray Dataset with return probabilities and confidence intervals from maximum series.
 
     Parameters
     ----------
     ams: xarray.DataArray
+        Annual maximum data, can be output from the function get_ams()
     threshold: float
+        The threshold value for which to calculate the probability of exceedance
     distr: str
+        The type of extreme value distribution to fit
     bootstrap_runs: int
+        Number of bootstrap samples 
     conf_int_lower_bound: float
+        Confidence interval lower bound
     conf_int_upper_bound: float
+        Confidence interval upper bound
     multiple_points: boolean
+        Whether or not the data contains multiple points (has x, y dimensions)
 
     Returns
     -------
     xarray.Dataset
+        Dataset with return probabilities and confidence intervals
     """
     return _get_return_variable(
         ams,
@@ -559,23 +571,29 @@ def get_return_period(
     conf_int_upper_bound=97.5,
     multiple_points=True,
 ):
-    """Creates xarray Dataset with return periods and confidence intervals from maximum series
-
-    Returns dataset with return periods and confidence intervals from maximum series.
+    """Creates xarray Dataset with return periods and confidence intervals from maximum series.
 
     Parameters
     ----------
     ams: xarray.DataArray
+        Annual maximum data, can be output from the function get_ams()
     return_value: float
+        The threshold value for which to calculate the return period of occurance
     distr: str
+        The type of extreme value distribution to fit
     bootstrap_runs: int
+        Number of bootstrap samples 
     conf_int_lower_bound: float
+        Confidence interval lower bound
     conf_int_upper_bound: float
+        Confidence interval upper bound
     multiple_points: boolean
+        Whether or not the data contains multiple points (has x, y dimensions)
 
     Returns
     -------
     xarray.Dataset
+        Dataset with return periods and confidence intervals
     """
     return _get_return_variable(
         ams,
