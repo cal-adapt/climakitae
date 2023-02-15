@@ -1,3 +1,5 @@
+"""Backend functions and classes for building the thresholds GUI."""
+
 import math
 import pandas as pd
 import panel as pn
@@ -33,7 +35,7 @@ def _get_threshold_data(selections, location, cat):
     return data
 
 
-class ThresholdDataParams(param.Parameterized):
+class _ThresholdDataParams(param.Parameterized):
     """
     An object that holds the "Data Options" parameters for the
     explore.thresholds panel.
