@@ -19,10 +19,11 @@ class AppExplore(object):
 
     """
 
-    def __init__(self, selections, location, _cat):
+    def __init__(self, selections, location, _cat, map_view):
         self.selections = selections
         self.location = location
         self._cat = _cat
+        self.map_view = map_view
 
     def __repr__(self):
         """Print a string description of the available analysis method for this class."""
@@ -40,7 +41,10 @@ class AppExplore(object):
             selections=self.selections, location=self.location, cat=self._cat
         )
         return _amy_visualize(
-            tmy_ob=tmy_ob, selections=self.selections, location=self.location
+            tmy_ob=tmy_ob,
+            selections=self.selections,
+            location=self.location,
+            map_view=self.map_view,
         )
 
     def amy_selections(self):
@@ -63,6 +67,7 @@ class AppExplore(object):
             thresh_data=thresh_data,
             selections=self.selections,
             location=self.location,
+            map_view=self.map_view,
             option=option,
         )
 
@@ -71,4 +76,6 @@ class AppExplore(object):
         warming_data = WarmingLevels(
             selections=self.selections, location=self.location, cat=self._cat
         )
-        return _display_warming_levels(warming_data, self.selections, self.location)
+        return _display_warming_levels(
+            warming_data, self.selections, self.location, map_view=self.map_view
+        )

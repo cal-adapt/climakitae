@@ -40,7 +40,7 @@ from .catalog_convert import (
     _timescale_to_table_id,
     _scenario_to_experiment_id,
 )
-from .data_loaders import _read_from_catalog
+from .data_loaders import _read_catalog_from_select
 from tqdm.auto import tqdm  # Progress bar
 import logging  # Silence warnings
 
@@ -145,7 +145,7 @@ def _retrieve_meteo_yr_data(
     selections.units = units
 
     # Grab data from the catalog
-    amy_data = _read_from_catalog(
+    amy_data = _read_catalog_from_select(
         selections=selections, location=location, cat=_cat
     ).isel(scenario=0, simulation=0)
     return amy_data
@@ -809,7 +809,7 @@ class AverageMeteorologicalYear(param.Parameterized):
 # =========================== OBJECT VISUALIZATION USING PARAM ==============================
 
 
-def _amy_visualize(tmy_ob, selections, location):
+def _amy_visualize(tmy_ob, selections, location, map_view):
     """
     Creates a new AMY focus panel object to display user selections
     """
@@ -845,7 +845,7 @@ def _amy_visualize(tmy_ob, selections, location):
                 location.param.latitude,
                 location.param.longitude,
                 location.param.cached_area,
-                location.view(figsize=(3.7, 3.7)),
+                map_view.view,
                 pn.widgets.Button.from_param(
                     tmy_ob.param.reload_data,
                     button_type="primary",

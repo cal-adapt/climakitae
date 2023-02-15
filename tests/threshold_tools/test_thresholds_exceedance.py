@@ -24,7 +24,7 @@ def T2_monthly(test_data):
 # incompatible: cannot specify a 1-day groupy for monthly data
 def test_error1(test_data_2022_monthly_45km):
     with pytest.raises(ValueError, match="Incompatible `group` specification"):
-        threshold_tools.get_exceedance_count(
+        threshold_tools._get_exceedance_count(
             test_data_2022_monthly_45km, threshold_value=305, groupby=(1, "day")
         )
 
@@ -35,7 +35,7 @@ def test_error2(T2_hourly):
     with pytest.raises(
         ValueError, match="Incompatible `group` and `duration2` specification"
     ):
-        threshold_tools.get_exceedance_count(
+        threshold_tools._get_exceedance_count(
             T2_hourly, threshold_value=305, groupby=(1, "month"), duration2=(3, "day")
         )
 
@@ -45,7 +45,7 @@ def test_error2(T2_hourly):
 
 # example 1: count number of hours in each year exceeding the threshold
 def test_hourly_ex1(T2_hourly):
-    exc_counts = threshold_tools.get_exceedance_count(
+    exc_counts = threshold_tools._get_exceedance_count(
         T2_hourly, threshold_value=305, period=(1, "year")
     )
     assert (exc_counts >= 0).all()  # test no negative values
@@ -56,7 +56,7 @@ def test_hourly_ex1(T2_hourly):
 
 # exmample 2: count number of days in each year that have at least one hour exceeding the threshold
 def test_hourly_ex2(T2_hourly):
-    exc_counts = threshold_tools.get_exceedance_count(
+    exc_counts = threshold_tools._get_exceedance_count(
         T2_hourly, threshold_value=305, period=(1, "year"), groupby=(1, "day")
     )
     assert (exc_counts >= 0).all()  # test no negative values
@@ -67,7 +67,7 @@ def test_hourly_ex2(T2_hourly):
 
 # exmample 3: count number of 3-day events in each year that continously exceed the threshold
 def test_hourly_ex3(T2_hourly):
-    exc_counts = threshold_tools.get_exceedance_count(
+    exc_counts = threshold_tools._get_exceedance_count(
         T2_hourly, threshold_value=305, period=(1, "year"), duration1=(72, "hour")
     )
     assert (exc_counts >= 0).all()  # test no negative values
@@ -78,7 +78,7 @@ def test_hourly_ex3(T2_hourly):
 
 # exmample 4: count number of 3-day events in each year that exceed the threshold once each day
 def test_hourly_ex4(T2_hourly):
-    exc_counts = threshold_tools.get_exceedance_count(
+    exc_counts = threshold_tools._get_exceedance_count(
         T2_hourly,
         threshold_value=305,
         period=(1, "year"),
@@ -98,7 +98,7 @@ def test_duration():
         coords={"time": pd.date_range("2000-01-01", freq="1H", periods=6)},
         attrs={"frequency": "hourly", "units": "T"},
     )
-    exc_counts = threshold_tools.get_exceedance_count(da, 0, duration1=(3, "hour"))
+    exc_counts = threshold_tools._get_exceedance_count(da, 0, duration1=(3, "hour"))
     assert exc_counts == 4  # four of the six hours are the start of a 3-hour event
 
 

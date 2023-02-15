@@ -2,11 +2,11 @@ import math
 import pandas as pd
 import panel as pn
 import param
-from .data_loaders import _read_from_catalog
+from .data_loaders import _read_catalog_from_select
 from .unit_conversions import _convert_units
 from .threshold_tools import (
-    get_exceedance_count,
-    plot_exceedance_count,
+    _get_exceedance_count,
+    _plot_exceedance_count,
     _exceedance_plot_title,
     _exceedance_plot_subtitle,
 )
@@ -28,7 +28,7 @@ def _get_threshold_data(selections, location, cat):
 
     """
     # Read data from catalog
-    data = _read_from_catalog(selections=selections, location=location, cat=cat)
+    data = _read_catalog_from_select(selections=selections, location=location, cat=cat)
     data = data.compute()  # Read into memory
     return data
 
@@ -135,7 +135,7 @@ class ThresholdDataParams(param.Parameterized):
             self.changed_units = False
 
     def transform_data(self):
-        return get_exceedance_count(
+        return _get_exceedance_count(
             self.da,
             threshold_value=self.threshold_value,
             threshold_direction=self.threshold_direction,
@@ -150,7 +150,7 @@ class ThresholdDataParams(param.Parameterized):
     def view(self):
         try:
             to_plot = self.transform_data()
-            obj = plot_exceedance_count(to_plot)
+            obj = _plot_exceedance_count(to_plot)
         except Exception as e:
             # Display any raised Errors (instead of plotting) if any of the
             # user specifications are incompatible or not yet implemented.
@@ -252,7 +252,7 @@ def _exceedance_visualize(choices, option=1):
     return exceedance_count_panel
 
 
-def _thresholds_visualize(thresh_data, selections, location, option=1):
+def _thresholds_visualize(thresh_data, selections, location, map_view, option=1):
     """
     Function for constructing and displaying the explore.thresholds() panel.
     """
@@ -283,7 +283,7 @@ def _thresholds_visualize(thresh_data, selections, location, option=1):
                 location.param.cached_area,
                 width=230,
             ),
-            pn.Column(location.view, width=180),
+            pn.Column(map_view.view, width=180),
         ),
         title="Data Options",
         collapsible=False,

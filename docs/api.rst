@@ -51,14 +51,25 @@ Functions help with data retrieval, comutation of the meteorological year, and p
 Warming Levels  
 -------------------
 Helper functions for performing analyses using climate warming levels. 
+
 .. autosummary::
    :toctree: generated/
-
+   
    warming_levels.get_anomaly_data
 
 Threshold Tools 
 ----------------
-Helper functions for thresholds-related analyses. Documentation in progress.
+Helper functions for thresholds-related analyses.
+
+.. autosummary::
+   :toctree: generated/
+
+   threshold_tools.get_ams
+   threshold_tools.get_ks_stat
+   threshold_tools.get_return_value
+   threshold_tools.get_return_prob
+   threshold_tools.get_return_period
+
 
 Timeseries Tools
 -----------------

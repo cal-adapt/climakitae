@@ -2,9 +2,10 @@ import intake
 from .data_export import _export_to_user
 from .explore import AppExplore
 from .view import _visualize
-from .data_loaders import _read_from_catalog, _compute, _read_data_from_csv
+from .data_loaders import _read_catalog_from_select, _read_catalog_from_csv, _compute
 from .selectors import (
     DataSelector,
+    _ViewLocationSelections,
     _display_select,
     LocSelectorArea,
     UserFileChoices,
@@ -74,8 +75,13 @@ class Application(object):
         )
         self.location = LocSelectorArea(name="Location Selections")
         self.selections = DataSelector(cat=self._cat, location=self.location)
+        self.map_view = _ViewLocationSelections(
+            location=self.location, selections=self.selections
+        )
         self.user_export_format = FileTypeSelector()
-        self.explore = AppExplore(self.selections, self.location, self._cat)
+        self.explore = AppExplore(
+            self.selections, self.location, self._cat, self.map_view
+        )
 
     # === Select =====================================
     def select(self):
@@ -106,7 +112,7 @@ class Application(object):
             ],
         )
         # Display panel
-        select_panel = _display_select(self.selections, self.location)
+        select_panel = _display_select(self.selections, self.location, self.map_view)
         return select_panel
 
     # === Read data into memory =====================================
@@ -132,22 +138,50 @@ class Application(object):
         return _compute(data)
 
     # === Retrieve ===================================
-    def retrieve(self):
+    def retrieve(self, config=None, merge=True):
         """Retrieve data from catalog
 
-        Applications.selections and Applications.location determine data retrieves
-        Grabs the data from the AWS S3 bucket, returns lazily loaded dask array
-        User-facing function that provides a wrapper for _read_from_catalog
+        By default, Application.selections and Application.location determines the data retrieved.
+        To retrieve data using the settings in a configuration csv file, set config to the local
+        filepath of the csv.
+        Grabs the data from the AWS S3 bucket, returns lazily loaded dask array.
+        User-facing function that provides a wrapper for _read_catalog_from_csv and _read_catalog_from_select.
+
+        Parameters
+        ----------
+        config: str, optional.
+            Local filepath to configuration csv file
+            Default to None-- retrieve settings in app.selections and app.location
+        merge: bool, optional
+            If config is TRUE and multiple datasets desired, merge to form a single object?
+            Defaults to True.
 
         Returns
         -------
         xr.DataArray
             Lazily loaded dask array
+            Default if no config file provided
+        xr.Dataset
+            If multiple rows are in the csv, each row is a data_variable
+            Only an option if a config file is provided
+        list of xr.DataArray
+            If multiple rows are in the csv and merge=True,
+            multiple DataArrays are returned in a single list.
+            Only an option if a config file is provided.
 
         """
-        return _read_from_catalog(self.selections, self.location, self._cat)
+        if config is not None:
+            if type(config) == str:
+                return _read_catalog_from_csv(
+                    self.selections, self.location, self._cat, config, merge
+                )
+            else:
+                raise ValueError(
+                    "To retrieve data specified in a configuration file, please input the path to your local configuration csv as a string"
+                )
+        return _read_catalog_from_select(self.selections, self.location, self._cat)
 
-    def retrieve_from_csv(self, csv, merge=True):
+    def retrieve_from_csv(self, config, merge=True):
         """Retrieve data from csv input. Return type will depend on how many rows exist in the input csv file and the argument merge.
 
         Allows user to bypass app.select GUI and allows
@@ -156,7 +190,7 @@ class Application(object):
 
         Parameters
         ----------
-        csv: str
+        config: str
             Path to local csv file
         merge: bool, optional
             If multiple datasets desired, merge to form a single object?
@@ -172,8 +206,8 @@ class Application(object):
             If multiple rows are in the csv and merge=True,
             multiple DataArrays are returned in a single list.
         """
-        return _read_data_from_csv(
-            self.selections, self.location, self._cat, csv, merge
+        return _read_catalog_from_csv(
+            self.selections, self.location, self._cat, config, merge
         )
 
     def retrieve_meteo_yr_data(self, ssp=None, year_start=2015, year_end=None):
@@ -237,8 +271,8 @@ class Application(object):
             Height of plot
             Default to hvplot.image default
         cmap: matplotlib colormap name or AE colormap names
-            Colormap to apply to mapped data (will not effect lineplots)
-            Default to "ae_orange"
+            Colormap to apply to data
+            Default to "ae_orange" for mapped data or color-blind friendly "categorical_cb" for timeseries data.
 
         Returns
         -------

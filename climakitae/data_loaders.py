@@ -371,7 +371,7 @@ def _get_data_one_var(selections, location, cat):
     return da
 
 
-def _read_from_catalog(selections, location, cat):
+def _read_catalog_from_select(selections, location, cat):
     """The primary and first data loading method, called by
     core.Application.retrieve, it returns a DataArray (which can be quite large)
     containing everything requested by the user (which is stored in 'selections'
@@ -447,7 +447,7 @@ def _read_from_catalog(selections, location, cat):
 # ============ Retrieve data from a csv input ===============
 
 
-def _read_data_from_csv(selections, location, cat, csv, merge=True):
+def _read_catalog_from_csv(selections, location, cat, csv, merge=True):
     """Retrieve data from csv input.
 
     Allows user to bypass app.select GUI and allows developers to
@@ -510,7 +510,7 @@ def _read_data_from_csv(selections, location, cat, csv, merge=True):
         location.cached_area = row.cached_area
 
         # Retrieve data
-        xr_da = _read_from_catalog(selections, location, cat)
+        xr_da = _read_catalog_from_select(selections, location, cat)
         xr_list.append(xr_da)
 
     if len(xr_list) > 1:  # If there's more than one element in the list
