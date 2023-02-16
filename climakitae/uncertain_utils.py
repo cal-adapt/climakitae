@@ -11,6 +11,10 @@ from cmip6_preprocessing.preprocessing import rename_cmip6
 from scipy import stats
 import pkg_resources
 from climakitae.data_loaders import _get_area_subset
+from climakitae.utils import _read_ae_colormap
+import holoviews as hv
+from bokeh.models import HoverTool
+import panel as pn
 
 
 ### Utility functions for uncertainty analyses and notebooks
@@ -237,12 +241,21 @@ def _precip_flux_to_total(ds):
     (kg m-2 s-1) to total precip
     per month (mm)
     NOTE: assumes regular calendar
+    
+    Parameters
+    ----------
+    ds: xarray.Dataset
+        CMIP6 output with data variable 'pr'
+    Returns
+    -------
+    xr.Dataset
+        Data with converted precip units
     """
     ds_attrs = ds.attrs
     days_month = ds.time.dt.days_in_month
     seconds_month = 86400*days_month
     ds = ds*seconds_month
-    ds = xr.where(ds>0.1,ds,np.nan)
+    ds = ds.clip(0.1)
     ds.attrs = ds_attrs
     ds.pr.attrs["units"] = 'mm'
     return ds
@@ -443,11 +456,11 @@ def get_ensemble_data(variable, location, cmip_names, warm_level=3.0):
         
         # Next, using the SSP dataset, computing the data at a particular warming level, for each simulation/member_id combo 
         warm_ravel += [
-            get_warm_level(warm_level, ssp_ds.sel(member_id=m), multi_ens=True) 
+            get_warm_level(warm_level, ssp_ds.sel(member_id=m), multi_ens=True, ipcc=False) 
             for m in ssp_ds.member_id.values
         ]
         hist_ravel += [hist_ds.sel(member_id=m) for m in ssp_ds.member_id.values]
-
+    
     
     # Concatenate the lists along the member_id dimension to get a single xr.Dataset 
     hist_ds = xr.concat(hist_ravel, dim="member_id")
@@ -462,16 +475,17 @@ def get_ensemble_data(variable, location, cmip_names, warm_level=3.0):
     warm_sim_mem = list(zip(warm_ds.simulation.values,warm_m_ids))
     warm_combo_ids = [s+m for s,m in warm_sim_mem]
     # list of unique identifiers
+    # this is needed to take the difference between projected and historical
 
     hist_sim_mem = list(zip(hist_ds.simulation.values,
                            hist_ds.member_id.values))
     hist_combo_ids = [s+m for s,m in hist_sim_mem]
     hist_ds.coords['member_id'] = hist_combo_ids
-    # assign unique identifiers to hist_ds
+    # assigns unique identifiers to hist_ds
 
     hist_ds = hist_ds.sel(member_id = warm_combo_ids)
     hist_ds.coords['member_id'] = warm_m_ids
-    # reassign the old (normal) member_ids
+    # reassigns the old (normal) member_ids
     
     # Time slice historical period 
     hist_ds = hist_ds.sel(time=slice('1981','2010'))
@@ -646,10 +660,34 @@ def get_ks_pval_df(sample1, sample2, sig_lvl=0.05):
     
     return p_df
 
-gwl_file = pkg_resources.resource_filename("climakitae", "data/gwl_1981-2010ref.csv")
-gwl_times = pd.read_csv(gwl_file, index_col=[0, 1, 2])
+def get_warm_level(warm_level, ds, multi_ens=False, ipcc=True):
+    
+    """Subsets projected data centered to the year 
+    that the selected warming level is reached
+    for a particular simulation/member_id
 
-def get_warm_level(warm_level, ds, multi_ens=False):
+    Parameters
+    ----------
+    warm_level: Float 
+        options: 1.5, 2.0, 3.0, 4.0
+    ds: xarray.Dataset
+        Note: has to contain only one 'simulation' value
+    multi_ens: bool, default=False
+        Set to True if passing a simulation with multiple member_id
+    ipcc: bool, default=True
+        Set to False if performing warming level analysis with 
+        respect to IPCC standard baseline (1850-1900)
+
+    Returns
+    -------
+    xarray.Dataset
+        Subset of projected data -14/+15 years from warming level threshold
+    """
+    if ipcc:
+        gwl_file = pkg_resources.resource_filename("climakitae", "data/gwl_1850-1900ref.csv")
+    else:
+        gwl_file = pkg_resources.resource_filename("climakitae", "data/gwl_1981-2010ref.csv")
+    gwl_times = pd.read_csv(gwl_file, index_col=[0, 1, 2])
 
     # grab the ensemble members specific to our needs here
     sim_idx = []
@@ -680,3 +718,108 @@ def get_warm_level(warm_level, ds, multi_ens=False):
                 year0 = str(int(year_warmlevel_reached) - 14)
                 year1 = str(int(year_warmlevel_reached) + 15)    
                 return ds.sel(time=slice(year0,year1))   
+            
+
+## -----------------------------------------------------------------------------
+## Plotting and helper functions
+## Currently tuned to precip uncertainty
+
+def make_hvplot(data, title, vmin, vmax, sopt=False, 
+                width=250, height=250, 
+                xlim=(None,None), ylim=(None,None),
+               xticks=[None], yticks=[None],
+               xaxis=None, yaxis=None,
+               absolute=True):
+    
+    """
+    Create a holoviz.QuadMesh object
+    
+    Parameters
+    ----------
+    
+    data: xarray.DataArray
+    title: str
+        Title of plot
+    vmin, vmax: Int, Float, or None
+        Desired min and max of colorbar. 
+        None lets holoviews pick the the limits.
+    sopt: bool, default=False
+        Set to True for diverging data (centers 0)
+    width, height: Float or Int, default=None
+        Set to specify width and height of figure
+    xlim, ylim: Tuples of Float or Int, default=(None, None)
+        Set to specify x- and y-axis limits
+    xticks, yticks: List
+        Set to specify tick labels
+    xaxis, yaxis: Str
+        Set to specify axis labels
+    absolute: bool, default=True
+        Set to False if z-axis shows a relative change (%)    
+        
+        
+    Returns
+    ----------
+    
+    holoviz.QuadMesh object
+    """
+    if absolute:
+        val_str = 'Precipitation (mm/month)'
+    else:
+        val_str = '% change'
+        
+    hover = HoverTool(description='Custom Tooltip', 
+        tooltips=[('Longitude (deg E)', '@x'), 
+        ('Latitude (deg N)', '@y'),
+        (val_str, '@z')])
+    
+    if sopt:
+        cmap = _read_ae_colormap(cmap='ae_diverging_r', cmap_hex=True) # sets to a diverging colormap
+    else:
+        cmap = _read_ae_colormap(cmap='ae_blue', cmap_hex=True)   
+    """Make single map"""
+    _plot = hv.QuadMesh(
+        (data['lon'], data['lat'], data)).opts(
+        tools=[hover],
+        colorbar=True, cmap=cmap,
+        symmetric=sopt, clim=(vmin,vmax),
+        xaxis=None, yaxis=None,
+        clabel='Precipitation (mm/month)',
+        title=title,
+        width=width, height=height,
+        xlim=xlim, ylim=ylim)
+    return _plot
+
+# Plotting helper functions
+def hvplot_one_sim(data, sim_name, vmin=0, vmax=900, sopt=False, num_cols=6):
+    """
+    Using _make_hvplot, plot all member_id data for an input simulation.
+    This will make a single row of maps.
+    """
+    plots_by_sim = None
+    # Get the data just at the input simulation 
+    # Rename x --> lon and y --> lat so that the _make_hvplot can read the dataset
+    to_plot_by_sim = data.where(
+        data.simulation==sim_name, drop=True).rename(
+        {'x' : 'lon','y' : 'lat'})
+    # Make a plot for each individual member_id 
+    for member_id_i in range(len(to_plot_by_sim.member_id.values)): 
+        plot_i = make_hvplot(
+            to_plot_by_sim.drop("simulation").isel(member_id=member_id_i), 
+            title = "{0} member {1}".format(sim_name, member_id_i+1), 
+            vmin=vmin, vmax=vmax, 
+            sopt=sopt
+        )
+        plots_by_sim = plot_i if plots_by_sim is None else plots_by_sim + plot_i 
+    return plots_by_sim.cols(6)
+
+def hvplot_percentile_column(data, col_title="", vmin=0, vmax=900, sopt=False, num_cols=6): 
+    """
+    Create a pn.Column object, in which each row is a different simulation.
+    Set col_title to give the Column a name.
+    Set num_cols to indicate how many maps you want to show in each row.
+    """
+    col = pn.Column(col_title)
+    for sim in np.unique(data.simulation.values):
+        pl_by_sim = hvplot_one_sim(data, sim_name=sim, vmin=vmin, vmax=vmax, sopt=sopt, num_cols=6)
+        col += pn.Row(pl_by_sim)
+    return col
