@@ -529,24 +529,26 @@ def _get_simulation_options(cat, activity_id, table_id, grid_label, experiment_i
     return simulation_options
 
 
-def _get_variable_options_df(var_catalog, unique_variable_ids, downscaling_method, timescale):
+def _get_variable_options_df(
+    var_catalog, unique_variable_ids, downscaling_method, timescale
+):
     """Get variable options to display depending on downscaling method and timescale
-    
+
     Parameters
     ----------
-    var_catalog: pd.DataFrame 
-        Variable descriptions, units, etc in table format 
+    var_catalog: pd.DataFrame
+        Variable descriptions, units, etc in table format
     unique_variable_ids: list of strs
-        List of unique variable ids from catalog. 
+        List of unique variable ids from catalog.
         Used to subset var_catalog
     downscaling_method: list, on of ["WRF"], ["LOCA"], or ["WRF","LOCA"]
         Data downscaling method
     timescale: str, one of "hourly", "daily", or "monthly"
         Timescale
-    
+
     Returns
     -------
-    pd.DataFrame 
+    pd.DataFrame
         Subset of var_catalog for input downscaling_method and timescale
     """
     if timescale in ["daily", "monthly"]:
@@ -566,13 +568,13 @@ def _get_variable_options_df(var_catalog, unique_variable_ids, downscaling_metho
             )  # Make sure its the right timescale
         )
     ]
-    
+
     if set(["WRF", "LOCA"]).issubset(downscaling_method):
         variable_options_df = variable_options_df[
-            # Get shared variables 
+            # Get shared variables
             variable_options_df["display_name"].duplicated()
         ]
-    else: 
+    else:
         variable_options_df = variable_options_df[
             # Get variables only from one downscaling method
             variable_options_df["downscaling_method"].isin(downscaling_method)
@@ -607,8 +609,7 @@ class _DataSelector(param.Parameterized):
         doc="""Compute an area average?""",
     )
     downscaling_method = param.ListSelector(
-        default=["WRF"],
-        objects=["WRF","LOCA (available soon)"]
+        default=["WRF"], objects=["WRF", "LOCA (available soon)"]
     )
 
     # Empty params, initialized in __init__
@@ -638,10 +639,10 @@ class _DataSelector(param.Parameterized):
             grid_label=_resolution_to_gridlabel(self.resolution),
         )
         self.unique_variable_ids = self.cat_subset.unique()["variable_id"]["values"]
-        
+
         # Get variable options to display to user
-        # This will further subset the variable options from 
-        # self.cat_subset.unique()["variable_id"]["values"], only showing 
+        # This will further subset the variable options from
+        # self.cat_subset.unique()["variable_id"]["values"], only showing
         # the user certain variables within that list dependent upon the
         # settings in var_catalog
         self.variable_options_df = _get_variable_options_df(
@@ -737,26 +738,26 @@ class _DataSelector(param.Parameterized):
                 self.location.param[
                     "cached_area"
                 ].objects = self.location._geography_choose["states"].keys()
-                
-    @param.depends("downscaling_method", watch=True) 
-    def _remove_hourly_LOCA(self): 
-        if self.downscaling_method == ["WRF"]: 
-            self.param["timescale"].objects = ["hourly","daily","monthly"] 
-        else: 
-            self.param["timescale"].objects = ["daily","monthly"]
-            if self.timescale == "hourly":
-                self.timescale = "daily" 
-    
+
     @param.depends("downscaling_method", watch=True)
-    def _update_resolution(self): 
+    def _remove_hourly_LOCA(self):
+        if self.downscaling_method == ["WRF"]:
+            self.param["timescale"].objects = ["hourly", "daily", "monthly"]
+        else:
+            self.param["timescale"].objects = ["daily", "monthly"]
+            if self.timescale == "hourly":
+                self.timescale = "daily"
+
+    @param.depends("downscaling_method", watch=True)
+    def _update_resolution(self):
         """Remove resolution options if LOCA is selected"""
-        if self.downscaling_method == ["WRF"]: 
-            self.param["resolution"].objects = ["3 km", "9 km", "45 km"] 
-            
-        else: # No 45km or 9km option for LOCA grid
-            self.param["resolution"].objects = ["3 km"] 
-            if self.resolution in ["45 km","9 km"]: 
-                self.resolution = "3 km" 
+        if self.downscaling_method == ["WRF"]:
+            self.param["resolution"].objects = ["3 km", "9 km", "45 km"]
+
+        else:  # No 45km or 9km option for LOCA grid
+            self.param["resolution"].objects = ["3 km"]
+            if self.resolution in ["45 km", "9 km"]:
+                self.resolution = "3 km"
 
     @param.depends("variable", "timescale", watch=True)
     def _update_unit_options(self):
@@ -1096,7 +1097,8 @@ class _SelectionDescription(param.Parameterized):
 
 # ================ DISPLAY LOCATION/DATA SELECTIONS IN PANEL ===================
 
-def _selections_param_to_panel(selections): 
+
+def _selections_param_to_panel(selections):
     """For the _DataSelector object, get parameters and parameter
     descriptions formatted as panel widgets
     """
@@ -1110,15 +1112,12 @@ def _selections_param_to_panel(selections):
     data_warning = pn.widgets.StaticText.from_param(
         selections.param._data_warning, name="", style={"color": "red"}
     )
-    downscaling_method_text = pn.widgets.StaticText(
-        value="", 
-        name="Downscaling method"
-    )
+    downscaling_method_text = pn.widgets.StaticText(value="", name="Downscaling method")
     downscaling_method = pn.widgets.CheckBoxGroup.from_param(
-        selections.param.downscaling_method, 
-        inline=True, 
-        #### REMOVE THIS ONCE THE LOCA DATA IS AVAILABLE 
-        disabled=True
+        selections.param.downscaling_method,
+        inline=True,
+        #### REMOVE THIS ONCE THE LOCA DATA IS AVAILABLE
+        disabled=True,
     )
     historical_selection_text = pn.widgets.StaticText(
         value="<br>Estimates of recent historical climatic conditions",
@@ -1128,56 +1127,54 @@ def _selections_param_to_panel(selections):
         selections.param.scenario_historical
     )
     ssp_selection_text = pn.widgets.StaticText(
-        value="<br>SSP options represent end-of-century range",
-        name="Future Model Data"
+        value="<br>SSP options represent end-of-century range", name="Future Model Data"
     )
-    ssp_selection = pn.widgets.CheckBoxGroup.from_param(
-        selections.param.scenario_ssp
-    )
+    ssp_selection = pn.widgets.CheckBoxGroup.from_param(selections.param.scenario_ssp)
     resolution_text = pn.widgets.StaticText(
         value="Model resolution",
         name="",
     )
     resolution = pn.widgets.RadioButtonGroup.from_param(selections.param.resolution)
-    timescale_text = pn.widgets.StaticText(value="",name="Timescale")
+    timescale_text = pn.widgets.StaticText(value="", name="Timescale")
     timescale = pn.widgets.Select.from_param(selections.param.timescale, name="")
     time_slice = pn.widgets.RangeSlider.from_param(selections.param.time_slice, name="")
     units_text = pn.widgets.StaticText(name="Variable Units", value="")
     units = pn.widgets.RadioButtonGroup.from_param(selections.param.units)
-    variable = pn.widgets.Select.from_param(selections.param.variable, name="") 
+    variable = pn.widgets.Select.from_param(selections.param.variable, name="")
     variable_text = pn.widgets.StaticText(name="Variable", value="")
     variable_description = pn.widgets.StaticText.from_param(
         selections.param.extended_description, name=""
     )
 
     widgets_dict = {
-        "area_average":area_average,
-        "data_warning":data_warning, 
-        "downscaling_method":downscaling_method, 
-        "historical_selection":historical_selection, 
-        "resolution":resolution, 
-        "ssp_selection":ssp_selection,
-        "resolution":resolution,
-        "timescale":timescale, 
-        "time_slice":time_slice, 
-        "units":units, 
-        "variable":variable, 
-        "variable_description":variable_description
-    } 
-    text_dict = {
-        "area_average_text":area_average_text,
-        "downscaling_method_text":downscaling_method_text,
-        "historical_selection_text":historical_selection_text, 
-        "resolution_text":resolution_text,
-        "ssp_selection_text":ssp_selection_text, 
-        "units_text":units_text, 
-        "timescale_text":timescale_text,
-        "variable_text":variable_text
+        "area_average": area_average,
+        "data_warning": data_warning,
+        "downscaling_method": downscaling_method,
+        "historical_selection": historical_selection,
+        "resolution": resolution,
+        "ssp_selection": ssp_selection,
+        "resolution": resolution,
+        "timescale": timescale,
+        "time_slice": time_slice,
+        "units": units,
+        "variable": variable,
+        "variable_description": variable_description,
     }
-    
+    text_dict = {
+        "area_average_text": area_average_text,
+        "downscaling_method_text": downscaling_method_text,
+        "historical_selection_text": historical_selection_text,
+        "resolution_text": resolution_text,
+        "ssp_selection_text": ssp_selection_text,
+        "units_text": units_text,
+        "timescale_text": timescale_text,
+        "variable_text": variable_text,
+    }
+
     return widgets_dict | text_dict
 
-def _location_param_to_panel(location): 
+
+def _location_param_to_panel(location):
     """For the _LocSelectorArea object, get parameters and parameter
     descriptions formatted as panel widgets
     """
@@ -1188,11 +1185,12 @@ def _location_param_to_panel(location):
         location.param.cached_area, name="Location selection"
     )
     return {
-        "area_subset":area_subset, 
-        "cached_area":cached_area,
-        "latitude":location.param.latitude, 
-        "longitude":location.param.longitude
-    }    
+        "area_subset": area_subset,
+        "cached_area": cached_area,
+        "latitude": location.param.latitude,
+        "longitude": location.param.longitude,
+    }
+
 
 def _display_select(selections, location, map_view):
     """
@@ -1206,53 +1204,61 @@ def _display_select(selections, location, map_view):
         selections=selections, location=location
     )
 
-    # Get formatted panel widgets for each parameter 
+    # Get formatted panel widgets for each parameter
     selections_widgets = _selections_param_to_panel(selections)
     location_widgets = _location_param_to_panel(location)
 
-    # Create panel parts 
+    # Create panel parts
     col_1_selections = pn.Column(
-        selections.view, 
+        selections.view,
         selections_widgets["time_slice"],
-        selections_widgets["historical_selection_text"], selections_widgets["historical_selection"], 
-        selections_widgets["ssp_selection_text"], selections_widgets["ssp_selection"],
-        width=220
-    ) 
+        selections_widgets["historical_selection_text"],
+        selections_widgets["historical_selection"],
+        selections_widgets["ssp_selection_text"],
+        selections_widgets["ssp_selection"],
+        width=220,
+    )
     col_2_selections = pn.Column(
-        selections_widgets["downscaling_method_text"], selections_widgets["downscaling_method"], 
-        selections_widgets["timescale_text"], selections_widgets["timescale"], 
-        selections_widgets["variable_text"], selections_widgets["variable"], 
+        selections_widgets["downscaling_method_text"],
+        selections_widgets["downscaling_method"],
+        selections_widgets["timescale_text"],
+        selections_widgets["timescale"],
+        selections_widgets["variable_text"],
+        selections_widgets["variable"],
         selections_widgets["variable_description"],
-        selections_widgets["units_text"], selections_widgets["units"], 
+        selections_widgets["units_text"],
+        selections_widgets["units"],
         selections_widgets["data_warning"],
-        width=210
+        width=210,
     )
     data_card = pn.Card(
         pn.Row(col_1_selections, col_2_selections),
         title="Data selections",
-        collapsible=False, 
-        width=450
+        collapsible=False,
+        width=450,
     )
 
     col_1_location = pn.Column(
-        selections_widgets["resolution_text"], selections_widgets["resolution"], 
-        location_widgets["area_subset"], 
-        location_widgets["cached_area"], 
+        selections_widgets["resolution_text"],
+        selections_widgets["resolution"],
+        location_widgets["area_subset"],
+        location_widgets["cached_area"],
         location_widgets["latitude"],
         location_widgets["longitude"],
-        width=190
+        width=190,
     )
     col_2_location = pn.Column(
-        map_view.view, 
-        selections_widgets["area_average_text"], selections_widgets["area_average"], 
-        width=200
+        map_view.view,
+        selections_widgets["area_average_text"],
+        selections_widgets["area_average"],
+        width=200,
     )
     loc_card = pn.Card(
-        pn.Row(col_1_location, col_2_location), 
-        title="Location selections", 
-        collapsible=False, 
-        #width=425
-    ) 
+        pn.Row(col_1_location, col_2_location),
+        title="Location selections",
+        collapsible=False,
+        # width=425
+    )
 
     how_to_use = pn.Card(
         pn.widgets.StaticText(
@@ -1277,7 +1283,7 @@ def _display_select(selections, location, map_view):
         collapsible=False,
     )
 
-    return pn.Row(data_card, loc_card, pn.Column(how_to_use, your_selections)) 
+    return pn.Row(data_card, loc_card, pn.Column(how_to_use, your_selections))
 
 
 # =============================== EXPORT DATA ==================================
