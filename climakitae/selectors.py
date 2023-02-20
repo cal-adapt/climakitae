@@ -635,7 +635,9 @@ class _DataSelector(param.Parameterized):
 
         # Variable catalog info
         self.cat_subset = self.cat.search(
-            activity_id=[_downscaling_method_to_activity_id(dm) for dm in self.downscaling_method],
+            activity_id=[
+                _downscaling_method_to_activity_id(dm) for dm in self.downscaling_method
+            ],
             table_id=_timescale_to_table_id(self.timescale),
             grid_label=_resolution_to_gridlabel(self.resolution),
         )
@@ -677,7 +679,9 @@ class _DataSelector(param.Parameterized):
         # Set simulation param
         self.simulation = _get_simulation_options(
             cat=self.cat,
-            activity_id=[_downscaling_method_to_activity_id(dm) for dm in self.downscaling_method],
+            activity_id=[
+                _downscaling_method_to_activity_id(dm) for dm in self.downscaling_method
+            ],
             table_id=_timescale_to_table_id(self.timescale),
             grid_label=_resolution_to_gridlabel(self.resolution),
             experiment_id=[
@@ -702,7 +706,9 @@ class _DataSelector(param.Parameterized):
     def _update_var_options(self):
         """Update unique variable options"""
         self.cat_subset = self.cat.search(
-            activity_id=[_downscaling_method_to_activity_id(dm) for dm in self.downscaling_method],
+            activity_id=[
+                _downscaling_method_to_activity_id(dm) for dm in self.downscaling_method
+            ],
             table_id=_timescale_to_table_id(self.timescale),
             grid_label=_resolution_to_gridlabel(self.resolution),
         )
@@ -900,7 +906,9 @@ class _DataSelector(param.Parameterized):
         data is available (and needs to be removed) for hourly data."""
         self.simulation = _get_simulation_options(
             cat=self.cat,
-            activity_id=[_downscaling_method_to_activity_id(dm) for dm in self.downscaling_method],
+            activity_id=[
+                _downscaling_method_to_activity_id(dm) for dm in self.downscaling_method
+            ],
             table_id=_timescale_to_table_id(self.timescale),
             grid_label=_resolution_to_gridlabel(self.resolution),
             experiment_id=[
@@ -1034,7 +1042,9 @@ def _get_data_selection_description(selections, location):
     _data_selection_description = (
         "<font size='+0.10'>Data selections: </font><br>"
         "<ul>"
-        "<li><b>downscaling method: </b>" + ", ".join(selections.downscaling_method) + "</li>"
+        "<li><b>downscaling method: </b>"
+        + ", ".join(selections.downscaling_method)
+        + "</li>"
         "<li><b>variable: </b>" + str(selections.variable) + "</li>"
         "<li><b>units: </b>" + str(selections.units) + "</li>"
         "<li><b>temporal resolution: </b>" + str(selections.timescale) + "</li>"
@@ -1130,7 +1140,8 @@ def _selections_param_to_panel(selections):
         selections.param.scenario_historical
     )
     ssp_selection_text = pn.widgets.StaticText(
-        value="<br> Shared Socioeconomic Pathways (SSPs) represent different global emissions scenarios", name="Future Model Data"
+        value="<br> Shared Socioeconomic Pathways (SSPs) represent different global emissions scenarios",
+        name="Future Model Data",
     )
     ssp_selection = pn.widgets.CheckBoxGroup.from_param(selections.param.scenario_ssp)
     resolution_text = pn.widgets.StaticText(

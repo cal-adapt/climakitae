@@ -1,13 +1,15 @@
 """Backend functions for working with ESM catalog and user data selections"""
 
-def _downscaling_method_to_activity_id(downscaling_method, reverse=False): 
+
+def _downscaling_method_to_activity_id(downscaling_method, reverse=False):
     """Convert downscaling method to activity id to match catalog names
     Set reverse=True to get downscaling method from input activity_id"""
-    downscaling_dict = {"Dynamical":"WRF","Statistical":"LOCA"}
-    
-    if reverse == True: 
+    downscaling_dict = {"Dynamical": "WRF", "Statistical": "LOCA"}
+
+    if reverse == True:
         downscaling_dict = {v: k for k, v in downscaling_dict.items()}
     return downscaling_dict[downscaling_method]
+
 
 def _resolution_to_gridlabel(resolution, reverse=False):
     """Convert resolution format to grid_label format matching catalog names.
