@@ -66,20 +66,20 @@ def test_return_period_invalid_distr(T2_ams):
 # the simple AMS (single hottest value in each year)
 def test_ams_ex1(T2_hourly):
     ams = threshold_tools.get_ams(T2_hourly)
-    ams_3d = threshold_tools.get_ams(T2_hourly, groupby=(1, 'day'), duration2=(3, 'day'))
+    ams_3d = threshold_tools.get_ams(T2_hourly, groupby=(1, 'day'), grouped_duration=(3, 'day'))
     assert (ams > ams_3d).all()
 
 
 # Test that the AMS (block maxima) for a 3-day continous event are lower than 
 # the AMS for a grouped 3-day event
 def test_ams_ex2(T2_hourly):
-    ams_3d = threshold_tools.get_ams(T2_hourly, groupby=(1, 'day'), duration2=(3, 'day'))
+    ams_3d = threshold_tools.get_ams(T2_hourly, groupby=(1, 'day'), grouped_duration=(3, 'day'))
     ams_72h = threshold_tools.get_ams(T2_hourly, duration=(72, 'hour'))
     assert (ams_3d > ams_72h).all()
 
 # Test that the AMS (block maxima) for a 4-hour per day for 3 days are lower 
 # than the AMS for a grouped 3-day event
 def test_ams_ex3(T2_hourly):
-    ams_3d = threshold_tools.get_ams(T2_hourly, groupby=(1, 'day'), duration2=(3, 'day'))
-    ams_3d_4h = threshold_tools.get_ams(T2_hourly, duration=(4, 'hour'), groupby=(1, 'day'), duration2=(3, 'day'))
+    ams_3d = threshold_tools.get_ams(T2_hourly, groupby=(1, 'day'), grouped_duration=(3, 'day'))
+    ams_3d_4h = threshold_tools.get_ams(T2_hourly, duration=(4, 'hour'), groupby=(1, 'day'), grouped_duration=(3, 'day'))
     assert (ams_3d > ams_3d_4h).all()
