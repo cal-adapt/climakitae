@@ -17,6 +17,7 @@ from .selectors import (
     _get_simulation_options,
 )
 from .catalog_convert import (
+    _downscaling_method_to_activity_id,
     _resolution_to_gridlabel,
     _timescale_to_table_id,
     _scenario_to_experiment_id,
@@ -92,7 +93,10 @@ class Application(object):
         # This will remove ensmean if the use has just called app.explore.amy()
         self.selections.simulation = _get_simulation_options(
             cat=self.catalog,
-            activity_id=self.selections.downscaling_method,
+            activity_id=[
+                _downscaling_method_to_activity_id(dm)
+                for dm in self.selections.downscaling_method
+            ],
             table_id=_timescale_to_table_id(self.selections.timescale),
             grid_label=_resolution_to_gridlabel(self.selections.resolution),
             experiment_id=[
