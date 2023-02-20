@@ -20,20 +20,20 @@ def get_ams(
     extremes_type="max",
     duration=None,
     groupby=None,
-    duration2=None,
+    grouped_duration=None,
     ):
     """
     Function that converts data into annual maximums
 
     Takes input array and resamples annually by taking the maximum value.
     
-    Optional arguments `duration`, `groupby`, and `duration2` define the type
+    Optional arguments `duration`, `groupby`, and `grouped_duration` define the type
     of event to find the annual maximums of. These correspond to the event
     types defined in the `get_exceedance_count` function. 
 
     `duration` must be specified as (X, 'hour')
     `groupby` must be specified as (Y, 'day')
-    `duration2` must be specified as (Z, 'day')
+    `grouped_duration` must be specified as (Z, 'day')
 
     Parameters
     ----------
@@ -42,6 +42,8 @@ def get_ams(
     extremes_type: str
         option for max or min (min not implemented yet)
         Defaults to max
+    duration: tuple
+        
 
     Returns
     -------
@@ -56,7 +58,7 @@ def get_ams(
 
     # To implement:
     # Need to check the duration and groupby arguments 
-    #   make sure duration1 < groupby < duration2 (as is checked in the `get_exceedance_count` functions)
+    #   make sure duration1 < groupby < grouped_duration (as is checked in the `get_exceedance_count` functions)
 
     # In the simplest case, we use the original data array to take annual 
     # extreme values from
@@ -77,7 +79,7 @@ def get_ams(
     
     if groupby != None:
         # In this case, select the max (min) in each group. (This option is
-        # really only meaningful when coupled with the `duration2` option.)
+        # really only meaningful when coupled with the `grouped_duration` option.)
         group_len, group_type = groupby
         if group_type != 'day': 
             raise ValueError("`groupby` specifications only implemented for 'day' groupings.")
@@ -88,14 +90,14 @@ def get_ams(
         elif extremes_type == "min":
             da_series = da_series.resample(time=f"{group_len}D", label="left").min()
 
-    if duration2 != None:
+    if grouped_duration != None:
         if groupby == None:
-            raise ValueError("To use `duration2` option, must first use groupby.")
+            raise ValueError("To use `grouped_duration` option, must first use groupby.")
         # In this case, identify the min (max) value of the grouped values for
-        # each window of length duration2. Must be in `days`.
-        dur2_len, dur2_type = duration2
+        # each window of length `grouped_duration``. Must be in `days`.
+        dur2_len, dur2_type = grouped_duration
         if dur2_type != 'day':
-            raise ValueError("`duration2` specification must be in days. example: `duration2 = (3, 'day')`.")
+            raise ValueError("`grouped_duration` specification must be in days. example: `grouped_duration = (3, 'day')`.")
 
         # Now select the min (max) from the duration period
         if extremes_type == "max":
