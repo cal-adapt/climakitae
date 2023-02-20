@@ -16,6 +16,7 @@ import pkg_resources
 import warnings
 from .unit_conversions import _get_unit_conversion_options
 from .catalog_convert import (
+    _downscaling_method_to_activity_id,
     _resolution_to_gridlabel,
     _timescale_to_table_id,
     _scenario_to_experiment_id,
@@ -377,10 +378,10 @@ class _ViewLocationSelections(param.Parameterized):
                 color="magenta",
                 rotation=32,
                 xy=(-127, 39),
-                label="3-km LOCA",
+                label="3-km statistical",
             )
 
-        elif self.selections.downscaling_method == ["WRF"]:
+        elif self.selections.downscaling_method == ["Dynamical"]:
             # If only WRF is selected (indicated by list with only WRF
             if self.selections.resolution == "45 km":
                 _add_res_to_ax(
@@ -389,7 +390,7 @@ class _ViewLocationSelections(param.Parameterized):
                     color="green",
                     rotation=28,
                     xy=(-154, 33.8),
-                    label="45-km WRF",
+                    label="45-km dynamical",
                 )
             elif self.selections.resolution == "9 km":
                 _add_res_to_ax(
@@ -398,7 +399,7 @@ class _ViewLocationSelections(param.Parameterized):
                     color="dodgerblue",
                     rotation=32,
                     xy=(-135, 42),
-                    label="9-km WRF",
+                    label="9-km dynamical",
                 )
             elif self.selections.resolution == "3 km":
                 _add_res_to_ax(
@@ -407,7 +408,7 @@ class _ViewLocationSelections(param.Parameterized):
                     color="darkorange",
                     rotation=32,
                     xy=(-127, 39),
-                    label="3-km WRF",
+                    label="3-km dynamical",
                 )
         mpl_pane = pn.pane.Matplotlib(fig0, dpi=144)
 
@@ -541,7 +542,7 @@ def _get_variable_options_df(
     unique_variable_ids: list of strs
         List of unique variable ids from catalog.
         Used to subset var_catalog
-    downscaling_method: list, on of ["WRF"], ["LOCA"], or ["WRF","LOCA"]
+    downscaling_method: list, one of ["Dynamical"], ["Statistical"], or ["Dynamical","Statistical"]
         Data downscaling method
     timescale: str, one of "hourly", "daily", or "monthly"
         Timescale
@@ -569,7 +570,7 @@ def _get_variable_options_df(
         )
     ]
 
-    if set(["WRF", "LOCA"]).issubset(downscaling_method):
+    if set(["Dynamical", "Statistical"]).issubset(downscaling_method):
         variable_options_df = variable_options_df[
             # Get shared variables
             variable_options_df["display_name"].duplicated()
@@ -609,7 +610,7 @@ class _DataSelector(param.Parameterized):
         doc="""Compute an area average?""",
     )
     downscaling_method = param.ListSelector(
-        default=["WRF"], objects=["WRF", "LOCA (available soon)"]
+        default=["Dynamical"], objects=["Dynamical", "Statistical (available soon)"]
     )
 
     # Empty params, initialized in __init__
@@ -634,7 +635,7 @@ class _DataSelector(param.Parameterized):
 
         # Variable catalog info
         self.cat_subset = self.cat.search(
-            activity_id=self.downscaling_method,
+            activity_id=[_downscaling_method_to_activity_id(dm) for dm in self.downscaling_method],
             table_id=_timescale_to_table_id(self.timescale),
             grid_label=_resolution_to_gridlabel(self.resolution),
         )
@@ -676,7 +677,7 @@ class _DataSelector(param.Parameterized):
         # Set simulation param
         self.simulation = _get_simulation_options(
             cat=self.cat,
-            activity_id=self.downscaling_method,
+            activity_id=[_downscaling_method_to_activity_id(dm) for dm in self.downscaling_method],
             table_id=_timescale_to_table_id(self.timescale),
             grid_label=_resolution_to_gridlabel(self.resolution),
             experiment_id=[
@@ -701,7 +702,7 @@ class _DataSelector(param.Parameterized):
     def _update_var_options(self):
         """Update unique variable options"""
         self.cat_subset = self.cat.search(
-            activity_id=self.downscaling_method,
+            activity_id=[_downscaling_method_to_activity_id(dm) for dm in self.downscaling_method],
             table_id=_timescale_to_table_id(self.timescale),
             grid_label=_resolution_to_gridlabel(self.resolution),
         )
@@ -723,9 +724,9 @@ class _DataSelector(param.Parameterized):
     def _update_states_3km(self):
         if self.location.area_subset == "states":
             if self.resolution == "3 km":
-                if "LOCA" in self.downscaling_method:
+                if "Statistical" in self.downscaling_method:
                     self.location.param["cached_area"].objects = ["CA"]
-                elif self.downscaling_method == ["WRF"]:
+                elif self.downscaling_method == ["Dynamical"]:
                     self.location.param["cached_area"].objects = [
                         "CA",
                         "NV",
@@ -741,7 +742,7 @@ class _DataSelector(param.Parameterized):
 
     @param.depends("downscaling_method", watch=True)
     def _remove_hourly_LOCA(self):
-        if self.downscaling_method == ["WRF"]:
+        if self.downscaling_method == ["Dynamical"]:
             self.param["timescale"].objects = ["hourly", "daily", "monthly"]
         else:
             self.param["timescale"].objects = ["daily", "monthly"]
@@ -751,7 +752,7 @@ class _DataSelector(param.Parameterized):
     @param.depends("downscaling_method", watch=True)
     def _update_resolution(self):
         """Remove resolution options if LOCA is selected"""
-        if self.downscaling_method == ["WRF"]:
+        if self.downscaling_method == ["Dynamical"]:
             self.param["resolution"].objects = ["3 km", "9 km", "45 km"]
 
         else:  # No 45km or 9km option for LOCA grid
@@ -899,7 +900,7 @@ class _DataSelector(param.Parameterized):
         data is available (and needs to be removed) for hourly data."""
         self.simulation = _get_simulation_options(
             cat=self.cat,
-            activity_id=self.downscaling_method,
+            activity_id=[_downscaling_method_to_activity_id(dm) for dm in self.downscaling_method],
             table_id=_timescale_to_table_id(self.timescale),
             grid_label=_resolution_to_gridlabel(self.resolution),
             experiment_id=[
@@ -1033,6 +1034,7 @@ def _get_data_selection_description(selections, location):
     _data_selection_description = (
         "<font size='+0.10'>Data selections: </font><br>"
         "<ul>"
+        "<li><b>downscaling method: </b>" + ", ".join(selections.downscaling_method) + "</li>"
         "<li><b>variable: </b>" + str(selections.variable) + "</li>"
         "<li><b>units: </b>" + str(selections.units) + "</li>"
         "<li><b>temporal resolution: </b>" + str(selections.timescale) + "</li>"
@@ -1082,6 +1084,7 @@ class _SelectionDescription(param.Parameterized):
         "selections.resolution",
         "selections.time_slice",
         "selections.area_average",
+        "selections.downscaling_method",
         "location.area_subset",
         "location.cached_area",
         "location.longitude",
@@ -1115,7 +1118,7 @@ def _selections_param_to_panel(selections):
     downscaling_method_text = pn.widgets.StaticText(value="", name="Downscaling method")
     downscaling_method = pn.widgets.CheckBoxGroup.from_param(
         selections.param.downscaling_method,
-        inline=True,
+        inline=False,
         #### REMOVE THIS ONCE THE LOCA DATA IS AVAILABLE
         disabled=True,
     )
@@ -1127,7 +1130,7 @@ def _selections_param_to_panel(selections):
         selections.param.scenario_historical
     )
     ssp_selection_text = pn.widgets.StaticText(
-        value="<br>SSP options represent end-of-century range", name="Future Model Data"
+        value="<br> Shared Socioeconomic Pathways (SSPs) represent different global emissions scenarios", name="Future Model Data"
     )
     ssp_selection = pn.widgets.CheckBoxGroup.from_param(selections.param.scenario_ssp)
     resolution_text = pn.widgets.StaticText(
@@ -1263,14 +1266,14 @@ def _display_select(selections, location, map_view):
     how_to_use = pn.Card(
         pn.widgets.StaticText(
             value="""
-            In the first tab, <b>make your data selections.</b> In the second tab, <b>subset the 
+            In the first box, <b>make your data selections.</b> In the second box, <b>subset the 
             data by location</b> and choose whether or not to compute an area average over the 
             selected region. To retrieve the data, use the climakitae function <b>app.retrieve()</b>.
             """,
             name="",
         ),
         title="How to use this panel",
-        width=240,
+        width=250,
         collapsible=False,
     )
 
@@ -1279,7 +1282,7 @@ def _display_select(selections, location, map_view):
             selection_description.param._data_selection_description, name=""
         ),
         title="Current selections",
-        width=240,
+        width=250,
         collapsible=False,
     )
 
