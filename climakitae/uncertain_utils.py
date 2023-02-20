@@ -11,9 +11,7 @@ from cmip6_preprocessing.preprocessing import rename_cmip6
 from scipy import stats
 import pkg_resources
 from climakitae.data_loaders import _get_area_subset
-from climakitae.utils import _read_ae_colormap
 import holoviews as hv
-from bokeh.models import HoverTool
 import panel as pn
 
 
@@ -697,6 +695,10 @@ def get_warm_level(warm_level, ds, multi_ens=False, ipcc=True):
     xr.Dataset
         Subset of projected data -14/+15 years from warming level threshold
     """
+    # convert to float if int is accidentally specified
+    if type(warm_level) is int:
+        warm_level = float(warm_level)
+
     if ipcc:
         gwl_file = pkg_resources.resource_filename(
             "climakitae", "data/gwl_1850-1900ref.csv"
@@ -738,133 +740,3 @@ def get_warm_level(warm_level, ds, multi_ens=False, ipcc=True):
                 year0 = str(int(year_warmlevel_reached) - 14)
                 year1 = str(int(year_warmlevel_reached) + 15)
                 return ds.sel(time=slice(year0, year1))
-
-
-## -----------------------------------------------------------------------------
-## Plotting and helper functions
-## Currently tuned to precip uncertainty
-
-
-def make_hvplot(
-    data,
-    title,
-    vmin,
-    vmax,
-    sopt=False,
-    width=250,
-    height=250,
-    xlim=(None, None),
-    ylim=(None, None),
-    xticks=[None],
-    yticks=[None],
-    xaxis=None,
-    yaxis=None,
-    absolute=True,
-):
-    """Creates a map of data
-
-    Parameters
-    ----------
-
-    data: xr.DataArray
-    title: str
-        Title of plot
-    vmin, vmax: float or int
-        Desired min and max of colorbar.
-        None lets holoviews pick the the limits.
-    sopt: bool, default=False
-        Set to True for diverging data (centers 0)
-    width, height: float or int
-        Set to specify width and height of figure
-    xlim, ylim: tuple of float or int
-        Set to specify x- and y-axis limits
-    xticks, yticks: list of str, float, or int
-        Set to specify tick labels
-    xaxis, yaxis: str
-        Set to specify axis labels
-    absolute: bool, default=True
-        Set to False if z-axis shows a relative change (%)
-
-    Returns
-    ----------
-    holoviz.QuadMesh object
-    """
-    if absolute:
-        val_str = "Precipitation (mm/month)"
-    else:
-        val_str = "% change"
-
-    hover = HoverTool(
-        description="Custom Tooltip",
-        tooltips=[
-            ("Longitude (deg E)", "@x"),
-            ("Latitude (deg N)", "@y"),
-            (val_str, "@z"),
-        ],
-    )
-
-    if sopt:
-        cmap = _read_ae_colormap(
-            cmap="ae_diverging_r", cmap_hex=True
-        )  # sets to a diverging colormap
-    else:
-        cmap = _read_ae_colormap(cmap="ae_blue", cmap_hex=True)
-    """Make single map"""
-    _plot = hv.QuadMesh((data["lon"], data["lat"], data)).opts(
-        tools=[hover],
-        colorbar=True,
-        cmap=cmap,
-        symmetric=sopt,
-        clim=(vmin, vmax),
-        xaxis=None,
-        yaxis=None,
-        clabel="Precipitation (mm/month)",
-        title=title,
-        width=width,
-        height=height,
-        xlim=xlim,
-        ylim=ylim,
-    )
-    return _plot
-
-
-# Plotting helper functions
-def hvplot_one_sim(data, sim_name, vmin=0, vmax=900, sopt=False, num_cols=6):
-    """
-    Using _make_hvplot, plot all member_id data for an input simulation.
-    This will make a single row of maps.
-    """
-    plots_by_sim = None
-    # Get the data just at the input simulation
-    # Rename x --> lon and y --> lat so that the _make_hvplot can read the dataset
-    to_plot_by_sim = data.where(data.simulation == sim_name, drop=True).rename(
-        {"x": "lon", "y": "lat"}
-    )
-    # Make a plot for each individual member_id
-    for member_id_i in range(len(to_plot_by_sim.member_id.values)):
-        plot_i = make_hvplot(
-            to_plot_by_sim.drop("simulation").isel(member_id=member_id_i),
-            title="{0} member {1}".format(sim_name, member_id_i + 1),
-            vmin=vmin,
-            vmax=vmax,
-            sopt=sopt,
-        )
-        plots_by_sim = plot_i if plots_by_sim is None else plots_by_sim + plot_i
-    return plots_by_sim.cols(6)
-
-
-def hvplot_percentile_column(
-    data, col_title="", vmin=0, vmax=900, sopt=False, num_cols=6
-):
-    """
-    Create a pn.Column object, in which each row is a different simulation.
-    Set col_title to give the Column a name.
-    Set num_cols to indicate how many maps you want to show in each row.
-    """
-    col = pn.Column(col_title)
-    for sim in np.unique(data.simulation.values):
-        pl_by_sim = hvplot_one_sim(
-            data, sim_name=sim, vmin=vmin, vmax=vmax, sopt=sopt, num_cols=6
-        )
-        col += pn.Row(pl_by_sim)
-    return col
