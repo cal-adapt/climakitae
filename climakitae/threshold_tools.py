@@ -31,10 +31,6 @@ def get_ams(
     of event to find the annual maximums of. These correspond to the event
     types defined in the `get_exceedance_count` function. 
 
-    `duration` must be specified as (X, 'hour')
-    `groupby` must be specified as (Y, 'day')
-    `grouped_duration` must be specified as (Z, 'day')
-
     Parameters
     ----------
     da: xarray.DataArray
@@ -43,7 +39,11 @@ def get_ams(
         option for max or min (min not implemented yet)
         Defaults to max
     duration: tuple
-        
+        length of extreme event, specified as (4, 'hour')
+    groupby: tuple
+        group over which to look for max occurance, specified as (1, 'day')
+    grouped_duration: tuple
+        length of event after grouping, specified as (5, 'day')
 
     Returns
     -------
@@ -345,7 +345,7 @@ def _bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
     data_variable: str
         can be return_value, return_prob, return_period
     arg_value: float
-        value to do the calucation to
+        value to do the calculation to
 
     Returns
     -------
