@@ -695,13 +695,10 @@ def get_warm_level(warm_level, ds, multi_ens=False, ipcc=True):
     xr.Dataset
         Subset of projected data -14/+15 years from warming level threshold
     """
-    wtype = type(warm_level)
-
-    if wtype not in [int, float]:
-        raise Exception("Please specify warming level as an integer or float.")
-
-    if type(warm_level) is int:
+    try:
         warm_level = float(warm_level)
+    except ValueError:
+        raise Exception("Please specify warming level as an integer or float.")
 
     if warm_level not in [1.5, 2.0, 3.0, 4.0]:
         raise Exception(
