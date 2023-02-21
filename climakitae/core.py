@@ -1,15 +1,19 @@
+"""The main workhorse of the climakitae library. 
+Holds the Application object, which provides access to easy data retrieval, visualization, and export.
+"""
+
 import intake
 from .data_export import _export_to_user
-from .explore import AppExplore
+from .explore import _AppExplore
 from .view import _visualize
 from .data_loaders import _read_catalog_from_select, _read_catalog_from_csv, _compute
 from .selectors import (
-    DataSelector,
+    _DataSelector,
+    _ViewLocationSelections,
     _display_select,
-    LocSelectorArea,
-    UserFileChoices,
+    _LocSelectorArea,
     _user_export_select,
-    FileTypeSelector,
+    _FileTypeSelector,
     _get_simulation_options,
 )
 from .catalog_convert import (
@@ -28,33 +32,20 @@ class Application(object):
 
     Attributes
     ----------
-    _cat: intake_esm.core.esm_datastore
+    catalog: intake_esm.core.esm_datastore
         AE data catalog
-    location: LocSelectorArea
+    location: _LocSelectorArea
         Location settings
-    selections: DataSelector
+    selections: _DataSelector
         Data settings (variable, unit, timescale, etc)
-    explore: AppExplore
-        Module hosting the explore panel options
-
-    Methods
-    -------
-    select
-        Display data selection GUI
-        Modifies the values in the location and selections attributes
-    retrieve
-        Retrieve data from catalog
-        Will grab data depending on location and selections attributes
-    retrieve_from_csv
-        Retrieve catalog data from input csv file
-    load
-        Read lazily-loaded dask array into memory
-    view
-        Display a generic visualization of the data
+    explore: _AppExplore
+        Explore panel options
+        explore.amy(), explore.thresholds(), explore.warming_levels()
+    map_view: _ViewLocationSelections
+        Visualization of the selected data on a map
 
     Examples
     --------
-
     To view the explore panels in a notebook environment,
     you can use the following code:
 
@@ -69,13 +60,18 @@ class Application(object):
     """
 
     def __init__(self):
-        self._cat = intake.open_esm_datastore(
+        self.catalog = intake.open_esm_datastore(
             "https://cadcat.s3.amazonaws.com/cae-collection.json"
         )
-        self.location = LocSelectorArea(name="Location Selections")
-        self.selections = DataSelector(cat=self._cat, location=self.location)
-        self.user_export_format = FileTypeSelector()
-        self.explore = AppExplore(self.selections, self.location, self._cat)
+        self.location = _LocSelectorArea(name="Location Selections")
+        self.selections = _DataSelector(cat=self.catalog, location=self.location)
+        self.map_view = _ViewLocationSelections(
+            location=self.location, selections=self.selections
+        )
+        self.user_export_format = _FileTypeSelector()
+        self.explore = _AppExplore(
+            self.selections, self.location, self.catalog, self.map_view
+        )
 
     # === Select =====================================
     def select(self):
@@ -95,7 +91,7 @@ class Application(object):
         # Reset simulation options
         # This will remove ensmean if the use has just called app.explore.amy()
         self.selections.simulation = _get_simulation_options(
-            cat=self._cat,
+            cat=self.catalog,
             activity_id=self.selections.downscaling_method,
             table_id=_timescale_to_table_id(self.selections.timescale),
             grid_label=_resolution_to_gridlabel(self.selections.resolution),
@@ -106,7 +102,7 @@ class Application(object):
             ],
         )
         # Display panel
-        select_panel = _display_select(self.selections, self.location)
+        select_panel = _display_select(self.selections, self.location, self.map_view)
         return select_panel
 
     # === Read data into memory =====================================
@@ -143,7 +139,7 @@ class Application(object):
 
         Parameters
         ----------
-        config: str, optional.
+        config: str, optional
             Local filepath to configuration csv file
             Default to None-- retrieve settings in app.selections and app.location
         merge: bool, optional
@@ -167,13 +163,13 @@ class Application(object):
         if config is not None:
             if type(config) == str:
                 return _read_catalog_from_csv(
-                    self.selections, self.location, self._cat, config, merge
+                    self.selections, self.location, self.catalog, config, merge
                 )
             else:
                 raise ValueError(
                     "To retrieve data specified in a configuration file, please input the path to your local configuration csv as a string"
                 )
-        return _read_catalog_from_select(self.selections, self.location, self._cat)
+        return _read_catalog_from_select(self.selections, self.location, self.catalog)
 
     def retrieve_from_csv(self, config, merge=True):
         """Retrieve data from csv input. Return type will depend on how many rows exist in the input csv file and the argument merge.
@@ -241,7 +237,7 @@ class Application(object):
         ... )
         """
         return _retrieve_meteo_yr_data(
-            self.selections, self.location, self._cat, ssp, year_start, year_end
+            self.selections, self.location, self.catalog, ssp, year_start, year_end
         )
 
     # === View =======================================

@@ -1,28 +1,42 @@
-# A class for holding the app explore options
+"""
+Contains source code for the AppExplore object, used to access panel GUIs for exploring several climatological topics of interest: 
+1. Average meteorological year
+2. Thresholds 
+3. Global warming levels 
+See the AppExplore object documentation for more information. 
+"""
 
 import panel as pn
 import param
+from .meteo_yr import _AverageMeteorologicalYear, _amy_visualize
+from .threshold_panel import _ThresholdDataParams, _thresholds_visualize
+from .warming_levels import _WarmingLevels, _display_warming_levels
 
-from .meteo_yr import AverageMeteorologicalYear, _amy_visualize
-from .threshold_panel import ThresholdDataParams, _thresholds_visualize
-from .warming_levels import WarmingLevels, _display_warming_levels
 
-
-class AppExplore(object):
-    """
-    A class for holding the following app explore options:
-        app.explore.amy(): AMY panel GUI
-        app.explore.thresholds(): thresholds panel GUI
-        app.explore.warming_levels(): warming levels panel GUI
-        app.explore.amy_selections(): AverageMeteorologicalYear object generated in app.explore.amy();
-            only accessible if app.explore.amy() has already been run.
-
+class _AppExplore(object):
+    """Explore the data using interactive GUIs.
+    Only functional in a jupyter notebook environment.
     """
 
-    def __init__(self, selections, location, _cat):
+    def __init__(self, selections, location, _cat, map_view):
+        """Constructor
+
+        Parameters
+        ----------
+        selections: _DataSelector
+            Data settings (variable, unit, timescale, etc)
+        location: _LocSelectorArea
+            Location Settings
+        _cat: intake_esm.core.esm_datastore
+            AE data catalog
+        map_view: _ViewLocationSelections
+            Class for producing visualization of the selected data on a map
+
+        """
         self.selections = selections
         self.location = location
         self._cat = _cat
+        self.map_view = map_view
 
     def __repr__(self):
         """Print a string description of the available analysis method for this class."""
@@ -36,11 +50,14 @@ class AppExplore(object):
     def amy(self):
         """Display Average Meteorological Year panel."""
         global tmy_ob
-        tmy_ob = AverageMeteorologicalYear(
+        tmy_ob = _AverageMeteorologicalYear(
             selections=self.selections, location=self.location, cat=self._cat
         )
         return _amy_visualize(
-            tmy_ob=tmy_ob, selections=self.selections, location=self.location
+            tmy_ob=tmy_ob,
+            selections=self.selections,
+            location=self.location,
+            map_view=self.map_view,
         )
 
     def amy_selections(self):
@@ -56,19 +73,22 @@ class AppExplore(object):
 
     def thresholds(self, option=1):
         """Display Thresholds panel."""
-        thresh_data = ThresholdDataParams(
+        thresh_data = _ThresholdDataParams(
             selections=self.selections, location=self.location, cat=self._cat
         )
         return _thresholds_visualize(
             thresh_data=thresh_data,
             selections=self.selections,
             location=self.location,
+            map_view=self.map_view,
             option=option,
         )
 
     def warming_levels(self):
         """Display Warming Levels panel."""
-        warming_data = WarmingLevels(
+        warming_data = _WarmingLevels(
             selections=self.selections, location=self.location, cat=self._cat
         )
-        return _display_warming_levels(warming_data, self.selections, self.location)
+        return _display_warming_levels(
+            warming_data, self.selections, self.location, map_view=self.map_view
+        )

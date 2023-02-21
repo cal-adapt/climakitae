@@ -1,3 +1,6 @@
+"""Backend functions related to providing and dynamically setting data selections.
+Boundaries function for storing parquet geometries for spatial subsetting."""
+
 import datetime as dt
 import param
 import panel as pn
@@ -64,7 +67,29 @@ _cached_stations = [
 
 
 class Boundaries:
+    """Get geospatial polygon data from the AE catalog.
+    Used to access boundaries for subsetting data by state, county, etc.
+    """
+
     def __init__(self):
+        """
+        Parameters
+        -----------
+        _cat: intake.catalog.local.YAMLFileCatalog
+            Catalog for parquet files
+        _us_states: pd.DataFrame
+            Table of US state names and geometries
+        _ca_counties: pd.DataFrame
+            Table of California county names and geometries
+            Sorted by county name alphabetical order
+        _ca_watersheds: pd.DataFrame
+            Table of California watershed names and geometries
+            Sorted by watershed name alphabetical order
+        _ca_utilities: pd.DataFrame
+            Table of California IOUs and POUs, names and geometries
+        _ca_forecast_zones: pd.DataFrame
+            Table of California Demand Forecast Zones
+        """
         self._cat = intake.open_catalog(
             "https://cadcat.s3.amazonaws.com/parquet/catalog.yaml"
         )
@@ -78,11 +103,15 @@ class Boundaries:
         self._ca_forecast_zones.loc[
             self._ca_forecast_zones["FZ_Name"] == "Other", "FZ_Name"
         ] = self._ca_forecast_zones["FZ_Def"]
-        # self._ca_forecast_zones = self._ca_forecast_zones[["OBJECTID","FZ_Name","geometry"]]
 
     def get_us_states(self):
         """
         Returns a custom sorted dictionary of state abbreviations and indices.
+
+        Returns
+        -------
+        dict
+
         """
         _states_subset_list = [
             "CA",
@@ -110,6 +139,11 @@ class Boundaries:
         """
         Returns a dictionary of California counties and their indices
         in the geoparquet file.
+
+        Returns
+        -------
+        dict
+
         """
         return pd.Series(
             self._ca_counties.index, index=self._ca_counties["NAME"]
@@ -119,6 +153,11 @@ class Boundaries:
         """
         Returns a lookup dictionary for CA watersheds that references
         the geoparquet file.
+
+        Returns
+        -------
+        dict
+
         """
         return pd.Series(
             self._ca_watersheds.index, index=self._ca_watersheds["Name"]
@@ -128,6 +167,11 @@ class Boundaries:
         """
         Returns a lookup dictionary for CA watersheds that references
         the geoparquet file.
+
+        Returns
+        -------
+        dict
+
         """
         return pd.Series(
             self._ca_forecast_zones.index, index=self._ca_forecast_zones["FZ_Name"]
@@ -137,6 +181,11 @@ class Boundaries:
         """
         Returns a lookup dictionary for IOUs & POUs that references
         the geoparquet file.
+
+        Returns
+        -------
+        dict
+
         """
         put_at_top = [  # Put in the order you want it to appear in the dropdown
             "Pacific Gas & Electric Company",
@@ -160,7 +209,12 @@ class Boundaries:
         This returns a dictionary of lookup dictionaries for each set of
         geoparquet files that the user might be choosing from. It is used to
         populate the selector object dynamically as the category in
-        'LocSelectorArea.area_subset' changes.
+        '_LocSelectorArea.area_subset' changes.
+
+        Returns
+        -------
+        dict
+
         """
         _all_options = {
             "none": {"entire domain": 0},
@@ -174,7 +228,7 @@ class Boundaries:
         return _all_options
 
 
-class LocSelectorArea(param.Parameterized):
+class _LocSelectorArea(param.Parameterized):
     """
     Used to produce a panel of widgets for entering one of the types of location
     information used to define a timeseries from an average over an area. Will
@@ -189,15 +243,8 @@ class LocSelectorArea(param.Parameterized):
 
     area_subset = param.ObjectSelector(objects=dict())
     cached_area = param.ObjectSelector(objects=dict())
-    default_lat = (32.5, 42)
-    default_lon = (-125.5, -114)
-    latitude = param.Range(default=default_lat, bounds=(10, 67))
-    longitude = param.Range(default=default_lon, bounds=(-156.82317, -84.18701))
-    _lat_lon_warning = param.String(
-        default="",
-        doc="Warning if user is messing with lat/lon slider,"
-        "but lat/lon is not selected for area subset.",
-    )
+    latitude = param.Range(default=(32.5, 42), bounds=(10, 67))
+    longitude = param.Range(default=(-125.5, -114), bounds=(-156.82317, -84.18701))
 
     def __init__(self, **params):
         super().__init__(**params)
@@ -261,88 +308,173 @@ class LocSelectorArea(param.Parameterized):
         )
         self.cached_area = list(self._geography_choose[self.area_subset].keys())[0]
 
-    @param.depends("latitude", "longitude", "area_subset", "cached_area", watch=False)
-    def view(self):
-        geometry = box(
-            self.longitude[0], self.latitude[0], self.longitude[1], self.latitude[1]
-        )
 
+def _add_res_to_ax(
+    poly, ax, rotation, xy, label, color="black", crs=ccrs.PlateCarree()
+):
+    """Add resolution line and label to axis
+
+    Parameters
+    ----------
+    poly: geometry to plot
+    ax: matplotlib axis
+    color: matplotlib color
+    rotation: int
+    xy: tuple
+    label: str
+    crs: projection
+
+    """
+    ax.add_geometries(
+        [poly], crs=ccrs.PlateCarree(), edgecolor=color, facecolor="white"
+    )
+    ax.annotate(
+        label,
+        xy=xy,
+        rotation=rotation,
+        color="black",
+        xycoords=crs._as_mpl_transform(ax),
+    )
+
+
+class _ViewLocationSelections(param.Parameterized):
+    """View the current location selections on a map
+    Updates dynamically
+
+    Parameters
+    ----------
+    location: LocSelectorArea
+        User location selections
+    selections: DataSelector
+        User data selections
+
+    """
+
+    def __init__(self, **params):
+        super().__init__(**params)
+
+    @param.depends(
+        "selections.downscaling_method",
+        "selections.resolution",
+        "location.latitude",
+        "location.longitude",
+        "location.area_subset",
+        "location.cached_area",
+        watch=True,
+    )
+    def view(self):
         fig0 = Figure(figsize=(3.3, 3.3))
         proj = ccrs.Orthographic(-118, 40)
         crs_proj4 = proj.proj4_init  # used below
         xy = ccrs.PlateCarree()
         ax = fig0.add_subplot(111, projection=proj)
-        ax.set_extent([-150, -88, 8, 66], crs=xy)
-        ax.set_facecolor("grey")
 
-        # Plot the boundaries of the WRF domains on an existing set of axes for
-        # a map. Hard-coding these numbers makes it faster.
-        _colors = ["k", "dodgerblue", "darkorange"]
-        for i, domain in enumerate(["45 km", "9 km", "3 km"]):
-            # Plot domain:
-            ax.add_geometries(
-                [self._wrf_bb[domain]],
-                crs=ccrs.PlateCarree(),
-                edgecolor=_colors[i],
-                facecolor="white",
+        if "LOCA" in self.selections.downscaling_method:
+            # 3km LOCA grid shown whenever LOCA is selected, even if WRF is also selected
+            _add_res_to_ax(
+                poly=self.location._wrf_bb["3 km"],
+                ax=ax,
+                color="magenta",
+                rotation=32,
+                xy=(-127, 39),
+                label="3-km LOCA",
             )
 
-        ax.coastlines()
-        ax.add_feature(cfeature.BORDERS)
-        ax.add_feature(cfeature.STATES, linewidth=0.5)
-        ax.annotate(
-            "45-km grid",
-            xy=(-154, 33.8),
-            rotation=28,
-            xycoords=xy._as_mpl_transform(ax),
-        )
-        ax.annotate(
-            "9-km",
-            xy=(-135, 42),
-            rotation=32,
-            xycoords=xy._as_mpl_transform(ax),
-            color="k",
-        )
-        ax.annotate(
-            "3-km",
-            xy=(-127, 39),
-            rotation=32,
-            xycoords=xy._as_mpl_transform(ax),
-            color="k",
-        )
+        elif self.selections.downscaling_method == ["WRF"]:
+            # If only WRF is selected (indicated by list with only WRF
+            if self.selections.resolution == "45 km":
+                _add_res_to_ax(
+                    poly=self.location._wrf_bb["45 km"],
+                    ax=ax,
+                    color="green",
+                    rotation=28,
+                    xy=(-154, 33.8),
+                    label="45-km WRF",
+                )
+            elif self.selections.resolution == "9 km":
+                _add_res_to_ax(
+                    poly=self.location._wrf_bb["9 km"],
+                    ax=ax,
+                    color="dodgerblue",
+                    rotation=32,
+                    xy=(-135, 42),
+                    label="9-km WRF",
+                )
+            elif self.selections.resolution == "3 km":
+                _add_res_to_ax(
+                    poly=self.location._wrf_bb["3 km"],
+                    ax=ax,
+                    color="darkorange",
+                    rotation=32,
+                    xy=(-127, 39),
+                    label="3-km WRF",
+                )
         mpl_pane = pn.pane.Matplotlib(fig0, dpi=144)
 
-        def plot_subarea(boundary_dataset, extent):
-            ax.set_extent(extent, crs=xy)
+        # Set plot extent
+        if (self.selections.resolution == "3 km") or (
+            "CA" in self.location.area_subset
+        ):
+            extent = [-125, -114, 31, 43]  # Zoom in on CA
+        elif (self.selections.resolution == "9 km") or (
+            self.location.area_subset == "states"
+        ):
+            extent = [-130, -100, 25, 50]  # Just shows US states
+        elif self.location.area_subset in ["none", "lat/lon"]:
+            extent = [
+                -150,
+                -88,
+                8,
+                66,
+            ]  # Widest extent possible-- US, some of Mexico and Canada
+        else:  # Default for all other selections
+            extent = [-125, -114, 31, 43]  # Zoom in on CA
+        ax.set_extent(extent, crs=xy)
+
+        def plot_subarea(boundary_dataset):
             subarea = boundary_dataset[boundary_dataset.index == shape_index]
             df_ae = subarea.to_crs(crs_proj4)
             df_ae.plot(ax=ax, color="b", zorder=2)
             mpl_pane.param.trigger("object")
 
-        if self.area_subset == "lat/lon":
-            ax.set_extent([-150, -88, 8, 66], crs=xy)
+        if self.location.area_subset == "lat/lon":
+            geometry = box(
+                self.location.longitude[0],
+                self.location.latitude[0],
+                self.location.longitude[1],
+                self.location.latitude[1],
+            )
             ax.add_geometries(
                 [geometry], crs=ccrs.PlateCarree(), edgecolor="b", facecolor="None"
             )
-        elif self.area_subset != "none":
+        elif self.location.area_subset != "none":
             shape_index = int(
-                self._geography_choose[self.area_subset][self.cached_area]
+                self.location._geography_choose[self.location.area_subset][
+                    self.location.cached_area
+                ]
             )
-            if self.area_subset == "states":
-                plot_subarea(self._geographies._us_states, [-130, -100, 25, 50])
-            elif self.area_subset == "CA counties":
-                plot_subarea(self._geographies._ca_counties, [-125, -114, 31, 43])
-            elif self.area_subset == "CA watersheds":
-                plot_subarea(self._geographies._ca_watersheds, [-125, -114, 31, 43])
-            elif self.area_subset == "CA Electric Load Serving Entities (IOU & POU)":
-                plot_subarea(self._geographies._ca_utilities, [-125, -114, 31, 43])
-            elif self.area_subset == "CA Electricity Demand Forecast Zones":
-                plot_subarea(self._geographies._ca_forecast_zones, [-125, -114, 31, 43])
+            if self.location.area_subset == "states":
+                plot_subarea(self.location._geographies._us_states)
+            elif self.location.area_subset == "CA counties":
+                plot_subarea(self.location._geographies._ca_counties)
+            elif self.location.area_subset == "CA watersheds":
+                plot_subarea(self.location._geographies._ca_watersheds)
+            elif (
+                self.location.area_subset
+                == "CA Electric Load Serving Entities (IOU & POU)"
+            ):
+                plot_subarea(self.location._geographies._ca_utilities)
+            elif self.location.area_subset == "CA Electricity Demand Forecast Zones":
+                plot_subarea(self.location._geographies._ca_forecast_zones)
 
+        # Add state lines, international borders, and coastline
+        ax.add_feature(cfeature.STATES, linewidth=0.5, edgecolor="gray")
+        ax.add_feature(cfeature.COASTLINE, linewidth=0.5, edgecolor="darkgray")
+        ax.add_feature(cfeature.BORDERS, edgecolor="darkgray")
         return mpl_pane
 
 
-class LocSelectorPoint(param.Parameterized):
+class _LocSelectorPoint(param.Parameterized):
     """
     If the user wants a timeseries that pertains to a point, they may choose
     from among a set of pre-calculated station locations. Later this class can
@@ -426,7 +558,7 @@ def _get_variable_options_df(var_catalog, unique_variable_ids, timescale):
     return variable_options_df
 
 
-class DataSelector(param.Parameterized):
+class _DataSelector(param.Parameterized):
     """
     An object to hold data parameters, which depends only on the 'param'
     library. Currently used in '_display_select', which uses 'panel' to draw the
@@ -452,9 +584,9 @@ class DataSelector(param.Parameterized):
         objects=["Yes", "No"],
         doc="""Compute an area average?""",
     )
+    downscaling_method = param.ListSelector(default=["WRF"], objects=["WRF", "LOCA"])
 
     # Empty params, initialized in __init__
-    downscaling_method = param.ObjectSelector(objects=dict())
     scenario_ssp = param.ListSelector(objects=dict())
     simulation = param.ListSelector(objects=dict())
     variable = param.ObjectSelector(objects=dict())
@@ -474,12 +606,9 @@ class DataSelector(param.Parameterized):
         # Set default values
         super().__init__(**params)
 
-        # Downscaling method selection
-        self.downscaling_method = "WRF"
-
         # Variable catalog info
         self.cat_subset = self.cat.search(
-            activity_id=self.downscaling_method,
+            activity_id=self.downscaling_method[0],
             table_id=_timescale_to_table_id(self.timescale),
             grid_label=_resolution_to_gridlabel(self.resolution),
         )
@@ -515,7 +644,7 @@ class DataSelector(param.Parameterized):
         # Set simulation param
         self.simulation = _get_simulation_options(
             cat=self.cat,
-            activity_id=self.downscaling_method,
+            activity_id=self.downscaling_method[0],
             table_id=_timescale_to_table_id(self.timescale),
             grid_label=_resolution_to_gridlabel(self.resolution),
             experiment_id=[
@@ -540,7 +669,7 @@ class DataSelector(param.Parameterized):
     def _update_var_options(self):
         """Update unique variable options"""
         self.cat_subset = self.cat.search(
-            activity_id=self.downscaling_method,
+            activity_id=self.downscaling_method[0],
             table_id=_timescale_to_table_id(self.timescale),
             grid_label=_resolution_to_gridlabel(self.resolution),
         )
@@ -563,13 +692,16 @@ class DataSelector(param.Parameterized):
     def _update_states_3km(self):
         if self.location.area_subset == "states":
             if self.resolution == "3 km":
-                self.location.param["cached_area"].objects = [
-                    "CA",
-                    "NV",
-                    "OR",
-                    "UT",
-                    "AZ",
-                ]
+                if "LOCA" in self.downscaling_method:
+                    self.location.param["cached_area"].objects = ["CA"]
+                elif self.downscaling_method == ["WRF"]:
+                    self.location.param["cached_area"].objects = [
+                        "CA",
+                        "NV",
+                        "OR",
+                        "UT",
+                        "AZ",
+                    ]
                 self.location.cached_area = "CA"
             else:
                 self.location.param[
@@ -716,7 +848,7 @@ class DataSelector(param.Parameterized):
         data is available (and needs to be removed) for hourly data."""
         self.simulation = _get_simulation_options(
             cat=self.cat,
-            activity_id=self.downscaling_method,
+            activity_id=self.downscaling_method[0],
             table_id=_timescale_to_table_id(self.timescale),
             grid_label=_resolution_to_gridlabel(self.resolution),
             experiment_id=[
@@ -872,7 +1004,7 @@ def _get_data_selection_description(selections, location):
     return _data_selection_description + _location_selection_description
 
 
-class SelectionDescription(param.Parameterized):
+class _SelectionDescription(param.Parameterized):
     """
     Make a long string to output to the user to show all their current selections.
     Updates whenever any of the input values are changed.
@@ -915,7 +1047,7 @@ class SelectionDescription(param.Parameterized):
 # ================ DISPLAY LOCATION/DATA SELECTIONS IN PANEL ===================
 
 
-def _display_select(selections, location):
+def _display_select(selections, location, map_view):
     """
     Called by 'select' at the beginning of the workflow, to capture user
     selections. Displays panel of widgets from which to make selections.
@@ -923,7 +1055,7 @@ def _display_select(selections, location):
     appropriate xarray Dataset.
     """
 
-    selection_description = SelectionDescription(
+    selection_description = _SelectionDescription(
         selections=selections, location=location
     )
 
@@ -946,7 +1078,7 @@ def _display_select(selections, location):
             ),
             width=275,
         ),
-        location.view,
+        map_view.view,
     )
 
     data_options = pn.Column(
@@ -1023,7 +1155,7 @@ def _display_select(selections, location):
 # =============================== EXPORT DATA ==================================
 
 
-class UserFileChoices:
+class _UserFileChoices:
     # reserved for later: text boxes for dataset to export
     # as well as a file name
     # data_var_name = param.String()
@@ -1033,14 +1165,14 @@ class UserFileChoices:
         self._export_format_choices = ["Pick a file format", "CSV", "GeoTIFF", "NetCDF"]
 
 
-class FileTypeSelector(param.Parameterized):
+class _FileTypeSelector(param.Parameterized):
     """
     If the user wants to export an xarray dataset, they can choose
     their preferred format here. Produces a panel from which to select a
     supported file type.
     """
 
-    user_options = UserFileChoices()
+    user_options = _UserFileChoices()
     output_file_format = param.ObjectSelector(
         objects=user_options._export_format_choices
     )
