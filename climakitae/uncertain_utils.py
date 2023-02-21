@@ -680,7 +680,7 @@ def get_warm_level(warm_level, ds, multi_ens=False, ipcc=True):
 
     Parameters
     ----------
-    warm_level: float
+    warm_level: float or int
         options: 1.5, 2.0, 3.0, 4.0
     ds: xr.Dataset
         Can only have one 'simulation' coordinate
