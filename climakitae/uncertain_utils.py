@@ -19,7 +19,7 @@ import panel as pn
 class CmipOpt:
     """A class for holding relevant data options for cmip preprocessing
 
-    Attributes
+    Parameters
     ----------
     variable: str
         variable name, cf-compliant (or cmip6 variable name)
@@ -308,7 +308,7 @@ def grab_multimodel_data(copt, alpha_sort=False):
     subsetting for specific location and dropping the member_id for easier
     analysis.
 
-    Attributes
+    Parameters
     ----------
     copt: CmipOpt
         Selections: variable, area_subset, location, area_average, timescale
