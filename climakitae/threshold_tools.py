@@ -1,3 +1,5 @@
+"""Helper functions for performing analyses related to thresholds"""
+
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -12,7 +14,7 @@ from holoviews import opts
 import hvplot.pandas
 import hvplot.xarray
 import panel as pn
-from .visualize import get_geospatial_plot
+from .utils import _read_ae_colormap
 
 
 def get_ams(da, extremes_type="max"):
@@ -241,28 +243,22 @@ def _calculate_return(fitted_distr, data_variable, arg_value):
     float
     """
 
-    if data_variable == "return_value":
-        try:
+    try:
+        if data_variable == "return_value":
             return_event = 1.0 - (1.0 / arg_value)
             return_value = fitted_distr.ppf(return_event)
             result = round(return_value, 5)
-        except (ValueError, ZeroDivisionError, AttributeError):
-            result = np.nan
-    elif data_variable == "return_prob":
-        try:
+        elif data_variable == "return_prob":
             result = 1 - (fitted_distr.cdf(arg_value))
-        except (ValueError, ZeroDivisionError, AttributeError):
-            result = np.nan
-    elif data_variable == "return_period":
-        try:
+        elif data_variable == "return_period":
             return_prob = fitted_distr.cdf(arg_value)
             if return_prob == 1.0:
                 result = np.nan
             else:
                 return_period = -1.0 / (return_prob - 1.0)
                 result = round(return_period, 3)
-        except (ValueError, ZeroDivisionError, AttributeError):
-            result = np.nan
+    except (ValueError, ZeroDivisionError, AttributeError):
+        result = np.nan
     return result
 
 
@@ -360,23 +356,31 @@ def _conf_int(
     return conf_int_lower_limit, conf_int_upper_limit
 
 
-def get_return_value(
+def _get_return_variable(
     ams,
-    return_period=10,
+    data_variable,
+    arg_value,
     distr="gev",
     bootstrap_runs=100,
     conf_int_lower_bound=2.5,
     conf_int_upper_bound=97.5,
     multiple_points=True,
 ):
-    """Creates xarray Dataset with return values and confidence intervals from maximum series
+    """Generic function used by `get_return_value`, `get_return_period`, and
+    `get_return_prob`.
 
-    Returns dataset with return values and confidence intervals from maximum series.
+    Returns a dataset with the estimate of the requested data_variable and
+    confidence intervals.
+
+    If data_variable == "return_value", then arg_value is the return period.
+    If data_variable == "return_prob", then arg_value is the threshold value.
+    If data_variable == "return_period", then arg_value is the return value.
 
     Parameters
     ----------
     ams: xarray.DataArray
-    return_period: float
+    data_variable: str
+    arg_value: float
     distr: str
     bootstrap_runs: int
     conf_int_lower_bound: float
@@ -388,7 +392,10 @@ def get_return_value(
     xarray.Dataset
     """
 
-    data_variable = "return_value"
+    data_variables = ["return_value", "return_period", "return_prob"]
+    if data_variable not in data_variables:
+        raise ValueError(f"Invalid `data_variable`. Must be one of: {data_variables}")
+
     distr_func = _get_distr_func(distr)
     ams_attributes = ams.attrs
 
@@ -400,48 +407,62 @@ def get_return_value(
             .groupby("allpoints")
         )
 
-    def return_value(ams):
+    def _return_variable(ams):
         try:
             parameters, fitted_distr = _get_fitted_distr(ams, distr, distr_func)
-            return_value = _calculate_return(
+            return_variable = _calculate_return(
                 fitted_distr=fitted_distr,
                 data_variable=data_variable,
-                arg_value=return_period,
+                arg_value=arg_value,
             )
         except (ValueError, ZeroDivisionError):
-            return_value = np.nan
+            return_variable = np.nan
 
         conf_int_lower_limit, conf_int_upper_limit = _conf_int(
             ams=ams,
             distr=distr,
             data_variable=data_variable,
-            arg_value=return_period,
+            arg_value=arg_value,
             bootstrap_runs=bootstrap_runs,
             conf_int_lower_bound=conf_int_lower_bound,
             conf_int_upper_bound=conf_int_upper_bound,
         )
 
-        return return_value, conf_int_lower_limit, conf_int_upper_limit
+        return return_variable, conf_int_lower_limit, conf_int_upper_limit
 
-    return_value, conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
-        return_value,
+    return_variable, conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
+        _return_variable,
         ams,
         input_core_dims=[["time"]],
         exclude_dims=set(("time",)),
         output_core_dims=[[], [], []],
     )
 
-    return_value = return_value.rename("return_value")
-    new_ds = return_value.to_dataset()
+    return_variable = return_variable.rename(data_variable)
+    new_ds = return_variable.to_dataset()
     new_ds["conf_int_lower_limit"] = conf_int_lower_limit
     new_ds["conf_int_upper_limit"] = conf_int_upper_limit
 
     if multiple_points:
         new_ds = new_ds.unstack("allpoints")
 
-    new_ds["return_value"].attrs["return period"] = "1-in-{}-year event".format(
-        str(return_period)
-    )
+    new_ds.attrs = ams_attributes
+
+    if data_variable == "return_value":
+        new_ds["return_value"].attrs["return period"] = f"1-in-{arg_value}-year event"
+    elif data_variable == "return_prob":
+        threshold_unit = ams_attributes["units"]
+        new_ds["return_prob"].attrs[
+            "threshold"
+        ] = f"exceedance of {arg_value} {threshold_unit} event"
+        new_ds["return_prob"].attrs["units"] = None
+    elif data_variable == "return_period":
+        return_value_unit = ams_attributes["units"]
+        new_ds["return_period"].attrs[
+            "return value"
+        ] = f"{arg_value} {return_value_unit} event"
+        new_ds["return_period"].attrs["units"] = "years"
+
     new_ds["conf_int_lower_limit"].attrs[
         "confidence interval lower bound"
     ] = "{}th percentile".format(str(conf_int_lower_bound))
@@ -449,9 +470,53 @@ def get_return_value(
         "confidence interval upper bound"
     ] = "{}th percentile".format(str(conf_int_upper_bound))
 
-    new_ds.attrs = ams_attributes
-    new_ds.attrs["distribution"] = "{}".format(str(distr))
+    new_ds.attrs["distribution"] = f"{distr}"
     return new_ds
+
+
+def get_return_value(
+    ams,
+    return_period=10,
+    distr="gev",
+    bootstrap_runs=100,
+    conf_int_lower_bound=2.5,
+    conf_int_upper_bound=97.5,
+    multiple_points=True,
+):
+    """Creates xarray Dataset with return values and confidence intervals from maximum series.
+
+    Parameters
+    ----------
+    ams: xarray.DataArray
+        Annual maximum data, can be output from the function get_ams()
+    return_period: float
+        The recurrence interval (in years) for which to calculate the return value
+    distr: str
+        The type of extreme value distribution to fit
+    bootstrap_runs: int
+        Number of bootstrap samples
+    conf_int_lower_bound: float
+        Confidence interval lower bound
+    conf_int_upper_bound: float
+        Confidence interval upper bound
+    multiple_points: boolean
+        Whether or not the data contains multiple points (has x, y dimensions)
+
+    Returns
+    -------
+    xarray.Dataset
+        Dataset with return values and confidence intervals
+    """
+    return _get_return_variable(
+        ams,
+        "return_value",
+        return_period,
+        distr,
+        bootstrap_runs,
+        conf_int_lower_bound,
+        conf_int_upper_bound,
+        multiple_points,
+    )
 
 
 def get_return_prob(
@@ -463,90 +528,40 @@ def get_return_prob(
     conf_int_upper_bound=97.5,
     multiple_points=True,
 ):
-    """Creates xarray Dataset with return probabilities and confidence intervals from maximum series
-
-    Returns dataset with return probabilities and confidence intervals from maximum series.
+    """Creates xarray Dataset with return probabilities and confidence intervals from maximum series.
 
     Parameters
     ----------
     ams: xarray.DataArray
+        Annual maximum data, can be output from the function get_ams()
     threshold: float
+        The threshold value for which to calculate the probability of exceedance
     distr: str
+        The type of extreme value distribution to fit
     bootstrap_runs: int
+        Number of bootstrap samples
     conf_int_lower_bound: float
+        Confidence interval lower bound
     conf_int_upper_bound: float
+        Confidence interval upper bound
     multiple_points: boolean
+        Whether or not the data contains multiple points (has x, y dimensions)
 
     Returns
     -------
     xarray.Dataset
+        Dataset with return probabilities and confidence intervals
     """
-
-    data_variable = "return_prob"
-    distr_func = _get_distr_func(distr)
-    ams_attributes = ams.attrs
-
-    if multiple_points:
-        ams = (
-            ams.stack(allpoints=["y", "x"])
-            .dropna(dim="allpoints")
-            .squeeze()
-            .groupby("allpoints")
-        )
-
-    def return_prob(ams):
-        try:
-            parameters, fitted_distr = _get_fitted_distr(ams, distr, distr_func)
-            return_prob = _calculate_return(
-                fitted_distr=fitted_distr,
-                data_variable=data_variable,
-                arg_value=threshold,
-            )
-        except (ValueError, ZeroDivisionError):
-            return_prob = np.nan
-
-        conf_int_lower_limit, conf_int_upper_limit = _conf_int(
-            ams=ams,
-            distr=distr,
-            data_variable=data_variable,
-            arg_value=threshold,
-            bootstrap_runs=bootstrap_runs,
-            conf_int_lower_bound=conf_int_lower_bound,
-            conf_int_upper_bound=conf_int_upper_bound,
-        )
-
-        return return_prob, conf_int_lower_limit, conf_int_upper_limit
-
-    return_prob, conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
-        return_prob,
+    return _get_return_variable(
         ams,
-        input_core_dims=[["time"]],
-        exclude_dims=set(("time",)),
-        output_core_dims=[[], [], []],
+        "return_prob",
+        threshold,
+        distr,
+        bootstrap_runs,
+        conf_int_lower_bound,
+        conf_int_upper_bound,
+        multiple_points,
     )
-
-    return_prob = return_prob.rename("return_prob")
-    new_ds = return_prob.to_dataset()
-    new_ds["conf_int_lower_limit"] = conf_int_lower_limit
-    new_ds["conf_int_upper_limit"] = conf_int_upper_limit
-
-    if multiple_points:
-        new_ds = new_ds.unstack("allpoints")
-
-    new_ds["conf_int_lower_limit"].attrs[
-        "confidence interval lower bound"
-    ] = "{}th percentile".format(str(conf_int_lower_bound))
-    new_ds["conf_int_upper_limit"].attrs[
-        "confidence interval upper bound"
-    ] = "{}th percentile".format(str(conf_int_upper_bound))
-    new_ds.attrs = ams_attributes
-    unit_threshold = new_ds.attrs["units"]
-    new_ds["return_prob"].attrs["threshold"] = "exceedance of {} {} event".format(
-        str(threshold), unit_threshold
-    )
-    new_ds.attrs["distribution"] = "{}".format(str(distr))
-    new_ds["return_prob"].attrs["units"] = None
-    return new_ds
 
 
 def get_return_period(
@@ -558,90 +573,40 @@ def get_return_period(
     conf_int_upper_bound=97.5,
     multiple_points=True,
 ):
-    """Creates xarray Dataset with return periods and confidence intervals from maximum series
-
-    Returns dataset with return periods and confidence intervals from maximum series.
+    """Creates xarray Dataset with return periods and confidence intervals from maximum series.
 
     Parameters
     ----------
     ams: xarray.DataArray
+        Annual maximum data, can be output from the function get_ams()
     return_value: float
+        The threshold value for which to calculate the return period of occurance
     distr: str
+        The type of extreme value distribution to fit
     bootstrap_runs: int
+        Number of bootstrap samples
     conf_int_lower_bound: float
+        Confidence interval lower bound
     conf_int_upper_bound: float
+        Confidence interval upper bound
     multiple_points: boolean
+        Whether or not the data contains multiple points (has x, y dimensions)
 
     Returns
     -------
     xarray.Dataset
+        Dataset with return periods and confidence intervals
     """
-
-    data_variable = "return_period"
-    distr_func = _get_distr_func(distr)
-    ams_attributes = ams.attrs
-
-    if multiple_points:
-        ams = (
-            ams.stack(allpoints=["y", "x"])
-            .dropna(dim="allpoints")
-            .squeeze()
-            .groupby("allpoints")
-        )
-
-    def return_period(ams):
-        try:
-            parameters, fitted_distr = _get_fitted_distr(ams, distr, distr_func)
-            return_period = _calculate_return(
-                fitted_distr=fitted_distr,
-                data_variable=data_variable,
-                arg_value=return_value,
-            )
-        except (ValueError, ZeroDivisionError):
-            return_period = np.nan
-
-        conf_int_lower_limit, conf_int_upper_limit = _conf_int(
-            ams=ams,
-            distr=distr,
-            data_variable=data_variable,
-            arg_value=return_value,
-            bootstrap_runs=bootstrap_runs,
-            conf_int_lower_bound=conf_int_lower_bound,
-            conf_int_upper_bound=conf_int_upper_bound,
-        )
-
-        return return_period, conf_int_lower_limit, conf_int_upper_limit
-
-    return_period, conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
-        return_period,
+    return _get_return_variable(
         ams,
-        input_core_dims=[["time"]],
-        exclude_dims=set(("time",)),
-        output_core_dims=[[], [], []],
+        "return_period",
+        return_value,
+        distr,
+        bootstrap_runs,
+        conf_int_lower_bound,
+        conf_int_upper_bound,
+        multiple_points,
     )
-
-    return_period = return_period.rename("return_period")
-    new_ds = return_period.to_dataset()
-    new_ds["conf_int_lower_limit"] = conf_int_lower_limit
-    new_ds["conf_int_upper_limit"] = conf_int_upper_limit
-
-    if multiple_points:
-        new_ds = new_ds.unstack("allpoints")
-
-    new_ds["conf_int_lower_limit"].attrs[
-        "confidence interval lower bound"
-    ] = "{}th percentile".format(str(conf_int_lower_bound))
-    new_ds["conf_int_upper_limit"].attrs[
-        "confidence interval upper bound"
-    ] = "{}th percentile".format(str(conf_int_upper_bound))
-    new_ds.attrs = ams_attributes
-    unit_return_value = new_ds.attrs["units"]
-    new_ds["return_period"].attrs["return value"] = "{} {} event".format(
-        str(return_value), unit_return_value
-    )
-    new_ds.attrs["distribution"] = "{}".format(str(distr))
-    new_ds["return_period"].attrs["units"] = "years"
-    return new_ds
 
 
 # ===================== Functions for exceedance count =========================
@@ -1034,3 +999,148 @@ def _exceedance_plot_subtitle(exceedance_count):
         _exceedance_count_name(exceedance_count) + period_str + dur_str + grp_str
     )
     return _subtitle
+
+
+##### Visualize the data
+def _rename_distr_abbrev(distr):
+    """Makes abbreviated distribution name human-readable"""
+    distr_abbrev = ["gev", "gumbel", "weibull", "pearson3", "genpareto"]
+    distr_readable = [
+        "GEV",
+        "Gumbel",
+        "Weibull",
+        "Pearson Type III",
+        "Generalized Pareto",
+    ]
+    return distr_readable[distr_abbrev.index(distr)]
+
+
+def get_geospatial_plot(
+    ds,
+    data_variable,
+    bar_min=None,
+    bar_max=None,
+    border_color="black",
+    line_width=0.5,
+    cmap="ae_orange",
+    hover_fill_color="blue",
+):
+    """Returns an interactive map from inputed dataset and selected data variable.
+
+    Parameters
+    ----------
+    ds: xr.Dataset
+        Data to plot
+    data_variable: str
+        Valid variable option in input dataset
+        Valid options: "d_statistic","p_value","return_value","return_prob","return_period"
+    bar_min: float, optional
+        Colorbar minimum value
+    bar_max: float, optional
+        Colorbar maximum value
+    border_color: str, optional
+        Color for state lines and international borders
+        Default to black
+    cmap: matplotlib colormap name or AE colormap names, optional
+        Colormap to apply to data
+        Default to "ae_orange" for mapped data or color-blind friendly "categorical_cb" for timeseries data.
+    hover_fill_color: str, optional
+        Default to "blue"
+
+    Returns
+    -------
+    holoviews.core.overlay.Overlay
+        Map of input data
+    """
+
+    if cmap in [
+        "categorical_cb",
+        "ae_orange",
+        "ae_diverging",
+        "ae_blue",
+        "ae_diverging_r",
+    ]:
+        cmap = _read_ae_colormap(cmap=cmap, cmap_hex=True)
+
+    data_variables = [
+        "d_statistic",
+        "p_value",
+        "return_value",
+        "return_prob",
+        "return_period",
+    ]
+    if data_variable not in data_variables:
+        raise ValueError(
+            "invalid data variable type. expected one of the following: %s"
+            % data_variables
+        )
+
+    if data_variable == "p_value":
+        variable_name = "p-value"
+    else:
+        variable_name = data_variable.replace("_", " ").replace("'", "")
+
+    distr_name = _rename_distr_abbrev(ds.attrs["distribution"])
+
+    borders = gv.Path(gv.feature.states.geoms(scale="50m", as_element=False)).opts(
+        color=border_color, line_width=line_width
+    ) * gv.feature.coastline.geoms(scale="50m").opts(
+        color=border_color, line_width=line_width
+    )
+
+    if data_variable in ["d_statistic", "p_value"]:
+        attribute_name = (
+            (ds[data_variable].attrs["stat test"])
+            .replace("{", "")
+            .replace("}", "")
+            .replace("'", "")
+        )
+
+    if data_variable in ["return_value"]:
+        attribute_name = (
+            (ds[data_variable].attrs["return period"])
+            .replace("{", "")
+            .replace("}", "")
+            .replace("'", "")
+        )
+
+    if data_variable in ["return_prob"]:
+        attribute_name = (
+            (ds[data_variable].attrs["threshold"])
+            .replace("{", "")
+            .replace("}", "")
+            .replace("'", "")
+        )
+
+    if data_variable in ["return_period"]:
+        attribute_name = (
+            (ds[data_variable].attrs["return value"])
+            .replace("{", "")
+            .replace("}", "")
+            .replace("'", "")
+        )
+
+    cmap_label = variable_name
+    variable_unit = ds[data_variable].attrs["units"]
+    if variable_unit:
+        cmap_label = " ".join([cmap_label, "({})".format(variable_unit)])
+
+    geospatial_plot = (
+        ds.hvplot.quadmesh(
+            "lon",
+            "lat",
+            data_variable,
+            clim=(bar_min, bar_max),
+            projection=ccrs.PlateCarree(),
+            ylim=(30, 50),
+            xlim=(-130, -100),
+            title="{} for a {}\n({} distribution)".format(
+                variable_name, attribute_name, distr_name
+            ),
+            cmap=cmap,
+            clabel=cmap_label,
+            hover_fill_color=hover_fill_color,
+        )
+        * borders
+    )
+    return geospatial_plot
