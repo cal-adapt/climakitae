@@ -1,8 +1,6 @@
 """
-This script calculates alternative units for variables with multiple commonly
+Calculates alternative units for variables with multiple commonly
 used units, following NWS conversions for pressure and wind speed.
-Wind speed: https://www.weather.gov/media/epz/wxcalc/windConversion.pdf
-Pressure: https://www.weather.gov/media/epz/wxcalc/pressureConversion.pdf
 """
 
 
@@ -31,6 +29,10 @@ def _convert_units(da, selected_units):
 
     Returns:
       da (xr.DataArray): Data with converted units and updated units attribute
+
+    References:
+      Wind speed: https://www.weather.gov/media/epz/wxcalc/windConversion.pdf
+      Pressure: https://www.weather.gov/media/epz/wxcalc/pressureConversion.pdf
     """
 
     # Get native units of data from attributes

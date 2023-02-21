@@ -1,3 +1,5 @@
+"""Functions for deriving frequently used variables"""
+
 import numpy as np
 
 

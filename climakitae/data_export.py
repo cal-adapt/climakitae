@@ -1,3 +1,5 @@
+"""Backend functions for exporting data."""
+
 import os
 import shutil
 import warnings
@@ -12,7 +14,7 @@ from . import __version__
 xr.set_options(keep_attrs=True)
 
 
-def export_to_netcdf(data_to_export, save_name, **kwargs):
+def _export_to_netcdf(data_to_export, save_name, **kwargs):
     """
     exports user-selected data to netCDF format.
     this function is called from the _export_to_user
@@ -28,7 +30,7 @@ def export_to_netcdf(data_to_export, save_name, **kwargs):
     data_to_export.to_netcdf(save_name, encoding=encoding)
 
 
-def export_to_csv(data_to_export, save_name, **kwargs):
+def _export_to_csv(data_to_export, save_name, **kwargs):
     """
     exports user-selected data to CSV format.
     this function is called from the _export_to_user
@@ -47,11 +49,11 @@ def export_to_csv(data_to_export, save_name, **kwargs):
             "Dataset exceeds Excel limit of " + str(excel_row_limit) + " rows."
         )
 
-    metadata_to_file(data_to_export, save_name)
+    _metadata_to_file(data_to_export, save_name)
     to_save.to_csv(save_name, compression="gzip")
 
 
-def export_to_geotiff(data_to_export, save_name, **kwargs):
+def _export_to_geotiff(data_to_export, save_name, **kwargs):
     """
     exports user-selected data to geoTIFF format.
     this function is called from the _export_to_user
@@ -257,7 +259,7 @@ def _export_to_user(user_export_format, data_to_export, file_name, **kwargs):
     # we will have different functions for each file type
     # to keep things clean-ish
     if "NetCDF" in req_format:
-        export_to_netcdf(data_to_export, save_name, **kwargs)
+        _export_to_netcdf(data_to_export, save_name, **kwargs)
     else:
         if ftype == xr.core.dataset.Dataset:
             dv_list = list(data_to_export.data_vars)
@@ -281,7 +283,7 @@ def _export_to_user(user_export_format, data_to_export, file_name, **kwargs):
                 data_to_export.name = var_name
 
         if "CSV" in req_format:
-            export_to_csv(data_to_export, save_name, **kwargs)
+            _export_to_csv(data_to_export, save_name, **kwargs)
 
         elif "GeoTIFF" in req_format:
             # sometimes "variable" might be a singleton dimension:
@@ -334,7 +336,7 @@ def _export_to_user(user_export_format, data_to_export, file_name, **kwargs):
                     + ". Please subset your selection accordingly."
                 )
 
-            export_to_geotiff(data_to_export, save_name, **kwargs)
+            _export_to_geotiff(data_to_export, save_name, **kwargs)
 
     return print(
         (
@@ -344,18 +346,18 @@ def _export_to_user(user_export_format, data_to_export, file_name, **kwargs):
     )
 
 
-def metadata_to_file(ds, output_name):
+def _metadata_to_file(ds, output_name):
     """
     Writes NetCDF metadata to a txt file so users can still access it
     after exporting to a CSV.
     """
 
-    def rchop(s, suffix):
+    def _rchop(s, suffix):
         if suffix and s.endswith(suffix):
             return s[: -len(suffix)]
         return s
 
-    output_name = rchop(output_name, ".csv.gz")
+    output_name = _rchop(output_name, ".csv.gz")
 
     if os.path.exists(output_name + "_metadata.txt"):
         os.remove(output_name + "_metadata.txt")
