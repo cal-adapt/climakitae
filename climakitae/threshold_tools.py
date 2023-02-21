@@ -114,9 +114,12 @@ def get_ams(
         ams.attrs['extremes type'] = 'minima'
     
     # Common attributes
-    ams.attrs["extreme value extraction method"] = "block maxima"
+    ams.attrs["duration"] = duration
+    ams.attrs["groupby"] = groupby
+    ams.attrs["grouped_duration"] = grouped_duration
+    ams.attrs["extreme value extraction method"] = f"block maxima"
     ams.attrs["block size"] = "1 year"
-    ams.attrs["timeseries type"] = "annual max series"
+    ams.attrs["timeseries type"] = f"annual {extremes_type} series"
 
     return ams
 
