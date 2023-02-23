@@ -810,13 +810,17 @@ class _DataSelector(param.Parameterized):
         self._data_warning = ""
 
     @param.depends("location.data_type", watch=True)
-    def _update_res_based_on_data_type(self):
+    def _update_res_and_area_average_based_on_data_type(self):
         if self.location.data_type == "station":
             self.param["resolution"].objects = ["n/a"]
             self.resolution = "n/a"
+            self.param["area_average"].objects = ["n/a"]
+            self.area_average = "n/a"
         elif self.location.data_type == "gridded":
             self.param["resolution"].objects = ["45 km", "9 km", "3 km"]
             self.resolution = "45 km"
+            self.param["area_average"].objects = ["Yes", "No"]
+            self.area_average = "No"
 
     @param.depends("timescale", "resolution", watch=True)
     def _update_var_options(self):
@@ -876,7 +880,7 @@ class _DataSelector(param.Parameterized):
                 self.timescale = "daily"
 
     @param.depends("downscaling_method", watch=True)
-    def _update_resolution(self):
+    def _update_res_based_on_downscaling_method(self):
         """Remove resolution options if LOCA is selected"""
         if self.downscaling_method == ["Dynamical"]:
             self.param["resolution"].objects = ["3 km", "9 km", "45 km"]
