@@ -239,7 +239,6 @@ class _LocSelectorArea(param.Parameterized):
             self._geography_choose[self.area_subset].keys()
         )
 
-        # Get overlapping stations
         if self.data_type == "station":
             overlapping_stations = _get_overlapping_station_names(
                 stations_gpd,
@@ -251,10 +250,10 @@ class _LocSelectorArea(param.Parameterized):
                 self._geography_choose,
             )
             self.param["station"].objects = overlapping_stations
-            # if self.station not in overlapping_stations:
-            #     self.station = [overlapping_stations[0]]
+            self.station = overlapping_stations
         elif self.data_type == "gridded":
             self.param["station"].objects = []
+            self.station = []
 
     _wrf_bb = {
         "45 km": Polygon(
@@ -309,7 +308,6 @@ class _LocSelectorArea(param.Parameterized):
     )
     def _update_station_list(self):
         """Update the list of weather station options if the area subset changes"""
-        # Get overlapping stations
         if self.data_type == "station":
             overlapping_stations = _get_overlapping_station_names(
                 stations_gpd,
@@ -321,10 +319,10 @@ class _LocSelectorArea(param.Parameterized):
                 self._geography_choose,
             )
             self.param["station"].objects = overlapping_stations
-            # if self.station not in overlapping_stations:
-            #     self.station = [overlapping_stations[0]]
+            self.station = overlapping_stations
         elif self.data_type == "gridded":
             self.param["station"].objects = []
+            self.station = []
 
 
 def _get_overlapping_station_names(
@@ -480,6 +478,7 @@ class _ViewLocationSelections(param.Parameterized):
         "location.area_subset",
         "location.cached_area",
         "location.data_type",
+        "location.station",
         watch=True,
     )
     def view(self):
@@ -489,7 +488,7 @@ class _ViewLocationSelections(param.Parameterized):
         xy = ccrs.PlateCarree()
         ax = fig0.add_subplot(111, projection=proj)
 
-        if "LOCA" in self.selections.downscaling_method:
+        if "Statistical" in self.selections.downscaling_method:
             # 3km LOCA grid shown whenever LOCA is selected, even if WRF is also selected
             _add_res_to_ax(
                 poly=self.location._wrf_bb["3 km"],
@@ -534,14 +533,14 @@ class _ViewLocationSelections(param.Parameterized):
         # Set plot extent
         if (self.selections.resolution == "3 km") or (
             "CA" in self.location.area_subset
-        ):
+        ) or (self.location.data_type == "station"):
             extent = [-125, -114, 31, 43]  # Zoom in on CA
-            scatter_size = 4  # Size of markers for stations
+            scatter_size = 4.5  # Size of markers for stations
         elif (self.selections.resolution == "9 km") or (
             self.location.area_subset == "states"
         ):
             extent = [-130, -100, 25, 50]  # Just shows US states
-            scatter_size = 2  # Size of markers for stations
+            scatter_size = 2.5  # Size of markers for stations
         elif self.location.area_subset in ["none", "lat/lon"]:
             extent = [
                 -150,
@@ -549,70 +548,41 @@ class _ViewLocationSelections(param.Parameterized):
                 8,
                 66,
             ]  # Widest extent possible-- US, some of Mexico and Canada
-            scatter_size = 1  # Size of markers for stations
+            scatter_size = 1.5  # Size of markers for stations
         else:  # Default for all other selections
             extent = [-125, -114, 31, 43]  # Zoom in on CA
-            scatter_size = 4  # Size of markers for stations
+            scatter_size = 4.5  # Size of markers for stations
         ax.set_extent(extent, crs=xy)
-
-        def _get_and_plot_subarea(boundary_dataset):
-            subarea = boundary_dataset[boundary_dataset.index == shape_index]
-            df_ae = subarea.to_crs(crs_proj4)
-            df_ae.plot(ax=ax, color="deepskyblue", zorder=2)
-            mpl_pane.param.trigger("object")
-            return df_ae
-
+        
+        subarea_gpd = _get_subarea(
+            self.location.area_subset, 
+            self.location.cached_area, 
+            self.location.latitude, 
+            self.location.longitude, 
+            self.location._geographies, 
+            self.location._geography_choose
+        ).to_crs(crs_proj4)
         if self.location.area_subset == "lat/lon":
-            geometry = box(
-                self.location.longitude[0],
-                self.location.latitude[0],
-                self.location.longitude[1],
-                self.location.latitude[1],
-            )
             ax.add_geometries(
-                [geometry], crs=ccrs.PlateCarree(), edgecolor="b", facecolor="None"
+                subarea_gpd["geometry"].values, crs=ccrs.PlateCarree(), edgecolor="b", facecolor="None"
             )
-            df_ae = gpd.GeoDataFrame(
-                pd.DataFrame({"subset": ["coords"], "geometry": [geometry]}),
-                crs="EPSG:4326",
-            ).to_crs(crs_proj4)
-        elif self.location.area_subset != "none":
-            shape_index = int(
-                self.location._geography_choose[self.location.area_subset][
-                    self.location.cached_area
-                ]
-            )
-            if self.location.area_subset == "states":
-                df_ae = _get_and_plot_subarea(self.location._geographies._us_states)
-            elif self.location.area_subset == "CA counties":
-                df_ae = _get_and_plot_subarea(self.location._geographies._ca_counties)
-            elif self.location.area_subset == "CA watersheds":
-                df_ae = _get_and_plot_subarea(self.location._geographies._ca_watersheds)
-            elif (
-                self.location.area_subset
-                == "CA Electric Load Serving Entities (IOU & POU)"
-            ):
-                df_ae = _get_and_plot_subarea(self.location._geographies._ca_utilities)
-            elif self.location.area_subset == "CA Electricity Demand Forecast Zones":
-                df_ae = _get_and_plot_subarea(
-                    self.location._geographies._ca_forecast_zones
-                )
-
-        # Add stations
-        if self.location.data_type == "station":
-            if self.location.area_subset != "none":
-                overlapping_stations = gpd.sjoin(
-                    stations_gpd.to_crs(crs_proj4), df_ae, op="within"
-                )
-            else:
-                overlapping_stations = stations_gpd.to_crs(crs_proj4)
+        elif self.location.area_subset != "none": 
+            subarea_gpd.plot(ax=ax, color="deepskyblue", zorder=2)
+            mpl_pane.param.trigger("object")
+        
+        # Overlay the weather stations as points on the map 
+        if self.location.data_type == "station": 
+            # Subset the stations gpd to get just the user's selected stations
+            # We need the stations gpd because it has the coordinates, which will be used to make the plot
+            stations_selection_gpd = stations_gpd.loc[stations_gpd["station"].isin(self.location.station)]
+            stations_selection_gpd = stations_selection_gpd.to_crs(crs_proj4) # Convert to map projection
             ax.scatter(
-                overlapping_stations.LON_X.values,
-                overlapping_stations.LAT_Y.values,
+                stations_selection_gpd.LON_X.values,
+                stations_selection_gpd.LAT_Y.values,
                 transform=ccrs.PlateCarree(),
                 zorder=15,
                 color="black",
-                s=scatter_size,
+                s=scatter_size, # Scatter size is dependent on extent of map
             )
 
         # Add state lines, international borders, and coastline
