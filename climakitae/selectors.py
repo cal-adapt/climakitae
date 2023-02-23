@@ -531,9 +531,11 @@ class _ViewLocationSelections(param.Parameterized):
         mpl_pane = pn.pane.Matplotlib(fig0, dpi=144)
 
         # Set plot extent
-        if (self.selections.resolution == "3 km") or (
-            "CA" in self.location.area_subset
-        ) or (self.location.data_type == "station"):
+        if (
+            (self.selections.resolution == "3 km")
+            or ("CA" in self.location.area_subset)
+            or (self.location.data_type == "station")
+        ):
             extent = [-125, -114, 31, 43]  # Zoom in on CA
             scatter_size = 4.5  # Size of markers for stations
         elif (self.selections.resolution == "9 km") or (
@@ -553,36 +555,43 @@ class _ViewLocationSelections(param.Parameterized):
             extent = [-125, -114, 31, 43]  # Zoom in on CA
             scatter_size = 4.5  # Size of markers for stations
         ax.set_extent(extent, crs=xy)
-        
+
         subarea_gpd = _get_subarea(
-            self.location.area_subset, 
-            self.location.cached_area, 
-            self.location.latitude, 
-            self.location.longitude, 
-            self.location._geographies, 
-            self.location._geography_choose
+            self.location.area_subset,
+            self.location.cached_area,
+            self.location.latitude,
+            self.location.longitude,
+            self.location._geographies,
+            self.location._geography_choose,
         ).to_crs(crs_proj4)
         if self.location.area_subset == "lat/lon":
             ax.add_geometries(
-                subarea_gpd["geometry"].values, crs=ccrs.PlateCarree(), edgecolor="b", facecolor="None"
+                subarea_gpd["geometry"].values,
+                crs=ccrs.PlateCarree(),
+                edgecolor="b",
+                facecolor="None",
             )
-        elif self.location.area_subset != "none": 
+        elif self.location.area_subset != "none":
             subarea_gpd.plot(ax=ax, color="deepskyblue", zorder=2)
             mpl_pane.param.trigger("object")
-        
-        # Overlay the weather stations as points on the map 
-        if self.location.data_type == "station": 
+
+        # Overlay the weather stations as points on the map
+        if self.location.data_type == "station":
             # Subset the stations gpd to get just the user's selected stations
             # We need the stations gpd because it has the coordinates, which will be used to make the plot
-            stations_selection_gpd = stations_gpd.loc[stations_gpd["station"].isin(self.location.station)]
-            stations_selection_gpd = stations_selection_gpd.to_crs(crs_proj4) # Convert to map projection
+            stations_selection_gpd = stations_gpd.loc[
+                stations_gpd["station"].isin(self.location.station)
+            ]
+            stations_selection_gpd = stations_selection_gpd.to_crs(
+                crs_proj4
+            )  # Convert to map projection
             ax.scatter(
                 stations_selection_gpd.LON_X.values,
                 stations_selection_gpd.LAT_Y.values,
                 transform=ccrs.PlateCarree(),
                 zorder=15,
                 color="black",
-                s=scatter_size, # Scatter size is dependent on extent of map
+                s=scatter_size,  # Scatter size is dependent on extent of map
             )
 
         # Add state lines, international borders, and coastline
