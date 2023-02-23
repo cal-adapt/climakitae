@@ -29,42 +29,16 @@ var_catalog_resource = pkg_resources.resource_filename(
 var_catalog = pd.read_csv(var_catalog_resource, index_col=None)
 unit_options_dict = _get_unit_conversion_options()
 
+stations = pkg_resources.resource_filename("climakitae", "data/HadISD/hadisd_stations.csv")
+stations_df = pd.read_csv(stations)
+stations_gpd = gpd.GeoDataFrame(
+    stations_df, 
+    crs="EPSG:4326",
+    geometry=gpd.points_from_xy(stations_df.LON_X, stations_df.LAT_Y)
+)
+
 
 # =========================== LOCATION SELECTIONS ==============================
-
-# constants: instead will be read from database of some kind:
-_cached_stations = [
-    "",
-    "BAKERSFIELD MEADOWS FIELD",
-    "BLYTHE ASOS",
-    "BURBANK-GLENDALE-PASADENA AIRPORT",
-    "LOS ANGELES DOWNTOWN USC CAMPUS",
-    "NEEDLES AIRPORT",
-    "FRESNO YOSEMITE INTERNATIONAL AIRPORT",
-    "IMPERIAL COUNTY AIRPORT",
-    "LAS VEGAS MCCARRAN INTERNATIONAL AP",
-    "LOS ANGELES INTERNATIONAL AIRPORT",
-    "LONG BEACH DAUGHERTY FIELD",
-    "MERCED MUNICIPAL AIRPORT",
-    "MODESTO CITY-COUNTY AIRPORT",
-    "SAN DIEGO MIRAMAR WSCMO",
-    "OAKLAND METRO INTERNATIONAL AIRPORT",
-    "OXNARD VENTURA COUNTY AIRPORT",
-    "PALM SPRINGS REGIONAL AIRPORT",
-    "RIVERSIDE MUNICIPAL AIRPORT",
-    "RED BLUFF MUNICIPAL AIRPORT",
-    "SACRAMENTO EXECUTIVE AIRPORT",
-    "SAN DIEGO LINDBERGH FIELD",
-    "SANTA BARBARA MUNICIPAL AIRPORT",
-    "SAN LUIS OBISPO AIRPORT",
-    "GILLESPIE FIELD",
-    "SAN FRANCISCO INTERNATIONAL AIRPORT",
-    "SAN JOSE INTERNATIONAL AIRPORT",
-    "SANTA ANA JOHN WAYNE AIRPORT",
-    "THERMAL / PALM SPRINGS",
-    "UKIAH MUNICIPAL AIRPORT",
-    "LANCASTER WILLIAM J FOX FIELD",
-]
 
 
 class Boundaries:
@@ -241,11 +215,15 @@ class _LocSelectorArea(param.Parameterized):
     [future: 3. upload their own shapefile with the outline of a natural or
         administrative geographic area]
     """
-
     area_subset = param.ObjectSelector(objects=dict())
     cached_area = param.ObjectSelector(objects=dict())
     latitude = param.Range(default=(32.5, 42), bounds=(10, 67))
     longitude = param.Range(default=(-125.5, -114), bounds=(-156.82317, -84.18701))
+    data_type = param.ObjectSelector(
+        default="gridded", 
+        objects=["gridded","station"]
+    )
+    station = param.ListSelector(objects=dict())
 
     def __init__(self, **params):
         super().__init__(**params)
@@ -260,6 +238,19 @@ class _LocSelectorArea(param.Parameterized):
         self.param["cached_area"].objects = list(
             self._geography_choose[self.area_subset].keys()
         )
+        
+        # Get overlapping stations 
+        if self.data_type == "station": 
+            overlapping_stations = _get_overlapping_station_names(
+                stations_gpd, self.area_subset, self.cached_area, self.latitude, 
+                self.longitude, self._geographies, self._geography_choose
+            )
+            self.param["station"].objects = overlapping_stations
+            # if self.station not in overlapping_stations:
+            #     self.station = [overlapping_stations[0]]
+        elif self.data_type == "gridded": 
+            self.param["station"].objects = []
+        
 
     _wrf_bb = {
         "45 km": Polygon(
@@ -308,6 +299,99 @@ class _LocSelectorArea(param.Parameterized):
             self._geography_choose[self.area_subset].keys()
         )
         self.cached_area = list(self._geography_choose[self.area_subset].keys())[0]
+    
+    @param.depends("data_type", "area_subset", "cached_area", "latitude", "longitude", watch=True)
+    def _update_station_list(self):
+        """Update the list of weather station options if the area subset changes"""
+                # Get overlapping stations 
+        if self.data_type == "station": 
+            overlapping_stations = _get_overlapping_station_names(
+                stations_gpd, self.area_subset, self.cached_area, self.latitude, 
+                self.longitude, self._geographies, self._geography_choose
+            )
+            self.param["station"].objects = overlapping_stations
+            # if self.station not in overlapping_stations:
+            #     self.station = [overlapping_stations[0]]
+        elif self.data_type == "gridded": 
+            self.param["station"].objects = []        
+        
+def _get_overlapping_station_names(stations_gpd, area_subset, cached_area, latitude, longitude, _geographies, _geography_choose): 
+    """Wrapper function that gets the string names of any overlapping weather stations"""
+    subarea = _get_subarea(area_subset, cached_area, latitude, longitude, _geographies, _geography_choose)
+    overlapping_stations_gpd = _get_overlapping_stations(stations_gpd, subarea)
+    overlapping_stations_names = sorted(list(overlapping_stations_gpd["station"].values))
+    return overlapping_stations_names
+
+def _get_overlapping_stations(stations, polygon): 
+    """Get weather stations contained within a geometry
+    Both stations and polygon MUST have the same projection
+    
+    Parameters
+    ----------
+    stations: gpd.GeoDataFrame
+        Weather station names and coordinates, with geometry column 
+    polygon: gpd.GeoDataFrame 
+        Polygon geometry, must be a gpd.GeoDataFrame object
+    
+    Returns 
+    -------
+    gpd.GeoDataFrame 
+        stations gpd subsetted to include only points contained within polygon
+    
+    """
+    return gpd.sjoin(stations, polygon, op='within')
+        
+
+def _get_subarea(area_subset, cached_area, latitude, longitude, _geographies, _geography_choose): 
+    """Get geometry from input settings
+    Used for plotting or determining subset of overlapping weather stations in subsequent steps 
+    
+    Returns
+    -------
+    gpd.GeoDataFrame
+    
+    """
+    
+    def _get_subarea_from_shape_index(boundary_dataset, shape_index):
+        return boundary_dataset[boundary_dataset.index == shape_index]
+
+    if area_subset == "lat/lon":
+        geometry = box(
+            longitude[0],
+            latitude[0],
+            longitude[1],
+            latitude[1],
+        )
+        df_ae = gpd.GeoDataFrame(
+            pd.DataFrame(
+                {"subset":["coords"],
+                 "geometry":[geometry]}), 
+            crs="EPSG:4326",
+        )
+    elif area_subset != "none": 
+        shape_index = int(_geography_choose[area_subset][cached_area])
+        if area_subset == "states":
+            df_ae = _get_subarea_from_shape_index(_geographies._us_states, shape_index)
+        elif area_subset == "CA counties":
+            df_ae = _get_subarea_from_shape_index(_geographies._ca_counties, shape_index)
+        elif area_subset == "CA watersheds":
+            df_ae = _get_subarea_from_shape_index(_geographies._ca_watersheds, shape_index)
+        elif area_subset== "CA Electric Load Serving Entities (IOU & POU)":
+            df_ae = _get_subarea_from_shape_index(_geographies._ca_utilities, shape_index)
+        elif area_subset == "CA Electricity Demand Forecast Zones":
+            df_ae = _get_subarea_from_shape_index(_geographies._ca_forecast_zones, shape_index)
+            
+    else: # If no subsetting, make the geometry a big box so all stations are included
+        df_ae = gpd.GeoDataFrame(
+            pd.DataFrame({
+                "subset":["coords"],
+                "geometry":
+                [box(-150,-88,8,66)] # Super big box
+            }), 
+            crs="EPSG:4326"
+        )
+    
+    return df_ae
 
 
 def _add_res_to_ax(
@@ -337,7 +421,6 @@ def _add_res_to_ax(
         xycoords=crs._as_mpl_transform(ax),
     )
 
-
 class _ViewLocationSelections(param.Parameterized):
     """View the current location selections on a map
     Updates dynamically
@@ -361,6 +444,7 @@ class _ViewLocationSelections(param.Parameterized):
         "location.longitude",
         "location.area_subset",
         "location.cached_area",
+        "location.data_type",
         watch=True,
     )
     def view(self):
@@ -417,10 +501,12 @@ class _ViewLocationSelections(param.Parameterized):
             "CA" in self.location.area_subset
         ):
             extent = [-125, -114, 31, 43]  # Zoom in on CA
+            scatter_size = 4 # Size of markers for stations
         elif (self.selections.resolution == "9 km") or (
             self.location.area_subset == "states"
         ):
             extent = [-130, -100, 25, 50]  # Just shows US states
+            scatter_size = 2 # Size of markers for stations
         elif self.location.area_subset in ["none", "lat/lon"]:
             extent = [
                 -150,
@@ -428,15 +514,18 @@ class _ViewLocationSelections(param.Parameterized):
                 8,
                 66,
             ]  # Widest extent possible-- US, some of Mexico and Canada
+            scatter_size = 1 # Size of markers for stations
         else:  # Default for all other selections
             extent = [-125, -114, 31, 43]  # Zoom in on CA
+            scatter_size = 4 # Size of markers for stations
         ax.set_extent(extent, crs=xy)
 
-        def plot_subarea(boundary_dataset):
+        def _get_and_plot_subarea(boundary_dataset):
             subarea = boundary_dataset[boundary_dataset.index == shape_index]
             df_ae = subarea.to_crs(crs_proj4)
-            df_ae.plot(ax=ax, color="b", zorder=2)
+            df_ae.plot(ax=ax, color="deepskyblue", zorder=2)
             mpl_pane.param.trigger("object")
+            return df_ae
 
         if self.location.area_subset == "lat/lon":
             geometry = box(
@@ -448,6 +537,10 @@ class _ViewLocationSelections(param.Parameterized):
             ax.add_geometries(
                 [geometry], crs=ccrs.PlateCarree(), edgecolor="b", facecolor="None"
             )
+            df_ae = gpd.GeoDataFrame(
+                pd.DataFrame({"subset":["coords"],"geometry":[geometry]}), 
+                crs="EPSG:4326",
+            ).to_crs(crs_proj4)
         elif self.location.area_subset != "none":
             shape_index = int(
                 self.location._geography_choose[self.location.area_subset][
@@ -455,41 +548,39 @@ class _ViewLocationSelections(param.Parameterized):
                 ]
             )
             if self.location.area_subset == "states":
-                plot_subarea(self.location._geographies._us_states)
+                df_ae = _get_and_plot_subarea(self.location._geographies._us_states)
             elif self.location.area_subset == "CA counties":
-                plot_subarea(self.location._geographies._ca_counties)
+                df_ae = _get_and_plot_subarea(self.location._geographies._ca_counties)
             elif self.location.area_subset == "CA watersheds":
-                plot_subarea(self.location._geographies._ca_watersheds)
+                df_ae = _get_and_plot_subarea(self.location._geographies._ca_watersheds)
             elif (
                 self.location.area_subset
                 == "CA Electric Load Serving Entities (IOU & POU)"
             ):
-                plot_subarea(self.location._geographies._ca_utilities)
+                df_ae = _get_and_plot_subarea(self.location._geographies._ca_utilities)
             elif self.location.area_subset == "CA Electricity Demand Forecast Zones":
-                plot_subarea(self.location._geographies._ca_forecast_zones)
+                df_ae = _get_and_plot_subarea(self.location._geographies._ca_forecast_zones)
+                
+        # Add stations 
+        if self.location.data_type == "station": 
+            if self.location.area_subset != "none": 
+                overlapping_stations = gpd.sjoin(stations_gpd.to_crs(crs_proj4), df_ae, op='within')
+            else: 
+                overlapping_stations = stations_gpd.to_crs(crs_proj4)
+            ax.scatter(
+                overlapping_stations.LON_X.values, 
+                overlapping_stations.LAT_Y.values, 
+                transform=ccrs.PlateCarree(), 
+                zorder=15, 
+                color="black",
+                s=scatter_size
+            )
 
         # Add state lines, international borders, and coastline
         ax.add_feature(cfeature.STATES, linewidth=0.5, edgecolor="gray")
         ax.add_feature(cfeature.COASTLINE, linewidth=0.5, edgecolor="darkgray")
         ax.add_feature(cfeature.BORDERS, edgecolor="darkgray")
         return mpl_pane
-
-
-class _LocSelectorPoint(param.Parameterized):
-    """
-    If the user wants a timeseries that pertains to a point, they may choose
-    from among a set of pre-calculated station locations. Later this class can
-    be extended to accomodate user-specified station data. Produces a panel from
-    which to select from pre-calculated stations, and updates the 'location'
-    object accordingly.
-    """
-
-    cached_station = param.Selector(objects=_cached_stations)
-
-    @param.depends("cached_station", watch=True)
-    def _update_location(self):
-        """Updates the 'location' object to be the point associated with the selected station."""
-        location = _stations_database[self.cached_station]
 
 
 # ============================ DATA SELECTIONS =================================
@@ -1042,6 +1133,7 @@ def _get_data_selection_description(selections, location):
     _data_selection_description = (
         "<font size='+0.10'>Data selections: </font><br>"
         "<ul>"
+        "<li><b>data type: </b>" + str(location.data_type) + "</li>"
         "<li><b>downscaling method: </b>"
         + ", ".join(selections.downscaling_method)
         + "</li>"
@@ -1084,7 +1176,6 @@ class _SelectionDescription(param.Parameterized):
             selections=self.selections,
             location=self.location,
         )
-
     @param.depends(
         "selections.units",
         "selections.variable",
@@ -1097,6 +1188,7 @@ class _SelectionDescription(param.Parameterized):
         "selections.downscaling_method",
         "location.area_subset",
         "location.cached_area",
+        "location.data_type",
         "location.longitude",
         "location.latitude",
         watch=True,
@@ -1192,6 +1284,13 @@ def _location_param_to_panel(location):
     """For the _LocSelectorArea object, get parameters and parameter
     descriptions formatted as panel widgets
     """
+    data_type_text = pn.widgets.StaticText(
+        value="",
+        name="Data type",
+    )
+    data_type = pn.widgets.RadioBoxGroup.from_param(
+        location.param.data_type, inline=True, name=""
+    )
     area_subset = pn.widgets.Select.from_param(
         location.param.area_subset, name="Subset the data by..."
     )
@@ -1201,6 +1300,8 @@ def _location_param_to_panel(location):
     return {
         "area_subset": area_subset,
         "cached_area": cached_area,
+        "data_type": data_type,
+        "data_type_text":data_type_text,
         "latitude": location.param.latitude,
         "longitude": location.param.longitude,
     }
@@ -1233,6 +1334,8 @@ def _display_select(selections, location, map_view):
         width=220,
     )
     col_2_selections = pn.Column(
+        location_widgets["data_type_text"],
+        location_widgets["data_type"],
         selections_widgets["downscaling_method_text"],
         selections_widgets["downscaling_method"],
         selections_widgets["timescale_text"],
@@ -1259,12 +1362,13 @@ def _display_select(selections, location, map_view):
         location_widgets["cached_area"],
         location_widgets["latitude"],
         location_widgets["longitude"],
+        selections_widgets["area_average_text"],
+        selections_widgets["area_average"],
         width=190,
     )
     col_2_location = pn.Column(
         map_view.view,
-        selections_widgets["area_average_text"],
-        selections_widgets["area_average"],
+        pn.widgets.CheckBoxGroup.from_param(location.param.station, name="Weather station"),
         width=200,
     )
     loc_card = pn.Card(
