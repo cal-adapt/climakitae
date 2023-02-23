@@ -29,9 +29,7 @@ var_catalog_resource = pkg_resources.resource_filename(
 var_catalog = pd.read_csv(var_catalog_resource, index_col=None)
 unit_options_dict = _get_unit_conversion_options()
 
-stations = pkg_resources.resource_filename(
-    "climakitae", "data/hadisd_stations.csv"
-)
+stations = pkg_resources.resource_filename("climakitae", "data/hadisd_stations.csv")
 stations_df = pd.read_csv(stations)
 stations_gpd = gpd.GeoDataFrame(
     stations_df,
@@ -811,29 +809,42 @@ class _DataSelector(param.Parameterized):
         self.variable_id = var_info.variable_id.item()
         self._data_warning = ""
 
+    @param.depends("location.data_type", watch=True)
+    def _update_res_based_on_data_type(self):
+        if self.location.data_type == "station":
+            self.param["resolution"].objects = ["n/a"]
+            self.resolution = "n/a"
+        elif self.location.data_type == "gridded":
+            self.param["resolution"].objects = ["45 km", "9 km", "3 km"]
+            self.resolution = "45 km"
+
     @param.depends("timescale", "resolution", watch=True)
     def _update_var_options(self):
         """Update unique variable options"""
-        self.cat_subset = self.cat.search(
-            activity_id=[
-                _downscaling_method_to_activity_id(dm) for dm in self.downscaling_method
-            ],
-            table_id=_timescale_to_table_id(self.timescale),
-            grid_label=_resolution_to_gridlabel(self.resolution),
-        )
-        self.unique_variable_ids = self.cat_subset.unique()["variable_id"]["values"]
-        self.variable_options_df = _get_variable_options_df(
-            var_catalog=var_catalog,
-            unique_variable_ids=self.unique_variable_ids,
-            downscaling_method=self.downscaling_method,
-            timescale=self.timescale,
-        )
+        if self.resolution == "n/a":
+            pass
+        else:
+            self.cat_subset = self.cat.search(
+                activity_id=[
+                    _downscaling_method_to_activity_id(dm)
+                    for dm in self.downscaling_method
+                ],
+                table_id=_timescale_to_table_id(self.timescale),
+                grid_label=_resolution_to_gridlabel(self.resolution),
+            )
+            self.unique_variable_ids = self.cat_subset.unique()["variable_id"]["values"]
+            self.variable_options_df = _get_variable_options_df(
+                var_catalog=var_catalog,
+                unique_variable_ids=self.unique_variable_ids,
+                downscaling_method=self.downscaling_method,
+                timescale=self.timescale,
+            )
 
-        # Reset variable dropdown
-        var_options = self.variable_options_df.display_name.values
-        self.param["variable"].objects = var_options
-        if self.variable not in var_options:
-            self.variable = var_options[0]
+            # Reset variable dropdown
+            var_options = self.variable_options_df.display_name.values
+            self.param["variable"].objects = var_options
+            if self.variable not in var_options:
+                self.variable = var_options[0]
 
     @param.depends("resolution", "location.area_subset", watch=True)
     def _update_states_3km(self):
@@ -904,7 +915,6 @@ class _DataSelector(param.Parameterized):
         """
         Update scenario options. Raise data warning if a bad selection is made.
         """
-
         # Get scenario options in catalog format
         scenario_ssp_options = [
             _scenario_to_experiment_id(scen, reverse=True)
@@ -1013,18 +1023,22 @@ class _DataSelector(param.Parameterized):
         """Simulation options will change if the scenario changes,
         or if the timescale changes, due to the fact that the ensmean
         data is available (and needs to be removed) for hourly data."""
-        self.simulation = _get_simulation_options(
-            cat=self.cat,
-            activity_id=[
-                _downscaling_method_to_activity_id(dm) for dm in self.downscaling_method
-            ],
-            table_id=_timescale_to_table_id(self.timescale),
-            grid_label=_resolution_to_gridlabel(self.resolution),
-            experiment_id=[
-                _scenario_to_experiment_id(scen)
-                for scen in self.scenario_ssp + self.scenario_historical
-            ],
-        )
+        if self.resolution == "n/a":
+            pass
+        else:
+            self.simulation = _get_simulation_options(
+                cat=self.cat,
+                activity_id=[
+                    _downscaling_method_to_activity_id(dm)
+                    for dm in self.downscaling_method
+                ],
+                table_id=_timescale_to_table_id(self.timescale),
+                grid_label=_resolution_to_gridlabel(self.resolution),
+                experiment_id=[
+                    _scenario_to_experiment_id(scen)
+                    for scen in self.scenario_ssp + self.scenario_historical
+                ],
+            )
 
     @param.depends("time_slice", "scenario_ssp", "scenario_historical", watch=False)
     def view(self):
