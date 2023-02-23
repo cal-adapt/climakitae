@@ -30,7 +30,7 @@ var_catalog = pd.read_csv(var_catalog_resource, index_col=None)
 unit_options_dict = _get_unit_conversion_options()
 
 stations = pkg_resources.resource_filename(
-    "climakitae", "data/HadISD/hadisd_stations.csv"
+    "climakitae", "data/hadisd_stations.csv"
 )
 stations_df = pd.read_csv(stations)
 stations_gpd = gpd.GeoDataFrame(
