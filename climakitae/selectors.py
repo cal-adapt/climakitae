@@ -216,12 +216,17 @@ class _LocSelectorArea(param.Parameterized):
         administrative geographic area]
     """
 
+    info_about_station_data = "When you retrieve the station data, gridded model data will be bias-correcting to that point. This process can start from any model resolution."
+
     area_subset = param.ObjectSelector(objects=dict())
     cached_area = param.ObjectSelector(objects=dict())
     latitude = param.Range(default=(32.5, 42), bounds=(10, 67))
     longitude = param.Range(default=(-125.5, -114), bounds=(-156.82317, -84.18701))
-    data_type = param.ObjectSelector(default="gridded", objects=["gridded", "station"])
+    data_type = param.ObjectSelector(default="Gridded", objects=["Gridded", "Station"])
     station = param.ListSelector(objects=dict())
+    _station_data_info = param.String(
+        default="", doc="Information about the bias correction process and resolution"
+    )
 
     def __init__(self, **params):
         super().__init__(**params)
@@ -236,22 +241,6 @@ class _LocSelectorArea(param.Parameterized):
         self.param["cached_area"].objects = list(
             self._geography_choose[self.area_subset].keys()
         )
-
-        if self.data_type == "station":
-            overlapping_stations = _get_overlapping_station_names(
-                stations_gpd,
-                self.area_subset,
-                self.cached_area,
-                self.latitude,
-                self.longitude,
-                self._geographies,
-                self._geography_choose,
-            )
-            self.param["station"].objects = overlapping_stations
-            self.station = overlapping_stations
-        elif self.data_type == "gridded":
-            self.param["station"].objects = []
-            self.station = []
 
     _wrf_bb = {
         "45 km": Polygon(
@@ -280,6 +269,13 @@ class _LocSelectorArea(param.Parameterized):
         ),
     }
 
+    @param.depends("data_type", watch=True)
+    def _update_textual_description(self):
+        if self.data_type == "Gridded":
+            self._station_data_info = ""
+        elif self.data_type == "Station":
+            self._station_data_info = self.info_about_station_data
+
     @param.depends("latitude", "longitude", watch=True)
     def _update_area_subset_to_lat_lon(self):
         """
@@ -306,7 +302,7 @@ class _LocSelectorArea(param.Parameterized):
     )
     def _update_station_list(self):
         """Update the list of weather station options if the area subset changes"""
-        if self.data_type == "station":
+        if self.data_type == "Station":
             overlapping_stations = _get_overlapping_station_names(
                 stations_gpd,
                 self.area_subset,
@@ -318,7 +314,7 @@ class _LocSelectorArea(param.Parameterized):
             )
             self.param["station"].objects = overlapping_stations
             self.station = overlapping_stations
-        elif self.data_type == "gridded":
+        elif self.data_type == "Gridded":
             self.param["station"].objects = []
             self.station = []
 
@@ -480,12 +476,67 @@ class _ViewLocationSelections(param.Parameterized):
         watch=True,
     )
     def view(self):
-        fig0 = Figure(figsize=(2.9, 2.9))
+        fig0 = Figure(figsize=(3.2, 3.2))
         proj = ccrs.Orthographic(-118, 40)
         crs_proj4 = proj.proj4_init  # used below
         xy = ccrs.PlateCarree()
         ax = fig0.add_subplot(111, projection=proj)
+        mpl_pane = pn.pane.Matplotlib(fig0, dpi=144)
 
+        # Get geometry of selected location
+        subarea_gpd = _get_subarea(
+            self.location.area_subset,
+            self.location.cached_area,
+            self.location.latitude,
+            self.location.longitude,
+            self.location._geographies,
+            self.location._geography_choose,
+        )
+        # Set plot extent
+        ca_extent = [-125, -114, 31, 43]  # Zoom in on CA
+        us_extent = [
+            -130,
+            -100,
+            25,
+            50,
+        ]  # Western USA + a lil bit of baja (viva mexico)
+        na_extent = [-150, -88, 8, 66]  # North America extent (largest extent)
+        if self.location.area_subset == "lat/lon":
+            # Dynamically update extent depending on borders of lat/lon selection
+            for extent_i in [ca_extent, us_extent, na_extent]:
+                # Construct a polygon from the extent
+                geom_extent = Polygon(
+                    box(extent_i[0], extent_i[2], extent_i[1], extent_i[3])
+                )
+                # Check if user selections for lat/lon are contained in the extent
+                if geom_extent.contains(subarea_gpd.geometry.values[0]):
+                    # If so, set the extent to the smallest extent possible
+                    # Such that the lat/lon selection is contained within the map's boundaries
+                    extent = extent_i
+                    break
+        elif (self.selections.resolution == "3 km") or (
+            "CA" in self.location.area_subset
+        ):
+            extent = ca_extent
+        elif (self.selections.resolution == "9 km") or (
+            self.location.area_subset == "states"
+        ):
+            extent = us_extent
+        elif self.location.area_subset in ["none", "lat/lon"]:
+            extent = na_extent
+        else:  # Default for all other selections
+            extent = ca_extent
+        ax.set_extent(extent, crs=xy)
+
+        # Set size of markers for stations depending on map boundaries
+        if extent == ca_extent:
+            scatter_size = 4.5
+        elif extent == us_extent:
+            scatter_size = 2.5
+        elif extent == na_extent:
+            scatter_size = 1.5
+
+        # Add grid boundaries
         if "Statistical" in self.selections.downscaling_method:
             # 3km LOCA grid shown whenever LOCA is selected, even if WRF is also selected
             _add_res_to_ax(
@@ -493,12 +544,11 @@ class _ViewLocationSelections(param.Parameterized):
                 ax=ax,
                 color="magenta",
                 rotation=32,
-                xy=(-127, 39),
+                xy=(-127, 40),
                 label="3-km statistical",
             )
-
         elif self.selections.downscaling_method == ["Dynamical"]:
-            # If only WRF is selected (indicated by list with only WRF
+            # If only WRF is selected
             if self.selections.resolution == "45 km":
                 _add_res_to_ax(
                     poly=self.location._wrf_bb["45 km"],
@@ -512,7 +562,7 @@ class _ViewLocationSelections(param.Parameterized):
                 _add_res_to_ax(
                     poly=self.location._wrf_bb["9 km"],
                     ax=ax,
-                    color="dodgerblue",
+                    color="navy",
                     rotation=32,
                     xy=(-135, 42),
                     label="9-km dynamical",
@@ -523,45 +573,11 @@ class _ViewLocationSelections(param.Parameterized):
                     ax=ax,
                     color="darkorange",
                     rotation=32,
-                    xy=(-127, 39),
+                    xy=(-127, 40),
                     label="3-km dynamical",
                 )
-        mpl_pane = pn.pane.Matplotlib(fig0, dpi=144)
 
-        # Set plot extent
-        if (
-            (self.selections.resolution == "3 km")
-            or ("CA" in self.location.area_subset)
-            or (self.location.data_type == "station")
-        ):
-            extent = [-125, -114, 31, 43]  # Zoom in on CA
-            scatter_size = 4.5  # Size of markers for stations
-        elif (self.selections.resolution == "9 km") or (
-            self.location.area_subset == "states"
-        ):
-            extent = [-130, -100, 25, 50]  # Just shows US states
-            scatter_size = 2.5  # Size of markers for stations
-        elif self.location.area_subset in ["none", "lat/lon"]:
-            extent = [
-                -150,
-                -88,
-                8,
-                66,
-            ]  # Widest extent possible-- US, some of Mexico and Canada
-            scatter_size = 1.5  # Size of markers for stations
-        else:  # Default for all other selections
-            extent = [-125, -114, 31, 43]  # Zoom in on CA
-            scatter_size = 4.5  # Size of markers for stations
-        ax.set_extent(extent, crs=xy)
-
-        subarea_gpd = _get_subarea(
-            self.location.area_subset,
-            self.location.cached_area,
-            self.location.latitude,
-            self.location.longitude,
-            self.location._geographies,
-            self.location._geography_choose,
-        ).to_crs(crs_proj4)
+        # Add user-selected geometries
         if self.location.area_subset == "lat/lon":
             ax.add_geometries(
                 subarea_gpd["geometry"].values,
@@ -570,11 +586,11 @@ class _ViewLocationSelections(param.Parameterized):
                 facecolor="None",
             )
         elif self.location.area_subset != "none":
-            subarea_gpd.plot(ax=ax, color="deepskyblue", zorder=2)
+            subarea_gpd.to_crs(crs_proj4).plot(ax=ax, color="deepskyblue", zorder=2)
             mpl_pane.param.trigger("object")
 
         # Overlay the weather stations as points on the map
-        if self.location.data_type == "station":
+        if self.location.data_type == "Station":
             # Subset the stations gpd to get just the user's selected stations
             # We need the stations gpd because it has the coordinates, which will be used to make the plot
             stations_selection_gpd = stations_gpd.loc[
@@ -701,9 +717,7 @@ class _DataSelector(param.Parameterized):
     # Defaults
     default_variable = "Air Temperature at 2m"
     time_slice = param.Range(default=(1980, 2015), bounds=(1950, 2100))
-    resolution = param.ObjectSelector(
-        default="45 km", objects=["45 km", "9 km", "3 km"]
-    )
+    resolution = param.ObjectSelector(default="9 km", objects=["3 km", "9 km", "45 km"])
     timescale = param.ObjectSelector(
         default="monthly", objects=["hourly", "daily", "monthly"]
     )
@@ -811,44 +825,44 @@ class _DataSelector(param.Parameterized):
 
     @param.depends("location.data_type", watch=True)
     def _update_res_and_area_average_based_on_data_type(self):
-        if self.location.data_type == "station":
-            self.param["resolution"].objects = ["n/a"]
-            self.resolution = "n/a"
+        if self.location.data_type == "Station":
+            self.param["resolution"].objects = ["3 km", "9 km"]
+            self.resolution = "3 km"
             self.param["area_average"].objects = ["n/a"]
             self.area_average = "n/a"
-        elif self.location.data_type == "gridded":
-            self.param["resolution"].objects = ["45 km", "9 km", "3 km"]
-            self.resolution = "45 km"
+        elif self.location.data_type == "Gridded":
+            self.param["resolution"].objects = ["3 km", "9 km", "45 km"]
             self.param["area_average"].objects = ["Yes", "No"]
             self.area_average = "No"
 
-    @param.depends("timescale", "resolution", watch=True)
+    @param.depends("timescale", "resolution", "location.data_type", watch=True)
     def _update_var_options(self):
         """Update unique variable options"""
-        if self.resolution == "n/a":
-            pass
-        else:
-            self.cat_subset = self.cat.search(
-                activity_id=[
-                    _downscaling_method_to_activity_id(dm)
-                    for dm in self.downscaling_method
-                ],
-                table_id=_timescale_to_table_id(self.timescale),
-                grid_label=_resolution_to_gridlabel(self.resolution),
-            )
-            self.unique_variable_ids = self.cat_subset.unique()["variable_id"]["values"]
-            self.variable_options_df = _get_variable_options_df(
-                var_catalog=var_catalog,
-                unique_variable_ids=self.unique_variable_ids,
-                downscaling_method=self.downscaling_method,
-                timescale=self.timescale,
-            )
+        self.cat_subset = self.cat.search(
+            activity_id=[
+                _downscaling_method_to_activity_id(dm) for dm in self.downscaling_method
+            ],
+            table_id=_timescale_to_table_id(self.timescale),
+            grid_label=_resolution_to_gridlabel(self.resolution),
+        )
+        self.unique_variable_ids = self.cat_subset.unique()["variable_id"]["values"]
+        self.variable_options_df = _get_variable_options_df(
+            var_catalog=var_catalog,
+            unique_variable_ids=self.unique_variable_ids,
+            downscaling_method=self.downscaling_method,
+            timescale=self.timescale,
+        )
 
-            # Reset variable dropdown
+        # Reset variable dropdown
+        if self.location.data_type == "Gridded":
             var_options = self.variable_options_df.display_name.values
             self.param["variable"].objects = var_options
             if self.variable not in var_options:
                 self.variable = var_options[0]
+        elif self.location.data_type == "Station":
+            temp = "Air Temperature at 2m"
+            self.param["variable"].objects = [temp]
+            self.variable = temp
 
     @param.depends("resolution", "location.area_subset", watch=True)
     def _update_states_3km(self):
@@ -901,9 +915,11 @@ class _DataSelector(param.Parameterized):
             native_unit in unit_options_dict.keys()
         ):  # See if there's unit conversion options for native variable
             self.param["units"].objects = unit_options_dict[native_unit]
+            if self.units not in unit_options_dict[native_unit]:
+                self.units = native_unit
         else:  # Just use native units if no conversion options available
             self.param["units"].objects = [native_unit]
-        self.units = native_unit
+            self.units = native_unit
 
     @param.depends("variable", "timescale", "resolution", watch=True)
     def _update_cmap_and_extended_description(self):
@@ -1027,22 +1043,18 @@ class _DataSelector(param.Parameterized):
         """Simulation options will change if the scenario changes,
         or if the timescale changes, due to the fact that the ensmean
         data is available (and needs to be removed) for hourly data."""
-        if self.resolution == "n/a":
-            pass
-        else:
-            self.simulation = _get_simulation_options(
-                cat=self.cat,
-                activity_id=[
-                    _downscaling_method_to_activity_id(dm)
-                    for dm in self.downscaling_method
-                ],
-                table_id=_timescale_to_table_id(self.timescale),
-                grid_label=_resolution_to_gridlabel(self.resolution),
-                experiment_id=[
-                    _scenario_to_experiment_id(scen)
-                    for scen in self.scenario_ssp + self.scenario_historical
-                ],
-            )
+        self.simulation = _get_simulation_options(
+            cat=self.cat,
+            activity_id=[
+                _downscaling_method_to_activity_id(dm) for dm in self.downscaling_method
+            ],
+            table_id=_timescale_to_table_id(self.timescale),
+            grid_label=_resolution_to_gridlabel(self.resolution),
+            experiment_id=[
+                _scenario_to_experiment_id(scen)
+                for scen in self.scenario_ssp + self.scenario_historical
+            ],
+        )
 
     @param.depends("time_slice", "scenario_ssp", "scenario_historical", watch=False)
     def view(self):
@@ -1274,12 +1286,16 @@ def _selections_param_to_panel(selections):
     )
     ssp_selection = pn.widgets.CheckBoxGroup.from_param(selections.param.scenario_ssp)
     resolution_text = pn.widgets.StaticText(
-        value="Model resolution",
-        name="",
+        value="",
+        name="Model Grid-Spacing",
     )
-    resolution = pn.widgets.RadioBoxGroup.from_param(selections.param.resolution, inline=False)
+    resolution = pn.widgets.RadioBoxGroup.from_param(
+        selections.param.resolution, inline=False
+    )
     timescale_text = pn.widgets.StaticText(value="", name="Timescale")
-    timescale = pn.widgets.RadioBoxGroup.from_param(selections.param.timescale, name="",inline=False)
+    timescale = pn.widgets.RadioBoxGroup.from_param(
+        selections.param.timescale, name="", inline=False
+    )
     time_slice = pn.widgets.RangeSlider.from_param(selections.param.time_slice, name="")
     units_text = pn.widgets.StaticText(name="Variable Units", value="")
     units = pn.widgets.RadioBoxGroup.from_param(selections.param.units, inline=False)
@@ -1334,6 +1350,9 @@ def _location_param_to_panel(location):
     cached_area = pn.widgets.Select.from_param(
         location.param.cached_area, name="Location selection"
     )
+    station_data_info = pn.widgets.StaticText.from_param(
+        location.param._station_data_info, name=""
+    )
     return {
         "area_subset": area_subset,
         "cached_area": cached_area,
@@ -1341,6 +1360,7 @@ def _location_param_to_panel(location):
         "data_type_text": data_type_text,
         "latitude": location.param.latitude,
         "longitude": location.param.longitude,
+        "station_data_info": station_data_info,
     }
 
 
@@ -1359,24 +1379,23 @@ def _display_select(selections, location, map_view):
     # Get formatted panel widgets for each parameter
     selections_widgets = _selections_param_to_panel(selections)
     location_widgets = _location_param_to_panel(location)
-    
+
     data_choices = pn.Column(
         selections_widgets["variable_text"],
         selections_widgets["variable"],
-        selections_widgets["variable_description"],       
+        selections_widgets["variable_description"],
         pn.Row(
             pn.Column(
                 selections_widgets["historical_selection_text"],
                 selections_widgets["historical_selection"],
                 selections_widgets["ssp_selection_text"],
                 selections_widgets["ssp_selection"],
-                
                 pn.Column(
                     selections.view,
                     selections_widgets["time_slice"],
                     width=220,
                 ),
-                width=270,
+                width=250,
             ),
             pn.Column(
                 selections_widgets["units_text"],
@@ -1385,7 +1404,8 @@ def _display_select(selections, location, map_view):
                 selections_widgets["timescale"],
                 selections_widgets["resolution_text"],
                 selections_widgets["resolution"],
-                width=110,
+                location_widgets["station_data_info"],
+                width=150,
             ),
         ),
         width=380,
@@ -1399,46 +1419,49 @@ def _display_select(selections, location, map_view):
         location_widgets["longitude"],
         selections_widgets["area_average_text"],
         selections_widgets["area_average"],
-        width=190,
+        width=220,
     )
     col_2_location = pn.Column(
         pn.Spacer(height=10),
-        pn.widgets.CheckBoxGroup.from_param(
-            location.param.station, name="Weather station"
+        pn.widgets.StaticText(
+            value="",
+            name="Weather station",
         ),
-        width=200,
+        pn.widgets.CheckBoxGroup.from_param(location.param.station, name=""),
+        width=250,
     )
-    loc_choices = pn.Row(col_1_location,col_2_location)
-        
-    everything_else = pn.Row(
-        data_choices,
-        pn.layout.HSpacer(width=10),
-        loc_choices
-    )
-    
+    loc_choices = pn.Row(col_1_location, col_2_location)
+
+    everything_else = pn.Row(data_choices, pn.layout.HSpacer(width=10), loc_choices)
+
     # Panel overall structure:
     all_things = pn.Column(
         pn.Row(
             pn.Column(
                 location_widgets["data_type_text"],
                 location_widgets["data_type"],
-                width = 150,
+                width=150,
             ),
             pn.Column(
                 selections_widgets["downscaling_method_text"],
                 selections_widgets["downscaling_method"],
-                width = 220,
+                width=270,
             ),
             pn.Column(
                 selections_widgets["data_warning"],
-                width=400, 
+                width=400,
             ),
         ),
-        pn.Spacer(background='black',height=1),
+        pn.Spacer(background="black", height=1),
         everything_else,
-    )   
+    )
 
-    return pn.Card(all_things,title="Choose Data Available with the Cal-Adapt Analytics Engine",collapsible=False)
+    return pn.Card(
+        all_things,
+        title="Choose Data Available with the Cal-Adapt Analytics Engine",
+        collapsible=False,
+    )
+
 
 # =============================== EXPORT DATA ==================================
 
