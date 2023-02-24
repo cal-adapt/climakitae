@@ -1230,7 +1230,7 @@ def _selections_param_to_panel(selections):
         value="Compute an area average across grid cells within your selected region?",
         name="",
     )
-    area_average = pn.widgets.RadioButtonGroup.from_param(
+    area_average = pn.widgets.RadioBoxGroup.from_param(
         selections.param.area_average, inline=True
     )
     data_warning = pn.widgets.StaticText.from_param(
@@ -1239,7 +1239,7 @@ def _selections_param_to_panel(selections):
     downscaling_method_text = pn.widgets.StaticText(value="", name="Downscaling method")
     downscaling_method = pn.widgets.CheckBoxGroup.from_param(
         selections.param.downscaling_method,
-        inline=False,
+        inline=True,
         #### REMOVE THIS ONCE THE LOCA DATA IS AVAILABLE
         disabled=True,
     )
@@ -1259,12 +1259,12 @@ def _selections_param_to_panel(selections):
         value="Model resolution",
         name="",
     )
-    resolution = pn.widgets.RadioButtonGroup.from_param(selections.param.resolution)
+    resolution = pn.widgets.RadioBoxGroup.from_param(selections.param.resolution, inline=False)
     timescale_text = pn.widgets.StaticText(value="", name="Timescale")
-    timescale = pn.widgets.Select.from_param(selections.param.timescale, name="")
+    timescale = pn.widgets.RadioBoxGroup.from_param(selections.param.timescale, name="",inline=False)
     time_slice = pn.widgets.RangeSlider.from_param(selections.param.time_slice, name="")
     units_text = pn.widgets.StaticText(name="Variable Units", value="")
-    units = pn.widgets.RadioButtonGroup.from_param(selections.param.units)
+    units = pn.widgets.RadioBoxGroup.from_param(selections.param.units, inline=False)
     variable = pn.widgets.Select.from_param(selections.param.variable, name="")
     variable_text = pn.widgets.StaticText(name="Variable", value="")
     variable_description = pn.widgets.StaticText.from_param(
@@ -1330,7 +1330,7 @@ def _display_select(selections, location, map_view):
     """
     Called by 'select' at the beginning of the workflow, to capture user
     selections. Displays panel of widgets from which to make selections.
-    Modifies 'selections' object, which is used by generate() to build an
+    Modifies 'selections' object, which is used by retrieve() to build an
     appropriate xarray Dataset.
     """
 
@@ -1341,42 +1341,40 @@ def _display_select(selections, location, map_view):
     # Get formatted panel widgets for each parameter
     selections_widgets = _selections_param_to_panel(selections)
     location_widgets = _location_param_to_panel(location)
-
-    # Create panel parts
-    col_1_selections = pn.Column(
-        selections.view,
-        selections_widgets["time_slice"],
-        selections_widgets["historical_selection_text"],
-        selections_widgets["historical_selection"],
-        selections_widgets["ssp_selection_text"],
-        selections_widgets["ssp_selection"],
-        width=220,
-    )
-    col_2_selections = pn.Column(
-        location_widgets["data_type_text"],
-        location_widgets["data_type"],
-        selections_widgets["downscaling_method_text"],
-        selections_widgets["downscaling_method"],
-        selections_widgets["timescale_text"],
-        selections_widgets["timescale"],
+    
+    data_choices = pn.Column(
         selections_widgets["variable_text"],
         selections_widgets["variable"],
-        selections_widgets["variable_description"],
-        selections_widgets["units_text"],
-        selections_widgets["units"],
-        selections_widgets["data_warning"],
-        width=210,
-    )
-    data_card = pn.Card(
-        pn.Row(col_1_selections, col_2_selections),
-        title="Data selections",
-        collapsible=False,
-        width=450,
+        selections_widgets["variable_description"],       
+        pn.Row(
+            pn.Column(
+                selections_widgets["historical_selection_text"],
+                selections_widgets["historical_selection"],
+                selections_widgets["ssp_selection_text"],
+                selections_widgets["ssp_selection"],
+                
+                pn.Column(
+                    selections.view,
+                    selections_widgets["time_slice"],
+                    width=220,
+                ),
+                width=270,
+            ),
+            pn.Column(
+                selections_widgets["units_text"],
+                selections_widgets["units"],
+                selections_widgets["timescale_text"],
+                selections_widgets["timescale"],
+                selections_widgets["resolution_text"],
+                selections_widgets["resolution"],
+                width=110,
+            ),
+        ),
+        width=380,
     )
 
     col_1_location = pn.Column(
-        selections_widgets["resolution_text"],
-        selections_widgets["resolution"],
+        map_view.view,
         location_widgets["area_subset"],
         location_widgets["cached_area"],
         location_widgets["latitude"],
@@ -1386,44 +1384,43 @@ def _display_select(selections, location, map_view):
         width=190,
     )
     col_2_location = pn.Column(
-        map_view.view,
+        pn.Spacer(height=10),
         pn.widgets.CheckBoxGroup.from_param(
             location.param.station, name="Weather station"
         ),
         width=200,
     )
-    loc_card = pn.Card(
-        pn.Row(col_1_location, col_2_location),
-        title="Location selections",
-        collapsible=False,
-        # width=425
+    loc_choices = pn.Row(col_1_location,col_2_location)
+        
+    everything_else = pn.Row(
+        data_choices,
+        pn.layout.HSpacer(width=10),
+        loc_choices
     )
-
-    how_to_use = pn.Card(
-        pn.widgets.StaticText(
-            value="""
-            In the first box, <b>make your data selections.</b> In the second box, <b>subset the 
-            data by location</b> and choose whether or not to compute an area average over the 
-            selected region. To retrieve the data, use the climakitae function <b>app.retrieve()</b>.
-            """,
-            name="",
+    
+    # Panel overall structure:
+    all_things = pn.Column(
+        pn.Row(
+            pn.Column(
+                location_widgets["data_type_text"],
+                location_widgets["data_type"],
+                width = 150,
+            ),
+            pn.Column(
+                selections_widgets["downscaling_method_text"],
+                selections_widgets["downscaling_method"],
+                width = 220,
+            ),
+            pn.Column(
+                selections_widgets["data_warning"],
+                width=400, 
+            ),
         ),
-        title="How to use this panel",
-        width=250,
-        collapsible=False,
-    )
+        pn.Spacer(background='black',height=1),
+        everything_else,
+    )   
 
-    your_selections = pn.Card(
-        pn.widgets.StaticText.from_param(
-            selection_description.param._data_selection_description, name=""
-        ),
-        title="Current selections",
-        width=250,
-        collapsible=False,
-    )
-
-    return pn.Row(data_card, loc_card, pn.Column(how_to_use, your_selections))
-
+    return pn.Card(all_things,title="Choose Data Available with the Cal-Adapt Analytics Engine",collapsible=False)
 
 # =============================== EXPORT DATA ==================================
 
