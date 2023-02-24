@@ -545,7 +545,7 @@ class _ViewLocationSelections(param.Parameterized):
                 color="magenta",
                 rotation=32,
                 xy=(-127, 40),
-                label="3-km statistical",
+                label="3 km",
             )
         elif self.selections.downscaling_method == ["Dynamical"]:
             # If only WRF is selected
@@ -556,7 +556,7 @@ class _ViewLocationSelections(param.Parameterized):
                     color="green",
                     rotation=28,
                     xy=(-154, 33.8),
-                    label="45-km dynamical",
+                    label="45 km",
                 )
             elif self.selections.resolution == "9 km":
                 _add_res_to_ax(
@@ -565,7 +565,7 @@ class _ViewLocationSelections(param.Parameterized):
                     color="navy",
                     rotation=32,
                     xy=(-135, 42),
-                    label="9-km dynamical",
+                    label="9 km",
                 )
             elif self.selections.resolution == "3 km":
                 _add_res_to_ax(
@@ -574,7 +574,7 @@ class _ViewLocationSelections(param.Parameterized):
                     color="darkorange",
                     rotation=32,
                     xy=(-127, 40),
-                    label="3-km dynamical",
+                    label="3 km",
                 )
 
         # Add user-selected geometries
