@@ -6,6 +6,7 @@ import rioxarray
 import intake
 import numpy as np
 import pandas as pd
+import pkg_resources
 import psutil
 import warnings
 from ast import literal_eval
@@ -17,7 +18,7 @@ from .catalog_convert import (
     _scenario_to_experiment_id,
 )
 from .unit_conversions import _convert_units
-from .utils import _readable_bytes
+from .utils import _readable_bytes, get_closest_gridcell
 from .derive_variables import (
     _compute_relative_humidity,
     _compute_wind_mag,
@@ -27,6 +28,10 @@ from .derive_variables import (
 # Set options
 xr.set_options(keep_attrs=True)
 dask.config.set({"array.slicing.split_large_chunks": True})
+
+# Import stations names and coordinates file
+stations = pkg_resources.resource_filename("climakitae", "data/hadisd_stations.csv")
+stations_df = pd.read_csv(stations)
 
 
 # ============================ Read data into memory ================================
@@ -393,11 +398,26 @@ def _read_catalog_from_select(selections, location, cat):
     Returns:
         da (xr.DataArray): output data
     """
-    scenario_selections = selections.scenario_ssp + selections.scenario_historical
+
+    if (selections.scenario_ssp != []) and (
+        "Historical Reconstruction" in selections.scenario_historical
+    ):
+        raise ValueError(
+            "Historical Reconstruction data is not available with SSP data. Please modify your selections and try again."
+        )
 
     # Raise error if no scenarios are selected
+    scenario_selections = selections.scenario_ssp + selections.scenario_historical
     if scenario_selections == []:
         raise ValueError("Please select as least one dataset.")
+
+    # Raise error if station data selected, but no station is selected
+    if (location.data_type == "Station") and (
+        location.station in [[], ["No stations available at this location"]]
+    ):
+        raise ValueError(
+            "Please select at least one weather station, or retrieve gridded data."
+        )
 
     # Deal with derived variables
     orig_var_id_selection = selections.variable_id
@@ -449,7 +469,79 @@ def _read_catalog_from_select(selections, location, cat):
         da = _get_data_one_var(selections, location, cat)
 
     da = _convert_units(da=da, selected_units=selections.units)  # Convert units
+
+    if location.data_type == "Station":
+        stations_da_list = []
+        for station in location.station:
+            da_closest_gridcell = _retrieve_and_format_closest_gridcell(
+                stations_df, station, da
+            )
+            stations_da_list.append(da_closest_gridcell)
+        da = xr.merge(
+            stations_da_list, combine_attrs="drop_conflicts"
+        )  # Merge all stations to form a single object
+
     return da
+
+
+def _retrieve_and_format_closest_gridcell(stations_df, station_name, data):
+    """Retrieve the cloeset gridcell to an input weather station
+    Format the DataArray
+
+    Parameters
+    ----------
+    stations_df: pd.DataFrame
+        Weather station names and coordinates
+    station_name: str
+        Name of weather station to use.
+        Must directly correspond to a value in the "station" column of stations_gpd
+    data: xr.DataArray
+        Gridded data
+
+    Returns
+    -------
+    xr.DataArray
+        Input DataArray subsetted to the closest gridcell to the station coordinates
+        DataArray name is set to station_name
+
+    See also
+    --------
+    climakitae.utils.get_closest_gridcell
+
+    """
+
+    # Get the closest grid cell
+    station_row = stations_df.loc[stations_df["station"] == station_name]
+    data_closest_gridcell = get_closest_gridcell(
+        data, station_row.LAT_Y.item(), station_row.LON_X.item(), print_coords=False
+    )
+
+    # Clean and reformat the DataArray
+    attrs_to_keep = {
+        key: data_closest_gridcell.attrs[key]
+        for key in data_closest_gridcell.attrs
+        if key not in ["resolution", "location_subset"]
+    }
+    new_attrs = {
+        # Presevere the gridded data's central coordinate and the name of the closest station
+        "coordinates": (
+            data_closest_gridcell.lat.values.item(),
+            data_closest_gridcell.lon.values.item(),
+        ),
+        "variable": data_closest_gridcell.name,
+    }
+    da_cleaned = (
+        data_closest_gridcell.drop(  # Drop coordinates that aren't also dimensions
+            [
+                i
+                for i in data_closest_gridcell.coords
+                if i not in data_closest_gridcell.dims
+            ]
+        )
+    )
+    da_cleaned.attrs = attrs_to_keep | new_attrs  # Reassign attributes
+    da_cleaned.name = station_name  # Make the name the station name
+    return da_cleaned
 
 
 # ============ Retrieve data from a csv input ===============
