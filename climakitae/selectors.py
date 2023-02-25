@@ -216,7 +216,7 @@ class _LocSelectorArea(param.Parameterized):
         administrative geographic area]
     """
 
-    info_about_station_data = "When you retrieve the station data, gridded model data will be bias-correcting to that point. This process can start from any model resolution."
+    info_about_station_data = "When you retrieve the station data, gridded model data will be bias-corrected to that point. This process can start from any model resolution."
 
     area_subset = param.ObjectSelector(objects=dict())
     cached_area = param.ObjectSelector(objects=dict())
@@ -312,11 +312,17 @@ class _LocSelectorArea(param.Parameterized):
                 self._geographies,
                 self._geography_choose,
             )
-            self.param["station"].objects = overlapping_stations
-            self.station = overlapping_stations
+            if len(overlapping_stations) == 0:
+                notice = "No stations available at this location"
+                self.param["station"].objects = [notice]
+                self.station = [notice]
+            else:
+                self.param["station"].objects = overlapping_stations
+                self.station = overlapping_stations
         elif self.data_type == "Gridded":
-            self.param["station"].objects = []
-            self.station = []
+            notice = "Set data type to 'Station' to see options"
+            self.param["station"].objects = [notice]
+            self.station = [notice]
 
 
 def _get_overlapping_station_names(
@@ -542,7 +548,7 @@ class _ViewLocationSelections(param.Parameterized):
             _add_res_to_ax(
                 poly=self.location._wrf_bb["3 km"],
                 ax=ax,
-                color="magenta",
+                color="purple",
                 rotation=32,
                 xy=(-127, 40),
                 label="3 km",
@@ -562,9 +568,9 @@ class _ViewLocationSelections(param.Parameterized):
                 _add_res_to_ax(
                     poly=self.location._wrf_bb["9 km"],
                     ax=ax,
-                    color="navy",
+                    color="red",
                     rotation=32,
-                    xy=(-135, 42),
+                    xy=(-134, 42),
                     label="9 km",
                 )
             elif self.selections.resolution == "3 km":
@@ -1142,113 +1148,6 @@ class _DataSelector(param.Parameterized):
         return mpl_pane
 
 
-# ================ PRINT STATEMENT EXPLAINING CURRENT USER SELECTIONS ===================
-
-
-def _get_data_selection_description(selections, location):
-    """
-    Make a long string to output to the user to show all their current selections.
-    Updates whenever any of the input values are changed.
-    """
-
-    # Edit how the scenarios are printed in the description to make it reader-friendly
-    if True in ["SSP" in one for one in selections.scenario_ssp]:
-        if "Historical Climate" in selections.scenario_historical:
-            scenario_print = [
-                "Historical + " + ssp[:9] for ssp in selections.scenario_ssp
-            ]
-        else:
-            scenario_print = [ssp[:9] for ssp in selections.scenario_ssp]
-    else:
-        scenario_print = selections.scenario_ssp + selections.scenario_historical
-
-    # Show lat/lon selection only if area_subset == lat/lon
-    if location.area_subset == "lat/lon":
-        # bbox = min Longitude , min Latitude , max Longitude , max Latitude
-        cached_area_print = (
-            "bounding box <br>"
-            "({:.2f}".format(location.longitude[0])
-            + ", {:.2f}".format(location.latitude[0])
-            + ", {:.2f}".format(location.longitude[1])
-            + ", {:.2f}".format(location.latitude[1])
-            + ")"
-        )
-    elif location.area_subset == "none":
-        cached_area_print = "entire " + str(selections.resolution) + " grid"
-    else:
-        cached_area_print = str(location.cached_area)
-
-    _data_selection_description = (
-        "<font size='+0.10'>Data selections: </font><br>"
-        "<ul>"
-        "<li><b>data type: </b>" + str(location.data_type) + "</li>"
-        "<li><b>downscaling method: </b>"
-        + ", ".join(selections.downscaling_method)
-        + "</li>"
-        "<li><b>variable: </b>" + str(selections.variable) + "</li>"
-        "<li><b>units: </b>" + str(selections.units) + "</li>"
-        "<li><b>temporal resolution: </b>" + str(selections.timescale) + "</li>"
-        "<li><b>model resolution: </b>" + str(selections.resolution) + "</li>"
-        "<li><b>timeslice: </b>"
-        + str(selections.time_slice[0])
-        + " - "
-        + str(selections.time_slice[1])
-        + "</li>"
-        "<li><b>datasets: </b>" + ", ".join(scenario_print) + "</li>"
-        "</ul>"
-    )
-    _location_selection_description = (
-        "<font size='+0.10'>Location selections: </font><br>"
-        "<ul>"
-        "<li><b>location: </b>" + cached_area_print + "</li>"
-        "<li><b>compute area average? </b>" + str(selections.area_average) + "</li>"
-        "</ul>"
-    )
-    return _data_selection_description + _location_selection_description
-
-
-class _SelectionDescription(param.Parameterized):
-    """
-    Make a long string to output to the user to show all their current selections.
-    Updates whenever any of the input values are changed.
-    """
-
-    _data_selection_description = param.String(
-        default="", doc="Description of the user data selections."
-    )
-
-    def __init__(self, **params):
-        super().__init__(**params)
-
-        self._data_selection_description = _get_data_selection_description(
-            selections=self.selections,
-            location=self.location,
-        )
-
-    @param.depends(
-        "selections.units",
-        "selections.variable",
-        "selections.scenario_historical",
-        "selections.scenario_ssp",
-        "selections.timescale",
-        "selections.resolution",
-        "selections.time_slice",
-        "selections.area_average",
-        "selections.downscaling_method",
-        "location.area_subset",
-        "location.cached_area",
-        "location.data_type",
-        "location.longitude",
-        "location.latitude",
-        watch=True,
-    )
-    def _update_data_selection_description(self):
-        self._data_selection_description = _get_data_selection_description(
-            selections=self.selections,
-            location=self.location,
-        )
-
-
 # ================ DISPLAY LOCATION/DATA SELECTIONS IN PANEL ===================
 
 
@@ -1351,7 +1250,7 @@ def _location_param_to_panel(location):
         location.param.cached_area, name="Location selection"
     )
     station_data_info = pn.widgets.StaticText.from_param(
-        location.param._station_data_info, name=""
+        location.param._station_data_info, name="", style={"color": "red"}
     )
     return {
         "area_subset": area_subset,
@@ -1371,11 +1270,6 @@ def _display_select(selections, location, map_view):
     Modifies 'selections' object, which is used by retrieve() to build an
     appropriate xarray Dataset.
     """
-
-    selection_description = _SelectionDescription(
-        selections=selections, location=location
-    )
-
     # Get formatted panel widgets for each parameter
     selections_widgets = _selections_param_to_panel(selections)
     location_widgets = _location_param_to_panel(location)
@@ -1428,7 +1322,7 @@ def _display_select(selections, location, map_view):
             name="Weather station",
         ),
         pn.widgets.CheckBoxGroup.from_param(location.param.station, name=""),
-        width=250,
+        width=260,
     )
     loc_choices = pn.Row(col_1_location, col_2_location)
 
