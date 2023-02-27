@@ -7,6 +7,7 @@ holoviews
 hvplot
 intake
 intake-xarray
+intake-esm
 jinja2
 matplotlib
 metpy

@@ -14,6 +14,7 @@ dependencies:
   - intake
   - intake-geopandas
   - intake-xarray
+  - intake-esm
   - jinja2
   - matplotlib
   - metpy
