@@ -1,3 +1,4 @@
+"""Update package metadata"""
 # Decorator to append transform call
 # details as metadata to ds/da
 

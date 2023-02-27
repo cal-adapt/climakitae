@@ -1,3 +1,5 @@
+"""Backend functions for retrieving and subsetting data from the AE catalog"""
+
 import xarray as xr
 import dask
 import rioxarray
@@ -9,6 +11,7 @@ import warnings
 from ast import literal_eval
 from shapely.geometry import box
 from .catalog_convert import (
+    _downscaling_method_to_activity_id,
     _resolution_to_gridlabel,
     _timescale_to_table_id,
     _scenario_to_experiment_id,
@@ -105,7 +108,9 @@ def _get_cat_subset(selections, cat):
 
     # Get catalog keys
     # Convert user-friendly names to catalog names (i.e. "45km" to "d01")
-    activity_id = selections.downscaling_method
+    activity_id = [
+        _downscaling_method_to_activity_id(dm) for dm in selections.downscaling_method
+    ]
     table_id = _timescale_to_table_id(selections.timescale)
     grid_label = _resolution_to_gridlabel(selections.resolution)
     experiment_id = [_scenario_to_experiment_id(x) for x in scenario_selections]
@@ -324,7 +329,10 @@ def _get_data_one_var(selections, location, cat):
         )
     ):
         cat_subset2 = cat.search(
-            activity_id=selections.downscaling_method,
+            activity_id=[
+                _downscaling_method_to_activity_id(dm)
+                for dm in selections.downscaling_method
+            ],
             table_id=_timescale_to_table_id(selections.timescale),
             grid_label=_resolution_to_gridlabel(selections.resolution),
             variable_id=selections.variable_id,

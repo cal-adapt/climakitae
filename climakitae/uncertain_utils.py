@@ -8,13 +8,18 @@ import intake
 import warnings
 from .selectors import Boundaries
 from xmip.preprocessing import rename_cmip6
+from scipy import stats
+import pkg_resources
+from climakitae.data_loaders import _get_area_subset
+import holoviews as hv
+import panel as pn
 
 
 ### Utility functions for uncertainty analyses and notebooks
 class CmipOpt:
     """A class for holding relevant data options for cmip preprocessing
 
-    Attributes
+    Parameters
     ----------
     variable: str
         variable name, cf-compliant (or cmip6 variable name)
@@ -69,6 +74,8 @@ class CmipOpt:
         to_drop = [v for v in list(ds.data_vars) if v != variable]
         ds = ds.drop_vars(to_drop)
         ds = _clip_region(ds, area_subset, location)
+        if variable == "pr":
+            ds = _precip_flux_to_total(ds)
         if area_average:
             ds = _area_wgt_average(ds)
         return ds
@@ -227,8 +234,73 @@ def _drop_member_id(dset_dict):
     return dset_dict
 
 
-## Grab temperature data - model uncertainty analysis (explore_model_uncertainty nb)
-def grab_temp_data(copt):
+def _precip_flux_to_total(ds):
+    """
+    converts precip flux units
+    (kg m-2 s-1) to total precip
+    per month (mm)
+    NOTE: assumes regular calendar
+
+    Parameters
+    ----------
+    ds: xarray.Dataset
+        CMIP6 output with data variable 'pr'
+    Returns
+    -------
+    xr.Dataset
+        Data with converted precipitation units
+    """
+    ds_attrs = ds.attrs
+    days_month = ds.time.dt.days_in_month
+    seconds_month = 86400 * days_month
+    ds = ds * seconds_month
+    ds = ds.clip(0.1)
+    ds.attrs = ds_attrs
+    ds.pr.attrs["units"] = "mm"
+    return ds
+
+
+def _grab_ensemble_data_by_experiment_id(variable, cmip_names, location, experiment_id):
+    """Grab CMIP6 ensemble data
+
+    Parameters
+    -----------
+    variable: str
+        Name of variable
+    cmip_names: list of str
+        Name of CMIP6 simulations
+    location: LocSelectorArea
+        Location for which to subset data
+    experiment_id: scenario, one of "historical" or "ssp375"
+
+    Returns
+    -------
+    list of xr.Dataset
+    """
+
+    # Open AE data catalog for regridded CMIP6 data
+    col = intake.open_esm_datastore(
+        "https://cadcat.s3.amazonaws.com/tmp/cmip6-regrid.json"
+    )
+    # Get subset of catalog corresponding to user inputs
+    col_subset = col.search(
+        table_id="Amon",
+        variable_id=variable,
+        experiment_id=experiment_id,
+        source_id=cmip_names,
+    )
+    # Read data from catalog
+    data_dict = col_subset.to_dataset_dict(
+        zarr_kwargs={"consolidated": True},
+        storage_options={"anon": True},
+        preprocess=_wrapper,  # Preprocess function to perform on each DataArray
+        progressbar=False,  # Don't show a progress bar in notebook
+    )
+    return list(data_dict.values())
+
+
+## Grab data - model uncertainty analysis
+def grab_multimodel_data(copt, alpha_sort=False):
     """Returns processed data from multiple CMIP6 models for uncertainty analysis.
 
     Searches the CMIP6 data catalog for data from models that have specific
@@ -236,10 +308,12 @@ def grab_temp_data(copt):
     subsetting for specific location and dropping the member_id for easier
     analysis.
 
-    Attributes
+    Parameters
     ----------
     copt: CmipOpt
-        Selections for variable, area_subset, location, area_average, timescale
+        Selections: variable, area_subset, location, area_average, timescale
+    alpha_sort: bool, default=False
+        Set to True if sorting model names alphabetically is desired
 
     Returns
     -------
@@ -270,10 +344,18 @@ def grab_temp_data(copt):
     )
 
     # searches the catalog for the additional cal-adapt simulations
-    paths = [
-        "CESM2.*r11i1p1f1",
-        "CNRM-ESM2-1.*r1i1p1f2",
-    ]  # note, two of the Cal-Adapt models use a different ensemble member
+    if "pr" in copt.variable:
+        paths = [
+            "CESM2.*r11i1p1f1",
+            "CNRM-ESM2-1.*r1i1p1f2",
+            "MPI-ESM1-2-LR.*r7i1p1f1",
+        ]  # note, three of the Cal-Adapt models (precip only) use a different ensemble member
+    else:
+        paths = [
+            "CESM2.*r11i1p1f1",
+            "CNRM-ESM2-1.*r1i1p1f2",
+        ]  # note, two of the Cal-Adapt models (temperature) use a different ensemble member
+
     cat = col.search(
         table_id=copt.timescale,
         variable_id=copt.variable,
@@ -306,6 +388,15 @@ def grab_temp_data(copt):
     all_hist_mdls = hist_dsets | cal_hist_dsets
     all_ssp_mdls = ssp_dsets | cal_ssp_dsets
 
+    if alpha_sort:
+        # sort models alphabetically
+        all_hist_mdls = dict(
+            sorted(all_hist_mdls.items(), key=lambda x: x[0].split(".")[2])
+        )
+        all_ssp_mdls = dict(
+            sorted(all_ssp_mdls.items(), key=lambda x: x[0].split(".")[2])
+        )
+
     # concatenate historical data based on the model, and subset for California
     hist_ds = xr.concat(list(all_hist_mdls.values()), dim="simulation").squeeze()
     hist_ds = copt._cmip_clip(
@@ -324,6 +415,112 @@ def grab_temp_data(copt):
     )
 
     return mdls_ds
+
+
+## Grab data - internal variability analysis
+def get_ensemble_data(variable, location, cmip_names, warm_level=3.0):
+    """Returns processed data from multiple CMIP6 models for uncertainty analysis.
+
+    Searches the CMIP6 data catalog for data from models that have specific
+    ensemble member id in the historical and ssp370 runs. Preprocessing includes
+    subsetting for specific location and dropping the member_id for easier
+    analysis.
+
+    Get's future data at warming level range. Slices historical period to 1981-2010.
+
+    Parameters
+    -----------
+    variable: str
+        Name of variable
+    cmip_names: list of str
+        Name of CMIP6 simulations
+    location: LocSelectorArea
+        Location for which to subset data
+    warm_level: float, optional
+        Global warming level to use, default to 3.0
+
+    Returns
+    -------
+    xr.Dataset
+
+    """
+    # Get a list of datasets, each with one simulation (i.e. one dataset with several member_id values for CESM2, etc)
+    ssp_list = _grab_ensemble_data_by_experiment_id(
+        variable, cmip_names, location, "ssp370"
+    )
+    hist_list = _grab_ensemble_data_by_experiment_id(
+        variable, cmip_names, location, "historical"
+    )
+
+    # Reorder lists to match order of cmip_names
+    hist_list_reordered = [
+        ds for sim in cmip_names for ds in hist_list if ds.simulation.item() == sim
+    ]
+    ssp_list_reordered = [
+        ds for sim in cmip_names for ds in ssp_list if ds.simulation.item() == sim
+    ]
+
+    # Get each simulation/member_id unique combo
+    warm_ravel, hist_ravel = [], []
+    for hist_ds, ssp_ds in zip(hist_list_reordered, ssp_list_reordered):
+        # First, get each dataset by one simulation and one member ID for the historical data
+
+        # Next, using the SSP dataset, computing the data at a particular warming level, for each simulation/member_id combo
+        warm_ravel += [
+            get_warm_level(
+                warm_level, ssp_ds.sel(member_id=m), multi_ens=True, ipcc=False
+            )
+            for m in ssp_ds.member_id.values
+        ]
+        hist_ravel += [hist_ds.sel(member_id=m) for m in ssp_ds.member_id.values]
+
+    # Concatenate the lists along the member_id dimension to get a single xr.Dataset
+    hist_ds = xr.concat(hist_ravel, dim="member_id")
+
+    # print(warm_ravel)
+    warm_ravel = list(filter(lambda item: item is not None, warm_ravel))
+    warm_ds = xr.concat(warm_ravel, dim="member_id")
+
+    # ensure that we have the same members for both ds
+    warm_m_ids = warm_ds.member_id.values
+    warm_sim_mem = list(zip(warm_ds.simulation.values, warm_m_ids))
+    warm_combo_ids = [s + m for s, m in warm_sim_mem]
+    # list of unique identifiers
+    # this is needed to take the difference between projected and historical
+
+    hist_sim_mem = list(zip(hist_ds.simulation.values, hist_ds.member_id.values))
+    hist_combo_ids = [s + m for s, m in hist_sim_mem]
+    hist_ds.coords["member_id"] = hist_combo_ids
+    # assigns unique identifiers to hist_ds
+
+    hist_ds = hist_ds.sel(member_id=warm_combo_ids)
+    hist_ds.coords["member_id"] = warm_m_ids
+    # reassigns the old (normal) member_ids
+
+    # Time slice historical period
+    hist_ds = hist_ds.sel(time=slice("1981", "2010"))
+
+    # Post-processing functions to perform on both datasets
+    def _postprocess(ds, location, variable):
+        """Subset the dataset by an input location, convert variables, perform area averaging"""
+        # Perform area subsetting
+        ds_region = _get_area_subset(location=location)
+        ds = ds.rio.write_crs(4326)
+        ds = ds.rio.clip(geometries=ds_region, crs=4326, drop=True)
+
+        # Convert to mm/mon for precip data
+        if variable == "pr":
+            ds = _precip_flux_to_total(ds)
+
+        # Perform area averaging
+        if location.area_average == "Yes":
+            ds = _area_wgt_average(ds)
+        return ds
+
+    hist_ds = _postprocess(hist_ds, location, variable)
+    warm_ds = _postprocess(warm_ds, location, variable)
+
+    return hist_ds, warm_ds
 
 
 ## -----------------------------------------------------------------------------
@@ -420,3 +617,132 @@ def compute_vmin_vmax(da_min, da_max):
     else:
         sopt = None
     return vmin, vmax, sopt
+
+
+def get_ks_pval_df(sample1, sample2, sig_lvl=0.05):
+    """Performs a Kolmogorov-Smirnov test at all lat, lon points
+
+    Parameters
+    ----------
+    sample1: xr.Dataset
+        first sample for comparison
+    sample2: xr.Dataset
+        sample against which to compare sample1
+    sig_lvl: float
+        alpha level for statistical significance
+
+    Returns
+    -------
+    pd.DataFrame
+        columns are lat, lon, and p_value;
+        only retains spatial points where
+        p_value < sig_lvl
+    """
+
+    sample1 = sample1.stack(allpoints=["y", "x"]).squeeze().groupby("allpoints")
+    sample2 = sample2.stack(allpoints=["y", "x"]).squeeze().groupby("allpoints")
+
+    def ks_stat_2sample(sample1, sample2):
+        try:
+            ks = stats.kstest(sample1, sample2)
+            d_statistic = ks[0]
+            p_value = ks[1]
+        except (ValueError, ZeroDivisionError):
+            d_statistic = np.nan
+            p_value = np.nan
+
+        return d_statistic, p_value
+
+    d_statistic, p_value = xr.apply_ufunc(
+        ks_stat_2sample,
+        sample1,
+        sample2,
+        input_core_dims=[["index"], ["index"]],
+        exclude_dims=set(("index",)),
+        output_core_dims=[[], []],
+    )
+
+    p_df = p_value.dropna(dim="allpoints")
+    p_df = p_value.rename("p_value")
+    p_df = p_df.unstack("allpoints")
+    p_df = p_df.to_dataframe().reset_index()
+    p_df = p_df[["lat", "lon", "p_value"]]
+    p_df = p_df.loc[:, ["lon", "lat", "p_value"]]
+    p_df = p_df[p_df["p_value"] < sig_lvl]
+
+    return p_df
+
+
+def get_warm_level(warm_level, ds, multi_ens=False, ipcc=True):
+    """Subsets projected data centered to the year
+    that the selected warming level is reached
+    for a particular simulation/member_id
+
+    Parameters
+    ----------
+    warm_level: float or int
+        options: 1.5, 2.0, 3.0, 4.0
+    ds: xr.Dataset
+        Can only have one 'simulation' coordinate
+    multi_ens: bool, default=False
+        Set to True if passing a simulation with multiple member_id
+    ipcc: bool, default=True
+        Set to False if performing warming level analysis with
+        respect to IPCC standard baseline (1850-1900)
+
+    Returns
+    -------
+    xr.Dataset
+        Subset of projected data -14/+15 years from warming level threshold
+    """
+    try:
+        warm_level = float(warm_level)
+    except ValueError:
+        raise Exception("Please specify warming level as an integer or float.")
+
+    if warm_level not in [1.5, 2.0, 3.0, 4.0]:
+        raise Exception(
+            "Specified warming level is not valid. Options are: 1.5, 2.0, 3.0, 4.0"
+        )
+
+    if ipcc:
+        gwl_file = pkg_resources.resource_filename(
+            "climakitae", "data/gwl_1850-1900ref.csv"
+        )
+    else:
+        gwl_file = pkg_resources.resource_filename(
+            "climakitae", "data/gwl_1981-2010ref.csv"
+        )
+    gwl_times = pd.read_csv(gwl_file, index_col=[0, 1, 2])
+
+    # grab the ensemble members specific to our needs here
+    sim_idx = []
+    scenario = "ssp370"
+    simulation = str(ds.simulation.values)
+    if simulation in gwl_times.index:
+        if multi_ens:
+            sim_idx = (simulation, str(ds["member_id"].values), scenario)
+        else:
+            if simulation == "CESM2":
+                sim_idx = (simulation, "r11i1p1f1", scenario)
+            elif simulation == "CNRM-ESM2-1":
+                sim_idx = (simulation, "r1i1p1f2", scenario)
+            else:
+                sim_idx = (simulation, "r1i1p1f1", scenario)
+
+        # identify the year that the selected warming level is reached for each ensemble member
+        year_warmlevel_reached = str(gwl_times[str(warm_level)].loc[sim_idx])[:4]
+        if len(year_warmlevel_reached) != 4:
+            print(
+                "{}°C warming level not reached for {}".format(warm_level, simulation)
+            )
+        else:
+            if (int(year_warmlevel_reached) + 15) > 2100:
+                print(
+                    "End year for SSP time slice occurs after 2100;"
+                    + " skipping {}".format(simulation)
+                )
+            else:
+                year0 = str(int(year_warmlevel_reached) - 14)
+                year1 = str(int(year_warmlevel_reached) + 15)
+                return ds.sel(time=slice(year0, year1))

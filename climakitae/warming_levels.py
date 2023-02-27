@@ -1,3 +1,5 @@
+"""Helper functions for performing analyses related to global warming levels, along with backend code for building the warming levels GUI"""
+
 import hvplot.xarray
 import hvplot.pandas
 import xarray as xr
@@ -179,7 +181,7 @@ def _make_hvplot(data, clabel, clim, cmap, sopt, title, width=225, height=210):
     return _plot
 
 
-class WarmingLevels(param.Parameterized):
+class _WarmingLevels(param.Parameterized):
     """Generate warming levels panel GUI in notebook.
 
     Intended to be accessed through app.explore.warming_levels()

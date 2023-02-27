@@ -1,12 +1,6 @@
 """
-Calculates the Average Meterological Year (TMY) for the Cal-Adapt: Analytics
-Engine using a standard climatological period (1981-2010) for the historical
-baseline, and uses a 30-year window around when a designated warming level is
-exceeded for the SSP3-7.0 future scenario for 1.5°C, 2°C, and 3°C. Additional
-functionality for 4°C is forthcoming. Working Group 4 (Aug 31, 2022) version
-focuses on air temperature and relative humidity, with all variables being
-available for Analytics Engine Beta Launch. The AMY is comparable to a typical
- meteorological year, but not quite the same full methodology.
+Calculates the Average Meterological Year (AMY) and Severe Meteorological Year (SMY) for the Cal-Adapt: Analytics Engine using a standard climatological period (1981-2010) for the historical baseline, and uses a 30-year window around when a designated warming level is exceeded for the SSP3-7.0 future scenario for 1.5°C, 2°C, and 3°C. 
+The AMY is comparable to a typical meteorological year, but not quite the same full methodology.
 """
 
 ## PROCESS: average meteorological year
@@ -34,7 +28,7 @@ import param
 import panel as pn
 import warnings
 import pkg_resources
-from .utils import _read_ae_colormap, julianDay_to_str_date
+from .utils import _read_ae_colormap, _julianDay_to_str_date
 from .catalog_convert import (
     _resolution_to_gridlabel,
     _timescale_to_table_id,
@@ -202,7 +196,7 @@ def _format_meteo_yr_df(df):
     else:
         leap_year = False
     new_index = [
-        julianDay_to_str_date(julday, leap_year=leap_year, str_format="%b-%d")
+        _julianDay_to_str_date(julday, leap_year=leap_year, str_format="%b-%d")
         for julday in df.index
     ]
     df.index = pd.Index(new_index, name="Day of Year")
@@ -562,7 +556,7 @@ def lineplot_from_amy_data(
 # =========================== MAIN AVERAGE METEO YR OBJECT ==============================
 
 
-class AverageMeteorologicalYear(param.Parameterized):
+class _AverageMeteorologicalYear(param.Parameterized):
     """
     An object that holds the "Data Options" paramters for the
     explore.tmy panel.
