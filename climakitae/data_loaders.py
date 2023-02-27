@@ -381,6 +381,9 @@ def _get_data_one_var(selections, location, cat):
         selections=selections, location=location, dsets=data_dict, cat_subset=cat_subset
     )
 
+    # Assign data type attribute
+    da = da.assign_attrs({"data_type": location.data_type})
+
     return da
 
 
@@ -520,7 +523,14 @@ def _retrieve_and_format_closest_gridcell(stations_df, station_name, data):
     attrs_to_keep = {
         key: data_closest_gridcell.attrs[key]
         for key in data_closest_gridcell.attrs
-        if key not in ["resolution", "location_subset"]
+        if key
+        not in [
+            "resolution",
+            "location_subset",
+            "grid_mapping",
+            "source",
+            "institution",
+        ]
     }
     new_attrs = {
         # Presevere the gridded data's central coordinate and the name of the closest station
