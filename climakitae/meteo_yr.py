@@ -203,7 +203,7 @@ def _format_meteo_yr_df(df):
     return df
 
 
-def compute_amy(data, days_in_year=366, show_pbar=False):
+def compute_amy(data, show_pbar=False):
     """Calculates the average meteorological year based on a designated period of time
 
     Applicable for both the historical and future periods.
@@ -212,9 +212,6 @@ def compute_amy(data, days_in_year=366, show_pbar=False):
     ----------
     data: xr.DataArray
         Hourly data for one variable
-    days_in_year: int, optional
-        Either 366 or 365, depending on whether or not the year is a leap year.
-        Default to 366 days (leap year)
     show_pbar: bool, optional
         Show progress bar? Default to false.
         Progress bar is nice for using this function within a notebook.
@@ -225,6 +222,10 @@ def compute_amy(data, days_in_year=366, show_pbar=False):
         Average meteorological year table, with days of year as
         the index and hour of day as the columns.
     """
+    if True in data.time.dt.is_leap_year:
+        days_in_year = 366
+    else:
+        days_in_year = 365
     hourly_list = []
     for x in tqdm(np.arange(1, days_in_year + 1, 1), disable=not show_pbar):
         data_on_day_x = data.where(data.time.dt.dayofyear == x, drop=True)
@@ -248,7 +249,7 @@ def compute_amy(data, days_in_year=366, show_pbar=False):
     return df_amy
 
 
-def compute_severe_yr(data, days_in_year=366, show_pbar=False):
+def compute_severe_yr(data, show_pbar=False):
     """Calculate the severe meteorological year based on the 90th percentile of data.
 
     Applicable for both the historical and future periods.
@@ -257,9 +258,6 @@ def compute_severe_yr(data, days_in_year=366, show_pbar=False):
     ----------
     data: xr.DataArray
         Hourly data for one variable
-    days_in_year: int, optional
-        Either 366 or 365, depending on whether or not the year is a leap year.
-        Default to 366 days (leap year)
     show_pbar: bool, optional
         Show progress bar? Default to false.
         Progress bar is nice for using this function within a notebook.
@@ -270,6 +268,10 @@ def compute_severe_yr(data, days_in_year=366, show_pbar=False):
         Severe meteorological year table, with days of year as
         the index and hour of day as the columns.
     """
+    if True in data.time.dt.is_leap_year:
+        days_in_year = 366
+    else:
+        days_in_year = 365
     hourly_list = []
     for x in tqdm(np.arange(1, days_in_year + 1, 1), disable=not show_pbar):
         data_on_day_x = data.where(data.time.dt.dayofyear == x, drop=True)
@@ -750,10 +752,9 @@ class _AverageMeteorologicalYear(param.Parameterized):
     @param.depends("reload_data", watch=False)
     def _tmy_hourly_heatmap(self):
         # update heatmap df and title with selections
-        days_in_year = 366
         if self.data_type == "Absolute":
             if self.computation_method == "Historical":
-                df = compute_amy(self.historical_tmy_data, days_in_year=days_in_year)
+                df = compute_amy(self.historical_tmy_data)
                 title = "Average Meteorological Year: {}\nAbsolute {} Baseline".format(
                     self.location.cached_area, self.computation_method
                 )
@@ -764,7 +765,7 @@ class _AverageMeteorologicalYear(param.Parameterized):
                     + ")"
                 )
             else:
-                df = compute_amy(self.future_tmy_data, days_in_year=days_in_year)
+                df = compute_amy(self.future_tmy_data)
                 title = "Average Meteorological Year: {}\nAbsolute {} at {}°C".format(
                     self.location.cached_area, self.computation_method, self.warmlevel
                 )
@@ -772,17 +773,17 @@ class _AverageMeteorologicalYear(param.Parameterized):
         elif self.data_type == "Difference":
             cmap = _read_ae_colormap("ae_diverging", cmap_hex=True)
             if self.computation_method == "Warming Level Future":
-                df = compute_amy(
-                    self.future_tmy_data, days_in_year=days_in_year
-                ) - compute_amy(self.historical_tmy_data, days_in_year=days_in_year)
+                df = compute_amy(self.future_tmy_data) - compute_amy(
+                    self.historical_tmy_data
+                )
                 title = "Average Meteorological Year: {}\nDifference between {} at {}°C and Historical Baseline".format(
                     self.location.cached_area, self.computation_method, self.warmlevel
                 )
                 clabel = self.selections.variable + " (" + self.selections.units + ")"
             else:
-                df = compute_severe_yr(
-                    self.future_tmy_data, days_in_year=days_in_year
-                ) - compute_amy(self.historical_tmy_data, days_in_year=days_in_year)
+                df = compute_severe_yr(self.future_tmy_data) - compute_amy(
+                    self.historical_tmy_data
+                )
                 title = "Severe Meteorological Year: {}\nDifference between {} at 90th percentile and Historical Baseline".format(
                     self.location.cached_area, self.computation_method
                 )
