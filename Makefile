@@ -1,7 +1,23 @@
-local:
-	docker run -it --rm --volume "$(PWD)":/home/jovyan -p 8888:8888 \
-		-e AWS_ACCESS_KEY_ID=$(AWS_ACCESS_KEY_ID) -e AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY) \
-		--volume "/Users/machinepro/Documents/my_documents/projects/python/cal-adapt-ae/climakitae/climakitae":/home/jovyan/climakitae \
-		pangeo/pangeo-notebook:2021.10.19 jupyter lab --ip 0.0.0.0
+PKGNAME = climakitae
+PYTHON ?= python
 
+check:
+	$(PYTHON) -m unittest discover -v
 
+clean:
+	rm -rf build dist *.egg-info
+	find $(PKGNAME) -iname '*.py[co]' -delete
+
+deps:
+	pip install -r requirements.txt
+
+dist: clean
+	$(PYTHON) setup.py sdist
+
+html:
+	rm -f docs/$(PKGNAME).rst docs/modules.rst
+	sphinx-apidoc -o docs $(PKGNAME)
+	@$(MAKE) -C docs html
+
+serve-docs: html
+	cd docs/_build/html && python -m http.server
