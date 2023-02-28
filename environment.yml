@@ -3,9 +3,9 @@ name: climakitae-tests
 channels:
   - conda-forge
 dependencies:
-  - python=3.9.7
-  - cartopy=0.21.1
-  - dask-gateway=2023.1.1
+  - python
+  - cartopy
+  - dask-gateway
   - dask-geopandas
   - geopandas
   - geoviews
