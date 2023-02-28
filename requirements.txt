@@ -20,6 +20,6 @@ pyproj==3.4.1
 pytest==7.2.1
 rioxarray==0.13.3
 s3fs==2022.11.0
-scipy==1.10.0
+scipy>=1.2.0
 shapely==1.8.5
 xclim==0.41.0
