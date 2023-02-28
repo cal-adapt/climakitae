@@ -5,7 +5,7 @@ geopandas==0.12.2
 geoviews==1.9.6
 holoviews==1.15.4
 hvplot==0.8.2
-intake==0.4.0
+intake==0.6.6
 intake-xarray==0.6.1
 intake-esm==2022.9.18
 jinja2==3.1.2
