@@ -208,7 +208,7 @@ def compute_amy(data, days_in_year=366, show_pbar=False):
 
     def return_diurnal(y):
         return y.groupby("time.hour").apply(closest_to_mean)
-        
+
     hourly_da = data.groupby("time.dayofyear").apply(return_diurnal)
 
     # Funnel data into pandas DataFrame object
@@ -252,7 +252,7 @@ def compute_severe_yr(data, days_in_year=366, show_pbar=False):
 
     def return_diurnal(y):
         return y.groupby("time.hour").apply(closest_to_quantile)
-        
+
     hourly_da = data.groupby("time.dayofyear").apply(return_diurnal)
 
     ## Funnel data into pandas DataFrame object
