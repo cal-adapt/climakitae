@@ -147,32 +147,6 @@ def _retrieve_meteo_yr_data(
 
 # =========================== HELPER FUNCTIONS: AMY/TMY CALCULATION ==============================
 
-
-def _remove_repeats(xr_data):
-    """
-    Remove hours that have repeats.
-    This occurs if two hours have the same absolute difference from the mean.
-    Returns numpy array
-    """
-    unq, unq_idx, unq_cnt = np.unique(
-        xr_data.time.dt.hour.values, return_inverse=True, return_counts=True
-    )
-    cnt_mask = unq_cnt > 1
-    (cnt_idx,) = np.nonzero(cnt_mask)
-    idx_mask = np.in1d(unq_idx, cnt_idx)
-    (idx_idx,) = np.nonzero(idx_mask)
-    srt_idx = np.argsort(unq_idx[idx_mask])
-    dup_idx = np.split(idx_idx[srt_idx], np.cumsum(unq_cnt[cnt_mask])[:-1])
-    if len(dup_idx[0]) > 0:
-        dup_idx_keep_first_val = np.concatenate(
-            [dup_idx[x][1:] for x in range(len(dup_idx))], axis=0
-        )
-        cleaned_np = np.delete(xr_data.values, dup_idx_keep_first_val)
-        return cleaned_np
-    else:
-        return xr_data.values
-
-
 def _format_meteo_yr_df(df):
     """Format dataframe output from compute_amy and compute_severe_yr"""
     ## Re-order columns for PST, with easy to read time labels
@@ -225,21 +199,22 @@ def compute_amy(data, days_in_year=366, show_pbar=False):
         Average meteorological year table, with days of year as
         the index and hour of day as the columns.
     """
-    hourly_list = []
-    for x in tqdm(np.arange(1, days_in_year + 1, 1), disable=not show_pbar):
-        data_on_day_x = data.where(data.time.dt.dayofyear == x, drop=True)
-        data_grouped = data_on_day_x.groupby("time.hour")
-        mean_by_hour = data_grouped.mean()
-        min_diff = abs(data_grouped - mean_by_hour).groupby("time.hour").min()
-        typical_hourly_data_on_day_x = data_on_day_x.where(
-            abs(data_grouped - mean_by_hour).groupby("time.hour") == min_diff, drop=True
-        ).sortby("time.hour")
-        np_typical_hourly_data_on_day_x = _remove_repeats(typical_hourly_data_on_day_x)
-        hourly_list.append(np_typical_hourly_data_on_day_x)
+        
+    def closest_to_mean(dat):
+        stacked = dat.stack(allofit=list(dat.dims))
+        index = abs(stacked - stacked.mean('allofit')).argmin().values
+        return xr.DataArray(stacked.isel(allofit=index).values)
 
+    def return_diurnal(y):
+        to_return = y.groupby('time.hour').apply(closest_to_mean)
+        #print (to_return.shape)
+        return to_return
+
+    hourly_da = data.groupby('time.dayofyear').apply(return_diurnal)
+    
     # Funnel data into pandas DataFrame object
     df_amy = pd.DataFrame(
-        hourly_list,
+        hourly_da, #hourly DataArray,
         columns=np.arange(1, 25, 1),
         index=np.arange(1, days_in_year + 1, 1),
     )
@@ -270,22 +245,22 @@ def compute_severe_yr(data, days_in_year=366, show_pbar=False):
         Severe meteorological year table, with days of year as
         the index and hour of day as the columns.
     """
-    hourly_list = []
-    for x in tqdm(np.arange(1, days_in_year + 1, 1), disable=not show_pbar):
-        data_on_day_x = data.where(data.time.dt.dayofyear == x, drop=True)
-        data_grouped = data_on_day_x.groupby("time.hour")
-        severe_by_hour = data_grouped.quantile(q=0.90)
-        min_diff = abs(data_grouped - severe_by_hour).groupby("time.hour").min()
-        typical_hourly_data_on_day_x = data_on_day_x.where(
-            abs(data_grouped - severe_by_hour).groupby("time.hour") == min_diff,
-            drop=True,
-        ).sortby("time.hour")
-        np_typical_hourly_data_on_day_x = _remove_repeats(typical_hourly_data_on_day_x)
-        hourly_list.append(np_typical_hourly_data_on_day_x)
+            
+    def closest_to_quantile(dat):
+        stacked = dat.stack(allofit=list(dat.dims))
+        index = abs(stacked - stacked.quantile(q=0.90,dim='allofit')).argmin().values
+        return xr.DataArray(stacked.isel(allofit=index).values)
+
+    def return_diurnal(y):
+        to_return = y.groupby('time.hour').apply(closest_to_quantile)
+        #print (to_return.shape)
+        return to_return
+
+    hourly_da = data.groupby('time.dayofyear').apply(return_diurnal)
 
     ## Funnel data into pandas DataFrame object
     df_severe_yr = pd.DataFrame(
-        hourly_list,
+        hourly_da,
         columns=np.arange(1, 25, 1),
         index=np.arange(1, days_in_year + 1, 1),
     )
