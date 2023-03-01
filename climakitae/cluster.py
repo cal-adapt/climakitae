@@ -18,7 +18,8 @@ class Cluster(GatewayCluster):
     >>> cluster # Output cluster information
 
     """
-    extra_packages = ['git+https://github.com/cal-adapt/climakitae.git']
+
+    extra_packages = ["git+https://github.com/cal-adapt/climakitae.git"]
 
     def get_client(self, set_as_default=True):
         """Get client
