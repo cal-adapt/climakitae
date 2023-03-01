@@ -651,7 +651,7 @@ def _get_simulation_options(cat, activity_id, table_id, grid_label, experiment_i
 
     # Get all unique simulation options from catalog selection
     try:
-        simulation_options = cat_subset.unique()["source_id"]["values"]
+        simulation_options = cat_subset.unique()["source_id"]
         if "ensmean" in simulation_options:
             simulation_options.remove("ensmean")  # Remove ensemble means
     except:
@@ -768,11 +768,11 @@ class _DataSelector(param.Parameterized):
             table_id=_timescale_to_table_id(self.timescale),
             grid_label=_resolution_to_gridlabel(self.resolution),
         )
-        self.unique_variable_ids = self.cat_subset.unique()["variable_id"]["values"]
+        self.unique_variable_ids = self.cat_subset.unique()["variable_id"]
 
         # Get variable options to display to user
         # This will further subset the variable options from
-        # self.cat_subset.unique()["variable_id"]["values"], only showing
+        # self.cat_subset.unique()["variable_id"], only showing
         # the user certain variables within that list dependent upon the
         # settings in var_catalog
         self.variable_options_df = _get_variable_options_df(
@@ -785,7 +785,7 @@ class _DataSelector(param.Parameterized):
         # Set scenario param
         scenario_ssp_options = [
             _scenario_to_experiment_id(scen, reverse=True)
-            for scen in self.cat_subset.unique()["experiment_id"]["values"]
+            for scen in self.cat_subset.unique()["experiment_id"]
             if "ssp" in scen
         ]
         for scenario_i in [
@@ -830,16 +830,19 @@ class _DataSelector(param.Parameterized):
         self._data_warning = ""
 
     @param.depends("location.data_type", watch=True)
-    def _update_res_and_area_average_based_on_data_type(self):
+    def _update_options_average_based_on_data_type(self):
         if self.location.data_type == "Station":
             self.param["resolution"].objects = ["3 km", "9 km"]
             self.resolution = "3 km"
             self.param["area_average"].objects = ["n/a"]
             self.area_average = "n/a"
+            self.param["timescale"].objects = ["hourly"]
+            self.timescale = "hourly"
         elif self.location.data_type == "Gridded":
             self.param["resolution"].objects = ["3 km", "9 km", "45 km"]
             self.param["area_average"].objects = ["Yes", "No"]
             self.area_average = "No"
+            self.param["timescale"].objects = ["hourly", "daily", "monthly"]
 
     @param.depends("timescale", "resolution", "location.data_type", watch=True)
     def _update_var_options(self):
@@ -851,7 +854,7 @@ class _DataSelector(param.Parameterized):
             table_id=_timescale_to_table_id(self.timescale),
             grid_label=_resolution_to_gridlabel(self.resolution),
         )
-        self.unique_variable_ids = self.cat_subset.unique()["variable_id"]["values"]
+        self.unique_variable_ids = self.cat_subset.unique()["variable_id"]
         self.variable_options_df = _get_variable_options_df(
             var_catalog=var_catalog,
             unique_variable_ids=self.unique_variable_ids,
@@ -944,7 +947,7 @@ class _DataSelector(param.Parameterized):
         # Get scenario options in catalog format
         scenario_ssp_options = [
             _scenario_to_experiment_id(scen, reverse=True)
-            for scen in self.cat_subset.unique()["experiment_id"]["values"]
+            for scen in self.cat_subset.unique()["experiment_id"]
             if "ssp" in scen
         ]
         for scenario_i in [
