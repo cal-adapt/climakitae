@@ -147,6 +147,7 @@ def _retrieve_meteo_yr_data(
 
 # =========================== HELPER FUNCTIONS: AMY/TMY CALCULATION ==============================
 
+
 def _format_meteo_yr_df(df):
     """Format dataframe output from compute_amy and compute_severe_yr"""
     ## Re-order columns for PST, with easy to read time labels
@@ -199,22 +200,22 @@ def compute_amy(data, days_in_year=366, show_pbar=False):
         Average meteorological year table, with days of year as
         the index and hour of day as the columns.
     """
-        
+
     def closest_to_mean(dat):
         stacked = dat.stack(allofit=list(dat.dims))
-        index = abs(stacked - stacked.mean('allofit')).argmin().values
+        index = abs(stacked - stacked.mean("allofit")).argmin().values
         return xr.DataArray(stacked.isel(allofit=index).values)
 
     def return_diurnal(y):
-        to_return = y.groupby('time.hour').apply(closest_to_mean)
-        #print (to_return.shape)
+        to_return = y.groupby("time.hour").apply(closest_to_mean)
+        # print (to_return.shape)
         return to_return
 
-    hourly_da = data.groupby('time.dayofyear').apply(return_diurnal)
-    
+    hourly_da = data.groupby("time.dayofyear").apply(return_diurnal)
+
     # Funnel data into pandas DataFrame object
     df_amy = pd.DataFrame(
-        hourly_da, #hourly DataArray,
+        hourly_da,  # hourly DataArray,
         columns=np.arange(1, 25, 1),
         index=np.arange(1, days_in_year + 1, 1),
     )
@@ -245,18 +246,18 @@ def compute_severe_yr(data, days_in_year=366, show_pbar=False):
         Severe meteorological year table, with days of year as
         the index and hour of day as the columns.
     """
-            
+
     def closest_to_quantile(dat):
         stacked = dat.stack(allofit=list(dat.dims))
-        index = abs(stacked - stacked.quantile(q=0.90,dim='allofit')).argmin().values
+        index = abs(stacked - stacked.quantile(q=0.90, dim="allofit")).argmin().values
         return xr.DataArray(stacked.isel(allofit=index).values)
 
     def return_diurnal(y):
-        to_return = y.groupby('time.hour').apply(closest_to_quantile)
-        #print (to_return.shape)
+        to_return = y.groupby("time.hour").apply(closest_to_quantile)
+        # print (to_return.shape)
         return to_return
 
-    hourly_da = data.groupby('time.dayofyear').apply(return_diurnal)
+    hourly_da = data.groupby("time.dayofyear").apply(return_diurnal)
 
     ## Funnel data into pandas DataFrame object
     df_severe_yr = pd.DataFrame(
