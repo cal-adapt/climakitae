@@ -1325,7 +1325,7 @@ def _display_select(selections, location, map_view):
             name="Weather station",
         ),
         pn.widgets.CheckBoxGroup.from_param(location.param.station, name=""),
-        width=260,
+        width=270,
     )
     loc_choices = pn.Row(col_1_location, col_2_location)
 
