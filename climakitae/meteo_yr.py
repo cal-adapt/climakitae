@@ -207,10 +207,8 @@ def compute_amy(data, days_in_year=366, show_pbar=False):
         return xr.DataArray(stacked.isel(allofit=index).values)
 
     def return_diurnal(y):
-        to_return = y.groupby("time.hour").apply(closest_to_mean)
-        # print (to_return.shape)
-        return to_return
-
+        return y.groupby("time.hour").apply(closest_to_mean)
+        
     hourly_da = data.groupby("time.dayofyear").apply(return_diurnal)
 
     # Funnel data into pandas DataFrame object
@@ -253,10 +251,8 @@ def compute_severe_yr(data, days_in_year=366, show_pbar=False):
         return xr.DataArray(stacked.isel(allofit=index).values)
 
     def return_diurnal(y):
-        to_return = y.groupby("time.hour").apply(closest_to_quantile)
-        # print (to_return.shape)
-        return to_return
-
+        return y.groupby("time.hour").apply(closest_to_quantile)
+        
     hourly_da = data.groupby("time.dayofyear").apply(return_diurnal)
 
     ## Funnel data into pandas DataFrame object
