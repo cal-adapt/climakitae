@@ -769,12 +769,6 @@ class _DataSelector(param.Parameterized):
             grid_label=_resolution_to_gridlabel(self.resolution),
         )
         self.unique_variable_ids = self.cat_subset.unique()["variable_id"]
-
-        # Get variable options to display to user
-        # This will further subset the variable options from
-        # self.cat_subset.unique()["variable_id"], only showing
-        # the user certain variables within that list dependent upon the
-        # settings in var_catalog
         self.variable_options_df = _get_variable_options_df(
             var_catalog=var_catalog,
             unique_variable_ids=self.unique_variable_ids,
