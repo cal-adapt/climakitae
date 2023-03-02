@@ -830,18 +830,28 @@ class _DataSelector(param.Parameterized):
         self._data_warning = ""
 
     @param.depends("location.data_type", watch=True)
-    def _update_options_average_based_on_data_type(self):
+    def _update_res_based_on_data_type(self):
         if self.location.data_type == "Station":
             self.param["resolution"].objects = ["3 km", "9 km"]
             self.resolution = "3 km"
+        elif self.location.data_type == "Gridded":
+            self.param["resolution"].objects = ["3 km", "9 km", "45 km"]
+
+    @param.depends("location.data_type", watch=True)
+    def _update_area_average_based_on_data_type(self):
+        if self.location.data_type == "Station":
             self.param["area_average"].objects = ["n/a"]
             self.area_average = "n/a"
+        elif self.location.data_type == "Gridded":
+            self.param["area_average"].objects = ["Yes", "No"]
+            self.area_average = "No"
+
+    @param.depends("location.data_type", watch=True)
+    def _update_timescale_based_on_data_type(self):
+        if self.location.data_type == "Station":
             self.param["timescale"].objects = ["hourly"]
             self.timescale = "hourly"
         elif self.location.data_type == "Gridded":
-            self.param["resolution"].objects = ["3 km", "9 km", "45 km"]
-            self.param["area_average"].objects = ["Yes", "No"]
-            self.area_average = "No"
             self.param["timescale"].objects = ["hourly", "daily", "monthly"]
 
     @param.depends("timescale", "resolution", "location.data_type", watch=True)
@@ -1071,7 +1081,7 @@ class _DataSelector(param.Parameterized):
         Displays a timeline to help the user visualize the time ranges
         available, and the subset of time slice selected.
         """
-        fig0 = Figure(figsize=(3, 1.75))
+        fig0 = Figure(figsize=(3, 2))
         ax = fig0.add_subplot(111)
         ax.spines["right"].set_color("none")
         ax.spines["left"].set_color("none")

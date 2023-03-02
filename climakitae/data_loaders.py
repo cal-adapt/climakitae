@@ -11,6 +11,8 @@ import psutil
 import warnings
 from ast import literal_eval
 from shapely.geometry import box
+from xclim.core.calendar import convert_calendar
+from xclim.sdba.adjustment import QuantileDeltaMapping
 from .catalog_convert import (
     _downscaling_method_to_activity_id,
     _resolution_to_gridlabel,
@@ -319,7 +321,7 @@ def _get_data_one_var(selections, location, cat):
         # Get catalog subset for a set of user selections
         cat_subset = _get_cat_subset(selections=selections, cat=cat)
 
-        # Read data from AWS.
+        # Read data from AWS
         data_dict = cat_subset.to_dataset_dict(
             zarr_kwargs={"consolidated": True},
             storage_options={"anon": True},
@@ -422,6 +424,22 @@ def _read_catalog_from_select(selections, location, cat):
             "Please select at least one weather station, or retrieve gridded data."
         )
 
+    # For station data, need to expand time slice to ensure the historical period is included
+    # At the end, the data will be cut back down to the user's original selection
+    if location.data_type == "Station":
+        original_time_slice = selections.time_slice  # Preserve original user selections
+        original_scenario_historical = selections.scenario_historical.copy()
+        if "Historical Climate" not in selections.scenario_historical:
+            selections.scenario_historical.append("Historical Climate")
+        obs_data_bounds = (
+            1980,
+            2010,
+        )  # Bounds of the observational data used in bias-correction
+        if original_time_slice[0] > obs_data_bounds[0]:
+            selections.time_slice = (obs_data_bounds[0], original_time_slice[1])
+        if original_time_slice[1] < obs_data_bounds[1]:
+            selections.time_slice = (selections.time_slice[0], obs_data_bounds[1])
+
     # Deal with derived variables
     orig_var_id_selection = selections.variable_id
     orig_variable_selection = selections.variable
@@ -472,19 +490,125 @@ def _read_catalog_from_select(selections, location, cat):
         da = _get_data_one_var(selections, location, cat)
 
     da = _convert_units(da=da, selected_units=selections.units)  # Convert units
-
     if location.data_type == "Station":
         stations_da_list = []
         for station in location.station:
+            # Retrieve the closest gridcell to the weather station
             da_closest_gridcell = _retrieve_and_format_closest_gridcell(
                 stations_df, station, da
             )
+            # Bias correct using historical station data
+            bias_correct = True
+            if bias_correct == True:
+                da_closest_gridcell = _bias_correct_backend(
+                    stations_df,
+                    station,
+                    da_closest_gridcell,
+                    original_time_slice,
+                )
+            # Drop coordinates that aren't also dimensions
+            da_closest_gridcell = da_closest_gridcell.drop(
+                [
+                    i
+                    for i in da_closest_gridcell.coords
+                    if i not in da_closest_gridcell.dims
+                ]
+            )
             stations_da_list.append(da_closest_gridcell)
-        da = xr.merge(
-            stations_da_list, combine_attrs="drop_conflicts"
-        )  # Merge all stations to form a single object
+
+        # Merge all stations to form a single object
+        da = xr.merge(stations_da_list, combine_attrs="drop_conflicts")
+
+        # Reset original selections
+        if "Historical Climate" not in original_scenario_historical:
+            selections.scenario_historical.remove("Historical Climate")
+            da["scenario"] = [x.split("Historical + ")[1] for x in da.scenario.values]
+        selections.time_slice = original_time_slice
 
     return da
+
+
+def _bias_correct_backend(
+    stations_df,
+    station_name,
+    da,
+    time_slice,
+    nquantiles=20,
+    group="time.dayofyear",
+    kind="+",
+):
+    """Bias correct the gridded data using observational station data.
+    Retrieves the appropriate zarr store corresponding to the station name from the AE bucket.
+
+    Parameters
+    ----------
+    stations_df: pd.DataFrame
+        Weather station names and coordinates
+    station_name: str
+        Name of weather station to use
+        Must directly correspond to a value in the "station" column of stations_gpd
+    data: xr.DataArray
+        Gridded data
+
+    Returns
+    -------
+    xr.DataArray
+    """
+    # Get the path to the zarr store using the station ID
+    station_row = stations_df.loc[stations_df["station"] == station_name]
+    station_id = str(station_row["station id"].item())
+    s3_path = "s3://cadcat/tmp/hadisd/HadISD_" + station_id + ".zarr"
+    # Open the zarr store
+    obs_da = xr.open_dataset(
+        s3_path,
+        engine="zarr",
+        consolidated=False,
+        backend_kwargs=dict(storage_options={"anon": True}),
+    ).tas
+    # Convert units to whatever the gridded data units are
+    obs_da = _convert_obs_da_units(obs_da, da.units)
+    # Rechunk data. Cannot be chunked along time dimension
+    # Error raised by xclim: ValueError: Multiple chunks along the main adjustment dimension time is not supported.
+    da = da.chunk(dict(time=-1))
+    # Convert calendar to no leap year
+    obs_da = convert_calendar(obs_da, "noleap")
+    da = convert_calendar(da, "noleap")
+    # Data at the desired time slice
+    data_sliced = da.sel(time=slice(str(time_slice[0]), str(time_slice[1])))
+    # Get QDS
+    QDM = QuantileDeltaMapping.train(
+        obs_da,
+        # Input data, sliced to time period of observational data
+        da.sel(
+            time=slice(
+                str(obs_da.time.values[0].year), str(obs_da.time.values[-1].year)
+            )
+        ),
+        nquantiles=nquantiles,
+        group=group,
+        kind=kind,
+    )
+    # Bias correct the data
+    da_adj = QDM.adjust(data_sliced)
+    da_adj.name = da.name  # Rename it to get back to original name
+    return da_adj
+
+
+def _convert_obs_da_units(obs_data, new_units):
+    """Observational data is in degrees Celcius.
+    Convert to correct units.
+    Must be converted to Kelvin first to user _convert_units function
+    """
+    if obs_data.units != "degC":
+        raise ValueError(
+            "Expected observational data to have units of degC, but found other units. Unable to perform unit conversion. Consult code base and raw data."
+        )
+    if obs_data.units != new_units:
+        obs_data = obs_data + 273.15  # Convert Celcius to Kelvin
+        obs_data.attrs["units"] = "K"
+        if new_units != "K":
+            obs_data = _convert_units(obs_data, new_units)
+    return obs_data
 
 
 def _retrieve_and_format_closest_gridcell(stations_df, station_name, data):
@@ -540,18 +664,9 @@ def _retrieve_and_format_closest_gridcell(stations_df, station_name, data):
         ),
         "variable": data_closest_gridcell.name,
     }
-    da_cleaned = (
-        data_closest_gridcell.drop(  # Drop coordinates that aren't also dimensions
-            [
-                i
-                for i in data_closest_gridcell.coords
-                if i not in data_closest_gridcell.dims
-            ]
-        )
-    )
-    da_cleaned.attrs = attrs_to_keep | new_attrs  # Reassign attributes
-    da_cleaned.name = station_name  # Make the name the station name
-    return da_cleaned
+    data_closest_gridcell.attrs = attrs_to_keep | new_attrs  # Reassign attributes
+    data_closest_gridcell.name = station_name  # Make the name the station name
+    return data_closest_gridcell
 
 
 # ============ Retrieve data from a csv input ===============
