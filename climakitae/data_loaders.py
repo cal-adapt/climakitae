@@ -389,7 +389,7 @@ def _get_data_one_var(selections, location, cat):
     return da
 
 
-def _read_catalog_from_select(selections, location, cat):
+def _read_catalog_from_select(selections, location, cat, loop=False):
     """The primary and first data loading method, called by
     core.Application.retrieve, it returns a DataArray (which can be quite large)
     containing everything requested by the user (which is stored in 'selections'
@@ -491,40 +491,159 @@ def _read_catalog_from_select(selections, location, cat):
 
     da = _convert_units(da=da, selected_units=selections.units)  # Convert units
     if location.data_type == "Station":
-        stations_da_list = []
-        for station in location.station:
-            # Retrieve the closest gridcell to the weather station
-            da_closest_gridcell = _retrieve_and_format_closest_gridcell(
-                stations_df, station, da
-            )
-            # Bias correct using historical station data
-            bias_correct = True
-            if bias_correct == True:
-                da_closest_gridcell = _bias_correct_backend(
-                    stations_df,
-                    station,
-                    da_closest_gridcell,
-                    original_time_slice,
-                )
-            # Drop coordinates that aren't also dimensions
-            da_closest_gridcell = da_closest_gridcell.drop(
-                [
-                    i
-                    for i in da_closest_gridcell.coords
-                    if i not in da_closest_gridcell.dims
-                ]
-            )
-            stations_da_list.append(da_closest_gridcell)
-
-        # Merge all stations to form a single object
-        da = xr.merge(stations_da_list, combine_attrs="drop_conflicts")
-
+        if loop:
+            da = _station_loop(location, da, stations_df, original_time_slice)
+        else:
+            da = _station_apply(location, da, stations_df, original_time_slice)
         # Reset original selections
         if "Historical Climate" not in original_scenario_historical:
             selections.scenario_historical.remove("Historical Climate")
             da["scenario"] = [x.split("Historical + ")[1] for x in da.scenario.values]
         selections.time_slice = original_time_slice
 
+    return da
+
+
+# USE XR APPLY TO GET BIAS CORRECTED DATA TO STATION
+
+
+def _station_apply(location, da, stations_df, original_time_slice):
+    # Grab zarr data
+    station_subset = stations_df.loc[stations_df["station"].isin(location.station)]
+    filepaths = [
+        "s3://cadcat/tmp/hadisd/HadISD_{}.zarr".format(s_id)
+        for s_id in station_subset["station id"]
+    ]
+
+    station_ds = xr.open_mfdataset(
+        filepaths,
+        preprocess=_preprocess_hadisd,
+        engine="zarr",
+        consolidated=False,
+        parallel=True,
+        backend_kwargs=dict(storage_options={"anon": True}),
+    )
+    apply_output = station_ds.apply(
+        _bias_corrected_closest_gridcell,
+        keep_attrs=False,
+        gridded_da=da,
+        time_slice=original_time_slice,
+    )
+    return apply_output
+
+
+def _bias_corrected_closest_gridcell(station_da, gridded_da, time_slice):
+    """Get the closest gridcell to a weather station.
+    Bias correct the data using historical station data
+    """
+    gridded_da_closest_gridcell = _closest_gridcell(station_da, gridded_da)
+    bias_corrected = _bias_correct(station_da, gridded_da_closest_gridcell, time_slice)
+    bias_corrected.attrs["station_coordinates"] = station_da.attrs["coordinates"]
+    bias_corrected.attrs["station_elevation"] = station_da.attrs["elevation"]
+    return bias_corrected
+
+
+def _closest_gridcell(station_da, gridded_da):
+    """Find the closest gridcell to station coordinates"""
+    lat, lon = station_da.attrs["coordinates"]
+    da_closest_gridcell = get_closest_gridcell(gridded_da, lat, lon, print_coords=False)
+    da_closest_gridcell = da_closest_gridcell.drop(
+        [i for i in da_closest_gridcell.coords if i not in da_closest_gridcell.dims]
+    )
+    return da_closest_gridcell
+
+
+def _bias_correct(
+    obs_da, gridded_da, time_slice, nquantiles=20, group="time.dayofyear", kind="+"
+):
+    """Bias correct model data using observational station data"""
+    # Convert units to whatever the gridded data units are
+    obs_da = _convert_units(obs_da, gridded_da.units)
+    # Rechunk data. Cannot be chunked along time dimension
+    # Error raised by xclim: ValueError: Multiple chunks along the main adjustment dimension time is not supported.
+    gridded_da = gridded_da.chunk(dict(time=-1))
+    obs_da = obs_da.chunk(dict(time=-1))
+    # Convert calendar to no leap year
+    obs_da = convert_calendar(obs_da, "noleap")
+    gridded_da = convert_calendar(gridded_da, "noleap")
+    # Data at the desired time slice
+    data_sliced = gridded_da.sel(time=slice(str(time_slice[0]), str(time_slice[1])))
+    # Get QDS
+    QDM = QuantileDeltaMapping.train(
+        obs_da,
+        # Input data, sliced to time period of observational data
+        gridded_da.sel(
+            time=slice(
+                str(obs_da.time.values[0].year), str(obs_da.time.values[-1].year)
+            )
+        ),
+        nquantiles=nquantiles,
+        group=group,
+        kind=kind,
+    )
+    # Bias correct the data
+    da_adj = QDM.adjust(data_sliced)
+    da_adj.name = gridded_da.name  # Rename it to get back to original name
+    return da_adj
+
+
+def _preprocess_hadisd(ds):
+    # Get station ID from file name
+    station_id = ds.encoding["source"].split("HadISD_")[1].split(".zarr")[0]
+    # Get name of station from station_id
+    station_name = stations_df.loc[stations_df["station id"] == int(station_id)][
+        "station"
+    ].item()
+    # Rename data variable to station name
+    ds = ds.rename({"tas": station_name})
+    # Convert Celcius to Kelvin
+    ds[station_name] = ds[station_name] + 273.15
+    # Assign descriptive attributes to the data variable
+    ds[station_name] = ds[station_name].assign_attrs(
+        {
+            "coordinates": (
+                ds.latitude.values.item(),
+                ds.longitude.values.item(),
+            ),
+            "elevation": "{0} {1}".format(
+                ds.elevation.item(), ds.elevation.attrs["units"]
+            ),
+            "units": "K",
+        }
+    )
+    # Drop all coordinates except time
+    ds = ds.drop(["elevation", "latitude", "longitude"])
+    return ds
+
+
+#### LOOP THROUGH EACH STATION INSTEAD
+
+
+def _station_loop(location, da, stations_df, original_time_slice):
+    """Get the closest gridcell, perform bias correction using a for loop"""
+    stations_da_list = []
+    for station in location.station:
+        # Retrieve the closest gridcell to the weather station
+        da_closest_gridcell = _retrieve_and_format_closest_gridcell(
+            stations_df, station, da
+        )
+        # Bias correct using historical station data
+        bias_correct = True
+        if bias_correct == True:
+            da_closest_gridcell = _bias_correct_backend(
+                stations_df,
+                station,
+                da_closest_gridcell,
+                original_time_slice,
+            )
+        # Drop coordinates that aren't also dimensions
+        da_closest_gridcell = da_closest_gridcell.drop(
+            [i for i in da_closest_gridcell.coords if i not in da_closest_gridcell.dims]
+        )
+        stations_da_list.append(da_closest_gridcell)
+
+    # Merge all stations to form a single object
+    da = xr.merge(stations_da_list, combine_attrs="drop_conflicts")
     return da
 
 
