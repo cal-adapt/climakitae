@@ -492,8 +492,10 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
     da = _convert_units(da=da, selected_units=selections.units)  # Convert units
     if location.data_type == "Station":
         if loop:
+            print("Retrieving station data using a for loop") 
             da = _station_loop(location, da, stations_df, original_time_slice)
         else:
+            print("Retrieving station data using xr.apply") 
             da = _station_apply(location, da, stations_df, original_time_slice)
         # Reset original selections
         if "Historical Climate" not in original_scenario_historical:
