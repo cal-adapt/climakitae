@@ -1,5 +1,6 @@
 """Wrapper for creating a Dask Gateway Cluster"""
 
+from dask.distributed import PipInstall
 from dask_gateway import Gateway, GatewayCluster
 
 
@@ -18,6 +19,8 @@ class Cluster(GatewayCluster):
 
     """
 
+    extra_packages = ["git+https://github.com/cal-adapt/climakitae.git"]
+
     def get_client(self, set_as_default=True):
         """Get client
 
@@ -31,5 +34,9 @@ class Cluster(GatewayCluster):
             cluster = self.gateway.connect(clusters.pop().name, shutdown_on_close=True)
             for c in clusters:
                 self.gateway.stop_cluster(c.name)
-            return cluster.get_client()
-        return super().get_client(set_as_default)
+            client = cluster.get_client()
+        else:
+            client = super().get_client(set_as_default)
+        plugin = PipInstall(packages=self.extra_packages)
+        client.register_worker_plugin(plugin)
+        return client
