@@ -725,7 +725,7 @@ class _DataSelector(param.Parameterized):
     time_slice = param.Range(default=(1980, 2015), bounds=(1950, 2100))
     resolution = param.ObjectSelector(default="9 km", objects=["3 km", "9 km", "45 km"])
     timescale = param.ObjectSelector(
-        default="monthly", objects=["hourly", "daily", "monthly"]
+        default="monthly", objects=["monthly", "daily", "hourly"]
     )
     scenario_historical = param.ListSelector(
         default=["Historical Climate"],
@@ -737,7 +737,7 @@ class _DataSelector(param.Parameterized):
         doc="""Compute an area average?""",
     )
     downscaling_method = param.ListSelector(
-        default=["Dynamical"], objects=["Dynamical", "Statistical (available soon)"]
+        default=["Dynamical"], objects=["Dynamical", "Statistical"]
     )
 
     # Empty params, initialized in __init__
@@ -846,25 +846,49 @@ class _DataSelector(param.Parameterized):
             self.param["timescale"].objects = ["hourly"]
             self.timescale = "hourly"
         elif self.location.data_type == "Gridded":
-            self.param["timescale"].objects = ["hourly", "daily", "monthly"]
+            self.param["timescale"].objects = ["monthly", "daily", "hourly"]
 
-    @param.depends("timescale", "resolution", "location.data_type", watch=True)
+    @param.depends(
+        "timescale",
+        "resolution",
+        "downscaling_method",
+        "location.data_type",
+        watch=True,
+    )
     def _update_var_options(self):
         """Update unique variable options"""
+
+        resolution = self.resolution
+        timescale = self.timescale
+
+        if "Statistical" in self.downscaling_method:
+            if self.timescale == "hourly":
+                timescale = "daily"
+            self.param["timescale"].objects = ["monthly", "daily"]
+            resolution = "3 km"
+            self.param["resolution"].objects = ["3 km"]
+        else:
+            self.param["timescale"].objects = ["monthly", "daily", "hourly"]
+            self.param["resolution"].objects = ["3 km", "9 km", "45 km"]
+
         self.cat_subset = self.cat.search(
             activity_id=[
                 _downscaling_method_to_activity_id(dm) for dm in self.downscaling_method
             ],
-            table_id=_timescale_to_table_id(self.timescale),
-            grid_label=_resolution_to_gridlabel(self.resolution),
+            table_id=_timescale_to_table_id(timescale),
+            grid_label=_resolution_to_gridlabel(resolution),
         )
         self.unique_variable_ids = self.cat_subset.unique()["variable_id"]
         self.variable_options_df = _get_variable_options_df(
             var_catalog=var_catalog,
             unique_variable_ids=self.unique_variable_ids,
             downscaling_method=self.downscaling_method,
-            timescale=self.timescale,
+            timescale=timescale,
         )
+
+        # Set resolution and timescale
+        self.resolution = resolution
+        self.timescale = timescale
 
         # Reset variable dropdown
         if self.location.data_type == "Gridded":
@@ -934,14 +958,18 @@ class _DataSelector(param.Parameterized):
             self.param["units"].objects = [native_unit]
             self.units = native_unit
 
-    @param.depends("variable", "timescale", "resolution", watch=True)
-    def _update_cmap_and_extended_description(self):
-        var_info = self.variable_options_df[
-            self.variable_options_df["display_name"] == self.variable
-        ]  # Get info for just that variable
         self.colormap = var_info.colormap.item()
         self.extended_description = var_info.extended_description.item()
         self.variable_id = var_info.variable_id.item()
+
+    # @param.depends("variable", watch=True)
+    # def _update_cmap_and_extended_description(self):
+    #     var_info = self.variable_options_df[
+    #         self.variable_options_df["display_name"] == self.variable
+    #     ]  # Get info for just that variable
+    #     self.colormap = var_info.colormap.item()
+    #     self.extended_description = var_info.extended_description.item()
+    #     self.variable_id = var_info.variable_id.item()
 
     @param.depends("resolution", "scenario_ssp", "scenario_historical", watch=True)
     def _update_scenarios(self):
@@ -1174,10 +1202,7 @@ def _selections_param_to_panel(selections):
     )
     downscaling_method_text = pn.widgets.StaticText(value="", name="Downscaling method")
     downscaling_method = pn.widgets.CheckBoxGroup.from_param(
-        selections.param.downscaling_method,
-        inline=True,
-        #### REMOVE THIS ONCE THE LOCA DATA IS AVAILABLE
-        disabled=True,
+        selections.param.downscaling_method, inline=True
     )
     historical_selection_text = pn.widgets.StaticText(
         value="<br>Estimates of recent historical climatic conditions",
