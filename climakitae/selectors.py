@@ -736,8 +736,11 @@ class _DataSelector(param.Parameterized):
         objects=["Yes", "No"],
         doc="""Compute an area average?""",
     )
-    downscaling_method = param.ListSelector(
-        default=["Dynamical"], objects=["Dynamical", "Statistical"]
+    # downscaling_method = param.ListSelector(
+    #     default=["Dynamical"], objects=["Dynamical", "Statistical"]
+    # )
+    downscaling_method = param.ObjectSelector(
+        default="Dynamical", objects=["Dynamical", "Statistical"]
     )
 
     # Empty params, initialized in __init__
@@ -762,9 +765,10 @@ class _DataSelector(param.Parameterized):
 
         # Variable catalog info
         self.cat_subset = self.cat.search(
-            activity_id=[
-                _downscaling_method_to_activity_id(dm) for dm in self.downscaling_method
-            ],
+            # activity_id=[
+            #     _downscaling_method_to_activity_id(dm) for dm in self.downscaling_method
+            # ],
+            activity_id=_downscaling_method_to_activity_id(self.downscaling_method),
             table_id=_timescale_to_table_id(self.timescale),
             grid_label=_resolution_to_gridlabel(self.resolution),
         )
@@ -772,7 +776,8 @@ class _DataSelector(param.Parameterized):
         self.variable_options_df = _get_variable_options_df(
             var_catalog=var_catalog,
             unique_variable_ids=self.unique_variable_ids,
-            downscaling_method=self.downscaling_method,
+            # downscaling_method=self.downscaling_method,
+            downscaling_method=[self.downscaling_method],
             timescale=self.timescale,
         )
 
@@ -800,9 +805,10 @@ class _DataSelector(param.Parameterized):
         # Set simulation param
         self.simulation = _get_simulation_options(
             cat=self.cat,
-            activity_id=[
-                _downscaling_method_to_activity_id(dm) for dm in self.downscaling_method
-            ],
+            # activity_id=[
+            #     _downscaling_method_to_activity_id(dm) for dm in self.downscaling_method
+            # ],
+            activity_id=_downscaling_method_to_activity_id(self.downscaling_method),
             table_id=_timescale_to_table_id(self.timescale),
             grid_label=_resolution_to_gridlabel(self.resolution),
             experiment_id=[
@@ -824,14 +830,6 @@ class _DataSelector(param.Parameterized):
         self._data_warning = ""
 
     @param.depends("location.data_type", watch=True)
-    def _update_res_based_on_data_type(self):
-        if self.location.data_type == "Station":
-            self.param["resolution"].objects = ["3 km", "9 km"]
-            self.resolution = "3 km"
-        elif self.location.data_type == "Gridded":
-            self.param["resolution"].objects = ["3 km", "9 km", "45 km"]
-
-    @param.depends("location.data_type", watch=True)
     def _update_area_average_based_on_data_type(self):
         if self.location.data_type == "Station":
             self.param["area_average"].objects = ["n/a"]
@@ -840,13 +838,31 @@ class _DataSelector(param.Parameterized):
             self.param["area_average"].objects = ["Yes", "No"]
             self.area_average = "No"
 
-    @param.depends("location.data_type", watch=True)
-    def _update_timescale_based_on_data_type(self):
+    @param.depends("location.data_type", "downscaling_method", watch=True)
+    def _update_res_based_on_data_type_and_downscaling_method(self):
+        if self.downscaling_method == "Statistical":
+            self.param["resolution"].objects = ["3 km"]
+            self.resolution = "3 km"
+        elif self.downscaling_method == "Dynamical":
+            if self.location.data_type == "Station":
+                self.param["resolution"].objects = ["3 km", "9 km"]
+                if self.resolution == "45 km":
+                    self.resolution = "3 km"
+            elif self.location.data_type == "Gridded":
+                self.param["resolution"].objects = ["3 km", "9 km", "45 km"]
+
+    @param.depends("location.data_type", "downscaling_method", watch=True)
+    def _update_timescale_based_on_data_type_and_downscaling_method(self):
         if self.location.data_type == "Station":
-            self.param["timescale"].objects = ["hourly"]
             self.timescale = "hourly"
+            self.param["timescale"].objects = ["hourly"]
         elif self.location.data_type == "Gridded":
-            self.param["timescale"].objects = ["monthly", "daily", "hourly"]
+            if self.downscaling_method == "Statistical":
+                if self.timescale == "hourly":
+                    self.timescale = "daily"
+                self.param["timescale"].objects = ["monthly", "daily"]
+            else:
+                self.param["timescale"].objects = ["monthly", "daily", "hourly"]
 
     @param.depends(
         "timescale",
@@ -857,38 +873,26 @@ class _DataSelector(param.Parameterized):
     )
     def _update_var_options(self):
         """Update unique variable options"""
-
-        resolution = self.resolution
-        timescale = self.timescale
-
-        if "Statistical" in self.downscaling_method:
-            if self.timescale == "hourly":
-                timescale = "daily"
-            self.param["timescale"].objects = ["monthly", "daily"]
-            resolution = "3 km"
-            self.param["resolution"].objects = ["3 km"]
+        if self.timescale == "monthly" and self.downscaling_method == "Statistical":
+            timescale = "daily"
         else:
-            self.param["timescale"].objects = ["monthly", "daily", "hourly"]
-            self.param["resolution"].objects = ["3 km", "9 km", "45 km"]
-
+            timescale = self.timescale
         self.cat_subset = self.cat.search(
-            activity_id=[
-                _downscaling_method_to_activity_id(dm) for dm in self.downscaling_method
-            ],
+            # activity_id=[
+            #     _downscaling_method_to_activity_id(dm) for dm in self.downscaling_method
+            # ],
+            activity_id=_downscaling_method_to_activity_id(self.downscaling_method),
             table_id=_timescale_to_table_id(timescale),
-            grid_label=_resolution_to_gridlabel(resolution),
+            grid_label=_resolution_to_gridlabel(self.resolution),
         )
         self.unique_variable_ids = self.cat_subset.unique()["variable_id"]
         self.variable_options_df = _get_variable_options_df(
             var_catalog=var_catalog,
             unique_variable_ids=self.unique_variable_ids,
-            downscaling_method=self.downscaling_method,
+            # downscaling_method=self.downscaling_method,
+            downscaling_method=[self.downscaling_method],
             timescale=timescale,
         )
-
-        # Set resolution and timescale
-        self.resolution = resolution
-        self.timescale = timescale
 
         # Reset variable dropdown
         if self.location.data_type == "Gridded":
@@ -905,9 +909,11 @@ class _DataSelector(param.Parameterized):
     def _update_states_3km(self):
         if self.location.area_subset == "states":
             if self.resolution == "3 km":
-                if "Statistical" in self.downscaling_method:
+                # if "Statistical" in self.downscaling_method:
+                if self.downscaling_method == "Statistical":
                     self.location.param["cached_area"].objects = ["CA"]
-                elif self.downscaling_method == ["Dynamical"]:
+                # elif self.downscaling_method == ["Dynamical"]:
+                elif self.downscaling_method == "Dynamical":
                     self.location.param["cached_area"].objects = [
                         "CA",
                         "NV",
@@ -920,26 +926,6 @@ class _DataSelector(param.Parameterized):
                 self.location.param[
                     "cached_area"
                 ].objects = self.location._geography_choose["states"].keys()
-
-    @param.depends("downscaling_method", watch=True)
-    def _remove_hourly_LOCA(self):
-        if self.downscaling_method == ["Dynamical"]:
-            self.param["timescale"].objects = ["hourly", "daily", "monthly"]
-        else:
-            self.param["timescale"].objects = ["daily", "monthly"]
-            if self.timescale == "hourly":
-                self.timescale = "daily"
-
-    @param.depends("downscaling_method", watch=True)
-    def _update_res_based_on_downscaling_method(self):
-        """Remove resolution options if LOCA is selected"""
-        if self.downscaling_method == ["Dynamical"]:
-            self.param["resolution"].objects = ["3 km", "9 km", "45 km"]
-
-        else:  # No 45km or 9km option for LOCA grid
-            self.param["resolution"].objects = ["3 km"]
-            if self.resolution in ["45 km", "9 km"]:
-                self.resolution = "3 km"
 
     @param.depends("variable", "timescale", watch=True)
     def _update_unit_options(self):
@@ -961,15 +947,6 @@ class _DataSelector(param.Parameterized):
         self.colormap = var_info.colormap.item()
         self.extended_description = var_info.extended_description.item()
         self.variable_id = var_info.variable_id.item()
-
-    # @param.depends("variable", watch=True)
-    # def _update_cmap_and_extended_description(self):
-    #     var_info = self.variable_options_df[
-    #         self.variable_options_df["display_name"] == self.variable
-    #     ]  # Get info for just that variable
-    #     self.colormap = var_info.colormap.item()
-    #     self.extended_description = var_info.extended_description.item()
-    #     self.variable_id = var_info.variable_id.item()
 
     @param.depends("resolution", "scenario_ssp", "scenario_historical", watch=True)
     def _update_scenarios(self):
@@ -1086,9 +1063,10 @@ class _DataSelector(param.Parameterized):
         data is available (and needs to be removed) for hourly data."""
         self.simulation = _get_simulation_options(
             cat=self.cat,
-            activity_id=[
-                _downscaling_method_to_activity_id(dm) for dm in self.downscaling_method
-            ],
+            # activity_id=[
+            #     _downscaling_method_to_activity_id(dm) for dm in self.downscaling_method
+            # ],
+            activity_id=_downscaling_method_to_activity_id(self.downscaling_method),
             table_id=_timescale_to_table_id(self.timescale),
             grid_label=_resolution_to_gridlabel(self.resolution),
             experiment_id=[
@@ -1201,7 +1179,10 @@ def _selections_param_to_panel(selections):
         selections.param._data_warning, name="", style={"color": "red"}
     )
     downscaling_method_text = pn.widgets.StaticText(value="", name="Downscaling method")
-    downscaling_method = pn.widgets.CheckBoxGroup.from_param(
+    # downscaling_method = pn.widgets.CheckBoxGroup.from_param(
+    #     selections.param.downscaling_method, inline=True
+    # )
+    downscaling_method = pn.widgets.RadioBoxGroup.from_param(
         selections.param.downscaling_method, inline=True
     )
     historical_selection_text = pn.widgets.StaticText(
