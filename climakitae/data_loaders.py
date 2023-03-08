@@ -733,7 +733,7 @@ def _convert_obs_da_units(obs_data, new_units):
 
 
 def _retrieve_and_format_closest_gridcell(stations_df, station_name, data):
-    """Retrieve the cloeset gridcell to an input weather station
+    """Retrieve the closest gridcell to an input weather station
     Format the DataArray
 
     Parameters
