@@ -61,6 +61,8 @@ jobs:
 
     - name: Output conda info 
       run: conda info
+    - name: Install xclim
+      run: pip install xclim==0.41.0 --no-deps
     - name: Install climakitae 
       run: pip install .
 #    - name: Lint with flake8
