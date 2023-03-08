@@ -216,7 +216,7 @@ class _LocSelectorArea(param.Parameterized):
         administrative geographic area]
     """
 
-    info_about_station_data = "When you retrieve the station data, gridded model data will be bias-corrected to that point. This process can start from any model resolution."
+    info_about_station_data = "When you retrieve the station data, gridded model data will be bias-corrected to that point. This process can start from any model grid-spacing."
 
     area_subset = param.ObjectSelector(objects=dict())
     cached_area = param.ObjectSelector(objects=dict())
