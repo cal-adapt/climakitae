@@ -61,10 +61,8 @@ jobs:
 
     - name: Output conda info 
       run: conda info
-    - name: Install boltons
-      run: pip install boltons==21.0.0 --no-deps
     - name: Install xclim
-      run: pip install xclim==0.41.0 --no-deps
+      run: pip install xclim==0.41.0 boltons==21.0.0 cf_xarray==0.7.9 --no-deps
     - name: Install climakitae 
       run: pip install .
 #    - name: Lint with flake8
