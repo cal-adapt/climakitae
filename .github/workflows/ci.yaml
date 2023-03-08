@@ -61,6 +61,8 @@ jobs:
 
     - name: Output conda info 
       run: conda info
+    - name: Install boltons
+      run: pip install boltons==21.0.0 --no-deps
     - name: Install xclim
       run: pip install xclim==0.41.0 --no-deps
     - name: Install climakitae 
