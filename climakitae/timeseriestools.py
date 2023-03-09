@@ -25,7 +25,7 @@ class _TimeSeriesParams(param.Parameterized):
         bounds=(dt.datetime(1980, 1, 1), dt.datetime(2021, 12, 31)),
     )
     remove_seasonal_cycle = param.Boolean(default=False)
-    smoothing = param.ObjectSelector(default="None", objects=["None", "Running Mean"])
+    smoothing = param.Selector(default="None", objects=["None", "Running Mean"])
     _time_scales = dict(
         [("hours", "H"), ("days", "D"), ("months", "MS"), ("years", "AS-SEP")]
     )
@@ -34,11 +34,11 @@ class _TimeSeriesParams(param.Parameterized):
         default=False, label="Disaggregate into four seasons"
     )
 
-    extremes = param.ObjectSelector(
+    extremes = param.Selector(
         default="None", objects=["None", "Min", "Max", "Percentile"]
     )
     resample_window = param.Integer(default=1, bounds=(1, 30))
-    resample_period = param.ObjectSelector(default="AS-SEP", objects=_time_scales)
+    resample_period = param.Selector(default="AS-SEP", objects=_time_scales)
     percentile = param.Number(
         default=0,
         bounds=(0, 1),
