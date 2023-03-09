@@ -569,23 +569,23 @@ class _AverageMeteorologicalYear(param.Parameterized):
     }
 
     # Define TMY params
-    data_type = param.ObjectSelector(
+    data_type = param.Selector(
         default="Absolute", objects=["Absolute", "Difference"]
     )
 
     # Define new advanced options param, that is dependent on the user selection in data_type
-    computation_method = param.ObjectSelector(objects=dict())
+    computation_method = param.Selector(objects=dict())
 
     # Define new computation description param
     # This will provide a string description of the computation option selected
     # and will update dynamically depending on the user selections
-    tmy_computation_description = param.ObjectSelector(objects=dict())
+    tmy_computation_description = param.Selector(objects=dict())
 
     # Colormap
-    cmap = param.ObjectSelector(objects=dict())
+    cmap = param.Selector(objects=dict())
 
     # Warming level selection
-    warmlevel = param.ObjectSelector(default=1.5, objects=[1.5, 2, 3])
+    warmlevel = param.Selector(default=1.5, objects=[1.5, 2, 3])
 
     # 30-yr ranges to use for AMY computation
     warming_year_average_range = {
