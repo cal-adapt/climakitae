@@ -1,4 +1,4 @@
-"""The main workhorse of the climakitae library. 
+"""The main user-facing interface of the climakitae library. 
 Holds the Application object, which provides access to easy data retrieval, visualization, and export.
 """
 
