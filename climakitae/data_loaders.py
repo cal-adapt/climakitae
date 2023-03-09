@@ -22,6 +22,7 @@ from .derive_variables import (
     _compute_relative_humidity,
     _compute_wind_mag,
     _compute_dewpointtemp,
+    _compute_specific_humidity,
 )
 
 # Set options
@@ -406,6 +407,7 @@ def _read_catalog_from_select(selections, location, cat):
         "wind_speed_derived",
         "rh_derived",
         "dew_point_derived",
+        "specific_humid_derived",
     ]:
         if orig_var_id_selection == "wind_speed_derived":
             # Load u10 data
@@ -432,12 +434,18 @@ def _read_catalog_from_select(selections, location, cat):
             selections.variable_id = "q2"
             q2_da = _get_data_one_var(selections, location, cat)
 
-            # Derive relative humidity
+            # Load dewpoint temperature data
+            selections.variable_id = "tdps"
+            tdps_da = _get_data_one_var(selections, location, cat)
+
+            # Derive variables
             rh_da = _compute_relative_humidity(
                 pressure=pressure_da, temperature=t2_da, mixing_ratio=q2_da
             )
             if orig_var_id_selection == "dew_point_derived":
                 da = _compute_dewpointtemp(temperature=t2_da, rel_hum=rh_da)
+            elif orig_var_id_selection == "specific_humid_derived":
+                da = _compute_specific_humidity(tdps=tdps_da, pressure=pressure_da)
             elif orig_var_id_selection == "rh_derived":
                 da = rh_da
 

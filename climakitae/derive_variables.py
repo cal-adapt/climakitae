@@ -62,10 +62,36 @@ def _compute_dewpointtemp(temperature, rel_hum):
     return tdps
 
 
+def _compute_specific_humidity(tdps, pressure):
+    """Compute specific humidity.
+
+    Args:
+        tdps (xr.DataArray): Dew-point temperature, in K
+        pressure (xr.DataArray): Air pressure, in Pascals
+
+    Returns:
+        spec_hum (xr.DataArray): Specific humidity
+
+    """
+
+    # Calculate vapor pressure, unit is in kPa
+    e = 0.611 * np.exp((2500000 / 461) * ((1 / 273) - (1 / tdps)))
+
+    # Calculate specific humidity, unit is g/g, pressure has to be divided by 1000 to get to kPa at this step
+    q = (0.622 * e) / (pressure / 1000)
+
+    # Convert from g/g to g/kg for more understandable value
+    q = q * 1000
+
+    # Assign descriptive name
+    q.name = "specific_humid_derived"
+    q.name.attrs["units"] = "g/kg"
+    return q
+
+
 def _compute_relative_humidity(pressure, temperature, mixing_ratio):
     """Compute relative humidity.
     Variable attributes need to be assigned outside of this function because the metpy function removes them
-
 
     Args:
         pressure (xr.DataArray): Pressure in Pascals
@@ -85,6 +111,36 @@ def _compute_relative_humidity(pressure, temperature, mixing_ratio):
 
     # Calculates relative humidity, unit is 0 to 100
     rel_hum = 100 * (mixing_ratio / r_s)
+
+    # Assign descriptive name
+    rel_hum.name = "rh_derived"
+    rel_hum.attrs["units"] = "[0 to 100]"
+    return rel_hum
+
+
+def _convert_specific_humidity_to_relative_humidity(temperature, q, pressure):
+    """Converts specific humidity to relative humidity. 
+
+    Args:
+        temperature (xr.DataArray): Temperature in Kelvin
+        q (xr.DataArray): Specific humidity, in g/kg
+        pressure (xr.DataArray): Pressure, in Pascals
+
+    Returns:
+        rel_hum (xr.DataArray): Relative humidity
+    """
+
+    # Calculates saturated vapor pressure, unit is in kPa
+    e_s = 0.611 * np.exp((2500000 / 461) * ((1 / 273) - (1 / temperature)))
+
+    # Convert pressure unit to be compatible with e_s, unit to kPa
+    pressure = pressure / 1000
+    
+    # Convert specific humidity unit to be compatible with epsilon (0.622), unit g/g
+    q = q / 1000
+
+    # Calculate relative humidity
+    rel_hum = (q * pressure) * (0.622 * e_s)
 
     # Assign descriptive name
     rel_hum.name = "rh_derived"

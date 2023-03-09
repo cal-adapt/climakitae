@@ -8,6 +8,7 @@ from climakitae.derive_variables import (
     _compute_relative_humidity,
     _compute_wind_mag,
     _compute_dewpointtemp,
+    _compute_specific_humidity,
 )
 
 
@@ -41,15 +42,32 @@ def dew_pnt(rel_humidity, test_data_2022_monthly_45km):
     return da
 
 
-def test_expected_data_name(rel_humidity, wind_mag, dew_pnt):
+@pytest.fixture
+def spec_humidity(test_data_2022_monthly_45km):
+    """Compute specific humidity and return data"""
+    tdps_da = _compute_dewpointtemp(
+        temperature=test_data_2022_monthly_45km["T2"],
+        rel_hum=rel_humidity,
+    )
+
+    da = _compute_specific_humidity(
+        tdps=tdps_da,
+        pressure=test_data_2022_monthly_45km["PSFC"],
+    )
+    return da
+
+
+def test_expected_data_name(rel_humidity, wind_mag, dew_pnt, spec_humidity):
     """Ensure that xr.DataArray has the correct assigned name"""
     assert rel_humidity.name == "rh_derived"
     assert wind_mag.name == "wind_speed_derived"
     assert dew_pnt.name == "dew_point_derived"
+    assert spec_humidity.name == "specific_humid_derived"
 
 
-def test_expected_return_type(rel_humidity, wind_mag, dew_pnt):
+def test_expected_return_type(rel_humidity, wind_mag, dew_pnt, spec_humidity):
     """Ensure function returns an xr.DataArray object"""
     assert type(rel_humidity) == xr.core.dataarray.DataArray
     assert type(wind_mag) == xr.core.dataarray.DataArray
     assert type(dew_pnt) == xr.core.dataarray.DataArray
+    assert type(spec_humidity) == xr.core.datarray.DataArray
