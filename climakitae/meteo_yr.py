@@ -569,9 +569,7 @@ class _AverageMeteorologicalYear(param.Parameterized):
     }
 
     # Define TMY params
-    data_type = param.Selector(
-        default="Absolute", objects=["Absolute", "Difference"]
-    )
+    data_type = param.Selector(default="Absolute", objects=["Absolute", "Difference"])
 
     # Define new advanced options param, that is dependent on the user selection in data_type
     computation_method = param.Selector(objects=dict())

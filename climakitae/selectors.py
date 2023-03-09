@@ -1385,9 +1385,7 @@ class _FileTypeSelector(param.Parameterized):
     """
 
     user_options = _UserFileChoices()
-    output_file_format = param.Selector(
-        objects=user_options._export_format_choices
-    )
+    output_file_format = param.Selector(objects=user_options._export_format_choices)
 
     def _export_file_type(self):
         """Updates the 'user_export_format' object to be the format specified by the user."""
