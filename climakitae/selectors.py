@@ -218,11 +218,11 @@ class _LocSelectorArea(param.Parameterized):
 
     info_about_station_data = "When you retrieve the station data, gridded model data will be bias-corrected to that point. This process can start from any model grid-spacing."
 
-    area_subset = param.ObjectSelector(objects=dict())
-    cached_area = param.ObjectSelector(objects=dict())
+    area_subset = param.Selector(objects=dict())
+    cached_area = param.Selector(objects=dict())
     latitude = param.Range(default=(32.5, 42), bounds=(10, 67))
     longitude = param.Range(default=(-125.5, -114), bounds=(-156.82317, -84.18701))
-    data_type = param.ObjectSelector(default="Gridded", objects=["Gridded", "Station"])
+    data_type = param.Selector(default="Gridded", objects=["Gridded", "Station"])
     station = param.ListSelector(objects=dict())
     _station_data_info = param.String(
         default="", doc="Information about the bias correction process and resolution"
@@ -723,15 +723,15 @@ class _DataSelector(param.Parameterized):
     # Defaults
     default_variable = "Air Temperature at 2m"
     time_slice = param.Range(default=(1980, 2015), bounds=(1950, 2100))
-    resolution = param.ObjectSelector(default="9 km", objects=["3 km", "9 km", "45 km"])
-    timescale = param.ObjectSelector(
+    resolution = param.Selector(default="9 km", objects=["3 km", "9 km", "45 km"])
+    timescale = param.Selector(
         default="monthly", objects=["hourly", "daily", "monthly"]
     )
     scenario_historical = param.ListSelector(
         default=["Historical Climate"],
         objects=["Historical Reconstruction", "Historical Climate"],
     )
-    area_average = param.ObjectSelector(
+    area_average = param.Selector(
         default="No",
         objects=["Yes", "No"],
         doc="""Compute an area average?""",
@@ -743,10 +743,10 @@ class _DataSelector(param.Parameterized):
     # Empty params, initialized in __init__
     scenario_ssp = param.ListSelector(objects=dict())
     simulation = param.ListSelector(objects=dict())
-    variable = param.ObjectSelector(objects=dict())
-    units = param.ObjectSelector(objects=dict())
-    extended_description = param.ObjectSelector(objects=dict())
-    variable_id = param.ObjectSelector(objects=dict())
+    variable = param.Selector(objects=dict())
+    units = param.Selector(objects=dict())
+    extended_description = param.Selector(objects=dict())
+    variable_id = param.Selector(objects=dict())
     _data_warning = param.String(
         default="", doc="Warning if user has made a bad selection"
     )
@@ -1385,9 +1385,7 @@ class _FileTypeSelector(param.Parameterized):
     """
 
     user_options = _UserFileChoices()
-    output_file_format = param.ObjectSelector(
-        objects=user_options._export_format_choices
-    )
+    output_file_format = param.Selector(objects=user_options._export_format_choices)
 
     def _export_file_type(self):
         """Updates the 'user_export_format' object to be the format specified by the user."""
