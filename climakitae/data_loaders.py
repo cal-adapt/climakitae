@@ -135,7 +135,7 @@ def _get_cat_subset(selections, cat):
     return cat_subset
 
 
-def _get_area_subset(location):
+def _get_area_subset(area_subset, cached_area, location):
     """Get geometry to perform area subsetting with.
 
     Args:
@@ -149,26 +149,26 @@ def _get_area_subset(location):
     def set_subarea(boundary_dataset):
         return boundary_dataset[boundary_dataset.index == shape_index].iloc[0].geometry
 
-    if location.area_subset == "lat/lon":
+    if area_subset == "lat/lon":
         geom = _get_as_shapely(location)
         if not geom.is_valid:
             raise ValueError(
                 "Please go back to 'select' and choose" + " a valid lat/lon range."
             )
         ds_region = [geom]
-    elif location.area_subset != "none":
+    elif area_subset != "none":
         shape_index = int(
             location._geography_choose[location.area_subset][location.cached_area]
         )
-        if location.area_subset == "states":
+        if area_subset == "states":
             shape = set_subarea(location._geographies._us_states)
-        elif location.area_subset == "CA counties":
+        elif area_subset == "CA counties":
             shape = set_subarea(location._geographies._ca_counties)
-        elif location.area_subset == "CA watersheds":
+        elif area_subset == "CA watersheds":
             shape = set_subarea(location._geographies._ca_watersheds)
-        elif location.area_subset == "CA Electric Load Serving Entities (IOU & POU)":
+        elif area_subset == "CA Electric Load Serving Entities (IOU & POU)":
             shape = set_subarea(location._geographies._ca_utilities)
-        elif location.area_subset == "CA Electricity Demand Forecast Zones":
+        elif area_subset == "CA Electricity Demand Forecast Zones":
             shape = set_subarea(location._geographies._ca_forecast_zones)
         ds_region = [shape]
     else:
@@ -366,7 +366,24 @@ def _get_data_one_var(selections, location, cat):
         )
 
         # Perform area subsetting
-        ds_region = _get_area_subset(location=location)
+
+        # Bay Area airport stations are tricky, requires some hacky coding
+        # You need to retrieve the entire domain because the shapefiles will cut out the ocean grid cells
+        # But the bay area airports closest gridcells are the ocean!
+        # Ideally the shapefiles should be modified to include the bay area water regions
+        bay_stations = [
+            "Oakland Metro International Airport",
+            "San Francisco International Airport",
+        ]
+        if (location.data_type == "Station") and any(
+            x in location.station for x in bay_stations
+        ):
+            area_subset = "none"
+            cached_area = "entire domain"
+        else:
+            area_subset = location.area_subset
+            cached_area = location.cached_area
+        ds_region = _get_area_subset(area_subset, cached_area, location)
         if ds_region is not None:  # Perform subsetting
             dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
 
@@ -492,10 +509,10 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
     da = _convert_units(da=da, selected_units=selections.units)  # Convert units
     if location.data_type == "Station":
         if loop:
-            print("Retrieving station data using a for loop")
+            # print("Retrieving station data using a for loop")
             da = _station_loop(location, da, stations_df, original_time_slice)
         else:
-            print("Retrieving station data using xr.apply")
+            # print("Retrieving station data using xr.apply")
             da = _station_apply(location, da, stations_df, original_time_slice)
         # Reset original selections
         if "Historical Climate" not in original_scenario_historical:
