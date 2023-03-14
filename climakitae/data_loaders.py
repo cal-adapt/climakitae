@@ -11,8 +11,9 @@ import psutil
 import warnings
 from ast import literal_eval
 from shapely.geometry import box
-from xclim.core.calendar import convert_calendar
-from xclim.sdba.adjustment import QuantileDeltaMapping
+
+# from xclim.core.calendar import convert_calendar
+# from xclim.sdba.adjustment import QuantileDeltaMapping
 from .catalog_convert import (
     _downscaling_method_to_activity_id,
     _resolution_to_gridlabel,
@@ -111,14 +112,19 @@ def _get_cat_subset(selections, cat):
 
     """
 
+    if "LOCA" in selections.timescale:
+        timescale = "daily"
+    else:
+        timescale = selections.timescale
+
     scenario_selections = selections.scenario_ssp + selections.scenario_historical
 
     # Get catalog keys
-    # Convert user-friendly names to catalog names (i.e. "45km" to "d01")
+    # Convert user-friendly names to catalog names (i.e. "45 km" to "d01")
     activity_id = [
         _downscaling_method_to_activity_id(dm) for dm in selections.downscaling_method
     ]
-    table_id = _timescale_to_table_id(selections.timescale)
+    table_id = _timescale_to_table_id(timescale)
     grid_label = _resolution_to_gridlabel(selections.resolution)
     experiment_id = [_scenario_to_experiment_id(x) for x in scenario_selections]
     source_id = selections.simulation
@@ -323,7 +329,7 @@ def _get_data_one_var(selections, location, cat):
 
         # Read data from AWS
         data_dict = cat_subset.to_dataset_dict(
-            zarr_kwargs={"consolidated": True},
+            xarray_open_kwargs={"consolidated": True},
             storage_options={"anon": True},
             progressbar=False,
         )
@@ -384,7 +390,7 @@ def _get_data_one_var(selections, location, cat):
     )
 
     # Assign data type attribute
-    da = da.assign_attrs({"data_type": location.data_type})
+    da = da.assign_attrs({"data_type": selections.data_type})
 
     return da
 
@@ -417,16 +423,21 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
         raise ValueError("Please select as least one dataset.")
 
     # Raise error if station data selected, but no station is selected
-    if (location.data_type == "Station") and (
-        location.station in [[], ["No stations available at this location"]]
+    if (selections.data_type == "Station") and (
+        selections.station in [[], ["No stations available at this location"]]
     ):
         raise ValueError(
             "Please select at least one weather station, or retrieve gridded data."
         )
 
+    # TEMPORARY FOR NOW UNTIL LOCA DATA IS AVAILABLE ON WRF GRID
+    # If both Statistical and Dynamical are selected, only WRF will be returned
+    if "Dynamical" in selections.downscaling_method:
+        selections.downscaling_method == ["Dynamical"]
+
     # For station data, need to expand time slice to ensure the historical period is included
     # At the end, the data will be cut back down to the user's original selection
-    if location.data_type == "Station":
+    if selections.data_type == "Station":
         original_time_slice = selections.time_slice  # Preserve original user selections
         original_scenario_historical = selections.scenario_historical.copy()
         if "Historical Climate" not in selections.scenario_historical:
@@ -489,8 +500,13 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
     else:
         da = _get_data_one_var(selections, location, cat)
 
-    da = _convert_units(da=da, selected_units=selections.units)  # Convert units
-    if location.data_type == "Station":
+    # Convert units
+    da = _convert_units(da=da, selected_units=selections.units)
+
+    # Compute monthly mean on the fly for LOCA data
+    # if
+
+    if selections.data_type == "Station":
         if loop:
             print("Retrieving station data using a for loop")
             da = _station_loop(location, da, stations_df, original_time_slice)
@@ -511,7 +527,7 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
 
 def _station_apply(location, da, stations_df, original_time_slice):
     # Grab zarr data
-    station_subset = stations_df.loc[stations_df["station"].isin(location.station)]
+    station_subset = stations_df.loc[stations_df["station"].isin(selections.station)]
     filepaths = [
         "s3://cadcat/tmp/hadisd/HadISD_{}.zarr".format(s_id)
         for s_id in station_subset["station id"]
