@@ -43,14 +43,10 @@ def dew_pnt(rel_humidity, test_data_2022_monthly_45km):
 
 
 @pytest.fixture
-def spec_humidity(rel_humidity, test_data_2022_monthly_45km):
+def spec_humidity(dew_pnt, test_data_2022_monthly_45km):
     """Compute specific humidity and return data"""
-    tdps_da = _compute_dewpointtemp(
-        temperature=test_data_2022_monthly_45km["T2"],
-        rel_hum=rel_humidity,
-    )
     da = _compute_specific_humidity(
-        tdps=tdps_da,
+        tdps=dew_pnt,
         pressure=test_data_2022_monthly_45km["PSFC"],
     )
     return da
