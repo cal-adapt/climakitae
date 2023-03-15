@@ -16,6 +16,7 @@ def _get_unit_conversion_options():
         "mm": ["mm", "inches"],
         "kg/kg": ["kg/kg", "g/kg"],
         "kg kg-1": ["kg kg-1", "g kg-1"],
+        "g/kg": ["g/kg", "kg/kg"],
     }
     return options
 

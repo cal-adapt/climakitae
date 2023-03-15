@@ -444,12 +444,7 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
     # Deal with derived variables
     orig_var_id_selection = selections.variable_id
     orig_variable_selection = selections.variable
-    if orig_var_id_selection in [
-        "wind_speed_derived",
-        "rh_derived",
-        "dew_point_derived",
-        "specific_humid_derived",
-    ]:
+    if "_derived" in orig_var_id_selection:
         if orig_var_id_selection == "wind_speed_derived":
             # Load u10 data
             selections.variable_id = "u10"
@@ -463,10 +458,6 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
             da = _compute_wind_mag(u10=u10_da, v10=v10_da)
 
         else:
-            # Load pressure data
-            selections.variable_id = "psfc"
-            pressure_da = _get_data_one_var(selections, location, cat)
-
             # Load temperature data
             selections.variable_id = "t2"
             t2_da = _get_data_one_var(selections, location, cat)
@@ -475,20 +466,35 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
             selections.variable_id = "q2"
             q2_da = _get_data_one_var(selections, location, cat)
 
-            # Load dewpoint temperature data
-            selections.variable_id = "tdps"
-            tdps_da = _get_data_one_var(selections, location, cat)
+            # Load pressure data
+            selections.variable_id = "psfc"
+            pressure_da = _get_data_one_var(selections, location, cat)
 
-            # Derive variables
+            # Derive relative humidity
             rh_da = _compute_relative_humidity(
                 pressure=pressure_da, temperature=t2_da, mixing_ratio=q2_da
             )
-            if orig_var_id_selection == "dew_point_derived":
-                da = _compute_dewpointtemp(temperature=t2_da, rel_hum=rh_da)
-            elif orig_var_id_selection == "specific_humid_derived":
-                da = _compute_specific_humidity(tdps=tdps_da, pressure=pressure_da)
-            elif orig_var_id_selection == "rh_derived":
+
+            if orig_var_id_selection == "rh_derived":
                 da = rh_da
+
+            else:
+                # Derive dew point temperature
+                dew_pnt_da = _compute_dewpointtemp(temperature=t2_da, rel_hum=rh_da)
+
+                if orig_var_id_selection == "dew_point_derived":
+                    da = dew_pnt_da
+
+                elif orig_var_id_selection == "q2_derived":
+                    # Derive specific humidity
+                    da = _compute_specific_humidity(
+                        tdps=dew_pnt_da, pressure=pressure_da
+                    )
+
+                else:
+                    raise ValueError(
+                        "You've encountered a bug. No data available for selected derived variable."
+                    )
 
         selections.variable_id = orig_var_id_selection
         da.attrs["variable_id"] = orig_var_id_selection  # Reset variable ID attribute

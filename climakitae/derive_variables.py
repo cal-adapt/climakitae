@@ -62,12 +62,13 @@ def _compute_dewpointtemp(temperature, rel_hum):
     return tdps
 
 
-def _compute_specific_humidity(tdps, pressure):
+def _compute_specific_humidity(tdps, pressure, name="q2_derived"):
     """Compute specific humidity.
 
     Args:
         tdps (xr.DataArray): Dew-point temperature, in K
         pressure (xr.DataArray): Air pressure, in Pascals
+        name (str, optional): Name to assign to output DataArray
 
     Returns:
         spec_hum (xr.DataArray): Specific humidity
@@ -84,12 +85,12 @@ def _compute_specific_humidity(tdps, pressure):
     q = q * 1000
 
     # Assign descriptive name
-    q.name = "specific_humid_derived"
-    q.name.attrs["units"] = "g/kg"
+    q.name = name
+    q.attrs["units"] = "g/kg"
     return q
 
 
-def _compute_relative_humidity(pressure, temperature, mixing_ratio):
+def _compute_relative_humidity(pressure, temperature, mixing_ratio, name="rh_derived"):
     """Compute relative humidity.
     Variable attributes need to be assigned outside of this function because the metpy function removes them
 
@@ -97,6 +98,7 @@ def _compute_relative_humidity(pressure, temperature, mixing_ratio):
         pressure (xr.DataArray): Pressure in Pascals
         temperature (xr.DataArray): Temperature in Kelvin
         mixing_ratio (xr.DataArray): Dimensionless mass mixing ratio in kg/kg
+        name (str, optional): Name to assign to output DataArray
 
     Returns:
         rel_hum (xr.DataArray): Relative humidity
@@ -113,18 +115,21 @@ def _compute_relative_humidity(pressure, temperature, mixing_ratio):
     rel_hum = 100 * (mixing_ratio / r_s)
 
     # Assign descriptive name
-    rel_hum.name = "rh_derived"
+    rel_hum.name = name
     rel_hum.attrs["units"] = "[0 to 100]"
     return rel_hum
 
 
-def _convert_specific_humidity_to_relative_humidity(temperature, q, pressure):
-    """Converts specific humidity to relative humidity. 
+def _convert_specific_humidity_to_relative_humidity(
+    temperature, q, pressure, name="rh_derived"
+):
+    """Converts specific humidity to relative humidity.
 
     Args:
         temperature (xr.DataArray): Temperature in Kelvin
         q (xr.DataArray): Specific humidity, in g/kg
         pressure (xr.DataArray): Pressure, in Pascals
+        name (str, optional): Name to assign to output DataArray
 
     Returns:
         rel_hum (xr.DataArray): Relative humidity
@@ -135,7 +140,7 @@ def _convert_specific_humidity_to_relative_humidity(temperature, q, pressure):
 
     # Convert pressure unit to be compatible with e_s, unit to kPa
     pressure = pressure / 1000
-    
+
     # Convert specific humidity unit to be compatible with epsilon (0.622), unit g/g
     q = q / 1000
 
@@ -143,17 +148,18 @@ def _convert_specific_humidity_to_relative_humidity(temperature, q, pressure):
     rel_hum = (q * pressure) * (0.622 * e_s)
 
     # Assign descriptive name
-    rel_hum.name = "rh_derived"
+    rel_hum.name = name
     rel_hum.attrs["units"] = "[0 to 100]"
     return rel_hum
 
 
-def _compute_wind_mag(u10, v10):
+def _compute_wind_mag(u10, v10, name="wind_speed_derived"):
     """Compute wind magnitude at 10 meters
 
     Args:
         u10 (xr.DataArray): Zonal velocity at 10 meters height in m/s
         v10 (xr.DataArray): Meridonal velocity at 10 meters height in m/s
+        name (str, optional): Name to assign to output DataArray
 
     Returns:
         wind_mag (xr.DataArray): Wind magnitude
