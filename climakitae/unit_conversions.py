@@ -76,12 +76,12 @@ def _convert_units(da, selected_units):
         if selected_units in ["g/kg", "g kg-1"]:
             da = da * 1000
             da.attrs["units"] = selected_units
-    
-    # Specific humidity 
-    elif native_units == "g/kg": 
-        if selected_units == "kg/kg": 
-            da = da / 1000 
-            da.attrs["units"] = selected_units 
+
+    # Specific humidity
+    elif native_units == "g/kg":
+        if selected_units == "kg/kg":
+            da = da / 1000
+            da.attrs["units"] = selected_units
 
     # Pressure units
     elif native_units == "Pa":
