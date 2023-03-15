@@ -3,14 +3,16 @@
 import numpy as np
 
 
-def compute_hdd_cdd(t2, standard_temp=65):
+def compute_hdd_cdd(t2, hdd_threshold=65, cdd_threshold=65):
     """Compute heating degree days (HDD) and cooling degree days (CDD)
 
     Parameters
     -----------
     t2: xr.DataArray
         Air temperature at 2m gridded data
-    standard_temp: int, optional
+    hdd_threshold: int, optional
+        Standard temperature in Fahrenheit. Default to 65 degF
+    cdd_threshold: int, optional
         Standard temperature in Fahrenheit. Default to 65 degF
 
     Returns
@@ -19,22 +21,26 @@ def compute_hdd_cdd(t2, standard_temp=65):
         (hdd, cdd)
     """
 
-    # Subtract t2 from the standard reference temperature
-    deg_less_than_standard = standard_temp - t2
+    # Subtract t2 from the threshold inputs
+    hdd_deg_less_than_standard = hdd_threshold - t2
+    cdd_deg_less_than_standard = cdd_threshold - t2
 
     # Compute HDD: Find positive difference (i.e. days < 65 degF)
-    hdd = deg_less_than_standard.where(
-        deg_less_than_standard > 0, 0
+    hdd = hdd_deg_less_than_standard.where(
+        hdd_deg_less_than_standard > 0, 0
     )  # Replace negative values with 0
     hdd.name = "Heating Degree Days"
+    hdd.attrs["hdd_threshold"] = str(hdd_threshold) + "degF" # add attribute of threshold value
 
     # Compute CDD: Find negative difference (i.e. days > 65 degF)
-    cdd = (-1) * deg_less_than_standard.where(
-        deg_less_than_standard < 0, 0
+    cdd = (-1) * cdd_deg_less_than_standard.where(
+        cdd_deg_less_than_standard < 0, 0
     )  # Replace positive values with 0
     cdd.name = "Cooling Degree Days"
+    cdd.attrs["cdd_threshold"] = str(cdd_threshold) + "degF" # add attribute of threshold value
 
     return (hdd, cdd)
+
 
 
 def _compute_dewpointtemp(temperature, rel_hum):
