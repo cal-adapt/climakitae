@@ -61,4 +61,4 @@ def test_expected_return_type(rel_humidity, wind_mag, dew_pnt, spec_humidity):
     assert type(rel_humidity) == xr.core.dataarray.DataArray
     assert type(wind_mag) == xr.core.dataarray.DataArray
     assert type(dew_pnt) == xr.core.dataarray.DataArray
-    assert type(spec_humidity) == xr.core.datarray.DataArray
+    assert type(spec_humidity) == xr.core.dataarray.DataArray
