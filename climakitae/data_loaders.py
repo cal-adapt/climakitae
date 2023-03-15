@@ -479,25 +479,23 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
                 da = rh_da
 
             else:
-                # Silence runtime divide by zero warning
-                # Both dewpoint and specific humidity conversions divide by temp, I suspect this is where the divide by zero error is originating
-                with warnings.catch_warnings(record=True):
-                    # Derive dew point temperature
-                    dew_pnt_da = _compute_dewpointtemp(temperature=t2_da, rel_hum=rh_da)
+                # Need to figure out how to silence divide by zero runtime warning
+                # Derive dew point temperature
+                dew_pnt_da = _compute_dewpointtemp(temperature=t2_da, rel_hum=rh_da)
 
-                    if orig_var_id_selection == "dew_point_derived":
-                        da = dew_pnt_da
+                if orig_var_id_selection == "dew_point_derived":
+                    da = dew_pnt_da
 
-                    elif orig_var_id_selection == "q2_derived":
-                        # Derive specific humidity
-                        da = _compute_specific_humidity(
-                            tdps=dew_pnt_da, pressure=pressure_da
-                        )
+                elif orig_var_id_selection == "q2_derived":
+                    # Derive specific humidity
+                    da = _compute_specific_humidity(
+                        tdps=dew_pnt_da, pressure=pressure_da
+                    )
 
-                    else:
-                        raise ValueError(
-                            "You've encountered a bug. No data available for selected derived variable."
-                        )
+                else:
+                    raise ValueError(
+                        "You've encountered a bug. No data available for selected derived variable."
+                    )
 
         selections.variable_id = orig_var_id_selection
         da.attrs["variable_id"] = orig_var_id_selection  # Reset variable ID attribute
