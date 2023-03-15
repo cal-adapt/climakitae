@@ -481,9 +481,7 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
             else:
                 # Silence runtime divide by zero warning
                 # Both dewpoint and specific humidity conversions divide by temp, I suspect this is where the divide by zero error is originating
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-
+                with warnings.catch_warnings(record=True):
                     # Derive dew point temperature
                     dew_pnt_da = _compute_dewpointtemp(temperature=t2_da, rel_hum=rh_da)
 
