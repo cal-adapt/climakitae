@@ -42,6 +42,40 @@ def compute_hdd_cdd(t2, hdd_threshold=65, cdd_threshold=65):
     return (hdd, cdd)
 
 
+def compute_hdh_cdh(t2, hdh_threshold=65, cdh_threshold=65):
+    """Compute heating degree hours (HDH) and cooling degree hours (CDH)
+
+    Parameters
+    -----------
+    t2: xr.DataArray
+        Air temperature at 2m gridded data
+    hdh_threshold: int, optional
+        Standard temperature in Fahrenheit. Default to 65 degF
+    cdh_threshold: int, optional
+        Standard temperature in Fahrenheit. Default to 65 degF
+
+    Returns
+    -------
+    tuple of xr.DataArray
+        (hdh, cdh)
+    """
+    
+    # Calculate heating and cooling hours
+    cooling_hours = t2.where(t2 > hdh_threshold)  # temperatures above threshold, require cooling
+    heating_hours = (-1) * t2.where(t2 < cdh_threshold)  # temperatures below threshold, require heating
+
+    # Compute CDH: count number of hours and resample to daily (max 24 value)
+    cdh = cooling_hours.resample(time='1D').count(dim='time').squeeze()
+    cdh.name = "Cooling Degree Hours"
+    cdh.attrs["cdh_threshold"] = str(cdh_threshold) + "degF"
+
+    # Compute HDH: count number of hours and resample to daily (max 24 value)
+    hdh = heating_hours.resample(time='1D').count(dim='time').squeeze()
+    hdh.name = "Heating Degree Hours"
+    hdh.attrs["hdh_threshold"] = str(hdh_threshold) + "degF"
+
+    return(hdh, cdh)
+
 
 def _compute_dewpointtemp(temperature, rel_hum):
     """Calculate dew point temperature
