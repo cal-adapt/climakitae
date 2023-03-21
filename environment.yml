@@ -18,6 +18,7 @@ dependencies:
   - jinja2
   - matplotlib
   - metpy
+  - numba
   - numpy
   - pandas
   - panel
