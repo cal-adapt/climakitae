@@ -37,5 +37,6 @@ Links
 
 Contributors
 -------------
-[![Contributors](https://contrib.rocks/image?repo=pydata/xarray)](https://github.com/pydata/xarray/graphs/contributors)
-
+[![Contributors](https://contrib.rocks/image?repo=cal-adapt/climakitae)](https://github.com/cal-adapt/climakitae/graphs/contributors)
+.. image:: https://github.com/cal-adapt/climakitae/graphs/contributors
+   :width: 600
