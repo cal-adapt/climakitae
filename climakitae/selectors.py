@@ -235,40 +235,6 @@ class _LocSelectorArea(param.Parameterized):
             self._geography_choose[self.area_subset].keys()
         )
 
-    _wrf_bb = {
-        "45 km": Polygon(
-            [
-                (-123.52125549316406, 9.475631713867188),
-                (-156.8231658935547, 35.449039459228516),
-                (-102.43182373046875, 67.32866668701172),
-                (-84.18701171875, 26.643436431884766),
-            ]
-        ),
-        "9 km": Polygon(
-            [
-                (-116.69509887695312, 22.267112731933594),
-                (-138.42117309570312, 43.23344802856445),
-                (-110.90779113769531, 57.5806770324707),
-                (-94.9368896484375, 31.627288818359375),
-            ]
-        ),
-        "3 km": Polygon(
-            [
-                (-117.80029, 29.978943),
-                (-127.95593, 40.654625),
-                (-120.79376, 44.8999),
-                (-111.23247, 33.452168),
-            ]
-        ),
-    }
-
-    # @param.depends("data_type", watch=True)
-    # def _update_textual_description(self):
-    #     if self.data_type == "Gridded":
-    #         self._station_data_info = ""
-    #     elif self.data_type == "Station":
-    #         self._station_data_info = self._info_about_station_data
-
     @param.depends("latitude", "longitude", watch=True)
     def _update_area_subset_to_lat_lon(self):
         """
@@ -289,33 +255,6 @@ class _LocSelectorArea(param.Parameterized):
             self._geography_choose[self.area_subset].keys()
         )
         self.cached_area = list(self._geography_choose[self.area_subset].keys())[0]
-
-    # @param.depends(
-    #     "data_type", "area_subset", "cached_area", "latitude", "longitude", watch=True
-    # )
-    # def _update_station_list(self):
-    #     """Update the list of weather station options if the area subset changes"""
-    #     if self.data_type == "Station":
-    #         overlapping_stations = _get_overlapping_station_names(
-    #             stations_gpd,
-    #             self.area_subset,
-    #             self.cached_area,
-    #             self.latitude,
-    #             self.longitude,
-    #             self._geographies,
-    #             self._geography_choose,
-    #         )
-    #         if len(overlapping_stations) == 0:
-    #             notice = "No stations available at this location"
-    #             self.param["station"].objects = [notice]
-    #             self.station = [notice]
-    #         else:
-    #             self.param["station"].objects = overlapping_stations
-    #             self.station = overlapping_stations
-    #     elif self.data_type == "Gridded":
-    #         notice = "Set data type to 'Station' to see options"
-    #         self.param["station"].objects = [notice]
-    #         self.station = [notice]
 
 
 def _get_overlapping_station_names(
@@ -460,6 +399,50 @@ class _ViewLocationSelections(param.Parameterized):
 
     """
 
+    _wrf_bb = {
+        "45 km": Polygon(
+            [
+                (-123.52125549316406, 9.475631713867188),
+                (-156.8231658935547, 35.449039459228516),
+                (-102.43182373046875, 67.32866668701172),
+                (-84.18701171875, 26.643436431884766),
+            ]
+        ),
+        "9 km": Polygon(
+            [
+                (-116.69509887695312, 22.267112731933594),
+                (-138.42117309570312, 43.23344802856445),
+                (-110.90779113769531, 57.5806770324707),
+                (-94.9368896484375, 31.627288818359375),
+            ]
+        ),
+        "3 km": Polygon(
+            [
+                (-117.80029, 29.978943),
+                (-127.95593, 40.654625),
+                (-120.79376, 44.8999),
+                (-111.23247, 33.452168),
+            ]
+        ),
+    }
+
+    _loca_bb = {
+        # Estimated coords
+        "3 km": Polygon(
+            [
+                (-120.7, 45.015625),  # Max latitude
+                (-110.984375, 33.6),  # Max longitude
+                (-116.5, 29.578125),  # Min latitude
+                (-128.421875, 42),  # Min longitude
+            ][
+                (-110.984375, 33.6),  # Max longitude
+                (-116.5, 29.578125),  # Min latitude
+                (-120.7, 45.015625),  # Max latitude
+                (-128.421875, 42),  # Min longitude
+            ]
+        )
+    }
+
     def __init__(self, **params):
         super().__init__(**params)
 
@@ -539,7 +522,7 @@ class _ViewLocationSelections(param.Parameterized):
         if "Statistical" in self.selections.downscaling_method:
             # 3km LOCA grid shown whenever LOCA is selected, even if WRF is also selected
             _add_res_to_ax(
-                poly=self.location._wrf_bb["3 km"],
+                poly=self._loca_bb["3 km"],
                 ax=ax,
                 color="purple",
                 rotation=32,
@@ -550,7 +533,7 @@ class _ViewLocationSelections(param.Parameterized):
             # If only WRF is selected
             if self.selections.resolution == "45 km":
                 _add_res_to_ax(
-                    poly=self.location._wrf_bb["45 km"],
+                    poly=self._wrf_bb["45 km"],
                     ax=ax,
                     color="green",
                     rotation=28,
@@ -559,7 +542,7 @@ class _ViewLocationSelections(param.Parameterized):
                 )
             elif self.selections.resolution == "9 km":
                 _add_res_to_ax(
-                    poly=self.location._wrf_bb["9 km"],
+                    poly=self._wrf_bb["9 km"],
                     ax=ax,
                     color="red",
                     rotation=32,
@@ -568,7 +551,7 @@ class _ViewLocationSelections(param.Parameterized):
                 )
             elif self.selections.resolution == "3 km":
                 _add_res_to_ax(
-                    poly=self.location._wrf_bb["3 km"],
+                    poly=self._wrf_bb["3 km"],
                     ax=ax,
                     color="darkorange",
                     rotation=32,

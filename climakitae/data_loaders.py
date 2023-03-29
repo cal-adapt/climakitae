@@ -329,7 +329,8 @@ def _get_data_one_var(selections, location, cat):
 
         # Read data from AWS
         data_dict = cat_subset.to_dataset_dict(
-            xarray_open_kwargs={"consolidated": True},
+            # xarray_open_kwargs={"consolidated": True},
+            zarr_kwargs={"consolidated": True},
             storage_options={"anon": True},
             progressbar=False,
         )
