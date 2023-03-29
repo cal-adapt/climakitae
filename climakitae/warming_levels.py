@@ -190,21 +190,21 @@ class _WarmingLevels(param.Parameterized):
 
     Attributes
     ----------
-    warmlevel: param.ObjectSelector
+    warmlevel: param.Selector
         Warming level in degrees Celcius.
-    ssp: param.ObjectSelector
+    ssp: param.Selector
         Shared socioeconomic pathway.
-    cmap: param.ObjectSelector
+    cmap: param.Selector
         Colormap used to color maps
     changed_loc_and_var: param.Boolean
         Has the location and variable been changed?
         If so, reload the warming level anomolies.
     """
 
-    warmlevel = param.ObjectSelector(
+    warmlevel = param.Selector(
         default=1.5, objects=[1.5, 2, 3, 4], doc="Warming level in degrees Celcius."
     )
-    ssp = param.ObjectSelector(
+    ssp = param.Selector(
         default="All",
         objects=[
             "All",
@@ -216,7 +216,7 @@ class _WarmingLevels(param.Parameterized):
         ],
         doc="Shared Socioeconomic Pathway.",
     )
-    cmap = param.ObjectSelector(dict(), doc="Colormap")
+    cmap = param.Selector(dict(), doc="Colormap")
 
     def __init__(self, *args, **params):
         super().__init__(*args, **params)

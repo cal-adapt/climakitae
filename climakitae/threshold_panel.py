@@ -42,27 +42,27 @@ class _ThresholdDataParams(param.Parameterized):
     """
 
     # Define the params (before __init__ so that we can access them during __init__)
-    threshold_direction = param.ObjectSelector(
+    threshold_direction = param.Selector(
         default="above", objects=["above", "below"], label="Direction"
     )
     threshold_value = param.Number(default=0, label="")
     duration1_length = param.Integer(default=1, bounds=(0, None), label="")
-    duration1_type = param.ObjectSelector(
+    duration1_type = param.Selector(
         default="hour", objects=["year", "month", "day", "hour"], label=""
     )
     period_length = param.Integer(default=1, bounds=(0, None), label="")
-    period_type = param.ObjectSelector(
+    period_type = param.Selector(
         default="year", objects=["year", "month", "day"], label=""
     )
     group_length = param.Integer(default=1, bounds=(0, None), label="")
-    group_type = param.ObjectSelector(
+    group_type = param.Selector(
         default="hour", objects=["year", "month", "day", "hour"], label=""
     )
     duration2_length = param.Integer(default=1, bounds=(0, None), label="")
-    duration2_type = param.ObjectSelector(
+    duration2_type = param.Selector(
         default="hour", objects=["year", "month", "day", "hour"], label=""
     )
-    smoothing = param.ObjectSelector(
+    smoothing = param.Selector(
         default="None", objects=["None", "Running mean"], label="Smoothing"
     )
     num_timesteps = param.Integer(
