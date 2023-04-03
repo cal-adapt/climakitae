@@ -21,26 +21,31 @@ def compute_hdd_cdd(t2, hdd_threshold=65, cdd_threshold=65):
         (hdd, cdd)
     """
 
+    # Check that temperature data was passed to function, throw error if not
+    assert t2.name == "Air Temperature at 2m", "Invalid input data, please provide air temperature data to CDD/HDD calculation"
+
     # Subtract t2 from the threshold inputs
     hdd_deg_less_than_standard = hdd_threshold - t2
     cdd_deg_less_than_standard = cdd_threshold - t2
 
-    # Compute HDD: Find positive difference (i.e. days < 65 degF)
-    hdd = hdd_deg_less_than_standard.where(
-        hdd_deg_less_than_standard > 0, 0
-    )  # Replace negative values with 0
+    # Compute HDD: Find positive difference (i.e. days < 65 degF) 
+    hdd = hdd_deg_less_than_standard.clip(
+        0, None
+    )
+    # Replace negative values with 0
     hdd.name = "Heating Degree Days"
     hdd.attrs["hdd_threshold"] = (
-        str(hdd_threshold) + "degF"
+        str(hdd_threshold) + " degF"
     )  # add attribute of threshold value
 
-    # Compute CDD: Find negative difference (i.e. days > 65 degF)
-    cdd = (-1) * cdd_deg_less_than_standard.where(
-        cdd_deg_less_than_standard < 0, 0
-    )  # Replace positive values with 0
+    # Compute CDD: Find negative difference (i.e. days > 65 degF) 
+    cdd = (-1) * cdd_deg_less_than_standard.clip(
+        None, 0
+    )
+    # Replace positive values with 0
     cdd.name = "Cooling Degree Days"
     cdd.attrs["cdd_threshold"] = (
-        str(cdd_threshold) + "degF"
+        str(cdd_threshold) + " degF"
     )  # add attribute of threshold value
 
     return (hdd, cdd)
@@ -64,6 +69,9 @@ def compute_hdh_cdh(t2, hdh_threshold=65, cdh_threshold=65):
         (hdh, cdh)
     """
 
+    # Check that temperature data was passed to function, throw error if not
+    assert t2.name == "Air Temperature at 2m", "Invalid input data, please provide air temperature data to CDH/HDH calculation"
+
     # Calculate heating and cooling hours
     cooling_hours = t2.where(
         t2 > hdh_threshold
@@ -75,12 +83,12 @@ def compute_hdh_cdh(t2, hdh_threshold=65, cdh_threshold=65):
     # Compute CDH: count number of hours and resample to daily (max 24 value)
     cdh = cooling_hours.resample(time="1D").count(dim="time").squeeze()
     cdh.name = "Cooling Degree Hours"
-    cdh.attrs["cdh_threshold"] = str(cdh_threshold) + "degF"
+    cdh.attrs["cdh_threshold"] = str(cdh_threshold) + " degF"
 
     # Compute HDH: count number of hours and resample to daily (max 24 value)
     hdh = heating_hours.resample(time="1D").count(dim="time").squeeze()
     hdh.name = "Heating Degree Hours"
-    hdh.attrs["hdh_threshold"] = str(hdh_threshold) + "degF"
+    hdh.attrs["hdh_threshold"] = str(hdh_threshold) + " degF"
 
     return (hdh, cdh)
 
