@@ -22,7 +22,8 @@ def compute_hdd_cdd(t2, hdd_threshold=65, cdd_threshold=65):
     """
 
     # Check that temperature data was passed to function, throw error if not
-    assert t2.name == "Air Temperature at 2m", "Invalid input data, please provide air temperature data to CDD/HDD calculation"
+    if t2.name != "Air Temperature at 2m":
+        raise Exception("Invalid input data, please provide Air Temperature at 2m data to CDD/HDD calculation")
 
     # Subtract t2 from the threshold inputs
     hdd_deg_less_than_standard = hdd_threshold - t2
@@ -70,7 +71,8 @@ def compute_hdh_cdh(t2, hdh_threshold=65, cdh_threshold=65):
     """
 
     # Check that temperature data was passed to function, throw error if not
-    assert t2.name == "Air Temperature at 2m", "Invalid input data, please provide air temperature data to CDH/HDH calculation"
+    if t2.name != "Air Temperature at 2m":
+        raise Exception("Invalid input data, please provide Air Temperature at 2m data to CDH/HDH calculation")
 
     # Calculate heating and cooling hours
     cooling_hours = t2.where(
