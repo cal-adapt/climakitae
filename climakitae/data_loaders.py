@@ -112,7 +112,7 @@ def _get_cat_subset(selections, cat):
 
     """
 
-    if "LOCA" in selections.timescale:
+    if "Statistical" in selections.downscaling_method:
         timescale = "daily"
     else:
         timescale = selections.timescale
@@ -298,20 +298,6 @@ def _process_and_concat(selections, location, dsets, cat_subset):
     # Rename
     da_final.name = selections.variable
 
-    # Add attributes
-    orig_attrs = dsets[list(dsets.keys())[0]].attrs
-    da_final.attrs = {  # Add descriptive attributes to DataArray
-        "institution": orig_attrs["institution"],
-        "source": orig_attrs["source"],
-        "location_subset": location.cached_area,
-        "resolution": selections.resolution,
-        "frequency": selections.timescale,
-        "grid_mapping": da_final.attrs["grid_mapping"],
-        "location_subset": location.cached_area,
-        "variable_id": selections.variable_id,
-        "extended_description": selections.extended_description,
-        "units": da_final.attrs["units"],
-    }
     return da_final
 
 
@@ -382,6 +368,16 @@ def _get_data_one_var(selections, location, cat):
             weights = np.cos(np.deg2rad(dset.lat))
             dset = dset.weighted(weights).mean("x").mean("y")
 
+        # Compute monthly means from daily data if LOCA monthly data selected
+        (
+            activity_id,
+            institution_id,
+            source_id,
+            experiment_id,
+            table_id,
+            grid_label,
+        ) = dname.split(".")
+
         # Update dataset in dictionary
         data_dict.update({dname: dset})
 
@@ -391,8 +387,20 @@ def _get_data_one_var(selections, location, cat):
     )
 
     # Assign data type attribute
-    da = da.assign_attrs({"data_type": selections.data_type})
-
+    da = da.assign_attrs(
+        {  # Add descriptive attributes to DataArray
+            "institution": institution_id,
+            "location_subset": location.cached_area,
+            "resolution": selections.resolution,
+            "frequency": selections.timescale,
+            # "grid_mapping": da_final.attrs["grid_mapping"],
+            "location_subset": location.cached_area,
+            "variable_id": selections.variable_id,
+            "extended_description": selections.extended_description,
+            "units": da.attrs["units"],
+            "data_type": selections.data_type,
+        }
+    )
     return da
 
 
@@ -503,9 +511,6 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
 
     # Convert units
     da = _convert_units(da=da, selected_units=selections.units)
-
-    # Compute monthly mean on the fly for LOCA data
-    # if
 
     if selections.data_type == "Station":
         if loop:

@@ -52,7 +52,7 @@ sfc_runoff,surface runoff ,Dynamical,daily/monthly,mm/d,Surface runoff,"The rate
 subsfc_runoff,subsurface runoff ,Dynamical,daily/monthly,mm/d,Subsurface runoff,"The rate at which  water that has infiltrated the ground surface travels underground until it reaches a body of water (stream, river, etc.)",ae_blue,FALSE
 prec_max,maximum precipitation,Dynamical,daily/monthly,mm/h,Maximum precipitation,The maximum precipitation rate in a single hour. ,ae_blue,TRUE
 snow,snow water equivalent,Dynamical,daily/monthly,mm,Snow water equivalent,The amount of water that would be present if all snow melted. ,ae_blue,FALSE
-huss,huss,Statistical,daily/monthly,[0 to 100],Relative Humidity,The percentage of water vapor (i.e. moisture) relative to the amount of water vapor needed to saturate the air at the current air temperature and pressure.,ae_blue,TRUE
+huss,huss,Statistical,daily/monthly,kg/kg,Specific humidity at 2m,The percentage of water vapor (i.e. moisture) relative to the amount of water vapor needed to saturate the air at the current air temperature and pressure.,ae_blue,TRUE
 pr,pr,Statistical,daily/monthly,mm,Precipitation (total),Total precipitation. Computed by summing total gridscale precipitation and total cumulus precipitation.,ae_blue,TRUE
 tasmax,tasmax,Statistical,daily/monthly,K,Daily minimum air temperature at 2m,The minimum daily air temperature at 2m above the Earth's surface. ,ae_orange,TRUE
 tasmin,tasmin,Statistical,daily/monthly,K,Daily maximum air temperature at 2m,The maximum daily air temperature at 2m above the Earth's surface. ,ae_orange,TRUE

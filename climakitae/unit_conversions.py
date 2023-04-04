@@ -15,6 +15,7 @@ def _get_unit_conversion_options():
         "[0 to 100]": ["[0 to 100]", "fraction"],
         "mm": ["mm", "inches"],
         "kg/kg": ["kg/kg", "g/kg"],
+        "g/kg": ["g/kg", "kg/kg"],
         "kg kg-1": ["kg kg-1", "g kg-1"],
         "1 kg m-2 s-1": ["1 kg m-2 s-1", "mm", "inches"],
     }
@@ -42,7 +43,7 @@ def _convert_units(da, selected_units):
     except:
         raise ValueError(
             (
-                "You've encountered a bug in the code. This variable"
+                "You've encountered a bug in the code. This variable "
                 "does not have identifiable native units. The data"
                 " for this variable will need to have a 'units'"
                 " attribute added in the catalog."

@@ -434,11 +434,6 @@ class _ViewLocationSelections(param.Parameterized):
                 (-110.984375, 33.6),  # Max longitude
                 (-116.5, 29.578125),  # Min latitude
                 (-128.421875, 42),  # Min longitude
-            ][
-                (-110.984375, 33.6),  # Max longitude
-                (-116.5, 29.578125),  # Min latitude
-                (-120.7, 45.015625),  # Max latitude
-                (-128.421875, 42),  # Min longitude
             ]
         )
     }
@@ -936,7 +931,7 @@ class _DataSelector(param.Parameterized):
                     "cached_area"
                 ].objects = self.location._geography_choose["states"].keys()
 
-    @param.depends("variable", "timescale", watch=True)
+    @param.depends("variable", "timescale", "downscaling_method", watch=True)
     def _update_unit_options(self):
         """Update unit options and native units for selected variable."""
         var_info = self.variable_options_df[
