@@ -3,7 +3,7 @@
 import numpy as np
 
 
-def compute_hdd_cdd(t2, hdd_threshold=65, cdd_threshold=65):
+def compute_hdd_cdd(t2, hdd_threshold, cdd_threshold):
     """Compute heating degree days (HDD) and cooling degree days (CDD)
 
     Parameters
@@ -11,9 +11,9 @@ def compute_hdd_cdd(t2, hdd_threshold=65, cdd_threshold=65):
     t2: xr.DataArray
         Air temperature at 2m gridded data
     hdd_threshold: int, optional
-        Standard temperature in Fahrenheit. Default to 65 degF
+        Standard temperature in Fahrenheit.
     cdd_threshold: int, optional
-        Standard temperature in Fahrenheit. Default to 65 degF
+        Standard temperature in Fahrenheit.
 
     Returns
     -------
@@ -50,7 +50,7 @@ def compute_hdd_cdd(t2, hdd_threshold=65, cdd_threshold=65):
     return (hdd, cdd)
 
 
-def compute_hdh_cdh(t2, hdh_threshold=65, cdh_threshold=65):
+def compute_hdh_cdh(t2, hdh_threshold, cdh_threshold):
     """Compute heating degree hours (HDH) and cooling degree hours (CDH)
 
     Parameters
@@ -58,9 +58,9 @@ def compute_hdh_cdh(t2, hdh_threshold=65, cdh_threshold=65):
     t2: xr.DataArray
         Air temperature at 2m gridded data
     hdh_threshold: int, optional
-        Standard temperature in Fahrenheit. Default to 65 degF
+        Standard temperature in Fahrenheit. 
     cdh_threshold: int, optional
-        Standard temperature in Fahrenheit. Default to 65 degF
+        Standard temperature in Fahrenheit. 
 
     Returns
     -------
