@@ -7,8 +7,9 @@ import pandas as pd
 import intake
 import warnings
 from .selectors import Boundaries
+
 # from xmip.preprocessing import rename_cmip6 # newer pangeo image
-from cmip6_preprocessing.preprocessing import rename_cmip6 # older pangeo image
+from cmip6_preprocessing.preprocessing import rename_cmip6  # older pangeo image
 from scipy import stats
 import pkg_resources
 from climakitae.data_loaders import _get_area_subset
