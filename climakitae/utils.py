@@ -417,7 +417,7 @@ def compute_multimodel_stats(data):
 
 def trendline(data): 
     """Calculates treadline of the multi-model mean"""
-    if "simulation mean" not in data:
+    if "simulation mean" not in data.simulation:
         raise Exception("Invalid data provdied, please pass the multimodel mean stats")
 
     data_sim_mean = data.sel(simulation="simulation mean") 
