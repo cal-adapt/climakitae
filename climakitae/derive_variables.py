@@ -58,9 +58,9 @@ def compute_hdh_cdh(t2, hdh_threshold, cdh_threshold):
     t2: xr.DataArray
         Air temperature at 2m gridded data
     hdh_threshold: int, optional
-        Standard temperature in Fahrenheit. 
+        Standard temperature in Fahrenheit.
     cdh_threshold: int, optional
-        Standard temperature in Fahrenheit. 
+        Standard temperature in Fahrenheit.
 
     Returns
     -------
