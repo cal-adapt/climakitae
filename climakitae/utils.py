@@ -399,6 +399,15 @@ def _write_gwl_files():
     all_gw_levels2.to_csv("../data/gwl_1981-2010ref.csv")
 
 
+## DFU notebook-specific functions, flexible for all notebooks
+def compute_annual_aggreggate(data, name, num_grid_cells):  
+    """Calculates the annual sum of HDD and CDD"""
+    annual_ag = data.squeeze().groupby('time.year').sum(['time']) # Aggregate annually
+    annual_ag = annual_ag/num_grid_cells # Divide by number of gridcells 
+    annual_ag.name = name # Give new name to dataset
+    return annual_ag
+
+
 def compute_multimodel_stats(data): 
     """Calculates model mean, min, max across simulations"""
     # Compute mean across simulation dimensions and add is as a coordinate
@@ -425,3 +434,24 @@ def trendline(data):
     trendline = m*data_sim_mean.year + b # y = mx + b 
     trendline.name = "trendline" 
     return trendline
+
+## DFU plotting functions
+def hdd_cdd_lineplot(annual_data, trendline, title="title"): 
+    """Plots annual CDD/HDD with trendline provided"""
+    return annual_data.hvplot.line(
+        x="year", by="simulation", 
+        width=800, height=350,
+        title=title,
+        yformatter='%.0f' # Remove scientific notation
+    ) * trendline.hvplot.line(  # Add trendline
+        x="year", 
+        color="black", 
+        line_dash='dashed', 
+        label="trendline"
+    ) 
+
+def hdh_cdh_lineplot(data):    
+    """Plots HDH/CDH"""
+    return data.hvplot.line(x="time", by="simulation",
+                             title=data.name, 
+                             ylabel=data.name + " (degF)")
