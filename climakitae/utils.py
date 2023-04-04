@@ -397,3 +397,31 @@ def _write_gwl_files():
         keys=list(models.keys()),
     )
     all_gw_levels2.to_csv("../data/gwl_1981-2010ref.csv")
+
+
+def compute_multimodel_stats(data): 
+    """Calculates model mean, min, max across simulations"""
+    # Compute mean across simulation dimensions and add is as a coordinate
+    sim_mean = data.mean(dim="simulation").assign_coords({"simulation":"simulation mean"}).expand_dims("simulation") 
+
+    # Compute multimodel min 
+    sim_min = data.min(dim="simulation").assign_coords({"simulation":"simulation min"}).expand_dims("simulation") 
+
+    # Compute multimodel max 
+    sim_max = data.max(dim="simulation").assign_coords({"simulation":"simulation max"}).expand_dims("simulation") 
+
+    # Add to main dataset
+    stats_concat = xr.concat([data, sim_mean, sim_min, sim_max], dim="simulation")
+    return stats_concat
+
+
+def trendline(data): 
+    """Calculates treadline of the multi-model mean"""
+    if "simulation mean" not in data:
+        raise Exception("Invalid data provdied, please pass the multimodel mean stats")
+
+    data_sim_mean = data.sel(simulation="simulation mean") 
+    m, b = data_sim_mean.polyfit(dim="year", deg=1).polyfit_coefficients.values
+    trendline = m*data_sim_mean.year + b # y = mx + b 
+    trendline.name = "trendline" 
+    return trendline
