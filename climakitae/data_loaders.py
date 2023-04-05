@@ -26,6 +26,7 @@ from .derive_variables import (
     _compute_relative_humidity,
     _compute_wind_mag,
     _compute_dewpointtemp,
+    _compute_specific_humidity,
 )
 
 # Set options
@@ -141,7 +142,7 @@ def _get_cat_subset(selections, cat):
     return cat_subset
 
 
-def _get_area_subset(location):
+def _get_area_subset(area_subset, cached_area, location):
     """Get geometry to perform area subsetting with.
 
     Args:
@@ -155,26 +156,26 @@ def _get_area_subset(location):
     def set_subarea(boundary_dataset):
         return boundary_dataset[boundary_dataset.index == shape_index].iloc[0].geometry
 
-    if location.area_subset == "lat/lon":
+    if area_subset == "lat/lon":
         geom = _get_as_shapely(location)
         if not geom.is_valid:
             raise ValueError(
                 "Please go back to 'select' and choose" + " a valid lat/lon range."
             )
         ds_region = [geom]
-    elif location.area_subset != "none":
+    elif area_subset != "none":
         shape_index = int(
             location._geography_choose[location.area_subset][location.cached_area]
         )
-        if location.area_subset == "states":
+        if area_subset == "states":
             shape = set_subarea(location._geographies._us_states)
-        elif location.area_subset == "CA counties":
+        elif area_subset == "CA counties":
             shape = set_subarea(location._geographies._ca_counties)
-        elif location.area_subset == "CA watersheds":
+        elif area_subset == "CA watersheds":
             shape = set_subarea(location._geographies._ca_watersheds)
-        elif location.area_subset == "CA Electric Load Serving Entities (IOU & POU)":
+        elif area_subset == "CA Electric Load Serving Entities (IOU & POU)":
             shape = set_subarea(location._geographies._ca_utilities)
-        elif location.area_subset == "CA Electricity Demand Forecast Zones":
+        elif area_subset == "CA Electricity Demand Forecast Zones":
             shape = set_subarea(location._geographies._ca_forecast_zones)
         ds_region = [shape]
     else:
@@ -359,7 +360,24 @@ def _get_data_one_var(selections, location, cat):
         )
 
         # Perform area subsetting
-        ds_region = _get_area_subset(location=location)
+
+        # Bay Area airport stations are tricky, requires some hacky coding
+        # You need to retrieve the entire domain because the shapefiles will cut out the ocean grid cells
+        # But the bay area airports closest gridcells are the ocean!
+        # Ideally the shapefiles should be modified to include the bay area water regions
+        bay_stations = [
+            "Oakland Metro International Airport",
+            "San Francisco International Airport",
+        ]
+        if (location.data_type == "Station") and any(
+            x in location.station for x in bay_stations
+        ):
+            area_subset = "none"
+            cached_area = "entire domain"
+        else:
+            area_subset = location.area_subset
+            cached_area = location.cached_area
+        ds_region = _get_area_subset(area_subset, cached_area, location)
         if ds_region is not None:  # Perform subsetting
             dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
 
@@ -463,11 +481,7 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
     # Deal with derived variables
     orig_var_id_selection = selections.variable_id
     orig_variable_selection = selections.variable
-    if orig_var_id_selection in [
-        "wind_speed_derived",
-        "rh_derived",
-        "dew_point_derived",
-    ]:
+    if "_derived" in orig_var_id_selection:
         if orig_var_id_selection == "wind_speed_derived":
             # Load u10 data
             selections.variable_id = "u10"
@@ -481,10 +495,6 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
             da = _compute_wind_mag(u10=u10_da, v10=v10_da)
 
         else:
-            # Load pressure data
-            selections.variable_id = "psfc"
-            pressure_da = _get_data_one_var(selections, location, cat)
-
             # Load temperature data
             selections.variable_id = "t2"
             t2_da = _get_data_one_var(selections, location, cat)
@@ -493,14 +503,36 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
             selections.variable_id = "q2"
             q2_da = _get_data_one_var(selections, location, cat)
 
+            # Load pressure data
+            selections.variable_id = "psfc"
+            pressure_da = _get_data_one_var(selections, location, cat)
+
             # Derive relative humidity
             rh_da = _compute_relative_humidity(
                 pressure=pressure_da, temperature=t2_da, mixing_ratio=q2_da
             )
-            if orig_var_id_selection == "dew_point_derived":
-                da = _compute_dewpointtemp(temperature=t2_da, rel_hum=rh_da)
-            elif orig_var_id_selection == "rh_derived":
+
+            if orig_var_id_selection == "rh_derived":
                 da = rh_da
+
+            else:
+                # Need to figure out how to silence divide by zero runtime warning
+                # Derive dew point temperature
+                dew_pnt_da = _compute_dewpointtemp(temperature=t2_da, rel_hum=rh_da)
+
+                if orig_var_id_selection == "dew_point_derived":
+                    da = dew_pnt_da
+
+                elif orig_var_id_selection == "q2_derived":
+                    # Derive specific humidity
+                    da = _compute_specific_humidity(
+                        tdps=dew_pnt_da, pressure=pressure_da
+                    )
+
+                else:
+                    raise ValueError(
+                        "You've encountered a bug. No data available for selected derived variable."
+                    )
 
         selections.variable_id = orig_var_id_selection
         da.attrs["variable_id"] = orig_var_id_selection  # Reset variable ID attribute
@@ -514,10 +546,10 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
 
     if selections.data_type == "Station":
         if loop:
-            print("Retrieving station data using a for loop")
+            # print("Retrieving station data using a for loop")
             da = _station_loop(location, da, stations_df, original_time_slice)
         else:
-            print("Retrieving station data using xr.apply")
+            # print("Retrieving station data using xr.apply")
             da = _station_apply(location, da, stations_df, original_time_slice)
         # Reset original selections
         if "Historical Climate" not in original_scenario_historical:

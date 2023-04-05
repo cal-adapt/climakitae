@@ -655,11 +655,12 @@ def _get_variable_options_df(
     if timescale in ["daily", "monthly"]:
         timescale = "daily/monthly"
     # Catalog options and derived options together
-    var_options_plus_derived = unique_variable_ids + [
-        "rh_derived",
-        "wind_speed_derived",
-        "dew_point_derived",
-    ]
+    derived_variables = list(
+        var_catalog[var_catalog["variable_id"].str.contains("_derived")]["variable_id"]
+    )
+    var_options_plus_derived = unique_variable_ids + derived_variables
+
+    # Subset dataframe
     variable_options_df = var_catalog[
         (var_catalog["show"] == True)
         & (  # Make sure it's a valid variable selection

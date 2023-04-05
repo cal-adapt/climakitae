@@ -7,6 +7,7 @@ dew_point_derived,Dew point temperature,Dynamical,hourly,K,Dew point temperature
 u10,u at 10 m,Dynamical,hourly,m s-1,West-East component of Wind at 10m,"Wind coming from the west, measured at 10m above Earth's surface. By convention, wind coming from the east is negative.",ae_diverging,TRUE
 v10,v at 10 m,Dynamical,hourly,m s-1,North-South component of Wind at 10m,"Wind coming from the north, measured at 10m above Earth's surface. By convention, wind coming from the south is negative.",ae_diverging,TRUE
 psfc,sfc pressure,Dynamical,hourly,Pa,Surface Pressure,Air pressure at Earth's surface.,ae_diverging,TRUE
+q2_derived,2-meter specific humidity,Dynamical,hourly,g/kg,Specific humidity at 2m,"The ratio of the mass of water vapor over the mass of total (moist) air, measured 2m above Earth's surface.",ae_blue,TRUE
 q2,qv at 2 m,Dynamical,hourly,kg kg-1,Water Vapor Mixing Ratio at 2m,"The ratio of the mass of water vapor over the mass of dry air, measured 2m above Earth's surface.",ae_blue,TRUE
 tsk,surface skin temperature,Dynamical,hourly,K,Surface skin temperature,"Temperature of the Earth's surface (i.e., ground surface).  Typically not used in most applications.",ae_orange,TRUE
 lwdnb,instantaneous downwelling longwave flux at bottom,Dynamical,hourly,W m-2,Instantaneous downwelling longwave flux at bottom,Longwave radiation emitted by Earth's surface that is reflected back downwards by gasses and clouds. ,ae_orange,TRUE

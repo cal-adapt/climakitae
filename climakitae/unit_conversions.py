@@ -18,6 +18,7 @@ def _get_unit_conversion_options():
         "g/kg": ["g/kg", "kg/kg"],
         "kg kg-1": ["kg kg-1", "g kg-1"],
         "1 kg m-2 s-1": ["1 kg m-2 s-1", "mm", "inches"],
+        "g/kg": ["g/kg", "kg/kg"],
     }
     return options
 
@@ -80,6 +81,17 @@ def _convert_units(da, selected_units):
     elif native_units in ["kg/kg", "kg kg-1"]:
         if selected_units in ["g/kg", "g kg-1"]:
             da = da * 1000
+
+    # Specific humidity
+    elif native_units == "g/kg":
+        if selected_units == "kg/kg":
+            da = da / 1000
+
+    # Specific humidity
+    elif native_units == "g/kg":
+        if selected_units == "kg/kg":
+            da = da / 1000
+            da.attrs["units"] = selected_units
 
     # Pressure units
     elif native_units == "Pa":
