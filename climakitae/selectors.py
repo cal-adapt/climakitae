@@ -37,13 +37,6 @@ stations_gpd = gpd.GeoDataFrame(
     geometry=gpd.points_from_xy(stations_df.LON_X, stations_df.LAT_Y),
 )
 
-# Electric Balancing Authority Areas
-shp = pkg_resources.resource_filename(
-    "climakitae", "data/electric-balancing-areas.parquet"
-)
-electric_bal_areas = gpd.read_parquet(shp)
-
-
 # =========================== LOCATION SELECTIONS ==============================
 
 
@@ -79,7 +72,7 @@ class Boundaries:
         self._ca_watersheds = self._cat.huc8.read().sort_values("Name")
         self._ca_utilities = self._cat.utilities.read()
         self._ca_forecast_zones = self._cat.dfz.read()
-        self._ca_electric_balancing_areas = electric_bal_areas
+        self._ca_electric_balancing_areas = self._cat.eba.read()
 
         # For Forecast Zones named "Other", replace that with the name of the county
         self._ca_forecast_zones.loc[
