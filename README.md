@@ -1,6 +1,6 @@
 Climakitae
 ==========
-A python toolkit for retrieving, visualizing, and performing scientific analyses with data from the [Cal-Adapt Analytics Engine](https://analytics.cal-adapt.org).
+A python toolkit for retrieving, visualizing, and performing scientific analyses with climate data from the [Cal-Adapt Analytics Engine](https://analytics.cal-adapt.org).
 
 **Note:** This package is in active development and should be considered a work in progress. 
 
