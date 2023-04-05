@@ -3,15 +3,17 @@
 import numpy as np
 
 
-def compute_hdd_cdd(t2, standard_temp=65):
+def compute_hdd_cdd(t2, hdd_threshold, cdd_threshold):
     """Compute heating degree days (HDD) and cooling degree days (CDD)
 
     Parameters
     -----------
     t2: xr.DataArray
         Air temperature at 2m gridded data
-    standard_temp: int, optional
-        Standard temperature in Fahrenheit. Default to 65 degF
+    hdd_threshold: int, optional
+        Standard temperature in Fahrenheit.
+    cdd_threshold: int, optional
+        Standard temperature in Fahrenheit.
 
     Returns
     -------
@@ -19,22 +21,78 @@ def compute_hdd_cdd(t2, standard_temp=65):
         (hdd, cdd)
     """
 
-    # Subtract t2 from the standard reference temperature
-    deg_less_than_standard = standard_temp - t2
+    # Check that temperature data was passed to function, throw error if not
+    if t2.name != "Air Temperature at 2m":
+        raise Exception(
+            "Invalid input data, please provide Air Temperature at 2m data to CDD/HDD calculation"
+        )
+
+    # Subtract t2 from the threshold inputs
+    hdd_deg_less_than_standard = hdd_threshold - t2
+    cdd_deg_less_than_standard = cdd_threshold - t2
 
     # Compute HDD: Find positive difference (i.e. days < 65 degF)
-    hdd = deg_less_than_standard.where(
-        deg_less_than_standard > 0, 0
-    )  # Replace negative values with 0
+    hdd = hdd_deg_less_than_standard.clip(0, None)
+    # Replace negative values with 0
     hdd.name = "Heating Degree Days"
+    hdd.attrs["hdd_threshold"] = (
+        str(hdd_threshold) + " degF"
+    )  # add attribute of threshold value
 
     # Compute CDD: Find negative difference (i.e. days > 65 degF)
-    cdd = (-1) * deg_less_than_standard.where(
-        deg_less_than_standard < 0, 0
-    )  # Replace positive values with 0
+    cdd = (-1) * cdd_deg_less_than_standard.clip(None, 0)
+    # Replace positive values with 0
     cdd.name = "Cooling Degree Days"
+    cdd.attrs["cdd_threshold"] = (
+        str(cdd_threshold) + " degF"
+    )  # add attribute of threshold value
 
     return (hdd, cdd)
+
+
+def compute_hdh_cdh(t2, hdh_threshold, cdh_threshold):
+    """Compute heating degree hours (HDH) and cooling degree hours (CDH)
+
+    Parameters
+    -----------
+    t2: xr.DataArray
+        Air temperature at 2m gridded data
+    hdh_threshold: int, optional
+        Standard temperature in Fahrenheit.
+    cdh_threshold: int, optional
+        Standard temperature in Fahrenheit.
+
+    Returns
+    -------
+    tuple of xr.DataArray
+        (hdh, cdh)
+    """
+
+    # Check that temperature data was passed to function, throw error if not
+    if t2.name != "Air Temperature at 2m":
+        raise Exception(
+            "Invalid input data, please provide Air Temperature at 2m data to CDH/HDH calculation"
+        )
+
+    # Calculate heating and cooling hours
+    cooling_hours = t2.where(
+        t2 > hdh_threshold
+    )  # temperatures above threshold, require cooling
+    heating_hours = (-1) * t2.where(
+        t2 < cdh_threshold
+    )  # temperatures below threshold, require heating
+
+    # Compute CDH: count number of hours and resample to daily (max 24 value)
+    cdh = cooling_hours.resample(time="1D").count(dim="time").squeeze()
+    cdh.name = "Cooling Degree Hours"
+    cdh.attrs["cdh_threshold"] = str(cdh_threshold) + " degF"
+
+    # Compute HDH: count number of hours and resample to daily (max 24 value)
+    hdh = heating_hours.resample(time="1D").count(dim="time").squeeze()
+    hdh.name = "Heating Degree Hours"
+    hdh.attrs["hdh_threshold"] = str(hdh_threshold) + " degF"
+
+    return (hdh, cdh)
 
 
 def _compute_dewpointtemp(temperature, rel_hum):
