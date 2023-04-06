@@ -316,7 +316,6 @@ def _get_data_one_var(selections, location, cat):
 
         # Read data from AWS
         data_dict = cat_subset.to_dataset_dict(
-            # xarray_open_kwargs={"consolidated": True},
             zarr_kwargs={"consolidated": True},
             storage_options={"anon": True},
             progressbar=False,
@@ -369,7 +368,7 @@ def _get_data_one_var(selections, location, cat):
             "Oakland Metro International Airport",
             "San Francisco International Airport",
         ]
-        if (location.data_type == "Station") and any(
+        if (selections.data_type == "Station") and any(
             x in location.station for x in bay_stations
         ):
             area_subset = "none"

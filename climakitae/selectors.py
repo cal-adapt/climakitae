@@ -595,30 +595,51 @@ class _ViewLocationSelections(param.Parameterized):
 # ============================ DATA SELECTIONS =================================
 
 
-def _get_simulation_options(cat, activity_id, table_id, grid_label, experiment_id):
-    """Get simulations for user selections. This function is not intended to provide user options,
-    but is rather used to provide information only. It also serves to remove ensmean as an option.
+def _get_user_options(cat, downscaling_method, timescale, resolution):
+    """Using the data catalog, get a list of appropriate scenario and simulation options given a user's
+    selections for downscaling method, timescale, and resolution.
+    Unique variable ids for user selections are returned, then limited further in subsequent steps.
 
-    Args:
-        cat (intake catalog): catalog
-        activity_id (str): dataset name (i.e. "WRF")
-        table_id (str): timescale
-        grid_label (str): resolution
-        experiment_id (list of str): selected scenario/s
+    Parameters
+    ----------
+    cat: intake catalog
+    downscaling_method: list, one of ["Dynamical"], ["Statistical"], or ["Dynamical","Statistical"]
+        Data downscaling method
+    timescale: str, one of "hourly", "daily", or "monthly"
+        Timescale
+    resolution: str, one of "3 km", "9 km", "45 km"
+        Model grid resolution
 
-    Returns:
-        simulation_options (list of strs): valid simulation (source_id) options for input
-
+    Returns
+    -------
+    scenario_options: list
+        Unique scenario values for input user selections
+    simulation_options: list
+        Unique simulation values for input user selections
+    unique_variable_ids: list
+        Unique variable id values for input user selections
     """
+    if "Statistical" in downscaling_method:
+        # Monthly timescale not available in catalog but is computed on the fly in data_loaders
+        # Setting it to daily here will not change what the user sees in the GUI
+        timescale = "daily"
 
     # Get catalog subset from user inputs
     with warnings.catch_warnings(record=True):
         cat_subset = cat.search(
-            activity_id=activity_id,
-            table_id=table_id,
-            grid_label=grid_label,
-            experiment_id=experiment_id,
+            activity_id=[
+                _downscaling_method_to_activity_id(dm) for dm in downscaling_method
+            ],
+            table_id=_timescale_to_table_id(timescale),
+            grid_label=_resolution_to_gridlabel(resolution),
         )
+
+    # Get variable options
+    if "Statistical" in downscaling_method:
+        cat_subset = cat_subset.search(institution_id="UCLA")
+
+    # Get scenario options
+    scenario_options = list(cat_subset.df["experiment_id"].unique())
 
     # Get all unique simulation options from catalog selection
     try:
@@ -627,7 +648,11 @@ def _get_simulation_options(cat, activity_id, table_id, grid_label, experiment_i
             simulation_options.remove("ensmean")  # Remove ensemble means
     except:
         simulation_options = []
-    return simulation_options
+
+    # Get variable options
+    unique_variable_ids = list(cat_subset.df["variable_id"].unique())
+
+    return scenario_options, simulation_options, unique_variable_ids
 
 
 def _get_variable_options_df(
@@ -741,18 +766,15 @@ class _DataSelector(param.Parameterized):
         # Set default values
         super().__init__(**params)
 
-        # Variable catalog info
-        self.cat_subset = self.cat.search(
-            activity_id=[
-                _downscaling_method_to_activity_id(dm) for dm in self.downscaling_method
-            ],
-            table_id=_timescale_to_table_id(self.timescale),
-            grid_label=_resolution_to_gridlabel(self.resolution),
+        self.scenario_options, self.simulation, unique_variable_ids = _get_user_options(
+            cat=self.cat,
+            downscaling_method=self.downscaling_method,
+            timescale=self.timescale,
+            resolution=self.resolution,
         )
-        self.unique_variable_ids = list(self.cat_subset.df["variable_id"].unique())
         self.variable_options_df = _get_variable_options_df(
             var_catalog=var_catalog,
-            unique_variable_ids=self.unique_variable_ids,
+            unique_variable_ids=unique_variable_ids,
             downscaling_method=self.downscaling_method,
             timescale=self.timescale,
         )
@@ -760,7 +782,7 @@ class _DataSelector(param.Parameterized):
         # Set scenario param
         scenario_ssp_options = [
             _scenario_to_experiment_id(scen, reverse=True)
-            for scen in list(self.cat_subset.df["experiment_id"].unique())
+            for scen in self.scenario_options
             if "ssp" in scen
         ]
         for scenario_i in [
@@ -777,20 +799,6 @@ class _DataSelector(param.Parameterized):
         # Set variable param
         self.param["variable"].objects = self.variable_options_df.display_name.values
         self.variable = self.default_variable
-
-        # Set simulation param
-        self.simulation = _get_simulation_options(
-            cat=self.cat,
-            activity_id=[
-                _downscaling_method_to_activity_id(dm) for dm in self.downscaling_method
-            ],
-            table_id=_timescale_to_table_id(self.timescale),
-            grid_label=_resolution_to_gridlabel(self.resolution),
-            experiment_id=[
-                _scenario_to_experiment_id(scen)
-                for scen in self.scenario_ssp + self.scenario_historical
-            ],
-        )
 
         # Set colormap, units, & extended description
         var_info = self.variable_options_df[
@@ -885,25 +893,22 @@ class _DataSelector(param.Parameterized):
             self.variable = temp
 
         else:
-            if self.timescale == "monthly" and "Statistical" in downscaling_method:
-                timescale = "daily"
-            else:
-                timescale = self.timescale
-            self.cat_subset = self.cat.search(
-                activity_id=[
-                    _downscaling_method_to_activity_id(dm) for dm in downscaling_method
-                ],
-                table_id=_timescale_to_table_id(timescale),
-                grid_label=_resolution_to_gridlabel(self.resolution),
+            (
+                self.scenario_options,
+                self.simulation,
+                unique_variable_ids,
+            ) = _get_user_options(
+                cat=self.cat,
+                downscaling_method=self.downscaling_method,
+                timescale=self.timescale,
+                resolution=self.resolution,
             )
-            self.unique_variable_ids = self.cat_subset.unique()["variable_id"]["values"]
             self.variable_options_df = _get_variable_options_df(
                 var_catalog=var_catalog,
-                unique_variable_ids=self.unique_variable_ids,
-                downscaling_method=downscaling_method,
-                timescale=timescale,
+                unique_variable_ids=unique_variable_ids,
+                downscaling_method=self.downscaling_method,
+                timescale=self.timescale,
             )
-
             var_options = self.variable_options_df.display_name.values
             self.param["variable"].objects = var_options
             if self.variable not in var_options:
@@ -961,7 +966,7 @@ class _DataSelector(param.Parameterized):
         # Get scenario options in catalog format
         scenario_ssp_options = [
             _scenario_to_experiment_id(scen, reverse=True)
-            for scen in list(self.cat_subset.df["experiment_id"].unique())
+            for scen in self.scenario_options
             if "ssp" in scen
         ]
         for scenario_i in [
@@ -1061,28 +1066,28 @@ class _DataSelector(param.Parameterized):
 
         self.time_slice = (low_bound, upper_bound)
 
-    @param.depends("scenario_ssp", "scenario_historical", "timescale", watch=True)
-    def _update_simulation(self):
-        """Simulation options will change if the scenario changes,
-        or if the timescale changes, due to the fact that the ensmean
-        data is available (and needs to be removed) for hourly data."""
-        if self.downscaling_method == []:
-            # Default options to show if nothing is selected
-            downscaling_method = ["Dynamical"]
-        else:
-            downscaling_method = self.downscaling_method
-        self.simulation = _get_simulation_options(
-            cat=self.cat,
-            activity_id=[
-                _downscaling_method_to_activity_id(dm) for dm in downscaling_method
-            ],
-            table_id=_timescale_to_table_id(self.timescale),
-            grid_label=_resolution_to_gridlabel(self.resolution),
-            experiment_id=[
-                _scenario_to_experiment_id(scen)
-                for scen in self.scenario_ssp + self.scenario_historical
-            ],
-        )
+    # @param.depends("scenario_ssp", "scenario_historical", "timescale", watch=True)
+    # def _update_simulation(self):
+    #     """Simulation options will change if the scenario changes,
+    #     or if the timescale changes, due to the fact that the ensmean
+    #     data is available (and needs to be removed) for hourly data."""
+    #     if self.downscaling_method == []:
+    #         # Default options to show if nothing is selected
+    #         downscaling_method = ["Dynamical"]
+    #     else:
+    #         downscaling_method = self.downscaling_method
+    #     self.simulation = _get_simulation_options(
+    #         cat=self.cat,
+    #         activity_id=[
+    #             _downscaling_method_to_activity_id(dm) for dm in downscaling_method
+    #         ],
+    #         table_id=_timescale_to_table_id(self.timescale),
+    #         grid_label=_resolution_to_gridlabel(self.resolution),
+    #         experiment_id=[
+    #             _scenario_to_experiment_id(scen)
+    #             for scen in self.scenario_ssp + self.scenario_historical
+    #         ],
+    #     )
 
     @param.depends("time_slice", "scenario_ssp", "scenario_historical", watch=False)
     def view(self):
