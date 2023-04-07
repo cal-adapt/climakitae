@@ -397,3 +397,74 @@ def _write_gwl_files():
         keys=list(models.keys()),
     )
     all_gw_levels2.to_csv("../data/gwl_1981-2010ref.csv")
+
+
+## DFU notebook-specific functions, flexible for all notebooks
+def compute_annual_aggreggate(data, name, num_grid_cells):
+    """Calculates the annual sum of HDD and CDD"""
+    annual_ag = data.squeeze().groupby("time.year").sum(["time"])  # Aggregate annually
+    annual_ag = annual_ag / num_grid_cells  # Divide by number of gridcells
+    annual_ag.name = name  # Give new name to dataset
+    return annual_ag
+
+
+def compute_multimodel_stats(data):
+    """Calculates model mean, min, max across simulations"""
+    # Compute mean across simulation dimensions and add is as a coordinate
+    sim_mean = (
+        data.mean(dim="simulation")
+        .assign_coords({"simulation": "simulation mean"})
+        .expand_dims("simulation")
+    )
+
+    # Compute multimodel min
+    sim_min = (
+        data.min(dim="simulation")
+        .assign_coords({"simulation": "simulation min"})
+        .expand_dims("simulation")
+    )
+
+    # Compute multimodel max
+    sim_max = (
+        data.max(dim="simulation")
+        .assign_coords({"simulation": "simulation max"})
+        .expand_dims("simulation")
+    )
+
+    # Add to main dataset
+    stats_concat = xr.concat([data, sim_mean, sim_min, sim_max], dim="simulation")
+    return stats_concat
+
+
+def trendline(data):
+    """Calculates treadline of the multi-model mean"""
+    if "simulation mean" not in data.simulation:
+        raise Exception("Invalid data provdied, please pass the multimodel mean stats")
+
+    data_sim_mean = data.sel(simulation="simulation mean")
+    m, b = data_sim_mean.polyfit(dim="year", deg=1).polyfit_coefficients.values
+    trendline = m * data_sim_mean.year + b  # y = mx + b
+    trendline.name = "trendline"
+    return trendline
+
+
+## DFU plotting functions
+def hdd_cdd_lineplot(annual_data, trendline, title="title"):
+    """Plots annual CDD/HDD with trendline provided"""
+    return annual_data.hvplot.line(
+        x="year",
+        by="simulation",
+        width=800,
+        height=350,
+        title=title,
+        yformatter="%.0f",  # Remove scientific notation
+    ) * trendline.hvplot.line(  # Add trendline
+        x="year", color="black", line_dash="dashed", label="trendline"
+    )
+
+
+def hdh_cdh_lineplot(data):
+    """Plots HDH/CDH"""
+    return data.hvplot.line(
+        x="time", by="simulation", title=data.name, ylabel=data.name + " (degF)"
+    )
