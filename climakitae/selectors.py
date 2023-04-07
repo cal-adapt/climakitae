@@ -426,17 +426,17 @@ class _ViewLocationSelections(param.Parameterized):
         ),
     }
 
-    _loca_bb = {
-        # Estimated coords
-        "3 km": Polygon(
-            [
-                (-120.7, 45.015625),  # Max latitude
-                (-110.984375, 33.6),  # Max longitude
-                (-116.5, 29.578125),  # Min latitude
-                (-128.421875, 42),  # Min longitude
-            ]
-        )
-    }
+    # _loca_bb = {
+    #     # Estimated coords
+    #     "3 km": Polygon(
+    #         [
+    #             (-120.7, 45.015625),  # Max latitude
+    #             (-110.984375, 33.6),  # Max longitude
+    #             (-116.5, 29.578125),  # Min latitude
+    #             (-128.421875, 42),  # Min longitude
+    #         ]
+    #     )
+    # }
 
     def __init__(self, **params):
         super().__init__(**params)
@@ -514,45 +514,43 @@ class _ViewLocationSelections(param.Parameterized):
             scatter_size = 1.5
 
         # Add grid boundaries
-        if "Statistical" in self.selections.downscaling_method:
-            # 3km LOCA grid shown whenever LOCA is selected, even if WRF is also selected
+        # if "Statistical" in self.selections.downscaling_method:
+        #     # 3km LOCA grid shown whenever LOCA is selected, even if WRF is also selected
+        #     _add_res_to_ax(
+        #         poly=self._loca_bb["3 km"],
+        #         ax=ax,
+        #         color="purple",
+        #         rotation=32,
+        #         xy=(-127, 40),
+        #         label="3 km",
+        #     )
+        if self.selections.resolution == "45 km":
             _add_res_to_ax(
-                poly=self._loca_bb["3 km"],
+                poly=self._wrf_bb["45 km"],
                 ax=ax,
-                color="purple",
+                color="green",
+                rotation=28,
+                xy=(-154, 33.8),
+                label="45 km",
+            )
+        elif self.selections.resolution == "9 km":
+            _add_res_to_ax(
+                poly=self._wrf_bb["9 km"],
+                ax=ax,
+                color="red",
+                rotation=32,
+                xy=(-134, 42),
+                label="9 km",
+            )
+        elif self.selections.resolution == "3 km":
+            _add_res_to_ax(
+                poly=self._wrf_bb["3 km"],
+                ax=ax,
+                color="darkorange",
                 rotation=32,
                 xy=(-127, 40),
                 label="3 km",
             )
-        else:
-            # If only WRF is selected
-            if self.selections.resolution == "45 km":
-                _add_res_to_ax(
-                    poly=self._wrf_bb["45 km"],
-                    ax=ax,
-                    color="green",
-                    rotation=28,
-                    xy=(-154, 33.8),
-                    label="45 km",
-                )
-            elif self.selections.resolution == "9 km":
-                _add_res_to_ax(
-                    poly=self._wrf_bb["9 km"],
-                    ax=ax,
-                    color="red",
-                    rotation=32,
-                    xy=(-134, 42),
-                    label="9 km",
-                )
-            elif self.selections.resolution == "3 km":
-                _add_res_to_ax(
-                    poly=self._wrf_bb["3 km"],
-                    ax=ax,
-                    color="darkorange",
-                    rotation=32,
-                    xy=(-127, 40),
-                    label="3 km",
-                )
 
         # Add user-selected geometries
         if self.location.area_subset == "lat/lon":
@@ -619,10 +617,6 @@ def _get_user_options(cat, downscaling_method, timescale, resolution):
     unique_variable_ids: list
         Unique variable id values for input user selections
     """
-    if "Statistical" in downscaling_method:
-        # Monthly timescale not available in catalog but is computed on the fly in data_loaders
-        # Setting it to daily here will not change what the user sees in the GUI
-        timescale = "daily"
 
     # Get catalog subset from user inputs
     with warnings.catch_warnings(record=True):
@@ -634,9 +628,39 @@ def _get_user_options(cat, downscaling_method, timescale, resolution):
             grid_label=_resolution_to_gridlabel(resolution),
         )
 
-    # Get variable options
+    # For LOCA grid we need to use the UCSD institution ID
+    # This comes into play whenever Statistical is selected
+    # WRF data on LOCA grid is tagged with UCSD institution ID
     if "Statistical" in downscaling_method:
-        cat_subset = cat_subset.search(institution_id="UCLA")
+        cat_subset = cat_subset.search(institution_id="UCSD")
+
+    # Limit simulations if both LOCA and WRF are selected
+    # LOCA has more simulations than WRF
+    # We just want the simulations that are present in both datasets
+    if set(["Dynamical", "Statistical"]).issubset(
+        downscaling_method
+    ):  # If both are selected
+        loca_sims = cat_subset.search(
+            activity_id="LOCA2"
+        ).df.source_id.unique()  # LOCA unique simulations
+        wrf_sims = cat_subset.search(
+            activity_id="WRF"
+        ).df.source_id.unique()  # WRF unique simulations
+        overlapping_sims = list(
+            set(loca_sims) & set(wrf_sims)
+        )  # Subset of simulations in both LOCA and WRF
+        loca_scenarios = cat_subset.search(
+            activity_id="LOCA2"
+        ).df.experiment_id.unique()  # LOCA unique member_ids
+        wrf_scenarios = cat_subset.search(
+            activity_id="WRF"
+        ).df.experiment_id.unique()  # WRF unique member_ids
+        overlapping_scenarios = list(
+            set(loca_scenarios) & set(wrf_scenarios)
+        )  # Subset of member_ids in both LOCA and WRF
+        cat_subset = cat_subset.search(
+            source_id=overlapping_sims, experiment_id=overlapping_scenarios
+        )
 
     # Get scenario options
     scenario_options = list(cat_subset.df["experiment_id"].unique())
@@ -677,8 +701,6 @@ def _get_variable_options_df(
     pd.DataFrame
         Subset of var_catalog for input downscaling_method and timescale
     """
-    if timescale in ["daily", "monthly"]:
-        timescale = "daily/monthly"
     # Catalog options and derived options together
     derived_variables = list(
         var_catalog[var_catalog["variable_id"].str.contains("_derived")]["variable_id"]
@@ -691,7 +713,7 @@ def _get_variable_options_df(
         & (  # Make sure it's a valid variable selection
             var_catalog["variable_id"].isin(var_options_plus_derived)
             & (  # Make sure variable_id is part of the catalog options for user selections
-                var_catalog["timescale"] == timescale
+                var_catalog["timescale"].str.contains(timescale)
             )  # Make sure its the right timescale
         )
     ]
@@ -707,6 +729,24 @@ def _get_variable_options_df(
             variable_options_df["downscaling_method"].isin(downscaling_method)
         ]
     return variable_options_df
+
+
+def _get_var_ids(var_catalog, variable, downscaling_method, timescale):
+    """Get variable ids that match the selected variable, timescale, and downscaling method.
+    Required to account for the fact that LOCA, WRF, and various timescales use different variable id values.
+    Used to retrieve the correct variables from the catalog in the backend.
+    """
+    var_id = var_catalog[
+        (var_catalog["display_name"] == variable)
+        & (  # Make sure it's a valid variable selection
+            var_catalog["timescale"].str.contains(timescale)
+        )  # Make sure its the right timescale
+        & (
+            var_catalog["downscaling_method"].isin(downscaling_method)
+        )  # Make sure it's the right downscaling method
+    ]
+    var_id = list(var_id.variable_id.values)
+    return var_id
 
 
 class _DataSelector(param.Parameterized):
@@ -726,7 +766,7 @@ class _DataSelector(param.Parameterized):
     )
     scenario_historical = param.ListSelector(
         default=["Historical Climate"],
-        objects=["Historical Reconstruction", "Historical Climate"],
+        objects=["Historical Climate", "Historical Reconstruction"],
     )
     area_average = param.Selector(
         default="No",
@@ -748,7 +788,7 @@ class _DataSelector(param.Parameterized):
     variable = param.Selector(objects=dict())
     units = param.Selector(objects=dict())
     extended_description = param.Selector(objects=dict())
-    variable_id = param.Selector(objects=dict())
+    variable_id = param.ListSelector(objects=dict())
 
     # Temporal range of each dataset
     historical_climate_range = (1980, 2015)
@@ -809,11 +849,16 @@ class _DataSelector(param.Parameterized):
         self.colormap = var_info.colormap.item()
         self.units = var_info.unit.item()
         self.extended_description = var_info.extended_description.item()
-        self.variable_id = var_info.variable_id.item()
+        self.variable_id = _get_var_ids(
+            var_catalog, self.variable, self.downscaling_method, self.timescale
+        )
         self._data_warning = ""
 
     @param.depends("data_type", watch=True)
     def _update_area_average_based_on_data_type(self):
+        """Update area average selection choices based on station vs. gridded data.
+        There is no area average option if station data is selected. It will be shown as n/a.
+        """
         if self.data_type == "Station":
             self.param["area_average"].objects = ["n/a"]
             self.area_average = "n/a"
@@ -830,17 +875,16 @@ class _DataSelector(param.Parameterized):
             self.data_type = "Gridded"
         else:
             self.param["data_type"].objects = ["Gridded", "Station"]
-            # self.data_type = "Gridded"
         if "Station" in self.data_type:
             self.param["downscaling_method"].objects = ["Dynamical"]
             if "Statistical" in self.downscaling_method:
                 self.downscaling_method.remove("Statistical")
-            # self.downscaling_method = ["Dynamical"]
         else:
             self.param["downscaling_method"].objects = ["Dynamical", "Statistical"]
 
     @param.depends("data_type", "downscaling_method", watch=True)
     def _update_res_based_on_data_type_and_downscaling_method(self):
+        """Update the grid resolution options based on the data selections."""
         if "Statistical" in self.downscaling_method:
             self.param["resolution"].objects = ["3 km"]
             self.resolution = "3 km"
@@ -852,21 +896,12 @@ class _DataSelector(param.Parameterized):
             elif self.data_type == "Gridded":
                 self.param["resolution"].objects = ["3 km", "9 km", "45 km"]
 
-    @param.depends("data_type", "downscaling_method", watch=True)
-    def _update_timescale_based_on_data_type_and_downscaling_method(self):
-        if self.data_type == "Station":
-            self.param["timescale"].objects = ["hourly"]
-            self.timescale = "hourly"
-        elif self.data_type == "Gridded":
-            if "Statistical" in self.downscaling_method:
-                if self.timescale == "hourly":
-                    self.timescale = "daily"
-                self.param["timescale"].objects = ["monthly", "daily"]
-            else:
-                self.param["timescale"].objects = ["monthly", "daily", "hourly"]
-
     @param.depends("downscaling_method", watch=True)
-    def _reset_downscaling_method_if_none_selected(self):
+    def _reset_downscaling_method_warning_if_none_selected(self):
+        """Set the display warning about the downscaling method.
+        If downscaling method is NOT selected, a warning will be shown to the user.
+        If a downscaling method is selected, the warning should dissappear.
+        """
         if self.downscaling_method == []:
             self._data_warning = self._downscaling_method_warning
         elif self._data_warning == self._downscaling_method_warning:
@@ -877,10 +912,22 @@ class _DataSelector(param.Parameterized):
         "resolution",
         "downscaling_method",
         "data_type",
+        "variable",
         watch=True,
     )
-    def _update_var_options(self):
+    def _update_user_options(self):
         """Update unique variable options"""
+
+        if self.data_type == "Station":
+            self.param["timescale"].objects = ["hourly"]
+            self.timescale = "hourly"
+        elif self.data_type == "Gridded":
+            if "Statistical" in self.downscaling_method:
+                self.param["timescale"].objects = ["daily"]
+                self.timescale = "daily"
+            else:
+                self.param["timescale"].objects = ["monthly", "daily", "hourly"]
+
         if self.downscaling_method == []:
             # Default options to show if nothing is selected
             downscaling_method = ["Dynamical"]
@@ -899,20 +946,29 @@ class _DataSelector(param.Parameterized):
                 unique_variable_ids,
             ) = _get_user_options(
                 cat=self.cat,
-                downscaling_method=self.downscaling_method,
+                downscaling_method=downscaling_method,
                 timescale=self.timescale,
                 resolution=self.resolution,
             )
             self.variable_options_df = _get_variable_options_df(
                 var_catalog=var_catalog,
                 unique_variable_ids=unique_variable_ids,
-                downscaling_method=self.downscaling_method,
+                downscaling_method=downscaling_method,
                 timescale=self.timescale,
             )
             var_options = self.variable_options_df.display_name.values
             self.param["variable"].objects = var_options
             if self.variable not in var_options:
                 self.variable = var_options[0]
+
+        var_info = self.variable_options_df[
+            self.variable_options_df["display_name"] == self.variable
+        ]  # Get info for just that variable
+        self.extended_description = var_info.extended_description.item()
+        self.variable_id = _get_var_ids(
+            var_catalog, self.variable, self.downscaling_method, self.timescale
+        )
+        self.colormap = var_info.colormap.item()
 
     @param.depends("resolution", "location.area_subset", watch=True)
     def _update_states_3km(self):
@@ -942,7 +998,7 @@ class _DataSelector(param.Parameterized):
         """Update unit options and native units for selected variable."""
         var_info = self.variable_options_df[
             self.variable_options_df["display_name"] == self.variable
-        ]  # Get info for just that variable
+        ]
         native_unit = var_info.unit.item()
         if (
             native_unit in unit_options_dict.keys()
@@ -954,11 +1010,7 @@ class _DataSelector(param.Parameterized):
             self.param["units"].objects = [native_unit]
             self.units = native_unit
 
-        self.colormap = var_info.colormap.item()
-        self.extended_description = var_info.extended_description.item()
-        self.variable_id = var_info.variable_id.item()
-
-    @param.depends("resolution", "scenario_ssp", "scenario_historical", watch=True)
+    @param.depends("resolution", "downscaling_method", watch=True)
     def _update_scenarios(self):
         """
         Update scenario options. Raise data warning if a bad selection is made.
@@ -979,6 +1031,16 @@ class _DataSelector(param.Parameterized):
                 scenario_ssp_options.append(scenario_i)  # Add to back of list
         self.param["scenario_ssp"].objects = scenario_ssp_options
         self.scenario_ssp = [x for x in self.scenario_ssp if x in scenario_ssp_options]
+
+        historical_scenarios = ["historical", "reanalysis"]
+        scenario_historical_options = [
+            _scenario_to_experiment_id(scen, reverse=True)
+            for scen in self.scenario_options
+            if scen in historical_scenarios
+        ]
+        self.param["scenario_historical"].objects = scenario_historical_options
+        if self.scenario_historical not in scenario_historical_options:
+            self.scenario_historical = [scenario_historical_options[0]]
 
     @param.depends("scenario_ssp", "scenario_historical", "time_slice", watch=True)
     def _update_data_warning(self):
@@ -1065,29 +1127,6 @@ class _DataSelector(param.Parameterized):
             upper_bound = self.ssp_range[1]
 
         self.time_slice = (low_bound, upper_bound)
-
-    # @param.depends("scenario_ssp", "scenario_historical", "timescale", watch=True)
-    # def _update_simulation(self):
-    #     """Simulation options will change if the scenario changes,
-    #     or if the timescale changes, due to the fact that the ensmean
-    #     data is available (and needs to be removed) for hourly data."""
-    #     if self.downscaling_method == []:
-    #         # Default options to show if nothing is selected
-    #         downscaling_method = ["Dynamical"]
-    #     else:
-    #         downscaling_method = self.downscaling_method
-    #     self.simulation = _get_simulation_options(
-    #         cat=self.cat,
-    #         activity_id=[
-    #             _downscaling_method_to_activity_id(dm) for dm in downscaling_method
-    #         ],
-    #         table_id=_timescale_to_table_id(self.timescale),
-    #         grid_label=_resolution_to_gridlabel(self.resolution),
-    #         experiment_id=[
-    #             _scenario_to_experiment_id(scen)
-    #             for scen in self.scenario_ssp + self.scenario_historical
-    #         ],
-    #     )
 
     @param.depends("time_slice", "scenario_ssp", "scenario_historical", watch=False)
     def view(self):
