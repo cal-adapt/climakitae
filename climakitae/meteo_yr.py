@@ -822,7 +822,6 @@ def _amy_visualize(tmy_ob, selections, location, map_view):
         title=" How do you want to investigate AMY?",
         collapsible=False,
         width=550,
-        height=590,
     )
 
     mthd_bx = pn.Column(
@@ -851,7 +850,6 @@ def _amy_visualize(tmy_ob, selections, location, map_view):
         pn.Tabs(("AMY Heatmap", tmy_ob._tmy_hourly_heatmap), ("Methodology", mthd_bx)),
         title=" Average Meteorological Year",
         width=725,
-        height=450,
         collapsible=False,
     )
 
