@@ -124,7 +124,8 @@ def _get_cat_subset(selections, cat):
     table_id = _timescale_to_table_id(selections.timescale)
     grid_label = _resolution_to_gridlabel(selections.resolution)
     experiment_id = [_scenario_to_experiment_id(x) for x in scenario_selections]
-    source_id = selections.simulation
+    # KACE-1-0-G is not on the same timezone as the other LOCA simulations. Exclude until we update it in the catalog.
+    source_id = [sim for sim in selections.simulation if sim != "KACE-1-0-G"]
     variable_id = selections.variable_id
 
     cat_subset = cat.search(
@@ -141,6 +142,14 @@ def _get_cat_subset(selections, cat):
     # Both datasets are tagged with UCSD as the institution_id, so we can use "UCSD" to further subset the catalog data
     if "Statistical" in selections.downscaling_method:
         cat_subset = cat_subset.search(institution_id="UCSD")
+    # If only dynamical is selected, we need to remove UCSD from the WRF query
+    else:
+        wrf_on_native_grid = [
+            institution
+            for institution in cat.df.institution_id.unique()
+            if institution != "UCSD"
+        ]
+        cat_subset = cat_subset.search(institution_id=wrf_on_native_grid)
 
     # Limit simulations if both LOCA and WRF are selected
     # LOCA has more simulations than WRF
@@ -346,9 +355,7 @@ def _process_and_concat(selections, location, dsets, cat_subset):
         da = da.assign_coords({"scenario": scen_name})
         da_list.append(da)
 
-    # Concatenate along scenario dimension
     da_final = xr.concat(da_list, dim="scenario", coords="minimal", compat="override")
-    da_final.name = selections.variable
     return da_final
 
 
@@ -418,6 +425,9 @@ def _get_data_one_var(selections, location, cat):
             time=slice(str(selections.time_slice[0]), str(selections.time_slice[1]))
         )
 
+        # LOCA on WRF grid remove fill value
+        dset = dset.where(dset != 1000000000000000019884624838656.0, np.nan)
+
         # Perform area subsetting
 
         # Bay Area airport stations are tricky, requires some hacky coding
@@ -438,7 +448,17 @@ def _get_data_one_var(selections, location, cat):
             cached_area = location.cached_area
         ds_region = _get_area_subset(area_subset, cached_area, location)
         if ds_region is not None:  # Perform subsetting
-            dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
+            try:
+                dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
+            except:
+                # LOCA does not have x,y coordinates. rioxarray hates this
+                # rioxarray will raise this error: MissingSpatialDimensionError: x dimension not found. 'rio.set_spatial_dims()' or using 'rename()' to change the dimension name to 'x' can address this.
+                # Therefore I need to rename the lat, lon dimensions to x,y, and then reset them after clipping.
+                # I also need to write a CRS to the dataset
+                dset = dset.rename({"lon": "x", "lat": "y"})
+                dset = dset.rio.write_crs("EPSG:4326")
+                dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
+                dset = dset.rename({"x": "lon", "y": "lat"})
 
         # Perform area averaging
         if selections.area_average == "Yes":
@@ -459,7 +479,7 @@ def _get_data_one_var(selections, location, cat):
             selections.variable_id
         ),  # Convert list to comma separated string
         "extended_description": selections.extended_description,
-        "units": da.attrs["units"],
+        "units": selections.units,
         "data_type": selections.data_type,
         "resolution": selections.resolution,
         "frequency": selections.timescale,
@@ -467,6 +487,7 @@ def _get_data_one_var(selections, location, cat):
         "institution": institution_id,
         "data_history": "Data has been accessed through the Cal-Adapt: Analytics Engine using the open-source climakitae python package.",
     }
+    da.name = selections.variable
     return da
 
 
@@ -578,7 +599,7 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
                     )
 
         selections.variable_id = orig_var_id_selection
-        # da.attrs["variable_id"] = orig_var_id_selection  # Reset variable ID attribute
+        da.attrs["variable_id"] = orig_var_id_selection  # Reset variable ID attribute
         da.name = orig_variable_selection  # Set name of DataArray
 
     else:

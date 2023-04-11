@@ -662,6 +662,9 @@ def _get_user_options(cat, downscaling_method, timescale, resolution):
             source_id=overlapping_sims, experiment_id=overlapping_scenarios
         )
 
+    elif downscaling_method == ["Statistical"]:
+        cat_subset = cat_subset.search(activity_id="LOCA2")
+
     # Get scenario options
     scenario_options = list(cat_subset.df["experiment_id"].unique())
 
