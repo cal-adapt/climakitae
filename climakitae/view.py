@@ -72,8 +72,8 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
                     timescale = data.frequency
                 cmap = var_catalog[
                     (var_catalog["display_name"] == data.name)
-                    & (var_catalog["timescale"] == timescale)
-                ].colormap.item()
+                    # & (var_catalog["timescale"] == timescale)
+                ].colormap.values[0]
             except:  # If variable not found, set to ae_orange without raising error
                 cmap = "ae_orange"
 
