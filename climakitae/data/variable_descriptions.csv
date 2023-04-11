@@ -34,8 +34,8 @@ wspd10max,Dynamical,daily/monthly,m/s,Maximum wind speed at 10m,The maximum wind
 psfc,Dynamical,daily/monthly,hPa,Surface Pressure,Air pressure at Earth's surface.,ae_diverging,TRUE
 q2,Dynamical,daily/monthly,g/kg,Specific humidity at 2m,"The ratio of the mass of water vapor over the mass of total (moist) air, measured 2m above Earth's surface.",ae_blue,TRUE
 tskin,Dynamical,daily/monthly,K,Surface skin temperature,Temperature of the Earth's surface (ground surface).,ae_orange,TRUE
-t2min,Dynamical,daily/monthly,K,Daily minimum air temperature at 2m,The minimum daily air temperature at 2m above the Earth's surface. ,ae_orange,TRUE
 t2max,Dynamical,daily/monthly,K,Daily maximum air temperature at 2m,The maximum daily air temperature at 2m above the Earth's surface. ,ae_orange,TRUE
+t2min,Dynamical,daily/monthly,K,Daily minimum air temperature at 2m,The minimum daily air temperature at 2m above the Earth's surface. ,ae_orange,TRUE
 lw_dwn,Dynamical,daily/monthly,W/m2,Instantaneous downwelling longwave flux at bottom,Longwave radiation emitted by Earth's surface that is reflected back downwards by clouds. ,ae_orange,TRUE
 sw_dwn,Dynamical,daily/monthly,W/m2,Instantaneous downwelling shortwave flux at bottom,"Shortwave radiation from the sun that reaches Earth's surface, minus radiation reflected back to space by clouds or absorbed by the atmosphere.",ae_orange,TRUE
 sw_sfc,Dynamical,daily/monthly,W/m2,Shortwave flux at the surface,Shortwave radiation from the sun that reaches Earth's surface. ,ae_orange,TRUE
@@ -53,9 +53,9 @@ sfc_runoff,Dynamical,daily/monthly,mm/d,Surface runoff,"The rate at which water 
 subsfc_runoff,Dynamical,daily/monthly,mm/d,Subsurface runoff,"The rate at which  water that has infiltrated the ground surface travels underground until it reaches a body of water (stream, river, etc.)",ae_blue,FALSE
 prec_max,Dynamical,daily/monthly,mm/h,Maximum precipitation,The maximum precipitation rate in a single hour. ,ae_blue,TRUE
 snow,Dynamical,daily/monthly,mm,Snow water equivalent,The amount of water that would be present if all snow melted. ,ae_blue,FALSE
-huss,Statistical,daily/monthly,kg/kg,Specific humidity at 2m,The percentage of water vapor (i.e. moisture) relative to the amount of water vapor needed to saturate the air at the current air temperature and pressure.,ae_blue,TRUE
-pr,Statistical,daily/monthly,mm,Precipitation (total),Total precipitation. Computed by summing total gridscale precipitation and total cumulus precipitation.,ae_blue,TRUE
-tasmin,Statistical,daily/monthly,K,Daily minimum air temperature at 2m,The minimum daily air temperature at 2m above the Earth's surface. ,ae_orange,TRUE
+pr,Statistical,daily/monthly,mm,Precipitation (total),Total precipitation. Computed by summing total gridscale precipitation and total cumulus precipitation.,ae_blue,FALSE
 tasmax,Statistical,daily/monthly,K,Daily maximum air temperature at 2m,The maximum daily air temperature at 2m above the Earth's surface. ,ae_orange,TRUE
+tasmin,Statistical,daily/monthly,K,Daily minimum air temperature at 2m,The minimum daily air temperature at 2m above the Earth's surface. ,ae_orange,TRUE
 uas,Statistical,daily/monthly,m s-1,West-East component of Wind at 10m,"Wind coming from the west, measured at 10m above Earth's surface. By convention, wind coming from the east is negative.",ae_diverging,TRUE
 vas,Statistical,daily/monthly,m s-1,North-South component of Wind at 10m,"Wind coming from the north, measured at 10m above Earth's surface. By convention, wind coming from the south is negative.",ae_diverging,TRUE
+huss,Statistical,daily/monthly,kg/kg,Specific humidity at 2m,The percentage of water vapor (i.e. moisture) relative to the amount of water vapor needed to saturate the air at the current air temperature and pressure.,ae_blue,TRUE
