@@ -457,7 +457,7 @@ def _get_data_one_var(selections, location, cat):
                 dset = dset.rename({"lon": "x", "lat": "y"})
                 dset = dset.rio.write_crs("EPSG:4326")
                 dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
-                dset = dset.rename({"x": "lon", "y": "lat"})
+                dset = dset.rename({"x": "lon", "y": "lat"}).drop("spatial_ref")
 
         # Perform area averaging
         if selections.area_average == "Yes":
