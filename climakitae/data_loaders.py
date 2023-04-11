@@ -463,7 +463,12 @@ def _get_data_one_var(selections, location, cat):
         # Perform area averaging
         if selections.area_average == "Yes":
             weights = np.cos(np.deg2rad(dset.lat))
-            dset = dset.weighted(weights).mean("x").mean("y")
+            if set(["x", "y"]).issubset(set(dset.dims)):
+                # WRF data has x,y
+                dset = dset.weighted(weights).mean("x").mean("y")
+            elif set(["lat", "lon"]).issubset(set(dset.dims)):
+                # LOCA data has x,y
+                dset = dset.weighted(weights).mean("lat").mean("lon")
 
         # Update dataset in dictionary
         data_dict.update({dname: dset})
