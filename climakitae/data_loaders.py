@@ -124,8 +124,7 @@ def _get_cat_subset(selections, cat):
     table_id = _timescale_to_table_id(selections.timescale)
     grid_label = _resolution_to_gridlabel(selections.resolution)
     experiment_id = [_scenario_to_experiment_id(x) for x in scenario_selections]
-    # KACE-1-0-G is not on the same timezone as the other LOCA simulations. Exclude until we update it in the catalog.
-    source_id = [sim for sim in selections.simulation if sim != "KACE-1-0-G"]
+    source_id = selections.simulation
     variable_id = selections.variable_id
 
     cat_subset = cat.search(

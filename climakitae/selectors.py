@@ -632,6 +632,20 @@ def _get_user_options(cat, downscaling_method, timescale, resolution):
     # This comes into play whenever Statistical is selected
     # WRF data on LOCA grid is tagged with UCSD institution ID
     if "Statistical" in downscaling_method:
+        # ALLOW ONLY OVERLAPPING WRF AND LOCA SIMS FOR NOW
+        # ALLOW ALL SIMULATIONS ONCE LOCA SIMULATION ISSUES ARE DEALT WITH ON THE BACKEND
+        loca_sims = cat_subset.search(
+            activity_id="LOCA2"
+        ).df.source_id.unique()  # LOCA unique simulations
+        wrf_sims = cat.search(
+            activity_id="WRF"
+        ).df.source_id.unique()  # WRF unique simulations
+        overlapping_sims = list(
+            set(loca_sims) & set(wrf_sims)
+        )  # Subset of simulations in both LOCA and WRF
+        cat_subset = cat_subset.search(source_id=overlapping_sims)
+
+        # KEEP THIS
         cat_subset = cat_subset.search(institution_id="UCSD")
 
     # Limit simulations if both LOCA and WRF are selected
