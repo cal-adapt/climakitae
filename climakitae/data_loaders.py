@@ -171,6 +171,8 @@ def _get_area_subset(area_subset, cached_area, location):
             shape = set_subarea(location._geographies._ca_utilities)
         elif area_subset == "CA Electricity Demand Forecast Zones":
             shape = set_subarea(location._geographies._ca_forecast_zones)
+        elif area_subset == "CA Electric Balancing Authority Areas":
+            shape = set_subarea(location._geographies._ca_electric_balancing_areas)
         ds_region = [shape]
     else:
         ds_region = None
