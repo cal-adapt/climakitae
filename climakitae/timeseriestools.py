@@ -14,11 +14,24 @@ class _TimeSeriesParams(param.Parameterized):
     draw the GUI, but another UI could in principle be used to update these
     parameters instead.
     """
-
+    resample_period = param.Selector(default="AS-SEP", objects=dict())
+    _time_scales = dict(
+            [("hours", "H"), ("days", "D"), ("months", "MS"), ("years", "AS-SEP")]
+        )
+    
     def __init__(self, dataset, **params):
         super().__init__(**params)
         self.data = dataset
-
+        
+        _time_resolution = dataset.attrs["frequency"]
+        if _time_resolution == 'monthly':
+            del self._time_scales["days"]
+            del self._time_scales["hours"]
+        elif _time_resolution == 'daily':
+            del self._time_scales["hours"] 
+    
+        self.param["resample_period"].objects = self._time_scales
+        
     anomaly = param.Boolean(default=True, label="Difference from a historical mean")
     reference_range = param.CalendarDateRange(
         default=(dt.datetime(1981, 1, 1), dt.datetime(2010, 12, 31)),
@@ -26,19 +39,15 @@ class _TimeSeriesParams(param.Parameterized):
     )
     remove_seasonal_cycle = param.Boolean(default=False)
     smoothing = param.Selector(default="None", objects=["None", "Running Mean"])
-    _time_scales = dict(
-        [("hours", "H"), ("days", "D"), ("months", "MS"), ("years", "AS-SEP")]
-    )
     num_timesteps = param.Integer(default=0, bounds=(0, 240))
     separate_seasons = param.Boolean(
         default=False, label="Disaggregate into four seasons"
     )
-
+            
     extremes = param.Selector(
         default="None", objects=["None", "Min", "Max", "Percentile"]
     )
     resample_window = param.Integer(default=1, bounds=(1, 30))
-    resample_period = param.Selector(default="AS-SEP", objects=_time_scales)
     percentile = param.Number(
         default=0,
         bounds=(0, 1),
@@ -69,7 +78,7 @@ class _TimeSeriesParams(param.Parameterized):
         else:
             to_plot = self.data
 
-        def _getAnom(y):
+        def _get_anom(y):
             """
             Returns the difference with respect to the average across a historical range.
             """
@@ -110,30 +119,30 @@ class _TimeSeriesParams(param.Parameterized):
                 return y.rolling(time=self.num_timesteps, center=True).mean("time")
 
         if self.anomaly and not self.separate_seasons:
-            to_plot = _getAnom(to_plot)
+            to_plot = _get_anom(to_plot)
         elif self.anomaly and self.separate_seasons:
-            to_plot = to_plot.groupby("time.season").apply(_getAnom)
+            to_plot = to_plot.groupby("time.season").map(_get_anom)
         else:
             to_plot = to_plot
 
         if self.smoothing == "Running Mean" and self.num_timesteps > 0:
             if self.separate_seasons:
-                to_plot = to_plot.groupby("time.season").apply(_running_mean)
+                to_plot = to_plot.groupby("time.season").map(_running_mean)
             else:
                 to_plot = _running_mean(to_plot)
 
         if self.extremes != "None":
             if self.extremes == "Max":
                 to_plot = to_plot.resample(
-                    time=str(self.resample_window) + self.resample_period
+                    time=str(self.resample_window) + self._time_scales[self.resample_period]
                 ).max("time")
             elif self.extremes == "Min":
                 to_plot = to_plot.resample(
-                    time=str(self.resample_window) + self.resample_period
+                    time=str(self.resample_window) + self._time_scales[self.resample_period]
                 ).min("time")
             elif self.extremes == "Percentile":
                 to_plot = to_plot.resample(
-                    time=str(self.resample_window) + self.resample_period
+                    time=str(self.resample_window) + self._time_scales[self.resample_period]
                 ).quantile(q=self.percentile)
         return to_plot
 
@@ -163,10 +172,7 @@ class _TimeSeriesParams(param.Parameterized):
             menu_list = ["scenario"]
 
         # Resample period user-friendly (used in title)
-        resample_per_str = {v: k for k, v in self._time_scales.items()}[
-            self.resample_period
-        ]
-        resample_per_str = resample_per_str[
+        resample_per_str = str(self.resample_period)[
             :-1
         ]  # Remove plural (i.e. "months" --> "month")
 
@@ -180,7 +186,7 @@ class _TimeSeriesParams(param.Parameterized):
 
         # Extremes string user-friendly (used in title)
         if self.extremes == "Min":
-            extremes_str = "minumum"
+            extremes_str = "minimum"
         elif self.extremes == "Max":
             extremes_str = "maximum"
         else:
