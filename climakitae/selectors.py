@@ -74,6 +74,18 @@ class Boundaries:
         self._ca_forecast_zones = self._cat.dfz.read()
         self._ca_electric_balancing_areas = self._cat.eba.read()
 
+        # EBA CALISO polygon has two options
+        # One of the polygons is super tiny, with a negligible area
+        # Perhaps this is an error from the producers of the data
+        # Just grab the CALISO polygon with the large area
+        tiny_caliso = self._ca_electric_balancing_areas.loc[
+            (self._ca_electric_balancing_areas["NAME"] == "CALISO")
+            & (self._ca_electric_balancing_areas["SHAPE_Area"] < 100)
+        ].index
+        self._ca_electric_balancing_areas = self._ca_electric_balancing_areas.drop(
+            tiny_caliso
+        )
+
         # For Forecast Zones named "Other", replace that with the name of the county
         self._ca_forecast_zones.loc[
             self._ca_forecast_zones["FZ_Name"] == "Other", "FZ_Name"
