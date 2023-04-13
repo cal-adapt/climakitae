@@ -37,7 +37,6 @@ stations_gpd = gpd.GeoDataFrame(
     geometry=gpd.points_from_xy(stations_df.LON_X, stations_df.LAT_Y),
 )
 
-
 # =========================== LOCATION SELECTIONS ==============================
 
 
@@ -73,6 +72,19 @@ class Boundaries:
         self._ca_watersheds = self._cat.huc8.read().sort_values("Name")
         self._ca_utilities = self._cat.utilities.read()
         self._ca_forecast_zones = self._cat.dfz.read()
+        self._ca_electric_balancing_areas = self._cat.eba.read()
+
+        # EBA CALISO polygon has two options
+        # One of the polygons is super tiny, with a negligible area
+        # Perhaps this is an error from the producers of the data
+        # Just grab the CALISO polygon with the large area
+        tiny_caliso = self._ca_electric_balancing_areas.loc[
+            (self._ca_electric_balancing_areas["NAME"] == "CALISO")
+            & (self._ca_electric_balancing_areas["SHAPE_Area"] < 100)
+        ].index
+        self._ca_electric_balancing_areas = self._ca_electric_balancing_areas.drop(
+            tiny_caliso
+        )
 
         # For Forecast Zones named "Other", replace that with the name of the county
         self._ca_forecast_zones.loc[
@@ -179,6 +191,21 @@ class Boundaries:
         _subset.sort_values(by="Utility", inplace=True)
         return dict(zip(_subset["Utility"], _subset.index))
 
+    def get_electric_balancing_areas(self):
+        """
+        Returns a lookup dictionary for CA Electric Balancing Authority Areas that references
+        the geoparquet file.
+
+        Returns
+        -------
+        dict
+
+        """
+        return pd.Series(
+            self._ca_electric_balancing_areas.index,
+            index=self._ca_electric_balancing_areas["NAME"],
+        ).to_dict()
+
     def boundary_dict(self):
         """
         This returns a dictionary of lookup dictionaries for each set of
@@ -199,6 +226,7 @@ class Boundaries:
             "CA watersheds": self.get_ca_watersheds(),
             "CA Electric Load Serving Entities (IOU & POU)": self.get_ious_pous(),
             "CA Electricity Demand Forecast Zones": self.get_forecast_zones(),
+            "CA Electric Balancing Authority Areas": self.get_electric_balancing_areas(),
         }
         return _all_options
 
@@ -342,6 +370,10 @@ def _get_subarea(
         elif area_subset == "CA Electricity Demand Forecast Zones":
             df_ae = _get_subarea_from_shape_index(
                 _geographies._ca_forecast_zones, shape_index
+            )
+        elif area_subset == "CA Electric Balancing Authority Areas":
+            df_ae = _get_subarea_from_shape_index(
+                _geographies._ca_electric_balancing_areas, shape_index
             )
 
     else:  # If no subsetting, make the geometry a big box so all stations are included
