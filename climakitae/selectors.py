@@ -664,42 +664,21 @@ def _get_user_options(cat, downscaling_method, timescale, resolution):
     # This comes into play whenever Statistical is selected
     # WRF data on LOCA grid is tagged with UCSD institution ID
     if "Statistical" in downscaling_method:
-        # ALLOW ONLY SOME SIMUlATIONS NOW
-        # ALLOW ALL SIMULATIONS ONCE LOCA SIMULATION ISSUES ARE DEALT WITH ON THE BACKEND
-        cat_subset = cat_subset.search(
-            source_id=["CESM2", "CNRM-ESM2-1", "EC-Earth3-Veg", "ERA5", "FGOALS-g3"]
-        )
-
-        # KEEP THIS
         cat_subset = cat_subset.search(institution_id="UCSD")
 
-    # Limit simulations if both LOCA and WRF are selected
-    # LOCA has more simulations than WRF
-    # We just want the simulations that are present in both datasets
+    # Limit scenarios if both LOCA and WRF are selected
+    # We just want the scenarios that are present in both datasets
     if set(["Dynamical", "Statistical"]).issubset(
         downscaling_method
     ):  # If both are selected
-        loca_sims = cat_subset.search(
-            activity_id="LOCA2"
-        ).df.source_id.unique()  # LOCA unique simulations
-        wrf_sims = cat_subset.search(
-            activity_id="WRF"
-        ).df.source_id.unique()  # WRF unique simulations
-        overlapping_sims = list(
-            set(loca_sims) & set(wrf_sims)
-        )  # Subset of simulations in both LOCA and WRF
         loca_scenarios = cat_subset.search(
             activity_id="LOCA2"
         ).df.experiment_id.unique()  # LOCA unique member_ids
         wrf_scenarios = cat_subset.search(
             activity_id="WRF"
         ).df.experiment_id.unique()  # WRF unique member_ids
-        overlapping_scenarios = list(
-            set(loca_scenarios) & set(wrf_scenarios)
-        )  # Subset of member_ids in both LOCA and WRF
-        cat_subset = cat_subset.search(
-            source_id=overlapping_sims, experiment_id=overlapping_scenarios
-        )
+        overlapping_scenarios = list(set(loca_scenarios) & set(wrf_scenarios))
+        cat_subset = cat_subset.search(experiment_id=overlapping_scenarios)
 
     elif downscaling_method == ["Statistical"]:
         cat_subset = cat_subset.search(activity_id="LOCA2")
@@ -710,8 +689,17 @@ def _get_user_options(cat, downscaling_method, timescale, resolution):
     # Get all unique simulation options from catalog selection
     try:
         simulation_options = list(cat_subset.df["source_id"].unique())
+
+        # Remove troublesome simulations
+        simulation_options = [
+            sim
+            for sim in simulation_options
+            if sim not in ["HadGEM3-GC31-LL", "KACE-1-0-G"]
+        ]
+
+        # Remove ensemble means
         if "ensmean" in simulation_options:
-            simulation_options.remove("ensmean")  # Remove ensemble means
+            simulation_options.remove("ensmean")
     except:
         simulation_options = []
 

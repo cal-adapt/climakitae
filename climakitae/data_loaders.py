@@ -153,30 +153,30 @@ def _get_cat_subset(selections, cat):
     # Limit simulations if both LOCA and WRF are selected
     # LOCA has more simulations than WRF
     # We just want the simulations that are present in both datasets
-    if set(["Dynamical", "Statistical"]).issubset(
-        selections.downscaling_method
-    ):  # If both are selected
-        loca_sims = cat_subset.search(
-            activity_id="LOCA2"
-        ).df.source_id.unique()  # LOCA unique simulations
-        wrf_sims = cat_subset.search(
-            activity_id="WRF"
-        ).df.source_id.unique()  # WRF unique simulations
-        overlapping_sims = list(
-            set(loca_sims) & set(wrf_sims)
-        )  # Subset of simulations in both LOCA and WRF
-        loca_member_ids = cat_subset.search(
-            activity_id="LOCA2"
-        ).df.member_id.unique()  # LOCA unique member_ids
-        wrf_member_ids = cat_subset.search(
-            activity_id="WRF"
-        ).df.member_id.unique()  # WRF unique member_ids
-        overlapping_member_ids = list(
-            set(loca_member_ids) & set(wrf_member_ids)
-        )  # Subset of member_ids in both LOCA and WRF
-        cat_subset = cat_subset.search(
-            source_id=overlapping_sims, member_id=overlapping_member_ids
-        )
+    # if set(["Dynamical", "Statistical"]).issubset(
+    #     selections.downscaling_method
+    # ):  # If both are selected
+    #     loca_sims = cat_subset.search(
+    #         activity_id="LOCA2"
+    #     ).df.source_id.unique()  # LOCA unique simulations
+    #     wrf_sims = cat_subset.search(
+    #         activity_id="WRF"
+    #     ).df.source_id.unique()  # WRF unique simulations
+    #     overlapping_sims = list(
+    #         set(loca_sims) & set(wrf_sims)
+    #     )  # Subset of simulations in both LOCA and WRF
+    #     loca_member_ids = cat_subset.search(
+    #         activity_id="LOCA2"
+    #     ).df.member_id.unique()  # LOCA unique member_ids
+    #     wrf_member_ids = cat_subset.search(
+    #         activity_id="WRF"
+    #     ).df.member_id.unique()  # WRF unique member_ids
+    #     overlapping_member_ids = list(
+    #         set(loca_member_ids) & set(wrf_member_ids)
+    #     )  # Subset of member_ids in both LOCA and WRF
+    #     cat_subset = cat_subset.search(
+    #         source_id=overlapping_sims, member_id=overlapping_member_ids
+    #     )
 
     return cat_subset
 
@@ -352,11 +352,15 @@ def _process_and_concat(selections, location, dsets, cat_subset):
                 sim_list.append(da_sim)
 
         # Concatenate along simulation dimension
-        da = xr.concat(sim_list, dim="simulation", coords="minimal", compat="override")
+        da = xr.concat(
+            sim_list, dim="simulation", coords="minimal", compat="broadcast_equals"
+        )
         da = da.assign_coords({"scenario": scen_name})
         da_list.append(da)
 
-    da_final = xr.concat(da_list, dim="scenario", coords="minimal", compat="override")
+    da_final = xr.concat(
+        da_list, dim="scenario", coords="minimal", compat="broadcast_equals"
+    )
     return da_final
 
 
