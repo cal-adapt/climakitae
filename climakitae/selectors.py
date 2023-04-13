@@ -458,18 +458,6 @@ class _ViewLocationSelections(param.Parameterized):
         ),
     }
 
-    # _loca_bb = {
-    #     # Estimated coords
-    #     "3 km": Polygon(
-    #         [
-    #             (-120.7, 45.015625),  # Max latitude
-    #             (-110.984375, 33.6),  # Max longitude
-    #             (-116.5, 29.578125),  # Min latitude
-    #             (-128.421875, 42),  # Min longitude
-    #         ]
-    #     )
-    # }
-
     def __init__(self, **params):
         super().__init__(**params)
 
@@ -545,17 +533,6 @@ class _ViewLocationSelections(param.Parameterized):
         elif extent == na_extent:
             scatter_size = 1.5
 
-        # Add grid boundaries
-        # if "Statistical" in self.selections.downscaling_method:
-        #     # 3km LOCA grid shown whenever LOCA is selected, even if WRF is also selected
-        #     _add_res_to_ax(
-        #         poly=self._loca_bb["3 km"],
-        #         ax=ax,
-        #         color="purple",
-        #         rotation=32,
-        #         xy=(-127, 40),
-        #         label="3 km",
-        #     )
         if self.selections.resolution == "45 km":
             _add_res_to_ax(
                 poly=self._wrf_bb["45 km"],
@@ -1381,30 +1358,17 @@ def _location_param_to_panel(location):
     """For the _LocSelectorArea object, get parameters and parameter
     descriptions formatted as panel widgets
     """
-    # data_type_text = pn.widgets.StaticText(
-    #     value="",
-    #     name="Data type",
-    # )
-    # data_type = pn.widgets.RadioBoxGroup.from_param(
-    #     location.param.data_type, inline=True, name=""
-    # )
     area_subset = pn.widgets.Select.from_param(
         location.param.area_subset, name="Subset the data by..."
     )
     cached_area = pn.widgets.Select.from_param(
         location.param.cached_area, name="Location selection"
     )
-    # station_data_info = pn.widgets.StaticText.from_param(
-    #     location.param._station_data_info, name="", style={"color": "red"}
-    # )
     return {
         "area_subset": area_subset,
         "cached_area": cached_area,
-        # "data_type": data_type,
-        # "data_type_text": data_type_text,
         "latitude": location.param.latitude,
         "longitude": location.param.longitude,
-        # "station_data_info": station_data_info,
     }
 
 
