@@ -7,6 +7,7 @@ dew_point_derived,Dew point temperature,Dynamical,hourly,K,Dew point temperature
 u10,u at 10 m,Dynamical,hourly,m s-1,West-East component of Wind at 10m,"Wind coming from the west, measured at 10m above Earth's surface. By convention, wind coming from the east is negative.",ae_diverging,TRUE
 v10,v at 10 m,Dynamical,hourly,m s-1,North-South component of Wind at 10m,"Wind coming from the north, measured at 10m above Earth's surface. By convention, wind coming from the south is negative.",ae_diverging,TRUE
 psfc,sfc pressure,Dynamical,hourly,Pa,Surface Pressure,Air pressure at Earth's surface.,ae_diverging,TRUE
+q2_derived,2-meter specific humidity,Dynamical,hourly,g/kg,Specific humidity at 2m,"The ratio of the mass of water vapor over the mass of total (moist) air, measured 2m above Earth's surface.",ae_blue,TRUE
 q2,qv at 2 m,Dynamical,hourly,kg kg-1,Water Vapor Mixing Ratio at 2m,"The ratio of the mass of water vapor over the mass of dry air, measured 2m above Earth's surface.",ae_blue,TRUE
 tsk,surface skin temperature,Dynamical,hourly,K,Surface skin temperature,"Temperature of the Earth's surface (i.e., ground surface).  Typically not used in most applications.",ae_orange,TRUE
 lwdnb,instantaneous downwelling longwave flux at bottom,Dynamical,hourly,W m-2,Instantaneous downwelling longwave flux at bottom,Longwave radiation emitted by Earth's surface that is reflected back downwards by gasses and clouds. ,ae_orange,TRUE
@@ -33,8 +34,8 @@ wspd10max,maximum 10-meter wind speed,Dynamical,daily/monthly,m/s,Maximum wind s
 psfc,surface pressure,Dynamical,daily/monthly,hPa,Surface Pressure,Air pressure at Earth's surface.,ae_diverging,TRUE
 q2,2-meter specific humidity,Dynamical,daily/monthly,g/kg,Specific humidity at 2m,"The ratio of the mass of water vapor over the mass of total (moist) air, measured 2m above Earth's surface.",ae_blue,TRUE
 tskin,surface skin temperature ,Dynamical,daily/monthly,K,Surface skin temperature,Temperature of the Earth's surface (ground surface).,ae_orange,TRUE
-t2min,daily minimum 2-m temperature ,Dynamical,daily/monthly,K,Daily minimum air temperature at 2m,The minimum daily air temperature at 2m above the Earth's surface. ,ae_orange,TRUE
-t2max,daily maximum 2-m temperature ,Dynamical,daily/monthly,K,Daily maximum air temperature at 2m,The maximum daily air temperature at 2m above the Earth's surface. ,ae_orange,TRUE
+t2min,daily minimum 2-m temperature ,Dynamical,daily/monthly,K,Minimum Air Temperature at 2m,The minimum air temperature at 2m above the Earth's surface. ,ae_orange,TRUE
+t2max,daily maximum 2-m temperature ,Dynamical,daily/monthly,K,Maximum Air Temperature at 2m,The maximum air temperature at 2m above the Earth's surface. ,ae_orange,TRUE
 lw_dwn,downwelling longwave flux at bottom,Dynamical,daily/monthly,W/m2,Instantaneous downwelling longwave flux at bottom,Longwave radiation emitted by Earth's surface that is reflected back downwards by clouds. ,ae_orange,TRUE
 sw_dwn,downwelling shortwave flux at bottom,Dynamical,daily/monthly,W/m2,Instantaneous downwelling shortwave flux at bottom,"Shortwave radiation from the sun that reaches Earth's surface, minus radiation reflected back to space by clouds or absorbed by the atmosphere.",ae_orange,TRUE
 sw_sfc,shortwave flux at the surface,Dynamical,daily/monthly,W/m2,Shortwave flux at the surface,Shortwave radiation from the sun that reaches Earth's surface. ,ae_orange,TRUE
