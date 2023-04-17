@@ -550,7 +550,7 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
             selections.time_slice = (selections.time_slice[0], obs_data_bounds[1])
 
     # Deal with derived variables
-    orig_var_id_selection = selections.variable_id
+    orig_var_id_selection = selections.variable_id[0]
     orig_variable_selection = selections.variable
     if "_derived" in orig_var_id_selection:
         if "wind_speed_derived" in orig_var_id_selection:
