@@ -430,9 +430,6 @@ def _get_data_one_var(selections, location, cat):
             time=slice(str(selections.time_slice[0]), str(selections.time_slice[1]))
         )
 
-        # LOCA on WRF grid remove fill value
-        dset = dset.where(dset != 1000000000000000019884624838656.0, np.nan)
-
         # Perform area subsetting
 
         # Bay Area airport stations are tricky, requires some hacky coding
