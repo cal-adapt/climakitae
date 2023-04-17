@@ -111,6 +111,9 @@ def _retrieve_meteo_yr_data(
     xr.DataArray
         Hourly ensemble means from year_start-year_end for the ssp specified.
     """
+    # Ensure only WRF data is being used
+    selections.downscaling_method = ["Dynamical"]
+
     # Save units. Sometimes they get lost.
     units = selections.units
 
@@ -132,7 +135,6 @@ def _retrieve_meteo_yr_data(
         selections.scenario_ssp == selections.scenario_ssp[0]
 
     # Set other data parameters
-    selections.downscaling_method = ["Dynamical"]
     selections.simulation = ["ensmean"]
     selections.time_slice = (year_start, year_end)
     selections.area_average = "Yes"
@@ -667,6 +669,8 @@ class _AverageMeteorologicalYear(param.Parameterized):
     @param.depends("computation_method", "reload_data", "warmlevel", watch=True)
     def _update_data_to_be_returned(self):
         """Update self.selections so that the correct data is returned by app.retrieve()"""
+
+        self.selections.downscaling_method = ["Dynamical"]
 
         if self.computation_method == "Historical":
             self.selections.scenario_historical = ["Historical Climate"]
