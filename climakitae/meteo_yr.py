@@ -633,7 +633,8 @@ class _AverageMeteorologicalYear(param.Parameterized):
         self.cmap = _read_ae_colormap(cmap="ae_orange", cmap_hex=True)
 
         # Selectors defaults
-        self.selections.append_historical = False
+        self.selections.downscaling_method = ["Dynamical"]
+        self.selections.append_historical = "No"
         self.selections.area_average = "Yes"
         self.selections.resolution = "45 km"
         self.selections.scenario_historical = ["Historical Climate"]
@@ -654,7 +655,7 @@ class _AverageMeteorologicalYear(param.Parameterized):
         cmap_name = var_catalog[
             (var_catalog["display_name"] == self.selections.variable)
             & (var_catalog["timescale"] == "hourly")
-        ].colormap.item()
+        ].colormap.values[0]
 
         # Set to diverging colormap if difference is selected
         if self.data_type == "Difference":

@@ -258,7 +258,7 @@ class _WarmingLevels(param.Parameterized):
         cmap_name = var_catalog[
             (var_catalog["display_name"] == self.selections.variable)
             & (var_catalog["timescale"] == "daily/monthly")
-        ].colormap.item()
+        ].colormap.values[0]
 
         # Colormap normalization for hvplot -- only for relative humidity!
         if self.selections.variable == "Relative Humidity":
