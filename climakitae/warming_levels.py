@@ -222,6 +222,7 @@ class _WarmingLevels(param.Parameterized):
         super().__init__(*args, **params)
 
         # Selectors defaults
+        self.selections.downscaling_method = ["Dynamical"]
         self.selections.scenario_historical = ["Historical Climate"]
         self.selections.area_average = "No"
         self.selections.resolution = "45 km"

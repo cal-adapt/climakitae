@@ -132,6 +132,7 @@ def _retrieve_meteo_yr_data(
         selections.scenario_ssp == selections.scenario_ssp[0]
 
     # Set other data parameters
+    selections.downscaling_method = ["Dynamical"]
     selections.simulation = ["ensmean"]
     selections.time_slice = (year_start, year_end)
     selections.area_average = "Yes"
