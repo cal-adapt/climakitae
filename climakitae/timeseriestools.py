@@ -15,7 +15,7 @@ class _TimeSeriesParams(param.Parameterized):
     parameters instead.
     """
 
-    resample_period = param.Selector(default="AS-SEP", objects=dict())
+    resample_period = param.Selector(default="years", objects=dict())
     _time_scales = dict(
         [("hours", "H"), ("days", "D"), ("months", "MS"), ("years", "AS-SEP")]
     )
