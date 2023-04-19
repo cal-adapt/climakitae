@@ -62,7 +62,7 @@ class Application(object):
 
     def __init__(self):
         self.catalog = intake.open_esm_datastore(
-            "https://cadcat.s3.amazonaws.com/cae-collection.json"
+            "https://cadcat.s3.amazonaws.com/tmp/cae-collection.json"
         )
         self.location = _LocSelectorArea(name="Location Selections")
         self.selections = _DataSelector(cat=self.catalog, location=self.location)

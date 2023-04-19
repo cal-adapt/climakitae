@@ -1436,6 +1436,11 @@ def _display_select(selections, location, map_view):
                 widgets["historical_selection"],
                 widgets["ssp_selection_text"],
                 widgets["ssp_selection"],
+                pn.Column(
+                    selections.view,
+                    widgets["time_slice"],
+                    width=220,
+                ),
                 width=250,
             ),
             pn.Column(

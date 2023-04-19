@@ -311,9 +311,6 @@ def _process_and_concat(selections, location, dsets, cat_subset):
                 # Get the name of the variable id
                 var_id = list(ds_sim.data_vars)[0]
 
-                # Rename simulation coordinate to include the downscaling method
-                ds_sim["simulation"] = "{0}_{1}".format(simulation, activity_id)
-
                 # Convert units
                 da_sim = ds_sim[var_id]
                 if var_id == "huss":
@@ -321,7 +318,12 @@ def _process_and_concat(selections, location, dsets, cat_subset):
                     # Reset to kg/kg so they can be converted if neccessary to g/kg
                     da_sim.attrs["units"] = "kg/kg"
                 da_sim = _convert_units(da=da_sim, selected_units=selections.units)
-                sim_list.append(da_sim)
+                for member_id in da_sim.member_id.values:
+                    da_sim_member_id = da_sim.sel(member_id=member_id).drop("member_id")
+                    da_sim_member_id["simulation"] = "{0}_{1}_{2}".format(
+                        activity_id, simulation, member_id
+                    )
+                    sim_list.append(da_sim_member_id)
 
         # Concatenate along simulation dimension
         da = xr.concat(
