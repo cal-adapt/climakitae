@@ -798,7 +798,9 @@ class _DataSelector(param.Parameterized):
     variable_id = param.ListSelector(objects=dict())
 
     # Temporal range of each dataset
-    historical_climate_range = (1980, 2015)
+    historical_climate_range_wrf = (1980, 2015)
+    historical_climate_range_loca = (1950, 2015)
+    historical_climate_range_wrf_and_loca = (1981, 2015)
     historical_reconstruction_range = (1950, 2022)
     ssp_range = (2015, 2100)
 
@@ -807,7 +809,6 @@ class _DataSelector(param.Parameterized):
     _data_warning = param.String(
         default="", doc="Warning if user has made a bad selection"
     )
-    _downscaling_method_warning = "Downscaling method will be automatically set to 'Dynamical' if no selection is made."
 
     def __init__(self, **params):
         # Set default values
@@ -833,8 +834,8 @@ class _DataSelector(param.Parameterized):
             if "ssp" in scen
         ]
         for scenario_i in [
-            "SSP 2-4.5 -- Middle of the Road",
             "SSP 3-7.0 -- Business as Usual",
+            "SSP 2-4.5 -- Middle of the Road",
             "SSP 5-8.5 -- Burn it All",
         ]:
             if scenario_i in scenario_ssp_options:  # Reorder list
@@ -902,17 +903,6 @@ class _DataSelector(param.Parameterized):
                     self.resolution = "3 km"
             elif self.data_type == "Gridded":
                 self.param["resolution"].objects = ["3 km", "9 km", "45 km"]
-
-    @param.depends("downscaling_method", watch=True)
-    def _reset_downscaling_method_warning_if_none_selected(self):
-        """Set the display warning about the downscaling method.
-        If downscaling method is NOT selected, a warning will be shown to the user.
-        If a downscaling method is selected, the warning should dissappear.
-        """
-        if self.downscaling_method == []:
-            self._data_warning = self._downscaling_method_warning
-        elif self._data_warning == self._downscaling_method_warning:
-            self._data_warning = ""
 
     @param.depends(
         "timescale",
@@ -1029,8 +1019,8 @@ class _DataSelector(param.Parameterized):
             if "ssp" in scen
         ]
         for scenario_i in [
-            "SSP 2-4.5 -- Middle of the Road",
             "SSP 3-7.0 -- Business as Usual",
+            "SSP 2-4.5 -- Middle of the Road",
             "SSP 5-8.5 -- Burn it All",
         ]:
             if scenario_i in scenario_ssp_options:  # Reorder list
@@ -1049,12 +1039,27 @@ class _DataSelector(param.Parameterized):
         if self.scenario_historical not in scenario_historical_options:
             self.scenario_historical = [scenario_historical_options[0]]
 
-    @param.depends("scenario_ssp", "scenario_historical", "time_slice", watch=True)
+    @param.depends(
+        "scenario_ssp",
+        "scenario_historical",
+        "downscaling_method",
+        "time_slice",
+        watch=True,
+    )
     def _update_data_warning(self):
         """Update warning raised to user based on their data selections."""
         data_warning = ""
         bad_time_slice_warning = """You've selected a time slice that is outside the temporal range 
         of the selected data."""
+
+        # Set time range of historical data
+        if self.downscaling_method == ["Statistical"]:
+            historical_climate_range = self.historical_climate_range_loca
+        elif set(["Dynamical", "Statistical"]).issubset(self.downscaling_method):
+            historical_climate_range = self.historical_climate_range_wrf_and_loca
+        else:
+            historical_climate_range = self.historical_climate_range_wrf
+
         # Warning based on data scenario selections
         if (  # Warn user that they cannot have SSP data and ERA5-WRF data
             True in ["SSP" in one for one in self.scenario_ssp]
@@ -1080,8 +1085,8 @@ class _DataSelector(param.Parameterized):
         if (not True in ["SSP" in one for one in self.scenario_ssp]) and (
             "Historical Climate" in self.scenario_historical
         ):
-            if (self.time_slice[0] < self.historical_climate_range[0]) or (
-                self.time_slice[1] > self.historical_climate_range[1]
+            if (self.time_slice[0] < historical_climate_range[0]) or (
+                self.time_slice[1] > historical_climate_range[1]
             ):
                 data_warning = bad_time_slice_warning
         elif True in ["SSP" in one for one in self.scenario_ssp]:
@@ -1091,7 +1096,7 @@ class _DataSelector(param.Parameterized):
                 ):
                     data_warning = bad_time_slice_warning
             else:
-                if (self.time_slice[0] < self.historical_climate_range[0]) or (
+                if (self.time_slice[0] < historical_climate_range[0]) or (
                     self.time_slice[1] > self.ssp_range[1]
                 ):
                     data_warning = bad_time_slice_warning
@@ -1104,7 +1109,9 @@ class _DataSelector(param.Parameterized):
         # Show warning
         self._data_warning = data_warning
 
-    @param.depends("scenario_ssp", "scenario_historical", watch=True)
+    @param.depends(
+        "scenario_ssp", "scenario_historical", "downscaling_method", watch=True
+    )
     def _update_time_slice_range(self):
         """
         Will discourage the user from selecting a time slice that does not exist
@@ -1112,8 +1119,16 @@ class _DataSelector(param.Parameterized):
         """
         low_bound, upper_bound = self.time_slice
 
+        # Set time range of historical data
+        if self.downscaling_method == ["Statistical"]:
+            historical_climate_range = self.historical_climate_range_loca
+        elif set(["Dynamical", "Statistical"]).issubset(self.downscaling_method):
+            historical_climate_range = self.historical_climate_range_wrf_and_loca
+        else:
+            historical_climate_range = self.historical_climate_range_wrf
+
         if self.scenario_historical == ["Historical Climate"]:
-            low_bound, upper_bound = self.historical_climate_range
+            low_bound, upper_bound = historical_climate_range
         elif self.scenario_historical == ["Historical Reconstruction"]:
             low_bound, upper_bound = self.historical_reconstruction_range
         elif all(  # If both historical options are selected, and no SSP is selected
@@ -1122,25 +1137,41 @@ class _DataSelector(param.Parameterized):
                 for x in self.scenario_historical
             ]
         ) and (not True in ["SSP" in one for one in self.scenario_ssp]):
-            low_bound, upper_bound = self.historical_climate_range
+            low_bound, upper_bound = historical_climate_range
 
         if True in ["SSP" in one for one in self.scenario_ssp]:
             if (
                 "Historical Climate" in self.scenario_historical
             ):  # If also append historical
-                low_bound = self.historical_climate_range[0]
+                low_bound = historical_climate_range[0]
             else:
                 low_bound = self.ssp_range[0]
             upper_bound = self.ssp_range[1]
 
         self.time_slice = (low_bound, upper_bound)
 
-    @param.depends("time_slice", "scenario_ssp", "scenario_historical", watch=False)
+    @param.depends(
+        "time_slice",
+        "scenario_ssp",
+        "scenario_historical",
+        "downscaling_method",
+        watch=False,
+    )
     def view(self):
         """
         Displays a timeline to help the user visualize the time ranges
         available, and the subset of time slice selected.
         """
+        # Set time range of historical data
+        if self.downscaling_method == ["Statistical"]:
+            historical_climate_range = self.historical_climate_range_loca
+        elif set(["Dynamical", "Statistical"]).issubset(self.downscaling_method):
+            historical_climate_range = self.historical_climate_range_wrf_and_loca
+        else:
+            historical_climate_range = self.historical_climate_range_wrf
+        historical_central_year = sum(historical_climate_range) / 2
+        historical_x_width = historical_central_year - historical_climate_range[0]
+
         fig0 = Figure(figsize=(3, 2))
         ax = fig0.add_subplot(111)
         ax.spines["right"].set_color("none")
@@ -1168,8 +1199,8 @@ class _DataSelector(param.Parameterized):
                 if scen == "Historical Reconstruction":
                     color = "darkblue"
                     if "Historical Climate" in self.scenario_historical:
-                        center = 1997.5  # 1980-2014
-                        x_width = 17.5
+                        center = historical_central_year
+                        x_width = historical_x_width
                         ax.annotate(
                             "Reconstruction", xy=(1967, y_offset + 0.06), fontsize=12
                         )
@@ -1182,9 +1213,13 @@ class _DataSelector(param.Parameterized):
 
                 elif scen == "Historical Climate":
                     color = "c"
-                    center = 1997.5  # 1980-2014
-                    x_width = 17.5
-                    ax.annotate("Historical", xy=(1979, y_offset + 0.06), fontsize=12)
+                    center = historical_central_year
+                    x_width = historical_x_width
+                    ax.annotate(
+                        "Historical",
+                        xy=(historical_climate_range[0], y_offset + 0.06),
+                        fontsize=12,
+                    )
 
                 elif "SSP" in scen:
                     center = 2057.5  # 2015-2100
@@ -1198,11 +1233,18 @@ class _DataSelector(param.Parameterized):
                         color = "#980002"
                     if "Historical Climate" in self.scenario_historical:
                         ax.errorbar(
-                            x=1997.5, y=y_offset, xerr=17.5, linewidth=8, color="c"
+                            x=historical_central_year,
+                            y=y_offset,
+                            xerr=historical_x_width,
+                            linewidth=8,
+                            color="c",
                         )
                         ax.annotate(
-                            "Historical", xy=(1979, y_offset + 0.06), fontsize=12
+                            "Historical",
+                            xy=(historical_climate_range[0], y_offset + 0.06),
+                            fontsize=12,
                         )
+
                     ax.annotate(scen[:10], xy=(2035, y_offset + 0.06), fontsize=12)
 
                 ax.errorbar(
@@ -1394,11 +1436,6 @@ def _display_select(selections, location, map_view):
                 widgets["historical_selection"],
                 widgets["ssp_selection_text"],
                 widgets["ssp_selection"],
-                pn.Column(
-                    selections.view,
-                    widgets["time_slice"],
-                    width=220,
-                ),
                 width=250,
             ),
             pn.Column(
