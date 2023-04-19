@@ -85,27 +85,21 @@ def get_anomaly_data(data, warmlevel=3.0, scenario="ssp370"):
     xr.DataArray
         Warming level anomalies at the input warming level and scenario
     """
-    sim_names = {
-        "cesm2": "CESM2",
-        "cnrm-esm2-1": "CNRM-ESM2-1",
-        "ec-earth3-veg": "EC-Earth3-Veg",
-        "fgoals-g3": "FGOALS-g3",
-        "mpi-esm1-2-lr": "MPI-ESM1-2-LR",
-    }
     sim_and_runs_dict = {
-        "cesm2": "r11i1p1f1",
-        "cnrm-esm2-1": "r1i1p1f2",
-        "fgoals-g3": "r1i1p1f1",
-        "ec-earth3-veg": "r1i1p1f1",
+        "CESM2": "r11i1p1f1",
+        "CNRM-ESM2-1": "r1i1p1f2",
+        "FGOALS-g3": "r1i1p1f1",
+        "EC-Earth3-Veg": "r1i1p1f1",
     }
     all_sims = xr.Dataset()
     all_sims.attrs = data.attrs
     central_year_l, year_start_l, year_end_l = [], [], []
     for simulation in data.simulation.values:
+        sim_str = simulation.split("_WRF")[0]
         one_ts = data.sel(simulation=simulation).squeeze()
         gwl_times_subset = gwl_times[
-            (gwl_times["simulation"] == sim_names[simulation])
-            & (gwl_times["run"] == sim_and_runs_dict[simulation])
+            (gwl_times["simulation"] == sim_str)
+            & (gwl_times["run"] == sim_and_runs_dict[sim_str])
             & (gwl_times["scenario"] == scenario)
         ]
         centered_time_pd = gwl_times_subset[str(float(warmlevel))]
@@ -222,6 +216,7 @@ class _WarmingLevels(param.Parameterized):
         super().__init__(*args, **params)
 
         # Selectors defaults
+        self.selections.downscaling_method = ["Dynamical"]
         self.selections.scenario_historical = ["Historical Climate"]
         self.selections.area_average = "No"
         self.selections.resolution = "45 km"
@@ -257,7 +252,7 @@ class _WarmingLevels(param.Parameterized):
         cmap_name = var_catalog[
             (var_catalog["display_name"] == self.selections.variable)
             & (var_catalog["timescale"] == "daily/monthly")
-        ].colormap.item()
+        ].colormap.values[0]
 
         # Colormap normalization for hvplot -- only for relative humidity!
         if self.selections.variable == "Relative Humidity":

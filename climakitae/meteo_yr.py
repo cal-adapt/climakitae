@@ -111,6 +111,9 @@ def _retrieve_meteo_yr_data(
     xr.DataArray
         Hourly ensemble means from year_start-year_end for the ssp specified.
     """
+    # Ensure only WRF data is being used
+    selections.downscaling_method = ["Dynamical"]
+
     # Save units. Sometimes they get lost.
     units = selections.units
 
@@ -632,7 +635,8 @@ class _AverageMeteorologicalYear(param.Parameterized):
         self.cmap = _read_ae_colormap(cmap="ae_orange", cmap_hex=True)
 
         # Selectors defaults
-        self.selections.append_historical = False
+        self.selections.downscaling_method = ["Dynamical"]
+        self.selections.append_historical = "No"
         self.selections.area_average = "Yes"
         self.selections.resolution = "45 km"
         self.selections.scenario_historical = ["Historical Climate"]
@@ -653,7 +657,7 @@ class _AverageMeteorologicalYear(param.Parameterized):
         cmap_name = var_catalog[
             (var_catalog["display_name"] == self.selections.variable)
             & (var_catalog["timescale"] == "hourly")
-        ].colormap.item()
+        ].colormap.values[0]
 
         # Set to diverging colormap if difference is selected
         if self.data_type == "Difference":
@@ -665,6 +669,8 @@ class _AverageMeteorologicalYear(param.Parameterized):
     @param.depends("computation_method", "reload_data", "warmlevel", watch=True)
     def _update_data_to_be_returned(self):
         """Update self.selections so that the correct data is returned by app.retrieve()"""
+
+        self.selections.downscaling_method = ["Dynamical"]
 
         if self.computation_method == "Historical":
             self.selections.scenario_historical = ["Historical Climate"]

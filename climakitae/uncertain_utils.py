@@ -508,7 +508,11 @@ def get_ensemble_data(variable, location, cmip_names, warm_level=3.0):
     def _postprocess(ds, location, variable):
         """Subset the dataset by an input location, convert variables, perform area averaging"""
         # Perform area subsetting
-        ds_region = _get_area_subset(location=location)
+        ds_region = _get_area_subset(
+            area_subset=location.area_subset,
+            cached_area=location.cached_area,
+            location=location,
+        )
         ds = ds.rio.write_crs(4326)
         ds = ds.rio.clip(geometries=ds_region, crs=4326, drop=True)
 

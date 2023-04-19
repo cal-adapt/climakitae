@@ -11,10 +11,10 @@ from .selectors import (
     _DataSelector,
     _ViewLocationSelections,
     _display_select,
+    _get_user_options,
     _LocSelectorArea,
     _user_export_select,
     _FileTypeSelector,
-    _get_simulation_options,
 )
 from .catalog_convert import (
     _downscaling_method_to_activity_id,
@@ -91,20 +91,13 @@ class Application(object):
 
         # Reset simulation options
         # This will remove ensmean if the use has just called app.explore.amy()
-        self.selections.simulation = _get_simulation_options(
+        _, simulation_options, _ = _get_user_options(
             cat=self.catalog,
-            activity_id=[
-                _downscaling_method_to_activity_id(dm)
-                for dm in self.selections.downscaling_method
-            ],
-            table_id=_timescale_to_table_id(self.selections.timescale),
-            grid_label=_resolution_to_gridlabel(self.selections.resolution),
-            experiment_id=[
-                _scenario_to_experiment_id(scen)
-                for scen in self.selections.scenario_historical
-                + self.selections.scenario_ssp
-            ],
+            downscaling_method=self.selections.downscaling_method,
+            timescale=self.selections.timescale,
+            resolution=self.selections.resolution,
         )
+        self.selections.simulation = simulation_options
         # Display panel
         select_panel = _display_select(self.selections, self.location, self.map_view)
         return select_panel

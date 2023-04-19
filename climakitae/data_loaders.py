@@ -9,8 +9,10 @@ import pandas as pd
 import pkg_resources
 import psutil
 import warnings
+import fnmatch
 from ast import literal_eval
 from shapely.geometry import box
+
 from xclim.core.calendar import convert_calendar
 from xclim.sdba.adjustment import QuantileDeltaMapping
 from .catalog_convert import (
@@ -115,7 +117,7 @@ def _get_cat_subset(selections, cat):
     scenario_selections = selections.scenario_ssp + selections.scenario_historical
 
     # Get catalog keys
-    # Convert user-friendly names to catalog names (i.e. "45km" to "d01")
+    # Convert user-friendly names to catalog names (i.e. "45 km" to "d01")
     activity_id = [
         _downscaling_method_to_activity_id(dm) for dm in selections.downscaling_method
     ]
@@ -133,6 +135,21 @@ def _get_cat_subset(selections, cat):
         experiment_id=experiment_id,
         source_id=source_id,
     )
+
+    # Get just data that's on the LOCA grid
+    # This will include LOCA data and WRF data on the LOCA native grid
+    # Both datasets are tagged with UCSD as the institution_id, so we can use "UCSD" to further subset the catalog data
+    if "Statistical" in selections.downscaling_method:
+        cat_subset = cat_subset.search(institution_id="UCSD")
+    # If only dynamical is selected, we need to remove UCSD from the WRF query
+    else:
+        wrf_on_native_grid = [
+            institution
+            for institution in cat.df.institution_id.unique()
+            if institution != "UCSD"
+        ]
+        cat_subset = cat_subset.search(institution_id=wrf_on_native_grid)
+
     return cat_subset
 
 
@@ -207,108 +224,115 @@ def _process_and_concat(selections, location, dsets, cat_subset):
             scenario_list.remove("Historical Reconstruction (ERA5-WRF)")
 
     for scenario in scenario_list:
+        scen_name = _scenario_to_experiment_id(scenario)
         sim_list = []
-        da_name = _scenario_to_experiment_id(scenario)
-        for simulation in selections.simulation:
-            if append_historical:
-                # Reset name
-                da_name = "Historical + " + scenario
+        for downscaling_method in selections.downscaling_method:
+            activity_id = _downscaling_method_to_activity_id(downscaling_method)
+            for simulation in selections.simulation:
+                if append_historical:
+                    # Reset name
+                    scen_name = "Historical + " + scenario
 
-                # Get filenames
-                try:
-                    historical_filename = [
-                        name
-                        for name in dsets.keys()
-                        if simulation + "." + "historical" in name
-                    ][0]
-                    if (  # Need to get CESM2 data if ensmean is selected for ssp2-4.5 or ssp5-8.5
-                        simulation == "ensmean"
-                    ) and (
-                        scenario
-                        in [
-                            "SSP 2-4.5 -- Middle of the Road",
-                            "SSP 5-8.5 -- Burn it All",
-                        ]
-                    ):
-                        ssp_filename = [
-                            name
-                            for name in dsets.keys()
-                            if "CESM2." + _scenario_to_experiment_id(scenario) in name
-                        ][0]
-                    else:
-                        ssp_filename = [
-                            name
-                            for name in dsets.keys()
-                            if simulation + "." + _scenario_to_experiment_id(scenario)
-                            in name
-                        ][0]
-                except:  # Some simulation + ssp options are not available. Just continue with the loop if no filename is found
-                    continue
-                # Grab data
-                historical_data = dsets[historical_filename][selections.variable_id]
-                ssp_data = dsets[ssp_filename][selections.variable_id]
+                    # Get filenames
+                    try:
+                        historical_filename = fnmatch.filter(
+                            list(dsets.keys()),
+                            "*{0}*{1}*historical*".format(activity_id, simulation),
+                        )[0]
+                        if (  # Need to get CESM2 data if ensmean is selected for ssp2-4.5 or ssp5-8.5
+                            simulation == "ensmean"
+                        ) and (
+                            scenario
+                            in [
+                                "SSP 2-4.5 -- Middle of the Road",
+                                "SSP 5-8.5 -- Burn it All",
+                            ]
+                        ):
+                            ssp_filename = fnmatch.filter(
+                                list(dsets.keys()),
+                                "*{0}*CESM2*{1}*".format(
+                                    activity_id, _scenario_to_experiment_id(scenario)
+                                ),
+                            )[0]
+                        else:
+                            ssp_filename = fnmatch.filter(
+                                list(dsets.keys()),
+                                "*{0}*{1}*{2}*".format(
+                                    activity_id,
+                                    simulation,
+                                    _scenario_to_experiment_id(scenario),
+                                ),
+                            )[0]
+                    except:  # Some simulation + ssp options are not available. Just continue with the loop if no filename is found
+                        continue
+                    # Grab data
+                    historical_data = dsets[historical_filename]
+                    ssp_data = dsets[ssp_filename]
 
-                # Concatenate data. Rename scenario attribute
-                historical_appended = xr.concat(
-                    [historical_data, ssp_data],
-                    dim="time",
-                    coords="minimal",
-                    compat="override",
-                    join="inner",
-                )
-                sim_list.append(historical_appended)
+                    # Concatenate data. Rename scenario attribute
+                    # This will append the SSP data to the historical data, both with the same simulation
+                    ds_sim = xr.concat(
+                        [historical_data, ssp_data],
+                        dim="time",
+                        coords="minimal",
+                        compat="override",
+                        join="inner",
+                    )
 
-            else:
-                try:
-                    if (  # Need to get CESM2 data if ensmean is selected for ssp2-4.5 or ssp5-8.5
-                        simulation == "ensmean"
-                    ) and (
-                        scenario
-                        in [
-                            "SSP 2-4.5 -- Middle of the Road",
-                            "SSP 5-8.5 -- Burn it All",
-                        ]
-                    ):
-                        filename = [
-                            name
-                            for name in dsets.keys()
-                            if "CESM2." + _scenario_to_experiment_id(scenario) in name
-                        ][0]
-                    else:
-                        filename = [
-                            name
-                            for name in dsets.keys()
-                            if simulation + "." + _scenario_to_experiment_id(scenario)
-                            in name
-                        ][0]
-                except:
-                    continue
-                sim_list.append(dsets[filename][selections.variable_id])
+                else:
+                    try:
+                        if (  # Need to get CESM2 data if ensmean is selected for ssp2-4.5 or ssp5-8.5
+                            simulation == "ensmean"
+                        ) and (
+                            scenario
+                            in [
+                                "SSP 2-4.5 -- Middle of the Road",
+                                "SSP 5-8.5 -- Burn it All",
+                            ]
+                        ):
+                            filename = fnmatch.filter(
+                                list(dsets.keys()),
+                                "*{0}*CESM2*{1}*".format(
+                                    activity_id, _scenario_to_experiment_id(scenario)
+                                ),
+                            )[0]
+                        else:
+                            filename = fnmatch.filter(
+                                list(dsets.keys()),
+                                "*{0}*{1}*{2}*".format(
+                                    activity_id,
+                                    simulation,
+                                    _scenario_to_experiment_id(scenario),
+                                ),
+                            )[0]
+                        ds_sim = dsets[filename]
+                    except:
+                        continue
+                # Get the name of the variable id
+                var_id = list(ds_sim.data_vars)[0]
+
+                # Rename simulation coordinate to include the downscaling method
+                ds_sim["simulation"] = "{0}_{1}".format(simulation, activity_id)
+
+                # Convert units
+                da_sim = ds_sim[var_id]
+                if var_id == "huss":
+                    # Units for LOCA specific humidity are set to 1
+                    # Reset to kg/kg so they can be converted if neccessary to g/kg
+                    da_sim.attrs["units"] = "kg/kg"
+                da_sim = _convert_units(da=da_sim, selected_units=selections.units)
+                sim_list.append(da_sim)
 
         # Concatenate along simulation dimension
-        da = xr.concat(sim_list, dim="simulation", coords="minimal", compat="override")
-        da_list.append(da.assign_coords({"scenario": da_name}))
+        da = xr.concat(
+            sim_list, dim="simulation", coords="minimal", compat="broadcast_equals"
+        )
+        da = da.assign_coords({"scenario": scen_name})
+        da_list.append(da)
 
-    # Concatenate along scenario dimension
-    da_final = xr.concat(da_list, dim="scenario", coords="minimal", compat="override")
-
-    # Rename
-    da_final.name = selections.variable
-
-    # Add attributes
-    orig_attrs = dsets[list(dsets.keys())[0]].attrs
-    da_final.attrs = {  # Add descriptive attributes to DataArray
-        "institution": orig_attrs["institution"],
-        "source": orig_attrs["source"],
-        "location_subset": location.cached_area,
-        "resolution": selections.resolution,
-        "frequency": selections.timescale,
-        "grid_mapping": da_final.attrs["grid_mapping"],
-        "location_subset": location.cached_area,
-        "variable_id": selections.variable_id,
-        "extended_description": selections.extended_description,
-        "units": da_final.attrs["units"],
-    }
+    da_final = xr.concat(
+        da_list, dim="scenario", coords="minimal", compat="broadcast_equals"
+    )
     return da_final
 
 
@@ -360,8 +384,18 @@ def _get_data_one_var(selections, location, cat):
 
     # Perform subsetting operations
     for dname, dset in data_dict.items():
-        # Add simulation as a coord
-        dset = dset.assign_coords({"simulation": dset.attrs["source_id"]})
+        # Break down name into component parts
+        (
+            activity_id,
+            institution_id,
+            source_id,
+            experiment_id,
+            table_id,
+            grid_label,
+        ) = dname.split(".")
+
+        # Add simulation and downscaling method as coordinates
+        dset = dset.assign_coords({"simulation": source_id})
 
         # Time slice
         dset = dset.sel(
@@ -378,7 +412,7 @@ def _get_data_one_var(selections, location, cat):
             "Oakland Metro International Airport",
             "San Francisco International Airport",
         ]
-        if (location.data_type == "Station") and any(
+        if (selections.data_type == "Station") and any(
             x in location.station for x in bay_stations
         ):
             area_subset = "none"
@@ -388,12 +422,27 @@ def _get_data_one_var(selections, location, cat):
             cached_area = location.cached_area
         ds_region = _get_area_subset(area_subset, cached_area, location)
         if ds_region is not None:  # Perform subsetting
-            dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
+            try:
+                dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
+            except:
+                # LOCA does not have x,y coordinates. rioxarray hates this
+                # rioxarray will raise this error: MissingSpatialDimensionError: x dimension not found. 'rio.set_spatial_dims()' or using 'rename()' to change the dimension name to 'x' can address this.
+                # Therefore I need to rename the lat, lon dimensions to x,y, and then reset them after clipping.
+                # I also need to write a CRS to the dataset
+                dset = dset.rename({"lon": "x", "lat": "y"})
+                dset = dset.rio.write_crs("EPSG:4326")
+                dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
+                dset = dset.rename({"x": "lon", "y": "lat"}).drop("spatial_ref")
 
         # Perform area averaging
         if selections.area_average == "Yes":
             weights = np.cos(np.deg2rad(dset.lat))
-            dset = dset.weighted(weights).mean("x").mean("y")
+            if set(["x", "y"]).issubset(set(dset.dims)):
+                # WRF data has x,y
+                dset = dset.weighted(weights).mean("x").mean("y")
+            elif set(["lat", "lon"]).issubset(set(dset.dims)):
+                # LOCA data has x,y
+                dset = dset.weighted(weights).mean("lat").mean("lon")
 
         # Update dataset in dictionary
         data_dict.update({dname: dset})
@@ -404,8 +453,20 @@ def _get_data_one_var(selections, location, cat):
     )
 
     # Assign data type attribute
-    da = da.assign_attrs({"data_type": location.data_type})
-
+    da.attrs = {  # Add descriptive attributes to DataArray
+        "variable_id": ", ".join(
+            selections.variable_id
+        ),  # Convert list to comma separated string
+        "extended_description": selections.extended_description,
+        "units": selections.units,
+        "data_type": selections.data_type,
+        "resolution": selections.resolution,
+        "frequency": selections.timescale,
+        "location_subset": location.cached_area,
+        "institution": institution_id,
+        "data_history": "Data has been accessed through the Cal-Adapt: Analytics Engine using the open-source climakitae python package.",
+    }
+    da.name = selections.variable
     return da
 
 
@@ -437,8 +498,8 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
         raise ValueError("Please select as least one dataset.")
 
     # Raise error if station data selected, but no station is selected
-    if (location.data_type == "Station") and (
-        location.station in [[], ["No stations available at this location"]]
+    if (selections.data_type == "Station") and (
+        selections.station in [[], ["No stations available at this location"]]
     ):
         raise ValueError(
             "Please select at least one weather station, or retrieve gridded data."
@@ -446,7 +507,7 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
 
     # For station data, need to expand time slice to ensure the historical period is included
     # At the end, the data will be cut back down to the user's original selection
-    if location.data_type == "Station":
+    if selections.data_type == "Station":
         original_time_slice = selections.time_slice  # Preserve original user selections
         original_scenario_historical = selections.scenario_historical.copy()
         if "Historical Climate" not in selections.scenario_historical:
@@ -461,16 +522,16 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
             selections.time_slice = (selections.time_slice[0], obs_data_bounds[1])
 
     # Deal with derived variables
-    orig_var_id_selection = selections.variable_id
+    orig_var_id_selection = selections.variable_id[0]
     orig_variable_selection = selections.variable
     if "_derived" in orig_var_id_selection:
-        if orig_var_id_selection == "wind_speed_derived":
+        if "wind_speed_derived" in orig_var_id_selection:
             # Load u10 data
-            selections.variable_id = "u10"
+            selections.variable_id = ["u10"]
             u10_da = _get_data_one_var(selections, location, cat)
 
             # Load v10 data
-            selections.variable_id = "v10"
+            selections.variable_id = ["v10"]
             v10_da = _get_data_one_var(selections, location, cat)
 
             # Derive wind magnitude
@@ -478,15 +539,15 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
 
         else:
             # Load temperature data
-            selections.variable_id = "t2"
+            selections.variable_id = ["t2"]
             t2_da = _get_data_one_var(selections, location, cat)
 
             # Load mixing ratio data
-            selections.variable_id = "q2"
+            selections.variable_id = ["q2"]
             q2_da = _get_data_one_var(selections, location, cat)
 
             # Load pressure data
-            selections.variable_id = "psfc"
+            selections.variable_id = ["psfc"]
             pressure_da = _get_data_one_var(selections, location, cat)
 
             # Derive relative humidity
@@ -494,7 +555,7 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
                 pressure=pressure_da, temperature=t2_da, mixing_ratio=q2_da
             )
 
-            if orig_var_id_selection == "rh_derived":
+            if "rh_derived" in orig_var_id_selection:
                 da = rh_da
 
             else:
@@ -502,10 +563,10 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
                 # Derive dew point temperature
                 dew_pnt_da = _compute_dewpointtemp(temperature=t2_da, rel_hum=rh_da)
 
-                if orig_var_id_selection == "dew_point_derived":
+                if "dew_point_derived" in orig_var_id_selection:
                     da = dew_pnt_da
 
-                elif orig_var_id_selection == "q2_derived":
+                elif "q2_derived" in orig_var_id_selection:
                     # Derive specific humidity
                     da = _compute_specific_humidity(
                         tdps=dew_pnt_da, pressure=pressure_da
@@ -523,8 +584,7 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
     else:
         da = _get_data_one_var(selections, location, cat)
 
-    da = _convert_units(da=da, selected_units=selections.units)  # Convert units
-    if location.data_type == "Station":
+    if selections.data_type == "Station":
         if loop:
             # print("Retrieving station data using a for loop")
             da = _station_loop(location, da, stations_df, original_time_slice)
@@ -545,7 +605,7 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
 
 def _station_apply(location, da, stations_df, original_time_slice):
     # Grab zarr data
-    station_subset = stations_df.loc[stations_df["station"].isin(location.station)]
+    station_subset = stations_df.loc[stations_df["station"].isin(selections.station)]
     filepaths = [
         "s3://cadcat/tmp/hadisd/HadISD_{}.zarr".format(s_id)
         for s_id in station_subset["station id"]
