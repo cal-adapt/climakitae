@@ -124,7 +124,7 @@ def test_extremes_min(test_TSP):
 def test_extremes_percentile(test_TSP):
     # Specify Params options
     test_TSP.anomaly = False
-    test_TSP.extremes = "Percentile"
+    test_TSP.extremes = ["Percentile"]
     test_TSP.resample_window = 2
     test_TSP.percentile = 0.95
 
