@@ -44,8 +44,8 @@ class _TimeSeriesParams(param.Parameterized):
         default=False, label="Disaggregate into four seasons"
     )
             
-    extremes = param.Selector(
-        default="None", objects=["None", "Min", "Max", "Percentile"]
+    extremes = param.ListSelector(
+        default=[], objects=["Min", "Max", "Percentile"]
     )
     resample_window = param.Integer(default=1, bounds=(1, 30))
     percentile = param.Number(
@@ -131,20 +131,26 @@ class _TimeSeriesParams(param.Parameterized):
             else:
                 to_plot = _running_mean(to_plot)
 
-        if self.extremes != "None":
-            if self.extremes == "Max":
-                to_plot = to_plot.resample(
+        def _extremes_da(y):
+            plot_multiple = xr.Dataset()
+            if "Max" in self.extremes:
+                plot_multiple["Max"] = to_plot.resample(
                     time=str(self.resample_window) + self._time_scales[self.resample_period]
                 ).max("time")
-            elif self.extremes == "Min":
-                to_plot = to_plot.resample(
+            if "Min" in self.extremes:
+                plot_multiple["Min"] = to_plot.resample(
                     time=str(self.resample_window) + self._time_scales[self.resample_period]
                 ).min("time")
-            elif self.extremes == "Percentile":
-                to_plot = to_plot.resample(
+            if "Percentile" in self.extremes:
+                plot_multiple[str(self.percentile)+" percentile"] = to_plot.resample(
                     time=str(self.resample_window) + self._time_scales[self.resample_period]
                 ).quantile(q=self.percentile)
-        return to_plot
+            return plot_multiple.to_array("extremes")
+                
+        if self.extremes != []:
+            return _extremes_da(to_plot)
+        else:
+            return to_plot
 
     @param.depends(
         "anomaly",
@@ -183,15 +189,7 @@ class _TimeSeriesParams(param.Parameterized):
             "tsnrhtdd"[(n // 10 % 10 != 1) * (n % 10 < 4) * n % 10 :: 4],
         )
         percentrile_str = ordinal(percentile_int)
-
-        # Extremes string user-friendly (used in title)
-        if self.extremes == "Min":
-            extremes_str = "minimum"
-        elif self.extremes == "Max":
-            extremes_str = "maximum"
-        else:
-            extremes_str = self.extremes
-
+        
         # Smoothing string user-friendly (used in title)
         if self.smoothing == "Running Mean":
             smoothing_str = "Smoothed "
@@ -204,7 +202,8 @@ class _TimeSeriesParams(param.Parameterized):
         year1, year2 = str(pd_datetime[0].year), str(pd_datetime[-1].year)
         new_title = smoothing_str + "Difference for " + year1 + " - " + year2
 
-        if self.extremes == "None":
+        if self.extremes == []:
+            plot_by = "simulation"
             if self.anomaly:
                 if (
                     self.smoothing == "Running Mean"
@@ -242,54 +241,53 @@ class _TimeSeriesParams(param.Parameterized):
                         smoothing_str + "Timeseries for " + year1 + " - " + year2
                     )
 
-        elif self.extremes != "None":
+        elif self.extremes != []:
+            plot_by = ["simulation","extremes"]
             if self.smoothing == "None":
                 if self.extremes == "Percentile":  # Unsmoothed, percentile extremes
                     new_title = (
                         smoothing_str
                         + percentrile_str
-                        + " percentile extremes with a "
+                        + " percentile extremes over a "
                         + str(self.resample_window)
                         + "-"
                         + resample_per_str
-                        + " resample"
+                        + " window"
                     )
                 else:  # Unsmoothed, min/max/mean extremes
                     new_title = (
                         smoothing_str
-                        + extremes_str
-                        + " extremes with a "
+                        + "Extremes over a "
                         + str(self.resample_window)
                         + "-"
                         + resample_per_str
-                        + " resample"
+                        + " window"
                     )
             elif self.smoothing != "None":
                 if self.extremes == "Percentile":  # Smoothed, percentile extremes
                     new_title = (
                         smoothing_str
                         + percentrile_str
-                        + " percentile extremes with a "
+                        + " percentile extremes over a "
                         + str(self.resample_window)
                         + "-"
                         + resample_per_str
-                        + " resample"
+                        + " window"
                     )
                 else:  # Smoothed, min/max/mean extremes
                     new_title = (
                         smoothing_str
-                        + extremes_str
-                        + " extremes with a "
+                        + "Extremes over a "
                         + str(self.resample_window)
                         + "-"
                         + resample_per_str
-                        + " resample"
+                        + " window"
                     )
 
         obj = to_plot.hvplot.line(
             x="time",
             widget_location="bottom",
-            by="simulation",
+            by=plot_by,
             groupby=menu_list,
             title=new_title,
         )
@@ -318,7 +316,7 @@ def _timeseries_visualize(choices):
             ),
             pn.Spacer(width=50),
             pn.Column(
-                choices.param.extremes,
+                pn.widgets.CheckBoxGroup.from_param(choices.param.extremes),
                 choices.param.percentile,
                 pn.Row(
                     choices.param.resample_window,
