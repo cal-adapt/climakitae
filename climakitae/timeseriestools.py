@@ -14,24 +14,25 @@ class _TimeSeriesParams(param.Parameterized):
     draw the GUI, but another UI could in principle be used to update these
     parameters instead.
     """
+
     resample_period = param.Selector(default="AS-SEP", objects=dict())
     _time_scales = dict(
-            [("hours", "H"), ("days", "D"), ("months", "MS"), ("years", "AS-SEP")]
-        )
-    
+        [("hours", "H"), ("days", "D"), ("months", "MS"), ("years", "AS-SEP")]
+    )
+
     def __init__(self, dataset, **params):
         super().__init__(**params)
         self.data = dataset
-        
+
         _time_resolution = dataset.attrs["frequency"]
-        if _time_resolution == 'monthly':
+        if _time_resolution == "monthly":
             del self._time_scales["days"]
             del self._time_scales["hours"]
-        elif _time_resolution == 'daily':
-            del self._time_scales["hours"] 
-    
+        elif _time_resolution == "daily":
+            del self._time_scales["hours"]
+
         self.param["resample_period"].objects = self._time_scales
-        
+
     anomaly = param.Boolean(default=True, label="Difference from a historical mean")
     reference_range = param.CalendarDateRange(
         default=(dt.datetime(1981, 1, 1), dt.datetime(2010, 12, 31)),
@@ -43,10 +44,8 @@ class _TimeSeriesParams(param.Parameterized):
     separate_seasons = param.Boolean(
         default=False, label="Disaggregate into four seasons"
     )
-            
-    extremes = param.ListSelector(
-        default=[], objects=["Min", "Max", "Percentile"]
-    )
+
+    extremes = param.ListSelector(default=[], objects=["Min", "Max", "Percentile"])
     resample_window = param.Integer(default=1, bounds=(1, 30))
     percentile = param.Number(
         default=0,
@@ -134,19 +133,22 @@ class _TimeSeriesParams(param.Parameterized):
         def _extremes_da(y):
             plot_multiple = xr.Dataset()
             if "Max" in self.extremes:
-                plot_multiple["Max"] = to_plot.resample(
-                    time=str(self.resample_window) + self._time_scales[self.resample_period]
+                plot_multiple["max"] = to_plot.resample(
+                    time=str(self.resample_window)
+                    + self._time_scales[self.resample_period]
                 ).max("time")
             if "Min" in self.extremes:
-                plot_multiple["Min"] = to_plot.resample(
-                    time=str(self.resample_window) + self._time_scales[self.resample_period]
+                plot_multiple["min"] = to_plot.resample(
+                    time=str(self.resample_window)
+                    + self._time_scales[self.resample_period]
                 ).min("time")
             if "Percentile" in self.extremes:
-                plot_multiple[str(self.percentile)+" percentile"] = to_plot.resample(
-                    time=str(self.resample_window) + self._time_scales[self.resample_period]
+                plot_multiple[str(self.percentile) + " percentile"] = to_plot.resample(
+                    time=str(self.resample_window)
+                    + self._time_scales[self.resample_period]
                 ).quantile(q=self.percentile)
             return plot_multiple.to_array("extremes")
-                
+
         if self.extremes != []:
             return _extremes_da(to_plot)
         else:
@@ -189,7 +191,7 @@ class _TimeSeriesParams(param.Parameterized):
             "tsnrhtdd"[(n // 10 % 10 != 1) * (n % 10 < 4) * n % 10 :: 4],
         )
         percentrile_str = ordinal(percentile_int)
-        
+
         # Smoothing string user-friendly (used in title)
         if self.smoothing == "Running Mean":
             smoothing_str = "Smoothed "
@@ -242,7 +244,7 @@ class _TimeSeriesParams(param.Parameterized):
                     )
 
         elif self.extremes != []:
-            plot_by = ["simulation","extremes"]
+            plot_by = ["simulation", "extremes"]
             if self.smoothing == "None":
                 if self.extremes == "Percentile":  # Unsmoothed, percentile extremes
                     new_title = (
