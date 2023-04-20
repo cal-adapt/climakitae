@@ -413,7 +413,7 @@ def _get_data_one_var(selections, location, cat):
             "San Francisco International Airport",
         ]
         if (selections.data_type == "Station") and any(
-            x in location.station for x in bay_stations
+            x in selections.station for x in bay_stations
         ):
             area_subset = "none"
             cached_area = "entire domain"
@@ -587,10 +587,14 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
     if selections.data_type == "Station":
         if loop:
             # print("Retrieving station data using a for loop")
-            da = _station_loop(location, da, stations_df, original_time_slice)
+            da = _station_loop(
+                location, selection, da, stations_df, original_time_slice
+            )
         else:
             # print("Retrieving station data using xr.apply")
-            da = _station_apply(location, da, stations_df, original_time_slice)
+            da = _station_apply(
+                location, selections, da, stations_df, original_time_slice
+            )
         # Reset original selections
         if "Historical Climate" not in original_scenario_historical:
             selections.scenario_historical.remove("Historical Climate")
@@ -603,7 +607,7 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
 # USE XR APPLY TO GET BIAS CORRECTED DATA TO STATION
 
 
-def _station_apply(location, da, stations_df, original_time_slice):
+def _station_apply(location, selections, da, stations_df, original_time_slice):
     # Grab zarr data
     station_subset = stations_df.loc[stations_df["station"].isin(selections.station)]
     filepaths = [
@@ -715,10 +719,10 @@ def _preprocess_hadisd(ds):
 #### LOOP THROUGH EACH STATION INSTEAD
 
 
-def _station_loop(location, da, stations_df, original_time_slice):
+def _station_loop(location, selection, da, stations_df, original_time_slice):
     """Get the closest gridcell, perform bias correction using a for loop"""
     stations_da_list = []
-    for station in location.station:
+    for station in selections.station:
         # Retrieve the closest gridcell to the weather station
         da_closest_gridcell = _retrieve_and_format_closest_gridcell(
             stations_df, station, da
