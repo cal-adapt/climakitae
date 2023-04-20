@@ -322,7 +322,7 @@ def _get_overlapping_stations(stations, polygon):
         stations gpd subsetted to include only points contained within polygon
 
     """
-    return gpd.sjoin(stations, polygon, op="within")
+    return gpd.sjoin(stations, polygon, predicate="within")
 
 
 def _get_subarea(
