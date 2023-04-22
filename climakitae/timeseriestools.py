@@ -26,11 +26,18 @@ class _TimeSeriesParams(param.Parameterized):
 
         _time_resolution = dataset.attrs["frequency"]
         if _time_resolution == "monthly":
-            del self._time_scales["days"]
-            del self._time_scales["hours"]
+            self._time_scales = dict(
+                [("months", "MS"), ("years", "AS-SEP")]
+            )
         elif _time_resolution == "daily":
-            del self._time_scales["hours"]
-
+            self._time_scales = dict(
+                [("days", "D"), ("months", "MS"), ("years", "AS-SEP")]
+            )
+        else:
+            self._time_scales = dict(
+                [("hours", "H"), ("days", "D"), ("months", "MS"), ("years", "AS-SEP")]
+            )
+                
         self.param["resample_period"].objects = self._time_scales
 
     anomaly = param.Boolean(default=True, label="Difference from a historical mean")
