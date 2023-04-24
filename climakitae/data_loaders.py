@@ -453,7 +453,7 @@ def _get_data_one_var(selections, location, cat):
     )
 
     # Assign data type attribute
-    da.attrs = {  # Add descriptive attributes to DataArray
+    da_new_attrs = {  # Add descriptive attributes to DataArray
         "variable_id": ", ".join(
             selections.variable_id
         ),  # Convert list to comma separated string
@@ -466,6 +466,9 @@ def _get_data_one_var(selections, location, cat):
         "institution": institution_id,
         "data_history": "Data has been accessed through the Cal-Adapt: Analytics Engine using the open-source climakitae python package.",
     }
+    if "grid_mapping" in da.attrs:
+        da_new_attrs = da_new_attrs | {"grid_mapping": da.attrs["grid_mapping"]}
+    da.attrs = da_new_attrs
     da.name = selections.variable
     return da
 
