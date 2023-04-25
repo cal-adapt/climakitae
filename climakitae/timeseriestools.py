@@ -15,9 +15,23 @@ class _TimeSeriesParams(param.Parameterized):
     parameters instead.
     """
 
+    resample_period = param.Selector(default="years", objects=dict())
+    _time_scales = dict(
+        [("hours", "H"), ("days", "D"), ("months", "MS"), ("years", "AS-SEP")]
+    )
+
     def __init__(self, dataset, **params):
         super().__init__(**params)
         self.data = dataset
+
+        _time_resolution = dataset.attrs["frequency"]
+        _time_scales = dict([("months", "MS"), ("years", "AS-SEP")])
+        if (_time_resolution == "daily") or (_time_resolution == "hourly"):
+            _time_scales["days"] = "D"
+        if _time_resolution == "hourly":
+            _time_scales["hours"] = "H"
+        self._time_scales = _time_scales
+        self.param["resample_period"].objects = self._time_scales
 
     anomaly = param.Boolean(default=True, label="Difference from a historical mean")
     reference_range = param.CalendarDateRange(
@@ -26,19 +40,13 @@ class _TimeSeriesParams(param.Parameterized):
     )
     remove_seasonal_cycle = param.Boolean(default=False)
     smoothing = param.Selector(default="None", objects=["None", "Running Mean"])
-    _time_scales = dict(
-        [("hours", "H"), ("days", "D"), ("months", "MS"), ("years", "AS-SEP")]
-    )
     num_timesteps = param.Integer(default=0, bounds=(0, 240))
     separate_seasons = param.Boolean(
         default=False, label="Disaggregate into four seasons"
     )
 
-    extremes = param.Selector(
-        default="None", objects=["None", "Min", "Max", "Percentile"]
-    )
+    extremes = param.ListSelector(default=[], objects=["Min", "Max", "Percentile"])
     resample_window = param.Integer(default=1, bounds=(1, 30))
-    resample_period = param.Selector(default="AS-SEP", objects=_time_scales)
     percentile = param.Number(
         default=0,
         bounds=(0, 1),
@@ -69,7 +77,7 @@ class _TimeSeriesParams(param.Parameterized):
         else:
             to_plot = self.data
 
-        def _getAnom(y):
+        def _get_anom(y):
             """
             Returns the difference with respect to the average across a historical range.
             """
@@ -110,32 +118,41 @@ class _TimeSeriesParams(param.Parameterized):
                 return y.rolling(time=self.num_timesteps, center=True).mean("time")
 
         if self.anomaly and not self.separate_seasons:
-            to_plot = _getAnom(to_plot)
+            to_plot = _get_anom(to_plot)
         elif self.anomaly and self.separate_seasons:
-            to_plot = to_plot.groupby("time.season").apply(_getAnom)
+            to_plot = to_plot.groupby("time.season").map(_get_anom)
         else:
             to_plot = to_plot
 
         if self.smoothing == "Running Mean" and self.num_timesteps > 0:
             if self.separate_seasons:
-                to_plot = to_plot.groupby("time.season").apply(_running_mean)
+                to_plot = to_plot.groupby("time.season").map(_running_mean)
             else:
                 to_plot = _running_mean(to_plot)
 
-        if self.extremes != "None":
-            if self.extremes == "Max":
-                to_plot = to_plot.resample(
-                    time=str(self.resample_window) + self.resample_period
+        def _extremes_da(y):
+            plot_multiple = xr.Dataset()
+            if "Max" in self.extremes:
+                plot_multiple["max"] = to_plot.resample(
+                    time=str(self.resample_window)
+                    + self._time_scales[self.resample_period]
                 ).max("time")
-            elif self.extremes == "Min":
-                to_plot = to_plot.resample(
-                    time=str(self.resample_window) + self.resample_period
+            if "Min" in self.extremes:
+                plot_multiple["min"] = to_plot.resample(
+                    time=str(self.resample_window)
+                    + self._time_scales[self.resample_period]
                 ).min("time")
-            elif self.extremes == "Percentile":
-                to_plot = to_plot.resample(
-                    time=str(self.resample_window) + self.resample_period
+            if "Percentile" in self.extremes:
+                plot_multiple[str(self.percentile) + " percentile"] = to_plot.resample(
+                    time=str(self.resample_window)
+                    + self._time_scales[self.resample_period]
                 ).quantile(q=self.percentile)
-        return to_plot
+            return plot_multiple.to_array("extremes")
+
+        if self.extremes != []:
+            return _extremes_da(to_plot)
+        else:
+            return to_plot
 
     @param.depends(
         "anomaly",
@@ -163,10 +180,7 @@ class _TimeSeriesParams(param.Parameterized):
             menu_list = ["scenario"]
 
         # Resample period user-friendly (used in title)
-        resample_per_str = {v: k for k, v in self._time_scales.items()}[
-            self.resample_period
-        ]
-        resample_per_str = resample_per_str[
+        resample_per_str = str(self.resample_period)[
             :-1
         ]  # Remove plural (i.e. "months" --> "month")
 
@@ -177,14 +191,6 @@ class _TimeSeriesParams(param.Parameterized):
             "tsnrhtdd"[(n // 10 % 10 != 1) * (n % 10 < 4) * n % 10 :: 4],
         )
         percentrile_str = ordinal(percentile_int)
-
-        # Extremes string user-friendly (used in title)
-        if self.extremes == "Min":
-            extremes_str = "minumum"
-        elif self.extremes == "Max":
-            extremes_str = "maximum"
-        else:
-            extremes_str = self.extremes
 
         # Smoothing string user-friendly (used in title)
         if self.smoothing == "Running Mean":
@@ -198,7 +204,8 @@ class _TimeSeriesParams(param.Parameterized):
         year1, year2 = str(pd_datetime[0].year), str(pd_datetime[-1].year)
         new_title = smoothing_str + "Difference for " + year1 + " - " + year2
 
-        if self.extremes == "None":
+        if self.extremes == []:
+            plot_by = "simulation"
             if self.anomaly:
                 if (
                     self.smoothing == "Running Mean"
@@ -236,54 +243,53 @@ class _TimeSeriesParams(param.Parameterized):
                         smoothing_str + "Timeseries for " + year1 + " - " + year2
                     )
 
-        elif self.extremes != "None":
+        elif self.extremes != []:
+            plot_by = ["simulation", "extremes"]
             if self.smoothing == "None":
                 if self.extremes == "Percentile":  # Unsmoothed, percentile extremes
                     new_title = (
                         smoothing_str
                         + percentrile_str
-                        + " percentile extremes with a "
+                        + " percentile extremes over a "
                         + str(self.resample_window)
                         + "-"
                         + resample_per_str
-                        + " resample"
+                        + " window"
                     )
                 else:  # Unsmoothed, min/max/mean extremes
                     new_title = (
                         smoothing_str
-                        + extremes_str
-                        + " extremes with a "
+                        + "Extremes over a "
                         + str(self.resample_window)
                         + "-"
                         + resample_per_str
-                        + " resample"
+                        + " window"
                     )
             elif self.smoothing != "None":
                 if self.extremes == "Percentile":  # Smoothed, percentile extremes
                     new_title = (
                         smoothing_str
                         + percentrile_str
-                        + " percentile extremes with a "
+                        + " percentile extremes over a "
                         + str(self.resample_window)
                         + "-"
                         + resample_per_str
-                        + " resample"
+                        + " window"
                     )
                 else:  # Smoothed, min/max/mean extremes
                     new_title = (
                         smoothing_str
-                        + extremes_str
-                        + " extremes with a "
+                        + "Extremes over a "
                         + str(self.resample_window)
                         + "-"
                         + resample_per_str
-                        + " resample"
+                        + " window"
                     )
 
         obj = to_plot.hvplot.line(
             x="time",
             widget_location="bottom",
-            by="simulation",
+            by=plot_by,
             groupby=menu_list,
             title=new_title,
         )
@@ -312,7 +318,7 @@ def _timeseries_visualize(choices):
             ),
             pn.Spacer(width=50),
             pn.Column(
-                choices.param.extremes,
+                pn.widgets.CheckBoxGroup.from_param(choices.param.extremes),
                 choices.param.percentile,
                 pn.Row(
                     choices.param.resample_window,
