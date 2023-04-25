@@ -997,6 +997,9 @@ class _DataSelector(param.Parameterized):
             self.variable_options_df["display_name"] == self.variable
         ]
         native_unit = var_info.unit.item()
+        if native_unit in ["mm/d", "mm/h"]:
+            # Show same unit options for all mm
+            native_unit = "mm"
         if (
             native_unit in unit_options_dict.keys()
         ):  # See if there's unit conversion options for native variable
