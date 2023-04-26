@@ -77,7 +77,7 @@ class Application(object):
             cat=self.catalog, location=self.location, var_config=self.var_config
         )
         self.map_view = _ViewLocationSelections(
-            location=self.location, selections=self.selections
+            selections=self.selections
         )
         self.user_export_format = _FileTypeSelector()
         self.explore = _AppExplore(
