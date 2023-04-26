@@ -19,34 +19,7 @@ from .catalog_convert import _scenario_to_experiment_id
 import logging
 
 logging.getLogger("param").setLevel(logging.CRITICAL)
-
 xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
-
-# Variable info
-var_catalog_resource = pkg_resources.resource_filename(
-    "climakitae", "data/variable_descriptions.csv"
-)
-var_catalog = pd.read_csv(var_catalog_resource, index_col="variable_id")
-
-# Global warming levels file (years when warming level is reached)
-gwl_file = pkg_resources.resource_filename("climakitae", "data/gwl_1981-2010ref.csv")
-gwl_times = pd.read_csv(gwl_file).rename(
-    columns={"Unnamed: 0": "simulation", "Unnamed: 1": "run"}
-)
-
-# Read in GMT context plot data
-ssp119 = pkg_resources.resource_filename("climakitae", "data/tas_global_SSP1_1_9.csv")
-ssp126 = pkg_resources.resource_filename("climakitae", "data/tas_global_SSP1_2_6.csv")
-ssp245 = pkg_resources.resource_filename("climakitae", "data/tas_global_SSP2_4_5.csv")
-ssp370 = pkg_resources.resource_filename("climakitae", "data/tas_global_SSP3_7_0.csv")
-ssp585 = pkg_resources.resource_filename("climakitae", "data/tas_global_SSP5_8_5.csv")
-hist = pkg_resources.resource_filename("climakitae", "data/tas_global_Historical.csv")
-ssp119_data = pd.read_csv(ssp119, index_col="Year")
-ssp126_data = pd.read_csv(ssp126, index_col="Year")
-ssp245_data = pd.read_csv(ssp245, index_col="Year")
-ssp370_data = pd.read_csv(ssp370, index_col="Year")
-ssp585_data = pd.read_csv(ssp585, index_col="Year")
-hist_data = pd.read_csv(hist, index_col="Year")
 
 
 def _get_postage_data(selections, location, cat):
@@ -85,6 +58,14 @@ def get_anomaly_data(data, warmlevel=3.0, scenario="ssp370"):
     xr.DataArray
         Warming level anomalies at the input warming level and scenario
     """
+    # Global warming levels file (years when warming level is reached)
+    gwl_file = pkg_resources.resource_filename(
+        "climakitae", "data/gwl_1981-2010ref.csv"
+    )
+    gwl_times = pd.read_csv(gwl_file).rename(
+        columns={"Unnamed: 0": "simulation", "Unnamed: 1": "run"}
+    )
+
     sim_and_runs_dict = {
         "CESM2": "r11i1p1f1",
         "CNRM-ESM2-1": "r1i1p1f2",
@@ -195,6 +176,32 @@ class _WarmingLevels(param.Parameterized):
         If so, reload the warming level anomolies.
     """
 
+    # Read in GMT context plot data
+    ssp119 = pkg_resources.resource_filename(
+        "climakitae", "data/tas_global_SSP1_1_9.csv"
+    )
+    ssp126 = pkg_resources.resource_filename(
+        "climakitae", "data/tas_global_SSP1_2_6.csv"
+    )
+    ssp245 = pkg_resources.resource_filename(
+        "climakitae", "data/tas_global_SSP2_4_5.csv"
+    )
+    ssp370 = pkg_resources.resource_filename(
+        "climakitae", "data/tas_global_SSP3_7_0.csv"
+    )
+    ssp585 = pkg_resources.resource_filename(
+        "climakitae", "data/tas_global_SSP5_8_5.csv"
+    )
+    hist = pkg_resources.resource_filename(
+        "climakitae", "data/tas_global_Historical.csv"
+    )
+    ssp119_data = pd.read_csv(ssp119, index_col="Year")
+    ssp126_data = pd.read_csv(ssp126, index_col="Year")
+    ssp245_data = pd.read_csv(ssp245, index_col="Year")
+    ssp370_data = pd.read_csv(ssp370, index_col="Year")
+    ssp585_data = pd.read_csv(ssp585, index_col="Year")
+    hist_data = pd.read_csv(hist, index_col="Year")
+
     warmlevel = param.Selector(
         default=1.5, objects=[1.5, 2, 3, 4], doc="Warming level in degrees Celcius."
     )
@@ -249,9 +256,9 @@ class _WarmingLevels(param.Parameterized):
     @param.depends("selections.variable", watch=True)
     def _update_cmap(self):
         """Set colormap depending on variable"""
-        cmap_name = var_catalog[
-            (var_catalog["display_name"] == self.selections.variable)
-            & (var_catalog["timescale"] == "daily/monthly")
+        cmap_name = self.var_config[
+            (self.var_config["display_name"] == self.selections.variable)
+            & (self.var_config["timescale"] == "daily/monthly")
         ].colormap.values[0]
 
         # Colormap normalization for hvplot -- only for relative humidity!
