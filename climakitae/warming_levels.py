@@ -66,21 +66,17 @@ def get_anomaly_data(data, warmlevel=3.0, scenario="ssp370"):
         columns={"Unnamed: 0": "simulation", "Unnamed: 1": "run"}
     )
 
-    sim_and_runs_dict = {
-        "CESM2": "r11i1p1f1",
-        "CNRM-ESM2-1": "r1i1p1f2",
-        "FGOALS-g3": "r1i1p1f1",
-        "EC-Earth3-Veg": "r1i1p1f1",
-    }
     all_sims = xr.Dataset()
     all_sims.attrs = data.attrs
     central_year_l, year_start_l, year_end_l = [], [], []
     for simulation in data.simulation.values:
-        sim_str = simulation.split("_WRF")[0]
+        # The simulation coordinate includes more information than just the simulation
+        # Need to parse out the simulation and ensemble
+        downscaling_method, sim_str, ensemble = simulation.split("_")
         one_ts = data.sel(simulation=simulation).squeeze()
         gwl_times_subset = gwl_times[
             (gwl_times["simulation"] == sim_str)
-            & (gwl_times["run"] == sim_and_runs_dict[sim_str])
+            & (gwl_times["run"] == ensemble)
             & (gwl_times["scenario"] == scenario)
         ]
         centered_time_pd = gwl_times_subset[str(float(warmlevel))]
@@ -463,9 +459,9 @@ class _WarmingLevels(param.Parameterized):
         c370 = "#df0000"
         c585 = "#980002"
 
-        ipcc_data = hist_data.hvplot(
+        ipcc_data = self.hist_data.hvplot(
             y="Mean", color="k", label="Historical", width=width, height=height
-        ) * hist_data.hvplot.area(
+        ) * self.hist_data.hvplot.area(
             x="Year",
             y="5%",
             y2="95%",
@@ -479,30 +475,30 @@ class _WarmingLevels(param.Parameterized):
         if self.ssp == "All":
             ipcc_data = (
                 ipcc_data
-                * ssp119_data.hvplot(y="Mean", color=c119, label="SSP1-1.9")
-                * ssp126_data.hvplot(y="Mean", color=c126, label="SSP1-2.6")
-                * ssp245_data.hvplot(y="Mean", color=c245, label="SSP2-4.5")
-                * ssp370_data.hvplot(y="Mean", color=c370, label="SSP3-7.0")
-                * ssp585_data.hvplot(y="Mean", color=c585, label="SSP5-8.5")
+                * self.ssp119_data.hvplot(y="Mean", color=c119, label="SSP1-1.9")
+                * self.ssp126_data.hvplot(y="Mean", color=c126, label="SSP1-2.6")
+                * self.ssp245_data.hvplot(y="Mean", color=c245, label="SSP2-4.5")
+                * self.ssp370_data.hvplot(y="Mean", color=c370, label="SSP3-7.0")
+                * self.ssp585_data.hvplot(y="Mean", color=c585, label="SSP5-8.5")
             )
         elif self.ssp == "SSP 1-1.9 -- Very Low Emissions Scenario":
-            ipcc_data = ipcc_data * ssp119_data.hvplot(
+            ipcc_data = ipcc_data * self.ssp119_data.hvplot(
                 y="Mean", color=c119, label="SSP1-1.9"
             )
         elif self.ssp == "SSP 1-2.6 -- Low Emissions Scenario":
-            ipcc_data = ipcc_data * ssp126_data.hvplot(
+            ipcc_data = ipcc_data * self.ssp126_data.hvplot(
                 y="Mean", color=c126, label="SSP1-2.6"
             )
         elif self.ssp == "SSP 2-4.5 -- Middle of the Road":
-            ipcc_data = ipcc_data * ssp245_data.hvplot(
+            ipcc_data = ipcc_data * self.ssp245_data.hvplot(
                 y="Mean", color=c245, label="SSP2-4.5"
             )
         elif self.ssp == "SSP 3-7.0 -- Business as Usual":
-            ipcc_data = ipcc_data * ssp370_data.hvplot(
+            ipcc_data = ipcc_data * self.ssp370_data.hvplot(
                 y="Mean", color=c370, label="SSP3-7.0"
             )
         elif self.ssp == "SSP 5-8.5 -- Burn it All":
-            ipcc_data = ipcc_data * ssp585_data.hvplot(
+            ipcc_data = ipcc_data * self.ssp585_data.hvplot(
                 y="Mean", color=c585, label="SSP5-8.5"
             )
 
@@ -529,11 +525,11 @@ class _WarmingLevels(param.Parameterized):
 
             # Add interval line and shading around selected SSP
             ssp_dict = {
-                "SSP 1-1.9 -- Very Low Emissions Scenario": (ssp119_data, c119),
-                "SSP 1-2.6 -- Low Emissions Scenario": (ssp126_data, c126),
-                "SSP 2-4.5 -- Middle of the Road": (ssp245_data, c245),
-                "SSP 3-7.0 -- Business as Usual": (ssp370_data, c370),
-                "SSP 5-8.5 -- Burn it All": (ssp585_data, c585),
+                "SSP 1-1.9 -- Very Low Emissions Scenario": (self.ssp119_data, c119),
+                "SSP 1-2.6 -- Low Emissions Scenario": (self.ssp126_data, c126),
+                "SSP 2-4.5 -- Middle of the Road": (self.ssp245_data, c245),
+                "SSP 3-7.0 -- Business as Usual": (self.ssp370_data, c370),
+                "SSP 5-8.5 -- Burn it All": (self.ssp585_data, c585),
             }
 
             ssp_selected = ssp_dict[self.ssp][0]  # data selected
