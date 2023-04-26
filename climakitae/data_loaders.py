@@ -582,7 +582,7 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
                         "You've encountered a bug. No data available for selected derived variable."
                     )
 
-        selections.variable_id = orig_var_id_selection
+        selections.variable_id = [orig_var_id_selection]
         da.attrs["variable_id"] = orig_var_id_selection  # Reset variable ID attribute
         da.name = orig_variable_selection  # Set name of DataArray
 
