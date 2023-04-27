@@ -18,15 +18,13 @@ class _AppExplore(object):
     Only functional in a jupyter notebook environment.
     """
 
-    def __init__(self, selections, location, _cat, map_view, var_config):
+    def __init__(self, selections, _cat, map_view, var_config):
         """Constructor
 
         Parameters
         ----------
         selections: _DataSelector
             Data settings (variable, unit, timescale, etc)
-        location: _LocSelectorArea
-            Location Settings
         _cat: intake_esm.core.esm_datastore
             AE data catalog
         map_view: _ViewLocationSelections
@@ -36,7 +34,6 @@ class _AppExplore(object):
 
         """
         self.selections = selections
-        self.location = location
         self._cat = _cat
         self.map_view = map_view
         self.var_config = var_config
@@ -55,14 +52,12 @@ class _AppExplore(object):
         global tmy_ob
         tmy_ob = _AverageMeteorologicalYear(
             selections=self.selections,
-            location=self.location,
             cat=self._cat,
             var_config=self.var_config,
         )
         return _amy_visualize(
             tmy_ob=tmy_ob,
             selections=self.selections,
-            location=self.location,
             map_view=self.map_view,
         )
 
@@ -85,7 +80,6 @@ class _AppExplore(object):
         return _thresholds_visualize(
             thresh_data=thresh_data,
             selections=self.selections,
-            location=self.location,
             map_view=self.map_view,
             option=option,
         )
@@ -94,10 +88,9 @@ class _AppExplore(object):
         """Display Warming Levels panel."""
         warming_data = _WarmingLevels(
             selections=self.selections,
-            location=self.location,
             cat=self._cat,
             var_config=self.var_config,
         )
         return _display_warming_levels(
-            warming_data, self.selections, self.location, map_view=self.map_view
+            warming_data, self.selections, map_view=self.map_view
         )
