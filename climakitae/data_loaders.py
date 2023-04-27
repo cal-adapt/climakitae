@@ -215,7 +215,7 @@ def _process_and_concat(selections, location, dsets, cat_subset):
 
     if True in ["SSP" in one for one in selections.scenario_ssp]:
         if "Historical Climate" in selections.scenario_historical:
-            if selections.time_slice[0] > 2015:
+            if selections.time_slice[0] <= 2015:
                 # Historical climate will be appended to the SSP data
                 append_historical = True
             scenario_list.remove("Historical Climate")
