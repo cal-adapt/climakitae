@@ -702,6 +702,15 @@ class _DataSelector(param.Parameterized):
     instead.
     """
 
+    # Stations data
+    stations = pkg_resources.resource_filename("climakitae", "data/hadisd_stations.csv")
+    stations_df = pd.read_csv(stations)
+    stations_gpd = gpd.GeoDataFrame(
+        stations_df,
+        crs="EPSG:4326",
+        geometry=gpd.points_from_xy(stations_df.LON_X, stations_df.LAT_Y),
+    )
+
     # Unit conversion options for each unit
     unit_options_dict = _get_unit_conversion_options()
 
