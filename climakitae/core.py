@@ -11,7 +11,6 @@ from .view import _visualize
 from .data_loaders import _read_catalog_from_select, _read_catalog_from_csv, _compute
 from .selectors import (
     _DataSelector,
-    _ViewLocationSelections,
     _display_select,
     _get_user_options,
     _user_export_select,
@@ -41,8 +40,6 @@ class Application(object):
     explore: _AppExplore
         Explore panel options
         explore.amy(), explore.thresholds(), explore.warming_levels()
-    map_view: _ViewLocationSelections
-        Visualization of the selected data on a map
     var_config: pd.DataFrame
         Variable descriptions, units, etc in table format
 
@@ -70,11 +67,8 @@ class Application(object):
             "https://cadcat.s3.amazonaws.com/tmp/cae-collection.json"
         )
         self.selections = _DataSelector(cat=self.catalog, var_config=self.var_config)
-        self.map_view = _ViewLocationSelections(selections=self.selections)
         self.user_export_format = _FileTypeSelector()
-        self.explore = _AppExplore(
-            self.selections, self.catalog, self.map_view, self.var_config
-        )
+        self.explore = _AppExplore(self.selections, self.catalog, self.var_config)
 
     # === Select =====================================
     def select(self):
@@ -101,7 +95,7 @@ class Application(object):
         )
         self.selections.simulation = simulation_options
         # Display panel
-        select_panel = _display_select(self.selections, self.map_view)
+        select_panel = _display_select(self.selections)
         return select_panel
 
     # === Read data into memory =====================================

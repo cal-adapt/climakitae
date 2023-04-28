@@ -640,7 +640,7 @@ def _display_warming_levels(warming_data, selections, map_view):
                 selections.param.latitude,
                 selections.param.longitude,
                 selections.param.cached_area,
-                map_view.view,
+                selections.map_view,
                 width=230,
             ),
         ),

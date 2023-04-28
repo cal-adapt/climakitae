@@ -249,7 +249,7 @@ def _exceedance_visualize(choices, option=1):
     return exceedance_count_panel
 
 
-def _thresholds_visualize(thresh_data, selections, map_view, option=1):
+def _thresholds_visualize(thresh_data, selections, option=1):
     """
     Function for constructing and displaying the explore.thresholds() panel.
     """
@@ -280,7 +280,7 @@ def _thresholds_visualize(thresh_data, selections, map_view, option=1):
                 selections.param.cached_area,
                 width=230,
             ),
-            pn.Column(map_view.view, width=180),
+            pn.Column(selections.map_view, width=180),
         ),
         title="Data Options",
         collapsible=False,

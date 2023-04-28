@@ -350,7 +350,7 @@ def _add_res_to_ax(
     )
 
 
-class _ViewLocationSelections(param.Parameterized):
+def _map_view(selections):
     """View the current location selections on a map
     Updates dynamically
 
@@ -360,14 +360,6 @@ class _ViewLocationSelections(param.Parameterized):
         User data selections
 
     """
-
-    stations = pkg_resources.resource_filename("climakitae", "data/hadisd_stations.csv")
-    stations_df = pd.read_csv(stations)
-    stations_gpd = gpd.GeoDataFrame(
-        stations_df,
-        crs="EPSG:4326",
-        geometry=gpd.points_from_xy(stations_df.LON_X, stations_df.LAT_Y),
-    )
 
     _wrf_bb = {
         "45 km": Polygon(
@@ -396,145 +388,126 @@ class _ViewLocationSelections(param.Parameterized):
         ),
     }
 
-    def __init__(self, **params):
-        super().__init__(**params)
+    fig0 = Figure(figsize=(3.2, 3.2))
+    proj = ccrs.Orthographic(-118, 40)
+    crs_proj4 = proj.proj4_init  # used below
+    xy = ccrs.PlateCarree()
+    ax = fig0.add_subplot(111, projection=proj)
+    mpl_pane = pn.pane.Matplotlib(fig0, dpi=144)
 
-    @param.depends(
-        "selections.downscaling_method",
-        "selections.resolution",
-        "selections.latitude",
-        "selections.longitude",
-        "selections.area_subset",
-        "selections.cached_area",
-        "selections.data_type",
-        "selections.station",
-        watch=True,
+    # Get geometry of selected location
+    subarea_gpd = _get_subarea(
+        selections.area_subset,
+        selections.cached_area,
+        selections.latitude,
+        selections.longitude,
+        selections._geographies,
+        selections._geography_choose,
     )
-    def view(self):
-        fig0 = Figure(figsize=(3.2, 3.2))
-        proj = ccrs.Orthographic(-118, 40)
-        crs_proj4 = proj.proj4_init  # used below
-        xy = ccrs.PlateCarree()
-        ax = fig0.add_subplot(111, projection=proj)
-        mpl_pane = pn.pane.Matplotlib(fig0, dpi=144)
+    # Set plot extent
+    ca_extent = [-125, -114, 31, 43]  # Zoom in on CA
+    us_extent = [
+        -130,
+        -100,
+        25,
+        50,
+    ]  # Western USA + a lil bit of baja (viva mexico)
+    na_extent = [-150, -88, 8, 66]  # North America extent (largest extent)
+    if selections.area_subset == "lat/lon":
+        # Dynamically update extent depending on borders of lat/lon selection
+        for extent_i in [ca_extent, us_extent, na_extent]:
+            # Construct a polygon from the extent
+            geom_extent = Polygon(
+                box(extent_i[0], extent_i[2], extent_i[1], extent_i[3])
+            )
+            # Check if user selections for lat/lon are contained in the extent
+            if geom_extent.contains(subarea_gpd.geometry.values[0]):
+                # If so, set the extent to the smallest extent possible
+                # Such that the lat/lon selection is contained within the map's boundaries
+                extent = extent_i
+                break
+    elif (selections.resolution == "3 km") or ("CA" in selections.area_subset):
+        extent = ca_extent
+    elif (selections.resolution == "9 km") or (selections.area_subset == "states"):
+        extent = us_extent
+    elif selections.area_subset in ["none", "lat/lon"]:
+        extent = na_extent
+    else:  # Default for all other selections
+        extent = ca_extent
+    ax.set_extent(extent, crs=xy)
 
-        # Get geometry of selected location
-        subarea_gpd = _get_subarea(
-            self.selections.area_subset,
-            self.selections.cached_area,
-            self.selections.latitude,
-            self.selections.longitude,
-            self.selections._geographies,
-            self.selections._geography_choose,
+    # Set size of markers for stations depending on map boundaries
+    if extent == ca_extent:
+        scatter_size = 4.5
+    elif extent == us_extent:
+        scatter_size = 2.5
+    elif extent == na_extent:
+        scatter_size = 1.5
+
+    if selections.resolution == "45 km":
+        _add_res_to_ax(
+            poly=_wrf_bb["45 km"],
+            ax=ax,
+            color="green",
+            rotation=28,
+            xy=(-154, 33.8),
+            label="45 km",
         )
-        # Set plot extent
-        ca_extent = [-125, -114, 31, 43]  # Zoom in on CA
-        us_extent = [
-            -130,
-            -100,
-            25,
-            50,
-        ]  # Western USA + a lil bit of baja (viva mexico)
-        na_extent = [-150, -88, 8, 66]  # North America extent (largest extent)
-        if self.selections.area_subset == "lat/lon":
-            # Dynamically update extent depending on borders of lat/lon selection
-            for extent_i in [ca_extent, us_extent, na_extent]:
-                # Construct a polygon from the extent
-                geom_extent = Polygon(
-                    box(extent_i[0], extent_i[2], extent_i[1], extent_i[3])
-                )
-                # Check if user selections for lat/lon are contained in the extent
-                if geom_extent.contains(subarea_gpd.geometry.values[0]):
-                    # If so, set the extent to the smallest extent possible
-                    # Such that the lat/lon selection is contained within the map's boundaries
-                    extent = extent_i
-                    break
-        elif (self.selections.resolution == "3 km") or (
-            "CA" in self.selections.area_subset
-        ):
-            extent = ca_extent
-        elif (self.selections.resolution == "9 km") or (
-            self.selections.area_subset == "states"
-        ):
-            extent = us_extent
-        elif self.selections.area_subset in ["none", "lat/lon"]:
-            extent = na_extent
-        else:  # Default for all other selections
-            extent = ca_extent
-        ax.set_extent(extent, crs=xy)
+    elif selections.resolution == "9 km":
+        _add_res_to_ax(
+            poly=_wrf_bb["9 km"],
+            ax=ax,
+            color="red",
+            rotation=32,
+            xy=(-134, 42),
+            label="9 km",
+        )
+    elif selections.resolution == "3 km":
+        _add_res_to_ax(
+            poly=_wrf_bb["3 km"],
+            ax=ax,
+            color="darkorange",
+            rotation=32,
+            xy=(-127, 40),
+            label="3 km",
+        )
 
-        # Set size of markers for stations depending on map boundaries
-        if extent == ca_extent:
-            scatter_size = 4.5
-        elif extent == us_extent:
-            scatter_size = 2.5
-        elif extent == na_extent:
-            scatter_size = 1.5
+    # Add user-selected geometries
+    if selections.area_subset == "lat/lon":
+        ax.add_geometries(
+            subarea_gpd["geometry"].values,
+            crs=ccrs.PlateCarree(),
+            edgecolor="b",
+            facecolor="None",
+        )
+    elif selections.area_subset != "none":
+        subarea_gpd.to_crs(crs_proj4).plot(ax=ax, color="deepskyblue", zorder=2)
+        mpl_pane.param.trigger("object")
 
-        if self.selections.resolution == "45 km":
-            _add_res_to_ax(
-                poly=self._wrf_bb["45 km"],
-                ax=ax,
-                color="green",
-                rotation=28,
-                xy=(-154, 33.8),
-                label="45 km",
-            )
-        elif self.selections.resolution == "9 km":
-            _add_res_to_ax(
-                poly=self._wrf_bb["9 km"],
-                ax=ax,
-                color="red",
-                rotation=32,
-                xy=(-134, 42),
-                label="9 km",
-            )
-        elif self.selections.resolution == "3 km":
-            _add_res_to_ax(
-                poly=self._wrf_bb["3 km"],
-                ax=ax,
-                color="darkorange",
-                rotation=32,
-                xy=(-127, 40),
-                label="3 km",
-            )
+    # Overlay the weather stations as points on the map
+    if selections.data_type == "Station":
+        # Subset the stations gpd to get just the user's selected stations
+        # We need the stations gpd because it has the coordinates, which will be used to make the plot
+        stations_selection_gpd = stations_gpd.loc[
+            stations_gpd["station"].isin(selections.station)
+        ]
+        stations_selection_gpd = stations_selection_gpd.to_crs(
+            crs_proj4
+        )  # Convert to map projection
+        ax.scatter(
+            stations_selection_gpd.LON_X.values,
+            stations_selection_gpd.LAT_Y.values,
+            transform=ccrs.PlateCarree(),
+            zorder=15,
+            color="black",
+            s=scatter_size,  # Scatter size is dependent on extent of map
+        )
 
-        # Add user-selected geometries
-        if self.selections.area_subset == "lat/lon":
-            ax.add_geometries(
-                subarea_gpd["geometry"].values,
-                crs=ccrs.PlateCarree(),
-                edgecolor="b",
-                facecolor="None",
-            )
-        elif self.selections.area_subset != "none":
-            subarea_gpd.to_crs(crs_proj4).plot(ax=ax, color="deepskyblue", zorder=2)
-            mpl_pane.param.trigger("object")
-
-        # Overlay the weather stations as points on the map
-        if self.selections.data_type == "Station":
-            # Subset the stations gpd to get just the user's selected stations
-            # We need the stations gpd because it has the coordinates, which will be used to make the plot
-            stations_selection_gpd = self.stations_gpd.loc[
-                self.stations_gpd["station"].isin(self.selections.station)
-            ]
-            stations_selection_gpd = stations_selection_gpd.to_crs(
-                crs_proj4
-            )  # Convert to map projection
-            ax.scatter(
-                stations_selection_gpd.LON_X.values,
-                stations_selection_gpd.LAT_Y.values,
-                transform=ccrs.PlateCarree(),
-                zorder=15,
-                color="black",
-                s=scatter_size,  # Scatter size is dependent on extent of map
-            )
-
-        # Add state lines, international borders, and coastline
-        ax.add_feature(cfeature.STATES, linewidth=0.5, edgecolor="gray")
-        ax.add_feature(cfeature.COASTLINE, linewidth=0.5, edgecolor="darkgray")
-        ax.add_feature(cfeature.BORDERS, edgecolor="darkgray")
-        return mpl_pane
+    # Add state lines, international borders, and coastline
+    ax.add_feature(cfeature.STATES, linewidth=0.5, edgecolor="gray")
+    ax.add_feature(cfeature.COASTLINE, linewidth=0.5, edgecolor="darkgray")
+    ax.add_feature(cfeature.BORDERS, edgecolor="darkgray")
+    return mpl_pane
 
 
 # ============================ DATA SELECTIONS =================================
@@ -1139,6 +1112,45 @@ class _DataSelector(param.Parameterized):
 
         self.time_slice = (low_bound, upper_bound)
 
+    @param.depends("data_type", watch=True)
+    def _update_textual_description(self):
+        if self.data_type == "Gridded":
+            self._station_data_info = ""
+        elif self.data_type == "Station":
+            self._station_data_info = self._info_about_station_data
+
+    @param.depends(
+        "data_type",
+        "area_subset",
+        "cached_area",
+        "latitude",
+        "longitude",
+        watch=True,
+    )
+    def _update_station_list(self):
+        """Update the list of weather station options if the area subset changes"""
+        if self.data_type == "Station":
+            overlapping_stations = _get_overlapping_station_names(
+                self.stations_gpd,
+                self.area_subset,
+                self.cached_area,
+                self.latitude,
+                self.longitude,
+                self._geographies,
+                self._geography_choose,
+            )
+            if len(overlapping_stations) == 0:
+                notice = "No stations available at this location"
+                self.param["station"].objects = [notice]
+                self.station = [notice]
+            else:
+                self.param["station"].objects = overlapping_stations
+                self.station = overlapping_stations
+        elif self.data_type == "Gridded":
+            notice = "Set data type to 'Station' to see options"
+            self.param["station"].objects = [notice]
+            self.station = [notice]
+
     @param.depends(
         "time_slice",
         "scenario_ssp",
@@ -1146,7 +1158,7 @@ class _DataSelector(param.Parameterized):
         "downscaling_method",
         watch=False,
     )
-    def view(self):
+    def scenario_view(self):
         """
         Displays a timeline to help the user visualize the time ranges
         available, and the subset of time slice selected.
@@ -1251,44 +1263,20 @@ class _DataSelector(param.Parameterized):
         )
         return mpl_pane
 
-    @param.depends("data_type", watch=True)
-    def _update_textual_description(self):
-        if self.data_type == "Gridded":
-            self._station_data_info = ""
-        elif self.data_type == "Station":
-            self._station_data_info = self._info_about_station_data
-
     @param.depends(
-        "data_type",
-        "area_subset",
-        "cached_area",
+        "downscaling_method",
+        "resolution",
         "latitude",
         "longitude",
+        "area_subset",
+        "cached_area",
+        "data_type",
+        "station",
         watch=True,
     )
-    def _update_station_list(self):
-        """Update the list of weather station options if the area subset changes"""
-        if self.data_type == "Station":
-            overlapping_stations = _get_overlapping_station_names(
-                self.stations_gpd,
-                self.area_subset,
-                self.cached_area,
-                self.latitude,
-                self.longitude,
-                self._geographies,
-                self._geography_choose,
-            )
-            if len(overlapping_stations) == 0:
-                notice = "No stations available at this location"
-                self.param["station"].objects = [notice]
-                self.station = [notice]
-            else:
-                self.param["station"].objects = overlapping_stations
-                self.station = overlapping_stations
-        elif self.data_type == "Gridded":
-            notice = "Set data type to 'Station' to see options"
-            self.param["station"].objects = [notice]
-            self.station = [notice]
+    def map_view(self):
+        """Create a map of the location selections"""
+        return _map_view(selections=self)
 
 
 # ================ DISPLAY LOCATION/DATA SELECTIONS IN PANEL ===================
@@ -1395,7 +1383,7 @@ def _selections_param_to_panel(selections):
     return widgets_dict | text_dict
 
 
-def _display_select(selections, map_view):
+def _display_select(selections):
     """
     Called by 'select' at the beginning of the workflow, to capture user
     selections. Displays panel of widgets from which to make selections.
@@ -1416,7 +1404,7 @@ def _display_select(selections, map_view):
                 widgets["ssp_selection_text"],
                 widgets["ssp_selection"],
                 pn.Column(
-                    selections.view,
+                    selections.scenario_view,
                     widgets["time_slice"],
                     width=220,
                 ),
@@ -1437,7 +1425,7 @@ def _display_select(selections, map_view):
     )
 
     col_1_location = pn.Column(
-        map_view.view,
+        selections.map_view,
         widgets["area_subset"],
         widgets["cached_area"],
         widgets["latitude"],
