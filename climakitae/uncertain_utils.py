@@ -515,7 +515,7 @@ def get_ensemble_data(variable, selections, cmip_names, warm_level=3.0):
             ds = _precip_flux_to_total(ds)
 
         # Perform area averaging
-        if location.area_average == "Yes":
+        if selections.area_average == "Yes":
             ds = _area_wgt_average(ds)
         return ds
 
