@@ -420,7 +420,7 @@ def grab_multimodel_data(copt, alpha_sort=False):
 
 
 ## Grab data - internal variability analysis
-def get_ensemble_data(variable, location, cmip_names, warm_level=3.0):
+def get_ensemble_data(variable, selections, cmip_names, warm_level=3.0):
     """Returns processed data from multiple CMIP6 models for uncertainty analysis.
 
     Searches the CMIP6 data catalog for data from models that have specific
@@ -436,8 +436,8 @@ def get_ensemble_data(variable, location, cmip_names, warm_level=3.0):
         Name of variable
     cmip_names: list of str
         Name of CMIP6 simulations
-    location: LocSelectorArea
-        Location for which to subset data
+    selections: _DataSelector
+        Data and location settings
     warm_level: float, optional
         Global warming level to use, default to 3.0
 
