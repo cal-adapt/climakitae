@@ -609,7 +609,7 @@ class _WarmingLevels(param.Parameterized):
         return to_plot
 
 
-def _display_warming_levels(warming_data, selections, map_view):
+def _display_warming_levels(warming_data, selections):
     # Create panel doodad!
     data_options = pn.Card(
         pn.Row(
