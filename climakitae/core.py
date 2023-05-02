@@ -3,16 +3,16 @@ Holds the Application object, which provides access to easy data retrieval, visu
 """
 
 import intake
+import pkg_resources
+import pandas as pd
 from .data_export import _export_to_user
 from .explore import _AppExplore
 from .view import _visualize
 from .data_loaders import _read_catalog_from_select, _read_catalog_from_csv, _compute
 from .selectors import (
     _DataSelector,
-    _ViewLocationSelections,
     _display_select,
     _get_user_options,
-    _LocSelectorArea,
     _user_export_select,
     _FileTypeSelector,
 )
@@ -35,15 +35,13 @@ class Application(object):
     ----------
     catalog: intake_esm.core.esm_datastore
         AE data catalog
-    location: _LocSelectorArea
-        Location settings
     selections: _DataSelector
         Data settings (variable, unit, timescale, etc)
     explore: _AppExplore
         Explore panel options
         explore.amy(), explore.thresholds(), explore.warming_levels()
-    map_view: _ViewLocationSelections
-        Visualization of the selected data on a map
+    var_config: pd.DataFrame
+        Variable descriptions, units, etc in table format
 
     Examples
     --------
@@ -61,18 +59,16 @@ class Application(object):
     """
 
     def __init__(self):
+        var_catalog_resource = pkg_resources.resource_filename(
+            "climakitae", "data/variable_descriptions.csv"
+        )
+        self.var_config = pd.read_csv(var_catalog_resource, index_col=None)
         self.catalog = intake.open_esm_datastore(
             "https://cadcat.s3.amazonaws.com/tmp/cae-collection.json"
         )
-        self.location = _LocSelectorArea(name="Location Selections")
-        self.selections = _DataSelector(cat=self.catalog, location=self.location)
-        self.map_view = _ViewLocationSelections(
-            location=self.location, selections=self.selections
-        )
+        self.selections = _DataSelector(cat=self.catalog, var_config=self.var_config)
         self.user_export_format = _FileTypeSelector()
-        self.explore = _AppExplore(
-            self.selections, self.location, self.catalog, self.map_view
-        )
+        self.explore = _AppExplore(self.selections, self.catalog, self.var_config)
 
     # === Select =====================================
     def select(self):
@@ -80,7 +76,7 @@ class Application(object):
 
         A top-level convenience method.
         Calls a method to display a panel of choices for the data available to load.
-        Modifies Application.selections and Application.location' values
+        Modifies Application.selections values
         according to what the user specifies in that GUI.
 
         Returns
@@ -99,7 +95,7 @@ class Application(object):
         )
         self.selections.simulation = simulation_options
         # Display panel
-        select_panel = _display_select(self.selections, self.location, self.map_view)
+        select_panel = _display_select(self.selections)
         return select_panel
 
     # === Read data into memory =====================================
@@ -128,7 +124,7 @@ class Application(object):
     def retrieve(self, config=None, merge=True, loop=False):
         """Retrieve data from catalog
 
-        By default, Application.selections and Application.location determines the data retrieved.
+        By default, Application.selections determines the data retrieved.
         To retrieve data using the settings in a configuration csv file, set config to the local
         filepath of the csv.
         Grabs the data from the AWS S3 bucket, returns lazily loaded dask array.
@@ -138,7 +134,7 @@ class Application(object):
         ----------
         config: str, optional
             Local filepath to configuration csv file
-            Default to None-- retrieve settings in app.selections and app.location
+            Default to None-- retrieve settings in app.selections
         merge: bool, optional
             If config is TRUE and multiple datasets desired, merge to form a single object?
             Defaults to True.
@@ -160,15 +156,13 @@ class Application(object):
         if config is not None:
             if type(config) == str:
                 return _read_catalog_from_csv(
-                    self.selections, self.location, self.catalog, config, merge
+                    self.selections, self.catalog, config, merge
                 )
             else:
                 raise ValueError(
                     "To retrieve data specified in a configuration file, please input the path to your local configuration csv as a string"
                 )
-        return _read_catalog_from_select(
-            self.selections, self.location, self.catalog, loop
-        )
+        return _read_catalog_from_select(self.selections, self.catalog, loop)
 
     def retrieve_from_csv(self, config, merge=True):
         """Retrieve data from csv input. Return type will depend on how many rows exist in the input csv file and the argument merge.
@@ -195,9 +189,7 @@ class Application(object):
             If multiple rows are in the csv and merge=True,
             multiple DataArrays are returned in a single list.
         """
-        return _read_catalog_from_csv(
-            self.selections, self.location, self._cat, config, merge
-        )
+        return _read_catalog_from_csv(self.selections, self._cat, config, merge)
 
     def retrieve_meteo_yr_data(self, ssp=None, year_start=2015, year_end=None):
         """User-facing function for retrieving data needed for computing a meteorological year.
@@ -236,7 +228,7 @@ class Application(object):
         ... )
         """
         return _retrieve_meteo_yr_data(
-            self.selections, self.location, self.catalog, ssp, year_start, year_end
+            self.selections, self.catalog, ssp, year_start, year_end
         )
 
     # === View =======================================

@@ -19,43 +19,15 @@ from .catalog_convert import _scenario_to_experiment_id
 import logging
 
 logging.getLogger("param").setLevel(logging.CRITICAL)
-
 xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
 
-# Variable info
-var_catalog_resource = pkg_resources.resource_filename(
-    "climakitae", "data/variable_descriptions.csv"
-)
-var_catalog = pd.read_csv(var_catalog_resource, index_col="variable_id")
 
-# Global warming levels file (years when warming level is reached)
-gwl_file = pkg_resources.resource_filename("climakitae", "data/gwl_1981-2010ref.csv")
-gwl_times = pd.read_csv(gwl_file).rename(
-    columns={"Unnamed: 0": "simulation", "Unnamed: 1": "run"}
-)
-
-# Read in GMT context plot data
-ssp119 = pkg_resources.resource_filename("climakitae", "data/tas_global_SSP1_1_9.csv")
-ssp126 = pkg_resources.resource_filename("climakitae", "data/tas_global_SSP1_2_6.csv")
-ssp245 = pkg_resources.resource_filename("climakitae", "data/tas_global_SSP2_4_5.csv")
-ssp370 = pkg_resources.resource_filename("climakitae", "data/tas_global_SSP3_7_0.csv")
-ssp585 = pkg_resources.resource_filename("climakitae", "data/tas_global_SSP5_8_5.csv")
-hist = pkg_resources.resource_filename("climakitae", "data/tas_global_Historical.csv")
-ssp119_data = pd.read_csv(ssp119, index_col="Year")
-ssp126_data = pd.read_csv(ssp126, index_col="Year")
-ssp245_data = pd.read_csv(ssp245, index_col="Year")
-ssp370_data = pd.read_csv(ssp370, index_col="Year")
-ssp585_data = pd.read_csv(ssp585, index_col="Year")
-hist_data = pd.read_csv(hist, index_col="Year")
-
-
-def _get_postage_data(selections, location, cat):
+def _get_postage_data(selections, cat):
     """
     This function pulls data from the catalog and reads it into memory
 
     Args:
         selections (DataLoaders): object holding user's selections
-        location (LocSelectorArea): location object containing boundary information
         cat (intake_esm.core.esm_datastore): catalog
 
     Returns:
@@ -63,7 +35,7 @@ def _get_postage_data(selections, location, cat):
 
     """
     # Read data from catalog
-    data = _read_catalog_from_select(selections=selections, location=location, cat=cat)
+    data = _read_catalog_from_select(selections=selections, cat=cat)
     data = data.compute()  # Read into memory
     return data
 
@@ -85,21 +57,25 @@ def get_anomaly_data(data, warmlevel=3.0, scenario="ssp370"):
     xr.DataArray
         Warming level anomalies at the input warming level and scenario
     """
-    sim_and_runs_dict = {
-        "CESM2": "r11i1p1f1",
-        "CNRM-ESM2-1": "r1i1p1f2",
-        "FGOALS-g3": "r1i1p1f1",
-        "EC-Earth3-Veg": "r1i1p1f1",
-    }
+    # Global warming levels file (years when warming level is reached)
+    gwl_file = pkg_resources.resource_filename(
+        "climakitae", "data/gwl_1981-2010ref.csv"
+    )
+    gwl_times = pd.read_csv(gwl_file).rename(
+        columns={"Unnamed: 0": "simulation", "Unnamed: 1": "run"}
+    )
+
     all_sims = xr.Dataset()
     all_sims.attrs = data.attrs
     central_year_l, year_start_l, year_end_l = [], [], []
     for simulation in data.simulation.values:
-        sim_str = simulation.split("_WRF")[0]
+        # The simulation coordinate includes more information than just the simulation
+        # Need to parse out the simulation and ensemble
+        downscaling_method, sim_str, ensemble = simulation.split("_")
         one_ts = data.sel(simulation=simulation).squeeze()
         gwl_times_subset = gwl_times[
             (gwl_times["simulation"] == sim_str)
-            & (gwl_times["run"] == sim_and_runs_dict[sim_str])
+            & (gwl_times["run"] == ensemble)
             & (gwl_times["scenario"] == scenario)
         ]
         centered_time_pd = gwl_times_subset[str(float(warmlevel))]
@@ -195,6 +171,32 @@ class _WarmingLevels(param.Parameterized):
         If so, reload the warming level anomolies.
     """
 
+    # Read in GMT context plot data
+    ssp119 = pkg_resources.resource_filename(
+        "climakitae", "data/tas_global_SSP1_1_9.csv"
+    )
+    ssp126 = pkg_resources.resource_filename(
+        "climakitae", "data/tas_global_SSP1_2_6.csv"
+    )
+    ssp245 = pkg_resources.resource_filename(
+        "climakitae", "data/tas_global_SSP2_4_5.csv"
+    )
+    ssp370 = pkg_resources.resource_filename(
+        "climakitae", "data/tas_global_SSP3_7_0.csv"
+    )
+    ssp585 = pkg_resources.resource_filename(
+        "climakitae", "data/tas_global_SSP5_8_5.csv"
+    )
+    hist = pkg_resources.resource_filename(
+        "climakitae", "data/tas_global_Historical.csv"
+    )
+    ssp119_data = pd.read_csv(ssp119, index_col="Year")
+    ssp126_data = pd.read_csv(ssp126, index_col="Year")
+    ssp245_data = pd.read_csv(ssp245, index_col="Year")
+    ssp370_data = pd.read_csv(ssp370, index_col="Year")
+    ssp585_data = pd.read_csv(ssp585, index_col="Year")
+    hist_data = pd.read_csv(hist, index_col="Year")
+
     warmlevel = param.Selector(
         default=1.5, objects=[1.5, 2, 3, 4], doc="Warming level in degrees Celcius."
     )
@@ -226,13 +228,11 @@ class _WarmingLevels(param.Parameterized):
         self.selections.variable = "Air Temperature at 2m"
 
         # Location defaults
-        self.location.area_subset = "states"
-        self.location.cached_area = "CA"
+        self.selections.area_subset = "states"
+        self.selections.cached_area = "CA"
 
         # Postage data and anomalies defaults
-        self.postage_data = _get_postage_data(
-            selections=self.selections, location=self.location, cat=self.cat
-        )
+        self.postage_data = _get_postage_data(selections=self.selections, cat=self.cat)
         self._warm_all_anoms = get_anomaly_data(data=self.postage_data, warmlevel=1.5)
 
         self.cmap = _read_ae_colormap(cmap="ae_orange", cmap_hex=True)
@@ -249,9 +249,9 @@ class _WarmingLevels(param.Parameterized):
     @param.depends("selections.variable", watch=True)
     def _update_cmap(self):
         """Set colormap depending on variable"""
-        cmap_name = var_catalog[
-            (var_catalog["display_name"] == self.selections.variable)
-            & (var_catalog["timescale"] == "daily/monthly")
+        cmap_name = self.var_config[
+            (self.var_config["display_name"] == self.selections.variable)
+            & (self.var_config["timescale"] == "daily/monthly")
         ].colormap.values[0]
 
         # Colormap normalization for hvplot -- only for relative humidity!
@@ -262,8 +262,8 @@ class _WarmingLevels(param.Parameterized):
         self.cmap = _read_ae_colormap(cmap=cmap_name, cmap_hex=True)
 
     @param.depends(
-        "location.area_subset",
-        "location.cached_area",
+        "selections.area_subset",
+        "selections.cached_area",
         "selections.variable",
         "selections.units",
         watch=True,
@@ -278,7 +278,7 @@ class _WarmingLevels(param.Parameterized):
         reload the postage stamp data from AWS"""
         if self.changed_loc_and_var == True:
             self.postage_data = _get_postage_data(
-                selections=self.selections, location=self.location, cat=self.cat
+                selections=self.selections, cat=self.cat
             )
             self.changed_loc_and_var = False
         self._warm_all_anoms = get_anomaly_data(
@@ -456,9 +456,9 @@ class _WarmingLevels(param.Parameterized):
         c370 = "#df0000"
         c585 = "#980002"
 
-        ipcc_data = hist_data.hvplot(
+        ipcc_data = self.hist_data.hvplot(
             y="Mean", color="k", label="Historical", width=width, height=height
-        ) * hist_data.hvplot.area(
+        ) * self.hist_data.hvplot.area(
             x="Year",
             y="5%",
             y2="95%",
@@ -472,30 +472,30 @@ class _WarmingLevels(param.Parameterized):
         if self.ssp == "All":
             ipcc_data = (
                 ipcc_data
-                * ssp119_data.hvplot(y="Mean", color=c119, label="SSP1-1.9")
-                * ssp126_data.hvplot(y="Mean", color=c126, label="SSP1-2.6")
-                * ssp245_data.hvplot(y="Mean", color=c245, label="SSP2-4.5")
-                * ssp370_data.hvplot(y="Mean", color=c370, label="SSP3-7.0")
-                * ssp585_data.hvplot(y="Mean", color=c585, label="SSP5-8.5")
+                * self.ssp119_data.hvplot(y="Mean", color=c119, label="SSP1-1.9")
+                * self.ssp126_data.hvplot(y="Mean", color=c126, label="SSP1-2.6")
+                * self.ssp245_data.hvplot(y="Mean", color=c245, label="SSP2-4.5")
+                * self.ssp370_data.hvplot(y="Mean", color=c370, label="SSP3-7.0")
+                * self.ssp585_data.hvplot(y="Mean", color=c585, label="SSP5-8.5")
             )
         elif self.ssp == "SSP 1-1.9 -- Very Low Emissions Scenario":
-            ipcc_data = ipcc_data * ssp119_data.hvplot(
+            ipcc_data = ipcc_data * self.ssp119_data.hvplot(
                 y="Mean", color=c119, label="SSP1-1.9"
             )
         elif self.ssp == "SSP 1-2.6 -- Low Emissions Scenario":
-            ipcc_data = ipcc_data * ssp126_data.hvplot(
+            ipcc_data = ipcc_data * self.ssp126_data.hvplot(
                 y="Mean", color=c126, label="SSP1-2.6"
             )
         elif self.ssp == "SSP 2-4.5 -- Middle of the Road":
-            ipcc_data = ipcc_data * ssp245_data.hvplot(
+            ipcc_data = ipcc_data * self.ssp245_data.hvplot(
                 y="Mean", color=c245, label="SSP2-4.5"
             )
         elif self.ssp == "SSP 3-7.0 -- Business as Usual":
-            ipcc_data = ipcc_data * ssp370_data.hvplot(
+            ipcc_data = ipcc_data * self.ssp370_data.hvplot(
                 y="Mean", color=c370, label="SSP3-7.0"
             )
         elif self.ssp == "SSP 5-8.5 -- Burn it All":
-            ipcc_data = ipcc_data * ssp585_data.hvplot(
+            ipcc_data = ipcc_data * self.ssp585_data.hvplot(
                 y="Mean", color=c585, label="SSP5-8.5"
             )
 
@@ -522,11 +522,11 @@ class _WarmingLevels(param.Parameterized):
 
             # Add interval line and shading around selected SSP
             ssp_dict = {
-                "SSP 1-1.9 -- Very Low Emissions Scenario": (ssp119_data, c119),
-                "SSP 1-2.6 -- Low Emissions Scenario": (ssp126_data, c126),
-                "SSP 2-4.5 -- Middle of the Road": (ssp245_data, c245),
-                "SSP 3-7.0 -- Business as Usual": (ssp370_data, c370),
-                "SSP 5-8.5 -- Burn it All": (ssp585_data, c585),
+                "SSP 1-1.9 -- Very Low Emissions Scenario": (self.ssp119_data, c119),
+                "SSP 1-2.6 -- Low Emissions Scenario": (self.ssp126_data, c126),
+                "SSP 2-4.5 -- Middle of the Road": (self.ssp245_data, c245),
+                "SSP 3-7.0 -- Business as Usual": (self.ssp370_data, c370),
+                "SSP 5-8.5 -- Burn it All": (self.ssp585_data, c585),
             }
 
             ssp_selected = ssp_dict[self.ssp][0]  # data selected
@@ -609,7 +609,7 @@ class _WarmingLevels(param.Parameterized):
         return to_plot
 
 
-def _display_warming_levels(warming_data, selections, location, map_view):
+def _display_warming_levels(warming_data, selections):
     # Create panel doodad!
     data_options = pn.Card(
         pn.Row(
@@ -636,11 +636,11 @@ def _display_warming_levels(warming_data, selections, location, map_view):
                 width=230,
             ),
             pn.Column(
-                location.param.area_subset,
-                location.param.latitude,
-                location.param.longitude,
-                location.param.cached_area,
-                map_view.view,
+                selections.param.area_subset,
+                selections.param.latitude,
+                selections.param.longitude,
+                selections.param.cached_area,
+                selections.map_view,
                 width=230,
             ),
         ),

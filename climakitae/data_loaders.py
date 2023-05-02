@@ -75,14 +75,14 @@ def _compute(xr_da):
 # ============================ Helper functions ================================
 
 
-def _get_as_shapely(location):
+def _get_as_shapely(selections):
     """
-    Takes the location data in the 'location' parameter, and turns it into a
+    Takes the location data, and turns it into a
     shapely object. Just doing polygons for now. Later other point/station data
     will be available too.
 
     Args:
-        location (climakitae.selectors.LocSelectorArea): location selection
+        selections (_DataSelector): Data settings (variable, unit, timescale, etc)
 
     Returns:
         shapely_geom (shapely.geometry)
@@ -91,10 +91,10 @@ def _get_as_shapely(location):
     # Box is formed using the following shape:
     #   shapely.geometry.box(minx, miny, maxx, maxy)
     shapely_geom = box(
-        location.longitude[0],  # minx
-        location.latitude[0],  # miny
-        location.longitude[1],  # maxx
-        location.latitude[1],  # maxy
+        selections.longitude[0],  # minx
+        selections.latitude[0],  # miny
+        selections.longitude[1],  # maxx
+        selections.latitude[1],  # maxy
     )
     return shapely_geom
 
@@ -106,7 +106,7 @@ def _get_cat_subset(selections, cat):
     """For an input set of data selections, get the catalog subset.
 
     Args:
-        selections (DataLoaders): object holding user's selections
+        selections (_DataSelector): object holding user's selections
         cat (intake_esm.core.esm_datastore): catalog
 
     Returns:
@@ -153,11 +153,11 @@ def _get_cat_subset(selections, cat):
     return cat_subset
 
 
-def _get_area_subset(area_subset, cached_area, location):
+def _get_area_subset(area_subset, cached_area, selections):
     """Get geometry to perform area subsetting with.
 
     Args:
-        location (climakitae.selectors.LocSelectorArea): location selection
+        selections (_DataSelector): object holding user's selections
 
     Returns:
         ds_region (shapely.geometry): geometry to use for subsetting
@@ -168,7 +168,7 @@ def _get_area_subset(area_subset, cached_area, location):
         return boundary_dataset[boundary_dataset.index == shape_index].iloc[0].geometry
 
     if area_subset == "lat/lon":
-        geom = _get_as_shapely(location)
+        geom = _get_as_shapely(selections)
         if not geom.is_valid:
             raise ValueError(
                 "Please go back to 'select' and choose" + " a valid lat/lon range."
@@ -176,27 +176,27 @@ def _get_area_subset(area_subset, cached_area, location):
         ds_region = [geom]
     elif area_subset != "none":
         shape_index = int(
-            location._geography_choose[location.area_subset][location.cached_area]
+            selections._geography_choose[selections.area_subset][selections.cached_area]
         )
         if area_subset == "states":
-            shape = set_subarea(location._geographies._us_states)
+            shape = set_subarea(selections._geographies._us_states)
         elif area_subset == "CA counties":
-            shape = set_subarea(location._geographies._ca_counties)
+            shape = set_subarea(selections._geographies._ca_counties)
         elif area_subset == "CA watersheds":
-            shape = set_subarea(location._geographies._ca_watersheds)
+            shape = set_subarea(selections._geographies._ca_watersheds)
         elif area_subset == "CA Electric Load Serving Entities (IOU & POU)":
-            shape = set_subarea(location._geographies._ca_utilities)
+            shape = set_subarea(selections._geographies._ca_utilities)
         elif area_subset == "CA Electricity Demand Forecast Zones":
-            shape = set_subarea(location._geographies._ca_forecast_zones)
+            shape = set_subarea(selections._geographies._ca_forecast_zones)
         elif area_subset == "CA Electric Balancing Authority Areas":
-            shape = set_subarea(location._geographies._ca_electric_balancing_areas)
+            shape = set_subarea(selections._geographies._ca_electric_balancing_areas)
         ds_region = [shape]
     else:
         ds_region = None
     return ds_region
 
 
-def _process_and_concat(selections, location, dsets, cat_subset):
+def _process_and_concat(selections, dsets, cat_subset):
     """Process all data; merge all datasets into one.
 
     Args:
@@ -215,7 +215,7 @@ def _process_and_concat(selections, location, dsets, cat_subset):
 
     if True in ["SSP" in one for one in selections.scenario_ssp]:
         if "Historical Climate" in selections.scenario_historical:
-            if selections.time_slice[0] > 2015:
+            if selections.time_slice[0] <= 2015:
                 # Historical climate will be appended to the SSP data
                 append_historical = True
             scenario_list.remove("Historical Climate")
@@ -237,7 +237,7 @@ def _process_and_concat(selections, location, dsets, cat_subset):
                     try:
                         historical_filename = fnmatch.filter(
                             list(dsets.keys()),
-                            "*{0}*{1}*historical*".format(activity_id, simulation),
+                            "*{0}.*{1}.*historical*".format(activity_id, simulation),
                         )[0]
                         if (  # Need to get CESM2 data if ensmean is selected for ssp2-4.5 or ssp5-8.5
                             simulation == "ensmean"
@@ -250,14 +250,14 @@ def _process_and_concat(selections, location, dsets, cat_subset):
                         ):
                             ssp_filename = fnmatch.filter(
                                 list(dsets.keys()),
-                                "*{0}*CESM2*{1}*".format(
+                                "*{0}.*CESM2.*{1}*".format(
                                     activity_id, _scenario_to_experiment_id(scenario)
                                 ),
                             )[0]
                         else:
                             ssp_filename = fnmatch.filter(
                                 list(dsets.keys()),
-                                "*{0}*{1}*{2}*".format(
+                                "*{0}.*{1}.*{2}*".format(
                                     activity_id,
                                     simulation,
                                     _scenario_to_experiment_id(scenario),
@@ -292,14 +292,14 @@ def _process_and_concat(selections, location, dsets, cat_subset):
                         ):
                             filename = fnmatch.filter(
                                 list(dsets.keys()),
-                                "*{0}*CESM2*{1}*".format(
+                                "*{0}.*CESM2.*{1}*".format(
                                     activity_id, _scenario_to_experiment_id(scenario)
                                 ),
                             )[0]
                         else:
                             filename = fnmatch.filter(
                                 list(dsets.keys()),
-                                "*{0}*{1}*{2}*".format(
+                                "*{0}.*{1}.*{2}*".format(
                                     activity_id,
                                     simulation,
                                     _scenario_to_experiment_id(scenario),
@@ -341,7 +341,7 @@ def _process_and_concat(selections, location, dsets, cat_subset):
 # ============ Read from catalog function used by ck.Application ===============
 
 
-def _get_data_one_var(selections, location, cat):
+def _get_data_one_var(selections, cat):
     """Get data for one variable"""
 
     with warnings.catch_warnings():
@@ -420,9 +420,9 @@ def _get_data_one_var(selections, location, cat):
             area_subset = "none"
             cached_area = "entire domain"
         else:
-            area_subset = location.area_subset
-            cached_area = location.cached_area
-        ds_region = _get_area_subset(area_subset, cached_area, location)
+            area_subset = selections.area_subset
+            cached_area = selections.cached_area
+        ds_region = _get_area_subset(area_subset, cached_area, selections)
         if ds_region is not None:  # Perform subsetting
             try:
                 dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
@@ -451,7 +451,7 @@ def _get_data_one_var(selections, location, cat):
 
     # Merge individual Datasets into one DataArray object.
     da = _process_and_concat(
-        selections=selections, location=location, dsets=data_dict, cat_subset=cat_subset
+        selections=selections, dsets=data_dict, cat_subset=cat_subset
     )
 
     # Assign data type attribute
@@ -464,7 +464,7 @@ def _get_data_one_var(selections, location, cat):
         "data_type": selections.data_type,
         "resolution": selections.resolution,
         "frequency": selections.timescale,
-        "location_subset": location.cached_area,
+        "location_subset": selections.cached_area,
         "institution": institution_id,
         "data_history": "Data has been accessed through the Cal-Adapt: Analytics Engine using the open-source climakitae python package.",
     }
@@ -475,15 +475,13 @@ def _get_data_one_var(selections, location, cat):
     return da
 
 
-def _read_catalog_from_select(selections, location, cat, loop=False):
+def _read_catalog_from_select(selections, cat, loop=False):
     """The primary and first data loading method, called by
     core.Application.retrieve, it returns a DataArray (which can be quite large)
-    containing everything requested by the user (which is stored in 'selections'
-    and 'location').
+    containing everything requested by the user (which is stored in 'selections').
 
     Args:
         selections (DataLoaders): object holding user's selections
-        location (LocSelectorArea): object holding user's location selections
         cat (intake_esm.core.esm_datastore): catalog
 
     Returns:
@@ -533,11 +531,11 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
         if "wind_speed_derived" in orig_var_id_selection:
             # Load u10 data
             selections.variable_id = ["u10"]
-            u10_da = _get_data_one_var(selections, location, cat)
+            u10_da = _get_data_one_var(selections, cat)
 
             # Load v10 data
             selections.variable_id = ["v10"]
-            v10_da = _get_data_one_var(selections, location, cat)
+            v10_da = _get_data_one_var(selections, cat)
 
             # Derive wind magnitude
             da = _compute_wind_mag(u10=u10_da, v10=v10_da)
@@ -545,15 +543,15 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
         else:
             # Load temperature data
             selections.variable_id = ["t2"]
-            t2_da = _get_data_one_var(selections, location, cat)
+            t2_da = _get_data_one_var(selections, cat)
 
             # Load mixing ratio data
             selections.variable_id = ["q2"]
-            q2_da = _get_data_one_var(selections, location, cat)
+            q2_da = _get_data_one_var(selections, cat)
 
             # Load pressure data
             selections.variable_id = ["psfc"]
-            pressure_da = _get_data_one_var(selections, location, cat)
+            pressure_da = _get_data_one_var(selections, cat)
 
             # Derive relative humidity
             rh_da = _compute_relative_humidity(
@@ -582,24 +580,20 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
                         "You've encountered a bug. No data available for selected derived variable."
                     )
 
-        selections.variable_id = orig_var_id_selection
+        selections.variable_id = [orig_var_id_selection]
         da.attrs["variable_id"] = orig_var_id_selection  # Reset variable ID attribute
         da.name = orig_variable_selection  # Set name of DataArray
 
     else:
-        da = _get_data_one_var(selections, location, cat)
+        da = _get_data_one_var(selections, cat)
 
     if selections.data_type == "Station":
         if loop:
             # print("Retrieving station data using a for loop")
-            da = _station_loop(
-                location, selection, da, stations_df, original_time_slice
-            )
+            da = _station_loop(selection, da, stations_df, original_time_slice)
         else:
             # print("Retrieving station data using xr.apply")
-            da = _station_apply(
-                location, selections, da, stations_df, original_time_slice
-            )
+            da = _station_apply(selections, da, stations_df, original_time_slice)
         # Reset original selections
         if "Historical Climate" not in original_scenario_historical:
             selections.scenario_historical.remove("Historical Climate")
@@ -612,7 +606,7 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
 # USE XR APPLY TO GET BIAS CORRECTED DATA TO STATION
 
 
-def _station_apply(location, selections, da, stations_df, original_time_slice):
+def _station_apply(selections, da, stations_df, original_time_slice):
     # Grab zarr data
     station_subset = stations_df.loc[stations_df["station"].isin(selections.station)]
     filepaths = [
@@ -724,7 +718,7 @@ def _preprocess_hadisd(ds):
 #### LOOP THROUGH EACH STATION INSTEAD
 
 
-def _station_loop(location, selection, da, stations_df, original_time_slice):
+def _station_loop(selection, da, stations_df, original_time_slice):
     """Get the closest gridcell, perform bias correction using a for loop"""
     stations_da_list = []
     for station in selections.station:
@@ -896,21 +890,17 @@ def _retrieve_and_format_closest_gridcell(stations_df, station_name, data):
 # ============ Retrieve data from a csv input ===============
 
 
-def _read_catalog_from_csv(selections, location, cat, csv, merge=True):
+def _read_catalog_from_csv(selections, cat, csv, merge=True):
     """Retrieve data from csv input.
 
     Allows user to bypass app.select GUI and allows developers to
     pre-set inputs in a csv file for ease of use in a notebook.
-    location: LocSelectorArea
-        Location settings
     selections: DataSelector
         Data settings (variable, unit, timescale, etc)
     Parameters
     ----------
     selections: DataLoaders
         Data settings (variable, unit, timescale, etc).
-    location: LocSelectorArea
-        Location settings.
     cat: intake_esm.core.esm_datastore
         AE data catalog.
     csv: str
@@ -955,11 +945,11 @@ def _read_catalog_from_csv(selections, location, cat, csv, merge=True):
         # Evaluate string time slice as tuple... i.e "(1980,2000)" --> (1980,2000)
         selections.time_slice = literal_eval(row.time_slice)
         selections.units = row.units
-        location.area_subset = row.area_subset
-        location.cached_area = row.cached_area
+        selections.area_subset = row.area_subset
+        selections.cached_area = row.cached_area
 
         # Retrieve data
-        xr_da = _read_catalog_from_select(selections, location, cat)
+        xr_da = _read_catalog_from_select(selections, cat)
         xr_list.append(xr_da)
 
     if len(xr_list) > 1:  # If there's more than one element in the list

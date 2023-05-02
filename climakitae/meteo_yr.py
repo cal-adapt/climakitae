@@ -41,12 +41,6 @@ import logging  # Silence warnings
 logging.getLogger("param").setLevel(logging.CRITICAL)
 xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
 
-# Variable info
-var_catalog_resource = pkg_resources.resource_filename(
-    "climakitae", "data/variable_descriptions.csv"
-)
-var_catalog = pd.read_csv(var_catalog_resource, index_col="variable_id")
-
 
 # =========================== HELPER FUNCTIONS: DATA RETRIEVAL ==============================
 
@@ -79,7 +73,6 @@ def _set_amy_year_inputs(year_start, year_end):
 
 def _retrieve_meteo_yr_data(
     selections=None,
-    location=None,
     _cat=None,
     ssp=None,
     year_start=2015,
@@ -95,8 +88,6 @@ def _retrieve_meteo_yr_data(
     ----------
     selections: DataSelector
         Data settings (variable, unit, timescale, etc)
-    location: LocSelectorArea
-        Location settings
     _cat: intake_esm.core.esm_datastore
         AE data catalog
     ssp: str, one of "SSP 2-4.5 -- Middle of the Road", "SSP 2-4.5 -- Middle of the Road", "SSP 3-7.0 -- Business as Usual", "SSP 5-8.5 -- Burn it All"
@@ -142,9 +133,9 @@ def _retrieve_meteo_yr_data(
     selections.units = units
 
     # Grab data from the catalog
-    amy_data = _read_catalog_from_select(
-        selections=selections, location=location, cat=_cat
-    ).isel(scenario=0, simulation=0)
+    amy_data = _read_catalog_from_select(selections=selections, cat=_cat).isel(
+        scenario=0, simulation=0
+    )
     return amy_data
 
 
@@ -599,8 +590,8 @@ class _AverageMeteorologicalYear(param.Parameterized):
         super().__init__(*args, **params)
 
         # Location defaults
-        self.location.area_subset = "CA counties"
-        self.location.cached_area = "Los Angeles County"
+        self.selections.area_subset = "CA counties"
+        self.selections.cached_area = "Los Angeles County"
 
         # Initialze tmy_adanced_options param
         self.param["computation_method"].objects = self.tmy_advanced_options_dict[
@@ -618,7 +609,6 @@ class _AverageMeteorologicalYear(param.Parameterized):
         # Postage data and anomalies defaults
         self.historical_tmy_data = _retrieve_meteo_yr_data(
             selections=self.selections,
-            location=self.location,
             _cat=self.cat,
             year_start=1981,
             year_end=2010,
@@ -626,7 +616,6 @@ class _AverageMeteorologicalYear(param.Parameterized):
         self.future_tmy_data = _retrieve_meteo_yr_data(
             _cat=self.cat,
             selections=self.selections,
-            location=self.location,
             year_start=self.warming_year_average_range[self.warmlevel][0],
             year_end=self.warming_year_average_range[self.warmlevel][1],
         ).compute()
@@ -654,9 +643,9 @@ class _AverageMeteorologicalYear(param.Parameterized):
     @param.depends("selections.variable", "data_type", watch=True)
     def _update_cmap(self):
         """Set colormap depending on variable"""
-        cmap_name = var_catalog[
-            (var_catalog["display_name"] == self.selections.variable)
-            & (var_catalog["timescale"] == "hourly")
+        cmap_name = self.var_config[
+            (self.var_config["display_name"] == self.selections.variable)
+            & (self.var_config["timescale"] == "hourly")
         ].colormap.values[0]
 
         # Set to diverging colormap if difference is selected
@@ -694,7 +683,6 @@ class _AverageMeteorologicalYear(param.Parameterized):
 
         self.historical_tmy_data = _retrieve_meteo_yr_data(
             selections=self.selections,
-            location=self.location,
             _cat=self.cat,
             year_start=1981,
             year_end=2010,
@@ -702,7 +690,6 @@ class _AverageMeteorologicalYear(param.Parameterized):
         self.future_tmy_data = _retrieve_meteo_yr_data(
             _cat=self.cat,
             selections=self.selections,
-            location=self.location,
             year_start=self.warming_year_average_range[self.warmlevel][0],
             year_end=self.warming_year_average_range[self.warmlevel][1],
         ).compute()
@@ -731,7 +718,7 @@ class _AverageMeteorologicalYear(param.Parameterized):
             if self.computation_method == "Historical":
                 df = compute_amy(self.historical_tmy_data, days_in_year=days_in_year)
                 title = "Average Meteorological Year: {}\nAbsolute {} Baseline".format(
-                    self.location.cached_area, self.computation_method
+                    self.selections.cached_area, self.computation_method
                 )
                 clabel = (
                     self.selections.variable
@@ -742,7 +729,7 @@ class _AverageMeteorologicalYear(param.Parameterized):
             else:
                 df = compute_amy(self.future_tmy_data, days_in_year=days_in_year)
                 title = "Average Meteorological Year: {}\nAbsolute {} at {}°C".format(
-                    self.location.cached_area, self.computation_method, self.warmlevel
+                    self.selections.cached_area, self.computation_method, self.warmlevel
                 )
                 clabel = self.selections.variable + " (" + self.selections.units + ")"
         elif self.data_type == "Difference":
@@ -752,7 +739,7 @@ class _AverageMeteorologicalYear(param.Parameterized):
                     self.future_tmy_data, days_in_year=days_in_year
                 ) - compute_amy(self.historical_tmy_data, days_in_year=days_in_year)
                 title = "Average Meteorological Year: {}\nDifference between {} at {}°C and Historical Baseline".format(
-                    self.location.cached_area, self.computation_method, self.warmlevel
+                    self.selections.cached_area, self.computation_method, self.warmlevel
                 )
                 clabel = self.selections.variable + " (" + self.selections.units + ")"
             else:
@@ -760,11 +747,13 @@ class _AverageMeteorologicalYear(param.Parameterized):
                     self.future_tmy_data, days_in_year=days_in_year
                 ) - compute_amy(self.historical_tmy_data, days_in_year=days_in_year)
                 title = "Severe Meteorological Year: {}\nDifference between {} at 90th percentile and Historical Baseline".format(
-                    self.location.cached_area, self.computation_method
+                    self.selections.cached_area, self.computation_method
                 )
                 clabel = self.selections.variable + " (" + self.selections.units + ")"
         else:
-            title = "Average Meteorological Year\n{}".format(self.location.cached_area)
+            title = "Average Meteorological Year\n{}".format(
+                self.selections.cached_area
+            )
 
         heatmap = meteo_yr_heatmap(
             meteo_yr_df=df,
@@ -779,7 +768,7 @@ class _AverageMeteorologicalYear(param.Parameterized):
 # =========================== OBJECT VISUALIZATION USING PARAM ==============================
 
 
-def _amy_visualize(tmy_ob, selections, location, map_view):
+def _amy_visualize(tmy_ob, selections):
     """
     Creates a new AMY focus panel object to display user selections
     """
@@ -811,11 +800,11 @@ def _amy_visualize(tmy_ob, selections, location, map_view):
                 width=280,
             ),
             pn.Column(
-                location.param.area_subset,
-                location.param.latitude,
-                location.param.longitude,
-                location.param.cached_area,
-                map_view.view,
+                selections.param.area_subset,
+                selections.param.latitude,
+                selections.param.longitude,
+                selections.param.cached_area,
+                selections.map_view,
                 pn.widgets.Button.from_param(
                     tmy_ob.param.reload_data,
                     button_type="primary",
