@@ -3,6 +3,8 @@ Holds the Application object, which provides access to easy data retrieval, visu
 """
 
 import intake
+import pkg_resources
+import pandas as pd
 from .data_export import _export_to_user
 from .explore import _AppExplore
 from .view import _visualize
@@ -44,6 +46,8 @@ class Application(object):
         explore.amy(), explore.thresholds(), explore.warming_levels()
     map_view: _ViewLocationSelections
         Visualization of the selected data on a map
+    var_config: pd.DataFrame
+        Variable descriptions, units, etc in table format
 
     Examples
     --------
@@ -61,17 +65,23 @@ class Application(object):
     """
 
     def __init__(self):
+        var_catalog_resource = pkg_resources.resource_filename(
+            "climakitae", "data/variable_descriptions.csv"
+        )
+        self.var_config = pd.read_csv(var_catalog_resource, index_col=None)
         self.catalog = intake.open_esm_datastore(
             "https://cadcat.s3.amazonaws.com/tmp/cae-collection.json"
         )
         self.location = _LocSelectorArea(name="Location Selections")
-        self.selections = _DataSelector(cat=self.catalog, location=self.location)
+        self.selections = _DataSelector(
+            cat=self.catalog, location=self.location, var_config=self.var_config
+        )
         self.map_view = _ViewLocationSelections(
             location=self.location, selections=self.selections
         )
         self.user_export_format = _FileTypeSelector()
         self.explore = _AppExplore(
-            self.selections, self.location, self.catalog, self.map_view
+            self.selections, self.location, self.catalog, self.map_view, self.var_config
         )
 
     # === Select =====================================

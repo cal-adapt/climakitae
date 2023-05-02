@@ -18,7 +18,7 @@ class _AppExplore(object):
     Only functional in a jupyter notebook environment.
     """
 
-    def __init__(self, selections, location, _cat, map_view):
+    def __init__(self, selections, location, _cat, map_view, var_config):
         """Constructor
 
         Parameters
@@ -31,12 +31,15 @@ class _AppExplore(object):
             AE data catalog
         map_view: _ViewLocationSelections
             Class for producing visualization of the selected data on a map
+        var_config: pd.DataFrame
+            Variable descriptions, units, etc in table format
 
         """
         self.selections = selections
         self.location = location
         self._cat = _cat
         self.map_view = map_view
+        self.var_config = var_config
 
     def __repr__(self):
         """Print a string description of the available analysis method for this class."""
@@ -51,7 +54,10 @@ class _AppExplore(object):
         """Display Average Meteorological Year panel."""
         global tmy_ob
         tmy_ob = _AverageMeteorologicalYear(
-            selections=self.selections, location=self.location, cat=self._cat
+            selections=self.selections,
+            location=self.location,
+            cat=self._cat,
+            var_config=self.var_config,
         )
         return _amy_visualize(
             tmy_ob=tmy_ob,
@@ -87,7 +93,10 @@ class _AppExplore(object):
     def warming_levels(self):
         """Display Warming Levels panel."""
         warming_data = _WarmingLevels(
-            selections=self.selections, location=self.location, cat=self._cat
+            selections=self.selections,
+            location=self.location,
+            cat=self._cat,
+            var_config=self.var_config,
         )
         return _display_warming_levels(
             warming_data, self.selections, self.location, map_view=self.map_view

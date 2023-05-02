@@ -22,20 +22,6 @@ from .catalog_convert import (
     _scenario_to_experiment_id,
 )
 
-# Import package data
-var_catalog_resource = pkg_resources.resource_filename(
-    "climakitae", "data/variable_descriptions.csv"
-)
-var_catalog = pd.read_csv(var_catalog_resource, index_col=None)
-unit_options_dict = _get_unit_conversion_options()
-
-stations = pkg_resources.resource_filename("climakitae", "data/hadisd_stations.csv")
-stations_df = pd.read_csv(stations)
-stations_gpd = gpd.GeoDataFrame(
-    stations_df,
-    crs="EPSG:4326",
-    geometry=gpd.points_from_xy(stations_df.LON_X, stations_df.LAT_Y),
-)
 
 # =========================== LOCATION SELECTIONS ==============================
 
@@ -431,6 +417,14 @@ class _ViewLocationSelections(param.Parameterized):
 
     """
 
+    stations = pkg_resources.resource_filename("climakitae", "data/hadisd_stations.csv")
+    stations_df = pd.read_csv(stations)
+    stations_gpd = gpd.GeoDataFrame(
+        stations_df,
+        crs="EPSG:4326",
+        geometry=gpd.points_from_xy(stations_df.LON_X, stations_df.LAT_Y),
+    )
+
     _wrf_bb = {
         "45 km": Polygon(
             [
@@ -577,8 +571,8 @@ class _ViewLocationSelections(param.Parameterized):
         if self.selections.data_type == "Station":
             # Subset the stations gpd to get just the user's selected stations
             # We need the stations gpd because it has the coordinates, which will be used to make the plot
-            stations_selection_gpd = stations_gpd.loc[
-                stations_gpd["station"].isin(self.selections.station)
+            stations_selection_gpd = self.stations_gpd.loc[
+                self.stations_gpd["station"].isin(self.selections.station)
             ]
             stations_selection_gpd = stations_selection_gpd.to_crs(
                 crs_proj4
@@ -687,17 +681,17 @@ def _get_user_options(cat, downscaling_method, timescale, resolution):
 
 
 def _get_variable_options_df(
-    var_catalog, unique_variable_ids, downscaling_method, timescale
+    var_config, unique_variable_ids, downscaling_method, timescale
 ):
     """Get variable options to display depending on downscaling method and timescale
 
     Parameters
     ----------
-    var_catalog: pd.DataFrame
+    var_config: pd.DataFrame
         Variable descriptions, units, etc in table format
     unique_variable_ids: list of strs
         List of unique variable ids from catalog.
-        Used to subset var_catalog
+        Used to subset var_config
     downscaling_method: list, one of ["Dynamical"], ["Statistical"], or ["Dynamical","Statistical"]
         Data downscaling method
     timescale: str, one of "hourly", "daily", or "monthly"
@@ -706,21 +700,21 @@ def _get_variable_options_df(
     Returns
     -------
     pd.DataFrame
-        Subset of var_catalog for input downscaling_method and timescale
+        Subset of var_config for input downscaling_method and timescale
     """
     # Catalog options and derived options together
     derived_variables = list(
-        var_catalog[var_catalog["variable_id"].str.contains("_derived")]["variable_id"]
+        var_config[var_config["variable_id"].str.contains("_derived")]["variable_id"]
     )
     var_options_plus_derived = unique_variable_ids + derived_variables
 
     # Subset dataframe
-    variable_options_df = var_catalog[
-        (var_catalog["show"] == True)
+    variable_options_df = var_config[
+        (var_config["show"] == True)
         & (  # Make sure it's a valid variable selection
-            var_catalog["variable_id"].isin(var_options_plus_derived)
+            var_config["variable_id"].isin(var_options_plus_derived)
             & (  # Make sure variable_id is part of the catalog options for user selections
-                var_catalog["timescale"].str.contains(timescale)
+                var_config["timescale"].str.contains(timescale)
             )  # Make sure its the right timescale
         )
     ]
@@ -738,18 +732,18 @@ def _get_variable_options_df(
     return variable_options_df
 
 
-def _get_var_ids(var_catalog, variable, downscaling_method, timescale):
+def _get_var_ids(var_config, variable, downscaling_method, timescale):
     """Get variable ids that match the selected variable, timescale, and downscaling method.
     Required to account for the fact that LOCA, WRF, and various timescales use different variable id values.
     Used to retrieve the correct variables from the catalog in the backend.
     """
-    var_id = var_catalog[
-        (var_catalog["display_name"] == variable)
+    var_id = var_config[
+        (var_config["display_name"] == variable)
         & (  # Make sure it's a valid variable selection
-            var_catalog["timescale"].str.contains(timescale)
+            var_config["timescale"].str.contains(timescale)
         )  # Make sure its the right timescale
         & (
-            var_catalog["downscaling_method"].isin(downscaling_method)
+            var_config["downscaling_method"].isin(downscaling_method)
         )  # Make sure it's the right downscaling method
     ]
     var_id = list(var_id.variable_id.values)
@@ -763,6 +757,18 @@ class _DataSelector(param.Parameterized):
     gui, but another UI could in principle be used to update these parameters
     instead.
     """
+
+    # Stations data
+    stations = pkg_resources.resource_filename("climakitae", "data/hadisd_stations.csv")
+    stations_df = pd.read_csv(stations)
+    stations_gpd = gpd.GeoDataFrame(
+        stations_df,
+        crs="EPSG:4326",
+        geometry=gpd.points_from_xy(stations_df.LON_X, stations_df.LAT_Y),
+    )
+
+    # Unit conversion options for each unit
+    unit_options_dict = _get_unit_conversion_options()
 
     # Defaults
     default_variable = "Air Temperature at 2m"
@@ -821,7 +827,7 @@ class _DataSelector(param.Parameterized):
             resolution=self.resolution,
         )
         self.variable_options_df = _get_variable_options_df(
-            var_catalog=var_catalog,
+            var_config=self.var_config,
             unique_variable_ids=unique_variable_ids,
             downscaling_method=self.downscaling_method,
             timescale=self.timescale,
@@ -858,7 +864,7 @@ class _DataSelector(param.Parameterized):
         self.units = var_info.unit.item()
         self.extended_description = var_info.extended_description.item()
         self.variable_id = _get_var_ids(
-            var_catalog, self.variable, self.downscaling_method, self.timescale
+            self.var_config, self.variable, self.downscaling_method, self.timescale
         )
         self._data_warning = ""
 
@@ -948,7 +954,7 @@ class _DataSelector(param.Parameterized):
                 resolution=self.resolution,
             )
             self.variable_options_df = _get_variable_options_df(
-                var_catalog=var_catalog,
+                var_config=self.var_config,
                 unique_variable_ids=unique_variable_ids,
                 downscaling_method=downscaling_method,
                 timescale=self.timescale,
@@ -963,7 +969,7 @@ class _DataSelector(param.Parameterized):
         ]  # Get info for just that variable
         self.extended_description = var_info.extended_description.item()
         self.variable_id = _get_var_ids(
-            var_catalog, self.variable, self.downscaling_method, self.timescale
+            self.var_config, self.variable, self.downscaling_method, self.timescale
         )
         self.colormap = var_info.colormap.item()
 
@@ -998,10 +1004,10 @@ class _DataSelector(param.Parameterized):
         ]
         native_unit = var_info.unit.item()
         if (
-            native_unit in unit_options_dict.keys()
+            native_unit in self.unit_options_dict.keys()
         ):  # See if there's unit conversion options for native variable
-            self.param["units"].objects = unit_options_dict[native_unit]
-            if self.units not in unit_options_dict[native_unit]:
+            self.param["units"].objects = self.unit_options_dict[native_unit]
+            if self.units not in self.unit_options_dict[native_unit]:
                 self.units = native_unit
         else:  # Just use native units if no conversion options available
             self.param["units"].objects = [native_unit]
@@ -1281,7 +1287,7 @@ class _DataSelector(param.Parameterized):
         """Update the list of weather station options if the area subset changes"""
         if self.data_type == "Station":
             overlapping_stations = _get_overlapping_station_names(
-                stations_gpd,
+                self.stations_gpd,
                 self.location.area_subset,
                 self.location.cached_area,
                 self.location.latitude,
