@@ -350,7 +350,7 @@ def _add_res_to_ax(
     )
 
 
-def _map_view(selections):
+def _map_view(selections, stations_gpd):
     """View the current location selections on a map
     Updates dynamically
 
@@ -358,6 +358,8 @@ def _map_view(selections):
     ----------
     selections: DataSelector
         User data selections
+    stations_gpd: gpd.DataFrame
+        DataFrame with station coordinates
 
     """
 
@@ -1276,7 +1278,7 @@ class _DataSelector(param.Parameterized):
     )
     def map_view(self):
         """Create a map of the location selections"""
-        return _map_view(selections=self)
+        return _map_view(selections=self, stations_gpd=self.stations_gpd)
 
 
 # ================ DISPLAY LOCATION/DATA SELECTIONS IN PANEL ===================
