@@ -623,7 +623,7 @@ def _station_apply(selections, da, stations_df, original_time_slice):
         backend_kwargs=dict(storage_options={"anon": True}),
     )
     apply_output = station_ds.apply(
-        _bias_corrected_closest_gridcell,
+        _get_bias_corrected_closest_gridcell,
         keep_attrs=False,
         gridded_da=da,
         time_slice=original_time_slice,
@@ -631,31 +631,57 @@ def _station_apply(selections, da, stations_df, original_time_slice):
     return apply_output
 
 
-def _bias_corrected_closest_gridcell(station_da, gridded_da, time_slice):
+def _get_bias_corrected_closest_gridcell(station_da, gridded_da, time_slice):
     """Get the closest gridcell to a weather station.
     Bias correct the data using historical station data
     """
-    gridded_da_closest_gridcell = _closest_gridcell(station_da, gridded_da)
-    bias_corrected = _bias_correct(station_da, gridded_da_closest_gridcell, time_slice)
-    bias_corrected.attrs["station_coordinates"] = station_da.attrs["coordinates"]
-    bias_corrected.attrs["station_elevation"] = station_da.attrs["elevation"]
+    # Get the closest gridcell to the station
+    station_lat, station_lon = station_da.attrs["coordinates"]
+    gridded_da_closest_gridcell = get_closest_gridcell(
+        gridded_da, station_lat, station_lon, print_coords=False
+    )
+
+    # Droop any coordinates in the output dataset that are not also dimensions
+    # This makes merging all the stations together easier and drops superfluous coordinates
+    gridded_da_closest_gridcell = gridded_da_closest_gridcell.drop(
+        [
+            i
+            for i in gridded_da_closest_gridcell.coords
+            if i not in gridded_da_closest_gridcell.dims
+        ]
+    )
+
+    # Bias correct the model data using the station data
+    # Cut the output data back to the user's selected time slice
+    bias_corrected = _bias_correct_model_data(
+        station_da, gridded_da_closest_gridcell, time_slice
+    )
+
+    # Add descriptive coordinates to the bias corrected data
+    bias_corrected.attrs["station_coordinates"] = station_da.attrs[
+        "coordinates"
+    ]  # Coordinates of station
+    bias_corrected.attrs["station_elevation"] = station_da.attrs[
+        "elevation"
+    ]  # Elevation of station
     return bias_corrected
 
 
-def _closest_gridcell(station_da, gridded_da):
-    """Find the closest gridcell to station coordinates"""
-    lat, lon = station_da.attrs["coordinates"]
-    da_closest_gridcell = get_closest_gridcell(gridded_da, lat, lon, print_coords=False)
-    da_closest_gridcell = da_closest_gridcell.drop(
-        [i for i in da_closest_gridcell.coords if i not in da_closest_gridcell.dims]
-    )
-    return da_closest_gridcell
-
-
-def _bias_correct(
+def _bias_correct_model_data(
     obs_da, gridded_da, time_slice, nquantiles=20, group="time.dayofyear", kind="+"
 ):
-    """Bias correct model data using observational station data"""
+    """Bias correct model data using observational station data
+    Converts units of the station data to whatever the input model data's units are
+    Converts calendars of both datasets to a no leap calendar
+    Time slices the data
+    Performs bias correction
+
+    Args:
+        obs_da (xr.DataArray): station data, preprocessed with the function _preprocess_hadisd
+        gridded_da (xr.DataArray): input model data
+        time_slice (tuple): temporal slice to cut gridded_da to, after bias correction
+
+    """
     # Convert units to whatever the gridded data units are
     obs_da = _convert_units(obs_da, gridded_da.units)
     # Rechunk data. Cannot be chunked along time dimension
@@ -687,6 +713,21 @@ def _bias_correct(
 
 
 def _preprocess_hadisd(ds):
+    """
+    Preprocess station data so that it can be more seamlessly integrated into the wrangling process
+    Get name of station id and station name
+    Rename data variable to the station name; this allows the return of a Dataset object, with each unique station as a data variable
+    Convert celcius to kelvin
+    Assign descriptive attributes
+    Drop unneccessary coordinates that can cause issues when bias correcting with the model data
+
+    Args:
+        ds (xr.Dataset): data for a single HadISD station
+
+    Returns:
+        xr.Dataset
+
+    """
     # Get station ID from file name
     station_id = ds.encoding["source"].split("HadISD_")[1].split(".zarr")[0]
     # Get name of station from station_id
@@ -713,7 +754,6 @@ def _preprocess_hadisd(ds):
     # Drop all coordinates except time
     ds = ds.drop(["elevation", "latitude", "longitude"])
     return ds
-
 
 
 # ============ Retrieve data from a csv input ===============
