@@ -70,9 +70,7 @@ class _AppExplore(object):
 
     def thresholds(self, option=1):
         """Display Thresholds panel."""
-        thresh_data = _ThresholdDataParams(
-            selections=self.selections, location=self.location, cat=self._cat
-        )
+        thresh_data = _ThresholdDataParams(selections=self.selections, cat=self._cat)
         return _thresholds_visualize(
             thresh_data=thresh_data,
             selections=self.selections,
