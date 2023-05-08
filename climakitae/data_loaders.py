@@ -175,9 +175,7 @@ def _get_area_subset(area_subset, cached_area, selections):
             )
         ds_region = [geom]
     elif area_subset != "none":
-        shape_index = int(
-            selections._geography_choose[selections.area_subset][selections.cached_area]
-        )
+        shape_index = int(selections._geography_choose[area_subset][cached_area])
         if area_subset == "states":
             shape = set_subarea(selections._geographies._us_states)
         elif area_subset == "CA counties":
@@ -406,17 +404,9 @@ def _get_data_one_var(selections, cat):
 
         # Perform area subsetting
 
-        # Bay Area airport stations are tricky, requires some hacky coding
         # You need to retrieve the entire domain because the shapefiles will cut out the ocean grid cells
-        # But the bay area airports closest gridcells are the ocean!
-        # Ideally the shapefiles should be modified to include the bay area water regions
-        bay_stations = [
-            "Oakland Metro International Airport",
-            "San Francisco International Airport",
-        ]
-        if (selections.data_type == "Station") and any(
-            x in selections.station for x in bay_stations
-        ):
+        # But the some station's closest gridcells are the ocean!
+        if selections.data_type == "Station":
             area_subset = "none"
             cached_area = "entire domain"
         else:
