@@ -164,33 +164,6 @@ class Application(object):
                 )
         return _read_catalog_from_select(self.selections, self.catalog, loop)
 
-    def retrieve_from_csv(self, config, merge=True):
-        """Retrieve data from csv input. Return type will depend on how many rows exist in the input csv file and the argument merge.
-
-        Allows user to bypass app.select GUI and allows
-        developers to pre-set inputs in a csv file for ease of use in a notebook.
-        Will return ONE of three datatypes depending on input csv
-
-        Parameters
-        ----------
-        config: str
-            Path to local csv file
-        merge: bool, optional
-            If multiple datasets desired, merge to form a single object?
-            Defaults to True
-
-        Returns
-        -------
-        xr.Dataset
-            If multiple rows are in the csv, each row is a data_variable
-        xr.DataArray
-            If csv only has one row
-        list of xr.DataArray
-            If multiple rows are in the csv and merge=True,
-            multiple DataArrays are returned in a single list.
-        """
-        return _read_catalog_from_csv(self.selections, self._cat, config, merge)
-
     def retrieve_meteo_yr_data(self, ssp=None, year_start=2015, year_end=None):
         """User-facing function for retrieving data needed for computing a meteorological year.
 
