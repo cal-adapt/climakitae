@@ -768,7 +768,7 @@ class _AverageMeteorologicalYear(param.Parameterized):
 # =========================== OBJECT VISUALIZATION USING PARAM ==============================
 
 
-def _amy_visualize(tmy_ob, selections, map_view):
+def _amy_visualize(tmy_ob, selections):
     """
     Creates a new AMY focus panel object to display user selections
     """
@@ -804,7 +804,7 @@ def _amy_visualize(tmy_ob, selections, map_view):
                 selections.param.latitude,
                 selections.param.longitude,
                 selections.param.cached_area,
-                map_view.view,
+                selections.map_view,
                 pn.widgets.Button.from_param(
                     tmy_ob.param.reload_data,
                     button_type="primary",
