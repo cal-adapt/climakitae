@@ -215,7 +215,7 @@ def _process_and_concat(selections, location, dsets, cat_subset):
 
     if True in ["SSP" in one for one in selections.scenario_ssp]:
         if "Historical Climate" in selections.scenario_historical:
-            if selections.time_slice[0] > 2015:
+            if selections.time_slice[0] <= 2015:
                 # Historical climate will be appended to the SSP data
                 append_historical = True
             scenario_list.remove("Historical Climate")
@@ -237,7 +237,7 @@ def _process_and_concat(selections, location, dsets, cat_subset):
                     try:
                         historical_filename = fnmatch.filter(
                             list(dsets.keys()),
-                            "*{0}*{1}*historical*".format(activity_id, simulation),
+                            "*{0}.*{1}.*historical*".format(activity_id, simulation),
                         )[0]
                         if (  # Need to get CESM2 data if ensmean is selected for ssp2-4.5 or ssp5-8.5
                             simulation == "ensmean"
@@ -250,14 +250,14 @@ def _process_and_concat(selections, location, dsets, cat_subset):
                         ):
                             ssp_filename = fnmatch.filter(
                                 list(dsets.keys()),
-                                "*{0}*CESM2*{1}*".format(
+                                "*{0}.*CESM2.*{1}*".format(
                                     activity_id, _scenario_to_experiment_id(scenario)
                                 ),
                             )[0]
                         else:
                             ssp_filename = fnmatch.filter(
                                 list(dsets.keys()),
-                                "*{0}*{1}*{2}*".format(
+                                "*{0}.*{1}.*{2}*".format(
                                     activity_id,
                                     simulation,
                                     _scenario_to_experiment_id(scenario),
@@ -292,14 +292,14 @@ def _process_and_concat(selections, location, dsets, cat_subset):
                         ):
                             filename = fnmatch.filter(
                                 list(dsets.keys()),
-                                "*{0}*CESM2*{1}*".format(
+                                "*{0}.*CESM2.*{1}*".format(
                                     activity_id, _scenario_to_experiment_id(scenario)
                                 ),
                             )[0]
                         else:
                             filename = fnmatch.filter(
                                 list(dsets.keys()),
-                                "*{0}*{1}*{2}*".format(
+                                "*{0}.*{1}.*{2}*".format(
                                     activity_id,
                                     simulation,
                                     _scenario_to_experiment_id(scenario),
@@ -582,7 +582,7 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
                         "You've encountered a bug. No data available for selected derived variable."
                     )
 
-        selections.variable_id = orig_var_id_selection
+        selections.variable_id = [orig_var_id_selection]
         da.attrs["variable_id"] = orig_var_id_selection  # Reset variable ID attribute
         da.name = orig_variable_selection  # Set name of DataArray
 

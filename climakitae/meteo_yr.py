@@ -41,12 +41,6 @@ import logging  # Silence warnings
 logging.getLogger("param").setLevel(logging.CRITICAL)
 xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
 
-# Variable info
-var_catalog_resource = pkg_resources.resource_filename(
-    "climakitae", "data/variable_descriptions.csv"
-)
-var_catalog = pd.read_csv(var_catalog_resource, index_col="variable_id")
-
 
 # =========================== HELPER FUNCTIONS: DATA RETRIEVAL ==============================
 
@@ -654,9 +648,9 @@ class _AverageMeteorologicalYear(param.Parameterized):
     @param.depends("selections.variable", "data_type", watch=True)
     def _update_cmap(self):
         """Set colormap depending on variable"""
-        cmap_name = var_catalog[
-            (var_catalog["display_name"] == self.selections.variable)
-            & (var_catalog["timescale"] == "hourly")
+        cmap_name = self.var_config[
+            (self.var_config["display_name"] == self.selections.variable)
+            & (self.var_config["timescale"] == "hourly")
         ].colormap.values[0]
 
         # Set to diverging colormap if difference is selected
