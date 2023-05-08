@@ -416,6 +416,7 @@ def _map_view(selections, stations_gpd):
     ]  # Western USA + a lil bit of baja (viva mexico)
     na_extent = [-150, -88, 8, 66]  # North America extent (largest extent)
     if selections.area_subset == "lat/lon":
+        extent = na_extent  # default
         # Dynamically update extent depending on borders of lat/lon selection
         for extent_i in [ca_extent, us_extent, na_extent]:
             # Construct a polygon from the extent
@@ -432,7 +433,7 @@ def _map_view(selections, stations_gpd):
         extent = ca_extent
     elif (selections.resolution == "9 km") or (selections.area_subset == "states"):
         extent = us_extent
-    elif selections.area_subset in ["none", "lat/lon"]:
+    elif selections.area_subset == "none":
         extent = na_extent
     else:  # Default for all other selections
         extent = ca_extent
