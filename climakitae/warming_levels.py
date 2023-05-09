@@ -22,13 +22,12 @@ logging.getLogger("param").setLevel(logging.CRITICAL)
 xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
 
 
-def _get_postage_data(selections, location, cat):
+def _get_postage_data(selections, cat):
     """
     This function pulls data from the catalog and reads it into memory
 
     Args:
         selections (DataLoaders): object holding user's selections
-        location (LocSelectorArea): location object containing boundary information
         cat (intake_esm.core.esm_datastore): catalog
 
     Returns:
@@ -36,7 +35,7 @@ def _get_postage_data(selections, location, cat):
 
     """
     # Read data from catalog
-    data = _read_catalog_from_select(selections=selections, location=location, cat=cat)
+    data = _read_catalog_from_select(selections=selections, cat=cat)
     data = data.compute()  # Read into memory
     return data
 
@@ -229,13 +228,11 @@ class _WarmingLevels(param.Parameterized):
         self.selections.variable = "Air Temperature at 2m"
 
         # Location defaults
-        self.location.area_subset = "states"
-        self.location.cached_area = "CA"
+        self.selections.area_subset = "states"
+        self.selections.cached_area = "CA"
 
         # Postage data and anomalies defaults
-        self.postage_data = _get_postage_data(
-            selections=self.selections, location=self.location, cat=self.cat
-        )
+        self.postage_data = _get_postage_data(selections=self.selections, cat=self.cat)
         self._warm_all_anoms = get_anomaly_data(data=self.postage_data, warmlevel=1.5)
 
         self.cmap = _read_ae_colormap(cmap="ae_orange", cmap_hex=True)
@@ -265,8 +262,8 @@ class _WarmingLevels(param.Parameterized):
         self.cmap = _read_ae_colormap(cmap=cmap_name, cmap_hex=True)
 
     @param.depends(
-        "location.area_subset",
-        "location.cached_area",
+        "selections.area_subset",
+        "selections.cached_area",
         "selections.variable",
         "selections.units",
         watch=True,
@@ -281,7 +278,7 @@ class _WarmingLevels(param.Parameterized):
         reload the postage stamp data from AWS"""
         if self.changed_loc_and_var == True:
             self.postage_data = _get_postage_data(
-                selections=self.selections, location=self.location, cat=self.cat
+                selections=self.selections, cat=self.cat
             )
             self.changed_loc_and_var = False
         self._warm_all_anoms = get_anomaly_data(
@@ -612,7 +609,7 @@ class _WarmingLevels(param.Parameterized):
         return to_plot
 
 
-def _display_warming_levels(warming_data, selections, location, map_view):
+def _display_warming_levels(warming_data, selections):
     # Create panel doodad!
     data_options = pn.Card(
         pn.Row(
@@ -639,11 +636,11 @@ def _display_warming_levels(warming_data, selections, location, map_view):
                 width=230,
             ),
             pn.Column(
-                location.param.area_subset,
-                location.param.latitude,
-                location.param.longitude,
-                location.param.cached_area,
-                map_view.view,
+                selections.param.area_subset,
+                selections.param.latitude,
+                selections.param.longitude,
+                selections.param.cached_area,
+                selections.map_view,
                 width=230,
             ),
         ),

@@ -54,7 +54,9 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
     """
 
     # Warn user about speed if passing a zarr to the function
-    if data.chunks is not None:
+    if data.chunks is None or str(data.chunks) == "Frozen({})":
+        pass
+    else:
         warnings.warn(
             "This function may be quite slow unless you call .compute() on your data before passing it to app.view()"
         )
