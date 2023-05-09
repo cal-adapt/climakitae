@@ -323,12 +323,19 @@ def _process_and_concat(selections, dsets, cat_subset):
                     )
                     sim_list.append(da_sim_member_id)
 
+        # Raise an appropriate error if no data found
+        if len(sim_list) == 0:
+            raise ValueError(
+                "You've encountered a bug in the source code. The data selections you've set do not correspond to a valid data option in the Analytics Engine catalog."
+            )
+
         # Concatenate along simulation dimension
-        da = xr.concat(
-            sim_list, dim="simulation", coords="minimal", compat="broadcast_equals"
-        )
-        da = da.assign_coords({"scenario": scen_name})
-        da_list.append(da)
+        else:
+            da = xr.concat(
+                sim_list, dim="simulation", coords="minimal", compat="broadcast_equals"
+            )
+            da = da.assign_coords({"scenario": scen_name})
+            da_list.append(da)
 
     da_final = xr.concat(
         da_list, dim="scenario", coords="minimal", compat="broadcast_equals"
