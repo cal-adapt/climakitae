@@ -79,75 +79,50 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
             except:  # If variable not found, set to ae_orange without raising error
                 cmap = "ae_orange"
 
-        # Must have more than one grid cell to generate a map
-        if (len(data["lon"]) <= 1) or (len(data["lat"]) <= 1):
-            print(
-                "Your data contains only one grid cell in height and/or width. A plot will be created using a default method that may or may not have spatial coordinates as the x and y axes."
-            )  # Warn user that plot may be weird
+        # Define colorbar label using variable and units
+        try:
+            clabel = data.name + " (" + data.attrs["units"] + ")"
+        except:  # Try except just in case units attribute is missing from data
+            clabel = data.name
 
-            # Set default cmap if no user input
-            # Different if using matplotlib (no "hex")
-            if cmap in [
-                "categorical_cb",
-                "ae_orange",
-                "ae_diverging",
-                "ae_blue",
-                "ae_diverging_r",
-            ]:
-                cmap = _read_ae_colormap(cmap=cmap, cmap_hex=False)
+        # Set default cmap if no user input
+        # Different if using hvplot (we need "hex")
+        if cmap in [
+            "categorical_cb",
+            "ae_orange",
+            "ae_diverging",
+            "ae_blue",
+            "ae_diverging_r",
+        ]:
+            cmap = _read_ae_colormap(cmap=cmap, cmap_hex=True)
 
-            with warnings.catch_warnings():
-                # Silence annoying matplotlib deprecation error
-                warnings.simplefilter("ignore")
+        # Set default width & height
+        if width is None:
+            width = 550
+        if height is None:
+            height = 450
 
-                # Use generic static xarray plot
+        x = "lon"
+        y = "lat"
+        if set(["x", "y"]).issubset(set(data.dims)):
+            # Reproject data to lat/lon
+            if lat_lon == True:
                 try:
-                    _matplotlib_plot = data.isel(time=0).plot(cmap=cmap)
-                except:
-                    _matplotlib_plot = data.isel(
-                        time=0
-                    ).plot()  # Make histogram for data the plotting function doesn't know how to handle
-                _plot = plt.gcf()  # Add plot to figure
-                plt.close()  # Close to prevent annoying matplotlib collections object line from showing in notebook
-        # If there's more than one grid cell, generate a pretty map
-        else:
-            # Define colorbar label using variable and units
-            try:
-                clabel = data.name + " (" + data.attrs["units"] + ")"
-            except:  # Try except just in case units attribute is missing from data
-                clabel = data.name
+                    data = _reproject_data(
+                        xr_da=data, proj="EPSG:4326", fill_value=np.nan
+                    )
+                    x = "x"
+                    y = "y"
+                except:  # Reprojection can fail if the data doesn't have a crs element. If that happens, just carry on without projection (i.e. don't raise an error)
+                    pass
 
-            # Set default cmap if no user input
-            # Different if using hvplot (we need "hex")
-            if cmap in [
-                "categorical_cb",
-                "ae_orange",
-                "ae_diverging",
-                "ae_blue",
-                "ae_diverging_r",
-            ]:
-                cmap = _read_ae_colormap(cmap=cmap, cmap_hex=True)
-
-            # Set default width & height
-            if width is None:
-                width = 550
-            if height is None:
-                height = 450
-
-            if set(["x", "y"]).issubset(set(data.dims)):
-                # Reproject data to lat/lon
-                if lat_lon == True:
-                    try:
-                        data = _reproject_data(
-                            xr_da=data, proj="EPSG:4326", fill_value=np.nan
-                        )
-                    except:  # Reprojection can fail if the data doesn't have a crs element. If that happens, just carry on without projection (i.e. don't raise an error)
-                        pass
-
-                # Create map
+        # Create map
+        try:
+            if len(data.x) > 1 and len(data.y) > 1:
+                # If data has more than one grid cell, make a pretty map
                 _plot = data.hvplot.image(
-                    x="x",
-                    y="y",
+                    x=x,
+                    y=y,
                     grid=True,
                     clabel=clabel,
                     cmap=cmap,
@@ -155,16 +130,21 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
                     height=height,
                 )
             else:
-                # Create map
-                _plot = data.hvplot.image(
-                    x="lon",
-                    y="lat",
+                # Make a scatter plot if it's just one grid cell
+                print("Warning: your input data has only one grid cell")
+                _plot = data.hvplot.scatter(
+                    x=x,
+                    y=y,
                     grid=True,
                     clabel=clabel,
                     cmap=cmap,
                     width=width,
                     height=height,
+                    s=150,  # Size of marker
                 )
+        except:
+            # Print message instead of raising error
+            print("Default map could not be generated for input data.")
 
     # Workflow if data contains only time dimension
     elif "time" in data.dims:
