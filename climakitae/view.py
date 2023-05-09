@@ -145,6 +145,7 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
         except:
             # Print message instead of raising error
             print("Default map could not be generated for input data.")
+            return None
 
     # Workflow if data contains only time dimension
     elif "time" in data.dims:
