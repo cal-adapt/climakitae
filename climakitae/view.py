@@ -118,7 +118,7 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
 
         # Create map
         try:
-            if len(data.x) > 1 and len(data.y) > 1:
+            if len(data[x]) > 1 and len(data[y]) > 1:
                 # If data has more than one grid cell, make a pretty map
                 _plot = data.hvplot.image(
                     x=x,
@@ -144,8 +144,8 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
                 )
         except:
             # Print message instead of raising error
-            print("Default map could not be generated for input data.")
-            return None
+            print("Unknown error: default map could not be generated for input data.")
+            _plot = None
 
     # Workflow if data contains only time dimension
     elif "time" in data.dims:
@@ -165,7 +165,8 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
 
     # Error raised if data does not contain [x,y] or time dimensions
     else:
-        raise ValueError(
-            "Input data must contain valid spatial dimensions (x,y and/or lat,lon) and/or time dimensions"
+        print(
+            "Default plot could not be generated: input data must contain valid spatial dimensions (x,y and/or lat,lon) and/or time dimensions"
         )
+        _plot = None
     return _plot
