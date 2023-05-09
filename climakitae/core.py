@@ -121,7 +121,7 @@ class Application(object):
         return _compute(data)
 
     # === Retrieve ===================================
-    def retrieve(self, config=None, merge=True, loop=False):
+    def retrieve(self, config=None, merge=True):
         """Retrieve data from catalog
 
         By default, Application.selections determines the data retrieved.
@@ -162,7 +162,7 @@ class Application(object):
                 raise ValueError(
                     "To retrieve data specified in a configuration file, please input the path to your local configuration csv as a string"
                 )
-        return _read_catalog_from_select(self.selections, self.catalog, loop)
+        return _read_catalog_from_select(self.selections, self.catalog)
 
     def retrieve_meteo_yr_data(self, ssp=None, year_start=2015, year_end=None):
         """User-facing function for retrieving data needed for computing a meteorological year.
