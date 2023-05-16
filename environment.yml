@@ -32,4 +32,5 @@ dependencies:
   - scipy
   - shapely
   - xarray
+  - xclim
   - xmip
