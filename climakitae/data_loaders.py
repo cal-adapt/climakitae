@@ -523,53 +523,69 @@ def _read_catalog_from_select(selections, cat, loop=False):
 
     # Deal with derived variables
     orig_var_id_selection = selections.variable_id[0]
+    orig_unit_selection = selections.units
     orig_variable_selection = selections.variable
     if "_derived" in orig_var_id_selection:
         if "wind_speed_derived" in orig_var_id_selection:
             # Load u10 data
             selections.variable_id = ["u10"]
+            selections.units = (
+                "m s-1"  # Need to set units to required units for _compute_wind_mag
+            )
             u10_da = _get_data_one_var(selections, cat)
 
             # Load v10 data
             selections.variable_id = ["v10"]
+            selections.units = "m s-1"
             v10_da = _get_data_one_var(selections, cat)
 
             # Derive wind magnitude
-            da = _compute_wind_mag(u10=u10_da, v10=v10_da)
+            da = _compute_wind_mag(u10=u10_da, v10=v10_da)  # m/s  # m/s
 
         else:
             # Load temperature data
             selections.variable_id = ["t2"]
+            selections.units = (
+                "K"  # Kelvin required for humidity and dew point computation
+            )
             t2_da = _get_data_one_var(selections, cat)
 
             # Load mixing ratio data
             selections.variable_id = ["q2"]
+            selections.units = "kg kg-1"
             q2_da = _get_data_one_var(selections, cat)
 
             # Load pressure data
             selections.variable_id = ["psfc"]
+            selections.units = "Pa"
             pressure_da = _get_data_one_var(selections, cat)
 
             # Derive relative humidity
+            # Returned in units of [0-100]
             rh_da = _compute_relative_humidity(
-                pressure=pressure_da, temperature=t2_da, mixing_ratio=q2_da
+                pressure=pressure_da,  # Pa
+                temperature=t2_da,  # Kelvin
+                mixing_ratio=q2_da,  # kg/kg
             )
 
             if "rh_derived" in orig_var_id_selection:
                 da = rh_da
 
             else:
-                # Need to figure out how to silence divide by zero runtime warning
                 # Derive dew point temperature
-                dew_pnt_da = _compute_dewpointtemp(temperature=t2_da, rel_hum=rh_da)
+                # Returned in units of Kelvin
+                dew_pnt_da = _compute_dewpointtemp(
+                    temperature=t2_da, rel_hum=rh_da  # Kelvin  # [0-100]
+                )
 
                 if "dew_point_derived" in orig_var_id_selection:
                     da = dew_pnt_da
 
                 elif "q2_derived" in orig_var_id_selection:
                     # Derive specific humidity
+                    # Returned in units of g/kg
                     da = _compute_specific_humidity(
-                        tdps=dew_pnt_da, pressure=pressure_da
+                        tdps=dew_pnt_da, pressure=pressure_da  # Kelvin  # Pa
                     )
 
                 else:
@@ -577,9 +593,13 @@ def _read_catalog_from_select(selections, cat, loop=False):
                         "You've encountered a bug. No data available for selected derived variable."
                     )
 
-        selections.variable_id = [orig_var_id_selection]
+        da = _convert_units(da, selected_units=orig_unit_selection)
         da.attrs["variable_id"] = orig_var_id_selection  # Reset variable ID attribute
         da.name = orig_variable_selection  # Set name of DataArray
+
+        # Reset selections to user's original selections
+        selections.units = orig_unit_selection
+        selections.variable_id = [orig_var_id_selection]
 
     else:
         da = _get_data_one_var(selections, cat)
