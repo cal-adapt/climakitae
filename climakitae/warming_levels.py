@@ -161,6 +161,7 @@ def _make_hvplot(data, clabel, clim, cmap, sopt, title, width=225, height=210):
         _plot = data.hvplot.scatter(
             x="x",
             y="y",
+            hover_cols=data.name,
             grid=True,
             width=width,
             height=height,
