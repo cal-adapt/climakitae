@@ -896,22 +896,25 @@ class _DataSelector(param.Parameterized):
         else:
             downscaling_method = self.downscaling_method
 
+        (
+            self.scenario_options,
+            self.simulation,
+            unique_variable_ids,
+        ) = _get_user_options(
+            cat=self.cat,
+            downscaling_method=downscaling_method,
+            timescale=self.timescale,
+            resolution=self.resolution,
+        )
+
         if self.data_type == "Station":
+            # If station is selected, the only valid option is air temperature
             temp = "Air Temperature at 2m"
             self.param["variable"].objects = [temp]
             self.variable = temp
 
         else:
-            (
-                self.scenario_options,
-                self.simulation,
-                unique_variable_ids,
-            ) = _get_user_options(
-                cat=self.cat,
-                downscaling_method=downscaling_method,
-                timescale=self.timescale,
-                resolution=self.resolution,
-            )
+            # Otherwise, get a list of variable options using the catalog search
             self.variable_options_df = _get_variable_options_df(
                 var_config=self.var_config,
                 unique_variable_ids=unique_variable_ids,
@@ -962,6 +965,9 @@ class _DataSelector(param.Parameterized):
             self.variable_options_df["display_name"] == self.variable
         ]
         native_unit = var_info.unit.item()
+        if native_unit in ["mm/d", "mm/h"]:
+            # Show same unit options for all mm
+            native_unit = "mm"
         if (
             native_unit in self.unit_options_dict.keys()
         ):  # See if there's unit conversion options for native variable
@@ -972,7 +978,7 @@ class _DataSelector(param.Parameterized):
             self.param["units"].objects = [native_unit]
             self.units = native_unit
 
-    @param.depends("resolution", "downscaling_method", watch=True)
+    @param.depends("resolution", "downscaling_method", "data_type", watch=True)
     def _update_scenarios(self):
         """
         Update scenario options. Raise data warning if a bad selection is made.

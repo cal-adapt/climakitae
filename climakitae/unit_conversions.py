@@ -17,7 +17,7 @@ def _get_unit_conversion_options():
         "kg/kg": ["kg/kg", "g/kg"],
         "g/kg": ["g/kg", "kg/kg"],
         "kg kg-1": ["kg kg-1", "g kg-1"],
-        "1 kg m-2 s-1": ["1 kg m-2 s-1", "mm", "inches"],
+        "kg m-2 s-1": ["kg m-2 s-1", "mm", "inches"],
         "g/kg": ["g/kg", "kg/kg"],
     }
     return options
@@ -51,11 +51,6 @@ def _convert_units(da, selected_units):
             )
         )
 
-    # Convert daily precip mm/d to mm
-    if native_units == "mm/d":
-        da.attrs["units"] = "mm"
-        native_units = "mm"
-
     # Convert hPa to Pa to make conversions easier
     # Monthly data native unit is hPa, hourly is Pa
     if native_units == "hPa" and selected_units != "hPa":
@@ -68,10 +63,12 @@ def _convert_units(da, selected_units):
         return da
 
     # Precipitation units
-    elif native_units == "mm":
+    elif native_units in ["mm", "mm/d", "mm/h"]:
         if selected_units == "inches":
             da = da / 25.4
-    elif native_units == "1 kg m-2 s-1":
+        elif selected_units == "kg m-2 s-1":
+            da = da / 86400
+    elif native_units == "kg m-2 s-1":
         if selected_units == "mm":
             da = da * 86400
         elif selected_units == "inches":
@@ -119,5 +116,6 @@ def _convert_units(da, selected_units):
         if selected_units == "fraction":
             da = da / 100.0
 
+    # Update unit attribute to reflect converted unit
     da.attrs["units"] = selected_units
     return da
