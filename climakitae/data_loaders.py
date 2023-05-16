@@ -594,6 +594,7 @@ def _read_catalog_from_select(selections, cat, loop=False):
                     )
 
         da = _convert_units(da, selected_units=orig_unit_selection)
+        da.attrs["units"] = orig_unit_selection
         da.attrs["variable_id"] = orig_var_id_selection  # Reset variable ID attribute
         da.name = orig_variable_selection  # Set name of DataArray
 

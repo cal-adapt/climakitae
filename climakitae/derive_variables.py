@@ -225,4 +225,5 @@ def _compute_wind_mag(u10, v10, name="wind_speed_derived"):
     """
     wind_mag = np.sqrt(np.square(u10) + np.square(v10))
     wind_mag.name = "wind_speed_derived"
+    wind_mag.units = "m s-1"
     return wind_mag
