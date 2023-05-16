@@ -102,19 +102,20 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
         if height is None:
             height = 450
 
-        x = "lon"
-        y = "lat"
         if set(["x", "y"]).issubset(set(data.dims)):
+            x = "x"
+            y = "y"
             # Reproject data to lat/lon
             if lat_lon == True:
                 try:
                     data = _reproject_data(
                         xr_da=data, proj="EPSG:4326", fill_value=np.nan
                     )
-                    x = "x"
-                    y = "y"
                 except:  # Reprojection can fail if the data doesn't have a crs element. If that happens, just carry on without projection (i.e. don't raise an error)
                     pass
+        if set(["lat", "lon"]).issubset(set(data.dims)):
+            x = "lon"
+            y = "lat"
 
         # Create map
         try:
@@ -131,10 +132,13 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
                 )
             else:
                 # Make a scatter plot if it's just one grid cell
-                print("Warning: your input data has only one grid cell")
+                print(
+                    "Warning: your input data has 2 or less gridcells. Due to plotting limitations for small areas, a scatter plot will be generated."
+                )
                 _plot = data.hvplot.scatter(
                     x=x,
                     y=y,
+                    hover_cols=data.name,  # Add variable name as hover column
                     grid=True,
                     clabel=clabel,
                     cmap=cmap,
