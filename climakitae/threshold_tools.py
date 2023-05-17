@@ -14,8 +14,29 @@ from holoviews import opts
 import hvplot.pandas
 import hvplot.xarray
 import panel as pn
+import statsmodels as sm
 from .utils import _read_ae_colormap
 
+def calculate_ess(
+    data,
+    nlags=None
+    ):
+    """ 
+    Function for calculating the effective sample size (ESS) of the provided data.
+
+    Input array is assumed to be timeseries data with potential autocorrelation.
+
+    
+    """
+    n=len(arr)
+    if nlags is None:
+        nlags = n
+    acf = sm.tsa.stattools.acf(arr, nlags = nlags, fft = True)
+    sums = 0
+    for k in range(1, len(acf)):
+        sums = sums + (n-k)*acf[k]/n
+
+    return n/(1+2*sums)
 
 def get_ams(
     da, 
@@ -23,6 +44,7 @@ def get_ams(
     duration=None,
     groupby=None,
     grouped_duration=None,
+    check_ess=True
     ):
     """
     Function that converts data into annual maximums
@@ -114,6 +136,13 @@ def get_ams(
     elif extremes_type == 'min':
         ams = da_series.resample(time='A').min(keep_attrs = True)
         ams.attrs['extremes type'] = 'minima'
+
+    # Check the effective sample size of the computed event type, for the first block (year)
+    if check_ess:
+        data_years = da_series.time.dt.years
+        ess = calculate_ess(da_series.sel(time = f"{data_years[0]}"))
+        if ess < 25:
+            warn("The effective sample size of the data values in the first block (year) of your data is low. This ")
     
     # Common attributes
     ams.attrs["duration"] = duration
