@@ -557,7 +557,7 @@ def _read_catalog_from_select(selections, cat, loop=False):
             v10_da = _get_data_one_var(selections, cat)
 
             # Derive wind direction
-            da = xr.apply_ufunc(_compute_wind_dir, u10=u10_da, v10=v10_da)
+            da = _compute_wind_dir(u10=u10_da, v10=v10_da)
 
         elif orig_var_id_selection == "dew_point_derived":
             # Daily/monthly dew point inputs have different units
