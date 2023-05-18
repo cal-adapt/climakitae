@@ -421,9 +421,13 @@ def _get_data_one_var(selections, cat):
             cached_area = selections.cached_area
         ds_region = _get_area_subset(area_subset, cached_area, selections)
         if ds_region is not None:  # Perform subsetting
-            try:
-                dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
-            except:
+            if selections.downscaling_method == ["Dynamical"]:
+                # all_touched: If True, all pixels touched by geometries will be burned in.  If false, only pixel whose center is within the polygon or that are selected by Bresenham's line algorithm will be burned in.
+                # drop: If True, drop the data outside of the extent of the mask geoemtries. Otherwise, it will return the same raster with the data masked.
+                dset = dset.rio.clip(
+                    geometries=ds_region, crs=4326, drop=True, all_touched=True
+                )
+            else:
                 # LOCA does not have x,y coordinates. rioxarray hates this
                 # rioxarray will raise this error: MissingSpatialDimensionError: x dimension not found. 'rio.set_spatial_dims()' or using 'rename()' to change the dimension name to 'x' can address this.
                 # Therefore I need to rename the lat, lon dimensions to x,y, and then reset them after clipping.
