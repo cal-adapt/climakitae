@@ -241,9 +241,11 @@ def _compute_wind_dir(u10, v10, name="wind_direction_derived"):
         wind_dir (xr.DataArray): Wind direction, in [0, 360] degrees,
             with 0/360 defined as north, by meteorological convention
 
+    Notes:
+        source:  https://sites.google.com/view/raybellwaves/cheat-sheets/xarray
     """
-    # source:  https://sites.google.com/view/raybellwaves/cheat-sheets/xarray
+
     wind_dir = np.mod(90 - np.arctan2(-v10, -u10) * (180 / np.pi), 360)
-    wind_dir.name = "wind_direction_derived"
+    wind_dir.name = name
     wind_dir.attrs["units"] = "degrees"
     return wind_dir
