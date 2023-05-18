@@ -245,6 +245,5 @@ def _compute_wind_dir(u10, v10, name="wind_direction_derived"):
     # source:  https://sites.google.com/view/raybellwaves/cheat-sheets/xarray
     wind_dir = np.mod(90 - np.arctan2(-v10, -u10) * (180 / np.pi), 360)
     wind_dir.name = "wind_direction_derived"
-    wind_dir.attrs['units'] = "degrees"
+    wind_dir.attrs["units"] = "degrees"
     return wind_dir
-

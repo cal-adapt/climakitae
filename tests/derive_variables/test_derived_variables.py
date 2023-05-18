@@ -39,7 +39,7 @@ def wind_dir(test_data_2022_monthly_45km):
     da = xr.apply_ufunc(
         _compute_wind_dir,
         u10=test_data_2022_monthly_45km["U10"],
-        v10=test_data_2022_monthly_45km["V10"]
+        v10=test_data_2022_monthly_45km["V10"],
     )
     return da
 
