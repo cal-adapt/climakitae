@@ -26,6 +26,7 @@ from .utils import _readable_bytes, get_closest_gridcell
 from .derive_variables import (
     _compute_relative_humidity,
     _compute_wind_mag,
+    _compute_wind_dir,
     _compute_dewpointtemp,
     _compute_specific_humidity,
 )
