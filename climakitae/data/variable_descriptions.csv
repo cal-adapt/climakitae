@@ -3,7 +3,7 @@ t2,Dynamical,hourly,K,Air Temperature at 2m,Temperature of the air 2m above Eart
 prec,Dynamical,hourly,mm,Precipitation (total),Total precipitation. Computed by summing total gridscale precipitation and total cumulus precipitation.,ae_blue,TRUE
 rh_derived,Dynamical,hourly,[0 to 100],Relative Humidity,The percentage of water vapor (i.e. moisture) relative to the amount of water vapor needed to saturate the air at the current air temperature and pressure.,ae_blue,TRUE
 wind_speed_derived,Dynamical,hourly,m s-1,Wind speed at 10m,Wind speed at 10 meters above the Earth's surface. Computed by taking the vector magnitude of the west-east (u) component of wind and the north-south (v) component of wind.,ae_orange,TRUE
-wind_direction_derived_hrly,Dynamical,hourly,degrees,Wind direction at 10m,Wind direction at 10 meters above the Earth's surface. By meteorological convention, direction is defined as where wind originates from (i.e., North is 0/360 deg).,ae_orange,TRUE
+wind_direction_derived_hrly,Dynamical,hourly,degrees,Wind direction at 10m,Wind direction at 10 meters above the Earth's surface. By meteorological convention direction is defined as where wind originates from (i.e. North is 0/360 deg).,ae_orange,TRUE
 dew_point_derived,Dynamical,hourly,K,Dew point temperature,"The temperature the air needs to be cooled to, at constant pressure, in order to achieve a relative humidity of 100%.",ae_orange,TRUE
 dew_point_derived_hrly,Dynamical,hourly,K,Dew point temperature,"The temperature the air needs to be cooled to, at constant pressure, in order to achieve a relative humidity of 100%.",ae_orange,TRUE
 u10,Dynamical,hourly,m s-1,West-East component of Wind at 10m,"Wind coming from the west, measured at 10m above Earth's surface. By convention, wind coming from the east is negative.",ae_diverging,TRUE
@@ -33,7 +33,7 @@ rh,Dynamical,daily/monthly,[0 to 100],Relative Humidity,The percentage of water 
 dew_point_derived,Dynamical,daily/monthly,K,Dew point temperature,"The temperature the air needs to be cooled to, at constant pressure, in order to achieve a relative humidity of 100%.",ae_orange,TRUE
 wspd10mean,Dynamical,daily/monthly,m/s,Mean wind speed at 10m,The average wind speed (magnitude) at 10m above the Earth's surface. ,ae_orange,TRUE
 wspd10max,Dynamical,daily/monthly,m/s,Maximum wind speed at 10m,The maximum wind speed at 10m above the Earth's surface. ,ae_orange,TRUE
-wind_direction_derived,Dynamical,daily/monthly,degrees,Wind direction at 10m,Wind direction at 10m,Wind direction at 10 meters above the Earth's surface. By meteorological convention, direction is defined as where wind originates from (i.e., North is 0/360 deg).,ae_orange,TRUE
+wind_direction_derived,Dynamical,daily/monthly,degrees,Wind direction at 10m,Wind direction at 10 meters above the Earth's surface. By meteorological convention direction is defined as where wind originates from (i.e. North is 0/360 deg).,ae_orange,TRUE
 psfc,Dynamical,daily/monthly,hPa,Surface Pressure,Air pressure at Earth's surface.,ae_diverging,TRUE
 q2,Dynamical,daily/monthly,g/kg,Specific humidity at 2m,"The ratio of the mass of water vapor over the mass of total (moist) air, measured 2m above Earth's surface.",ae_blue,TRUE
 tskin,Dynamical,daily/monthly,K,Surface skin temperature,Temperature of the Earth's surface (ground surface).,ae_orange,TRUE

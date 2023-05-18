@@ -543,6 +543,22 @@ def _read_catalog_from_select(selections, cat, loop=False):
             # Derive wind magnitude
             da = _compute_wind_mag(u10=u10_da, v10=v10_da)  # m/s  # m/s
 
+        elif orig_var_id_selection == "wind_direction_derived":
+            # Load u10 data
+            selections.variable_id = ["u10"]
+            selections.units = (
+                "m s-1"  # Need to set units to required units for _compute_wind_mag
+            )
+            u10_da = _get_data_one_var(selections, cat)
+
+            # Load v10 data
+            selections.variable_id = ["v10"]
+            selections.units = "m s-1"
+            v10_da = _get_data_one_var(selections, cat)
+
+            # Derive wind direction
+            da = xr.apply_ufunc(_compute_wind_dir, u10=u10_da, v10=v10_da)
+
         elif orig_var_id_selection == "dew_point_derived":
             # Daily/monthly dew point inputs have different units
             # Hourly dew point temp derived differently because you also have to derive relative humidity
