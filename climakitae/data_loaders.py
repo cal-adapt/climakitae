@@ -547,7 +547,7 @@ def _read_catalog_from_select(selections, cat, loop=False):
             # Load u10 data
             selections.variable_id = ["u10"]
             selections.units = (
-                "m s-1"  # Need to set units to required units for _compute_wind_mag
+                "m s-1"  # Need to set units to required units for _compute_wind_dir
             )
             u10_da = _get_data_one_var(selections, cat)
 
