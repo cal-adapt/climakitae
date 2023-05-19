@@ -463,7 +463,6 @@ def _get_data_one_var(selections, cat):
         "frequency": selections.timescale,
         "location_subset": selections.cached_area,
         "institution": institution_id,
-        "data_history": "Data has been accessed through the Cal-Adapt: Analytics Engine using the open-source climakitae python package.",
     }
     if "grid_mapping" in da.attrs:
         da_new_attrs = da_new_attrs | {"grid_mapping": da.attrs["grid_mapping"]}

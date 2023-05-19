@@ -1,7 +1,7 @@
 variable_id,downscaling_method,timescale,unit,display_name,extended_description,colormap,show
 t2,Dynamical,hourly,K,Air Temperature at 2m,Temperature of the air 2m above Earth's surface. This is the measure of air temperature used for most modeling applications.,ae_orange,TRUE
 prec,Dynamical,hourly,mm,Precipitation (total),Total precipitation. Computed by summing total gridscale precipitation and total cumulus precipitation.,ae_blue,TRUE
-rh_derived,Dynamical,hourly,[0 to 100],Relative Humidity,The percentage of water vapor (i.e. moisture) relative to the amount of water vapor needed to saturate the air at the current air temperature and pressure.,ae_blue,TRUE
+rh_derived,Dynamical,hourly,[0 to 100],Relative humidity,The percentage of water vapor (i.e. moisture) relative to the amount of water vapor needed to saturate the air at the current air temperature and pressure.,ae_blue,TRUE
 wind_speed_derived,Dynamical,hourly,m s-1,Wind speed at 10m,Wind speed at 10 meters above the Earth's surface. Computed by taking the vector magnitude of the west-east (u) component of wind and the north-south (v) component of wind.,ae_orange,TRUE
 dew_point_derived,Dynamical,hourly,K,Dew point temperature,"The temperature the air needs to be cooled to, at constant pressure, in order to achieve a relative humidity of 100%.",ae_orange,TRUE
 u10,Dynamical,hourly,m s-1,West-East component of Wind at 10m,"Wind coming from the west, measured at 10m above Earth's surface. By convention, wind coming from the east is negative.",ae_diverging,TRUE
@@ -27,7 +27,7 @@ runsf,Dynamical,hourly,mm/s,Surface runoff,"The rate at which water travels over
 snow,Dynamical,hourly,kg m-2,Snow water equivalent,The amount of water on surface that would be present if all snow melted. ,ae_blue,FALSE
 t2,Dynamical,daily/monthly,K,Air Temperature at 2m,Temperature of the air 2m above Earth's surface. This is the measure of air temperature used for most modeling applications.,ae_orange,TRUE
 prec,Dynamical,daily/monthly,mm,Precipitation (total),Total precipitation. Computed by summing total gridscale precipitation and total cumulus precipitation.,ae_blue,TRUE
-rh,Dynamical,daily/monthly,[0 to 100],Relative Humidity,The percentage of water vapor (i.e. moisture) relative to the amount of water vapor needed to saturate the air at the current air temperature and pressure.,ae_blue,TRUE
+rh,Dynamical,daily/monthly,[0 to 100],Relative humidity,The percentage of water vapor (i.e. moisture) relative to the amount of water vapor needed to saturate the air at the current air temperature and pressure.,ae_blue,TRUE
 dew_point_derived,Dynamical,daily/monthly,K,Dew point temperature,"The temperature the air needs to be cooled to, at constant pressure, in order to achieve a relative humidity of 100%.",ae_orange,TRUE
 wspd10mean,Dynamical,daily/monthly,m/s,Mean wind speed at 10m,The average wind speed (magnitude) at 10m above the Earth's surface. ,ae_orange,TRUE
 wspd10max,Dynamical,daily/monthly,m/s,Maximum wind speed at 10m,The maximum wind speed at 10m above the Earth's surface. ,ae_orange,TRUE
@@ -59,3 +59,7 @@ tasmin,Statistical,daily,K,Daily minimum air temperature at 2m,The minimum daily
 uas,Statistical,daily,m s-1,West-East component of Wind at 10m,"Wind coming from the west, measured at 10m above Earth's surface. By convention, wind coming from the east is negative.",ae_diverging,TRUE
 vas,Statistical,daily,m s-1,North-South component of Wind at 10m,"Wind coming from the north, measured at 10m above Earth's surface. By convention, wind coming from the south is negative.",ae_diverging,TRUE
 huss,Statistical,daily,kg/kg,Specific humidity at 2m,The percentage of water vapor (i.e. moisture) relative to the amount of water vapor needed to saturate the air at the current air temperature and pressure.,ae_blue,TRUE
+rel_humid_min,Statistical,daily,percent,Minimum relative humidity,The minimum percentage of water vapor (i.e. moisture) relative to the amount of water vapor needed to saturate the air at the current air temperature and pressure.,ae_blue,TRUE
+rel_humid_max,Statistical,daily,percent,Maximum relative humidity,The maximum percentage of water vapor (i.e. moisture) relative to the amount of water vapor needed to saturate the air at the current air temperature and pressure.,ae_blue,TRUE
+windspeed,Statistical,daily,m s-1,Wind speed at 10m,Wind speed at 10 meters above the Earth's surface. Computed by taking the vector magnitude of the west-east (u) component of wind and the north-south (v) component of wind.,ae_orange,TRUE
+rsds,Statistical,daily,W m-2,Solar radiation at the surface,Solar radiation at the surface,ae_orange,TRUE
