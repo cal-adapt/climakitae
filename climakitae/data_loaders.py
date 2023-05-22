@@ -425,7 +425,7 @@ def _get_data_one_var(selections, cat):
                 # all_touched: If True, all pixels touched by geometries will be burned in.  If false, only pixel whose center is within the polygon or that are selected by Bresenham's line algorithm will be burned in.
                 # drop: If True, drop the data outside of the extent of the mask geoemtries. Otherwise, it will return the same raster with the data masked.
                 dset = dset.rio.clip(
-                    geometries=ds_region, crs=4326, drop=True, all_touched=True
+                    geometries=ds_region, crs=4326, drop=True, all_touched=False
                 )
             else:
                 # LOCA does not have x,y coordinates. rioxarray hates this
