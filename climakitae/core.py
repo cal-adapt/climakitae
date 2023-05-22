@@ -64,7 +64,7 @@ class Application(object):
         )
         self.var_config = pd.read_csv(var_catalog_resource, index_col=None)
         self.catalog = intake.open_esm_datastore(
-            "https://cadcat.s3.amazonaws.com/tmp/cae-collection.json"
+            "https://cadcat.s3.amazonaws.com/cae-collection.json"
         )
         self.selections = _DataSelector(cat=self.catalog, var_config=self.var_config)
         self.user_export_format = _FileTypeSelector()
