@@ -62,4 +62,4 @@ huss,Statistical,daily,kg/kg,Specific humidity at 2m,The percentage of water vap
 rel_humid_min,Statistical,daily,percent,Minimum relative humidity,The minimum percentage of water vapor (i.e. moisture) relative to the amount of water vapor needed to saturate the air at the current air temperature and pressure.,ae_blue,TRUE
 rel_humid_max,Statistical,daily,percent,Maximum relative humidity,The maximum percentage of water vapor (i.e. moisture) relative to the amount of water vapor needed to saturate the air at the current air temperature and pressure.,ae_blue,TRUE
 windspeed,Statistical,daily,m s-1,Wind speed at 10m,Wind speed at 10 meters above the Earth's surface. Computed by taking the vector magnitude of the west-east (u) component of wind and the north-south (v) component of wind.,ae_orange,TRUE
-rsds,Statistical,daily,W m-2,Shortwave flux at the surface,Shortwave radiation from the sun that reaches Earth's surface. ,ae_orange,TRUE
+rsds,Statistical,daily,W/m2,Shortwave flux at the surface,Shortwave radiation from the sun that reaches Earth's surface. ,ae_orange,TRUE
