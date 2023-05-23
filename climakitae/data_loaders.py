@@ -316,6 +316,10 @@ def _process_and_concat(selections, dsets, cat_subset):
                     # Units for LOCA specific humidity are set to 1
                     # Reset to kg/kg so they can be converted if neccessary to g/kg
                     da_sim.attrs["units"] = "kg/kg"
+                elif var_id == "rsds":
+                    # rsds units are "W m-2"
+                    # rename them to W/m2 to match the lookup catalog, and the units for WRF radiation variables
+                    da_sim.attrs["units"] = "W/m2"
                 da_sim = _convert_units(da=da_sim, selected_units=selections.units)
                 for member_id in da_sim.member_id.values:
                     da_sim_member_id = da_sim.sel(member_id=member_id).drop("member_id")
@@ -464,7 +468,6 @@ def _get_data_one_var(selections, cat):
         "frequency": selections.timescale,
         "location_subset": selections.cached_area,
         "institution": institution_id,
-        "data_history": "Data has been accessed through the Cal-Adapt: Analytics Engine using the open-source climakitae python package.",
     }
     if "grid_mapping" in da.attrs:
         da_new_attrs = da_new_attrs | {"grid_mapping": da.attrs["grid_mapping"]}
