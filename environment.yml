@@ -5,8 +5,6 @@ channels:
 dependencies:
   - python=3.9.13
   - cartopy=0.21.0
-  - dask-gateway=2023.1.1
-  - dask-geopandas=0.3.1
   - geopandas=0.11.1
   - geoviews=1.9.5
   - holoviews=1.15.0
@@ -32,5 +30,9 @@ dependencies:
   - scipy=1.9.1
   - shapely=1.8.4
   - xarray=2022.6.0
-  - xclim=0.42.0
   - xmip=0.6.1rc0
+  - pip
+  - pip:
+    - dask-gateway==2023.1.1
+    - dask-geopandas==0.3.1
+    - xclim==0.42.0
