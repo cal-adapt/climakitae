@@ -26,6 +26,7 @@ from .utils import _readable_bytes, get_closest_gridcell
 from .derive_variables import (
     _compute_relative_humidity,
     _compute_wind_mag,
+    _compute_wind_dir,
     _compute_dewpointtemp,
     _compute_specific_humidity,
 )
@@ -526,7 +527,7 @@ def _read_catalog_from_select(selections, cat, loop=False):
     orig_unit_selection = selections.units
     orig_variable_selection = selections.variable
     if "_derived" in orig_var_id_selection:
-        if orig_var_id_selection == "wind_speed_derived":
+        if orig_var_id_selection in ["wind_speed_derived", "wind_direction_derived"]:
             # Load u10 data
             selections.variable_id = ["u10"]
             selections.units = (
@@ -540,7 +541,11 @@ def _read_catalog_from_select(selections, cat, loop=False):
             v10_da = _get_data_one_var(selections, cat)
 
             # Derive wind magnitude
-            da = _compute_wind_mag(u10=u10_da, v10=v10_da)  # m/s  # m/s
+            if orig_var_id_selection == "wind_speed_derived":
+                da = _compute_wind_mag(u10=u10_da, v10=v10_da)  # m/s  # m/s
+            # Or, derive wind speed
+            elif orig_var_id_selection == "wind_direction_derived":
+                da = _compute_wind_dir(u10=u10_da, v10=v10_da)
 
         elif orig_var_id_selection == "dew_point_derived":
             # Daily/monthly dew point inputs have different units
