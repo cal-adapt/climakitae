@@ -473,7 +473,7 @@ def _get_data_one_var(selections, cat):
     return da
 
 
-def _read_catalog_from_select(selections, cat, loop=False):
+def _read_catalog_from_select(selections, cat):
     """The primary and first data loading method, called by
     core.Application.retrieve, it returns a DataArray (which can be quite large)
     containing everything requested by the user (which is stored in 'selections').
@@ -631,12 +631,7 @@ def _read_catalog_from_select(selections, cat, loop=False):
         da = _get_data_one_var(selections, cat)
 
     if selections.data_type == "Station":
-        if loop:
-            # print("Retrieving station data using a for loop")
-            da = _station_loop(selection, da, stations_df, original_time_slice)
-        else:
-            # print("Retrieving station data using xr.apply")
-            da = _station_apply(selections, da, stations_df, original_time_slice)
+        da = _station_apply(selections, da, stations_df, original_time_slice)
         # Reset original selections
         if "Historical Climate" not in original_scenario_historical:
             selections.scenario_historical.remove("Historical Climate")
