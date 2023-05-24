@@ -36,7 +36,13 @@ def _get_postage_data(selections, cat):
     """
     # Read data from catalog
     data = _read_catalog_from_select(selections=selections, cat=cat)
-    data = data.compute()  # Read into memory
+    if data is not None:
+        data = data.compute()  # Read into memory
+    else:
+        # Catch small spatial resolutions
+        raise ValueError(
+            "COULD NOT RETRIEVE DATA: For the provided data selections, there is not sufficient data to retrieve. Try selecting a larger spatial area, or a higher resolution. Returning None."
+        )
     return data
 
 
