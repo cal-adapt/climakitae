@@ -701,7 +701,7 @@ class _DataSelector(param.Parameterized):
     time_slice = param.Range(default=(1980, 2015), bounds=(1950, 2100))
     resolution = param.Selector(default="9 km", objects=["3 km", "9 km", "45 km"])
     timescale = param.Selector(
-        default="monthly", objects=["monthly", "daily", "hourly"]
+        default="monthly", objects=["daily", "monthly", "hourly"]
     )
     scenario_historical = param.ListSelector(
         default=["Historical Climate"],
@@ -884,11 +884,17 @@ class _DataSelector(param.Parameterized):
             self.param["timescale"].objects = ["hourly"]
             self.timescale = "hourly"
         elif self.data_type == "Gridded":
-            if "Statistical" in self.downscaling_method:
+            if self.downscaling_method == ["Statistical"]:
+                self.param["timescale"].objects = ["daily", "monthly"]
+                if self.timescale == "hourly":
+                    self.timescale = "daily"
+            elif self.downscaling_method == ["Dynamical"]:
+                self.param["timescale"].objects = ["daily", "monthly", "hourly"]
+            else:
+                # If both are selected, only show daily data
+                # We do not have WRF on LOCA grid resampled to monthly
                 self.param["timescale"].objects = ["daily"]
                 self.timescale = "daily"
-            else:
-                self.param["timescale"].objects = ["monthly", "daily", "hourly"]
 
         if self.downscaling_method == []:
             # Default options to show if nothing is selected

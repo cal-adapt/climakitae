@@ -54,13 +54,13 @@ sfc_runoff,Dynamical,daily/monthly,mm/d,Surface runoff,"The rate at which water 
 subsfc_runoff,Dynamical,daily/monthly,mm/d,Subsurface runoff,"The rate at which  water that has infiltrated the ground surface travels underground until it reaches a body of water (stream, river, etc.)",ae_blue,FALSE
 prec_max,Dynamical,daily/monthly,mm/h,Maximum precipitation,The maximum precipitation rate in a single hour. ,ae_blue,TRUE
 snow,Dynamical,daily/monthly,mm,Snow water equivalent,The amount of water that would be present if all snow melted. ,ae_blue,FALSE
-pr,Statistical,daily,kg m-2 s-1,Precipitation (total),Total precipitation. Computed by summing total gridscale precipitation and total cumulus precipitation.,ae_blue,TRUE
-tasmax,Statistical,daily,K,Maximum air temperature at 2m,The maximum daily air temperature at 2m above the Earth's surface. ,ae_orange,TRUE
-tasmin,Statistical,daily,K,Minimum air temperature at 2m,The minimum daily air temperature at 2m above the Earth's surface. ,ae_orange,TRUE
-uas,Statistical,daily,m s-1,West-East component of Wind at 10m,"Wind coming from the west, measured at 10m above Earth's surface. By convention, wind coming from the east is negative.",ae_diverging,TRUE
-vas,Statistical,daily,m s-1,North-South component of Wind at 10m,"Wind coming from the north, measured at 10m above Earth's surface. By convention, wind coming from the south is negative.",ae_diverging,TRUE
-huss,Statistical,daily,kg/kg,Specific humidity at 2m,The percentage of water vapor (i.e. moisture) relative to the amount of water vapor needed to saturate the air at the current air temperature and pressure.,ae_blue,TRUE
-rel_humid_min,Statistical,daily,percent,Minimum relative humidity,The minimum percentage of water vapor (i.e. moisture) relative to the amount of water vapor needed to saturate the air at the current air temperature and pressure.,ae_blue,TRUE
-rel_humid_max,Statistical,daily,percent,Maximum relative humidity,The maximum percentage of water vapor (i.e. moisture) relative to the amount of water vapor needed to saturate the air at the current air temperature and pressure.,ae_blue,TRUE
-windspeed,Statistical,daily,m s-1,Wind speed at 10m,Wind speed at 10 meters above the Earth's surface. Computed by taking the vector magnitude of the west-east (u) component of wind and the north-south (v) component of wind.,ae_orange,TRUE
-rsds,Statistical,daily,W/m2,Shortwave flux at the surface,Shortwave radiation from the sun that reaches Earth's surface. ,ae_orange,TRUE
+pr,Statistical,daily/monthly,kg m-2 s-1,Precipitation (total),Total precipitation. Computed by summing total gridscale precipitation and total cumulus precipitation.,ae_blue,TRUE
+tasmax,Statistical,daily/monthly,K,Maximum air temperature at 2m,The maximum daily air temperature at 2m above the Earth's surface. ,ae_orange,TRUE
+tasmin,Statistical,daily/monthly,K,Minimum air temperature at 2m,The minimum daily air temperature at 2m above the Earth's surface. ,ae_orange,TRUE
+uas,Statistical,daily/monthly,m s-1,West-East component of Wind at 10m,"Wind coming from the west, measured at 10m above Earth's surface. By convention, wind coming from the east is negative.",ae_diverging,TRUE
+vas,Statistical,daily/monthly,m s-1,North-South component of Wind at 10m,"Wind coming from the north, measured at 10m above Earth's surface. By convention, wind coming from the south is negative.",ae_diverging,TRUE
+huss,Statistical,daily/monthly,kg/kg,Specific humidity at 2m,The percentage of water vapor (i.e. moisture) relative to the amount of water vapor needed to saturate the air at the current air temperature and pressure.,ae_blue,TRUE
+rel_humid_min,Statistical,daily/monthly,percent,Minimum relative humidity,The minimum percentage of water vapor (i.e. moisture) relative to the amount of water vapor needed to saturate the air at the current air temperature and pressure.,ae_blue,TRUE
+rel_humid_max,Statistical,daily/monthly,percent,Maximum relative humidity,The maximum percentage of water vapor (i.e. moisture) relative to the amount of water vapor needed to saturate the air at the current air temperature and pressure.,ae_blue,TRUE
+windspeed,Statistical,daily/monthly,m s-1,Wind speed at 10m,Wind speed at 10 meters above the Earth's surface. Computed by taking the vector magnitude of the west-east (u) component of wind and the north-south (v) component of wind.,ae_orange,TRUE
+rsds,Statistical,daily/monthly,W/m2,Shortwave flux at the surface,Shortwave radiation from the sun that reaches Earth's surface. ,ae_orange,TRUE
