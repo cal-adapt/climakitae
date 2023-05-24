@@ -13,6 +13,7 @@ import pkg_resources
 from .utils import _read_ae_colormap
 from .data_loaders import _read_catalog_from_select
 from .catalog_convert import _scenario_to_experiment_id
+from .view import _compute_vmin_vmax
 
 
 # Silence warnings
@@ -117,19 +118,6 @@ def get_anomaly_data(data, warmlevel=3.0, scenario="ssp370"):
     # Rename
     anomaly_da.name = data.name + " Anomalies"
     return anomaly_da
-
-
-def _compute_vmin_vmax(da_min, da_max):
-    """Compute min, max, and center for plotting"""
-    vmin = np.nanpercentile(da_min, 1)
-    vmax = np.nanpercentile(da_max, 99)
-    # define center for diverging symmetric data
-    if (vmin < 0) and (vmax > 0):
-        # dabs = abs(vmax) - abs(vmin)
-        sopt = True
-    else:
-        sopt = None
-    return vmin, vmax, sopt
 
 
 def _make_hvplot(data, clabel, clim, cmap, sopt, title, width=225, height=210):

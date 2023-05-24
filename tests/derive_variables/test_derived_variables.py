@@ -7,6 +7,7 @@ import os
 from climakitae.derive_variables import (
     _compute_relative_humidity,
     _compute_wind_mag,
+    _compute_wind_dir,
     _compute_dewpointtemp,
     _compute_specific_humidity,
 )
@@ -28,6 +29,17 @@ def wind_mag(test_data_2022_monthly_45km):
     """Compute wind magnitude and return data"""
     da = _compute_wind_mag(
         u10=test_data_2022_monthly_45km["U10"], v10=test_data_2022_monthly_45km["V10"]
+    )
+    return da
+
+
+@pytest.fixture
+def wind_dir(test_data_2022_monthly_45km):
+    """Compute wind direction and return data"""
+    da = xr.apply_ufunc(
+        _compute_wind_dir,
+        u10=test_data_2022_monthly_45km["U10"],
+        v10=test_data_2022_monthly_45km["V10"],
     )
     return da
 
