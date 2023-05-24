@@ -16,6 +16,19 @@ var_catalog_resource = pkg_resources.resource_filename(
 var_catalog = pd.read_csv(var_catalog_resource, index_col=None)
 
 
+def _compute_vmin_vmax(da_min, da_max):
+    """Compute min, max, and center for plotting"""
+    vmin = np.nanpercentile(da_min, 1)
+    vmax = np.nanpercentile(da_max, 99)
+    # define center for diverging symmetric data
+    if (vmin < 0) and (vmax > 0):
+        # dabs = abs(vmax) - abs(vmin)
+        sopt = True
+    else:
+        sopt = None
+    return vmin, vmax, sopt
+
+
 def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
     """Create a generic visualization of the data
 
@@ -65,6 +78,19 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
     if set(["x", "y"]).issubset(set(data.dims)) or set(["lon", "lat"]).issubset(
         set(data.dims)
     ):
+        # If simulation is a dimension, make it so the colorbar plots the min and max across the simulations
+        # Such that the colorbar is standardized
+        vmin = None
+        vmax = None
+        sopt = None
+        if "simulation" in data.dims:
+            # But, only do this if the data is already read into memory
+            # Or else the computation of min and max will take forever
+            if data.chunks is None or str(data.chunks) == "Frozen({})":
+                min_data = data.min(dim="simulation")
+                max_data = data.max(dim="simulation")
+                vmin, vmax, sopt = _compute_vmin_vmax(min_data, max_data)
+
         # Set default cmap if no user input
         if cmap is None:
             try:
@@ -129,6 +155,8 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
                     cmap=cmap,
                     width=width,
                     height=height,
+                    clim=(vmin, vmax),
+                    sopt=sopt,
                 )
             else:
                 # Make a scatter plot if it's just one grid cell
@@ -145,6 +173,8 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
                     width=width,
                     height=height,
                     s=150,  # Size of marker
+                    clim=(vmin, vmax),
+                    sopt=sopt,
                 )
         except:
             # Print message instead of raising error
