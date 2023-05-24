@@ -133,10 +133,13 @@ def _retrieve_meteo_yr_data(
     selections.units = units
 
     # Grab data from the catalog
-    amy_data = _read_catalog_from_select(selections=selections, cat=_cat).isel(
-        scenario=0, simulation=0
-    )
-    return amy_data
+    amy_data = _read_catalog_from_select(selections=selections, cat=_cat)
+    if amy_data is None:
+        # Catch small spatial resolutions
+        raise ValueError(
+            "COULD NOT RETRIEVE DATA: For the provided data selections, there is not sufficient data to retrieve. Try selecting a larger spatial area, or a higher resolution. Returning None."
+        )
+    return amy_data.isel(scenario=0, simulation=0)
 
 
 # =========================== HELPER FUNCTIONS: AMY/TMY CALCULATION ==============================

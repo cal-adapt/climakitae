@@ -37,7 +37,13 @@ def _get_postage_data(selections, cat):
     """
     # Read data from catalog
     data = _read_catalog_from_select(selections=selections, cat=cat)
-    data = data.compute()  # Read into memory
+    if data is not None:
+        data = data.compute()  # Read into memory
+    else:
+        # Catch small spatial resolutions
+        raise ValueError(
+            "COULD NOT RETRIEVE DATA: For the provided data selections, there is not sufficient data to retrieve. Try selecting a larger spatial area, or a higher resolution. Returning None."
+        )
     return data
 
 
@@ -115,6 +121,12 @@ def get_anomaly_data(data, warmlevel=3.0, scenario="ssp370"):
     ] = "year that defines the end of the 30-year window around which the anomaly was computed"
     anomaly_da.attrs["warming_level"] = warmlevel
 
+    # If x and y are not dimensions, make them dimensions
+    # This might happen for data that is only one grid cell
+    for dim in ["x", "y"]:
+        if dim not in anomaly_da.dims:
+            anomaly_da = anomaly_da.expand_dims(dim)
+
     # Rename
     anomaly_da.name = data.name + " Anomalies"
     return anomaly_da
@@ -122,20 +134,40 @@ def get_anomaly_data(data, warmlevel=3.0, scenario="ssp370"):
 
 def _make_hvplot(data, clabel, clim, cmap, sopt, title, width=225, height=210):
     """Make single map"""
-    _plot = data.hvplot.image(
-        x="x",
-        y="y",
-        grid=True,
-        width=width,
-        height=height,
-        xaxis=None,
-        yaxis=None,
-        clabel=clabel,
-        clim=clim,
-        cmap=cmap,
-        symmetric=sopt,
-        title=title,
-    )
+    if len(data.x) > 1 and len(data.y) > 1:
+        # If data has more than one grid cell, make a pretty map
+        _plot = data.hvplot.image(
+            x="x",
+            y="y",
+            grid=True,
+            width=width,
+            height=height,
+            xaxis=None,
+            yaxis=None,
+            clabel=clabel,
+            clim=clim,
+            cmap=cmap,
+            symmetric=sopt,
+            title=title,
+        )
+    else:
+        # Make a scatter plot if it's just one grid cell
+        _plot = data.hvplot.scatter(
+            x="x",
+            y="y",
+            hover_cols=data.name,
+            grid=True,
+            width=width,
+            height=height,
+            xaxis=None,
+            yaxis=None,
+            clabel=clabel,
+            clim=clim,
+            cmap=cmap,
+            symmetric=sopt,
+            title=title,
+            s=150,  # Size of marker
+        )
     return _plot
 
 
@@ -624,9 +656,9 @@ def _display_warming_levels(warming_data, selections):
                 width=230,
             ),
             pn.Column(
-                selections.param.area_subset,
                 selections.param.latitude,
                 selections.param.longitude,
+                selections.param.area_subset,
                 selections.param.cached_area,
                 selections.map_view,
                 width=230,
