@@ -26,6 +26,7 @@ from .utils import _readable_bytes, get_closest_gridcell
 from .derive_variables import (
     _compute_relative_humidity,
     _compute_wind_mag,
+    _compute_wind_dir,
     _compute_dewpointtemp,
     _compute_specific_humidity,
 )
@@ -315,6 +316,10 @@ def _process_and_concat(selections, dsets, cat_subset):
                     # Units for LOCA specific humidity are set to 1
                     # Reset to kg/kg so they can be converted if neccessary to g/kg
                     da_sim.attrs["units"] = "kg/kg"
+                elif var_id == "rsds":
+                    # rsds units are "W m-2"
+                    # rename them to W/m2 to match the lookup catalog, and the units for WRF radiation variables
+                    da_sim.attrs["units"] = "W/m2"
                 da_sim = _convert_units(da=da_sim, selected_units=selections.units)
                 for member_id in da_sim.member_id.values:
                     da_sim_member_id = da_sim.sel(member_id=member_id).drop("member_id")
@@ -476,7 +481,6 @@ def _get_data_one_var(selections, cat):
         "frequency": selections.timescale,
         "location_subset": selections.cached_area,
         "institution": institution_id,
-        "data_history": "Data has been accessed through the Cal-Adapt: Analytics Engine using the open-source climakitae python package.",
     }
     if "grid_mapping" in da.attrs:
         da_new_attrs = da_new_attrs | {"grid_mapping": da.attrs["grid_mapping"]}
@@ -485,7 +489,7 @@ def _get_data_one_var(selections, cat):
     return da
 
 
-def _read_catalog_from_select(selections, cat, loop=False):
+def _read_catalog_from_select(selections, cat):
     """The primary and first data loading method, called by
     core.Application.retrieve, it returns a DataArray (which can be quite large)
     containing everything requested by the user (which is stored in 'selections').
@@ -536,53 +540,93 @@ def _read_catalog_from_select(selections, cat, loop=False):
 
     # Deal with derived variables
     orig_var_id_selection = selections.variable_id[0]
+    orig_unit_selection = selections.units
     orig_variable_selection = selections.variable
     if "_derived" in orig_var_id_selection:
-        if "wind_speed_derived" in orig_var_id_selection:
+        if orig_var_id_selection in ["wind_speed_derived", "wind_direction_derived"]:
             # Load u10 data
             selections.variable_id = ["u10"]
+            selections.units = (
+                "m s-1"  # Need to set units to required units for _compute_wind_mag
+            )
             u10_da = _get_data_one_var(selections, cat)
 
             # Load v10 data
             selections.variable_id = ["v10"]
+            selections.units = "m s-1"
             v10_da = _get_data_one_var(selections, cat)
 
             # Derive wind magnitude
-            da = _compute_wind_mag(u10=u10_da, v10=v10_da)
+            if orig_var_id_selection == "wind_speed_derived":
+                da = _compute_wind_mag(u10=u10_da, v10=v10_da)  # m/s  # m/s
+            # Or, derive wind speed
+            elif orig_var_id_selection == "wind_direction_derived":
+                da = _compute_wind_dir(u10=u10_da, v10=v10_da)
 
+        elif orig_var_id_selection == "dew_point_derived":
+            # Daily/monthly dew point inputs have different units
+            # Hourly dew point temp derived differently because you also have to derive relative humidity
+
+            # Load temperature data
+            selections.variable_id = ["t2"]
+            selections.units = (
+                "K"  # Kelvin required for humidity and dew point computation
+            )
+            t2_da = _get_data_one_var(selections, cat)
+
+            selections.variable_id = ["rh"]
+            selections.units = "[0 to 100]"
+            rh_da = _get_data_one_var(selections, cat)
+
+            # Derive dew point temperature
+            # Returned in units of Kelvin
+            da = _compute_dewpointtemp(
+                temperature=t2_da, rel_hum=rh_da  # Kelvin  # [0-100]
+            )
         else:
             # Load temperature data
             selections.variable_id = ["t2"]
+            selections.units = (
+                "K"  # Kelvin required for humidity and dew point computation
+            )
             t2_da = _get_data_one_var(selections, cat)
 
             # Load mixing ratio data
             selections.variable_id = ["q2"]
+            selections.units = "kg kg-1"
             q2_da = _get_data_one_var(selections, cat)
 
             # Load pressure data
             selections.variable_id = ["psfc"]
+            selections.units = "Pa"
             pressure_da = _get_data_one_var(selections, cat)
 
             # Derive relative humidity
+            # Returned in units of [0-100]
             rh_da = _compute_relative_humidity(
-                pressure=pressure_da, temperature=t2_da, mixing_ratio=q2_da
+                pressure=pressure_da,  # Pa
+                temperature=t2_da,  # Kelvin
+                mixing_ratio=q2_da,  # kg/kg
             )
 
-            if "rh_derived" in orig_var_id_selection:
+            if orig_var_id_selection == "rh_derived":
                 da = rh_da
 
             else:
-                # Need to figure out how to silence divide by zero runtime warning
                 # Derive dew point temperature
-                dew_pnt_da = _compute_dewpointtemp(temperature=t2_da, rel_hum=rh_da)
+                # Returned in units of Kelvin
+                dew_pnt_da = _compute_dewpointtemp(
+                    temperature=t2_da, rel_hum=rh_da  # Kelvin  # [0-100]
+                )
 
-                if "dew_point_derived" in orig_var_id_selection:
+                if orig_var_id_selection == "dew_point_derived_hrly":
                     da = dew_pnt_da
 
-                elif "q2_derived" in orig_var_id_selection:
+                elif orig_var_id_selection == "q2_derived":
                     # Derive specific humidity
+                    # Returned in units of g/kg
                     da = _compute_specific_humidity(
-                        tdps=dew_pnt_da, pressure=pressure_da
+                        tdps=dew_pnt_da, pressure=pressure_da  # Kelvin  # Pa
                     )
 
                 else:
@@ -590,20 +634,20 @@ def _read_catalog_from_select(selections, cat, loop=False):
                         "You've encountered a bug. No data available for selected derived variable."
                     )
 
-        selections.variable_id = [orig_var_id_selection]
+        da = _convert_units(da, selected_units=orig_unit_selection)
         da.attrs["variable_id"] = orig_var_id_selection  # Reset variable ID attribute
+        da.attrs["units"] = orig_unit_selection
         da.name = orig_variable_selection  # Set name of DataArray
+
+        # Reset selections to user's original selections
+        selections.variable_id = [orig_var_id_selection]
+        selections.units = orig_unit_selection
 
     else:
         da = _get_data_one_var(selections, cat)
 
     if selections.data_type == "Station":
-        if loop:
-            # print("Retrieving station data using a for loop")
-            da = _station_loop(selection, da, stations_df, original_time_slice)
-        else:
-            # print("Retrieving station data using xr.apply")
-            da = _station_apply(selections, da, stations_df, original_time_slice)
+        da = _station_apply(selections, da, stations_df, original_time_slice)
         # Reset original selections
         if "Historical Climate" not in original_scenario_historical:
             selections.scenario_historical.remove("Historical Climate")
