@@ -210,6 +210,9 @@ def _process_and_concat(selections, dsets, cat_subset):
     """
     da_list = []
     scenario_list = selections.scenario_historical + selections.scenario_ssp
+
+    # Set to false at start
+    # Code will automatically set it to true if historical climate and an SSP are selected
     append_historical = False
 
     if True in ["SSP" in one for one in selections.scenario_ssp]:
@@ -223,12 +226,21 @@ def _process_and_concat(selections, dsets, cat_subset):
             # due to the memory restrictions at the moment
             scenario_list.remove("Historical Reconstruction (ERA5-WRF)")
     for scenario in scenario_list:
+        # Convert user-friendly scenario to the experiment_id, which is used to search the catalog
         scen_name = _scenario_to_experiment_id(scenario)
+        # Create empty list where data for all the simulations from the single scenario will be stored
         sim_list = []
         for downscaling_method in selections.downscaling_method:
+            # Loop through each unique downscaling method (LOCA or WRF)
+            # selections.downscaling method is set to "Dynamical" or "Statistical", so we need to get the
+            # activity_id that corresponds to each in order to search for it in the catalog
             activity_id = _downscaling_method_to_activity_id(downscaling_method)
             for simulation in selections.simulation:
+                # Loop through each unique simulation
                 if append_historical:
+                    # Method for if historical data needs to be appended to the SSP data
+                    # This will read in both historical and SSP for the same simulation, then concatenate both
+
                     # Reset name
                     scen_name = "Historical + " + scenario
 
@@ -238,30 +250,14 @@ def _process_and_concat(selections, dsets, cat_subset):
                             list(dsets.keys()),
                             "*{0}.*{1}.*historical*".format(activity_id, simulation),
                         )[0]
-                        if (  # Need to get CESM2 data if ensmean is selected for ssp2-4.5 or ssp5-8.5
-                            simulation == "ensmean"
-                        ) and (
-                            scenario
-                            in [
-                                "SSP 2-4.5 -- Middle of the Road",
-                                "SSP 5-8.5 -- Burn it All",
-                            ]
-                        ):
-                            ssp_filename = fnmatch.filter(
-                                list(dsets.keys()),
-                                "*{0}.*CESM2.*{1}*".format(
-                                    activity_id, _scenario_to_experiment_id(scenario)
-                                ),
-                            )[0]
-                        else:
-                            ssp_filename = fnmatch.filter(
-                                list(dsets.keys()),
-                                "*{0}.*{1}.*{2}*".format(
-                                    activity_id,
-                                    simulation,
-                                    _scenario_to_experiment_id(scenario),
-                                ),
-                            )[0]
+                        ssp_filename = fnmatch.filter(
+                            list(dsets.keys()),
+                            "*{0}.*{1}.*{2}*".format(
+                                activity_id,
+                                simulation,
+                                _scenario_to_experiment_id(scenario),
+                            ),
+                        )[0]
                     except:  # Some simulation + ssp options are not available. Just continue with the loop if no filename is found
                         continue
                     # Grab data
@@ -279,39 +275,26 @@ def _process_and_concat(selections, dsets, cat_subset):
                     )
 
                 else:
+                    # If historical data does not need to be appended, just grab the filename that matches the current state of the loop
                     try:
-                        if (  # Need to get CESM2 data if ensmean is selected for ssp2-4.5 or ssp5-8.5
-                            simulation == "ensmean"
-                        ) and (
-                            scenario
-                            in [
-                                "SSP 2-4.5 -- Middle of the Road",
-                                "SSP 5-8.5 -- Burn it All",
-                            ]
-                        ):
-                            filename = fnmatch.filter(
-                                list(dsets.keys()),
-                                "*{0}.*CESM2.*{1}*".format(
-                                    activity_id, _scenario_to_experiment_id(scenario)
-                                ),
-                            )[0]
-                        else:
-                            filename = fnmatch.filter(
-                                list(dsets.keys()),
-                                "*{0}.*{1}.*{2}*".format(
-                                    activity_id,
-                                    simulation,
-                                    _scenario_to_experiment_id(scenario),
-                                ),
-                            )[0]
+                        #
+                        filename = fnmatch.filter(
+                            list(dsets.keys()),
+                            "*{0}.*{1}.*{2}*".format(
+                                activity_id,
+                                simulation,
+                                _scenario_to_experiment_id(scenario),
+                            ),
+                        )[0]
                         ds_sim = dsets[filename]
                     except:
                         continue
                 # Get the name of the variable id
+                # This corresponds to the name of the data variable
                 var_id = list(ds_sim.data_vars)[0]
 
                 # Convert units
-                da_sim = ds_sim[var_id]
+                da_sim = ds_sim[var_id]  # Convert xr.Dataset --> xr.DataArray
                 if var_id == "huss":
                     # Units for LOCA specific humidity are set to 1
                     # Reset to kg/kg so they can be converted if neccessary to g/kg
@@ -321,14 +304,18 @@ def _process_and_concat(selections, dsets, cat_subset):
                     # rename them to W/m2 to match the lookup catalog, and the units for WRF radiation variables
                     da_sim.attrs["units"] = "W/m2"
                 da_sim = _convert_units(da=da_sim, selected_units=selections.units)
+
+                # Combine member_id and simulation coordinates
                 for member_id in da_sim.member_id.values:
                     da_sim_member_id = da_sim.sel(member_id=member_id).drop("member_id")
+                    # Rename the simulation coordinate to include the member_id
                     da_sim_member_id["simulation"] = "{0}_{1}_{2}".format(
                         activity_id, simulation, member_id
                     )
                     sim_list.append(da_sim_member_id)
 
         # Raise an appropriate error if no data found
+        # The list will be empty if no data matched any of the filename wildcards
         if len(sim_list) == 0:
             raise ValueError(
                 "You've encountered a bug in the source code. The data selections you've set do not correspond to a valid data option in the Analytics Engine catalog."
@@ -342,6 +329,7 @@ def _process_and_concat(selections, dsets, cat_subset):
             da = da.assign_coords({"scenario": scen_name})
             da_list.append(da)
 
+    # Concatenate along scenario dimension
     da_final = xr.concat(
         da_list, dim="scenario", coords="minimal", compat="broadcast_equals"
     )
