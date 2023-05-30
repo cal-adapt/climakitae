@@ -147,7 +147,7 @@ def get_ams(
             all_ess.append(ess)
         average_ess = np.nanmean(all_ess)
         if average_ess < 25:
-            warn("The effective sample size of the data values in the first block (year) of your data is low. This may result in biased estimates of extreme value distributions when calculating return values, periods, and probabilities from this data.")
+            warn(f"The average effective sample size in each year of your data is {average_ess}, which is low. This may result in biased estimates of extreme value distributions when calculating return values, periods, and probabilities from this data.")
     
     # Common attributes
     ams.attrs["duration"] = duration
