@@ -11,7 +11,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: psf/black@stable
   build:
     strategy:
@@ -46,8 +46,7 @@ jobs:
       with:
         path: ${{ matrix.prefix }}
         key:
-          ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{
-          hashFiles('etc/environment.yml') }}
+          ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{ hashFiles('environment.yml') }}
     - name: Setup Mambaforge
       uses: conda-incubator/setup-miniconda@v2
       with:
