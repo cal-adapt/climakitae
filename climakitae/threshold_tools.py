@@ -28,10 +28,10 @@ def calculate_ess(
 
     
     """
-    n=len(arr)
+    n=len(data)
     if nlags is None:
         nlags = n
-    acf = sm.tsa.stattools.acf(arr, nlags = nlags, fft = True)
+    acf = sm.tsa.stattools.acf(data, nlags = nlags, fft = True)
     sums = 0
     for k in range(1, len(acf)):
         sums = sums + (n-k)*acf[k]/n
