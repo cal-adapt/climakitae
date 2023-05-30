@@ -137,12 +137,16 @@ def get_ams(
         ams = da_series.resample(time='A').min(keep_attrs = True)
         ams.attrs['extremes type'] = 'minima'
 
-    # Check the effective sample size of the computed event type, for the first block (year)
+    # Calculate the effective sample size of the computed event type in all blocks, check the average value
     if check_ess:
-        data_years = da_series.time.dt.years
-        ess = calculate_ess(da_series.sel(time = f"{data_years[0]}"))
-        if ess < 25:
-            warn("The effective sample size of the data values in the first block (year) of your data is low. This ")
+        # all_ess = da_series.groupby("time.year").apply(calculate_ess) # how to set this up correctly? this currently errors so using a for loop below instead
+        all_ess = []
+        for yr in set(da_series.time.dt.year.values):
+            ess = calculate_ess(da_series.sel(time = f"{yr}"))
+            all_ess.append(ess)
+        average_ess = np.mean(all_ess)
+        if average_ess < 25:
+            warn("The effective sample size of the data values in the first block (year) of your data is low. This may result in biased estimates of extreme value distributions when calculating return values, periods, and probabilities from this data.")
     
     # Common attributes
     ams.attrs["duration"] = duration
