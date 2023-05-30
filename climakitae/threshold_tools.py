@@ -16,6 +16,7 @@ import hvplot.xarray
 import panel as pn
 import statsmodels as sm
 from .utils import _read_ae_colormap
+from warnings import warn
 
 def calculate_ess(
     data,
