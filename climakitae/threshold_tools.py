@@ -144,7 +144,7 @@ def get_ams(
         for yr in set(da_series.time.dt.year.values):
             ess = calculate_ess(da_series.sel(time = f"{yr}"))
             all_ess.append(ess)
-        average_ess = np.mean(all_ess)
+        average_ess = np.nanmean(all_ess)
         if average_ess < 25:
             warn("The effective sample size of the data values in the first block (year) of your data is low. This may result in biased estimates of extreme value distributions when calculating return values, periods, and probabilities from this data.")
     
