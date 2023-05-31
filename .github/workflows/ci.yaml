@@ -1,5 +1,5 @@
-# Workflow file for continuous integration 
-# Conda environment is caches to avoid long wait times for CI 
+# Workflow file for continuous integration
+# Conda environment is caches to avoid long wait times for CI
 # Based on code from: https://github.com/epassaro/cache-conda-envs/blob/main/.github/workflows/ci.yml
 # Based on code from: https://github.com/marketplace/actions/setup-miniconda
 
@@ -11,7 +11,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: psf/black@stable
   build:
     strategy:
@@ -37,17 +37,16 @@ jobs:
         shell: bash -l {0}
     steps:
     - name: Checkout project
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: Cache conda
       uses: actions/cache@v2
       env:
           # Increase this value to reset cache if environment.yml has not changed
-          CACHE_NUMBER: 3
+          CACHE_NUMBER: 0
       with:
         path: ${{ matrix.prefix }}
         key:
-          ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{
-          hashFiles('etc/environment.yml') }}
+          ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{ hashFiles('environment.yml') }}
     - name: Setup Mambaforge
       uses: conda-incubator/setup-miniconda@v2
       with:
@@ -59,9 +58,9 @@ jobs:
           environment-file: environment.yml
           use-only-tar-bz2: true # IMPORTANT: This needs to be set for caching to work properly!
 
-    - name: Output conda info 
+    - name: Output conda info
       run: conda info
-    - name: Install climakitae 
+    - name: Install climakitae
       run: pip install .
     - name: Test with pytest
       run: pytest --no-header -vv
