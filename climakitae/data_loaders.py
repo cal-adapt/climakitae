@@ -23,12 +23,14 @@ from .catalog_convert import (
 )
 from .unit_conversions import _convert_units
 from .utils import _readable_bytes, get_closest_gridcell
-from .derive_variables import (
-    _compute_relative_humidity,
-    _compute_wind_mag,
-    _compute_wind_dir,
-    _compute_dewpointtemp,
-    _compute_specific_humidity,
+from .data_loaders_utils import (
+    _get_wind_speed_derived,
+    _get_wind_dir_derived,
+    _get_monthly_daily_dewpoint,
+    _get_hourly_dewpoint,
+    _get_hourly_rh,
+    _get_hourly_specific_humidity,
+    _get_fosberg_fire_index,
 )
 
 # Set options
@@ -543,96 +545,24 @@ def _read_catalog_from_select(selections, cat):
     orig_unit_selection = selections.units
     orig_variable_selection = selections.variable
     if "_derived" in orig_var_id_selection:
-        if orig_var_id_selection in ["wind_speed_derived", "wind_direction_derived"]:
-            # Load u10 data
-            selections.variable_id = ["u10"]
-            selections.units = (
-                "m s-1"  # Need to set units to required units for _compute_wind_mag
-            )
-            u10_da = _get_data_one_var(selections, cat)
-
-            # Load v10 data
-            selections.variable_id = ["v10"]
-            selections.units = "m s-1"
-            v10_da = _get_data_one_var(selections, cat)
-
-            # Derive wind magnitude
-            if orig_var_id_selection == "wind_speed_derived":
-                da = _compute_wind_mag(u10=u10_da, v10=v10_da)  # m/s  # m/s
-            # Or, derive wind speed
-            elif orig_var_id_selection == "wind_direction_derived":
-                da = _compute_wind_dir(u10=u10_da, v10=v10_da)
-
-        elif orig_var_id_selection == "dew_point_derived":
-            # Daily/monthly dew point inputs have different units
-            # Hourly dew point temp derived differently because you also have to derive relative humidity
-
-            # Load temperature data
-            selections.variable_id = ["t2"]
-            selections.units = (
-                "K"  # Kelvin required for humidity and dew point computation
-            )
-            t2_da = _get_data_one_var(selections, cat)
-
-            selections.variable_id = ["rh"]
-            selections.units = "[0 to 100]"
-            rh_da = _get_data_one_var(selections, cat)
-
-            # Derive dew point temperature
-            # Returned in units of Kelvin
-            da = _compute_dewpointtemp(
-                temperature=t2_da, rel_hum=rh_da  # Kelvin  # [0-100]
-            )
+        if orig_var_id_selection == "wind_speed_derived":  # Hourly
+            da = _get_wind_speed_derived(selections, cat)
+        elif orig_var_id_selection == "wind_direction_derived":  # Hourly
+            da = _get_wind_dir_derived(selections, cat)
+        elif orig_var_id_selection == "dew_point_derived":  # Monthly/daily
+            da = _get_monthly_daily_dewpoint(selections, cat)
+        elif orig_var_id_selection == "dew_point_derived_hrly":  # Hourly
+            da = _get_hourly_dewpoint(selections, cat)
+        elif orig_var_id_selection == "rh_derived":  # Hourly
+            da = _get_hourly_rh(selections, cat)
+        elif orig_var_id_selection == "q2_derived":  # Hourly
+            da = _get_hourly_specific_humidity(selections, cat)
+        elif orig_var_id_selection == "fosberg_index_derived":  # Hourly
+            da = _get_fosberg_fire_index(selections, cat)
         else:
-            # Load temperature data
-            selections.variable_id = ["t2"]
-            selections.units = (
-                "K"  # Kelvin required for humidity and dew point computation
+            raise ValueError(
+                "You've encountered a bug. No data available for selected derived variable."
             )
-            t2_da = _get_data_one_var(selections, cat)
-
-            # Load mixing ratio data
-            selections.variable_id = ["q2"]
-            selections.units = "kg kg-1"
-            q2_da = _get_data_one_var(selections, cat)
-
-            # Load pressure data
-            selections.variable_id = ["psfc"]
-            selections.units = "Pa"
-            pressure_da = _get_data_one_var(selections, cat)
-
-            # Derive relative humidity
-            # Returned in units of [0-100]
-            rh_da = _compute_relative_humidity(
-                pressure=pressure_da,  # Pa
-                temperature=t2_da,  # Kelvin
-                mixing_ratio=q2_da,  # kg/kg
-            )
-
-            if orig_var_id_selection == "rh_derived":
-                da = rh_da
-
-            else:
-                # Derive dew point temperature
-                # Returned in units of Kelvin
-                dew_pnt_da = _compute_dewpointtemp(
-                    temperature=t2_da, rel_hum=rh_da  # Kelvin  # [0-100]
-                )
-
-                if orig_var_id_selection == "dew_point_derived_hrly":
-                    da = dew_pnt_da
-
-                elif orig_var_id_selection == "q2_derived":
-                    # Derive specific humidity
-                    # Returned in units of g/kg
-                    da = _compute_specific_humidity(
-                        tdps=dew_pnt_da, pressure=pressure_da  # Kelvin  # Pa
-                    )
-
-                else:
-                    raise ValueError(
-                        "You've encountered a bug. No data available for selected derived variable."
-                    )
 
         da = _convert_units(da, selected_units=orig_unit_selection)
         da.attrs["variable_id"] = orig_var_id_selection  # Reset variable ID attribute
