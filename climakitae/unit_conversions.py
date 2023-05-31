@@ -10,12 +10,11 @@ def _get_unit_conversion_options():
         "K": ["K", "degC", "degF"],
         "hPa": ["Pa", "hPa", "mb", "inHg"],
         "Pa": ["Pa", "hPa", "mb", "inHg"],
-        "m/s": ["m/s", "knots"],
-        "m s-1": ["m s-1", "knots"],
+        "m/s": ["m/s", "mph", "knots"],
+        "m s-1": ["m s-1", "mph", "knots"],
         "[0 to 100]": ["[0 to 100]", "fraction"],
         "mm": ["mm", "inches"],
         "kg/kg": ["kg/kg", "g/kg"],
-        "g/kg": ["g/kg", "kg/kg"],
         "kg kg-1": ["kg kg-1", "g kg-1"],
         "kg m-2 s-1": ["kg m-2 s-1", "mm", "inches"],
         "g/kg": ["g/kg", "kg/kg"],
@@ -103,6 +102,8 @@ def _convert_units(da, selected_units):
     elif native_units in ["m/s", "m s-1"]:
         if selected_units == "knots":
             da = da * 1.9438445
+        elif selected_units == "mph":
+            da = da * 2.236936
 
     # Temperature units
     elif native_units == "K":
