@@ -225,6 +225,12 @@ def _process_and_concat(selections, dsets, cat_subset):
             # We are not allowing users to select historical reconstruction data and SSP data at the same time,
             # due to the memory restrictions at the moment
             scenario_list.remove("Historical Reconstruction (ERA5-WRF)")
+    
+    scen_names = [_scenario_to_experiment_id(scenario) for scenario in scenario_list]
+    if append_historical:
+        scen_names = ["Historical + "+one_name for one_name in scen_names]
+    activity_ids = [_downscaling_method_to_activity_id(downscaling_method) for downscaling_method in selections.downscaling_method]
+    
     for scenario in scenario_list:
         # Convert user-friendly scenario to the experiment_id, which is used to search the catalog
         scen_name = _scenario_to_experiment_id(scenario)
@@ -261,8 +267,8 @@ def _process_and_concat(selections, dsets, cat_subset):
                     except:  # Some simulation + ssp options are not available. Just continue with the loop if no filename is found
                         continue
                     # Grab data
-                    historical_data = dsets[historical_filename]
-                    ssp_data = dsets[ssp_filename]
+                    historical_data = _subset(dsets[historical_filename],selections)
+                    ssp_data = _subset(dsets[ssp_filename],selections)
 
                     # Concatenate data. Rename scenario attribute
                     # This will append the SSP data to the historical data, both with the same simulation
@@ -286,7 +292,7 @@ def _process_and_concat(selections, dsets, cat_subset):
                                 _scenario_to_experiment_id(scenario),
                             ),
                         )[0]
-                        ds_sim = dsets[filename]
+                        ds_sim = _subset(dsets[filename],selections)
                     except:
                         continue
                 # Get the name of the variable id
@@ -338,6 +344,58 @@ def _process_and_concat(selections, dsets, cat_subset):
 
 # ============ Read from catalog function used by ck.Application ===============
 
+def _subset(dset, selections):
+    # Time slice
+    dset = dset.sel(
+        time=slice(str(selections.time_slice[0]), str(selections.time_slice[1]))
+    )
+
+    # Perform area subsetting
+    # You need to retrieve the entire domain because the shapefiles will cut out the ocean grid cells
+    # But the some station's closest gridcells are the ocean!
+    if selections.data_type == "Station":
+        area_subset = "none"
+        cached_area = "entire domain"
+    else:
+        area_subset = selections.area_subset
+        cached_area = selections.cached_area
+    ds_region = _get_area_subset(area_subset, cached_area, selections)
+    if ds_region is not None:  # Perform subsetting
+        if selections.downscaling_method == ["Dynamical"]:
+            try:
+                dset = dset.rio.clip(
+                    geometries=ds_region, crs=4326, drop=True, all_touched=False
+                )
+            except:
+                # Catch small geometry error
+                # Unsure how to catch the unique exception that rioxarray raises: NoDataInBounds
+                # This will unfortunately catch all unrelated exceptions-- hopefully there's not other cases where the code will trigger an exception, but I'm not sure
+                print(
+                    "COULD NOT RETRIEVE DATA: For the provided data selections, there is not sufficient data to retrieve. Try selecting a larger spatial area, or a higher resolution. Returning None."
+                )
+                return None
+        else:
+            # LOCA does not have x,y coordinates. rioxarray hates this
+            # rioxarray will raise this error: MissingSpatialDimensionError: x dimension not found. 'rio.set_spatial_dims()' or using 'rename()' to change the dimension name to 'x' can address this.
+            # Therefore I need to rename the lat, lon dimensions to x,y, and then reset them after clipping.
+            # I also need to write a CRS to the dataset
+            dset = dset.rename({"lon": "x", "lat": "y"})
+            dset = dset.rio.write_crs("EPSG:4326")
+            dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
+            dset = dset.rename({"x": "lon", "y": "lat"}).drop("spatial_ref")
+
+    # Perform area averaging
+    if selections.area_average == "Yes":
+        weights = np.cos(np.deg2rad(dset.lat))
+        if set(["x", "y"]).issubset(set(dset.dims)):
+            # WRF data has x,y
+            dset = dset.weighted(weights).mean("x").mean("y")
+        elif set(["lat", "lon"]).issubset(set(dset.dims)):
+            # LOCA data has x,y
+            dset = dset.weighted(weights).mean("lat").mean("lon")
+
+    return dset
+
 
 def _get_data_one_var(selections, cat):
     """Get data for one variable"""
@@ -382,76 +440,7 @@ def _get_data_one_var(selections, cat):
         )
         data_dict = {**data_dict, **data_dict2}
 
-    # Perform subsetting operations
-    for dname, dset in data_dict.items():
-        # Break down name into component parts
-        (
-            activity_id,
-            institution_id,
-            source_id,
-            experiment_id,
-            table_id,
-            grid_label,
-        ) = dname.split(".")
-
-        # Add simulation and downscaling method as coordinates
-        dset = dset.assign_coords({"simulation": source_id})
-
-        # Time slice
-        dset = dset.sel(
-            time=slice(str(selections.time_slice[0]), str(selections.time_slice[1]))
-        )
-
-        # Perform area subsetting
-
-        # You need to retrieve the entire domain because the shapefiles will cut out the ocean grid cells
-        # But the some station's closest gridcells are the ocean!
-        if selections.data_type == "Station":
-            area_subset = "none"
-            cached_area = "entire domain"
-        else:
-            area_subset = selections.area_subset
-            cached_area = selections.cached_area
-        ds_region = _get_area_subset(area_subset, cached_area, selections)
-        if ds_region is not None:  # Perform subsetting
-            if selections.downscaling_method == ["Dynamical"]:
-                # all_touched: If True, all pixels touched by geometries will be burned in.  If false, only pixel whose center is within the polygon or that are selected by Bresenham's line algorithm will be burned in.
-                # drop: If True, drop the data outside of the extent of the mask geoemtries. Otherwise, it will return the same raster with the data masked.
-                try:
-                    dset = dset.rio.clip(
-                        geometries=ds_region, crs=4326, drop=True, all_touched=False
-                    )
-                except:
-                    # Catch small geometry error
-                    # Unsure how to catch the unique exception that rioxarray raises: NoDataInBounds
-                    # This will unfortunately catch all unrelated exceptions-- hopefully there's not other cases where the code will trigger an exception, but I'm not sure
-                    print(
-                        "COULD NOT RETRIEVE DATA: For the provided data selections, there is not sufficient data to retrieve. Try selecting a larger spatial area, or a higher resolution. Returning None."
-                    )
-                    return None
-            else:
-                # LOCA does not have x,y coordinates. rioxarray hates this
-                # rioxarray will raise this error: MissingSpatialDimensionError: x dimension not found. 'rio.set_spatial_dims()' or using 'rename()' to change the dimension name to 'x' can address this.
-                # Therefore I need to rename the lat, lon dimensions to x,y, and then reset them after clipping.
-                # I also need to write a CRS to the dataset
-                dset = dset.rename({"lon": "x", "lat": "y"})
-                dset = dset.rio.write_crs("EPSG:4326")
-                dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
-                dset = dset.rename({"x": "lon", "y": "lat"}).drop("spatial_ref")
-
-        # Perform area averaging
-        if selections.area_average == "Yes":
-            weights = np.cos(np.deg2rad(dset.lat))
-            if set(["x", "y"]).issubset(set(dset.dims)):
-                # WRF data has x,y
-                dset = dset.weighted(weights).mean("x").mean("y")
-            elif set(["lat", "lon"]).issubset(set(dset.dims)):
-                # LOCA data has x,y
-                dset = dset.weighted(weights).mean("lat").mean("lon")
-
-        # Update dataset in dictionary
-        data_dict.update({dname: dset})
-
+    
     # Merge individual Datasets into one DataArray object.
     da = _process_and_concat(
         selections=selections, dsets=data_dict, cat_subset=cat_subset
@@ -468,7 +457,7 @@ def _get_data_one_var(selections, cat):
         "resolution": selections.resolution,
         "frequency": selections.timescale,
         "location_subset": selections.cached_area,
-        "institution": institution_id,
+        #"institution": institution_id,
     }
     if "grid_mapping" in da.attrs:
         da_new_attrs = da_new_attrs | {"grid_mapping": da.attrs["grid_mapping"]}
