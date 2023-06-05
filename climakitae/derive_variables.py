@@ -76,10 +76,10 @@ def compute_hdh_cdh(t2, hdh_threshold, cdh_threshold):
 
     # Calculate heating and cooling hours
     cooling_hours = t2.where(
-        t2 > hdh_threshold
+        t2 > cdh_threshold
     )  # temperatures above threshold, require cooling
-    heating_hours = (-1) * t2.where(
-        t2 < cdh_threshold
+    heating_hours = t2.where(
+        t2 < hdh_threshold
     )  # temperatures below threshold, require heating
 
     # Compute CDH: count number of hours and resample to daily (max 24 value)
