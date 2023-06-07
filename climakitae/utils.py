@@ -128,7 +128,7 @@ def _read_ae_colormap(cmap="ae_orange", cmap_hex=False):
     """Read in AE colormap by name
 
     Args:
-        cmap (str): one of ["ae_orange","ae_blue","ae_diverging"]
+        cmap (str): one of ["ae_orange","ae_blue","ae_diverging", "ae_diverging_r", "ae_cyclic"]
         cmap_hex (boolean): return RGB or hex colors?
 
     Returns: one of either

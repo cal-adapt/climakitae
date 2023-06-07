@@ -124,6 +124,7 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
             "ae_diverging",
             "ae_blue",
             "ae_diverging_r",
+            "ae_cyclic",
         ]:
             cmap = _read_ae_colormap(cmap=cmap, cmap_hex=True)
 
