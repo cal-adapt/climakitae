@@ -87,9 +87,14 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
             # But, only do this if the data is already read into memory
             # Or else the computation of min and max will take forever
             if data.chunks is None or str(data.chunks) == "Frozen({})":
-                min_data = data.min(dim="simulation")
-                max_data = data.max(dim="simulation")
-                vmin, vmax, sopt = _compute_vmin_vmax(min_data, max_data)
+                if data.name == "wind_direction_derived":
+                    vmin = 0
+                    vmax = 360
+                    sopt = 180
+                else:
+                    min_data = data.min(dim="simulation")
+                    max_data = data.max(dim="simulation")
+                    vmin, vmax, sopt = _compute_vmin_vmax(min_data, max_data)
 
         # Set default cmap if no user input
         if cmap is None:

@@ -26,6 +26,7 @@ ae_diverging_r = pkg_resources.resource_filename(
 categorical_cb = pkg_resources.resource_filename(
     "climakitae", "data/cmaps/categorical_cb.txt"
 )
+ae_cyclic = pkg_resources.resource_filename("climakitae", "data/cmaps/ae_cyclic.txt")
 
 
 def get_closest_gridcell(data, lat, lon, print_coords=True):
@@ -147,6 +148,8 @@ def _read_ae_colormap(cmap="ae_orange", cmap_hex=False):
         cmap_data = ae_diverging_r
     elif cmap == "categorical_cb":
         cmap_data = categorical_cb
+    elif cmap == "ae_cyclic":
+        cmap_data = ae_cyclic
 
     # Load text file
     cmap_np = np.loadtxt(cmap_data, dtype=float)
