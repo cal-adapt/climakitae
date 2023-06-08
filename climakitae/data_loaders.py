@@ -410,6 +410,11 @@ def _get_data_one_var(selections, cat):
         # Get catalog subset for a set of user selections
         cat_subset = _get_cat_subset(selections=selections, cat=cat)
 
+        if len(cat_subset.df["institution_id"].unique()) == 1:
+            _institution = cat_subset.df["institution_id"].unique()[0]
+        else:
+            _institution = "Multiple"
+
         # Read data from AWS
         data_dict = cat_subset.to_dataset_dict(
             zarr_kwargs={"consolidated": True},
@@ -460,7 +465,7 @@ def _get_data_one_var(selections, cat):
         "resolution": selections.resolution,
         "frequency": selections.timescale,
         "location_subset": selections.cached_area,
-        # "institution": institution_id,
+        "institution": _institution,
     }
     if "grid_mapping" in da.attrs:
         da_new_attrs = da_new_attrs | {"grid_mapping": da.attrs["grid_mapping"]}
