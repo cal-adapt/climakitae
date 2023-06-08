@@ -225,12 +225,15 @@ def _process_and_concat(selections, dsets, cat_subset):
             # We are not allowing users to select historical reconstruction data and SSP data at the same time,
             # due to the memory restrictions at the moment
             scenario_list.remove("Historical Reconstruction (ERA5-WRF)")
-    
+
     scen_names = [_scenario_to_experiment_id(scenario) for scenario in scenario_list]
     if append_historical:
-        scen_names = ["Historical + "+one_name for one_name in scen_names]
-    activity_ids = [_downscaling_method_to_activity_id(downscaling_method) for downscaling_method in selections.downscaling_method]
-    
+        scen_names = ["Historical + " + one_name for one_name in scen_names]
+    activity_ids = [
+        _downscaling_method_to_activity_id(downscaling_method)
+        for downscaling_method in selections.downscaling_method
+    ]
+
     for scenario in scenario_list:
         # Convert user-friendly scenario to the experiment_id, which is used to search the catalog
         scen_name = _scenario_to_experiment_id(scenario)
@@ -267,8 +270,8 @@ def _process_and_concat(selections, dsets, cat_subset):
                     except:  # Some simulation + ssp options are not available. Just continue with the loop if no filename is found
                         continue
                     # Grab data
-                    historical_data = _subset(dsets[historical_filename],selections)
-                    ssp_data = _subset(dsets[ssp_filename],selections)
+                    historical_data = _subset(dsets[historical_filename], selections)
+                    ssp_data = _subset(dsets[ssp_filename], selections)
 
                     # Concatenate data. Rename scenario attribute
                     # This will append the SSP data to the historical data, both with the same simulation
@@ -292,7 +295,7 @@ def _process_and_concat(selections, dsets, cat_subset):
                                 _scenario_to_experiment_id(scenario),
                             ),
                         )[0]
-                        ds_sim = _subset(dsets[filename],selections)
+                        ds_sim = _subset(dsets[filename], selections)
                     except:
                         continue
                 # Get the name of the variable id
@@ -343,6 +346,7 @@ def _process_and_concat(selections, dsets, cat_subset):
 
 
 # ============ Read from catalog function used by ck.Application ===============
+
 
 def _subset(dset, selections):
     # Time slice
@@ -440,7 +444,6 @@ def _get_data_one_var(selections, cat):
         )
         data_dict = {**data_dict, **data_dict2}
 
-    
     # Merge individual Datasets into one DataArray object.
     da = _process_and_concat(
         selections=selections, dsets=data_dict, cat_subset=cat_subset
@@ -457,7 +460,7 @@ def _get_data_one_var(selections, cat):
         "resolution": selections.resolution,
         "frequency": selections.timescale,
         "location_subset": selections.cached_area,
-        #"institution": institution_id,
+        # "institution": institution_id,
     }
     if "grid_mapping" in da.attrs:
         da_new_attrs = da_new_attrs | {"grid_mapping": da.attrs["grid_mapping"]}
