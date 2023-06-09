@@ -101,7 +101,7 @@ def _get_as_shapely(selections):
     return shapely_geom
 
 
-def _sim_index_item(one, member_id):
+def _sim_index_item(ds_name, member_id):
     """Identify a simulation by its downscaling type, driving GCM, and member id.
 
     Args:
@@ -111,8 +111,8 @@ def _sim_index_item(one, member_id):
     Returns:
         str: joined by underscores
     """
-    downscaling_type = one.split(".")[0]
-    gcm_name = one.split(".")[2]
+    downscaling_type = ds_name.split(".")[0]
+    gcm_name = ds_name.split(".")[2]
     ensemble_member = member_id.values[0]
     return "_".join([downscaling_type, gcm_name, ensemble_member])
 
@@ -286,11 +286,13 @@ def _clip_to_geometry(dset, ds_region):
     """
     try:
         dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
-        return dset
+
     except NoDataInBounds as e:
         # Catch small geometry error
         print(e)
-        return None
+        print("Skipping spatial subsetting.")
+
+    return dset
 
 
 def _clip_to_geometry_loca(dset, ds_region):
