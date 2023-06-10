@@ -353,8 +353,9 @@ def _area_average(dset):
     return dset
 
 
-def _subset(ds_name, dset, selections):
-    """Subset over time and space, as described in user selections
+def _process_dset(ds_name, dset, selections):
+    """Subset over time and space, as described in user selections;
+       renaming to facilitate concatenation.
 
     Args:
         dset (xr.Dataset): one dataset from the catalog
@@ -378,6 +379,8 @@ def _subset(ds_name, dset, selections):
     dset = dset.assign_coords(
         member_id=[_sim_index_item(ds_name, mem_id) for mem_id in dset.member_id]
     )
+    # Rename variable:
+    dset = dset.rename({list(dset.data_vars)[0]: selections.variable})
 
     return dset
 
@@ -402,10 +405,10 @@ def _concat_sims(data_dict, hist_data, selections, scenario):
         if scenario in one
     ]
 
-    # Merge along new 'simulation' dimension:
+    # Merge along expanded 'member_id' dimension:
     one_scenario = xr.concat(
         [
-            _subset(one, data_dict[one], selections)
+            _process_dset(one, data_dict[one], selections)
             for one in data_dict.keys()
             if scenario in one
         ],
@@ -466,7 +469,7 @@ def _merge_all(selections, data_dict, cat_subset):
         ]
         all_hist = xr.concat(
             [
-                _subset(one, data_dict[one], selections)
+                _process_dset(one, data_dict[one], selections)
                 for one in data_dict.keys()
                 if "historical" in one
             ],
