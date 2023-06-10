@@ -64,7 +64,7 @@ def _compute(xr_da):
 
     else:
         print(
-            "Reading {0} of data into memory... ".format(
+            "Processing data to read {0} of data into memory... ".format(
                 _readable_bytes(xr_data_nbytes)
             ),
             end="",
@@ -375,11 +375,11 @@ def _process_dset(ds_name, dset, selections):
     if selections.area_average == "Yes":
         dset = _area_average(dset)
 
-    # Rename member_id dimension
+    # Rename member_id value to include more info
     dset = dset.assign_coords(
         member_id=[_sim_index_item(ds_name, mem_id) for mem_id in dset.member_id]
     )
-    # Rename variable:
+    # Rename variable to display name:
     dset = dset.rename({list(dset.data_vars)[0]: selections.variable})
 
     return dset
@@ -399,11 +399,6 @@ def _concat_sims(data_dict, hist_data, selections, scenario):
         one_scenario (xr.Dataset): combined data object
     """
     scen_name = _scenario_to_experiment_id(scenario, reverse=True)
-    new_dim = [
-        _sim_index_item(one, data_dict[one].member_id)
-        for one in data_dict
-        if scenario in one
-    ]
 
     # Merge along expanded 'member_id' dimension:
     one_scenario = xr.concat(
@@ -448,7 +443,8 @@ def _override_unit_defaults(da, var_id):
 
 
 def _merge_all(selections, data_dict, cat_subset):
-    """Merge all datasets into one, subsetting each consistently
+    """Merge all datasets into one, subsetting each consistently;
+       clean-up format, and convert units.
 
     Args:
         selections (DataLoaders): object holding user's selections
@@ -464,9 +460,6 @@ def _merge_all(selections, data_dict, cat_subset):
     # Get corresponding data for historical period to append:
     hist_keys = [one for one in data_dict.keys() if "historical" in one]
     if hist_keys:
-        hist_sim_dim = [
-            _sim_index_item(one, data_dict[one].member_id) for one in hist_keys
-        ]
         all_hist = xr.concat(
             [
                 _process_dset(one, data_dict[one], selections)
