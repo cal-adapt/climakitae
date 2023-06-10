@@ -113,7 +113,7 @@ def _sim_index_item(ds_name, member_id):
     """
     downscaling_type = ds_name.split(".")[0]
     gcm_name = ds_name.split(".")[2]
-    ensemble_member = member_id.values[0]
+    ensemble_member = str(member_id.values)
     return "_".join([downscaling_type, gcm_name, ensemble_member])
 
 
@@ -195,7 +195,7 @@ def _get_cat_subset(selections, cat):
 
 
 def _time_slice(dset, selections):
-    """Subset over time, remove member_id as coordinate
+    """Subset over time
     Args:
         dset (xr.Dataset): one dataset from the catalog
         selections (DataLoaders): object holding user's selections
@@ -207,8 +207,7 @@ def _time_slice(dset, selections):
     window_start = str(selections.time_slice[0])
     window_end = str(selections.time_slice[1])
 
-    # -- need 'squeeze' to remove 'member_id' as a coordinate
-    return dset.sel(time=slice(window_start, window_end)).squeeze()
+    return dset.sel(time=slice(window_start, window_end))
 
 
 def _override_area_selections(selections):
@@ -354,7 +353,7 @@ def _area_average(dset):
     return dset
 
 
-def _subset(dset, selections):
+def _subset(ds_name, dset, selections):
     """Subset over time and space, as described in user selections
 
     Args:
@@ -375,11 +374,16 @@ def _subset(dset, selections):
     if selections.area_average == "Yes":
         dset = _area_average(dset)
 
+    # Rename member_id dimension
+    dset = dset.assign_coords(
+        member_id=[_sim_index_item(ds_name, mem_id) for mem_id in dset.member_id]
+    )
+
     return dset
 
 
 def _concat_sims(data_dict, hist_data, selections, scenario):
-    """Combine datasets along new 'simulation' dimension, and append
+    """Combine datasets along expanded 'member_id' dimension, and append
         historical if relevant.
 
     Args:
@@ -401,11 +405,11 @@ def _concat_sims(data_dict, hist_data, selections, scenario):
     # Merge along new 'simulation' dimension:
     one_scenario = xr.concat(
         [
-            _subset(data_dict[one], selections)
+            _subset(one, data_dict[one], selections)
             for one in data_dict.keys()
             if scenario in one
         ],
-        pd.Index(new_dim, name="simulation"),
+        dim="member_id",
     )
 
     # Append historical if relevant:
@@ -413,8 +417,7 @@ def _concat_sims(data_dict, hist_data, selections, scenario):
         scen_name = "Historical + " + scen_name
         one_scenario = xr.concat([hist_data, one_scenario], dim="time")
 
-    # Clean-up:
-    one_scenario = one_scenario.drop("member_id")
+    # Set-up coordinate:
     one_scenario = one_scenario.assign_coords({"scenario": scen_name})
 
     return one_scenario
@@ -463,11 +466,11 @@ def _merge_all(selections, data_dict, cat_subset):
         ]
         all_hist = xr.concat(
             [
-                _subset(data_dict[one], selections)
+                _subset(one, data_dict[one], selections)
                 for one in data_dict.keys()
                 if "historical" in one
             ],
-            pd.Index(hist_sim_dim, name="simulation"),
+            dim="member_id",
         )
     else:
         all_hist = None
@@ -484,6 +487,9 @@ def _merge_all(selections, data_dict, cat_subset):
         combine_attrs="drop_conflicts",
         dim="scenario",
     )
+
+    # Rename expanded dimension:
+    all_ssps = all_ssps.rename({"member_id": "simulation"})
 
     # Convert to xr.DataArray:
     var_id = list(all_ssps.data_vars)[0]
