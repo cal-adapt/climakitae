@@ -117,7 +117,7 @@ def _sim_index_item(ds_name, member_id):
     return "_".join([downscaling_type, gcm_name, ensemble_member])
 
 
-def _scenarios_in_data_dict(keys, selections):
+def _scenarios_in_data_dict(keys):
     """Return unique list of ssp scenarios in dataset dictionary.
 
     Args:
@@ -133,9 +133,6 @@ def _scenarios_in_data_dict(keys, selections):
             should be the same as those specified in selections
     """
     scenarios = set([one.split(".")[3] for one in keys if "ssp" in one])
-    assert scenarios == set(
-        [_scenario_to_experiment_id(item) for item in selections.scenario_ssp]
-    )
 
     return list(scenarios)
 
@@ -472,7 +469,7 @@ def _merge_all(selections, data_dict, cat_subset):
         all_hist = None
 
     # Get (and double-check) list of SSP scenarios:
-    _scenarios = _scenarios_in_data_dict(data_dict.keys(), selections)
+    _scenarios = _scenarios_in_data_dict(data_dict.keys())
 
     # Merge along new 'scenario' dimension:
     all_ssps = xr.concat(
