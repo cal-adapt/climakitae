@@ -3,7 +3,7 @@ import intake
 import pkg_resources
 import pandas as pd
 from climakitae.selectors import _DataSelector
-from .catalog_convert import _scenario_to_experiment_id
+from climakitae.catalog_convert import _scenario_to_experiment_id
 from climakitae.data_loaders import _get_cat_subset, _scenarios_in_data_dict
 
 
