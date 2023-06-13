@@ -26,8 +26,6 @@ def calculate_ess(
     Function for calculating the effective sample size (ESS) of the provided data.
 
     Input array is assumed to be timeseries data with potential autocorrelation.
-
-    
     """
     n=len(data)
     if nlags is None:
@@ -39,18 +37,19 @@ def calculate_ess(
 
     return n/(1+2*sums)
 
-def get_ams(
+def get_block_maxima(
     da, 
     extremes_type="max",
     duration=None,
     groupby=None,
     grouped_duration=None,
-    check_ess=True
+    check_ess=True,
+    block_size=1
     ):
     """
-    Function that converts data into annual maximums
+    Function that converts data into block maximums, defaulting to annual maximums (default block size = 1 year).
 
-    Takes input array and resamples annually by taking the maximum value.
+    Takes input array and resamples by taking the maximum value over the specified block size.
     
     Optional arguments `duration`, `groupby`, and `grouped_duration` define the type
     of event to find the annual maximums of. These correspond to the event
@@ -61,7 +60,7 @@ def get_ams(
     da: xarray.DataArray
         DataArray from app.retrieve
     extremes_type: str
-        option for max or min (min not implemented yet)
+        option for max or min
         Defaults to max
     duration: tuple
         length of extreme event, specified as (4, 'hour')
@@ -69,6 +68,12 @@ def get_ams(
         group over which to look for max occurance, specified as (1, 'day')
     grouped_duration: tuple
         length of event after grouping, specified as (5, 'day')
+    check_ess: boolean
+        optional flag specifying whether to check the effective sample size (ESS)
+        within the blocks of data, and throw a warning if the average ESS is too small.
+        can be silenced with check_ess=False.
+    block_size: int
+        block size in years. default is 1 year.
 
     Returns
     -------
@@ -132,11 +137,11 @@ def get_ams(
     
     # Now select the most extreme value for each year in the series
     if extremes_type == "max":
-        ams = da_series.resample(time="A").max(keep_attrs=True)
-        ams.attrs["extremes type"] = "maxima"
+        bms = da_series.resample(time=f"{block_size}A").max(keep_attrs=True)
+        bms.attrs["extremes type"] = "maxima"
     elif extremes_type == 'min':
-        ams = da_series.resample(time='A').min(keep_attrs = True)
-        ams.attrs['extremes type'] = 'minima'
+        bms = da_series.resample(time=f"{block_size}A").min(keep_attrs = True)
+        bms.attrs["extremes type"] = "minima"
 
     # Calculate the effective sample size of the computed event type in all blocks, check the average value
     if check_ess:
@@ -150,14 +155,14 @@ def get_ams(
             warn(f"The average effective sample size in your data is {average_ess} per block, which is low. This may result in biased estimates of extreme value distributions when calculating return values, periods, and probabilities from this data.")
     
     # Common attributes
-    ams.attrs["duration"] = duration
-    ams.attrs["groupby"] = groupby
-    ams.attrs["grouped_duration"] = grouped_duration
-    ams.attrs["extreme value extraction method"] = f"block maxima"
-    ams.attrs["block size"] = "1 year"
-    ams.attrs["timeseries type"] = f"annual {extremes_type} series"
+    bms.attrs["duration"] = duration
+    bms.attrs["groupby"] = groupby
+    bms.attrs["grouped_duration"] = grouped_duration
+    bms.attrs["extreme value extraction method"] = f"block maxima"
+    bms.attrs["block size"] = f"{block_size} year"
+    bms.attrs["timeseries type"] = f"block {extremes_type} series"
 
-    return ams
+    return bms
 
 
 def _get_distr_func(distr):
@@ -196,14 +201,15 @@ def _get_distr_func(distr):
     return distr_func
 
 
-def _get_fitted_distr(ams, distr, distr_func):
+def _get_fitted_distr(bms, distr, distr_func):
     """Function for fitting data to distribution function
 
     Takes data array and fits it to distribution function.
 
     Parameters
     ----------
-    ams: xarray.DataArray
+    bms: xarray.DataArray
+        Block maximum series, can be output from the function get_block_maxima()
     distr: str
     distr_func: scipy.stats
 
@@ -224,7 +230,7 @@ def _get_fitted_distr(ams, distr, distr_func):
     parameters = None
     fitted_distr = None
 
-    p_values = distr_func.fit(ams)
+    p_values = distr_func.fit(bms)
 
     if distr == "gev":
         p_names = ("c", "loc", "scale")
@@ -251,7 +257,7 @@ def _get_fitted_distr(ams, distr, distr_func):
     return parameters, fitted_distr
 
 
-def get_ks_stat(ams, distr="gev", multiple_points=True):
+def get_ks_stat(bms, distr="gev", multiple_points=True):
     """Function to perform kstest on input DataArray
 
     Creates a dataset of ks test d-statistics and p-values from an inputed
@@ -259,7 +265,8 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
 
     Parameters
     ----------
-    ams: xarray.DataArray
+    bms: xarray.DataArray
+        Block maximum series, can be output from the function get_block_maxima()
     distr: str
     multiple_points: boolean
 
@@ -269,18 +276,18 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
     """
 
     distr_func = _get_distr_func(distr)
-    ams_attributes = ams.attrs
+    bms_attributes = bms.attrs
 
     if multiple_points:
-        ams = (
-            ams.stack(allpoints=["y", "x"])
+        bms = (
+            bms.stack(allpoints=["y", "x"])
             .dropna(dim="allpoints")
             .squeeze()
             .groupby("allpoints")
         )
 
-    def ks_stat(ams):
-        parameters, fitted_distr = _get_fitted_distr(ams, distr, distr_func)
+    def ks_stat(bms):
+        parameters, fitted_distr = _get_fitted_distr(bms, distr, distr_func)
 
         if distr == "gev":
             cdf = "genextreme"
@@ -299,7 +306,7 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
             args = (parameters["c"], parameters["loc"], parameters["scale"])
 
         try:
-            ks = stats.kstest(ams, cdf, args=args)
+            ks = stats.kstest(bms, cdf, args=args)
             d_statistic = ks[0]
             p_value = ks[1]
         except (ValueError, ZeroDivisionError):
@@ -310,7 +317,7 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
 
     d_statistic, p_value = xr.apply_ufunc(
         ks_stat,
-        ams,
+        bms,
         input_core_dims=[["time"]],
         exclude_dims=set(("time",)),
         output_core_dims=[[], []],
@@ -325,7 +332,7 @@ def get_ks_stat(ams, distr="gev", multiple_points=True):
 
     new_ds["d_statistic"].attrs["stat test"] = "KS test"
     new_ds["p_value"].attrs["stat test"] = "KS test"
-    new_ds.attrs = ams_attributes
+    new_ds.attrs = bms_attributes
     new_ds.attrs["distribution"] = "{}".format(str(distr))
     new_ds["p_value"].attrs["units"] = None
     new_ds["d_statistic"].attrs["units"] = None
@@ -371,7 +378,7 @@ def _calculate_return(fitted_distr, data_variable, arg_value):
     return result
 
 
-def _bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
+def _bootstrap(bms, distr="gev", data_variable="return_value", arg_value=10):
     """Function for making a bootstrap-calculated value from input array
 
     Determines a bootstrap-calculated value for relevant parameters from an
@@ -379,7 +386,8 @@ def _bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
 
     Parameters
     ----------
-    ams: xarray.DataArray
+    bms: xarray.DataArray
+        Block maximum series, can be output from the function get_block_maxima()
     distr: str
     data_variable: str
         can be return_value, return_prob, return_period
@@ -400,11 +408,11 @@ def _bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
 
     distr_func = _get_distr_func(distr)
 
-    sample_size = len(ams)
-    new_ams = np.random.choice(ams, size=sample_size, replace=True)
+    sample_size = len(bms)
+    new_bms = np.random.choice(bms, size=sample_size, replace=True)
 
     try:
-        parameters, fitted_distr = _get_fitted_distr(new_ams, distr, distr_func)
+        parameters, fitted_distr = _get_fitted_distr(new_bms, distr, distr_func)
         result = _calculate_return(
             fitted_distr=fitted_distr,
             data_variable=data_variable,
@@ -417,7 +425,7 @@ def _bootstrap(ams, distr="gev", data_variable="return_value", arg_value=10):
 
 
 def _conf_int(
-    ams,
+    bms,
     distr,
     data_variable,
     arg_value,
@@ -431,7 +439,8 @@ def _conf_int(
 
     Parameters
     ----------
-    ams: xarray.DataArray
+    bms: xarray.DataArray
+        Block maximum series, can be output from the function get_block_maxima()
     distr: str
     data_variable: str
         can be return_value, return_prob, return_period
@@ -449,7 +458,7 @@ def _conf_int(
 
     for _ in range(bootstrap_runs):
         result = _bootstrap(
-            ams,
+            bms,
             distr,
             data_variable,
             arg_value,
@@ -465,7 +474,7 @@ def _conf_int(
     return conf_int_lower_limit, conf_int_upper_limit
 
 def get_return_variable(
-    ams,
+    bms,
     data_variable,
     arg_value,
     distr="gev",
@@ -493,14 +502,14 @@ def get_return_variable(
         )
 
     lmom_distr = get_lmom_distr(distr)
-    ams_attributes = ams.attrs
+    bms_attributes = bms.attrs
 
     if multiple_points:
-        ams = ams.stack(allpoints=["y", "x"]).squeeze().groupby("allpoints")
+        bms = bms.stack(allpoints=["y", "x"]).squeeze().groupby("allpoints")
 
-    def return_variable(ams):
+    def return_variable(bms):
         try:
-            lmoments, fitted_distr = get_fitted_distr(ams, distr, lmom_distr)
+            lmoments, fitted_distr = get_fitted_distr(bms, distr, lmom_distr)
             return_variable = calculate_return(
                 fitted_distr=fitted_distr,
                 data_variable=data_variable,
@@ -510,7 +519,7 @@ def get_return_variable(
             return_variable = np.nan
             
         conf_int_lower_limit, conf_int_upper_limit = conf_int(
-            ams=ams,
+            bms=bms,
             distr=distr,
             data_variable=data_variable,
             arg_value=arg_value,
@@ -523,7 +532,7 @@ def get_return_variable(
 
     return_variable, conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
         return_variable,
-        ams,
+        bms,
         input_core_dims=[["time"]],
         exclude_dims=set(("time",)),
         output_core_dims=[[], [], []],
@@ -540,11 +549,11 @@ def get_return_variable(
     if data_variable == "return_value":
         new_ds[data_variable].attrs["return period"] = f"1-in-{arg_value}-year event"
     elif data_variable == "return_prob":
-        unit_threshold = ams_attributes["units"]
+        unit_threshold = bms_attributes["units"]
         new_ds[data_variable].attrs["threshold"] = f"exceedance of {arg_value} {unit_threshold} value event"
         new_ds[data_variable].attrs["units"] = None
     elif data_variable == "return_period":
-        unit_return_value = ams_attributes["units"]
+        unit_return_value = bms_attributes["units"]
         new_ds[data_variable].attrs["return value"] = f"{arg_value} {unit_return_value} event"
         new_ds[data_variable].attrs["units"] = "years"
 
@@ -555,12 +564,12 @@ def get_return_variable(
         "confidence interval upper bound"
     ] = "{}th percentile".format(str(conf_int_upper_bound))
 
-    new_ds.attrs = ams_attributes
+    new_ds.attrs = bms_attributes
     new_ds.attrs["distribution"] = "{}".format(str(distr))
     return new_ds
 
 def _get_return_variable(
-    ams,
+    bms,
     data_variable,
     arg_value,
     distr="gev",
@@ -581,7 +590,8 @@ def _get_return_variable(
 
     Parameters
     ----------
-    ams: xarray.DataArray
+    bms: xarray.DataArray
+        Block maximum series, can be output from the function get_block_maxima()
     data_variable: str
     arg_value: float
     distr: str
@@ -600,19 +610,19 @@ def _get_return_variable(
         raise ValueError(f"Invalid `data_variable`. Must be one of: {data_variables}")
 
     distr_func = _get_distr_func(distr)
-    ams_attributes = ams.attrs
+    bms_attributes = bms.attrs
 
     if multiple_points:
-        ams = (
-            ams.stack(allpoints=["y", "x"])
+        bms = (
+            bms.stack(allpoints=["y", "x"])
             .dropna(dim="allpoints")
             .squeeze()
             .groupby("allpoints")
         )
 
-    def _return_variable(ams):
+    def _return_variable(bms):
         try:
-            parameters, fitted_distr = _get_fitted_distr(ams, distr, distr_func)
+            parameters, fitted_distr = _get_fitted_distr(bms, distr, distr_func)
             return_variable = _calculate_return(
                 fitted_distr=fitted_distr,
                 data_variable=data_variable,
@@ -622,7 +632,7 @@ def _get_return_variable(
             return_variable = np.nan
 
         conf_int_lower_limit, conf_int_upper_limit = _conf_int(
-            ams=ams,
+            bms=bms,
             distr=distr,
             data_variable=data_variable,
             arg_value=arg_value,
@@ -635,7 +645,7 @@ def _get_return_variable(
 
     return_variable, conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
         _return_variable,
-        ams,
+        bms,
         input_core_dims=[["time"]],
         exclude_dims=set(("time",)),
         output_core_dims=[[], [], []],
@@ -649,18 +659,18 @@ def _get_return_variable(
     if multiple_points:
         new_ds = new_ds.unstack("allpoints")
 
-    new_ds.attrs = ams_attributes
+    new_ds.attrs = bms_attributes
 
     if data_variable == "return_value":
         new_ds["return_value"].attrs["return period"] = f"1-in-{arg_value}-year event"
     elif data_variable == "return_prob":
-        threshold_unit = ams_attributes["units"]
+        threshold_unit = bms_attributes["units"]
         new_ds["return_prob"].attrs[
             "threshold"
         ] = f"exceedance of {arg_value} {threshold_unit} event"
         new_ds["return_prob"].attrs["units"] = None
     elif data_variable == "return_period":
-        return_value_unit = ams_attributes["units"]
+        return_value_unit = bms_attributes["units"]
         new_ds["return_period"].attrs[
             "return value"
         ] = f"{arg_value} {return_value_unit} event"
@@ -678,7 +688,7 @@ def _get_return_variable(
 
 
 def get_return_value(
-    ams,
+    bms,
     return_period=10,
     distr="gev",
     bootstrap_runs=100,
@@ -690,8 +700,8 @@ def get_return_value(
 
     Parameters
     ----------
-    ams: xarray.DataArray
-        Annual maximum data, can be output from the function get_ams()
+    bms: xarray.DataArray
+        Block maximum series, can be output from the function get_block_maxima()
     return_period: float
         The recurrence interval (in years) for which to calculate the return value
     distr: str
@@ -711,7 +721,7 @@ def get_return_value(
         Dataset with return values and confidence intervals
     """
     return _get_return_variable(
-        ams,
+        bms,
         "return_value",
         return_period,
         distr,
@@ -723,7 +733,7 @@ def get_return_value(
 
 
 def get_return_prob(
-    ams,
+    bms,
     threshold,
     distr="gev",
     bootstrap_runs=100,
@@ -735,8 +745,8 @@ def get_return_prob(
 
     Parameters
     ----------
-    ams: xarray.DataArray
-        Annual maximum data, can be output from the function get_ams()
+    bms: xarray.DataArray
+        Block maximum series, can be output from the function get_block_maxima()
     threshold: float
         The threshold value for which to calculate the probability of exceedance
     distr: str
@@ -756,7 +766,7 @@ def get_return_prob(
         Dataset with return probabilities and confidence intervals
     """
     return _get_return_variable(
-        ams,
+        bms,
         "return_prob",
         threshold,
         distr,
@@ -768,7 +778,7 @@ def get_return_prob(
 
 
 def get_return_period(
-    ams,
+    bms,
     return_value,
     distr="gev",
     bootstrap_runs=100,
@@ -780,8 +790,8 @@ def get_return_period(
 
     Parameters
     ----------
-    ams: xarray.DataArray
-        Annual maximum data, can be output from the function get_ams()
+    bms: xarray.DataArray
+        Block maximum series, can be output from the function get_block_maxima()
     return_value: float
         The threshold value for which to calculate the return period of occurance
     distr: str
@@ -801,7 +811,7 @@ def get_return_period(
         Dataset with return periods and confidence intervals
     """
     return _get_return_variable(
-        ams,
+        bms,
         "return_period",
         return_value,
         distr,
