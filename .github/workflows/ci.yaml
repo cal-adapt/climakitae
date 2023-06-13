@@ -47,13 +47,9 @@ jobs:
         path: ${{ matrix.prefix }}
         key:
           ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{ hashFiles('environment.yml') }}
-    #- name: Setup Mambaforge
     - name: Setup miniconda
       uses: conda-incubator/setup-miniconda@v2
       with:
-          #miniforge-variant: Mambaforge
-          #miniforge-version: latest
-          #use-mamba: true
           auto-activate-base: false
           activate-environment: climakitae-tests
           environment-file: environment.yml
