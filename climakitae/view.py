@@ -16,6 +16,19 @@ var_catalog_resource = pkg_resources.resource_filename(
 var_catalog = pd.read_csv(var_catalog_resource, index_col=None)
 
 
+def _compute_vmin_vmax(da_min, da_max):
+    """Compute min, max, and center for plotting"""
+    vmin = np.nanpercentile(da_min, 1)
+    vmax = np.nanpercentile(da_max, 99)
+    # define center for diverging symmetric data
+    if (vmin < 0) and (vmax > 0):
+        # dabs = abs(vmax) - abs(vmin)
+        sopt = True
+    else:
+        sopt = None
+    return vmin, vmax, sopt
+
+
 def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
     """Create a generic visualization of the data
 
@@ -54,13 +67,30 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
     """
 
     # Warn user about speed if passing a zarr to the function
-    if data.chunks is not None:
+    if data.chunks is None or str(data.chunks) == "Frozen({})":
+        pass
+    else:
         warnings.warn(
             "This function may be quite slow unless you call .compute() on your data before passing it to app.view()"
         )
 
     # Workflow if data contains spatial coordinates
-    if set(["x", "y"]).issubset(set(data.dims)):
+    if set(["x", "y"]).issubset(set(data.dims)) or set(["lon", "lat"]).issubset(
+        set(data.dims)
+    ):
+        # If simulation is a dimension, make it so the colorbar plots the min and max across the simulations
+        # Such that the colorbar is standardized
+        vmin = None
+        vmax = None
+        sopt = None
+        if "simulation" in data.dims:
+            # But, only do this if the data is already read into memory
+            # Or else the computation of min and max will take forever
+            if data.chunks is None or str(data.chunks) == "Frozen({})":
+                min_data = data.min(dim="simulation")
+                max_data = data.max(dim="simulation")
+                vmin, vmax, sopt = _compute_vmin_vmax(min_data, max_data)
+
         # Set default cmap if no user input
         if cmap is None:
             try:
@@ -70,66 +100,37 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
                     timescale = data.frequency
                 cmap = var_catalog[
                     (var_catalog["display_name"] == data.name)
-                    & (var_catalog["timescale"] == timescale)
-                ].colormap.item()
+                    # & (var_catalog["timescale"] == timescale)
+                ].colormap.values[0]
             except:  # If variable not found, set to ae_orange without raising error
                 cmap = "ae_orange"
 
-        # Must have more than one grid cell to generate a map
-        if (len(data["x"]) <= 1) or (len(data["y"]) <= 1):
-            print(
-                "Your data contains only one grid cell in height and/or width. A plot will be created using a default method that may or may not have spatial coordinates as the x and y axes."
-            )  # Warn user that plot may be weird
+        # Define colorbar label using variable and units
+        try:
+            clabel = data.name + " (" + data.attrs["units"] + ")"
+        except:  # Try except just in case units attribute is missing from data
+            clabel = data.name
 
-            # Set default cmap if no user input
-            # Different if using matplotlib (no "hex")
-            if cmap in [
-                "categorical_cb",
-                "ae_orange",
-                "ae_diverging",
-                "ae_blue",
-                "ae_diverging_r",
-            ]:
-                cmap = _read_ae_colormap(cmap=cmap, cmap_hex=False)
+        # Set default cmap if no user input
+        # Different if using hvplot (we need "hex")
+        if cmap in [
+            "categorical_cb",
+            "ae_orange",
+            "ae_diverging",
+            "ae_blue",
+            "ae_diverging_r",
+        ]:
+            cmap = _read_ae_colormap(cmap=cmap, cmap_hex=True)
 
-            with warnings.catch_warnings():
-                # Silence annoying matplotlib deprecation error
-                warnings.simplefilter("ignore")
+        # Set default width & height
+        if width is None:
+            width = 550
+        if height is None:
+            height = 450
 
-                # Use generic static xarray plot
-                try:
-                    _matplotlib_plot = data.isel(time=0).plot(cmap=cmap)
-                except:
-                    _matplotlib_plot = data.isel(
-                        time=0
-                    ).plot()  # Make histogram for data the plotting function doesn't know how to handle
-                _plot = plt.gcf()  # Add plot to figure
-                plt.close()  # Close to prevent annoying matplotlib collections object line from showing in notebook
-        # If there's more than one grid cell, generate a pretty map
-        elif (len(data["x"]) > 1) and (len(data["y"]) > 1):
-            # Define colorbar label using variable and units
-            try:
-                clabel = data.name + " (" + data.attrs["units"] + ")"
-            except:  # Try except just in case units attribute is missing from data
-                clabel = data.name
-
-            # Set default cmap if no user input
-            # Different if using hvplot (we need "hex")
-            if cmap in [
-                "categorical_cb",
-                "ae_orange",
-                "ae_diverging",
-                "ae_blue",
-                "ae_diverging_r",
-            ]:
-                cmap = _read_ae_colormap(cmap=cmap, cmap_hex=True)
-
-            # Set default width & height
-            if width is None:
-                width = 550
-            if height is None:
-                height = 450
-
+        if set(["x", "y"]).issubset(set(data.dims)):
+            x = "x"
+            y = "y"
             # Reproject data to lat/lon
             if lat_lon == True:
                 try:
@@ -137,25 +138,49 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
                         xr_da=data, proj="EPSG:4326", fill_value=np.nan
                     )
                 except:  # Reprojection can fail if the data doesn't have a crs element. If that happens, just carry on without projection (i.e. don't raise an error)
-                    warnings.warn(
-                        "Data reprojection to lat/lon failed. Using native x,y grid."
-                    )
                     pass
+        if set(["lat", "lon"]).issubset(set(data.dims)):
+            x = "lon"
+            y = "lat"
 
-            # Create map
-            _plot = data.hvplot.image(
-                x="x",
-                y="y",
-                grid=True,
-                clabel=clabel,
-                cmap=cmap,
-                width=width,
-                height=height,
-            )
-        else:
-            raise ValueError(
-                "You've encountered a bug in the code. Check the view.py module to troubleshoot"
-            )
+        # Create map
+        try:
+            if len(data[x]) > 1 and len(data[y]) > 1:
+                # If data has more than one grid cell, make a pretty map
+                _plot = data.hvplot.image(
+                    x=x,
+                    y=y,
+                    grid=True,
+                    clabel=clabel,
+                    cmap=cmap,
+                    width=width,
+                    height=height,
+                    clim=(vmin, vmax),
+                    sopt=sopt,
+                )
+            else:
+                # Make a scatter plot if it's just one grid cell
+                print(
+                    "Warning: your input data has 2 or less gridcells. Due to plotting limitations for small areas, a scatter plot will be generated."
+                )
+                _plot = data.hvplot.scatter(
+                    x=x,
+                    y=y,
+                    hover_cols=data.name,  # Add variable name as hover column
+                    grid=True,
+                    clabel=clabel,
+                    cmap=cmap,
+                    width=width,
+                    height=height,
+                    s=150,  # Size of marker
+                    clim=(vmin, vmax),
+                    sopt=sopt,
+                )
+        except:
+            # Print message instead of raising error
+            print("Unknown error: default map could not be generated for input data.")
+            _plot = None
+
     # Workflow if data contains only time dimension
     elif "time" in data.dims:
         # Default colormap for timeseries data
@@ -174,7 +199,8 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
 
     # Error raised if data does not contain [x,y] or time dimensions
     else:
-        raise ValueError(
-            "Input data must contain valid spatial dimensions (x,y) and/or time dimensions"
+        print(
+            "Default plot could not be generated: input data must contain valid spatial dimensions (x,y and/or lat,lon) and/or time dimensions"
         )
+        _plot = None
     return _plot

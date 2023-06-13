@@ -9,8 +9,10 @@ import pandas as pd
 import pkg_resources
 import psutil
 import warnings
+import fnmatch
 from ast import literal_eval
 from shapely.geometry import box
+
 from xclim.core.calendar import convert_calendar
 from xclim.sdba.adjustment import QuantileDeltaMapping
 from .catalog_convert import (
@@ -24,6 +26,7 @@ from .utils import _readable_bytes, get_closest_gridcell
 from .derive_variables import (
     _compute_relative_humidity,
     _compute_wind_mag,
+    _compute_wind_dir,
     _compute_dewpointtemp,
     _compute_specific_humidity,
 )
@@ -73,14 +76,14 @@ def _compute(xr_da):
 # ============================ Helper functions ================================
 
 
-def _get_as_shapely(location):
+def _get_as_shapely(selections):
     """
-    Takes the location data in the 'location' parameter, and turns it into a
+    Takes the location data, and turns it into a
     shapely object. Just doing polygons for now. Later other point/station data
     will be available too.
 
     Args:
-        location (climakitae.selectors.LocSelectorArea): location selection
+        selections (_DataSelector): Data settings (variable, unit, timescale, etc)
 
     Returns:
         shapely_geom (shapely.geometry)
@@ -89,10 +92,10 @@ def _get_as_shapely(location):
     # Box is formed using the following shape:
     #   shapely.geometry.box(minx, miny, maxx, maxy)
     shapely_geom = box(
-        location.longitude[0],  # minx
-        location.latitude[0],  # miny
-        location.longitude[1],  # maxx
-        location.latitude[1],  # maxy
+        selections.longitude[0],  # minx
+        selections.latitude[0],  # miny
+        selections.longitude[1],  # maxx
+        selections.latitude[1],  # maxy
     )
     return shapely_geom
 
@@ -104,7 +107,7 @@ def _get_cat_subset(selections, cat):
     """For an input set of data selections, get the catalog subset.
 
     Args:
-        selections (DataLoaders): object holding user's selections
+        selections (_DataSelector): object holding user's selections
         cat (intake_esm.core.esm_datastore): catalog
 
     Returns:
@@ -115,7 +118,7 @@ def _get_cat_subset(selections, cat):
     scenario_selections = selections.scenario_ssp + selections.scenario_historical
 
     # Get catalog keys
-    # Convert user-friendly names to catalog names (i.e. "45km" to "d01")
+    # Convert user-friendly names to catalog names (i.e. "45 km" to "d01")
     activity_id = [
         _downscaling_method_to_activity_id(dm) for dm in selections.downscaling_method
     ]
@@ -133,14 +136,29 @@ def _get_cat_subset(selections, cat):
         experiment_id=experiment_id,
         source_id=source_id,
     )
+
+    # Get just data that's on the LOCA grid
+    # This will include LOCA data and WRF data on the LOCA native grid
+    # Both datasets are tagged with UCSD as the institution_id, so we can use "UCSD" to further subset the catalog data
+    if "Statistical" in selections.downscaling_method:
+        cat_subset = cat_subset.search(institution_id="UCSD")
+    # If only dynamical is selected, we need to remove UCSD from the WRF query
+    else:
+        wrf_on_native_grid = [
+            institution
+            for institution in cat.df.institution_id.unique()
+            if institution != "UCSD"
+        ]
+        cat_subset = cat_subset.search(institution_id=wrf_on_native_grid)
+
     return cat_subset
 
 
-def _get_area_subset(area_subset, cached_area, location):
+def _get_area_subset(area_subset, cached_area, selections):
     """Get geometry to perform area subsetting with.
 
     Args:
-        location (climakitae.selectors.LocSelectorArea): location selection
+        selections (_DataSelector): object holding user's selections
 
     Returns:
         ds_region (shapely.geometry): geometry to use for subsetting
@@ -151,35 +169,33 @@ def _get_area_subset(area_subset, cached_area, location):
         return boundary_dataset[boundary_dataset.index == shape_index].iloc[0].geometry
 
     if area_subset == "lat/lon":
-        geom = _get_as_shapely(location)
+        geom = _get_as_shapely(selections)
         if not geom.is_valid:
             raise ValueError(
                 "Please go back to 'select' and choose" + " a valid lat/lon range."
             )
         ds_region = [geom]
     elif area_subset != "none":
-        shape_index = int(
-            location._geography_choose[location.area_subset][location.cached_area]
-        )
+        shape_index = int(selections._geography_choose[area_subset][cached_area])
         if area_subset == "states":
-            shape = set_subarea(location._geographies._us_states)
+            shape = set_subarea(selections._geographies._us_states)
         elif area_subset == "CA counties":
-            shape = set_subarea(location._geographies._ca_counties)
+            shape = set_subarea(selections._geographies._ca_counties)
         elif area_subset == "CA watersheds":
-            shape = set_subarea(location._geographies._ca_watersheds)
+            shape = set_subarea(selections._geographies._ca_watersheds)
         elif area_subset == "CA Electric Load Serving Entities (IOU & POU)":
-            shape = set_subarea(location._geographies._ca_utilities)
+            shape = set_subarea(selections._geographies._ca_utilities)
         elif area_subset == "CA Electricity Demand Forecast Zones":
-            shape = set_subarea(location._geographies._ca_forecast_zones)
+            shape = set_subarea(selections._geographies._ca_forecast_zones)
         elif area_subset == "CA Electric Balancing Authority Areas":
-            shape = set_subarea(location._geographies._ca_electric_balancing_areas)
+            shape = set_subarea(selections._geographies._ca_electric_balancing_areas)
         ds_region = [shape]
     else:
         ds_region = None
     return ds_region
 
 
-def _process_and_concat(selections, location, dsets, cat_subset):
+def _process_and_concat(selections, dsets, cat_subset):
     """Process all data; merge all datasets into one.
 
     Args:
@@ -194,128 +210,198 @@ def _process_and_concat(selections, location, dsets, cat_subset):
     """
     da_list = []
     scenario_list = selections.scenario_historical + selections.scenario_ssp
+
+    # Set to false at start
+    # Code will automatically set it to true if historical climate and an SSP are selected
     append_historical = False
 
     if True in ["SSP" in one for one in selections.scenario_ssp]:
         if "Historical Climate" in selections.scenario_historical:
-            # Historical climate will be appended to the SSP data
-            append_historical = True
+            if selections.time_slice[0] <= 2015:
+                # Historical climate will be appended to the SSP data
+                append_historical = True
             scenario_list.remove("Historical Climate")
         if "Historical Reconstruction (ERA5-WRF)" in selections.scenario_historical:
             # We are not allowing users to select historical reconstruction data and SSP data at the same time,
             # due to the memory restrictions at the moment
             scenario_list.remove("Historical Reconstruction (ERA5-WRF)")
 
+    scen_names = [_scenario_to_experiment_id(scenario) for scenario in scenario_list]
+    if append_historical:
+        scen_names = ["Historical + " + one_name for one_name in scen_names]
+    activity_ids = [
+        _downscaling_method_to_activity_id(downscaling_method)
+        for downscaling_method in selections.downscaling_method
+    ]
+
     for scenario in scenario_list:
+        # Convert user-friendly scenario to the experiment_id, which is used to search the catalog
+        scen_name = _scenario_to_experiment_id(scenario)
+        # Create empty list where data for all the simulations from the single scenario will be stored
         sim_list = []
-        da_name = _scenario_to_experiment_id(scenario)
-        for simulation in selections.simulation:
-            if append_historical:
-                # Reset name
-                da_name = "Historical + " + scenario
+        for downscaling_method in selections.downscaling_method:
+            # Loop through each unique downscaling method (LOCA or WRF)
+            # selections.downscaling method is set to "Dynamical" or "Statistical", so we need to get the
+            # activity_id that corresponds to each in order to search for it in the catalog
+            activity_id = _downscaling_method_to_activity_id(downscaling_method)
+            for simulation in selections.simulation:
+                # Loop through each unique simulation
+                if append_historical:
+                    # Method for if historical data needs to be appended to the SSP data
+                    # This will read in both historical and SSP for the same simulation, then concatenate both
 
-                # Get filenames
-                try:
-                    historical_filename = [
-                        name
-                        for name in dsets.keys()
-                        if simulation + "." + "historical" in name
-                    ][0]
-                    if (  # Need to get CESM2 data if ensmean is selected for ssp2-4.5 or ssp5-8.5
-                        simulation == "ensmean"
-                    ) and (
-                        scenario
-                        in [
-                            "SSP 2-4.5 -- Middle of the Road",
-                            "SSP 5-8.5 -- Burn it All",
-                        ]
-                    ):
-                        ssp_filename = [
-                            name
-                            for name in dsets.keys()
-                            if "CESM2." + _scenario_to_experiment_id(scenario) in name
-                        ][0]
-                    else:
-                        ssp_filename = [
-                            name
-                            for name in dsets.keys()
-                            if simulation + "." + _scenario_to_experiment_id(scenario)
-                            in name
-                        ][0]
-                except:  # Some simulation + ssp options are not available. Just continue with the loop if no filename is found
-                    continue
-                # Grab data
-                historical_data = dsets[historical_filename][selections.variable_id]
-                ssp_data = dsets[ssp_filename][selections.variable_id]
+                    # Reset name
+                    scen_name = "Historical + " + scenario
 
-                # Concatenate data. Rename scenario attribute
-                historical_appended = xr.concat(
-                    [historical_data, ssp_data],
-                    dim="time",
-                    coords="minimal",
-                    compat="override",
-                    join="inner",
-                )
-                sim_list.append(historical_appended)
+                    # Get filenames
+                    try:
+                        historical_filename = fnmatch.filter(
+                            list(dsets.keys()),
+                            "*{0}.*{1}.*historical*".format(activity_id, simulation),
+                        )[0]
+                        ssp_filename = fnmatch.filter(
+                            list(dsets.keys()),
+                            "*{0}.*{1}.*{2}*".format(
+                                activity_id,
+                                simulation,
+                                _scenario_to_experiment_id(scenario),
+                            ),
+                        )[0]
+                    except:  # Some simulation + ssp options are not available. Just continue with the loop if no filename is found
+                        continue
+                    # Grab data
+                    historical_data = _subset(dsets[historical_filename], selections)
+                    ssp_data = _subset(dsets[ssp_filename], selections)
 
-            else:
-                try:
-                    if (  # Need to get CESM2 data if ensmean is selected for ssp2-4.5 or ssp5-8.5
-                        simulation == "ensmean"
-                    ) and (
-                        scenario
-                        in [
-                            "SSP 2-4.5 -- Middle of the Road",
-                            "SSP 5-8.5 -- Burn it All",
-                        ]
-                    ):
-                        filename = [
-                            name
-                            for name in dsets.keys()
-                            if "CESM2." + _scenario_to_experiment_id(scenario) in name
-                        ][0]
-                    else:
-                        filename = [
-                            name
-                            for name in dsets.keys()
-                            if simulation + "." + _scenario_to_experiment_id(scenario)
-                            in name
-                        ][0]
-                except:
-                    continue
-                sim_list.append(dsets[filename][selections.variable_id])
+                    # Concatenate data. Rename scenario attribute
+                    # This will append the SSP data to the historical data, both with the same simulation
+                    ds_sim = xr.concat(
+                        [historical_data, ssp_data],
+                        dim="time",
+                        coords="minimal",
+                        compat="override",
+                        join="inner",
+                    )
+
+                else:
+                    # If historical data does not need to be appended, just grab the filename that matches the current state of the loop
+                    try:
+                        #
+                        filename = fnmatch.filter(
+                            list(dsets.keys()),
+                            "*{0}.*{1}.*{2}*".format(
+                                activity_id,
+                                simulation,
+                                _scenario_to_experiment_id(scenario),
+                            ),
+                        )[0]
+                        ds_sim = _subset(dsets[filename], selections)
+                    except:
+                        continue
+                # Get the name of the variable id
+                # This corresponds to the name of the data variable
+                var_id = list(ds_sim.data_vars)[0]
+
+                # Convert units
+                da_sim = ds_sim[var_id]  # Convert xr.Dataset --> xr.DataArray
+                if var_id == "huss":
+                    # Units for LOCA specific humidity are set to 1
+                    # Reset to kg/kg so they can be converted if neccessary to g/kg
+                    da_sim.attrs["units"] = "kg/kg"
+                elif var_id == "rsds":
+                    # rsds units are "W m-2"
+                    # rename them to W/m2 to match the lookup catalog, and the units for WRF radiation variables
+                    da_sim.attrs["units"] = "W/m2"
+                da_sim = _convert_units(da=da_sim, selected_units=selections.units)
+
+                # Combine member_id and simulation coordinates
+                for member_id in da_sim.member_id.values:
+                    da_sim_member_id = da_sim.sel(member_id=member_id).drop("member_id")
+                    # Rename the simulation coordinate to include the member_id
+                    da_sim_member_id["simulation"] = "{0}_{1}_{2}".format(
+                        activity_id, simulation, member_id
+                    )
+                    sim_list.append(da_sim_member_id)
+
+        # Raise an appropriate error if no data found
+        # The list will be empty if no data matched any of the filename wildcards
+        if len(sim_list) == 0:
+            raise ValueError(
+                "You've encountered a bug in the source code. The data selections you've set do not correspond to a valid data option in the Analytics Engine catalog."
+            )
 
         # Concatenate along simulation dimension
-        da = xr.concat(sim_list, dim="simulation", coords="minimal", compat="override")
-        da_list.append(da.assign_coords({"scenario": da_name}))
+        else:
+            da = xr.concat(
+                sim_list, dim="simulation", coords="minimal", compat="broadcast_equals"
+            )
+            da = da.assign_coords({"scenario": scen_name})
+            da_list.append(da)
 
     # Concatenate along scenario dimension
-    da_final = xr.concat(da_list, dim="scenario", coords="minimal", compat="override")
-
-    # Rename
-    da_final.name = selections.variable
-
-    # Add attributes
-    orig_attrs = dsets[list(dsets.keys())[0]].attrs
-    da_final.attrs = {  # Add descriptive attributes to DataArray
-        "institution": orig_attrs["institution"],
-        "source": orig_attrs["source"],
-        "location_subset": location.cached_area,
-        "resolution": selections.resolution,
-        "frequency": selections.timescale,
-        "grid_mapping": da_final.attrs["grid_mapping"],
-        "location_subset": location.cached_area,
-        "variable_id": selections.variable_id,
-        "extended_description": selections.extended_description,
-        "units": da_final.attrs["units"],
-    }
+    da_final = xr.concat(
+        da_list, dim="scenario", coords="minimal", compat="broadcast_equals"
+    )
     return da_final
 
 
 # ============ Read from catalog function used by ck.Application ===============
 
 
-def _get_data_one_var(selections, location, cat):
+def _subset(dset, selections):
+    # Time slice
+    dset = dset.sel(
+        time=slice(str(selections.time_slice[0]), str(selections.time_slice[1]))
+    )
+
+    # Perform area subsetting
+    # You need to retrieve the entire domain because the shapefiles will cut out the ocean grid cells
+    # But the some station's closest gridcells are the ocean!
+    if selections.data_type == "Station":
+        area_subset = "none"
+        cached_area = "entire domain"
+    else:
+        area_subset = selections.area_subset
+        cached_area = selections.cached_area
+    ds_region = _get_area_subset(area_subset, cached_area, selections)
+    if ds_region is not None:  # Perform subsetting
+        if selections.downscaling_method == ["Dynamical"]:
+            try:
+                dset = dset.rio.clip(
+                    geometries=ds_region, crs=4326, drop=True, all_touched=False
+                )
+            except:
+                # Catch small geometry error
+                # Unsure how to catch the unique exception that rioxarray raises: NoDataInBounds
+                # This will unfortunately catch all unrelated exceptions-- hopefully there's not other cases where the code will trigger an exception, but I'm not sure
+                print(
+                    "COULD NOT RETRIEVE DATA: For the provided data selections, there is not sufficient data to retrieve. Try selecting a larger spatial area, or a higher resolution. Returning None."
+                )
+                return None
+        else:
+            # LOCA does not have x,y coordinates. rioxarray hates this
+            # rioxarray will raise this error: MissingSpatialDimensionError: x dimension not found. 'rio.set_spatial_dims()' or using 'rename()' to change the dimension name to 'x' can address this.
+            # Therefore I need to rename the lat, lon dimensions to x,y, and then reset them after clipping.
+            # I also need to write a CRS to the dataset
+            dset = dset.rename({"lon": "x", "lat": "y"})
+            dset = dset.rio.write_crs("EPSG:4326")
+            dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
+            dset = dset.rename({"x": "lon", "y": "lat"}).drop("spatial_ref")
+
+    # Perform area averaging
+    if selections.area_average == "Yes":
+        weights = np.cos(np.deg2rad(dset.lat))
+        if set(["x", "y"]).issubset(set(dset.dims)):
+            # WRF data has x,y
+            dset = dset.weighted(weights).mean("x").mean("y")
+        elif set(["lat", "lon"]).issubset(set(dset.dims)):
+            # LOCA data has x,y
+            dset = dset.weighted(weights).mean("lat").mean("lon")
+
+    return dset
+
+
+def _get_data_one_var(selections, cat):
     """Get data for one variable"""
 
     with warnings.catch_warnings():
@@ -323,6 +409,11 @@ def _get_data_one_var(selections, location, cat):
 
         # Get catalog subset for a set of user selections
         cat_subset = _get_cat_subset(selections=selections, cat=cat)
+
+        if len(cat_subset.df["institution_id"].unique()) == 1:
+            _institution = cat_subset.df["institution_id"].unique()[0]
+        else:
+            _institution = "Multiple"
 
         # Read data from AWS
         data_dict = cat_subset.to_dataset_dict(
@@ -358,66 +449,38 @@ def _get_data_one_var(selections, location, cat):
         )
         data_dict = {**data_dict, **data_dict2}
 
-    # Perform subsetting operations
-    for dname, dset in data_dict.items():
-        # Add simulation as a coord
-        dset = dset.assign_coords({"simulation": dset.attrs["source_id"]})
-
-        # Time slice
-        dset = dset.sel(
-            time=slice(str(selections.time_slice[0]), str(selections.time_slice[1]))
-        )
-
-        # Perform area subsetting
-
-        # Bay Area airport stations are tricky, requires some hacky coding
-        # You need to retrieve the entire domain because the shapefiles will cut out the ocean grid cells
-        # But the bay area airports closest gridcells are the ocean!
-        # Ideally the shapefiles should be modified to include the bay area water regions
-        bay_stations = [
-            "Oakland Metro International Airport",
-            "San Francisco International Airport",
-        ]
-        if (location.data_type == "Station") and any(
-            x in location.station for x in bay_stations
-        ):
-            area_subset = "none"
-            cached_area = "entire domain"
-        else:
-            area_subset = location.area_subset
-            cached_area = location.cached_area
-        ds_region = _get_area_subset(area_subset, cached_area, location)
-        if ds_region is not None:  # Perform subsetting
-            dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
-
-        # Perform area averaging
-        if selections.area_average == "Yes":
-            weights = np.cos(np.deg2rad(dset.lat))
-            dset = dset.weighted(weights).mean("x").mean("y")
-
-        # Update dataset in dictionary
-        data_dict.update({dname: dset})
-
     # Merge individual Datasets into one DataArray object.
     da = _process_and_concat(
-        selections=selections, location=location, dsets=data_dict, cat_subset=cat_subset
+        selections=selections, dsets=data_dict, cat_subset=cat_subset
     )
 
     # Assign data type attribute
-    da = da.assign_attrs({"data_type": location.data_type})
-
+    da_new_attrs = {  # Add descriptive attributes to DataArray
+        "variable_id": ", ".join(
+            selections.variable_id
+        ),  # Convert list to comma separated string
+        "extended_description": selections.extended_description,
+        "units": selections.units,
+        "data_type": selections.data_type,
+        "resolution": selections.resolution,
+        "frequency": selections.timescale,
+        "location_subset": selections.cached_area,
+        "institution": _institution,
+    }
+    if "grid_mapping" in da.attrs:
+        da_new_attrs = da_new_attrs | {"grid_mapping": da.attrs["grid_mapping"]}
+    da.attrs = da_new_attrs
+    da.name = selections.variable
     return da
 
 
-def _read_catalog_from_select(selections, location, cat, loop=False):
+def _read_catalog_from_select(selections, cat):
     """The primary and first data loading method, called by
     core.Application.retrieve, it returns a DataArray (which can be quite large)
-    containing everything requested by the user (which is stored in 'selections'
-    and 'location').
+    containing everything requested by the user (which is stored in 'selections').
 
     Args:
         selections (DataLoaders): object holding user's selections
-        location (LocSelectorArea): object holding user's location selections
         cat (intake_esm.core.esm_datastore): catalog
 
     Returns:
@@ -437,8 +500,8 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
         raise ValueError("Please select as least one dataset.")
 
     # Raise error if station data selected, but no station is selected
-    if (location.data_type == "Station") and (
-        location.station in [[], ["No stations available at this location"]]
+    if (selections.data_type == "Station") and (
+        selections.station in [[], ["No stations available at this location"]]
     ):
         raise ValueError(
             "Please select at least one weather station, or retrieve gridded data."
@@ -446,7 +509,7 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
 
     # For station data, need to expand time slice to ensure the historical period is included
     # At the end, the data will be cut back down to the user's original selection
-    if location.data_type == "Station":
+    if selections.data_type == "Station":
         original_time_slice = selections.time_slice  # Preserve original user selections
         original_scenario_historical = selections.scenario_historical.copy()
         if "Historical Climate" not in selections.scenario_historical:
@@ -461,54 +524,94 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
             selections.time_slice = (selections.time_slice[0], obs_data_bounds[1])
 
     # Deal with derived variables
-    orig_var_id_selection = selections.variable_id
+    orig_var_id_selection = selections.variable_id[0]
+    orig_unit_selection = selections.units
     orig_variable_selection = selections.variable
     if "_derived" in orig_var_id_selection:
-        if orig_var_id_selection == "wind_speed_derived":
+        if orig_var_id_selection in ["wind_speed_derived", "wind_direction_derived"]:
             # Load u10 data
-            selections.variable_id = "u10"
-            u10_da = _get_data_one_var(selections, location, cat)
+            selections.variable_id = ["u10"]
+            selections.units = (
+                "m s-1"  # Need to set units to required units for _compute_wind_mag
+            )
+            u10_da = _get_data_one_var(selections, cat)
 
             # Load v10 data
-            selections.variable_id = "v10"
-            v10_da = _get_data_one_var(selections, location, cat)
+            selections.variable_id = ["v10"]
+            selections.units = "m s-1"
+            v10_da = _get_data_one_var(selections, cat)
 
             # Derive wind magnitude
-            da = _compute_wind_mag(u10=u10_da, v10=v10_da)
+            if orig_var_id_selection == "wind_speed_derived":
+                da = _compute_wind_mag(u10=u10_da, v10=v10_da)  # m/s  # m/s
+            # Or, derive wind speed
+            elif orig_var_id_selection == "wind_direction_derived":
+                da = _compute_wind_dir(u10=u10_da, v10=v10_da)
 
+        elif orig_var_id_selection == "dew_point_derived":
+            # Daily/monthly dew point inputs have different units
+            # Hourly dew point temp derived differently because you also have to derive relative humidity
+
+            # Load temperature data
+            selections.variable_id = ["t2"]
+            selections.units = (
+                "K"  # Kelvin required for humidity and dew point computation
+            )
+            t2_da = _get_data_one_var(selections, cat)
+
+            selections.variable_id = ["rh"]
+            selections.units = "[0 to 100]"
+            rh_da = _get_data_one_var(selections, cat)
+
+            # Derive dew point temperature
+            # Returned in units of Kelvin
+            da = _compute_dewpointtemp(
+                temperature=t2_da, rel_hum=rh_da  # Kelvin  # [0-100]
+            )
         else:
             # Load temperature data
-            selections.variable_id = "t2"
-            t2_da = _get_data_one_var(selections, location, cat)
+            selections.variable_id = ["t2"]
+            selections.units = (
+                "K"  # Kelvin required for humidity and dew point computation
+            )
+            t2_da = _get_data_one_var(selections, cat)
 
             # Load mixing ratio data
-            selections.variable_id = "q2"
-            q2_da = _get_data_one_var(selections, location, cat)
+            selections.variable_id = ["q2"]
+            selections.units = "kg kg-1"
+            q2_da = _get_data_one_var(selections, cat)
 
             # Load pressure data
-            selections.variable_id = "psfc"
-            pressure_da = _get_data_one_var(selections, location, cat)
+            selections.variable_id = ["psfc"]
+            selections.units = "Pa"
+            pressure_da = _get_data_one_var(selections, cat)
 
             # Derive relative humidity
+            # Returned in units of [0-100]
             rh_da = _compute_relative_humidity(
-                pressure=pressure_da, temperature=t2_da, mixing_ratio=q2_da
+                pressure=pressure_da,  # Pa
+                temperature=t2_da,  # Kelvin
+                mixing_ratio=q2_da,  # kg/kg
             )
 
             if orig_var_id_selection == "rh_derived":
                 da = rh_da
 
             else:
-                # Need to figure out how to silence divide by zero runtime warning
                 # Derive dew point temperature
-                dew_pnt_da = _compute_dewpointtemp(temperature=t2_da, rel_hum=rh_da)
+                # Returned in units of Kelvin
+                dew_pnt_da = _compute_dewpointtemp(
+                    temperature=t2_da, rel_hum=rh_da  # Kelvin  # [0-100]
+                )
 
-                if orig_var_id_selection == "dew_point_derived":
+                if orig_var_id_selection == "dew_point_derived_hrly":
                     da = dew_pnt_da
 
                 elif orig_var_id_selection == "q2_derived":
                     # Derive specific humidity
+                    # Returned in units of g/kg
                     da = _compute_specific_humidity(
-                        tdps=dew_pnt_da, pressure=pressure_da
+                        tdps=dew_pnt_da, pressure=pressure_da  # Kelvin  # Pa
                     )
 
                 else:
@@ -516,21 +619,20 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
                         "You've encountered a bug. No data available for selected derived variable."
                     )
 
-        selections.variable_id = orig_var_id_selection
+        da = _convert_units(da, selected_units=orig_unit_selection)
         da.attrs["variable_id"] = orig_var_id_selection  # Reset variable ID attribute
+        da.attrs["units"] = orig_unit_selection
         da.name = orig_variable_selection  # Set name of DataArray
 
-    else:
-        da = _get_data_one_var(selections, location, cat)
+        # Reset selections to user's original selections
+        selections.variable_id = [orig_var_id_selection]
+        selections.units = orig_unit_selection
 
-    da = _convert_units(da=da, selected_units=selections.units)  # Convert units
-    if location.data_type == "Station":
-        if loop:
-            # print("Retrieving station data using a for loop")
-            da = _station_loop(location, da, stations_df, original_time_slice)
-        else:
-            # print("Retrieving station data using xr.apply")
-            da = _station_apply(location, da, stations_df, original_time_slice)
+    else:
+        da = _get_data_one_var(selections, cat)
+
+    if selections.data_type == "Station":
+        da = _station_apply(selections, da, stations_df, original_time_slice)
         # Reset original selections
         if "Historical Climate" not in original_scenario_historical:
             selections.scenario_historical.remove("Historical Climate")
@@ -543,9 +645,9 @@ def _read_catalog_from_select(selections, location, cat, loop=False):
 # USE XR APPLY TO GET BIAS CORRECTED DATA TO STATION
 
 
-def _station_apply(location, da, stations_df, original_time_slice):
+def _station_apply(selections, da, stations_df, original_time_slice):
     # Grab zarr data
-    station_subset = stations_df.loc[stations_df["station"].isin(location.station)]
+    station_subset = stations_df.loc[stations_df["station"].isin(selections.station)]
     filepaths = [
         "s3://cadcat/tmp/hadisd/HadISD_{}.zarr".format(s_id)
         for s_id in station_subset["station id"]
@@ -560,7 +662,7 @@ def _station_apply(location, da, stations_df, original_time_slice):
         backend_kwargs=dict(storage_options={"anon": True}),
     )
     apply_output = station_ds.apply(
-        _bias_corrected_closest_gridcell,
+        _get_bias_corrected_closest_gridcell,
         keep_attrs=False,
         gridded_da=da,
         time_slice=original_time_slice,
@@ -568,31 +670,57 @@ def _station_apply(location, da, stations_df, original_time_slice):
     return apply_output
 
 
-def _bias_corrected_closest_gridcell(station_da, gridded_da, time_slice):
+def _get_bias_corrected_closest_gridcell(station_da, gridded_da, time_slice):
     """Get the closest gridcell to a weather station.
     Bias correct the data using historical station data
     """
-    gridded_da_closest_gridcell = _closest_gridcell(station_da, gridded_da)
-    bias_corrected = _bias_correct(station_da, gridded_da_closest_gridcell, time_slice)
-    bias_corrected.attrs["station_coordinates"] = station_da.attrs["coordinates"]
-    bias_corrected.attrs["station_elevation"] = station_da.attrs["elevation"]
+    # Get the closest gridcell to the station
+    station_lat, station_lon = station_da.attrs["coordinates"]
+    gridded_da_closest_gridcell = get_closest_gridcell(
+        gridded_da, station_lat, station_lon, print_coords=False
+    )
+
+    # Droop any coordinates in the output dataset that are not also dimensions
+    # This makes merging all the stations together easier and drops superfluous coordinates
+    gridded_da_closest_gridcell = gridded_da_closest_gridcell.drop(
+        [
+            i
+            for i in gridded_da_closest_gridcell.coords
+            if i not in gridded_da_closest_gridcell.dims
+        ]
+    )
+
+    # Bias correct the model data using the station data
+    # Cut the output data back to the user's selected time slice
+    bias_corrected = _bias_correct_model_data(
+        station_da, gridded_da_closest_gridcell, time_slice
+    )
+
+    # Add descriptive coordinates to the bias corrected data
+    bias_corrected.attrs["station_coordinates"] = station_da.attrs[
+        "coordinates"
+    ]  # Coordinates of station
+    bias_corrected.attrs["station_elevation"] = station_da.attrs[
+        "elevation"
+    ]  # Elevation of station
     return bias_corrected
 
 
-def _closest_gridcell(station_da, gridded_da):
-    """Find the closest gridcell to station coordinates"""
-    lat, lon = station_da.attrs["coordinates"]
-    da_closest_gridcell = get_closest_gridcell(gridded_da, lat, lon, print_coords=False)
-    da_closest_gridcell = da_closest_gridcell.drop(
-        [i for i in da_closest_gridcell.coords if i not in da_closest_gridcell.dims]
-    )
-    return da_closest_gridcell
-
-
-def _bias_correct(
+def _bias_correct_model_data(
     obs_da, gridded_da, time_slice, nquantiles=20, group="time.dayofyear", kind="+"
 ):
-    """Bias correct model data using observational station data"""
+    """Bias correct model data using observational station data
+    Converts units of the station data to whatever the input model data's units are
+    Converts calendars of both datasets to a no leap calendar
+    Time slices the data
+    Performs bias correction
+
+    Args:
+        obs_da (xr.DataArray): station data, preprocessed with the function _preprocess_hadisd
+        gridded_da (xr.DataArray): input model data
+        time_slice (tuple): temporal slice to cut gridded_da to, after bias correction
+
+    """
     # Convert units to whatever the gridded data units are
     obs_da = _convert_units(obs_da, gridded_da.units)
     # Rechunk data. Cannot be chunked along time dimension
@@ -624,6 +752,21 @@ def _bias_correct(
 
 
 def _preprocess_hadisd(ds):
+    """
+    Preprocess station data so that it can be more seamlessly integrated into the wrangling process
+    Get name of station id and station name
+    Rename data variable to the station name; this allows the return of a Dataset object, with each unique station as a data variable
+    Convert celcius to kelvin
+    Assign descriptive attributes
+    Drop unneccessary coordinates that can cause issues when bias correcting with the model data
+
+    Args:
+        ds (xr.Dataset): data for a single HadISD station
+
+    Returns:
+        xr.Dataset
+
+    """
     # Get station ID from file name
     station_id = ds.encoding["source"].split("HadISD_")[1].split(".zarr")[0]
     # Get name of station from station_id
@@ -652,196 +795,20 @@ def _preprocess_hadisd(ds):
     return ds
 
 
-#### LOOP THROUGH EACH STATION INSTEAD
-
-
-def _station_loop(location, da, stations_df, original_time_slice):
-    """Get the closest gridcell, perform bias correction using a for loop"""
-    stations_da_list = []
-    for station in location.station:
-        # Retrieve the closest gridcell to the weather station
-        da_closest_gridcell = _retrieve_and_format_closest_gridcell(
-            stations_df, station, da
-        )
-        # Bias correct using historical station data
-        bias_correct = True
-        if bias_correct == True:
-            da_closest_gridcell = _bias_correct_backend(
-                stations_df,
-                station,
-                da_closest_gridcell,
-                original_time_slice,
-            )
-        # Drop coordinates that aren't also dimensions
-        da_closest_gridcell = da_closest_gridcell.drop(
-            [i for i in da_closest_gridcell.coords if i not in da_closest_gridcell.dims]
-        )
-        stations_da_list.append(da_closest_gridcell)
-
-    # Merge all stations to form a single object
-    da = xr.merge(stations_da_list, combine_attrs="drop_conflicts")
-    return da
-
-
-def _bias_correct_backend(
-    stations_df,
-    station_name,
-    da,
-    time_slice,
-    nquantiles=20,
-    group="time.dayofyear",
-    kind="+",
-):
-    """Bias correct the gridded data using observational station data.
-    Retrieves the appropriate zarr store corresponding to the station name from the AE bucket.
-
-    Parameters
-    ----------
-    stations_df: pd.DataFrame
-        Weather station names and coordinates
-    station_name: str
-        Name of weather station to use
-        Must directly correspond to a value in the "station" column of stations_gpd
-    data: xr.DataArray
-        Gridded data
-
-    Returns
-    -------
-    xr.DataArray
-    """
-    # Get the path to the zarr store using the station ID
-    station_row = stations_df.loc[stations_df["station"] == station_name]
-    station_id = str(station_row["station id"].item())
-    s3_path = "s3://cadcat/tmp/hadisd/HadISD_" + station_id + ".zarr"
-    # Open the zarr store
-    obs_da = xr.open_dataset(
-        s3_path,
-        engine="zarr",
-        consolidated=False,
-        backend_kwargs=dict(storage_options={"anon": True}),
-    ).tas
-    # Convert units to whatever the gridded data units are
-    obs_da = _convert_obs_da_units(obs_da, da.units)
-    # Rechunk data. Cannot be chunked along time dimension
-    # Error raised by xclim: ValueError: Multiple chunks along the main adjustment dimension time is not supported.
-    da = da.chunk(dict(time=-1))
-    # Convert calendar to no leap year
-    obs_da = convert_calendar(obs_da, "noleap")
-    da = convert_calendar(da, "noleap")
-    # Data at the desired time slice
-    data_sliced = da.sel(time=slice(str(time_slice[0]), str(time_slice[1])))
-    # Get QDS
-    QDM = QuantileDeltaMapping.train(
-        obs_da,
-        # Input data, sliced to time period of observational data
-        da.sel(
-            time=slice(
-                str(obs_da.time.values[0].year), str(obs_da.time.values[-1].year)
-            )
-        ),
-        nquantiles=nquantiles,
-        group=group,
-        kind=kind,
-    )
-    # Bias correct the data
-    da_adj = QDM.adjust(data_sliced)
-    da_adj.name = da.name  # Rename it to get back to original name
-    return da_adj
-
-
-def _convert_obs_da_units(obs_data, new_units):
-    """Observational data is in degrees Celcius.
-    Convert to correct units.
-    Must be converted to Kelvin first to user _convert_units function
-    """
-    if obs_data.units != "degC":
-        raise ValueError(
-            "Expected observational data to have units of degC, but found other units. Unable to perform unit conversion. Consult code base and raw data."
-        )
-    if obs_data.units != new_units:
-        obs_data = obs_data + 273.15  # Convert Celcius to Kelvin
-        obs_data.attrs["units"] = "K"
-        if new_units != "K":
-            obs_data = _convert_units(obs_data, new_units)
-    return obs_data
-
-
-def _retrieve_and_format_closest_gridcell(stations_df, station_name, data):
-    """Retrieve the closest gridcell to an input weather station
-    Format the DataArray
-
-    Parameters
-    ----------
-    stations_df: pd.DataFrame
-        Weather station names and coordinates
-    station_name: str
-        Name of weather station to use.
-        Must directly correspond to a value in the "station" column of stations_gpd
-    data: xr.DataArray
-        Gridded data
-
-    Returns
-    -------
-    xr.DataArray
-        Input DataArray subsetted to the closest gridcell to the station coordinates
-        DataArray name is set to station_name
-
-    See also
-    --------
-    climakitae.utils.get_closest_gridcell
-
-    """
-
-    # Get the closest grid cell
-    station_row = stations_df.loc[stations_df["station"] == station_name]
-    data_closest_gridcell = get_closest_gridcell(
-        data, station_row.LAT_Y.item(), station_row.LON_X.item(), print_coords=False
-    )
-
-    # Clean and reformat the DataArray
-    attrs_to_keep = {
-        key: data_closest_gridcell.attrs[key]
-        for key in data_closest_gridcell.attrs
-        if key
-        not in [
-            "resolution",
-            "location_subset",
-            "grid_mapping",
-            "source",
-            "institution",
-        ]
-    }
-    new_attrs = {
-        # Presevere the gridded data's central coordinate and the name of the closest station
-        "coordinates": (
-            data_closest_gridcell.lat.values.item(),
-            data_closest_gridcell.lon.values.item(),
-        ),
-        "variable": data_closest_gridcell.name,
-    }
-    data_closest_gridcell.attrs = attrs_to_keep | new_attrs  # Reassign attributes
-    data_closest_gridcell.name = station_name  # Make the name the station name
-    return data_closest_gridcell
-
-
 # ============ Retrieve data from a csv input ===============
 
 
-def _read_catalog_from_csv(selections, location, cat, csv, merge=True):
+def _read_catalog_from_csv(selections, cat, csv, merge=True):
     """Retrieve data from csv input.
 
     Allows user to bypass app.select GUI and allows developers to
     pre-set inputs in a csv file for ease of use in a notebook.
-    location: LocSelectorArea
-        Location settings
     selections: DataSelector
         Data settings (variable, unit, timescale, etc)
     Parameters
     ----------
     selections: DataLoaders
         Data settings (variable, unit, timescale, etc).
-    location: LocSelectorArea
-        Location settings.
     cat: intake_esm.core.esm_datastore
         AE data catalog.
     csv: str
@@ -886,11 +853,11 @@ def _read_catalog_from_csv(selections, location, cat, csv, merge=True):
         # Evaluate string time slice as tuple... i.e "(1980,2000)" --> (1980,2000)
         selections.time_slice = literal_eval(row.time_slice)
         selections.units = row.units
-        location.area_subset = row.area_subset
-        location.cached_area = row.cached_area
+        selections.area_subset = row.area_subset
+        selections.cached_area = row.cached_area
 
         # Retrieve data
-        xr_da = _read_catalog_from_select(selections, location, cat)
+        xr_da = _read_catalog_from_select(selections, cat)
         xr_list.append(xr_da)
 
     if len(xr_list) > 1:  # If there's more than one element in the list

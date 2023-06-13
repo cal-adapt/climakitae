@@ -16,13 +16,12 @@ from .threshold_tools import (
 # ============ Class and methods for the explore.thresholds() GUI ==============
 
 
-def _get_threshold_data(selections, location, cat):
+def _get_threshold_data(selections, cat):
     """
     This function pulls data from the catalog and reads it into memory
 
     Args:
         selections (DataLoaders): object holding user's selections
-        location (LocSelectorArea): location object containing boundary information
         cat (intake_esm.core.esm_datastore): catalog
 
     Returns:
@@ -30,7 +29,7 @@ def _get_threshold_data(selections, location, cat):
 
     """
     # Read data from catalog
-    data = _read_catalog_from_select(selections=selections, location=location, cat=cat)
+    data = _read_catalog_from_select(selections=selections, cat=cat)
     data = data.compute()  # Read into memory
     return data
 
@@ -83,13 +82,11 @@ class _ThresholdDataParams(param.Parameterized):
         self.selections.variable = "Air Temperature at 2m"
 
         # Location defaults
-        self.location.area_subset = "CA counties"
-        self.location.cached_area = "Los Angeles County"
+        self.selections.area_subset = "CA counties"
+        self.selections.cached_area = "Los Angeles County"
 
         # Get the underlying dataarray
-        self.da = _get_threshold_data(
-            selections=self.selections, location=self.location, cat=self.cat
-        )
+        self.da = _get_threshold_data(selections=self.selections, cat=self.cat)
 
         self.threshold_value = round(self.da.mean().values.item())
         self.param.threshold_value.label = f"Value (units: {self.selections.units})"
@@ -107,8 +104,8 @@ class _ThresholdDataParams(param.Parameterized):
     changed_units = param.Boolean(default=False)
 
     @param.depends(
-        "location.area_subset",
-        "location.cached_area",
+        "selections.area_subset",
+        "selections.cached_area",
         "selections.variable",
         watch=True,
     )
@@ -126,9 +123,7 @@ class _ThresholdDataParams(param.Parameterized):
         """If the button was clicked and the location, variable, or units were
         changed, reload the data from AWS"""
         if self.changed_loc_and_var:
-            self.da = _get_threshold_data(
-                selections=self.selections, location=self.location, cat=self.cat
-            )
+            self.da = _get_threshold_data(selections=self.selections, cat=self.cat)
             self.changed_loc_and_var = False
         if self.changed_units:
             self.da = _convert_units(da=self.da, selected_units=self.selections.units)
@@ -254,7 +249,7 @@ def _exceedance_visualize(choices, option=1):
     return exceedance_count_panel
 
 
-def _thresholds_visualize(thresh_data, selections, location, map_view, option=1):
+def _thresholds_visualize(thresh_data, selections, option=1):
     """
     Function for constructing and displaying the explore.thresholds() panel.
     """
@@ -279,13 +274,13 @@ def _thresholds_visualize(thresh_data, selections, location, map_view, option=1)
                 width=230,
             ),
             pn.Column(
-                location.param.area_subset,
-                location.param.latitude,
-                location.param.longitude,
-                location.param.cached_area,
+                selections.param.area_subset,
+                selections.param.latitude,
+                selections.param.longitude,
+                selections.param.cached_area,
                 width=230,
             ),
-            pn.Column(map_view.view, width=180),
+            pn.Column(selections.map_view, width=180),
         ),
         title="Data Options",
         collapsible=False,

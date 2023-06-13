@@ -76,10 +76,10 @@ def compute_hdh_cdh(t2, hdh_threshold, cdh_threshold):
 
     # Calculate heating and cooling hours
     cooling_hours = t2.where(
-        t2 > hdh_threshold
+        t2 > cdh_threshold
     )  # temperatures above threshold, require cooling
-    heating_hours = (-1) * t2.where(
-        t2 < cdh_threshold
+    heating_hours = t2.where(
+        t2 < hdh_threshold
     )  # temperatures below threshold, require heating
 
     # Compute CDH: count number of hours and resample to daily (max 24 value)
@@ -225,4 +225,27 @@ def _compute_wind_mag(u10, v10, name="wind_speed_derived"):
     """
     wind_mag = np.sqrt(np.square(u10) + np.square(v10))
     wind_mag.name = "wind_speed_derived"
+    wind_mag.attrs["units"] = "m s-1"
     return wind_mag
+
+
+def _compute_wind_dir(u10, v10, name="wind_direction_derived"):
+    """Compute wind direction at 10 meters
+
+    Args:
+        u10 (xr.DataArray): Zonal velocity at 10 meters height in m/s
+        v10 (xr.DataArray): Meridional velocity at 10 meters height in m/s
+        name (str, optional): Name to assign to output DataArray
+
+    Returns:
+        wind_dir (xr.DataArray): Wind direction, in [0, 360] degrees,
+            with 0/360 defined as north, by meteorological convention
+
+    Notes:
+        source:  https://sites.google.com/view/raybellwaves/cheat-sheets/xarray
+    """
+
+    wind_dir = np.mod(90 - np.arctan2(-v10, -u10) * (180 / np.pi), 360)
+    wind_dir.name = name
+    wind_dir.attrs["units"] = "degrees"
+    return wind_dir

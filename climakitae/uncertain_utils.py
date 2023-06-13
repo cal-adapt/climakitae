@@ -137,7 +137,7 @@ def _clip_region(ds, area_subset, location):
         Input data
     area_subset: LocSelectorArea
         "counties"/"states" as options
-    location: LocSelectorArea
+    location: str
         county/state name
     all_touched: bool, optional
         Include all cells that intersect boundary, default is false
@@ -264,7 +264,7 @@ def _precip_flux_to_total(ds):
     return ds
 
 
-def _grab_ensemble_data_by_experiment_id(variable, cmip_names, location, experiment_id):
+def _grab_ensemble_data_by_experiment_id(variable, cmip_names, experiment_id):
     """Grab CMIP6 ensemble data
 
     Parameters
@@ -273,8 +273,6 @@ def _grab_ensemble_data_by_experiment_id(variable, cmip_names, location, experim
         Name of variable
     cmip_names: list of str
         Name of CMIP6 simulations
-    location: LocSelectorArea
-        Location for which to subset data
     experiment_id: scenario, one of "historical" or "ssp375"
 
     Returns
@@ -422,7 +420,7 @@ def grab_multimodel_data(copt, alpha_sort=False):
 
 
 ## Grab data - internal variability analysis
-def get_ensemble_data(variable, location, cmip_names, warm_level=3.0):
+def get_ensemble_data(variable, selections, cmip_names, warm_level=3.0):
     """Returns processed data from multiple CMIP6 models for uncertainty analysis.
 
     Searches the CMIP6 data catalog for data from models that have specific
@@ -438,8 +436,8 @@ def get_ensemble_data(variable, location, cmip_names, warm_level=3.0):
         Name of variable
     cmip_names: list of str
         Name of CMIP6 simulations
-    location: LocSelectorArea
-        Location for which to subset data
+    selections: _DataSelector
+        Data and location settings
     warm_level: float, optional
         Global warming level to use, default to 3.0
 
@@ -449,12 +447,8 @@ def get_ensemble_data(variable, location, cmip_names, warm_level=3.0):
 
     """
     # Get a list of datasets, each with one simulation (i.e. one dataset with several member_id values for CESM2, etc)
-    ssp_list = _grab_ensemble_data_by_experiment_id(
-        variable, cmip_names, location, "ssp370"
-    )
-    hist_list = _grab_ensemble_data_by_experiment_id(
-        variable, cmip_names, location, "historical"
-    )
+    ssp_list = _grab_ensemble_data_by_experiment_id(variable, cmip_names, "ssp370")
+    hist_list = _grab_ensemble_data_by_experiment_id(variable, cmip_names, "historical")
 
     # Reorder lists to match order of cmip_names
     hist_list_reordered = [
@@ -505,10 +499,14 @@ def get_ensemble_data(variable, location, cmip_names, warm_level=3.0):
     hist_ds = hist_ds.sel(time=slice("1981", "2010"))
 
     # Post-processing functions to perform on both datasets
-    def _postprocess(ds, location, variable):
+    def _postprocess(ds, selections, variable):
         """Subset the dataset by an input location, convert variables, perform area averaging"""
         # Perform area subsetting
-        ds_region = _get_area_subset(location=location)
+        ds_region = _get_area_subset(
+            selections.area_subset,
+            selections.cached_area,
+            selections,
+        )
         ds = ds.rio.write_crs(4326)
         ds = ds.rio.clip(geometries=ds_region, crs=4326, drop=True)
 
@@ -517,12 +515,12 @@ def get_ensemble_data(variable, location, cmip_names, warm_level=3.0):
             ds = _precip_flux_to_total(ds)
 
         # Perform area averaging
-        if location.area_average == "Yes":
+        if selections.area_average == "Yes":
             ds = _area_wgt_average(ds)
         return ds
 
-    hist_ds = _postprocess(hist_ds, location, variable)
-    warm_ds = _postprocess(warm_ds, location, variable)
+    hist_ds = _postprocess(hist_ds, selections, variable)
+    warm_ds = _postprocess(warm_ds, selections, variable)
 
     return hist_ds, warm_ds
 

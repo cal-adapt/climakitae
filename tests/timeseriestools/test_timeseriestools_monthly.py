@@ -102,7 +102,7 @@ def test_extremes_smoothing(test_TSP):
     test_TSP.anomaly = False
     test_TSP.smoothing = "Running Mean"
     test_TSP.num_timesteps = 3
-    test_TSP.extremes = "Min"
+    test_TSP.extremes = ["Min"]
     test_TSP.resample_window = 2
 
     # Transform data and test
@@ -113,7 +113,7 @@ def test_extremes_smoothing(test_TSP):
 def test_extremes_min(test_TSP):
     # Specify Params options
     test_TSP.anomaly = False
-    test_TSP.extremes = "Min"
+    test_TSP.extremes = ["Min"]
     test_TSP.resample_window = 2
 
     # Transform data and test
@@ -124,7 +124,7 @@ def test_extremes_min(test_TSP):
 def test_extremes_percentile(test_TSP):
     # Specify Params options
     test_TSP.anomaly = False
-    test_TSP.extremes = "Percentile"
+    test_TSP.extremes = ["Percentile"]
     test_TSP.resample_window = 2
     test_TSP.percentile = 0.95
 

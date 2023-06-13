@@ -1,5 +1,5 @@
-# Workflow file for continuous integration 
-# Conda environment is caches to avoid long wait times for CI 
+# Workflow file for continuous integration
+# Conda environment is caches to avoid long wait times for CI
 # Based on code from: https://github.com/epassaro/cache-conda-envs/blob/main/.github/workflows/ci.yml
 # Based on code from: https://github.com/marketplace/actions/setup-miniconda
 
@@ -11,7 +11,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: psf/black@stable
   build:
     strategy:
@@ -37,17 +37,16 @@ jobs:
         shell: bash -l {0}
     steps:
     - name: Checkout project
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: Cache conda
       uses: actions/cache@v2
       env:
           # Increase this value to reset cache if environment.yml has not changed
-          CACHE_NUMBER: 2
+          CACHE_NUMBER: 0
       with:
         path: ${{ matrix.prefix }}
         key:
-          ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{
-          hashFiles('etc/environment.yml') }}
+          ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{ hashFiles('environment.yml') }}
     - name: Setup Mambaforge
       uses: conda-incubator/setup-miniconda@v2
       with:
@@ -59,18 +58,10 @@ jobs:
           environment-file: environment.yml
           use-only-tar-bz2: true # IMPORTANT: This needs to be set for caching to work properly!
 
-    - name: Output conda info 
+    - name: Output conda info
       run: conda info
-    - name: Install xclim
-      run: pip install boltons==21.0.0 bottleneck==1.3.6 cf_xarray==0.7.9 jsonpickle==2.2.0 patsy==0.5.3 statsmodels==0.13.5 xclim==0.41.0 --no-deps
-    - name: Install climakitae 
+    - name: Install climakitae
       run: pip install .
-#    - name: Lint with flake8
-#      run: |
-#        # stop the build if there are Python syntax errors or undefined names
-#        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-#        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-#        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
       run: pytest --no-header -vv
       if: always() # Run even if previous step fails

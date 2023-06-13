@@ -18,25 +18,22 @@ class _AppExplore(object):
     Only functional in a jupyter notebook environment.
     """
 
-    def __init__(self, selections, location, _cat, map_view):
+    def __init__(self, selections, _cat, var_config):
         """Constructor
 
         Parameters
         ----------
         selections: _DataSelector
             Data settings (variable, unit, timescale, etc)
-        location: _LocSelectorArea
-            Location Settings
         _cat: intake_esm.core.esm_datastore
             AE data catalog
-        map_view: _ViewLocationSelections
-            Class for producing visualization of the selected data on a map
+        var_config: pd.DataFrame
+            Variable descriptions, units, etc in table format
 
         """
         self.selections = selections
-        self.location = location
         self._cat = _cat
-        self.map_view = map_view
+        self.var_config = var_config
 
     def __repr__(self):
         """Print a string description of the available analysis method for this class."""
@@ -51,13 +48,13 @@ class _AppExplore(object):
         """Display Average Meteorological Year panel."""
         global tmy_ob
         tmy_ob = _AverageMeteorologicalYear(
-            selections=self.selections, location=self.location, cat=self._cat
+            selections=self.selections,
+            cat=self._cat,
+            var_config=self.var_config,
         )
         return _amy_visualize(
             tmy_ob=tmy_ob,
             selections=self.selections,
-            location=self.location,
-            map_view=self.map_view,
         )
 
     def amy_selections(self):
@@ -73,22 +70,21 @@ class _AppExplore(object):
 
     def thresholds(self, option=1):
         """Display Thresholds panel."""
-        thresh_data = _ThresholdDataParams(
-            selections=self.selections, location=self.location, cat=self._cat
-        )
+        thresh_data = _ThresholdDataParams(selections=self.selections, cat=self._cat)
         return _thresholds_visualize(
             thresh_data=thresh_data,
             selections=self.selections,
-            location=self.location,
-            map_view=self.map_view,
             option=option,
         )
 
     def warming_levels(self):
         """Display Warming Levels panel."""
         warming_data = _WarmingLevels(
-            selections=self.selections, location=self.location, cat=self._cat
+            selections=self.selections,
+            cat=self._cat,
+            var_config=self.var_config,
         )
         return _display_warming_levels(
-            warming_data, self.selections, self.location, map_view=self.map_view
+            warming_data,
+            self.selections,
         )
