@@ -152,7 +152,7 @@ def get_block_maxima(
             all_ess.append(ess)
         average_ess = np.nanmean(all_ess)
         if average_ess < 25:
-            warn(f"The average effective sample size in your data is {average_ess} per block, which is low. This may result in biased estimates of extreme value distributions when calculating return values, periods, and probabilities from this data.")
+            warn(f"The average effective sample size in your data is {round(average_ess, 2)} per block, which is low. This may result in biased estimates of extreme value distributions when calculating return values, periods, and probabilities from this data.")
     
     # Common attributes
     bms.attrs["duration"] = duration
@@ -720,10 +720,16 @@ def get_return_value(
     xarray.Dataset
         Dataset with return values and confidence intervals
     """
+    # adjust period argument if block size is different than 1 year
+    if hasattr(bms, 'block size'):
+        block_factor = int(bms.attrs['block size'][0:-5]) # expected string format from get_block_maxima: '2 year'; extract the integer value here
+    else:
+        block_factor = 1
+
     return _get_return_variable(
         bms,
         "return_value",
-        return_period,
+        return_period / block_factor,
         distr,
         bootstrap_runs,
         conf_int_lower_bound,
@@ -765,6 +771,12 @@ def get_return_prob(
     xarray.Dataset
         Dataset with return probabilities and confidence intervals
     """
+    # adjust calculated probability if block size is different than 1 year
+    if hasattr(bms, 'block size'):
+        block_factor = int(bms.attrs['block size'][0:-5]) # expected string format from get_block_maxima: '2 year'; extract the integer value here
+    else:
+        block_factor = 1
+
     return _get_return_variable(
         bms,
         "return_prob",
@@ -774,7 +786,7 @@ def get_return_prob(
         conf_int_lower_bound,
         conf_int_upper_bound,
         multiple_points,
-    )
+    ) / block_factor
 
 
 def get_return_period(
@@ -810,6 +822,12 @@ def get_return_period(
     xarray.Dataset
         Dataset with return periods and confidence intervals
     """
+    # adjust calculated period if block size is different than 1 year
+    if hasattr(bms, 'block size'):
+        block_factor = int(bms.attrs['block size'][0:-5]) # expected string format from get_block_maxima: '2 year'; extract the integer value here
+    else:
+        block_factor = 1
+
     return _get_return_variable(
         bms,
         "return_period",
@@ -819,7 +837,7 @@ def get_return_period(
         conf_int_lower_bound,
         conf_int_upper_bound,
         multiple_points,
-    )
+    ) * block_factor
 
 
 # ===================== Functions for exceedance count =========================
