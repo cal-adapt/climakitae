@@ -147,7 +147,7 @@ def get_block_maxima(
     if check_ess:
         # all_ess = da_series.resample(time=f"{block_size}A").apply(calculate_ess) # how to set this up correctly? this currently errors so using a for loop below instead
         all_ess = []
-        for yr in set(bms.time.dt.year.values):
+        for yr in set(bms.time.dt.year.values[0:-1]):
             ess = calculate_ess(da_series.sel(time = slice(f"{yr}", f"{yr+block_size-1}")))
             all_ess.append(ess)
         average_ess = np.nanmean(all_ess)
