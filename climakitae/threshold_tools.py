@@ -145,10 +145,10 @@ def get_block_maxima(
 
     # Calculate the effective sample size of the computed event type in all blocks, check the average value
     if check_ess:
-        # all_ess = da_series.groupby("time.year").apply(calculate_ess) # how to set this up correctly? this currently errors so using a for loop below instead
+        # all_ess = da_series.resample(time=f"{block_size}A").apply(calculate_ess) # how to set this up correctly? this currently errors so using a for loop below instead
         all_ess = []
-        for yr in set(da_series.time.dt.year.values):
-            ess = calculate_ess(da_series.sel(time = f"{yr}"))
+        for yr in set(bms.time.dt.year.values):
+            ess = calculate_ess(da_series.sel(time = slice(f"{yr}", f"{yr+block_size}")))
             all_ess.append(ess)
         average_ess = np.nanmean(all_ess)
         if average_ess < 25:
