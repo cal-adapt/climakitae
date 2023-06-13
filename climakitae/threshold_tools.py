@@ -777,7 +777,7 @@ def get_return_prob(
     else:
         block_factor = 1
 
-    return _get_return_variable(
+    prob = _get_return_variable(
         bms,
         "return_prob",
         threshold,
@@ -786,7 +786,8 @@ def get_return_prob(
         conf_int_lower_bound,
         conf_int_upper_bound,
         multiple_points,
-    ) / block_factor
+    )
+    return 1 - (1 - prob)**(1/block_factor)
 
 
 def get_return_period(
