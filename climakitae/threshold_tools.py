@@ -339,7 +339,7 @@ def get_ks_stat(bms, distr="gev", multiple_points=True):
     return new_ds
 
 
-def _calculate_return(fitted_distr, data_variable, arg_value):
+def _calculate_return(fitted_distr, data_variable, arg_value, block_size=1):
     """Function to perform extreme value calculation on fitted distribution
 
     Runs corresponding extreme value calculation for selected data variable.
@@ -353,6 +353,8 @@ def _calculate_return(fitted_distr, data_variable, arg_value):
         can be return_value, return_prob, return_period
     arg_value: float
         value to do the calucation to
+    block_size: int
+        block size, in years, of the block maximum series data that was used to fit the provided distribution.
 
     Returns
     -------
@@ -361,24 +363,26 @@ def _calculate_return(fitted_distr, data_variable, arg_value):
 
     try:
         if data_variable == "return_value":
-            return_event = 1.0 - (1.0 / arg_value)
+            return_event = 1.0 - (block_size / arg_value)
             return_value = fitted_distr.ppf(return_event)
             result = round(return_value, 5)
-        elif data_variable == "return_prob":
-            result = 1 - (fitted_distr.cdf(arg_value))
-        elif data_variable == "return_period":
-            return_prob = fitted_distr.cdf(arg_value)
-            if return_prob == 1.0:
-                result = np.nan
-            else:
-                return_period = -1.0 / (return_prob - 1.0)
-                result = round(return_period, 3)
+        else:
+            prob = 1 - (fitted_distr.cdf(arg_value))
+            adj_prob = 1 - (1 - result)**(1/block_size) # adjust the return probability depending on the block size
+            if data_variable == "return_prob":
+                result = adj_prob
+            elif data_variable == "return_period":
+                if adj_prob == 1.0:
+                    result = np.nan
+                else:
+                    return_period = -1.0 / (adj_prob - 1.0)
+                    result = round(return_period, 3)
     except (ValueError, ZeroDivisionError, AttributeError):
         result = np.nan
     return result
 
 
-def _bootstrap(bms, distr="gev", data_variable="return_value", arg_value=10):
+def _bootstrap(bms, distr="gev", data_variable="return_value", arg_value=10, block_size=1):
     """Function for making a bootstrap-calculated value from input array
 
     Determines a bootstrap-calculated value for relevant parameters from an
@@ -393,6 +397,8 @@ def _bootstrap(bms, distr="gev", data_variable="return_value", arg_value=10):
         can be return_value, return_prob, return_period
     arg_value: float
         value to do the calculation to
+    block_size: int
+        block size, in years, of the provided block maximum series
 
     Returns
     -------
@@ -417,6 +423,7 @@ def _bootstrap(bms, distr="gev", data_variable="return_value", arg_value=10):
             fitted_distr=fitted_distr,
             data_variable=data_variable,
             arg_value=arg_value,
+            block_size=block_size
         )
     except (ValueError, ZeroDivisionError):
         result = np.nan
@@ -432,6 +439,7 @@ def _conf_int(
     bootstrap_runs,
     conf_int_lower_bound,
     conf_int_upper_bound,
+    block_size=1
 ):
     """Function for genearating lower and upper limits of confidence interval
 
@@ -448,6 +456,8 @@ def _conf_int(
         value to do the calucation to
     conf_int_lower_bound: float
     conf_int_upper_bound: float
+    block_size: int
+        block size, in years, of the provided block maximum series
 
     Returns
     -------
@@ -462,6 +472,7 @@ def _conf_int(
             distr,
             data_variable,
             arg_value,
+            block_size
         )
         bootstrap_values.append(result)
 
@@ -620,6 +631,12 @@ def _get_return_variable(
             .groupby("allpoints")
         )
 
+    # get block_size from the block maxima series attributes, if available. otherwise assume block size=1 year
+    if hasattr(bms, 'block size'):
+        block_size = int(bms.attrs['block size'][0:-5]) # expected string format from get_block_maxima: '2 year'; extract the integer value here
+    else:
+        block_size = 1
+
     def _return_variable(bms):
         try:
             parameters, fitted_distr = _get_fitted_distr(bms, distr, distr_func)
@@ -627,6 +644,7 @@ def _get_return_variable(
                 fitted_distr=fitted_distr,
                 data_variable=data_variable,
                 arg_value=arg_value,
+                block_size=block_size
             )
         except (ValueError, ZeroDivisionError):
             return_variable = np.nan
@@ -639,6 +657,7 @@ def _get_return_variable(
             bootstrap_runs=bootstrap_runs,
             conf_int_lower_bound=conf_int_lower_bound,
             conf_int_upper_bound=conf_int_upper_bound,
+            block_size=block_size
         )
 
         return return_variable, conf_int_lower_limit, conf_int_upper_limit
@@ -720,16 +739,11 @@ def get_return_value(
     xarray.Dataset
         Dataset with return values and confidence intervals
     """
-    # adjust period argument if block size is different than 1 year
-    if hasattr(bms, 'block size'):
-        block_factor = int(bms.attrs['block size'][0:-5]) # expected string format from get_block_maxima: '2 year'; extract the integer value here
-    else:
-        block_factor = 1
 
     return _get_return_variable(
         bms,
         "return_value",
-        return_period / block_factor,
+        return_period,
         distr,
         bootstrap_runs,
         conf_int_lower_bound,
@@ -771,13 +785,8 @@ def get_return_prob(
     xarray.Dataset
         Dataset with return probabilities and confidence intervals
     """
-    # adjust calculated probability if block size is different than 1 year
-    if hasattr(bms, 'block size'):
-        block_factor = int(bms.attrs['block size'][0:-5]) # expected string format from get_block_maxima: '2 year'; extract the integer value here
-    else:
-        block_factor = 1
 
-    prob = _get_return_variable(
+    return _get_return_variable(
         bms,
         "return_prob",
         threshold,
@@ -787,7 +796,6 @@ def get_return_prob(
         conf_int_upper_bound,
         multiple_points,
     )
-    return 1 - (1 - prob)**(1/block_factor)
 
 
 def get_return_period(
@@ -823,11 +831,6 @@ def get_return_period(
     xarray.Dataset
         Dataset with return periods and confidence intervals
     """
-    # adjust calculated period if block size is different than 1 year
-    if hasattr(bms, 'block size'):
-        block_factor = int(bms.attrs['block size'][0:-5]) # expected string format from get_block_maxima: '2 year'; extract the integer value here
-    else:
-        block_factor = 1
 
     return _get_return_variable(
         bms,
@@ -838,8 +841,7 @@ def get_return_period(
         conf_int_lower_bound,
         conf_int_upper_bound,
         multiple_points,
-    ) * block_factor
-
+    )
 
 # ===================== Functions for exceedance count =========================
 
