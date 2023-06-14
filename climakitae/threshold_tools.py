@@ -368,7 +368,7 @@ def _calculate_return(fitted_distr, data_variable, arg_value, block_size=1):
             result = round(return_value, 5)
         else:
             prob = 1 - (fitted_distr.cdf(arg_value))
-            adj_prob = 1 - (1 - prob)**(1/block_size) # adjust the return probability depending on the block size
+            adj_prob = 1 - (prob - 1)**(1/block_size) # adjust the return probability depending on the block size
             if data_variable == "return_prob":
                 result = adj_prob
             elif data_variable == "return_period":
