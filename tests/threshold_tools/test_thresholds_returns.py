@@ -6,6 +6,7 @@ the expected error messages for invalid argument specifications.
 """
 
 import os
+import numpy as np
 import pytest
 import xarray as xr
 
@@ -20,8 +21,8 @@ def T2_ams(rootdir):
     # This data is generated in "create_test_data.py"
     test_filename = "test_data/timeseries_data_T2_2014_2016_monthly_45km.nc"
     test_filepath = os.path.join(rootdir, test_filename)
-    test_data = xr.open_dataset(test_filepath).T2.isel(scenario=0, simulation=0, x=0, y=0)
-    return threshold_tools.get_block_maxima(test_data)
+    test_data = xr.open_dataset(test_filepath).T2.mean(dim=('x', 'y'), skipna=True).isel(scenario=0, simulation=0)
+    return threshold_tools.get_block_maxima(test_data, block_size=1, check_ess=False)
 
 
 # ------------- Test return values and periods ----------------------------------
@@ -32,7 +33,7 @@ def test_return_value(T2_ams):
     rvs = threshold_tools.get_return_value(
         T2_ams, return_period=10, distr="gev", bootstrap_runs=1, multiple_points=False
     )
-    assert not np.isnan(rvs["return_value"])
+    assert not np.isnan(rvs["return_value"].values[()])
 
 
 # Test invalid distribution argument for Return Values
@@ -48,7 +49,7 @@ def test_return_period(T2_ams):
     rvs = threshold_tools.get_return_period(
         T2_ams, return_value=290, distr="gumbel", bootstrap_runs=1, multiple_points=False
     )
-    assert not np.isnan(rvs["return_period"])
+    assert not np.isnan(rvs["return_period"].values[()])
 
 
 # Test invalid distribution argument for Return Periods
