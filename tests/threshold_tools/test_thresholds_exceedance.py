@@ -16,8 +16,6 @@ def T2_monthly(test_data):
     return test_data["RAINC"].isel(scenario=0, simulation=0)
 
 
-
-
 # ------------- Test kwarg compatibility and Exceptions ------------------------
 
 

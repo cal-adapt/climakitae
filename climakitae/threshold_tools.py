@@ -18,42 +18,41 @@ import statsmodels as sm
 from .utils import _read_ae_colormap
 from warnings import warn
 
-def calculate_ess(
-    data,
-    nlags=None
-    ):
-    """ 
+
+def calculate_ess(data, nlags=None):
+    """
     Function for calculating the effective sample size (ESS) of the provided data.
 
     Input array is assumed to be timeseries data with potential autocorrelation.
     """
-    n=len(data)
+    n = len(data)
     if nlags is None:
         nlags = n
-    acf = sm.tsa.stattools.acf(data, nlags = nlags, fft = True)
+    acf = sm.tsa.stattools.acf(data, nlags=nlags, fft=True)
     sums = 0
     for k in range(1, len(acf)):
-        sums = sums + (n-k)*acf[k]/n
+        sums = sums + (n - k) * acf[k] / n
 
-    return n/(1+2*sums)
+    return n / (1 + 2 * sums)
+
 
 def get_block_maxima(
-    da, 
+    da,
     extremes_type="max",
     duration=None,
     groupby=None,
     grouped_duration=None,
     check_ess=True,
-    block_size=1
-    ):
+    block_size=1,
+):
     """
     Function that converts data into block maximums, defaulting to annual maximums (default block size = 1 year).
 
     Takes input array and resamples by taking the maximum value over the specified block size.
-    
+
     Optional arguments `duration`, `groupby`, and `grouped_duration` define the type
     of event to find the annual maximums of. These correspond to the event
-    types defined in the `get_exceedance_count` function. 
+    types defined in the `get_exceedance_count` function.
 
     Parameters
     ----------
@@ -86,30 +85,34 @@ def get_block_maxima(
             "invalid extremes type. expected one of the following: %s" % extremes_types
         )
 
-    # In the simplest case, we use the original data array to take annual 
+    # In the simplest case, we use the original data array to take annual
     # extreme values from
     da_series = da
 
     if duration != None:
-        # In this case, user is interested in extreme events lasting at least 
-        # as long as the length of `duration`. 
+        # In this case, user is interested in extreme events lasting at least
+        # as long as the length of `duration`.
         dur_len, dur_type = duration
         if dur_type != "hour" or da_series.frequency not in ["1hr", "hourly"]:
-            raise ValueError("Current specifications not implemented. `duration` options only implemented for `hour` frequency.")
+            raise ValueError(
+                "Current specifications not implemented. `duration` options only implemented for `hour` frequency."
+            )
 
         # First identify the min (max) value for each window of length `duration`
         if extremes_type == "max":
             da_series = da_series.rolling(time=dur_len, center=False).min("time")
         elif extremes_type == "min":
             da_series = da_series.rolling(time=dur_len, center=False).max("time")
-    
+
     if groupby != None:
         # In this case, select the max (min) in each group. (This option is
         # really only meaningful when coupled with the `grouped_duration` option.)
         group_len, group_type = groupby
-        if group_type != 'day': 
-            raise ValueError("`groupby` specifications only implemented for 'day' groupings.")
-        
+        if group_type != "day":
+            raise ValueError(
+                "`groupby` specifications only implemented for 'day' groupings."
+            )
+
         # select the max (min) in each group
         if extremes_type == "max":
             da_series = da_series.resample(time=f"{group_len}D", label="left").max()
@@ -118,25 +121,29 @@ def get_block_maxima(
 
     if grouped_duration != None:
         if groupby == None:
-            raise ValueError("To use `grouped_duration` option, must first use groupby.")
+            raise ValueError(
+                "To use `grouped_duration` option, must first use groupby."
+            )
         # In this case, identify the min (max) value of the grouped values for
         # each window of length `grouped_duration``. Must be in `days`.
         dur2_len, dur2_type = grouped_duration
-        if dur2_type != 'day':
-            raise ValueError("`grouped_duration` specification must be in days. example: `grouped_duration = (3, 'day')`.")
+        if dur2_type != "day":
+            raise ValueError(
+                "`grouped_duration` specification must be in days. example: `grouped_duration = (3, 'day')`."
+            )
 
         # Now select the min (max) from the duration period
         if extremes_type == "max":
             da_series = da_series.rolling(time=dur2_len, center=False).min("time")
         elif extremes_type == "min":
             da_series = da_series.rolling(time=dur2_len, center=False).max("time")
-    
+
     # Now select the most extreme value for each block in the series
     if extremes_type == "max":
         bms = da_series.resample(time=f"{block_size}A").max(keep_attrs=True)
         bms.attrs["extremes type"] = "maxima"
-    elif extremes_type == 'min':
-        bms = da_series.resample(time=f"{block_size}A").min(keep_attrs = True)
+    elif extremes_type == "min":
+        bms = da_series.resample(time=f"{block_size}A").min(keep_attrs=True)
         bms.attrs["extremes type"] = "minima"
 
     # Calculate the effective sample size of the computed event type in all blocks, check the average value
@@ -144,12 +151,16 @@ def get_block_maxima(
         # all_ess = da_series.resample(time=f"{block_size}A").apply(calculate_ess) # how to set this up correctly? this currently errors so using a for loop below instead
         all_ess = []
         for yr in set(bms.time.dt.year.values[0:-1]):
-            ess = calculate_ess(da_series.sel(time = slice(f"{yr}", f"{yr+block_size-1}")))
+            ess = calculate_ess(
+                da_series.sel(time=slice(f"{yr}", f"{yr+block_size-1}"))
+            )
             all_ess.append(ess)
         average_ess = np.nanmean(all_ess)
         if average_ess < 25:
-            warn(f"The average effective sample size in your data is {round(average_ess, 2)} per block, which is low. This may result in biased estimates of extreme value distributions when calculating return values, periods, and probabilities from this data.")
-    
+            warn(
+                f"The average effective sample size in your data is {round(average_ess, 2)} per block, which is low. This may result in biased estimates of extreme value distributions when calculating return values, periods, and probabilities from this data."
+            )
+
     # Common attributes
     bms.attrs["duration"] = duration
     bms.attrs["groupby"] = groupby
@@ -363,11 +374,13 @@ def _calculate_return(fitted_distr, data_variable, arg_value, block_size=1):
             return_value = fitted_distr.ppf(return_event)
             result = round(return_value, 5)
         else:
-            return_prob = 1 - (fitted_distr.cdf(arg_value))**(1/block_size) # adjust the return probability depending on the block size
+            return_prob = 1 - (fitted_distr.cdf(arg_value)) ** (
+                1 / block_size
+            )  # adjust the return probability depending on the block size
             if data_variable == "return_prob":
                 result = return_prob
             elif data_variable == "return_period":
-                if return_prob == 0.:
+                if return_prob == 0.0:
                     result = np.nan
                 else:
                     return_period = 1.0 / return_prob
@@ -377,7 +390,9 @@ def _calculate_return(fitted_distr, data_variable, arg_value, block_size=1):
     return result
 
 
-def _bootstrap(bms, distr="gev", data_variable="return_value", arg_value=10, block_size=1):
+def _bootstrap(
+    bms, distr="gev", data_variable="return_value", arg_value=10, block_size=1
+):
     """Function for making a bootstrap-calculated value from input array
 
     Determines a bootstrap-calculated value for relevant parameters from an
@@ -418,7 +433,7 @@ def _bootstrap(bms, distr="gev", data_variable="return_value", arg_value=10, blo
             fitted_distr=fitted_distr,
             data_variable=data_variable,
             arg_value=arg_value,
-            block_size=block_size
+            block_size=block_size,
         )
     except (ValueError, ZeroDivisionError):
         result = np.nan
@@ -434,7 +449,7 @@ def _conf_int(
     bootstrap_runs,
     conf_int_lower_bound,
     conf_int_upper_bound,
-    block_size=1
+    block_size=1,
 ):
     """Function for genearating lower and upper limits of confidence interval
 
@@ -462,13 +477,7 @@ def _conf_int(
     bootstrap_values = []
 
     for _ in range(bootstrap_runs):
-        result = _bootstrap(
-            bms,
-            distr,
-            data_variable,
-            arg_value,
-            block_size
-        )
+        result = _bootstrap(bms, distr, data_variable, arg_value, block_size)
         bootstrap_values.append(result)
 
     conf_int_array = np.percentile(
@@ -478,6 +487,7 @@ def _conf_int(
     conf_int_lower_limit = conf_int_array[0]
     conf_int_upper_limit = conf_int_array[1]
     return conf_int_lower_limit, conf_int_upper_limit
+
 
 def get_return_variable(
     bms,
@@ -501,11 +511,9 @@ def get_return_variable(
     If data_variable == "return_period", then arg_value is the return value.
     """
 
-    data_variables = ['return_value', 'return_period', 'return_prob']
+    data_variables = ["return_value", "return_period", "return_prob"]
     if data_variable not in data_variables:
-        raise ValueError(
-            "invalid data_variable. "
-        )
+        raise ValueError("invalid data_variable. ")
 
     lmom_distr = get_lmom_distr(distr)
     bms_attributes = bms.attrs
@@ -523,7 +531,7 @@ def get_return_variable(
             )
         except (ValueError, ZeroDivisionError):
             return_variable = np.nan
-            
+
         conf_int_lower_limit, conf_int_upper_limit = conf_int(
             bms=bms,
             distr=distr,
@@ -556,11 +564,15 @@ def get_return_variable(
         new_ds[data_variable].attrs["return period"] = f"1-in-{arg_value}-year event"
     elif data_variable == "return_prob":
         unit_threshold = bms_attributes["units"]
-        new_ds[data_variable].attrs["threshold"] = f"exceedance of {arg_value} {unit_threshold} value event"
+        new_ds[data_variable].attrs[
+            "threshold"
+        ] = f"exceedance of {arg_value} {unit_threshold} value event"
         new_ds[data_variable].attrs["units"] = None
     elif data_variable == "return_period":
         unit_return_value = bms_attributes["units"]
-        new_ds[data_variable].attrs["return value"] = f"{arg_value} {unit_return_value} event"
+        new_ds[data_variable].attrs[
+            "return value"
+        ] = f"{arg_value} {unit_return_value} event"
         new_ds[data_variable].attrs["units"] = "years"
 
     new_ds["conf_int_lower_limit"].attrs[
@@ -573,6 +585,7 @@ def get_return_variable(
     new_ds.attrs = bms_attributes
     new_ds.attrs["distribution"] = "{}".format(str(distr))
     return new_ds
+
 
 def _get_return_variable(
     bms,
@@ -627,8 +640,10 @@ def _get_return_variable(
         )
 
     # get block_size from the block maxima series attributes, if available. otherwise assume block size=1 year
-    if hasattr(bms, 'block size'):
-        block_size = int(bms.attrs['block size'][0:-5]) # expected string format from get_block_maxima: '2 year'; extract the integer value here
+    if hasattr(bms, "block size"):
+        block_size = int(
+            bms.attrs["block size"][0:-5]
+        )  # expected string format from get_block_maxima: '2 year'; extract the integer value here
     else:
         block_size = 1
 
@@ -639,7 +654,7 @@ def _get_return_variable(
                 fitted_distr=fitted_distr,
                 data_variable=data_variable,
                 arg_value=arg_value,
-                block_size=block_size
+                block_size=block_size,
             )
         except (ValueError, ZeroDivisionError):
             return_variable = np.nan
@@ -652,7 +667,7 @@ def _get_return_variable(
             bootstrap_runs=bootstrap_runs,
             conf_int_lower_bound=conf_int_lower_bound,
             conf_int_upper_bound=conf_int_upper_bound,
-            block_size=block_size
+            block_size=block_size,
         )
 
         return return_variable, conf_int_lower_limit, conf_int_upper_limit
@@ -837,6 +852,7 @@ def get_return_period(
         conf_int_upper_bound,
         multiple_points,
     )
+
 
 # ===================== Functions for exceedance count =========================
 

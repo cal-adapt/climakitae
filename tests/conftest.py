@@ -19,6 +19,7 @@ def test_data_2022_monthly_45km(rootdir):
     ds = xr.open_dataset(filepath)
     return ds
 
+
 @pytest.fixture
 def T2_hourly(rootdir):
     """Small hourly temperature data set"""
