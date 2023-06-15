@@ -372,7 +372,7 @@ def _calculate_return(fitted_distr, data_variable, arg_value, block_size=1):
             if data_variable == "return_prob":
                 result = adj_prob
             elif data_variable == "return_period":
-                if adj_prob == 1.0:
+                if adj_prob == 0.:
                     result = np.nan
                 else:
                     return_period = 1.0 / adj_prob
