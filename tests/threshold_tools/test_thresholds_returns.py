@@ -32,7 +32,7 @@ def test_return_value(T2_ams):
     rvs = threshold_tools.get_return_value(
         T2_ams, return_period=10, distr="gev", bootstrap_runs=1, multiple_points=False
     )
-    assert len(rvs["return_value"].shape) == 2
+    assert not np.isnan(rvs["return_value"])
 
 
 # Test invalid distribution argument for Return Values
@@ -48,7 +48,7 @@ def test_return_period(T2_ams):
     rvs = threshold_tools.get_return_period(
         T2_ams, return_value=290, distr="gumbel", bootstrap_runs=1, multiple_points=False
     )
-    assert len(rvs["return_period"].shape) == 2
+    assert not np.isnan(rvs["return_period"])
 
 
 # Test invalid distribution argument for Return Periods
@@ -69,7 +69,7 @@ def test_return_values_block_size(T2_ams):
         T2_ams, return_period=10, distr="gev", bootstrap_runs=1, multiple_points=False
     )
     # test that the return values from longer block sizes should be smaller:
-    assert rvs1["return_value"] >= rvs2["return_value"]
+    assert rvs1["return_value"].values[()] >= rvs2["return_value"].values[()]
 
 # Test return periods for different block sizes
 def test_return_periods_block_size(T2_ams):
@@ -78,11 +78,11 @@ def test_return_periods_block_size(T2_ams):
     )
     # set different block size attribute to test that the calculation is handled differently:
     T2_ams.attrs["block size"] = "2 year"
-    rps2 = threshold_tools.get_return_value(
+    rps2 = threshold_tools.get_return_period(
         T2_ams, return_value=290, distr="gev", bootstrap_runs=1, multiple_points=False
     )
     # test that the return periods from longer block sizes should be larger:
-    assert rps1["return_period"] <= rps2["return_period"]
+    assert rps1["return_period"].values[()] <= rps2["return_period"].values[()]
 
 
 #-------------- Test AMS block maxima calculations for complex extreme events
@@ -91,6 +91,7 @@ def test_return_periods_block_size(T2_ams):
 # Test that the AMS (block maxima) for a 3-day grouped event are lower than 
 # the simple AMS (single hottest value in each year)
 def test_ams_ex1(T2_hourly):
+    T2_hourly = T2_hourly.isel(scenario=0, simulation=0)
     ams = threshold_tools.get_block_maxima(T2_hourly)
     ams_3d = threshold_tools.get_block_maxima(T2_hourly, groupby=(1, 'day'), grouped_duration=(3, 'day'))
     assert (ams > ams_3d).all()
@@ -99,6 +100,7 @@ def test_ams_ex1(T2_hourly):
 # Test that the AMS (block maxima) for a 3-day continous event are lower than 
 # the AMS for a grouped 3-day event
 def test_ams_ex2(T2_hourly):
+    T2_hourly = T2_hourly.isel(scenario=0, simulation=0)
     ams_3d = threshold_tools.get_block_maxima(T2_hourly, groupby=(1, 'day'), grouped_duration=(3, 'day'))
     ams_72h = threshold_tools.get_block_maxima(T2_hourly, duration=(72, 'hour'))
     assert (ams_3d > ams_72h).all()
@@ -106,6 +108,7 @@ def test_ams_ex2(T2_hourly):
 # Test that the AMS (block maxima) for a 4-hour per day for 3 days are lower 
 # than the AMS for a grouped 3-day event
 def test_ams_ex3(T2_hourly):
+    T2_hourly = T2_hourly.isel(scenario=0, simulation=0)
     ams_3d = threshold_tools.get_block_maxima(T2_hourly, groupby=(1, 'day'), grouped_duration=(3, 'day'))
     ams_3d_4h = threshold_tools.get_block_maxima(T2_hourly, duration=(4, 'hour'), groupby=(1, 'day'), grouped_duration=(3, 'day'))
     assert (ams_3d > ams_3d_4h).all()
