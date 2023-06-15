@@ -86,10 +86,6 @@ def get_block_maxima(
             "invalid extremes type. expected one of the following: %s" % extremes_types
         )
 
-    # To implement:
-    # Need to check the duration and groupby arguments 
-    #   make sure duration1 < groupby < grouped_duration (as is checked in the `get_exceedance_count` functions)
-
     # In the simplest case, we use the original data array to take annual 
     # extreme values from
     da_series = da
@@ -99,7 +95,7 @@ def get_block_maxima(
         # as long as the length of `duration`. 
         dur_len, dur_type = duration
         if dur_type != "hour" or da_series.frequency not in ["1hr", "hourly"]:
-            raise ValueError("Current specifications not yet implemented. `duration` options only implemented for `hour` specifications.")
+            raise ValueError("Current specifications not implemented. `duration` options only implemented for `hour` frequency.")
 
         # First identify the min (max) value for each window of length `duration`
         if extremes_type == "max":
@@ -135,7 +131,7 @@ def get_block_maxima(
         elif extremes_type == "min":
             da_series = da_series.rolling(time=dur2_len, center=False).max("time")
     
-    # Now select the most extreme value for each year in the series
+    # Now select the most extreme value for each block in the series
     if extremes_type == "max":
         bms = da_series.resample(time=f"{block_size}A").max(keep_attrs=True)
         bms.attrs["extremes type"] = "maxima"
