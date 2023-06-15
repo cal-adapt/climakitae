@@ -20,8 +20,8 @@ def T2_ams(rootdir):
     # This data is generated in "create_test_data.py"
     test_filename = "test_data/timeseries_data_T2_2014_2016_monthly_45km.nc"
     test_filepath = os.path.join(rootdir, test_filename)
-    test_data = xr.open_dataset(test_filepath).T2
-    return threshold_tools.get_block_maxima(test_data).isel(simulation=0)
+    test_data = xr.open_dataset(test_filepath).T2.isel(scenario=0, simulation=0, x=0, y=0)
+    return threshold_tools.get_block_maxima(test_data)
 
 
 # ------------- Test return values and periods ----------------------------------
@@ -30,7 +30,7 @@ def T2_ams(rootdir):
 # Test Return Values
 def test_return_value(T2_ams):
     rvs = threshold_tools.get_return_value(
-        T2_ams, return_period=10, distr="gev", bootstrap_runs=1
+        T2_ams, return_period=10, distr="gev", bootstrap_runs=1, multiple_points=False
     )
     assert len(rvs["return_value"].shape) == 2
 
@@ -39,14 +39,14 @@ def test_return_value(T2_ams):
 def test_return_value_invalid_distr(T2_ams):
     with pytest.raises(ValueError, match="invalid distribution type"):
         rvs = threshold_tools.get_return_value(
-            T2_ams, return_period=10, distr="foo", bootstrap_runs=1
+            T2_ams, return_period=10, distr="foo", bootstrap_runs=1, multiple_points=False
         )
 
 
 # Test Return Periods
 def test_return_period(T2_ams):
     rvs = threshold_tools.get_return_period(
-        T2_ams, return_value=290, distr="gumbel", bootstrap_runs=1
+        T2_ams, return_value=290, distr="gumbel", bootstrap_runs=1, multiple_points=False
     )
     assert len(rvs["return_period"].shape) == 2
 
@@ -55,8 +55,34 @@ def test_return_period(T2_ams):
 def test_return_period_invalid_distr(T2_ams):
     with pytest.raises(ValueError, match="invalid distribution type"):
         rvs = threshold_tools.get_return_period(
-            T2_ams, return_value=290, distr="foo", bootstrap_runs=1
+            T2_ams, return_value=290, distr="foo", bootstrap_runs=1, multiple_points=False
         )
+
+# Test return values for different block sizes
+def test_return_values_block_size(T2_ams):
+    rvs1 = threshold_tools.get_return_value(
+        T2_ams, return_period=10, distr="gev", bootstrap_runs=1, multiple_points=False
+    )
+    # set different block size attribute to test that the calculation is handled differently:
+    T2_ams.attrs["block size"] = "2 year"
+    rvs2 = threshold_tools.get_return_value(
+        T2_ams, return_period=10, distr="gev", bootstrap_runs=1, multiple_points=False
+    )
+    # test that the return values from longer block sizes should be smaller:
+    assert rvs1["return_value"] >= rvs2["return_value"]
+
+# Test return periods for different block sizes
+def test_return_periods_block_size(T2_ams):
+    rps1 = threshold_tools.get_return_period(
+        T2_ams, return_value=290, distr="gev", bootstrap_runs=1, multiple_points=False
+    )
+    # set different block size attribute to test that the calculation is handled differently:
+    T2_ams.attrs["block size"] = "2 year"
+    rps2 = threshold_tools.get_return_value(
+        T2_ams, return_value=290, distr="gev", bootstrap_runs=1, multiple_points=False
+    )
+    # test that the return periods from longer block sizes should be larger:
+    assert rps1["return_period"] <= rps2["return_period"]
 
 
 #-------------- Test AMS block maxima calculations for complex extreme events
