@@ -363,15 +363,14 @@ def _calculate_return(fitted_distr, data_variable, arg_value, block_size=1):
             return_value = fitted_distr.ppf(return_event)
             result = round(return_value, 5)
         else:
-            prob = 1 - (fitted_distr.cdf(arg_value))
-            adj_prob = 1 - (1 - prob)**(1/block_size) # adjust the return probability depending on the block size
+            return_prob = 1 - (fitted_distr.cdf(arg_value))**(1/block_size) # adjust the return probability depending on the block size
             if data_variable == "return_prob":
-                result = adj_prob
+                result = return_prob
             elif data_variable == "return_period":
-                if adj_prob == 0.:
+                if return_prob == 0.:
                     result = np.nan
                 else:
-                    return_period = 1.0 / adj_prob
+                    return_period = 1.0 / return_prob
                     result = round(return_period, 3)
     except (ValueError, ZeroDivisionError, AttributeError):
         result = np.nan
