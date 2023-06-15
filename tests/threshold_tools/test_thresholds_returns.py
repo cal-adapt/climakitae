@@ -85,6 +85,18 @@ def test_return_periods_block_size(T2_ams):
     # test that the return periods from longer block sizes should be larger:
     assert rps1["return_period"].values[()] <= rps2["return_period"].values[()]
 
+# Test return probabilities for different block sizes
+def test_return_probs_block_size(T2_ams):
+    rps1 = threshold_tools.get_return_prob(
+        T2_ams, threshold==290, distr="gev", bootstrap_runs=1, multiple_points=False
+    )
+    # set different block size attribute to test that the calculation is handled differently:
+    T2_ams.attrs["block size"] = "2 year"
+    rps2 = threshold_tools.get_return_prob(
+        T2_ams, threshold=290, distr="gev", bootstrap_runs=1, multiple_points=False
+    )
+    # test that the return probs from longer block sizes should be smaller:
+    assert rps1["return_prob"].values[()] >= rps2["return_prob"].values[()]
 
 #-------------- Test AMS block maxima calculations for complex extreme events
 
