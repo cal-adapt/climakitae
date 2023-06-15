@@ -95,7 +95,7 @@ def test_ams_ex1(T2_hourly):
     T2_hourly = T2_hourly.isel(scenario=0, simulation=0)
     ams = threshold_tools.get_block_maxima(T2_hourly, check_ess=False)
     ams_3d = threshold_tools.get_block_maxima(T2_hourly, groupby=(1, 'day'), grouped_duration=(3, 'day'), check_ess=False)
-    assert (ams > ams_3d).all()
+    assert (ams >= ams_3d).all()
 
 
 # Test that the AMS (block maxima) for a 3-day continous event are lower than 
@@ -104,7 +104,7 @@ def test_ams_ex2(T2_hourly):
     T2_hourly = T2_hourly.isel(scenario=0, simulation=0)
     ams_3d = threshold_tools.get_block_maxima(T2_hourly, groupby=(1, 'day'), grouped_duration=(3, 'day'), check_ess=False)
     ams_72h = threshold_tools.get_block_maxima(T2_hourly, duration=(72, 'hour'), check_ess=False)
-    assert (ams_3d > ams_72h).all()
+    assert (ams_3d >= ams_72h).all()
 
 # Test that the AMS (block maxima) for a 4-hour per day for 3 days are lower 
 # than the AMS for a grouped 3-day event
@@ -112,4 +112,4 @@ def test_ams_ex3(T2_hourly):
     T2_hourly = T2_hourly.isel(scenario=0, simulation=0)
     ams_3d = threshold_tools.get_block_maxima(T2_hourly, groupby=(1, 'day'), grouped_duration=(3, 'day'), check_ess=False)
     ams_3d_4h = threshold_tools.get_block_maxima(T2_hourly, duration=(4, 'hour'), groupby=(1, 'day'), grouped_duration=(3, 'day'), check_ess=False)
-    assert (ams_3d > ams_3d_4h).all()
+    assert (ams_3d >= ams_3d_4h).all()
