@@ -88,7 +88,7 @@ def test_return_periods_block_size(T2_ams):
 # Test return probabilities for different block sizes
 def test_return_probs_block_size(T2_ams):
     rps1 = threshold_tools.get_return_prob(
-        T2_ams, threshold==290, distr="gev", bootstrap_runs=1, multiple_points=False
+        T2_ams, threshold=290, distr="gev", bootstrap_runs=1, multiple_points=False
     )
     # set different block size attribute to test that the calculation is handled differently:
     T2_ams.attrs["block size"] = "2 year"
