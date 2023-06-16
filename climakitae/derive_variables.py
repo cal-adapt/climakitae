@@ -241,14 +241,9 @@ def _compute_wind_dir(u10, v10, name="wind_direction_derived"):
     Returns:
         wind_dir (xr.DataArray): Wind direction, in [0, 360] degrees,
             with 0/360 defined as north, by meteorological convention
-
-    Notes:
-        source:  https://stackoverflow.com/questions/21484558/how-to-calculate-wind-direction-from-u-and-v-wind-components-in-r
     """
 
-    wind_mag = np.sqrt(np.square(u10) + np.square(v10)) 
-    wind_dir = np.arctan2(v10/wind_mag, u10/wind_mag) * (180/np.pi) + 180 # meteorological convention
-    wind_dir = 90 - wind_dir # sets into cardinal directions
+    wind_dir = 90 - np.arctan2(-v10, -u10) # 90 sets meteorological convention
     wind_dir.name = name
     wind_dir.attrs["units"] = "degrees"
     return wind_dir
