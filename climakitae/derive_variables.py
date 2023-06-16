@@ -247,7 +247,7 @@ def _compute_wind_dir(u10, v10, name="wind_direction_derived"):
     """
 
     wind_mag = np.sqrt(np.square(u10) + np.square(v10)) 
-    wind_dir = np.atan2(u10/wind_mag, v10/wind_mag) * (180/np.pi) + 180 # meteorological convention
+    wind_dir = np.arctan2(v10/wind_mag, u10/wind_mag) * (180/np.pi) + 180 # meteorological convention
     wind_dir = 90 - wind_dir # sets into cardinal directions
     wind_dir.name = name
     wind_dir.attrs["units"] = "degrees"
