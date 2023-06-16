@@ -27,6 +27,7 @@ from .derive_variables import (
     _compute_relative_humidity,
     _compute_wind_mag,
     _compute_wind_dir,
+    _compute_wind_vel,
     _compute_dewpointtemp,
     _compute_specific_humidity,
 )
@@ -528,7 +529,7 @@ def _read_catalog_from_select(selections, cat):
     orig_unit_selection = selections.units
     orig_variable_selection = selections.variable
     if "_derived" in orig_var_id_selection:
-        if orig_var_id_selection in ["wind_speed_derived", "wind_direction_derived"]:
+        if orig_var_id_selection in ["wind_speed_derived", "wind_direction_derived", "wind_velocity_derived"]:
             # Load u10 data
             selections.variable_id = ["u10"]
             selections.units = (
@@ -547,6 +548,9 @@ def _read_catalog_from_select(selections, cat):
             # Or, derive wind speed
             elif orig_var_id_selection == "wind_direction_derived":
                 da = _compute_wind_dir(u10=u10_da, v10=v10_da)
+            # Or, derive wind velocity
+            elif orig_var_id_selection == "wind_velocity_derived":
+                da = _compute_wind_vel(u10=u10_da, v10=v10_da) # technically is a Dataset, not DataArray
 
         elif orig_var_id_selection == "dew_point_derived":
             # Daily/monthly dew point inputs have different units

@@ -1,6 +1,7 @@
 """Functions for deriving frequently used variables"""
 
 import numpy as np
+import xarray as xr
 
 
 def compute_hdd_cdd(t2, hdd_threshold, cdd_threshold):
@@ -249,3 +250,38 @@ def _compute_wind_dir(u10, v10, name="wind_direction_derived"):
     wind_dir.name = name
     wind_dir.attrs["units"] = "degrees"
     return wind_dir
+
+def _compute_wind_vel(u10, v10, name="wind_velocity_derived"):
+    """Compute wind velocity at 10 meters
+    
+    Args:
+        u10 (xr.DataArray): Zonal velocity at 10 meters in m/s
+        v10 (xr.DataArray): Meridional velocity at 10 meters height in m/s
+        name (str, optional): Name to assign to output DataArray
+
+    Returns:
+        wind_vel (xr.Dataset): Wind velocity, with both wind speed and direction
+            provided in order to visualize wind direction as vectorfield
+        """
+    
+    ds_wind = xr.Dataset({'wind_speed_derived': xr.DataArray(_compute_wind_mag(u10, v10), 
+                                                             dims=('scenario','simulation','time','y','x'), 
+                                                             coords={'scenario':u10.scenario,
+                                                                     'time':u10.time,
+                                                                     'simulation':u10.simulation,
+                                                                     'y': u10.y,
+                                                                     'x': u10.x,
+                                                                     'lat':(u10.lat),
+                                                                     'lon':(u10.lon)}),
+                          'wind_direction_derived': xr.DataArray(_compute_wind_dir(u10, v10), 
+                                                                 dims=('scenario','simulation','time','y','x'), 
+                                                                 coords={'scenario':u10.scenario,
+                                                                         'time':u10.time,
+                                                                         'simulation':u10.simulation,
+                                                                         'y': u10.y,
+                                                                         'x': u10.x,
+                                                                         'lat':(u10.lat),
+                                                                         'lon':(u10.lon)})}
+                        )
+    
+    return ds_wind
