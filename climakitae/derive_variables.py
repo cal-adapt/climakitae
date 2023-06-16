@@ -283,5 +283,7 @@ def _compute_wind_vel(u10, v10, name="wind_velocity_derived"):
                                                                          'lat':(u10.lat),
                                                                          'lon':(u10.lon)})}
                         )
+    ds_wind.name = name
+    ds_wind.attrs["units"] = "m s-1"
     
     return ds_wind
