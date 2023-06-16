@@ -14,7 +14,6 @@ import pkg_resources
 import warnings
 
 from .derive_variables import _compute_wind_vel
-from .view import _compute_vmin_vmax
 
 
 # Read colormap text files
@@ -499,8 +498,8 @@ def plot_wind_velocity(wind_speed, wind_direction):
         if wind_velocity_derived.wind_speed_derived.chunks is None or str(wind_velocity_derived.wind_speed_derived.chunks) == "Frozen({})":
             min_data = wind_velocity_derived.wind_speed_derived.min(dim="simulation")
             max_data = wind_velocity_derived.wind_speed_derived.max(dim="simulation")
-            vmin, vmax, sopt = _compute_vmin_vmax(min_data, max_data)
-
+            vmin = np.nanpercentile(min_data, 1)
+            vmax = np.nanpercentile(max_data, 99)
 
     _plot_spd = wind_velocity_derived.wind_speed_derived.hvplot.image(
         x="lon",
@@ -511,7 +510,7 @@ def plot_wind_velocity(wind_speed, wind_direction):
         width=550,
         height=450,
         clim=(vmin, vmax),
-        sopt=sopt,
+        sopt=None,
     )
 
     _plot_dir = wind_velocity_derived.hvplot.vectorfield(
