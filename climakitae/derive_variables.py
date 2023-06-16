@@ -242,7 +242,8 @@ def _compute_wind_dir(u10, v10, name="wind_direction_derived"):
         wind_dir (xr.DataArray): Wind direction, in [0, 360] degrees,
             with 0/360 defined as north, by meteorological convention
     """
-    wind_dir = 90 - (np.arctan2(v10, u10) * (180/np.pi) + 180) # 90 sets meteorological convention
+    # wind_dir = 90 - (np.arctan2(v10, u10) * (180/np.pi) + 180) # 90 sets meteorological convention
+    wind_dir = np.mod(180+np.rad2deg(np.arctan2(u10, v10)),360)
     wind_dir.name = name
     wind_dir.attrs["units"] = "degrees"
     return wind_dir
