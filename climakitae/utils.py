@@ -489,8 +489,8 @@ def plot_wind_velocity(wind_speed, wind_direction):
     # Set-up plots
     cmap = _read_ae_colormap(cmap='ae_orange', cmap_hex=True)
 
-    # Define colorbar label using variable and units
-    clabel = wind_velocity_derived.wind_speed_derived.name + " (" + wind_velocity_derived.wind_speed_derived.attrs["units"] + ")"
+    # # Define colorbar label using variable and units
+    # clabel = wind_velocity_derived.wind_speed_derived.name + " (" + wind_velocity_derived.wind_speed_derived.attrs["units"] + ")"
 
     if "simulation" in wind_speed.dims:
         # But, only do this if the data is already read into memory
@@ -501,26 +501,39 @@ def plot_wind_velocity(wind_speed, wind_direction):
             vmin = np.nanpercentile(min_data, 1)
             vmax = np.nanpercentile(max_data, 99)
 
-    _plot_spd = wind_velocity_derived.wind_speed_derived.hvplot.image(
-        x="lon",
-        y="lat",
-        grid=True,
-        clabel=clabel,
-        cmap=cmap,
-        width=550,
-        height=450,
-        clim=(vmin, vmax),
-        sopt=None,
-    )
+    # _plot_spd = wind_velocity_derived.wind_speed_derived.hvplot.image(
+    #     x="lon",
+    #     y="lat",
+    #     grid=True,
+    #     clabel=clabel,
+    #     cmap=cmap,
+    #     width=550,
+    #     height=450,
+    #     clim=(vmin, vmax),
+    #     sopt=None,
+    # )
 
-    _plot_dir = wind_velocity_derived.hvplot.vectorfield(
-        x="lon",
-        y="lat",
-        angle="wind_direction_derived",
-        mag="wind_speed_derived",
-        hover=False
-    ).opts(magnitude="wind_speed_derived") # Alters length of barb to match speed
+    # _plot_dir = wind_velocity_derived.hvplot.vectorfield(
+    #     x="lon",
+    #     y="lat",
+    #     angle="wind_direction_derived",
+    #     mag="wind_speed_derived",
+    #     hover=False
+    # ).opts(magnitude="wind_speed_derived") # Alters length of barb to match speed
                     
+    _plot_spd = wind_velocity_derived.wind_speed_derived.hvplot.image(x="x",y="y",
+                                                                      cmap = cmap,
+                                                                      width = 550,
+                                                                      height = 450,
+                                                                      clim = (vmin, vmax),
+                                                                      sopt=None) 
+    
+    _plot_dir = wind_velocity_derived.hvplot.vectorfield(x='x',y ='y',
+                            angle='wind_direction_derived',
+                            mag='wind_speed_derived',
+                            hover=False
+                            ).opts(magnitude='wind_speed_derived')
+    
     # Combine plots
     _plot = _plot_spd * _plot_dir
 
