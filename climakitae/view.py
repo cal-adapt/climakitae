@@ -153,41 +153,17 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
         try:
             if len(data[x]) > 1 and len(data[y]) > 1:
                 # If data has more than one grid cell, make a pretty map
-                if data.name != "wind_velocity_derived":
-                    _plot = data.hvplot.image(
-                        x=x,
-                        y=y,
-                        grid=True,
-                        clabel=clabel,
-                        cmap=cmap,
-                        width=width,
-                        height=height,
-                        clim=(vmin, vmax),
-                        sopt=sopt,
-                    )
-                # Wind velocity w/ wind barbs has to be plotted with vectors
-                elif data.name == "wind_velocity_derived": 
-                    _plot_spd = data.wind_speed_derived.hvplot.image(
-                        x=x,
-                        y=y,
-                        grid=True,
-                        clabel=clabel,
-                        cmap=cmap,
-                        width=width,
-                        height=height,
-                        clim=(vmin, vmax),
-                        sopt=sopt,
-                    )
-                    _plot_dir = data.wind_direction_derived.hvplot.vectorfield(
-                        x=x,
-                        y=y,
-                        angle="wind_direction_derived",
-                        mag="wind_speed_derived",
-                        hover=False
-                    ).opts(magnitude="wind_speed_derived") # Alters length of barb to match speed
-                    
-                    # Combine plots
-                    _plot = _plot_spd * _plot_dir
+                _plot = data.hvplot.image(
+                    x=x,
+                    y=y,
+                    grid=True,
+                    clabel=clabel,
+                    cmap=cmap,
+                    width=width,
+                    height=height,
+                    clim=(vmin, vmax),
+                    sopt=sopt,
+                )
 
             else:
                 # Make a scatter plot if it's just one grid cell

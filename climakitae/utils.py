@@ -13,6 +13,9 @@ import matplotlib
 import pkg_resources
 import warnings
 
+from .derive_variables import _compute_wind_vel
+from .view import _compute_vmin_vmax
+
 
 # Read colormap text files
 ae_orange = pkg_resources.resource_filename("climakitae", "data/cmaps/ae_orange.txt")
@@ -471,3 +474,55 @@ def hdh_cdh_lineplot(data):
     return data.hvplot.line(
         x="time", by="simulation", title=data.name, ylabel=data.name + " (degF)"
     )
+
+
+## Wind velocity plotting function
+def plot_wind_velocity(wind_speed, wind_direction):
+    """
+    Plots wind velocity with wind speed as gridded base layer,
+    and wind direction as wind barb vector overlay
+    """
+
+    # First, calculate wind velocity
+    # For wind barbs to plot, direction and speed must be in single Dataset
+    wind_velocity_derived = _compute_wind_vel(wind_speed, wind_direction)
+
+    # Set-up plots
+    cmap = _read_ae_colormap(cmap='ae_orange', cmap_hex=True)
+
+    # Define colorbar label using variable and units
+    clabel = wind_velocity_derived.wind_speed_derived.name + " (" + wind_velocity_derived.wind_speed_derived.attrs["units"] + ")"
+
+    if "simulation" in wind_speed.dims:
+        # But, only do this if the data is already read into memory
+        # Or else the computation of min and max will take forever
+        if wind_velocity_derived.wind_speed_derived.chunks is None or str(wind_velocity_derived.wind_speed_derived.chunks) == "Frozen({})":
+            min_data = wind_velocity_derived.wind_speed_derived.min(dim="simulation")
+            max_data = wind_velocity_derived.wind_speed_derived.max(dim="simulation")
+            vmin, vmax, sopt = _compute_vmin_vmax(min_data, max_data)
+
+
+    _plot_spd = wind_velocity_derived.wind_speed_derived.hvplot.image(
+        x="lon",
+        y="lat",
+        grid=True,
+        clabel=clabel,
+        cmap=cmap,
+        width=550,
+        height=450,
+        clim=(vmin, vmax),
+        sopt=sopt,
+    )
+
+    _plot_dir = wind_velocity_derived.hvplot.vectorfield(
+        x="lon",
+        y="lat",
+        angle="wind_direction_derived",
+        mag="wind_speed_derived",
+        hover=False
+    ).opts(magnitude="wind_speed_derived") # Alters length of barb to match speed
+                    
+    # Combine plots
+    _plot = _plot_spd * _plot_dir
+
+    return _plot
