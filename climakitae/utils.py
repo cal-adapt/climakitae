@@ -484,7 +484,8 @@ def plot_wind_velocity(u10, v10):
 
     # First, calculate wind velocity
     # For wind barbs to plot, direction and speed must be in single Dataset
-    wind_velocity_derived = _compute_wind_vel(u10, v10)
+    # Wind direction must be provided as radians to provide an intelligble plot
+    wind_velocity_derived = _compute_wind_vel(u10, v10, plotting_unit="radians")
 
     # Set-up plots
     cmap = _read_ae_colormap(cmap='ae_orange', cmap_hex=True)

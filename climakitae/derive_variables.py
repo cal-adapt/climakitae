@@ -240,19 +240,22 @@ def _compute_wind_dir(u10, v10, name="wind_direction_derived"):
 
     Returns:
         wind_dir (xr.DataArray): Wind direction, in [0, 360] degrees,
-            with 0/360 defined as north, by meteorological convention
+            with 0/360 defined as north, by meteorological convention.
+            Note: for plotting, wind direction is provided in radians.
     """
     wind_dir = (270 - np.rad2deg(np.arctan2(-v10, -u10)))%360 # in radians, converted to degrees    
     wind_dir.name = name
     wind_dir.attrs["units"] = "degrees"
     return wind_dir
 
-def _compute_wind_vel(u10, v10, name="wind_velocity_derived"):
+def _compute_wind_vel(u10, v10, plotting_unit = "degrees", name="wind_velocity_derived"):
     """Compute wind velocity at 10 meters
     
     Args:
         u10 (xr.DataArray): Zonal velocity at 10 meters in m/s
         v10 (xr.DataArray): Meridional velocity at 10 meters height in m/s
+        plotting_unit (str): Unit of wind direction. Degrees is default for data accessibility,
+            radians is for plotting only. 
         name (str, optional): Name to assign to output DataArray
 
     Returns:
@@ -260,6 +263,14 @@ def _compute_wind_vel(u10, v10, name="wind_velocity_derived"):
             provided in order to visualize wind direction as vectorfield
         """
     
+    # for plotting with a vectorfield, wind direction must be in radians
+    if plotting_unit == "radians":
+        wind_dir = np.arctan2(-v10, -u10) # in radians, plotting only
+        wind_dir.attrs["units"] = "radians"
+
+    elif plotting_unit == "degrees":
+        wind_dir = _compute_wind_dir(u10, v10) # in degrees
+
     ds_wind = xr.Dataset({'wind_speed_derived': xr.DataArray(_compute_wind_mag(u10, v10), 
                                                              dims=('scenario','simulation','time','y','x'), 
                                                              coords={'scenario':u10.scenario,
@@ -269,7 +280,7 @@ def _compute_wind_vel(u10, v10, name="wind_velocity_derived"):
                                                                      'x': u10.x,
                                                                      'lat':(u10.lat),
                                                                      'lon':(u10.lon)}),
-                          'wind_direction_derived': xr.DataArray(_compute_wind_dir(u10, v10), 
+                          'wind_direction_derived': xr.DataArray(wind_dir, 
                                                                  dims=('scenario','simulation','time','y','x'), 
                                                                  coords={'scenario':u10.scenario,
                                                                          'time':u10.time,
