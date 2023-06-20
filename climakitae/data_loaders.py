@@ -127,10 +127,6 @@ def _scenarios_in_data_dict(keys):
     Returns:
         scenario_list: list[str]: unique scenarios
 
-    Throws:
-        AssertionError:
-            set of scenarios derived from dataset dictionary keys
-            should be the same as those specified in selections
     """
     scenarios = set([one.split(".")[3] for one in keys if "ssp" in one])
 
@@ -471,15 +467,18 @@ def _merge_all(selections, data_dict, cat_subset):
     # Get (and double-check) list of SSP scenarios:
     _scenarios = _scenarios_in_data_dict(data_dict.keys())
 
-    # Merge along new 'scenario' dimension:
-    all_ssps = xr.concat(
-        [
-            _concat_sims(data_dict, all_hist, selections, scenario)
-            for scenario in _scenarios
-        ],
-        combine_attrs="drop_conflicts",
-        dim="scenario",
-    )
+    if _scenarios:
+        # Merge along new 'scenario' dimension:
+        all_ssps = xr.concat(
+            [
+                _concat_sims(data_dict, all_hist, selections, scenario)
+                for scenario in _scenarios
+            ],
+            combine_attrs="drop_conflicts",
+            dim="scenario",
+        )
+    else:
+        all_ssps = all_hist
 
     # Rename expanded dimension:
     all_ssps = all_ssps.rename({"member_id": "simulation"})
