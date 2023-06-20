@@ -148,13 +148,27 @@ def get_block_maxima(
 
     # Calculate the effective sample size of the computed event type in all blocks, check the average value
     if check_ess:
-        # all_ess = da_series.resample(time=f"{block_size}A").apply(calculate_ess) # how to set this up correctly? this currently errors so using a for loop below instead
         all_ess = []
-        for yr in set(bms.time.dt.year.values[0:-1]):
-            ess = calculate_ess(
-                da_series.sel(time=slice(f"{yr}", f"{yr+block_size-1}"))
-            )
-            all_ess.append(ess)
+
+        # handle the ESS check differently depending on if it's spatial data
+        if 'x' in da_series.dims and 'y' in da_series.dims:
+            # case for spatial data, using stack/unstack to apply calculate_ess 
+            stacked_da = da_series.stack(allpoints=["y", "x"]).dropna(dim="allpoints").squeeze()
+            for yr in set(bms.time.dt.year.values[0:-1]):
+                ess = xr.apply_ufunc(
+                    calculate_ess,
+                    stacked_da.sel(time=slice(f"{yr}", f"{yr+block_size-1}")).groupby("allpoints"),
+                    input_core_dims=[["time"]],
+                ).unstack("allpoints")
+                all_ess.append(ess)
+        else:
+            # case for not spacial data (no x, y dimensions)
+            for yr in set(bms.time.dt.year.values[0:-1]):
+                ess = calculate_ess(
+                    da_series.sel(time=slice(f"{yr}", f"{yr+block_size-1}"))
+                )
+                all_ess.append(ess)
+
         average_ess = np.nanmean(all_ess)
         if average_ess < 25:
             warn(
