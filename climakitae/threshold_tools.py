@@ -16,7 +16,6 @@ import hvplot.xarray
 import panel as pn
 import statsmodels as sm
 from .utils import _read_ae_colormap
-from warnings import warn
 
 
 def calculate_ess(data, nlags=None):
@@ -175,8 +174,8 @@ def get_block_maxima(
 
         average_ess = np.nanmean(all_ess)
         if average_ess < 25:
-            warn(
-                f"The average effective sample size in your data is {round(average_ess, 2)} per block, which is low. This may result in biased estimates of extreme value distributions when calculating return values, periods, and probabilities from this data."
+            print(
+                f"WARNING: The average effective sample size in your data is {round(average_ess, 2)} per block, which is low. This may result in biased estimates of extreme value distributions when calculating return values, periods, and probabilities from this data."
             )
 
     # Common attributes
