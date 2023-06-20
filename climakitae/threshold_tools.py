@@ -151,13 +151,17 @@ def get_block_maxima(
         all_ess = []
 
         # handle the ESS check differently depending on if it's spatial data
-        if 'x' in da_series.dims and 'y' in da_series.dims:
-            # case for spatial data, using stack/unstack to apply calculate_ess 
-            stacked_da = da_series.stack(allpoints=["y", "x"]).dropna(dim="allpoints").squeeze()
+        if "x" in da_series.dims and "y" in da_series.dims:
+            # case for spatial data, using stack/unstack to apply calculate_ess
+            stacked_da = (
+                da_series.stack(allpoints=["y", "x"]).dropna(dim="allpoints").squeeze()
+            )
             for yr in set(bms.time.dt.year.values[0:-1]):
                 ess = xr.apply_ufunc(
                     calculate_ess,
-                    stacked_da.sel(time=slice(f"{yr}", f"{yr+block_size-1}")).groupby("allpoints"),
+                    stacked_da.sel(time=slice(f"{yr}", f"{yr+block_size-1}")).groupby(
+                        "allpoints"
+                    ),
                     input_core_dims=[["time"]],
                 ).unstack("allpoints")
                 all_ess.append(ess)
