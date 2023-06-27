@@ -8,7 +8,7 @@ from climakitae.data_loaders import _get_cat_subset, _scenarios_in_data_dict
 
 
 @pytest.fixture
-def test_CAT(rootdir):
+def test_CAT():
     # Access the catalog
     catalog = intake.open_esm_datastore(
         "https://cadcat.s3.amazonaws.com/cae-collection.json"
@@ -29,7 +29,7 @@ def test_SEL(test_CAT):
 
 
 # testing that the contents of the catalog subset are consistent with the selections
-def test_scenario_dim(test_SEL):
+def test_scenario_dim(test_SEL, test_CAT):
     # Set various non-default selections:
     test_SEL.scenario_ssp = [
         "SSP 3-7.0 -- Business as Usual",
@@ -40,9 +40,9 @@ def test_scenario_dim(test_SEL):
     cat_subset = _get_cat_subset(selections=test_SEL, cat=test_CAT)
     ds_names = cat_subset.keys()
 
-    result = _scenarios_in_data_dict(ds_names)
+    result = set(_scenarios_in_data_dict(ds_names))
     assert result == set(
-        [_scenario_to_experiment_id(item) for item in selections.scenario_ssp]
+        [_scenario_to_experiment_id(item) for item in test_SEL.scenario_ssp]
     )
 
 
