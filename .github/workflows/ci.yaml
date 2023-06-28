@@ -13,52 +13,23 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: psf/black@stable
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            label: linux-64
-            prefix: /usr/share/miniconda/envs/climakitae-tests
-
-          - os: macos-latest
-            label: osx-64
-            prefix: /user/local/miniconda/envs/climakitae-tests
-
-          - os: windows-latest
-            label: win-64
-            prefix: C:\Miniconda\envs\climakitae-tests
-
-    name: ${{ matrix.label }}
-    runs-on: ${{ matrix.os }}
+  build-linux:
+    runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash -l {0}
     steps:
     - name: Checkout project
-      uses: actions/checkout@v3
-    - name: Cache conda
-      uses: actions/cache@v2
-      env:
-          # Increase this value to reset cache if environment.yml has not changed
-          CACHE_NUMBER: 1
-      with:
-        path: ${{ matrix.prefix }}
-        key:
-          ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{ hashFiles('environment.yml') }}
+      uses: actions/checkout@v2
     - name: Setup miniconda
       uses: conda-incubator/setup-miniconda@v2
       with:
           auto-activate-base: false
           activate-environment: climakitae-tests
-          environment-file: environment.yml
-          use-only-tar-bz2: true # IMPORTANT: This needs to be set for caching to work properly!
-
+          environment-file: conda-linux-64.lock
     - name: Output conda info
       run: conda info
     - name: Install climakitae
       run: pip install .
     - name: Test with pytest
       run: pytest --no-header -vv
-      if: always() # Run even if previous step fails
