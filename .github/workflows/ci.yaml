@@ -13,8 +13,23 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: psf/black@stable
-  build-linux:
-    runs-on: ubuntu-latest
+  build:
+    matrix:
+      include:
+        - os: ubuntu-latest
+          label: linux-64
+          lock-file: conda-linux-64.lock
+
+        - os: macos-latest
+          label: osx-64
+          lock-file: conda-osx-64.lock
+
+        - os: windows-latest
+          label: win-64
+          lock-file: conda-win-64.lock
+
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
     defaults:
       run:
         shell: bash -l {0}
@@ -26,7 +41,7 @@ jobs:
       with:
           auto-activate-base: false
           activate-environment: climakitae-tests
-          environment-file: conda-linux-64.lock
+          environment-file: ${{ matrix.lock-file }}
     - name: Output conda info
       run: conda info
     - name: Install xclim
