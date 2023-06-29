@@ -160,7 +160,7 @@ def get_block_maxima(
 
         else:
             # Case for timeseries data (no spatial dimensions)
-            average_ess = _calc_average_ess_timeseries_data(data, block_size)
+            average_ess = _calc_average_ess_timeseries_data(da_series, block_size)
 
         if average_ess < 25:
             print(
@@ -208,9 +208,7 @@ def _calc_average_ess_gridded_data(data, block_size):
         da_time_block = data.sel(time=slice(str(year_start), str(year_end)))
 
         # Stack spatial dimensions and drop NaN values
-        da_stacked = da_time_block.stack(spatial_dims=["x", "y"]).dropna(
-            dim="spatial_dims"
-        )
+        da_stacked = da_time_block.stack(spatial_dims=["x", "y"])
 
         # Compute ESS for the time block
         ess_by_time_block = da_stacked.groupby("spatial_dims").apply(calculate_ess)
@@ -220,7 +218,7 @@ def _calc_average_ess_gridded_data(data, block_size):
         ess_means_list.append(ess_mean_by_time_block)
 
     # Compute mean across all time blocks
-    average_ess = np.array(ess_means_list).mean()
+    average_ess = np.nanmean(np.array(ess_means_list))
     return average_ess
 
 
@@ -248,7 +246,7 @@ def _calc_average_ess_timeseries_data(data, block_size):
     )
 
     # Compute mean of all ESS values
-    mean_ess = ess_by_timestep.mean(skipna=True).item()
+    mean_ess = ess_by_time_block.mean(skipna=True).item()
     return mean_ess
 
 
