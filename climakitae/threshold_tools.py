@@ -22,7 +22,18 @@ def calculate_ess(data, nlags=None):
     """
     Function for calculating the effective sample size (ESS) of the provided data.
 
-    Input array is assumed to be timeseries data with potential autocorrelation.
+    Parameters
+    ------------
+    data: xr.DataArray
+        Input array is assumed to be timeseries data with potential autocorrelation.
+    nlags: int, optional
+        Number of lags to add
+
+    Returns
+    ---------
+    xr.DataArray
+          Effective sample size.
+          Returned as a DataArray object so it can be utilized by xr.groupby and xr.resample
     """
     n = len(data)
     if nlags is None:
@@ -31,12 +42,12 @@ def calculate_ess(data, nlags=None):
     sums = 0
     for k in range(1, len(acf)):
         sums = sums + (n - k) * acf[k] / n
-
-    return n / (1 + 2 * sums)
+    ess = n / (1 + 2 * sums)
+    return xr.DataArray(ess, name="ess")
 
 
 def get_block_maxima(
-    da,
+    da_series,
     extremes_type="max",
     duration=None,
     groupby=None,
@@ -77,17 +88,6 @@ def get_block_maxima(
     -------
     xarray.DataArray
     """
-
-    extremes_types = ["max", "min"]
-    if extremes_type not in extremes_types:
-        raise ValueError(
-            "invalid extremes type. expected one of the following: %s" % extremes_types
-        )
-
-    # In the simplest case, we use the original data array to take annual
-    # extreme values from
-    da_series = da
-
     if duration != None:
         # In this case, user is interested in extreme events lasting at least
         # as long as the length of `duration`.
@@ -113,10 +113,16 @@ def get_block_maxima(
             )
 
         # select the max (min) in each group
+        extremes_types = ["max", "min"]  # valid user options
         if extremes_type == "max":
             da_series = da_series.resample(time=f"{group_len}D", label="left").max()
         elif extremes_type == "min":
             da_series = da_series.resample(time=f"{group_len}D", label="left").min()
+        else:
+            raise ValueError(
+                "invalid extremes type. expected one of the following: %s"
+                % extremes_types
+            )
 
     if grouped_duration != None:
         if groupby == None:
@@ -145,48 +151,105 @@ def get_block_maxima(
         bms = da_series.resample(time=f"{block_size}A").min(keep_attrs=True)
         bms.attrs["extremes type"] = "minima"
 
-    # Calculate the effective sample size of the computed event type in all blocks, check the average value
+    # Calculate the effective sample size of the computed event type in all blocks
+    # Check the average value to ensure that it's above threshold ESS
     if check_ess:
-        all_ess = []
-
-        # handle the ESS check differently depending on if it's spatial data
         if "x" in da_series.dims and "y" in da_series.dims:
-            # case for spatial data, using stack/unstack to apply calculate_ess
-            stacked_da = (
-                da_series.stack(allpoints=["y", "x"]).dropna(dim="allpoints").squeeze()
-            )
-            for yr in set(bms.time.dt.year.values[0:-1]):
-                ess = xr.apply_ufunc(
-                    calculate_ess,
-                    stacked_da.sel(time=slice(f"{yr}", f"{yr+block_size-1}")).groupby(
-                        "allpoints"
-                    ),
-                    input_core_dims=[["time"]],
-                ).unstack("allpoints")
-                all_ess.append(ess)
-        else:
-            # case for not spacial data (no x, y dimensions)
-            for yr in set(bms.time.dt.year.values[0:-1]):
-                ess = calculate_ess(
-                    da_series.sel(time=slice(f"{yr}", f"{yr+block_size-1}"))
-                )
-                all_ess.append(ess)
+            # Case for data with spatial dimensions (gridded)
+            average_ess = _calc_average_ess_gridded_data(da_series, block_size)
 
-        average_ess = np.nanmean(all_ess)
+        else:
+            # Case for timeseries data (no spatial dimensions)
+            average_ess = _calc_average_ess_timeseries_data(data, block_size)
+
         if average_ess < 25:
             print(
                 f"WARNING: The average effective sample size in your data is {round(average_ess, 2)} per block, which is low. This may result in biased estimates of extreme value distributions when calculating return values, periods, and probabilities from this data."
             )
 
     # Common attributes
-    bms.attrs["duration"] = duration
-    bms.attrs["groupby"] = groupby
-    bms.attrs["grouped_duration"] = grouped_duration
-    bms.attrs["extreme value extraction method"] = f"block maxima"
-    bms.attrs["block size"] = f"{block_size} year"
-    bms.attrs["timeseries type"] = f"block {extremes_type} series"
+    bms = bms.assign_attrs(
+        {
+            "duration": duration,
+            "groupby": groupby,
+            "grouped_duration": grouped_duration,
+            "extreme_value_extraction_method": f"block maxima",
+            "block_size": f"{block_size} year",
+            "timeseries_type": f"block {extremes_type} series",
+            "nicole": "leeney",
+        }
+    )
 
     return bms
+
+
+def _calc_average_ess_gridded_data(data, block_size):
+    """Calculate the mean effective sample size for gridded data
+
+    Parameters
+    ----------
+    data: xr.DataArray
+        Gridded data
+        Must have x,y spatial dimensions and temporal dimension "time"
+    block_size: int
+        block size in years. default is 1 year.
+
+    Returns
+    -------
+    float
+        Average effective sample size across time blocks for input data
+    """
+    # Go through each time block and compute ESS
+    ess_means_list = []
+    time_blocks = np.unique(data.time.dt.year)[:-1][::block_size]
+    for year_start in time_blocks:
+        # Slice data to just one time block
+        year_end = year_start + block_size - 1
+        da_time_block = data.sel(time=slice(str(year_start), str(year_end)))
+
+        # Stack spatial dimensions and drop NaN values
+        da_stacked = da_time_block.stack(spatial_dims=["x", "y"]).dropna(
+            dim="spatial_dims"
+        )
+
+        # Compute ESS for the time block
+        ess_by_time_block = da_stacked.groupby("spatial_dims").apply(calculate_ess)
+
+        # Compute mean ESS for time block and append to list
+        ess_mean_by_time_block = ess_by_time_block.mean(skipna=True).item()
+        ess_means_list.append(ess_mean_by_time_block)
+
+    # Compute mean across all time blocks
+    average_ess = np.array(ess_means_list).mean()
+    return average_ess
+
+
+def _calc_average_ess_timeseries_data(data, block_size):
+    """Calculate the mean effective sample size for timeseries data
+
+    Parameters
+    ----------
+    data: xr.DataArray
+        Timeseries data
+        Must have only one dimension: temporal dimension "time"
+    block_size: int
+        block size in years. default is 1 year.
+
+    Returns
+    -------
+    float
+        Average effective sample size across time blocks for input data
+    """
+
+    # Resample the data depending on the block size
+    # Calculate ESS for each block
+    ess_by_time_block = data.resample(time="{0}YS".format(block_size)).apply(
+        calculate_ess
+    )
+
+    # Compute mean of all ESS values
+    mean_ess = ess_by_timestep.mean(skipna=True).item()
+    return mean_ess
 
 
 def _get_distr_func(distr):
