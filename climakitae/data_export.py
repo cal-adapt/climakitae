@@ -9,6 +9,7 @@ import pandas as pd
 import dask
 import numpy as np
 import rasterio
+import re
 from . import __version__
 
 xr.set_options(keep_attrs=True)
@@ -41,16 +42,35 @@ def _export_to_csv(data_to_export, save_name, **kwargs):
     kwargs: reserved for future use
     """
 
-    excel_row_limit = 1048576
-    to_save = data_to_export.to_dataframe()
-    csv_nrows = len(to_save.index)
-    if csv_nrows > excel_row_limit:
+    if not data_to_export.name:
         warnings.warn(
-            "Dataset exceeds Excel limit of " + str(excel_row_limit) + " rows."
+            (
+                "The unnamed dataset cannot be converted to CSV. "
+                "It is being named 'data'."
+            )
         )
+        data_to_export.name = 'data'
+    data_to_export.name = re.sub('[()]', '', data_to_export.name).replace(' ', '_').replace('-', '_')
+    df = data_to_export.to_dataframe()
+    if 'units' in data_to_export.attrs and data_to_export.attrs['units'] is not None:
+        unit = data_to_export.attrs['units']
+        variable = data_to_export.name
+        df.columns = pd.MultiIndex.from_tuples(
+            [(col, unit) if col == variable else (col, '') for col in df.columns], 
+            name=['variable', 'unit']
+        )    
+        df.reset_index(inplace=True)
+        
+    # excel_row_limit = 1048576
+    # to_save = data_to_export.to_dataframe()
+    # csv_nrows = len(to_save.index)
+    # if csv_nrows > excel_row_limit:
+    #     warnings.warn(
+    #         "Dataset exceeds Excel limit of " + str(excel_row_limit) + " rows."
+    #     )
 
     _metadata_to_file(data_to_export, save_name)
-    to_save.to_csv(save_name, compression="gzip")
+    df.to_csv(save_name, compression="gzip")
 
 
 def _export_to_geotiff(data_to_export, save_name, **kwargs):
