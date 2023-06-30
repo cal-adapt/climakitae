@@ -49,18 +49,20 @@ def _export_to_csv(data_to_export, save_name, **kwargs):
                 "It is being named 'data'."
             )
         )
-        data_to_export.name = 'data'
-    data_to_export.name = re.sub('[()]', '', data_to_export.name).replace(' ', '_').replace('-', '_')
+        data_to_export.name = "data"
+    data_to_export.name = (
+        re.sub("[()]", "", data_to_export.name).replace(" ", "_").replace("-", "_")
+    )
     df = data_to_export.to_dataframe()
-    if 'units' in data_to_export.attrs and data_to_export.attrs['units'] is not None:
-        unit = data_to_export.attrs['units']
+    if "units" in data_to_export.attrs and data_to_export.attrs["units"] is not None:
+        unit = data_to_export.attrs["units"]
         variable = data_to_export.name
         df.columns = pd.MultiIndex.from_tuples(
-            [(col, unit) if col == variable else (col, '') for col in df.columns], 
-            name=['variable', 'unit']
-        )    
+            [(col, unit) if col == variable else (col, "") for col in df.columns],
+            name=["variable", "unit"],
+        )
         df.reset_index(inplace=True)
-        
+
     # excel_row_limit = 1048576
     # to_save = data_to_export.to_dataframe()
     # csv_nrows = len(to_save.index)
