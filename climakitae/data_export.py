@@ -31,8 +31,8 @@ def _export_to_netcdf(data_to_export, save_name, **kwargs):
 def _add_unit_to_header(df, variable, unit):
     """
     Add variable unit to data table header.
-    
-    Insert a 2nd row into the header of the DataFrame `df` to include the 
+
+    Insert a 2nd row into the header of the DataFrame `df` to include the
     `unit` associated with the `variable` column.
 
     Parameters
@@ -62,10 +62,10 @@ def _export_to_csv(data_to_export, save_name, **kwargs):
     """
     Export user-selected data to CSV format.
 
-    Export the xarray DataArray `data_to_export` to a CSV file named 
+    Export the xarray DataArray `data_to_export` to a CSV file named
     `save_name`. This function is called from the `_export_to_user`
     function if the user selected CSV output.
-    
+
     Parameters
     ----------
     data_to_export : xarray.DataArray
@@ -86,18 +86,17 @@ def _export_to_csv(data_to_export, save_name, **kwargs):
             )
         )
         data_to_export.name = "data"
-    
+
     # ease column access in R
     data_to_export.name = (
-        data_to_export.name
-        .replace("(", "")
+        data_to_export.name.replace("(", "")
         .replace(")", "")
         .replace(" ", "_")
         .replace("-", "_")
     )
-    
+
     df = data_to_export.to_dataframe()
-    
+
     if "units" in data_to_export.attrs and data_to_export.attrs["units"] is not None:
         unit = data_to_export.attrs["units"]
         variable = data_to_export.name
