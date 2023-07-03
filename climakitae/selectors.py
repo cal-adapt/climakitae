@@ -918,7 +918,7 @@ class _DataSelector(param.Parameterized):
         """Remove invalid options if derived index is selected.
         Complements function _remove_index_options_if_no_indices.
         UPDATE IF YOU ADD MORE INDICES."""
-        if self.variable_type == "Derived_Index":
+        if self.variable_type == "Derived Index":
             self.param["timescale"].objects = ["hourly"]
             self.timescale = "hourly"
 
