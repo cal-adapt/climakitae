@@ -51,10 +51,14 @@ def _export_to_csv(data_to_export, save_name, **kwargs):
         )
         data_to_export.name = "data"
     data_to_export.name = (
-        re.sub("[()]", "", data_to_export.name).replace(" ", "_").replace("-", "_")
+        data_to_export.name
+        .replace("(", "")
+        .replace(")", "")
+        .replace(" ", "_")
+        .replace("-", "_")
     )
     df = data_to_export.to_dataframe()
-    if "units" in data_to_export.attrs and data_to_export.attrs["units"] is not None:
+    if data_to_export.attrs.get("units") is not None:
         unit = data_to_export.attrs["units"]
         variable = data_to_export.name
         df.columns = pd.MultiIndex.from_tuples(
