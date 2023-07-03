@@ -874,6 +874,29 @@ class _DataSelector(param.Parameterized):
             elif self.data_type == "Gridded":
                 self.param["resolution"].objects = ["3 km", "9 km", "45 km"]
 
+    @param.depends("data_type", "timescale", "downscaling_method", watch=True)
+    def _remove_index_options_if_no_indices(self):
+        """Remove derived index as an option if the current selections do not have any index options.
+        UPDATE IF YOU ADD MORE INDICES."""
+        indices = True
+        # Cases where we currently don't have derived indices
+        if self.data_type == "station":
+            # Only air temp available for station data
+            indices = False
+        if self.timescale != "hourly":
+            # Currently we only have indices for hourly data
+            indices = False
+        if self.downscaling_method != ["Dynamical"]:
+            # Currently we only have indices for WRF data
+            indices = False
+
+        if indices == False:
+            # Remove derived index as an option
+            self.param["variable_type"].objects = ["Variable"]
+            self.variable_type = "Variable"
+        elif indices == True:
+            self.param["variable_type"].objects = ["Variable", "Derived Index"]
+
     @param.depends(
         "timescale",
         "resolution",
@@ -933,7 +956,6 @@ class _DataSelector(param.Parameterized):
                 downscaling_method=downscaling_method,
                 timescale=self.timescale,
             )
-            var_options = self.variable_options_df.display_name.values
 
             # Filter for derived indices
             # Depends on user selection for variable_type
@@ -951,6 +973,7 @@ class _DataSelector(param.Parameterized):
                 raise ValueError(
                     "You've encountered a bug in the code. There are no variable options for your selections."
                 )
+            var_options = self.variable_options_df.display_name.values
             self.param["variable"].objects = var_options
             if self.variable not in var_options:
                 self.variable = var_options[0]
