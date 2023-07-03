@@ -937,7 +937,7 @@ class _DataSelector(param.Parameterized):
 
             # Filter for derived indices
             # Depends on user selection for variable_type
-            if variable_type == "Variable":
+            if self.variable_type == "Variable":
                 # Remove indices
                 self.variable_options_df = self.variable_options_df[
                     ~self.variable_options_df["variable_id"].str.contains("index")
