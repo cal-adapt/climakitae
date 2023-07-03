@@ -934,6 +934,21 @@ class _DataSelector(param.Parameterized):
                 timescale=self.timescale,
             )
             var_options = self.variable_options_df.display_name.values
+
+            # Filter for derived indices
+            # Depends on user selection for variable_type
+            if variable_type == "Variable":
+                # Remove indices
+                self.variable_options_df = self.variable_options_df[
+                    ~self.variable_options_df["variable_id"].str.contains("index")
+                ]
+            elif variable_type == "Derived Index":
+                # Show only indices
+                self.variable_options_df = self.variable_options_df[
+                    self.variable_options_df["variable_id"].str.contains("index")
+                ]
+                # If there are no variables, show "None"
+
             self.param["variable"].objects = var_options
             if self.variable not in var_options:
                 self.variable = var_options[0]
