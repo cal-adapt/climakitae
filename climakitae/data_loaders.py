@@ -29,7 +29,7 @@ from .derive_variables import (
     _compute_dewpointtemp,
     _compute_specific_humidity,
 )
-from .fire import fosberg_fire_index
+from .indices import fosberg_fire_index
 
 # Set options
 xr.set_options(keep_attrs=True)
