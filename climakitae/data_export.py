@@ -63,13 +63,14 @@ def _export_to_csv(data_to_export, save_name, **kwargs):
         )
         df.reset_index(inplace=True)
 
-    # excel_row_limit = 1048576
-    # to_save = data_to_export.to_dataframe()
-    # csv_nrows = len(to_save.index)
-    # if csv_nrows > excel_row_limit:
-    #     warnings.warn(
-    #         "Dataset exceeds Excel limit of " + str(excel_row_limit) + " rows."
-    #     )
+    excel_row_limit = 1048576
+    excel_column_limit = 16384
+    csv_nrows, csv_ncolumns = df.shape
+    if csv_nrows > excel_row_limit or csv_ncolumns > excel_column_limit:
+        warnings.warn(
+            f"Dataset exceeds Excel limits of {excel_row_limit} rows "
+            f"and {excel_column_limit} columns."
+        )
 
     _metadata_to_file(data_to_export, save_name)
     df.to_csv(save_name, compression="gzip")
