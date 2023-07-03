@@ -858,16 +858,19 @@ class _DataSelector(param.Parameterized):
             self.param["area_average"].objects = ["Yes", "No"]
             self.area_average = "No"
 
-    @param.depends("downscaling_method", "data_type", watch=True)
+    @param.depends("downscaling_method", "data_type", "variable_type", watch=True)
     def _update_data_type_options_if_loca_selected(self):
         """If statistical downscaling is selected, remove option for station data because we don't
         have the 2m temp variable for LOCA"""
-        if "Statistical" in self.downscaling_method:
+        if (
+            "Statistical" in self.downscaling_method
+            or self.variable_type == "Derived Variable"
+        ):
             self.param["data_type"].objects = ["Gridded"]
             self.data_type = "Gridded"
         else:
             self.param["data_type"].objects = ["Gridded", "Station"]
-        if "Station" in self.data_type:
+        if "Station" in self.data_type or self.variable_type == "Derived Variable":
             self.param["downscaling_method"].objects = ["Dynamical"]
             if "Statistical" in self.downscaling_method:
                 self.downscaling_method.remove("Statistical")
@@ -913,20 +916,20 @@ class _DataSelector(param.Parameterized):
         elif indices == True:
             self.param["variable_type"].objects = ["Variable", "Derived Index"]
 
-    @param.depends("variable_type", watch=True)
-    def _remove_some_options_if_derived_index_is_selected(self):
-        """Remove invalid options if derived index is selected.
-        Complements function _remove_index_options_if_no_indices.
-        UPDATE IF YOU ADD MORE INDICES."""
-        if self.variable_type == "Derived Index":
-            self.param["timescale"].objects = ["hourly"]
-            self.timescale = "hourly"
+    #     @param.depends("variable_type", watch=True)
+    #     def _remove_some_options_if_derived_index_is_selected(self):
+    #         """Remove invalid options if derived index is selected.
+    #         Complements function _remove_index_options_if_no_indices.
+    #         UPDATE IF YOU ADD MORE INDICES."""
+    #         if self.variable_type == "Derived Index":
+    #             self.param["timescale"].objects = ["hourly"]
+    #             self.timescale = "hourly"
 
-            self.param["downscaling_method"].objects = ["Dynamical"]
-            self.downscaling_method = ["Dynamical"]
+    #             self.param["downscaling_method"].objects = ["Dynamical"]
+    #             self.downscaling_method = ["Dynamical"]
 
-            self.param["data_type"].objects = ["Gridded"]
-            self.data_type = "Gridded"
+    #             self.param["data_type"].objects = ["Gridded"]
+    #             self.data_type = "Gridded"
 
     @param.depends(
         "timescale",
