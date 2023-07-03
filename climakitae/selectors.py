@@ -943,8 +943,8 @@ class _DataSelector(param.Parameterized):
     def _update_user_options(self):
         """Update unique variable options"""
         if self.variable_type == "Derived Index": 
-            self.param["data_type"].objects = ["Station"] 
-            self.data_type = "Station" 
+            self.param["data_type"].objects = ["Gridded"] 
+            self.data_type = "Gridded" 
         if self.data_type == "Station":
             self.param["timescale"].objects = ["hourly"]
             self.timescale = "hourly"
