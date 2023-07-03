@@ -6,10 +6,7 @@ import warnings
 import datetime
 import xarray as xr
 import pandas as pd
-import dask
-import numpy as np
 import rasterio
-import re
 from . import __version__
 
 xr.set_options(keep_attrs=True)
