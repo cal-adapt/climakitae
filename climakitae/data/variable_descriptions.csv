@@ -5,7 +5,7 @@ rh_derived,Dynamical,hourly,[0 to 100],Relative humidity,The percentage of water
 wind_speed_derived,Dynamical,hourly,m s-1,Wind speed at 10m,Wind speed at 10 meters above the Earth's surface. Computed by taking the vector magnitude of the west-east (u) component of wind and the north-south (v) component of wind.,ae_orange,TRUE
 wind_direction_derived,Dynamical,hourly,degrees,Wind direction at 10m,Wind direction at 10 meters above the Earth's surface. By meteorological convention direction is defined as where wind originates from (i.e. North is 0/360 deg).,ae_orange,TRUE
 dew_point_derived_hrly,Dynamical,hourly,K,Dew point temperature,"The temperature the air needs to be cooled to, at constant pressure, in order to achieve a relative humidity of 100%.",ae_orange,TRUE
-fosberg_index_derived,Dynamical,hourly,[0 to 100],Fosberg fire weather index ,"Fire weather index using meteorological inputs (temperature, relative humidity, and windspeed) to quantify fire risk.",ae_blue,TRUE
+fosberg_index_derived,Dynamical,hourly,[0 to 100],Fosberg fire weather index,"Fire weather index using meteorological inputs (temperature, relative humidity, and windspeed) to quantify fire risk.",ae_blue,TRUE
 u10,Dynamical,hourly,m s-1,West-East component of Wind at 10m,"Wind coming from the west, measured at 10m above Earth's surface. By convention, wind coming from the east is negative.",ae_diverging,TRUE
 v10,Dynamical,hourly,m s-1,North-South component of Wind at 10m,"Wind coming from the north, measured at 10m above Earth's surface. By convention, wind coming from the south is negative.",ae_diverging,TRUE
 psfc,Dynamical,hourly,Pa,Surface Pressure,Air pressure at Earth's surface.,ae_diverging,TRUE
