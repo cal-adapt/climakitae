@@ -697,6 +697,11 @@ class _DataSelector(param.Parameterized):
     longitude = param.Range(default=(-125.5, -114), bounds=(-156.82317, -84.18701))
 
     # Data defaults
+    variable_type = param.Selector(
+        default="Variable",
+        objects=["Variable", "Derived Index"],
+        doc="Choose between variable or AE derived index",
+    )
     default_variable = "Air Temperature at 2m"
     time_slice = param.Range(default=(1980, 2015), bounds=(1950, 2100))
     resolution = param.Selector(default="9 km", objects=["3 km", "9 km", "45 km"])
@@ -875,6 +880,7 @@ class _DataSelector(param.Parameterized):
         "downscaling_method",
         "data_type",
         "variable",
+        "variable_type",
         watch=True,
     )
     def _update_user_options(self):
@@ -1362,6 +1368,9 @@ def _selections_param_to_panel(selections):
     variable_description = pn.widgets.StaticText.from_param(
         selections.param.extended_description, name=""
     )
+    variable_type = pn.widgets.RadioBoxGroup.from_param(
+        selections.param.variable_type, inline=True, name=""
+    )
 
     widgets_dict = {
         "area_average": area_average,
@@ -1383,6 +1392,7 @@ def _selections_param_to_panel(selections):
         "units": units,
         "variable": variable,
         "variable_description": variable_description,
+        "variable_type": variable_type,
     }
     text_dict = {
         "area_average_text": area_average_text,
@@ -1410,6 +1420,7 @@ def _display_select(selections):
 
     data_choices = pn.Column(
         widgets["variable_text"],
+        widgets["variable_type"],
         widgets["variable"],
         widgets["variable_description"],
         pn.Row(
