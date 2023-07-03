@@ -942,13 +942,15 @@ class _DataSelector(param.Parameterized):
                 self.variable_options_df = self.variable_options_df[
                     ~self.variable_options_df["variable_id"].str.contains("index")
                 ]
-            elif variable_type == "Derived Index":
+            elif self.variable_type == "Derived Index":
                 # Show only indices
                 self.variable_options_df = self.variable_options_df[
                     self.variable_options_df["variable_id"].str.contains("index")
                 ]
-                # If there are no variables, show "None"
-
+            if len(self.variable_options_df) == 0:
+                raise ValueError(
+                    "You've encountered a bug in the code. There are no variable options for your selections."
+                )
             self.param["variable"].objects = var_options
             if self.variable not in var_options:
                 self.variable = var_options[0]
