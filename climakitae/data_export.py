@@ -31,17 +31,56 @@ def _export_to_netcdf(data_to_export, save_name, **kwargs):
     data_to_export.to_netcdf(save_name, encoding=encoding)
 
 
+def _add_unit_to_header(df, variable, unit):
+    """
+    Add variable unit to data table header.
+    
+    Insert a 2nd row into the header of the DataFrame `df` to include the 
+    `unit` associated with the `variable` column.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        data table to update
+    variable : string
+        name of the variable column
+    unit : string
+        unit associated with the variable
+
+    Returns
+    -------
+    df : pandas.DataFrame
+        data table with the variable unit added to its header
+
+    """
+    df.columns = pd.MultiIndex.from_tuples(
+        [(col, unit) if col == variable else (col, "") for col in df.columns],
+        name=["variable", "unit"],
+    )
+    df.reset_index(inplace=True)  # simplifies header
+    return df
+
+
 def _export_to_csv(data_to_export, save_name, **kwargs):
     """
-    exports user-selected data to CSV format.
-    this function is called from the _export_to_user
+    Export user-selected data to CSV format.
+
+    Export the xarray DataArray `data_to_export` to a CSV file named 
+    `save_name`. This function is called from the `_export_to_user`
     function if the user selected CSV output.
+    
+    Parameters
+    ----------
+    data_to_export : xarray.DataArray
+        data to export to CSV format
+    save_name : string
+        desired output file name, including the file extension
 
-    data_to_export: xarray dataset or array to export
-    save_name: string corresponding to desired output file name + file extension
-    kwargs: reserved for future use
+    Returns
+    -------
+    None
+
     """
-
     if not data_to_export.name:
         warnings.warn(
             (
@@ -50,6 +89,8 @@ def _export_to_csv(data_to_export, save_name, **kwargs):
             )
         )
         data_to_export.name = "data"
+    
+    # ease column access in R
     data_to_export.name = (
         data_to_export.name
         .replace("(", "")
@@ -57,15 +98,13 @@ def _export_to_csv(data_to_export, save_name, **kwargs):
         .replace(" ", "_")
         .replace("-", "_")
     )
+    
     df = data_to_export.to_dataframe()
-    if data_to_export.attrs.get("units") is not None:
+    
+    if "units" in data_to_export.attrs and data_to_export.attrs["units"] is not None:
         unit = data_to_export.attrs["units"]
         variable = data_to_export.name
-        df.columns = pd.MultiIndex.from_tuples(
-            [(col, unit) if col == variable else (col, "") for col in df.columns],
-            name=["variable", "unit"],
-        )
-        df.reset_index(inplace=True)
+        df = _add_unit_to_header(df, variable, unit)
 
     excel_row_limit = 1048576
     excel_column_limit = 16384
