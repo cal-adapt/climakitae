@@ -776,6 +776,20 @@ class _DataSelector(param.Parameterized):
             timescale=self.timescale,
         )
 
+        # Show derived index option?
+        indices = True
+        if self.data_type == "station":
+            indices = False
+        if self.timescale != "hourly":
+            indices = False
+        if self.downscaling_method != ["Dynamical"]:
+            indices = False
+        if indices == False:
+            self.param["variable_type"].objects = ["Variable"]
+            self.variable_type = "Variable"
+        elif indices == True:
+            self.param["variable_type"].objects = ["Variable", "Derived Index"]
+
         # Set scenario param
         scenario_ssp_options = [
             _scenario_to_experiment_id(scen, reverse=True)
@@ -874,7 +888,9 @@ class _DataSelector(param.Parameterized):
             elif self.data_type == "Gridded":
                 self.param["resolution"].objects = ["3 km", "9 km", "45 km"]
 
-    @param.depends("data_type", "timescale", "downscaling_method", watch=True)
+    @param.depends(
+        "data_type", "timescale", "downscaling_method", "variable_type", watch=True
+    )
     def _remove_index_options_if_no_indices(self):
         """Remove derived index as an option if the current selections do not have any index options.
         UPDATE IF YOU ADD MORE INDICES."""
@@ -896,6 +912,21 @@ class _DataSelector(param.Parameterized):
             self.variable_type = "Variable"
         elif indices == True:
             self.param["variable_type"].objects = ["Variable", "Derived Index"]
+
+    @param.depends("variable_type", watch=True)
+    def _remove_some_options_if_derived_index_is_selected(self):
+        """Remove invalid options if derived index is selected.
+        Complements function _remove_index_options_if_no_indices.
+        UPDATE IF YOU ADD MORE INDICES."""
+        if self.variable_type == "Derived_Index":
+            self.param["timescale"].objects = ["hourly"]
+            self.timescale = "hourly"
+
+            self.param["downscaling_method"].objects = ["Dynamical"]
+            self.downscaling_method = ["Dynamical"]
+
+            self.param["data_type"].objects = ["Gridded"]
+            self.data_type = "Gridded"
 
     @param.depends(
         "timescale",
