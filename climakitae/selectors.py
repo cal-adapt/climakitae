@@ -913,20 +913,15 @@ class _DataSelector(param.Parameterized):
         elif indices == True:
             self.param["variable_type"].objects = ["Variable", "Derived Index"]
 
-        @param.depends("variable_type", watch=True)
-        def _remove_some_options_if_derived_index_is_selected(self):
-            """Remove invalid options if derived index is selected.
-            Complements function _remove_index_options_if_no_indices.
-            UPDATE IF YOU ADD MORE INDICES."""
-            if self.variable_type == "Derived Index":
-                self.param["timescale"].objects = ["hourly"]
-                self.timescale = "hourly"
+        if self.variable_type == "Derived Index":
+            self.param["timescale"].objects = ["hourly"]
+            self.timescale = "hourly"
 
-                self.param["downscaling_method"].objects = ["Dynamical"]
-                self.downscaling_method = ["Dynamical"]
+            self.param["downscaling_method"].objects = ["Dynamical"]
+            self.downscaling_method = ["Dynamical"]
 
-                self.param["data_type"].objects = ["Gridded"]
-                self.data_type = "Gridded"
+            self.param["data_type"].objects = ["Gridded"]
+            self.data_type = "Gridded"
 
     @param.depends(
         "timescale",
