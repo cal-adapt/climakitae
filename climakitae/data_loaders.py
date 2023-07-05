@@ -969,6 +969,10 @@ def _get_hourly_specific_humidity(selections, cat):
 def _get_fosberg_fire_index(selections, cat):
     """Derive the fosberg fire index."""
 
+    # Hard set timescale to hourly
+    orig_timescale = selections.timescale  # Preserve original user selection
+    selections.timescale = "hourly"
+
     # Load temperature data
     selections.variable_id = ["t2"]
     selections.units = "K"  # Kelvin required for humidity and dew point computation
@@ -1016,4 +1020,12 @@ def _get_fosberg_fire_index(selections, cat):
     da = fosberg_fire_index(
         t2_F=t2_da_F, rh_percent=rh_da, windspeed_mph=windspeed_da_mph
     )
+
+    # On the fly resample to mean daily or monthly
+    # Eventually, cache these in the catalog and remove this code
+    if selections.timescale == "monthly":
+        da = da.resample(time="MS").mean()
+    elif selections.timescale == "daily":
+        da = da.resample(time="1D").mean()
+    selections.timescale = orig_timescale  # Set back to user's original setting
     return da
