@@ -15,21 +15,19 @@ jobs:
       - uses: psf/black@stable
   build:
     strategy:
-      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
             label: linux-64
-            prefix: /usr/share/miniconda3/envs/climakitae-tests
+            lock-file: conda-linux-64.lock
 
           - os: macos-latest
             label: osx-64
-            prefix: /Users/runner/miniconda3/envs/climakitae-tests
+            lock-file: conda-osx-64.lock
 
           - os: windows-latest
             label: win-64
-            prefix: C:\Miniconda3\envs\climakitae-tests
-
+            lock-file: conda-win-64.lock
     name: ${{ matrix.label }}
     runs-on: ${{ matrix.os }}
     defaults:
@@ -37,31 +35,19 @@ jobs:
         shell: bash -l {0}
     steps:
     - name: Checkout project
-      uses: actions/checkout@v3
-    - name: Cache conda
-      uses: actions/cache@v2
-      env:
-          # Increase this value to reset cache if environment.yml has not changed
-          CACHE_NUMBER: 0
-      with:
-        path: ${{ matrix.prefix }}
-        key:
-          ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{ hashFiles('environment.yml') }}
-    - name: Setup Mambaforge
+      uses: actions/checkout@v2
+    - name: Setup miniconda
       uses: conda-incubator/setup-miniconda@v2
       with:
-          miniforge-variant: Mambaforge
-          miniforge-version: latest
-          use-mamba: true
           auto-activate-base: false
           activate-environment: climakitae-tests
-          environment-file: environment.yml
-          use-only-tar-bz2: true # IMPORTANT: This needs to be set for caching to work properly!
-
+          environment-file: ${{ matrix.lock-file }}
+          use-only-tar-bz2: true
     - name: Output conda info
       run: conda info
+    - name: Install xclim
+      run: pip install dask-gateway==2023.1.1 dask-geopandas==0.3.1 xclim==0.42.0
     - name: Install climakitae
       run: pip install .
     - name: Test with pytest
       run: pytest --no-header -vv
-      if: always() # Run even if previous step fails
