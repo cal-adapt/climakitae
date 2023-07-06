@@ -3,6 +3,7 @@
 import xarray as xr
 import dask
 import rioxarray
+from rioxarray.exceptions import NoDataInBounds
 import intake
 import numpy as np
 import pandas as pd
@@ -63,7 +64,7 @@ def _compute(xr_da):
 
     else:
         print(
-            "Reading {0} of data into memory... ".format(
+            "Processing data to read {0} of data into memory... ".format(
                 _readable_bytes(xr_data_nbytes)
             ),
             end="",
@@ -98,6 +99,38 @@ def _get_as_shapely(selections):
         selections.latitude[1],  # maxy
     )
     return shapely_geom
+
+
+def _sim_index_item(ds_name, member_id):
+    """Identify a simulation by its downscaling type, driving GCM, and member id.
+
+    Args:
+        one (str): dataset name from catalog
+        member_id (xr.Dataset.attr): ensemble member id from dataset attributes
+
+    Returns:
+        str: joined by underscores
+    """
+    downscaling_type = ds_name.split(".")[0]
+    gcm_name = ds_name.split(".")[2]
+    ensemble_member = str(member_id.values)
+    return "_".join([downscaling_type, gcm_name, ensemble_member])
+
+
+def _scenarios_in_data_dict(keys):
+    """Return unique list of ssp scenarios in dataset dictionary.
+
+    Args:
+        keys (list[str]): list of dataset names from catalog
+        selections (DataLoaders): object holding user's selections
+
+    Returns:
+        scenario_list: list[str]: unique scenarios
+
+    """
+    scenarios = set([one.split(".")[3] for one in keys if "ssp" in one])
+
+    return list(scenarios)
 
 
 # ============= Main functions used in data reading/processing =================
@@ -154,7 +187,45 @@ def _get_cat_subset(selections, cat):
     return cat_subset
 
 
-def _get_area_subset(area_subset, cached_area, selections):
+def _time_slice(dset, selections):
+    """Subset over time
+    Args:
+        dset (xr.Dataset): one dataset from the catalog
+        selections (DataLoaders): object holding user's selections
+
+    Returns:
+        xr.Dataset: time-slice of dset
+    """
+
+    window_start = str(selections.time_slice[0])
+    window_end = str(selections.time_slice[1])
+
+    return dset.sel(time=slice(window_start, window_end))
+
+
+def _override_area_selections(selections):
+    """Account for 'station' special-case
+    You need to retrieve the entire domain because the shapefiles will cut out
+    the ocean grid cells, but the some station's closest gridcells are the ocean!
+
+    Args:
+        selections (DataLoaders): object holding user's selections
+
+    Returns:
+        area_subset (str):
+        cached_area (str):
+    """
+    if selections.data_type == "Station":
+        area_subset = "none"
+        cached_area = "entire domain"
+    else:
+        area_subset = selections.area_subset
+        cached_area = selections.cached_area
+
+    return area_subset, cached_area
+
+
+def _area_subset_geometry(selections):
     """Get geometry to perform area subsetting with.
 
     Args:
@@ -164,6 +235,7 @@ def _get_area_subset(area_subset, cached_area, selections):
         ds_region (shapely.geometry): geometry to use for subsetting
 
     """
+    area_subset, cached_area = _override_area_selections(selections)
 
     def set_subarea(boundary_dataset):
         return boundary_dataset[boundary_dataset.index == shape_index].iloc[0].geometry
@@ -195,12 +267,181 @@ def _get_area_subset(area_subset, cached_area, selections):
     return ds_region
 
 
-def _process_and_concat(selections, dsets, cat_subset):
-    """Process all data; merge all datasets into one.
+def _clip_to_geometry(dset, ds_region):
+    """Clip to geometry if large enough
+    Args:
+        dset (xr.Dataset): one dataset from the catalog
+        ds_region (shapely.geometry.polygon.Polygon): area to clip to
+
+    Returns:
+        xr.Dataset: clipped area of dset
+    """
+    try:
+        dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
+
+    except NoDataInBounds as e:
+        # Catch small geometry error
+        print(e)
+        print("Skipping spatial subsetting.")
+
+    return dset
+
+
+def _clip_to_geometry_loca(dset, ds_region):
+    """Clip to geometry, adding missing grid info
+        because crs and x, y are missing from LOCA datasets
+        Otherwise rioxarray will raise this error:
+        'MissingSpatialDimensionError: x dimension not found.'
+    Args:
+        dset (xr.Dataset): one dataset from the catalog
+        ds_region (shapely.geometry.polygon.Polygon): area to clip to
+
+    Returns:
+        xr.Dataset: clipped area of dset
+    """
+    dset = dset.rename({"lon": "x", "lat": "y"})
+    dset = dset.rio.write_crs("EPSG:4326")
+    dset = _clip_to_geometry(dset, ds_region)
+    dset = dset.rename({"x": "lon", "y": "lat"}).drop("spatial_ref")
+    return dset
+
+
+def _spatial_subset(dset, selections):
+    """Subset over spatial area
+    Args:
+        dset (xr.Dataset): one dataset from the catalog
+        selections (DataLoaders): object holding user's selections
+
+    Returns:
+        xr.Dataset: subsetted area of dset
+    """
+    ds_region = _area_subset_geometry(selections)
+
+    if ds_region is not None:  # Perform subsetting
+        if selections.downscaling_method == ["Dynamical"]:
+            dset = _clip_to_geometry(dset, ds_region)
+        else:
+            dset = _clip_to_geometry_loca(dset, ds_region)
+
+    return dset
+
+
+def _area_average(dset):
+    """Weighted area-average
+
+    Args:
+        dset (xr.Dataset): one dataset from the catalog
+
+    Returns:
+        xr.Dataset: sub-setted output data
+
+    """
+    weights = np.cos(np.deg2rad(dset.lat))
+    if set(["x", "y"]).issubset(set(dset.dims)):
+        # WRF data has x,y
+        dset = dset.weighted(weights).mean("x").mean("y")
+    elif set(["lat", "lon"]).issubset(set(dset.dims)):
+        # LOCA data has lat, lon
+        dset = dset.weighted(weights).mean("lat").mean("lon")
+    return dset
+
+
+def _process_dset(ds_name, dset, selections):
+    """Subset over time and space, as described in user selections;
+       renaming to facilitate concatenation.
+
+    Args:
+        dset (xr.Dataset): one dataset from the catalog
+        selections (DataLoaders): object holding user's selections
+
+    Returns:
+        xr.Dataset: sub-setted output data
+
+    """
+    # Time slice
+    dset = _time_slice(dset, selections)
+
+    # Perform area subsetting
+    dset = _spatial_subset(dset, selections)
+
+    # Perform area averaging
+    if selections.area_average == "Yes":
+        dset = _area_average(dset)
+
+    # Rename member_id value to include more info
+    dset = dset.assign_coords(
+        member_id=[_sim_index_item(ds_name, mem_id) for mem_id in dset.member_id]
+    )
+    # Rename variable to display name:
+    dset = dset.rename({list(dset.data_vars)[0]: selections.variable})
+
+    return dset
+
+
+def _concat_sims(data_dict, hist_data, selections, scenario):
+    """Combine datasets along expanded 'member_id' dimension, and append
+        historical if relevant.
+
+    Args:
+        data_dict (dictionary): dictionary of zarrs from catalog, with each key
+            being its name and each item the zarr store
+        hist_data (xr.Dataset): subsetted historical data to append
+        scenario (str): short designation for one SSP
+
+    Returns:
+        one_scenario (xr.Dataset): combined data object
+    """
+    scen_name = _scenario_to_experiment_id(scenario, reverse=True)
+
+    # Merge along expanded 'member_id' dimension:
+    one_scenario = xr.concat(
+        [
+            _process_dset(one, data_dict[one], selections)
+            for one in data_dict.keys()
+            if scenario in one
+        ],
+        dim="member_id",
+    )
+
+    # Append historical if relevant:
+    if hist_data != None:
+        scen_name = "Historical + " + scen_name
+        one_scenario = xr.concat([hist_data, one_scenario], dim="time")
+
+    # Set-up coordinate:
+    one_scenario = one_scenario.assign_coords({"scenario": scen_name})
+
+    return one_scenario
+
+
+def _override_unit_defaults(da, var_id):
+    """Override non-standard unit specifications in some dataset attributes
+
+    Args:
+        da (xr.DataArray): any xarray DataArray with a units attribute
+
+    Returns:
+        xr.DataArray: output data
+
+    """
+    if var_id == "huss":
+        # Units for LOCA specific humidity are set to 1
+        # Reset to kg/kg so they can be converted if neccessary to g/kg
+        da.attrs["units"] = "kg/kg"
+    elif var_id == "rsds":
+        # rsds units are "W m-2"
+        # rename them to W/m2 to match the lookup catalog, and the units for WRF radiation variables
+        da.attrs["units"] = "W/m2"
+    return da
+
+
+def _merge_all(selections, data_dict, cat_subset):
+    """Merge all datasets into one, subsetting each consistently;
+       clean-up format, and convert units.
 
     Args:
         selections (DataLoaders): object holding user's selections
-        dsets (dictionary): dictionary of zarrs from catalog, with each key
+        data_dict (dictionary): dictionary of zarrs from catalog, with each key
             being its name and each item the zarr store
         cat_subset (intake_esm.core.esm_datastore): catalog subset
 
@@ -208,201 +449,63 @@ def _process_and_concat(selections, dsets, cat_subset):
         da (xr.DataArray): output data
 
     """
-    da_list = []
-    scenario_list = selections.scenario_historical + selections.scenario_ssp
 
-    # Set to false at start
-    # Code will automatically set it to true if historical climate and an SSP are selected
-    append_historical = False
-
-    if True in ["SSP" in one for one in selections.scenario_ssp]:
-        if "Historical Climate" in selections.scenario_historical:
-            if selections.time_slice[0] <= 2015:
-                # Historical climate will be appended to the SSP data
-                append_historical = True
-            scenario_list.remove("Historical Climate")
-        if "Historical Reconstruction (ERA5-WRF)" in selections.scenario_historical:
-            # We are not allowing users to select historical reconstruction data and SSP data at the same time,
-            # due to the memory restrictions at the moment
-            scenario_list.remove("Historical Reconstruction (ERA5-WRF)")
-
-    scen_names = [_scenario_to_experiment_id(scenario) for scenario in scenario_list]
-    if append_historical:
-        scen_names = ["Historical + " + one_name for one_name in scen_names]
-    activity_ids = [
-        _downscaling_method_to_activity_id(downscaling_method)
-        for downscaling_method in selections.downscaling_method
-    ]
-
-    for scenario in scenario_list:
-        # Convert user-friendly scenario to the experiment_id, which is used to search the catalog
-        scen_name = _scenario_to_experiment_id(scenario)
-        # Create empty list where data for all the simulations from the single scenario will be stored
-        sim_list = []
-        for downscaling_method in selections.downscaling_method:
-            # Loop through each unique downscaling method (LOCA or WRF)
-            # selections.downscaling method is set to "Dynamical" or "Statistical", so we need to get the
-            # activity_id that corresponds to each in order to search for it in the catalog
-            activity_id = _downscaling_method_to_activity_id(downscaling_method)
-            for simulation in selections.simulation:
-                # Loop through each unique simulation
-                if append_historical:
-                    # Method for if historical data needs to be appended to the SSP data
-                    # This will read in both historical and SSP for the same simulation, then concatenate both
-
-                    # Reset name
-                    scen_name = "Historical + " + scenario
-
-                    # Get filenames
-                    try:
-                        historical_filename = fnmatch.filter(
-                            list(dsets.keys()),
-                            "*{0}.*{1}.*historical*".format(activity_id, simulation),
-                        )[0]
-                        ssp_filename = fnmatch.filter(
-                            list(dsets.keys()),
-                            "*{0}.*{1}.*{2}*".format(
-                                activity_id,
-                                simulation,
-                                _scenario_to_experiment_id(scenario),
-                            ),
-                        )[0]
-                    except:  # Some simulation + ssp options are not available. Just continue with the loop if no filename is found
-                        continue
-                    # Grab data
-                    historical_data = _subset(dsets[historical_filename], selections)
-                    ssp_data = _subset(dsets[ssp_filename], selections)
-
-                    # Concatenate data. Rename scenario attribute
-                    # This will append the SSP data to the historical data, both with the same simulation
-                    ds_sim = xr.concat(
-                        [historical_data, ssp_data],
-                        dim="time",
-                        coords="minimal",
-                        compat="override",
-                        join="inner",
-                    )
-
-                else:
-                    # If historical data does not need to be appended, just grab the filename that matches the current state of the loop
-                    try:
-                        #
-                        filename = fnmatch.filter(
-                            list(dsets.keys()),
-                            "*{0}.*{1}.*{2}*".format(
-                                activity_id,
-                                simulation,
-                                _scenario_to_experiment_id(scenario),
-                            ),
-                        )[0]
-                        ds_sim = _subset(dsets[filename], selections)
-                    except:
-                        continue
-                # Get the name of the variable id
-                # This corresponds to the name of the data variable
-                var_id = list(ds_sim.data_vars)[0]
-
-                # Convert units
-                da_sim = ds_sim[var_id]  # Convert xr.Dataset --> xr.DataArray
-                if var_id == "huss":
-                    # Units for LOCA specific humidity are set to 1
-                    # Reset to kg/kg so they can be converted if neccessary to g/kg
-                    da_sim.attrs["units"] = "kg/kg"
-                elif var_id == "rsds":
-                    # rsds units are "W m-2"
-                    # rename them to W/m2 to match the lookup catalog, and the units for WRF radiation variables
-                    da_sim.attrs["units"] = "W/m2"
-                da_sim = _convert_units(da=da_sim, selected_units=selections.units)
-
-                # Combine member_id and simulation coordinates
-                for member_id in da_sim.member_id.values:
-                    da_sim_member_id = da_sim.sel(member_id=member_id).drop("member_id")
-                    # Rename the simulation coordinate to include the member_id
-                    da_sim_member_id["simulation"] = "{0}_{1}_{2}".format(
-                        activity_id, simulation, member_id
-                    )
-                    sim_list.append(da_sim_member_id)
-
-        # Raise an appropriate error if no data found
-        # The list will be empty if no data matched any of the filename wildcards
-        if len(sim_list) == 0:
-            raise ValueError(
-                "You've encountered a bug in the source code. The data selections you've set do not correspond to a valid data option in the Analytics Engine catalog."
-            )
-
-        # Concatenate along simulation dimension
-        else:
-            da = xr.concat(
-                sim_list, dim="simulation", coords="minimal", compat="broadcast_equals"
-            )
-            da = da.assign_coords({"scenario": scen_name})
-            da_list.append(da)
-
-    # Concatenate along scenario dimension
-    da_final = xr.concat(
-        da_list, dim="scenario", coords="minimal", compat="broadcast_equals"
-    )
-    return da_final
-
-
-# ============ Read from catalog function used by ck.Application ===============
-
-
-def _subset(dset, selections):
-    # Time slice
-    dset = dset.sel(
-        time=slice(str(selections.time_slice[0]), str(selections.time_slice[1]))
-    )
-
-    # Perform area subsetting
-    # You need to retrieve the entire domain because the shapefiles will cut out the ocean grid cells
-    # But the some station's closest gridcells are the ocean!
-    if selections.data_type == "Station":
-        area_subset = "none"
-        cached_area = "entire domain"
+    # Get corresponding data for historical period to append:
+    hist_keys = [one for one in data_dict.keys() if "historical" in one]
+    if hist_keys:
+        all_hist = xr.concat(
+            [
+                _process_dset(one, data_dict[one], selections)
+                for one in data_dict.keys()
+                if "historical" in one
+            ],
+            dim="member_id",
+        )
     else:
-        area_subset = selections.area_subset
-        cached_area = selections.cached_area
-    ds_region = _get_area_subset(area_subset, cached_area, selections)
-    if ds_region is not None:  # Perform subsetting
-        if selections.downscaling_method == ["Dynamical"]:
-            try:
-                dset = dset.rio.clip(
-                    geometries=ds_region, crs=4326, drop=True, all_touched=False
-                )
-            except:
-                # Catch small geometry error
-                # Unsure how to catch the unique exception that rioxarray raises: NoDataInBounds
-                # This will unfortunately catch all unrelated exceptions-- hopefully there's not other cases where the code will trigger an exception, but I'm not sure
-                print(
-                    "COULD NOT RETRIEVE DATA: For the provided data selections, there is not sufficient data to retrieve. Try selecting a larger spatial area, or a higher resolution. Returning None."
-                )
-                return None
-        else:
-            # LOCA does not have x,y coordinates. rioxarray hates this
-            # rioxarray will raise this error: MissingSpatialDimensionError: x dimension not found. 'rio.set_spatial_dims()' or using 'rename()' to change the dimension name to 'x' can address this.
-            # Therefore I need to rename the lat, lon dimensions to x,y, and then reset them after clipping.
-            # I also need to write a CRS to the dataset
-            dset = dset.rename({"lon": "x", "lat": "y"})
-            dset = dset.rio.write_crs("EPSG:4326")
-            dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
-            dset = dset.rename({"x": "lon", "y": "lat"}).drop("spatial_ref")
+        all_hist = None
 
-    # Perform area averaging
-    if selections.area_average == "Yes":
-        weights = np.cos(np.deg2rad(dset.lat))
-        if set(["x", "y"]).issubset(set(dset.dims)):
-            # WRF data has x,y
-            dset = dset.weighted(weights).mean("x").mean("y")
-        elif set(["lat", "lon"]).issubset(set(dset.dims)):
-            # LOCA data has x,y
-            dset = dset.weighted(weights).mean("lat").mean("lon")
+    # Get (and double-check) list of SSP scenarios:
+    _scenarios = _scenarios_in_data_dict(data_dict.keys())
 
-    return dset
+    if _scenarios:
+        # Merge along new 'scenario' dimension:
+        all_ssps = xr.concat(
+            [
+                _concat_sims(data_dict, all_hist, selections, scenario)
+                for scenario in _scenarios
+            ],
+            combine_attrs="drop_conflicts",
+            dim="scenario",
+        )
+    else:
+        all_ssps = all_hist
+
+    # Rename expanded dimension:
+    all_ssps = all_ssps.rename({"member_id": "simulation"})
+
+    # Convert to xr.DataArray:
+    var_id = list(all_ssps.data_vars)[0]
+    all_ssps = all_ssps[var_id]
+
+    # Convert units:
+    all_ssps = _override_unit_defaults(all_ssps, var_id)
+    all_ssps = _convert_units(da=all_ssps, selected_units=selections.units)
+
+    return all_ssps
 
 
 def _get_data_one_var(selections, cat):
-    """Get data for one variable"""
+    """Get data for one variable
+    Retrieves dataset dictionary from AWS, handles some special cases, merges
+    datasets along new dimensions into one xr.DataArray, and adds metadata.
+
+    Args:
+        selections (DataLoaders): object holding user's selections
+        cat (intake_esm.core.esm_datastore): catalog
+
+    Returns:
+        da (xr.DataArray): with datasets combined over new dimensions 'simulation' and 'scenario'
+    """
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")  # Silence warning if empty dataset returned
@@ -450,9 +553,7 @@ def _get_data_one_var(selections, cat):
         data_dict = {**data_dict, **data_dict2}
 
     # Merge individual Datasets into one DataArray object.
-    da = _process_and_concat(
-        selections=selections, dsets=data_dict, cat_subset=cat_subset
-    )
+    da = _merge_all(selections=selections, data_dict=data_dict, cat_subset=cat_subset)
 
     # Assign data type attribute
     da_new_attrs = {  # Add descriptive attributes to DataArray
@@ -799,7 +900,7 @@ def _preprocess_hadisd(ds):
 
 
 def _read_catalog_from_csv(selections, cat, csv, merge=True):
-    """Retrieve data from csv input.
+    """Retrieve user data selections from csv input.
 
     Allows user to bypass app.select GUI and allows developers to
     pre-set inputs in a csv file for ease of use in a notebook.
