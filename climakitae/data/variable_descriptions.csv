@@ -64,6 +64,5 @@ hursmin,Statistical,daily/monthly,percent,Minimum relative humidity,The minimum 
 hursmax,Statistical,daily/monthly,percent,Maximum relative humidity,The maximum percentage of water vapor (i.e. moisture) relative to the amount of water vapor needed to saturate the air at the current air temperature and pressure.,ae_blue,TRUE
 wspeed,Statistical,daily/monthly,m s-1,Wind speed at 10m,Wind speed at 10 meters above the Earth's surface. Computed by taking the vector magnitude of the west-east (u) component of wind and the north-south (v) component of wind.,ae_orange,TRUE
 rsds,Statistical,daily/monthly,W/m2,Shortwave flux at the surface,Shortwave radiation from the sun that reaches Earth's surface. ,ae_orange,TRUE
-fosberg_index_derived,Dynamical,daily/monthly,[0 to 100],Fosberg fire weather index,"Fire weather index using meteorological inputs (temperature, relative humidity, and windspeed) to quantify fire risk.",ae_orange,TRUE
 fosberg_index_derived,Dynamical,hourly,[0 to 100],Fosberg fire weather index,"Fire weather index using meteorological inputs (temperature, relative humidity, and windspeed) to quantify fire risk.",ae_orange,TRUE
 noaa_heat_index_derived,Dynamical,hourly,degF,NOAA Heat Index,"A measure of what the the temperature ""feels like"" to the human body. Derived from relative humidity and air temperature. ",ae_orange,TRUE
