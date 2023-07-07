@@ -46,7 +46,7 @@ def _add_unit_to_header(df, variable, unit):
 
     Returns
     -------
-    df : pandas.DataFrame
+    pandas.DataFrame
         data table with the variable unit added to its header
 
     """
@@ -79,12 +79,7 @@ def _export_to_csv(data_to_export, save_name, **kwargs):
 
     """
     if not data_to_export.name:
-        warnings.warn(
-            (
-                "The unnamed dataset cannot be converted to CSV. "
-                "It is being named 'data'."
-            )
-        )
+        # name it in order to call to_dataframe on it
         data_to_export.name = "data"
 
     # ease column access in R
