@@ -555,8 +555,26 @@ def _get_data_one_var(selections, cat):
     # Merge individual Datasets into one DataArray object.
     da = _merge_all(selections=selections, data_dict=data_dict, cat_subset=cat_subset)
 
-    # Assign data type attribute
-    da_new_attrs = {  # Add descriptive attributes to DataArray
+    # Set data attributes and name
+    data_attrs = _get_data_attributes(selections)
+    if "grid_mapping" in da.attrs:
+        data_attrs = data_attrs | {"grid_mapping": da.attrs["grid_mapping"]}
+    data_attrs = data_attrs | {"institution": _institution}
+    da.attrs = data_attrs
+    da.name = selections.variable
+    return da
+
+
+def _get_data_attributes(selections):
+    """Return dictionary of xr.DataArray attributes based on selections
+
+    Args:
+        selections (_DataLoaders)
+
+    Returns:
+        new_attrs (dict): attributes
+    """
+    new_attrs = {  # Add descriptive attributes to DataArray
         "variable_id": ", ".join(
             selections.variable_id
         ),  # Convert list to comma separated string
@@ -566,13 +584,8 @@ def _get_data_one_var(selections, cat):
         "resolution": selections.resolution,
         "frequency": selections.timescale,
         "location_subset": selections.cached_area,
-        "institution": _institution,
     }
-    if "grid_mapping" in da.attrs:
-        da_new_attrs = da_new_attrs | {"grid_mapping": da.attrs["grid_mapping"]}
-    da.attrs = da_new_attrs
-    da.name = selections.variable
-    return da
+    return new_attrs
 
 
 def _read_catalog_from_select(selections, cat):
@@ -628,6 +641,9 @@ def _read_catalog_from_select(selections, cat):
     orig_var_id_selection = selections.variable_id[0]
     orig_unit_selection = selections.units
     orig_variable_selection = selections.variable
+
+    # Get data attributes beforehand since selections is modified
+    data_attrs = _get_data_attributes(selections)
     if "_derived" in orig_var_id_selection:
         if orig_var_id_selection == "wind_speed_derived":  # Hourly
             da = _get_wind_speed_derived(selections, cat)
@@ -649,9 +665,15 @@ def _read_catalog_from_select(selections, cat):
             )
 
         da = _convert_units(da, selected_units=orig_unit_selection)
-        da.attrs["variable_id"] = orig_var_id_selection  # Reset variable ID attribute
-        da.attrs["units"] = orig_unit_selection
         da.name = orig_variable_selection  # Set name of DataArray
+
+        # Set attributes
+        # Some of the derived variables may be constructed from data that comes from the same institution
+        # The dev team hasn't looked into this yet -- opportunity for future improvement
+        if "grid_mapping" in da.attrs:
+            data_attrs = data_attrs | {"grid_mapping": da.attrs["grid_mapping"]}
+        data_attrs = data_attrs | {"institution": "Multiple"}
+        da.attrs = data_attrs
 
         # Reset selections to user's original selections
         selections.variable_id = [orig_var_id_selection]
@@ -1124,9 +1146,9 @@ def _get_fosberg_fire_index(selections, cat):
 
     # On the fly resample to mean daily or monthly
     # Eventually, cache these in the catalog and remove this code
-    if selections.timescale == "monthly":
-        da = da.resample(time="MS").mean()
-    elif selections.timescale == "daily":
-        da = da.resample(time="1D").mean()
-    selections.timescale = orig_timescale  # Set back to user's original setting
+    # if selections.timescale == "monthly":
+    #     da = da.resample(time="MS").mean()
+    # elif selections.timescale == "daily":
+    #     da = da.resample(time="1D").mean()
+    # selections.timescale = orig_timescale  # Set back to user's original setting
     return da
