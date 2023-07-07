@@ -6,8 +6,6 @@ import warnings
 import datetime
 import xarray as xr
 import pandas as pd
-import dask
-import numpy as np
 import rasterio
 from . import __version__
 
@@ -30,27 +28,86 @@ def _export_to_netcdf(data_to_export, save_name, **kwargs):
     data_to_export.to_netcdf(save_name, encoding=encoding)
 
 
+def _add_unit_to_header(df, variable, unit):
+    """
+    Add variable unit to data table header.
+
+    Insert a 2nd row into the header of the DataFrame `df` to include the
+    `unit` associated with the `variable` column.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        data table to update
+    variable : string
+        name of the variable column
+    unit : string
+        unit associated with the variable
+
+    Returns
+    -------
+    pandas.DataFrame
+        data table with the variable unit added to its header
+
+    """
+    df.columns = pd.MultiIndex.from_tuples(
+        [(col, unit) if col == variable else (col, "") for col in df.columns],
+        name=["variable", "unit"],
+    )
+    df.reset_index(inplace=True)  # simplifies header
+    return df
+
+
 def _export_to_csv(data_to_export, save_name, **kwargs):
     """
-    exports user-selected data to CSV format.
-    this function is called from the _export_to_user
+    Export user-selected data to CSV format.
+
+    Export the xarray DataArray `data_to_export` to a CSV file named
+    `save_name`. This function is called from the `_export_to_user`
     function if the user selected CSV output.
 
-    data_to_export: xarray dataset or array to export
-    save_name: string corresponding to desired output file name + file extension
-    kwargs: reserved for future use
+    Parameters
+    ----------
+    data_to_export : xarray.DataArray
+        data to export to CSV format
+    save_name : string
+        desired output file name, including the file extension
+
+    Returns
+    -------
+    None
+
     """
+    if not data_to_export.name:
+        # name it in order to call to_dataframe on it
+        data_to_export.name = "data"
+
+    # ease column access in R
+    data_to_export.name = (
+        data_to_export.name.replace("(", "")
+        .replace(")", "")
+        .replace(" ", "_")
+        .replace("-", "_")
+    )
+
+    df = data_to_export.to_dataframe()
+
+    if "units" in data_to_export.attrs and data_to_export.attrs["units"] is not None:
+        unit = data_to_export.attrs["units"]
+        variable = data_to_export.name
+        df = _add_unit_to_header(df, variable, unit)
 
     excel_row_limit = 1048576
-    to_save = data_to_export.to_dataframe()
-    csv_nrows = len(to_save.index)
-    if csv_nrows > excel_row_limit:
+    excel_column_limit = 16384
+    csv_nrows, csv_ncolumns = df.shape
+    if csv_nrows > excel_row_limit or csv_ncolumns > excel_column_limit:
         warnings.warn(
-            "Dataset exceeds Excel limit of " + str(excel_row_limit) + " rows."
+            f"Dataset exceeds Excel limits of {excel_row_limit} rows "
+            f"and {excel_column_limit} columns."
         )
 
     _metadata_to_file(data_to_export, save_name)
-    to_save.to_csv(save_name, compression="gzip")
+    df.to_csv(save_name, compression="gzip")
 
 
 def _export_to_geotiff(data_to_export, save_name, **kwargs):
