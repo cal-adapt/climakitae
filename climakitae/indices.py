@@ -32,7 +32,7 @@ def fosberg_fire_index(t2_F, rh_percent, windspeed_mph):
     # Compute the equilibrium moisture constant
     m_low, m_mid, m_high = _equilibirum_moisture_constant(h=rh_percent, T=t2_F)
 
-    # For RH > 10%, use the low m value.
+    # For RH < 10%, use the low m value.
     # For RH >= 10%, use the mid value
     m = xr.where(rh_percent < 10, m_low, m_mid)
     # For RH > 50%, use the high m value.
