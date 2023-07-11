@@ -4,6 +4,40 @@ import xarray as xr
 import numpy as np
 
 
+def effective_temp(T):
+    """Compute effective temperature
+    Effective Temp = (1/2)*(yesterday's temp) + (1/2)*today's temp
+
+    Parameters
+    ----------
+    T: xr.DataArray
+        Daily air temperature in any units
+
+    Returns
+    --------
+    xr.DataArray
+        Effective temperature
+
+    References
+    ----------
+    https://www.nationalgas.com/document/132516/download
+    """
+    # Get "yesterday" temp by shifting the time index back one time step (1 day)
+    T_yesterday = T.shift(time=-1)
+    effective_temp = T_yesterday * 0.5 + T * 0.5
+
+    # Set first time step to NaN since effective temp requires info from the previous day
+    effective_temp = xr.where(
+        effective_temp.time == effective_temp.time[0], np.nan, effective_temp
+    )
+
+    # Assign same attributes as input data
+    # Or else, the output data will have no attributes :(
+    effective_temp.attrs = T.attrs
+
+    return effective_temp
+
+
 def noaa_heat_index(T, RH):
     """Compute the NOAA Heat Index
 
