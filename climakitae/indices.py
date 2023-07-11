@@ -55,12 +55,9 @@ def noaa_heat_index(T, RH):
     low_HI = 0.5 * (T + 61.0 + ((T - 68.0) * 1.2) + (RH * 0.094))
 
     # Adjust heat index depending on different condions for RH, T, and valid range of HI
-    HI = xr.where((RH < 13) & (T > 80), HI_highT_lowRH, HI)
+    HI = xr.where((RH < 13) & (T > 80) & (T < 112), HI_highT_lowRH, HI)
     HI = xr.where(((RH > 85) & (T < 87) & (T > 80)), HI_lowT_highRH, HI)
     HI = xr.where(HI < 80, low_HI, HI)
-    HI = xr.where(
-        T > 112, np.nan, HI
-    )  # If temp is above 112 deg F, HI is not valid. Set to NaN
 
     # Assign units attribute
     HI.attrs["units"] = "degF"
