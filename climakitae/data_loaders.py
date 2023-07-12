@@ -809,7 +809,13 @@ def _get_bias_corrected_closest_gridcell(station_da, gridded_da, time_slice):
 
 
 def _bias_correct_model_data(
-    obs_da, gridded_da, time_slice, window=90, nquantiles=20, group="time.dayofyear", kind="+"
+    obs_da,
+    gridded_da,
+    time_slice,
+    window=90,
+    nquantiles=20,
+    group="time.dayofyear",
+    kind="+",
 ):
     """Bias correct model data using observational station data
     Converts units of the station data to whatever the input model data's units are
@@ -824,8 +830,9 @@ def _bias_correct_model_data(
 
     """
     # Get group by window
+    # Use 90 day window (+/- 45 days) to account for seasonality
     grouper = Grouper(group, window=window)
-    
+
     # Convert units to whatever the gridded data units are
     obs_da = _convert_units(obs_da, gridded_da.units)
     # Rechunk data. Cannot be chunked along time dimension
