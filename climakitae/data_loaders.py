@@ -853,7 +853,6 @@ def _bias_correct_model_data(
                 str(obs_da.time.values[0].year), str(obs_da.time.values[-1].year)
             )
         ),
-        window=window,
         nquantiles=nquantiles,
         group=grouper,
         kind=kind,
