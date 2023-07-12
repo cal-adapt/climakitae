@@ -750,7 +750,7 @@ def _station_apply(selections, da, stations_df, original_time_slice):
     # Grab zarr data
     station_subset = stations_df.loc[stations_df["station"].isin(selections.station)]
     filepaths = [
-        "s3://cadcat/tmp/hadisd/HadISD_{}.zarr".format(s_id)
+        "s3://cadcat/hadisd/HadISD_{}.zarr".format(s_id)
         for s_id in station_subset["station id"]
     ]
 
