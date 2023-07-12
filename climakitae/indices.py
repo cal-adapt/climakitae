@@ -6,7 +6,7 @@ import numpy as np
 
 def effective_temp(T):
     """Compute effective temperature
-    Effective Temp = (1/2)*(yesterday's temp) + (1/2)*today's temp
+    Effective Temp = (1/2)*(yesterday's effective temp) + (1/2)*(today's actual temp)
 
     Parameters
     ----------
