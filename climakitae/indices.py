@@ -23,8 +23,12 @@ def effective_temp(T):
     https://www.nationalgas.com/document/132516/download
     """
     # Get "yesterday" temp by shifting the time index back one time step (1 day)
-    T_yesterday = T.shift(time=-1)
-    effective_temp = T_yesterday * 0.5 + T * 0.5
+    T_yesterday = T.shift(time=1)
+
+    # Derive effective temp
+    eft_today = T_yesterday * 0.5 + T * 0.5
+    eft_yesterday = eft_today.shift(time=1)
+    eft = eft_yesterday * 0.5 + T * 0.5
 
     # Set first time step to NaN since effective temp requires info from the previous day
     effective_temp = xr.where(
