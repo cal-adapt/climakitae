@@ -30,16 +30,11 @@ def effective_temp(T):
     eft_yesterday = eft_today.shift(time=1)
     eft = eft_yesterday * 0.5 + T * 0.5
 
-    # Set first time step to NaN since effective temp requires info from the previous day
-    effective_temp = xr.where(
-        effective_temp.time == effective_temp.time[0], np.nan, effective_temp
-    )
-
     # Assign same attributes as input data
     # Or else, the output data will have no attributes :(
-    effective_temp.attrs = T.attrs
+    eft.attrs = T.attrs
 
-    return effective_temp
+    return eft
 
 
 def noaa_heat_index(T, RH):
