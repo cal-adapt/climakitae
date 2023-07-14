@@ -15,6 +15,7 @@ from ast import literal_eval
 from shapely.geometry import box
 
 from xclim.core.calendar import convert_calendar
+from xclim.sdba import Grouper
 from xclim.sdba.adjustment import QuantileDeltaMapping
 from .catalog_convert import (
     _downscaling_method_to_activity_id,
@@ -750,7 +751,7 @@ def _station_apply(selections, da, stations_df, original_time_slice):
     # Grab zarr data
     station_subset = stations_df.loc[stations_df["station"].isin(selections.station)]
     filepaths = [
-        "s3://cadcat/tmp/hadisd/HadISD_{}.zarr".format(s_id)
+        "s3://cadcat/hadisd/HadISD_{}.zarr".format(s_id)
         for s_id in station_subset["station id"]
     ]
 
@@ -808,7 +809,13 @@ def _get_bias_corrected_closest_gridcell(station_da, gridded_da, time_slice):
 
 
 def _bias_correct_model_data(
-    obs_da, gridded_da, time_slice, nquantiles=20, group="time.dayofyear", kind="+"
+    obs_da,
+    gridded_da,
+    time_slice,
+    window=90,
+    nquantiles=20,
+    group="time.dayofyear",
+    kind="+",
 ):
     """Bias correct model data using observational station data
     Converts units of the station data to whatever the input model data's units are
@@ -822,6 +829,10 @@ def _bias_correct_model_data(
         time_slice (tuple): temporal slice to cut gridded_da to, after bias correction
 
     """
+    # Get group by window
+    # Use 90 day window (+/- 45 days) to account for seasonality
+    grouper = Grouper(group, window=window)
+
     # Convert units to whatever the gridded data units are
     obs_da = _convert_units(obs_da, gridded_da.units)
     # Rechunk data. Cannot be chunked along time dimension
@@ -843,7 +854,7 @@ def _bias_correct_model_data(
             )
         ),
         nquantiles=nquantiles,
-        group=group,
+        group=grouper,
         kind=kind,
     )
     # Bias correct the data
