@@ -480,6 +480,7 @@ def _merge_all(selections, data_dict, cat_subset):
         )
     else:
         all_ssps = all_hist
+        all_ssps = all_ssps.assign_coords({"scenario": "Historical Climate"})
 
     # Rename expanded dimension:
     all_ssps = all_ssps.rename({"member_id": "simulation"})
