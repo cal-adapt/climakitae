@@ -395,7 +395,7 @@ def _map_view(selections, stations_gpd):
     crs_proj4 = proj.proj4_init  # used below
     xy = ccrs.PlateCarree()
     ax = fig0.add_subplot(111, projection=proj)
-    mpl_pane = pn.pane.Matplotlib(fig0, dpi=76)
+    mpl_pane = pn.pane.Matplotlib(fig0, dpi=96)
 
     # Get geometry of selected location
     subarea_gpd = _get_subarea(
@@ -1200,7 +1200,7 @@ class _DataSelector(param.Parameterized):
         ax.tick_params(labelsize=11)
         ax.xaxis.set_major_locator(ticker.AutoLocator())
         ax.xaxis.set_minor_locator(ticker.AutoMinorLocator())
-        mpl_pane = pn.pane.Matplotlib(fig0, dpi=76)
+        mpl_pane = pn.pane.Matplotlib(fig0, dpi=96)
 
         y_offset = 0.15
         if (self.scenario_ssp is not None) and (self.scenario_historical is not None):
