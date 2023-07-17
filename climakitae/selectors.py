@@ -1188,7 +1188,7 @@ class _DataSelector(param.Parameterized):
         historical_central_year = sum(historical_climate_range) / 2
         historical_x_width = historical_central_year - historical_climate_range[0]
 
-        fig0 = Figure(figsize=(.2, .2))
+        fig0 = Figure(figsize=(2, 2))
         ax = fig0.add_subplot(111)
         ax.spines["right"].set_color("none")
         ax.spines["left"].set_color("none")
@@ -1200,7 +1200,7 @@ class _DataSelector(param.Parameterized):
         ax.tick_params(labelsize=11)
         ax.xaxis.set_major_locator(ticker.AutoLocator())
         ax.xaxis.set_minor_locator(ticker.AutoMinorLocator())
-        mpl_pane = pn.pane.Matplotlib(fig0, dpi=1000)
+        mpl_pane = pn.pane.Matplotlib(fig0, dpi=76)
 
         y_offset = 0.15
         if (self.scenario_ssp is not None) and (self.scenario_historical is not None):
