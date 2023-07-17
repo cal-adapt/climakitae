@@ -480,6 +480,10 @@ def _merge_all(selections, data_dict, cat_subset):
         )
     else:
         all_ssps = all_hist
+        all_ssps = all_ssps.assign_coords(
+            {"scenario": selections.scenario_historical[0]}
+        )
+        all_ssps = all_ssps.expand_dims(dim={"scenario": 1})
 
     # Rename expanded dimension:
     all_ssps = all_ssps.rename({"member_id": "simulation"})
