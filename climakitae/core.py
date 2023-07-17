@@ -51,7 +51,8 @@ class _Base(object):
         self.catalog = intake.open_esm_datastore(
             "https://cadcat.s3.amazonaws.com/cae-collection.json"
         )
-        #TODO: add shapefile stuff here as well, which gets used in data_loaders
+        #TODO: add shapefile stuff and any other reference tables here as well, 
+        # which gets used in selectors.py and data_loaders.py
         
 # === Select =====================================
 class GetData():
@@ -111,9 +112,7 @@ class GetData():
  class Select(GetData):   
     '''
     Adds a method to display the panel user-interface on top of the 
-    GetData class. 
-
-    Create a new instance every time.
+    GetData class. Create a new instance every time.
 
     Usage
     --------
@@ -128,6 +127,10 @@ class GetData():
     >>> my_data = my_choices.retrieve()
 
     '''
+    def __init__(self):
+        super().__init__()
+        select_panel = self.interface()
+
     def interface(self):
         """Display data selection panel in Jupyter Notebook environment
 
