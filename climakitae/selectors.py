@@ -1483,7 +1483,7 @@ def _display_select(selections):
                 width=400,
             ),
         ),
-        pn.Spacer(height=1, styles={'background': 'black'}),
+        pn.Spacer(height=1, styles={"background": "black"}),
         everything_else,
     )
 
