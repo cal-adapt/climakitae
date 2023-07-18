@@ -524,7 +524,7 @@ class _WarmingLevels(param.Parameterized):
 
         # Warming level connection lines & additional labeling
         hline_opts = opts.HLine(color="black", line_width=1.0)
-        text_opts = opts.Text(style=dict(text_font_size="8pt"))
+        text_opts = opts.Text(fontsize=8)
 
         warmlevel_line = (
             hv.HLine(self.warmlevel)
