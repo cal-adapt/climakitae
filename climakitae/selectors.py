@@ -390,7 +390,7 @@ def _map_view(selections, stations_gpd):
         ),
     }
 
-    fig0 = Figure(figsize=(2.25, 2.25))
+    fig0 = Figure(figsize=(2.5, 2.5))
     proj = ccrs.Orthographic(-118, 40)
     crs_proj4 = proj.proj4_init  # used below
     xy = ccrs.PlateCarree()
@@ -1188,7 +1188,7 @@ class _DataSelector(param.Parameterized):
         historical_central_year = sum(historical_climate_range) / 2
         historical_x_width = historical_central_year - historical_climate_range[0]
 
-        fig0 = Figure(figsize=(2, 2))
+        fig0 = Figure(figsize=(2.25, 2.25))
         ax = fig0.add_subplot(111)
         ax.spines["right"].set_color("none")
         ax.spines["left"].set_color("none")
