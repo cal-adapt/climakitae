@@ -115,7 +115,7 @@ def _sim_index_item(ds_name, member_id):
     downscaling_type = ds_name.split(".")[0]
     gcm_name = ds_name.split(".")[2]
     ensemble_member = str(member_id.values)
-    if ensemble_member != 'nan':
+    if ensemble_member != "nan":
         return "_".join([downscaling_type, gcm_name, ensemble_member])
     else:
         return "_".join([downscaling_type, gcm_name])
@@ -455,6 +455,7 @@ def _merge_all(selections, data_dict, cat_subset):
     """
 
     # Get corresponding data for historical period to append:
+    reconstruction = [one for one in data_dict.keys() if "reanalysis" in one]
     hist_keys = [one for one in data_dict.keys() if "historical" in one]
     if hist_keys:
         all_hist = xr.concat(
@@ -482,21 +483,21 @@ def _merge_all(selections, data_dict, cat_subset):
             dim="scenario",
         )
     else:
-        all_ssps = all_hist
+        if all_hist:
+            all_ssps = all_hist
+            if reconstruction:
+                one_key = reconstruction[0]
+                all_ssps = xr.concat(
+                    [all_ssps, _process_dset(one_key, data_dict[one_key], selections)],
+                    dim="member_id",
+                )
+        elif reconstruction:
+            one_key = reconstruction[0]
+            all_ssps = _process_dset(one_key, data_dict[one_key], selections)
         all_ssps = all_ssps.assign_coords(
             {"scenario": selections.scenario_historical[0]}
         )
         all_ssps = all_ssps.expand_dims(dim={"scenario": 1})
-        reconstruction = [one for one in data_dict.keys() if "reanalysis" in one]
-        if reconstruction:
-            one_key = reconstruction[0]
-            all_ssps = xr.concat(
-                [all_ssps,
-                    _process_dset(one_key, data_dict[one_key], selections)
-                ],
-                dim="member_id",
-            )
-
 
     # Rename expanded dimension:
     all_ssps = all_ssps.rename({"member_id": "simulation"})
