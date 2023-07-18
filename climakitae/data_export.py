@@ -460,11 +460,36 @@ def _metadata_to_file(ds, output_name):
 
 
 ## TMY export functions
+def tmy_header(station_name, df):
+    '''
+    Constructs the header for the TMY output file in .tmy format
+    Source: https://www.nrel.gov/docs/fy08osti/43156.pdf (pg. 3)
+    '''
+
+    # line 1 - site information
+    # line 1: USAF, station name quote delimited, station state, time zone, lat, lon, elev (m)
+    # line 1: we provide station name, lat, lon
+    line_1 = "'{0}', {1}, {2}, {3}".format(station_name, df['lat'].values[0], df['lon'].values[0])
+
+    # line 2 - data field name and units
+        'Air Temperature at 2m',
+       'Relative humidity',
+       'Instantaneous downwelling shortwave flux at bottom',
+       'Shortwave surface downward diffuse irradiance',
+       'Instantaneous downwelling longwave flux at bottom',
+       'Wind speed at 10m', 
+       'Wind direction at 10m', 
+       'Surface Pressure'
+    headers = [line_1, line_2]
+
+    return headers
+
+
 def epw_header(station_name, df):
     '''Constructs the header for the TMY output file in .epw format'''
     
     # line 1 - location
-    line_1 = "LOCATION,{0},{1},{2}\n".format(station_name, df['lat'][0], df['lon'][0])
+    line_1 = "LOCATION,{0},{1},{2}\n".format(station_name, df['lat'].values[0], df['lon'].values[0])
     
     # line 2 - design conditions, leave blank for now
     line_2 = "#DESIGN CONDITIONS\n"
@@ -479,7 +504,7 @@ def epw_header(station_name, df):
     line_5 = "#HOLIDAYS/DAYLIGHT SAVINGS\n"
     
     # line 6 - comments 1, going to include simulation + scenario information here
-    line_6 = "COMMENTS 1,Scenario: {0}, Simulation: {1}\n".format(df['scenario'][0], df['simulation'][0])
+    line_6 = "COMMENTS 1,Scenario: {0}, Simulation: {1}\n".format(df['scenario'].values[0], df['simulation'].values[0])
     
     # line 7 - comments 2, maybe a "produced on the analytics engine"
     line_7 = "COMMENTS 2,Typical meteorological year data produced on the Cal-Adapt: Analytics Engine\n"
@@ -491,13 +516,36 @@ def epw_header(station_name, df):
     
     return headers
 
-def write_epw_file(filename_to_export, df, station_name):
-    '''Exports a .epw file of TMY data'''
+def write_tmy_file(filename_to_export, df, station_name, file_ext="tmy"):
+    '''Exports TMY data either as .epw or .tmy file
 
-    path_to_file = filename_to_export + ".epw" # energy plus weather format
+    Paramters
+    ---------
+    filename_to_export (str): Filename string, constructed with station name and simulation
+    df (pd.DataFrame): Dataframe of TMY data to export
+    station_name (str): Station name string
+    file_ext (str, optional): File extension for export, default is .tmy
 
-    with open(path_to_file, 'w') as f:
-        f.writelines(epw_header(station_name, df)) # writes required header lines
-        df = df.drop(columns=['simulation', 'lat', 'lon', 'scenario']) # drops header columns from df
-        dfAsString = df.to_csv(sep=',', header=False, index=False)
-        f.write(dfAsString) # writes file
+    Returns
+    -------
+    None
+    '''
+
+    if file_ext = "tmy":
+        path_to_file = filename_to_export + ".tmy" # typical meteorological year format
+
+        with open(path_to_file, 'w') as f:
+            f.writelines(tmy_header(station_name, df)) # writes required header lines
+
+
+    elif file_ext = "epw":
+        path_to_file = filename_to_export + ".epw" # energy plus weather format
+
+        with open(path_to_file, 'w') as f:
+            f.writelines(epw_header(station_name, df)) # writes required header lines
+            df = df.drop(columns=['simulation', 'lat', 'lon', 'scenario']) # drops header columns from df
+            dfAsString = df.to_csv(sep=',', header=False, index=False)
+            f.write(dfAsString) # writes file
+
+    else:
+        print('Please pass either "tmy" or "epw" as a file format for export.')
