@@ -622,7 +622,7 @@ def _read_catalog_from_select(selections, cat):
             selections.scenario_historical.append("Historical Climate")
         obs_data_bounds = (
             1980,
-            2010,
+            2014,
         )  # Bounds of the observational data used in bias-correction
         if original_time_slice[0] > obs_data_bounds[0]:
             selections.time_slice = (obs_data_bounds[0], original_time_slice[1])
