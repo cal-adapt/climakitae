@@ -1302,7 +1302,7 @@ def _selections_param_to_panel(selections):
     descriptions formatted as panel widgets
     """
     area_subset = pn.widgets.Select.from_param(
-        selections.param.area_subset, name="Subset the data by...", width=100
+        selections.param.area_subset, name="Subset the data by...", width=200
     )
     area_average_text = pn.widgets.StaticText(
         value="Compute an area average across grid cells within your selected region?",
@@ -1312,7 +1312,7 @@ def _selections_param_to_panel(selections):
         selections.param.area_average, inline=True
     )
     cached_area = pn.widgets.Select.from_param(
-        selections.param.cached_area, name="Location selection", width=100
+        selections.param.cached_area, name="Location selection", width=200
     )
     data_type_text = pn.widgets.StaticText(
         value="",
@@ -1460,7 +1460,7 @@ def _display_select(selections):
     )
     loc_choices = pn.Row(col_1_location, col_2_location)
 
-    everything_else = pn.Row(data_choices, loc_choices)
+    everything_else = pn.Row(data_choices, pn.layout.HSpacer(width=10), loc_choices)
 
     # Panel overall structure:
     all_things = pn.Column(
