@@ -1437,6 +1437,7 @@ def _display_select(selections):
             ),
         ),
         width=380,
+        margin=10,
     )
 
     col_1_location = pn.Column(
@@ -1458,9 +1459,9 @@ def _display_select(selections):
         pn.widgets.CheckBoxGroup.from_param(selections.param.station, name=""),
         width=270,
     )
-    loc_choices = pn.Row(col_1_location, col_2_location)
+    loc_choices = pn.Row(col_1_location, col_2_location, margin=10)
 
-    everything_else = pn.Row(data_choices, pn.layout.HSpacer(width=10), loc_choices)
+    everything_else = pn.Row(data_choices, loc_choices)
 
     # Panel overall structure:
     all_things = pn.Column(
