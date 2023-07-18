@@ -390,7 +390,7 @@ def _map_view(selections, stations_gpd):
         ),
     }
 
-    fig0 = Figure(figsize=(2.5, 2.5))
+    fig0 = Figure(figsize=(2.25, 2.25))
     proj = ccrs.Orthographic(-118, 40)
     crs_proj4 = proj.proj4_init  # used below
     xy = ccrs.PlateCarree()
