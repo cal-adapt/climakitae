@@ -115,7 +115,10 @@ def _sim_index_item(ds_name, member_id):
     downscaling_type = ds_name.split(".")[0]
     gcm_name = ds_name.split(".")[2]
     ensemble_member = str(member_id.values)
-    return "_".join([downscaling_type, gcm_name, ensemble_member])
+    if ensemble_member != 'nan':
+        return "_".join([downscaling_type, gcm_name, ensemble_member])
+    else:
+        return "_".join([downscaling_type, gcm_name])
 
 
 def _scenarios_in_data_dict(keys):
@@ -484,6 +487,16 @@ def _merge_all(selections, data_dict, cat_subset):
             {"scenario": selections.scenario_historical[0]}
         )
         all_ssps = all_ssps.expand_dims(dim={"scenario": 1})
+        reconstruction = [one for one in data_dict.keys() if "reanalysis" in one]
+        if reconstruction:
+            one_key = reconstruction[0]
+            all_ssps = xr.concat(
+                [all_ssps,
+                    _process_dset(one_key, data_dict[one_key], selections)
+                ],
+                dim="member_id",
+            )
+
 
     # Rename expanded dimension:
     all_ssps = all_ssps.rename({"member_id": "simulation"})
