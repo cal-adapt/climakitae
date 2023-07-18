@@ -1449,6 +1449,7 @@ def _display_select(selections):
         widgets["area_average_text"],
         widgets["area_average"],
         width=220,
+        margin=10,
     )
     col_2_location = pn.Column(
         pn.Spacer(height=10),
@@ -1458,8 +1459,9 @@ def _display_select(selections):
         ),
         pn.widgets.CheckBoxGroup.from_param(selections.param.station, name=""),
         width=270,
+        margin=10,
     )
-    loc_choices = pn.Row(col_1_location, col_2_location, margin=10)
+    loc_choices = pn.Row(col_1_location, col_2_location)
 
     everything_else = pn.Row(data_choices, loc_choices)
 
