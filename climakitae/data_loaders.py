@@ -491,12 +491,14 @@ def _merge_all(selections, data_dict, cat_subset):
                     [all_ssps, _process_dset(one_key, data_dict[one_key], selections)],
                     dim="member_id",
                 )
+                hist_scen = "Historical"
+            else:
+                hist_scen = "Historical Climate"
         elif reconstruction:
             one_key = reconstruction[0]
             all_ssps = _process_dset(one_key, data_dict[one_key], selections)
-        all_ssps = all_ssps.assign_coords(
-            {"scenario": selections.scenario_historical[0]}
-        )
+            hist_scen = "Historical Reconstruction"
+        all_ssps = all_ssps.assign_coords({"scenario": hist_scen})
         all_ssps = all_ssps.expand_dims(dim={"scenario": 1})
 
     # Rename expanded dimension:
