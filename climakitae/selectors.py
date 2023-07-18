@@ -1460,7 +1460,7 @@ def _display_select(selections):
     )
     loc_choices = pn.Row(col_1_location, col_2_location)
 
-    everything_else = pn.Row(data_choices, pn.layout.HSpacer(width=10), loc_choices)
+    everything_else = pn.Row(data_choices, loc_choices)
 
     # Panel overall structure:
     all_things = pn.Column(
