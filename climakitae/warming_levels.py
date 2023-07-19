@@ -640,7 +640,7 @@ def _display_warming_levels(warming_data, selections):
                 pn.widgets.RadioButtonGroup.from_param(
                     warming_data.param.warmlevel, name=""
                 ),
-                selections.param.variable,
+                pn.widgets.Select.from_param(selections.param.variable, width=200)
                 pn.widgets.StaticText.from_param(
                     selections.param.extended_description, name=""
                 ),
@@ -655,7 +655,7 @@ def _display_warming_levels(warming_data, selections):
                     width=150,
                     height=30,
                 ),
-                width=230,
+                width=250,
             ),
             pn.Column(
                 selections.param.latitude,
@@ -665,14 +665,14 @@ def _display_warming_levels(warming_data, selections):
                     name="Subset the data by...",
                     width=200,
                 ),
-                selections.param.cached_area,
+                pn.widgets.Select.from_param(selections.param.cached_area, name="Location selection", width=200),
                 selections.map_view,
-                width=230,
+                width=250,
             ),
         ),
         title="Data Options",
         collapsible=False,
-        width=460,
+        width=500,
         height=515,
     )
 
