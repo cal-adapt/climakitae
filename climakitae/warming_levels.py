@@ -659,8 +659,8 @@ def _display_warming_levels(warming_data, selections):
                 margin=10,
             ),
             pn.Column(
-                selections.param.latitude,
-                selections.param.longitude,
+                pn.widgets.Slider.from_param(selections.param.latitude, width=200)
+                pn.widgets.Slider.from_param(selections.param.longitude, width=200)
                 pn.widgets.Select.from_param(
                     selections.param.area_subset,
                     name="Subset the data by...",
@@ -677,7 +677,8 @@ def _display_warming_levels(warming_data, selections):
         title="Data Options",
         collapsible=False,
         width=500,
-        height=515,
+        height=550,
+        margin=10,
     )
 
     GMT_plot = pn.Card(
@@ -699,7 +700,8 @@ def _display_warming_levels(warming_data, selections):
         title="When do different scenarios reach the warming level?",
         collapsible=False,
         width=600,
-        height=515,
+        height=550,
+        margin=10,
     )
 
     postage_stamps_MAIN = pn.Column(
