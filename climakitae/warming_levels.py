@@ -660,7 +660,11 @@ def _display_warming_levels(warming_data, selections):
             pn.Column(
                 selections.param.latitude,
                 selections.param.longitude,
-                selections.param.area_subset,
+                pn.widgets.Select.from_param(
+                    selections.param.area_subset,
+                    name="Subset the data by...",
+                    width=200,
+                ),
                 selections.param.cached_area,
                 selections.map_view,
                 width=230,
