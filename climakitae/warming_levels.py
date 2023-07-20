@@ -524,13 +524,11 @@ class _WarmingLevels(param.Parameterized):
 
         # Warming level connection lines & additional labeling
 
-        warmlevel_line = hv.HLine(
-            self.warmlevel, color="red", line_width=1.0
-        ) * hv.Text(
+        warmlevel_line = hv.HLine(self.warmlevel) * hv.Text(
             x=1964,
             y=self.warmlevel + 0.25,
             text=".    " + str(self.warmlevel) + "°C warming level",
-            fontsize=6,
+            fontsize=8,
         )
 
         # Create plot
