@@ -534,7 +534,8 @@ class _WarmingLevels(param.Parameterized):
         )
 
         # Create plot
-        to_plot = ipcc_data * warmlevel_line
+        #to_plot = ipcc_data * warmlevel_line
+        to_plot = ipcc_data
 
         if self.ssp != "All":
             # Label to give addional plot info
