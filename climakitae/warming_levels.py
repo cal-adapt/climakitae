@@ -523,7 +523,7 @@ class _WarmingLevels(param.Parameterized):
         cmip_t = np.arange(2015, 2101, 1)
 
         # Warming level connection lines & additional labeling
-        hline_opts = opts.HLine(color="black", line_width=1.0)
+        hline_opts = opts.HLine(color="red", line_width=1.0)
         text_opts = opts.Text(fontsize=6)
 
         warmlevel_line = (
