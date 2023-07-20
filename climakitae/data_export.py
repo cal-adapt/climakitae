@@ -317,6 +317,8 @@ def _export_to_user(user_export_format, data_to_export, file_name, **kwargs):
     # to keep things clean-ish
     if "NetCDF" in req_format:
         _export_to_netcdf(data_to_export, save_name, **kwargs)
+    elif "CSV" in req_format:
+        _export_to_csv(data_to_export, save_name, **kwargs)
     else:
         if ftype == xr.core.dataset.Dataset:
             dv_list = list(data_to_export.data_vars)
@@ -324,8 +326,8 @@ def _export_to_user(user_export_format, data_to_export, file_name, **kwargs):
                 raise Exception(
                     (
                         "We cannot convert multivariate datasets"
-                        " to CSV or GeoTiff at this time. Please supply"
-                        " a dataset or array with a single data variable."
+                        " to GeoTIFF at this time. Please supply"
+                        " a data array with a single data variable."
                         " A single variable array can be extracted"
                         " from a multivariate dataset like so:"
                         " app.export_dataset(ds['var'],'filename')"
@@ -339,10 +341,7 @@ def _export_to_user(user_export_format, data_to_export, file_name, **kwargs):
                 data_to_export = data_to_export.to_array()
                 data_to_export.name = var_name
 
-        if "CSV" in req_format:
-            _export_to_csv(data_to_export, save_name, **kwargs)
-
-        elif "GeoTIFF" in req_format:
+        if "GeoTIFF" in req_format:
             # sometimes "variable" might be a singleton dimension:
             data_to_export = data_to_export.squeeze()
 
