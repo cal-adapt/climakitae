@@ -523,7 +523,6 @@ class _WarmingLevels(param.Parameterized):
         cmip_t = np.arange(2015, 2101, 1)
 
         # Warming level connection lines & additional labeling
-        text_opts = opts.Text(fontsize=6)
 
         warmlevel_line = hv.HLine(
             self.warmlevel, color="red", line_width=1.0
@@ -531,11 +530,11 @@ class _WarmingLevels(param.Parameterized):
             x=1964,
             y=self.warmlevel + 0.25,
             text=".    " + str(self.warmlevel) + "°C warming level",
+            fontsize=6,
         )
 
         # Create plot
-        #to_plot = ipcc_data * warmlevel_line
-        to_plot = ipcc_data
+        to_plot = ipcc_data * warmlevel_line
 
         if self.ssp != "All":
             # Label to give addional plot info
