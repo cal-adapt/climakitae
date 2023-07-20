@@ -409,6 +409,7 @@ def _concat_sims(data_dict, hist_data, selections, scenario):
 
     # Append historical if relevant:
     if hist_data != None:
+        hist_data = hist_data.sel(member_id=one_scenario.member_id)
         scen_name = "Historical + " + scen_name
         one_scenario = xr.concat([hist_data, one_scenario], dim="time")
 
@@ -438,20 +439,22 @@ def _override_unit_defaults(da, var_id):
         da.attrs["units"] = "W/m2"
     return da
 
-def _add_scenario_dim(da,scen_name):
+
+def _add_scenario_dim(da, scen_name):
     """Add a singleton dimension for 'scenario' to the DataArray.
 
     Args:
         da (xr.DataArray): Consolidated data object missing a scenario dimension
         scen_name (string): desired value for scenario along new dimension
-    
+
     Returns:
         da (xr.DataArray): Data object with singleton scenario dimension added.
-    
+
     """
     da = da.assign_coords({"scenario": scen_name})
     da = da.expand_dims(dim={"scenario": 1})
     return da
+
 
 def _merge_all(selections, data_dict, cat_subset):
     """Merge all datasets into one, subsetting each consistently;
@@ -512,7 +515,7 @@ def _merge_all(selections, data_dict, cat_subset):
             one_key = reconstruction[0]
             all_ssps = _process_dset(one_key, data_dict[one_key], selections)
             all_ssps = _add_scenario_dim(all_ssps, "Historical Reconstruction")
-        
+
     # Rename expanded dimension:
     all_ssps = all_ssps.rename({"member_id": "simulation"})
 
