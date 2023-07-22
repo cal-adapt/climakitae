@@ -46,7 +46,7 @@ jobs:
     - name: Output conda info
       run: conda info
     - name: Install xclim
-      run: pip install dask-gateway==2023.1.1 dask-geopandas==0.3.1 xclim==0.42.0
+      run: pip install dask-gateway==2023.1.1 dask-geopandas==0.3.1 xclim==0.44.0
     - name: Install climakitae
       run: pip install .
     - name: Test with pytest
