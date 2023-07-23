@@ -1,3 +1,6 @@
+from climakitae.core.data_interface import DataInterface
+from climakitae.core.select import Select
+
 try:
     from importlib.metadata import version as _version
 except ImportError:
@@ -11,4 +14,11 @@ except Exception:
     # Disable minimum version checks on downstream libraries.
     __version__ = "999"
 
-from .core import Application
+
+__all__ = (
+    # Classes
+    "DataInterface",
+    "Select",
+    # Constants
+    __version__,
+)
