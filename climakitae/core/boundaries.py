@@ -1,4 +1,5 @@
 import intake
+import pandas as pd
 from climakitae.core.constants import boundary_catalog_url
 
 
