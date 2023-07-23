@@ -8,6 +8,7 @@ from climakitae.core.constants import (
     stations_csv_path,
     data_catalog_url,
 )
+from climakitae.utils import read_csv_file
 
 
 class DataInterface:
@@ -23,8 +24,3 @@ class DataInterface:
             geometry=gpd.points_from_xy(self.stations.LON_X, self.stations.LAT_Y),
         )
         return stations_gpf
-
-    def read_csv_file(rel_path):
-        return pd.read_csv(
-            os.path.join(os.path.dirname(__file__), "..", rel_path), index_col=None
-        )
