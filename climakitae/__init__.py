@@ -20,5 +20,5 @@ __all__ = (
     "DataInterface",
     "Select",
     # Constants
-    __version__,
+    "__version__",
 )
