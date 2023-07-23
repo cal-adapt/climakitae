@@ -2,7 +2,7 @@
 """This module defines package level constants"""
 
 # Local Data Paths
-variable_description_csv_path = "data/variable_descriptions.csv"
+variable_descriptions_csv_path = "data/variable_descriptions.csv"
 stations_csv_path = "data/hadisd_stations.csv"
 
 # Intake Data Calalog URLs
