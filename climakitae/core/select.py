@@ -1,2 +1,2 @@
-class Select():
-    
+class Select:
+    pass
