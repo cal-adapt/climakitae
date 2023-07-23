@@ -1,7 +1,8 @@
 import intake
 from climakitae.core.constants import boundary_catalog_url
 
-class Boundaries():
+
+class Boundaries:
     """Get geospatial polygon data from the AE catalog.
     Used to access boundaries for subsetting data by state, county, etc.
     """
@@ -122,7 +123,7 @@ class Boundaries():
         return pd.Series(
             self._ca_forecast_zones.index, index=self._ca_forecast_zones["FZ_Name"]
         ).to_dict()
-    
+
     def _get_ious_pous(self):
         """
         Returns a lookup dictionary for IOUs & POUs that references
@@ -188,4 +189,3 @@ class Boundaries():
             "CA Electric Balancing Authority Areas": self._get_electric_balancing_areas(),
         }
         return all_options
-
