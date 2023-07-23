@@ -31,7 +31,7 @@ categorical_cb = pkg_resources.resource_filename(
 
 def read_csv_file(rel_path):
     return pd.read_csv(
-        os.path.join(os.path.dirname(__file__), "..", rel_path), index_col=None
+        os.path.join(os.path.dirname(__file__), rel_path), index_col=None
     )
 
 
