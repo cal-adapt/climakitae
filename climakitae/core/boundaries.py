@@ -1,5 +1,5 @@
 import intake
-from constants import boundary_catalog_url
+from climakitae.core.constants import boundary_catalog_url
 
 class Boundaries():
     """Get geospatial polygon data from the AE catalog.

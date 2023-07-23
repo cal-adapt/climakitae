@@ -2,7 +2,7 @@ import pkg_resources
 import pandas as pd
 import geopandas as gpd
 import intake
-from constants import variable_descriptions_csv_path, stations_csv_path, data_catalog_url
+from climakitae.core.constants import variable_descriptions_csv_path, stations_csv_path, data_catalog_url
 
 
 class DataInterface:
