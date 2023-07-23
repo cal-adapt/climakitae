@@ -9,6 +9,7 @@ from climakitae.core.constants import (
     data_catalog_url,
 )
 from climakitae.utils import read_csv_file
+from climakitae.core.boundaries import Boundaries
 
 
 class DataInterface:
@@ -16,6 +17,10 @@ class DataInterface:
         self.variable_descriptions = read_csv_file(variable_descriptions_csv_path)
         self.stations = read_csv_file(stations_csv_path)
         self.data_catalog = intake.open_esm_datastore(data_catalog_url)
+
+        # Get geography boundaries and selection options
+        self.geographies = Boundaries()
+        self.geography_choose = self.geographies.boundary_dict()
 
     def get_stations_gdf(self):
         stations_gpf = gpd.GeoDataFrame(
