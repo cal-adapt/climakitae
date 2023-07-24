@@ -11,4 +11,3 @@ class Select:
         #     geographies=self.data_interface.geographies,
         # )
         self.data_selector = DataSelector()
-        

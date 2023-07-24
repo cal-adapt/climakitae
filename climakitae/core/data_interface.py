@@ -31,7 +31,7 @@ class DataInterface:
         return stations_gpf
 
 
-class DataSelector(DataInterface,param.Parameterized):
+class DataSelector(DataInterface, param.Parameterized):
     """
     An object to hold data parameters, which depends only on the 'param'
     library. Currently used in '_display_select', which uses 'panel' to draw the

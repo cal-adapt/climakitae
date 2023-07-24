@@ -28,11 +28,11 @@ categorical_cb = pkg_resources.resource_filename(
     "climakitae", "data/cmaps/categorical_cb.txt"
 )
 
-
 def read_csv_file(rel_path):
     return pd.read_csv(
-        os.path.join(os.path.dirname(__file__), rel_path), index_col=None
+        os.path.normpath(os.path.join(os.path.dirname(__file__), '..', rel_path)), index_col=None
     )
+
 
 
 def get_closest_gridcell(data, lat, lon, print_coords=True):
