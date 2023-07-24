@@ -247,6 +247,25 @@ class DataSelector(DataInterface, param.Parameterized):
                 ]
             return variable_options_df
 
+        def _get_var_ids(self):
+            """Get variable ids that match the selected variable, timescale, and downscaling method.
+            Required to account for the fact that LOCA, WRF, and various timescales use different variable id values.
+            Used to retrieve the correct variables from the catalog in the backend.
+            """
+            var_id = self.variable_descriptions[
+                (self.variable_descriptions["display_name"] == self.variable)
+                & (  # Make sure it's a valid variable selection
+                    self.variable_descriptions["timescale"].str.contains(self.timescale)
+                )  # Make sure its the right timescale
+                & (
+                    self.variable_descriptions["downscaling_method"].isin(
+                        self.downscaling_method
+                    )
+                )  # Make sure it's the right downscaling method
+            ]
+            var_id = list(var_id.variable_id.values)
+            return var_id
+
         # Get geography boundaries and selection options
         self._geographies = self.geographies
         self._geography_choose = self._geographies.boundary_dict()
