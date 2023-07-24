@@ -102,7 +102,7 @@ class DataSelector(DataInterface, param.Parameterized):
         default="", doc="Warning if user has made a bad selection"
     )
 
-    def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
+    def _get_user_options(self, data_catalog, downscaling_method, timescale, resolution):
         """Using the data catalog, get a list of appropriate scenario and simulation options given a user's
         selections for downscaling method, timescale, and resolution.
         Unique variable ids for user selections are returned, then limited further in subsequent steps.
@@ -371,7 +371,7 @@ class DataSelector(DataInterface, param.Parameterized):
 
     def __init__(self, **params):
         # Set default values
-        super().__init__(self, **params)
+        super().__init__(**params)
 
         # Get geography boundaries and selection options
         self._geographies = self.geographies
