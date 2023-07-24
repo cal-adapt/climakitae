@@ -14,6 +14,7 @@ import fnmatch
 from ast import literal_eval
 from shapely.geometry import box
 from xclim.core.calendar import convert_calendar
+from xclim.sdba import Grouper
 from xclim.sdba.adjustment import QuantileDeltaMapping
 from .unit_conversions import _convert_units
 from .utils import _readable_bytes, get_closest_gridcell
@@ -114,7 +115,10 @@ def _sim_index_item(ds_name, member_id):
     downscaling_type = ds_name.split(".")[0]
     gcm_name = ds_name.split(".")[2]
     ensemble_member = str(member_id.values)
-    return "_".join([downscaling_type, gcm_name, ensemble_member])
+    if ensemble_member != "nan":
+        return "_".join([downscaling_type, gcm_name, ensemble_member])
+    else:
+        return "_".join([downscaling_type, gcm_name])
 
 
 def _scenarios_in_data_dict(keys):
@@ -405,6 +409,7 @@ def _concat_sims(data_dict, hist_data, selections, scenario):
 
     # Append historical if relevant:
     if hist_data != None:
+        hist_data = hist_data.sel(member_id=one_scenario.member_id)
         scen_name = "Historical + " + scen_name
         one_scenario = xr.concat([hist_data, one_scenario], dim="time")
 
@@ -435,6 +440,22 @@ def _override_unit_defaults(da, var_id):
     return da
 
 
+def _add_scenario_dim(da, scen_name):
+    """Add a singleton dimension for 'scenario' to the DataArray.
+
+    Args:
+        da (xr.DataArray): Consolidated data object missing a scenario dimension
+        scen_name (string): desired value for scenario along new dimension
+
+    Returns:
+        da (xr.DataArray): Data object with singleton scenario dimension added.
+
+    """
+    da = da.assign_coords({"scenario": scen_name})
+    da = da.expand_dims(dim={"scenario": 1})
+    return da
+
+
 def _merge_all(selections, data_dict, cat_subset):
     """Merge all datasets into one, subsetting each consistently;
        clean-up format, and convert units.
@@ -451,6 +472,7 @@ def _merge_all(selections, data_dict, cat_subset):
     """
 
     # Get corresponding data for historical period to append:
+    reconstruction = [one for one in data_dict.keys() if "reanalysis" in one]
     hist_keys = [one for one in data_dict.keys() if "historical" in one]
     if hist_keys:
         all_hist = xr.concat(
@@ -478,7 +500,21 @@ def _merge_all(selections, data_dict, cat_subset):
             dim="scenario",
         )
     else:
-        all_ssps = all_hist
+        if all_hist:
+            all_ssps = all_hist
+            all_ssps = _add_scenario_dim(all_ssps, "Historical Climate")
+            if reconstruction:
+                one_key = reconstruction[0]
+                era5_wrf = _process_dset(one_key, data_dict[one_key], selections)
+                era5_wrf = _add_scenario_dim(era5_wrf, "Historical Reconstruction")
+                all_ssps = xr.concat(
+                    [all_ssps, era5_wrf],
+                    dim="scenario",
+                )
+        elif reconstruction:
+            one_key = reconstruction[0]
+            all_ssps = _process_dset(one_key, data_dict[one_key], selections)
+            all_ssps = _add_scenario_dim(all_ssps, "Historical Reconstruction")
 
     # Rename expanded dimension:
     all_ssps = all_ssps.rename({"member_id": "simulation"})
@@ -630,7 +666,7 @@ def _read_catalog_from_select(selections, cat):
             selections.scenario_historical.append("Historical Climate")
         obs_data_bounds = (
             1980,
-            2010,
+            2014,
         )  # Bounds of the observational data used in bias-correction
         if original_time_slice[0] > obs_data_bounds[0]:
             selections.time_slice = (obs_data_bounds[0], original_time_slice[1])
@@ -704,7 +740,7 @@ def _station_apply(selections, da, stations_df, original_time_slice):
     # Grab zarr data
     station_subset = stations_df.loc[stations_df["station"].isin(selections.station)]
     filepaths = [
-        "s3://cadcat/tmp/hadisd/HadISD_{}.zarr".format(s_id)
+        "s3://cadcat/hadisd/HadISD_{}.zarr".format(s_id)
         for s_id in station_subset["station id"]
     ]
 
@@ -762,7 +798,13 @@ def _get_bias_corrected_closest_gridcell(station_da, gridded_da, time_slice):
 
 
 def _bias_correct_model_data(
-    obs_da, gridded_da, time_slice, nquantiles=20, group="time.dayofyear", kind="+"
+    obs_da,
+    gridded_da,
+    time_slice,
+    window=90,
+    nquantiles=20,
+    group="time.dayofyear",
+    kind="+",
 ):
     """Bias correct model data using observational station data
     Converts units of the station data to whatever the input model data's units are
@@ -776,6 +818,10 @@ def _bias_correct_model_data(
         time_slice (tuple): temporal slice to cut gridded_da to, after bias correction
 
     """
+    # Get group by window
+    # Use 90 day window (+/- 45 days) to account for seasonality
+    grouper = Grouper(group, window=window)
+
     # Convert units to whatever the gridded data units are
     obs_da = _convert_units(obs_da, gridded_da.units)
     # Rechunk data. Cannot be chunked along time dimension
@@ -797,7 +843,7 @@ def _bias_correct_model_data(
             )
         ),
         nquantiles=nquantiles,
-        group=group,
+        group=grouper,
         kind=kind,
     )
     # Bias correct the data
