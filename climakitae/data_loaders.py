@@ -115,7 +115,10 @@ def _sim_index_item(ds_name, member_id):
     downscaling_type = ds_name.split(".")[0]
     gcm_name = ds_name.split(".")[2]
     ensemble_member = str(member_id.values)
-    return "_".join([downscaling_type, gcm_name, ensemble_member])
+    if ensemble_member != "nan":
+        return "_".join([downscaling_type, gcm_name, ensemble_member])
+    else:
+        return "_".join([downscaling_type, gcm_name])
 
 
 def _scenarios_in_data_dict(keys):
@@ -406,6 +409,7 @@ def _concat_sims(data_dict, hist_data, selections, scenario):
 
     # Append historical if relevant:
     if hist_data != None:
+        hist_data = hist_data.sel(member_id=one_scenario.member_id)
         scen_name = "Historical + " + scen_name
         one_scenario = xr.concat([hist_data, one_scenario], dim="time")
 
@@ -436,6 +440,22 @@ def _override_unit_defaults(da, var_id):
     return da
 
 
+def _add_scenario_dim(da, scen_name):
+    """Add a singleton dimension for 'scenario' to the DataArray.
+
+    Args:
+        da (xr.DataArray): Consolidated data object missing a scenario dimension
+        scen_name (string): desired value for scenario along new dimension
+
+    Returns:
+        da (xr.DataArray): Data object with singleton scenario dimension added.
+
+    """
+    da = da.assign_coords({"scenario": scen_name})
+    da = da.expand_dims(dim={"scenario": 1})
+    return da
+
+
 def _merge_all(selections, data_dict, cat_subset):
     """Merge all datasets into one, subsetting each consistently;
        clean-up format, and convert units.
@@ -452,6 +472,7 @@ def _merge_all(selections, data_dict, cat_subset):
     """
 
     # Get corresponding data for historical period to append:
+    reconstruction = [one for one in data_dict.keys() if "reanalysis" in one]
     hist_keys = [one for one in data_dict.keys() if "historical" in one]
     if hist_keys:
         all_hist = xr.concat(
@@ -479,11 +500,21 @@ def _merge_all(selections, data_dict, cat_subset):
             dim="scenario",
         )
     else:
-        all_ssps = all_hist
-        all_ssps = all_ssps.assign_coords(
-            {"scenario": selections.scenario_historical[0]}
-        )
-        all_ssps = all_ssps.expand_dims(dim={"scenario": 1})
+        if all_hist:
+            all_ssps = all_hist
+            all_ssps = _add_scenario_dim(all_ssps, "Historical Climate")
+            if reconstruction:
+                one_key = reconstruction[0]
+                era5_wrf = _process_dset(one_key, data_dict[one_key], selections)
+                era5_wrf = _add_scenario_dim(era5_wrf, "Historical Reconstruction")
+                all_ssps = xr.concat(
+                    [all_ssps, era5_wrf],
+                    dim="scenario",
+                )
+        elif reconstruction:
+            one_key = reconstruction[0]
+            all_ssps = _process_dset(one_key, data_dict[one_key], selections)
+            all_ssps = _add_scenario_dim(all_ssps, "Historical Reconstruction")
 
     # Rename expanded dimension:
     all_ssps = all_ssps.rename({"member_id": "simulation"})
