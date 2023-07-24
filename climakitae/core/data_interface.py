@@ -102,7 +102,9 @@ class DataSelector(DataInterface, param.Parameterized):
         default="", doc="Warning if user has made a bad selection"
     )
 
-    def _get_user_options(self, data_catalog, downscaling_method, timescale, resolution):
+    def _get_user_options(
+        self, data_catalog, downscaling_method, timescale, resolution
+    ):
         """Using the data catalog, get a list of appropriate scenario and simulation options given a user's
         selections for downscaling method, timescale, and resolution.
         Unique variable ids for user selections are returned, then limited further in subsequent steps.
@@ -186,7 +188,7 @@ class DataSelector(DataInterface, param.Parameterized):
         return scenario_options, simulation_options, unique_variable_ids
 
     def _get_variable_options_df(
-        variable_descriptions, unique_variable_ids, downscaling_method, timescale
+        self, variable_descriptions, unique_variable_ids, downscaling_method, timescale
     ):
         """Get variable options to display depending on downscaling method and timescale
 
@@ -238,7 +240,9 @@ class DataSelector(DataInterface, param.Parameterized):
             ]
         return variable_options_df
 
-    def _get_var_ids(variable_descriptions, variable, downscaling_method, timescale):
+    def _get_var_ids(
+        self, variable_descriptions, variable, downscaling_method, timescale
+    ):
         """Get variable ids that match the selected variable, timescale, and downscaling method.
         Required to account for the fact that LOCA, WRF, and various timescales use different variable id values.
         Used to retrieve the correct variables from the catalog in the backend.
@@ -256,6 +260,7 @@ class DataSelector(DataInterface, param.Parameterized):
         return var_id
 
     def _get_overlapping_station_names(
+        self,
         stations_gdf,
         area_subset,
         cached_area,
