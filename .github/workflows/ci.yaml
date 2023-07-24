@@ -45,6 +45,8 @@ jobs:
           use-only-tar-bz2: true
     - name: Output conda info
       run: conda info
+    - name: Output conda list
+      run: conda list
     - name: Install xclim
       run: pip install dask-gateway==2023.1.1 dask-geopandas==0.3.1 xclim==0.44.0
     - name: Install climakitae
