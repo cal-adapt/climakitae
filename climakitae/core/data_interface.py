@@ -371,7 +371,7 @@ class DataSelector(DataInterface, param.Parameterized):
 
     def __init__(self, **params):
         # Set default values
-        super().__init__(**params)
+        #super().__init__(**params)
 
         # Get geography boundaries and selection options
         self._geographies = self.geographies
