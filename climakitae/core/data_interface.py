@@ -190,6 +190,63 @@ class DataSelector(DataInterface, param.Parameterized):
 
             return scenario_options, simulation_options, unique_variable_ids
 
+        def _get_variable_options_df(self):
+            """Get variable options to display depending on downscaling method and timescale
+
+            Parameters
+            ----------
+            var_config: pd.DataFrame
+                Variable descriptions, units, etc in table format
+            unique_variable_ids: list of strs
+                List of unique variable ids from catalog.
+                Used to subset var_config
+            downscaling_method: list, one of ["Dynamical"], ["Statistical"], or ["Dynamical","Statistical"]
+                Data downscaling method
+            timescale: str, one of "hourly", "daily", or "monthly"
+                Timescale
+
+            Returns
+            -------
+            pd.DataFrame
+                Subset of var_config for input downscaling_method and timescale
+            """
+            # Catalog options and derived options together
+            derived_variables = list(
+                self.variable_descriptions[
+                    self.variable_descriptions["variable_id"].str.contains("_derived")
+                ]["variable_id"]
+            )
+            var_options_plus_derived = unique_variable_ids + derived_variables
+
+            # Subset dataframe
+            variable_options_df = self.variable_descriptions[
+                (self.variable_descriptions["show"] == True)
+                & (  # Make sure it's a valid variable selection
+                    self.variable_descriptions["variable_id"].isin(
+                        var_options_plus_derived
+                    )
+                    & (  # Make sure variable_id is part of the catalog options for user selections
+                        self.variable_descriptions["timescale"].str.contains(
+                            self.timescale
+                        )
+                    )  # Make sure its the right timescale
+                )
+            ]
+
+            if set(["Dynamical", "Statistical"]).issubset(self.downscaling_method):
+                variable_options_df = variable_options_df[
+                    # Get shared variables
+                    variable_options_df["display_name"].duplicated()
+                ]
+            else:
+                variable_options_df = variable_options_df[
+                    # Get variables only from one downscaling method
+                    variable_options_df["downscaling_method"].isin(
+                        self.downscaling_method
+                    )
+                ]
+            return variable_options_df
+
         # Get geography boundaries and selection options
         self._geographies = self.geographies
         self._geography_choose = self._geographies.boundary_dict()
