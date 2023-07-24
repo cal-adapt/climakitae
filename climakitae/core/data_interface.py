@@ -262,12 +262,7 @@ class DataSelector(DataInterface, param.Parameterized):
         self.scenario_options, self.simulation, unique_variable_ids = _get_user_options(
             self
         )
-        self.variable_options_df = _get_variable_options_df(
-            var_config=self.var_config,
-            unique_variable_ids=unique_variable_ids,
-            downscaling_method=self.downscaling_method,
-            timescale=self.timescale,
-        )
+        self.variable_options_df = _get_variable_options_df(self)
 
         # Set scenario param
         scenario_ssp_options = [
