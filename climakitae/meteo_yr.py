@@ -43,6 +43,45 @@ xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
 
 
 # =========================== HELPER FUNCTIONS: DATA RETRIEVAL ==============================
+def retrieve_meteo_yr_data(self, ssp=None, year_start=2015, year_end=None):
+    """User-facing function for retrieving data needed for computing a meteorological year.
+
+    Reads in the hourly ensemble means instead of the hourly data.
+    Reads in future SSP data, historical climate data, or a combination
+    of both, depending on year_start and year_end
+
+    Parameters
+    ----------
+    ssp: str, one of "SSP 2-4.5 -- Middle of the Road", "SSP 2-4.5 -- Middle of the Road", "SSP 3-7.0 -- Business as Usual", "SSP 5-8.5 -- Burn it All"
+        Shared Socioeconomic Pathway. Defaults to SSP 3-7.0 -- Business as Usual
+    year_start: int, optional
+        Year between 1980-2095. Default to 2015
+    year_end: int, optional
+        Year between 1985-2100. Default to year_start+30
+
+    Returns
+    -------
+    xr.DataArray
+        Hourly ensemble means from year_start-year_end for the ssp specified.
+
+    Examples
+    --------
+
+    Make sure you've initialized an Application object.
+    Then, simply call this method to retrieve the data needed for computing
+    an average or severe meteorological year in a subsequent step.
+
+    >>> import climakitae as ck
+    >>> app = ck.Application()
+    >>> data = app.retrieve_meteo_yr_data(
+    ...     ssp="SSP 2-4.5 -- Middle of the Road",
+    ...     year_start=2020,
+    ...     year_end=2050
+    ... )
+    """
+    return _retrieve_meteo_yr_data(
+        self.selections, self.catalog, ssp, year_start, year_end
+    )
 
 
 def _set_amy_year_inputs(year_start, year_end):

@@ -5,27 +5,16 @@ import intake
 import pkg_resources
 import pandas as pd
 from .data_export import _export_to_user
-from .explore import _AppExplore
 from .view import _visualize
 from .data_loaders import _read_catalog_from_select, _read_catalog_from_csv, _compute
 from .selectors import (
     _DataSelector,
     _display_select,
-    _get_user_options,
     _user_export_select,
-    _FileTypeSelector,
 )
-from .catalog_convert import (
-    _downscaling_method_to_activity_id,
-    _resolution_to_gridlabel,
-    _timescale_to_table_id,
-    _scenario_to_experiment_id,
-)
-from .meteo_yr import _retrieve_meteo_yr_data
-
 
 @dataclass(frozen=True)
-class _Base(object):
+class _DataInterface(object):
     """
     A singleton class to hold the catalog and shapefile information
     needed by the GetData class.
@@ -55,7 +44,7 @@ class _Base(object):
         # which gets used in selectors.py and data_loaders.py
         
 # === Select =====================================
-class GetData():
+class DataChooser():
     '''
     A class for selections which holds the selections param object, and a method to 
     retrieve whatever those selections indicate.
@@ -63,8 +52,8 @@ class GetData():
     Can be instantiated many times. Explore modules create their own instance.
     '''
     def __init__(self):
-        self.ref_data = _Base() 
-        self.selections = _DataSelector(cat=self.catalog, var_config=self.var_config)
+        self.ref_data = _DataInterface() 
+        self.selections = _DataSelector(cat=self.ref_data.catalog, var_config=self.ref_data.var_config)
         
     def retrieve(self, config=None, merge=True):
         """Retrieve data from catalog
@@ -109,10 +98,10 @@ class GetData():
                 )
         return _read_catalog_from_select(self.selections, self.ref_data.catalog)
 
- class Select(GetData):   
+ class Select(DataChooser):   
     '''
     Adds a method to display the panel user-interface on top of the 
-    GetData class. Create a new instance every time.
+    DataChooser class. Create a new instance every time.
 
     Usage
     --------
@@ -129,6 +118,7 @@ class GetData():
     '''
     def __init__(self):
         super().__init__()
+        # automatically return interface when new instance is defined:
         select_panel = self.interface()
 
     def interface(self):
@@ -145,16 +135,6 @@ class GetData():
             Selections GUI
         """
 
-        # Reset simulation options
-        # This will remove ensmean if the use has just called app.explore.amy()
-        _, simulation_options, _ = _get_user_options(
-            cat=self.ref_data.catalog,
-            downscaling_method=self.selections.downscaling_method,
-            timescale=self.selections.timescale,
-            resolution=self.selections.resolution,
-        )
-        self.selections.simulation = simulation_options
-        # Display panel
         select_panel = _display_select(self.selections)
         return select_panel
 
@@ -208,47 +188,6 @@ def load(data):
     xarray.DataArray.compute
     """
     return _compute(data)
-
-# TODO: move into meteo_yr module:   
-def retrieve_meteo_yr_data(self, ssp=None, year_start=2015, year_end=None):
-    """User-facing function for retrieving data needed for computing a meteorological year.
-
-    Reads in the hourly ensemble means instead of the hourly data.
-    Reads in future SSP data, historical climate data, or a combination
-    of both, depending on year_start and year_end
-
-    Parameters
-    ----------
-    ssp: str, one of "SSP 2-4.5 -- Middle of the Road", "SSP 2-4.5 -- Middle of the Road", "SSP 3-7.0 -- Business as Usual", "SSP 5-8.5 -- Burn it All"
-        Shared Socioeconomic Pathway. Defaults to SSP 3-7.0 -- Business as Usual
-    year_start: int, optional
-        Year between 1980-2095. Default to 2015
-    year_end: int, optional
-        Year between 1985-2100. Default to year_start+30
-
-    Returns
-    -------
-    xr.DataArray
-        Hourly ensemble means from year_start-year_end for the ssp specified.
-
-    Examples
-    --------
-
-    Make sure you've initialized an Application object.
-    Then, simply call this method to retrieve the data needed for computing
-    an average or severe meteorological year in a subsequent step.
-
-    >>> import climakitae as ck
-    >>> app = ck.Application()
-    >>> data = app.retrieve_meteo_yr_data(
-    ...     ssp="SSP 2-4.5 -- Middle of the Road",
-    ...     year_start=2020,
-    ...     year_end=2050
-    ... )
-    """
-    return _retrieve_meteo_yr_data(
-        self.selections, self.catalog, ssp, year_start, year_end
-    )
 
 # === View =======================================
 def view(data, lat_lon=True, width=None, height=None, cmap=None):
