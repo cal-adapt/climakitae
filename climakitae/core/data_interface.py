@@ -4,6 +4,7 @@ import pandas as pd
 import geopandas as gpd
 import intake
 import param
+import warnings
 from climakitae.core.constants import (
     variable_descriptions_csv_path,
     stations_csv_path,
@@ -12,6 +13,13 @@ from climakitae.core.constants import (
 from climakitae.util.utils import read_csv_file
 from climakitae.core.boundaries import Boundaries
 from climakitae.util.unit_conversions import _get_unit_conversion_options
+from climakitae.core.catalog_convert import (
+    _downscaling_method_to_activity_id,
+    _resolution_to_gridlabel,
+    _timescale_to_table_id,
+    _scenario_to_experiment_id,
+)
+
 
 class DataInterface:
     def __init__(self):
@@ -98,6 +106,90 @@ class DataSelector(DataInterface, param.Parameterized):
         # Set default values
         super().__init__(**params)
 
+        def _get_user_options(self):
+            """Using the data catalog, get a list of appropriate scenario and simulation options given a user's
+            selections for downscaling method, timescale, and resolution.
+            Unique variable ids for user selections are returned, then limited further in subsequent steps.
+
+            Parameters
+            ----------
+            cat: intake catalog
+            downscaling_method: list, one of ["Dynamical"], ["Statistical"], or ["Dynamical","Statistical"]
+                Data downscaling method
+            timescale: str, one of "hourly", "daily", or "monthly"
+                Timescale
+            resolution: str, one of "3 km", "9 km", "45 km"
+                Model grid resolution
+
+            Returns
+            -------
+            scenario_options: list
+                Unique scenario values for input user selections
+            simulation_options: list
+                Unique simulation values for input user selections
+            unique_variable_ids: list
+                Unique variable id values for input user selections
+            """
+
+            # Get catalog subset from user inputs
+            with warnings.catch_warnings(record=True):
+                cat_subset = self.data_catalog.search(
+                    activity_id=[
+                        _downscaling_method_to_activity_id(dm)
+                        for dm in self.downscaling_method
+                    ],
+                    table_id=_timescale_to_table_id(self.timescale),
+                    grid_label=_resolution_to_gridlabel(self.resolution),
+                )
+
+            # For LOCA grid we need to use the UCSD institution ID
+            # This comes into play whenever Statistical is selected
+            # WRF data on LOCA grid is tagged with UCSD institution ID
+            if "Statistical" in self.downscaling_method:
+                cat_subset = cat_subset.search(institution_id="UCSD")
+
+            # Limit scenarios if both LOCA and WRF are selected
+            # We just want the scenarios that are present in both datasets
+            if set(["Dynamical", "Statistical"]).issubset(
+                self.downscaling_method
+            ):  # If both are selected
+                loca_scenarios = cat_subset.search(
+                    activity_id="LOCA2"
+                ).df.experiment_id.unique()  # LOCA unique member_ids
+                wrf_scenarios = cat_subset.search(
+                    activity_id="WRF"
+                ).df.experiment_id.unique()  # WRF unique member_ids
+                overlapping_scenarios = list(set(loca_scenarios) & set(wrf_scenarios))
+                cat_subset = cat_subset.search(experiment_id=overlapping_scenarios)
+
+            elif self.downscaling_method == ["Statistical"]:
+                cat_subset = cat_subset.search(activity_id="LOCA2")
+
+            # Get scenario options
+            scenario_options = list(cat_subset.df["experiment_id"].unique())
+
+            # Get all unique simulation options from catalog selection
+            try:
+                simulation_options = list(cat_subset.df["source_id"].unique())
+
+                # Remove troublesome simulations
+                simulation_options = [
+                    sim
+                    for sim in simulation_options
+                    if sim not in ["HadGEM3-GC31-LL", "KACE-1-0-G"]
+                ]
+
+                # Remove ensemble means
+                if "ensmean" in simulation_options:
+                    simulation_options.remove("ensmean")
+            except:
+                simulation_options = []
+
+            # Get variable options
+            unique_variable_ids = list(cat_subset.df["variable_id"].unique())
+
+            return scenario_options, simulation_options, unique_variable_ids
+
         # Get geography boundaries and selection options
         self._geographies = self.geographies
         self._geography_choose = self._geographies.boundary_dict()
@@ -111,10 +203,7 @@ class DataSelector(DataInterface, param.Parameterized):
 
         # Set data params
         self.scenario_options, self.simulation, unique_variable_ids = _get_user_options(
-            cat=self.cat,
-            downscaling_method=self.downscaling_method,
-            timescale=self.timescale,
-            resolution=self.resolution,
+            self
         )
         self.variable_options_df = _get_variable_options_df(
             var_config=self.var_config,
