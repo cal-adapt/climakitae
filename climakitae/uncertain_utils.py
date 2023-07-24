@@ -9,7 +9,7 @@ import warnings
 from .selectors import Boundaries
 from scipy import stats
 import pkg_resources
-from climakitae.data_loaders import _get_area_subset
+from climakitae.data_loaders import _area_subset_geometry
 import holoviews as hv
 import panel as pn
 
@@ -502,11 +502,7 @@ def get_ensemble_data(variable, selections, cmip_names, warm_level=3.0):
     def _postprocess(ds, selections, variable):
         """Subset the dataset by an input location, convert variables, perform area averaging"""
         # Perform area subsetting
-        ds_region = _get_area_subset(
-            selections.area_subset,
-            selections.cached_area,
-            selections,
-        )
+        ds_region = _area_subset_geometry(selections)
         ds = ds.rio.write_crs(4326)
         ds = ds.rio.clip(geometries=ds_region, crs=4326, drop=True)
 
