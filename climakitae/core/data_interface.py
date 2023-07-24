@@ -540,7 +540,12 @@ class DataSelector(DataInterface, param.Parameterized):
             self.scenario_options,
             self.simulation,
             unique_variable_ids,
-        ) = self._get_user_options(self)
+        ) = self._get_user_options(
+            data_catalog=self.data_catalog,
+            downscaling_method=downscaling_method,
+            timescale=self.timescale,
+            resolution=self.resolution,
+        )
 
         if self.data_type == "Station":
             # If station is selected, the only valid option is air temperature
