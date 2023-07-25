@@ -593,7 +593,12 @@ class DataParameters(param.Parameterized):
             self.variable_options_df["display_name"] == self.variable
         ]  # Get info for just that variable
         self.extended_description = var_info.extended_description.item()
-        self.variable_id = self._get_var_ids(self)
+        self.variable_id = self._get_var_ids(
+            self._variable_descriptions,
+            self.variable,
+            self.downscaling_method,
+            self.timescale,
+        )
         self.colormap = var_info.colormap.item()
 
     @param.depends("resolution", "area_subset", watch=True)
