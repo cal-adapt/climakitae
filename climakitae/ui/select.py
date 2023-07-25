@@ -342,7 +342,7 @@ class Select:
         return select_panel
     
     def retrieve(self):
-        self.data_parameters.retrieve()
+        return self.data_parameters.retrieve()
 
 
 def _selections_param_to_panel(selections):
