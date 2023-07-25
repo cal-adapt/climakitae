@@ -26,6 +26,466 @@ from climakitae.core.catalog_convert import (
     _scenario_to_experiment_id,
 )
 
+def _get_user_options(
+    data_catalog, downscaling_method, timescale, resolution
+):
+    """Using the data catalog, get a list of appropriate scenario and simulation options given a user's
+    selections for downscaling method, timescale, and resolution.
+    Unique variable ids for user selections are returned, then limited further in subsequent steps.
+
+    Parameters
+    ----------
+    cat: intake catalog
+    downscaling_method: list, one of ["Dynamical"], ["Statistical"], or ["Dynamical","Statistical"]
+        Data downscaling method
+    timescale: str, one of "hourly", "daily", or "monthly"
+        Timescale
+    resolution: str, one of "3 km", "9 km", "45 km"
+        Model grid resolution
+
+    Returns
+    -------
+    scenario_options: list
+        Unique scenario values for input user selections
+    simulation_options: list
+        Unique simulation values for input user selections
+    unique_variable_ids: list
+        Unique variable id values for input user selections
+    """
+
+    # Get catalog subset from user inputs
+    with warnings.catch_warnings(record=True):
+        cat_subset = data_catalog.search(
+            activity_id=[
+                _downscaling_method_to_activity_id(dm) for dm in downscaling_method
+            ],
+            table_id=_timescale_to_table_id(timescale),
+            grid_label=_resolution_to_gridlabel(resolution),
+        )
+
+    # For LOCA grid we need to use the UCSD institution ID
+    # This comes into play whenever Statistical is selected
+    # WRF data on LOCA grid is tagged with UCSD institution ID
+    if "Statistical" in downscaling_method:
+        cat_subset = cat_subset.search(institution_id="UCSD")
+
+    # Limit scenarios if both LOCA and WRF are selected
+    # We just want the scenarios that are present in both datasets
+    if set(["Dynamical", "Statistical"]).issubset(
+        downscaling_method
+    ):  # If both are selected
+        loca_scenarios = cat_subset.search(
+            activity_id="LOCA2"
+        ).df.experiment_id.unique()  # LOCA unique member_ids
+        wrf_scenarios = cat_subset.search(
+            activity_id="WRF"
+        ).df.experiment_id.unique()  # WRF unique member_ids
+        overlapping_scenarios = list(set(loca_scenarios) & set(wrf_scenarios))
+        cat_subset = cat_subset.search(experiment_id=overlapping_scenarios)
+
+    elif downscaling_method == ["Statistical"]:
+        cat_subset = cat_subset.search(activity_id="LOCA2")
+
+    # Get scenario options
+    scenario_options = list(cat_subset.df["experiment_id"].unique())
+
+    # Get all unique simulation options from catalog selection
+    try:
+        simulation_options = list(cat_subset.df["source_id"].unique())
+
+        # Remove troublesome simulations
+        simulation_options = [
+            sim
+            for sim in simulation_options
+            if sim not in ["HadGEM3-GC31-LL", "KACE-1-0-G"]
+        ]
+
+        # Remove ensemble means
+        if "ensmean" in simulation_options:
+            simulation_options.remove("ensmean")
+    except:
+        simulation_options = []
+
+    # Get variable options
+    unique_variable_ids = list(cat_subset.df["variable_id"].unique())
+
+    return scenario_options, simulation_options, unique_variable_ids
+
+def _get_variable_options_df(
+    variable_descriptions, unique_variable_ids, downscaling_method, timescale
+):
+    """Get variable options to display depending on downscaling method and timescale
+
+    Parameters
+    ----------
+    var_config: pd.DataFrame
+        Variable descriptions, units, etc in table format
+    unique_variable_ids: list of strs
+        List of unique variable ids from catalog.
+        Used to subset var_config
+    downscaling_method: list, one of ["Dynamical"], ["Statistical"], or ["Dynamical","Statistical"]
+        Data downscaling method
+    timescale: str, one of "hourly", "daily", or "monthly"
+        Timescale
+
+    Returns
+    -------
+    pd.DataFrame
+        Subset of var_config for input downscaling_method and timescale
+    """
+    # Catalog options and derived options together
+    derived_variables = list(
+        variable_descriptions[
+            variable_descriptions["variable_id"].str.contains("_derived")
+        ]["variable_id"]
+    )
+    var_options_plus_derived = unique_variable_ids + derived_variables
+
+    # Subset dataframe
+    variable_options_df = variable_descriptions[
+        (variable_descriptions["show"] == True)
+        & (  # Make sure it's a valid variable selection
+            variable_descriptions["variable_id"].isin(var_options_plus_derived)
+            & (  # Make sure variable_id is part of the catalog options for user selections
+                variable_descriptions["timescale"].str.contains(timescale)
+            )  # Make sure its the right timescale
+        )
+    ]
+
+    if set(["Dynamical", "Statistical"]).issubset(downscaling_method):
+        variable_options_df = variable_options_df[
+            # Get shared variables
+            variable_options_df["display_name"].duplicated()
+        ]
+    else:
+        variable_options_df = variable_options_df[
+            # Get variables only from one downscaling method
+            variable_options_df["downscaling_method"].isin(downscaling_method)
+        ]
+    return variable_options_df
+
+def _get_var_ids(
+    variable_descriptions, variable, downscaling_method, timescale
+):
+    """Get variable ids that match the selected variable, timescale, and downscaling method.
+    Required to account for the fact that LOCA, WRF, and various timescales use different variable id values.
+    Used to retrieve the correct variables from the catalog in the backend.
+    """
+    var_id = variable_descriptions[
+        (variable_descriptions["display_name"] == variable)
+        & (  # Make sure it's a valid variable selection
+            variable_descriptions["timescale"].str.contains(timescale)
+        )  # Make sure its the right timescale
+        & (
+            variable_descriptions["downscaling_method"].isin(downscaling_method)
+        )  # Make sure it's the right downscaling method
+    ]
+    var_id = list(var_id.variable_id.values)
+    return var_id
+
+def _get_overlapping_station_names(
+    stations_gdf,
+    area_subset,
+    cached_area,
+    latitude,
+    longitude,
+    _geographies,
+    _geography_choose,
+):
+    """Wrapper function that gets the string names of any overlapping weather stations"""
+    subarea = _get_subarea(
+        area_subset,
+        cached_area,
+        latitude,
+        longitude,
+        _geographies,
+        _geography_choose,
+    )
+    overlapping_stations_gpd = _get_overlapping_stations(stations_gdf, subarea)
+    overlapping_stations_names = sorted(
+        list(overlapping_stations_gpd["station"].values)
+    )
+    return overlapping_stations_names
+
+def _get_overlapping_stations(stations, polygon):
+    """Get weather stations contained within a geometry
+    Both stations and polygon MUST have the same projection
+
+    Parameters
+    ----------
+    stations: gpd.GeoDataFrame
+        Weather station names and coordinates, with geometry column
+    polygon: gpd.GeoDataFrame
+        Polygon geometry, must be a gpd.GeoDataFrame object
+
+    Returns
+    -------
+    gpd.GeoDataFrame
+        stations gpd subsetted to include only points contained within polygon
+
+    """
+    return gpd.sjoin(stations, polygon, predicate="within")
+
+def _get_subarea(
+    area_subset,
+    cached_area,
+    latitude,
+    longitude,
+    _geographies,
+    _geography_choose,
+):
+    """Get geometry from input settings
+    Used for plotting or determining subset of overlapping weather stations in subsequent steps
+
+    Returns
+    -------
+    gpd.GeoDataFrame
+
+    """
+
+    def _get_subarea_from_shape_index(boundary_dataset, shape_index):
+        return boundary_dataset[boundary_dataset.index == shape_index]
+
+    if area_subset == "lat/lon":
+        geometry = box(
+            longitude[0],
+            latitude[0],
+            longitude[1],
+            latitude[1],
+        )
+        df_ae = gpd.GeoDataFrame(
+            pd.DataFrame({"subset": ["coords"], "geometry": [geometry]}),
+            crs="EPSG:4326",
+        )
+    elif area_subset != "none":
+        shape_index = int(_geography_choose[area_subset][cached_area])
+        if area_subset == "states":
+            df_ae = _get_subarea_from_shape_index(
+                _geographies._us_states, shape_index
+            )
+        elif area_subset == "CA counties":
+            df_ae = _get_subarea_from_shape_index(
+                _geographies._ca_counties, shape_index
+            )
+        elif area_subset == "CA watersheds":
+            df_ae = _get_subarea_from_shape_index(
+                _geographies._ca_watersheds, shape_index
+            )
+        elif area_subset == "CA Electric Load Serving Entities (IOU & POU)":
+            df_ae = _get_subarea_from_shape_index(
+                _geographies._ca_utilities, shape_index
+            )
+        elif area_subset == "CA Electricity Demand Forecast Zones":
+            df_ae = _get_subarea_from_shape_index(
+                _geographies._ca_forecast_zones, shape_index
+            )
+        elif area_subset == "CA Electric Balancing Authority Areas":
+            df_ae = _get_subarea_from_shape_index(
+                _geographies._ca_electric_balancing_areas, shape_index
+            )
+
+    else:  # If no subsetting, make the geometry a big box so all stations are included
+        df_ae = gpd.GeoDataFrame(
+            pd.DataFrame(
+                {
+                    "subset": ["coords"],
+                    "geometry": [box(-150, -88, 8, 66)],  # Super big box
+                }
+            ),
+            crs="EPSG:4326",
+        )
+
+    return df_ae
+
+def _add_res_to_ax(
+    poly, ax, rotation, xy, label, color="black", crs=ccrs.PlateCarree()
+):
+    """Add resolution line and label to axis
+
+    Parameters
+    ----------
+    poly: geometry to plot
+    ax: matplotlib axis
+    color: matplotlib color
+    rotation: int
+    xy: tuple
+    label: str
+    crs: projection
+
+    """
+    ax.add_geometries(
+        [poly], crs=ccrs.PlateCarree(), edgecolor=color, facecolor="white"
+    )
+    ax.annotate(
+        label,
+        xy=xy,
+        rotation=rotation,
+        color="black",
+        xycoords=crs._as_mpl_transform(ax),
+    )
+
+def _map_view(selections, stations_gdf):
+    """View the current location selections on a map
+    Updates dynamically
+
+    Parameters
+    ----------
+    selections: DataSelector
+        User data selections
+    stations_gpd: gpd.DataFrame
+        DataFrame with station coordinates
+
+    """
+
+    _wrf_bb = {
+        "45 km": Polygon(
+            [
+                (-123.52125549316406, 9.475631713867188),
+                (-156.8231658935547, 35.449039459228516),
+                (-102.43182373046875, 67.32866668701172),
+                (-84.18701171875, 26.643436431884766),
+            ]
+        ),
+        "9 km": Polygon(
+            [
+                (-116.69509887695312, 22.267112731933594),
+                (-138.42117309570312, 43.23344802856445),
+                (-110.90779113769531, 57.5806770324707),
+                (-94.9368896484375, 31.627288818359375),
+            ]
+        ),
+        "3 km": Polygon(
+            [
+                (-117.80029, 29.978943),
+                (-127.95593, 40.654625),
+                (-120.79376, 44.8999),
+                (-111.23247, 33.452168),
+            ]
+        ),
+    }
+
+    fig0 = Figure(figsize=(2.25, 2.25))
+    proj = ccrs.Orthographic(-118, 40)
+    crs_proj4 = proj.proj4_init  # used below
+    xy = ccrs.PlateCarree()
+    ax = fig0.add_subplot(111, projection=proj)
+    mpl_pane = pn.pane.Matplotlib(fig0, dpi=1000)
+
+    # Get geometry of selected location
+    subarea_gpd = _get_subarea(
+        selections.area_subset,
+        selections.cached_area,
+        selections.latitude,
+        selections.longitude,
+        selections._geographies,
+        selections._geography_choose,
+    )
+    # Set plot extent
+    ca_extent = [-125, -114, 31, 43]  # Zoom in on CA
+    us_extent = [
+        -130,
+        -100,
+        25,
+        50,
+    ]  # Western USA + a lil bit of baja (viva mexico)
+    na_extent = [-150, -88, 8, 66]  # North America extent (largest extent)
+    if selections.area_subset == "lat/lon":
+        extent = na_extent  # default
+        # Dynamically update extent depending on borders of lat/lon selection
+        for extent_i in [ca_extent, us_extent, na_extent]:
+            # Construct a polygon from the extent
+            geom_extent = Polygon(
+                box(extent_i[0], extent_i[2], extent_i[1], extent_i[3])
+            )
+            # Check if user selections for lat/lon are contained in the extent
+            if geom_extent.contains(subarea_gpd.geometry.values[0]):
+                # If so, set the extent to the smallest extent possible
+                # Such that the lat/lon selection is contained within the map's boundaries
+                extent = extent_i
+                break
+    elif (selections.resolution == "3 km") or ("CA" in selections.area_subset):
+        extent = ca_extent
+    elif (selections.resolution == "9 km") or (selections.area_subset == "states"):
+        extent = us_extent
+    elif selections.area_subset == "none":
+        extent = na_extent
+    else:  # Default for all other selections
+        extent = ca_extent
+    ax.set_extent(extent, crs=xy)
+
+    # Set size of markers for stations depending on map boundaries
+    if extent == ca_extent:
+        scatter_size = 4.5
+    elif extent == us_extent:
+        scatter_size = 2.5
+    elif extent == na_extent:
+        scatter_size = 1.5
+
+    if selections.resolution == "45 km":
+        _add_res_to_ax(
+            poly=_wrf_bb["45 km"],
+            ax=ax,
+            color="green",
+            rotation=28,
+            xy=(-154, 33.8),
+            label="45 km",
+        )
+    elif selections.resolution == "9 km":
+        _add_res_to_ax(
+            poly=_wrf_bb["9 km"],
+            ax=ax,
+            color="red",
+            rotation=32,
+            xy=(-134, 42),
+            label="9 km",
+        )
+    elif selections.resolution == "3 km":
+        _add_res_to_ax(
+            poly=_wrf_bb["3 km"],
+            ax=ax,
+            color="darkorange",
+            rotation=32,
+            xy=(-127, 40),
+            label="3 km",
+        )
+
+    # Add user-selected geometries
+    if selections.area_subset == "lat/lon":
+        ax.add_geometries(
+            subarea_gpd["geometry"].values,
+            crs=ccrs.PlateCarree(),
+            edgecolor="b",
+            facecolor="None",
+        )
+    elif selections.area_subset != "none":
+        subarea_gpd.to_crs(crs_proj4).plot(ax=ax, color="deepskyblue", zorder=2)
+        mpl_pane.param.trigger("object")
+
+    # Overlay the weather stations as points on the map
+    if selections.data_type == "Station":
+        # Subset the stations gpd to get just the user's selected stations
+        # We need the stations gpd because it has the coordinates, which will be used to make the plot
+        stations_selection_gdf = stations_gdf.loc[
+            stations_gdf["station"].isin(selections.station)
+        ]
+        stations_selection_gdf = stations_selection_gdf.to_crs(
+            crs_proj4
+        )  # Convert to map projection
+        ax.scatter(
+            stations_selection_gdf.LON_X.values,
+            stations_selection_gdf.LAT_Y.values,
+            transform=ccrs.PlateCarree(),
+            zorder=15,
+            color="black",
+            s=scatter_size,  # Scatter size is dependent on extent of map
+        )
+
+    # Add state lines, international borders, and coastline
+    ax.add_feature(cfeature.STATES, linewidth=0.5, edgecolor="gray")
+    ax.add_feature(cfeature.COASTLINE, linewidth=0.5, edgecolor="darkgray")
+    ax.add_feature(cfeature.BORDERS, edgecolor="darkgray")
+    return mpl_pane
+
 
 class DataInterface:
     def __new__(cls):
@@ -109,278 +569,6 @@ class DataParameters(param.Parameterized):
     _data_warning = param.String(
         default="", doc="Warning if user has made a bad selection"
     )
-
-    def _get_user_options(
-        self, data_catalog, downscaling_method, timescale, resolution
-    ):
-        """Using the data catalog, get a list of appropriate scenario and simulation options given a user's
-        selections for downscaling method, timescale, and resolution.
-        Unique variable ids for user selections are returned, then limited further in subsequent steps.
-
-        Parameters
-        ----------
-        cat: intake catalog
-        downscaling_method: list, one of ["Dynamical"], ["Statistical"], or ["Dynamical","Statistical"]
-            Data downscaling method
-        timescale: str, one of "hourly", "daily", or "monthly"
-            Timescale
-        resolution: str, one of "3 km", "9 km", "45 km"
-            Model grid resolution
-
-        Returns
-        -------
-        scenario_options: list
-            Unique scenario values for input user selections
-        simulation_options: list
-            Unique simulation values for input user selections
-        unique_variable_ids: list
-            Unique variable id values for input user selections
-        """
-
-        # Get catalog subset from user inputs
-        with warnings.catch_warnings(record=True):
-            cat_subset = data_catalog.search(
-                activity_id=[
-                    _downscaling_method_to_activity_id(dm) for dm in downscaling_method
-                ],
-                table_id=_timescale_to_table_id(timescale),
-                grid_label=_resolution_to_gridlabel(resolution),
-            )
-
-        # For LOCA grid we need to use the UCSD institution ID
-        # This comes into play whenever Statistical is selected
-        # WRF data on LOCA grid is tagged with UCSD institution ID
-        if "Statistical" in downscaling_method:
-            cat_subset = cat_subset.search(institution_id="UCSD")
-
-        # Limit scenarios if both LOCA and WRF are selected
-        # We just want the scenarios that are present in both datasets
-        if set(["Dynamical", "Statistical"]).issubset(
-            downscaling_method
-        ):  # If both are selected
-            loca_scenarios = cat_subset.search(
-                activity_id="LOCA2"
-            ).df.experiment_id.unique()  # LOCA unique member_ids
-            wrf_scenarios = cat_subset.search(
-                activity_id="WRF"
-            ).df.experiment_id.unique()  # WRF unique member_ids
-            overlapping_scenarios = list(set(loca_scenarios) & set(wrf_scenarios))
-            cat_subset = cat_subset.search(experiment_id=overlapping_scenarios)
-
-        elif downscaling_method == ["Statistical"]:
-            cat_subset = cat_subset.search(activity_id="LOCA2")
-
-        # Get scenario options
-        scenario_options = list(cat_subset.df["experiment_id"].unique())
-
-        # Get all unique simulation options from catalog selection
-        try:
-            simulation_options = list(cat_subset.df["source_id"].unique())
-
-            # Remove troublesome simulations
-            simulation_options = [
-                sim
-                for sim in simulation_options
-                if sim not in ["HadGEM3-GC31-LL", "KACE-1-0-G"]
-            ]
-
-            # Remove ensemble means
-            if "ensmean" in simulation_options:
-                simulation_options.remove("ensmean")
-        except:
-            simulation_options = []
-
-        # Get variable options
-        unique_variable_ids = list(cat_subset.df["variable_id"].unique())
-
-        return scenario_options, simulation_options, unique_variable_ids
-
-    def _get_variable_options_df(
-        self, variable_descriptions, unique_variable_ids, downscaling_method, timescale
-    ):
-        """Get variable options to display depending on downscaling method and timescale
-
-        Parameters
-        ----------
-        var_config: pd.DataFrame
-            Variable descriptions, units, etc in table format
-        unique_variable_ids: list of strs
-            List of unique variable ids from catalog.
-            Used to subset var_config
-        downscaling_method: list, one of ["Dynamical"], ["Statistical"], or ["Dynamical","Statistical"]
-            Data downscaling method
-        timescale: str, one of "hourly", "daily", or "monthly"
-            Timescale
-
-        Returns
-        -------
-        pd.DataFrame
-            Subset of var_config for input downscaling_method and timescale
-        """
-        # Catalog options and derived options together
-        derived_variables = list(
-            variable_descriptions[
-                variable_descriptions["variable_id"].str.contains("_derived")
-            ]["variable_id"]
-        )
-        var_options_plus_derived = unique_variable_ids + derived_variables
-
-        # Subset dataframe
-        variable_options_df = variable_descriptions[
-            (variable_descriptions["show"] == True)
-            & (  # Make sure it's a valid variable selection
-                variable_descriptions["variable_id"].isin(var_options_plus_derived)
-                & (  # Make sure variable_id is part of the catalog options for user selections
-                    variable_descriptions["timescale"].str.contains(timescale)
-                )  # Make sure its the right timescale
-            )
-        ]
-
-        if set(["Dynamical", "Statistical"]).issubset(downscaling_method):
-            variable_options_df = variable_options_df[
-                # Get shared variables
-                variable_options_df["display_name"].duplicated()
-            ]
-        else:
-            variable_options_df = variable_options_df[
-                # Get variables only from one downscaling method
-                variable_options_df["downscaling_method"].isin(downscaling_method)
-            ]
-        return variable_options_df
-
-    def _get_var_ids(
-        self, variable_descriptions, variable, downscaling_method, timescale
-    ):
-        """Get variable ids that match the selected variable, timescale, and downscaling method.
-        Required to account for the fact that LOCA, WRF, and various timescales use different variable id values.
-        Used to retrieve the correct variables from the catalog in the backend.
-        """
-        var_id = variable_descriptions[
-            (variable_descriptions["display_name"] == variable)
-            & (  # Make sure it's a valid variable selection
-                variable_descriptions["timescale"].str.contains(timescale)
-            )  # Make sure its the right timescale
-            & (
-                variable_descriptions["downscaling_method"].isin(downscaling_method)
-            )  # Make sure it's the right downscaling method
-        ]
-        var_id = list(var_id.variable_id.values)
-        return var_id
-
-    def _get_overlapping_station_names(
-        self,
-        stations_gdf,
-        area_subset,
-        cached_area,
-        latitude,
-        longitude,
-        _geographies,
-        _geography_choose,
-    ):
-        def _get_overlapping_stations(stations, polygon):
-            """Get weather stations contained within a geometry
-            Both stations and polygon MUST have the same projection
-
-            Parameters
-            ----------
-            stations: gpd.GeoDataFrame
-                Weather station names and coordinates, with geometry column
-            polygon: gpd.GeoDataFrame
-                Polygon geometry, must be a gpd.GeoDataFrame object
-
-            Returns
-            -------
-            gpd.GeoDataFrame
-                stations gpd subsetted to include only points contained within polygon
-
-            """
-            return gpd.sjoin(stations, polygon, predicate="within")
-
-        def _get_subarea(
-            area_subset,
-            cached_area,
-            latitude,
-            longitude,
-            _geographies,
-            _geography_choose,
-        ):
-            """Get geometry from input settings
-            Used for plotting or determining subset of overlapping weather stations in subsequent steps
-
-            Returns
-            -------
-            gpd.GeoDataFrame
-
-            """
-
-            def _get_subarea_from_shape_index(boundary_dataset, shape_index):
-                return boundary_dataset[boundary_dataset.index == shape_index]
-
-            if area_subset == "lat/lon":
-                geometry = box(
-                    longitude[0],
-                    latitude[0],
-                    longitude[1],
-                    latitude[1],
-                )
-                df_ae = gpd.GeoDataFrame(
-                    pd.DataFrame({"subset": ["coords"], "geometry": [geometry]}),
-                    crs="EPSG:4326",
-                )
-            elif area_subset != "none":
-                shape_index = int(_geography_choose[area_subset][cached_area])
-                if area_subset == "states":
-                    df_ae = _get_subarea_from_shape_index(
-                        _geographies._us_states, shape_index
-                    )
-                elif area_subset == "CA counties":
-                    df_ae = _get_subarea_from_shape_index(
-                        _geographies._ca_counties, shape_index
-                    )
-                elif area_subset == "CA watersheds":
-                    df_ae = _get_subarea_from_shape_index(
-                        _geographies._ca_watersheds, shape_index
-                    )
-                elif area_subset == "CA Electric Load Serving Entities (IOU & POU)":
-                    df_ae = _get_subarea_from_shape_index(
-                        _geographies._ca_utilities, shape_index
-                    )
-                elif area_subset == "CA Electricity Demand Forecast Zones":
-                    df_ae = _get_subarea_from_shape_index(
-                        _geographies._ca_forecast_zones, shape_index
-                    )
-                elif area_subset == "CA Electric Balancing Authority Areas":
-                    df_ae = _get_subarea_from_shape_index(
-                        _geographies._ca_electric_balancing_areas, shape_index
-                    )
-
-            else:  # If no subsetting, make the geometry a big box so all stations are included
-                df_ae = gpd.GeoDataFrame(
-                    pd.DataFrame(
-                        {
-                            "subset": ["coords"],
-                            "geometry": [box(-150, -88, 8, 66)],  # Super big box
-                        }
-                    ),
-                    crs="EPSG:4326",
-                )
-
-            return df_ae
-
-        """Wrapper function that gets the string names of any overlapping weather stations"""
-        subarea = _get_subarea(
-            area_subset,
-            cached_area,
-            latitude,
-            longitude,
-            _geographies,
-            _geography_choose,
-        )
-        overlapping_stations_gpd = _get_overlapping_stations(stations_gdf, subarea)
-        overlapping_stations_names = sorted(
-            list(overlapping_stations_gpd["station"].values)
-        )
-        return overlapping_stations_names
 
     def __init__(self, **params):
         # Set default values
@@ -827,196 +1015,9 @@ class DataParameters(param.Parameterized):
             self.param["station"].objects = [notice]
             self.station = [notice]
 
+
+
 class DataParametersWithPanes(DataParameters):
-    def _add_res_to_ax(
-        poly, ax, rotation, xy, label, color="black", crs=ccrs.PlateCarree()
-    ):
-        """Add resolution line and label to axis
-
-        Parameters
-        ----------
-        poly: geometry to plot
-        ax: matplotlib axis
-        color: matplotlib color
-        rotation: int
-        xy: tuple
-        label: str
-        crs: projection
-
-        """
-        ax.add_geometries(
-            [poly], crs=ccrs.PlateCarree(), edgecolor=color, facecolor="white"
-        )
-        ax.annotate(
-            label,
-            xy=xy,
-            rotation=rotation,
-            color="black",
-            xycoords=crs._as_mpl_transform(ax),
-        )
-
-    def _map_view(selections, stations_gpd):
-        """View the current location selections on a map
-        Updates dynamically
-
-        Parameters
-        ----------
-        selections: DataSelector
-            User data selections
-        stations_gpd: gpd.DataFrame
-            DataFrame with station coordinates
-
-        """
-
-        _wrf_bb = {
-            "45 km": Polygon(
-                [
-                    (-123.52125549316406, 9.475631713867188),
-                    (-156.8231658935547, 35.449039459228516),
-                    (-102.43182373046875, 67.32866668701172),
-                    (-84.18701171875, 26.643436431884766),
-                ]
-            ),
-            "9 km": Polygon(
-                [
-                    (-116.69509887695312, 22.267112731933594),
-                    (-138.42117309570312, 43.23344802856445),
-                    (-110.90779113769531, 57.5806770324707),
-                    (-94.9368896484375, 31.627288818359375),
-                ]
-            ),
-            "3 km": Polygon(
-                [
-                    (-117.80029, 29.978943),
-                    (-127.95593, 40.654625),
-                    (-120.79376, 44.8999),
-                    (-111.23247, 33.452168),
-                ]
-            ),
-        }
-
-        fig0 = Figure(figsize=(2.25, 2.25))
-        proj = ccrs.Orthographic(-118, 40)
-        crs_proj4 = proj.proj4_init  # used below
-        xy = ccrs.PlateCarree()
-        ax = fig0.add_subplot(111, projection=proj)
-        mpl_pane = pn.pane.Matplotlib(fig0, dpi=1000)
-
-        # Get geometry of selected location
-        subarea_gpd = _get_subarea(
-            selections.area_subset,
-            selections.cached_area,
-            selections.latitude,
-            selections.longitude,
-            selections._geographies,
-            selections._geography_choose,
-        )
-        # Set plot extent
-        ca_extent = [-125, -114, 31, 43]  # Zoom in on CA
-        us_extent = [
-            -130,
-            -100,
-            25,
-            50,
-        ]  # Western USA + a lil bit of baja (viva mexico)
-        na_extent = [-150, -88, 8, 66]  # North America extent (largest extent)
-        if selections.area_subset == "lat/lon":
-            extent = na_extent  # default
-            # Dynamically update extent depending on borders of lat/lon selection
-            for extent_i in [ca_extent, us_extent, na_extent]:
-                # Construct a polygon from the extent
-                geom_extent = Polygon(
-                    box(extent_i[0], extent_i[2], extent_i[1], extent_i[3])
-                )
-                # Check if user selections for lat/lon are contained in the extent
-                if geom_extent.contains(subarea_gpd.geometry.values[0]):
-                    # If so, set the extent to the smallest extent possible
-                    # Such that the lat/lon selection is contained within the map's boundaries
-                    extent = extent_i
-                    break
-        elif (selections.resolution == "3 km") or ("CA" in selections.area_subset):
-            extent = ca_extent
-        elif (selections.resolution == "9 km") or (selections.area_subset == "states"):
-            extent = us_extent
-        elif selections.area_subset == "none":
-            extent = na_extent
-        else:  # Default for all other selections
-            extent = ca_extent
-        ax.set_extent(extent, crs=xy)
-
-        # Set size of markers for stations depending on map boundaries
-        if extent == ca_extent:
-            scatter_size = 4.5
-        elif extent == us_extent:
-            scatter_size = 2.5
-        elif extent == na_extent:
-            scatter_size = 1.5
-
-        if selections.resolution == "45 km":
-            _add_res_to_ax(
-                poly=_wrf_bb["45 km"],
-                ax=ax,
-                color="green",
-                rotation=28,
-                xy=(-154, 33.8),
-                label="45 km",
-            )
-        elif selections.resolution == "9 km":
-            _add_res_to_ax(
-                poly=_wrf_bb["9 km"],
-                ax=ax,
-                color="red",
-                rotation=32,
-                xy=(-134, 42),
-                label="9 km",
-            )
-        elif selections.resolution == "3 km":
-            _add_res_to_ax(
-                poly=_wrf_bb["3 km"],
-                ax=ax,
-                color="darkorange",
-                rotation=32,
-                xy=(-127, 40),
-                label="3 km",
-            )
-
-        # Add user-selected geometries
-        if selections.area_subset == "lat/lon":
-            ax.add_geometries(
-                subarea_gpd["geometry"].values,
-                crs=ccrs.PlateCarree(),
-                edgecolor="b",
-                facecolor="None",
-            )
-        elif selections.area_subset != "none":
-            subarea_gpd.to_crs(crs_proj4).plot(ax=ax, color="deepskyblue", zorder=2)
-            mpl_pane.param.trigger("object")
-
-        # Overlay the weather stations as points on the map
-        if selections.data_type == "Station":
-            # Subset the stations gpd to get just the user's selected stations
-            # We need the stations gpd because it has the coordinates, which will be used to make the plot
-            stations_selection_gpd = stations_gpd.loc[
-                stations_gpd["station"].isin(selections.station)
-            ]
-            stations_selection_gpd = stations_selection_gpd.to_crs(
-                crs_proj4
-            )  # Convert to map projection
-            ax.scatter(
-                stations_selection_gpd.LON_X.values,
-                stations_selection_gpd.LAT_Y.values,
-                transform=ccrs.PlateCarree(),
-                zorder=15,
-                color="black",
-                s=scatter_size,  # Scatter size is dependent on extent of map
-            )
-
-        # Add state lines, international borders, and coastline
-        ax.add_feature(cfeature.STATES, linewidth=0.5, edgecolor="gray")
-        ax.add_feature(cfeature.COASTLINE, linewidth=0.5, edgecolor="darkgray")
-        ax.add_feature(cfeature.BORDERS, edgecolor="darkgray")
-        return mpl_pane
-
     def __init__(self, **params):
         # Set default values
         super().__init__(**params)
@@ -1146,5 +1147,4 @@ class DataParametersWithPanes(DataParameters):
     )
     def map_view(self):
         """Create a map of the location selections"""
-        return _map_view(selections=self, stations_gpd=self.stations_gpd)
-    
+        return _map_view(selections=self, stations_gdf=self.stations_gdf)
