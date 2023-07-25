@@ -8,7 +8,6 @@ import cartopy.feature as cfeature
 
 from climakitae.core.data_interface import _get_subarea, DataInterface, DataParameters
 
-
 def _add_res_to_ax(
     poly, ax, rotation, xy, label, color="black", crs=ccrs.PlateCarree()
 ):
@@ -341,6 +340,9 @@ class Select:
         # Show panel visualually
         select_panel = _display_select(self.data_parameters)
         return select_panel
+    
+    def retrieve(self):
+        self.data_parameters.retrieve()
 
 
 def _selections_param_to_panel(selections):
