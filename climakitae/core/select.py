@@ -334,14 +334,11 @@ class DataParametersWithPanes(DataParameters):
 
 
 class Select:
-    def __new__(cls):
-        cls.display()
-
     def __init__(self):
         self.data_parameters = DataParametersWithPanes()
 
-    def display(self):
-        # Display panel
+    def show(self):
+        # Show panel visualually
         select_panel = _display_select(self.data_parameters)
         return select_panel
 
