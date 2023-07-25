@@ -22,3 +22,5 @@ __all__ = (
     # Constants
     "__version__",
 )
+
+datainterface = DataInterface()
