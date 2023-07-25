@@ -5,7 +5,7 @@ import geopandas as gpd
 from shapely.geometry import box, Polygon
 import intake
 import param
-import pangel as pn
+import panel as pn
 import warnings
 from matplotlib.figure import Figure
 import matplotlib.ticker as ticker
