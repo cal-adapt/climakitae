@@ -601,13 +601,13 @@ class DataParameters(param.Parameterized):
             self.scenario_options,
             self.simulation,
             unique_variable_ids,
-        ) = self._get_user_options(
+        ) = _get_user_options(
             data_catalog=self._data_catalog,
             downscaling_method=self.downscaling_method,
             timescale=self.timescale,
             resolution=self.resolution,
         )
-        self.variable_options_df = self._get_variable_options_df(
+        self.variable_options_df = _get_variable_options_df(
             variable_descriptions=self._variable_descriptions,
             unique_variable_ids=unique_variable_ids,
             downscaling_method=self.downscaling_method,
@@ -644,7 +644,7 @@ class DataParameters(param.Parameterized):
         self.colormap = var_info.colormap.item()
         self.units = var_info.unit.item()
         self.extended_description = var_info.extended_description.item()
-        self.variable_id = self._get_var_ids(
+        self.variable_id = _get_var_ids(
             self._variable_descriptions,
             self.variable,
             self.downscaling_method,
@@ -752,7 +752,7 @@ class DataParameters(param.Parameterized):
             self.scenario_options,
             self.simulation,
             unique_variable_ids,
-        ) = self._get_user_options(
+        ) = _get_user_options(
             data_catalog=self._data_catalog,
             downscaling_method=downscaling_method,
             timescale=self.timescale,
@@ -767,7 +767,7 @@ class DataParameters(param.Parameterized):
 
         else:
             # Otherwise, get a list of variable options using the catalog search
-            self.variable_options_df = self._get_variable_options_df(
+            self.variable_options_df = _get_variable_options_df(
                 variable_descriptions=self._variable_descriptions,
                 unique_variable_ids=unique_variable_ids,
                 downscaling_method=self.downscaling_method,
@@ -782,7 +782,7 @@ class DataParameters(param.Parameterized):
             self.variable_options_df["display_name"] == self.variable
         ]  # Get info for just that variable
         self.extended_description = var_info.extended_description.item()
-        self.variable_id = self._get_var_ids(
+        self.variable_id = _get_var_ids(
             self._variable_descriptions,
             self.variable,
             self.downscaling_method,
@@ -994,7 +994,7 @@ class DataParameters(param.Parameterized):
     def _update_station_list(self):
         """Update the list of weather station options if the area subset changes"""
         if self.data_type == "Station":
-            overlapping_stations = self._get_overlapping_station_names(
+            overlapping_stations = _get_overlapping_station_names(
                 self._stations_gdf,
                 self.area_subset,
                 self.cached_area,
