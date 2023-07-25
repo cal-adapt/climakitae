@@ -32,10 +32,10 @@ jobs:
     - name: Output conda info
       run: conda info
     - name: Install pip packages
-      run: pip install dask-geopandas==0.3.1 arrow==1.2.3 fqdn==1.5.1 >
-        isoduration==20.11.0 jsonpointer==2.4 jupyterlab-s3-browser==0.12.0 >
-        singleton-decorator==1.0.0 uri-template==1.3.0 webcolors==1.13
+      run: pip install dask-geopandas==0.3.1 arrow==1.2.3 fqdn==1.5.1 isoduration==20.11.0 jsonpointer==2.4 jupyterlab-s3-browser==0.12.0 singleton-decorator==1.0.0 uri-template==1.3.0 webcolors==1.13
     - name: Install climakitae
       run: pip install .
+    - name: Output conda list
+      run: conda list
     - name: Test with pytest
       run: pytest --no-header -vv

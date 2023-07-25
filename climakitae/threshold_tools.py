@@ -414,7 +414,7 @@ def _get_return_variable(
                 fitted_distr=fitted_distr,
                 data_variable=data_variable,
                 arg_value=arg_value,
-            ).astype(float)
+            )
         except (ValueError, ZeroDivisionError):
             return_variable = np.nan
 
