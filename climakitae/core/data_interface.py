@@ -25,6 +25,12 @@ from climakitae.core.catalog_convert import (
 
 
 class DataInterface:
+    _instance = None
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(DataInterface, cls).__new__(cls)
+            return cls._instance
+
     def __init__(self):
         self.variable_descriptions = read_csv_file(variable_descriptions_csv_path)
         self.stations = read_csv_file(stations_csv_path)
@@ -39,7 +45,7 @@ class DataInterface:
         self.geographies = Boundaries()
 
 
-class DataSelector(DataInterface, param.Parameterized):
+class DataParameters(DataInterface, param.Parameterized):
     """
     An object to hold data parameters, which depends only on the 'param'
     library. Currently used in '_display_select', which uses 'panel' to draw the
