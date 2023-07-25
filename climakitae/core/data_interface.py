@@ -45,7 +45,7 @@ class DataInterface:
         self.geographies = Boundaries()
 
 
-class DataParameters(DataInterface, param.Parameterized):
+class DataParameters(param.Parameterized):
     """
     An object to hold data parameters, which depends only on the 'param'
     library. Currently used in '_display_select', which uses 'panel' to draw the
@@ -384,8 +384,19 @@ class DataParameters(DataInterface, param.Parameterized):
         # Set default values
         super().__init__(**params)
 
+        self.data_interface = DataInterface()
+
+        # Data Catalog
+        self._data_catalog = self.data_interface.data_catalog
+
+        # variable descriptions
+        self._variable_descriptions = self.data_interface.variable_descriptions
+
+        # station data
+        self._stations_gdf = self.data_interface.stations_gdf
+
         # Get geography boundaries and selection options
-        self._geographies = self.geographies
+        self._geographies = self.data_interface.geographies
         self._geography_choose = self._geographies.boundary_dict()
 
         # Set location params
@@ -401,13 +412,13 @@ class DataParameters(DataInterface, param.Parameterized):
             self.simulation,
             unique_variable_ids,
         ) = self._get_user_options(
-            data_catalog=self.data_catalog,
+            data_catalog=self._data_catalog,
             downscaling_method=self.downscaling_method,
             timescale=self.timescale,
             resolution=self.resolution,
         )
         self.variable_options_df = self._get_variable_options_df(
-            variable_descriptions=self.variable_descriptions,
+            variable_descriptions=self._variable_descriptions,
             unique_variable_ids=unique_variable_ids,
             downscaling_method=self.downscaling_method,
             timescale=self.timescale,
@@ -444,7 +455,7 @@ class DataParameters(DataInterface, param.Parameterized):
         self.units = var_info.unit.item()
         self.extended_description = var_info.extended_description.item()
         self.variable_id = self._get_var_ids(
-            self.variable_descriptions,
+            self._variable_descriptions,
             self.variable,
             self.downscaling_method,
             self.timescale,
@@ -552,7 +563,7 @@ class DataParameters(DataInterface, param.Parameterized):
             self.simulation,
             unique_variable_ids,
         ) = self._get_user_options(
-            data_catalog=self.data_catalog,
+            data_catalog=self._data_catalog,
             downscaling_method=downscaling_method,
             timescale=self.timescale,
             resolution=self.resolution,
@@ -784,7 +795,7 @@ class DataParameters(DataInterface, param.Parameterized):
         """Update the list of weather station options if the area subset changes"""
         if self.data_type == "Station":
             overlapping_stations = self._get_overlapping_station_names(
-                self._get_stations_gdf(self.stations),
+                self._stations_gdf,
                 self.area_subset,
                 self.cached_area,
                 self.latitude,
