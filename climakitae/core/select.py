@@ -1,4 +1,4 @@
-from climakitae.core.data_interface import DataInterface, DataParameters
+from climakitae.core.data_interface import DataInterface, DataParametersWithPanes
 
 
 class Select:
@@ -10,4 +10,4 @@ class Select:
         #     stations_gdf=self.data_interface.get_stations_gdf(self.data_interface.stations),
         #     geographies=self.data_interface.geographies,
         # )
-        self.data_selector = DataParameters()
+        self.data_selector = DataParametersWithPanes()
