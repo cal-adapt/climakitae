@@ -11,11 +11,4 @@ except Exception:
     # Disable minimum version checks on downstream libraries.
     __version__ = "999"
 
-from .core import (
-    Select,
-    view,
-    load,
-    export_as,
-    export_dataset
-)
-
+from .core import Select, view, load, export_as, export_dataset

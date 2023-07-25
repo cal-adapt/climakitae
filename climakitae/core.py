@@ -1,6 +1,6 @@
 """The main user-facing interfaces of the climakitae library. 
 """
-#from dataclasses import dataclass
+# from dataclasses import dataclass
 import intake
 import pkg_resources
 import pandas as pd
@@ -13,7 +13,8 @@ from .selectors import (
     _user_export_select,
 )
 
-#@dataclass()
+
+# @dataclass()
 class _DataInterface(object):
     """
     A singleton class to hold the catalog and shapefile information
@@ -24,6 +25,7 @@ class _DataInterface(object):
     instantiated after the first time, it just returns the same initial
     instance.
     """
+
     _instance = None
 
     def __new__(cls):
@@ -39,21 +41,25 @@ class _DataInterface(object):
         self.catalog = intake.open_esm_datastore(
             "https://cadcat.s3.amazonaws.com/cae-collection.json"
         )
-        #TODO: add shapefile stuff and any other reference tables here as well, 
+        # TODO: add shapefile stuff and any other reference tables here as well,
         # which get used in selectors.py and data_loaders.py
         # Initialize empty, and populate as needed on function calls.
-        
+
+
 # === Select =====================================
 class DataChooser(object):
-    '''
-    A class for selections which holds the selections param object, and a method to 
+    """
+    A class for selections which holds the selections param object, and a method to
     retrieve whatever those selections indicate.
 
     Can be instantiated many times. Explore modules create their own instance.
-    '''
+    """
+
     def __init__(self, ref_data):
-        self.ref_data = ref_data #_DataInterface() 
-        self.selections = _DataSelector(cat=self.ref_data.catalog, var_config=self.ref_data.var_config)
+        self.ref_data = ref_data  # _DataInterface()
+        self.selections = _DataSelector(
+            cat=self.ref_data.catalog, var_config=self.ref_data.var_config
+        )
         # TODO: pull UI stuff out of _DataSelector to extent possible?
 
     def retrieve(self, config=None, merge=True):
@@ -98,9 +104,10 @@ class DataChooser(object):
                 )
         return _read_catalog_from_select(self.selections, self.ref_data.catalog)
 
-class Select(DataChooser):   
-    '''
-    Adds a method to display the panel user-interface on top of the 
+
+class Select(DataChooser):
+    """
+    Adds a method to display the panel user-interface on top of the
     DataChooser class. Create a new instance every time.
 
     Usage
@@ -110,13 +117,14 @@ class Select(DataChooser):
 
     >>> import climakitae as ck
     >>> my_choices = ck.Select()
-    >>> my_choices.interface() #displays selection panel 
+    >>> my_choices.interface() #displays selection panel
 
     And then to retrieve the selected data:
     >>> my_data = my_choices.retrieve()
 
-    '''
-    def __init__(self,ref_data):
+    """
+
+    def __init__(self, ref_data):
         super().__init__(ref_data)
         # automatically return interface when new instance is defined:
         self.interface()
@@ -135,36 +143,39 @@ class Select(DataChooser):
             Selections GUI
         """
 
-        #select_panel = 
+        # select_panel =
         return _display_select(self.selections)
 
+
 class SimulationFinder(DataChooser):
-    '''
+    """
     Pseudo-code for how this would work under the regime established above.
-    '''
+    """
+
     def __init__(self, *args, **kwargs):
         super(SimulationFinder, self).__init__(*args, **kwargs)
         self.data = xr.DataArray()
         self.metric_choices = _ParamSubClassTBD
         self.analysis_output = _SomeDataStructure
-        self.analysis_toggle = _ParamChoices 
+        self.analysis_toggle = _ParamChoices
 
     def define_params(self):
         pn.Params(self.selections)
 
     def compute(self):
         self.data = self.retrieve(self.selections)
-        metrics = get_metric(self.data,self.metric_choices)
+        metrics = get_metric(self.data, self.metric_choices)
         self.analysis_output = cred_and_spread(metrics)
 
     def display_output(self):
         _panel_of_plots(self.analysis_output, self.analysis_toggle)
 
     def export_data(self):
-        if self.analysis_toggle.which_export == 'full timeseries':
+        if self.analysis_toggle.which_export == "full timeseries":
             export(self.data.sel(simulation=self.analysis_toggle.which_sims))
-        elif self.analysis_toggle.which_export == 'analysis output':
+        elif self.analysis_toggle.which_export == "analysis output":
             export(self.analysis_output)
+
 
 # === Read data into memory =====================================
 def load(data):
@@ -188,8 +199,9 @@ def load(data):
     xarray.DataArray.compute
     """
     return _compute(data)
-    #TODO: move this, rename it load, and put directly in __inti__.py
+    # TODO: move this, rename it load, and put directly in __inti__.py
     # (no need for this wrapper function anymore)
+
 
 # === View =======================================
 def view(data, lat_lon=True, width=None, height=None, cmap=None):
@@ -233,6 +245,7 @@ def view(data, lat_lon=True, width=None, height=None, cmap=None):
     # TODO: as with load, no need for a wrapper function -- just rename _visualize as view
     # and reference directly in __init__.py
 
+
 # === Export =====================================
 # being consolidated into one anyway:
 def export_as():
@@ -247,6 +260,7 @@ def export_as():
     """
     export_select_panel = _user_export_select(self.user_export_format)
     return export_select_panel
+
 
 def export_dataset(data_to_export, file_name, **kwargs):
     """Export dataset to desired filetype
@@ -263,6 +277,4 @@ def export_dataset(data_to_export, file_name, **kwargs):
         Filename to give output
         Should not include file extension (i.e. "my_filename" instead of "my_filename.nc")
     """
-    return _export_to_user(
-        self.user_export_format, data_to_export, file_name, **kwargs
-    )
+    return _export_to_user(self.user_export_format, data_to_export, file_name, **kwargs)
