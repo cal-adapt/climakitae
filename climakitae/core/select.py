@@ -337,6 +337,10 @@ class Select:
     def __init__(self):
         self.data_parameters = DataParametersWithPanes()
 
+        # Display panel
+        select_panel = _display_select(self.data_parameters)
+        return select_panel
+
 
 def _selections_param_to_panel(selections):
     """For the _DataSelector object, get parameters and parameter
