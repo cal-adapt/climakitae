@@ -335,6 +335,7 @@ class DataParametersWithPanes(DataParameters):
 
 class Select:
     def __init__(self):
+        super().__init__()
         self.data_parameters = DataParametersWithPanes()
         self.display()
 
