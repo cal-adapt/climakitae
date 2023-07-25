@@ -26,9 +26,8 @@ from climakitae.core.catalog_convert import (
     _scenario_to_experiment_id,
 )
 
-def _get_user_options(
-    data_catalog, downscaling_method, timescale, resolution
-):
+
+def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
     """Using the data catalog, get a list of appropriate scenario and simulation options given a user's
     selections for downscaling method, timescale, and resolution.
     Unique variable ids for user selections are returned, then limited further in subsequent steps.
@@ -111,6 +110,7 @@ def _get_user_options(
 
     return scenario_options, simulation_options, unique_variable_ids
 
+
 def _get_variable_options_df(
     variable_descriptions, unique_variable_ids, downscaling_method, timescale
 ):
@@ -164,9 +164,8 @@ def _get_variable_options_df(
         ]
     return variable_options_df
 
-def _get_var_ids(
-    variable_descriptions, variable, downscaling_method, timescale
-):
+
+def _get_var_ids(variable_descriptions, variable, downscaling_method, timescale):
     """Get variable ids that match the selected variable, timescale, and downscaling method.
     Required to account for the fact that LOCA, WRF, and various timescales use different variable id values.
     Used to retrieve the correct variables from the catalog in the backend.
@@ -182,6 +181,7 @@ def _get_var_ids(
     ]
     var_id = list(var_id.variable_id.values)
     return var_id
+
 
 def _get_overlapping_station_names(
     stations_gdf,
@@ -207,6 +207,7 @@ def _get_overlapping_station_names(
     )
     return overlapping_stations_names
 
+
 def _get_overlapping_stations(stations, polygon):
     """Get weather stations contained within a geometry
     Both stations and polygon MUST have the same projection
@@ -225,6 +226,7 @@ def _get_overlapping_stations(stations, polygon):
 
     """
     return gpd.sjoin(stations, polygon, predicate="within")
+
 
 def _get_subarea(
     area_subset,
@@ -260,9 +262,7 @@ def _get_subarea(
     elif area_subset != "none":
         shape_index = int(_geography_choose[area_subset][cached_area])
         if area_subset == "states":
-            df_ae = _get_subarea_from_shape_index(
-                _geographies._us_states, shape_index
-            )
+            df_ae = _get_subarea_from_shape_index(_geographies._us_states, shape_index)
         elif area_subset == "CA counties":
             df_ae = _get_subarea_from_shape_index(
                 _geographies._ca_counties, shape_index
@@ -297,6 +297,7 @@ def _get_subarea(
 
     return df_ae
 
+
 def _add_res_to_ax(
     poly, ax, rotation, xy, label, color="black", crs=ccrs.PlateCarree()
 ):
@@ -323,6 +324,7 @@ def _add_res_to_ax(
         color="black",
         xycoords=crs._as_mpl_transform(ax),
     )
+
 
 def _map_view(selections, stations_gdf):
     """View the current location selections on a map
@@ -489,7 +491,7 @@ def _map_view(selections, stations_gdf):
 
 class DataInterface:
     def __new__(cls):
-        if not hasattr(cls, 'instance'):
+        if not hasattr(cls, "instance"):
             cls.instance = super(DataInterface, cls).__new__(cls)
         return cls.instance
 
@@ -1014,7 +1016,6 @@ class DataParameters(param.Parameterized):
             notice = "Set data type to 'Station' to see options"
             self.param["station"].objects = [notice]
             self.station = [notice]
-
 
 
 class DataParametersWithPanes(DataParameters):
