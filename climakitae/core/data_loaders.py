@@ -11,21 +11,22 @@ import pkg_resources
 import psutil
 import warnings
 import fnmatch
+from functools import partial
 from ast import literal_eval
 from shapely.geometry import box
 
 from xclim.core.calendar import convert_calendar
 from xclim.sdba import Grouper
 from xclim.sdba.adjustment import QuantileDeltaMapping
-from .catalog_convert import (
+from climakitae.core.catalog_convert import (
     _downscaling_method_to_activity_id,
     _resolution_to_gridlabel,
     _timescale_to_table_id,
     _scenario_to_experiment_id,
 )
-from .unit_conversions import _convert_units
-from .utils import _readable_bytes, get_closest_gridcell
-from .derive_variables import (
+from climakitae.util.unit_conversions import _convert_units
+from climakitae.util.utils import _readable_bytes, get_closest_gridcell
+from climakitae.derive_variables import (
     _compute_relative_humidity,
     _compute_wind_mag,
     _compute_wind_dir,
@@ -36,11 +37,6 @@ from .derive_variables import (
 # Set options
 xr.set_options(keep_attrs=True)
 dask.config.set({"array.slicing.split_large_chunks": True})
-
-# Import stations names and coordinates file
-stations = pkg_resources.resource_filename("climakitae", "data/hadisd_stations.csv")
-stations_df = pd.read_csv(stations)
-
 
 # ============================ Read data into memory ================================
 
@@ -137,12 +133,11 @@ def _scenarios_in_data_dict(keys):
 # ============= Main functions used in data reading/processing =================
 
 
-def _get_cat_subset(selections, cat):
+def _get_cat_subset(selections):
     """For an input set of data selections, get the catalog subset.
 
     Args:
         selections (_DataSelector): object holding user's selections
-        cat (intake_esm.core.esm_datastore): catalog
 
     Returns:
         cat_subset (intake_esm.core.esm_datastore): catalog subset
@@ -162,7 +157,7 @@ def _get_cat_subset(selections, cat):
     source_id = selections.simulation
     variable_id = selections.variable_id
 
-    cat_subset = cat.search(
+    cat_subset = selections._data_catalog.search(
         activity_id=activity_id,
         table_id=table_id,
         grid_label=grid_label,
@@ -180,7 +175,7 @@ def _get_cat_subset(selections, cat):
     else:
         wrf_on_native_grid = [
             institution
-            for institution in cat.df.institution_id.unique()
+            for institution in selections._data_catalog.df.institution_id.unique()
             if institution != "UCSD"
         ]
         cat_subset = cat_subset.search(institution_id=wrf_on_native_grid)
@@ -499,14 +494,13 @@ def _merge_all(selections, data_dict, cat_subset):
     return all_ssps
 
 
-def _get_data_one_var(selections, cat):
+def _get_data_one_var(selections):
     """Get data for one variable
     Retrieves dataset dictionary from AWS, handles some special cases, merges
     datasets along new dimensions into one xr.DataArray, and adds metadata.
 
     Args:
-        selections (DataLoaders): object holding user's selections
-        cat (intake_esm.core.esm_datastore): catalog
+        selections (DataParameters): object holding user's selections
 
     Returns:
         da (xr.DataArray): with datasets combined over new dimensions 'simulation' and 'scenario'
@@ -516,7 +510,7 @@ def _get_data_one_var(selections, cat):
         warnings.simplefilter("ignore")  # Silence warning if empty dataset returned
 
         # Get catalog subset for a set of user selections
-        cat_subset = _get_cat_subset(selections=selections, cat=cat)
+        cat_subset = _get_cat_subset(selections=selections)
 
         if len(cat_subset.df["institution_id"].unique()) == 1:
             _institution = cat_subset.df["institution_id"].unique()[0]
@@ -537,7 +531,7 @@ def _get_data_one_var(selections, cat):
             set(selections.scenario_ssp)
         )
     ):
-        cat_subset2 = cat.search(
+        cat_subset2 = selections._data_catalog.search(
             activity_id=[
                 _downscaling_method_to_activity_id(dm)
                 for dm in selections.downscaling_method
@@ -580,14 +574,13 @@ def _get_data_one_var(selections, cat):
     return da
 
 
-def _read_catalog_from_select(selections, cat):
+def read_catalog_from_select(selections):
     """The primary and first data loading method, called by
     core.Application.retrieve, it returns a DataArray (which can be quite large)
     containing everything requested by the user (which is stored in 'selections').
 
     Args:
-        selections (DataLoaders): object holding user's selections
-        cat (intake_esm.core.esm_datastore): catalog
+        selections (DataParameters): object holding user's selections
 
     Returns:
         da (xr.DataArray): output data
@@ -640,12 +633,12 @@ def _read_catalog_from_select(selections, cat):
             selections.units = (
                 "m s-1"  # Need to set units to required units for _compute_wind_mag
             )
-            u10_da = _get_data_one_var(selections, cat)
+            u10_da = _get_data_one_var(selections)
 
             # Load v10 data
             selections.variable_id = ["v10"]
             selections.units = "m s-1"
-            v10_da = _get_data_one_var(selections, cat)
+            v10_da = _get_data_one_var(selections)
 
             # Derive wind magnitude
             if orig_var_id_selection == "wind_speed_derived":
@@ -663,11 +656,11 @@ def _read_catalog_from_select(selections, cat):
             selections.units = (
                 "K"  # Kelvin required for humidity and dew point computation
             )
-            t2_da = _get_data_one_var(selections, cat)
+            t2_da = _get_data_one_var(selections)
 
             selections.variable_id = ["rh"]
             selections.units = "[0 to 100]"
-            rh_da = _get_data_one_var(selections, cat)
+            rh_da = _get_data_one_var(selections)
 
             # Derive dew point temperature
             # Returned in units of Kelvin
@@ -680,17 +673,17 @@ def _read_catalog_from_select(selections, cat):
             selections.units = (
                 "K"  # Kelvin required for humidity and dew point computation
             )
-            t2_da = _get_data_one_var(selections, cat)
+            t2_da = _get_data_one_var(selections)
 
             # Load mixing ratio data
             selections.variable_id = ["q2"]
             selections.units = "kg kg-1"
-            q2_da = _get_data_one_var(selections, cat)
+            q2_da = _get_data_one_var(selections)
 
             # Load pressure data
             selections.variable_id = ["psfc"]
             selections.units = "Pa"
-            pressure_da = _get_data_one_var(selections, cat)
+            pressure_da = _get_data_one_var(selections)
 
             # Derive relative humidity
             # Returned in units of [0-100]
@@ -735,10 +728,10 @@ def _read_catalog_from_select(selections, cat):
         selections.units = orig_unit_selection
 
     else:
-        da = _get_data_one_var(selections, cat)
+        da = _get_data_one_var(selections)
 
     if selections.data_type == "Station":
-        da = _station_apply(selections, da, stations_df, original_time_slice)
+        da = _station_apply(selections, da, original_time_slice)
         # Reset original selections
         if "Historical Climate" not in original_scenario_historical:
             selections.scenario_historical.remove("Historical Climate")
@@ -751,17 +744,21 @@ def _read_catalog_from_select(selections, cat):
 # USE XR APPLY TO GET BIAS CORRECTED DATA TO STATION
 
 
-def _station_apply(selections, da, stations_df, original_time_slice):
+def _station_apply(selections, da, original_time_slice):
     # Grab zarr data
-    station_subset = stations_df.loc[stations_df["station"].isin(selections.station)]
+    station_subset = selections._stations_gdf.loc[
+        selections._stations_gdf["station"].isin(selections.station)
+    ]
     filepaths = [
         "s3://cadcat/hadisd/HadISD_{}.zarr".format(s_id)
         for s_id in station_subset["station id"]
     ]
 
+    _partial_func = partial(_preprocess_hadisd, stations_gdf=selections._stations_gdf)
+
     station_ds = xr.open_mfdataset(
         filepaths,
-        preprocess=_preprocess_hadisd,
+        preprocess=_partial_func,
         engine="zarr",
         consolidated=False,
         parallel=True,
@@ -867,7 +864,7 @@ def _bias_correct_model_data(
     return da_adj
 
 
-def _preprocess_hadisd(ds):
+def _preprocess_hadisd(ds, stations_gdf):
     """
     Preprocess station data so that it can be more seamlessly integrated into the wrangling process
     Get name of station id and station name
@@ -878,6 +875,7 @@ def _preprocess_hadisd(ds):
 
     Args:
         ds (xr.Dataset): data for a single HadISD station
+        stations_gdf (pd.GeoDataFrame): station data frame
 
     Returns:
         xr.Dataset
@@ -886,7 +884,7 @@ def _preprocess_hadisd(ds):
     # Get station ID from file name
     station_id = ds.encoding["source"].split("HadISD_")[1].split(".zarr")[0]
     # Get name of station from station_id
-    station_name = stations_df.loc[stations_df["station id"] == int(station_id)][
+    station_name = stations_gdf.loc[stations_gdf["station id"] == int(station_id)][
         "station"
     ].item()
     # Rename data variable to station name
@@ -914,7 +912,7 @@ def _preprocess_hadisd(ds):
 # ============ Retrieve data from a csv input ===============
 
 
-def _read_catalog_from_csv(selections, cat, csv, merge=True):
+def read_catalog_from_csv(selections, csv, merge=True):
     """Retrieve user data selections from csv input.
 
     Allows user to bypass app.select GUI and allows developers to
@@ -923,10 +921,8 @@ def _read_catalog_from_csv(selections, cat, csv, merge=True):
         Data settings (variable, unit, timescale, etc)
     Parameters
     ----------
-    selections: DataLoaders
+    selections: DataParameters
         Data settings (variable, unit, timescale, etc).
-    cat: intake_esm.core.esm_datastore
-        AE data catalog.
     csv: str
         Filepath to local csv file.
     merge: bool, optional
@@ -973,7 +969,7 @@ def _read_catalog_from_csv(selections, cat, csv, merge=True):
         selections.cached_area = row.cached_area
 
         # Retrieve data
-        xr_da = _read_catalog_from_select(selections, cat)
+        xr_da = read_catalog_from_select(selections)
         xr_list.append(xr_da)
 
     if len(xr_list) > 1:  # If there's more than one element in the list

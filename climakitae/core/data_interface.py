@@ -25,6 +25,7 @@ from climakitae.core.catalog_convert import (
     _timescale_to_table_id,
     _scenario_to_experiment_id,
 )
+from climakitae.core.data_loaders import read_catalog_from_csv, read_catalog_from_select
 
 
 def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
@@ -1016,6 +1017,47 @@ class DataParameters(param.Parameterized):
             notice = "Set data type to 'Station' to see options"
             self.param["station"].objects = [notice]
             self.station = [notice]
+
+    def retrieve(self, config=None, merge=True):
+        """Retrieve data from catalog
+
+        By default, Application.selections determines the data retrieved.
+        To retrieve data using the settings in a configuration csv file, set config to the local
+        filepath of the csv.
+        Grabs the data from the AWS S3 bucket, returns lazily loaded dask array.
+        User-facing function that provides a wrapper for _read_catalog_from_csv and _read_catalog_from_select.
+
+        Parameters
+        ----------
+        config: str, optional
+            Local filepath to configuration csv file
+            Default to None-- retrieve settings in app.selections
+        merge: bool, optional
+            If config is TRUE and multiple datasets desired, merge to form a single object?
+            Defaults to True.
+
+        Returns
+        -------
+        xr.DataArray
+            Lazily loaded dask array
+            Default if no config file provided
+        xr.Dataset
+            If multiple rows are in the csv, each row is a data_variable
+            Only an option if a config file is provided
+        list of xr.DataArray
+            If multiple rows are in the csv and merge=True,
+            multiple DataArrays are returned in a single list.
+            Only an option if a config file is provided.
+
+        """
+        if config is not None:
+            if type(config) == str:
+                return read_catalog_from_csv(self, config, merge)
+            else:
+                raise ValueError(
+                    "To retrieve data specified in a configuration file, please input the path to your local configuration csv as a string"
+                )
+        return read_catalog_from_select(self)
 
 
 class DataParametersWithPanes(DataParameters):
