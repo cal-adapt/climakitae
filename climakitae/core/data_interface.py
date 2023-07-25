@@ -1147,4 +1147,4 @@ class DataParametersWithPanes(DataParameters):
     )
     def map_view(self):
         """Create a map of the location selections"""
-        return _map_view(selections=self, stations_gdf=self.stations_gdf)
+        return _map_view(selections=self, stations_gdf=self._stations_gdf)
