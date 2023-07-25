@@ -326,7 +326,7 @@ class DataParametersWithPanes(DataParameters):
         "cached_area",
         "data_type",
         "station",
-        watch=True,
+        watch=False,
     )
     def map_view(self):
         """Create a map of the location selections"""
@@ -336,7 +336,9 @@ class DataParametersWithPanes(DataParameters):
 class Select:
     def __init__(self):
         self.data_parameters = DataParametersWithPanes()
+        self.display()
 
+    def display(self):
         # Display panel
         select_panel = _display_select(self.data_parameters)
         return select_panel
