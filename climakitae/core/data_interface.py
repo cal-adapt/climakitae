@@ -26,6 +26,7 @@ from climakitae.core.catalog_convert import (
 
 class DataInterface:
     _instance = None
+
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(DataInterface, cls).__new__(cls)
@@ -577,7 +578,12 @@ class DataParameters(param.Parameterized):
 
         else:
             # Otherwise, get a list of variable options using the catalog search
-            self.variable_options_df = self._get_variable_options_df(self)
+            self.variable_options_df = self._get_variable_options_df(
+                variable_descriptions=self._variable_descriptions,
+                unique_variable_ids=unique_variable_ids,
+                downscaling_method=self.downscaling_method,
+                timescale=self.timescale,
+            )
             var_options = self.variable_options_df.display_name.values
             self.param["variable"].objects = var_options
             if self.variable not in var_options:
