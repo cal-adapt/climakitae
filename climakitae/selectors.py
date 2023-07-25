@@ -1287,7 +1287,7 @@ class _DataSelector(param.Parameterized):
         "cached_area",
         "data_type",
         "station",
-        watch=True,
+        watch=False,
     )
     def map_view(self):
         """Create a map of the location selections"""

@@ -1,6 +1,6 @@
 """The main user-facing interfaces of the climakitae library. 
 """
-from dataclasses import dataclass
+#from dataclasses import dataclass
 import intake
 import pkg_resources
 import pandas as pd
@@ -13,7 +13,7 @@ from .selectors import (
     _user_export_select,
 )
 
-@dataclass(frozen=True)
+#@dataclass()
 class _DataInterface(object):
     """
     A singleton class to hold the catalog and shapefile information
@@ -28,9 +28,8 @@ class _DataInterface(object):
 
     def __new__(cls):
         if cls._instance is None:
-        print('Creating the object')
-        cls._instance = super(SingletonClass, cls).__new__(cls)
-        return cls._instance
+            cls._instance = super(_DataInterface, cls).__new__(cls)
+            return cls._instance
 
     def __init__(self):
         var_catalog_resource = pkg_resources.resource_filename(
@@ -41,24 +40,25 @@ class _DataInterface(object):
             "https://cadcat.s3.amazonaws.com/cae-collection.json"
         )
         #TODO: add shapefile stuff and any other reference tables here as well, 
-        # which gets used in selectors.py and data_loaders.py
+        # which get used in selectors.py and data_loaders.py
+        # Initialize empty, and populate as needed on function calls.
         
 # === Select =====================================
-class DataChooser():
+class DataChooser(object):
     '''
     A class for selections which holds the selections param object, and a method to 
     retrieve whatever those selections indicate.
 
     Can be instantiated many times. Explore modules create their own instance.
     '''
-    def __init__(self):
-        self.ref_data = _DataInterface() 
+    def __init__(self, ref_data):
+        self.ref_data = ref_data #_DataInterface() 
         self.selections = _DataSelector(cat=self.ref_data.catalog, var_config=self.ref_data.var_config)
-        
+        # TODO: pull UI stuff out of _DataSelector to extent possible?
+
     def retrieve(self, config=None, merge=True):
         """Retrieve data from catalog
 
-        By default, Application.selections determines the data retrieved.
         To retrieve data using the settings in a configuration csv file, set config to the local
         filepath of the csv.
         Grabs the data from the AWS S3 bucket, returns lazily loaded dask array.
@@ -68,7 +68,7 @@ class DataChooser():
         ----------
         config: str, optional
             Local filepath to configuration csv file
-            Default to None-- retrieve settings in app.selections
+            Default to None-- retrieve settings in self.selections
         merge: bool, optional
             If config is TRUE and multiple datasets desired, merge to form a single object?
             Defaults to True.
@@ -98,7 +98,7 @@ class DataChooser():
                 )
         return _read_catalog_from_select(self.selections, self.ref_data.catalog)
 
- class Select(DataChooser):   
+class Select(DataChooser):   
     '''
     Adds a method to display the panel user-interface on top of the 
     DataChooser class. Create a new instance every time.
@@ -116,10 +116,10 @@ class DataChooser():
     >>> my_data = my_choices.retrieve()
 
     '''
-    def __init__(self):
-        super().__init__()
+    def __init__(self,ref_data):
+        super().__init__(ref_data)
         # automatically return interface when new instance is defined:
-        select_panel = self.interface()
+        self.interface()
 
     def interface(self):
         """Display data selection panel in Jupyter Notebook environment
@@ -135,10 +135,10 @@ class DataChooser():
             Selections GUI
         """
 
-        select_panel = _display_select(self.selections)
-        return select_panel
+        #select_panel = 
+        return _display_select(self.selections)
 
-class SimulationFinder(GetData):
+class SimulationFinder(DataChooser):
     '''
     Pseudo-code for how this would work under the regime established above.
     '''
@@ -188,6 +188,8 @@ def load(data):
     xarray.DataArray.compute
     """
     return _compute(data)
+    #TODO: move this, rename it load, and put directly in __inti__.py
+    # (no need for this wrapper function anymore)
 
 # === View =======================================
 def view(data, lat_lon=True, width=None, height=None, cmap=None):
@@ -228,6 +230,8 @@ def view(data, lat_lon=True, width=None, height=None, cmap=None):
         Warn user that the function will be slow if data has not been loaded into memory
     """
     return _visualize(data, lat_lon=lat_lon, width=width, height=height, cmap=cmap)
+    # TODO: as with load, no need for a wrapper function -- just rename _visualize as view
+    # and reference directly in __init__.py
 
 # === Export =====================================
 # being consolidated into one anyway:
