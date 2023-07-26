@@ -2,7 +2,7 @@ from climakitae.core.data_interface import DataInterface
 from climakitae.ui.select import Select
 from climakitae.core.data_loader import load
 from climakitae.core.data_viewer import view
-from climakitae.ui.export import ExportFormat
+from climakitae.ui.export import export_as
 
 try:
     from importlib.metadata import version as _version
@@ -22,10 +22,10 @@ __all__ = (
     # Classes
     "DataInterface",
     "Select",
-    "ExportFormat",
     # Methods
     "load",
     "view",
+    "export_as"
     # Constants
     "__version__",
 )

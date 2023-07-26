@@ -2,7 +2,7 @@ import panel as pn
 from climakitae.core.data_interface import DataInterface
 
 
-class ExportFormat:
+def export_as():
     """
     Called by 'export' at the end of the workflow. Displays panel
     from which to select the export file format. Modifies 'user_export_format'
@@ -10,13 +10,11 @@ class ExportFormat:
     specified format.
     """
 
-    def __init__(self):
-        self.user_export_format = DataInterface().export_type
+    user_export_format = DataInterface().export_type
 
-    def show(self):
-        # reserved for later: text boxes for dataset to export
-        # as well as a file name
-        # file_name = pn.widgets.TextInput(name='File name',
-        #                                 placeholder='Type file name here')
-        # file_input_col = pn.Column(user_export_format.param, data_to_export, file_name)
-        return pn.Row(self.user_export_format.param)
+    # reserved for later: text boxes for dataset to export
+    # as well as a file name
+    # file_name = pn.widgets.TextInput(name='File name',
+    #                                 placeholder='Type file name here')
+    # file_input_col = pn.Column(user_export_format.param, data_to_export, file_name)
+    return pn.Row(user_export_format.param)
