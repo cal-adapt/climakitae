@@ -509,9 +509,6 @@ class DataInterface:
         # Get geography boundaries
         self.geographies = Boundaries()
 
-        # File export type preference
-        self.export_type = FileTypeSelector()
-
 
 class FileTypeSelector(param.Parameterized):
     """
@@ -1204,7 +1201,7 @@ class DataParametersWithPanes(DataParameters):
         "cached_area",
         "data_type",
         "station",
-        watch=True,
+        watch=False,
     )
     def map_view(self):
         """Create a map of the location selections"""
