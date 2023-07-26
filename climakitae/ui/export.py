@@ -13,6 +13,7 @@ class ExportFormat:
     def __init__(self):
         self.user_export_format = DataInterface().export_type
 
+    def show(self):
         # reserved for later: text boxes for dataset to export
         # as well as a file name
         # file_name = pn.widgets.TextInput(name='File name',
