@@ -26,7 +26,6 @@ from climakitae.core.catalog_convert import (
     _scenario_to_experiment_id,
 )
 from climakitae.core.data_loader import read_catalog_from_csv, read_catalog_from_select
-from climakitae.core.data_export import FileTypeSelector
 
 
 def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
@@ -512,6 +511,31 @@ class DataInterface:
 
         # File export type preference
         self.export_type = FileTypeSelector()
+
+
+class _UserFileChoices:
+    # reserved for later: text boxes for dataset to export
+    # as well as a file name
+    # data_var_name = param.String()
+    # output_file_name = param.String()
+
+    def __init__(self):
+        self.export_format_choices = ["Pick a file format", "CSV", "GeoTIFF", "NetCDF"]
+
+
+class FileTypeSelector(param.Parameterized):
+    """
+    If the user wants to export an xarray dataset, they can choose
+    their preferred format here. Produces a panel from which to select a
+    supported file type.
+    """
+
+    user_options = _UserFileChoices()
+    output_file_format = param.Selector(objects=user_options.export_format_choices)
+
+    def export_file_type(self):
+        """Updates the 'user_export_format' object to be the format specified by the user."""
+        user_export_format = self.output_file_format
 
 
 class DataParameters(param.Parameterized):
