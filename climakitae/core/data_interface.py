@@ -510,7 +510,7 @@ class DataInterface:
         self.geographies = Boundaries()
 
 
-class FileTypeSelector(param.Parameterized):
+class ExportParameters(param.Parameterized):
     """
     If the user wants to export an xarray dataset, they can choose
     their preferred format here. Produces a panel from which to select a
