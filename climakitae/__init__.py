@@ -3,6 +3,7 @@ from climakitae.ui.select import Select
 from climakitae.core.data_loader import load
 from climakitae.core.data_viewer import view
 from climakitae.ui.export import export_as
+from climakitae.core.data_export import export_dataset
 
 try:
     from importlib.metadata import version as _version
@@ -25,7 +26,8 @@ __all__ = (
     # Methods
     "load",
     "view",
-    "export_as"
+    "export_as",
+    "export_dataset",
     # Constants
     "__version__",
 )

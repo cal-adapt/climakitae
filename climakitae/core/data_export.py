@@ -9,6 +9,9 @@ import pandas as pd
 import rasterio
 import param
 
+from climakitae.core.data_interface import DataInterface
+from .. import __version__
+
 xr.set_options(keep_attrs=True)
 
 
@@ -240,7 +243,7 @@ def _export_to_geotiff(data_to_export, save_name, **kwargs):
         raster.close()
 
 
-def _export_to_user(user_export_format, data_to_export, file_name, **kwargs):
+def export_dataset(data_to_export, file_name, **kwargs):
     """
     The data export method, called by core.Application.export_dataset. Saves
     a dataset to the current working directory in the output
@@ -271,7 +274,7 @@ def _export_to_user(user_export_format, data_to_export, file_name, **kwargs):
         )
     file_name = file_name.split(".")[0]
 
-    req_format = user_export_format.output_file_format
+    req_format = DataInterface().export_type
 
     if req_format is None:
         raise Exception("Please select a file format from the dropdown menu.")
@@ -298,7 +301,7 @@ def _export_to_user(user_export_format, data_to_export, file_name, **kwargs):
         "Data_exported_from": "Cal-Adapt Analytics Engine",
         "Data_export_timestamp": ct_str,
         "Analysis_package_name": "climakitae",
-        "Version": "0.0.1",
+        "Version": __version__,
         "Author": "Cal-Adapt Analytics Engine Team",
         "Author_email": "analytics@cal-adapt.org",
         "Home_page": "https://github.com/cal-adapt/climakitae",
