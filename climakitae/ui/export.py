@@ -1,5 +1,6 @@
 import panel as pn
 from climakitae.core.data_interface import ExportParameters
+from climakitae.core.data_export import export_dataset
 
 
 class Export:
@@ -18,8 +19,13 @@ class Export:
         export_panel = _display_export(self.export_parameters)
         return export_panel
 
-    def export_dataset(self):
-        return
+    def export_dataset(self, data_to_export, file_name, **kwargs):
+        return export_dataset(
+            self.export_parameters.output_file_format,
+            data_to_export,
+            file_name,
+            **kwargs
+        )
 
 
 def _selections_param_to_panel(selections):
