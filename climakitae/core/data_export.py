@@ -275,7 +275,7 @@ def export_dataset(user_export_format, data_to_export, file_name, **kwargs):
         "Data_exported_from": "Cal-Adapt Analytics Engine",
         "Data_export_timestamp": ct_str,
         "Analysis_package_name": "climakitae",
-        "Version": _version,
+        "Version": _version("climakitae"),
         "Author": "Cal-Adapt Analytics Engine Team",
         "Author_email": "analytics@cal-adapt.org",
         "Home_page": "https://github.com/cal-adapt/climakitae",
