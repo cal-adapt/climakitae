@@ -8,9 +8,9 @@ import xarray as xr
 import pandas as pd
 import rasterio
 import param
+from importlib.metadata import version as _version
 
 from climakitae.core.data_interface import DataInterface
-from .. import __version__
 
 xr.set_options(keep_attrs=True)
 
@@ -301,7 +301,7 @@ def export_dataset(data_to_export, file_name, **kwargs):
         "Data_exported_from": "Cal-Adapt Analytics Engine",
         "Data_export_timestamp": ct_str,
         "Analysis_package_name": "climakitae",
-        "Version": __version__,
+        "Version": _version,
         "Author": "Cal-Adapt Analytics Engine Team",
         "Author_email": "analytics@cal-adapt.org",
         "Home_page": "https://github.com/cal-adapt/climakitae",
