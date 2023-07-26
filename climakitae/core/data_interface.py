@@ -26,6 +26,7 @@ from climakitae.core.catalog_convert import (
     _scenario_to_experiment_id,
 )
 from climakitae.core.data_loader import read_catalog_from_csv, read_catalog_from_select
+from climakitae.core.data_export import FileTypeSelector
 
 
 def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
@@ -508,6 +509,9 @@ class DataInterface:
 
         # Get geography boundaries
         self.geographies = Boundaries()
+
+        # File export type preference
+        self.export_type = FileTypeSelector()
 
 
 class DataParameters(param.Parameterized):
