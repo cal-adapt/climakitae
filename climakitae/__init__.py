@@ -1,6 +1,7 @@
 from climakitae.core.data_interface import DataInterface
 from climakitae.ui.select import Select
-from climakitae.core.data_loaders import load
+from climakitae.core.data_loader import load
+from climakitae.core.data_viewer import view
 
 try:
     from importlib.metadata import version as _version
@@ -21,7 +22,8 @@ __all__ = (
     "DataInterface",
     "Select",
     # Methods
-    "load"
+    "load",
+    "view",
     # Constants
     "__version__",
 )
