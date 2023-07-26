@@ -217,7 +217,7 @@ def _export_to_geotiff(data_to_export, save_name, **kwargs):
         raster.close()
 
 
-def export_dataset(data_to_export, file_name, **kwargs):
+def export_dataset(user_export_format, data_to_export, file_name, **kwargs):
     """
     The data export method, called by core.Application.export_dataset. Saves
     a dataset to the current working directory in the output
@@ -248,7 +248,7 @@ def export_dataset(data_to_export, file_name, **kwargs):
         )
     file_name = file_name.split(".")[0]
 
-    req_format = DataInterface().export_type.output_file_format
+    req_format = user_export_format
 
     if req_format is None:
         raise Exception("Please select a file format from the dropdown menu.")
