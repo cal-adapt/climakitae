@@ -22,10 +22,20 @@ class Export:
         return
 
 
-def _display_export(self):
-    return pn.Row(
-        pn.widgets.Select.from_param(
-            self.output_file_format,
-            name="Choose File Format for Exporting",
-        )
+def _selections_param_to_panel(selections):
+    output_file_format = pn.widgets.Select.from_param(
+        selections.param.output_file_format,
+        name="Choose File Format for Exporting",
     )
+
+    widgets_dict = {
+        "output_file_format": output_file_format,
+    }
+
+    return widgets_dict
+
+
+def _display_export(selections):
+    widgets = _selections_param_to_panel(selections)
+
+    return pn.Row(widgets["output_file_format"])
