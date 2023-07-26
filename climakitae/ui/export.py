@@ -19,7 +19,7 @@ def export_as():
     # file_input_col = pn.Column(user_export_format.param, data_to_export, file_name)
     return pn.Row(
         pn.widgets.Select.from_param(
-            user_export_format.output_file_format,
+            user_export_format.param.output_file_format,
             name="Choose File Format for Exporting",
         )
     )
