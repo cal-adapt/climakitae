@@ -248,7 +248,7 @@ def export_dataset(data_to_export, file_name, **kwargs):
         )
     file_name = file_name.split(".")[0]
 
-    req_format = DataInterface().export_type
+    req_format = DataInterface().export_type.output_file_format
 
     if req_format is None:
         raise Exception("Please select a file format from the dropdown menu.")
