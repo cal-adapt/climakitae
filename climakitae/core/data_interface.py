@@ -519,6 +519,7 @@ class FileTypeSelector(param.Parameterized):
     their preferred format here. Produces a panel from which to select a
     supported file type.
     """
+
     _export_format_choices = ["Pick a file format", "CSV", "GeoTIFF", "NetCDF"]
 
     output_file_format = param.Selector(objects=_export_format_choices)
