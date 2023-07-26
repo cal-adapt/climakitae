@@ -17,4 +17,4 @@ def export_as():
     # file_name = pn.widgets.TextInput(name='File name',
     #                                 placeholder='Type file name here')
     # file_input_col = pn.Column(user_export_format.param, data_to_export, file_name)
-    return pn.Row(user_export_format.param)
+    return pn.Row(user_export_format)
