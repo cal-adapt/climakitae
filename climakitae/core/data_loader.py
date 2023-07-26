@@ -747,7 +747,9 @@ def read_catalog_from_select(selections):
 
 def _station_apply(selections, da, original_time_slice):
     # Grab zarr data
-    station_subset = selections._stations_gdf.loc[selections._stations_gdf["station"].isin(selections.station)]
+    station_subset = selections._stations_gdf.loc[
+        selections._stations_gdf["station"].isin(selections.station)
+    ]
     filepaths = [
         "s3://cadcat/hadisd/HadISD_{}.zarr".format(s_id)
         for s_id in station_subset["station id"]
@@ -861,6 +863,7 @@ def _bias_correct_model_data(
     da_adj = QDM.adjust(data_sliced)
     da_adj.name = gridded_da.name  # Rename it to get back to original name
     return da_adj
+
 
 def _preprocess_hadisd(ds, stations_gdf):
     """

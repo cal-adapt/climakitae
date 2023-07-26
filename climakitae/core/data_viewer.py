@@ -6,30 +6,11 @@ import numpy as np
 import pandas as pd
 import hvplot.xarray
 import matplotlib.pyplot as plt
-import pkg_resources
-from .utils import _reproject_data, _read_ae_colormap
-
-# Import package data
-var_catalog_resource = pkg_resources.resource_filename(
-    "climakitae", "data/variable_descriptions.csv"
-)
-var_catalog = pd.read_csv(var_catalog_resource, index_col=None)
+from climakitae.util.utils import _reproject_data, _read_ae_colormap
+from climakitae.core.data_interface import DataInterface
 
 
-def _compute_vmin_vmax(da_min, da_max):
-    """Compute min, max, and center for plotting"""
-    vmin = np.nanpercentile(da_min, 1)
-    vmax = np.nanpercentile(da_max, 99)
-    # define center for diverging symmetric data
-    if (vmin < 0) and (vmax > 0):
-        # dabs = abs(vmax) - abs(vmin)
-        sopt = True
-    else:
-        sopt = None
-    return vmin, vmax, sopt
-
-
-def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
+def view(data, lat_lon=True, width=None, height=None, cmap=None):
     """Create a generic visualization of the data
 
     Visualization will depend on the shape of the input data.
@@ -66,6 +47,20 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
         Warn user that the function will be slow if data has not been loaded into memory
     """
 
+    def _compute_vmin_vmax(da_min, da_max):
+        """Compute min, max, and center for plotting"""
+        vmin = np.nanpercentile(da_min, 1)
+        vmax = np.nanpercentile(da_max, 99)
+        # define center for diverging symmetric data
+        if (vmin < 0) and (vmax > 0):
+            # dabs = abs(vmax) - abs(vmin)
+            sopt = True
+        else:
+            sopt = None
+        return vmin, vmax, sopt
+
+    variable_descriptions = DataInterface().variable_descriptions
+
     # Warn user about speed if passing a zarr to the function
     if data.chunks is None or str(data.chunks) == "Frozen({})":
         pass
@@ -98,9 +93,9 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
                     timescale = "daily/monthly"
                 else:
                     timescale = data.frequency
-                cmap = var_catalog[
-                    (var_catalog["display_name"] == data.name)
-                    # & (var_catalog["timescale"] == timescale)
+                cmap = variable_descriptions[
+                    (variable_descriptions["display_name"] == data.name)
+                    # & (variable_descriptions["timescale"] == timescale)
                 ].colormap.values[0]
             except:  # If variable not found, set to ae_orange without raising error
                 cmap = "ae_orange"
