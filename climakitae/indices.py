@@ -30,7 +30,7 @@ def fosberg_fire_index(t2_F, rh_percent, windspeed_mph):
 
     """
     # Compute the equilibrium moisture constant
-    m_low, m_mid, m_high = _equilibirum_moisture_constant(h=rh_percent, T=t2_F)
+    m_low, m_mid, m_high = _equilibrium_moisture_constant(h=rh_percent, T=t2_F)
 
     # For RH < 10%, use the low m value.
     # For RH >= 10%, use the mid value
@@ -53,7 +53,7 @@ def fosberg_fire_index(t2_F, rh_percent, windspeed_mph):
 
 
 # Define some helper functions
-def _equilibirum_moisture_constant(h, T):
+def _equilibrium_moisture_constant(h, T):
     """Compute the equilibrium moisture constant.
     Dependent on relative humidity percent.
     Used to compute Fosberg Fire Weather Index.
