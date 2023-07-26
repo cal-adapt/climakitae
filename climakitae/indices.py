@@ -53,7 +53,7 @@ def fosberg_fire_index(t2_F, rh_percent, windspeed_mph):
 
     # Add descriptive attributes
     FFWI.name = "Fosberg Fire Weather Index"
-    FFWI.attrs["units"] = "[0-100]"
+    FFWI.attrs["units"] = "[0 to 100]"
 
     return FFWI
 
