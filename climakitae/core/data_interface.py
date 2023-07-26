@@ -25,7 +25,7 @@ from climakitae.core.catalog_convert import (
     _timescale_to_table_id,
     _scenario_to_experiment_id,
 )
-from climakitae.core.data_loaders import read_catalog_from_csv, read_catalog_from_select
+from climakitae.core.data_loader import read_catalog_from_csv, read_catalog_from_select
 
 
 def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
