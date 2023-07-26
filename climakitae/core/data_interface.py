@@ -523,8 +523,6 @@ class FileTypeSelector(param.Parameterized):
     output_file_format = param.Selector(objects=dict())
 
     def __init__(self, **params):
-        super().__init__(**params)
-
         _export_format_choices = ["Pick a file format", "CSV", "GeoTIFF", "NetCDF"]
 
         self.param["output_file_format"].objects = _export_format_choices
