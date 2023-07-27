@@ -526,15 +526,16 @@ def write_tmy_file(filename_to_export, df, station_name, file_ext="tmy"):
     filename_to_export (str): Filename string, constructed with station name and simulation
     df (pd.DataFrame): Dataframe of TMY data to export
     station_name (str): Station name string
-    file_ext (str, optional): File extension for export, default is .tmy
+    file_ext (str, optional): File extension for export, default is .tmy, options are "tmy" and "epw"
 
     Returns
     -------
     None
     '''
 
+    # typical meteorological year format
     if file_ext == "tmy":
-        path_to_file = filename_to_export + ".tmy" # typical meteorological year format
+        path_to_file = filename_to_export + ".tmy" 
 
         with open(path_to_file, 'w') as f:
             f.writelines(tmy_header(station_name, df)) # writes required header lines
@@ -542,10 +543,9 @@ def write_tmy_file(filename_to_export, df, station_name, file_ext="tmy"):
             dfAsString = df.to_csv(sep=',', header=True, index=False)
             f.write(dfAsString) # writes file
 
-
+    # energy plus weather format
     elif file_ext == "epw":
-        path_to_file = filename_to_export + ".epw" # energy plus weather format
-
+        path_to_file = filename_to_export + ".epw" 
         with open(path_to_file, 'w') as f:
             f.writelines(epw_header(station_name, df)) # writes required header lines
             df = df.drop(columns=['simulation', 'lat', 'lon', 'scenario']) # drops header columns from df
