@@ -11,29 +11,26 @@ import s3fs
 import intake
 import matplotlib.colors as mcolors
 import matplotlib
-import pkg_resources
 import warnings
 
-
-# Read colormap text files
-ae_orange = pkg_resources.resource_filename("climakitae", "data/cmaps/ae_orange.txt")
-ae_diverging = pkg_resources.resource_filename(
-    "climakitae", "data/cmaps/ae_diverging.txt"
-)
-ae_blue = pkg_resources.resource_filename("climakitae", "data/cmaps/ae_blue.txt")
-ae_diverging_r = pkg_resources.resource_filename(
-    "climakitae", "data/cmaps/ae_diverging_r.txt"
-)
-categorical_cb = pkg_resources.resource_filename(
-    "climakitae", "data/cmaps/categorical_cb.txt"
+from climakitae.core.constants import (
+    ae_orange,
+    ae_diverging,
+    ae_blue,
+    ae_diverging_r,
+    categorical_cb,
 )
 
 
 def read_csv_file(rel_path):
     return pd.read_csv(
-        os.path.normpath(os.path.join(os.path.dirname(__file__), "..", rel_path)),
+        package_file_path(rel_path),
         index_col=None,
     )
+
+
+def package_file_path(rel_path):
+    return os.path.normpath(os.path.join(os.path.dirname(__file__), "..", rel_path))
 
 
 def get_closest_gridcell(data, lat, lon, print_coords=True):
@@ -157,7 +154,7 @@ def _read_ae_colormap(cmap="ae_orange", cmap_hex=False):
         cmap_data = categorical_cb
 
     # Load text file
-    cmap_np = np.loadtxt(cmap_data, dtype=float)
+    cmap_np = np.loadtxt(package_file_path(cmap_data), dtype=float)
 
     # RBG to hex
     if cmap_hex:
