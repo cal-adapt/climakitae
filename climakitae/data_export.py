@@ -468,18 +468,20 @@ def tmy_header(station_name, df):
 
     # line 1 - site information
     # line 1: USAF, station name quote delimited, station state, time zone, lat, lon, elev (m)
-    # line 1: we provide station name, lat, lon
-    line_1 = "'{0}', {1}, {2}, {3}".format(station_name, df['lat'].values[0], df['lon'].values[0])
+    # line 1: we provide station name, lat, lon, and simulation
+    line_1 = "'{0}', {1}, {2}, {3}".format(station_name, df['lat'].values[0], df['lon'].values[0], df['simulation'].values[0])
 
-    # line 2 - data field name and units
-        'Air Temperature at 2m',
-       'Relative humidity',
-       'Instantaneous downwelling shortwave flux at bottom',
-       'Shortwave surface downward diffuse irradiance',
-       'Instantaneous downwelling longwave flux at bottom',
-       'Wind speed at 10m', 
-       'Wind direction at 10m', 
-       'Surface Pressure'
+    # line 2 - data field name and units, manually setting to ensure matches TMY3 labeling
+    line_2 = "Dry-bulb temperature (degC), \
+                Relative humidity (percent),\
+                Global horizontal irradiance (W m-2),\
+                Diffuse horizontal irradiance (W m-2),\
+                Downwelling infrared radiation (W m-2),\
+                Wind speed (m s-1),\
+                Wind direction (degrees from north),\
+                Station pressure (mb)"
+                # Direct normal irradiance (W m-2) # once in catalog after GHI and before DHI
+
     headers = [line_1, line_2]
 
     return headers
@@ -531,14 +533,17 @@ def write_tmy_file(filename_to_export, df, station_name, file_ext="tmy"):
     None
     '''
 
-    if file_ext = "tmy":
+    if file_ext == "tmy":
         path_to_file = filename_to_export + ".tmy" # typical meteorological year format
 
         with open(path_to_file, 'w') as f:
             f.writelines(tmy_header(station_name, df)) # writes required header lines
+            df = df.drop(columns=['simulation', 'lat', 'lon', 'scenario']) # drops header columns from df
+            dfAsString = df.to_csv(sep=',', header=True, index=False)
+            f.write(dfAsString) # writes file
 
 
-    elif file_ext = "epw":
+    elif file_ext == "epw":
         path_to_file = filename_to_export + ".epw" # energy plus weather format
 
         with open(path_to_file, 'w') as f:
