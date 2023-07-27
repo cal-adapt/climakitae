@@ -395,7 +395,7 @@ def _map_view(selections, stations_gpd):
     crs_proj4 = proj.proj4_init  # used below
     xy = ccrs.PlateCarree()
     ax = fig0.add_subplot(111, projection=proj)
-    mpl_pane = pn.pane.Matplotlib(fig0, dpi=1000)
+    mpl_pane = pn.pane.Matplotlib(fig0, dpi=96)
 
     # Get geometry of selected location
     subarea_gpd = _get_subarea(
@@ -1188,7 +1188,7 @@ class _DataSelector(param.Parameterized):
         historical_central_year = sum(historical_climate_range) / 2
         historical_x_width = historical_central_year - historical_climate_range[0]
 
-        fig0 = Figure(figsize=(2, 2))
+        fig0 = Figure(figsize=(2.25, 2.25))
         ax = fig0.add_subplot(111)
         ax.spines["right"].set_color("none")
         ax.spines["left"].set_color("none")
@@ -1200,7 +1200,7 @@ class _DataSelector(param.Parameterized):
         ax.tick_params(labelsize=11)
         ax.xaxis.set_major_locator(ticker.AutoLocator())
         ax.xaxis.set_minor_locator(ticker.AutoMinorLocator())
-        mpl_pane = pn.pane.Matplotlib(fig0, dpi=1000)
+        mpl_pane = pn.pane.Matplotlib(fig0, dpi=96)
 
         y_offset = 0.15
         if (self.scenario_ssp is not None) and (self.scenario_historical is not None):
@@ -1302,7 +1302,7 @@ def _selections_param_to_panel(selections):
     descriptions formatted as panel widgets
     """
     area_subset = pn.widgets.Select.from_param(
-        selections.param.area_subset, name="Subset the data by..."
+        selections.param.area_subset, name="Subset the data by...", width=200
     )
     area_average_text = pn.widgets.StaticText(
         value="Compute an area average across grid cells within your selected region?",
@@ -1312,7 +1312,7 @@ def _selections_param_to_panel(selections):
         selections.param.area_average, inline=True
     )
     cached_area = pn.widgets.Select.from_param(
-        selections.param.cached_area, name="Location selection"
+        selections.param.cached_area, name="Location selection", width=200
     )
     data_type_text = pn.widgets.StaticText(
         value="",
@@ -1437,6 +1437,7 @@ def _display_select(selections):
             ),
         ),
         width=380,
+        margin=10,
     )
 
     col_1_location = pn.Column(
@@ -1448,6 +1449,7 @@ def _display_select(selections):
         widgets["area_average_text"],
         widgets["area_average"],
         width=220,
+        margin=10,
     )
     col_2_location = pn.Column(
         pn.Spacer(height=10),
@@ -1457,10 +1459,11 @@ def _display_select(selections):
         ),
         pn.widgets.CheckBoxGroup.from_param(selections.param.station, name=""),
         width=270,
+        margin=10,
     )
     loc_choices = pn.Row(col_1_location, col_2_location)
 
-    everything_else = pn.Row(data_choices, pn.layout.HSpacer(width=10), loc_choices)
+    everything_else = pn.Row(data_choices, loc_choices)
 
     # Panel overall structure:
     all_things = pn.Column(
@@ -1480,7 +1483,7 @@ def _display_select(selections):
                 width=400,
             ),
         ),
-        pn.Spacer(background="black", height=1),
+        pn.Spacer(height=1, styles={"background": "black"}),
         everything_else,
     )
 

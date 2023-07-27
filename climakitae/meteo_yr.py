@@ -783,7 +783,9 @@ def _amy_visualize(tmy_ob, selections):
                 ),
                 pn.widgets.RadioButtonGroup.from_param(tmy_ob.param.data_type),
                 pn.widgets.Select.from_param(
-                    tmy_ob.param.computation_method, name="Computation Options"
+                    tmy_ob.param.computation_method,
+                    name="Computation Options",
+                    width=200,
                 ),
                 pn.widgets.StaticText.from_param(
                     tmy_ob.param.tmy_computation_description, name=""
@@ -791,7 +793,7 @@ def _amy_visualize(tmy_ob, selections):
                 pn.widgets.StaticText(name="", value="Warming level (°C)"),
                 pn.widgets.RadioButtonGroup.from_param(tmy_ob.param.warmlevel),
                 pn.widgets.Select.from_param(
-                    selections.param.variable, name="Data variable"
+                    selections.param.variable, name="Data variable", width=200
                 ),
                 pn.widgets.StaticText.from_param(
                     selections.param.extended_description, name=""
@@ -803,10 +805,12 @@ def _amy_visualize(tmy_ob, selections):
                 width=280,
             ),
             pn.Column(
-                selections.param.area_subset,
-                selections.param.latitude,
-                selections.param.longitude,
-                selections.param.cached_area,
+                pn.widgets.Select.from_param(selections.param.area_subset, width=200),
+                pn.widgets.RangeSlider.from_param(selections.param.latitude, width=200),
+                pn.widgets.RangeSlider.from_param(
+                    selections.param.longitude, width=200
+                ),
+                pn.widgets.Select.from_param(selections.param.cached_area, width=200),
                 selections.map_view,
                 pn.widgets.Button.from_param(
                     tmy_ob.param.reload_data,

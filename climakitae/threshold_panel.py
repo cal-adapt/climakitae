@@ -178,14 +178,22 @@ class _ThresholdDataParams(param.Parameterized):
         """A reactive row for duration2 options that updates if group is updated"""
         self.group_length = self.duration1_length
         self.group_type = self.duration1_type
-        return pn.Row(self.param.group_length, self.param.group_type, width=375)
+        return pn.Row(
+            pn.widgets.IntInput.from_param(self.param.group_length, width=150),
+            pn.widgets.Select.from_param(self.param.group_type, width=150),
+            width=375,
+        )
 
     @param.depends("group_length", "group_type", watch=False)
     def duration2_row(self):
         """A reactive row for duration2 options that updates if group is updated"""
         self.duration2_length = self.group_length
         self.duration2_type = self.group_type
-        return pn.Row(self.param.duration2_length, self.param.duration2_type, width=375)
+        return pn.Row(
+            pn.widgets.IntInput.from_param(self.param.duration2_length, width=150),
+            pn.widgets.Select.from_param(self.param.duration2_type, width=150),
+            width=375,
+        )
 
 
 def _exceedance_visualize(choices, option=1):
@@ -211,19 +219,23 @@ def _exceedance_visualize(choices, option=1):
     options_card = pn.Card(
         # Threshold value and direction
         pn.Row(
-            choices.param.threshold_direction,
-            choices.param.threshold_value,
+            pn.widgets.Select.from_param(choices.param.threshold_direction, width=150),
+            pn.widgets.FloatInput.from_param(choices.param.threshold_value, width=150),
             width=_left_column_width,
         ),
         # DURATION 1
         "I'm interested in extreme conditions that last for . . .",
-        pn.Row(choices.param.duration1_length, choices.param.duration1_type, width=375),
+        pn.Row(
+            pn.widgets.IntInput.from_param(choices.param.duration1_length, width=150),
+            pn.widgets.Select.from_param(choices.param.duration1_type, width=150),
+            width=375,
+        ),
         pn.layout.Divider(margin=(-10, 0, -10, 0)),
         # PERIOD
         "Show me a timeseries of the number of occurences every . . .",
         pn.Row(
-            choices.param.period_length,
-            choices.param.period_type,
+            pn.widgets.IntInput.from_param(choices.param.period_length, width=150),
+            pn.widgets.Select.from_param(choices.param.period_type, width=150),
             width=_left_column_width,
         ),
         "Examples: for an annual timeseries, select '1-year'. For a seasonal timeseries, select '3-month'.",
@@ -259,7 +271,7 @@ def _thresholds_visualize(thresh_data, selections, option=1):
         pn.Row(
             pn.Column(
                 pn.widgets.Select.from_param(
-                    selections.param.variable, name="Data variable"
+                    selections.param.variable, name="Data variable", width=200
                 ),
                 pn.widgets.RadioButtonGroup.from_param(selections.param.units),
                 pn.widgets.StaticText.from_param(
@@ -274,10 +286,12 @@ def _thresholds_visualize(thresh_data, selections, option=1):
                 width=230,
             ),
             pn.Column(
-                selections.param.area_subset,
-                selections.param.latitude,
-                selections.param.longitude,
-                selections.param.cached_area,
+                pn.widgets.Select.from_param(selections.param.area_subset, width=200),
+                pn.widgets.RangeSlider.from_param(selections.param.latitude, width=200),
+                pn.widgets.RangeSlider.from_param(
+                    selections.param.longitude, width=200
+                ),
+                pn.widgets.Select.from_param(selections.param.cached_area, width=200),
                 width=230,
             ),
             pn.Column(selections.map_view, width=180),
