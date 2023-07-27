@@ -11,7 +11,7 @@ class Cluster(GatewayCluster):
 
     Examples
     --------
-    >>> from climakitae.cluster import Cluster
+    >>> from climakitae.util.cluster import Cluster
     >>> cluster = Cluster() # Create cluster
     >>> cluster.adapt(minimum=0, maximum=8) # Specify the number of workers to use
     >>> client = cluster.get_client()
