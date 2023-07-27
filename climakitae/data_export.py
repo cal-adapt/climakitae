@@ -469,50 +469,45 @@ def tmy_header(station_name, df):
     # line 1 - site information
     # line 1: USAF, station name quote delimited, station state, time zone, lat, lon, elev (m)
     # line 1: we provide station name, lat, lon, and simulation
-    line_1 = "'{0}', {1}, {2}, {3}".format(station_name, df['lat'].values[0], df['lon'].values[0], df['simulation'].values[0])
+    line_1 = "'{0}', {1}, {2}, {3}\n".format(station_name, df['lat'].values[0], df['lon'].values[0], df['simulation'].values[0])
 
     # line 2 - data field name and units, manually setting to ensure matches TMY3 labeling
-    line_2 = "Dry-bulb temperature (degC), \
-                Relative humidity (percent),\
-                Global horizontal irradiance (W m-2),\
-                Diffuse horizontal irradiance (W m-2),\
-                Downwelling infrared radiation (W m-2),\
-                Wind speed (m s-1),\
-                Wind direction (degrees from north),\
-                Station pressure (mb)"
-                # Direct normal irradiance (W m-2) # once in catalog after GHI and before DHI
+    # tmy dataframe headers handles this
 
-    headers = [line_1, line_2]
+    headers = [line_1]
 
     return headers
 
 
 def epw_header(station_name, df):
-    '''Constructs the header for the TMY output file in .epw format'''
+    '''
+    Constructs the header for the TMY output file in .epw format
+    Source:https://designbuilder.co.uk/cahelp/Content/EnergyPlusWeatherFileFormat.htm#:~:text=The%20EPW%20weather%20data%20format,based%20with%20comma%2Dseparated%20data.
+    '''
     
     # line 1 - location
     line_1 = "LOCATION,{0},{1},{2}\n".format(station_name, df['lat'].values[0], df['lon'].values[0])
     
     # line 2 - design conditions, leave blank for now
-    line_2 = "#DESIGN CONDITIONS\n"
+    line_2 = "DESIGN CONDITIONS\n"
     
     # line 3 - typical/extreme periods, leave blank for now
-    line_3 = "#TYPICAL/EXTREME PERIODS\n"
+    line_3 = "TYPICAL/EXTREME PERIODS\n"
     
     # line 4 - ground temperatures, leave blank for now
-    line_4 = "#GROUND TEMPERATURES\n"
+    line_4 = "GROUND TEMPERATURES\n"
     
-    # line 5 - holidays/daylight savings, leave blank for now
-    line_5 = "#HOLIDAYS/DAYLIGHT SAVINGS\n"
+    # line 5 - holidays/daylight savings, leap year (yes/no), daylight savings start, daylight savings end, num of holidays
+    line_5 = "HOLIDAYS/DAYLIGHT SAVINGS,No,0,0,0\n"
     
     # line 6 - comments 1, going to include simulation + scenario information here
-    line_6 = "COMMENTS 1,Scenario: {0}, Simulation: {1}\n".format(df['scenario'].values[0], df['simulation'].values[0])
+    line_6 = "COMMENTS 1,Typical meteorological year data produced on the Cal-Adapt: Analytics Engine, Scenario: {0}, Simulation: {1}\n".format(df['scenario'].values[0], df['simulation'].values[0])
     
-    # line 7 - comments 2, maybe a "produced on the analytics engine"
-    line_7 = "COMMENTS 2,Typical meteorological year data produced on the Cal-Adapt: Analytics Engine\n"
+    # line 7 - comments 2, putting the data variables here manually as they are not specified in epw format, and we are not including all
+    line_7 = "COMMENTS 2,Air Temperature at 2m,Relative humidity,Instantaneous downwelling shortwave flux at bottom,Shortwave surface downward diffuse irradiance,Instantaneous downwelling longwave flux at bottom,Wind speed at 10m,Wind direction at 10m,Surface Pressure\n"
     
-    # line 8 - data periods, leave blank for now
-    line_8 = "#DATA PERIODS\n"
+    # line 8 - data periods, num data periods, num records per hour, data period name, data period start day of week, data period start (Jan 1), data period end (Dec 31)
+    line_8 = "DATA PERIODS,1,1,Data,,1/1,12/31\n"
     
     headers = [line_1, line_2, line_3, line_4, line_5, line_6, line_7, line_8]
     
