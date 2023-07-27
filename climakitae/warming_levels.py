@@ -523,14 +523,14 @@ class _WarmingLevels(param.Parameterized):
         cmip_t = np.arange(2015, 2101, 1)
 
         # Warming level connection lines & additional labeling
-
         warmlevel_line = hv.HLine(self.warmlevel).opts(
             color="black", line_width=1.0
         ) * hv.Text(
             x=1964,
             y=self.warmlevel + 0.25,
             text=".    " + str(self.warmlevel) + "°C warming level",
-            fontsize=8,
+        ).opts(
+            style=dict(text_font_size="8pt")
         )
 
         # Create plot
@@ -638,7 +638,7 @@ def _display_warming_levels(warming_data, selections):
                 pn.widgets.RadioButtonGroup.from_param(
                     warming_data.param.warmlevel, name=""
                 ),
-                pn.widgets.Select.from_param(selections.param.variable, width=200),
+                selections.param.variable,
                 pn.widgets.StaticText.from_param(
                     selections.param.extended_description, name=""
                 ),
@@ -653,32 +653,21 @@ def _display_warming_levels(warming_data, selections):
                     width=150,
                     height=30,
                 ),
-                width=250,
-                margin=10,
+                width=230,
             ),
             pn.Column(
-                pn.widgets.RangeSlider.from_param(selections.param.latitude, width=200),
-                pn.widgets.RangeSlider.from_param(
-                    selections.param.longitude, width=200
-                ),
-                pn.widgets.Select.from_param(
-                    selections.param.area_subset,
-                    name="Subset the data by...",
-                    width=200,
-                ),
-                pn.widgets.Select.from_param(
-                    selections.param.cached_area, name="Location selection", width=200
-                ),
+                selections.param.latitude,
+                selections.param.longitude,
+                selections.param.area_subset,
+                selections.param.cached_area,
                 selections.map_view,
-                width=250,
-                margin=10,
+                width=230,
             ),
         ),
         title="Data Options",
         collapsible=False,
-        width=500,
-        height=550,
-        margin=10,
+        width=460,
+        height=515,
     )
 
     GMT_plot = pn.Card(
@@ -700,8 +689,7 @@ def _display_warming_levels(warming_data, selections):
         title="When do different scenarios reach the warming level?",
         collapsible=False,
         width=600,
-        height=550,
-        margin=10,
+        height=515,
     )
 
     postage_stamps_MAIN = pn.Column(
