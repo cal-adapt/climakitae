@@ -174,8 +174,7 @@ def _compute_relative_humidity(pressure, temperature, mixing_ratio, name="rh_der
 
     # Reset unrealistically low relative humidity values
     # Lowest recorded relative humidity value in CA is 0.8%
-    if rel_hum.any() < 0.5:
-        rel_hum = 0.5
+    rel_hum = xr.where(rel_hum > 0.5, rel_hum, 0.5, keep_attrs=True)
 
     # Assign descriptive name
     rel_hum.name = name
