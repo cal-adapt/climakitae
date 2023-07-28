@@ -513,7 +513,7 @@ def epw_header(station_name, df):
     )
 
     # line 7 - comments 2, putting the data variables here manually as they are not specified in epw format, and we are not including all
-    line_7 = "COMMENTS 2,Air Temperature at 2m,Relative humidity,Instantaneous downwelling shortwave flux at bottom,Shortwave surface downward diffuse irradiance,Instantaneous downwelling longwave flux at bottom,Wind speed at 10m,Wind direction at 10m,Surface Pressure\n"
+    line_7 = "COMMENTS 2,Air Temperature at 2m,Dew point temperature,Relative humidity,Instantaneous downwelling shortwave flux at bottom,Shortwave surface downward diffuse irradiance,Instantaneous downwelling longwave flux at bottom,Wind speed at 10m,Wind direction at 10m,Surface Pressure\n"
 
     # line 8 - data periods, num data periods, num records per hour, data period name, data period start day of week, data period start (Jan 1), data period end (Dec 31)
     line_8 = "DATA PERIODS,1,1,Data,,1/1,12/31\n"
