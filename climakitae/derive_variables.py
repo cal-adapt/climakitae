@@ -1,6 +1,7 @@
 """Functions for deriving frequently used variables"""
 
 import numpy as np
+import xarray as xr
 
 
 def compute_hdd_cdd(t2, hdd_threshold, cdd_threshold):
