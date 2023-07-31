@@ -81,7 +81,7 @@ class Explore:
     #         option=option,
     #     )
 
-    def warming_levels():
+    def warming_levels(self):
         """Display Warming Levels panel."""
         warming_data = WarmingLevelParameters()
         return display_warming_levels(warming_data)

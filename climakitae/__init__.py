@@ -18,13 +18,13 @@ except Exception:
     # Disable minimum version checks on downstream libraries.
     __version__ = "999"
 
+explore = Explore()
 
 __all__ = (
     # Classes
     "DataInterface",
     "Select",
     "Export",
-    "Explore",
     # Methods
     "load",
     "view",
