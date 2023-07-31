@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import hvplot.xarray
 import matplotlib.pyplot as plt
-from climakitae.util.utils import _reproject_data, _read_ae_colormap
+from climakitae.util.utils import _reproject_data, read_ae_colormap
 from climakitae.core.data_interface import DataInterface
 
 
@@ -115,7 +115,7 @@ def view(data, lat_lon=True, width=None, height=None, cmap=None):
             "ae_blue",
             "ae_diverging_r",
         ]:
-            cmap = _read_ae_colormap(cmap=cmap, cmap_hex=True)
+            cmap = read_ae_colormap(cmap=cmap, cmap_hex=True)
 
         # Set default width & height
         if width is None:
@@ -181,7 +181,7 @@ def view(data, lat_lon=True, width=None, height=None, cmap=None):
         # Default colormap for timeseries data
         if cmap is None:
             cmap = "categorical_cb"
-            cmap = _read_ae_colormap(cmap=cmap, cmap_hex=True)
+            cmap = read_ae_colormap(cmap=cmap, cmap_hex=True)
 
         # Set default width & height
         if width is None:
