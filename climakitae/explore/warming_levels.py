@@ -293,9 +293,7 @@ class WarmingLevelParameters(DataParameters):
         num_simulations = len(all_plot_data.simulation.values)
 
         # Set up plotting arguments
-        clabel = (
-            self.variable + " (" + self.postage_data.attrs["units"] + ")"
-        )
+        clabel = self.variable + " (" + self.postage_data.attrs["units"] + ")"
 
         # Compute 1% min and 99% max of all simulations
         vmin_l, vmax_l = [], []
@@ -360,9 +358,7 @@ class WarmingLevelParameters(DataParameters):
         # Set up plotting arguments
         width = 210
         height = 210
-        clabel = (
-            self.variable + " (" + self.postage_data.attrs["units"] + ")"
-        )
+        clabel = self.variable + " (" + self.postage_data.attrs["units"] + ")"
         vmin, vmax, sopt = compute_vmin_vmax(min_data, max_data)
 
         # Make plots

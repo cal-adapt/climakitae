@@ -8,9 +8,13 @@ See the Explore object documentation for more information.
 
 import panel as pn
 import param
-#from .meteo_yr import _AverageMeteorologicalYear, _amy_visualize
-#from .threshold_panel import _ThresholdDataParams, _thresholds_visualize
-from climakitae.explore.warming_levels import WarmingLevelParameters, display_warming_levels
+
+# from .meteo_yr import _AverageMeteorologicalYear, _amy_visualize
+# from .threshold_panel import _ThresholdDataParams, _thresholds_visualize
+from climakitae.explore.warming_levels import (
+    WarmingLevelParameters,
+    display_warming_levels,
+)
 
 
 class Explore:

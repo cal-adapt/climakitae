@@ -10,6 +10,19 @@ from climakitae.util.utils import _reproject_data, read_ae_colormap
 from climakitae.core.data_interface import DataInterface
 
 
+def compute_vmin_vmax(da_min, da_max):
+    """Compute min, max, and center for plotting"""
+    vmin = np.nanpercentile(da_min, 1)
+    vmax = np.nanpercentile(da_max, 99)
+    # define center for diverging symmetric data
+    if (vmin < 0) and (vmax > 0):
+        # dabs = abs(vmax) - abs(vmin)
+        sopt = True
+    else:
+        sopt = None
+    return vmin, vmax, sopt
+
+
 def view(data, lat_lon=True, width=None, height=None, cmap=None):
     """Create a generic visualization of the data
 
@@ -46,18 +59,6 @@ def view(data, lat_lon=True, width=None, height=None, cmap=None):
     UserWarning
         Warn user that the function will be slow if data has not been loaded into memory
     """
-
-    def compute_vmin_vmax(da_min, da_max):
-        """Compute min, max, and center for plotting"""
-        vmin = np.nanpercentile(da_min, 1)
-        vmax = np.nanpercentile(da_max, 99)
-        # define center for diverging symmetric data
-        if (vmin < 0) and (vmax > 0):
-            # dabs = abs(vmax) - abs(vmin)
-            sopt = True
-        else:
-            sopt = None
-        return vmin, vmax, sopt
 
     variable_descriptions = DataInterface().variable_descriptions
 
