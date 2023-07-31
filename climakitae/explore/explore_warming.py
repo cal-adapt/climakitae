@@ -326,7 +326,7 @@ class WarmingLevelParameters(DataParametersWithPanes):
         try:
             all_plots.cols(3)  # Organize into 3 columns
             all_plots.opts(
-                title=self.selections.variable
+                title=self.variable
                 + ": Anomalies for "
                 + str(self.warmlevel)
                 + "°C Warming by Simulation"
