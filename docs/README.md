@@ -4,9 +4,10 @@ You'll only need to do steps 1 and 3 **once** to build the environment. Then, ju
 
 1. If you haven't already, build the conda environment for this project: ``conda env create -f environment.yml``
 2. Next, activate the conda environment for this project: ``conda activate climakitae-tests``
-3. In the conda environment, install the following packages through pip: ``pip install sphinx-book-theme sphinx-design``
+3. In the conda environment, install the following packages through pip: ``pip install sphinx-book-theme==0.3.3 sphinx-design==0.3.0``
 4. Serialize RST to HTML and start a web server (locally): ``make serve-docs`` 
 5. To see the locally served docs: http://localhost:8000/
+6. Push changes to the file `docs/climakitae.rst`
 
 ## If you're working on a windows device 
 You may encounter issues when trying to build the docs due to path issues.<br><br> If you encounter this error message when building the docs:<br> 
