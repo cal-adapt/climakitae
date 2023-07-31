@@ -749,5 +749,6 @@ def display_warming_levels(warming_data):
         collapsible=False,
     )
 
-    warming_panel = pn.Column(pn.Row(data_options, GMT_plot), map_tabs)
+    #warming_panel = pn.Column(pn.Row(data_options, GMT_plot), map_tabs)
+    warming_panel = pn.Row()
     return warming_panel
