@@ -63,10 +63,8 @@ def _get_anomaly_data(data, warmlevel=3.0, scenario="ssp370"):
         Warming level anomalies at the input warming level and scenario
     """
     # Global warming levels file (years when warming level is reached)
-    gwl_file = pkg_resources.resource_filename(
-        "climakitae", "data/gwl_1981-2010ref.csv"
-    )
-    gwl_times = pd.read_csv(gwl_file).rename(
+    gwl_file = "data/gwl_1981-2010ref.csv"
+    gwl_times = read_csv_file(gwl_file).rename(
         columns={"Unnamed: 0": "simulation", "Unnamed: 1": "run"}
     )
 
