@@ -742,5 +742,5 @@ def display_warming_levels(warming_data):
         collapsible=False,
     )
 
-    panel_doodad = pn.Column(pn.Row(data_options, GMT_plot), map_tabs)
-    return panel_doodad
+    warming_panel = pn.Column(pn.Row(data_options, GMT_plot), map_tabs)
+    return warming_panel
