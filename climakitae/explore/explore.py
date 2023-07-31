@@ -39,14 +39,14 @@ class Explore:
     #     self._cat = _cat
     #     self.var_config = var_config
 
-    def __repr__(self):
-        """Print a string description of the available analysis method for this class."""
-        return (
-            "Choose one of these interactive panels to explore different aspects of the data:\n\n"
-            "app.explore.warming_levels(): Learn about global warming levels and explore regional responses.\n"
-            "app.explore.thresholds(): Explore how frequencies of extreme events will change.\n"
-            "app.explore.amy(): Produce an hourly time series for one year capturing mean climate conditions."
-        )
+    # def __repr__(self):
+    #     """Print a string description of the available analysis method for this class."""
+    #     return (
+    #         "Choose one of these interactive panels to explore different aspects of the data:\n\n"
+    #         "app.explore.warming_levels(): Learn about global warming levels and explore regional responses.\n"
+    #         "app.explore.thresholds(): Explore how frequencies of extreme events will change.\n"
+    #         "app.explore.amy(): Produce an hourly time series for one year capturing mean climate conditions."
+    #     )
 
     # def amy(self):
     #     """Display Average Meteorological Year panel."""
@@ -81,7 +81,9 @@ class Explore:
     #         option=option,
     #     )
 
+    def __init__(self):
+        self.warming_parameters = WarmingLevelParameters()
+
     def warming_levels(self):
         """Display Warming Levels panel."""
-        warming_data = WarmingLevelParameters()
-        return display_warming_levels(warming_data)
+        return display_warming_levels(self.warming_parameters)
