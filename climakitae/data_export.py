@@ -523,7 +523,7 @@ def _epw_header(location_name, df):
     return headers
 
 
-def write_tmy_file(filename_to_export, df, location_name = "location", file_ext="tmy"):
+def write_tmy_file(filename_to_export, df, location_name="location", file_ext="tmy"):
     """Exports TMY data either as .epw or .tmy file
 
     Paramters
@@ -540,7 +540,9 @@ def write_tmy_file(filename_to_export, df, location_name = "location", file_ext=
 
     # check that data passed is a DataFrame object
     if type(df) != pd.DataFrame:
-        raise ValueError("The function requires a pandas DataFrame object as the data input")
+        raise ValueError(
+            "The function requires a pandas DataFrame object as the data input"
+        )
 
     # typical meteorological year format
     if file_ext == "tmy":
@@ -553,7 +555,11 @@ def write_tmy_file(filename_to_export, df, location_name = "location", file_ext=
             )  # drops header columns from df
             dfAsString = df.to_csv(sep=",", header=False, index=False)
             f.write(dfAsString)  # writes file
-        print("TMY data exported to .tmy format with filename {}.tmy".format(filename_to_export))
+        print(
+            "TMY data exported to .tmy format with filename {}.tmy".format(
+                filename_to_export
+            )
+        )
 
     # energy plus weather format
     elif file_ext == "epw":
@@ -565,7 +571,11 @@ def write_tmy_file(filename_to_export, df, location_name = "location", file_ext=
             )  # drops header columns from df
             dfAsString = df.to_csv(sep=",", header=False, index=False)
             f.write(dfAsString)  # writes file
-        print("TMY data exported to .epw format with filename {}.epw".format(filename_to_export))
-        
+        print(
+            "TMY data exported to .epw format with filename {}.epw".format(
+                filename_to_export
+            )
+        )
+
     else:
         print('Please pass either "tmy" or "epw" as a file format for export.')
