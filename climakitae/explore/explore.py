@@ -6,8 +6,8 @@ Contains source code for the Explore object, used to access panel GUIs for explo
 See the Explore object documentation for more information. 
 """
 
-import panel as pn
-import param
+# import panel as pn
+# import param
 
 # from .meteo_yr import _AverageMeteorologicalYear, _amy_visualize
 # from .threshold_panel import _ThresholdDataParams, _thresholds_visualize
