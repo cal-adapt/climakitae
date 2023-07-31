@@ -11,7 +11,7 @@ See the Explore object documentation for more information.
 
 # from .meteo_yr import _AverageMeteorologicalYear, _amy_visualize
 # from .threshold_panel import _ThresholdDataParams, _thresholds_visualize
-from climakitae.explore.warming_levels import (
+from climakitae.explore.explore_warming import (
     WarmingLevelParameters,
     display_warming_levels,
 )
