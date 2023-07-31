@@ -11,7 +11,7 @@ import param
 import panel as pn
 
 from climakitae.core.data_loader import read_catalog_from_select
-from climakitae.core.data_interface import DataParameters
+from climakitae.core.data_interface import DataParametersWithPanes
 from climakitae.core.data_viewer import compute_vmin_vmax
 from climakitae.util.utils import read_csv_file, read_ae_colormap
 
@@ -167,7 +167,7 @@ def _make_hvplot(data, clabel, clim, cmap, sopt, title, width=225, height=210):
     return _plot
 
 
-class WarmingLevelParameters(DataParameters):
+class WarmingLevelParameters(DataParametersWithPanes):
     """Generate warming levels panel GUI in notebook.
 
     Intended to be accessed through app.explore.warming_levels()
