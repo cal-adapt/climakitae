@@ -222,7 +222,14 @@ class WarmingLevelParameters(DataParametersWithPanes):
         super().__init__(*args, **params)
 
         # Selectors defaults
+        self.downscaling_method = ["Dynamical"]
+        self.scenario_historical = ["Historical Climate"]
+        self.area_average = "No"
+        self.resolution = "45 km"
+        self.scenario_ssp = ["SSP 3-7.0 -- Business as Usual"]
         self.time_slice = (1980, 2100)
+        self.timescale = "monthly"
+        self.variable = "Air Temperature at 2m"
 
         # Location defaults
         self.area_subset = "states"
@@ -742,6 +749,5 @@ def display_warming_levels(warming_data):
         collapsible=False,
     )
 
-    #warming_panel = pn.Column(pn.Row(data_options, GMT_plot), map_tabs)
-    warming_panel = pn.Column(data_options)
+    warming_panel = pn.Column(pn.Row(data_options, GMT_plot), map_tabs)
     return warming_panel
