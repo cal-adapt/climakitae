@@ -1227,11 +1227,4 @@ def _get_fosberg_fire_index(selections, cat):
         t2_F=t2_da_F, rh_percent=rh_da, windspeed_mph=windspeed_da_mph
     )
 
-    # On the fly resample to mean daily or monthly
-    # Eventually, cache these in the catalog and remove this code
-    # if selections.timescale == "monthly":
-    #     da = da.resample(time="MS").mean()
-    # elif selections.timescale == "daily":
-    #     da = da.resample(time="1D").mean()
-    # selections.timescale = orig_timescale  # Set back to user's original setting
     return da
