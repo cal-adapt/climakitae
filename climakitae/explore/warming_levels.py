@@ -9,12 +9,11 @@ import numpy as np
 import pandas as pd
 import param
 import panel as pn
-import pkg_resources
-from .utils import _read_ae_colormap
-from .data_loaders import _read_catalog_from_select
-from .catalog_convert import _scenario_to_experiment_id
-from .view import _compute_vmin_vmax
 
+from climakitae.core.data_loader import read_catalog_from_select
+from climakitae.core.data_interface import DataParameters
+from climakitae.core.data_viewer import compute_vmin_vmax
+from climakitae.util.utils import read_csv_file, read_ae_colormap
 
 # Silence warnings
 import logging
@@ -23,20 +22,19 @@ logging.getLogger("param").setLevel(logging.CRITICAL)
 xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
 
 
-def _get_postage_data(selections, cat):
+def _get_postage_data(self):
     """
     This function pulls data from the catalog and reads it into memory
 
     Args:
-        selections (DataLoaders): object holding user's selections
-        cat (intake_esm.core.esm_datastore): catalog
+        self (WarmingLevelParameters): object holding user's selections
 
     Returns:
         data (xr.DataArray): data to use for creating postage stamp data
 
     """
     # Read data from catalog
-    data = _read_catalog_from_select(selections=selections, cat=cat)
+    data = read_catalog_from_select(self)
     if data is not None:
         data = data.compute()  # Read into memory
     else:
@@ -47,7 +45,7 @@ def _get_postage_data(selections, cat):
     return data
 
 
-def get_anomaly_data(data, warmlevel=3.0, scenario="ssp370"):
+def _get_anomaly_data(data, warmlevel=3.0, scenario="ssp370"):
     """Calculating warming level anomalies.
 
     Parameters
@@ -171,7 +169,7 @@ def _make_hvplot(data, clabel, clim, cmap, sopt, title, width=225, height=210):
     return _plot
 
 
-class _WarmingLevels(param.Parameterized):
+class WarmingLevelParameters(DataParameters):
     """Generate warming levels panel GUI in notebook.
 
     Intended to be accessed through app.explore.warming_levels()
@@ -192,30 +190,18 @@ class _WarmingLevels(param.Parameterized):
     """
 
     # Read in GMT context plot data
-    ssp119 = pkg_resources.resource_filename(
-        "climakitae", "data/tas_global_SSP1_1_9.csv"
-    )
-    ssp126 = pkg_resources.resource_filename(
-        "climakitae", "data/tas_global_SSP1_2_6.csv"
-    )
-    ssp245 = pkg_resources.resource_filename(
-        "climakitae", "data/tas_global_SSP2_4_5.csv"
-    )
-    ssp370 = pkg_resources.resource_filename(
-        "climakitae", "data/tas_global_SSP3_7_0.csv"
-    )
-    ssp585 = pkg_resources.resource_filename(
-        "climakitae", "data/tas_global_SSP5_8_5.csv"
-    )
-    hist = pkg_resources.resource_filename(
-        "climakitae", "data/tas_global_Historical.csv"
-    )
-    ssp119_data = pd.read_csv(ssp119, index_col="Year")
-    ssp126_data = pd.read_csv(ssp126, index_col="Year")
-    ssp245_data = pd.read_csv(ssp245, index_col="Year")
-    ssp370_data = pd.read_csv(ssp370, index_col="Year")
-    ssp585_data = pd.read_csv(ssp585, index_col="Year")
-    hist_data = pd.read_csv(hist, index_col="Year")
+    ssp119 = "data/tas_global_SSP1_1_9.csv"
+    ssp126 = "data/tas_global_SSP1_2_6.csv"
+    ssp245 = "data/tas_global_SSP2_4_5.csv"
+    ssp370 = "data/tas_global_SSP3_7_0.csv"
+    ssp585 = "data/tas_global_SSP5_8_5.csv"
+    hist = "data/tas_global_Historical.csv"
+    ssp119_data = read_csv_file(ssp119, index_col="Year")
+    ssp126_data = read_csv_file(ssp126, index_col="Year")
+    ssp245_data = read_csv_file(ssp245, index_col="Year")
+    ssp370_data = read_csv_file(ssp370, index_col="Year")
+    ssp585_data = read_csv_file(ssp585, index_col="Year")
+    hist_data = read_csv_file(hist, index_col="Year")
 
     warmlevel = param.Selector(
         default=1.5, objects=[1.5, 2, 3, 4], doc="Warming level in degrees Celcius."
@@ -238,24 +224,17 @@ class _WarmingLevels(param.Parameterized):
         super().__init__(*args, **params)
 
         # Selectors defaults
-        self.selections.downscaling_method = ["Dynamical"]
-        self.selections.scenario_historical = ["Historical Climate"]
-        self.selections.area_average = "No"
-        self.selections.resolution = "45 km"
-        self.selections.scenario_ssp = ["SSP 3-7.0 -- Business as Usual"]
-        self.selections.time_slice = (1980, 2100)
-        self.selections.timescale = "monthly"
-        self.selections.variable = "Air Temperature at 2m"
+        self.time_slice = (1980, 2100)
 
         # Location defaults
-        self.selections.area_subset = "states"
-        self.selections.cached_area = "CA"
+        self.area_subset = "states"
+        self.cached_area = "CA"
 
         # Postage data and anomalies defaults
-        self.postage_data = _get_postage_data(selections=self.selections, cat=self.cat)
-        self._warm_all_anoms = get_anomaly_data(data=self.postage_data, warmlevel=1.5)
+        self.postage_data = _get_postage_data(self)
+        self.warm_all_anoms = _get_anomaly_data(data=self.postage_data, warmlevel=1.5)
 
-        self.cmap = _read_ae_colormap(cmap="ae_orange", cmap_hex=True)
+        self.cmap = read_ae_colormap(cmap="ae_orange", cmap_hex=True)
 
     # For reloading postage stamp data and plots
     reload_data = param.Action(
@@ -266,26 +245,26 @@ class _WarmingLevels(param.Parameterized):
         doc="Has the location and variable been changed? If so, reload the warming level anomolies.",
     )
 
-    @param.depends("selections.variable", watch=True)
+    @param.depends("variable", watch=True)
     def _update_cmap(self):
         """Set colormap depending on variable"""
-        cmap_name = self.var_config[
-            (self.var_config["display_name"] == self.selections.variable)
-            & (self.var_config["timescale"] == "daily/monthly")
+        cmap_name = self._variable_descriptions[
+            (self._variable_descriptions["display_name"] == self.variable)
+            & (self._variable_descriptions["timescale"] == "daily/monthly")
         ].colormap.values[0]
 
         # Colormap normalization for hvplot -- only for relative humidity!
-        if self.selections.variable == "Relative Humidity":
+        if self.variable == "Relative Humidity":
             cmap_name = "ae_diverging"
 
         # Read colormap hex
-        self.cmap = _read_ae_colormap(cmap=cmap_name, cmap_hex=True)
+        self.cmap = read_ae_colormap(cmap=cmap_name, cmap_hex=True)
 
     @param.depends(
-        "selections.area_subset",
-        "selections.cached_area",
-        "selections.variable",
-        "selections.units",
+        "area_subset",
+        "cached_area",
+        "variable",
+        "units",
         watch=True,
     )
     def _updated_bool_loc_and_var(self):
@@ -297,19 +276,17 @@ class _WarmingLevels(param.Parameterized):
         """If the button was clicked and the location or variable was changed,
         reload the postage stamp data from AWS"""
         if self.changed_loc_and_var == True:
-            self.postage_data = _get_postage_data(
-                selections=self.selections, cat=self.cat
-            )
+            self.postage_data = _get_postage_data(self)
             self.changed_loc_and_var = False
-        self._warm_all_anoms = get_anomaly_data(
+        self.warm_all_anoms = _get_anomaly_data(
             data=self.postage_data, warmlevel=self.warmlevel
         )
 
     @param.depends("reload_data", watch=False)
     def _GCM_PostageStamps_MAIN(self):
         # Get plot data
-        all_plot_data = self._warm_all_anoms
-        if self.selections.variable == "Relative Humidity":
+        all_plot_data = self.warm_all_anoms
+        if self.variable == "Relative Humidity":
             all_plot_data = all_plot_data * 100
 
         # Get int number of simulations
@@ -317,14 +294,14 @@ class _WarmingLevels(param.Parameterized):
 
         # Set up plotting arguments
         clabel = (
-            self.selections.variable + " (" + self.postage_data.attrs["units"] + ")"
+            self.variable + " (" + self.postage_data.attrs["units"] + ")"
         )
 
         # Compute 1% min and 99% max of all simulations
         vmin_l, vmax_l = [], []
         for sim in range(num_simulations):
             data = all_plot_data.isel(simulation=sim)
-            vmin_i, vmax_i, sopt = _compute_vmin_vmax(data, data)
+            vmin_i, vmax_i, sopt = compute_vmin_vmax(data, data)
             vmin_l.append(vmin_i)
             vmax_l.append(vmax_i)
         vmin = min(vmin_l)
@@ -370,8 +347,8 @@ class _WarmingLevels(param.Parameterized):
     @param.depends("reload_data", watch=False)
     def _GCM_PostageStamps_STATS(self):
         # Get plot data
-        all_plot_data = self._warm_all_anoms
-        if self.selections.variable == "Relative Humidity":
+        all_plot_data = self.warm_all_anoms
+        if self.variable == "Relative Humidity":
             all_plot_data = all_plot_data * 100
 
         # Compute stats
@@ -384,9 +361,9 @@ class _WarmingLevels(param.Parameterized):
         width = 210
         height = 210
         clabel = (
-            self.selections.variable + " (" + self.postage_data.attrs["units"] + ")"
+            self.variable + " (" + self.postage_data.attrs["units"] + ")"
         )
-        vmin, vmax, sopt = _compute_vmin_vmax(min_data, max_data)
+        vmin, vmax, sopt = compute_vmin_vmax(min_data, max_data)
 
         # Make plots
         min_plot = _make_hvplot(
@@ -432,7 +409,7 @@ class _WarmingLevels(param.Parameterized):
 
         all_plots = mean_plot + med_plot + min_plot + max_plot
         all_plots.opts(
-            title=self.selections.variable
+            title=self.variable
             + ": Anomalies for "
             + str(self.warmlevel)
             + "°C Warming Across Models"
@@ -444,7 +421,7 @@ class _WarmingLevels(param.Parameterized):
     @param.depends("reload_data", watch=False)
     def _30_yr_window(self):
         """Create a dataframe to give information about the 30-yr anomalies window for each simulation used in the postage stamp maps."""
-        anom = self._warm_all_anoms
+        anom = self.warm_all_anoms
         df = pd.DataFrame(
             {
                 "simulation": anom.simulation.values,
@@ -629,7 +606,7 @@ class _WarmingLevels(param.Parameterized):
         return to_plot
 
 
-def _display_warming_levels(warming_data, selections):
+def display_warming_levels(warming_data):
     # Create panel doodad!
     data_options = pn.Card(
         pn.Row(
@@ -638,14 +615,14 @@ def _display_warming_levels(warming_data, selections):
                 pn.widgets.RadioButtonGroup.from_param(
                     warming_data.param.warmlevel, name=""
                 ),
-                selections.param.variable,
+                warming_data.param.variable,
                 pn.widgets.StaticText.from_param(
-                    selections.param.extended_description, name=""
+                    warming_data.param.extended_description, name=""
                 ),
                 pn.widgets.StaticText(name="", value="Variable Units"),
-                pn.widgets.RadioButtonGroup.from_param(selections.param.units),
+                pn.widgets.RadioButtonGroup.from_param(warming_data.param.units),
                 pn.widgets.StaticText(name="", value="Model Resolution"),
-                pn.widgets.RadioButtonGroup.from_param(selections.param.resolution),
+                pn.widgets.RadioButtonGroup.from_param(warming_data.param.resolution),
                 pn.widgets.StaticText(name="", value=""),
                 pn.widgets.Button.from_param(
                     warming_data.param.reload_data,
@@ -656,11 +633,11 @@ def _display_warming_levels(warming_data, selections):
                 width=230,
             ),
             pn.Column(
-                selections.param.latitude,
-                selections.param.longitude,
-                selections.param.area_subset,
-                selections.param.cached_area,
-                selections.map_view,
+                warming_data.param.latitude,
+                warming_data.param.longitude,
+                warming_data.param.area_subset,
+                warming_data.param.cached_area,
+                warming_data.map_view,
                 width=230,
             ),
         ),

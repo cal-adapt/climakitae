@@ -22,10 +22,10 @@ from climakitae.core.constants import (
 )
 
 
-def read_csv_file(rel_path):
+def read_csv_file(rel_path, index_col=None):
     return pd.read_csv(
         package_file_path(rel_path),
-        index_col=None,
+        index_col=index_col,
     )
 
 
@@ -128,7 +128,7 @@ def _readable_bytes(B):
         return "{0:.2f} TB".format(B / TB)
 
 
-def _read_ae_colormap(cmap="ae_orange", cmap_hex=False):
+def read_ae_colormap(cmap="ae_orange", cmap_hex=False):
     """Read in AE colormap by name
 
     Args:

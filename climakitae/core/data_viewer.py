@@ -47,7 +47,7 @@ def view(data, lat_lon=True, width=None, height=None, cmap=None):
         Warn user that the function will be slow if data has not been loaded into memory
     """
 
-    def _compute_vmin_vmax(da_min, da_max):
+    def compute_vmin_vmax(da_min, da_max):
         """Compute min, max, and center for plotting"""
         vmin = np.nanpercentile(da_min, 1)
         vmax = np.nanpercentile(da_max, 99)
@@ -84,7 +84,7 @@ def view(data, lat_lon=True, width=None, height=None, cmap=None):
             if data.chunks is None or str(data.chunks) == "Frozen({})":
                 min_data = data.min(dim="simulation")
                 max_data = data.max(dim="simulation")
-                vmin, vmax, sopt = _compute_vmin_vmax(min_data, max_data)
+                vmin, vmax, sopt = compute_vmin_vmax(min_data, max_data)
 
         # Set default cmap if no user input
         if cmap is None:
