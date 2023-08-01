@@ -83,7 +83,7 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
     return closest_gridcell
 
 
-def _julianDay_to_str_date(julday, leap_year=True, str_format="%b-%d"):
+def julianDay_to_str_date(julday, leap_year=True, str_format="%b-%d"):
     """Convert julian day of year to string format
     i.e. if str_format = "%b-%d", the output will be Mon-Day ("Jan-01")
 

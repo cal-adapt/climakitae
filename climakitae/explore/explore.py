@@ -6,9 +6,6 @@ Contains source code for the Explore object, used to access panel GUIs for explo
 See the Explore object documentation for more information. 
 """
 
-import panel as pn
-
-# from .meteo_yr import _AverageMeteorologicalYear, _amy_visualize
 from climakitae.explore.explore_thresholds import (
     ThresholdParameters,
     thresholds_visualize,
@@ -41,27 +38,19 @@ class Explore:
     #     self._cat = _cat
     #     self.var_config = var_config
 
-    # def __repr__(self):
-    #     """Print a string description of the available analysis method for this class."""
-    #     return (
-    #         "Choose one of these interactive panels to explore different aspects of the data:\n\n"
-    #         "app.explore.warming_levels(): Learn about global warming levels and explore regional responses.\n"
-    #         "app.explore.thresholds(): Explore how frequencies of extreme events will change.\n"
-    #         "app.explore.amy(): Produce an hourly time series for one year capturing mean climate conditions."
-    #     )
+    def __repr__(self):
+        """Print a string description of the available analysis method for this class."""
+        return (
+            "Choose one of these interactive panels to explore different aspects of the data:\n\n"
+            "app.explore.warming_levels(): Learn about global warming levels and explore regional responses.\n"
+            "app.explore.thresholds(): Explore how frequencies of extreme events will change.\n"
+            "app.explore.amy(): Produce an hourly time series for one year capturing mean climate conditions."
+        )
 
-    # def amy(self):
-    #     """Display Average Meteorological Year panel."""
-    #     global tmy_ob
-    #     tmy_ob = _AverageMeteorologicalYear(
-    #         selections=self.selections,
-    #         cat=self._cat,
-    #         var_config=self.var_config,
-    #     )
-    #     return _amy_visualize(
-    #         tmy_ob=tmy_ob,
-    #         selections=self.selections,
-    #     )
+    def amy(self):
+        """Display Average Meteorological Year panel."""
+        amy_parameters = AverageMetYearParameters()
+        return amy_visualize(amy_parameters)
 
     # def amy_selections(self):
     #     """Return the Average Meteorological Year panel object such that the user
