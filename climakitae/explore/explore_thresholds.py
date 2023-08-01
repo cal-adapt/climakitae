@@ -4,7 +4,9 @@ import math
 import pandas as pd
 import panel as pn
 import param
-from .data_loaders import _read_catalog_from_select
+
+from climakitae.core.data_interface import DataParametersWithPanes
+from climakitae.core.data_loader import read_catalog_from_select
 from .unit_conversions import _convert_units
 from .threshold_tools import (
     _get_exceedance_count,
@@ -16,7 +18,7 @@ from .threshold_tools import (
 # ============ Class and methods for the explore.thresholds() GUI ==============
 
 
-def _get_threshold_data(selections, cat):
+def _get_threshold_data(self):
     """
     This function pulls data from the catalog and reads it into memory
 
@@ -29,12 +31,12 @@ def _get_threshold_data(selections, cat):
 
     """
     # Read data from catalog
-    data = _read_catalog_from_select(selections=selections, cat=cat)
+    data = read_catalog_from_select(self)
     data = data.compute()  # Read into memory
     return data
 
 
-class _ThresholdDataParams(param.Parameterized):
+class ThresholdParameters(DataParametersWithPanes):
     """
     An object that holds the "Data Options" parameters for the
     explore.thresholds panel.
@@ -72,24 +74,24 @@ class _ThresholdDataParams(param.Parameterized):
         super().__init__(*args, **params)
 
         # Selectors defaults
-        self.selections.append_historical = False
-        self.selections.area_average = "Yes"
-        self.selections.resolution = "45 km"
-        self.selections.scenario_ssp = ["SSP 3-7.0 -- Business as Usual"]
-        self.selections.scenario_historical = []
-        self.selections.time_slice = (2020, 2100)
-        self.selections.timescale = "hourly"
-        self.selections.variable = "Air Temperature at 2m"
+        self.append_historical = False
+        self.area_average = "Yes"
+        self.resolution = "45 km"
+        self.scenario_ssp = ["SSP 3-7.0 -- Business as Usual"]
+        self.scenario_historical = []
+        self.time_slice = (2020, 2100)
+        self.timescale = "hourly"
+        self.variable = "Air Temperature at 2m"
 
         # Location defaults
-        self.selections.area_subset = "CA counties"
-        self.selections.cached_area = "Los Angeles County"
+        self.area_subset = "CA counties"
+        self.cached_area = "Los Angeles County"
 
         # Get the underlying dataarray
-        self.da = _get_threshold_data(selections=self.selections, cat=self.cat)
+        self.da = _get_threshold_data(self)
 
         self.threshold_value = round(self.da.mean().values.item())
-        self.param.threshold_value.label = f"Value (units: {self.selections.units})"
+        self.param.threshold_value.label = f"Value (units: {self.units})"
 
     # For reloading plot
     reload_plot = param.Action(
@@ -104,16 +106,16 @@ class _ThresholdDataParams(param.Parameterized):
     changed_units = param.Boolean(default=False)
 
     @param.depends(
-        "selections.area_subset",
-        "selections.cached_area",
-        "selections.variable",
+        "area_subset",
+        "cached_area",
+        "variable",
         watch=True,
     )
     def _updated_bool_loc_and_var(self):
         """Update boolean if any changes were made to the location or variable"""
         self.changed_loc_and_var = True
 
-    @param.depends("selections.units", watch=True)
+    @param.depends("units", watch=True)
     def _updated_units(self):
         """Update boolean if a change was made to the units"""
         self.changed_units = True
@@ -123,12 +125,12 @@ class _ThresholdDataParams(param.Parameterized):
         """If the button was clicked and the location, variable, or units were
         changed, reload the data from AWS"""
         if self.changed_loc_and_var:
-            self.da = _get_threshold_data(selections=self.selections, cat=self.cat)
+            self.da = _get_threshold_data(self)
             self.changed_loc_and_var = False
         if self.changed_units:
-            self.da = _convert_units(da=self.da, selected_units=self.selections.units)
+            self.da = _convert_units(da=self.da, selected_units=self.units)
             self.threshold_value = round(self.da.mean().values.item())
-            self.param.threshold_value.label = f"Value (units: {self.selections.units})"
+            self.param.threshold_value.label = f"Value (units: {self.units})"
             self.changed_units = False
 
     def transform_data(self):
@@ -249,7 +251,7 @@ def _exceedance_visualize(choices, option=1):
     return exceedance_count_panel
 
 
-def _thresholds_visualize(thresh_data, selections, option=1):
+def thresholds_visualize(thresh_parameters, option=1):
     """
     Function for constructing and displaying the explore.thresholds() panel.
     """
@@ -259,14 +261,14 @@ def _thresholds_visualize(thresh_data, selections, option=1):
         pn.Row(
             pn.Column(
                 pn.widgets.Select.from_param(
-                    selections.param.variable, name="Data variable"
+                    thresh_parameters.param.variable, name="Data variable"
                 ),
-                pn.widgets.RadioButtonGroup.from_param(selections.param.units),
+                pn.widgets.RadioButtonGroup.from_param(thresh_parameters.param.units),
                 pn.widgets.StaticText.from_param(
-                    selections.param.extended_description, name=""
+                    thresh_parameters.param.extended_description, name=""
                 ),
                 pn.widgets.Button.from_param(
-                    thresh_data.param.reload_data,
+                    thresh_parameters.param.reload_data,
                     button_type="primary",
                     width=150,
                     height=30,
@@ -274,13 +276,13 @@ def _thresholds_visualize(thresh_data, selections, option=1):
                 width=230,
             ),
             pn.Column(
-                selections.param.area_subset,
-                selections.param.latitude,
-                selections.param.longitude,
-                selections.param.cached_area,
+                thresh_parameters.param.area_subset,
+                thresh_parameters.param.latitude,
+                thresh_parameters.param.longitude,
+                thresh_parameters.param.cached_area,
                 width=230,
             ),
-            pn.Column(selections.map_view, width=180),
+            pn.Column(thresh_parameters.map_view, width=180),
         ),
         title="Data Options",
         collapsible=False,
@@ -307,5 +309,7 @@ def _thresholds_visualize(thresh_data, selections, option=1):
         height=_first_row_height,
     )
 
-    plot_panel = _exceedance_visualize(thresh_data, option)  # display the holoviz panel
+    plot_panel = _exceedance_visualize(
+        thresh_parameters, option
+    )  # display the holoviz panel
     return pn.Column(pn.Row(data_options_card, description_box), plot_panel)

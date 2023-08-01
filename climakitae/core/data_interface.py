@@ -1043,7 +1043,7 @@ class DataParameters(param.Parameterized):
         To retrieve data using the settings in a configuration csv file, set config to the local
         filepath of the csv.
         Grabs the data from the AWS S3 bucket, returns lazily loaded dask array.
-        User-facing function that provides a wrapper for _read_catalog_from_csv and _read_catalog_from_select.
+        User-facing function that provides a wrapper for _read_catalog_from_csv and read_catalog_from_select.
 
         Parameters
         ----------

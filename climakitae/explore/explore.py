@@ -9,7 +9,10 @@ See the Explore object documentation for more information.
 import panel as pn
 
 # from .meteo_yr import _AverageMeteorologicalYear, _amy_visualize
-# from .threshold_panel import _ThresholdDataParams, _thresholds_visualize
+from climakitae.explore.explore_thresholds import (
+    ThresholdParameters,
+    thresholds_visualize,
+)
 from climakitae.explore.explore_warming import (
     WarmingLevelParameters,
     display_warming_levels,
@@ -71,14 +74,13 @@ class Explore:
     #         print("Please first initialize the AMY panel by calling app.explore.amy()")
     #         return None
 
-    # def thresholds(self, option=1):
-    #     """Display Thresholds panel."""
-    #     thresh_data = _ThresholdDataParams(selections=self.selections, cat=self._cat)
-    #     return _thresholds_visualize(
-    #         thresh_data=thresh_data,
-    #         selections=self.selections,
-    #         option=option,
-    #     )
+    def thresholds(self, option=1):
+        """Display Thresholds panel."""
+        thresh_parameters = ThresholdParameters()
+        return thresholds_visualize(
+            thresh_parameters,
+            option=option,
+        )
 
     def warming_levels(self):
         """Display Warming Levels panel."""
