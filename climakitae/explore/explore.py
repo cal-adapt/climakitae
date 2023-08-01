@@ -7,7 +7,6 @@ See the Explore object documentation for more information.
 """
 
 import panel as pn
-import param
 
 # from .meteo_yr import _AverageMeteorologicalYear, _amy_visualize
 # from .threshold_panel import _ThresholdDataParams, _thresholds_visualize
@@ -94,3 +93,5 @@ class Explore:
             height=600,
             collapsible=False,
         )
+    def test_func2(self):
+        return print("This is a test")
