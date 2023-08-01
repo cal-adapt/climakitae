@@ -14,7 +14,7 @@ from holoviews import opts
 import hvplot.pandas
 import hvplot.xarray
 import panel as pn
-from .utils import _read_ae_colormap
+from climakitae.util.utils import read_ae_colormap
 
 
 def get_ams(da, extremes_type="max"):
@@ -1060,7 +1060,7 @@ def get_geospatial_plot(
         "ae_blue",
         "ae_diverging_r",
     ]:
-        cmap = _read_ae_colormap(cmap=cmap, cmap_hex=True)
+        cmap = read_ae_colormap(cmap=cmap, cmap_hex=True)
 
     data_variables = [
         "d_statistic",
