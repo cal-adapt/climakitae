@@ -612,7 +612,7 @@ def get_return_period(
 # ===================== Functions for exceedance count =========================
 
 
-def _get_exceedance_count(
+def get_exceedance_count(
     da,
     threshold_value,
     duration1=None,
@@ -905,7 +905,7 @@ def _exceedance_count_name(exceedance_count):
     return f"Number of {event}"
 
 
-def _plot_exceedance_count(exceedance_count):
+def plot_exceedance_count(exceedance_count):
     """Create panel column object with embedded plots
 
     Plots each simulation as a different color line.
@@ -932,7 +932,7 @@ def _plot_exceedance_count(exceedance_count):
     return pn.Column(plot_obj)
 
 
-def _exceedance_plot_title(exceedance_count):
+def exceedance_plot_title(exceedance_count):
     """Function to build title for exceedance plots
 
     Helper function for making the title for exceedance plots.
@@ -953,7 +953,7 @@ def _exceedance_plot_title(exceedance_count):
     return f"{exceedance_count.variable_name}: events {exceedance_count.threshold_direction} {exceedance_count.threshold_value}{exceedance_count.variable_units}"
 
 
-def _exceedance_plot_subtitle(exceedance_count):
+def exceedance_plot_subtitle(exceedance_count):
     """Function of build exceedance plot subtitle
 
     Helper function for making the subtile for exceedance plots.

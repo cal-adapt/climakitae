@@ -24,7 +24,7 @@ from climakitae.core.catalog_convert import (
     _timescale_to_table_id,
     _scenario_to_experiment_id,
 )
-from climakitae.util.unit_conversions import _convert_units
+from climakitae.util.unit_conversions import convert_units
 from climakitae.util.utils import _readable_bytes, get_closest_gridcell
 from climakitae.derive_variables import (
     _compute_relative_humidity,
@@ -490,7 +490,7 @@ def _merge_all(selections, data_dict, cat_subset):
 
     # Convert units:
     all_ssps = _override_unit_defaults(all_ssps, var_id)
-    all_ssps = _convert_units(da=all_ssps, selected_units=selections.units)
+    all_ssps = convert_units(da=all_ssps, selected_units=selections.units)
 
     return all_ssps
 
@@ -719,7 +719,7 @@ def read_catalog_from_select(selections):
                         "You've encountered a bug. No data available for selected derived variable."
                     )
 
-        da = _convert_units(da, selected_units=orig_unit_selection)
+        da = convert_units(da, selected_units=orig_unit_selection)
         da.attrs["variable_id"] = orig_var_id_selection  # Reset variable ID attribute
         da.attrs["units"] = orig_unit_selection
         da.name = orig_variable_selection  # Set name of DataArray
@@ -836,7 +836,7 @@ def _bias_correct_model_data(
     grouper = Grouper(group, window=window)
 
     # Convert units to whatever the gridded data units are
-    obs_da = _convert_units(obs_da, gridded_da.units)
+    obs_da = convert_units(obs_da, gridded_da.units)
     # Rechunk data. Cannot be chunked along time dimension
     # Error raised by xclim: ValueError: Multiple chunks along the main adjustment dimension time is not supported.
     gridded_da = gridded_da.chunk(dict(time=-1))

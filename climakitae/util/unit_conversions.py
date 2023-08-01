@@ -22,7 +22,7 @@ def _get_unit_conversion_options():
     return options
 
 
-def _convert_units(da, selected_units):
+def convert_units(da, selected_units):
     """Converts units for any variable
 
     Args:
