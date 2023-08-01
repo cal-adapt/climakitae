@@ -87,10 +87,10 @@ class Explore:
         return display_warming_levels(warming_parameters)
 
     def test_func(self):
-        return pn.Card(pn.Row(pn.widgets.StaticText(value="This is a TEST!"))
-                               title="Regional response at selected warming level",
-        width=850,
-        height=600,
-        collapsible=False,
-    )
-    
+        return pn.Card(
+            pn.Row(pn.widgets.StaticText(value="This is a TEST!")),
+            title="Regional response at selected warming level",
+            width=850,
+            height=600,
+            collapsible=False,
+        )

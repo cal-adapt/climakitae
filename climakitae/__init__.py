@@ -18,7 +18,7 @@ except Exception:
     # Disable minimum version checks on downstream libraries.
     __version__ = "999"
 
-#explore = Explore()
+# explore = Explore()
 
 __all__ = (
     # Classes

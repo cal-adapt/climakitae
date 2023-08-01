@@ -749,8 +749,9 @@ def display_warming_levels(warming_data):
         collapsible=False,
     )
 
-    #warming_panel = pn.Column(pn.Row(data_options, GMT_plot), map_tabs)
-    warming_panel = pn.Column(pn.widgets.StaticText(
+    # warming_panel = pn.Column(pn.Row(data_options, GMT_plot), map_tabs)
+    warming_panel = pn.Column(
+        pn.widgets.StaticText(
             value=(
                 "Panels show the difference (anomaly) between the 30-year average"
                 " centered on the year that each GCM (name of model titles each panel)"
