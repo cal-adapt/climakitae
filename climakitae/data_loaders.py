@@ -1165,7 +1165,7 @@ def _get_noaa_heat_index(selections, cat):
         mixing_ratio=q2_da,  # kg/kg
     )
 
-    # Convert temperature to proper units for fosberg index
+    # Convert temperature to proper units for noaa heat index
     t2_da_F = _convert_units(t2_da_K, "degF")
 
     # Derive index
