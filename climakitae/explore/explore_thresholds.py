@@ -7,12 +7,12 @@ import param
 
 from climakitae.core.data_interface import DataParametersWithPanes
 from climakitae.core.data_loader import read_catalog_from_select
-from .unit_conversions import _convert_units
-from .threshold_tools import (
-    _get_exceedance_count,
-    _plot_exceedance_count,
-    _exceedance_plot_title,
-    _exceedance_plot_subtitle,
+from climakitae.util.unit_conversions import convert_units
+from climakitae.explore.threshold_tools import (
+    get_exceedance_count,
+    plot_exceedance_count,
+    exceedance_plot_title,
+    exceedance_plot_subtitle,
 )
 
 # ============ Class and methods for the explore.thresholds() GUI ==============
@@ -128,13 +128,13 @@ class ThresholdParameters(DataParametersWithPanes):
             self.da = _get_threshold_data(self)
             self.changed_loc_and_var = False
         if self.changed_units:
-            self.da = _convert_units(da=self.da, selected_units=self.units)
+            self.da = convert_units(da=self.da, selected_units=self.units)
             self.threshold_value = round(self.da.mean().values.item())
             self.param.threshold_value.label = f"Value (units: {self.units})"
             self.changed_units = False
 
     def transform_data(self):
-        return _get_exceedance_count(
+        return get_exceedance_count(
             self.da,
             threshold_value=self.threshold_value,
             threshold_direction=self.threshold_direction,
@@ -149,7 +149,7 @@ class ThresholdParameters(DataParametersWithPanes):
     def view(self):
         try:
             to_plot = self.transform_data()
-            obj = _plot_exceedance_count(to_plot)
+            obj = plot_exceedance_count(to_plot)
         except Exception as e:
             # Display any raised Errors (instead of plotting) if any of the
             # user specifications are incompatible or not yet implemented.
@@ -158,8 +158,8 @@ class ThresholdParameters(DataParametersWithPanes):
             pn.widgets.Button.from_param(
                 self.param.reload_plot, button_type="primary", width=150, height=30
             ),
-            _exceedance_plot_title(to_plot),
-            _exceedance_plot_subtitle(to_plot),
+            exceedance_plot_title(to_plot),
+            exceedance_plot_subtitle(to_plot),
             obj,
         )
 
