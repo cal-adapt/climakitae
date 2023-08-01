@@ -780,23 +780,23 @@ def amy_visualize(amy_parameters):
                 pn.widgets.StaticText(name="", value="Warming level (°C)"),
                 pn.widgets.RadioButtonGroup.from_param(amy_parameters.param.warmlevel),
                 pn.widgets.Select.from_param(
-                    self.param.variable, name="Data variable"
+                    amy_parameters.param.variable, name="Data variable"
                 ),
                 pn.widgets.StaticText.from_param(
-                    self.param.extended_description, name=""
+                    amy_parameters.param.extended_description, name=""
                 ),
                 pn.widgets.StaticText(name="", value="Variable Units"),
-                pn.widgets.RadioButtonGroup.from_param(self.param.units),
+                pn.widgets.RadioButtonGroup.from_param(amy_parameters.param.units),
                 pn.widgets.StaticText(name="", value="Model Resolution"),
-                pn.widgets.RadioButtonGroup.from_param(self.param.resolution),
+                pn.widgets.RadioButtonGroup.from_param(amy_parameters.param.resolution),
                 width=280,
             ),
             pn.Column(
-                self.param.area_subset,
-                self.param.latitude,
-                self.param.longitude,
-                self.param.cached_area,
-                self.map_view,
+                amy_parameters.param.area_subset,
+                amy_parameters.param.latitude,
+                amy_parameters.param.longitude,
+                amy_parameters.param.cached_area,
+                amy_parameters.map_view,
                 pn.widgets.Button.from_param(
                     amy_parameters.param.reload_data,
                     button_type="primary",
