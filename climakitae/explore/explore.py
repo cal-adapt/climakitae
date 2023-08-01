@@ -14,7 +14,10 @@ from climakitae.explore.explore_warming import (
     WarmingLevelParameters,
     display_warming_levels,
 )
-
+from climakitae.explore.explore_amy import (
+    AverageMetYearParameters,
+    amy_visualize,
+)
 
 class Explore:
     """Explore the data using interactive GUIs.
