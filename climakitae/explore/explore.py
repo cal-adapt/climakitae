@@ -81,9 +81,16 @@ class Explore:
     #         option=option,
     #     )
 
-    def __init__(self):
-        self.warming_parameters = WarmingLevelParameters()
-
     def warming_levels(self):
         """Display Warming Levels panel."""
-        return display_warming_levels(self.warming_parameters)
+        warming_parameters = WarmingLevelParameters()
+        return display_warming_levels(warming_parameters)
+
+    def test_func(self):
+        return pn.Card(pn.Row(pn.widgets.StaticText(value="This is a TEST!"))
+                               title="Regional response at selected warming level",
+        width=850,
+        height=600,
+        collapsible=False,
+    )
+    
