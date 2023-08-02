@@ -5,7 +5,7 @@ run through `transform_data` without error, and that the data has been transform
 (not equal to original values), but does not test for exact expected values.
 """
 
-from climakitae import timeseriestools as tst
+from climakitae.tools import timeseriestools as tst
 import datetime as dt
 import pytest
 import os
@@ -26,7 +26,7 @@ def test_TSP(rootdir):
     weights = np.cos(np.deg2rad(test_data.lat))
     test_data = test_data.weighted(weights).mean("x").mean("y")
 
-    ts = tst.Timeseries(test_data)  # make Timeseries object
+    ts = tst.TimeSeries(test_data)  # make Timeseries object
     return ts.choices  # return the underlying TimeSeriesParams object for testing
 
 

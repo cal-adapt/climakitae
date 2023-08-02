@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 import xarray as xr
 
-from climakitae import threshold_tools
+from climakitae.explore import threshold_tools
 
 # ------------- Data for testing -----------------------------------------------
 

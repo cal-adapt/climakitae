@@ -9,16 +9,14 @@ Depending on the number of variables you use to construct your dataset and the g
 import xarray as xr
 import os
 import sys
-import intake
-from climakitae.data_loaders import _read_from_catalog
-from climakitae.selectors import DataSelector, LocSelectorArea
-from climakitae.core import _get_catalog_contents
+from climakitae.core.data_loader import read_catalog_from_select
+from climakitae.core.data_interface import DataParameters
 
 
 # ----------------- CHOOSE SETTINGS FOR TEST DATASET -----------------
 
 # These settings will indicate what data you want to read in from the AWS catalog.
-# The variables will be read in individually using the _read_from_catalog function, which returns an xarray DataArray. At the end, we will combine the individual DataArrays to form a single xarray Dataset object.
+# The variables will be read in individually using the read_from_catalog function, which returns an xarray DataArray. At the end, we will combine the individual DataArrays to form a single xarray Dataset object.
 
 # ---- Settings to generate testing file test_dataset_2022_2022_monthly_45km
 # variable_list = ['Air Temperature at 2m', 'Precipitation (total)', 'Relative Humidity', 'Wind Magnitude at 10m', 'West-East component of Wind at 10m', 'North-South component of Wind at 10m', 'Surface Pressure', '2m Water Vapor Mixing Ratio', 'Surface skin temperature', 'Shortwave surface downward diffuse irradiance', 'Instantaneous downwelling longwave flux at bottom', 'Instantaneous downwelling clear sky longwave flux at bottom', 'Instantaneous upwelling longwave flux at bottom', 'Instantaneous upwelling clear sky longwave flux at bottom', 'Instantaneous downwelling shortwave flux at bottom', 'Instantaneous downwelling clear sky shortwave flux at bottom', 'Instantaneous upwelling shortwave flux at bottom', 'Instantaneous upwelling clear sky shortwave flux at bottom', 'Snowfall (snow and ice)', 'Precipitation (cumulus portion only)', 'Precipitation (grid-scale portion only)']
@@ -58,9 +56,7 @@ filename = "threshold_data_T2_2050_2051_hourly_45km"
 
 
 def _read_data_for_var(
-    cat,
     selections,
-    location,
     variable="Air Temperature at 2m",
     year_start=2013,
     year_end=2016,
@@ -83,7 +79,7 @@ def _read_data_for_var(
     selections.timescale = timescale
     selections.variable = variable
 
-    xr_da = _read_from_catalog(selections=selections, location=location, cat=cat)
+    xr_da = read_catalog_from_select(selections=selections)
     return xr_da
 
 
@@ -114,18 +110,15 @@ print("Resolution: {0}".format(resolution))
 print("Scenarios: {0}".format(", ".join(map(str, scenarios))))
 
 # Get catalog, DataSelector, and LocSelectorArea
-_cat = intake.open_catalog("https://cadcat.s3.amazonaws.com/cae.yaml")
-_selections = DataSelector(choices=_get_catalog_contents(_cat))
-_location = LocSelectorArea()
+_selections = DataParameters()
+
 
 # Read in each variable individually into an xr.DataArray
 xr_da_list = []
 for i in range(len(variable_list)):
     variable = variable_list[i]
     xr_da = _read_data_for_var(
-        cat=_cat,
         selections=_selections,
-        location=_location,
         variable=variable,
         year_start=year_start,
         year_end=year_end,
