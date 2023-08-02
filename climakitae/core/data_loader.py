@@ -82,7 +82,7 @@ def _get_as_shapely(selections):
     will be available too.
 
     Args:
-        selections (_DataSelector): Data settings (variable, unit, timescale, etc)
+        selections (DataParameters): Data settings (variable, unit, timescale, etc)
 
     Returns:
         shapely_geom (shapely.geometry)
@@ -120,7 +120,6 @@ def _scenarios_in_data_dict(keys):
 
     Args:
         keys (list[str]): list of dataset names from catalog
-        selections (DataLoaders): object holding user's selections
 
     Returns:
         scenario_list: list[str]: unique scenarios
@@ -138,7 +137,7 @@ def _get_cat_subset(selections):
     """For an input set of data selections, get the catalog subset.
 
     Args:
-        selections (_DataSelector): object holding user's selections
+        selections (DataParameters): object holding user's selections
 
     Returns:
         cat_subset (intake_esm.core.esm_datastore): catalog subset
@@ -188,7 +187,7 @@ def _time_slice(dset, selections):
     """Subset over time
     Args:
         dset (xr.Dataset): one dataset from the catalog
-        selections (DataLoaders): object holding user's selections
+        selections (DataParameters): object holding user's selections
 
     Returns:
         xr.Dataset: time-slice of dset
@@ -206,7 +205,7 @@ def _override_area_selections(selections):
     the ocean grid cells, but the some station's closest gridcells are the ocean!
 
     Args:
-        selections (DataLoaders): object holding user's selections
+        selections (DataParameters): object holding user's selections
 
     Returns:
         area_subset (str):
@@ -226,7 +225,7 @@ def _area_subset_geometry(selections):
     """Get geometry to perform area subsetting with.
 
     Args:
-        selections (_DataSelector): object holding user's selections
+        selections (DataParameters): object holding user's selections
 
     Returns:
         ds_region (shapely.geometry): geometry to use for subsetting
@@ -307,7 +306,7 @@ def _spatial_subset(dset, selections):
     """Subset over spatial area
     Args:
         dset (xr.Dataset): one dataset from the catalog
-        selections (DataLoaders): object holding user's selections
+        selections (DataParameters): object holding user's selections
 
     Returns:
         xr.Dataset: subsetted area of dset
@@ -349,7 +348,7 @@ def _process_dset(ds_name, dset, selections):
 
     Args:
         dset (xr.Dataset): one dataset from the catalog
-        selections (DataLoaders): object holding user's selections
+        selections (DataParameters): object holding user's selections
 
     Returns:
         xr.Dataset: sub-setted output data
@@ -383,6 +382,7 @@ def _concat_sims(data_dict, hist_data, selections, scenario):
         data_dict (dictionary): dictionary of zarrs from catalog, with each key
             being its name and each item the zarr store
         hist_data (xr.Dataset): subsetted historical data to append
+        selections (DataParameters): class holding data selections
         scenario (str): short designation for one SSP
 
     Returns:
@@ -437,7 +437,7 @@ def _merge_all(selections, data_dict, cat_subset):
        clean-up format, and convert units.
 
     Args:
-        selections (DataLoaders): object holding user's selections
+        selections (DataParameters): object holding user's selections
         data_dict (dictionary): dictionary of zarrs from catalog, with each key
             being its name and each item the zarr store
         cat_subset (intake_esm.core.esm_datastore): catalog subset
