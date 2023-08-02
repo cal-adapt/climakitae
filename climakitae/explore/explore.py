@@ -60,7 +60,9 @@ class Explore:
         def show(self):
             return amy_visualize(self.data_parameters)
 
-    class Thresholds(option=1):
+    class Thresholds:
+        option = 1
+
         def __init__(self, option):
             self.data_parameters = ThresholdParameters()
             self.option = option
