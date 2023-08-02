@@ -3,7 +3,7 @@
 # details as metadata to ds/da
 
 from functools import wraps
-from . import __version__
+from .. import __version__
 
 
 def transform_details(func):

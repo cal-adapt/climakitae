@@ -651,7 +651,7 @@ class AverageMetYearParameters(DataParametersWithPanes):
 
     @param.depends("computation_method", "reload_data", "warmlevel", watch=True)
     def _update_data_to_be_returned(self):
-        """Update self so that the correct data is returned by app.retrieve()"""
+        """Update self so that the correct data is returned by DataParameters.retrieve()"""
 
         self.downscaling_method = ["Dynamical"]
 
