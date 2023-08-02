@@ -713,10 +713,7 @@ class AverageMetYearParameters(DataParametersWithPanes):
                     self.cached_area, self.computation_method
                 )
                 clabel = (
-                    self.variable
-                    + " ("
-                    + self.historical_tmy_data.attrs["units"]
-                    + ")"
+                    self.variable + " (" + self.historical_tmy_data.attrs["units"] + ")"
                 )
             else:
                 df = compute_amy(self.future_tmy_data, days_in_year=days_in_year)
@@ -743,9 +740,7 @@ class AverageMetYearParameters(DataParametersWithPanes):
                 )
                 clabel = self.variable + " (" + self.units + ")"
         else:
-            title = "Average Meteorological Year\n{}".format(
-                self.cached_area
-            )
+            title = "Average Meteorological Year\n{}".format(self.cached_area)
 
         heatmap = meteo_yr_heatmap(
             meteo_yr_df=df,
@@ -834,7 +829,10 @@ def amy_visualize(amy_parameters):
     )
 
     tmy_tabs = pn.Card(
-        pn.Tabs(("AMY Heatmap", amy_parameters._tmy_hourly_heatmap), ("Methodology", mthd_bx)),
+        pn.Tabs(
+            ("AMY Heatmap", amy_parameters._tmy_hourly_heatmap),
+            ("Methodology", mthd_bx),
+        ),
         title=" Average Meteorological Year",
         width=725,
         collapsible=False,

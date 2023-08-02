@@ -19,6 +19,7 @@ from climakitae.explore.explore_amy import (
     amy_visualize,
 )
 
+
 class Explore:
     """Explore the data using interactive GUIs.
     Only functional in a jupyter notebook environment.
@@ -49,6 +50,13 @@ class Explore:
             "app.explore.thresholds(): Explore how frequencies of extreme events will change.\n"
             "app.explore.amy(): Produce an hourly time series for one year capturing mean climate conditions."
         )
+
+    class AMY:
+        def __init__(self):
+            self.data_parameters = AverageMetYearParameters()
+
+        def show(self):
+            return amy_visualize(self.data_parameters)
 
     def amy(self):
         """Display Average Meteorological Year panel."""
