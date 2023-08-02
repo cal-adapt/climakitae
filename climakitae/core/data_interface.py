@@ -1,5 +1,4 @@
 import os
-import pkg_resources
 import pandas as pd
 import geopandas as gpd
 from shapely.geometry import box, Polygon

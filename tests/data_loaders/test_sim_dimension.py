@@ -7,7 +7,7 @@ from climakitae.core.data_loader import _get_cat_subset, _scenarios_in_data_dict
 
 
 @pytest.fixture
-def test_SEL(test_CAT):
+def test_SEL():
     # Create a DataParameters object
     test_selections = DataParameters()
 
