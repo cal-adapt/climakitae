@@ -25,30 +25,13 @@ class Explore:
     Only functional in a jupyter notebook environment.
     """
 
-    # def __init__(self, selections, _cat, var_config):
-    #     """Constructor
-
-    #     Parameters
-    #     ----------
-    #     selections: _DataSelector
-    #         Data settings (variable, unit, timescale, etc)
-    #     _cat: intake_esm.core.esm_datastore
-    #         AE data catalog
-    #     var_config: pd.DataFrame
-    #         Variable descriptions, units, etc in table format
-
-    #     """
-    #     self.selections = selections
-    #     self._cat = _cat
-    #     self.var_config = var_config
-
     def __repr__(self):
         """Print a string description of the available analysis method for this class."""
         return (
             "Choose one of these interactive panels to explore different aspects of the data:\n\n"
-            "app.explore.warming_levels(): Learn about global warming levels and explore regional responses.\n"
-            "app.explore.thresholds(): Explore how frequencies of extreme events will change.\n"
-            "app.explore.amy(): Produce an hourly time series for one year capturing mean climate conditions."
+            "ck.explore.WarmingLevels(): Learn about global warming levels and explore regional responses.\n"
+            "ck.explore.Thresholds(): Explore how frequencies of extreme events will change.\n"
+            "ck.explore.AMY(): Produce an hourly time series for one year capturing mean climate conditions."
         )
 
     class AMY:
