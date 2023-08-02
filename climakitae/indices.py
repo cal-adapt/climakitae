@@ -5,7 +5,8 @@ import numpy as np
 
 
 def noaa_heat_index(T, RH):
-    """Compute the NOAA Heat Index
+    """Compute the NOAA Heat Index.
+    See references for more information on the derivation on this index.
 
     Parameters
     ----------
@@ -21,7 +22,8 @@ def noaa_heat_index(T, RH):
 
     References
     -----------
-    https://www.wpc.ncep.noaa.gov/html/heatindex_equation.shtml
+    NOAA: https://www.wpc.ncep.noaa.gov/html/heatindex_equation.shtml
+    NCAR NCL documentation: https://www.ncl.ucar.edu/Document/Functions/Heat_stress/heat_index_nws.shtml
 
     """
     T = T.reindex_like(RH)  # Need to have the same dimension/coordinate orders
