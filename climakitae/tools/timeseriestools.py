@@ -389,7 +389,7 @@ class TimeSeries:
             type(data) != xr.core.dataarray.DataArray
         ):  # Data is NOT in the form of xr.DataArray
             raise ValueError(
-                "Please pass an xarray DataArray (e.g. as output by app.retrieve())."
+                "Please pass an xarray DataArray (e.g. as output by DataParameters.retrieve())."
             )
         else:
             raise_error = False
