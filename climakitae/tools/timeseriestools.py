@@ -7,10 +7,10 @@ import hvplot.xarray
 import pandas as pd
 
 
-class _TimeSeriesParams(param.Parameterized):
+class TimeSeriesParameters(param.Parameterized):
     """
     An object to hold time-series parameters, which depends only on the 'param'
-    library. Currently used in '_timeseries_visualize', which uses 'panel' to
+    library. Currently used in 'timeseries_visualize', which uses 'panel' to
     draw the GUI, but another UI could in principle be used to update these
     parameters instead.
     """
@@ -296,7 +296,7 @@ class _TimeSeriesParams(param.Parameterized):
         return obj
 
 
-def _timeseries_visualize(choices):
+def timeseries_visualize(choices):
     """
     Uses holoviz 'panel' library to display the parameters and view defined in
     an instance of _TimeSeriesParams.
@@ -371,9 +371,9 @@ def _update_attrs(data_to_output, attrs_to_add):
     return data_to_output
 
 
-class Timeseries:
+class TimeSeries:
     """
-    Holds the instance of _TimeSeriesParams that is used for the following purposes:
+    Holds the instance of TimeSeriesParameters that is used for the following purposes:
     1) to display a panel that previews various time-series transforms (explore), and
     2) to save the transform represented by the current state of that preview into a new variable (output_current).
 
@@ -410,7 +410,7 @@ class Timeseries:
             if raise_error:  # If any errors
                 raise ValueError(error_message)
 
-        self.choices = _TimeSeriesParams(data)
+        self.choices = TimeSeriesParameters(data)
 
     def explore(self):
         """Create an interactive visualization of the timeseries data, dependant on the attributes set in previous steps. Allows user to directly modify the data in the GUI. Only works in a jupyter notebook environment.
@@ -420,7 +420,7 @@ class Timeseries:
         panel.layout.base.Column
 
         """
-        return _timeseries_visualize(self.choices)
+        return timeseries_visualize(self.choices)
 
     def output_current(self):
         """Output the current attributes of the class to a DataArray object.
