@@ -2,34 +2,21 @@ import pytest
 import intake
 import pkg_resources
 import pandas as pd
-from climakitae.selectors import _DataSelector
-from climakitae.catalog_convert import _scenario_to_experiment_id
-from climakitae.data_loaders import _get_cat_subset, _scenarios_in_data_dict
-
-
-@pytest.fixture
-def test_CAT():
-    # Access the catalog
-    catalog = intake.open_esm_datastore(
-        "https://cadcat.s3.amazonaws.com/cae-collection.json"
-    )
-    return catalog
+from climakitae.core.data_interface import DataParameters
+from climakitae.core.catalog_convert import _scenario_to_experiment_id
+from climakitae.core.data_loader import _get_cat_subset, _scenarios_in_data_dict
 
 
 @pytest.fixture
 def test_SEL(test_CAT):
-    # Create an object as in app.selections
-    var_catalog_resource = pkg_resources.resource_filename(
-        "climakitae", "data/variable_descriptions.csv"
-    )
-    var_config = pd.read_csv(var_catalog_resource, index_col=None)
-    test_selections = _DataSelector(cat=test_CAT, var_config=var_config)
+    # Create a DataParameters object
+    test_selections = DataParameters()
 
     return test_selections
 
 
 # testing that the contents of the catalog subset are consistent with the selections
-def test_scenario_dim(test_SEL, test_CAT):
+def test_scenario_dim(test_SEL):
     # Set various non-default selections:
     test_SEL.scenario_ssp = [
         "SSP 3-7.0 -- Business as Usual",
@@ -37,7 +24,7 @@ def test_scenario_dim(test_SEL, test_CAT):
     ]
 
     # Get the corresponding dataset dictionary:
-    cat_subset = _get_cat_subset(selections=test_SEL, cat=test_CAT)
+    cat_subset = _get_cat_subset(selections=test_SEL)
     ds_names = cat_subset.keys()
 
     result = set(_scenarios_in_data_dict(ds_names))
