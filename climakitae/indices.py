@@ -38,7 +38,8 @@ def effective_temp(T):
 
 
 def noaa_heat_index(T, RH):
-    """Compute the NOAA Heat Index
+    """Compute the NOAA Heat Index.
+    See references for more information on the derivation on this index.
 
     Parameters
     ----------
@@ -54,7 +55,8 @@ def noaa_heat_index(T, RH):
 
     References
     -----------
-    https://www.wpc.ncep.noaa.gov/html/heatindex_equation.shtml
+    NOAA: https://www.wpc.ncep.noaa.gov/html/heatindex_equation.shtml
+    NCAR NCL documentation: https://www.ncl.ucar.edu/Document/Functions/Heat_stress/heat_index_nws.shtml
 
     """
     T = T.reindex_like(RH)  # Need to have the same dimension/coordinate orders
@@ -90,7 +92,10 @@ def noaa_heat_index(T, RH):
     # Adjust heat index depending on different condions for RH, T, and valid range of HI
     HI = xr.where((RH < 13) & (T > 80) & (T < 112), HI_highT_lowRH, HI)
     HI = xr.where(((RH > 85) & (T < 87) & (T > 80)), HI_lowT_highRH, HI)
-    HI = xr.where(HI < 80, low_HI, HI)
+    HI = xr.where((HI < 80) & (HI > 40), low_HI, HI)
+
+    # Following NCAR documentation (see function references), all values less that 40F are set to the ambient temperature.
+    HI = xr.where((HI < 40), T, HI)
 
     # Assign units attribute
     HI.attrs["units"] = "degF"
@@ -127,7 +132,7 @@ def fosberg_fire_index(t2_F, rh_percent, windspeed_mph):
 
     """
     # Compute the equilibrium moisture constant
-    m_low, m_mid, m_high = _equilibirum_moisture_constant(h=rh_percent, T=t2_F)
+    m_low, m_mid, m_high = _equilibrium_moisture_constant(h=rh_percent, T=t2_F)
 
     # For RH < 10%, use the low m value.
     # For RH >= 10%, use the mid value
@@ -142,14 +147,21 @@ def fosberg_fire_index(t2_F, rh_percent, windspeed_mph):
     U = windspeed_mph
     FFWI = (n * ((1 + U**2) ** 0.5)) / 0.3002
 
+    # If fosberg index > 100, reset to 100
+    FFWI = xr.where(FFWI < 100, FFWI, 100, keep_attrs=True)
+
+    # If fosberg index is negative, set to 0
+    FFWI = xr.where(FFWI > 0, FFWI, 0, keep_attrs=True)
+
     # Add descriptive attributes
-    FFWI.attrs["units"] = "[0-100]"
+    FFWI.name = "Fosberg Fire Weather Index"
+    FFWI.attrs["units"] = "[0 to 100]"
 
     return FFWI
 
 
 # Define some helper functions
-def _equilibirum_moisture_constant(h, T):
+def _equilibrium_moisture_constant(h, T):
     """Compute the equilibrium moisture constant.
     Dependent on relative humidity percent.
     Used to compute Fosberg Fire Weather Index.

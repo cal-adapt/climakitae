@@ -932,6 +932,8 @@ class _DataSelector(param.Parameterized):
         if self.data_type == "Station":
             self.param["timescale"].objects = ["hourly"]
             self.timescale = "hourly"
+            self.param["variable_type"].objects = ["Variable"]
+            self.variable_type = "Variable"
         elif self.data_type == "Gridded":
             if self.downscaling_method == ["Statistical"]:
                 self.param["timescale"].objects = ["daily", "monthly"]
