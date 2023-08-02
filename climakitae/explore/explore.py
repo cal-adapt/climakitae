@@ -43,6 +43,9 @@ class Explore:
         def show(self):
             return amy_visualize(self.data_parameters)
 
+        def retrieve(self):
+            return self.data_parameters.retrieve()
+
     class Thresholds:
         option = 1
 
@@ -58,6 +61,9 @@ class Explore:
                 option=self.option,
             )
 
+        def retrieve(self):
+            return self.data_parameters.retrieve()
+
     class WarmingLevels:
         def __init__(self):
             self.data_parameters = WarmingLevelParameters()
@@ -66,3 +72,6 @@ class Explore:
 
         def show(self):
             return display_warming_levels(self.data_parameters)
+
+        def retrieve(self):
+            return self.data_parameters.retrieve()
