@@ -55,34 +55,29 @@ class Explore:
         def __init__(self):
             self.data_parameters = AverageMetYearParameters()
 
+        """Display AMY panel."""
+
         def show(self):
             return amy_visualize(self.data_parameters)
 
-    def amy(self):
-        """Display Average Meteorological Year panel."""
-        amy_parameters = AverageMetYearParameters()
-        return amy_visualize(amy_parameters)
+    class Thresholds(option=1):
+        def __init__(self, option):
+            self.data_parameters = ThresholdParameters()
+            self.option = option
 
-    # def amy_selections(self):
-    #     """Return the Average Meteorological Year panel object such that the user
-    #     can pull information from the AMY panel or directly modify the values."""
-    #     if (
-    #         "tmy_ob" in globals()
-    #     ):  # First, check if amy() has been run and the object has been created
-    #         return tmy_ob
-    #     else:
-    #         print("Please first initialize the AMY panel by calling app.explore.amy()")
-    #         return None
-
-    def thresholds(self, option=1):
         """Display Thresholds panel."""
-        thresh_parameters = ThresholdParameters()
-        return thresholds_visualize(
-            thresh_parameters,
-            option=option,
-        )
 
-    def warming_levels(self):
+        def show(self):
+            return thresholds_visualize(
+                self.data_parameters,
+                option=self.option,
+            )
+
+    class WarmingLevels:
+        def __init__(self):
+            self.data_parameters = WarmingLevelParameters()
+
         """Display Warming Levels panel."""
-        warming_parameters = WarmingLevelParameters()
-        return display_warming_levels(warming_parameters)
+
+        def show(self):
+            return display_warming_levels(self.data_parameters)
