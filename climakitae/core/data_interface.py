@@ -19,10 +19,10 @@ from climakitae.util.utils import read_csv_file
 from climakitae.core.boundaries import Boundaries
 from climakitae.util.unit_conversions import _get_unit_conversion_options
 from climakitae.core.catalog_convert import (
-    _downscaling_method_to_activity_id,
-    _resolution_to_gridlabel,
-    _timescale_to_table_id,
-    _scenario_to_experiment_id,
+    ,
+    resolution_to_gridlabel,
+    timescale_to_table_id,
+    scenario_to_experiment_id,
 )
 from climakitae.core.data_loader import read_catalog_from_csv, read_catalog_from_select
 
@@ -56,10 +56,10 @@ def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
     with warnings.catch_warnings(record=True):
         cat_subset = data_catalog.search(
             activity_id=[
-                _downscaling_method_to_activity_id(dm) for dm in downscaling_method
+                (dm) for dm in downscaling_method
             ],
-            table_id=_timescale_to_table_id(timescale),
-            grid_label=_resolution_to_gridlabel(resolution),
+            table_id=timescale_to_table_id(timescale),
+            grid_label=resolution_to_gridlabel(resolution),
         )
 
     # For LOCA grid we need to use the UCSD institution ID
@@ -636,7 +636,7 @@ class DataParameters(param.Parameterized):
 
         # Set scenario param
         scenario_ssp_options = [
-            _scenario_to_experiment_id(scen, reverse=True)
+            scenario_to_experiment_id(scen, reverse=True)
             for scen in self.scenario_options
             if "ssp" in scen
         ]
@@ -860,7 +860,7 @@ class DataParameters(param.Parameterized):
         """
         # Get scenario options in catalog format
         scenario_ssp_options = [
-            _scenario_to_experiment_id(scen, reverse=True)
+            scenario_to_experiment_id(scen, reverse=True)
             for scen in self.scenario_options
             if "ssp" in scen
         ]
@@ -877,7 +877,7 @@ class DataParameters(param.Parameterized):
 
         historical_scenarios = ["historical", "reanalysis"]
         scenario_historical_options = [
-            _scenario_to_experiment_id(scen, reverse=True)
+            scenario_to_experiment_id(scen, reverse=True)
             for scen in self.scenario_options
             if scen in historical_scenarios
         ]

@@ -19,10 +19,10 @@ from xclim.core.calendar import convert_calendar
 from xclim.sdba import Grouper
 from xclim.sdba.adjustment import QuantileDeltaMapping
 from climakitae.core.catalog_convert import (
-    _downscaling_method_to_activity_id,
-    _resolution_to_gridlabel,
-    _timescale_to_table_id,
-    _scenario_to_experiment_id,
+    ,
+    resolution_to_gridlabel,
+    timescale_to_table_id,
+    scenario_to_experiment_id,
 )
 from climakitae.util.unit_conversions import convert_units
 from climakitae.util.utils import _readable_bytes, get_closest_gridcell
@@ -149,11 +149,11 @@ def _get_cat_subset(selections):
     # Get catalog keys
     # Convert user-friendly names to catalog names (i.e. "45 km" to "d01")
     activity_id = [
-        _downscaling_method_to_activity_id(dm) for dm in selections.downscaling_method
+        (dm) for dm in selections.downscaling_method
     ]
-    table_id = _timescale_to_table_id(selections.timescale)
-    grid_label = _resolution_to_gridlabel(selections.resolution)
-    experiment_id = [_scenario_to_experiment_id(x) for x in scenario_selections]
+    table_id = timescale_to_table_id(selections.timescale)
+    grid_label = resolution_to_gridlabel(selections.resolution)
+    experiment_id = [scenario_to_experiment_id(x) for x in scenario_selections]
     source_id = selections.simulation
     variable_id = selections.variable_id
 
@@ -388,7 +388,7 @@ def _concat_sims(data_dict, hist_data, selections, scenario):
     Returns:
         one_scenario (xr.Dataset): combined data object
     """
-    scen_name = _scenario_to_experiment_id(scenario, reverse=True)
+    scen_name = scenario_to_experiment_id(scenario, reverse=True)
 
     # Merge along expanded 'member_id' dimension:
     one_scenario = xr.concat(
@@ -534,14 +534,14 @@ def _get_data_one_var(selections):
     ):
         cat_subset2 = selections._data_catalog.search(
             activity_id=[
-                _downscaling_method_to_activity_id(dm)
+                (dm)
                 for dm in selections.downscaling_method
             ],
-            table_id=_timescale_to_table_id(selections.timescale),
-            grid_label=_resolution_to_gridlabel(selections.resolution),
+            table_id=timescale_to_table_id(selections.timescale),
+            grid_label=resolution_to_gridlabel(selections.resolution),
             variable_id=selections.variable_id,
             experiment_id=[
-                _scenario_to_experiment_id(x) for x in selections.scenario_ssp
+                scenario_to_experiment_id(x) for x in selections.scenario_ssp
             ],
             source_id=["CESM2"],
         )

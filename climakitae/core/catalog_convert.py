@@ -1,7 +1,7 @@
 """Backend functions for working with ESM catalog and user data selections"""
 
 
-def _downscaling_method_to_activity_id(downscaling_method, reverse=False):
+def downscaling_method_to_activity_id(downscaling_method, reverse=False):
     """Convert downscaling method to activity id to match catalog names
     Set reverse=True to get downscaling method from input activity_id"""
     downscaling_dict = {"Dynamical": "WRF", "Statistical": "LOCA2"}
@@ -11,7 +11,7 @@ def _downscaling_method_to_activity_id(downscaling_method, reverse=False):
     return downscaling_dict[downscaling_method]
 
 
-def _resolution_to_gridlabel(resolution, reverse=False):
+def resolution_to_gridlabel(resolution, reverse=False):
     """Convert resolution format to grid_label format matching catalog names.
     Set reverse=True to get resolution format from input grid_label.
     """
@@ -22,7 +22,7 @@ def _resolution_to_gridlabel(resolution, reverse=False):
     return res_dict[resolution]
 
 
-def _timescale_to_table_id(timescale, reverse=False):
+def timescale_to_table_id(timescale, reverse=False):
     """Convert resolution format to table_id format matching catalog names.
     Set reverse=True to get resolution format from input table_id.
     """
@@ -33,7 +33,7 @@ def _timescale_to_table_id(timescale, reverse=False):
     return timescale_dict[timescale]
 
 
-def _scenario_to_experiment_id(scenario, reverse=False):
+def scenario_to_experiment_id(scenario, reverse=False):
     """
     Convert scenario format to experiment_id format matching catalog names.
     Set reverse=True to get scenario format from input experiement_id.
