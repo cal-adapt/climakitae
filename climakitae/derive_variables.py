@@ -153,9 +153,9 @@ def _compute_relative_humidity(pressure, temperature, mixing_ratio, name="rh_der
     Variable attributes need to be assigned outside of this function because the metpy function removes them
 
     Args:
-        pressure (xr.DataArray): Pressure in Pascals
-        temperature (xr.DataArray): Temperature in Kelvin
-        mixing_ratio (xr.DataArray): Dimensionless mass mixing ratio in kg/kg
+        pressure (xr.DataArray): Pressure in hPa
+        temperature (xr.DataArray): Temperature in Celsius
+        mixing_ratio (xr.DataArray): Dimensionless mass mixing ratio in g/kg
         name (str, optional): Name to assign to output DataArray
 
     Returns:
@@ -163,14 +163,14 @@ def _compute_relative_humidity(pressure, temperature, mixing_ratio, name="rh_der
 
     """
 
-    # Calculates saturated vapor pressure, unit is in kPa
-    e_s = 0.611 * np.exp((2500000 / 461) * ((1 / 273) - (1 / temperature)))
+    # Calculates saturated vapor pressure 
+    e_s = 6.11 * 10**(7.5 * (temperature / (237.7 + temperature)))
 
-    # Calculates saturated mixing ratio, unit is kg/kg, pressure has to be divided by 1000 to get to kPa at this step
-    r_s = (0.622 * e_s) / ((pressure / 1000) - e_s)
+    # calculate saturation mixing ratio, unit is g/kg
+    w_s = 621.97 * (e_s / (pressure - e_s))
 
     # Calculates relative humidity, unit is 0 to 100
-    rel_hum = 100 * (mixing_ratio / r_s)
+    rel_hum = 100 * (mixing_ratio / w_s)
 
     # Assign descriptive name
     rel_hum.name = name
