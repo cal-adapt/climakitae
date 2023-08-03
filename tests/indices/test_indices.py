@@ -113,4 +113,4 @@ class TestFosbergFireIndex:
 
     def test_units(self, ffi):
         """Ensure output data has the proper units attribute"""
-        assert ffi.attrs["units"] == "[0-100]"
+        assert ffi.attrs["units"] == "[0 to 100]"
