@@ -6,7 +6,7 @@ import panel as pn
 import param
 
 from climakitae.core.data_interface import DataParametersWithPanes
-from climakitae.core.data_loader import read_catalog_from_select
+from climakitae.core.data_load import read_catalog_from_select
 from climakitae.util.unit_conversions import convert_units
 from climakitae.explore.threshold_tools import (
     get_exceedance_count,

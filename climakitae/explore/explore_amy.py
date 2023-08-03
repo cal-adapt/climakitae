@@ -29,7 +29,7 @@ import panel as pn
 import warnings
 
 from climakitae.core.data_interface import DataParametersWithPanes
-from climakitae.core.data_loader import read_catalog_from_select
+from climakitae.core.data_load import read_catalog_from_select
 from climakitae.util.utils import read_ae_colormap, julianDay_to_str_date
 
 from tqdm.auto import tqdm  # Progress bar

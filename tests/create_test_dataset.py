@@ -9,7 +9,7 @@ Depending on the number of variables you use to construct your dataset and the g
 import xarray as xr
 import os
 import sys
-from climakitae.core.data_loader import read_catalog_from_select
+from climakitae.core.data_load import read_catalog_from_select
 from climakitae.core.data_interface import DataParameters
 
 
