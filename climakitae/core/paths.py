@@ -1,5 +1,5 @@
-# constants.py
-"""This module defines package level constants"""
+# paths.py
+"""This module defines package level paths"""
 
 # Local Data Paths
 variable_descriptions_csv_path = "data/variable_descriptions.csv"

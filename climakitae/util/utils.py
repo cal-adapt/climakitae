@@ -13,7 +13,7 @@ import matplotlib.colors as mcolors
 import matplotlib
 import warnings
 
-from climakitae.core.constants import (
+from climakitae.core.paths import (
     ae_orange,
     ae_diverging,
     ae_blue,

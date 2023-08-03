@@ -10,7 +10,7 @@ from matplotlib.figure import Figure
 import matplotlib.ticker as ticker
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
-from climakitae.core.constants import (
+from climakitae.core.paths import (
     variable_descriptions_csv_path,
     stations_csv_path,
     data_catalog_url,
