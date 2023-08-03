@@ -31,7 +31,7 @@ from .derive_variables import (
     _compute_dewpointtemp,
     _compute_specific_humidity,
 )
-from .indices import fosberg_fire_index
+from .indices import fosberg_fire_index, noaa_heat_index
 
 # Set options
 xr.set_options(keep_attrs=True)
@@ -695,6 +695,8 @@ def _read_catalog_from_select(selections, cat):
             da = _get_hourly_specific_humidity(selections, cat)
         elif orig_var_id_selection == "fosberg_index_derived":  # Hourly
             da = _get_fosberg_fire_index(selections, cat)
+        elif orig_var_id_selection == "noaa_heat_index_derived":  # Hourly
+            da = _get_noaa_heat_index(selections, cat)
         else:
             raise ValueError(
                 "You've encountered a bug. No data available for selected derived variable."
@@ -1138,6 +1140,41 @@ def _get_hourly_specific_humidity(selections, cat):
     da = _compute_specific_humidity(
         tdps=dew_pnt_da, pressure=pressure_da  # Kelvin  # Pa
     )
+    return da
+
+
+def _get_noaa_heat_index(selections, cat):
+    """Derive NOAA heat index"""
+
+    # Load mixing ratio data
+    selections.variable_id = ["q2"]
+    selections.units = "kg kg-1"
+    q2_da = _get_data_one_var(selections, cat)
+
+    # Load pressure data
+    selections.variable_id = ["psfc"]
+    selections.units = "Pa"
+    pressure_da = _get_data_one_var(selections, cat)
+
+    # Load temperature data
+    selections.variable_id = ["t2"]
+    selections.units = "K"  # Kelvin required for humidity and dew point computation
+    t2_da_K = _get_data_one_var(selections, cat)
+
+    # Derive relative humidity
+    # Returned in units of [0-100]
+    rh_da = _compute_relative_humidity(
+        pressure=pressure_da,  # Pa
+        temperature=t2_da_K,  # Kelvin
+        mixing_ratio=q2_da,  # kg/kg
+    )
+
+    # Convert temperature to proper units for fosberg index
+    t2_da_F = _convert_units(t2_da_K, "degF")
+
+    # Derive index
+    # Returned in units of F
+    da = noaa_heat_index(T=t2_da_F, RH=rh_da)
     return da
 
 

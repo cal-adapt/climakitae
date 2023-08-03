@@ -8,6 +8,7 @@ def _get_unit_conversion_options():
     """Get dictionary of unit conversion options offered for each unit"""
     options = {
         "K": ["K", "degC", "degF"],
+        "degF": ["K", "degC", "degF"],
         "hPa": ["Pa", "hPa", "mb", "inHg"],
         "Pa": ["Pa", "hPa", "mb", "inHg"],
         "m/s": ["m/s", "mph", "knots"],
