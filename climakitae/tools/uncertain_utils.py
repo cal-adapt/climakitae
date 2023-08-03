@@ -6,12 +6,14 @@ import rioxarray as rio
 import pandas as pd
 import intake
 import warnings
-from .selectors import Boundaries
-from scipy import stats
-import pkg_resources
-from climakitae.data_loaders import _area_subset_geometry
 import holoviews as hv
 import panel as pn
+from scipy import stats
+
+from climakitae.util.utils import read_csv_file
+from climakitae.core.paths import boundary_catalog_url
+from climakitae.core.boundaries import Boundaries
+from climakitae.core.data_load import _area_subset_geometry
 
 try:
     from xmip.preprocessing import rename_cmip6
@@ -147,6 +149,7 @@ def _clip_region(ds, area_subset, location):
     xr.Dataset
         Clipped dataset to region of interest
     """
+    boundary_catalog = intake.open_catalog(boundary_catalog_url)
     geographies = Boundaries()
     us_states = geographies._us_states
     us_counties = geographies._ca_counties
@@ -704,14 +707,10 @@ def get_warm_level(warm_level, ds, multi_ens=False, ipcc=True):
         )
 
     if ipcc:
-        gwl_file = pkg_resources.resource_filename(
-            "climakitae", "data/gwl_1850-1900ref.csv"
-        )
+        gwl_file = "data/gwl_1850-1900ref.csv"
     else:
-        gwl_file = pkg_resources.resource_filename(
-            "climakitae", "data/gwl_1981-2010ref.csv"
-        )
-    gwl_times = pd.read_csv(gwl_file, index_col=[0, 1, 2])
+        gwl_file = "data/gwl_1981-2010ref.csv"
+    gwl_times = read_csv_file(gwl_file, index_col=[0, 1, 2])
 
     # grab the ensemble members specific to our needs here
     sim_idx = []

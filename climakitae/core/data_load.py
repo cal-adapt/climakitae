@@ -7,7 +7,6 @@ from rioxarray.exceptions import NoDataInBounds
 import intake
 import numpy as np
 import pandas as pd
-import pkg_resources
 import psutil
 import warnings
 import fnmatch
