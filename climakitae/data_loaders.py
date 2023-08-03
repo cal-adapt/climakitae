@@ -1062,7 +1062,7 @@ def _get_hourly_dewpoint(selections, cat):
     )
 
     # Dew point temperature requires temperature in Kelvin
-    t2_da = _convert_units(t2_da, 'K')
+    t2_da = _convert_units(t2_da, "K")
 
     # Derive dew point temperature
     # Returned in units of Kelvin
@@ -1125,7 +1125,7 @@ def _get_hourly_specific_humidity(selections, cat):
     )
 
     # Dew point temperature requires temperature in Kelvin
-    t2_da = _convert_units(t2_da, 'K')
+    t2_da = _convert_units(t2_da, "K")
 
     # Derive dew point temperature
     # Returned in units of Kelvin
