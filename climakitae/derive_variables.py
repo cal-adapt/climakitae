@@ -1,6 +1,7 @@
 """Functions for deriving frequently used variables"""
 
 import numpy as np
+import xarray as xr
 
 
 def compute_hdd_cdd(t2, hdd_threshold, cdd_threshold):
@@ -171,6 +172,10 @@ def _compute_relative_humidity(pressure, temperature, mixing_ratio, name="rh_der
 
     # Calculates relative humidity, unit is 0 to 100
     rel_hum = 100 * (mixing_ratio / w_s)
+
+    # Reset unrealistically low relative humidity values
+    # Lowest recorded relative humidity value in CA is 0.8%
+    rel_hum = xr.where(rel_hum > 0.5, rel_hum, 0.5, keep_attrs=True)
 
     # Assign descriptive name
     rel_hum.name = name
