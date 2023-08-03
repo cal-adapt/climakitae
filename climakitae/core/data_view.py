@@ -4,6 +4,7 @@ import warnings
 import numpy as np
 import hvplot.xarray
 import matplotlib.pyplot as plt
+import panel as pn
 from climakitae.util.utils import _reproject_data, read_ae_colormap
 from climakitae.core.data_interface import DataInterface
 
@@ -197,4 +198,8 @@ def view(data, lat_lon=True, width=None, height=None, cmap=None):
             "Default plot could not be generated: input data must contain valid spatial dimensions (x,y and/or lat,lon) and/or time dimensions"
         )
         _plot = None
-    return _plot
+
+    # Put plot object into a panel Pane object
+    _plot_as_pane = pn.Pane(_plot)
+
+    return _plot_as_pane

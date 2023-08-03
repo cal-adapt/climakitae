@@ -547,6 +547,11 @@ class DataParameters(param.Parameterized):
     longitude = param.Range(default=(-125.5, -114), bounds=(-156.82317, -84.18701))
 
     # Data defaults
+    variable_type = param.Selector(
+        default="Variable",
+        objects=["Variable", "Derived Index"],
+        doc="Choose between variable or AE derived index",
+    )
     default_variable = "Air Temperature at 2m"
     time_slice = param.Range(default=(1980, 2015), bounds=(1950, 2100))
     resolution = param.Selector(default="9 km", objects=["3 km", "9 km", "45 km"])
@@ -636,6 +641,20 @@ class DataParameters(param.Parameterized):
             timescale=self.timescale,
         )
 
+        # Show derived index option?
+        indices = True
+        if self.data_type == "station":
+            indices = False
+        if self.downscaling_method != ["Dynamical"]:
+            indices = False
+        if self.timescale != "hourly":
+            indices = False
+        if indices == False:
+            self.param["variable_type"].objects = ["Variable"]
+            self.variable_type = "Variable"
+        elif indices == True:
+            self.param["variable_type"].objects = ["Variable", "Derived Index"]
+
         # Set scenario param
         scenario_ssp_options = [
             scenario_to_experiment_id(scen, reverse=True)
@@ -707,16 +726,19 @@ class DataParameters(param.Parameterized):
             self.param["area_average"].objects = ["Yes", "No"]
             self.area_average = "No"
 
-    @param.depends("downscaling_method", "data_type", watch=True)
-    def _update_data_type_options_if_loca_selected(self):
+    @param.depends("downscaling_method", "data_type", "variable_type", watch=True)
+    def _update_data_type_options_if_loca_or_derived_var_selected(self):
         """If statistical downscaling is selected, remove option for station data because we don't
         have the 2m temp variable for LOCA"""
-        if "Statistical" in self.downscaling_method:
+        if (
+            "Statistical" in self.downscaling_method
+            or self.variable_type == "Derived Index"
+        ):
             self.param["data_type"].objects = ["Gridded"]
             self.data_type = "Gridded"
         else:
             self.param["data_type"].objects = ["Gridded", "Station"]
-        if "Station" in self.data_type:
+        if "Station" in self.data_type or self.variable_type == "Derived Index":
             self.param["downscaling_method"].objects = ["Dynamical"]
             if "Statistical" in self.downscaling_method:
                 self.downscaling_method.remove("Statistical")
@@ -738,19 +760,48 @@ class DataParameters(param.Parameterized):
                 self.param["resolution"].objects = ["3 km", "9 km", "45 km"]
 
     @param.depends(
+        "data_type", "timescale", "downscaling_method", "variable_type", watch=True
+    )
+    def _remove_index_options_if_no_indices(self):
+        """Remove derived index as an option if the current selections do not have any index options.
+        UPDATE IF YOU ADD MORE INDICES."""
+
+        ## Remove derived index as an option if the current selections do not have any index options.
+        indices = True
+        # Cases where we currently don't have derived indices
+        if self.data_type == "station":
+            # Only air temp available for station data
+            indices = False
+        if self.downscaling_method != ["Dynamical"]:
+            # Currently we only have indices for WRF data
+            indices = False
+        if self.timescale != "hourly":
+            indices = False
+        if indices == False:
+            # Remove derived index as an option
+            self.param["variable_type"].objects = ["Variable"]
+            self.variable_type = "Variable"
+        elif indices == True:
+            self.param["variable_type"].objects = ["Variable", "Derived Index"]
+
+    @param.depends(
         "timescale",
         "resolution",
         "downscaling_method",
         "data_type",
         "variable",
+        "variable_type",
         watch=True,
     )
     def _update_user_options(self):
         """Update unique variable options"""
 
+        # Station data is only available hourly
         if self.data_type == "Station":
             self.param["timescale"].objects = ["hourly"]
             self.timescale = "hourly"
+            self.param["variable_type"].objects = ["Variable"]
+            self.variable_type = "Variable"
         elif self.data_type == "Gridded":
             if self.downscaling_method == ["Statistical"]:
                 self.param["timescale"].objects = ["daily", "monthly"]
@@ -795,6 +846,23 @@ class DataParameters(param.Parameterized):
                 downscaling_method=self.downscaling_method,
                 timescale=self.timescale,
             )
+
+            # Filter for derived indices
+            # Depends on user selection for variable_type
+            if self.variable_type == "Variable":
+                # Remove indices
+                self.variable_options_df = self.variable_options_df[
+                    ~self.variable_options_df["variable_id"].str.contains("index")
+                ]
+            elif self.variable_type == "Derived Index":
+                # Show only indices
+                self.variable_options_df = self.variable_options_df[
+                    self.variable_options_df["variable_id"].str.contains("index")
+                ]
+            if len(self.variable_options_df) == 0:
+                raise ValueError(
+                    "You've encountered a bug in the code. There are no variable options for your selections."
+                )
             var_options = self.variable_options_df.display_name.values
             self.param["variable"].objects = var_options
             if self.variable not in var_options:
