@@ -150,7 +150,7 @@ def _clip_region(ds, area_subset, location):
         Clipped dataset to region of interest
     """
     boundary_catalog = intake.open_catalog(boundary_catalog_url)
-    geographies = Boundaries()
+    geographies = Boundaries(boundary_catalog)
     us_states = geographies._us_states
     us_counties = geographies._ca_counties
     ds = ds.rio.write_crs(4326)
