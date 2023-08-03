@@ -19,7 +19,7 @@ from xclim.core.calendar import convert_calendar
 from xclim.sdba import Grouper
 from xclim.sdba.adjustment import QuantileDeltaMapping
 from climakitae.core.catalog_convert import (
-    ,
+    downscaling_method_to_activity_id,
     resolution_to_gridlabel,
     timescale_to_table_id,
     scenario_to_experiment_id,
@@ -149,7 +149,7 @@ def _get_cat_subset(selections):
     # Get catalog keys
     # Convert user-friendly names to catalog names (i.e. "45 km" to "d01")
     activity_id = [
-        (dm) for dm in selections.downscaling_method
+        downscaling_method_to_activity_id(dm) for dm in selections.downscaling_method
     ]
     table_id = timescale_to_table_id(selections.timescale)
     grid_label = resolution_to_gridlabel(selections.resolution)
@@ -534,7 +534,7 @@ def _get_data_one_var(selections):
     ):
         cat_subset2 = selections._data_catalog.search(
             activity_id=[
-                (dm)
+                downscaling_method_to_activity_id(dm)
                 for dm in selections.downscaling_method
             ],
             table_id=timescale_to_table_id(selections.timescale),

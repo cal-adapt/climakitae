@@ -20,7 +20,7 @@ from climakitae.util.utils import read_csv_file
 from climakitae.core.boundaries import Boundaries
 from climakitae.util.unit_conversions import _get_unit_conversion_options
 from climakitae.core.catalog_convert import (
-    ,
+    downscaling_method_to_activity_id,
     resolution_to_gridlabel,
     timescale_to_table_id,
     scenario_to_experiment_id,
@@ -57,7 +57,7 @@ def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
     with warnings.catch_warnings(record=True):
         cat_subset = data_catalog.search(
             activity_id=[
-                (dm) for dm in downscaling_method
+                downscaling_method_to_activity_id(dm) for dm in downscaling_method
             ],
             table_id=timescale_to_table_id(timescale),
             grid_label=resolution_to_gridlabel(resolution),
