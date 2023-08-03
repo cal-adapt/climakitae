@@ -1,13 +1,9 @@
 import numpy as np
 import datetime
 import xarray as xr
-import pyproj
 import rioxarray as rio
 import pandas as pd
 import intake
-import warnings
-import holoviews as hv
-import panel as pn
 from scipy import stats
 
 from climakitae.util.utils import read_csv_file

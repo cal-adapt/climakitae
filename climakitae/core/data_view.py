@@ -1,9 +1,7 @@
 """Backend function for creating generic visualizations of xarray DataArray."""
 
 import warnings
-import xarray as xr
 import numpy as np
-import pandas as pd
 import hvplot.xarray
 import matplotlib.pyplot as plt
 from climakitae.util.utils import _reproject_data, read_ae_colormap

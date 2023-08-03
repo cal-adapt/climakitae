@@ -1,6 +1,5 @@
 """Backend functions and classes for building the thresholds GUI."""
 
-import math
 import pandas as pd
 import panel as pn
 import param

@@ -4,16 +4,13 @@ import xarray as xr
 import dask
 import rioxarray
 from rioxarray.exceptions import NoDataInBounds
-import intake
 import numpy as np
 import pandas as pd
 import psutil
 import warnings
-import fnmatch
 from functools import partial
 from ast import literal_eval
 from shapely.geometry import box
-
 from xclim.core.calendar import convert_calendar
 from xclim.sdba import Grouper
 from xclim.sdba.adjustment import QuantileDeltaMapping

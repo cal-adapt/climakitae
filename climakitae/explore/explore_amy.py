@@ -26,7 +26,6 @@ import numpy as np
 import pandas as pd
 import param
 import panel as pn
-import warnings
 
 from climakitae.core.data_interface import DataParametersWithPanes
 from climakitae.core.data_load import read_catalog_from_select

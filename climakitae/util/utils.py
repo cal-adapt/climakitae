@@ -8,10 +8,9 @@ import pyproj
 import rioxarray as rio
 import pandas as pd
 import s3fs
-import intake
 import matplotlib.colors as mcolors
 import matplotlib
-import warnings
+
 
 from climakitae.core.paths import (
     ae_orange,

@@ -9,8 +9,6 @@ import pandas as pd
 import rasterio
 from importlib.metadata import version as _version
 
-from climakitae.core.data_interface import DataInterface
-
 xr.set_options(keep_attrs=True)
 
 
