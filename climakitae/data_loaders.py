@@ -1216,7 +1216,7 @@ def _get_fosberg_fire_index(selections, cat):
     # Returned in units of [0-100]
     rh_da = _compute_relative_humidity(
         pressure=pressure_da,  # hPa
-        temperature=t2_da_K,  # degC
+        temperature=t2_da_C,  # degC
         mixing_ratio=q2_da,  # g/kg
     )
 
