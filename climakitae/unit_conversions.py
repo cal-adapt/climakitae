@@ -114,6 +114,8 @@ def _convert_units(da, selected_units):
     elif native_units == "degC":
         if selected_units == "K":
             da = da + 273.15
+        elif select_units == "degF":
+            da = (1.8 * da) + 32
 
     # Fraction/percentage units (relative humidity)
     elif native_units == "[0 to 100]":

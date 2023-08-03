@@ -163,7 +163,6 @@ def _compute_relative_humidity(pressure, temperature, mixing_ratio, name="rh_der
         rel_hum (xr.DataArray): Relative humidity
 
     Source: https://www.weather.gov/media/epz/wxcalc/mixingRatio.pdf
-
     """
 
     # Calculates saturated vapor pressure

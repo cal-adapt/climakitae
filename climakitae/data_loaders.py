@@ -1056,13 +1056,13 @@ def _get_hourly_dewpoint(selections, cat):
     # Derive relative humidity
     # Returned in units of [0-100]
     rh_da = _compute_relative_humidity(
-        pressure=pressure_da,  # Pa
-        temperature=t2_da,  # Kelvin
-        mixing_ratio=q2_da,  # kg/kg
+        pressure=pressure_da,  # hPa
+        temperature=t2_da,  # degC
+        mixing_ratio=q2_da,  # g/kg
     )
 
     # Dew point temperature requires temperature in Kelvin
-    t2_da = _convert_units(t2_da, K)
+    t2_da = _convert_units(t2_da, 'K')
 
     # Derive dew point temperature
     # Returned in units of Kelvin
@@ -1103,26 +1103,29 @@ def _get_hourly_specific_humidity(selections, cat):
     """
     # Load temperature data
     selections.variable_id = ["t2"]
-    selections.units = "K"  # Kelvin required for humidity and dew point computation
+    selections.units = "degC"  # degC required for humidity
     t2_da = _get_data_one_var(selections, cat)
 
     # Load mixing ratio data
     selections.variable_id = ["q2"]
-    selections.units = "kg kg-1"
+    selections.units = "g kg-1"
     q2_da = _get_data_one_var(selections, cat)
 
     # Load pressure data
     selections.variable_id = ["psfc"]
-    selections.units = "Pa"
+    selections.units = "hPa"
     pressure_da = _get_data_one_var(selections, cat)
 
     # Derive relative humidity
     # Returned in units of [0-100]
     rh_da = _compute_relative_humidity(
-        pressure=pressure_da,  # Pa
-        temperature=t2_da,  # Kelvin
-        mixing_ratio=q2_da,  # kg/kg
+        pressure=pressure_da,  # hPa
+        temperature=t2_da,  # degC
+        mixing_ratio=q2_da,  # g/kg
     )
+
+    # Dew point temperature requires temperature in Kelvin
+    t2_da = _convert_units(t2_da, 'K')
 
     # Derive dew point temperature
     # Returned in units of Kelvin
@@ -1147,17 +1150,17 @@ def _get_fosberg_fire_index(selections, cat):
 
     # Load temperature data
     selections.variable_id = ["t2"]
-    selections.units = "K"  # Kelvin required for humidity and dew point computation
-    t2_da_K = _get_data_one_var(selections, cat)
+    selections.units = "degC"  # Kelvin required for humidity
+    t2_da_C = _get_data_one_var(selections, cat)
 
     # Load mixing ratio data
     selections.variable_id = ["q2"]
-    selections.units = "kg kg-1"
+    selections.units = "g kg-1"
     q2_da = _get_data_one_var(selections, cat)
 
     # Load pressure data
     selections.variable_id = ["psfc"]
-    selections.units = "Pa"
+    selections.units = "hPa"
     pressure_da = _get_data_one_var(selections, cat)
 
     # Load u10 data
@@ -1175,9 +1178,9 @@ def _get_fosberg_fire_index(selections, cat):
     # Derive relative humidity
     # Returned in units of [0-100]
     rh_da = _compute_relative_humidity(
-        pressure=pressure_da,  # Pa
-        temperature=t2_da_K,  # Kelvin
-        mixing_ratio=q2_da,  # kg/kg
+        pressure=pressure_da,  # hPa
+        temperature=t2_da_K,  # degC
+        mixing_ratio=q2_da,  # g/kg
     )
 
     # Derive windspeed
@@ -1185,7 +1188,7 @@ def _get_fosberg_fire_index(selections, cat):
     windspeed_da_ms = _compute_wind_mag(u10=u10_da, v10=v10_da)  # m/s
 
     # Convert units to proper units for fosberg index
-    t2_da_F = _convert_units(t2_da_K, "degF")
+    t2_da_F = _convert_units(t2_da_C, "degF")
     windspeed_da_mph = _convert_units(windspeed_da_ms, "mph")
 
     # Compute the index
