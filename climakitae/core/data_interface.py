@@ -14,6 +14,7 @@ from climakitae.core.paths import (
     variable_descriptions_csv_path,
     stations_csv_path,
     data_catalog_url,
+    boundary_catalog_url,
 )
 from climakitae.util.utils import read_csv_file
 from climakitae.core.boundaries import Boundaries
@@ -506,7 +507,8 @@ class DataInterface:
         self.data_catalog = intake.open_esm_datastore(data_catalog_url)
 
         # Get geography boundaries
-        self.geographies = Boundaries()
+        self.boundary_catalog = intake.open_catalog(boundary_catalog_url)
+        self.geographies = Boundaries(self.boundary_catalog)
 
 
 class ExportParameters(param.Parameterized):

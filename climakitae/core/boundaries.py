@@ -1,6 +1,4 @@
-import intake
 import pandas as pd
-from climakitae.core.paths import boundary_catalog_url
 
 
 class Boundaries:
@@ -8,7 +6,7 @@ class Boundaries:
     Used to access boundaries for subsetting data by state, county, etc.
     """
 
-    def __init__(self):
+    def __init__(self, boundary_catalog):
         """
         Parameters
         -----------
@@ -27,7 +25,7 @@ class Boundaries:
         _ca_forecast_zones: pd.DataFrame
             Table of California Demand Forecast Zones
         """
-        self._cat = intake.open_catalog(boundary_catalog_url)
+        self._cat = boundary_catalog
         self._us_states = self._cat.states.read()
         self._ca_counties = self._cat.counties.read().sort_values("NAME")
         self._ca_watersheds = self._cat.huc8.read().sort_values("Name")
