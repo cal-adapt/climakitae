@@ -164,8 +164,8 @@ def _compute_relative_humidity(pressure, temperature, mixing_ratio, name="rh_der
 
     """
 
-    # Calculates saturated vapor pressure 
-    e_s = 6.11 * 10**(7.5 * (temperature / (237.7 + temperature)))
+    # Calculates saturated vapor pressure
+    e_s = 6.11 * 10 ** (7.5 * (temperature / (237.7 + temperature)))
 
     # calculate saturation mixing ratio, unit is g/kg
     w_s = 621.97 * (e_s / (pressure - e_s))
