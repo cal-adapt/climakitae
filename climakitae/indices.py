@@ -94,8 +94,8 @@ def noaa_heat_index(T, RH):
     HI = xr.where(((RH > 85) & (T < 87) & (T > 80)), HI_lowT_highRH, HI)
     HI = xr.where((HI < 80) & (HI > 40), low_HI, HI)
 
-    # Following NCAR documentation (see function references), all values less that 40F are set to the ambient temperature.
-    HI = xr.where((HI < 40), T, HI)
+    # Following NCAR documentation (see function references), for temperature values less that 40F, the HI is set to the ambient temperature.
+    HI = xr.where((T < 40), T, HI)
 
     # Assign units attribute
     HI.attrs["units"] = "degF"
