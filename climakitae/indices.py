@@ -67,7 +67,7 @@ def noaa_heat_index(T, RH):
     # Reassign coordinate attributes
     # For some reason, these get improperly assigned in the xr.where step
     for coord in list(HI.coords):
-        HI[coord].attrs = T[coord].attrs
+        HI[coord].attrs = RH[coord].attrs
 
     # Assign units attribute
     HI.attrs["units"] = "degF"
