@@ -176,10 +176,15 @@ def _compute_relative_humidity(pressure, temperature, mixing_ratio, name="rh_der
 
     # Reset unrealistically low relative humidity values
     # Lowest recorded relative humidity value in CA is 0.8%
-    rel_hum = xr.where(rel_hum > 0.5, rel_hum, 0.5, keep_attrs=True)
+    rel_hum = xr.where(rel_hum > 0.5, rel_hum, 0.5)
 
     # Reset values above 100 to 100
-    rel_hum = xr.where(rel_hum < 100, rel_hum, 100, keep_attrs=True)
+    rel_hum = xr.where(rel_hum < 100, rel_hum, 100)
+    
+    # Reassign coordinate attributes 
+    # For some reason, these get improperly assigned in the xr.where step
+    for coord in list(rel_hum.coords): 
+        rel_hum[coord].attrs = temperature[coord].attrs
 
     # Assign descriptive name
     rel_hum.name = name
