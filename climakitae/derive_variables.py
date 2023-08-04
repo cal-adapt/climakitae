@@ -180,10 +180,10 @@ def _compute_relative_humidity(pressure, temperature, mixing_ratio, name="rh_der
 
     # Reset values above 100 to 100
     rel_hum = xr.where(rel_hum < 100, rel_hum, 100)
-    
-    # Reassign coordinate attributes 
+
+    # Reassign coordinate attributes
     # For some reason, these get improperly assigned in the xr.where step
-    for coord in list(rel_hum.coords): 
+    for coord in list(rel_hum.coords):
         rel_hum[coord].attrs = temperature[coord].attrs
 
     # Assign descriptive name
