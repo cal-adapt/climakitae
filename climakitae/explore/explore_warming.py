@@ -14,7 +14,15 @@ from climakitae.core.data_load import read_catalog_from_select
 from climakitae.core.data_interface import DataParametersWithPanes
 from climakitae.core.data_view import compute_vmin_vmax
 from climakitae.util.utils import read_csv_file, read_ae_colormap
-from climakitae.core.paths import gwl_1981_2010_file, ssp119_file, ssp126_file, ssp245_file, ssp370_file, ssp585_file, hist_file
+from climakitae.core.paths import (
+    gwl_1981_2010_file,
+    ssp119_file,
+    ssp126_file,
+    ssp245_file,
+    ssp370_file,
+    ssp585_file,
+    hist_file,
+)
 
 # Silence warnings
 import logging
