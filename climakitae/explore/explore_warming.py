@@ -14,6 +14,7 @@ from climakitae.core.data_load import read_catalog_from_select
 from climakitae.core.data_interface import DataParametersWithPanes
 from climakitae.core.data_view import compute_vmin_vmax
 from climakitae.util.utils import read_csv_file, read_ae_colormap
+from climakitae.core.paths import gwl_1981_2010_file, ssp119_file, ssp126_file, ssp245_file, ssp370_file, ssp585_file, hist_file
 
 # Silence warnings
 import logging
@@ -63,8 +64,7 @@ def _get_anomaly_data(data, warmlevel=3.0, scenario="ssp370"):
         Warming level anomalies at the input warming level and scenario
     """
     # Global warming levels file (years when warming level is reached)
-    gwl_file = "data/gwl_1981-2010ref.csv"
-    gwl_times = read_csv_file(gwl_file).rename(
+    gwl_times = read_csv_file(gwl_1981_2010_file).rename(
         columns={"Unnamed: 0": "simulation", "Unnamed: 1": "run"}
     )
 
@@ -188,18 +188,12 @@ class WarmingLevelParameters(DataParametersWithPanes):
     """
 
     # Read in GMT context plot data
-    ssp119 = "data/tas_global_SSP1_1_9.csv"
-    ssp126 = "data/tas_global_SSP1_2_6.csv"
-    ssp245 = "data/tas_global_SSP2_4_5.csv"
-    ssp370 = "data/tas_global_SSP3_7_0.csv"
-    ssp585 = "data/tas_global_SSP5_8_5.csv"
-    hist = "data/tas_global_Historical.csv"
-    ssp119_data = read_csv_file(ssp119, index_col="Year")
-    ssp126_data = read_csv_file(ssp126, index_col="Year")
-    ssp245_data = read_csv_file(ssp245, index_col="Year")
-    ssp370_data = read_csv_file(ssp370, index_col="Year")
-    ssp585_data = read_csv_file(ssp585, index_col="Year")
-    hist_data = read_csv_file(hist, index_col="Year")
+    ssp119_data = read_csv_file(ssp119_file, index_col="Year")
+    ssp126_data = read_csv_file(ssp126_file, index_col="Year")
+    ssp245_data = read_csv_file(ssp245_file, index_col="Year")
+    ssp370_data = read_csv_file(ssp370_file, index_col="Year")
+    ssp585_data = read_csv_file(ssp585_file, index_col="Year")
+    hist_data = read_csv_file(hist_file, index_col="Year")
 
     warmlevel = param.Selector(
         default=1.5, objects=[1.5, 2, 3, 4], doc="Warming level in degrees Celcius."

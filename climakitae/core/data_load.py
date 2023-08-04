@@ -21,13 +21,13 @@ from climakitae.core.catalog_convert import (
     scenario_to_experiment_id,
 )
 from climakitae.util.unit_conversions import convert_units
-from climakitae.util.utils import _readable_bytes, get_closest_gridcell
+from climakitae.util.utils import readable_bytes, get_closest_gridcell
 from climakitae.tools.derive_variables import (
-    _compute_relative_humidity,
-    _compute_wind_mag,
-    _compute_wind_dir,
-    _compute_dewpointtemp,
-    _compute_specific_humidity,
+    compute_relative_humidity,
+    compute_wind_mag,
+    compute_wind_dir,
+    compute_dewpointtemp,
+    compute_specific_humidity,
 )
 from climakitae.indices.indices import fosberg_fire_index
 
@@ -53,14 +53,14 @@ def load(xr_da):
 
     # If it will cause the system to have less than 256MB after loading the data, do not allow the compute to proceed.
     if avail_mem - xr_data_nbytes < 268435456:
-        print("Available memory: {0}".format(_readable_bytes(avail_mem)))
-        print("Total memory of input data: {0}".format(_readable_bytes(xr_data_nbytes)))
+        print("Available memory: {0}".format(readable_bytes(avail_mem)))
+        print("Total memory of input data: {0}".format(readable_bytes(xr_data_nbytes)))
         raise MemoryError("Your input dataset is too large to read into memory!")
 
     else:
         print(
             "Processing data to read {0} of data into memory... ".format(
-                _readable_bytes(xr_data_nbytes)
+                readable_bytes(xr_data_nbytes)
             ),
             end="",
         )
@@ -221,7 +221,7 @@ def _override_area_selections(selections):
     return area_subset, cached_area
 
 
-def _area_subset_geometry(selections):
+def area_subset_geometry(selections):
     """Get geometry to perform area subsetting with.
 
     Args:
@@ -311,7 +311,7 @@ def _spatial_subset(dset, selections):
     Returns:
         xr.Dataset: subsetted area of dset
     """
-    ds_region = _area_subset_geometry(selections)
+    ds_region = area_subset_geometry(selections)
 
     if ds_region is not None:  # Perform subsetting
         if selections.downscaling_method == ["Dynamical"]:
@@ -975,7 +975,7 @@ def _get_wind_speed_derived(selections):
     # Load u10 data
     selections.variable_id = ["u10"]
     selections.units = (
-        "m s-1"  # Need to set units to required units for _compute_wind_mag
+        "m s-1"  # Need to set units to required units for compute_wind_mag
     )
     u10_da = _get_data_one_var(selections)
 
@@ -985,7 +985,7 @@ def _get_wind_speed_derived(selections):
     v10_da = _get_data_one_var(selections)
 
     # Derive the variable
-    da = _compute_wind_mag(u10=u10_da, v10=v10_da)  # m/s
+    da = compute_wind_mag(u10=u10_da, v10=v10_da)  # m/s
     return da
 
 
@@ -994,7 +994,7 @@ def _get_wind_dir_derived(selections):
     # Load u10 data
     selections.variable_id = ["u10"]
     selections.units = (
-        "m s-1"  # Need to set units to required units for _compute_wind_mag
+        "m s-1"  # Need to set units to required units for compute_wind_mag
     )
     u10_da = _get_data_one_var(selections)
 
@@ -1004,7 +1004,7 @@ def _get_wind_dir_derived(selections):
     v10_da = _get_data_one_var(selections)
 
     # Derive the variable
-    da = _compute_wind_dir(u10=u10_da, v10=v10_da)
+    da = compute_wind_dir(u10=u10_da, v10=v10_da)
     return da
 
 
@@ -1024,7 +1024,7 @@ def _get_monthly_daily_dewpoint(selections):
 
     # Derive dew point temperature
     # Returned in units of Kelvin
-    da = _compute_dewpointtemp(temperature=t2_da, rel_hum=rh_da)  # Kelvin  # [0-100]
+    da = compute_dewpointtemp(temperature=t2_da, rel_hum=rh_da)  # Kelvin  # [0-100]
     return da
 
 
@@ -1057,7 +1057,7 @@ def _get_hourly_dewpoint(selections):
 
     # Derive dew point temperature
     # Returned in units of Kelvin
-    da = _compute_dewpointtemp(temperature=t2_da, rel_hum=rh_da)  # Kelvin  # [0-100]
+    da = compute_dewpointtemp(temperature=t2_da, rel_hum=rh_da)  # Kelvin  # [0-100]
     return da
 
 
@@ -1080,7 +1080,7 @@ def _get_hourly_rh(selections):
 
     # Derive relative humidity
     # Returned in units of [0-100]
-    da = _compute_relative_humidity(
+    da = compute_relative_humidity(
         pressure=pressure_da,  # Pa
         temperature=t2_da,  # Kelvin
         mixing_ratio=q2_da,  # kg/kg
@@ -1109,7 +1109,7 @@ def _get_hourly_specific_humidity(selections):
 
     # Derive relative humidity
     # Returned in units of [0-100]
-    rh_da = _compute_relative_humidity(
+    rh_da = compute_relative_humidity(
         pressure=pressure_da,  # Pa
         temperature=t2_da,  # Kelvin
         mixing_ratio=q2_da,  # kg/kg
@@ -1117,13 +1117,13 @@ def _get_hourly_specific_humidity(selections):
 
     # Derive dew point temperature
     # Returned in units of Kelvin
-    dew_pnt_da = _compute_dewpointtemp(
+    dew_pnt_da = compute_dewpointtemp(
         temperature=t2_da, rel_hum=rh_da  # Kelvin  # [0-100]
     )
 
     # Derive specific humidity
     # Returned in units of g/kg
-    da = _compute_specific_humidity(
+    da = compute_specific_humidity(
         tdps=dew_pnt_da, pressure=pressure_da  # Kelvin  # Pa
     )
     return da
@@ -1154,7 +1154,7 @@ def _get_fosberg_fire_index(selections):
     # Load u10 data
     selections.variable_id = ["u10"]
     selections.units = (
-        "m s-1"  # Need to set units to required units for _compute_wind_mag
+        "m s-1"  # Need to set units to required units for compute_wind_mag
     )
     u10_da = _get_data_one_var(selections)
 
@@ -1165,7 +1165,7 @@ def _get_fosberg_fire_index(selections):
 
     # Derive relative humidity
     # Returned in units of [0-100]
-    rh_da = _compute_relative_humidity(
+    rh_da = compute_relative_humidity(
         pressure=pressure_da,  # Pa
         temperature=t2_da_K,  # Kelvin
         mixing_ratio=q2_da,  # kg/kg
@@ -1173,7 +1173,7 @@ def _get_fosberg_fire_index(selections):
 
     # Derive windspeed
     # Returned in units of m/s
-    windspeed_da_ms = _compute_wind_mag(u10=u10_da, v10=v10_da)  # m/s
+    windspeed_da_ms = compute_wind_mag(u10=u10_da, v10=v10_da)  # m/s
 
     # Convert units to proper units for fosberg index
     t2_da_F = convert_units(t2_da_K, "degF")

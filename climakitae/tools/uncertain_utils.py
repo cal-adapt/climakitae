@@ -9,7 +9,8 @@ from scipy import stats
 from climakitae.util.utils import read_csv_file
 from climakitae.core.paths import boundary_catalog_url
 from climakitae.core.boundaries import Boundaries
-from climakitae.core.data_load import _area_subset_geometry
+from climakitae.core.data_load import area_subset_geometry
+from climakitae.core.paths import gwl_1850_1900_file, gwl_1981_2010_file
 
 try:
     from xmip.preprocessing import rename_cmip6
@@ -501,7 +502,7 @@ def get_ensemble_data(variable, selections, cmip_names, warm_level=3.0):
     def _postprocess(ds, selections, variable):
         """Subset the dataset by an input location, convert variables, perform area averaging"""
         # Perform area subsetting
-        ds_region = _area_subset_geometry(selections)
+        ds_region = area_subset_geometry(selections)
         ds = ds.rio.write_crs(4326)
         ds = ds.rio.clip(geometries=ds_region, crs=4326, drop=True)
 
@@ -703,9 +704,9 @@ def get_warm_level(warm_level, ds, multi_ens=False, ipcc=True):
         )
 
     if ipcc:
-        gwl_file = "data/gwl_1850-1900ref.csv"
+        gwl_file = gwl_1850_1900_file
     else:
-        gwl_file = "data/gwl_1981-2010ref.csv"
+        gwl_file = gwl_1981_2010_file
     gwl_times = read_csv_file(gwl_file, index_col=[0, 1, 2])
 
     # grab the ensemble members specific to our needs here

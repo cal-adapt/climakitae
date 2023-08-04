@@ -23,12 +23,12 @@ from climakitae.core.paths import (
 
 def read_csv_file(rel_path, index_col=None):
     return pd.read_csv(
-        package_file_path(rel_path),
+        _package_file_path(rel_path),
         index_col=index_col,
     )
 
 
-def package_file_path(rel_path):
+def _package_file_path(rel_path):
     return os.path.normpath(os.path.join(os.path.dirname(__file__), "..", rel_path))
 
 
@@ -104,7 +104,7 @@ def julianDay_to_str_date(julday, leap_year=True, str_format="%b-%d"):
     return date
 
 
-def _readable_bytes(B):
+def readable_bytes(B):
     """
     Return the given bytes as a human friendly KB, MB, GB, or TB string.
     Code from stackoverflow: https://stackoverflow.com/questions/12523586/python-format-size-application-converting-b-to-kb-mb-gb-tb
@@ -163,7 +163,7 @@ def read_ae_colormap(cmap="ae_orange", cmap_hex=False):
     return cmap_data
 
 
-def _reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
+def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
     """Reproject xr.DataArray using rioxarray.
     Raises ValueError if input data does not have spatial coords x,y
     Raises ValueError if input data has more than 5 dimensions

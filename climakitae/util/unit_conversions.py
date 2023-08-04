@@ -4,7 +4,7 @@ used units, following NWS conversions for pressure and wind speed.
 """
 
 
-def _get_unit_conversion_options():
+def get_unit_conversion_options():
     """Get dictionary of unit conversion options offered for each unit"""
     options = {
         "K": ["K", "degC", "degF"],

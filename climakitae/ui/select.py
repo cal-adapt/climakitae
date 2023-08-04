@@ -5,10 +5,7 @@ import matplotlib.ticker as ticker
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 
-from climakitae.core.data_interface import (
-    _get_subarea,
-    DataParametersWithPanes,
-)
+from climakitae.core.data_interface import DataParametersWithPanes
 
 
 class Select:

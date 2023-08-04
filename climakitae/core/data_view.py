@@ -5,7 +5,7 @@ import numpy as np
 import hvplot.xarray
 import matplotlib.pyplot as plt
 import panel as pn
-from climakitae.util.utils import _reproject_data, read_ae_colormap
+from climakitae.util.utils import reproject_data, read_ae_colormap
 from climakitae.core.data_interface import DataInterface
 
 
@@ -129,7 +129,7 @@ def view(data, lat_lon=True, width=None, height=None, cmap=None):
             # Reproject data to lat/lon
             if lat_lon == True:
                 try:
-                    data = _reproject_data(
+                    data = reproject_data(
                         xr_da=data, proj="EPSG:4326", fill_value=np.nan
                     )
                 except:  # Reprojection can fail if the data doesn't have a crs element. If that happens, just carry on without projection (i.e. don't raise an error)

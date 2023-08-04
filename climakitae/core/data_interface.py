@@ -18,7 +18,7 @@ from climakitae.core.paths import (
 )
 from climakitae.util.utils import read_csv_file
 from climakitae.core.boundaries import Boundaries
-from climakitae.util.unit_conversions import _get_unit_conversion_options
+from climakitae.util.unit_conversions import get_unit_conversion_options
 from climakitae.core.catalog_convert import (
     downscaling_method_to_activity_id,
     resolution_to_gridlabel,
@@ -538,7 +538,7 @@ class DataParameters(param.Parameterized):
     """
 
     # Unit conversion options for each unit
-    unit_options_dict = _get_unit_conversion_options()
+    unit_options_dict = get_unit_conversion_options()
 
     # Location defaults
     area_subset = param.Selector(objects=dict())
