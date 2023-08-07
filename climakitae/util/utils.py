@@ -153,7 +153,7 @@ def read_ae_colormap(cmap="ae_orange", cmap_hex=False):
         cmap_data = categorical_cb
 
     # Load text file
-    cmap_np = np.loadtxt(package_file_path(cmap_data), dtype=float)
+    cmap_np = np.loadtxt(_package_file_path(cmap_data), dtype=float)
 
     # RBG to hex
     if cmap_hex:
