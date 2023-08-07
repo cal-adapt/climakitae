@@ -102,8 +102,13 @@ def noaa_heat_index(T, RH):
     HI = xr.where(((RH > 85) & (T < 87) & (T > 80)), HI_lowT_highRH, HI)
     HI = xr.where((HI < 80) & (HI > 40), low_HI, HI)
 
-    # Following NCAR documentation (see function references), for temperature values less that 40F, the HI is set to the ambient temperature.
+    # Following NCAR documentation (see function references), for temperature values less than 40F, the HI is set to the ambient temperature.
     HI = xr.where((T < 40), T, HI)
+
+    # Reassign coordinate attributes
+    # For some reason, these get improperly assigned in the xr.where step
+    for coord in list(HI.coords):
+        HI[coord].attrs = T[coord].attrs
 
     # Assign units attribute
     HI.attrs["units"] = "degF"
@@ -160,6 +165,11 @@ def fosberg_fire_index(t2_F, rh_percent, windspeed_mph):
 
     # If fosberg index is negative, set to 0
     FFWI = xr.where(FFWI > 0, FFWI, 0, keep_attrs=True)
+
+    # Reassign coordinate attributes
+    # For some reason, these get improperly assigned in the xr.where step
+    for coord in list(FFWI.coords):
+        FFWI[coord].attrs = t2_F[coord].attrs
 
     # Add descriptive attributes
     FFWI.name = "Fosberg Fire Weather Index"
