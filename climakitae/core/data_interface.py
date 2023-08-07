@@ -497,18 +497,42 @@ class DataInterface:
         return cls.instance
 
     def __init__(self):
-        self.variable_descriptions = read_csv_file(variable_descriptions_csv_path)
-        self.stations = read_csv_file(stations_csv_path)
-        self.stations_gdf = gpd.GeoDataFrame(
+        self._variable_descriptions = read_csv_file(variable_descriptions_csv_path)
+        self._stations = read_csv_file(stations_csv_path)
+        self._stations_gdf = gpd.GeoDataFrame(
             self.stations,
             crs="EPSG:4326",
             geometry=gpd.points_from_xy(self.stations.LON_X, self.stations.LAT_Y),
         )
-        self.data_catalog = intake.open_esm_datastore(data_catalog_url)
+        self._data_catalog = intake.open_esm_datastore(data_catalog_url)
 
         # Get geography boundaries
-        self.boundary_catalog = intake.open_catalog(boundary_catalog_url)
-        self.geographies = Boundaries(self.boundary_catalog)
+        self._boundary_catalog = intake.open_catalog(boundary_catalog_url)
+        self._geographies = Boundaries(self.boundary_catalog)
+
+    @property
+    def variable_descriptions(self):
+        return self._variable_descriptions
+
+    @property
+    def stations(self):
+        return self._stations
+
+    @property
+    def stations_gdf(self):
+        return self._stations_gdf
+
+    @property
+    def data_catalog(self):
+        return self._data_catalog
+
+    @property
+    def boundary_catalog(self):
+        return self._boundary_catalog
+
+    @property
+    def geographies(self):
+        return self._geographies
 
 
 class ExportParameters(param.Parameterized):
