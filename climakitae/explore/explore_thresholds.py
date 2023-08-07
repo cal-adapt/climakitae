@@ -250,7 +250,7 @@ def _exceedance_visualize(choices, option=1):
     return exceedance_count_panel
 
 
-def thresholds_visualize(thresh_parameters, option=1):
+def thresholds_visualize(self, option=1):
     """
     Function for constructing and displaying the explore.thresholds() panel.
     """
@@ -260,14 +260,14 @@ def thresholds_visualize(thresh_parameters, option=1):
         pn.Row(
             pn.Column(
                 pn.widgets.Select.from_param(
-                    thresh_parameters.param.variable, name="Data variable"
+                    self.param.variable, name="Data variable"
                 ),
-                pn.widgets.RadioButtonGroup.from_param(thresh_parameters.param.units),
+                pn.widgets.RadioButtonGroup.from_param(self.param.units),
                 pn.widgets.StaticText.from_param(
-                    thresh_parameters.param.extended_description, name=""
+                    self.param.extended_description, name=""
                 ),
                 pn.widgets.Button.from_param(
-                    thresh_parameters.param.reload_data,
+                    self.param.reload_data,
                     button_type="primary",
                     width=150,
                     height=30,
@@ -275,13 +275,13 @@ def thresholds_visualize(thresh_parameters, option=1):
                 width=230,
             ),
             pn.Column(
-                thresh_parameters.param.area_subset,
-                thresh_parameters.param.latitude,
-                thresh_parameters.param.longitude,
-                thresh_parameters.param.cached_area,
+                self.param.area_subset,
+                self.param.latitude,
+                self.param.longitude,
+                self.param.cached_area,
                 width=230,
             ),
-            pn.Column(thresh_parameters.map_view, width=180),
+            pn.Column(self.map_view, width=180),
         ),
         title="Data Options",
         collapsible=False,
@@ -309,6 +309,6 @@ def thresholds_visualize(thresh_parameters, option=1):
     )
 
     plot_panel = _exceedance_visualize(
-        thresh_parameters, option
+        self, option
     )  # display the holoviz panel
     return pn.Column(pn.Row(data_options_card, description_box), plot_panel)

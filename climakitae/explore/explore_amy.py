@@ -754,7 +754,7 @@ class AverageMetYearParameters(DataParametersWithPanes):
 # =========================== OBJECT VISUALIZATION USING PARAM ==============================
 
 
-def amy_visualize(amy_parameters):
+def amy_visualize(self):
     """
     Creates a new AMY focus panel object to display user selections
     """
@@ -764,35 +764,35 @@ def amy_visualize(amy_parameters):
                 pn.widgets.StaticText(
                     name="", value="Average Meteorological Year Type"
                 ),
-                pn.widgets.RadioButtonGroup.from_param(amy_parameters.param.data_type),
+                pn.widgets.RadioButtonGroup.from_param(self.param.data_type),
                 pn.widgets.Select.from_param(
-                    amy_parameters.param.computation_method, name="Computation Options"
+                    self.param.computation_method, name="Computation Options"
                 ),
                 pn.widgets.StaticText.from_param(
-                    amy_parameters.param.tmy_computation_description, name=""
+                    self.param.tmy_computation_description, name=""
                 ),
                 pn.widgets.StaticText(name="", value="Warming level (°C)"),
-                pn.widgets.RadioButtonGroup.from_param(amy_parameters.param.warmlevel),
+                pn.widgets.RadioButtonGroup.from_param(self.param.warmlevel),
                 pn.widgets.Select.from_param(
-                    amy_parameters.param.variable, name="Data variable"
+                    self.param.variable, name="Data variable"
                 ),
                 pn.widgets.StaticText.from_param(
-                    amy_parameters.param.extended_description, name=""
+                    self.param.extended_description, name=""
                 ),
                 pn.widgets.StaticText(name="", value="Variable Units"),
-                pn.widgets.RadioButtonGroup.from_param(amy_parameters.param.units),
+                pn.widgets.RadioButtonGroup.from_param(self.param.units),
                 pn.widgets.StaticText(name="", value="Model Resolution"),
-                pn.widgets.RadioButtonGroup.from_param(amy_parameters.param.resolution),
+                pn.widgets.RadioButtonGroup.from_param(self.param.resolution),
                 width=280,
             ),
             pn.Column(
-                amy_parameters.param.area_subset,
-                amy_parameters.param.latitude,
-                amy_parameters.param.longitude,
-                amy_parameters.param.cached_area,
-                amy_parameters.map_view,
+                self.param.area_subset,
+                self.param.latitude,
+                self.param.longitude,
+                self.param.cached_area,
+                self.map_view,
                 pn.widgets.Button.from_param(
-                    amy_parameters.param.reload_data,
+                    self.param.reload_data,
                     button_type="primary",
                     width=150,
                     height=30,
@@ -824,12 +824,12 @@ def amy_visualize(amy_parameters):
 
     TMY = pn.Card(
         pn.widgets.StaticText(value="Absolute AMY", width=600, height=500),
-        amy_parameters._tmy_hourly_heatmap,
+        self._tmy_hourly_heatmap,
     )
 
     tmy_tabs = pn.Card(
         pn.Tabs(
-            ("AMY Heatmap", amy_parameters._tmy_hourly_heatmap),
+            ("AMY Heatmap", self._tmy_hourly_heatmap),
             ("Methodology", mthd_bx),
         ),
         title=" Average Meteorological Year",

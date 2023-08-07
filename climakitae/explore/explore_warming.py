@@ -609,26 +609,26 @@ class WarmingLevelParameters(DataParametersWithPanes):
         return to_plot
 
 
-def display_warming_levels(warming_data):
+def warming_levels_visualize(self):
     # Create panel doodad!
     data_options = pn.Card(
         pn.Row(
             pn.Column(
                 pn.widgets.StaticText(name="", value="Warming level (°C)"),
                 pn.widgets.RadioButtonGroup.from_param(
-                    warming_data.param.warmlevel, name=""
+                    self.param.warmlevel, name=""
                 ),
-                warming_data.param.variable,
+                self.param.variable,
                 pn.widgets.StaticText.from_param(
-                    warming_data.param.extended_description, name=""
+                    self.param.extended_description, name=""
                 ),
                 pn.widgets.StaticText(name="", value="Variable Units"),
-                pn.widgets.RadioButtonGroup.from_param(warming_data.param.units),
+                pn.widgets.RadioButtonGroup.from_param(self.param.units),
                 pn.widgets.StaticText(name="", value="Model Resolution"),
-                pn.widgets.RadioButtonGroup.from_param(warming_data.param.resolution),
+                pn.widgets.RadioButtonGroup.from_param(self.param.resolution),
                 pn.widgets.StaticText(name="", value=""),
                 pn.widgets.Button.from_param(
-                    warming_data.param.reload_data,
+                    self.param.reload_data,
                     button_type="primary",
                     width=150,
                     height=30,
@@ -636,11 +636,11 @@ def display_warming_levels(warming_data):
                 width=230,
             ),
             pn.Column(
-                warming_data.param.latitude,
-                warming_data.param.longitude,
-                warming_data.param.area_subset,
-                warming_data.param.cached_area,
-                warming_data.map_view,
+                self.param.latitude,
+                self.param.longitude,
+                self.param.area_subset,
+                self.param.cached_area,
+                self.map_view,
                 width=230,
             ),
         ),
@@ -662,9 +662,9 @@ def display_warming_levels(warming_data):
                 "(https://www.ipcc.ch/report/ar6/wg1/figures/summary-for-policymakers/figure-spm-8/)."
             ),
             pn.widgets.Select.from_param(
-                warming_data.param.ssp, name="Scenario", width=250
+                self.param.ssp, name="Scenario", width=250
             ),
-            warming_data._GMT_context_plot,
+            self._GMT_context_plot,
         ),
         title="When do different scenarios reach the warming level?",
         collapsible=False,
@@ -682,7 +682,7 @@ def display_warming_levels(warming_data):
             width=800,
         ),
         pn.Row(
-            warming_data._GCM_PostageStamps_MAIN,
+            self._GCM_PostageStamps_MAIN,
             pn.Column(
                 pn.widgets.StaticText(value="<br><br><br>", width=150),
                 pn.widgets.StaticText(
@@ -718,7 +718,7 @@ def display_warming_levels(warming_data):
             ),
             width=800,
         ),
-        warming_data._GCM_PostageStamps_STATS,
+        self._GCM_PostageStamps_STATS,
     )
 
     window_df = pn.Column(
@@ -733,7 +733,7 @@ def display_warming_levels(warming_data):
             ),
             width=800,
         ),
-        warming_data._30_yr_window,
+        self._30_yr_window,
     )
 
     map_tabs = pn.Card(

@@ -12,7 +12,7 @@ from climakitae.explore.explore_thresholds import (
 )
 from climakitae.explore.explore_warming import (
     WarmingLevelParameters,
-    display_warming_levels,
+    warming_levels_visualize,
 )
 from climakitae.explore.explore_amy import (
     AverageMetYearParameters,
@@ -34,33 +34,26 @@ class Explore:
             "ck.explore.AMY(): Produce an hourly time series for one year capturing mean climate conditions."
         )
 
-    class AMY:
-        def __init__(self):
-            self.data_parameters = AverageMetYearParameters()
-
+    class AMY(AverageMetYearParameters):
         """Display AMY panel."""
 
         def show(self):
-            return amy_visualize(self.data_parameters)
+            return amy_visualize(self)
 
-    class Thresholds:
+    class Thresholds(ThresholdParameters):
         def __init__(self, option=1):
-            self.data_parameters = ThresholdParameters()
             self.option = option
 
         """Display Thresholds panel."""
 
         def show(self):
             return thresholds_visualize(
-                self.data_parameters,
+                self,
                 option=self.option,
             )
 
-    class WarmingLevels:
-        def __init__(self):
-            self.data_parameters = WarmingLevelParameters()
-
+    class WarmingLevels(WarmingLevelParameters):
         """Display Warming Levels panel."""
 
         def show(self):
-            return display_warming_levels(self.data_parameters)
+            return warming_levels_visualize(self)
