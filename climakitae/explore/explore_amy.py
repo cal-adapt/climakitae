@@ -773,9 +773,7 @@ def amy_visualize(self):
                 ),
                 pn.widgets.StaticText(name="", value="Warming level (°C)"),
                 pn.widgets.RadioButtonGroup.from_param(self.param.warmlevel),
-                pn.widgets.Select.from_param(
-                    self.param.variable, name="Data variable"
-                ),
+                pn.widgets.Select.from_param(self.param.variable, name="Data variable"),
                 pn.widgets.StaticText.from_param(
                     self.param.extended_description, name=""
                 ),

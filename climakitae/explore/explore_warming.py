@@ -615,9 +615,7 @@ def warming_levels_visualize(self):
         pn.Row(
             pn.Column(
                 pn.widgets.StaticText(name="", value="Warming level (°C)"),
-                pn.widgets.RadioButtonGroup.from_param(
-                    self.param.warmlevel, name=""
-                ),
+                pn.widgets.RadioButtonGroup.from_param(self.param.warmlevel, name=""),
                 self.param.variable,
                 pn.widgets.StaticText.from_param(
                     self.param.extended_description, name=""
@@ -661,9 +659,7 @@ def warming_levels_visualize(self):
                 " [IPCC AR6 Summary for Policymakers Fig 8]"
                 "(https://www.ipcc.ch/report/ar6/wg1/figures/summary-for-policymakers/figure-spm-8/)."
             ),
-            pn.widgets.Select.from_param(
-                self.param.ssp, name="Scenario", width=250
-            ),
+            pn.widgets.Select.from_param(self.param.ssp, name="Scenario", width=250),
             self._GMT_context_plot,
         ),
         title="When do different scenarios reach the warming level?",

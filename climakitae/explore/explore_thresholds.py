@@ -259,9 +259,7 @@ def thresholds_visualize(self, option=1):
     data_options_card = pn.Card(
         pn.Row(
             pn.Column(
-                pn.widgets.Select.from_param(
-                    self.param.variable, name="Data variable"
-                ),
+                pn.widgets.Select.from_param(self.param.variable, name="Data variable"),
                 pn.widgets.RadioButtonGroup.from_param(self.param.units),
                 pn.widgets.StaticText.from_param(
                     self.param.extended_description, name=""
@@ -308,7 +306,5 @@ def thresholds_visualize(self, option=1):
         height=_first_row_height,
     )
 
-    plot_panel = _exceedance_visualize(
-        self, option
-    )  # display the holoviz panel
+    plot_panel = _exceedance_visualize(self, option)  # display the holoviz panel
     return pn.Column(pn.Row(data_options_card, description_box), plot_panel)
