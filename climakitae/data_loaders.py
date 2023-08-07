@@ -31,7 +31,7 @@ from .derive_variables import (
     _compute_dewpointtemp,
     _compute_specific_humidity,
 )
-from .indices import fosberg_fire_index, noaa_heat_index
+from .indices import fosberg_fire_index, noaa_heat_index, effective_temp
 
 # Set options
 xr.set_options(keep_attrs=True)
@@ -697,6 +697,8 @@ def _read_catalog_from_select(selections, cat):
             da = _get_fosberg_fire_index(selections, cat)
         elif orig_var_id_selection == "noaa_heat_index_derived":  # Hourly
             da = _get_noaa_heat_index(selections, cat)
+        elif orig_var_id_selection == "effective_temp_index_derived":
+            da = _get_eff_temp(selections, cat)
         else:
             raise ValueError(
                 "You've encountered a bug. No data available for selected derived variable."
@@ -1169,12 +1171,24 @@ def _get_noaa_heat_index(selections, cat):
         mixing_ratio=q2_da,  # kg/kg
     )
 
-    # Convert temperature to proper units for fosberg index
+    # Convert temperature to proper units for noaa heat index
     t2_da_F = _convert_units(t2_da_K, "degF")
 
     # Derive index
     # Returned in units of F
     da = noaa_heat_index(T=t2_da_F, RH=rh_da)
+    return da
+
+
+def _get_eff_temp(selections, cat):
+    """Derive the effective temperature"""
+
+    # Load temperature data
+    selections.variable_id = ["t2"]
+    t2_da = _get_data_one_var(selections, cat)
+
+    # Derive effective temp
+    da = effective_temp(T=t2_da)
     return da
 
 

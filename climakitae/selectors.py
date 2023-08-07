@@ -782,7 +782,7 @@ class _DataSelector(param.Parameterized):
             indices = False
         if self.downscaling_method != ["Dynamical"]:
             indices = False
-        if self.timescale != "hourly":
+        if self.timescale == "monthly":
             indices = False
         if indices == False:
             self.param["variable_type"].objects = ["Variable"]
@@ -907,7 +907,7 @@ class _DataSelector(param.Parameterized):
         if self.downscaling_method != ["Dynamical"]:
             # Currently we only have indices for WRF data
             indices = False
-        if self.timescale != "hourly":
+        if self.timescale == "monthly":
             indices = False
         if indices == False:
             # Remove derived index as an option
