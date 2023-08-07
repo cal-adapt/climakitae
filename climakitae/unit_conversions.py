@@ -8,6 +8,8 @@ def _get_unit_conversion_options():
     """Get dictionary of unit conversion options offered for each unit"""
     options = {
         "K": ["K", "degC", "degF"],
+        "degF": ["K", "degC", "degF"],
+        "degC": ["K", "degC", "degF"],
         "hPa": ["Pa", "hPa", "mb", "inHg"],
         "Pa": ["Pa", "hPa", "mb", "inHg"],
         "m/s": ["m/s", "mph", "knots"],
@@ -111,6 +113,18 @@ def _convert_units(da, selected_units):
             da = da - 273.15
         elif selected_units == "degF":
             da = (1.8 * (da - 273.15)) + 32
+    elif native_units == "degC":
+        if selected_units == "K":
+            da = da + 273.15
+        elif selected_units == "degF":
+            da = (1.8 * da) + 32
+    elif native_units == "degF":
+        # Convert to C
+        if selected_units in ["degC", "K"]:
+            da = (da - 32) / 1.8
+        # Then, if K is selected, convert to K
+        if selected_units == "K":
+            da = da + 273.15
 
     # Fraction/percentage units (relative humidity)
     elif native_units == "[0 to 100]":
