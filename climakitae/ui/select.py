@@ -8,80 +8,77 @@ import cartopy.feature as cfeature
 from climakitae.core.data_interface import DataParametersWithPanes
 
 
-class Select:
-    def __init__(self):
-        self.data_parameters = DataParametersWithPanes()
-
+class Select(DataParametersWithPanes):
     def show(self):
         # Show panel visualually
-        select_panel = _display_select(self.data_parameters)
+        select_panel = _display_select(self)
         return select_panel
 
 
-def _selections_param_to_panel(selections):
+def _selections_param_to_panel(self):
     """For the _DataSelector object, get parameters and parameter
     descriptions formatted as panel widgets
     """
     area_subset = pn.widgets.Select.from_param(
-        selections.param.area_subset, name="Subset the data by..."
+        self.param.area_subset, name="Subset the data by..."
     )
     area_average_text = pn.widgets.StaticText(
         value="Compute an area average across grid cells within your selected region?",
         name="",
     )
     area_average = pn.widgets.RadioBoxGroup.from_param(
-        selections.param.area_average, inline=True
+        self.param.area_average, inline=True
     )
     cached_area = pn.widgets.Select.from_param(
-        selections.param.cached_area, name="Location selection"
+        self.param.cached_area, name="Location selection"
     )
     data_type_text = pn.widgets.StaticText(
         value="",
         name="Data type",
     )
     data_type = pn.widgets.RadioBoxGroup.from_param(
-        selections.param.data_type, inline=True, name=""
+        self.param.data_type, inline=True, name=""
     )
     data_warning = pn.widgets.StaticText.from_param(
-        selections.param._data_warning, name="", style={"color": "red"}
+        self.param._data_warning, name="", style={"color": "red"}
     )
     downscaling_method_text = pn.widgets.StaticText(value="", name="Downscaling method")
     downscaling_method = pn.widgets.CheckBoxGroup.from_param(
-        selections.param.downscaling_method, inline=True
+        self.param.downscaling_method, inline=True
     )
     historical_selection_text = pn.widgets.StaticText(
         value="<br>Estimates of recent historical climatic conditions",
         name="Historical Data",
     )
     historical_selection = pn.widgets.CheckBoxGroup.from_param(
-        selections.param.scenario_historical
+        self.param.scenario_historical
     )
     station_data_info = pn.widgets.StaticText.from_param(
-        selections.param._station_data_info, name="", style={"color": "red"}
+        self.param._station_data_info, name="", style={"color": "red"}
     )
     ssp_selection_text = pn.widgets.StaticText(
         value="<br> Shared Socioeconomic Pathways (SSPs) represent different global emissions scenarios",
         name="Future Model Data",
     )
-    ssp_selection = pn.widgets.CheckBoxGroup.from_param(selections.param.scenario_ssp)
+    ssp_selection = pn.widgets.CheckBoxGroup.from_param(self.param.scenario_ssp)
     resolution_text = pn.widgets.StaticText(
         value="",
         name="Model Grid-Spacing",
     )
     resolution = pn.widgets.RadioBoxGroup.from_param(
-        selections.param.resolution, inline=False
+        self.param.resolution, inline=False
     )
     timescale_text = pn.widgets.StaticText(value="", name="Timescale")
     timescale = pn.widgets.RadioBoxGroup.from_param(
-        selections.param.timescale, name="", inline=False
+        self.param.timescale, name="", inline=False
     )
-    time_slice = pn.widgets.RangeSlider.from_param(selections.param.time_slice, name="")
+    time_slice = pn.widgets.RangeSlider.from_param(self.param.time_slice, name="")
     units_text = pn.widgets.StaticText(name="Variable Units", value="")
-    units = pn.widgets.RadioBoxGroup.from_param(selections.param.units, inline=False)
-    variable = pn.widgets.Select.from_param(selections.param.variable, name="")
+    units = pn.widgets.RadioBoxGroup.from_param(self.param.units, inline=False)
+    variable = pn.widgets.Select.from_param(self.param.variable, name="")
     variable_text = pn.widgets.StaticText(name="Variable", value="")
     variable_description = pn.widgets.StaticText.from_param(
-        selections.param.extended_description, name=""
+        self.param.extended_description, name=""
     )
 
     widgets_dict = {
@@ -93,8 +90,8 @@ def _selections_param_to_panel(selections):
         "data_warning": data_warning,
         "downscaling_method": downscaling_method,
         "historical_selection": historical_selection,
-        "latitude": selections.param.latitude,
-        "longitude": selections.param.longitude,
+        "latitude": self.param.latitude,
+        "longitude": self.param.longitude,
         "resolution": resolution,
         "station_data_info": station_data_info,
         "ssp_selection": ssp_selection,
@@ -119,7 +116,7 @@ def _selections_param_to_panel(selections):
     return widgets_dict | text_dict
 
 
-def _display_select(selections):
+def _display_select(self):
     """
     Called by 'select' at the beginning of the workflow, to capture user
     selections. Displays panel of widgets from which to make selections.
@@ -127,7 +124,7 @@ def _display_select(selections):
     appropriate xarray Dataset.
     """
     # Get formatted panel widgets for each parameter
-    widgets = _selections_param_to_panel(selections)
+    widgets = _selections_param_to_panel(self)
 
     data_choices = pn.Column(
         widgets["variable_text"],
@@ -140,7 +137,7 @@ def _display_select(selections):
                 widgets["ssp_selection_text"],
                 widgets["ssp_selection"],
                 pn.Column(
-                    selections.scenario_view,
+                    self.scenario_view,
                     widgets["time_slice"],
                     width=220,
                 ),
@@ -161,7 +158,7 @@ def _display_select(selections):
     )
 
     col_1_location = pn.Column(
-        selections.map_view,
+        self.map_view,
         widgets["area_subset"],
         widgets["cached_area"],
         widgets["latitude"],
@@ -176,7 +173,7 @@ def _display_select(selections):
             value="",
             name="Weather station",
         ),
-        pn.widgets.CheckBoxGroup.from_param(selections.param.station, name=""),
+        pn.widgets.CheckBoxGroup.from_param(self.param.station, name=""),
         width=270,
     )
     loc_choices = pn.Row(col_1_location, col_2_location)
