@@ -47,13 +47,16 @@ def _get_postage_data(selections, cat):
     return data
 
 
-def get_anomaly_data(data, warmlevel=3.0, scenario="ssp370"):
+def get_anomaly_data(data, window=15, warmlevel=3.0, scenario="ssp370"):
     """Calculating warming level anomalies.
 
     Parameters
     ----------
     data: xr.DataArray
         Data to compute warming level anomolies
+    window: int, optional
+        Number of years to generate time window for. Default to 15 years.
+        For example, a 15 year window would generate a window of 15 years in the past from the central warming level date, and 15 years into the future. I.e. if a warming level is reached in 2030, the window would be (2015,2045).
     warmlevel: float, optional
         Warming level (in deg C) to use. Default to 3 degC
     scenario: str, one of "ssp370", "ssp585", "ssp245"
@@ -64,6 +67,10 @@ def get_anomaly_data(data, warmlevel=3.0, scenario="ssp370"):
     xr.DataArray
         Warming level anomalies at the input warming level and scenario
     """
+    # Check window
+    if (type(window) != int) or (window < 1):
+        raise ValueError("The argument 'window' requires an integer value > 1 year")
+
     # Global warming levels file (years when warming level is reached)
     gwl_file = pkg_resources.resource_filename(
         "climakitae", "data/gwl_1981-2010ref.csv"
@@ -88,8 +95,8 @@ def get_anomaly_data(data, warmlevel=3.0, scenario="ssp370"):
         centered_time_pd = gwl_times_subset[str(float(warmlevel))]
         centered_time = pd.to_datetime(centered_time_pd.item()).year
         if not np.isnan(centered_time):
-            start_year = centered_time - 15
-            end_year = centered_time + 14
+            start_year = centered_time - window
+            end_year = centered_time + (window - 1)
             anom = one_ts.sel(time=slice(str(start_year), str(end_year))).mean(
                 "time"
             ) - one_ts.sel(time=slice("1981", "2010")).mean("time")
