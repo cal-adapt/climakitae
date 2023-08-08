@@ -1,4 +1,4 @@
-# For developers: how to build and develop the docs
+# For developers: how to build the docs
 
 You'll only need to do steps 1 and 3 **once** to build the environment. Then, just activate the environment (step 2) and run steps 4-5 to build the docs locally. 
 
