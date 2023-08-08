@@ -54,11 +54,7 @@ def _get_postage_data(self):
     return data
 
 
-<<<<<<< HEAD:climakitae/explore/explore_warming.py
-def _get_anomaly_data(data, warmlevel=3.0, scenario="ssp370"):
-=======
 def get_anomaly_data(data, window=15, warmlevel=3.0, scenario="ssp370"):
->>>>>>> main:climakitae/warming_levels.py
     """Calculating warming level anomalies.
 
     Parameters
@@ -250,7 +246,7 @@ class WarmingLevelParameters(DataParametersWithPanes):
 
         # Postage data and anomalies defaults
         self.postage_data = _get_postage_data(self)
-        self.warm_all_anoms = _get_anomaly_data(data=self.postage_data, warmlevel=1.5)
+        self.warm_all_anoms = get_anomaly_data(data=self.postage_data, warmlevel=1.5)
 
         self.cmap = read_ae_colormap(cmap="ae_orange", cmap_hex=True)
 
@@ -296,7 +292,7 @@ class WarmingLevelParameters(DataParametersWithPanes):
         if self.changed_loc_and_var == True:
             self.postage_data = _get_postage_data(self)
             self.changed_loc_and_var = False
-        self.warm_all_anoms = _get_anomaly_data(
+        self.warm_all_anoms = get_anomaly_data(
             data=self.postage_data, warmlevel=self.warmlevel
         )
 
