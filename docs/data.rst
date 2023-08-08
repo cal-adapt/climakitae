@@ -12,62 +12,61 @@ Retrieve and subset the data
 #############################
 In this section we will detail the various methods to retrieve and subset the catalog data. 
 
-Use the app.select() panel GUI 
+Use the ck.Select() panel GUI 
 *********************************
 If you are working in a Jupyter notebook environment, you can view and set your data and location 
-options in the :py:func:`climakitae.Application.select()` GUI (graphical user interface). This GUI also provides a visual overview of the various 
+options in the :py:func:`climakitae.Select()` GUI (graphical user interface). This GUI also provides a visual overview of the various 
 datasets available in the AE data catalog. Using this GUI, you can chose what dataset you'd like to 
 retrieve-- choosing a variable, timeslice, resolution, etc.-- and the location for which you'd like to 
 retrieve the data.::
    
-   import climakitae as ck  # Import the package
-   app = ck.Application()    # Initialize an Application object 
-   app.select()             # Display the GUI in the notebook. 
+   import climakitae as ck     # Import the package
+   selections = ck.Select()    # Initialize an Select object 
+   selections.show()           # Display the GUI in the notebook. 
 
-After using the widgets (buttons, sliders, etc) in the GUI, you can retrieve the data with :py:func:`climakitae.Application.retrieve`: ::
+After using the widgets (buttons, sliders, etc) in the GUI, you can retrieve the data with :py:func:`climakitae.Select.retrieve`: ::
 
-   data = app.retrieve()
+   data = selections.retrieve()
 
 
 Directly modifying the location and selections attributes 
 *********************************************************
-The :py:class:`climakitae.Application()` object has two attributes-- selections and location-- that contain 
-information about the user's selections. These attributes can be easily modified in the 
-:py:func:`climakitae.Application.select()` GUI (see above), but can also be directly modified in code. This 
-is trickier than simply using the GUI, but can allow for better reproducability of notebooks. 
+The :py:class:`climakitae.Select()` object stores the data selections information used to retrieve data. These attributes
+can be easily modified in the :py:func:`climakitae.Select()` GUI (see above), but can also be directly
+modified in code. This is trickier than simply using the GUI, but can allow for better reproducability of notebooks. 
 
 For example, if you want to set the location to the LA Metro demand forecast zone, you would use the 
 following code: :: 
 
-   app.location.area_subset = "CA Electricity Demand Forecast Zones"
-   app.location.cached_area = "LA Metro" 
+   selections.area_subset = "CA Electricity Demand Forecast Zones"
+   selections.cached_area = "LA Metro" 
 
 To compute an area average over that entire region, you can modify the ``area_average`` attribute 
 of the  ``selectors`` object: :: 
 
-   app.selections.area_average = "Yes"
+   selections.area_average = "Yes"
 
 To set the the variable to Air Temperature at 2m and retrive the data in units of degrees Fahrenheit : :: 
 
-   app.selections.variable = "Air Temperature at 2m" 
-   app.selections.units = "degF"
+   selections.variable = "Air Temperature at 2m" 
+   selections.units = "degF"
 
 Similarly, to set the model resolution, timescale, time slice, and scenario: :: 
 
-   app.selections.scenario_ssp = "SSP 3-7.0 -- Business as Usual"
-   app.selections.scenario_historical = "Historical Climate"
-   app.selections.resoltion = "9 km"
-   app.selections.time_slice = (2005, 2025)
-   app.selections.timescale = "hourly"
+   selections.scenario_ssp = "SSP 3-7.0 -- Business as Usual"
+   selections.scenario_historical = "Historical Climate"
+   selections.resoltion = "9 km"
+   selections.time_slice = (2005, 2025)
+   selections.timescale = "hourly"
 
 
 You must set these attributes using the formatting and naming conventions 
-exactly as they appear in the :py:func:`climakitae.Application.select()` GUI.  
+exactly as they appear in the :py:func:`climakitae.Select()` GUI.  
 For example, you must set ``timescale`` to ``hourly``, not ``Hourly``.
 
 Lastly, you'll need to retrive the data: :: 
 
-   data = app.retrieve()
+   data = selections.retrieve()
 
 
 Use a csv config file
