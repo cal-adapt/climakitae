@@ -894,7 +894,7 @@ def _preprocess_hadisd(ds, stations_gdf):
 def read_catalog_from_csv(selections, csv, merge=True):
     """Retrieve user data selections from csv input.
 
-    Allows user to bypass app.select GUI and allows developers to
+    Allows user to bypass ck.Select() GUI and allows developers to
     pre-set inputs in a csv file for ease of use in a notebook.
     selections: DataSelector
         Data settings (variable, unit, timescale, etc)

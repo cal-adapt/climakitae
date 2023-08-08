@@ -23,7 +23,7 @@ Basic Usage
 ```
 import climakitae as ck                  # Import the package 
 sel = ck.Select().show()                 # Pull up selections GUI to make data settings
-data = sel.data_parameters.retrieve()    # Retrieve the data from the AWS catalog 
+data = sel.retrieve()                    # Retrieve the data from the AWS catalog 
 data = ck.load(data)                     # Read the data into memory 
 ck.view(data)                            # Generate a basic visualization of the data
 wl = ck.explore.WarmingLevels().show()   # Explore Warming Levels GUI              

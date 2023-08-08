@@ -1132,11 +1132,11 @@ class DataParameters(param.Parameterized):
     def retrieve(self, config=None, merge=True):
         """Retrieve data from catalog
 
-        By default, Application.selections determines the data retrieved.
+        By default, DataParameters determines the data retrieved.
         To retrieve data using the settings in a configuration csv file, set config to the local
         filepath of the csv.
         Grabs the data from the AWS S3 bucket, returns lazily loaded dask array.
-        User-facing function that provides a wrapper for _read_catalog_from_csv and read_catalog_from_select.
+        User-facing function that provides a wrapper for read_catalog_from_csv and read_catalog_from_select.
 
         Parameters
         ----------
