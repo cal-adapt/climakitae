@@ -4,7 +4,11 @@ import xarray as xr
 import numpy as np
 import pytest
 import os
-from climakitae.indices.indices import effective_temp, noaa_heat_index, fosberg_fire_index
+from climakitae.indices.indices import (
+    effective_temp,
+    noaa_heat_index,
+    fosberg_fire_index,
+)
 from climakitae.tools.derive_variables import (
     compute_relative_humidity,
     compute_wind_mag,
