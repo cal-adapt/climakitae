@@ -1,5 +1,3 @@
-import abc
-
 """
 Contains source code for the Explore object, used to access panel GUIs for exploring several climatological topics of interest: 
 1. Average meteorological year
@@ -8,27 +6,21 @@ Contains source code for the Explore object, used to access panel GUIs for explo
 See the Explore object documentation for more information. 
 """
 
-from climakitae.explore.explore_thresholds import (
+from climakitae.explore.thresholds import (
     ThresholdParameters,
     thresholds_visualize,
 )
-from climakitae.explore.explore_warming import (
+from climakitae.explore.warming import (
     WarmingLevelParameters,
     warming_levels_visualize,
 )
-from climakitae.explore.explore_amy import (
+from climakitae.explore.amy import (
     AverageMetYearParameters,
     amy_visualize,
 )
 
 
-class AbstractExplore(metaclass=abc.ABCMeta):
-    @abc.abstractmethod
-    def show(self):
-        pass
-
-
-class AverageMetYear(AbstractExplore):
+class AverageMetYear:
     def __init__(self):
         self.selections = AverageMetYearParameters()
 
@@ -38,7 +30,7 @@ class AverageMetYear(AbstractExplore):
         return amy_visualize(self.selections)
 
 
-class Thresholds(AbstractExplore):
+class Thresholds:
     def __init__(self, option=1):
         self.selections = ThresholdParameters()
         self.option = option
@@ -52,7 +44,7 @@ class Thresholds(AbstractExplore):
         )
 
 
-class WarmingLevels(AbstractExplore):
+class WarmingLevels:
     def __init__(self):
         self.selections = WarmingLevelParameters()
 

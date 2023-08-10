@@ -4,6 +4,7 @@ from climakitae.core.data_load import load
 from climakitae.core.data_view import view
 from climakitae.ui.export import Export
 from climakitae.tools.timeseriestools import TimeSeries
+from climakitae.explore import Explore
 
 try:
     from importlib.metadata import version as _version
@@ -24,6 +25,7 @@ __all__ = (
     "Select",
     "Export",
     "TimeSeries",
+    "Explore",
     # Methods
     "load",
     "view",
