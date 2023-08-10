@@ -475,29 +475,42 @@ def _metadata_to_file(ds, output_name):
         f.write("\n")
         f.write("\n")
         f.write("===== Global file attributes =====")
+        if type(ds) == xr.core.dataarray.DataArray:
+            f.write("\n")
+            f.write("Name: " + ds.name)
         f.write("\n")
-        f.write("Name: " + ds.name)
-        f.write("\n")
-        for att_keys, att_values in list(zip(ds.attrs.keys(), ds.attrs.values())):
+        for att_keys, att_values in ds.attrs.items():
             f.write(str(att_keys) + " : " + str(att_values))
             f.write("\n")
-
+    
         f.write("\n")
         f.write("\n")
         f.write("===== Coordinate descriptions =====")
         f.write("\n")
         f.write("Note: coordinate values are in the CSV")
         f.write("\n")
-
+    
         for coord in ds.coords:
             f.write("\n")
             f.write("== " + str(coord) + " ==")
             f.write("\n")
-            for att_keys, att_values in list(
-                zip(ds[coord].attrs.keys(), ds[coord].attrs.values())
-            ):
+            for att_keys, att_values in ds[coord].items():
                 f.write(str(att_keys) + " : " + str(att_values))
                 f.write("\n")
+                
+        if type(ds) == xr.core.dataset.Dataset:
+            f.write("\n")
+            f.write("\n")
+            f.write("===== Variable descriptions =====")
+            f.write("\n")
+            
+            for var in ds.data_vars:
+                f.write("\n")
+                f.write("== " + str(var) + " ==")
+                f.write("\n")
+                for att_keys, att_values in ds[var].items():
+                    f.write(str(att_keys) + " : " + str(att_values))
+                    f.write("\n")
 
 
 ## TMY export functions
