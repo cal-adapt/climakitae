@@ -72,11 +72,9 @@ class Explore:
     def amy():
         return AverageMetYear()
 
-    def explore(aspect):
-        if aspect == 'warming':
-            return WarmingLevels()
-        elif aspect == 'thresholds':
-            return Thresholds()
-        elif aspect == 'amy':
-            return AverageMetYear()
+    def thresholds():
+        return Thresholds()
+    
+    def warming_levels():
+        return WarmingLevels()
 
