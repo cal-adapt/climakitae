@@ -49,27 +49,26 @@ def _add_unit_to_header(df, variable_unit_map):
     """
     Add variable unit to data table header.
 
-    Insert a 2nd row into the header of the DataFrame `df` to include the
-    `unit` associated with the `variable` column.
+    Update the header of the DataFrame `df` so that name and unit of the data 
+    variable contained in each column are as specified in `variable_unit_map`.
+    The resulting header starts with a row labeled "variable" holding variable 
+    names. A 2nd "unit" row include the units associated with the variables. 
+
 
     Parameters
     ----------
     df : pandas.DataFrame
         data table to update
-    variable : string
-        name of the variable column
-    unit : string
-        unit associated with the variable
     variable_unit_map : list of tuple
-    
+        list of tuples where each tuple contains the name and unit of the data
+        variable in a column of the input data table
 
     Returns
     -------
     pandas.DataFrame
-        data table with the variable unit added to its header
+        data table with updated header
 
     """
-    #TODO: update docstring (column names don't need to be the same as before)
     df.columns = pd.MultiIndex.from_tuples(
         variable_unit_map,
         name=["variable", "unit"],
@@ -79,7 +78,26 @@ def _add_unit_to_header(df, variable_unit_map):
 
 
 def _dataarray_to_dataframe(dataarray):
-    #TODO: add docstring
+    '''
+    Prepare xarray DataArray for export as CSV file.
+    
+    Convert the xarray DataArray `dataarray` to a pandas DataFrame ready to be
+    exported to CSV format. The DataArray is converted through its to_dataframe 
+    method. The DataFrame header is renamed as needed to ease the access of 
+    columns in R. It is also enriched with the unit associated with the data 
+    variable in the DataArray.
+
+    Parameters
+    ----------
+    dataarray : xarray.DataArray
+        data to be prepared for export
+
+    Returns
+    -------
+    pandas.DataFrame
+        data ready for export
+
+    '''
     if not dataarray.name:
         # name it in order to call to_dataframe on it
         dataarray.name = "data"
@@ -98,7 +116,26 @@ def _dataarray_to_dataframe(dataarray):
 
 
 def _dataset_to_dataframe(dataset):
-    #TODO: add docstring
+    '''
+    Prepare xarray Dataset for export as CSV file.
+    
+    Convert the xarray Dataset `dataset` to a pandas DataFrame ready to be
+    exported to CSV format. The Dataset is converted through its to_dataframe 
+    method. The DataFrame header is renamed as needed to ease the access of 
+    columns in R. It is also enriched with the unit associated with the data 
+    variable in the Dataset.
+
+    Parameters
+    ----------
+    dataset : xarray.Dataset
+        data to be prepared for export
+
+    Returns
+    -------
+    pandas.DataFrame
+        data ready for export
+
+    '''
     df = dataset.to_dataframe()
 
     variable_unit_map = [
@@ -129,6 +166,7 @@ def _export_to_csv(data_to_export, save_name, **kwargs):
     None
 
     """
+    print("Alright, exporting specified data to CSV.")
     ftype = type(data_to_export)
     if ftype == xr.core.dataarray.DataArray:
         
@@ -494,7 +532,7 @@ def _metadata_to_file(ds, output_name):
             f.write("\n")
             f.write("== " + str(coord) + " ==")
             f.write("\n")
-            for att_keys, att_values in ds[coord].items():
+            for att_keys, att_values in ds[coord].attrs.items():
                 f.write(str(att_keys) + " : " + str(att_values))
                 f.write("\n")
                 
@@ -508,7 +546,7 @@ def _metadata_to_file(ds, output_name):
                 f.write("\n")
                 f.write("== " + str(var) + " ==")
                 f.write("\n")
-                for att_keys, att_values in ds[var].items():
+                for att_keys, att_values in ds[var].attrs.items():
                     f.write(str(att_keys) + " : " + str(att_values))
                     f.write("\n")
 
