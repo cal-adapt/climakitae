@@ -29,7 +29,7 @@ from climakitae.tools.derive_variables import (
     compute_dewpointtemp,
     compute_specific_humidity,
 )
-from climakitae.indices.indices import (
+from climakitae.tools.indices import (
     fosberg_fire_index,
     noaa_heat_index,
     effective_temp,
