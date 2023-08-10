@@ -27,13 +27,16 @@ class AbstractExplore(metaclass=abc.ABCMeta):
     def show(self):
         pass
 
+
 class AverageMetYear(AbstractExplore):
     def __init__(self):
         self.selections = AverageMetYearParameters()
 
     """Display AMY panel."""
+
     def show(self):
         return amy_visualize(self.selections)
+
 
 class Thresholds(AbstractExplore):
     def __init__(self, option=1):
@@ -41,16 +44,20 @@ class Thresholds(AbstractExplore):
         self.option = option
 
     """Display Thresholds panel."""
+
     def show(self):
         return thresholds_visualize(
             self.selections,
             option=self.option,
         )
 
+
 class WarmingLevels(AbstractExplore):
     def __init__(self):
         self.selections = WarmingLevelParameters()
+
     """Display Warming Levels panel."""
+
     def show(self):
         return warming_levels_visualize(self.selections)
 
@@ -74,7 +81,6 @@ class Explore:
 
     def thresholds():
         return Thresholds()
-    
+
     def warming_levels():
         return WarmingLevels()
-
