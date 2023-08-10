@@ -7,6 +7,7 @@ import pandas as pd
 import hvplot.xarray
 import matplotlib.pyplot as plt
 import pkg_resources
+import panel as pn
 from .utils import _reproject_data, _read_ae_colormap
 
 # Import package data
@@ -203,4 +204,8 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
             "Default plot could not be generated: input data must contain valid spatial dimensions (x,y and/or lat,lon) and/or time dimensions"
         )
         _plot = None
-    return _plot
+
+    # Put plot object into a panel Pane object
+    _plot_as_pane = pn.Pane(_plot)
+
+    return _plot_as_pane
