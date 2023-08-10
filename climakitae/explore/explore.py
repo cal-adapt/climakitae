@@ -69,7 +69,7 @@ class Explore:
             "ck.explore.AMY(): Produce an hourly time series for one year capturing mean climate conditions."
         )
 
-    def explore(self, aspect):
+    def explore(aspect):
         if aspect == 'warming':
             return WarmingLevels()
         elif aspect == 'thresholds':
