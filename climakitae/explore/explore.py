@@ -1,3 +1,5 @@
+import abc
+
 """
 Contains source code for the Explore object, used to access panel GUIs for exploring several climatological topics of interest: 
 1. Average meteorological year
@@ -20,6 +22,39 @@ from climakitae.explore.explore_amy import (
 )
 
 
+class AbstractExplore(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def show(self):
+        pass
+
+class AverageMetYear(AbstractExplore):
+    def __init__(self):
+        self.selections = AverageMetYearParameters()
+
+    """Display AMY panel."""
+    def show(self):
+        return amy_visualize(self.selections)
+
+class Thresholds(AbstractExplore):
+    def __init__(self, option=1):
+        self.selections = ThresholdParameters()
+        self.option = option
+
+    """Display Thresholds panel."""
+    def show(self):
+        return thresholds_visualize(
+            self.selections,
+            option=self.option,
+        )
+
+class WarmingLevels(AbstractExplore):
+    def __init__(self):
+        self.selections = WarmingLevelParameters()
+    """Display Warming Levels panel."""
+    def show(self):
+        return warming_levels_visualize(self.selections)
+
+
 class Explore:
     """Explore the data using interactive GUIs.
     Only functional in a jupyter notebook environment.
@@ -34,26 +69,11 @@ class Explore:
             "ck.explore.AMY(): Produce an hourly time series for one year capturing mean climate conditions."
         )
 
-    class AMY(AverageMetYearParameters):
-        """Display AMY panel."""
+    def explore(self, aspect):
+        if aspect == 'warming':
+            return WarmingLevels()
+        elif aspect == 'thresholds':
+            return Thresholds()
+        elif aspect == 'amy':
+            return AverageMetYear()
 
-        def show(self):
-            return amy_visualize(self)
-
-    class Thresholds(ThresholdParameters):
-        def __init__(self, option=1):
-            self.option = option
-
-        """Display Thresholds panel."""
-
-        def show(self):
-            return thresholds_visualize(
-                self,
-                option=self.option,
-            )
-
-    class WarmingLevels(WarmingLevelParameters):
-        """Display Warming Levels panel."""
-
-        def show(self):
-            return warming_levels_visualize(self)

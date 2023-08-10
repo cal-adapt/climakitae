@@ -3,7 +3,6 @@ from climakitae.ui.select import Select
 from climakitae.core.data_load import load
 from climakitae.core.data_view import view
 from climakitae.ui.export import Export
-from climakitae.explore.explore import Explore
 from climakitae.tools.timeseriestools import TimeSeries
 
 try:
@@ -18,8 +17,6 @@ except Exception:
     # Local copy or not installed with setuptools.
     # Disable minimum version checks on downstream libraries.
     __version__ = "999"
-
-explore = Explore()
 
 __all__ = (
     # Classes
