@@ -37,7 +37,33 @@ def _get_unit(dataarray):
         return ""
 
 def _ease_access_in_R(column_name):
-    #TODO: add docstring
+    """
+    Return a copy of the input that can be used in R easily.
+    
+    Modify the `column_name` string so that when it is the name of an R data 
+    table column, the column can be accessed by $. The modified string contains
+    no spaces or special characters, and starts with a letter or a dot.
+
+    Parameters
+    ----------
+    column_name : str
+
+    Returns
+    -------
+    str
+        
+    Notes
+    -----
+    The input is assumed to be a column name of a pandas DataFrame converted 
+    from an xarray DataArray or Dataset available on the Cal-Adapt Analytics 
+    Engine. The conversions are through the to_dataframe method. 
+    
+    The function acts on one of the display names of the variables:
+    https://github.com/cal-adapt/climakitae/blob/main/climakitae/data/variable_descriptions.csv
+    or one of the station names:
+    https://github.com/cal-adapt/climakitae/blob/main/climakitae/data/hadisd_stations.csv
+
+    """
     return (
         column_name.replace("(", "")
         .replace(")", "")
@@ -122,8 +148,8 @@ def _dataset_to_dataframe(dataset):
     Convert the xarray Dataset `dataset` to a pandas DataFrame ready to be
     exported to CSV format. The Dataset is converted through its to_dataframe 
     method. The DataFrame header is renamed as needed to ease the access of 
-    columns in R. It is also enriched with the unit associated with the data 
-    variable in the Dataset.
+    columns in R. It is also enriched with the units associated with the data 
+    variables in the Dataset.
 
     Parameters
     ----------
