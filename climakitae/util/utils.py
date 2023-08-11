@@ -86,13 +86,19 @@ def julianDay_to_str_date(julday, leap_year=True, str_format="%b-%d"):
     """Convert julian day of year to string format
     i.e. if str_format = "%b-%d", the output will be Mon-Day ("Jan-01")
 
-    Args:
-        julday (int): Julian day
-        leap_year (boolean): leap year? (default to True)
-        str_format (str): string format of output date
+    Parameters
+    -----------
+    julday: int
+        Julian day
+    leap_year: boolean
+        leap year? (default to True)
+    str_format: str
+        string format of output date
 
-    Return:
-        date (str): Julian day in the input format month-day (i.e. "Jan-01")
+    Returns
+    --------
+    date: str
+        Julian day in the input format month-day (i.e. "Jan-01")
     """
     if leap_year:
         year = "2024"
@@ -130,14 +136,21 @@ def readable_bytes(B):
 def read_ae_colormap(cmap="ae_orange", cmap_hex=False):
     """Read in AE colormap by name
 
-    Args:
-        cmap (str): one of ["ae_orange","ae_blue","ae_diverging"]
-        cmap_hex (boolean): return RGB or hex colors?
+    Parameters
+    -----------
+    cmap: str
+        one of ["ae_orange","ae_blue","ae_diverging"]
+    cmap_hex: boolean
+        return RGB or hex colors?
 
-    Returns: one of either
-        cmap_data (matplotlib.colors.LinearSegmentedColormap): used for
-            matplotlib (if cmap_hex == False)
-        cmap_data (list): used for hvplot maps (if cmap_hex == True)
+    Returns
+    --------
+    one of either
+
+    cmap_data: matplotlib.colors.LinearSegmentedColormap
+        used for matplotlib (if cmap_hex == False)
+    cmap_data: list
+        used for hvplot maps (if cmap_hex == True)
 
     """
 
@@ -165,30 +178,48 @@ def read_ae_colormap(cmap="ae_orange", cmap_hex=False):
 
 def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
     """Reproject xr.DataArray using rioxarray.
-    Raises ValueError if input data does not have spatial coords x,y
-    Raises ValueError if input data has more than 5 dimensions
 
-    Args:
-        xr_da (xr.DataArray): 2-or-3-dimensional DataArray, with 2 spatial dimensions
-        proj (str): proj to use for reprojection (default to "EPSG:4326"-- lat/lon coords)
-        fill_value (float): fill value (default to np.nan)
+    Parameters
+    -----------
+    xr_da: xr.DataArray
+        2-or-3-dimensional DataArray, with 2 spatial dimensions
+    proj: str
+        proj to use for reprojection (default to "EPSG:4326"-- lat/lon coords)
+    fill_value: float
+        fill value (default to np.nan)
 
-    Returns:
-        data_reprojected (xr.DataArray): 2-or-3-dimensional reprojected DataArray
+    Returns
+    --------
+    data_reprojected: xr.DataArray
+        2-or-3-dimensional reprojected DataArray
+
+    Raises
+    ------
+    ValueError
+        if input data does not have spatial coords x,y
+    ValueError
+        if input data has more than 5 dimensions
 
     """
 
     def _reproject_data_4D(data, reproject_dim, proj="EPSG:4326", fill_value=np.nan):
         """Reproject 4D xr.DataArray across an input dimension
 
-        Args:
-            data (xr.DataArray): 4-dimensional DataArray, with 2 spatial dimensions
-            reproject_dim (str): name of dimensions to use
-            proj (str): proj to use for reprojection (default to "EPSG:4326"-- lat/lon coords)
-            fill_value (float): fill value (default to np.nan)
+        Parameters
+        -----------
+        data: xr.DataArray
+            4-dimensional DataArray, with 2 spatial dimensions
+        reproject_dim: str
+            name of dimensions to use
+        proj: str
+            proj to use for reprojection (default to "EPSG:4326"-- lat/lon coords)
+        fill_value: float
+            fill value (default to np.nan)
 
-        Returns:
-            data_reprojected (xr.DataArray): 4-dimensional reprojected DataArray
+        Returns
+        --------
+        data_reprojected: xr.DataArray
+            4-dimensional reprojected DataArray
 
         """
         rp_list = []
@@ -205,14 +236,21 @@ def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
     def _reproject_data_5D(data, reproject_dim, proj="EPSG:4326", fill_value=np.nan):
         """Reproject 5D xr.DataArray across two input dimensions
 
-        Args:
-            data (xr.DataArray): 5-dimensional DataArray, with 2 spatial dimensions
-            reproject_dim (list): list of str dimension names to use
-            proj (str): proj to use for reprojection (default to "EPSG:4326"-- lat/lon coords)
-            fill_value (float): fill value (default to np.nan)
+        Parameters
+        -----------
+        data: xr.DataArray
+            5-dimensional DataArray, with 2 spatial dimensions
+        reproject_dim: list
+            list of str dimension names to use
+        proj: str
+            proj to use for reprojection (default to "EPSG:4326"-- lat/lon coords)
+        fill_value: float
+            fill value (default to np.nan)
 
-        Returns:
-            data_reprojected (xr.DataArray): 5-dimensional reprojected DataArray
+        Returns
+        --------
+        data_reprojected: xr.DataArray
+            5-dimensional reprojected DataArray
 
         """
         rp_list_j = []

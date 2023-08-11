@@ -2,7 +2,7 @@ import pandas as pd
 
 
 class Boundaries:
-    """Get geospatial polygon data from the AE catalog.
+    """Get geospatial polygon data from the S3 stored parquet catalog.
     Used to access boundaries for subsetting data by state, county, etc.
     """
 
@@ -10,8 +10,6 @@ class Boundaries:
         """
         Parameters
         -----------
-        _cat: intake.catalog.local.YAMLFileCatalog
-            Catalog for parquet files
         _us_states: pd.DataFrame
             Table of US state names and geometries
         _ca_counties: pd.DataFrame
@@ -24,6 +22,8 @@ class Boundaries:
             Table of California IOUs and POUs, names and geometries
         _ca_forecast_zones: pd.DataFrame
             Table of California Demand Forecast Zones
+        _ca_electric_balancing_areas: pd.DataFrame
+            Table of Electric Balancing Areas
         """
         self._cat = boundary_catalog
         self._us_states = self._cat.states.read()

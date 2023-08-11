@@ -120,7 +120,7 @@ def _get_variable_options_df(
 
     Parameters
     ----------
-    var_config: pd.DataFrame
+    variable_descriptions: pd.DataFrame
         Variable descriptions, units, etc in table format
     unique_variable_ids: list of strs
         List of unique variable ids from catalog.
@@ -492,6 +492,13 @@ def _map_view(selections, stations_gdf):
 
 
 class DataInterface:
+    """Load data connections into memory once
+
+    This is a singleton class called by the various Param classes to connect to the local
+    data and to the intake data catalog and parquet boundary catalog. The class attributes
+    are read only so that the data does not get changed accidentially.
+
+    """
     def __new__(cls):
         if not hasattr(cls, "instance"):
             cls.instance = super(DataInterface, cls).__new__(cls)
@@ -1173,6 +1180,8 @@ class DataParameters(param.Parameterized):
 
 
 class DataParametersWithPanes(DataParameters):
+    """Extends DataParameters class to include panel widgets that display the time scale and a map overview
+    """
     def __init__(self, **params):
         # Set default values
         super().__init__(**params)

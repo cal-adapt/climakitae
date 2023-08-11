@@ -37,7 +37,7 @@ class CmipOpt:
 
     Methods
     -------
-    cmip_clip
+    _cmip_clip
         CMIP6-specific subsetting
     """
 
@@ -65,7 +65,7 @@ class CmipOpt:
 
         Returns
         -------
-        xr.Dataset
+        ds: xr.Dataset
             Subsetted data, area-weighting applied if area_average is true
         """
         variable = self.variable
@@ -94,7 +94,7 @@ def _cf_to_dt(ds):
 
     Returns
     -------
-    xr.Dataset
+    ds: xr.Dataset
         Converted calendar data
     """
     if type(ds.indexes["time"]) not in [pd.core.indexes.datetimes.DatetimeIndex]:
@@ -120,7 +120,7 @@ def _calendar_align(ds):
 
     Returns
     -------
-    xr.Dataset
+    ds: xr.Dataset
         Calendar-aligned data
     """
     ds["time"] = pd.to_datetime(ds.time.dt.strftime("%Y-%m"))
@@ -180,7 +180,7 @@ def _wrapper(ds):
 
     Returns
     -------
-    xr.Dataset
+    ds: xr.Dataset
         CMIP6 data with consistent dimensions, names, and calendars.
     """
 
@@ -208,7 +208,7 @@ def _area_wgt_average(ds):
 
     Returns
     -------
-    xr.Dataset
+    ds: xr.Dataset
         Area-averaged data by weights
     """
     weights = np.cos(np.deg2rad(ds.y))
@@ -228,7 +228,7 @@ def _drop_member_id(dset_dict):
 
     Returns
     -------
-    xr.Dataset
+    dset_dict: xr.Dataset
         Data, with member_id dim removed
     """
     for dname, dset in dset_dict.items():
@@ -251,7 +251,7 @@ def _precip_flux_to_total(ds):
         CMIP6 output with data variable 'pr'
     Returns
     -------
-    xr.Dataset
+    ds: xr.Dataset
         Data with converted precipitation units
     """
     ds_attrs = ds.attrs
@@ -319,7 +319,7 @@ def grab_multimodel_data(copt, alpha_sort=False):
 
     Returns
     -------
-    xr.Dataset
+    mdls_ds: xr.Dataset
         Processed CMIP6 models concatenated into a single ds
     """
     col = intake.open_esm_datastore(
@@ -443,7 +443,7 @@ def get_ensemble_data(variable, selections, cmip_names, warm_level=3.0):
 
     Returns
     -------
-    xr.Dataset
+    hist_ds, warm_ds: list of xr.Dataset
 
     """
     # Get a list of datasets, each with one simulation (i.e. one dataset with several member_id values for CESM2, etc)
@@ -538,7 +538,7 @@ def cmip_annual(ds):
 
     Returns
     -------
-    xr.Dataset
+    ds_degC: xr.Dataset
         Annual temperature timeseries in degC
     """
     ds_degC = ds - 273.15  # convert to degC
@@ -563,7 +563,7 @@ def calc_anom(ds_yr, base_start, base_end):
 
     Returns
     -------
-    xr.Dataset
+    mdl_temp_anom: xr.Dataset
         Anomaly data calculated with input baseline start and end
     """
     mdl_baseline = ds_yr.sel(year=slice(base_start, base_end)).mean("year")
@@ -581,7 +581,7 @@ def cmip_mmm(ds):
 
     Returns
     -------
-    xr.Dataset
+    ds_mmm: xr.Dataset
         Mean across input data taken on simulation dim
     """
     ds_mmm = ds.mean("simulation")
@@ -600,11 +600,11 @@ def compute_vmin_vmax(da_min, da_max):
 
     Returns
     -------
-    int
+    vmin: int
         minimum value
-    int
+    vmax: int
         maximum value
-    bool
+    sopt: bool
         indicates symmetry if vmin and vmax have opposite signs
     """
     vmin = np.nanpercentile(da_min, 1)
@@ -631,7 +631,7 @@ def get_ks_pval_df(sample1, sample2, sig_lvl=0.05):
 
     Returns
     -------
-    pd.DataFrame
+    p_df: pd.DataFrame
         columns are lat, lon, and p_value;
         only retains spatial points where
         p_value < sig_lvl

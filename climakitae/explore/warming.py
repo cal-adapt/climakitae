@@ -35,11 +35,15 @@ def _get_postage_data(self):
     """
     This function pulls data from the catalog and reads it into memory
 
-    Args:
-        self (WarmingLevelParameters): object holding user's selections
+    Parameters
+    ----------
+    self: WarmingLevelParameters
+        object holding user's selections
 
-    Returns:
-        data (xr.DataArray): data to use for creating postage stamp data
+    Returns
+    -------
+    data: xr.DataArray
+        data to use for creating postage stamp data
 
     """
     # Read data from catalog
@@ -71,7 +75,7 @@ def get_anomaly_data(data, window=15, warmlevel=3.0, scenario="ssp370"):
 
     Returns
     --------
-    xr.DataArray
+    anomaly_da: xr.DataArray
         Warming level anomalies at the input warming level and scenario
     """
     # Check window
@@ -185,7 +189,7 @@ def _make_hvplot(data, clabel, clim, cmap, sopt, title, width=225, height=210):
 class WarmingLevelParameters(DataParametersWithPanes):
     """Generate warming levels panel GUI in notebook.
 
-    Intended to be accessed through app.explore.warming_levels()
+    Intended to be accessed through ck.Explore.warming_levels()
     Allows the user to toggle between several data options.
     Produces dynamically updating postage stamp maps.
 

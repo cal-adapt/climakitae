@@ -63,9 +63,9 @@ class Explore:
         """Print a string description of the available analysis method for this class."""
         return (
             "Choose one of these interactive panels to explore different aspects of the data:\n\n"
-            "ck.explore.WarmingLevels(): Learn about global warming levels and explore regional responses.\n"
-            "ck.explore.Thresholds(): Explore how frequencies of extreme events will change.\n"
-            "ck.explore.AMY(): Produce an hourly time series for one year capturing mean climate conditions."
+            "ck.Explore.warming_levels(): Learn about global warming levels and explore regional responses.\n"
+            "ck.Explore.thresholds(): Explore how frequencies of extreme events will change.\n"
+            "ck.Explore.amy(): Produce an hourly time series for one year capturing mean climate conditions."
         )
 
     def amy():
