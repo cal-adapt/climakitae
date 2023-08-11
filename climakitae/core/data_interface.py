@@ -499,6 +499,7 @@ class DataInterface:
     are read only so that the data does not get changed accidentially.
 
     """
+
     def __new__(cls):
         if not hasattr(cls, "instance"):
             cls.instance = super(DataInterface, cls).__new__(cls)
@@ -1180,8 +1181,8 @@ class DataParameters(param.Parameterized):
 
 
 class DataParametersWithPanes(DataParameters):
-    """Extends DataParameters class to include panel widgets that display the time scale and a map overview
-    """
+    """Extends DataParameters class to include panel widgets that display the time scale and a map overview"""
+
     def __init__(self, **params):
         # Set default values
         super().__init__(**params)

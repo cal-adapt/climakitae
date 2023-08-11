@@ -53,7 +53,7 @@ def load(xr_da):
     Returns
     -------
     da_computed: xarray.DataArray
-        
+
     """
 
     # Check if data is already loaded into memory
@@ -836,7 +836,7 @@ def _station_apply(selections, da, original_time_slice):
         object holding user's selections
     da: xr.DataArray
     original_time_slice: tuple
-        
+
     Returns
     ----------
     apply_output: xr.DataArray
@@ -1041,7 +1041,7 @@ def read_catalog_from_csv(selections, csv, merge=True):
     Returns
     ----------
     one of the following, depending on csv input and merge:
-    
+
     xr_ds: xr.Dataset
         if multiple rows are in the csv, each row is a data_variable
     xr_da: xr.DataArray
