@@ -19,14 +19,14 @@ from climakitae.core.paths import (
 from climakitae.util.utils import read_csv_file
 from climakitae.core.boundaries import Boundaries
 from climakitae.util.unit_conversions import get_unit_conversion_options
-from climakitae.core.catalog_convert import (
+from climakitae.core.data_load import (
     downscaling_method_to_activity_id,
     resolution_to_gridlabel,
     timescale_to_table_id,
     scenario_to_experiment_id,
+    read_catalog_from_csv,
+    read_catalog_from_select
 )
-from climakitae.core.data_load import read_catalog_from_csv, read_catalog_from_select
-
 
 def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
     """Using the data catalog, get a list of appropriate scenario and simulation options given a user's
