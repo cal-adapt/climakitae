@@ -492,7 +492,7 @@ def _epw_header(location_name, df):
 
     # line 1 - location
     line_1 = "LOCATION,{0},{1},{2}\n".format(
-        location_name, df["lat"].values[0], df["lon"].values[0]
+        location_name.upper(), df["lat"].values[0], df["lon"].values[0]
     )
 
     # line 2 - design conditions, leave blank for now
@@ -508,12 +508,12 @@ def _epw_header(location_name, df):
     line_5 = "HOLIDAYS/DAYLIGHT SAVINGS,No,0,0,0\n"
 
     # line 6 - comments 1, going to include simulation + scenario information here
-    line_6 = "COMMENTS 1,Typical meteorological year data produced on the Cal-Adapt: Analytics Engine, Scenario: {0}, Simulation: {1}\n".format(
+    line_6 = "COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Scenario: {0}, Simulation: {1}\n".format(
         df["scenario"].values[0], df["simulation"].values[0]
     )
 
-    # line 7 - comments 2, putting the data variables here manually as they are not specified in epw format, and we are not including all
-    line_7 = "COMMENTS 2,Air Temperature at 2m (degC),Dew point temperature (degC),Relative humidity (%),Instantaneous downwelling shortwave flux at bottom (W m-2),Shortwave surface downward diffuse irradiance (W m-2),Instantaneous downwelling longwave flux at bottom (W m-2),Wind speed at 10m (m s-1),Wind direction at 10m (deg),Surface Pressure (Pa)\n"
+    # line 7 - comments 2, including date range here from which TMY calculated
+    line_7 = "COMMENTS 2, TMY data produced using 1990-2020 climatological period\n"
 
     # line 8 - data periods, num data periods, num records per hour, data period name, data period start day of week, data period start (Jan 1), data period end (Dec 31)
     line_8 = "DATA PERIODS,1,1,Data,,1/1,12/31\n"
@@ -547,7 +547,7 @@ def _epw_format_data(df):
         "day",
         "hour",
         "minute",
-        "data_source_uncertainty_flags",  # missing
+        "data_source",  # missing
         "Air Temperature at 2m",
         "Dew point temperature",
         "Relative humidity",
@@ -654,7 +654,7 @@ def write_tmy_file(filename_to_export, df, location_name="location", file_ext="t
         path_to_file = filename_to_export + ".epw"
         with open(path_to_file, "w") as f:
             f.writelines(_epw_header(location_name, df))  # writes required header lines
-            df_string = _epw_format_data(df).to_csv(sep=",", header=True, index=False)
+            df_string = _epw_format_data(df).to_csv(sep=",", header=False, index=False)
             f.write(df_string)  # writes data in EPW format
         print(
             "TMY data exported to .epw format with filename {}.epw".format(
