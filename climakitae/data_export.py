@@ -529,54 +529,55 @@ def _epw_format_data(df):
     """
 
     # set time col to datetime object for easy split
-    df['time'] = pd.to_datetime(df['time'], format="%Y-%m-%d %H:%M:")
+    df["time"] = pd.to_datetime(df["time"], format="%Y-%m-%d %H:%M")
     df = df.assign(
-        year=df['time'].dt.year,
-        month=df['time'].dt.month,
-        day=df['time'].dt.day,
-        hour=df['time'].dt.hour,
-        minute=df['time'].dt.minute
+        year=df["time"].dt.year,
+        month=df["time"].dt.month,
+        day=df["time"].dt.day,
+        hour=df["time"].dt.hour,
+        minute=df["time"].dt.minute
     )
 
     # set epw variable order, very specific -- manually set
-    # missing comment denotes not provided by AE
+    # 17/31 vars not provided by AE noted as missing
     colnames = ['year',
-            'month',
-            'day',
-            'hour',
-            'minute',
-            'data_source', # missing
-            'Air Temperature at 2m', 
-            'Dew point temperature', 
-            'Relative humidity',
-            'Surface Pressure',
-            'exthorrad', # missing - extraterrestrial horizontal radiation
-            'extdirrad', # missing - extraterrestrial direct normal radiation
-            'extirsky', # missing - horizontal IR radiation intensity from sky
-            'Instantaneous downwelling shortwave flux at bottom', 
-            'dirnorrad', # missing - direct normal radiation w/m2 COMING SOON
-            'Shortwave surface downward diffuse irradiance', 
-            'glohorillum', # missing - global horizontal illuminance (lx)
-            'dirnorillum', # missing - direct normal illuminance (lx)
-            'difhorillum', # missing - diffuse horizontal illuminance (lx)
-            'zenlum', # missing - zenith luminnace (lx)
-            'Wind direction at 10m', 
-            'Wind speed at 10m',
-            'totskycvr', # missing - total sky cover (tenths)
-            'opaqskycvr', # missing - opaque sky cover (tenths)
-            'visibility', # missing - visibility (km)
-            'ceiling_hgt', # missing - ceiling height (m)
-            'presweathobs', # missing - present weather observation
-            'presweathcodes', # missing - present weather codes
-            'precip_wtr', # missing - precipitatble water (mm)
-            'aerosol_opt_depth', # missing - aerosol optical depth (thousandths)
-            'snowdepth', # missing - snow depth (cm)
-            'days_last_snow', # missing - days since last snow
-            'albedo', # missing - albedo
-            'liq_precip_depth', # missing - liquid precip depth (mm)
-            'liq_precip_rate' # missing - liquid precip rate (h)
-           ]
-     df = df.reindex(columns = colnames) # resets col order, also drops any unnamed column from original df
+                'month',
+                'day',
+                'hour',
+                'minute',
+                'data_source_uncertainty_flags', # missing
+                'Air Temperature at 2m', 
+                'Dew point temperature', 
+                'Relative humidity',
+                'Surface Pressure',
+                'exthorrad', # missing - extraterrestrial horizontal radiation
+                'extdirrad', # missing - extraterrestrial direct normal radiation
+                'extirsky', # missing - horizontal IR radiation intensity from sky
+                'Instantaneous downwelling shortwave flux at bottom', 
+                'dirnorrad', # missing - direct normal radiation w/m2 COMING SOON
+                'Shortwave surface downward diffuse irradiance', 
+                'glohorillum', # missing - global horizontal illuminance (lx)
+                'dirnorillum', # missing - direct normal illuminance (lx)
+                'difhorillum', # missing - diffuse horizontal illuminance (lx)
+                'zenlum', # missing - zenith luminnace (lx)
+                'Wind direction at 10m', 
+                'Wind speed at 10m',
+                'totskycvr', # missing - total sky cover (tenths)
+                'opaqskycvr', # missing - opaque sky cover (tenths)
+                'visibility', # missing - visibility (km)
+                'ceiling_hgt', # missing - ceiling height (m)
+                'presweathobs', # missing - present weather observation
+                'presweathcodes', # missing - present weather codes
+                'precip_wtr', # missing - precipitatble water (mm)
+                'aerosol_opt_depth', # missing - aerosol optical depth (thousandths)
+                'snowdepth', # missing - snow depth (cm)
+                'days_last_snow', # missing - days since last snow
+                'albedo', # missing - albedo
+                'liq_precip_depth', # missing - liquid precip depth (mm)
+                'liq_precip_rate' # missing - liquid precip rate (h)
+            ]
+    # resets col order and drops any unnamed column from original df
+    df = df.reindex(columns = colnames) 
 
      # set specific missing data flags per variable
     for var in ['exthorrad', 'extdirrad', 'extirsky', 'dirnorrad', 'zenlum', 'visibility']:
