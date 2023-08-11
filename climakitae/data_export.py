@@ -516,7 +516,7 @@ def _epw_header(location_name, df):
     line_7 = "COMMENTS 2, TMY data produced using 1990-2020 climatological period\n"
 
     # line 8 - data periods, num data periods, num records per hour, data period name, data period start day of week, data period start (Jan 1), data period end (Dec 31)
-    line_8 = "DATA PERIODS,1,1,Data,,1/1,12/31\n"
+    line_8 = "DATA PERIODS,1,1,Data,,1/ 1,12/31\n"
 
     headers = [line_1, line_2, line_3, line_4, line_5, line_6, line_7, line_8]
 
