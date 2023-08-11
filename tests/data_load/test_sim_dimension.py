@@ -2,7 +2,11 @@ import pytest
 import intake
 import pandas as pd
 from climakitae.core.data_interface import DataParameters
-from climakitae.core.data_load import _get_cat_subset, _scenarios_in_data_dict, scenario_to_experiment_id
+from climakitae.core.data_load import (
+    _get_cat_subset,
+    _scenarios_in_data_dict,
+    scenario_to_experiment_id,
+)
 
 
 @pytest.fixture
