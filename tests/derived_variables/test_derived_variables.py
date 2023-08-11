@@ -4,7 +4,7 @@ import xarray as xr
 import numpy as np
 import pytest
 import os
-from climakitae.tools.derive_variables import (
+from climakitae.tools.derived_variables import (
     compute_relative_humidity,
     compute_wind_mag,
     compute_wind_dir,

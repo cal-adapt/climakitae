@@ -9,7 +9,7 @@ from climakitae.tools.indices import (
     noaa_heat_index,
     fosberg_fire_index,
 )
-from climakitae.tools.derive_variables import (
+from climakitae.tools.derived_variables import (
     compute_relative_humidity,
     compute_wind_mag,
 )

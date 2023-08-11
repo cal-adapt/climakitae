@@ -22,7 +22,7 @@ from climakitae.core.catalog_convert import (
 )
 from climakitae.util.unit_conversions import convert_units
 from climakitae.util.utils import readable_bytes, get_closest_gridcell
-from climakitae.tools.derive_variables import (
+from climakitae.tools.derived_variables import (
     compute_relative_humidity,
     compute_wind_mag,
     compute_wind_dir,
