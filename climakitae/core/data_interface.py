@@ -25,8 +25,9 @@ from climakitae.core.data_load import (
     timescale_to_table_id,
     scenario_to_experiment_id,
     read_catalog_from_csv,
-    read_catalog_from_select
+    read_catalog_from_select,
 )
+
 
 def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
     """Using the data catalog, get a list of appropriate scenario and simulation options given a user's
