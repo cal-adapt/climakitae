@@ -522,6 +522,7 @@ def _epw_header(location_name, df):
 
     return headers
 
+
 def _epw_format_data(df):
     """
     Constructs TMY output file in specific order and missing data codes
@@ -535,68 +536,76 @@ def _epw_format_data(df):
         month=df["time"].dt.month,
         day=df["time"].dt.day,
         hour=df["time"].dt.hour,
-        minute=df["time"].dt.minute
+        minute=df["time"].dt.minute,
     )
 
     # set epw variable order, very specific -- manually set
     # 17/31 vars not provided by AE noted as missing
-    colnames = ['year',
-                'month',
-                'day',
-                'hour',
-                'minute',
-                'data_source_uncertainty_flags', # missing
-                'Air Temperature at 2m', 
-                'Dew point temperature', 
-                'Relative humidity',
-                'Surface Pressure',
-                'exthorrad', # missing - extraterrestrial horizontal radiation
-                'extdirrad', # missing - extraterrestrial direct normal radiation
-                'extirsky', # missing - horizontal IR radiation intensity from sky
-                'Instantaneous downwelling shortwave flux at bottom', 
-                'dirnorrad', # missing - direct normal radiation w/m2 COMING SOON
-                'Shortwave surface downward diffuse irradiance', 
-                'glohorillum', # missing - global horizontal illuminance (lx)
-                'dirnorillum', # missing - direct normal illuminance (lx)
-                'difhorillum', # missing - diffuse horizontal illuminance (lx)
-                'zenlum', # missing - zenith luminnace (lx)
-                'Wind direction at 10m', 
-                'Wind speed at 10m',
-                'totskycvr', # missing - total sky cover (tenths)
-                'opaqskycvr', # missing - opaque sky cover (tenths)
-                'visibility', # missing - visibility (km)
-                'ceiling_hgt', # missing - ceiling height (m)
-                'presweathobs', # missing - present weather observation
-                'presweathcodes', # missing - present weather codes
-                'precip_wtr', # missing - precipitatble water (mm)
-                'aerosol_opt_depth', # missing - aerosol optical depth (thousandths)
-                'snowdepth', # missing - snow depth (cm)
-                'days_last_snow', # missing - days since last snow
-                'albedo', # missing - albedo
-                'liq_precip_depth', # missing - liquid precip depth (mm)
-                'liq_precip_rate' # missing - liquid precip rate (h)
-            ]
+    colnames = [
+        "year",
+        "month",
+        "day",
+        "hour",
+        "minute",
+        "data_source_uncertainty_flags",  # missing
+        "Air Temperature at 2m",
+        "Dew point temperature",
+        "Relative humidity",
+        "Surface Pressure",
+        "exthorrad",  # missing - extraterrestrial horizontal radiation
+        "extdirrad",  # missing - extraterrestrial direct normal radiation
+        "extirsky",  # missing - horizontal IR radiation intensity from sky
+        "Instantaneous downwelling shortwave flux at bottom",
+        "dirnorrad",  # missing - direct normal radiation w/m2 COMING SOON
+        "Shortwave surface downward diffuse irradiance",
+        "glohorillum",  # missing - global horizontal illuminance (lx)
+        "dirnorillum",  # missing - direct normal illuminance (lx)
+        "difhorillum",  # missing - diffuse horizontal illuminance (lx)
+        "zenlum",  # missing - zenith luminnace (lx)
+        "Wind direction at 10m",
+        "Wind speed at 10m",
+        "totskycvr",  # missing - total sky cover (tenths)
+        "opaqskycvr",  # missing - opaque sky cover (tenths)
+        "visibility",  # missing - visibility (km)
+        "ceiling_hgt",  # missing - ceiling height (m)
+        "presweathobs",  # missing - present weather observation
+        "presweathcodes",  # missing - present weather codes
+        "precip_wtr",  # missing - precipitatble water (mm)
+        "aerosol_opt_depth",  # missing - aerosol optical depth (thousandths)
+        "snowdepth",  # missing - snow depth (cm)
+        "days_last_snow",  # missing - days since last snow
+        "albedo",  # missing - albedo
+        "liq_precip_depth",  # missing - liquid precip depth (mm)
+        "liq_precip_rate",  # missing - liquid precip rate (h)
+    ]
     # resets col order and drops any unnamed column from original df
-    df = df.reindex(columns = colnames) 
+    df = df.reindex(columns=colnames)
 
-     # set specific missing data flags per variable
-    for var in ['exthorrad', 'extdirrad', 'extirsky', 'dirnorrad', 'zenlum', 'visibility']:
+    # set specific missing data flags per variable
+    for var in [
+        "exthorrad",
+        "extdirrad",
+        "extirsky",
+        "dirnorrad",
+        "zenlum",
+        "visibility",
+    ]:
         df[var] = 9999
-    for var in ['glohorillum', 'dirnorillum', 'difhorillum']:
+    for var in ["glohorillum", "dirnorillum", "difhorillum"]:
         df[var] = 999900
-    for var in ['totskycvr', 'opaqskycvr', 'days_last_snow', 'liq_precip_rate']:
+    for var in ["totskycvr", "opaqskycvr", "days_last_snow", "liq_precip_rate"]:
         df[var] = 99
-    for var in ['precip_wtr', 'snowdepth', 'albedo', 'liq_precip_depth']:
+    for var in ["precip_wtr", "snowdepth", "albedo", "liq_precip_depth"]:
         df[var] = 999
-    df['ceiling_hgt'] = 99999
-    df['aerosol_opt_depth'] = 0.999
-    df['presweathobs'] = 9
-    df['presweathcodes'] = 999999999
+    df["ceiling_hgt"] = 99999
+    df["aerosol_opt_depth"] = 0.999
+    df["presweathobs"] = 9
+    df["presweathcodes"] = 999999999
 
     # lastly set data source / uncertainty flag (section 2.13 of doc)
     # on AE: ? = var does not fit source options
     # on AE: 9 = uncertainty unknown
-    df['data_source'] = '?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9'
+    df["data_source"] = "?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9"
 
     return df
 
@@ -644,8 +653,8 @@ def write_tmy_file(filename_to_export, df, location_name="location", file_ext="t
         path_to_file = filename_to_export + ".epw"
         with open(path_to_file, "w") as f:
             f.writelines(_epw_header(location_name, df))  # writes required header lines
-            df_string = _epw_format_data(df).to_csv(sep=',', header=False, index=False)
-            f.write(df_string) # writes data in EPW format
+            df_string = _epw_format_data(df).to_csv(sep=",", header=False, index=False)
+            f.write(df_string)  # writes data in EPW format
         print(
             "TMY data exported to .epw format with filename {}.epw".format(
                 filename_to_export
