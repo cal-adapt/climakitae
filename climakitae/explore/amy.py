@@ -82,7 +82,8 @@ def _retrieve_meteo_yr_data(
     Parameters
     ----------
     self: AverageMetYearParameters
-    ssp: str, one of "SSP 2-4.5 -- Middle of the Road", "SSP 2-4.5 -- Middle of the Road", "SSP 3-7.0 -- Business as Usual", "SSP 5-8.5 -- Burn it All"
+    ssp: str
+        one of "SSP 2-4.5 -- Middle of the Road", "SSP 2-4.5 -- Middle of the Road", "SSP 3-7.0 -- Business as Usual", "SSP 5-8.5 -- Burn it All"
         Shared Socioeconomic Pathway. Defaults to SSP 3-7.0 -- Business as Usual
     year_start: int, optional
         Year between 1980-2095. Default to 2015
@@ -519,7 +520,7 @@ def lineplot_from_amy_data(
 
 class AverageMetYearParameters(DataParametersWithPanes):
     """
-    An object that holds the "Data Options" paramters for the
+    An object that holds the "Data Options" parameters for the
     explore.tmy panel.
     """
 

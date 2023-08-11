@@ -14,12 +14,6 @@ from shapely.geometry import box
 from xclim.core.calendar import convert_calendar
 from xclim.sdba import Grouper
 from xclim.sdba.adjustment import QuantileDeltaMapping
-from climakitae.core.catalog_convert import (
-    downscaling_method_to_activity_id,
-    resolution_to_gridlabel,
-    timescale_to_table_id,
-    scenario_to_experiment_id,
-)
 from climakitae.util.unit_conversions import convert_units
 from climakitae.util.utils import readable_bytes, get_closest_gridcell
 from climakitae.tools.derived_variables import (

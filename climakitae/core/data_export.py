@@ -526,7 +526,7 @@ def _epw_header(location_name, df):
 def write_tmy_file(filename_to_export, df, location_name="location", file_ext="tmy"):
     """Exports TMY data either as .epw or .tmy file
 
-    Paramters
+    Parameters
     ---------
     filename_to_export (str): Filename string, constructed with station name and simulation
     df (pd.DataFrame): Dataframe of TMY data to export
