@@ -578,8 +578,6 @@ def _epw_format_data(df):
         "liq_precip_depth",  # missing - liquid precip depth (mm)
         "liq_precip_rate",  # missing - liquid precip rate (h)
     ]
-    # resets col order and drops any unnamed column from original df
-    df = df.reindex(columns=colnames)
 
     # set specific missing data flags per variable
     for var in [
@@ -606,6 +604,9 @@ def _epw_format_data(df):
     # on AE: ? = var does not fit source options
     # on AE: 9 = uncertainty unknown
     df["data_source"] = "?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9"
+
+    # resets col order and drops any unnamed column from original df
+    df = df.reindex(columns=colnames)
 
     return df
 
@@ -653,7 +654,7 @@ def write_tmy_file(filename_to_export, df, location_name="location", file_ext="t
         path_to_file = filename_to_export + ".epw"
         with open(path_to_file, "w") as f:
             f.writelines(_epw_header(location_name, df))  # writes required header lines
-            df_string = _epw_format_data(df).to_csv(sep=",", header=False, index=False)
+            df_string = _epw_format_data(df).to_csv(sep=",", header=True, index=False)
             f.write(df_string)  # writes data in EPW format
         print(
             "TMY data exported to .epw format with filename {}.epw".format(
