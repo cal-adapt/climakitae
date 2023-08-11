@@ -6,16 +6,14 @@ import pandas as pd
 import intake
 from scipy import stats
 
+from xmip.preprocessing import rename_cmip6
+
 from climakitae.util.utils import read_csv_file
 from climakitae.core.paths import boundary_catalog_url
 from climakitae.core.boundaries import Boundaries
 from climakitae.core.data_load import area_subset_geometry
 from climakitae.core.paths import gwl_1850_1900_file, gwl_1981_2010_file
 
-try:
-    from xmip.preprocessing import rename_cmip6
-except ImportError:
-    from cmip6_preprocessing.preprocessing import rename_cmip6
 
 
 ### Utility functions for uncertainty analyses and notebooks
