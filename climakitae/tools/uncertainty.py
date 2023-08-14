@@ -15,7 +15,6 @@ from climakitae.core.data_load import area_subset_geometry
 from climakitae.core.paths import gwl_1850_1900_file, gwl_1981_2010_file
 
 
-
 ### Utility functions for uncertainty analyses and notebooks
 class CmipOpt:
     """A class for holding relevant data options for cmip preprocessing

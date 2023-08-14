@@ -7,7 +7,7 @@ import pandas as pd
 
 
 class TimeSeriesParameters(param.Parameterized):
-    """ Class to hold TimeSeries params
+    """Class to hold TimeSeries params
 
     An object to hold time-series params, which depends only on the 'param'
     library. Currently used in 'timeseries_visualize', which uses 'panel' to
