@@ -20,24 +20,14 @@ from climakitae.explore.amy import (
 )
 
 
-class AverageMetYear:
-    def __init__(self):
-        self.selections = AverageMetYearParameters()
-
+class AverageMetYear(AverageMetYearParameters):
     """Display AMY panel."""
 
     def show(self):
         return amy_visualize(self.selections)
 
-    def retrieve(self, config=None, merge=True):
-        return self.selections.retrieve(self, config, merge)
 
-
-class Thresholds:
-    def __init__(self, option=1):
-        self.selections = ThresholdParameters()
-        self.option = option
-
+class Thresholds(ThresholdParameters):
     """Display Thresholds panel."""
 
     def show(self):
@@ -45,9 +35,6 @@ class Thresholds:
             self.selections,
             option=self.option,
         )
-
-    def retrieve(self, config=None, merge=True):
-        return self.selections.retrieve(self, config, merge)
 
 
 class WarmingLevels(WarmingLevelParameters):
