@@ -100,7 +100,7 @@ def noaa_heat_index(T, RH):
     # Adjust heat index depending on different condions for RH, T, and valid range of HI
     HI = xr.where((RH < 13) & (T > 80) & (T < 112), HI_highT_lowRH, HI)
     HI = xr.where(((RH > 85) & (T < 87) & (T > 80)), HI_lowT_highRH, HI)
-    HI = xr.where((HI < 80) & (HI > 40), low_HI, HI)
+    HI = xr.where((HI < 80), low_HI, HI)
 
     # Following NCAR documentation (see function references), for temperature values less than 40F, the HI is set to the ambient temperature.
     HI = xr.where((T < 40), T, HI)
