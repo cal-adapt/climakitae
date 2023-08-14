@@ -28,33 +28,162 @@ def _export_to_netcdf(data_to_export, save_name, **kwargs):
     data_to_export.to_netcdf(save_name, encoding=encoding)
 
 
-def _add_unit_to_header(df, variable, unit):
+def _get_unit(dataarray):
     """
-    Add variable unit to data table header.
+    Return unit of data variable in `dataarray`, if any, or an empty string.
 
-    Insert a 2nd row into the header of the DataFrame `df` to include the
-    `unit` associated with the `variable` column.
+    Parameters
+    ----------
+    dataarray : xarray.DataArray
+
+    Returns
+    -------
+    str
+
+    """
+    data_attrs = dataarray.attrs
+    if "units" in data_attrs and data_attrs["units"] is not None:
+        return data_attrs["units"]
+    else:
+        return ""
+
+
+def _ease_access_in_R(column_name):
+    """
+    Return a copy of the input that can be used in R easily.
+
+    Modify the `column_name` string so that when it is the name of an R data
+    table column, the column can be accessed by $. The modified string contains
+    no spaces or special characters, and starts with a letter or a dot.
+
+    Parameters
+    ----------
+    column_name : str
+
+    Returns
+    -------
+    str
+
+    Notes
+    -----
+    The input is assumed to be a column name of a pandas DataFrame converted
+    from an xarray DataArray or Dataset available on the Cal-Adapt Analytics
+    Engine. The conversions are through the to_dataframe method.
+
+    The function acts on one of the display names of the variables:
+    https://github.com/cal-adapt/climakitae/blob/main/climakitae/data/variable_descriptions.csv
+    or one of the station names:
+    https://github.com/cal-adapt/climakitae/blob/main/climakitae/data/hadisd_stations.csv
+
+    """
+    return (
+        column_name.replace("(", "")
+        .replace(")", "")
+        .replace(" ", "_")
+        .replace("-", "_")
+    )
+
+
+def _update_header(df, variable_unit_map):
+    """
+    Update data table header to match the given variable names and units.
+
+    Update the header of the DataFrame `df` so that name and unit of the data
+    variable contained in each column are as specified in `variable_unit_map`.
+    The resulting header starts with a row labeled "variable" holding variable
+    names. A 2nd "unit" row include the units associated with the variables.
+
 
     Parameters
     ----------
     df : pandas.DataFrame
         data table to update
-    variable : string
-        name of the variable column
-    unit : string
-        unit associated with the variable
+    variable_unit_map : list of tuple
+        list of tuples where each tuple contains the name and unit of the data
+        variable in a column of the input data table
 
     Returns
     -------
     pandas.DataFrame
-        data table with the variable unit added to its header
+        data table with updated header
 
     """
     df.columns = pd.MultiIndex.from_tuples(
-        [(col, unit) if col == variable else (col, "") for col in df.columns],
+        variable_unit_map,
         name=["variable", "unit"],
     )
     df.reset_index(inplace=True)  # simplifies header
+    return df
+
+
+def _dataarray_to_dataframe(dataarray):
+    """
+    Prepare xarray DataArray for export as CSV file.
+
+    Convert the xarray DataArray `dataarray` to a pandas DataFrame ready to be
+    exported to CSV format. The DataArray is converted through its to_dataframe
+    method. The DataFrame header is renamed as needed to ease the access of
+    columns in R. It is also enriched with the unit associated with the data
+    variable in the DataArray.
+
+    Parameters
+    ----------
+    dataarray : xarray.DataArray
+        data to be prepared for export
+
+    Returns
+    -------
+    pandas.DataFrame
+        data ready for export
+
+    """
+    if not dataarray.name:
+        # name it in order to call to_dataframe on it
+        dataarray.name = "data"
+
+    df = dataarray.to_dataframe()
+
+    variable = dataarray.name
+    unit = _get_unit(dataarray)
+    variable_unit_map = []
+    for col in df.columns:
+        if col == variable:
+            variable_unit_map.append((_ease_access_in_R(col), unit))
+        else:
+            variable_unit_map.append((_ease_access_in_R(col), ""))
+
+    df = _update_header(df, variable_unit_map)
+    return df
+
+
+def _dataset_to_dataframe(dataset):
+    """
+    Prepare xarray Dataset for export as CSV file.
+
+    Convert the xarray Dataset `dataset` to a pandas DataFrame ready to be
+    exported to CSV format. The Dataset is converted through its to_dataframe
+    method. The DataFrame header is renamed as needed to ease the access of
+    columns in R. It is also enriched with the units associated with the data
+    variables and other non-index variables in the Dataset.
+
+    Parameters
+    ----------
+    dataset : xarray.Dataset
+        data to be prepared for export
+
+    Returns
+    -------
+    pandas.DataFrame
+        data ready for export
+
+    """
+    df = dataset.to_dataframe()
+
+    variable_unit_map = [
+        (_ease_access_in_R(var_name), _get_unit(dataset[var_name]))
+        for var_name in df.columns
+    ]
+    df = _update_header(df, variable_unit_map)
     return df
 
 
@@ -62,13 +191,12 @@ def _export_to_csv(data_to_export, save_name, **kwargs):
     """
     Export user-selected data to CSV format.
 
-    Export the xarray DataArray `data_to_export` to a CSV file named
-    `save_name`. This function is called from the `_export_to_user`
-    function if the user selected CSV output.
+    Export the xarray DataArray or Dataset `data_to_export` to a CSV file named
+    `save_name`.
 
     Parameters
     ----------
-    data_to_export : xarray.DataArray
+    data_to_export : xarray.DataArray or xarray.Dataset
         data to export to CSV format
     save_name : string
         desired output file name, including the file extension
@@ -78,24 +206,15 @@ def _export_to_csv(data_to_export, save_name, **kwargs):
     None
 
     """
-    if not data_to_export.name:
-        # name it in order to call to_dataframe on it
-        data_to_export.name = "data"
+    print("Alright, exporting specified data to CSV.")
 
-    # ease column access in R
-    data_to_export.name = (
-        data_to_export.name.replace("(", "")
-        .replace(")", "")
-        .replace(" ", "_")
-        .replace("-", "_")
-    )
+    ftype = type(data_to_export)
 
-    df = data_to_export.to_dataframe()
+    if ftype == xr.core.dataarray.DataArray:
+        df = _dataarray_to_dataframe(data_to_export)
 
-    if "units" in data_to_export.attrs and data_to_export.attrs["units"] is not None:
-        unit = data_to_export.attrs["units"]
-        variable = data_to_export.name
-        df = _add_unit_to_header(df, variable, unit)
+    elif ftype == xr.core.dataset.Dataset:
+        df = _dataset_to_dataframe(data_to_export)
 
     # Warn about exceedance of Excel row or column limit
     excel_row_limit = 1048576
@@ -318,6 +437,8 @@ def export_dataset(user_export_format, data_to_export, file_name, **kwargs):
     # to keep things clean-ish
     if "NetCDF" in req_format:
         _export_to_netcdf(data_to_export, save_name, **kwargs)
+    elif "CSV" in req_format:
+        _export_to_csv(data_to_export, save_name, **kwargs)
     else:
         if ftype == xr.core.dataset.Dataset:
             dv_list = list(data_to_export.data_vars)
@@ -325,8 +446,8 @@ def export_dataset(user_export_format, data_to_export, file_name, **kwargs):
                 raise Exception(
                     (
                         "We cannot convert multivariate datasets"
-                        " to CSV or GeoTiff at this time. Please supply"
-                        " a dataset or array with a single data variable."
+                        " to GeoTIFF at this time. Please supply"
+                        " a data array with a single data variable."
                         " A single variable array can be extracted"
                         " from a multivariate dataset like so:"
                         " app.export_dataset(ds['var'],'filename')"
@@ -343,7 +464,7 @@ def export_dataset(user_export_format, data_to_export, file_name, **kwargs):
         if "CSV" in req_format:
             _export_to_csv(data_to_export, save_name, **kwargs)
 
-        elif "GeoTIFF" in req_format:
+        if "GeoTIFF" in req_format:
             # sometimes "variable" might be a singleton dimension:
             data_to_export = data_to_export.squeeze()
 
@@ -435,10 +556,11 @@ def _metadata_to_file(ds, output_name):
         f.write("\n")
         f.write("\n")
         f.write("===== Global file attributes =====")
+        if type(ds) == xr.core.dataarray.DataArray:
+            f.write("\n")
+            f.write("Name: " + ds.name)
         f.write("\n")
-        f.write("Name: " + ds.name)
-        f.write("\n")
-        for att_keys, att_values in list(zip(ds.attrs.keys(), ds.attrs.values())):
+        for att_keys, att_values in ds.attrs.items():
             f.write(str(att_keys) + " : " + str(att_values))
             f.write("\n")
 
@@ -453,12 +575,23 @@ def _metadata_to_file(ds, output_name):
             f.write("\n")
             f.write("== " + str(coord) + " ==")
             f.write("\n")
-            for att_keys, att_values in list(
-                zip(ds[coord].attrs.keys(), ds[coord].attrs.values())
-            ):
+            for att_keys, att_values in ds[coord].attrs.items():
                 f.write(str(att_keys) + " : " + str(att_values))
                 f.write("\n")
 
+        if type(ds) == xr.core.dataset.Dataset:
+            f.write("\n")
+            f.write("\n")
+            f.write("===== Variable descriptions =====")
+            f.write("\n")
+
+            for var in ds.data_vars:
+                f.write("\n")
+                f.write("== " + str(var) + " ==")
+                f.write("\n")
+                for att_keys, att_values in ds[var].attrs.items():
+                    f.write(str(att_keys) + " : " + str(att_values))
+                    f.write("\n")
 
 ## TMY export functions
 def _tmy_header(location_name, df):
