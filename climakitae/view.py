@@ -96,7 +96,7 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
         if cmap is None:
             try:
                 if data.frequency in ["monthly", "daily"]:
-                    timescale = "daily/monthly"
+                    timescale = "daily, monthly"
                 else:
                     timescale = data.frequency
                 cmap = var_catalog[

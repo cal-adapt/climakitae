@@ -278,7 +278,7 @@ class _WarmingLevels(param.Parameterized):
         """Set colormap depending on variable"""
         cmap_name = self.var_config[
             (self.var_config["display_name"] == self.selections.variable)
-            & (self.var_config["timescale"] == "daily/monthly")
+            & (self.var_config["timescale"] == "daily, monthly")
         ].colormap.values[0]
 
         # Colormap normalization for hvplot -- only for relative humidity!
