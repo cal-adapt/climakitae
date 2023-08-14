@@ -29,7 +29,18 @@ def _export_to_netcdf(data_to_export, save_name, **kwargs):
 
 
 def _get_unit(dataarray):
-    #TODO: add docstring
+    """
+    Return the unit of the data variable, if any, or an empty string. 
+
+    Parameters
+    ----------
+    dataarray : xarray.DataArray
+
+    Returns
+    -------
+    str
+
+    """
     data_attrs = dataarray.attrs
     if "units" in data_attrs and data_attrs["units"] is not None:
         return data_attrs['units']
@@ -71,9 +82,9 @@ def _ease_access_in_R(column_name):
         .replace("-", "_")
     )
     
-def _add_unit_to_header(df, variable_unit_map):
+def _update_header(df, variable_unit_map):
     """
-    Add variable unit to data table header.
+    Update data table header to match the given variable names and units.
 
     Update the header of the DataFrame `df` so that name and unit of the data 
     variable contained in each column are as specified in `variable_unit_map`.
@@ -128,16 +139,18 @@ def _dataarray_to_dataframe(dataarray):
         # name it in order to call to_dataframe on it
         dataarray.name = "data"
 
-    dataarray.name = _ease_access_in_R(dataarray.name)
-
     df = dataarray.to_dataframe()
 
     variable = dataarray.name
     unit = _get_unit(dataarray)
-    variable_unit_map = [
-        (col, unit) if col == variable else (col, "") for col in df.columns
-    ]
-    df = _add_unit_to_header(df, variable_unit_map)
+    variable_unit_map = []
+    for col in df.columns:
+        if col == variable:
+            variable_unit_map.append((_ease_access_in_R(col), unit))
+        else:
+            variable_unit_map.append((_ease_access_in_R(col), ""))
+
+    df = _update_header(df, variable_unit_map)
     return df
 
 
@@ -149,7 +162,7 @@ def _dataset_to_dataframe(dataset):
     exported to CSV format. The Dataset is converted through its to_dataframe 
     method. The DataFrame header is renamed as needed to ease the access of 
     columns in R. It is also enriched with the units associated with the data 
-    variables in the Dataset.
+    variables and other non-index variables in the Dataset.
 
     Parameters
     ----------
@@ -168,7 +181,7 @@ def _dataset_to_dataframe(dataset):
         ( _ease_access_in_R(var_name), _get_unit(dataset[var_name]) ) 
         for var_name in df.columns
     ]
-    df = _add_unit_to_header(df, variable_unit_map)
+    df = _update_header(df, variable_unit_map)
     return df 
 
 
@@ -177,8 +190,7 @@ def _export_to_csv(data_to_export, save_name, **kwargs):
     Export user-selected data to CSV format.
 
     Export the xarray DataArray or Dataset `data_to_export` to a CSV file named
-    `save_name`. This function is called from the `_export_to_user`
-    function if the user selected CSV output.
+    `save_name`.
 
     Parameters
     ----------
@@ -193,7 +205,9 @@ def _export_to_csv(data_to_export, save_name, **kwargs):
 
     """
     print("Alright, exporting specified data to CSV.")
+    
     ftype = type(data_to_export)
+    
     if ftype == xr.core.dataarray.DataArray:
         
         df = _dataarray_to_dataframe(data_to_export)
@@ -202,7 +216,7 @@ def _export_to_csv(data_to_export, save_name, **kwargs):
 
         df = _dataset_to_dataframe(data_to_export)
 
-
+    # Warn about exceedance of Excel row or column limit
     excel_row_limit = 1048576
     excel_column_limit = 16384
     csv_nrows, csv_ncolumns = df.shape
