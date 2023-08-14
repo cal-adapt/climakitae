@@ -29,6 +29,9 @@ class AverageMetYear:
     def show(self):
         return amy_visualize(self.selections)
 
+    def retrieve(self, config=None, merge=True):
+        return self.selections.retrieve(self, config, merge)
+
 
 class Thresholds:
     def __init__(self, option=1):
@@ -43,6 +46,9 @@ class Thresholds:
             option=self.option,
         )
 
+    def retrieve(self, config=None, merge=True):
+        return self.selections.retrieve(self, config, merge)
+
 
 class WarmingLevels:
     def __init__(self):
@@ -52,6 +58,9 @@ class WarmingLevels:
 
     def show(self):
         return warming_levels_visualize(self.selections)
+
+    def retrieve(self, config=None, merge=True):
+        return self.selections.retrieve(self, config, merge)
 
 
 class Explore:
