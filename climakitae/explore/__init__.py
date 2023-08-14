@@ -50,17 +50,11 @@ class Thresholds:
         return self.selections.retrieve(self, config, merge)
 
 
-class WarmingLevels:
-    def __init__(self):
-        self.selections = WarmingLevelParameters()
-
+class WarmingLevels(WarmingLevelParameters):
     """Display Warming Levels panel."""
 
     def show(self):
-        return warming_levels_visualize(self.selections)
-
-    def retrieve(self, config=None, merge=True):
-        return self.selections.retrieve(self, config, merge)
+        return warming_levels_visualize(self)
 
 
 class Explore:
