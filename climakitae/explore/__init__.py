@@ -24,7 +24,7 @@ class AverageMetYear(AverageMetYearParameters):
     """Display AMY panel."""
 
     def show(self):
-        return amy_visualize(self.selections)
+        return amy_visualize(self)
 
 
 class Thresholds(ThresholdParameters):
@@ -32,7 +32,7 @@ class Thresholds(ThresholdParameters):
 
     def show(self):
         return thresholds_visualize(
-            self.selections,
+            self,
             option=self.option,
         )
 
