@@ -30,7 +30,7 @@ def _export_to_netcdf(data_to_export, save_name, **kwargs):
 
 def _get_unit(dataarray):
     """
-    Return the unit of the data variable, if any, or an empty string. 
+    Return unit of data variable in `dataarray`, if any, or an empty string.
 
     Parameters
     ----------
