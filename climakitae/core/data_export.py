@@ -97,6 +97,7 @@ def _export_to_csv(data_to_export, save_name, **kwargs):
         variable = data_to_export.name
         df = _add_unit_to_header(df, variable, unit)
 
+    # Warn about exceedance of Excel row or column limit
     excel_row_limit = 1048576
     excel_column_limit = 16384
     csv_nrows, csv_ncolumns = df.shape
