@@ -157,5 +157,5 @@ intersphinx_mapping = {
     "panel": ("https://panel.holoviz.org/", None),
     "hvplot": ("https://hvplot.holoviz.org/", None),
     "holoviews": ("https://holoviews.org/", None),
-    "intake": ("https://intake-esm.readthedocs.io/en/latest/reference/api.html", None),
+    "intake": ("https://intake-esm.readthedocs.io/en/latest/", None),
 }

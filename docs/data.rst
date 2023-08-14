@@ -71,7 +71,7 @@ Lastly, you'll need to retrive the data: ::
 
 Use a csv config file
 **********************
-The :py:func:`climakitae.core.DataParameters.retrieve()` method can be used to retrieve data from 
+The :py:func:`climakitae.core.DataParams.retrieve()` method can be used to retrieve data from 
 a csv configuration file. To retrieve data using the settings in a configuration csv file, set config to the local
 filepath of the csv. Depending on the number of rows in the csv, different data types can be returned.
 If the csv has one row, a single :py:class:`xarray.DataArray` object will be returned. If the csv has multiple
