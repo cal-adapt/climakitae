@@ -43,15 +43,16 @@ def _get_unit(dataarray):
     """
     data_attrs = dataarray.attrs
     if "units" in data_attrs and data_attrs["units"] is not None:
-        return data_attrs['units']
+        return data_attrs["units"]
     else:
         return ""
+
 
 def _ease_access_in_R(column_name):
     """
     Return a copy of the input that can be used in R easily.
-    
-    Modify the `column_name` string so that when it is the name of an R data 
+
+    Modify the `column_name` string so that when it is the name of an R data
     table column, the column can be accessed by $. The modified string contains
     no spaces or special characters, and starts with a letter or a dot.
 
@@ -62,13 +63,13 @@ def _ease_access_in_R(column_name):
     Returns
     -------
     str
-        
+
     Notes
     -----
-    The input is assumed to be a column name of a pandas DataFrame converted 
-    from an xarray DataArray or Dataset available on the Cal-Adapt Analytics 
-    Engine. The conversions are through the to_dataframe method. 
-    
+    The input is assumed to be a column name of a pandas DataFrame converted
+    from an xarray DataArray or Dataset available on the Cal-Adapt Analytics
+    Engine. The conversions are through the to_dataframe method.
+
     The function acts on one of the display names of the variables:
     https://github.com/cal-adapt/climakitae/blob/main/climakitae/data/variable_descriptions.csv
     or one of the station names:
@@ -81,15 +82,16 @@ def _ease_access_in_R(column_name):
         .replace(" ", "_")
         .replace("-", "_")
     )
-    
+
+
 def _update_header(df, variable_unit_map):
     """
     Update data table header to match the given variable names and units.
 
-    Update the header of the DataFrame `df` so that name and unit of the data 
+    Update the header of the DataFrame `df` so that name and unit of the data
     variable contained in each column are as specified in `variable_unit_map`.
-    The resulting header starts with a row labeled "variable" holding variable 
-    names. A 2nd "unit" row include the units associated with the variables. 
+    The resulting header starts with a row labeled "variable" holding variable
+    names. A 2nd "unit" row include the units associated with the variables.
 
 
     Parameters
@@ -115,13 +117,13 @@ def _update_header(df, variable_unit_map):
 
 
 def _dataarray_to_dataframe(dataarray):
-    '''
+    """
     Prepare xarray DataArray for export as CSV file.
-    
+
     Convert the xarray DataArray `dataarray` to a pandas DataFrame ready to be
-    exported to CSV format. The DataArray is converted through its to_dataframe 
-    method. The DataFrame header is renamed as needed to ease the access of 
-    columns in R. It is also enriched with the unit associated with the data 
+    exported to CSV format. The DataArray is converted through its to_dataframe
+    method. The DataFrame header is renamed as needed to ease the access of
+    columns in R. It is also enriched with the unit associated with the data
     variable in the DataArray.
 
     Parameters
@@ -134,7 +136,7 @@ def _dataarray_to_dataframe(dataarray):
     pandas.DataFrame
         data ready for export
 
-    '''
+    """
     if not dataarray.name:
         # name it in order to call to_dataframe on it
         dataarray.name = "data"
@@ -155,13 +157,13 @@ def _dataarray_to_dataframe(dataarray):
 
 
 def _dataset_to_dataframe(dataset):
-    '''
+    """
     Prepare xarray Dataset for export as CSV file.
-    
+
     Convert the xarray Dataset `dataset` to a pandas DataFrame ready to be
-    exported to CSV format. The Dataset is converted through its to_dataframe 
-    method. The DataFrame header is renamed as needed to ease the access of 
-    columns in R. It is also enriched with the units associated with the data 
+    exported to CSV format. The Dataset is converted through its to_dataframe
+    method. The DataFrame header is renamed as needed to ease the access of
+    columns in R. It is also enriched with the units associated with the data
     variables and other non-index variables in the Dataset.
 
     Parameters
@@ -174,15 +176,15 @@ def _dataset_to_dataframe(dataset):
     pandas.DataFrame
         data ready for export
 
-    '''
+    """
     df = dataset.to_dataframe()
 
     variable_unit_map = [
-        ( _ease_access_in_R(var_name), _get_unit(dataset[var_name]) ) 
+        (_ease_access_in_R(var_name), _get_unit(dataset[var_name]))
         for var_name in df.columns
     ]
     df = _update_header(df, variable_unit_map)
-    return df 
+    return df
 
 
 def _export_to_csv(data_to_export, save_name, **kwargs):
@@ -205,15 +207,13 @@ def _export_to_csv(data_to_export, save_name, **kwargs):
 
     """
     print("Alright, exporting specified data to CSV.")
-    
+
     ftype = type(data_to_export)
-    
+
     if ftype == xr.core.dataarray.DataArray:
-        
         df = _dataarray_to_dataframe(data_to_export)
 
     elif ftype == xr.core.dataset.Dataset:
-
         df = _dataset_to_dataframe(data_to_export)
 
     # Warn about exceedance of Excel row or column limit
@@ -560,14 +560,14 @@ def _metadata_to_file(ds, output_name):
         for att_keys, att_values in ds.attrs.items():
             f.write(str(att_keys) + " : " + str(att_values))
             f.write("\n")
-    
+
         f.write("\n")
         f.write("\n")
         f.write("===== Coordinate descriptions =====")
         f.write("\n")
         f.write("Note: coordinate values are in the CSV")
         f.write("\n")
-    
+
         for coord in ds.coords:
             f.write("\n")
             f.write("== " + str(coord) + " ==")
@@ -575,13 +575,13 @@ def _metadata_to_file(ds, output_name):
             for att_keys, att_values in ds[coord].attrs.items():
                 f.write(str(att_keys) + " : " + str(att_values))
                 f.write("\n")
-                
+
         if type(ds) == xr.core.dataset.Dataset:
             f.write("\n")
             f.write("\n")
             f.write("===== Variable descriptions =====")
             f.write("\n")
-            
+
             for var in ds.data_vars:
                 f.write("\n")
                 f.write("== " + str(var) + " ==")
