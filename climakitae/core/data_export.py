@@ -593,6 +593,7 @@ def _metadata_to_file(ds, output_name):
                     f.write(str(att_keys) + " : " + str(att_values))
                     f.write("\n")
 
+
 ## TMY export functions
 def _tmy_header(location_name, df):
     """
