@@ -14,14 +14,6 @@ scientific analyses with data from the Cal-Adapt Analytics Engine.
 .. grid:: 1 1 2 2
     :gutter: 2
 
-    .. grid-item-card:: Cal-Adapt Analytics Engine
-        :img-top: _static/cae-logo.svg
-        :link: https://analytics.cal-adapt.org/
-        :columns: 3
-
-        Cal-Adapt is the larger project through which *climakitae* 
-        is being developed.  
-
     .. grid-item-card:: Getting Started
         :img-top: _static/runner.svg
         :link: https://github.com/cal-adapt/cae-notebooks/blob/main/getting_started.ipynb
@@ -45,6 +37,19 @@ scientific analyses with data from the Cal-Adapt Analytics Engine.
 
         Interested in seeing the source code? 
         Check out the repository on GitHub!
+        
+    .. grid-item-card:: Contribution Guidelines
+        :img-top: _static/pencil.svg
+        :link: contribute
+        :link-type: doc
+        :columns: 3
+        
+        Want to add a new feature? Find a bug in the code? See our contribution guidelines for more information.
+
+*************
+About the Cal-Adapt Analytics Engine
+*************
+Cal-Adapt is the larger project through which *climakitae* is being developed. For more information, check out our `Analytics Engine website <https://analytics.cal-adapt.org/data/>`_.
 
 
 *************
@@ -63,3 +68,4 @@ directly from pip: ::
    Getting Started <https://github.com/cal-adapt/cae-notebooks/blob/main/getting_started.ipynb>
    Working with the Data <data>
    climakitae API <climakitae>
+   Contribution Guidelines <contribute>
