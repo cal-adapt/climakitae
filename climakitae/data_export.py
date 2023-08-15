@@ -536,7 +536,7 @@ def _epw_format_data(df):
         year=df["time"].dt.year,
         month=df["time"].dt.month,
         day=df["time"].dt.day,
-        hour=df["time"].dt.hour + 1, # 1-24, not 0-23
+        hour=df["time"].dt.hour + 1,  # 1-24, not 0-23
         minute=df["time"].dt.minute,
     )
 
