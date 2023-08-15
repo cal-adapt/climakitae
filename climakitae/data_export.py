@@ -490,8 +490,9 @@ def _epw_header(location_name, df):
     Source: EnergyPlus Version 23.1.0 Documentation
     """
 
-    # line 1 - location
-    line_1 = "LOCATION,{0},{1},{2}\n".format(
+    # line 1 - location, location name, state, country, something, lat, lon
+    # note - state should not be manually coded - revise in future
+    line_1 = "LOCATION,{0},CA,USA,{1},{2}\n".format(
         location_name.upper(), df["lat"].values[0], df["lon"].values[0]
     )
 
@@ -535,7 +536,7 @@ def _epw_format_data(df):
         year=df["time"].dt.year,
         month=df["time"].dt.month,
         day=df["time"].dt.day,
-        hour=df["time"].dt.hour,
+        hour=df["time"].dt.hour + 1, # 1-24, not 0-23
         minute=df["time"].dt.minute,
     )
 
@@ -591,7 +592,7 @@ def _epw_format_data(df):
         df[var] = 9999
     for var in ["glohorillum", "dirnorillum", "difhorillum"]:
         df[var] = 999900
-    for var in ["totskycvr", "opaqskycvr", "days_last_snow", "liq_precip_rate"]:
+    for var in ["days_last_snow", "liq_precip_rate"]:
         df[var] = 99
     for var in ["precip_wtr", "snowdepth", "albedo", "liq_precip_depth"]:
         df[var] = 999
@@ -599,6 +600,11 @@ def _epw_format_data(df):
     df["aerosol_opt_depth"] = 0.999
     df["presweathobs"] = 9
     df["presweathcodes"] = 999999999
+
+    # setting cloud cover to 5, per stakeholder recommendation until better data is available
+    # 5 indicates 5/10ths skycover = 50% cloudy
+    for var in ["totskycvr", "opaqskycvr"]:
+        df[var] = 5
 
     # lastly set data source / uncertainty flag (section 2.13 of doc)
     # on AE: ? = var does not fit source options
