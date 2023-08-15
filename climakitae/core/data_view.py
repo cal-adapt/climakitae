@@ -200,6 +200,6 @@ def view(data, lat_lon=True, width=None, height=None, cmap=None):
         _plot = None
 
     # Put plot object into a panel Pane object
-    _plot_as_pane = pn.Pane(_plot)
+    # _plot_as_pane = pn.Pane(_plot)
 
-    return _plot_as_pane
+    return _plot
