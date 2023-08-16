@@ -1,10 +1,8 @@
-from climakitae.core.data_interface import DataInterface
 from climakitae.ui.select import Select
 from climakitae.core.data_load import load
 from climakitae.core.data_view import view
 from climakitae.ui.export import Export
 from climakitae.tools.timeseries import TimeSeries
-from climakitae.explore import Explore
 
 try:
     from importlib.metadata import version as _version
@@ -21,11 +19,9 @@ except Exception:
 
 __all__ = (
     # Classes
-    "DataInterface",
     "Select",
     "Export",
     "TimeSeries",
-    "Explore",
     # Methods
     "load",
     "view",
