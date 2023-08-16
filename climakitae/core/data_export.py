@@ -221,7 +221,7 @@ def export_dataset(user_export_format, data_to_export, file_name, **kwargs):
     a dataset to the current working directory in the output
     format requested by the user (which is stored in 'user_export_format').
 
-    user_export_format: pulled from dropdown called by app.export_as()
+    user_export_format: pulled from dropdown called by export_as()
     data_to_export: xarray ds or da to export
     file_name: string corresponding to desired output file name
     kwargs: variable, scenario, and simulation (as needed)
@@ -328,7 +328,7 @@ def export_dataset(user_export_format, data_to_export, file_name, **kwargs):
                         " a dataset or array with a single data variable."
                         " A single variable array can be extracted"
                         " from a multivariate dataset like so:"
-                        " app.export_dataset(ds['var'],'filename')"
+                        " export_dataset(ds['var'],'filename')"
                         " where ds is the dataset or data array"
                         " you attempted to export, and 'var' is a data"
                         " variable (in single or double quotes)."

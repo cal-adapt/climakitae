@@ -1151,7 +1151,7 @@ class DataParameters(param.Parameterized):
         ----------
         config: str, optional
             Local filepath to configuration csv file
-            Default to None-- retrieve settings in app.selections
+            Default to None-- retrieve settings in selections
         merge: bool, optional
             If config is TRUE and multiple datasets desired, merge to form a single object?
             Defaults to True.

@@ -66,7 +66,7 @@ def view(data, lat_lon=True, width=None, height=None, cmap=None):
         pass
     else:
         warnings.warn(
-            "This function may be quite slow unless you call .compute() on your data before passing it to app.view()"
+            "This function may be quite slow unless you call .compute() on your data before passing it to view()"
         )
 
     # Workflow if data contains spatial coordinates

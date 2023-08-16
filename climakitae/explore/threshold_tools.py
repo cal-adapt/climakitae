@@ -23,7 +23,7 @@ def get_ams(da, extremes_type="max"):
     Parameters
     ----------
     da: xarray.DataArray
-        DataArray from app.retrieve
+        DataArray from retrieve
     extremes_type: str
         option for max or min (min not implemented yet)
         Defaults to max
