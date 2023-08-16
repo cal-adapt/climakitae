@@ -21,12 +21,13 @@ Basic Usage
 -----------
 
 ```
-import climakitae as ck                  # Import the package 
-sel = ck.Select().show()                 # Pull up selections GUI to make data settings
-data = sel.retrieve()                    # Retrieve the data from the AWS catalog 
-data = ck.load(data)                     # Read the data into memory 
-ck.view(data)                            # Generate a basic visualization of the data
-wl = ck.explore.WarmingLevels().show()   # Explore Warming Levels GUI              
+import climakitae as ck                        # Import the package
+sel = ck.Select().show()                       # Pull up selections GUI to make data settings
+data = sel.retrieve()                          # Retrieve the data from the AWS catalog
+data = ck.load(data)                           # Read the data into memory
+ck.view(data)                                  # Generate a basic visualization of the data
+from climakitae.explore import warming_levels  # Import warming levels code
+wl = warming_levels().show()                   # Explore Warming Levels GUI
 ```
 
 Links

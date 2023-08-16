@@ -1,11 +1,11 @@
 Warming Levels
 ========================
 
-How to use climakitae's ck.Explore.warming_levels
+How to use climakitae's warming_levels()
 A description of the methods 
 
 .. code-block:: bash
     
-    import climakitae as ck
-    wl = ck.Explore.warming_levels()
+    from climakitae.explore import warming_levels
+    wl = warming_levels()
     wl.show()

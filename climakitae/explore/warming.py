@@ -189,7 +189,7 @@ def _make_hvplot(data, clabel, clim, cmap, sopt, title, width=225, height=210):
 class WarmingLevelParameters(DataParametersWithPanes):
     """Generate warming levels panel GUI in notebook.
 
-    Intended to be accessed through ck.Explore.warming_levels()
+    Intended to be accessed through warming_levels()
     Allows the user to toggle between several data options.
     Produces dynamically updating postage stamp maps.
 

@@ -1,9 +1,8 @@
 """
-Contains source code for the Explore object, used to access panel GUIs for exploring several climatological topics of interest: 
+Contains source code for the explore tools, used to access panel GUIs for exploring several climatological topics of interest: 
 1. Average meteorological year
 2. Thresholds 
 3. Global warming levels 
-See the Explore object documentation for more information. 
 """
 
 from climakitae.explore.thresholds import (
