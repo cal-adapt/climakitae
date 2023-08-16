@@ -46,8 +46,10 @@ class WarmingLevels(WarmingLevelParameters):
 def amy():
     return AverageMetYear()
 
+
 def thresholds():
     return Thresholds()
+
 
 def warming_levels():
     return WarmingLevels()
