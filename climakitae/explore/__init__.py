@@ -44,25 +44,11 @@ class WarmingLevels(WarmingLevelParameters):
         return warming_levels_visualize(self)
 
 
-class Explore:
-    """Explore the data using interactive GUIs.
-    Only functional in a jupyter notebook environment.
-    """
+def amy():
+    return AverageMetYear()
 
-    def __repr__(self):
-        """Print a string description of the available analysis method for this class."""
-        return (
-            "Choose one of these interactive panels to explore different aspects of the data:\n\n"
-            "ck.Explore.warming_levels(): Learn about global warming levels and explore regional responses.\n"
-            "ck.Explore.thresholds(): Explore how frequencies of extreme events will change.\n"
-            "ck.Explore.amy(): Produce an hourly time series for one year capturing mean climate conditions."
-        )
+def thresholds():
+    return Thresholds()
 
-    def amy():
-        return AverageMetYear()
-
-    def thresholds():
-        return Thresholds()
-
-    def warming_levels():
-        return WarmingLevels()
+def warming_levels():
+    return WarmingLevels()
