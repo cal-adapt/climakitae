@@ -168,7 +168,7 @@ def get_block_maxima(
 
         if average_ess < 25:
             print(
-                f"WARNING: The average effective sample size in your data is {round(average_ess, 2)} per block, which is low. This may result in biased estimates of extreme value distributions when calculating return values, periods, and probabilities from this data."
+                f"WARNING: The average effective sample size in your data is {round(average_ess, 2)} per block, which is lower than a standard target of around 25. This may result in biased estimates of extreme value distributions when calculating return values, periods, and probabilities from this data. Consider using a longer block size to increase the effective sample size in each block of data."
             )
 
     # Common attributes
@@ -244,7 +244,7 @@ def _calc_average_ess_timeseries_data(data, block_size):
 
     # Resample the data depending on the block size
     # Calculate ESS for each block
-    ess_by_time_block = data.resample(time="{0}YS".format(block_size)).apply(
+    ess_by_time_block = data.resample(time=f"{block_size}YS").apply(
         calculate_ess
     )
 
