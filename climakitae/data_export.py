@@ -6,8 +6,6 @@ import warnings
 import datetime
 import xarray as xr
 import pandas as pd
-import dask
-import numpy as np
 import rasterio
 from . import __version__
 
@@ -30,27 +28,86 @@ def _export_to_netcdf(data_to_export, save_name, **kwargs):
     data_to_export.to_netcdf(save_name, encoding=encoding)
 
 
+def _add_unit_to_header(df, variable, unit):
+    """
+    Add variable unit to data table header.
+
+    Insert a 2nd row into the header of the DataFrame `df` to include the
+    `unit` associated with the `variable` column.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        data table to update
+    variable : string
+        name of the variable column
+    unit : string
+        unit associated with the variable
+
+    Returns
+    -------
+    pandas.DataFrame
+        data table with the variable unit added to its header
+
+    """
+    df.columns = pd.MultiIndex.from_tuples(
+        [(col, unit) if col == variable else (col, "") for col in df.columns],
+        name=["variable", "unit"],
+    )
+    df.reset_index(inplace=True)  # simplifies header
+    return df
+
+
 def _export_to_csv(data_to_export, save_name, **kwargs):
     """
-    exports user-selected data to CSV format.
-    this function is called from the _export_to_user
+    Export user-selected data to CSV format.
+
+    Export the xarray DataArray `data_to_export` to a CSV file named
+    `save_name`. This function is called from the `_export_to_user`
     function if the user selected CSV output.
 
-    data_to_export: xarray dataset or array to export
-    save_name: string corresponding to desired output file name + file extension
-    kwargs: reserved for future use
+    Parameters
+    ----------
+    data_to_export : xarray.DataArray
+        data to export to CSV format
+    save_name : string
+        desired output file name, including the file extension
+
+    Returns
+    -------
+    None
+
     """
+    if not data_to_export.name:
+        # name it in order to call to_dataframe on it
+        data_to_export.name = "data"
+
+    # ease column access in R
+    data_to_export.name = (
+        data_to_export.name.replace("(", "")
+        .replace(")", "")
+        .replace(" ", "_")
+        .replace("-", "_")
+    )
+
+    df = data_to_export.to_dataframe()
+
+    if "units" in data_to_export.attrs and data_to_export.attrs["units"] is not None:
+        unit = data_to_export.attrs["units"]
+        variable = data_to_export.name
+        df = _add_unit_to_header(df, variable, unit)
 
     excel_row_limit = 1048576
-    to_save = data_to_export.to_dataframe()
-    csv_nrows = len(to_save.index)
-    if csv_nrows > excel_row_limit:
+    excel_column_limit = 16384
+    csv_nrows, csv_ncolumns = df.shape
+    if csv_nrows > excel_row_limit or csv_ncolumns > excel_column_limit:
         warnings.warn(
-            "Dataset exceeds Excel limit of " + str(excel_row_limit) + " rows."
+            f"Dataset exceeds Excel limits of {excel_row_limit} rows "
+            f"and {excel_column_limit} columns."
         )
 
     _metadata_to_file(data_to_export, save_name)
-    to_save.to_csv(save_name, compression="gzip")
+    df.to_csv(save_name, compression="gzip")
 
 
 def _export_to_geotiff(data_to_export, save_name, **kwargs):
@@ -400,3 +457,125 @@ def _metadata_to_file(ds, output_name):
             ):
                 f.write(str(att_keys) + " : " + str(att_values))
                 f.write("\n")
+
+
+## TMY export functions
+def _tmy_header(location_name, df):
+    """
+    Constructs the header for the TMY output file in .tmy format
+    Source: https://www.nrel.gov/docs/fy08osti/43156.pdf (pg. 3)
+    """
+
+    # line 1 - site information
+    # line 1: USAF, station name quote delimited, station state, time zone, lat, lon, elev (m)
+    # line 1: we provide station name, lat, lon, and simulation
+    line_1 = "'{0}', {1}, {2}, {3}\n".format(
+        location_name,
+        df["lat"].values[0],
+        df["lon"].values[0],
+        df["simulation"].values[0],
+    )
+
+    # line 2 - data field name and units, manually setting to ensure matches TMY3 labeling
+    line_2 = "Air Temperature at 2m (degC),Dew point temperature (degC),Relative humidity (%),Instantaneous downwelling shortwave flux at bottom (W m-2),Shortwave surface downward diffuse irradiance (W m-2),Instantaneous downwelling longwave flux at bottom (W m-2),Wind speed at 10m (m s-1),Wind direction at 10m (deg),Surface Pressure (Pa)\n"
+
+    headers = [line_1, line_2]
+
+    return headers
+
+
+def _epw_header(location_name, df):
+    """
+    Constructs the header for the TMY output file in .epw format
+    Source:https://designbuilder.co.uk/cahelp/Content/EnergyPlusWeatherFileFormat.htm#:~:text=The%20EPW%20weather%20data%20format,based%20with%20comma%2Dseparated%20data.
+    """
+
+    # line 1 - location
+    line_1 = "LOCATION,{0},{1},{2}\n".format(
+        location_name, df["lat"].values[0], df["lon"].values[0]
+    )
+
+    # line 2 - design conditions, leave blank for now
+    line_2 = "DESIGN CONDITIONS\n"
+
+    # line 3 - typical/extreme periods, leave blank for now
+    line_3 = "TYPICAL/EXTREME PERIODS\n"
+
+    # line 4 - ground temperatures, leave blank for now
+    line_4 = "GROUND TEMPERATURES\n"
+
+    # line 5 - holidays/daylight savings, leap year (yes/no), daylight savings start, daylight savings end, num of holidays
+    line_5 = "HOLIDAYS/DAYLIGHT SAVINGS,No,0,0,0\n"
+
+    # line 6 - comments 1, going to include simulation + scenario information here
+    line_6 = "COMMENTS 1,Typical meteorological year data produced on the Cal-Adapt: Analytics Engine, Scenario: {0}, Simulation: {1}\n".format(
+        df["scenario"].values[0], df["simulation"].values[0]
+    )
+
+    # line 7 - comments 2, putting the data variables here manually as they are not specified in epw format, and we are not including all
+    line_7 = "COMMENTS 2,Air Temperature at 2m (degC),Dew point temperature (degC),Relative humidity (%),Instantaneous downwelling shortwave flux at bottom (W m-2),Shortwave surface downward diffuse irradiance (W m-2),Instantaneous downwelling longwave flux at bottom (W m-2),Wind speed at 10m (m s-1),Wind direction at 10m (deg),Surface Pressure (Pa)\n"
+
+    # line 8 - data periods, num data periods, num records per hour, data period name, data period start day of week, data period start (Jan 1), data period end (Dec 31)
+    line_8 = "DATA PERIODS,1,1,Data,,1/1,12/31\n"
+
+    headers = [line_1, line_2, line_3, line_4, line_5, line_6, line_7, line_8]
+
+    return headers
+
+
+def write_tmy_file(filename_to_export, df, location_name="location", file_ext="tmy"):
+    """Exports TMY data either as .epw or .tmy file
+
+    Paramters
+    ---------
+    filename_to_export (str): Filename string, constructed with station name and simulation
+    df (pd.DataFrame): Dataframe of TMY data to export
+    location_name (str, optional): Location name string, often station name
+    file_ext (str, optional): File extension for export, default is .tmy, options are "tmy" and "epw"
+
+    Returns
+    -------
+    None
+    """
+
+    # check that data passed is a DataFrame object
+    if type(df) != pd.DataFrame:
+        raise ValueError(
+            "The function requires a pandas DataFrame object as the data input"
+        )
+
+    # typical meteorological year format
+    if file_ext == "tmy":
+        path_to_file = filename_to_export + ".tmy"
+
+        with open(path_to_file, "w") as f:
+            f.writelines(_tmy_header(location_name, df))  # writes required header lines
+            df = df.drop(
+                columns=["simulation", "lat", "lon", "scenario"]
+            )  # drops header columns from df
+            dfAsString = df.to_csv(sep=",", header=False, index=False)
+            f.write(dfAsString)  # writes file
+        print(
+            "TMY data exported to .tmy format with filename {}.tmy".format(
+                filename_to_export
+            )
+        )
+
+    # energy plus weather format
+    elif file_ext == "epw":
+        path_to_file = filename_to_export + ".epw"
+        with open(path_to_file, "w") as f:
+            f.writelines(_epw_header(location_name, df))  # writes required header lines
+            df = df.drop(
+                columns=["simulation", "lat", "lon", "scenario"]
+            )  # drops header columns from df
+            dfAsString = df.to_csv(sep=",", header=False, index=False)
+            f.write(dfAsString)  # writes file
+        print(
+            "TMY data exported to .epw format with filename {}.epw".format(
+                filename_to_export
+            )
+        )
+
+    else:
+        print('Please pass either "tmy" or "epw" as a file format for export.')

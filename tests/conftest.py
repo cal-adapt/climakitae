@@ -28,3 +28,21 @@ def T2_hourly(rootdir):
     da = xr.open_dataset(test_filepath)["Air Temperature at 2m"]
     da.attrs["frequency"] = "hourly"
     return da
+
+
+@pytest.fixture
+def test_dataset_Jan2015_LAcounty_45km_daily(rootdir):
+    """Read in test dataset using xarray."""
+    filename = "test_data/test_dataset_Jan2015_LAcounty_45km_daily.nc"
+    filepath = os.path.join(rootdir, filename)
+    ds = xr.open_dataset(filepath)
+    return ds
+
+
+@pytest.fixture
+def test_dataset_01Jan2015_LAcounty_45km_hourly(rootdir):
+    """Read in test dataset using xarray."""
+    filename = "test_data/test_dataset_01Jan2015_LAcounty_45km_hourly.nc"
+    filepath = os.path.join(rootdir, filename)
+    ds = xr.open_dataset(filepath)
+    return ds

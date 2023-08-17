@@ -60,6 +60,14 @@ climakitae.explore module
    :undoc-members:
    :show-inheritance:
 
+climakitae.indices module
+-------------------------
+
+.. automodule:: climakitae.indices
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 climakitae.metadata\_update module
 ----------------------------------
 
