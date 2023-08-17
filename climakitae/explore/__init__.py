@@ -47,8 +47,8 @@ def amy():
     return AverageMetYear()
 
 
-def thresholds():
-    return Thresholds()
+def thresholds(option=1):
+    return Thresholds(option=option)
 
 
 def warming_levels():
