@@ -341,7 +341,7 @@ def export(user_export_format, data_to_export, file_name, **kwargs):
     a dataset to the current working directory in the output
     format requested by the user (which is stored in 'user_export_format').
 
-    user_export_format: pulled from dropdown called by export_as()
+    user_export_format: data format to export to (NetCDF, CSV, GeoTIFF)
     data_to_export: xarray ds or da to export
     file_name: string corresponding to desired output file name
     kwargs: variable, scenario, and simulation (as needed)
