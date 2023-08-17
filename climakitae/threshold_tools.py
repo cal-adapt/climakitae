@@ -89,6 +89,13 @@ def get_block_maxima(
     -------
     xarray.DataArray
     """
+
+    extremes_types = ["max", "min"] # valid user options
+    if extremes_type not in extremes_types:
+        raise ValueError(
+            "invalid extremes type. expected one of the following: %s" % extremes_types
+        )
+
     if duration != None:
         # In this case, user is interested in extreme events lasting at least
         # as long as the length of `duration`.
@@ -100,6 +107,8 @@ def get_block_maxima(
 
         # First identify the min (max) value for each window of length `duration`
         if extremes_type == "max":
+            # In the case of "max" events, need to first identify the minimum value
+            # in each window of the specified duration
             da_series = da_series.rolling(time=dur_len, center=False).min("time")
         elif extremes_type == "min":
             da_series = da_series.rolling(time=dur_len, center=False).max("time")
@@ -114,16 +123,10 @@ def get_block_maxima(
             )
 
         # select the max (min) in each group
-        extremes_types = ["max", "min"]  # valid user options
         if extremes_type == "max":
             da_series = da_series.resample(time=f"{group_len}D", label="left").max()
         elif extremes_type == "min":
             da_series = da_series.resample(time=f"{group_len}D", label="left").min()
-        else:
-            raise ValueError(
-                "invalid extremes type. expected one of the following: %s"
-                % extremes_types
-            )
 
     if grouped_duration != None:
         if groupby == None:
@@ -177,7 +180,6 @@ def get_block_maxima(
             "extreme_value_extraction_method": f"block maxima",
             "block_size": f"{block_size} year",
             "timeseries_type": f"block {extremes_type} series",
-            "nicole": "leeney",
         }
     )
 
