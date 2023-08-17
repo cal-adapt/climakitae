@@ -5,7 +5,7 @@ run through `transform_data` without error, and that the data has been transform
 (not equal to original values), but does not test for exact expected values.
 """
 
-from climakitae.explore import timeseries as tst
+from climakitae.explore.timeseries import TimeSeries as tst
 import datetime as dt
 import pytest
 import os
