@@ -162,9 +162,14 @@ def get_block_maxima(
             # Case for data with spatial dimensions (gridded)
             average_ess = _calc_average_ess_gridded_data(da_series, block_size)
 
-        else:
+        elif da_series.dims == ("time",):
             # Case for timeseries data (no spatial dimensions)
             average_ess = _calc_average_ess_timeseries_data(da_series, block_size)
+
+        else:
+            print(
+                f"WARNING: the effective sample size can only be checked for timeseries or spatial data. You provided data with the following dimensions: {da_series.dims}."
+            )
 
         if average_ess < 25:
             print(
