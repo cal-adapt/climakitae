@@ -27,13 +27,14 @@ def calculate_ess(data, nlags=None):
     data: xr.DataArray
         Input array is assumed to be timeseries data with potential autocorrelation.
     nlags: int, optional
-        Number of lags to add
+        Number of lags to use in the autocorrelation function, defaults to the length of
+        the timeseries.
 
     Returns
     ---------
     xr.DataArray
-          Effective sample size.
-          Returned as a DataArray object so it can be utilized by xr.groupby and xr.resample
+        Effective sample size.
+        Returned as a DataArray object so it can be utilized by xr.groupby and xr.resample.
     """
     n = len(data)
     if nlags is None:
