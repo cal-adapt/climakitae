@@ -544,24 +544,6 @@ class DataInterface:
         return self._geographies
 
 
-class ExportParameters(param.Parameterized):
-    """
-    If the user wants to export an xarray dataset, they can choose
-    their preferred format here. Produces a panel from which to select a
-    supported file type.
-    """
-
-    output_file_format = param.Selector(objects=dict())
-
-    def __init__(self, **params):
-        # Set default values
-        super().__init__(**params)
-
-        _export_format_choices = ["Pick a file format", "CSV", "GeoTIFF", "NetCDF"]
-
-        self.param["output_file_format"].objects = _export_format_choices
-
-
 class DataParameters(param.Parameterized):
     """
     An object to hold data parameters, which depends only on the 'param'
