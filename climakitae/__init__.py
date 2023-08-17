@@ -1,4 +1,4 @@
-from climakitae.ui.select import Select
+from climakitae.core.data_interface import Select
 from climakitae.core.data_load import load
 from climakitae.core.data_view import view
 from climakitae.core.data_export import export
