@@ -90,7 +90,7 @@ def get_block_maxima(
     xarray.DataArray
     """
 
-    extremes_types = ["max", "min"] # valid user options
+    extremes_types = ["max", "min"]  # valid user options
     if extremes_type not in extremes_types:
         raise ValueError(
             "invalid extremes type. expected one of the following: %s" % extremes_types
@@ -249,9 +249,7 @@ def _calc_average_ess_timeseries_data(data, block_size):
 
     # Resample the data depending on the block size
     # Calculate ESS for each block
-    ess_by_time_block = data.resample(time=f"{block_size}YS").apply(
-        calculate_ess
-    )
+    ess_by_time_block = data.resample(time=f"{block_size}YS").apply(calculate_ess)
 
     # Compute mean of all ESS values
     mean_ess = ess_by_time_block.mean(skipna=True).item()
