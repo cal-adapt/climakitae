@@ -12,20 +12,20 @@ from importlib.metadata import version as _version
 xr.set_options(keep_attrs=True)
 
 
-def _export_to_netcdf(data_to_export, save_name, **kwargs):
+def _export_to_netcdf(data, save_name, **kwargs):
     """
     exports user-selected data to netCDF format.
     this function is called from the _export_to_user
     function if the user selected netCDF output.
 
-    data_to_export: xarray dataset or array to export
+    data: xarray dataset or array to export
     save_name: string corresponding to desired output file name + file extension
     kwargs: reserved for future use
     """
     print("Alright, exporting specified data to NetCDF.")
     comp = dict(_FillValue=None)
-    encoding = {coord: comp for coord in data_to_export.coords}
-    data_to_export.to_netcdf(save_name, encoding=encoding)
+    encoding = {coord: comp for coord in data.coords}
+    data.to_netcdf(save_name, encoding=encoding)
 
 
 def _get_unit(dataarray):
@@ -187,16 +187,16 @@ def _dataset_to_dataframe(dataset):
     return df
 
 
-def _export_to_csv(data_to_export, save_name, **kwargs):
+def _export_to_csv(data, save_name, **kwargs):
     """
     Export user-selected data to CSV format.
 
-    Export the xarray DataArray or Dataset `data_to_export` to a CSV file named
+    Export the xarray DataArray or Dataset `data` to a CSV file named
     `save_name`.
 
     Parameters
     ----------
-    data_to_export : xarray.DataArray or xarray.Dataset
+    data : xarray.DataArray or xarray.Dataset
         data to export to CSV format
     save_name : string
         desired output file name, including the file extension
@@ -208,13 +208,13 @@ def _export_to_csv(data_to_export, save_name, **kwargs):
     """
     print("Alright, exporting specified data to CSV.")
 
-    ftype = type(data_to_export)
+    ftype = type(data)
 
     if ftype == xr.core.dataarray.DataArray:
-        df = _dataarray_to_dataframe(data_to_export)
+        df = _dataarray_to_dataframe(data)
 
     elif ftype == xr.core.dataset.Dataset:
-        df = _dataset_to_dataframe(data_to_export)
+        df = _dataset_to_dataframe(data)
 
     # Warn about exceedance of Excel row or column limit
     excel_row_limit = 1048576
@@ -226,35 +226,35 @@ def _export_to_csv(data_to_export, save_name, **kwargs):
             f"and {excel_column_limit} columns."
         )
 
-    _metadata_to_file(data_to_export, save_name)
+    _metadata_to_file(data, save_name)
     df.to_csv(save_name, compression="gzip")
 
 
-def _export_to_geotiff(data_to_export, save_name, **kwargs):
+def _export_to_geotiff(data, save_name, **kwargs):
     """
     exports user-selected data to geoTIFF format.
     this function is called from the _export_to_user
     function if the user selected geoTIFF output.
 
-    data_to_export: xarray dataset or array to export
+    data: xarray dataset or array to export
     save_name: string corresponding to desired output file name + file extension
     kwargs: reserved for future use
     """
-    ds_attrs = data_to_export.attrs
+    ds_attrs = data.attrs
 
     # squeeze singleton dimensions as long as they are
     # simulation and/or scenario dimensions;
     # retain simulation and/or scenario metadata
-    if "scenario" in data_to_export.coords and "scenario" not in data_to_export.dims:
-        scen_attrs = {"scenario": str(data_to_export.coords["scenario"].values)}
+    if "scenario" in data.coords and "scenario" not in data.dims:
+        scen_attrs = {"scenario": str(data.coords["scenario"].values)}
         ds_attrs = dict(ds_attrs, **scen_attrs)
-    if "scenario" in data_to_export.dims and len(data_to_export.scenario) == 1:
-        scen_attr = {"scenario": str(data_to_export.scenario.values[0])}
+    if "scenario" in data.dims and len(data.scenario) == 1:
+        scen_attr = {"scenario": str(data.scenario.values[0])}
         ds_attrs = dict(ds_attrs, **scen_attr)
-        data_to_export = data_to_export.squeeze(dim="scenario")
+        data = data.squeeze(dim="scenario")
     elif (
-        "scenario" not in data_to_export.dims
-        and "scenario" not in data_to_export.coords
+        "scenario" not in data.dims
+        and "scenario" not in data.coords
     ):
         warnings.warn(
             (
@@ -270,18 +270,18 @@ def _export_to_geotiff(data_to_export, save_name, **kwargs):
         )
 
     if (
-        "simulation" in data_to_export.coords
-        and "simulation" not in data_to_export.dims
+        "simulation" in data.coords
+        and "simulation" not in data.dims
     ):
-        sim_attrs = {"simulation": str(data_to_export.coords["simulation"].values)}
+        sim_attrs = {"simulation": str(data.coords["simulation"].values)}
         ds_attrs = dict(ds_attrs, **sim_attrs)
-    if str("simulation") in data_to_export.dims and len(data_to_export.simulation) == 1:
-        sim_attrs = {"simulation": str(data_to_export.simulation.values)}
+    if str("simulation") in data.dims and len(data.simulation) == 1:
+        sim_attrs = {"simulation": str(data.simulation.values)}
         ds_attrs = dict(ds_attrs, **sim_attrs)
-        data_to_export = data_to_export.squeeze(dim="simulation")
+        data = data.squeeze(dim="simulation")
     elif (
-        "simulation" not in data_to_export.dims
-        and "simulation" not in data_to_export.coords
+        "simulation" not in data.dims
+        and "simulation" not in data.coords
     ):
         warnings.warn(
             (
@@ -296,29 +296,29 @@ def _export_to_geotiff(data_to_export, save_name, **kwargs):
             )
         )
 
-    ndim = len(data_to_export.dims)
+    ndim = len(data.dims)
     if ndim == 3:
-        if "time" in data_to_export.dims:
-            data_to_export = data_to_export.transpose("time", "y", "x")
-            if len(data_to_export.time) > 1:
+        if "time" in data.dims:
+            data = data.transpose("time", "y", "x")
+            if len(data.time) > 1:
                 print(
                     (
                         "Saving as multiband raster in which"
                         " each band corresponds to a time step."
                     )
                 )
-        elif "simulation" in data_to_export.dims:
-            data_to_export = data_to_export.transpose("simulation", "y", "x")
-            if len(data_to_export.simulation) > 1:
+        elif "simulation" in data.dims:
+            data = data.transpose("simulation", "y", "x")
+            if len(data.simulation) > 1:
                 print(
                     (
                         "Saving as multiband raster in which"
                         " each band corresponds to a simulation."
                     )
                 )
-        elif "scenario" in data_to_export.dims:
-            data_to_export = data_to_export.transpose("scenario", "y", "x")
-            if len(data_to_export.scenario) > 1:
+        elif "scenario" in data.dims:
+            data = data.transpose("scenario", "y", "x")
+            if len(data.scenario) > 1:
                 print(
                     (
                         "Saving as multiband raster in which"
@@ -327,7 +327,7 @@ def _export_to_geotiff(data_to_export, save_name, **kwargs):
                 )
 
     print("Saving as GeoTIFF...")
-    data_to_export.rio.to_raster(save_name)
+    data.rio.to_raster(save_name)
     meta_data_dict = ds_attrs
 
     with rasterio.open(save_name, "r+") as raster:
@@ -335,18 +335,18 @@ def _export_to_geotiff(data_to_export, save_name, **kwargs):
         raster.close()
 
 
-def export(user_export_format, data_to_export, file_name, **kwargs):
+def export(data, filename="dataexport.nc", format="NetCDF", **kwargs):
     """
     The data export method, called by core.Application.export_dataset. Saves
     a dataset to the current working directory in the output
-    format requested by the user (which is stored in 'user_export_format').
+    format requested by the user (which is stored in 'format').
 
-    user_export_format: data format to export to (NetCDF, CSV, GeoTIFF)
-    data_to_export: xarray ds or da to export
-    file_name: string corresponding to desired output file name
+    data: xarray ds or da to export
+    filename: string corresponding to desired output file name
+    format: data format to export to (NetCDF, CSV, GeoTIFF)
     kwargs: variable, scenario, and simulation (as needed)
     """
-    ftype = type(data_to_export)
+    ftype = type(data)
 
     if ftype not in [xr.core.dataset.Dataset, xr.core.dataarray.DataArray]:
         raise Exception(
@@ -354,9 +354,9 @@ def export(user_export_format, data_to_export, file_name, **kwargs):
             + str(ftype).strip("<class >")
             + ". Please pass an xarray dataset or data array."
         )
-    ndims = len(data_to_export.dims)
+    ndims = len(data.dims)
 
-    if type(file_name) is not str:
+    if type(filename) is not str:
         raise Exception(
             (
                 "Please pass a string"
@@ -364,16 +364,16 @@ def export(user_export_format, data_to_export, file_name, **kwargs):
                 " for your file name."
             )
         )
-    file_name = file_name.split(".")[0]
+    filename = filename.split(".")[0]
 
-    req_format = user_export_format
+    req_format = format
 
     if req_format is None:
         raise Exception("Please select a file format from the dropdown menu.")
 
     extension_dict = {"NetCDF": ".nc", "CSV": ".csv.gz", "GeoTIFF": ".tif"}
 
-    save_name = "./" + file_name + extension_dict[req_format]
+    save_name = "./" + filename + extension_dict[req_format]
 
     if os.path.exists(save_name):
         raise Exception(
@@ -385,7 +385,7 @@ def export(user_export_format, data_to_export, file_name, **kwargs):
             )
         )
 
-    ds_attrs = data_to_export.attrs
+    ds_attrs = data.attrs
     ct = datetime.datetime.now()
     ct_str = ct.strftime("%d-%b-%Y (%H:%M)")
 
@@ -402,7 +402,7 @@ def export(user_export_format, data_to_export, file_name, **kwargs):
 
     # metadata stuff
     ds_attrs.update(ck_attrs)
-    data_to_export.attrs = ds_attrs
+    data.attrs = ds_attrs
 
     # now check file size and avail workspace disk space
     # raise error for not enough space
@@ -410,7 +410,7 @@ def export(user_export_format, data_to_export, file_name, **kwargs):
     file_size_threshold = 5  # in GB
     bytes_per_gigabyte = 1024 * 1024 * 1024
     disk_space = shutil.disk_usage("./")[2] / bytes_per_gigabyte
-    data_size = data_to_export.nbytes / bytes_per_gigabyte
+    data_size = data.nbytes / bytes_per_gigabyte
 
     if disk_space <= data_size:
         raise Exception(
@@ -436,12 +436,12 @@ def export(user_export_format, data_to_export, file_name, **kwargs):
     # we will have different functions for each file type
     # to keep things clean-ish
     if "NetCDF" in req_format:
-        _export_to_netcdf(data_to_export, save_name, **kwargs)
+        _export_to_netcdf(data, save_name, **kwargs)
     elif "CSV" in req_format:
-        _export_to_csv(data_to_export, save_name, **kwargs)
+        _export_to_csv(data, save_name, **kwargs)
     else:
         if ftype == xr.core.dataset.Dataset:
-            dv_list = list(data_to_export.data_vars)
+            dv_list = list(data.data_vars)
             if len(dv_list) > 1:
                 raise Exception(
                     (
@@ -458,23 +458,23 @@ def export(user_export_format, data_to_export, file_name, **kwargs):
                 )
             else:
                 var_name = dv_list[0]
-                data_to_export = data_to_export.to_array()
-                data_to_export.name = var_name
+                data = data.to_array()
+                data.name = var_name
 
         if "CSV" in req_format:
-            _export_to_csv(data_to_export, save_name, **kwargs)
+            _export_to_csv(data, save_name, **kwargs)
 
         if "GeoTIFF" in req_format:
             # sometimes "variable" might be a singleton dimension:
-            data_to_export = data_to_export.squeeze()
+            data = data.squeeze()
 
             # if x and/or y exist as coordinates
             # but have been squeezed out as dimensions
             # (eg we have point data), add them back in as dimensions.
             # rasters require both x and y dimensions
-            if "x" not in data_to_export.dims:
-                if "x" in data_to_export.coords:
-                    data_to_export = data_to_export.expand_dims("x")
+            if "x" not in data.dims:
+                if "x" in data.coords:
+                    data = data.expand_dims("x")
                 else:
                     raise Exception(
                         (
@@ -484,9 +484,9 @@ def export(user_export_format, data_to_export, file_name, **kwargs):
                             " spatial coordinates."
                         )
                     )
-            if "y" not in data_to_export.dims:
-                if "y" in data_to_export.coords:
-                    data_to_export = data_to_export.expand_dims("y")
+            if "y" not in data.dims:
+                if "y" in data.coords:
+                    data = data.expand_dims("y")
                 else:
                     raise Exception(
                         (
@@ -497,11 +497,11 @@ def export(user_export_format, data_to_export, file_name, **kwargs):
                         )
                     )
 
-            dim_check = data_to_export.isel(x=0, y=0).squeeze().shape
+            dim_check = data.isel(x=0, y=0).squeeze().shape
 
             if sum([int(dim > 1) for dim in dim_check]) > 1:
-                dim_list = data_to_export.dims
-                shape_list = data_to_export.shape
+                dim_list = data.dims
+                shape_list = data.shape
                 dim_shape = str(
                     [str(d) + ": " + str(s) for d, s in list(zip(dim_list, shape_list))]
                 )
@@ -515,7 +515,7 @@ def export(user_export_format, data_to_export, file_name, **kwargs):
                     + ". Please subset your selection accordingly."
                 )
 
-            _export_to_geotiff(data_to_export, save_name, **kwargs)
+            _export_to_geotiff(data, save_name, **kwargs)
 
     return print(
         (
