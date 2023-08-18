@@ -252,10 +252,7 @@ def _export_to_geotiff(data, save_name, **kwargs):
         scen_attr = {"scenario": str(data.scenario.values[0])}
         ds_attrs = dict(ds_attrs, **scen_attr)
         data = data.squeeze(dim="scenario")
-    elif (
-        "scenario" not in data.dims
-        and "scenario" not in data.coords
-    ):
+    elif "scenario" not in data.dims and "scenario" not in data.coords:
         warnings.warn(
             (
                 "'scenario' not in data array as"
@@ -269,20 +266,14 @@ def _export_to_geotiff(data, save_name, **kwargs):
             )
         )
 
-    if (
-        "simulation" in data.coords
-        and "simulation" not in data.dims
-    ):
+    if "simulation" in data.coords and "simulation" not in data.dims:
         sim_attrs = {"simulation": str(data.coords["simulation"].values)}
         ds_attrs = dict(ds_attrs, **sim_attrs)
     if str("simulation") in data.dims and len(data.simulation) == 1:
         sim_attrs = {"simulation": str(data.simulation.values)}
         ds_attrs = dict(ds_attrs, **sim_attrs)
         data = data.squeeze(dim="simulation")
-    elif (
-        "simulation" not in data.dims
-        and "simulation" not in data.coords
-    ):
+    elif "simulation" not in data.dims and "simulation" not in data.coords:
         warnings.warn(
             (
                 "'simulation' not in data array as"
