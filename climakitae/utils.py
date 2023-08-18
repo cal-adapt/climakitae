@@ -450,8 +450,13 @@ def trendline(data):
 
 def combine_hdd_cdd(data):
     """Drops specific unneeded coords from HDD/CDD data, independent of station or gridded data source"""
-    if data.name not in ["Annual Heating Degree Days (HDD)", "Annual Cooling Degree Days (CDD)"]:
-        raise Exception("Invalid data provided, please pass cdd_annual or hdd_annual data")
+    if data.name not in [
+        "Annual Heating Degree Days (HDD)",
+        "Annual Cooling Degree Days (CDD)",
+    ]:
+        raise Exception(
+            "Invalid data provided, please pass cdd_annual or hdd_annual data"
+        )
 
     to_drop = ["scenario", "Lambert_Conformal", "variable"]
     for coord in to_drop:
