@@ -453,6 +453,8 @@ def combine_hdd_cdd(data):
     if data.name not in [
         "Annual Heating Degree Days (HDD)",
         "Annual Cooling Degree Days (CDD)",
+        "Heating Degree Hours",
+        "Cooling Degree Hours"
     ]:
         raise Exception(
             "Invalid data provided, please pass cdd_annual or hdd_annual data"
