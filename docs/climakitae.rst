@@ -10,7 +10,6 @@ Subpackages
    climakitae.core
    climakitae.explore
    climakitae.tools
-   climakitae.ui
    climakitae.util
 
 Module contents
