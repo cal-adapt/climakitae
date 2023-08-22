@@ -1,4 +1,3 @@
-"""Helper functions and classes for working with timeseries data"""
 import datetime as dt
 import xarray as xr
 import param
@@ -7,10 +6,11 @@ import hvplot.xarray
 import pandas as pd
 
 
-class _TimeSeriesParams(param.Parameterized):
-    """
-    An object to hold time-series parameters, which depends only on the 'param'
-    library. Currently used in '_timeseries_visualize', which uses 'panel' to
+class TimeSeriesParameters(param.Parameterized):
+    """Class to hold TimeSeries params
+
+    An object to hold time-series params, which depends only on the 'param'
+    library. Currently used in 'timeseries_visualize', which uses 'panel' to
     draw the GUI, but another UI could in principle be used to update these
     parameters instead.
     """
@@ -296,7 +296,7 @@ class _TimeSeriesParams(param.Parameterized):
         return obj
 
 
-def _timeseries_visualize(choices):
+def timeseries_visualize(choices):
     """
     Uses holoviz 'panel' library to display the parameters and view defined in
     an instance of _TimeSeriesParams.
@@ -371,17 +371,11 @@ def _update_attrs(data_to_output, attrs_to_add):
     return data_to_output
 
 
-class Timeseries:
+class TimeSeries:
     """
-    Holds the instance of _TimeSeriesParams that is used for the following purposes:
+    Holds the instance of TimeSeriesParameters that is used for the following purposes:
     1) to display a panel that previews various time-series transforms (explore), and
     2) to save the transform represented by the current state of that preview into a new variable (output_current).
-
-    Parameters
-    ----------
-    data: xr.DataArray
-        Timeseries data of both historical and future period
-
     """
 
     def __init__(self, data):
@@ -389,7 +383,7 @@ class Timeseries:
             type(data) != xr.core.dataarray.DataArray
         ):  # Data is NOT in the form of xr.DataArray
             raise ValueError(
-                "Please pass an xarray DataArray (e.g. as output by app.retrieve())."
+                "Please pass an xarray DataArray (e.g. as output by DataParameters.retrieve())."
             )
         else:
             raise_error = False
@@ -410,7 +404,7 @@ class Timeseries:
             if raise_error:  # If any errors
                 raise ValueError(error_message)
 
-        self.choices = _TimeSeriesParams(data)
+        self.choices = TimeSeriesParameters(data)
 
     def explore(self):
         """Create an interactive visualization of the timeseries data, dependant on the attributes set in previous steps. Allows user to directly modify the data in the GUI. Only works in a jupyter notebook environment.
@@ -420,7 +414,7 @@ class Timeseries:
         panel.layout.base.Column
 
         """
-        return _timeseries_visualize(self.choices)
+        return timeseries_visualize(self.choices)
 
     def output_current(self):
         """Output the current attributes of the class to a DataArray object.

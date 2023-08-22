@@ -1,10 +1,8 @@
 """Helper functions for performing analyses related to thresholds"""
 
 import numpy as np
-import pandas as pd
 import xarray as xr
 from scipy import stats
-import matplotlib.pyplot as plt
 from matplotlib import cm
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
@@ -14,7 +12,7 @@ from holoviews import opts
 import hvplot.pandas
 import hvplot.xarray
 import panel as pn
-from .utils import _read_ae_colormap
+from climakitae.util.utils import read_ae_colormap
 
 
 def get_ams(da, extremes_type="max"):
@@ -25,7 +23,7 @@ def get_ams(da, extremes_type="max"):
     Parameters
     ----------
     da: xarray.DataArray
-        DataArray from app.retrieve
+        DataArray from retrieve
     extremes_type: str
         option for max or min (min not implemented yet)
         Defaults to max
@@ -612,7 +610,7 @@ def get_return_period(
 # ===================== Functions for exceedance count =========================
 
 
-def _get_exceedance_count(
+def get_exceedance_count(
     da,
     threshold_value,
     duration1=None,
@@ -905,7 +903,7 @@ def _exceedance_count_name(exceedance_count):
     return f"Number of {event}"
 
 
-def _plot_exceedance_count(exceedance_count):
+def plot_exceedance_count(exceedance_count):
     """Create panel column object with embedded plots
 
     Plots each simulation as a different color line.
@@ -932,7 +930,7 @@ def _plot_exceedance_count(exceedance_count):
     return pn.Column(plot_obj)
 
 
-def _exceedance_plot_title(exceedance_count):
+def exceedance_plot_title(exceedance_count):
     """Function to build title for exceedance plots
 
     Helper function for making the title for exceedance plots.
@@ -953,7 +951,7 @@ def _exceedance_plot_title(exceedance_count):
     return f"{exceedance_count.variable_name}: events {exceedance_count.threshold_direction} {exceedance_count.threshold_value}{exceedance_count.variable_units}"
 
 
-def _exceedance_plot_subtitle(exceedance_count):
+def exceedance_plot_subtitle(exceedance_count):
     """Function of build exceedance plot subtitle
 
     Helper function for making the subtile for exceedance plots.
@@ -1060,7 +1058,7 @@ def get_geospatial_plot(
         "ae_blue",
         "ae_diverging_r",
     ]:
-        cmap = _read_ae_colormap(cmap=cmap, cmap_hex=True)
+        cmap = read_ae_colormap(cmap=cmap, cmap_hex=True)
 
     data_variables = [
         "d_statistic",

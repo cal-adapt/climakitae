@@ -1,23 +1,15 @@
 """Backend function for creating generic visualizations of xarray DataArray."""
 
 import warnings
-import xarray as xr
 import numpy as np
-import pandas as pd
 import hvplot.xarray
 import matplotlib.pyplot as plt
-import pkg_resources
 import panel as pn
-from .utils import _reproject_data, _read_ae_colormap
-
-# Import package data
-var_catalog_resource = pkg_resources.resource_filename(
-    "climakitae", "data/variable_descriptions.csv"
-)
-var_catalog = pd.read_csv(var_catalog_resource, index_col=None)
+from climakitae.util.utils import reproject_data, read_ae_colormap
+from climakitae.core.data_interface import DataInterface
 
 
-def _compute_vmin_vmax(da_min, da_max):
+def compute_vmin_vmax(da_min, da_max):
     """Compute min, max, and center for plotting"""
     vmin = np.nanpercentile(da_min, 1)
     vmax = np.nanpercentile(da_max, 99)
@@ -30,7 +22,7 @@ def _compute_vmin_vmax(da_min, da_max):
     return vmin, vmax, sopt
 
 
-def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
+def view(data, lat_lon=True, width=None, height=None, cmap=None):
     """Create a generic visualization of the data
 
     Visualization will depend on the shape of the input data.
@@ -67,12 +59,14 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
         Warn user that the function will be slow if data has not been loaded into memory
     """
 
+    variable_descriptions = DataInterface().variable_descriptions
+
     # Warn user about speed if passing a zarr to the function
     if data.chunks is None or str(data.chunks) == "Frozen({})":
         pass
     else:
         warnings.warn(
-            "This function may be quite slow unless you call .compute() on your data before passing it to app.view()"
+            "This function may be quite slow unless you call .compute() on your data before passing it to view()"
         )
 
     # Workflow if data contains spatial coordinates
@@ -90,7 +84,7 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
             if data.chunks is None or str(data.chunks) == "Frozen({})":
                 min_data = data.min(dim="simulation")
                 max_data = data.max(dim="simulation")
-                vmin, vmax, sopt = _compute_vmin_vmax(min_data, max_data)
+                vmin, vmax, sopt = compute_vmin_vmax(min_data, max_data)
 
         # Set default cmap if no user input
         if cmap is None:
@@ -99,9 +93,9 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
                     timescale = "daily, monthly"
                 else:
                     timescale = data.frequency
-                cmap = var_catalog[
-                    (var_catalog["display_name"] == data.name)
-                    # & (var_catalog["timescale"] == timescale)
+                cmap = variable_descriptions[
+                    (variable_descriptions["display_name"] == data.name)
+                    # & (variable_descriptions["timescale"] == timescale)
                 ].colormap.values[0]
             except:  # If variable not found, set to ae_orange without raising error
                 cmap = "ae_orange"
@@ -121,7 +115,7 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
             "ae_blue",
             "ae_diverging_r",
         ]:
-            cmap = _read_ae_colormap(cmap=cmap, cmap_hex=True)
+            cmap = read_ae_colormap(cmap=cmap, cmap_hex=True)
 
         # Set default width & height
         if width is None:
@@ -135,7 +129,7 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
             # Reproject data to lat/lon
             if lat_lon == True:
                 try:
-                    data = _reproject_data(
+                    data = reproject_data(
                         xr_da=data, proj="EPSG:4326", fill_value=np.nan
                     )
                 except:  # Reprojection can fail if the data doesn't have a crs element. If that happens, just carry on without projection (i.e. don't raise an error)
@@ -187,7 +181,7 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
         # Default colormap for timeseries data
         if cmap is None:
             cmap = "categorical_cb"
-            cmap = _read_ae_colormap(cmap=cmap, cmap_hex=True)
+            cmap = read_ae_colormap(cmap=cmap, cmap_hex=True)
 
         # Set default width & height
         if width is None:
@@ -206,6 +200,6 @@ def _visualize(data, lat_lon=True, width=None, height=None, cmap=None):
         _plot = None
 
     # Put plot object into a panel Pane object
-    _plot_as_pane = pn.Pane(_plot)
+    # _plot_as_pane = pn.Pane(_plot)
 
-    return _plot_as_pane
+    return _plot
