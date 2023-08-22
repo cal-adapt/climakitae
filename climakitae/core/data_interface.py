@@ -246,19 +246,10 @@ def _get_subarea(
     gpd.GeoDataFrame
 
     """
-    print(1)
 
-    ### Calvin: Change this to include multiple shape_indices for a union
     def _get_subarea_from_shape_index(boundary_dataset, shape_index):
-        print("Shape index",shape_index)
         return boundary_dataset[boundary_dataset.index == shape_index]
 
-    # print("1")
-    # print("2")
-    # print("Area subset is", area_subset)
-    # print("Geography choose is", _geography_choose)
-    # print(_geography_choose)
-    # print("Cached area is", cached_area)
     if area_subset == "lat/lon":
         geometry = box(
             longitude[0],
@@ -271,11 +262,8 @@ def _get_subarea(
             crs="EPSG:4326",
         )
     elif area_subset != "none":
-        print("here")
-        ### Calvin: `cached_area` not loading propery, only showing as none.
         shape_index = int(_geography_choose[area_subset][cached_area])
         if area_subset == "states":
-            ### Calvin: The _get_subarea has to be modified so it can include a union of different shapes            
             df_ae = _get_subarea_from_shape_index(_geographies._us_states, shape_index)
         elif area_subset == "CA counties":
             df_ae = _get_subarea_from_shape_index(
@@ -569,10 +557,6 @@ class DataParameters(param.Parameterized):
 
     # Location defaults
     area_subset = param.Selector(objects=dict())
-    ### CALVIN: Changed here
-    # cached_area = param.ListSelector(objects=dict())
-    print(2, "Data Parameters")
-    # print("hello")
     cached_area = param.Selector(objects=dict())
     latitude = param.Range(default=(32.5, 42), bounds=(10, 67))
     longitude = param.Range(default=(-125.5, -114), bounds=(-156.82317, -84.18701))
@@ -650,9 +634,6 @@ class DataParameters(param.Parameterized):
         # Set location params
         self.area_subset = "none"
         self.param["area_subset"].objects = list(self._geography_choose.keys())
-
-        ### CALVIN: potential spot for changing `cached_area` to allow for multiple objects here...?
-        print(3, "Data Parameters init")
         self.param["cached_area"].objects = list(
             self._geography_choose[self.area_subset].keys()
         )
@@ -743,17 +724,10 @@ class DataParameters(param.Parameterized):
         subsetting selected in 'area_subset' (currently state, county, or
         watershed boundaries).
         """
-        print(4, "_updated_cached_area")
-        print("self.area_subset", self.area_subset)
-
         self.param["cached_area"].objects = list(
             self._geography_choose[self.area_subset].keys()
         )
-        ### This returns a none
-        # print("Geography choose", self._geography_choose)
-        # print("Area subset", self.area_subset)
         self.cached_area = list(self._geography_choose[self.area_subset].keys())[0]
-        # print("cached area hereeee", self.cached_area)
 
     @param.depends("data_type", watch=True)
     def _update_area_average_based_on_data_type(self):
@@ -926,7 +900,6 @@ class DataParameters(param.Parameterized):
         if self.area_subset == "states":
             if self.resolution == "3 km":
                 if "Statistical" in self.downscaling_method:
-                    print(5, "cached_area update states 3km")
                     self.param["cached_area"].objects = ["CA"]
                 elif (
                     self.downscaling_method == ["Dynamical"]
@@ -1321,7 +1294,6 @@ class DataParametersWithPanes(DataParameters):
     )
     def map_view(self):
         """Create a map of the location selections"""
-        print(5, "map view change")
         return _map_view(selections=self, stations_gdf=self._stations_gdf)
 
 
@@ -1346,14 +1318,9 @@ def _selections_param_to_panel(self):
     area_average = pn.widgets.RadioBoxGroup.from_param(
         self.param.area_average, inline=True
     )
-    # ## CALVIN: Change here
-    print(6, "selection_param_to_panel")
-    cached_area = pn.widgets.MultiSelect.from_param(
-      self.param.cached_area, name="Location selection"
+    cached_area = pn.widgets.Select.from_param(
+        self.param.cached_area, name="Location selection"
     )
-    # cached_area = pn.widgets.Select.from_param(
-    #     self.param.cached_area, name="Location selection"
-    # )
     data_type_text = pn.widgets.StaticText(
         value="",
         name="Data type",
