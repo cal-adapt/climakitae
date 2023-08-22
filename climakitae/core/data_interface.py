@@ -249,7 +249,7 @@ def _get_subarea(
 
     def _get_subarea_from_shape_index(
         boundary_dataset: Boundaries, shape_indicies: list
-    ):
+    ) -> gpd.GeoDataFrame:
         return boundary_dataset.loc[shape_indicies]
 
     if area_subset == "lat/lon":

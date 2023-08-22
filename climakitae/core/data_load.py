@@ -6,6 +6,7 @@ import rioxarray
 from rioxarray.exceptions import NoDataInBounds
 import numpy as np
 import pandas as pd
+import geopandas as gpd
 import psutil
 import warnings
 from functools import partial
@@ -14,6 +15,7 @@ from shapely.geometry import box
 from xclim.core.calendar import convert_calendar
 from xclim.sdba import Grouper
 from xclim.sdba.adjustment import QuantileDeltaMapping
+from climakitae.core.boundaries import Boundaries
 from climakitae.util.unit_conversions import convert_units
 from climakitae.util.utils import readable_bytes, get_closest_gridcell
 from climakitae.tools.derived_variables import (
@@ -270,7 +272,7 @@ def area_subset_geometry(selections):
     """
     area_subset, cached_area = _override_area_selections(selections)
 
-    def set_subarea(boundary_dataset, shape_indicies):
+    def set_subarea(boundary_dataset: Boundaries, shape_indicies: list) -> gpd.GeoDataFrame:
         return boundary_dataset.loc[shape_indicies].geometry.unary_union
 
     if area_subset == "lat/lon":
