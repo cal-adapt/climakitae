@@ -281,7 +281,12 @@ def area_subset_geometry(selections):
             )
         ds_region = [geom]
     elif area_subset != "none":
-        shape_indicies = list({key: selections._geography_choose[area_subset][key] for key in cached_area}.values())
+        shape_indicies = list(
+            {
+                key: selections._geography_choose[area_subset][key]
+                for key in cached_area
+            }.values()
+        )
         if area_subset == "states":
             shape = set_subarea(selections._geographies._us_states, shape_indicies)
         elif area_subset == "CA counties":
@@ -291,9 +296,13 @@ def area_subset_geometry(selections):
         elif area_subset == "CA Electric Load Serving Entities (IOU & POU)":
             shape = set_subarea(selections._geographies._ca_utilities, shape_indicies)
         elif area_subset == "CA Electricity Demand Forecast Zones":
-            shape = set_subarea(selections._geographies._ca_forecast_zones, shape_indicies)
+            shape = set_subarea(
+                selections._geographies._ca_forecast_zones, shape_indicies
+            )
         elif area_subset == "CA Electric Balancing Authority Areas":
-            shape = set_subarea(selections._geographies._ca_electric_balancing_areas, shape_indicies)
+            shape = set_subarea(
+                selections._geographies._ca_electric_balancing_areas, shape_indicies
+            )
         ds_region = [shape]
     else:
         ds_region = None

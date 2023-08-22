@@ -246,7 +246,10 @@ def _get_subarea(
     gpd.GeoDataFrame
 
     """
-    def _get_subarea_from_shape_index(boundary_dataset: Boundaries, shape_indicies: list):
+
+    def _get_subarea_from_shape_index(
+        boundary_dataset: Boundaries, shape_indicies: list
+    ):
         return boundary_dataset.loc[shape_indicies]
 
     if area_subset == "lat/lon":
@@ -261,13 +264,16 @@ def _get_subarea(
             crs="EPSG:4326",
         )
     elif area_subset != "none":
-
         # `if-condition` added for catching errors with delays in rendering cached area.
         if cached_area == None:
             shape_indicies = [0]
         else:
             # Filter for indicies that are selected in `Location selection` dropdown
-            shape_indicies = list({key: _geography_choose[area_subset][key] for key in cached_area}.values())
+            shape_indicies = list(
+                {
+                    key: _geography_choose[area_subset][key] for key in cached_area
+                }.values()
+            )
 
         if area_subset == "states":
             df_ae = _get_subarea_from_shape_index(
@@ -1328,7 +1334,7 @@ def _selections_param_to_panel(self):
         self.param.area_average, inline=True
     )
     cached_area = pn.widgets.MultiSelect.from_param(
-      self.param.cached_area, name="Location selection"
+        self.param.cached_area, name="Location selection"
     )
     data_type_text = pn.widgets.StaticText(
         value="",
