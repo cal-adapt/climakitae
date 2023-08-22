@@ -272,9 +272,7 @@ def area_subset_geometry(selections):
     """
     area_subset, cached_area = _override_area_selections(selections)
 
-    def set_subarea(
-        boundary_dataset: Boundaries, shape_indicies: list
-    ) -> gpd.GeoDataFrame:
+    def set_subarea(boundary_dataset: Boundaries, shape_indicies: list) -> gpd.GeoDataFrame:
         return boundary_dataset.loc[shape_indicies].geometry.unary_union
 
     if area_subset == "lat/lon":
