@@ -499,7 +499,7 @@ def combine_hdd_cdd(data):
         "Cooling Degree Hours",
     ]:
         raise Exception(
-            "Invalid data provided, please pass cdd_annual or hdd_annual data"
+            "Invalid data provided, please pass cooling/heating degree data"
         )
 
     to_drop = ["scenario", "Lambert_Conformal", "variable"]
