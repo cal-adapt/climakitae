@@ -18,7 +18,7 @@ project = "Climakitae"
 copyright = "2022, Cal-Adapt Analytics Engine"
 author = "Cal-Adapt Analytics Engine Team"
 # The full version, including alpha/beta/rc tags
-release = "0.0.1"
+release = "0.0.2"
 
 # -- General configuration ---------------------------------------------------
 # Add any Sphinx extension module names here, as strings. They can be
