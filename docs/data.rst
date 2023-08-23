@@ -16,9 +16,9 @@ Use the ck.Select() panel GUI
 *********************************
 If you are working in a Jupyter notebook environment, you can view and set your data and location 
 options in the :py:class:`climakitae.Select()` GUI (graphical user interface). This GUI also provides a visual overview of the various 
-datasets available in the AE data catalog. Using this GUI, you can chose what dataset you'd like to 
+datasets available in the `AE data catalog <https://analytics.cal-adapt.org/data/>`_. Using this GUI, you can chose what dataset you'd like to 
 retrieve-- choosing a variable, timeslice, resolution, etc.-- and the location for which you'd like to 
-retrieve the data.::
+retrieve the data: ::
    
    import climakitae as ck     # Import the package
    selections = ck.Select()    # Initialize an Select object 
@@ -46,7 +46,7 @@ of the  ``selectors`` object: ::
 
    selections.area_average = "Yes"
 
-To set the the variable to Air Temperature at 2m and retrive the data in units of degrees Fahrenheit : :: 
+To set the the variable to Air Temperature at 2m and retrive the data in units of degrees Fahrenheit: :: 
 
    selections.variable = "Air Temperature at 2m" 
    selections.units = "degF"
@@ -55,14 +55,14 @@ Similarly, to set the model resolution, timescale, time slice, and scenario: ::
 
    selections.scenario_ssp = "SSP 3-7.0 -- Business as Usual"
    selections.scenario_historical = "Historical Climate"
-   selections.resoltion = "9 km"
+   selections.resolution = "9 km"
    selections.time_slice = (2005, 2025)
    selections.timescale = "hourly"
 
 
 You must set these attributes using the formatting and naming conventions 
 exactly as they appear in the :py:class:`climakitae.Select()` GUI.  
-For example, you must set ``timescale`` to ``hourly``, not ``Hourly``.
+For example, you must set ``timescale`` to ``hourly``, not ``Hourly``. Only ``scenario_ssp``, ``scenario_historical``, and ``time_slice`` accept multiple values.
 
 Lastly, you'll need to retrive the data: :: 
 
@@ -134,14 +134,14 @@ Export the data
 To export your final data (which should be an :py:class:`xarray.DataArray` object), first create the export
 object using :py:class:`climakitae.Export()`. Then the filetype you want to export the data to using the
 :py:func:`climakitae.Export().export_as()` dropdown menu. This will allow you to choose between three
-options: NetCDF, CSV, and GeoTIFF. ::
+options: NetCDF, csv, and GeoTIFF. ::
 
    export = ck.Export()
    export.export_as()
 
 We recommend exporting the data to NetCDF, which will work with any number of variables and dimensions. 
-CSV and GeoTIFF can only be used for datasets with a single variable.
-CSV works best for up to 2-dimensional data (e.g., lon x lat), and will be compressed and exported 
+csv and GeoTIFF can only be used for datasets with a single variable.
+csv works best for up to 2-dimensional data (e.g., lon x lat), and will be compressed and exported 
 with a separate metadata file. 
 For GeoTIFF exports, metadata will be accessible as "tags" in the tif file. 
 GeoTIFF can accept 3 dimensions total:
