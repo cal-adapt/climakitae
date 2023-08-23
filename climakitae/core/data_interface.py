@@ -248,9 +248,9 @@ def _get_subarea(
     """
 
     def _get_subarea_from_shape_index(
-        boundary_dataset: Boundaries, shape_indicies: list
+        boundary_dataset: Boundaries, shape_indices: list
     ) -> gpd.GeoDataFrame:
-        return boundary_dataset.loc[shape_indicies]
+        return boundary_dataset.loc[shape_indices]
 
     if area_subset == "lat/lon":
         geometry = box(
@@ -266,10 +266,10 @@ def _get_subarea(
     elif area_subset != "none":
         # `if-condition` added for catching errors with delays in rendering cached area.
         if cached_area == None:
-            shape_indicies = [0]
+            shape_indices = [0]
         else:
-            # Filter for indicies that are selected in `Location selection` dropdown
-            shape_indicies = list(
+            # Filter for indices that are selected in `Location selection` dropdown
+            shape_indices = list(
                 {
                     key: _geography_choose[area_subset][key] for key in cached_area
                 }.values()
@@ -277,27 +277,27 @@ def _get_subarea(
 
         if area_subset == "states":
             df_ae = _get_subarea_from_shape_index(
-                _geographies._us_states, shape_indicies
+                _geographies._us_states, shape_indices
             )
         elif area_subset == "CA counties":
             df_ae = _get_subarea_from_shape_index(
-                _geographies._ca_counties, shape_indicies
+                _geographies._ca_counties, shape_indices
             )
         elif area_subset == "CA watersheds":
             df_ae = _get_subarea_from_shape_index(
-                _geographies._ca_watersheds, shape_indicies
+                _geographies._ca_watersheds, shape_indices
             )
         elif area_subset == "CA Electric Load Serving Entities (IOU & POU)":
             df_ae = _get_subarea_from_shape_index(
-                _geographies._ca_utilities, shape_indicies
+                _geographies._ca_utilities, shape_indices
             )
         elif area_subset == "CA Electricity Demand Forecast Zones":
             df_ae = _get_subarea_from_shape_index(
-                _geographies._ca_forecast_zones, shape_indicies
+                _geographies._ca_forecast_zones, shape_indices
             )
         elif area_subset == "CA Electric Balancing Authority Areas":
             df_ae = _get_subarea_from_shape_index(
-                _geographies._ca_electric_balancing_areas, shape_indicies
+                _geographies._ca_electric_balancing_areas, shape_indices
             )
 
     else:  # If no subsetting, make the geometry a big box so all stations are included
