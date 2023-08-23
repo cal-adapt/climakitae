@@ -490,6 +490,26 @@ def trendline(data):
     return trendline
 
 
+def combine_hdd_cdd(data):
+    """Drops specific unneeded coords from HDD/CDD data, independent of station or gridded data source"""
+    if data.name not in [
+        "Annual Heating Degree Days (HDD)",
+        "Annual Cooling Degree Days (CDD)",
+        "Heating Degree Hours",
+        "Cooling Degree Hours",
+    ]:
+        raise Exception(
+            "Invalid data provided, please pass cooling/heating degree data"
+        )
+
+    to_drop = ["scenario", "Lambert_Conformal", "variable"]
+    for coord in to_drop:
+        if coord in data.coords:
+            data = data.drop(coord)
+
+    return data
+
+
 ## DFU plotting functions
 def hdd_cdd_lineplot(annual_data, trendline, title="title"):
     """Plots annual CDD/HDD with trendline provided"""
