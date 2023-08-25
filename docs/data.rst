@@ -132,9 +132,9 @@ the documentation in the API for more information.
 Export the data 
 ################
 To save data as a file, use the :py:func:`climakitae.export()` method and input your desired
-1) data to export – an :py:class:`xarray.DataArray` or :py:class:`xarray.Dataset` object, as output by e.g. `selections.retrieve()`
-2) output file name (without file extension)
-3) file format ("NetCDF" or "CSV")
+* data to export – an :py:class:`xarray.DataArray` or :py:class:`xarray.Dataset` object, as output by e.g. :py:func:`selections.retrieve()`
+* output file name (without file extension)
+* file format ("NetCDF" or "CSV")
 
 We recommend NetCDF, which suits data and outputs from the Analytics Engine well – it efficiently stores large data containing multiple variables and dimensions. Metadata will be retained in NetCDF files.
 
