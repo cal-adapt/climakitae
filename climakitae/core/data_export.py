@@ -6,69 +6,195 @@ import warnings
 import datetime
 import xarray as xr
 import pandas as pd
-import rasterio
-from . import __version__
+from importlib.metadata import version as _version
 
 xr.set_options(keep_attrs=True)
 
 
-def _export_to_netcdf(data_to_export, save_name, **kwargs):
+def _export_to_netcdf(data, save_name):
     """
     exports user-selected data to netCDF format.
     this function is called from the _export_to_user
     function if the user selected netCDF output.
 
-    data_to_export: xarray dataset or array to export
+    data: xarray dataset or array to export
     save_name: string corresponding to desired output file name + file extension
-    kwargs: reserved for future use
     """
     print("Alright, exporting specified data to NetCDF.")
     comp = dict(_FillValue=None)
-    encoding = {coord: comp for coord in data_to_export.coords}
-    data_to_export.to_netcdf(save_name, encoding=encoding)
+    encoding = {coord: comp for coord in data.coords}
+    data.to_netcdf(save_name, encoding=encoding)
 
 
-def _add_unit_to_header(df, variable, unit):
+def _get_unit(dataarray):
     """
-    Add variable unit to data table header.
+    Return unit of data variable in `dataarray`, if any, or an empty string.
 
-    Insert a 2nd row into the header of the DataFrame `df` to include the
-    `unit` associated with the `variable` column.
+    Parameters
+    ----------
+    dataarray : xarray.DataArray
+
+    Returns
+    -------
+    str
+
+    """
+    data_attrs = dataarray.attrs
+    if "units" in data_attrs and data_attrs["units"] is not None:
+        return data_attrs["units"]
+    else:
+        return ""
+
+
+def _ease_access_in_R(column_name):
+    """
+    Return a copy of the input that can be used in R easily.
+
+    Modify the `column_name` string so that when it is the name of an R data
+    table column, the column can be accessed by $. The modified string contains
+    no spaces or special characters, and starts with a letter or a dot.
+
+    Parameters
+    ----------
+    column_name : str
+
+    Returns
+    -------
+    str
+
+    Notes
+    -----
+    The input is assumed to be a column name of a pandas DataFrame converted
+    from an xarray DataArray or Dataset available on the Cal-Adapt Analytics
+    Engine. The conversions are through the to_dataframe method.
+
+    The function acts on one of the display names of the variables:
+    https://github.com/cal-adapt/climakitae/blob/main/climakitae/data/variable_descriptions.csv
+    or one of the station names:
+    https://github.com/cal-adapt/climakitae/blob/main/climakitae/data/hadisd_stations.csv
+
+    """
+    return (
+        column_name.replace("(", "")
+        .replace(")", "")
+        .replace(" ", "_")
+        .replace("-", "_")
+    )
+
+
+def _update_header(df, variable_unit_map):
+    """
+    Update data table header to match the given variable names and units.
+
+    Update the header of the DataFrame `df` so that name and unit of the data
+    variable contained in each column are as specified in `variable_unit_map`.
+    The resulting header starts with a row labeled "variable" holding variable
+    names. A 2nd "unit" row include the units associated with the variables.
+
 
     Parameters
     ----------
     df : pandas.DataFrame
         data table to update
-    variable : string
-        name of the variable column
-    unit : string
-        unit associated with the variable
+    variable_unit_map : list of tuple
+        list of tuples where each tuple contains the name and unit of the data
+        variable in a column of the input data table
 
     Returns
     -------
     pandas.DataFrame
-        data table with the variable unit added to its header
+        data table with updated header
 
     """
     df.columns = pd.MultiIndex.from_tuples(
-        [(col, unit) if col == variable else (col, "") for col in df.columns],
+        variable_unit_map,
         name=["variable", "unit"],
     )
     df.reset_index(inplace=True)  # simplifies header
     return df
 
 
-def _export_to_csv(data_to_export, save_name, **kwargs):
+def _dataarray_to_dataframe(dataarray):
     """
-    Export user-selected data to CSV format.
+    Prepare xarray DataArray for export as CSV file.
 
-    Export the xarray DataArray `data_to_export` to a CSV file named
-    `save_name`. This function is called from the `_export_to_user`
-    function if the user selected CSV output.
+    Convert the xarray DataArray `dataarray` to a pandas DataFrame ready to be
+    exported to CSV format. The DataArray is converted through its to_dataframe
+    method. The DataFrame header is renamed as needed to ease the access of
+    columns in R. It is also enriched with the unit associated with the data
+    variable in the DataArray.
 
     Parameters
     ----------
-    data_to_export : xarray.DataArray
+    dataarray : xarray.DataArray
+        data to be prepared for export
+
+    Returns
+    -------
+    pandas.DataFrame
+        data ready for export
+
+    """
+    if not dataarray.name:
+        # name it in order to call to_dataframe on it
+        dataarray.name = "data"
+
+    df = dataarray.to_dataframe()
+
+    variable = dataarray.name
+    unit = _get_unit(dataarray)
+    variable_unit_map = []
+    for col in df.columns:
+        if col == variable:
+            variable_unit_map.append((_ease_access_in_R(col), unit))
+        else:
+            variable_unit_map.append((_ease_access_in_R(col), ""))
+
+    df = _update_header(df, variable_unit_map)
+    return df
+
+
+def _dataset_to_dataframe(dataset):
+    """
+    Prepare xarray Dataset for export as CSV file.
+
+    Convert the xarray Dataset `dataset` to a pandas DataFrame ready to be
+    exported to CSV format. The Dataset is converted through its to_dataframe
+    method. The DataFrame header is renamed as needed to ease the access of
+    columns in R. It is also enriched with the units associated with the data
+    variables and other non-index variables in the Dataset.
+
+    Parameters
+    ----------
+    dataset : xarray.Dataset
+        data to be prepared for export
+
+    Returns
+    -------
+    pandas.DataFrame
+        data ready for export
+
+    """
+    df = dataset.to_dataframe()
+
+    variable_unit_map = [
+        (_ease_access_in_R(var_name), _get_unit(dataset[var_name]))
+        for var_name in df.columns
+    ]
+    df = _update_header(df, variable_unit_map)
+    return df
+
+
+def _export_to_csv(data, save_name):
+    """
+    Export user-selected data to CSV format.
+
+    Export the xarray DataArray or Dataset `data` to a CSV file named
+    `save_name`.
+
+    Parameters
+    ----------
+    data : xarray.DataArray or xarray.Dataset
         data to export to CSV format
     save_name : string
         desired output file name, including the file extension
@@ -78,25 +204,17 @@ def _export_to_csv(data_to_export, save_name, **kwargs):
     None
 
     """
-    if not data_to_export.name:
-        # name it in order to call to_dataframe on it
-        data_to_export.name = "data"
+    print("Alright, exporting specified data to CSV.")
 
-    # ease column access in R
-    data_to_export.name = (
-        data_to_export.name.replace("(", "")
-        .replace(")", "")
-        .replace(" ", "_")
-        .replace("-", "_")
-    )
+    ftype = type(data)
 
-    df = data_to_export.to_dataframe()
+    if ftype == xr.core.dataarray.DataArray:
+        df = _dataarray_to_dataframe(data)
 
-    if "units" in data_to_export.attrs and data_to_export.attrs["units"] is not None:
-        unit = data_to_export.attrs["units"]
-        variable = data_to_export.name
-        df = _add_unit_to_header(df, variable, unit)
+    elif ftype == xr.core.dataset.Dataset:
+        df = _dataset_to_dataframe(data)
 
+    # Warn about exceedance of Excel row or column limit
     excel_row_limit = 1048576
     excel_column_limit = 16384
     csv_nrows, csv_ncolumns = df.shape
@@ -106,127 +224,25 @@ def _export_to_csv(data_to_export, save_name, **kwargs):
             f"and {excel_column_limit} columns."
         )
 
-    _metadata_to_file(data_to_export, save_name)
+    _metadata_to_file(data, save_name)
     df.to_csv(save_name, compression="gzip")
 
 
-def _export_to_geotiff(data_to_export, save_name, **kwargs):
+def export(data, filename="dataexport", format="NetCDF"):
+    """Save data as a file in the current working directory.
+
+    Parameters
+    ----------
+    data : xr.DataArray or xr.Dataset
+        Data to export, as output by e.g. `climakitae.Select().retrieve()`.
+    filename : str, optional
+        Output file name (without file extension, i.e. "my_filename" instead
+        of "my_filename.nc"). The default is "dataexport".
+    format : str, optional
+        File format ("NetCDF" or "CSV"). The default is "NetCDF".
+
     """
-    exports user-selected data to geoTIFF format.
-    this function is called from the _export_to_user
-    function if the user selected geoTIFF output.
-
-    data_to_export: xarray dataset or array to export
-    save_name: string corresponding to desired output file name + file extension
-    kwargs: reserved for future use
-    """
-    ds_attrs = data_to_export.attrs
-
-    # squeeze singleton dimensions as long as they are
-    # simulation and/or scenario dimensions;
-    # retain simulation and/or scenario metadata
-    if "scenario" in data_to_export.coords and "scenario" not in data_to_export.dims:
-        scen_attrs = {"scenario": str(data_to_export.coords["scenario"].values)}
-        ds_attrs = dict(ds_attrs, **scen_attrs)
-    if "scenario" in data_to_export.dims and len(data_to_export.scenario) == 1:
-        scen_attr = {"scenario": str(data_to_export.scenario.values[0])}
-        ds_attrs = dict(ds_attrs, **scen_attr)
-        data_to_export = data_to_export.squeeze(dim="scenario")
-    elif (
-        "scenario" not in data_to_export.dims
-        and "scenario" not in data_to_export.coords
-    ):
-        warnings.warn(
-            (
-                "'scenario' not in data array as"
-                " dimension or coordinate; this information"
-                " will be lost on export to raster."
-                " Either provide a data array"
-                " which contains a single scenario"
-                " as a dimension and/or coordinate,"
-                " or record the scenario sampled"
-                " for your records."
-            )
-        )
-
-    if (
-        "simulation" in data_to_export.coords
-        and "simulation" not in data_to_export.dims
-    ):
-        sim_attrs = {"simulation": str(data_to_export.coords["simulation"].values)}
-        ds_attrs = dict(ds_attrs, **sim_attrs)
-    if str("simulation") in data_to_export.dims and len(data_to_export.simulation) == 1:
-        sim_attrs = {"simulation": str(data_to_export.simulation.values)}
-        ds_attrs = dict(ds_attrs, **sim_attrs)
-        data_to_export = data_to_export.squeeze(dim="simulation")
-    elif (
-        "simulation" not in data_to_export.dims
-        and "simulation" not in data_to_export.coords
-    ):
-        warnings.warn(
-            (
-                "'simulation' not in data array as"
-                " dimension or coordinate; this information"
-                " will be lost on export to raster."
-                " Either provide a data array"
-                " which contains a single simulation"
-                " as a dimension and/or coordinate,"
-                " or record the simulation sampled"
-                " for your records."
-            )
-        )
-
-    ndim = len(data_to_export.dims)
-    if ndim == 3:
-        if "time" in data_to_export.dims:
-            data_to_export = data_to_export.transpose("time", "y", "x")
-            if len(data_to_export.time) > 1:
-                print(
-                    (
-                        "Saving as multiband raster in which"
-                        " each band corresponds to a time step."
-                    )
-                )
-        elif "simulation" in data_to_export.dims:
-            data_to_export = data_to_export.transpose("simulation", "y", "x")
-            if len(data_to_export.simulation) > 1:
-                print(
-                    (
-                        "Saving as multiband raster in which"
-                        " each band corresponds to a simulation."
-                    )
-                )
-        elif "scenario" in data_to_export.dims:
-            data_to_export = data_to_export.transpose("scenario", "y", "x")
-            if len(data_to_export.scenario) > 1:
-                print(
-                    (
-                        "Saving as multiband raster in which"
-                        " each band corresponds to a climate scenario."
-                    )
-                )
-
-    print("Saving as GeoTIFF...")
-    data_to_export.rio.to_raster(save_name)
-    meta_data_dict = ds_attrs
-
-    with rasterio.open(save_name, "r+") as raster:
-        raster.update_tags(**meta_data_dict)
-        raster.close()
-
-
-def _export_to_user(user_export_format, data_to_export, file_name, **kwargs):
-    """
-    The data export method, called by core.Application.export_dataset. Saves
-    a dataset to the current working directory in the output
-    format requested by the user (which is stored in 'user_export_format').
-
-    user_export_format: pulled from dropdown called by app.export_as()
-    data_to_export: xarray ds or da to export
-    file_name: string corresponding to desired output file name
-    kwargs: variable, scenario, and simulation (as needed)
-    """
-    ftype = type(data_to_export)
+    ftype = type(data)
 
     if ftype not in [xr.core.dataset.Dataset, xr.core.dataarray.DataArray]:
         raise Exception(
@@ -234,9 +250,9 @@ def _export_to_user(user_export_format, data_to_export, file_name, **kwargs):
             + str(ftype).strip("<class >")
             + ". Please pass an xarray dataset or data array."
         )
-    ndims = len(data_to_export.dims)
+    ndims = len(data.dims)
 
-    if type(file_name) is not str:
+    if type(filename) is not str:
         raise Exception(
             (
                 "Please pass a string"
@@ -244,16 +260,16 @@ def _export_to_user(user_export_format, data_to_export, file_name, **kwargs):
                 " for your file name."
             )
         )
-    file_name = file_name.split(".")[0]
+    filename = filename.split(".")[0]
 
-    req_format = user_export_format.output_file_format
+    req_format = format
 
     if req_format is None:
         raise Exception("Please select a file format from the dropdown menu.")
 
-    extension_dict = {"NetCDF": ".nc", "CSV": ".csv.gz", "GeoTIFF": ".tif"}
+    extension_dict = {"NetCDF": ".nc", "CSV": ".csv.gz"}
 
-    save_name = "./" + file_name + extension_dict[req_format]
+    save_name = "./" + filename + extension_dict[req_format]
 
     if os.path.exists(save_name):
         raise Exception(
@@ -265,7 +281,7 @@ def _export_to_user(user_export_format, data_to_export, file_name, **kwargs):
             )
         )
 
-    ds_attrs = data_to_export.attrs
+    ds_attrs = data.attrs
     ct = datetime.datetime.now()
     ct_str = ct.strftime("%d-%b-%Y (%H:%M)")
 
@@ -273,7 +289,7 @@ def _export_to_user(user_export_format, data_to_export, file_name, **kwargs):
         "Data_exported_from": "Cal-Adapt Analytics Engine",
         "Data_export_timestamp": ct_str,
         "Analysis_package_name": "climakitae",
-        "Version": __version__,
+        "Version": _version("climakitae"),
         "Author": "Cal-Adapt Analytics Engine Team",
         "Author_email": "analytics@cal-adapt.org",
         "Home_page": "https://github.com/cal-adapt/climakitae",
@@ -282,7 +298,7 @@ def _export_to_user(user_export_format, data_to_export, file_name, **kwargs):
 
     # metadata stuff
     ds_attrs.update(ck_attrs)
-    data_to_export.attrs = ds_attrs
+    data.attrs = ds_attrs
 
     # now check file size and avail workspace disk space
     # raise error for not enough space
@@ -290,7 +306,7 @@ def _export_to_user(user_export_format, data_to_export, file_name, **kwargs):
     file_size_threshold = 5  # in GB
     bytes_per_gigabyte = 1024 * 1024 * 1024
     disk_space = shutil.disk_usage("./")[2] / bytes_per_gigabyte
-    data_size = data_to_export.nbytes / bytes_per_gigabyte
+    data_size = data.nbytes / bytes_per_gigabyte
 
     if disk_space <= data_size:
         raise Exception(
@@ -316,84 +332,9 @@ def _export_to_user(user_export_format, data_to_export, file_name, **kwargs):
     # we will have different functions for each file type
     # to keep things clean-ish
     if "NetCDF" in req_format:
-        _export_to_netcdf(data_to_export, save_name, **kwargs)
-    else:
-        if ftype == xr.core.dataset.Dataset:
-            dv_list = list(data_to_export.data_vars)
-            if len(dv_list) > 1:
-                raise Exception(
-                    (
-                        "We cannot convert multivariate datasets"
-                        " to CSV or GeoTiff at this time. Please supply"
-                        " a dataset or array with a single data variable."
-                        " A single variable array can be extracted"
-                        " from a multivariate dataset like so:"
-                        " app.export_dataset(ds['var'],'filename')"
-                        " where ds is the dataset or data array"
-                        " you attempted to export, and 'var' is a data"
-                        " variable (in single or double quotes)."
-                    )
-                )
-            else:
-                var_name = dv_list[0]
-                data_to_export = data_to_export.to_array()
-                data_to_export.name = var_name
-
-        if "CSV" in req_format:
-            _export_to_csv(data_to_export, save_name, **kwargs)
-
-        elif "GeoTIFF" in req_format:
-            # sometimes "variable" might be a singleton dimension:
-            data_to_export = data_to_export.squeeze()
-
-            # if x and/or y exist as coordinates
-            # but have been squeezed out as dimensions
-            # (eg we have point data), add them back in as dimensions.
-            # rasters require both x and y dimensions
-            if "x" not in data_to_export.dims:
-                if "x" in data_to_export.coords:
-                    data_to_export = data_to_export.expand_dims("x")
-                else:
-                    raise Exception(
-                        (
-                            "No x dimension or coordinate exists;"
-                            " cannot export to GeoTIFF. Please provide"
-                            " a data array with both x and y"
-                            " spatial coordinates."
-                        )
-                    )
-            if "y" not in data_to_export.dims:
-                if "y" in data_to_export.coords:
-                    data_to_export = data_to_export.expand_dims("y")
-                else:
-                    raise Exception(
-                        (
-                            "No y dimension or coordinate exists;"
-                            " cannot export to GeoTIFF. Please provide"
-                            " a data array with both x and y"
-                            " spatial coordinates."
-                        )
-                    )
-
-            dim_check = data_to_export.isel(x=0, y=0).squeeze().shape
-
-            if sum([int(dim > 1) for dim in dim_check]) > 1:
-                dim_list = data_to_export.dims
-                shape_list = data_to_export.shape
-                dim_shape = str(
-                    [str(d) + ": " + str(s) for d, s in list(zip(dim_list, shape_list))]
-                )
-                raise Exception(
-                    (
-                        "Too many non-spatial dimensions"
-                        " with length > 1 -- cannot convert"
-                        " to GeoTIFF. Current dimensionality is "
-                    )
-                    + dim_shape
-                    + ". Please subset your selection accordingly."
-                )
-
-            _export_to_geotiff(data_to_export, save_name, **kwargs)
+        _export_to_netcdf(data, save_name)
+    elif "CSV" in req_format:
+        _export_to_csv(data, save_name)
 
     return print(
         (
@@ -434,10 +375,11 @@ def _metadata_to_file(ds, output_name):
         f.write("\n")
         f.write("\n")
         f.write("===== Global file attributes =====")
+        if type(ds) == xr.core.dataarray.DataArray:
+            f.write("\n")
+            f.write("Name: " + ds.name)
         f.write("\n")
-        f.write("Name: " + ds.name)
-        f.write("\n")
-        for att_keys, att_values in list(zip(ds.attrs.keys(), ds.attrs.values())):
+        for att_keys, att_values in ds.attrs.items():
             f.write(str(att_keys) + " : " + str(att_values))
             f.write("\n")
 
@@ -452,11 +394,23 @@ def _metadata_to_file(ds, output_name):
             f.write("\n")
             f.write("== " + str(coord) + " ==")
             f.write("\n")
-            for att_keys, att_values in list(
-                zip(ds[coord].attrs.keys(), ds[coord].attrs.values())
-            ):
+            for att_keys, att_values in ds[coord].attrs.items():
                 f.write(str(att_keys) + " : " + str(att_values))
                 f.write("\n")
+
+        if type(ds) == xr.core.dataset.Dataset:
+            f.write("\n")
+            f.write("\n")
+            f.write("===== Variable descriptions =====")
+            f.write("\n")
+
+            for var in ds.data_vars:
+                f.write("\n")
+                f.write("== " + str(var) + " ==")
+                f.write("\n")
+                for att_keys, att_values in ds[var].attrs.items():
+                    f.write(str(att_keys) + " : " + str(att_values))
+                    f.write("\n")
 
 
 ## TMY export functions
@@ -526,7 +480,7 @@ def _epw_header(location_name, df):
 def write_tmy_file(filename_to_export, df, location_name="location", file_ext="tmy"):
     """Exports TMY data either as .epw or .tmy file
 
-    Paramters
+    Parameters
     ---------
     filename_to_export (str): Filename string, constructed with station name and simulation
     df (pd.DataFrame): Dataframe of TMY data to export

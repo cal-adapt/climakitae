@@ -96,7 +96,7 @@ def compute_hdh_cdh(t2, hdh_threshold, cdh_threshold):
     return (hdh, cdh)
 
 
-def _compute_dewpointtemp(temperature, rel_hum):
+def compute_dewpointtemp(temperature, rel_hum):
     """Calculate dew point temperature
 
     Args:
@@ -121,7 +121,7 @@ def _compute_dewpointtemp(temperature, rel_hum):
     return tdps
 
 
-def _compute_specific_humidity(tdps, pressure, name="q2_derived"):
+def compute_specific_humidity(tdps, pressure, name="q2_derived"):
     """Compute specific humidity.
 
     Args:
@@ -149,7 +149,7 @@ def _compute_specific_humidity(tdps, pressure, name="q2_derived"):
     return q
 
 
-def _compute_relative_humidity(pressure, temperature, mixing_ratio, name="rh_derived"):
+def compute_relative_humidity(pressure, temperature, mixing_ratio, name="rh_derived"):
     """Compute relative humidity.
     Variable attributes need to be assigned outside of this function because the metpy function removes them
 
@@ -225,7 +225,7 @@ def _convert_specific_humidity_to_relative_humidity(
     return rel_hum
 
 
-def _compute_wind_mag(u10, v10, name="wind_speed_derived"):
+def compute_wind_mag(u10, v10, name="wind_speed_derived"):
     """Compute wind magnitude at 10 meters
 
     Args:
@@ -243,7 +243,7 @@ def _compute_wind_mag(u10, v10, name="wind_speed_derived"):
     return wind_mag
 
 
-def _compute_wind_dir(u10, v10, name="wind_direction_derived"):
+def compute_wind_dir(u10, v10, name="wind_direction_derived"):
     """Compute wind direction at 10 meters
 
     Args:

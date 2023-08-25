@@ -1,5 +1,6 @@
 """Miscellaneous utility functions."""
 
+import os
 import numpy as np
 import datetime
 import xarray as xr
@@ -7,25 +8,28 @@ import pyproj
 import rioxarray as rio
 import pandas as pd
 import s3fs
-import intake
 import matplotlib.colors as mcolors
 import matplotlib
-import pkg_resources
-import warnings
 
 
-# Read colormap text files
-ae_orange = pkg_resources.resource_filename("climakitae", "data/cmaps/ae_orange.txt")
-ae_diverging = pkg_resources.resource_filename(
-    "climakitae", "data/cmaps/ae_diverging.txt"
+from climakitae.core.paths import (
+    ae_orange,
+    ae_diverging,
+    ae_blue,
+    ae_diverging_r,
+    categorical_cb,
 )
-ae_blue = pkg_resources.resource_filename("climakitae", "data/cmaps/ae_blue.txt")
-ae_diverging_r = pkg_resources.resource_filename(
-    "climakitae", "data/cmaps/ae_diverging_r.txt"
-)
-categorical_cb = pkg_resources.resource_filename(
-    "climakitae", "data/cmaps/categorical_cb.txt"
-)
+
+
+def read_csv_file(rel_path, index_col=None):
+    return pd.read_csv(
+        _package_file_path(rel_path),
+        index_col=index_col,
+    )
+
+
+def _package_file_path(rel_path):
+    return os.path.normpath(os.path.join(os.path.dirname(__file__), "..", rel_path))
 
 
 def get_closest_gridcell(data, lat, lon, print_coords=True):
@@ -78,17 +82,23 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
     return closest_gridcell
 
 
-def _julianDay_to_str_date(julday, leap_year=True, str_format="%b-%d"):
+def julianDay_to_str_date(julday, leap_year=True, str_format="%b-%d"):
     """Convert julian day of year to string format
     i.e. if str_format = "%b-%d", the output will be Mon-Day ("Jan-01")
 
-    Args:
-        julday (int): Julian day
-        leap_year (boolean): leap year? (default to True)
-        str_format (str): string format of output date
+    Parameters
+    -----------
+    julday: int
+        Julian day
+    leap_year: boolean
+        leap year? (default to True)
+    str_format: str
+        string format of output date
 
-    Return:
-        date (str): Julian day in the input format month-day (i.e. "Jan-01")
+    Returns
+    --------
+    date: str
+        Julian day in the input format month-day (i.e. "Jan-01")
     """
     if leap_year:
         year = "2024"
@@ -100,7 +110,7 @@ def _julianDay_to_str_date(julday, leap_year=True, str_format="%b-%d"):
     return date
 
 
-def _readable_bytes(B):
+def readable_bytes(B):
     """
     Return the given bytes as a human friendly KB, MB, GB, or TB string.
     Code from stackoverflow: https://stackoverflow.com/questions/12523586/python-format-size-application-converting-b-to-kb-mb-gb-tb
@@ -123,17 +133,24 @@ def _readable_bytes(B):
         return "{0:.2f} TB".format(B / TB)
 
 
-def _read_ae_colormap(cmap="ae_orange", cmap_hex=False):
+def read_ae_colormap(cmap="ae_orange", cmap_hex=False):
     """Read in AE colormap by name
 
-    Args:
-        cmap (str): one of ["ae_orange","ae_blue","ae_diverging"]
-        cmap_hex (boolean): return RGB or hex colors?
+    Parameters
+    -----------
+    cmap: str
+        one of ["ae_orange","ae_blue","ae_diverging"]
+    cmap_hex: boolean
+        return RGB or hex colors?
 
-    Returns: one of either
-        cmap_data (matplotlib.colors.LinearSegmentedColormap): used for
-            matplotlib (if cmap_hex == False)
-        cmap_data (list): used for hvplot maps (if cmap_hex == True)
+    Returns
+    --------
+    one of either
+
+    cmap_data: matplotlib.colors.LinearSegmentedColormap
+        used for matplotlib (if cmap_hex == False)
+    cmap_data: list
+        used for hvplot maps (if cmap_hex == True)
 
     """
 
@@ -149,7 +166,7 @@ def _read_ae_colormap(cmap="ae_orange", cmap_hex=False):
         cmap_data = categorical_cb
 
     # Load text file
-    cmap_np = np.loadtxt(cmap_data, dtype=float)
+    cmap_np = np.loadtxt(_package_file_path(cmap_data), dtype=float)
 
     # RBG to hex
     if cmap_hex:
@@ -159,32 +176,50 @@ def _read_ae_colormap(cmap="ae_orange", cmap_hex=False):
     return cmap_data
 
 
-def _reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
+def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
     """Reproject xr.DataArray using rioxarray.
-    Raises ValueError if input data does not have spatial coords x,y
-    Raises ValueError if input data has more than 5 dimensions
 
-    Args:
-        xr_da (xr.DataArray): 2-or-3-dimensional DataArray, with 2 spatial dimensions
-        proj (str): proj to use for reprojection (default to "EPSG:4326"-- lat/lon coords)
-        fill_value (float): fill value (default to np.nan)
+    Parameters
+    -----------
+    xr_da: xr.DataArray
+        2-or-3-dimensional DataArray, with 2 spatial dimensions
+    proj: str
+        proj to use for reprojection (default to "EPSG:4326"-- lat/lon coords)
+    fill_value: float
+        fill value (default to np.nan)
 
-    Returns:
-        data_reprojected (xr.DataArray): 2-or-3-dimensional reprojected DataArray
+    Returns
+    --------
+    data_reprojected: xr.DataArray
+        2-or-3-dimensional reprojected DataArray
+
+    Raises
+    ------
+    ValueError
+        if input data does not have spatial coords x,y
+    ValueError
+        if input data has more than 5 dimensions
 
     """
 
     def _reproject_data_4D(data, reproject_dim, proj="EPSG:4326", fill_value=np.nan):
         """Reproject 4D xr.DataArray across an input dimension
 
-        Args:
-            data (xr.DataArray): 4-dimensional DataArray, with 2 spatial dimensions
-            reproject_dim (str): name of dimensions to use
-            proj (str): proj to use for reprojection (default to "EPSG:4326"-- lat/lon coords)
-            fill_value (float): fill value (default to np.nan)
+        Parameters
+        -----------
+        data: xr.DataArray
+            4-dimensional DataArray, with 2 spatial dimensions
+        reproject_dim: str
+            name of dimensions to use
+        proj: str
+            proj to use for reprojection (default to "EPSG:4326"-- lat/lon coords)
+        fill_value: float
+            fill value (default to np.nan)
 
-        Returns:
-            data_reprojected (xr.DataArray): 4-dimensional reprojected DataArray
+        Returns
+        --------
+        data_reprojected: xr.DataArray
+            4-dimensional reprojected DataArray
 
         """
         rp_list = []
@@ -201,14 +236,21 @@ def _reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
     def _reproject_data_5D(data, reproject_dim, proj="EPSG:4326", fill_value=np.nan):
         """Reproject 5D xr.DataArray across two input dimensions
 
-        Args:
-            data (xr.DataArray): 5-dimensional DataArray, with 2 spatial dimensions
-            reproject_dim (list): list of str dimension names to use
-            proj (str): proj to use for reprojection (default to "EPSG:4326"-- lat/lon coords)
-            fill_value (float): fill value (default to np.nan)
+        Parameters
+        -----------
+        data: xr.DataArray
+            5-dimensional DataArray, with 2 spatial dimensions
+        reproject_dim: list
+            list of str dimension names to use
+        proj: str
+            proj to use for reprojection (default to "EPSG:4326"-- lat/lon coords)
+        fill_value: float
+            fill value (default to np.nan)
 
-        Returns:
-            data_reprojected (xr.DataArray): 5-dimensional reprojected DataArray
+        Returns
+        --------
+        data_reprojected: xr.DataArray
+            5-dimensional reprojected DataArray
 
         """
         rp_list_j = []
@@ -446,6 +488,26 @@ def trendline(data):
     trendline = m * data_sim_mean.year + b  # y = mx + b
     trendline.name = "trendline"
     return trendline
+
+
+def combine_hdd_cdd(data):
+    """Drops specific unneeded coords from HDD/CDD data, independent of station or gridded data source"""
+    if data.name not in [
+        "Annual Heating Degree Days (HDD)",
+        "Annual Cooling Degree Days (CDD)",
+        "Heating Degree Hours",
+        "Cooling Degree Hours",
+    ]:
+        raise Exception(
+            "Invalid data provided, please pass cooling/heating degree data"
+        )
+
+    to_drop = ["scenario", "Lambert_Conformal", "variable"]
+    for coord in to_drop:
+        if coord in data.coords:
+            data = data.drop(coord)
+
+    return data
 
 
 ## DFU plotting functions

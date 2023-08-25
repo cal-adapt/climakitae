@@ -4,19 +4,19 @@ import xarray as xr
 import numpy as np
 import pytest
 import os
-from climakitae.derive_variables import (
-    _compute_relative_humidity,
-    _compute_wind_mag,
-    _compute_wind_dir,
-    _compute_dewpointtemp,
-    _compute_specific_humidity,
+from climakitae.tools.derived_variables import (
+    compute_relative_humidity,
+    compute_wind_mag,
+    compute_wind_dir,
+    compute_dewpointtemp,
+    compute_specific_humidity,
 )
 
 
 @pytest.fixture
 def rel_humidity(test_data_2022_monthly_45km):
     """Compute relative humidity and return data"""
-    da = _compute_relative_humidity(
+    da = compute_relative_humidity(
         pressure=test_data_2022_monthly_45km["PSFC"],
         temperature=test_data_2022_monthly_45km["T2"],
         mixing_ratio=test_data_2022_monthly_45km["Q2"],
@@ -27,7 +27,7 @@ def rel_humidity(test_data_2022_monthly_45km):
 @pytest.fixture
 def wind_mag(test_data_2022_monthly_45km):
     """Compute wind magnitude and return data"""
-    da = _compute_wind_mag(
+    da = compute_wind_mag(
         u10=test_data_2022_monthly_45km["U10"], v10=test_data_2022_monthly_45km["V10"]
     )
     return da
@@ -37,7 +37,7 @@ def wind_mag(test_data_2022_monthly_45km):
 def wind_dir(test_data_2022_monthly_45km):
     """Compute wind direction and return data"""
     da = xr.apply_ufunc(
-        _compute_wind_dir,
+        compute_wind_dir,
         u10=test_data_2022_monthly_45km["U10"],
         v10=test_data_2022_monthly_45km["V10"],
     )
@@ -47,7 +47,7 @@ def wind_dir(test_data_2022_monthly_45km):
 @pytest.fixture
 def dew_pnt(rel_humidity, test_data_2022_monthly_45km):
     """Compute dew point temp and return data"""
-    da = _compute_dewpointtemp(
+    da = compute_dewpointtemp(
         temperature=test_data_2022_monthly_45km["T2"],
         rel_hum=rel_humidity,
     )
@@ -57,7 +57,7 @@ def dew_pnt(rel_humidity, test_data_2022_monthly_45km):
 @pytest.fixture
 def spec_humidity(dew_pnt, test_data_2022_monthly_45km):
     """Compute specific humidity and return data"""
-    da = _compute_specific_humidity(
+    da = compute_specific_humidity(
         tdps=dew_pnt,
         pressure=test_data_2022_monthly_45km["PSFC"],
     )

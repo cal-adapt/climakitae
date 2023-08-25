@@ -14,3 +14,7 @@ You may encounter issues when trying to build the docs due to path issues.<br><b
 ``Makefile error make (e=2): The system cannot find the file specified``<br><br>
 We were able to do the following to solve the issue (based off [this](https://stackoverflow.com/questions/33674973/makefile-error-make-e-2-the-system-cannot-find-the-file-specified) stack overflow question):<br>
 Add the ``<git-installation-directory>/usr/bin`` directory to your PATH variable too. This basically adds the rest of the linux-like commands that come with the "GIT bash" to your environment. After applying this, the Makefile should run normally again
+
+
+## If you are interested in other free SVG vectors
+Click [here](https://www.svgrepo.com/) for other vectors to include. Vectors should be kept in the `_static/` folder.
