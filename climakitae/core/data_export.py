@@ -11,7 +11,7 @@ from importlib.metadata import version as _version
 xr.set_options(keep_attrs=True)
 
 
-def _export_to_netcdf(data, save_name, **kwargs):
+def _export_to_netcdf(data, save_name):
     """
     exports user-selected data to netCDF format.
     this function is called from the _export_to_user
@@ -19,7 +19,6 @@ def _export_to_netcdf(data, save_name, **kwargs):
 
     data: xarray dataset or array to export
     save_name: string corresponding to desired output file name + file extension
-    kwargs: reserved for future use
     """
     print("Alright, exporting specified data to NetCDF.")
     comp = dict(_FillValue=None)
@@ -186,7 +185,7 @@ def _dataset_to_dataframe(dataset):
     return df
 
 
-def _export_to_csv(data, save_name, **kwargs):
+def _export_to_csv(data, save_name):
     """
     Export user-selected data to CSV format.
 
@@ -229,16 +228,19 @@ def _export_to_csv(data, save_name, **kwargs):
     df.to_csv(save_name, compression="gzip")
 
 
-def export(data, filename="dataexport.nc", format="NetCDF", **kwargs):
-    """
-    The data export method, called by core.Application.export_dataset. Saves
-    a dataset to the current working directory in the output
-    format requested by the user (which is stored in 'format').
+def export(data, filename="dataexport", format="NetCDF"):
+    """Save data as a file in the current working directory.
 
-    data: xarray ds or da to export
-    filename: string corresponding to desired output file name
-    format: data format to export to (NetCDF, CSV)
-    kwargs: variable, scenario, and simulation (as needed)
+    Parameters
+    ----------
+    data : xr.DataArray or xr.Dataset
+        Data to export, as output by e.g. `climakitae.Select().retrieve()`.
+    filename : str, optional
+        Output file name (without file extension, i.e. "my_filename" instead
+        of "my_filename.nc"). The default is "dataexport".
+    format : str, optional
+        File format ("NetCDF" or "CSV"). The default is "NetCDF".
+
     """
     ftype = type(data)
 
@@ -330,9 +332,9 @@ def export(data, filename="dataexport.nc", format="NetCDF", **kwargs):
     # we will have different functions for each file type
     # to keep things clean-ish
     if "NetCDF" in req_format:
-        _export_to_netcdf(data, save_name, **kwargs)
+        _export_to_netcdf(data, save_name)
     elif "CSV" in req_format:
-        _export_to_csv(data, save_name, **kwargs)
+        _export_to_csv(data, save_name)
 
     return print(
         (
