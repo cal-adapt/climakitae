@@ -46,7 +46,7 @@ of the  ``selectors`` object: ::
 
    selections.area_average = "Yes"
 
-To set the the variable to Air Temperature at 2m and retrive the data in units of degrees Fahrenheit: :: 
+To set the the variable to Air Temperature at 2m and retrieve the data in units of degrees Fahrenheit: :: 
 
    selections.variable = "Air Temperature at 2m" 
    selections.units = "degF"
@@ -64,7 +64,7 @@ You must set these attributes using the formatting and naming conventions
 exactly as they appear in the :py:class:`climakitae.Select()` GUI.  
 For example, you must set ``timescale`` to ``hourly``, not ``Hourly``. Only ``scenario_ssp``, ``scenario_historical``, and ``time_slice`` accept multiple values.
 
-Lastly, you'll need to retrive the data: :: 
+Lastly, you'll need to retrieve the data: :: 
 
    data = selections.retrieve()
 
@@ -131,26 +131,15 @@ the documentation in the API for more information.
 
 Export the data 
 ################
-To export your final data (which should be an :py:class:`xarray.DataArray` object), first create the export
-object using :py:class:`climakitae.Export()`. Then the filetype you want to export the data to using the
-:py:func:`climakitae.Export().export_as()` dropdown menu. This will allow you to choose between three
-options: NetCDF, csv, and GeoTIFF. ::
+To save data as a file, use the :py:func:`climakitae.export()` method and input your desired
+1) data to export – an :py:class:`xarray.DataArray` or :py:class:`xarray.Dataset` object, as output by e.g. `selections.retrieve()`
+2) output file name (without file extension)
+3) file format ("NetCDF" or "CSV")
 
-   export = ck.Export()
-   export.export_as()
+We recommend NetCDF, which suits data and outputs from the Analytics Engine well – it efficiently stores large data containing multiple variables and dimensions. Metadata will be retained in NetCDF files.
 
-We recommend exporting the data to NetCDF, which will work with any number of variables and dimensions. 
-csv and GeoTIFF can only be used for datasets with a single variable.
-csv works best for up to 2-dimensional data (e.g., lon x lat), and will be compressed and exported 
-with a separate metadata file. 
-For GeoTIFF exports, metadata will be accessible as "tags" in the tif file. 
-GeoTIFF can accept 3 dimensions total:
+CSV can also store Analytics Engine data with any number of variables and dimensions. It works the best for smaller data with fewer dimensions. The output file will be compressed to ensure efficient storage. Metadata will be preserved in a separate file.
 
-* Horizontal dimensions; i.e. x and y (required)
-* The third dimension is flexible and will be a "band" in the file: time, simulation, or scenario could go here
+CSV stores data in tabular format. Rows will be indexed by the index coordinate(s) of the DataArray or Dataset (e.g. scenario, simulation, time). Columns will be formed by the data variable(s) and non-index coordinate(s). :: 
 
-After selecting your desired output filetype, input the data you want to export and the 
-desired filename (excluding the file extension) as arguments to the 
-:py:func:`climakitae.Export().export_dataset()` function. :: 
-
-   export.export_dataset(data, "my_filename")
+   ck.export(data, "my_filename", "NetCDF")
