@@ -132,6 +132,7 @@ the documentation in the API for more information.
 Export the data 
 ################
 To save data as a file, use the :py:func:`climakitae.export()` method and input your desired
+
 * data to export – an :py:class:`xarray.DataArray` or :py:class:`xarray.Dataset` object, as output by e.g. :py:func:`selections.retrieve()`
 * output file name (without file extension)
 * file format ("NetCDF" or "CSV")
