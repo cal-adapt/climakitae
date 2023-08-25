@@ -236,7 +236,7 @@ def export(data, filename="dataexport", format="NetCDF"):
     data : xr.DataArray or xr.Dataset
         Data to export, as output by e.g. `climakitae.Select().retrieve()`.
     filename : str, optional
-        Output file name (without file extension, i.e. "my_filename" instead 
+        Output file name (without file extension, i.e. "my_filename" instead
         of "my_filename.nc"). The default is "dataexport".
     format : str, optional
         File format ("NetCDF" or "CSV"). The default is "NetCDF".
