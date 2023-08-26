@@ -6,7 +6,6 @@ import warnings
 import datetime
 import xarray as xr
 import pandas as pd
-import rasterio
 from importlib.metadata import version as _version
 
 xr.set_options(keep_attrs=True)
