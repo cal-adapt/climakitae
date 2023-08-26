@@ -6,7 +6,7 @@ import rioxarray
 from rioxarray.exceptions import NoDataInBounds
 import numpy as np
 import pandas as pd
-import geopandas as gpd
+from geopandas import GeoDataFrame
 import psutil
 import warnings
 from functools import partial
@@ -274,7 +274,7 @@ def area_subset_geometry(selections):
 
     def set_subarea(
         boundary_dataset: Boundaries, shape_indices: list
-    ) -> gpd.GeoDataFrame:
+    ) -> GeoDataFrame:
         return boundary_dataset.loc[shape_indices].geometry.unary_union
 
     if area_subset == "lat/lon":
@@ -990,7 +990,7 @@ def _preprocess_hadisd(ds, stations_gdf):
     ----------
     ds: xr.Dataset
         data for a single HadISD station
-    stations_gdf: pd.GeoDataFrame
+    stations_gdf: gpd.GeoDataFrame
         station data frame
 
     Returns

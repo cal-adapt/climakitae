@@ -587,7 +587,7 @@ class AverageMetYearParameters(DataParametersWithPanes):
 
         # Location defaults
         self.area_subset = "CA counties"
-        self.cached_area = "Los Angeles County"
+        self.cached_area = ["Los Angeles County"]
 
         # Initialze tmy_adanced_options param
         self.param["computation_method"].objects = self.tmy_advanced_options_dict[

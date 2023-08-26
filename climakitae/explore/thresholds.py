@@ -84,7 +84,7 @@ class ThresholdParameters(DataParametersWithPanes):
 
         # Location defaults
         self.area_subset = "CA counties"
-        self.cached_area = "Los Angeles County"
+        self.cached_area = ["Los Angeles County"]
 
         # Get the underlying dataarray
         self.da = _get_threshold_data(self)
