@@ -1333,7 +1333,11 @@ def _selections_param_to_panel(self):
     area_average = pn.widgets.RadioBoxGroup.from_param(
         self.param.area_average, inline=True
     )
+<<<<<<< HEAD
     cached_area = pn.widgets.MultiSelect.from_param(
+=======
+    cached_area = pn.widgets.Select.from_param(
+>>>>>>> main
         self.param.cached_area, name="Location selection"
     )
     data_type_text = pn.widgets.StaticText(

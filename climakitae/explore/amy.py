@@ -559,9 +559,9 @@ class AverageMetYearParameters(DataParametersWithPanes):
     }
 
     # Define TMY params
-    data_type = param.Selector(default="Absolute", objects=["Absolute", "Difference"])
+    amy_type = param.Selector(default="Absolute", objects=["Absolute", "Difference"])
 
-    # Define new advanced options param, that is dependent on the user selection in data_type
+    # Define new advanced options param, that is dependent on the user selection in amy_type
     computation_method = param.Selector(objects=dict())
 
     # Define new computation description param
@@ -591,15 +591,15 @@ class AverageMetYearParameters(DataParametersWithPanes):
 
         # Initialze tmy_adanced_options param
         self.param["computation_method"].objects = self.tmy_advanced_options_dict[
-            self.data_type
+            self.amy_type
         ]["objects"]
-        self.computation_method = self.tmy_advanced_options_dict[self.data_type][
+        self.computation_method = self.tmy_advanced_options_dict[self.amy_type][
             "default"
         ]
 
         # Initialize tmy_computation_description param
         self.tmy_computation_description = self.computatation_description_dict[
-            self.data_type
+            self.amy_type
         ][self.computation_method]
 
         # Postage data and anomalies defaults
@@ -634,7 +634,7 @@ class AverageMetYearParameters(DataParametersWithPanes):
         lambda x: x.param.trigger("reload_data"), label="Reload Data"
     )
 
-    @param.depends("variable", "data_type", watch=True)
+    @param.depends("variable", "amy_type", watch=True)
     def _update_cmap(self):
         """Set colormap depending on variable"""
         cmap_name = self._variable_descriptions[
@@ -643,7 +643,7 @@ class AverageMetYearParameters(DataParametersWithPanes):
         ].colormap.values[0]
 
         # Set to diverging colormap if difference is selected
-        if self.data_type == "Difference":
+        if self.amy_type == "Difference":
             cmap_name = "ae_diverging"
 
         # Read colormap hex
@@ -686,27 +686,27 @@ class AverageMetYearParameters(DataParametersWithPanes):
             year_end=self.warming_year_average_range[self.warmlevel][1],
         ).compute()
 
-    # Create a function that will update computation_method when data_type is modified
-    @param.depends("data_type", watch=True)
+    # Create a function that will update computation_method when amy_type is modified
+    @param.depends("amy_type", watch=True)
     def _update_computation_method(self):
         self.param["computation_method"].objects = self.tmy_advanced_options_dict[
-            self.data_type
+            self.amy_type
         ]["objects"]
-        self.computation_method = self.tmy_advanced_options_dict[self.data_type][
+        self.computation_method = self.tmy_advanced_options_dict[self.amy_type][
             "default"
         ]
 
-    @param.depends("data_type", "computation_method", watch=True)
+    @param.depends("amy_type", "computation_method", watch=True)
     def _update_tmy_computatation_description(self):
         self.tmy_computation_description = self.computatation_description_dict[
-            self.data_type
+            self.amy_type
         ][self.computation_method]
 
     @param.depends("reload_data", watch=False)
     def _tmy_hourly_heatmap(self):
         # update heatmap df and title with selections
         days_in_year = 366
-        if self.data_type == "Absolute":
+        if self.amy_type == "Absolute":
             if self.computation_method == "Historical":
                 df = compute_amy(self.historical_tmy_data, days_in_year=days_in_year)
                 title = "Average Meteorological Year: {}\nAbsolute {} Baseline".format(
@@ -721,7 +721,7 @@ class AverageMetYearParameters(DataParametersWithPanes):
                     self.cached_area, self.computation_method, self.warmlevel
                 )
                 clabel = self.variable + " (" + self.units + ")"
-        elif self.data_type == "Difference":
+        elif self.amy_type == "Difference":
             cmap = read_ae_colormap("ae_diverging", cmap_hex=True)
             if self.computation_method == "Warming Level Future":
                 df = compute_amy(
@@ -765,7 +765,7 @@ def amy_visualize(self):
                 pn.widgets.StaticText(
                     name="", value="Average Meteorological Year Type"
                 ),
-                pn.widgets.RadioButtonGroup.from_param(self.param.data_type),
+                pn.widgets.RadioButtonGroup.from_param(self.param.amy_type),
                 pn.widgets.Select.from_param(
                     self.param.computation_method, name="Computation Options"
                 ),
