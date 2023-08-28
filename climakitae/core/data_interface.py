@@ -927,7 +927,7 @@ class DataParameters(param.Parameterized):
                         "UT",
                         "AZ",
                     ]
-                self.cached_area = "CA"
+                self.cached_area = ["CA"]
             else:
                 self.param["cached_area"].objects = self._geography_choose[
                     "states"
