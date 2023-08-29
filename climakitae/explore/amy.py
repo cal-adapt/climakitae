@@ -705,12 +705,13 @@ class AverageMetYearParameters(DataParametersWithPanes):
     @param.depends("reload_data", watch=False)
     def _tmy_hourly_heatmap(self):
         # update heatmap df and title with selections
+        cached_area_str = ", ".join(self.cached_area)
         days_in_year = 366
         if self.amy_type == "Absolute":
             if self.computation_method == "Historical":
                 df = compute_amy(self.historical_tmy_data, days_in_year=days_in_year)
                 title = "Average Meteorological Year: {}\nAbsolute {} Baseline".format(
-                    self.cached_area, self.computation_method
+                    cached_area_str, self.computation_method
                 )
                 clabel = (
                     self.variable + " (" + self.historical_tmy_data.attrs["units"] + ")"
@@ -718,7 +719,7 @@ class AverageMetYearParameters(DataParametersWithPanes):
             else:
                 df = compute_amy(self.future_tmy_data, days_in_year=days_in_year)
                 title = "Average Meteorological Year: {}\nAbsolute {} at {}°C".format(
-                    self.cached_area, self.computation_method, self.warmlevel
+                    cached_area_str, self.computation_method, self.warmlevel
                 )
                 clabel = self.variable + " (" + self.units + ")"
         elif self.amy_type == "Difference":
@@ -728,7 +729,7 @@ class AverageMetYearParameters(DataParametersWithPanes):
                     self.future_tmy_data, days_in_year=days_in_year
                 ) - compute_amy(self.historical_tmy_data, days_in_year=days_in_year)
                 title = "Average Meteorological Year: {}\nDifference between {} at {}°C and Historical Baseline".format(
-                    self.cached_area, self.computation_method, self.warmlevel
+                    cached_area_str, self.computation_method, self.warmlevel
                 )
                 clabel = self.variable + " (" + self.units + ")"
             else:
@@ -736,11 +737,11 @@ class AverageMetYearParameters(DataParametersWithPanes):
                     self.future_tmy_data, days_in_year=days_in_year
                 ) - compute_amy(self.historical_tmy_data, days_in_year=days_in_year)
                 title = "Severe Meteorological Year: {}\nDifference between {} at 90th percentile and Historical Baseline".format(
-                    self.cached_area, self.computation_method
+                    cached_area_str, self.computation_method
                 )
                 clabel = self.variable + " (" + self.units + ")"
         else:
-            title = "Average Meteorological Year\n{}".format(self.cached_area)
+            title = "Average Meteorological Year for\n{}".format(cached_area_str)
 
         heatmap = meteo_yr_heatmap(
             meteo_yr_df=df,
