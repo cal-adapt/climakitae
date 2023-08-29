@@ -705,7 +705,23 @@ class AverageMetYearParameters(DataParametersWithPanes):
     @param.depends("reload_data", watch=False)
     def _tmy_hourly_heatmap(self):
         # update heatmap df and title with selections
-        cached_area_str = ", ".join(self.cached_area)
+        if len(self.cached_area) == 1:
+            cached_area_str = self.cached_area[0]
+        elif len(self.cached_area) == 2:
+            if self.area_subset == "states":
+                cached_area_str = " ".join(self.cached_area)
+            elif self.area_subset == "CA counties":
+                names = [name.split(" County")[0] for name in self.cached_area]
+                cached_area_str = "{} and {} Counties".format(names[0], names[1])
+            elif self.area_subset == "CA watersheds":
+                cached_area_str = "{} and {} Watersheds".format(
+                    self.cached_area[0], self.cached_area[1]
+                )
+            else:
+                cached_area_str = " and ".join(self.cached_area)
+        else:
+            cached_area_str = "Selected {}".format(self.area_subset)
+
         days_in_year = 366
         if self.amy_type == "Absolute":
             if self.computation_method == "Historical":
@@ -742,7 +758,6 @@ class AverageMetYearParameters(DataParametersWithPanes):
                 clabel = self.variable + " (" + self.units + ")"
         else:
             title = "Average Meteorological Year for\n{}".format(cached_area_str)
-
         heatmap = meteo_yr_heatmap(
             meteo_yr_df=df,
             title=title,
