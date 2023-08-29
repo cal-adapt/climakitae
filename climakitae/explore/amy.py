@@ -722,6 +722,10 @@ class AverageMetYearParameters(DataParametersWithPanes):
         else:
             cached_area_str = "Selected {}".format(self.area_subset)
 
+        # add new line if `cached_area_str` is too long
+        if len(cached_area_str) > 40:
+            cached_area_str = "\n" + cached_area_str
+
         days_in_year = 366
         if self.amy_type == "Absolute":
             if self.computation_method == "Historical":
