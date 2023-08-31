@@ -246,7 +246,7 @@ class WarmingLevelParameters(DataParametersWithPanes):
 
         # Location defaults
         self.area_subset = "states"
-        self.cached_area = "CA"
+        self.cached_area = ["CA"]
 
         # Postage data and anomalies defaults
         self.postage_data = _get_postage_data(self)

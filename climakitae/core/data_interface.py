@@ -247,8 +247,10 @@ def _get_subarea(
 
     """
 
-    def _get_subarea_from_shape_index(boundary_dataset, shape_index):
-        return boundary_dataset[boundary_dataset.index == shape_index]
+    def _get_subarea_from_shape_index(
+        boundary_dataset: Boundaries, shape_indices: list
+    ) -> gpd.GeoDataFrame:
+        return boundary_dataset.loc[shape_indices]
 
     if area_subset == "lat/lon":
         geometry = box(
@@ -262,28 +264,40 @@ def _get_subarea(
             crs="EPSG:4326",
         )
     elif area_subset != "none":
-        shape_index = int(_geography_choose[area_subset][cached_area])
+        # `if-condition` added for catching errors with delays in rendering cached area.
+        if cached_area == None:
+            shape_indices = [0]
+        else:
+            # Filter for indices that are selected in `Location selection` dropdown
+            shape_indices = list(
+                {
+                    key: _geography_choose[area_subset][key] for key in cached_area
+                }.values()
+            )
+
         if area_subset == "states":
-            df_ae = _get_subarea_from_shape_index(_geographies._us_states, shape_index)
+            df_ae = _get_subarea_from_shape_index(
+                _geographies._us_states, shape_indices
+            )
         elif area_subset == "CA counties":
             df_ae = _get_subarea_from_shape_index(
-                _geographies._ca_counties, shape_index
+                _geographies._ca_counties, shape_indices
             )
         elif area_subset == "CA watersheds":
             df_ae = _get_subarea_from_shape_index(
-                _geographies._ca_watersheds, shape_index
+                _geographies._ca_watersheds, shape_indices
             )
         elif area_subset == "CA Electric Load Serving Entities (IOU & POU)":
             df_ae = _get_subarea_from_shape_index(
-                _geographies._ca_utilities, shape_index
+                _geographies._ca_utilities, shape_indices
             )
         elif area_subset == "CA Electricity Demand Forecast Zones":
             df_ae = _get_subarea_from_shape_index(
-                _geographies._ca_forecast_zones, shape_index
+                _geographies._ca_forecast_zones, shape_indices
             )
         elif area_subset == "CA Electric Balancing Authority Areas":
             df_ae = _get_subarea_from_shape_index(
-                _geographies._ca_electric_balancing_areas, shape_index
+                _geographies._ca_electric_balancing_areas, shape_indices
             )
 
     else:  # If no subsetting, make the geometry a big box so all stations are included
@@ -557,7 +571,7 @@ class DataParameters(param.Parameterized):
 
     # Location defaults
     area_subset = param.Selector(objects=dict())
-    cached_area = param.Selector(objects=dict())
+    cached_area = param.ListSelector(objects=dict())
     latitude = param.Range(default=(32.5, 42), bounds=(10, 67))
     longitude = param.Range(default=(-125.5, -114), bounds=(-156.82317, -84.18701))
 
@@ -727,7 +741,8 @@ class DataParameters(param.Parameterized):
         self.param["cached_area"].objects = list(
             self._geography_choose[self.area_subset].keys()
         )
-        self.cached_area = list(self._geography_choose[self.area_subset].keys())[0]
+        # Needs to be a list [] object in order to contain multiple objects for `cached_area`
+        self.cached_area = [list(self._geography_choose[self.area_subset].keys())[0]]
 
     @param.depends("data_type", watch=True)
     def _update_area_average_based_on_data_type(self):
@@ -912,7 +927,7 @@ class DataParameters(param.Parameterized):
                         "UT",
                         "AZ",
                     ]
-                self.cached_area = "CA"
+                self.cached_area = ["CA"]
             else:
                 self.param["cached_area"].objects = self._geography_choose[
                     "states"
@@ -1318,7 +1333,7 @@ def _selections_param_to_panel(self):
     area_average = pn.widgets.RadioBoxGroup.from_param(
         self.param.area_average, inline=True
     )
-    cached_area = pn.widgets.Select.from_param(
+    cached_area = pn.widgets.MultiSelect.from_param(
         self.param.cached_area, name="Location selection"
     )
     data_type_text = pn.widgets.StaticText(

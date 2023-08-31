@@ -14,7 +14,7 @@ selections.data_type = "Gridded"
 selections.downscaling_method = ["Dynamical"]
 selections.time_slice = (2015, 2015)
 selections.area_subset = "CA counties"
-selections.cached_area = "Los Angeles County"
+selections.cached_area = ["Los Angeles County"]
 
 # Get air temp in K
 selections.variable = "Air Temperature at 2m"
