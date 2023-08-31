@@ -167,7 +167,9 @@ def _dataset_to_dataframe(dataset):
     exported to CSV format. The Dataset is converted through its to_dataframe
     method. The DataFrame header is renamed as needed to ease the access of
     columns in R. It is also enriched with the units associated with the data
-    variables and other non-index variables in the Dataset.
+    variables and other non-index variables in the Dataset. If the Dataset
+    contains HadISD station data, the name of any climate variable associated 
+    with the station(s) is added to the header as well.
 
     Parameters
     ----------
@@ -183,7 +185,7 @@ def _dataset_to_dataframe(dataset):
     df = dataset.to_dataframe()
 
     variable_unit_map = [
-        (_ease_access_in_R(var_name), _get_unit(dataset[var_name]))
+        (var_name, _get_unit(dataset[var_name]))
         for var_name in df.columns
     ]
     df = _update_header(df, variable_unit_map)
