@@ -168,8 +168,8 @@ def _dataset_to_dataframe(dataset):
     method. The DataFrame header is renamed as needed to ease the access of
     columns in R. It is also enriched with the units associated with the data
     variables and other non-index variables in the Dataset. If the Dataset
-    contains HadISD station data, the name of any climate variable associated 
-    with the station(s) is added to the header as well.
+    contains station data, the name of any climate variable associated with 
+    the station(s) is added to the header as well.
 
     Parameters
     ----------
@@ -191,15 +191,22 @@ def _dataset_to_dataframe(dataset):
     df = _update_header(df, variable_unit_map)
 
 
-    # Helpers for adding to header data variable names associated with stations 
+    # Helpers for adding to header climate variable names associated w/ stations 
     station_df = read_csv_file(stations_csv_path)
     station_lst = list(station_df.station)  
     def _is_station(name):
+        """Return True if `name` is an HadISD station name."""
         return name in station_lst
     
     variable_description_df = read_csv_file(variable_descriptions_csv_path)
     variable_ids = variable_description_df.variable_id.values  
     def _variable_id_to_name(var_id):
+        """Convert variable ID to variable name.
+        
+        Return the "display_name" associated with the "variable_id" in 
+        variable_descriptions.csv. If `var_id` is not a "variable_id" in the 
+        CSV file, return an empty string.
+        """
         if var_id in variable_ids:
             var_name_series = variable_description_df.loc[
                 variable_ids==var_id, 'display_name'
@@ -210,6 +217,10 @@ def _dataset_to_dataframe(dataset):
             return ''
              
     def _get_station_variable_name(dataset, station):
+        """Get name of climate variable stored in `dataset` variable `station`.
+
+        Return an empty string if that is not possible.
+        """
         try:
             station_da = dataset[station]  # DataArray
             data_attrs = station_da.attrs
@@ -223,19 +234,20 @@ def _dataset_to_dataframe(dataset):
             return ''
 
     
-    # Add to header: name of any data variable associated with stations
+    # Add to header: name of any climate variable associated with stations
     column_names = df.columns.get_level_values(0)
-    data_var_lst = []
+    climate_var_lst = []
     for name in column_names:
         if _is_station(name):
-            data_var = _get_station_variable_name(dataset, station=name)
+            climate_var = _get_station_variable_name(dataset, station=name)
         else:
-            data_var = ''
-        data_var_lst.append(data_var)
-    if set(data_var_lst) != {''}:
-        # Insert data variable names to the 2nd row
+            climate_var = ''
+        climate_var_lst.append(climate_var)
+
+    if set(climate_var_lst) != {''}:
+        # Insert climate variable names to the 2nd row
         header_df = df.columns.to_frame()
-        header_df.insert(1, '', data_var_lst)
+        header_df.insert(1, '', climate_var_lst)
         # The 1st row was named "variable" by `_update_header`
         header_df.variable = header_df.variable.map(_ease_access_in_R)  
         df.columns = pd.MultiIndex.from_frame(header_df)
