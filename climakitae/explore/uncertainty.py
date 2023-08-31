@@ -142,7 +142,8 @@ def _clip_region(ds, area_subset, location):
     xr.Dataset
         Clipped dataset to region of interest
     """
-    geographies = DataInterface.geographies
+    data_interface = DataInterface()
+    geographies = data_interface.geographies
     us_states = geographies._us_states
     us_counties = geographies._ca_counties
     ds = ds.rio.write_crs(4326)
