@@ -531,7 +531,7 @@ class DataInterface:
 
         # Get geography boundaries
         self._boundary_catalog = intake.open_catalog(boundary_catalog_url)
-        self._geographies = Boundaries(self.boundary_catalog)
+        self._geographies = Boundaries(self.boundary_catalog).load()
 
     @property
     def variable_descriptions(self):

@@ -26,6 +26,14 @@ class Boundaries:
             Table of Electric Balancing Areas
         """
         self._cat = boundary_catalog
+        self._us_states = None
+        self._ca_counties = None
+        self._ca_watersheds = None
+        self._ca_utilities = None
+        self._ca_forecast_zones = None
+        self._ca_electric_balancing_areas = None
+
+    def load(self):
         self._us_states = self._cat.states.read()
         self._ca_counties = self._cat.counties.read().sort_values("NAME")
         self._ca_watersheds = self._cat.huc8.read().sort_values("Name")
