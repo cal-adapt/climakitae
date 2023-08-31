@@ -7,6 +7,11 @@ import datetime
 import xarray as xr
 import pandas as pd
 from importlib.metadata import version as _version
+from climakitae.util.utils import read_csv_file
+from climakitae.core.paths import (
+    variable_descriptions_csv_path,
+    stations_csv_path
+)
 
 xr.set_options(keep_attrs=True)
 
@@ -182,6 +187,57 @@ def _dataset_to_dataframe(dataset):
         for var_name in df.columns
     ]
     df = _update_header(df, variable_unit_map)
+
+
+    # Helpers for adding to header data variable names associated with stations 
+    station_df = read_csv_file(stations_csv_path)
+    station_lst = list(station_df.station)  
+    def _is_station(name):
+        return name in station_lst
+    
+    variable_description_df = read_csv_file(variable_descriptions_csv_path)
+    variable_ids = variable_description_df.variable_id.values  
+    def _variable_id_to_name(var_id):
+        if var_id in variable_ids:
+            var_name_series = variable_description_df.loc[
+                variable_ids==var_id, 'display_name'
+            ]
+            var_name = var_name_series.to_list()[0]
+            return var_name
+        else:
+            return ''
+             
+    def _get_station_variable_name(dataset, station):
+        try:
+            station_da = dataset[station]  # DataArray
+            data_attrs = station_da.attrs
+            if "variable_id" in data_attrs and data_attrs["variable_id"] is not None:
+                var_id = data_attrs["variable_id"]
+                var_name = _variable_id_to_name(var_id)
+                return var_name
+            else:
+                return ''
+        except:
+            return ''
+
+    
+    # Add to header: name of any data variable associated with stations
+    column_names = df.columns.get_level_values(0)
+    data_var_lst = []
+    for name in column_names:
+        if _is_station(name):
+            data_var = _get_station_variable_name(dataset, station=name)
+        else:
+            data_var = ''
+        data_var_lst.append(data_var)
+    if set(data_var_lst) != {''}:
+        # Insert data variable names to the 2nd row
+        header_df = df.columns.to_frame()
+        header_df.insert(1, '', data_var_lst)
+        # The 1st row was named "variable" by `_update_header`
+        header_df.variable = header_df.variable.map(_ease_access_in_R)  
+        df.columns = pd.MultiIndex.from_frame(header_df)
+
     return df
 
 
