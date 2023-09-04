@@ -316,6 +316,7 @@ def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
     data_reprojected.attrs["grid_mapping"] = proj
     return data_reprojected
 
+
 ## DFU notebook-specific functions, flexible for all notebooks
 def compute_annual_aggreggate(data, name, num_grid_cells):
     """Calculates the annual sum of HDD and CDD"""

@@ -1,16 +1,17 @@
-''' util for generating warming level reference data in ../data/ ###
+""" util for generating warming level reference data in ../data/ ###
     to run, type: <<python generate_gwl_tables.py>> at the command line
     expect to wait a while... which is why this is not done on-the-fly
-'''
+"""
 import s3fs
 import intake
 import pandas as pd
 import xarray as xr
 import numpy as np
 
+
 def main():
     """Call everything needed to write the global warming level reference files
-    for all of the currently downscaled GCMs."""
+    for all of the available GCMs."""
 
     # Connect to AWS S3 storage
     fs = s3fs.S3FileSystem(anon=True)
@@ -24,35 +25,35 @@ def main():
     sims_on_aws = get_sims_on_aws(df)
     models = list(sims_on_aws.T.columns)
 
-    #CESM2-LENS is in a separate catalog:
-    catalog_cesm = intake.open_esm_datastore('https://raw.githubusercontent.com/NCAR/cesm2-le-aws/main/intake-catalogs/aws-cesm2-le.json')
-    catalog_cesm_subset = catalog_cesm.search(variable='TREFHT', frequency='monthly',forcing_variant='cmip6')
-    dsets_cesm = catalog_cesm_subset.to_dataset_dict(storage_options={'anon':True})
-    # the LOCA-downscaled ensemble members are these, naming as described 
+    # CESM2-LENS is in a separate catalog:
+    catalog_cesm = intake.open_esm_datastore(
+        "https://raw.githubusercontent.com/NCAR/cesm2-le-aws/main/intake-catalogs/aws-cesm2-le.json"
+    )
+    catalog_cesm_subset = catalog_cesm.search(
+        variable="TREFHT", frequency="monthly", forcing_variant="cmip6"
+    )
+    # the LOCA-downscaled ensemble members are these, naming as described
     # in https://ncar.github.io/cesm2-le-aws/model_documentation.html) :
-    ens_mems_cesm = {'r10i1p1f1':'r10i1181p1f1', 
-            'r1i1p1f1':'r1i1001p1f1', 
-            'r2i1p1f1':'r2i1021p1f1', 
-            'r3i1p1f1':'r3i1041p1f1', 
-            'r4i1p1f1':'r4i1061p1f1', 
-            'r5i1p1f1':'r5i1081p1f1', 
-            'r6i1p1f1':'r6i1101p1f1', 
-            'r7i1p1f1':'r7i1121p1f1', 
-            'r8i1p1f1':'r8i1141p1f1', 
-            'r9i1p1f1':'r9i1161p1f1'}
-    for ds in dsets_cesm:
-        dsets_cesm[ds]=dsets_cesm[ds].sel(member_id=[v for k, v in ens_mems_cesm.items()])
-    historical_cmip6 = dsets_cesm['atm.historical.monthly.cmip6']
-    future_cmip6 = dsets_cesm['atm.ssp370.monthly.cmip6']
-    cesm2_lens = xr.concat([historical_cmip6['TREFHT'],future_cmip6['TREFHT']],dim='time')
-
+    ens_mems_cesm = {
+        "r10i1p1f1": "r10i1181p1f1",
+        "r1i1p1f1": "r1i1001p1f1",
+        "r2i1p1f1": "r2i1021p1f1",
+        "r3i1p1f1": "r3i1041p1f1",
+        "r4i1p1f1": "r4i1061p1f1",
+        "r5i1p1f1": "r5i1081p1f1",
+        "r6i1p1f1": "r6i1101p1f1",
+        "r7i1p1f1": "r7i1121p1f1",
+        "r8i1p1f1": "r8i1141p1f1",
+        "r9i1p1f1": "r9i1161p1f1",
+    }
+    
     def buildDFtimeSeries_cesm2(variable, model, ensMem, scenarios):
         temp = cesm2_lens.sel(member_id=ensMem)
         dataOneModel = xr.Dataset()
         for scenario in scenarios:
             weightlat = np.sqrt(np.cos(np.deg2rad(temp.lat)))
-            weightlat = weightlat/np.sum(weightlat)
-            timeseries = (temp*weightlat).sum('lat').mean('lon')
+            weightlat = weightlat / np.sum(weightlat)
+            timeseries = (temp * weightlat).sum("lat").mean("lon")
             timeseries = timeseries.sortby("time")  # needed for MPI-ESM1-2-LR
             dataOneModel[scenario] = timeseries
         return dataOneModel
@@ -105,21 +106,29 @@ def main():
                 gwl[scenario] = np.NaN
         return gwl
 
-    def get_table_one_cesm2(variable,model,ensMem,scenarios):
-        dataOneModel = buildDFtimeSeries_cesm2(variable,model,ensMem,scenarios)
-        anom = dataOneModel - dataOneModel.sel(time=slice('18500101','19000101')).mean('time') #'18500101','19000101'
-        smoothed = anom.rolling(time=20*12,center=True).mean('time')
-        oneModel = smoothed.to_array(dim='scenario',name=model).dropna('time').to_pandas()
+    def get_table_one_cesm2(variable, model, ensMem, scenarios):
+        dataOneModel = buildDFtimeSeries_cesm2(variable, model, ensMem, scenarios)
+        anom = dataOneModel - dataOneModel.sel(time=slice("18500101", "19000101")).mean(
+            "time"
+        )  #'18500101','19000101'
+        smoothed = anom.rolling(time=20 * 12, center=True).mean("time")
+        oneModel = (
+            smoothed.to_array(dim="scenario", name=model).dropna("time").to_pandas()
+        )
         gwlevels = pd.DataFrame()
-        for level in [1.5,2,3,4]:
-            gwlevels[level]=get_gwl(oneModel.T,level)
+        for level in [1.5, 2, 3, 4]:
+            gwlevels[level] = get_gwl(oneModel.T, level)
         return gwlevels
 
-    def get_table_cesm2(variable,model,scenarios):
+    def get_table_cesm2(variable, model, scenarios):
         ens_mem_list = [v for k, v in ens_mems_cesm.items()]
-        return pd.concat([get_table_one_cesm2(variable,model,ensMem,scenarios) 
-                            for ensMem in ens_mem_list],
-                            keys = ens_mem_list)
+        return pd.concat(
+            [
+                get_table_one_cesm2(variable, model, ensMem, scenarios)
+                for ensMem in ens_mem_list
+            ],
+            keys=ens_mem_list,
+        )
 
     def get_gwl_table_one(
         variable, model, ens_mem, scenarios, start_year="18500101", end_year="19000101"
@@ -139,40 +148,63 @@ def main():
         for level in [1.5, 2, 3, 4]:
             gwlevels[level] = get_gwl(one_model.T, level)
         return gwlevels
-    
-    def get_gwl_table(variable, model, scenarios, start_year="18500101", end_year="19000101"):
-        ens_mem_list = sims_on_aws.T[model]['historical']
-        if (model=='EC-Earth3') or (model=='EC-Earth3-Veg'):
+
+    def get_gwl_table(
+        variable, model, scenarios, start_year="18500101", end_year="19000101"
+    ):
+        ens_mem_list = sims_on_aws.T[model]["historical"]
+        if (model == "EC-Earth3") or (model == "EC-Earth3-Veg"):
             for ens_mem in ens_mem_list:
-                if int(ens_mem.split('r')[1].split('i')[0]) > 100:
+                if int(ens_mem.split("r")[1].split("i")[0]) > 100:
                     # These ones were branched off another at 1970
                     ens_mem_list.remove(ens_mem)
         try:
-            return pd.concat([get_gwl_table_one(variable,model,ens_mem,scenarios,start_year,end_year) 
-                            for ens_mem in ens_mem_list],
-                            keys = ens_mem_list)   
+            return pd.concat(
+                [
+                    get_gwl_table_one(
+                        variable, model, ens_mem, scenarios, start_year, end_year
+                    )
+                    for ens_mem in ens_mem_list
+                ],
+                keys=ens_mem_list,
+            )
         except:
             # a few models have funny formatting that is not handled here. skip them.
             return None
 
-    model = 'CESM2-LENS'
-    scenarios = ['ssp370']
-    variable = 'tas'
-    cesm2_table = get_table_cesm2(variable,model,scenarios)
-    
+    # CESM2-LENS handled differently:
+    dsets_cesm = catalog_cesm_subset.to_dataset_dict(storage_options={"anon": True})
+    for ds in dsets_cesm:
+        dsets_cesm[ds] = dsets_cesm[ds].sel(
+            member_id=[v for k, v in ens_mems_cesm.items()]
+        )
+    historical_cmip6 = dsets_cesm["atm.historical.monthly.cmip6"]
+    future_cmip6 = dsets_cesm["atm.ssp370.monthly.cmip6"]
+    cesm2_lens = xr.concat(
+        [historical_cmip6["TREFHT"], future_cmip6["TREFHT"]], dim="time"
+    )
+
+    # pre-industrial reference period:
+    model = "CESM2-LENS"
+    scenarios = ["ssp370"]
+    variable = "tas"
+    cesm2_table = get_table_cesm2(variable, model, scenarios)
+
     variable = "tas"
     scenarios = ["ssp585", "ssp370", "ssp245"]
     all_gw_levels = pd.concat(
         [get_gwl_table(variable, model, scenarios) for model in models],
         keys=models,
     )
-    all_gw_levels = pd.concat([all_gwl_levels, cesm2_table])
+    all_gw_levels = pd.concat([all_gw_levels, cesm2_table])
     all_gw_levels.to_csv("../data/gwl_1850-1900ref.csv")
 
+    # reference period overlapping with downscaled data availability:
     start_year = "19810101"
     end_year = "20101231"
-    scenarios = ['ssp370']
-    cesm2_table2 = get_table_cesm2(variable,model,scenarios, start_year, end_year)
+    model = "CESM2-LENS"
+    scenarios = ["ssp370"]
+    cesm2_table2 = get_table_cesm2(variable, model, scenarios, start_year, end_year)
     scenarios = ["ssp585", "ssp370", "ssp245"]
     all_gw_levels2 = pd.concat(
         [
@@ -181,45 +213,58 @@ def main():
         ],
         keys=models,
     )
-    all_gw_levels2 = pd.concat([all_gwl_levels2, cesm2_table2])
+    all_gw_levels2 = pd.concat([all_gw_levels2, cesm2_table2])
     all_gw_levels2.to_csv("../data/gwl_1981-2010ref.csv")
 
+
 def get_sims_on_aws(df):
-    df_subset = df[(df.table_id == 'Amon') & (df.variable_id == 'tas') & (df.experiment_id == 'historical')]
+    """
+    Make a table of all of the relevant CMIP6 simulations on AWS.
+    """
+    df_subset = df[
+        (df.table_id == "Amon")
+        & (df.variable_id == "tas")
+        & (df.experiment_id == "historical")
+    ]
     models = list(set(df_subset.source_id))
     models.sort()
 
-    # #### Make a table of all of the ensemble members for each scenario for each model on S3
-    scenarios = ['historical','ssp585','ssp370','ssp245','ssp126']
-    sims_on_aws = pd.DataFrame(index=models,columns=scenarios)
+    # First cut through the catalog
+    scenarios = ["historical", "ssp585", "ssp370", "ssp245", "ssp126"]
+    sims_on_aws = pd.DataFrame(index=models, columns=scenarios)
 
     for model in models:
         sims_on_aws.append([model])
         for scenario in scenarios:
-            df_scenario = df[(df.table_id == 'Amon') & (df.variable_id == 'tas') & (df.experiment_id == scenario)
-                            & (df.source_id == model)]
+            df_scenario = df[
+                (df.table_id == "Amon")
+                & (df.variable_id == "tas")
+                & (df.experiment_id == scenario)
+                & (df.source_id == model)
+            ]
             ensMembers = list(set(df_scenario.member_id))
             sims_on_aws[scenario][model] = ensMembers
 
     # cut the table to those GCMs that have a historical + at least one SSP ensemble member
     for i, item in enumerate(sims_on_aws.T.columns):
         no_ssp = True
-        for ssp in ['ssp585','ssp370','ssp245','ssp126']:
+        for ssp in ["ssp585", "ssp370", "ssp245", "ssp126"]:
             if len(sims_on_aws.loc[item][ssp]) > 0:
                 no_ssp = False
-        if (len(sims_on_aws.loc[item]['historical']) < 1) or (no_ssp):
+        if (len(sims_on_aws.loc[item]["historical"]) < 1) or (no_ssp):
             sims_on_aws = sims_on_aws.drop(index=item)
         return sims_on_aws
     # next also drop any historical ensemble members that don't have a variant in an SSP
     for i, item in enumerate(sims_on_aws.T.columns):
         variants_to_keep = []
-        for variant in sims_on_aws.loc[item]['historical']:
-            for ssp in ['ssp585','ssp370','ssp245','ssp126']:
+        for variant in sims_on_aws.loc[item]["historical"]:
+            for ssp in ["ssp585", "ssp370", "ssp245", "ssp126"]:
                 if str(variant) in sims_on_aws.loc[item][ssp]:
                     variants_to_keep.append(variant)
-        sims_on_aws.loc[item]['historical'] = list(set(variants_to_keep))
-    
+        sims_on_aws.loc[item]["historical"] = list(set(variants_to_keep))
+
     return sims_on_aws
+
 
 if __name__ == "__main__":
     main()
