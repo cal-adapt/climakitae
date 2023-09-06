@@ -32,6 +32,7 @@ class Thresholds(ThresholdParameters):
             option=self.option,
         )
 
+
 def amy():
     return AverageMetYear()
 

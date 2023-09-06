@@ -181,8 +181,10 @@ def main():
                 time=slice(start_year, end_year)
             ).mean("time")
         except:
-            #some calendars won't allow a 31st of the month end date
-            end_year = str((pd.to_datetime(end_year) - pd.DateOffset(days=1)).date()).replace('-','')
+            # some calendars won't allow a 31st of the month end date
+            end_year = str(
+                (pd.to_datetime(end_year) - pd.DateOffset(days=1)).date()
+            ).replace("-", "")
             anom = data_one_model - data_one_model.sel(
                 time=slice(start_year, end_year)
             ).mean("time")
