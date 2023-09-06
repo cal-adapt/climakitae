@@ -11,7 +11,7 @@ import param
 import panel as pn
 
 from climakitae.core.data_load import read_catalog_from_select
-from climakitae.core.data_interface import DataParametersWithPanes
+from climakitae.core.data_interface import DataParametersWithPanes, _selections_param_to_panel
 from climakitae.core.data_view import compute_vmin_vmax
 from climakitae.util.utils import read_csv_file, read_ae_colormap
 from climakitae.core.paths import (
@@ -30,33 +30,32 @@ import logging
 logging.getLogger("param").setLevel(logging.CRITICAL)
 xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
 
+class WarmingLevels():
+    """Display Warming Levels panel."""
+    postage_data = xr.DataArray()
+    warm_all_anoms = xr.DataArray()
 
-def _get_postage_data(self):
-    """
-    This function pulls data from the catalog and reads it into memory
+    def __init__(self, **params):
+        self.wl_params = WarmingLevelParameters()
+        
+    def choose_data(self):
+        return warming_levels_select(self.wl_params)
 
-    Parameters
-    ----------
-    self: WarmingLevelParameters
-        object holding user's selections
+    def calculate(self):
+        # Postage data and anomalies defaults
+        if self.postage_data is not None:
+            self.postage_data = self.wl_params.retrieve()
+        self.warm_all_anoms = get_anomaly_data(data=self.postage_data, warmlevel=1.5)
+        self.wl_viz = WarmingLevelVisualize(warm_all_anoms=self.warm_all_anoms,wl_params=self.wl_params)
 
-    Returns
-    -------
-    data: xr.DataArray
-        data to use for creating postage stamp data
+    def visualize(self):
+        return warming_levels_visualize(self.wl_viz)
 
-    """
-    # Read data from catalog
-    data = read_catalog_from_select(self)
-    if data is not None:
-        data = data.compute()  # Read into memory
-    else:
-        # Catch small spatial resolutions
-        raise ValueError(
-            "COULD NOT RETRIEVE DATA: For the provided data selections, there is not sufficient data to retrieve. Try selecting a larger spatial area, or a higher resolution. Returning None."
-        )
-    return data
-
+    def export_snapshots(self):
+        return wl_export_snapshots(self.snapshots)
+    
+    def export_time_slices(self):
+        return wl_export_slices(self.wl_params)
 
 def get_anomaly_data(data, window=15, warmlevel=3.0, scenario="ssp370"):
     """Calculating warming level anomalies.
@@ -83,9 +82,7 @@ def get_anomaly_data(data, window=15, warmlevel=3.0, scenario="ssp370"):
         raise ValueError("The argument 'window' requires an integer value > 1 year")
 
     # Global warming levels file (years when warming level is reached)
-    gwl_times = read_csv_file(gwl_1981_2010_file).rename(
-        columns={"Unnamed: 0": "simulation", "Unnamed: 1": "run"}
-    )
+    gwl_times = read_csv_file(gwl_1981_2010_file,index_col=[0:2])
 
     all_sims = xr.Dataset()
     all_sims.attrs = data.attrs
@@ -96,7 +93,7 @@ def get_anomaly_data(data, window=15, warmlevel=3.0, scenario="ssp370"):
         downscaling_method, sim_str, ensemble = simulation.split("_")
         one_ts = data.sel(simulation=simulation).squeeze()
         gwl_times_subset = gwl_times[
-            (gwl_times["simulation"] == sim_str)
+            (gwl_times["GCM"] == sim_str)
             & (gwl_times["run"] == ensemble)
             & (gwl_times["scenario"] == scenario)
         ]
@@ -146,47 +143,51 @@ def get_anomaly_data(data, window=15, warmlevel=3.0, scenario="ssp370"):
     anomaly_da.name = data.name + " Anomalies"
     return anomaly_da
 
-
-def _make_hvplot(data, clabel, clim, cmap, sopt, title, width=225, height=210):
-    """Make single map"""
-    if len(data.x) > 1 and len(data.y) > 1:
-        # If data has more than one grid cell, make a pretty map
-        _plot = data.hvplot.image(
-            x="x",
-            y="y",
-            grid=True,
-            width=width,
-            height=height,
-            xaxis=None,
-            yaxis=None,
-            clabel=clabel,
-            clim=clim,
-            cmap=cmap,
-            symmetric=sopt,
-            title=title,
-        )
-    else:
-        # Make a scatter plot if it's just one grid cell
-        _plot = data.hvplot.scatter(
-            x="x",
-            y="y",
-            hover_cols=data.name,
-            grid=True,
-            width=width,
-            height=height,
-            xaxis=None,
-            yaxis=None,
-            clabel=clabel,
-            clim=clim,
-            cmap=cmap,
-            symmetric=sopt,
-            title=title,
-            s=150,  # Size of marker
-        )
-    return _plot
-
-
 class WarmingLevelParameters(DataParametersWithPanes):
+    """Generate warming levels panel GUI in notebook.
+
+    Intended to be accessed through warming_levels()
+    Allows the user to toggle between several data options.
+    Produces dynamically updating postage stamp maps.
+    """
+    cmap = param.Selector(dict(), doc="Colormap")
+
+    def __init__(self, *args, **params):
+        super().__init__(*args, **params)
+
+        # Selectors defaults
+        self.downscaling_method = ["Dynamical"]
+        self.scenario_historical = ["Historical Climate"]
+        self.area_average = "No"
+        self.resolution = "45 km"
+        self.scenario_ssp = ["SSP 3-7.0 -- Business as Usual"]
+        self.time_slice = (1980, 2100)
+        self.timescale = "monthly"
+        self.variable = "Air Temperature at 2m"
+
+        # Location defaults
+        self.area_subset = "states"
+        self.cached_area = "CA"
+
+        self.cmap = read_ae_colormap(cmap="ae_orange", cmap_hex=True)
+    
+    @param.depends("variable", watch=True)
+    def _update_cmap(self):
+        """Set colormap depending on variable"""
+        cmap_name = self._variable_descriptions[
+            (self._variable_descriptions["display_name"] == self.variable)
+            & (self._variable_descriptions["timescale"] == "daily, monthly")
+        ].colormap.values[0]
+
+        # Colormap normalization for hvplot -- only for relative humidity!
+        if self.variable == "Relative Humidity":
+            cmap_name = "ae_diverging"
+
+        # Read colormap hex
+        self.cmap = read_ae_colormap(cmap=cmap_name, cmap_hex=True)
+
+
+class WarmingLevelVisualize(param.Parameterized):
     """Generate warming levels panel GUI in notebook.
 
     Intended to be accessed through warming_levels()
@@ -199,11 +200,6 @@ class WarmingLevelParameters(DataParametersWithPanes):
         Warming level in degrees Celcius.
     ssp: param.Selector
         Shared socioeconomic pathway.
-    cmap: param.Selector
-        Colormap used to color maps
-    changed_loc_and_var: param.Boolean
-        Has the location and variable been changed?
-        If so, reload the warming level anomolies.
     """
 
     # Read in GMT context plot data
@@ -229,89 +225,26 @@ class WarmingLevelParameters(DataParametersWithPanes):
         ],
         doc="Shared Socioeconomic Pathway.",
     )
-    cmap = param.Selector(dict(), doc="Colormap")
-
     def __init__(self, *args, **params):
         super().__init__(*args, **params)
+        #self.wl_params = wl_params
+        #self.warm_all_anoms = plot_data
+        self.GMT_context_plot = self._GMT_context_plot()
+        self.GCM_PostageStamps_MAIN = self._GCM_PostageStamps_MAIN()
+        self.GCM_PostageStamps_STATS = self._GCM_PostageStamps_STATS()
+        self.thirty_yr_window = self._30_yr_window()
 
-        # Selectors defaults
-        self.downscaling_method = ["Dynamical"]
-        self.scenario_historical = ["Historical Climate"]
-        self.area_average = "No"
-        self.resolution = "45 km"
-        self.scenario_ssp = ["SSP 3-7.0 -- Business as Usual"]
-        self.time_slice = (1980, 2100)
-        self.timescale = "monthly"
-        self.variable = "Air Temperature at 2m"
-
-        # Location defaults
-        self.area_subset = "states"
-        self.cached_area = "CA"
-
-        # Postage data and anomalies defaults
-        self.postage_data = _get_postage_data(self)
-        self.warm_all_anoms = get_anomaly_data(data=self.postage_data, warmlevel=1.5)
-
-        self.cmap = read_ae_colormap(cmap="ae_orange", cmap_hex=True)
-
-    # For reloading postage stamp data and plots
-    reload_data = param.Action(
-        lambda x: x.param.trigger("reload_data"), label="Reload Data", doc="Reload data"
-    )
-    changed_loc_and_var = param.Boolean(
-        default=True,
-        doc="Has the location and variable been changed? If so, reload the warming level anomolies.",
-    )
-
-    @param.depends("variable", watch=True)
-    def _update_cmap(self):
-        """Set colormap depending on variable"""
-        cmap_name = self._variable_descriptions[
-            (self._variable_descriptions["display_name"] == self.variable)
-            & (self._variable_descriptions["timescale"] == "daily, monthly")
-        ].colormap.values[0]
-
-        # Colormap normalization for hvplot -- only for relative humidity!
-        if self.variable == "Relative Humidity":
-            cmap_name = "ae_diverging"
-
-        # Read colormap hex
-        self.cmap = read_ae_colormap(cmap=cmap_name, cmap_hex=True)
-
-    @param.depends(
-        "area_subset",
-        "cached_area",
-        "variable",
-        "units",
-        watch=True,
-    )
-    def _updated_bool_loc_and_var(self):
-        """Update boolean if any changes were made to the location, variable, or unit"""
-        self.changed_loc_and_var = True
-
-    @param.depends("reload_data", watch=True)
-    def _update_postage_data(self):
-        """If the button was clicked and the location or variable was changed,
-        reload the postage stamp data from AWS"""
-        if self.changed_loc_and_var == True:
-            self.postage_data = _get_postage_data(self)
-            self.changed_loc_and_var = False
-        self.warm_all_anoms = get_anomaly_data(
-            data=self.postage_data, warmlevel=self.warmlevel
-        )
-
-    @param.depends("reload_data", watch=False)
     def _GCM_PostageStamps_MAIN(self):
         # Get plot data
         all_plot_data = self.warm_all_anoms
-        if self.variable == "Relative Humidity":
+        if self.wl_params.variable == "Relative Humidity":
             all_plot_data = all_plot_data * 100
 
         # Get int number of simulations
         num_simulations = len(all_plot_data.simulation.values)
 
         # Set up plotting arguments
-        clabel = self.variable + " (" + self.postage_data.attrs["units"] + ")"
+        clabel = self.wl_params.variable + " (" + self.warm_all_anoms.attrs["units"] + ")"
 
         # Compute 1% min and 99% max of all simulations
         vmin_l, vmax_l = [], []
@@ -328,7 +261,7 @@ class WarmingLevelParameters(DataParametersWithPanes):
             data=all_plot_data.isel(simulation=0),
             clabel=clabel,
             clim=(vmin, vmax),
-            cmap=self.cmap,
+            cmap=self.wl_params.cmap,
             sopt=sopt,
             title=all_plot_data.isel(simulation=0).simulation.item(),
         )
@@ -337,7 +270,7 @@ class WarmingLevelParameters(DataParametersWithPanes):
                 data=all_plot_data.isel(simulation=sim_i),
                 clabel=clabel,
                 clim=(vmin, vmax),
-                cmap=self.cmap,
+                cmap=self.wl_params.cmap,
                 sopt=sopt,
                 title=all_plot_data.isel(simulation=sim_i).simulation.item(),
             )
@@ -360,11 +293,10 @@ class WarmingLevelParameters(DataParametersWithPanes):
         all_plots.opts(hv.opts.Layout(merge_tools=True))  # Merge toolbar
         return all_plots
 
-    @param.depends("reload_data", watch=False)
     def _GCM_PostageStamps_STATS(self):
         # Get plot data
         all_plot_data = self.warm_all_anoms
-        if self.variable == "Relative Humidity":
+        if self.wl_params.variable == "Relative Humidity":
             all_plot_data = all_plot_data * 100
 
         # Compute stats
@@ -376,14 +308,14 @@ class WarmingLevelParameters(DataParametersWithPanes):
         # Set up plotting arguments
         width = 210
         height = 210
-        clabel = self.variable + " (" + self.postage_data.attrs["units"] + ")"
+        clabel = self.wl_params.variable + " (" + self.warm_all_anoms.attrs["units"] + ")"
         vmin, vmax, sopt = compute_vmin_vmax(min_data, max_data)
 
         # Make plots
         min_plot = _make_hvplot(
             data=min_data,
             clabel=clabel,
-            cmap=self.cmap,
+            cmap=self.wl_params.cmap,
             clim=(vmin, vmax),
             sopt=sopt,
             title="Minimum",
@@ -393,7 +325,7 @@ class WarmingLevelParameters(DataParametersWithPanes):
         max_plot = _make_hvplot(
             data=max_data,
             clabel=clabel,
-            cmap=self.cmap,
+            cmap=self.wl_params.cmap,
             clim=(vmin, vmax),
             sopt=sopt,
             title="Maximum",
@@ -403,7 +335,7 @@ class WarmingLevelParameters(DataParametersWithPanes):
         med_plot = _make_hvplot(
             data=med_data,
             clabel=clabel,
-            cmap=self.cmap,
+            cmap=self.wl_params.cmap,
             clim=(vmin, vmax),
             sopt=sopt,
             title="Median",
@@ -413,7 +345,7 @@ class WarmingLevelParameters(DataParametersWithPanes):
         mean_plot = _make_hvplot(
             data=mean_data,
             clabel=clabel,
-            cmap=self.cmap,
+            cmap=self.wl_params.cmap,
             clim=(vmin, vmax),
             sopt=sopt,
             title="Mean",
@@ -423,7 +355,7 @@ class WarmingLevelParameters(DataParametersWithPanes):
 
         all_plots = mean_plot + med_plot + min_plot + max_plot
         all_plots.opts(
-            title=self.variable
+            title=self.wl_params.variable
             + ": Anomalies for "
             + str(self.warmlevel)
             + "°C Warming Across Models"
@@ -432,7 +364,6 @@ class WarmingLevelParameters(DataParametersWithPanes):
         all_plots.opts(hv.opts.Layout(merge_tools=True))  # Merge toolbar
         return all_plots
 
-    @param.depends("reload_data", watch=False)
     def _30_yr_window(self):
         """Create a dataframe to give information about the 30-yr anomalies window for each simulation used in the postage stamp maps."""
         anom = self.warm_all_anoms
@@ -619,39 +550,77 @@ class WarmingLevelParameters(DataParametersWithPanes):
         to_plot.opts(legend_position="bottom", fontsize=10)
         return to_plot
 
+def warming_levels_select(self):
+    '''
+    An initial pared-down version of the Select panel, with fewer options exposed,
+    to help the user select a variable and location for further warming level steps.
+    '''
+    widgets = _selections_param_to_panel(self)
 
-def warming_levels_visualize(self):
+    data_choices = pn.Column(
+        widgets["variable_text"],
+        widgets["variable"],
+        widgets["variable_description"],
+        
+        widgets["units_text"],
+        widgets["units"],
+        widgets["timescale_text"],
+        widgets["timescale"],
+        widgets["resolution_text"],
+        widgets["resolution"],
+        width=250,
+    )
+
+    col_1_location = pn.Column(
+        self.map_view,
+        widgets["area_subset"],
+        widgets["cached_area"],
+        widgets["latitude"],
+        widgets["longitude"],
+        #widgets["area_average_text"],
+        #widgets["area_average"],
+        width=220,
+    )
+    
+    loc_choices = pn.Row(col_1_location)
+
+    everything_else = pn.Row(data_choices, pn.layout.HSpacer(width=10), loc_choices)
+
+    # Panel overall structure:
+    all_things = pn.Column(
+        pn.Row(
+            pn.Column(
+                widgets["downscaling_method_text"],
+                widgets["downscaling_method"],
+                width=270,
+            ),
+            pn.Column(
+                widgets["data_warning"],
+                width=120,
+            ),
+        ),
+        pn.Spacer(background="black", height=1),
+        everything_else,
+    )
+
+    return pn.Card(
+        all_things,
+        title="Choose Data to Explore at Global Warming Levels",
+        collapsible=False,
+    )
+
+   
+def warming_levels_visualize(wl_viz):
     # Create panel doodad!
     data_options = pn.Card(
         pn.Row(
-            pn.Column(
-                pn.widgets.StaticText(name="", value="Warming level (°C)"),
-                pn.widgets.RadioButtonGroup.from_param(self.param.warmlevel, name=""),
-                self.param.variable,
-                pn.widgets.StaticText.from_param(
-                    self.param.extended_description, name=""
+            
+            pn.widgets.StaticText(name="", value="Warming level (°C)"),
+            pn.widgets.RadioButtonGroup.from_param(
+                    wl_viz.param.warmlevel, name=""
                 ),
-                pn.widgets.StaticText(name="", value="Variable Units"),
-                pn.widgets.RadioButtonGroup.from_param(self.param.units),
-                pn.widgets.StaticText(name="", value="Model Resolution"),
-                pn.widgets.RadioButtonGroup.from_param(self.param.resolution),
-                pn.widgets.StaticText(name="", value=""),
-                pn.widgets.Button.from_param(
-                    self.param.reload_data,
-                    button_type="primary",
-                    width=150,
-                    height=30,
-                ),
-                width=230,
-            ),
-            pn.Column(
-                self.param.latitude,
-                self.param.longitude,
-                self.param.area_subset,
-                self.param.cached_area,
-                self.map_view,
-                width=230,
-            ),
+            width=230,   
+            
         ),
         title="Data Options",
         collapsible=False,
@@ -670,8 +639,8 @@ def warming_levels_visualize(self):
                 " [IPCC AR6 Summary for Policymakers Fig 8]"
                 "(https://www.ipcc.ch/report/ar6/wg1/figures/summary-for-policymakers/figure-spm-8/)."
             ),
-            pn.widgets.Select.from_param(self.param.ssp, name="Scenario", width=250),
-            self._GMT_context_plot,
+            pn.widgets.Select.from_param(wl_viz.param.ssp, name="Scenario", width=250),
+            wl_viz.GMT_context_plot,
         ),
         title="When do different scenarios reach the warming level?",
         collapsible=False,
@@ -689,7 +658,7 @@ def warming_levels_visualize(self):
             width=800,
         ),
         pn.Row(
-            self._GCM_PostageStamps_MAIN,
+            wl_viz.GCM_PostageStamps_MAIN,
             pn.Column(
                 pn.widgets.StaticText(value="<br><br><br>", width=150),
                 pn.widgets.StaticText(
@@ -725,7 +694,7 @@ def warming_levels_visualize(self):
             ),
             width=800,
         ),
-        self._GCM_PostageStamps_STATS,
+        wl_viz.GCM_PostageStamps_STATS,
     )
 
     window_df = pn.Column(
@@ -740,7 +709,7 @@ def warming_levels_visualize(self):
             ),
             width=800,
         ),
-        self._30_yr_window,
+        wl_viz.thirty_yr_window,
     )
 
     map_tabs = pn.Card(
@@ -760,3 +729,41 @@ def warming_levels_visualize(self):
 
     warming_panel = pn.Column(pn.Row(data_options, GMT_plot), map_tabs)
     return warming_panel
+
+def _make_hvplot(data, clabel, clim, cmap, sopt, title, width=225, height=210):
+    """Make single map"""
+    if len(data.x) > 1 and len(data.y) > 1:
+        # If data has more than one grid cell, make a pretty map
+        _plot = data.hvplot.image(
+            x="x",
+            y="y",
+            grid=True,
+            width=width,
+            height=height,
+            xaxis=None,
+            yaxis=None,
+            clabel=clabel,
+            clim=clim,
+            cmap=cmap,
+            symmetric=sopt,
+            title=title,
+        )
+    else:
+        # Make a scatter plot if it's just one grid cell
+        _plot = data.hvplot.scatter(
+            x="x",
+            y="y",
+            hover_cols=data.name,
+            grid=True,
+            width=width,
+            height=height,
+            xaxis=None,
+            yaxis=None,
+            clabel=clabel,
+            clim=clim,
+            cmap=cmap,
+            symmetric=sopt,
+            title=title,
+            s=150,  # Size of marker
+        )
+    return _plot

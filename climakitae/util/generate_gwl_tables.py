@@ -46,17 +46,18 @@ def main():
         "r8i1p1f1": "r8i1141p1f1",
         "r9i1p1f1": "r9i1161p1f1",
     }
-    
-    def buildDFtimeSeries_cesm2(variable, model, ensMem, scenarios):
-        temp = cesm2_lens.sel(member_id=ensMem)
-        dataOneModel = xr.Dataset()
+    ens_mem_cesm_rev = dict([(v, k) for k, v in ens_mems_cesm.items()])
+
+    def buildDFtimeSeries_cesm2(variable, model, ens_mem, scenarios):
+        temp = cesm2_lens.sel(member_id=ens_mem)
+        data_one_model = xr.Dataset()
         for scenario in scenarios:
             weightlat = np.sqrt(np.cos(np.deg2rad(temp.lat)))
             weightlat = weightlat / np.sum(weightlat)
             timeseries = (temp * weightlat).sum("lat").mean("lon")
-            timeseries = timeseries.sortby("time")  # needed for MPI-ESM1-2-LR
-            dataOneModel[scenario] = timeseries
-        return dataOneModel
+            timeseries = timeseries.sortby("time")
+            data_one_model[scenario] = timeseries
+        return data_one_model
 
     def build_timeseries(variable, model, ens_mem, scenarios):
         """Builds an xarray Dataset with only a time dimension, for the appended
@@ -68,29 +69,58 @@ def main():
         data_historical = xr.Dataset()
         df_scenario = df_subset[(df.source_id == model) & (df.member_id == ens_mem)]
         with xr.open_zarr(fs.get_mapper(df_scenario.zstore.values[0])) as temp:
-            weightlat = np.sqrt(np.cos(np.deg2rad(temp.lat)))
-            weightlat = weightlat / np.sum(weightlat)
-            data_historical = (temp[variable] * weightlat).sum("lat").mean("lon")
-            if model == "FGOALS-g3":
+            try:
+                weightlat = np.sqrt(np.cos(np.deg2rad(temp.lat)))
+                weightlat = weightlat / np.sum(weightlat)
+                data_historical = (temp[variable] * weightlat).sum("lat").mean("lon")
+            except:
+                weightlat = np.sqrt(np.cos(np.deg2rad(temp.latitude)))
+                weightlat = weightlat / np.sum(weightlat)
+                data_historical = (
+                    (temp[variable] * weightlat).sum("latitude").mean("longitude")
+                )
+            if model == "FGOALS-g3" or (
+                model == "EC-Earth3-Veg" and ens_mem == "r5i1p1f1"
+            ):
                 data_historical = data_historical.isel(time=slice(0, -12 * 2))
+            data_historical = data_historical.sortby("time")  # needed for MPI-ESM-2-HR
 
         data_one_model = xr.Dataset()
         for scenario in scenarios:
-            df_scenario = df[
-                (df.table_id == "Amon")
-                & (df.variable_id == variable)
-                & (df.experiment_id == scenario)
-                & (df.source_id == model)
-                & (df.member_id == ens_mem)
-            ]
-            with xr.open_zarr(fs.get_mapper(df_scenario.zstore.values[0])) as temp:
-                weightlat = np.sqrt(np.cos(np.deg2rad(temp.lat)))
-                weightlat = weightlat / np.sum(weightlat)
-                timeseries = (temp[variable] * weightlat).sum("lat").mean("lon")
-                timeseries = timeseries.sortby("time")  # needed for MPI-ESM1-2-LR
-                data_one_model[scenario] = xr.concat(
-                    [data_historical, timeseries], dim="time"
-                )
+            if ens_mem in sims_on_aws.T[model][scenario]:
+                df_scenario = df[
+                    (df.table_id == "Amon")
+                    & (df.variable_id == variable)
+                    & (df.experiment_id == scenario)
+                    & (df.source_id == model)
+                    & (df.member_id == ens_mem)
+                ]
+                if not df_scenario.empty:
+                    with xr.open_zarr(
+                        fs.get_mapper(df_scenario.zstore.values[0]), decode_times=False
+                    ) as temp:
+                        temp = temp.isel(time=slice(0, 1032))
+                        temp = xr.decode_cf(temp)
+                        try:
+                            weightlat = np.sqrt(np.cos(np.deg2rad(temp.lat)))
+                            weightlat = weightlat / np.sum(weightlat)
+                            timeseries = (
+                                (temp[variable] * weightlat).sum("lat").mean("lon")
+                            )
+                        except:
+                            weightlat = np.sqrt(np.cos(np.deg2rad(temp.latitude)))
+                            weightlat = weightlat / np.sum(weightlat)
+                            timeseries = (
+                                (temp[variable] * weightlat)
+                                .sum("latitude")
+                                .mean("longitude")
+                            )
+                        timeseries = timeseries.sortby(
+                            "time"
+                        )  # needed for MPI-ESM1-2-LR
+                        data_one_model[scenario] = xr.concat(
+                            [data_historical, timeseries], dim="time"
+                        )  # .to_pandas())
         return data_one_model
 
     def get_gwl(smoothed, degrees):
@@ -98,6 +128,7 @@ def main():
         scenarios, and returns a small table of the timestamp that a given
         global warming level is reached."""
         gwl = smoothed.sub(degrees).abs().idxmin()
+
         # make sure it's not just choosing one of the final timestamps just
         # because it's the highest warming despite being nowhere close to
         # (much less than) the target value:
@@ -106,9 +137,13 @@ def main():
                 gwl[scenario] = np.NaN
         return gwl
 
-    def get_table_one_cesm2(variable, model, ensMem, scenarios):
-        dataOneModel = buildDFtimeSeries_cesm2(variable, model, ensMem, scenarios)
-        anom = dataOneModel - dataOneModel.sel(time=slice("18500101", "19000101")).mean(
+    def get_table_one_cesm2(
+        variable, model, ens_mem, scenarios, start_year="18500101", end_year="19000101"
+    ):
+        data_one_model = buildDFtimeSeries_cesm2(variable, model, ens_mem, scenarios)
+        anom = data_one_model - data_one_model.sel(
+            time=slice(start_year, end_year)
+        ).mean(
             "time"
         )  #'18500101','19000101'
         smoothed = anom.rolling(time=20 * 12, center=True).mean("time")
@@ -120,14 +155,18 @@ def main():
             gwlevels[level] = get_gwl(oneModel.T, level)
         return gwlevels
 
-    def get_table_cesm2(variable, model, scenarios):
+    def get_table_cesm2(
+        variable, model, scenarios, start_year="18500101", end_year="19000101"
+    ):
         ens_mem_list = [v for k, v in ens_mems_cesm.items()]
         return pd.concat(
             [
-                get_table_one_cesm2(variable, model, ensMem, scenarios)
-                for ensMem in ens_mem_list
+                get_table_one_cesm2(
+                    variable, model, ens_mem, scenarios, start_year, end_year
+                )
+                for ens_mem in ens_mem_list
             ],
-            keys=ens_mem_list,
+            keys=[("CESM2-LENS", ens_mem_cesm_rev[one]) for one in ens_mem_list],
         )
 
     def get_gwl_table_one(
@@ -137,16 +176,29 @@ def main():
         for all warming levels (1.5, 2, 3, and 4 degrees) for all scenarios of
         the model/variant requested."""
         data_one_model = build_timeseries(variable, model, ens_mem, scenarios)
-        anom = (
-            data_one_model - data_one_model.sel(time=slice(start_year, end_year)).mean()
-        )
+        try:
+            anom = data_one_model - data_one_model.sel(
+                time=slice(start_year, end_year)
+            ).mean("time")
+        except:
+            #some calendars won't allow a 31st of the month end date
+            end_year = str((pd.to_datetime(end_year) - pd.DateOffset(days=1)).date()).replace('-','')
+            anom = data_one_model - data_one_model.sel(
+                time=slice(start_year, end_year)
+            ).mean("time")
+
         smoothed = anom.rolling(time=20 * 12, center=True).mean("time")
         one_model = (
             smoothed.to_array(dim="scenario", name=model).dropna("time").to_pandas()
         )
         gwlevels = pd.DataFrame()
-        for level in [1.5, 2, 3, 4]:
-            gwlevels[level] = get_gwl(one_model.T, level)
+        try:
+            for level in [1.5, 2, 3, 4]:
+                gwlevels[level] = get_gwl(one_model.T, level)
+        except:
+            print(
+                model, ens_mem, " problems"
+            )  # helps EC-Earth3 not be skipped altogether
         return gwlevels
 
     def get_gwl_table(
@@ -169,8 +221,11 @@ def main():
                 keys=ens_mem_list,
             )
         except:
-            # a few models have funny formatting that is not handled here. skip them.
-            return None
+            print(
+                get_gwl_table_one(
+                    variable, model, ens_mem, scenarios, start_year, end_year
+                )
+            )
 
     # CESM2-LENS handled differently:
     dsets_cesm = catalog_cesm_subset.to_dataset_dict(storage_options={"anon": True})
@@ -197,6 +252,9 @@ def main():
         keys=models,
     )
     all_gw_levels = pd.concat([all_gw_levels, cesm2_table])
+    all_gw_levels.index = pd.MultiIndex.from_tuples(
+        all_gw_levels.index, names=["GCM", "run", "scenario"]
+    )
     all_gw_levels.to_csv("../data/gwl_1850-1900ref.csv")
 
     # reference period overlapping with downscaled data availability:
@@ -214,6 +272,9 @@ def main():
         keys=models,
     )
     all_gw_levels2 = pd.concat([all_gw_levels2, cesm2_table2])
+    all_gw_levels2.index = pd.MultiIndex.from_tuples(
+        all_gw_levels2.index, names=["GCM", "run", "scenario"]
+    )
     all_gw_levels2.to_csv("../data/gwl_1981-2010ref.csv")
 
 
@@ -234,7 +295,6 @@ def get_sims_on_aws(df):
     sims_on_aws = pd.DataFrame(index=models, columns=scenarios)
 
     for model in models:
-        sims_on_aws.append([model])
         for scenario in scenarios:
             df_scenario = df[
                 (df.table_id == "Amon")
@@ -253,7 +313,7 @@ def get_sims_on_aws(df):
                 no_ssp = False
         if (len(sims_on_aws.loc[item]["historical"]) < 1) or (no_ssp):
             sims_on_aws = sims_on_aws.drop(index=item)
-        return sims_on_aws
+
     # next also drop any historical ensemble members that don't have a variant in an SSP
     for i, item in enumerate(sims_on_aws.T.columns):
         variants_to_keep = []
