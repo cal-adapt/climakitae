@@ -6,6 +6,7 @@ import rioxarray
 from rioxarray.exceptions import NoDataInBounds
 import numpy as np
 import pandas as pd
+from geopandas import GeoDataFrame
 import psutil
 import warnings
 from functools import partial
@@ -14,6 +15,7 @@ from shapely.geometry import box
 from xclim.core.calendar import convert_calendar
 from xclim.sdba import Grouper
 from xclim.sdba.adjustment import QuantileDeltaMapping
+from climakitae.core.boundaries import Boundaries
 from climakitae.util.unit_conversions import convert_units
 from climakitae.util.utils import readable_bytes, get_closest_gridcell
 from climakitae.tools.derived_variables import (
@@ -270,8 +272,8 @@ def area_subset_geometry(selections):
     """
     area_subset, cached_area = _override_area_selections(selections)
 
-    def set_subarea(boundary_dataset):
-        return boundary_dataset[boundary_dataset.index == shape_index].iloc[0].geometry
+    def set_subarea(boundary_dataset: Boundaries, shape_indices: list) -> GeoDataFrame:
+        return boundary_dataset.loc[shape_indices].geometry.unary_union
 
     if area_subset == "lat/lon":
         geom = _get_as_shapely(selections)
@@ -281,19 +283,28 @@ def area_subset_geometry(selections):
             )
         ds_region = [geom]
     elif area_subset != "none":
-        shape_index = int(selections._geography_choose[area_subset][cached_area])
+        shape_indices = list(
+            {
+                key: selections._geography_choose[area_subset][key]
+                for key in cached_area
+            }.values()
+        )
         if area_subset == "states":
-            shape = set_subarea(selections._geographies._us_states)
+            shape = set_subarea(selections._geographies._us_states, shape_indices)
         elif area_subset == "CA counties":
-            shape = set_subarea(selections._geographies._ca_counties)
+            shape = set_subarea(selections._geographies._ca_counties, shape_indices)
         elif area_subset == "CA watersheds":
-            shape = set_subarea(selections._geographies._ca_watersheds)
+            shape = set_subarea(selections._geographies._ca_watersheds, shape_indices)
         elif area_subset == "CA Electric Load Serving Entities (IOU & POU)":
-            shape = set_subarea(selections._geographies._ca_utilities)
+            shape = set_subarea(selections._geographies._ca_utilities, shape_indices)
         elif area_subset == "CA Electricity Demand Forecast Zones":
-            shape = set_subarea(selections._geographies._ca_forecast_zones)
+            shape = set_subarea(
+                selections._geographies._ca_forecast_zones, shape_indices
+            )
         elif area_subset == "CA Electric Balancing Authority Areas":
-            shape = set_subarea(selections._geographies._ca_electric_balancing_areas)
+            shape = set_subarea(
+                selections._geographies._ca_electric_balancing_areas, shape_indices
+            )
         ds_region = [shape]
     else:
         ds_region = None
@@ -977,7 +988,7 @@ def _preprocess_hadisd(ds, stations_gdf):
     ----------
     ds: xr.Dataset
         data for a single HadISD station
-    stations_gdf: pd.GeoDataFrame
+    stations_gdf: gpd.GeoDataFrame
         station data frame
 
     Returns

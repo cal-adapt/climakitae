@@ -587,7 +587,7 @@ class AverageMetYearParameters(DataParametersWithPanes):
 
         # Location defaults
         self.area_subset = "CA counties"
-        self.cached_area = "Los Angeles County"
+        self.cached_area = ["Los Angeles County"]
 
         # Initialze tmy_adanced_options param
         self.param["computation_method"].objects = self.tmy_advanced_options_dict[
@@ -705,12 +705,33 @@ class AverageMetYearParameters(DataParametersWithPanes):
     @param.depends("reload_data", watch=False)
     def _tmy_hourly_heatmap(self):
         # update heatmap df and title with selections
+        if len(self.cached_area) == 1:
+            cached_area_str = self.cached_area[0]
+        elif len(self.cached_area) == 2:
+            if self.area_subset == "states":
+                cached_area_str = " ".join(self.cached_area)
+            elif self.area_subset == "CA counties":
+                names = [name.split(" County")[0] for name in self.cached_area]
+                cached_area_str = "{} and {} Counties".format(names[0], names[1])
+            elif self.area_subset == "CA watersheds":
+                cached_area_str = "{} and {} Watersheds".format(
+                    self.cached_area[0], self.cached_area[1]
+                )
+            else:
+                cached_area_str = " and ".join(self.cached_area)
+        else:
+            cached_area_str = "Selected {}".format(self.area_subset)
+
+        # add new line if `cached_area_str` is too long
+        if len(cached_area_str) > 40:
+            cached_area_str = "\n" + cached_area_str
+
         days_in_year = 366
         if self.amy_type == "Absolute":
             if self.computation_method == "Historical":
                 df = compute_amy(self.historical_tmy_data, days_in_year=days_in_year)
                 title = "Average Meteorological Year: {}\nAbsolute {} Baseline".format(
-                    self.cached_area, self.computation_method
+                    cached_area_str, self.computation_method
                 )
                 clabel = (
                     self.variable + " (" + self.historical_tmy_data.attrs["units"] + ")"
@@ -718,7 +739,7 @@ class AverageMetYearParameters(DataParametersWithPanes):
             else:
                 df = compute_amy(self.future_tmy_data, days_in_year=days_in_year)
                 title = "Average Meteorological Year: {}\nAbsolute {} at {}°C".format(
-                    self.cached_area, self.computation_method, self.warmlevel
+                    cached_area_str, self.computation_method, self.warmlevel
                 )
                 clabel = self.variable + " (" + self.units + ")"
         elif self.amy_type == "Difference":
@@ -728,7 +749,7 @@ class AverageMetYearParameters(DataParametersWithPanes):
                     self.future_tmy_data, days_in_year=days_in_year
                 ) - compute_amy(self.historical_tmy_data, days_in_year=days_in_year)
                 title = "Average Meteorological Year: {}\nDifference between {} at {}°C and Historical Baseline".format(
-                    self.cached_area, self.computation_method, self.warmlevel
+                    cached_area_str, self.computation_method, self.warmlevel
                 )
                 clabel = self.variable + " (" + self.units + ")"
             else:
@@ -736,12 +757,11 @@ class AverageMetYearParameters(DataParametersWithPanes):
                     self.future_tmy_data, days_in_year=days_in_year
                 ) - compute_amy(self.historical_tmy_data, days_in_year=days_in_year)
                 title = "Severe Meteorological Year: {}\nDifference between {} at 90th percentile and Historical Baseline".format(
-                    self.cached_area, self.computation_method
+                    cached_area_str, self.computation_method
                 )
                 clabel = self.variable + " (" + self.units + ")"
         else:
-            title = "Average Meteorological Year\n{}".format(self.cached_area)
-
+            title = "Average Meteorological Year for\n{}".format(cached_area_str)
         heatmap = meteo_yr_heatmap(
             meteo_yr_df=df,
             title=title,
