@@ -17,7 +17,7 @@ from xclim.sdba import Grouper
 from xclim.sdba.adjustment import QuantileDeltaMapping
 from climakitae.core.boundaries import Boundaries
 from climakitae.util.unit_conversions import convert_units
-from climakitae.util.utils import readable_bytes, get_closest_gridcell
+from climakitae.util.utils import readable_bytes, get_closest_gridcell, area_average
 from climakitae.tools.derived_variables import (
     compute_relative_humidity,
     compute_wind_mag,
@@ -388,30 +388,6 @@ def _spatial_subset(dset, selections):
     return dset
 
 
-def _area_average(dset):
-    """Weighted area-average
-
-    Parameters
-    ----------
-    dset: xr.Dataset
-        one dataset from the catalog
-
-    Returns
-    ----------
-    xr.Dataset
-        sub-setted output data
-
-    """
-    weights = np.cos(np.deg2rad(dset.lat))
-    if set(["x", "y"]).issubset(set(dset.dims)):
-        # WRF data has x,y
-        dset = dset.weighted(weights).mean("x").mean("y")
-    elif set(["lat", "lon"]).issubset(set(dset.dims)):
-        # LOCA data has lat, lon
-        dset = dset.weighted(weights).mean("lat").mean("lon")
-    return dset
-
-
 def _process_dset(ds_name, dset, selections):
     """Subset over time and space, as described in user selections;
        renaming to facilitate concatenation.
@@ -437,7 +413,7 @@ def _process_dset(ds_name, dset, selections):
 
     # Perform area averaging
     if selections.area_average == "Yes":
-        dset = _area_average(dset)
+        dset = area_average(dset)
 
     # Rename member_id value to include more info
     dset = dset.assign_coords(

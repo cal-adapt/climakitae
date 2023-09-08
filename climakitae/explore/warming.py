@@ -16,7 +16,7 @@ from climakitae.core.data_interface import (
     _selections_param_to_panel,
 )
 from climakitae.core.data_view import compute_vmin_vmax
-from climakitae.util.utils import read_csv_file, read_ae_colormap
+from climakitae.util.utils import read_csv_file, read_ae_colormap, area_average
 from climakitae.core.paths import (
     gwl_1981_2010_file,
     ssp119_file,
@@ -63,7 +63,10 @@ class WarmingLevels:
         return warming_levels_visualize(self.wl_viz)
 
     def retrieve_gwl_slices(self):
-        return wl_export_slices(self.wl_params, self.postage_data)
+        gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
+        return self.postage_data.groupby("simulation").map(
+            wl_export_slices, years=gwl_times, window=15, scenario="ssp370"
+        )
 
 
 def get_anomaly_data(y, years, window=15, scenario="ssp370"):
@@ -106,8 +109,25 @@ def get_anomaly_data(y, years, window=15, scenario="ssp370"):
     return one_sim
 
 
-def wl_export_slices(postage_data, years, window=15):
-    return None
+def wl_export_slices(y, years, window=15, scenario="ssp370"):
+    simulation = str(y.simulation.values[0])
+    downscaling_method, sim_str, ensemble = simulation.split("_")
+    gwl_times_subset = years.loc[(sim_str, ensemble, scenario)]
+    attrs_temp = y.attrs
+    one_sim = xr.Dataset()
+    for one_wl in gwl_times_subset.index:
+        centered_year = pd.to_datetime(gwl_times_subset[one_wl]).year
+        if not np.isnan(centered_year):
+            start_year = centered_year - window
+            end_year = centered_year + (window - 1)
+            anom = y.sel(time=slice(str(start_year), str(end_year))) - y.sel(
+                time=slice("1981", "2010")
+            ).mean("time")
+            one_sim[one_wl] = anom
+
+    one_sim = one_sim.to_array("warming_level")
+    one_sim.attrs = attrs_temp
+    return one_sim
 
 
 class WarmingLevelParameters(DataParametersWithPanes):
@@ -218,7 +238,7 @@ class WarmingLevelVisualize(param.Parameterized):
 
         # Set up plotting arguments
         width = 210
-        height = 210
+        height = 110
         clabel = (
             self.wl_params.variable + " (" + self.gwl_snapshots.attrs["units"] + ")"
         )
@@ -231,7 +251,7 @@ class WarmingLevelVisualize(param.Parameterized):
 
         all_plots = (
             all_plot_data.squeeze()
-            .hvplot.quadmesh(
+            .hvplot.image(
                 by="simulation",
                 subplots=True,
                 colorbar=True,
@@ -243,8 +263,9 @@ class WarmingLevelVisualize(param.Parameterized):
                 height=height,
                 xaxis=False,
                 yaxis=False,
+                title="",
             )
-            .cols(3)
+            .cols(6)
         )
 
         try:
@@ -273,13 +294,29 @@ class WarmingLevelVisualize(param.Parameterized):
         if self.wl_params.variable == "Relative Humidity":
             all_plot_data = all_plot_data * 100
 
-        # Compute stats <-- these were not the intention. This is by pixel.
-        stats = xr.Dataset()
-        stats["Minimum"] = all_plot_data.min(dim="simulation")
-        stats["Maximum"] = all_plot_data.max(dim="simulation")
-        stats["Median"] = all_plot_data.median(dim="simulation")
-        stats["Mean"] = all_plot_data.mean(dim="simulation")
-        stats = stats.to_array("statistic")
+        # Compute stats
+        def arg_median(data):
+            return data.loc[data == data.median("simulation")].simulation.values.item()
+
+        def arg_mean():
+            return None  # could find the one closest to the mean... but worth it?
+
+        def find_sim(all_plot_data, area_avgs, my_func=np.argmin):
+            if my_func == arg_median:
+                one_sim = all_plot_data.sel(simulation=arg_median(area_avgs))
+            else:
+                which_sim = area_avgs.reduce(my_func, dim="simulation")
+                one_sim = all_plot_data.isel(simulation=which_sim)
+            one_sim.name = one_sim.simulation.values
+            return one_sim
+
+        area_avgs = area_average(all_plot_data)
+        stat_funcs = [np.argmin, np.argmax, arg_median]
+        stats = xr.concat(
+            [find_sim(all_plot_data, area_avgs, one_func) for one_func in stat_funcs],
+            dim="simulation",
+        )
+        stats.name = "statistics"
 
         # Set up plotting arguments
         width = 210
@@ -295,8 +332,8 @@ class WarmingLevelVisualize(param.Parameterized):
             sopt = None
 
         # Make plots
-        all_plots = stats.hvplot.quadmesh(
-            by="statistic",
+        all_plots = stats.hvplot.image(
+            by="simulation",
             subplots=True,
             clabel=clabel,
             cmap=self.wl_params.cmap,
@@ -306,6 +343,7 @@ class WarmingLevelVisualize(param.Parameterized):
             height=height,
             xaxis=False,
             yaxis=False,
+            title="",
         ).cols(2)
 
         all_plots.opts(

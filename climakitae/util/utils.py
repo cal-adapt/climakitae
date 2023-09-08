@@ -20,6 +20,30 @@ from climakitae.core.paths import (
 )
 
 
+def area_average(dset):
+    """Weighted area-average
+
+    Parameters
+    ----------
+    dset: xr.Dataset
+        one dataset from the catalog
+
+    Returns
+    ----------
+    xr.Dataset
+        sub-setted output data
+
+    """
+    weights = np.cos(np.deg2rad(dset.lat))
+    if set(["x", "y"]).issubset(set(dset.dims)):
+        # WRF data has x,y
+        dset = dset.weighted(weights).mean("x").mean("y")
+    elif set(["lat", "lon"]).issubset(set(dset.dims)):
+        # LOCA data has lat, lon
+        dset = dset.weighted(weights).mean("lat").mean("lon")
+    return dset
+
+
 def read_csv_file(rel_path, index_col=None):
     return pd.read_csv(
         _package_file_path(rel_path),
