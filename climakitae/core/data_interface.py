@@ -522,8 +522,8 @@ class VariableDescriptions:
             cls.instance = super(VariableDescriptions, cls).__new__(cls)
         return cls.instance
 
-    def load(self):
-        if self.variable_descriptions == None:
+    def load(self) :
+        if self.variable_descriptions.empty:
             self.variable_descriptions = read_csv_file(variable_descriptions_csv_path)
 
 
