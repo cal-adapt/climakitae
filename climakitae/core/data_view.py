@@ -5,8 +5,8 @@ import numpy as np
 import hvplot.xarray
 import matplotlib.pyplot as plt
 import panel as pn
-from climakitae.util.utils import read_csv_file, reproject_data, read_ae_colormap
-from climakitae.core.paths import variable_descriptions_csv_path
+from climakitae.util.utils import reproject_data, read_ae_colormap
+from climakitae.core.data_interface import VariableDescriptions
 
 
 def compute_vmin_vmax(da_min, da_max):
@@ -59,7 +59,7 @@ def view(data, lat_lon=True, width=None, height=None, cmap=None):
         Warn user that the function will be slow if data has not been loaded into memory
     """
 
-    variable_descriptions = read_csv_file(variable_descriptions_csv_path)
+    variable_descriptions = VariableDescriptions().variable_descriptions
 
     # Warn user about speed if passing a zarr to the function
     if data.chunks is None or str(data.chunks) == "Frozen({})":
