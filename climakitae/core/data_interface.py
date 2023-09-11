@@ -533,7 +533,7 @@ class DataInterface:
         self._boundary_catalog = intake.open_catalog(boundary_catalog_url)
         self._geographies = Boundaries(self.boundary_catalog)
 
-        self._geographies.load()
+        #self._geographies.load()
 
     @property
     def variable_descriptions(self):
