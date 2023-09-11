@@ -515,14 +515,15 @@ class VariableDescriptions:
 
     """
 
-    variable_descriptions = None
-
     def __new__(cls):
         if not hasattr(cls, "instance"):
             cls.instance = super(VariableDescriptions, cls).__new__(cls)
         return cls.instance
 
-    def load(self) :
+    def __init__(self):
+        self.variable_descriptions = pd.DataFrame
+
+    def load(self):
         if self.variable_descriptions.empty:
             self.variable_descriptions = read_csv_file(variable_descriptions_csv_path)
 
