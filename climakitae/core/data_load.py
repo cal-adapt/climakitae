@@ -17,7 +17,7 @@ from xclim.sdba import Grouper
 from xclim.sdba.adjustment import QuantileDeltaMapping
 from climakitae.core.boundaries import Boundaries
 from climakitae.util.unit_conversions import convert_units
-from climakitae.util.utils import readable_bytes, get_closest_gridcell, area_average
+from climakitae.util.utils import readable_bytes, get_closest_gridcell, area_average, scenario_to_experiment_id
 from climakitae.tools.derived_variables import (
     compute_relative_humidity,
     compute_wind_mag,
@@ -1392,19 +1392,3 @@ def timescale_to_table_id(timescale, reverse=False):
     return timescale_dict[timescale]
 
 
-def scenario_to_experiment_id(scenario, reverse=False):
-    """
-    Convert scenario format to experiment_id format matching catalog names.
-    Set reverse=True to get scenario format from input experiement_id.
-    """
-    scenario_dict = {
-        "Historical Reconstruction": "reanalysis",
-        "Historical Climate": "historical",
-        "SSP 2-4.5 -- Middle of the Road": "ssp245",
-        "SSP 5-8.5 -- Burn it All": "ssp585",
-        "SSP 3-7.0 -- Business as Usual": "ssp370",
-    }
-
-    if reverse == True:
-        scenario_dict = {v: k for k, v in scenario_dict.items()}
-    return scenario_dict[scenario]

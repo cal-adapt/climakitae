@@ -16,7 +16,7 @@ from climakitae.core.data_interface import (
     _selections_param_to_panel,
 )
 from climakitae.core.data_view import compute_vmin_vmax
-from climakitae.util.utils import read_csv_file, read_ae_colormap, area_average
+from climakitae.util.utils import read_csv_file, read_ae_colormap, area_average, scenario_to_experiment_id
 from climakitae.core.paths import (
     gwl_1981_2010_file,
     ssp119_file,
@@ -35,41 +35,64 @@ xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
 
 
 class WarmingLevels:
-    """Display Warming Levels panel."""
+    """A container for all of the warming levels-related functionality:
+    - A pared-down Select panel, under "choose_data"
+    - a "calculate" step where most of the waiting occurs
+    - an optional "visualize" panel, as an instance of WarmingLevelVisualize
+    - postage stamps from visualize "main" tab are accessible via "gwl_snapshots"
+    - data sliced around gwl window retrieved from "sliced_data"
+    """
 
-    postage_data = xr.DataArray()
+    catalog_data = xr.DataArray()
+    sliced_data = xr.DataArray()
     gwl_snapshots = xr.DataArray()
 
     def __init__(self, **params):
-        self.wl_params = WarmingLevelParameters()
+        self.wl_params = DataParametersWithPanes()
+        self.wl_params.downscaling_method = ["Dynamical"]
+        self.wl_params.scenario_historical = ["Historical Climate"]
+        self.wl_params.area_average = "No"
+        self.wl_params.resolution = "45 km"
+        self.wl_params.scenario_ssp = [
+            "SSP 3-7.0 -- Business as Usual",
+            "SSP 2-4.5 -- Middle of the Road",
+            "SSP 5-8.5 -- Burn it All",
+        ]
+        self.wl_params.time_slice = (1980, 2100)
+        self.wl_params.timescale = "monthly"
+        self.wl_params.variable = "Air Temperature at 2m"
+
+        # Location defaults
+        self.wl_params.area_subset = "states"
+        self.wl_params.cached_area = ["CA"]
 
     def choose_data(self):
         return warming_levels_select(self.wl_params)
 
-    def calculate(self):
+    def calculate(self,window=15):
         # Postage data and anomalies defaults
-        if self.postage_data is not None:
-            self.postage_data = self.wl_params.retrieve()
-        gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
-        self.gwl_snapshots = self.postage_data.groupby("simulation").map(
-            get_anomaly_data, years=gwl_times, window=15, scenario="ssp370"
+        self.catalog_data = self.wl_params.retrieve()
+        self.catalog_data = (
+            self.catalog_data.stack(all_sims=["simulation", "scenario"])
+            .squeeze()
+            .dropna(dim="all_sims", how="all")
         )
+        gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
+        self.sliced_data = self.catalog_data.groupby("all_sims").map(
+            get_anomaly_data, years=gwl_times, window=window
+        )
+        self.gwl_snapshots = self.sliced_data.reduce(np.nanmean, "time")
         self.gwl_snapshots = self.gwl_snapshots.compute()
+        self.cmap = get_cmap(self.wl_params)
         self.wl_viz = WarmingLevelVisualize(
-            gwl_snapshots=self.gwl_snapshots, wl_params=self.wl_params
+            gwl_snapshots=self.gwl_snapshots, wl_params=self.wl_params, cmap=self.cmap
         )
 
     def visualize(self):
         return warming_levels_visualize(self.wl_viz)
 
-    def retrieve_gwl_slices(self):
-        gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
-        return self.postage_data.groupby("simulation").map(
-            wl_export_slices, years=gwl_times, window=15, scenario="ssp370"
-        )
 
-
-def get_anomaly_data(y, years, window=15, scenario="ssp370"):
+def get_anomaly_data(y, years, window=15):
     """Calculating warming level anomalies.
 
     Parameters
@@ -89,28 +112,8 @@ def get_anomaly_data(y, years, window=15, scenario="ssp370"):
     anomaly_da: xr.DataArray
         Warming level anomalies at all warming levels for a scenario
     """
-    simulation = str(y.simulation.values[0])
-    downscaling_method, sim_str, ensemble = simulation.split("_")
-    gwl_times_subset = years.loc[(sim_str, ensemble, scenario)]
-    attrs_temp = y.attrs
-    one_sim = xr.Dataset()
-    for one_wl in gwl_times_subset.index:
-        centered_year = pd.to_datetime(gwl_times_subset[one_wl]).year
-        if not np.isnan(centered_year):
-            start_year = centered_year - window
-            end_year = centered_year + (window - 1)
-            anom = y.sel(time=slice(str(start_year), str(end_year))).mean(
-                "time"
-            ) - y.sel(time=slice("1981", "2010")).mean("time")
-            one_sim[one_wl] = anom
-
-    one_sim = one_sim.to_array("warming_level")
-    one_sim.attrs = attrs_temp
-    return one_sim
-
-
-def wl_export_slices(y, years, window=15, scenario="ssp370"):
-    simulation = str(y.simulation.values[0])
+    simulation = y.simulation.values.item()
+    scenario = scenario_to_experiment_id(y.scenario.values.item().split('+')[1][1::])
     downscaling_method, sim_str, ensemble = simulation.split("_")
     gwl_times_subset = years.loc[(sim_str, ensemble, scenario)]
     attrs_temp = y.attrs
@@ -130,49 +133,20 @@ def wl_export_slices(y, years, window=15, scenario="ssp370"):
     return one_sim
 
 
-class WarmingLevelParameters(DataParametersWithPanes):
-    """Generate warming levels panel GUI in notebook.
+def get_cmap(wl_params):
+    """Set colormap depending on variable"""
+    cmap_name = wl_params._variable_descriptions[
+        (wl_params._variable_descriptions["display_name"] == wl_params.variable)
+        & (wl_params._variable_descriptions["timescale"] == "daily, monthly")
+    ].colormap.values[0]
 
-    Intended to be accessed through warming_levels()
-    Allows the user to toggle between several data options.
-    Produces dynamically updating postage stamp maps.
-    """
+    # Colormap normalization for hvplot -- only for relative humidity!
+    if wl_params.variable == "Relative Humidity":
+        cmap_name = "ae_diverging"
 
-    cmap = param.Selector(dict(), doc="Colormap")
-
-    def __init__(self, *args, **params):
-        super().__init__(*args, **params)
-
-        # Selectors defaults
-        self.downscaling_method = ["Dynamical"]
-        self.scenario_historical = ["Historical Climate"]
-        self.area_average = "No"
-        self.resolution = "45 km"
-        self.scenario_ssp = ["SSP 3-7.0 -- Business as Usual"]
-        self.time_slice = (1980, 2100)
-        self.timescale = "monthly"
-        self.variable = "Air Temperature at 2m"
-
-        # Location defaults
-        self.area_subset = "states"
-        self.cached_area = ["CA"]
-
-        self.cmap = read_ae_colormap(cmap="ae_orange", cmap_hex=True)
-
-    @param.depends("variable", watch=True)
-    def _update_cmap(self):
-        """Set colormap depending on variable"""
-        cmap_name = self._variable_descriptions[
-            (self._variable_descriptions["display_name"] == self.variable)
-            & (self._variable_descriptions["timescale"] == "daily, monthly")
-        ].colormap.values[0]
-
-        # Colormap normalization for hvplot -- only for relative humidity!
-        if self.variable == "Relative Humidity":
-            cmap_name = "ae_diverging"
-
-        # Read colormap hex
-        self.cmap = read_ae_colormap(cmap=cmap_name, cmap_hex=True)
+    # Read colormap hex
+    cmap = read_ae_colormap(cmap=cmap_name, cmap_hex=True)
+    return cmap
 
 
 class WarmingLevelVisualize(param.Parameterized):
@@ -249,15 +223,24 @@ class WarmingLevelVisualize(param.Parameterized):
         else:
             sopt = None
 
+        # so that hvplot doesn't complain about the all_sims dimension names being tuples:
+        new_arr = []
+        for one in all_plot_data.all_sims:
+            temp = list(one.values.item())
+            a = temp[0]+' '+temp[1]
+            new_arr.append(a)
+        all_plot_data['all_sims'] = new_arr
+
+        #now prepare the plot object:
         all_plots = (
             all_plot_data.squeeze()
             .hvplot.image(
-                by="simulation",
+                by="all_sims",
                 subplots=True,
-                colorbar=True,
+                colorbar=False,
                 clim=(vmin, vmax),
                 clabel=clabel,
-                cmap=self.wl_params.cmap,
+                cmap=self.cmap,
                 symmetric=sopt,
                 width=width,
                 height=height,
@@ -265,7 +248,7 @@ class WarmingLevelVisualize(param.Parameterized):
                 yaxis=False,
                 title="",
             )
-            .cols(6)
+            .cols(4)
         )
 
         try:
@@ -294,32 +277,45 @@ class WarmingLevelVisualize(param.Parameterized):
         if self.wl_params.variable == "Relative Humidity":
             all_plot_data = all_plot_data * 100
 
-        # Compute stats
+        # compute stats
+        def get_name(simulation, scenario, my_func_name):
+            method, GCM, run = simulation.split("_")
+            return (
+                my_func_name + ": \n" + method + " " + GCM + " " + run + "\n" + scenario
+            )
+
         def arg_median(data):
-            return data.loc[data == data.median("simulation")].simulation.values.item()
+            return data.loc[data == data.quantile(0.5,"all_sims",method='nearest')].all_sims.values.item()
 
         def arg_mean():
-            return None  # could find the one closest to the mean... but worth it?
+            return None  # could find the one closest to the mean...
 
-        def find_sim(all_plot_data, area_avgs, my_func=np.argmin):
-            if my_func == arg_median:
-                one_sim = all_plot_data.sel(simulation=arg_median(area_avgs))
+        def find_sim(all_plot_data, area_avgs, stat_funcs, my_func):
+            if my_func == "Median":
+                one_sim = all_plot_data.sel(all_sims=stat_funcs[my_func](area_avgs))
             else:
-                which_sim = area_avgs.reduce(my_func, dim="simulation")
-                one_sim = all_plot_data.isel(simulation=which_sim)
-            one_sim.name = one_sim.simulation.values
+                which_sim = area_avgs.reduce(stat_funcs[my_func], dim="all_sims")
+                one_sim = all_plot_data.isel(all_sims=which_sim)
+            one_sim.simulation.values = get_name(
+                one_sim.simulation.values.item(),
+                one_sim.scenario.values.item().split('+')[1],
+                my_func,
+            )
             return one_sim
 
         area_avgs = area_average(all_plot_data)
-        stat_funcs = [np.argmin, np.argmax, arg_median]
+        stat_funcs = {"Minimum": np.argmin, "Maximum": np.argmax, "Median": arg_median}
         stats = xr.concat(
-            [find_sim(all_plot_data, area_avgs, one_func) for one_func in stat_funcs],
-            dim="simulation",
+            [
+                find_sim(all_plot_data, area_avgs, stat_funcs, one_func)
+                for one_func in stat_funcs
+            ],
+            dim="all_sims",
         )
-        stats.name = "statistics"
+        stats.name = "Cross-simulation Statistics"
 
         # Set up plotting arguments
-        width = 210
+        width = 410
         height = 210
         clabel = (
             self.wl_params.variable + " (" + self.gwl_snapshots.attrs["units"] + ")"
@@ -332,19 +328,24 @@ class WarmingLevelVisualize(param.Parameterized):
             sopt = None
 
         # Make plots
-        all_plots = stats.hvplot.image(
-            by="simulation",
-            subplots=True,
-            clabel=clabel,
-            cmap=self.wl_params.cmap,
-            clim=(vmin, vmax),
-            symmetric=sopt,
-            width=width,
-            height=height,
-            xaxis=False,
-            yaxis=False,
-            title="",
-        ).cols(2)
+        plot_list = []
+        for stat in stats:
+            plot_list.append(
+                stat.squeeze()
+                .drop(["warming_level"])
+                .hvplot.image(
+                    clabel=clabel,
+                    cmap=self.cmap,
+                    clim=(vmin, vmax),
+                    symmetric=sopt,
+                    width=width,
+                    height=height,
+                    xaxis=False,
+                    yaxis=False,
+                    title=stat.simulation.values.item(),  # dim has been overwritten with nicer title
+                )
+            )
+        all_plots = plot_list[0] + plot_list[1] + plot_list[2]
 
         all_plots.opts(
             title=self.wl_params.variable
@@ -352,9 +353,7 @@ class WarmingLevelVisualize(param.Parameterized):
             + str(self.warmlevel)
             + "°C Warming Across Models"
         )  # Add title
-        all_plots.opts(toolbar="below")  # Set toolbar location
-        all_plots.opts(hv.opts.Layout(merge_tools=True))  # Merge toolbar
-        return all_plots
+        return all_plots.cols(1)
 
     @param.depends("warmlevel", "ssp", watch=False)
     def GMT_context_plot(self):
@@ -719,7 +718,3 @@ def _make_hvplot(data, clabel, clim, cmap, sopt, title, width=225, height=210):
             s=150,  # Size of marker
         )
     return _plot
-
-
-def wl_export_snapshots(snapshots):
-    return snapshots  # .to_netcdf('gwl_snapshots.nc')
