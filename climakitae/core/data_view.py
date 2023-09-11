@@ -59,7 +59,10 @@ def view(data, lat_lon=True, width=None, height=None, cmap=None):
         Warn user that the function will be slow if data has not been loaded into memory
     """
 
-    variable_descriptions = VariableDescriptions().variable_descriptions
+    var_desc = VariableDescriptions()
+    var_desc.load()
+
+    variable_descriptions = var_desc.variable_descriptions
 
     # Warn user about speed if passing a zarr to the function
     if data.chunks is None or str(data.chunks) == "Frozen({})":

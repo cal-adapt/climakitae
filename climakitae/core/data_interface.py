@@ -515,13 +515,16 @@ class VariableDescriptions:
 
     """
 
+    variable_descriptions = None
+
     def __new__(cls):
         if not hasattr(cls, "instance"):
             cls.instance = super(VariableDescriptions, cls).__new__(cls)
         return cls.instance
 
-    def __init__(self):
-        self.variable_descriptions = read_csv_file(variable_descriptions_csv_path)
+    def load(self):
+        if self.variable_descriptions == None:
+            self.variable_descriptions = read_csv_file(variable_descriptions_csv_path)
 
 
 class DataInterface:
@@ -539,7 +542,9 @@ class DataInterface:
         return cls.instance
 
     def __init__(self):
-        self._variable_descriptions = VariableDescriptions().variable_descriptions
+        var_desc = VariableDescriptions()
+        var_desc.load()
+        self._variable_descriptions = var_desc.variable_descriptions
         self._stations = read_csv_file(stations_csv_path)
         self._stations_gdf = gpd.GeoDataFrame(
             self.stations,
