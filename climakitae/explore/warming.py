@@ -278,8 +278,6 @@ class WarmingLevelVisualize(param.Parameterized):
     def GCM_PostageStamps_MAIN(self):
         # Get data to plot
         one_warming_level = str(float(self.warmlevel))
-        # all_plot_data = self.gwl_snapshots.sel(warming_level=one_warming_level).copy()
-        # all_plot_data = all_plot_data.dropna('all_sims',how='all')
         all_plot_data = _select_one_gwl(one_warming_level, self.gwl_snapshots)
         if all_plot_data.all_sims.size != 0:
             if self.wl_params.variable == "Relative Humidity":
