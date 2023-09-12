@@ -141,9 +141,6 @@ def _get_sliced_data(y, years, window=15, anom=True):
                 sliced = y.sel(time=slice(str(start_year), str(end_year)))
 
             one_sim[one_wl] = sliced
-    import pdb
-
-    pdb.set_trace()
     one_sim = one_sim.to_array("warming_level")
     one_sim.attrs = attrs_temp
     return one_sim
@@ -316,15 +313,13 @@ class WarmingLevelVisualize(param.Parameterized):
 
             try:
                 all_plots.opts(
-                    title=self.variable
-                    + ": Change from Historical for "
+                    title=self.wl_params.variable
+                    + ": for "
                     + str(self.warmlevel)
                     + "°C Warming by Simulation"
                 )  # Add title
             except:
-                all_plots.opts(
-                    title=str(self.warmlevel) + "°C Change from Historical"
-                )  # Add shorter title
+                all_plots.opts(title=str(self.warmlevel) + "°C")  # Add shorter title
 
             all_plots.opts(toolbar="below")  # Set toolbar location
             all_plots.opts(hv.opts.Layout(merge_tools=True))  # Merge toolbar
@@ -426,7 +421,7 @@ class WarmingLevelVisualize(param.Parameterized):
 
             all_plots.opts(
                 title=self.wl_params.variable
-                + ": Anomalies for "
+                + ": for "
                 + str(self.warmlevel)
                 + "°C Warming Across Models"
             )  # Add title
@@ -704,9 +699,10 @@ def warming_levels_visualize(wl_viz):
     postage_stamps_MAIN = pn.Column(
         pn.widgets.StaticText(
             value=(
-                "Panels show the difference (anomaly) between the 30-year average"
-                " centered on the year that each GCM (name of model titles each panel)"
-                " reaches the specified warming level and the average from 1981-2010."
+                "Panels show the 30-year average centered on the year that each"
+                "GCM run (each panel) reaches the specified warming level."
+                "If you selected 'Yes' to return an anomaly, you will see the difference"
+                "from average over the 1981-2010 historical reference period."
             ),
             width=800,
         ),
@@ -736,14 +732,9 @@ def warming_levels_visualize(wl_viz):
     postage_stamps_STATS = pn.Column(
         pn.widgets.StaticText(
             value=(
-                "Panels show the average, median, minimum, or maximum conditions"
+                "Panels show the median, minimum, or maximum conditions"
                 " across all models. These statistics are computed from the data"
-                " in the first panel: the difference (anomaly) between the 30-year"
-                " average centered on the year that each GCM reaches the specified"
-                " warming level and the average from 1981-2010. Minimum and maximum"
-                " values are calculated across simulations for each grid cell, so one"
-                " map may contain grid cells from different simulations. Median and"
-                " mean maps show those respective summaries across simulations at each grid cell."
+                " in the first panel."
             ),
             width=800,
         ),
@@ -759,10 +750,9 @@ def warming_levels_visualize(wl_viz):
         pn.Tabs(
             ("Maps of individual simulations", postage_stamps_MAIN),
             (
-                "Maps of cross-model statistics: mean/median/max/min",
+                "Maps of cross-model statistics: median/max/min",
                 postage_stamps_STATS,
             ),
-            # ("Anomaly computation details", window_df),
         ),
         title="Regional response at selected warming level",
         width=850,
