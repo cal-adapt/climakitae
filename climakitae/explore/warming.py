@@ -297,24 +297,20 @@ class WarmingLevelVisualize(param.Parameterized):
                 sopt = None
 
             # now prepare the plot object:
-            all_plots = (
-                all_plot_data.squeeze()
-                .hvplot.image(
-                    by="all_sims",
-                    subplots=True,
-                    colorbar=False,
-                    clim=(vmin, vmax),
-                    clabel=clabel,
-                    cmap=self.cmap,
-                    symmetric=sopt,
-                    width=width,
-                    height=height,
-                    xaxis=False,
-                    yaxis=False,
-                    title="",
-                )
-                .cols(4)
-            )
+            all_plots = all_plot_data.hvplot.image(
+                by="all_sims",
+                subplots=True,
+                colorbar=False,
+                clim=(vmin, vmax),
+                clabel=clabel,
+                cmap=self.cmap,
+                symmetric=sopt,
+                width=width,
+                height=height,
+                xaxis=False,
+                yaxis=False,
+                title="",
+            ).cols(4)
 
             try:
                 all_plots.opts(
