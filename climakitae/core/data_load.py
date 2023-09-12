@@ -17,7 +17,12 @@ from xclim.sdba import Grouper
 from xclim.sdba.adjustment import QuantileDeltaMapping
 from climakitae.core.boundaries import Boundaries
 from climakitae.util.unit_conversions import convert_units
-from climakitae.util.utils import readable_bytes, get_closest_gridcell, area_average, scenario_to_experiment_id
+from climakitae.util.utils import (
+    readable_bytes,
+    get_closest_gridcell,
+    area_average,
+    scenario_to_experiment_id,
+)
 from climakitae.tools.derived_variables import (
     compute_relative_humidity,
     compute_wind_mag,
@@ -1390,5 +1395,3 @@ def timescale_to_table_id(timescale, reverse=False):
     if reverse == True:
         timescale_dict = {v: k for k, v in timescale_dict.items()}
     return timescale_dict[timescale]
-
-

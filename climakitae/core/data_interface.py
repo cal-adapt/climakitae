@@ -1178,8 +1178,8 @@ class DataParameters(param.Parameterized):
             return read_catalog_from_select(self)
         except:
             raise ValueError(
-            "COULD NOT RETRIEVE DATA: For the provided data selections, there is not sufficient data to retrieve. Try selecting a larger spatial area, or a higher resolution. Returning None."
-        )
+                "COULD NOT RETRIEVE DATA: For the provided data selections, there is not sufficient data to retrieve. Try selecting a larger spatial area, or a higher resolution. Returning None."
+            )
 
 
 class DataParametersWithPanes(DataParameters):
