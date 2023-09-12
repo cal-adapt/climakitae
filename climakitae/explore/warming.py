@@ -67,7 +67,7 @@ class WarmingLevels:
             .squeeze()
             .dropna(dim="all_sims", how="all")
         )
-        if self.wl_params.anom == True:
+        if self.wl_params.anom == "Yes":
             gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
         else:
             gwl_times = read_csv_file(gwl_1850_1900_file, index_col=[0, 1, 2])
