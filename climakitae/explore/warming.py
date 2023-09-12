@@ -77,6 +77,7 @@ class WarmingLevels:
             window=self.wl_params.window,
             anom=self.wl_params.anom,
         )
+        self.sliced_data["all_sims"] = relabel_axis(self.sliced_data.all_sims)
         self.gwl_snapshots = self.sliced_data.reduce(np.nanmean, "time")
         self.gwl_snapshots = self.gwl_snapshots.compute()
         self.cmap = _get_cmap(self.wl_params)
@@ -85,10 +86,20 @@ class WarmingLevels:
         )
 
     def visualize(self):
-        try:
+        if self.wl_viz:
             return warming_levels_visualize(self.wl_viz)
-        except:
+        else:
             print("Please run 'calculate' first.")
+
+
+def relabel_axis(all_sims_dim):
+    # so that hvplot doesn't complain about the all_sims dimension names being tuples:
+    new_arr = []
+    for one in all_sims_dim:
+        temp = list(one.values.item())
+        a = temp[0] + "_" + temp[1]
+        new_arr.append(a)
+    return new_arr
 
 
 def _get_sliced_data(y, years, window=15, anom=True):
@@ -287,14 +298,6 @@ class WarmingLevelVisualize(param.Parameterized):
             else:
                 sopt = None
 
-            # so that hvplot doesn't complain about the all_sims dimension names being tuples:
-            new_arr = []
-            for one in all_plot_data.all_sims:
-                temp = list(one.values.item())
-                a = temp[0] + " " + temp[1]
-                new_arr.append(a)
-            all_plot_data["all_sims"] = new_arr
-
             # now prepare the plot object:
             all_plots = (
                 all_plot_data.squeeze()
@@ -343,8 +346,8 @@ class WarmingLevelVisualize(param.Parameterized):
                 all_plot_data = all_plot_data * 100
 
             # compute stats
-            def get_name(simulation, scenario, my_func_name):
-                method, GCM, run = simulation.split("_")
+            def get_name(simulation, my_func_name):
+                method, GCM, run, scenario = simulation.split("_")
                 return (
                     my_func_name
                     + ": \n"
@@ -354,7 +357,7 @@ class WarmingLevelVisualize(param.Parameterized):
                     + " "
                     + run
                     + "\n"
-                    + scenario
+                    + scenario.split("+")[1]
                 )
 
             def arg_median(data):
@@ -371,9 +374,8 @@ class WarmingLevelVisualize(param.Parameterized):
                 else:
                     which_sim = area_avgs.reduce(stat_funcs[my_func], dim="all_sims")
                     one_sim = all_plot_data.isel(all_sims=which_sim)
-                one_sim.simulation.values = get_name(
-                    one_sim.simulation.values.item(),
-                    one_sim.scenario.values.item().split("+")[1],
+                one_sim.all_sims.values = get_name(
+                    one_sim.all_sims.values.item(),
                     my_func,
                 )
                 return one_sim
@@ -421,7 +423,7 @@ class WarmingLevelVisualize(param.Parameterized):
                         height=height,
                         xaxis=False,
                         yaxis=False,
-                        title=stat.simulation.values.item(),  # dim has been overwritten with nicer title
+                        title=stat.all_sims.values.item(),  # dim has been overwritten with nicer title
                     )
                 )
             all_plots = plot_list[0] + plot_list[1] + plot_list[2]
