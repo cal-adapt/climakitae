@@ -72,7 +72,7 @@ class WarmingLevels:
         else:
             gwl_times = read_csv_file(gwl_1850_1900_file, index_col=[0, 1, 2])
         self.sliced_data = self.catalog_data.groupby("all_sims").map(
-            _get_sliced_data,
+            get_sliced_data,
             years=gwl_times,
             window=self.wl_params.window,
             anom=self.wl_params.anom,
@@ -102,7 +102,7 @@ def relabel_axis(all_sims_dim):
     return new_arr
 
 
-def _get_sliced_data(y, years, window=15, anom=True):
+def get_sliced_data(y, years, window=15, anom=True):
     """Calculating warming level anomalies.
 
     Parameters
