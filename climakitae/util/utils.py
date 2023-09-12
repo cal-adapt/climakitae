@@ -19,6 +19,7 @@ from climakitae.core.paths import (
     categorical_cb,
 )
 
+
 def scenario_to_experiment_id(scenario, reverse=False):
     """
     Convert scenario format to experiment_id format matching catalog names.
@@ -35,6 +36,7 @@ def scenario_to_experiment_id(scenario, reverse=False):
     if reverse == True:
         scenario_dict = {v: k for k, v in scenario_dict.items()}
     return scenario_dict[scenario]
+
 
 def area_average(dset):
     """Weighted area-average
