@@ -24,6 +24,7 @@ from climakitae.util.utils import (
 )
 from climakitae.core.paths import (
     gwl_1981_2010_file,
+    gwl_1850_1900_file,
     ssp119_file,
     ssp126_file,
     ssp245_file,
@@ -53,51 +54,44 @@ class WarmingLevels:
     gwl_snapshots = xr.DataArray()
 
     def __init__(self, **params):
-        self.wl_params = DataParametersWithPanes()
-        self.wl_params.downscaling_method = ["Dynamical"]
-        self.wl_params.scenario_historical = ["Historical Climate"]
-        self.wl_params.area_average = "No"
-        self.wl_params.resolution = "45 km"
-        self.wl_params.scenario_ssp = [
-            "SSP 3-7.0 -- Business as Usual",
-            "SSP 2-4.5 -- Middle of the Road",
-            "SSP 5-8.5 -- Burn it All",
-        ]
-        self.wl_params.time_slice = (1980, 2100)
-        self.wl_params.timescale = "monthly"
-        self.wl_params.variable = "Air Temperature at 2m"
-
-        # Location defaults
-        self.wl_params.area_subset = "states"
-        self.wl_params.cached_area = ["CA"]
+        self.wl_params = WarmingLevelChoose()
 
     def choose_data(self):
         return warming_levels_select(self.wl_params)
 
-    def calculate(self, window=15):
-        # Postage data and anomalies defaults
+    def calculate(self):
+        # Postage data and anomalies
         self.catalog_data = self.wl_params.retrieve()
         self.catalog_data = (
             self.catalog_data.stack(all_sims=["simulation", "scenario"])
             .squeeze()
             .dropna(dim="all_sims", how="all")
         )
-        gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
+        if self.wl_params.anom == True:
+            gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
+        else:
+            gwl_times = read_csv_file(gwl_1850_1900_file, index_col=[0, 1, 2])
         self.sliced_data = self.catalog_data.groupby("all_sims").map(
-            get_anomaly_data, years=gwl_times, window=window
+            _get_sliced_data,
+            years=gwl_times,
+            window=self.wl_params.window,
+            anom=self.wl_params.anom,
         )
         self.gwl_snapshots = self.sliced_data.reduce(np.nanmean, "time")
         self.gwl_snapshots = self.gwl_snapshots.compute()
-        self.cmap = get_cmap(self.wl_params)
+        self.cmap = _get_cmap(self.wl_params)
         self.wl_viz = WarmingLevelVisualize(
             gwl_snapshots=self.gwl_snapshots, wl_params=self.wl_params, cmap=self.cmap
         )
 
     def visualize(self):
-        return warming_levels_visualize(self.wl_viz)
+        try:
+            return warming_levels_visualize(self.wl_viz)
+        except:
+            print("Please run 'calculate' first.")
 
 
-def get_anomaly_data(y, years, window=15):
+def _get_sliced_data(y, years, window=15, anom=True):
     """Calculating warming level anomalies.
 
     Parameters
@@ -128,17 +122,21 @@ def get_anomaly_data(y, years, window=15):
         if not np.isnan(centered_year):
             start_year = centered_year - window
             end_year = centered_year + (window - 1)
-            anom = y.sel(time=slice(str(start_year), str(end_year))) - y.sel(
-                time=slice("1981", "2010")
-            ).mean("time")
-            one_sim[one_wl] = anom
+            if anom:
+                sliced = y.sel(time=slice(str(start_year), str(end_year))) - y.sel(
+                    time=slice("1981", "2010")
+                ).mean("time")
+            else:
+                sliced = y.sel(time=slice(str(start_year), str(end_year)))
+
+            one_sim[one_wl] = sliced
 
     one_sim = one_sim.to_array("warming_level")
     one_sim.attrs = attrs_temp
     return one_sim
 
 
-def get_cmap(wl_params):
+def _get_cmap(wl_params):
     """Set colormap depending on variable"""
     cmap_name = wl_params._variable_descriptions[
         (wl_params._variable_descriptions["display_name"] == wl_params.variable)
@@ -154,10 +152,62 @@ def get_cmap(wl_params):
     return cmap
 
 
-def select_one_gwl(one_gwl, snapshots):
+def _select_one_gwl(one_gwl, snapshots):
+    """
+    This needs to happen in two places. You have to drop the sims
+    which are nan because they don't reach that warming level, else the
+    plotting functions and cross-sim statistics will get confused.
+    But it's important that you drop it from a copy, or it may modify the
+    original data.
+    """
     all_plot_data = snapshots.sel(warming_level=one_gwl).copy()
     all_plot_data = all_plot_data.dropna("all_sims", how="all")
     return all_plot_data
+
+
+class WarmingLevelChoose(DataParametersWithPanes):
+    window = param.Integer(
+        default=15,
+        bounds=(5, 25),
+        doc="Years around Global Warming Level (+/-) \n (e.g. 15 means a 30yr window)",
+    )
+
+    anom = param.Selector(
+        default="Yes",
+        objects=["Yes"],
+        doc="Return an anomaly \n(difference from historical reference period)?",
+    )
+
+    def __init__(self, *args, **params):
+        super().__init__(*args, **params)
+        self.downscaling_method = ["Dynamical"]
+        self.scenario_historical = ["Historical Climate"]
+        self.area_average = "No"
+        self.resolution = "45 km"
+        self.scenario_ssp = [
+            "SSP 3-7.0 -- Business as Usual",
+            "SSP 2-4.5 -- Middle of the Road",
+            "SSP 5-8.5 -- Burn it All",
+        ]
+        self.time_slice = (1980, 2100)
+        self.timescale = "monthly"
+        self.variable = "Air Temperature at 2m"
+
+        # Location defaults
+        self.area_subset = "states"
+        self.cached_area = ["CA"]
+
+    @param.depends("downscaling_method", watch=True)
+    def _anom_allowed(self):
+        """
+        Require 'anomaly' for non-bias-corrected data.
+        """
+        if self.downscaling_method == ["Dynamical"]:
+            self.param["anom"].objects = ["Yes"]
+            self.anom = "Yes"
+        else:
+            self.param["anom"].objects = ["Yes", "No"]
+            self.anom = "Yes"
 
 
 class WarmingLevelVisualize(param.Parameterized):
@@ -219,7 +269,7 @@ class WarmingLevelVisualize(param.Parameterized):
         one_warming_level = str(float(self.warmlevel))
         # all_plot_data = self.gwl_snapshots.sel(warming_level=one_warming_level).copy()
         # all_plot_data = all_plot_data.dropna('all_sims',how='all')
-        all_plot_data = select_one_gwl(one_warming_level, self.gwl_snapshots)
+        all_plot_data = _select_one_gwl(one_warming_level, self.gwl_snapshots)
         if all_plot_data.all_sims.size != 0:
             if self.wl_params.variable == "Relative Humidity":
                 all_plot_data = all_plot_data * 100
@@ -287,7 +337,7 @@ class WarmingLevelVisualize(param.Parameterized):
     def GCM_PostageStamps_STATS(self):
         # Get data to plot
         one_warming_level = str(float(self.warmlevel))
-        all_plot_data = select_one_gwl(one_warming_level, self.gwl_snapshots)
+        all_plot_data = _select_one_gwl(one_warming_level, self.gwl_snapshots)
         if all_plot_data.all_sims.size != 0:
             if self.wl_params.variable == "Relative Humidity":
                 all_plot_data = all_plot_data * 100
@@ -583,14 +633,26 @@ def warming_levels_select(self):
         widgets["cached_area"],
         widgets["latitude"],
         widgets["longitude"],
-        # widgets["area_average_text"],
-        # widgets["area_average"],
         width=220,
     )
 
-    loc_choices = pn.Row(col_1_location)
+    gwl_specific = pn.Row(
+        pn.Column(
+            pn.widgets.StaticText(
+                value=self.param.window.doc,
+                name="",
+            ),
+            pn.widgets.IntSlider.from_param(self.param.window, name=""),
+            width=250,
+        ),
+        pn.Column(
+            pn.widgets.StaticText(value=self.param.anom.doc, name=""),
+            pn.widgets.RadioBoxGroup.from_param(self.param.anom, name="", inline=True),
+            width=220,
+        ),
+    )
 
-    everything_else = pn.Row(data_choices, pn.layout.HSpacer(width=10), loc_choices)
+    most_things = pn.Row(data_choices, pn.layout.HSpacer(width=10), col_1_location)
 
     # Panel overall structure:
     all_things = pn.Column(
@@ -606,7 +668,9 @@ def warming_levels_select(self):
             ),
         ),
         pn.Spacer(background="black", height=1),
-        everything_else,
+        most_things,
+        pn.Spacer(background="black", height=1),
+        gwl_specific,
     )
 
     return pn.Card(
