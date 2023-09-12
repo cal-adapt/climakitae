@@ -133,7 +133,7 @@ def _get_sliced_data(y, years, window=15, anom=True):
         if not np.isnan(centered_year):
             start_year = centered_year - window
             end_year = centered_year + (window - 1)
-            if anom:
+            if anom == "Yes":
                 sliced = y.sel(time=slice(str(start_year), str(end_year))) - y.sel(
                     time=slice("1981", "2010")
                 ).mean("time")
@@ -141,7 +141,9 @@ def _get_sliced_data(y, years, window=15, anom=True):
                 sliced = y.sel(time=slice(str(start_year), str(end_year)))
 
             one_sim[one_wl] = sliced
+    import pdb
 
+    pdb.set_trace()
     one_sim = one_sim.to_array("warming_level")
     one_sim.attrs = attrs_temp
     return one_sim
