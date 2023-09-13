@@ -1292,7 +1292,7 @@ def _get_noaa_heat_index(selections):
     # Load temperature data
     selections.variable_id = ["t2"]
     selections.units = "K"  # Kelvin required for humidity and dew point computation
-    t2_da_K = _get_data_one_var(selections, cat)
+    t2_da_K = _get_data_one_var(selections)
 
     # Derive relative humidity
     # Returned in units of [0-100]
