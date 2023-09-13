@@ -60,6 +60,13 @@ class WarmingLevels:
         return warming_levels_select(self.wl_params)
 
     def calculate(self):
+        # manually reset to all SSPs, in case it was inadvertently changed by
+        # temporarily have ['Dynamical','Statistical'] for downscaling_method
+        self.wl_params.scenario_ssp = [
+            "SSP 3-7.0 -- Business as Usual",
+            "SSP 2-4.5 -- Middle of the Road",
+            "SSP 5-8.5 -- Burn it All",
+        ]
         # Postage data and anomalies
         self.catalog_data = self.wl_params.retrieve()
         self.catalog_data = self.catalog_data.stack(
