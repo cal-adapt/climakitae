@@ -77,6 +77,9 @@ class WarmingLevels:
             gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
         else:
             gwl_times = read_csv_file(gwl_1850_1900_file, index_col=[0, 1, 2])
+        gwl_times = gwl_times.dropna(how="all")
+        self.catalog_data = clean_list(self.catalog_data, gwl_times)
+
         self.sliced_data = self.catalog_data.groupby("all_sims").map(
             get_sliced_data,
             years=gwl_times,
@@ -108,6 +111,24 @@ def relabel_axis(all_sims_dim):
     return new_arr
 
 
+def process_item(y):
+    # get a tuple of identifiers for the lookup table from DataArray indexers
+    simulation = y.simulation.values.item()
+    scenario = scenario_to_experiment_id(y.scenario.values.item().split("+")[1][1::])
+    downscaling_method, sim_str, ensemble = simulation.split("_")
+    return (sim_str, ensemble, scenario)
+
+
+def clean_list(data, gwl_times):
+    # this is necessary because there are two simulations that
+    # lack data for any warming level in the lookup table
+    keep_list = list(data.all_sims.values)
+    for sim in data.all_sims:
+        if process_item(data.sel(all_sims=sim)) not in list(gwl_times.index):
+            keep_list.remove(sim.item())
+    return data.sel(all_sims=keep_list)
+
+
 def get_sliced_data(y, years, window=15, anom="Yes"):
     """Calculating warming level anomalies.
 
@@ -128,10 +149,7 @@ def get_sliced_data(y, years, window=15, anom="Yes"):
     anomaly_da: xr.DataArray
         Warming level anomalies at all warming levels for a scenario
     """
-    simulation = y.simulation.values.item()
-    scenario = scenario_to_experiment_id(y.scenario.values.item().split("+")[1][1::])
-    downscaling_method, sim_str, ensemble = simulation.split("_")
-    gwl_times_subset = years.loc[(sim_str, ensemble, scenario)]
+    gwl_times_subset = years.loc[process_item(y)]
     attrs_temp = y.attrs
     one_sim = xr.Dataset()
     for one_wl in gwl_times_subset.index:
@@ -147,13 +165,9 @@ def get_sliced_data(y, years, window=15, anom="Yes"):
                 sliced = y.sel(time=slice(str(start_year), str(end_year)))
 
             one_sim[one_wl] = sliced
-    try:
-        one_sim = one_sim.to_array("warming_level")
-        one_sim.attrs = attrs_temp
-        return one_sim
-    except:
-        # with daily LOCA2 data, there are 2 out of the 116 sims that fail here. skip them.
-        return None
+    one_sim = one_sim.to_array("warming_level")
+    one_sim.attrs = attrs_temp
+    return one_sim
 
 
 def _get_cmap(wl_params):
