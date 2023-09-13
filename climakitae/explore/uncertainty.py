@@ -9,8 +9,7 @@ from scipy import stats
 from xmip.preprocessing import rename_cmip6
 
 from climakitae.util.utils import read_csv_file
-from climakitae.core.paths import boundary_catalog_url
-from climakitae.core.boundaries import Boundaries
+from climakitae.core.data_interface import DataInterface
 from climakitae.core.data_load import area_subset_geometry
 from climakitae.core.paths import gwl_1850_1900_file, gwl_1981_2010_file
 
@@ -143,8 +142,8 @@ def _clip_region(ds, area_subset, location):
     xr.Dataset
         Clipped dataset to region of interest
     """
-    boundary_catalog = intake.open_catalog(boundary_catalog_url)
-    geographies = Boundaries(boundary_catalog)
+    data_interface = DataInterface()
+    geographies = data_interface.geographies
     us_states = geographies._us_states
     us_counties = geographies._ca_counties
     ds = ds.rio.write_crs(4326)

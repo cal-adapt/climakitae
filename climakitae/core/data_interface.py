@@ -505,6 +505,29 @@ def _map_view(selections, stations_gdf):
     return mpl_pane
 
 
+class VariableDescriptions:
+    """Load Variable Desciptions CSV only once
+
+    This is a singleton class that needs to be called separately from DataInterface
+    because variable descriptions are used without DataInterface in ck.view. Also
+    ck.view is loaded on package load so this avoids loading boundary data when not
+    needed.
+
+    """
+
+    def __new__(cls):
+        if not hasattr(cls, "instance"):
+            cls.instance = super(VariableDescriptions, cls).__new__(cls)
+        return cls.instance
+
+    def __init__(self):
+        self.variable_descriptions = pd.DataFrame
+
+    def load(self):
+        if self.variable_descriptions.empty:
+            self.variable_descriptions = read_csv_file(variable_descriptions_csv_path)
+
+
 class DataInterface:
     """Load data connections into memory once
 
@@ -520,7 +543,9 @@ class DataInterface:
         return cls.instance
 
     def __init__(self):
-        self._variable_descriptions = read_csv_file(variable_descriptions_csv_path)
+        var_desc = VariableDescriptions()
+        var_desc.load()
+        self._variable_descriptions = var_desc.variable_descriptions
         self._stations = read_csv_file(stations_csv_path)
         self._stations_gdf = gpd.GeoDataFrame(
             self.stations,
@@ -532,6 +557,8 @@ class DataInterface:
         # Get geography boundaries
         self._boundary_catalog = intake.open_catalog(boundary_catalog_url)
         self._geographies = Boundaries(self.boundary_catalog)
+
+        self._geographies.load()
 
     @property
     def variable_descriptions(self):
