@@ -101,7 +101,7 @@ def relabel_axis(all_sims_dim):
     return new_arr
 
 
-def get_sliced_data(y, years, window=15, anom=True):
+def get_sliced_data(y, years, window=15, anom="Yes"):
     """Calculating warming level anomalies.
 
     Parameters
@@ -140,9 +140,13 @@ def get_sliced_data(y, years, window=15, anom=True):
                 sliced = y.sel(time=slice(str(start_year), str(end_year)))
 
             one_sim[one_wl] = sliced
-    one_sim = one_sim.to_array("warming_level")
-    one_sim.attrs = attrs_temp
-    return one_sim
+    try:
+        one_sim = one_sim.to_array("warming_level")
+        one_sim.attrs = attrs_temp
+        return one_sim
+    except:
+        # with daily LOCA2 data, there are 2 out of the 116 sims that fail here. skip them.
+        return None
 
 
 def _get_cmap(wl_params):
