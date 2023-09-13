@@ -1384,6 +1384,9 @@ def _selections_param_to_panel(self):
     variable_description = pn.widgets.StaticText.from_param(
         self.param.extended_description, name=""
     )
+    variable_type = pn.widgets.RadioBoxGroup.from_param(
+        self.param.variable_type, inline=True, name=""
+    )
 
     widgets_dict = {
         "area_average": area_average,
@@ -1405,6 +1408,7 @@ def _selections_param_to_panel(self):
         "units": units,
         "variable": variable,
         "variable_description": variable_description,
+        "variable_type": variable_type,
     }
     text_dict = {
         "area_average_text": area_average_text,
@@ -1432,6 +1436,7 @@ def _display_select(self):
 
     data_choices = pn.Column(
         widgets["variable_text"],
+        widgets["variable_type"],
         widgets["variable"],
         widgets["variable_description"],
         pn.Row(
