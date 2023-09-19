@@ -266,7 +266,10 @@ class WarmingLevelParameters(DataParametersWithPanes):
     @param.depends("variable", watch=True)
     def _update_cmap(self):
         """Set colormap depending on variable"""
-        if self.variable == "Air Temperature at 2m" or self.variable == "Dew point temperature":
+        if (
+            self.variable == "Air Temperature at 2m"
+            or self.variable == "Dew point temperature"
+        ):
             cmap_name = "ae_orange"
 
         else:
