@@ -266,13 +266,16 @@ class WarmingLevelParameters(DataParametersWithPanes):
     @param.depends("variable", watch=True)
     def _update_cmap(self):
         """Set colormap depending on variable"""
-        cmap_name = self._variable_descriptions[
-            (self._variable_descriptions["display_name"] == self.variable)
-            & (self._variable_descriptions["timescale"] == "daily, monthly")
-        ].colormap.values[0]
+        # cmap_name = self._variable_descriptions[
+        #     (self._variable_descriptions["display_name"] == self.variable)
+        #     & (self._variable_descriptions["timescale"] == "daily, monthly")
+        # ].colormap.values[0]
 
-        # Colormap normalization for hvplot -- only for relative humidity!
-        if self.variable == "Relative Humidity":
+        # Colormap normalization for hvplot
+        if self.variable == "Air Temperature at 2m" or self.variable == "Dew point temperature":
+            cmap_name = "ae_orange"
+
+        else:
             cmap_name = "ae_diverging"
 
         # Read colormap hex
@@ -304,8 +307,9 @@ class WarmingLevelParameters(DataParametersWithPanes):
     def _GCM_PostageStamps_MAIN(self):
         # Get plot data
         all_plot_data = self.warm_all_anoms
-        if self.variable == "Relative Humidity":
+        if self.variable == "Relative humidity":
             all_plot_data = all_plot_data * 100
+
 
         # Get int number of simulations
         num_simulations = len(all_plot_data.simulation.values)
