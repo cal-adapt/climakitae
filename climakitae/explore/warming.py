@@ -172,13 +172,12 @@ def get_sliced_data(y, years, window=15, anom="Yes"):
 
 def _get_cmap(wl_params):
     """Set colormap depending on variable"""
-    cmap_name = wl_params._variable_descriptions[
-        (wl_params._variable_descriptions["display_name"] == wl_params.variable)
-        & (wl_params._variable_descriptions["timescale"] == "daily, monthly")
-    ].colormap.values[0]
-
-    # Colormap normalization for hvplot -- only for relative humidity!
-    if wl_params.variable == "Relative Humidity":
+    if (
+        wl_params.variable == "Air Temperature at 2m" 
+        or wl_params.variable == "Dew point temperature"
+    ):
+        cmap_name = "ae_orange"
+    else:
         cmap_name = "ae_diverging"
 
     # Read colormap hex
@@ -303,7 +302,7 @@ class WarmingLevelVisualize(param.Parameterized):
         one_warming_level = str(float(self.warmlevel))
         all_plot_data = _select_one_gwl(one_warming_level, self.gwl_snapshots)
         if all_plot_data.all_sims.size != 0:
-            if self.wl_params.variable == "Relative Humidity":
+            if self.wl_params.variable == "Relative humidity":
                 all_plot_data = all_plot_data * 100
 
             # Set up plotting arguments
@@ -357,7 +356,7 @@ class WarmingLevelVisualize(param.Parameterized):
         one_warming_level = str(float(self.warmlevel))
         all_plot_data = _select_one_gwl(one_warming_level, self.gwl_snapshots)
         if all_plot_data.all_sims.size != 0:
-            if self.wl_params.variable == "Relative Humidity":
+            if self.wl_params.variable == "Relative humidity":
                 all_plot_data = all_plot_data * 100
 
             # compute stats
