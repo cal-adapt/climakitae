@@ -9,10 +9,7 @@ from climakitae.explore.thresholds import (
     ThresholdParameters,
     thresholds_visualize,
 )
-from climakitae.explore.warming import (
-    WarmingLevelParameters,
-    warming_levels_visualize,
-)
+from climakitae.explore.warming import WarmingLevels
 from climakitae.explore.amy import (
     AverageMetYearParameters,
     amy_visualize,
@@ -34,13 +31,6 @@ class Thresholds(ThresholdParameters):
             self,
             option=self.option,
         )
-
-
-class WarmingLevels(WarmingLevelParameters):
-    """Display Warming Levels panel."""
-
-    def show(self):
-        return warming_levels_visualize(self)
 
 
 def amy():
