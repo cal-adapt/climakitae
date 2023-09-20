@@ -173,7 +173,7 @@ def get_sliced_data(y, years, window=15, anom="Yes"):
 def _get_cmap(wl_params):
     """Set colormap depending on variable"""
     if (
-        wl_params.variable == "Air Temperature at 2m" 
+        wl_params.variable == "Air Temperature at 2m"
         or wl_params.variable == "Dew point temperature"
     ):
         cmap_name = "ae_orange"
