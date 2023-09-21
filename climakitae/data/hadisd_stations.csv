@@ -1,34 +1,34 @@
 ,state,station,city,ID,LAT_Y,LON_X,station id
-0,CA,Bakersfield Meadows Field,Bakersfield,KBFL,35.43424,-119.05524,72384023155
-1,CA,Blythe Asos,Blythe,KBLH,33.61876,-114.71451,74718823158
-2,CA,Burbank-Glendale-Pasadena Airport,Burbank,KBUR,34.19966,-118.36543,72288023152
-3,CA,Needles Airport,Needles,KEED,34.76783,-114.61842,72380523179
-4,CA,Fresno Yosemite International Airport,Fresno,KFAT,36.77999,-119.72016,72389093193
-5,CA,Imperial County Airport,Imperial,KIPL,32.83464,-115.57656,74718503144
-6,CA,Los Angeles International Airport,Lax,KLAX,33.93816,-118.3866,72295023174
-7,CA,Long Beach Daugherty Field,Long Beach,KLGB,33.81177,-118.14718,72297023129
-8,CA,Modesto City-County Airport,Modesto,KMOD,37.62544,-120.95492,72492623258
-9,CA,San Diego Miramar Wscmo,Miramar,KNKX,32.866667,-117.133333,72293193107
-10,CA,Oakland Metro International Airport,Oakland,KOAK,37.7178,-122.23301,72493023230
-11,CA,Oxnard Ventura County Airport,Oxnard,KOXR,34.20012,-119.20417,72392793110
-12,CA,Palm Springs Regional Airport,Palm Springs,KPSP,33.82216,-116.50433,72286893138
-13,CA,Riverside Municipal Airport,Riverside,KRAL,33.95282,-117.43523,72286903171
-14,CA,Red Bluff Municipal Airport,Red Bluff,KRBL,40.15186,-122.25478,72591024216
-15,CA,Sacramento Executive Airport,Sacramento,KSAC,38.50659,-121.49604,72483023232
-16,CA,San Diego Lindbergh Field,San Diego,KSAN,32.7336,-117.1831,72290023188
-17,CA,Santa Barbara Municipal Airport,Santa Barbara,KSBA,34.4241,-119.84249,72392523190
-18,CA,San Luis Obispo Airport,San Luis Obispo,KSBP,35.23815,-120.64406,72289793206
-19,CA,Gillespie Field Airport,Santee,KSEE,32.826111,-116.9725,72290753143
-20,CA,San Francisco International Airport,San Francisco,KSFO,37.61962,-122.36562,72494023234
-21,CA,San Jose International Airport,San Jose,KSJC,37.35938,-121.92444,72494523293
-22,CA,Santa Ana John Wayne Airport,Santa Ana,KSNA,33.67975,-117.86746,72297793184
-23,CA,Desert Resorts Regional Airport,Thermal,KTRM,33.63166,-116.16412,74718703104
-24,CA,Ukiah Municipal Airport,Ukiah,KUKI,39.12781,-123.20015,72590523275
-25,CA,Lancaster William J Fox Field,Lancaster,KWJF,34.74121,-118.21255,72381603159
-26,CA,Arcata Eureka Airport,Arcata,KACV,40.97844,-124.10479,72594524283
-27,CA,Stockton Airport,Stockton,KSCK,37.88997,-121.22637,72492023237
-28,CA,Redding Airport,Redding,KRDD,40.51462,-122.29773,72592024257
-29,CA,Merced Municipal Airport/MacReady Field,Merced,KMCE,37.285,-120.514,72481523257
-30,NV,McCarran International Airport,Las Vegas,KLAS,36.072,-115.163,72386023169
-31,CA,Downtown Los Angeles/USC Campus,Los Angeles,KCQT,34.024,-118.291,72287493134
-32,CA,Ontario International Airport,Ontario,KONT,34.067,-117.65,74704003102
+0,CA,Bakersfield Meadows Field (KBFL),Bakersfield,KBFL,35.43424,-119.05524,72384023155
+1,CA,Blythe Asos (KBLH),Blythe,KBLH,33.61876,-114.71451,74718823158
+2,CA,Burbank-Glendale-Pasadena Airport (KBUR),Burbank,KBUR,34.19966,-118.36543,72288023152
+3,CA,Needles Airport (KEED),Needles,KEED,34.76783,-114.61842,72380523179
+4,CA,Fresno Yosemite International Airport (KFAT),Fresno,KFAT,36.77999,-119.72016,72389093193
+5,CA,Imperial County Airport (KIPL),Imperial,KIPL,32.83464,-115.57656,74718503144
+6,CA,Los Angeles International Airport (KLAX),Lax,KLAX,33.93816,-118.3866,72295023174
+7,CA,Long Beach Daugherty Field (KLGB),Long Beach,KLGB,33.81177,-118.14718,72297023129
+8,CA,Modesto City-County Airport (KMOD),Modesto,KMOD,37.62544,-120.95492,72492623258
+9,CA,San Diego Miramar Wscmo (KNKX),Miramar,KNKX,32.866667,-117.133333,72293193107
+10,CA,Oakland Metro International Airport (KOAK),Oakland,KOAK,37.7178,-122.23301,72493023230
+11,CA,Oxnard Ventura County Airport (KOXR),Oxnard,KOXR,34.20012,-119.20417,72392793110
+12,CA,Palm Springs Regional Airport (KPSP),Palm Springs,KPSP,33.82216,-116.50433,72286893138
+13,CA,Riverside Municipal Airport (KRAL),Riverside,KRAL,33.95282,-117.43523,72286903171
+14,CA,Red Bluff Municipal Airport (KRBL),Red Bluff,KRBL,40.15186,-122.25478,72591024216
+15,CA,Sacramento Executive Airport (KSAC),Sacramento,KSAC,38.50659,-121.49604,72483023232
+16,CA,San Diego Lindbergh Field (KSAN),San Diego,KSAN,32.7336,-117.1831,72290023188
+17,CA,Santa Barbara Municipal Airport (KSBA),Santa Barbara,KSBA,34.4241,-119.84249,72392523190
+18,CA,San Luis Obispo Airport (KSBP),San Luis Obispo,KSBP,35.23815,-120.64406,72289793206
+19,CA,Gillespie Field Airport (KSEE),Santee,KSEE,32.826111,-116.9725,72290753143
+20,CA,San Francisco International Airport (KSFO),San Francisco,KSFO,37.61962,-122.36562,72494023234
+21,CA,San Jose International Airport (KSJC),San Jose,KSJC,37.35938,-121.92444,72494523293
+22,CA,Santa Ana John Wayne Airport (KSNA),Santa Ana,KSNA,33.67975,-117.86746,72297793184
+23,CA,Desert Resorts Regional Airport (KTRM),Thermal,KTRM,33.63166,-116.16412,74718703104
+24,CA,Ukiah Municipal Airport (KUKI),Ukiah,KUKI,39.12781,-123.20015,72590523275
+25,CA,Lancaster William J Fox Field (KWJF),Lancaster,KWJF,34.74121,-118.21255,72381603159
+26,CA,Arcata Eureka Airport (KACV),Arcata,KACV,40.97844,-124.10479,72594524283
+27,CA,Stockton Airport (KSCK),Stockton,KSCK,37.88997,-121.22637,72492023237
+28,CA,Redding Airport (KRDD),Redding,KRDD,40.51462,-122.29773,72592024257
+29,CA,Merced Municipal Airport MacReady Field (KMCE),Merced,KMCE,37.285,-120.514,72481523257
+30,NV,McCarran International Airport (KLAS),Las Vegas,KLAS,36.072,-115.163,72386023169
+31,CA,Downtown Los Angeles USC Campus (KCQT),Los Angeles,KCQT,34.024,-118.291,72287493134
+32,CA,Ontario International Airport (KONT),Ontario,KONT,34.067,-117.65,74704003102
