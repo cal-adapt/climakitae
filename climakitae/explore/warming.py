@@ -87,6 +87,10 @@ class WarmingLevels:
             anom=self.wl_params.anom,
         )
         self.sliced_data["all_sims"] = relabel_axis(self.sliced_data.all_sims)
+
+        ### Make `sliced_data` into a list of different warming level DataArrays?
+        # self.sliced_data = put warming levels back to their proper times and split them up
+
         self.gwl_snapshots = self.sliced_data.reduce(np.nanmean, "time")
         self.gwl_snapshots = self.gwl_snapshots.compute()
         self.cmap = _get_cmap(self.wl_params)
@@ -151,7 +155,7 @@ def get_sliced_data(y, years, window=15, anom="Yes"):
     """
     gwl_times_subset = years.loc[process_item(y)]
     attrs_temp = y.attrs
-    one_sim = xr.Dataset()
+    warming_levels = []
     for one_wl in gwl_times_subset.index:
         centered_year = pd.to_datetime(gwl_times_subset[one_wl]).year
         if not np.isnan(centered_year):
@@ -164,8 +168,11 @@ def get_sliced_data(y, years, window=15, anom="Yes"):
             else:
                 sliced = y.sel(time=slice(str(start_year), str(end_year)))
 
-            one_sim[one_wl] = sliced
-    one_sim = one_sim.to_array("warming_level")
+                # Assigning coords to current warming level
+                warming_levels.append(sliced.assign_coords({'warming_level': one_wl}))
+
+    # Combining all `warming levels` together into one xr.Dataset
+    one_sim = xr.concat(warming_levels, dim='warming_level')
     one_sim.attrs = attrs_temp
     return one_sim
 
