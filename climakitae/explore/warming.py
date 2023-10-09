@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import param
 import panel as pn
+import dask
 
 from climakitae.core.data_load import read_catalog_from_select
 from climakitae.core.data_interface import (
@@ -59,6 +60,31 @@ class WarmingLevels:
     def choose_data(self):
         return warming_levels_select(self.wl_params)
 
+    # @dask.delayed
+    def find_warming_slice(self, level, gwl_times):
+        """
+        Find the warming slice data for the current level from the catalog data.
+        """
+        warming_data = self.catalog_data.groupby("all_sims").map(
+            get_sliced_data,
+            level=level,
+            years=gwl_times,
+            window=self.wl_params.window,
+            anom=self.wl_params.anom,
+        )
+        warming_data = warming_data.expand_dims({"warming_level": [level]})
+
+        # Cleaning data
+        warming_data = clean_warm_data(warming_data)
+
+        # Relabeling `all_sims` dimension
+        new_warm_data = warming_data.drop("all_sims")
+        new_warm_data["all_sims"] = relabel_axis(warming_data["all_sims"])
+
+        # Adding warming data to dictionary of data
+        # self.sliced_data[level] = warming_data
+        return new_warm_data
+
     def calculate(self):
         # manually reset to all SSPs, in case it was inadvertently changed by
         # temporarily have ['Dynamical','Statistical'] for downscaling_method
@@ -74,29 +100,23 @@ class WarmingLevels:
         ).squeeze()
         self.catalog_data = self.catalog_data.dropna(dim="all_sims", how="all")
         if self.wl_params.anom == "Yes":
-            gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
+            self.gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
         else:
-            gwl_times = read_csv_file(gwl_1850_1900_file, index_col=[0, 1, 2])
-        gwl_times = gwl_times.dropna(how="all")
-        self.catalog_data = clean_list(self.catalog_data, gwl_times)
+            self.gwl_times = read_csv_file(gwl_1850_1900_file, index_col=[0, 1, 2])
+        self.gwl_times = self.gwl_times.dropna(how="all")
+        self.catalog_data = clean_list(self.catalog_data, self.gwl_times)
+        self.sliced_data = {}
+        warming_levels = ["1.5", "2.0", "3.0", "4.0"]
+        for level in warming_levels:
+            # Assign warming slices to dask computation graph
+            self.sliced_data[level] = self.find_warming_slice(level, self.gwl_times)
 
-        self.sliced_data = self.catalog_data.groupby("all_sims").map(
-            get_sliced_data,
-            years=gwl_times,
-            window=self.wl_params.window,
-            anom=self.wl_params.anom,
-        )
-        self.sliced_data["all_sims"] = relabel_axis(self.sliced_data.all_sims)
-
-        ### Make `sliced_data` into a list of different warming level DataArrays?
-        # self.sliced_data = put warming levels back to their proper times and split them up
-
-        self.gwl_snapshots = self.sliced_data.reduce(np.nanmean, "time")
-        self.gwl_snapshots = self.gwl_snapshots.compute()
-        self.cmap = _get_cmap(self.wl_params)
-        self.wl_viz = WarmingLevelVisualize(
-            gwl_snapshots=self.gwl_snapshots, wl_params=self.wl_params, cmap=self.cmap
-        )
+        # self.gwl_snapshots = self.sliced_data.reduce(np.nanmean, "time")
+        # self.gwl_snapshots = self.gwl_snapshots.compute()
+        # self.cmap = _get_cmap(self.wl_params)
+        # self.wl_viz = WarmingLevelVisualize(
+        #     gwl_snapshots=self.gwl_snapshots, wl_params=self.wl_params, cmap=self.cmap
+        # )
 
     def visualize(self):
         if self.wl_viz:
@@ -117,8 +137,8 @@ def relabel_axis(all_sims_dim):
 
 def process_item(y):
     # get a tuple of identifiers for the lookup table from DataArray indexers
-    simulation = y.simulation.values.item()
-    scenario = scenario_to_experiment_id(y.scenario.values.item().split("+")[1][1::])
+    simulation = y.simulation.item()
+    scenario = scenario_to_experiment_id(y.scenario.item().split("+")[1].strip())
     downscaling_method, sim_str, ensemble = simulation.split("_")
     return (sim_str, ensemble, scenario)
 
@@ -133,13 +153,36 @@ def clean_list(data, gwl_times):
     return data.sel(all_sims=keep_list)
 
 
-def get_sliced_data(y, years, window=15, anom="Yes"):
+def clean_warm_data(warm_data):
+    """
+    Cleaning the warming levels data in 3 parts:
+      1. Removing simulations where this warming level is not crossed. (centered_year)
+      2. Removing timestamps at the end to account for leap years (time)
+      3. Removing simulations that go past 2100 for its warming level window (all_sims)
+    """
+    # Cleaning #1
+    warm_data = warm_data.sel(all_sims=~warm_data.centered_year.isnull())
+
+    # Cleaning #2
+    warm_data = warm_data.isel(
+        time=slice(0, len(warm_data.time) - 1)
+    )  # -1 is just a placeholder for 30 year window, this could be more specific.
+
+    # Cleaning #3
+    warm_data = warm_data.dropna(dim="all_sims")
+
+    return warm_data
+
+
+def get_sliced_data(y, level, years, window=15, anom="Yes"):
     """Calculating warming level anomalies.
 
     Parameters
     ----------
     y: xr.DataArray
         Data to compute warming level anomolies, one simulation at a time via groupby
+    level: str
+        Warming level amount
     years: pd.DataFrame
         Lookup table for the date a given simulation reaches each warming level.
     window: int, optional
@@ -155,26 +198,43 @@ def get_sliced_data(y, years, window=15, anom="Yes"):
     """
     gwl_times_subset = years.loc[process_item(y)]
     attrs_temp = y.attrs
-    warming_levels = []
-    for one_wl in gwl_times_subset.index:
-        centered_year = pd.to_datetime(gwl_times_subset[one_wl]).year
-        if not np.isnan(centered_year):
-            start_year = centered_year - window
-            end_year = centered_year + (window - 1)
-            if anom == "Yes":
-                sliced = y.sel(time=slice(str(start_year), str(end_year))) - y.sel(
-                    time=slice("1981", "2010")
-                ).mean("time")
-            else:
-                sliced = y.sel(time=slice(str(start_year), str(end_year)))
+    dims_temp = y.dims
 
-                # Assigning coords to current warming level
-                warming_levels.append(sliced.assign_coords({'warming_level': one_wl}))
+    # Checking if the centered year is null, if so, return dummy DataArray
+    center_time = gwl_times_subset.loc[level]
+    if not pd.isna(center_time):
+        # Find the centered year
+        centered_year = pd.to_datetime(center_time).year
+        start_year = centered_year - window
+        end_year = centered_year + (window - 1)
 
-    # Combining all `warming levels` together into one xr.Dataset
-    one_sim = xr.concat(warming_levels, dim='warming_level')
-    one_sim.attrs = attrs_temp
-    return one_sim
+        if anom == "Yes":
+            sliced = y.sel(time=slice(str(start_year), str(end_year))) - y.sel(
+                time=slice("1981", "2010")
+            ).mean("time")
+        else:
+            # Finding window slice of data
+            sliced = y.sel(time=slice(str(start_year), str(end_year)))
+
+            # Resetting time index for each data array so they can overlap and save storage space
+            sliced["time"] = sliced.time - sliced.time[0]
+
+            # Assigning `centered_year` as a coordinate to the DataArray
+            sliced = sliced.assign_coords({"centered_year": centered_year})
+
+        return sliced
+
+    else:
+        y = y.isel(
+            time=slice(0, window * 2 * 365)
+        )  # This is to create a dummy slice that conforms with other data structure. Can be re-written to something more elegant.
+
+        # Creating attributes
+        y["time"] = y.time - y.time[0]
+        y["centered_year"] = np.nan
+
+        # Returning DataArray of NaNs to be dropped later.
+        return xr.full_like(y, np.nan)
 
 
 def _get_cmap(wl_params):
