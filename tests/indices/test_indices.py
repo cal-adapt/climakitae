@@ -4,12 +4,16 @@ import xarray as xr
 import numpy as np
 import pytest
 import os
-from climakitae.indices import effective_temp, noaa_heat_index, fosberg_fire_index
-from climakitae.derive_variables import (
-    _compute_relative_humidity,
-    _compute_wind_mag,
+from climakitae.tools.indices import (
+    effective_temp,
+    noaa_heat_index,
+    fosberg_fire_index,
 )
-from climakitae.unit_conversions import _convert_units
+from climakitae.tools.derived_variables import (
+    compute_relative_humidity,
+    compute_wind_mag,
+)
+from climakitae.util.unit_conversions import convert_units
 
 
 class TestNOAAHeatIndex:
@@ -26,12 +30,12 @@ class TestNOAAHeatIndex:
 
         # Derive relative humidity
         # Returned in units of [0-100]
-        rh_da = _compute_relative_humidity(
+        rh_da = compute_relative_humidity(
             pressure=p_Pa, temperature=t_K, mixing_ratio=q2
         )
 
         # Convert units to proper units
-        t2_da_F = _convert_units(t_K, "degF")
+        t2_da_F = convert_units(t_K, "degF")
 
         # Derive index
         # Returned in units of F
@@ -89,17 +93,17 @@ class TestFosbergFireIndex:
 
         # Derive relative humidity
         # Returned in units of [0-100]
-        rh_da = _compute_relative_humidity(
+        rh_da = compute_relative_humidity(
             pressure=p_Pa, temperature=t_K, mixing_ratio=q2
         )
 
         # Derive windspeed
         # Returned in units of m/s
-        windspeed_da_ms = _compute_wind_mag(u10=u10, v10=v10)
+        windspeed_da_ms = compute_wind_mag(u10=u10, v10=v10)
 
         # Convert units to proper units for fosberg index
-        t2_da_F = _convert_units(t_K, "degF")
-        windspeed_da_mph = _convert_units(windspeed_da_ms, "mph")
+        t2_da_F = convert_units(t_K, "degF")
+        windspeed_da_mph = convert_units(windspeed_da_ms, "mph")
 
         # Compute the index
         da = fosberg_fire_index(

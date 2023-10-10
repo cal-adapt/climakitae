@@ -4,7 +4,7 @@ used units, following NWS conversions for pressure and wind speed.
 """
 
 
-def _get_unit_conversion_options():
+def get_unit_conversion_options():
     """Get dictionary of unit conversion options offered for each unit"""
     options = {
         "K": ["K", "degC", "degF"],
@@ -24,19 +24,25 @@ def _get_unit_conversion_options():
     return options
 
 
-def _convert_units(da, selected_units):
+def convert_units(da, selected_units):
     """Converts units for any variable
 
-    Args:
-      da (xr.DataArray): Data
-      selected_units (str): Selected units of data, from selections.units
+    Parameters
+    ----------
+    da: xr.DataArray
+        data
+    selected_units: str
+        selected units of data, from selections.units
 
-    Returns:
-      da (xr.DataArray): Data with converted units and updated units attribute
+    Returns
+    -------
+    da: xr.DataArray
+        data with converted units and updated units attribute
 
     References:
-      Wind speed: https://www.weather.gov/media/epz/wxcalc/windConversion.pdf
-      Pressure: https://www.weather.gov/media/epz/wxcalc/pressureConversion.pdf
+    -------
+    Wind speed: https://www.weather.gov/media/epz/wxcalc/windConversion.pdf
+    Pressure: https://www.weather.gov/media/epz/wxcalc/pressureConversion.pdf
     """
 
     # Get native units of data from attributes

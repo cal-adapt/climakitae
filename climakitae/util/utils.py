@@ -1,31 +1,76 @@
 """Miscellaneous utility functions."""
 
+import os
 import numpy as np
 import datetime
 import xarray as xr
 import pyproj
 import rioxarray as rio
 import pandas as pd
-import s3fs
-import intake
 import matplotlib.colors as mcolors
 import matplotlib
-import pkg_resources
-import warnings
 
 
-# Read colormap text files
-ae_orange = pkg_resources.resource_filename("climakitae", "data/cmaps/ae_orange.txt")
-ae_diverging = pkg_resources.resource_filename(
-    "climakitae", "data/cmaps/ae_diverging.txt"
+from climakitae.core.paths import (
+    ae_orange,
+    ae_diverging,
+    ae_blue,
+    ae_diverging_r,
+    categorical_cb,
 )
-ae_blue = pkg_resources.resource_filename("climakitae", "data/cmaps/ae_blue.txt")
-ae_diverging_r = pkg_resources.resource_filename(
-    "climakitae", "data/cmaps/ae_diverging_r.txt"
-)
-categorical_cb = pkg_resources.resource_filename(
-    "climakitae", "data/cmaps/categorical_cb.txt"
-)
+
+
+def scenario_to_experiment_id(scenario, reverse=False):
+    """
+    Convert scenario format to experiment_id format matching catalog names.
+    Set reverse=True to get scenario format from input experiement_id.
+    """
+    scenario_dict = {
+        "Historical Reconstruction": "reanalysis",
+        "Historical Climate": "historical",
+        "SSP 2-4.5 -- Middle of the Road": "ssp245",
+        "SSP 5-8.5 -- Burn it All": "ssp585",
+        "SSP 3-7.0 -- Business as Usual": "ssp370",
+    }
+
+    if reverse == True:
+        scenario_dict = {v: k for k, v in scenario_dict.items()}
+    return scenario_dict[scenario]
+
+
+def area_average(dset):
+    """Weighted area-average
+
+    Parameters
+    ----------
+    dset: xr.Dataset
+        one dataset from the catalog
+
+    Returns
+    ----------
+    xr.Dataset
+        sub-setted output data
+
+    """
+    weights = np.cos(np.deg2rad(dset.lat))
+    if set(["x", "y"]).issubset(set(dset.dims)):
+        # WRF data has x,y
+        dset = dset.weighted(weights).mean("x").mean("y")
+    elif set(["lat", "lon"]).issubset(set(dset.dims)):
+        # LOCA data has lat, lon
+        dset = dset.weighted(weights).mean("lat").mean("lon")
+    return dset
+
+
+def read_csv_file(rel_path, index_col=None):
+    return pd.read_csv(
+        _package_file_path(rel_path),
+        index_col=index_col,
+    )
+
+
+def _package_file_path(rel_path):
+    return os.path.normpath(os.path.join(os.path.dirname(__file__), "..", rel_path))
 
 
 def get_closest_gridcell(data, lat, lon, print_coords=True):
@@ -78,17 +123,23 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
     return closest_gridcell
 
 
-def _julianDay_to_str_date(julday, leap_year=True, str_format="%b-%d"):
+def julianDay_to_str_date(julday, leap_year=True, str_format="%b-%d"):
     """Convert julian day of year to string format
     i.e. if str_format = "%b-%d", the output will be Mon-Day ("Jan-01")
 
-    Args:
-        julday (int): Julian day
-        leap_year (boolean): leap year? (default to True)
-        str_format (str): string format of output date
+    Parameters
+    -----------
+    julday: int
+        Julian day
+    leap_year: boolean
+        leap year? (default to True)
+    str_format: str
+        string format of output date
 
-    Return:
-        date (str): Julian day in the input format month-day (i.e. "Jan-01")
+    Returns
+    --------
+    date: str
+        Julian day in the input format month-day (i.e. "Jan-01")
     """
     if leap_year:
         year = "2024"
@@ -100,7 +151,7 @@ def _julianDay_to_str_date(julday, leap_year=True, str_format="%b-%d"):
     return date
 
 
-def _readable_bytes(B):
+def readable_bytes(B):
     """
     Return the given bytes as a human friendly KB, MB, GB, or TB string.
     Code from stackoverflow: https://stackoverflow.com/questions/12523586/python-format-size-application-converting-b-to-kb-mb-gb-tb
@@ -123,17 +174,24 @@ def _readable_bytes(B):
         return "{0:.2f} TB".format(B / TB)
 
 
-def _read_ae_colormap(cmap="ae_orange", cmap_hex=False):
+def read_ae_colormap(cmap="ae_orange", cmap_hex=False):
     """Read in AE colormap by name
 
-    Args:
-        cmap (str): one of ["ae_orange","ae_blue","ae_diverging"]
-        cmap_hex (boolean): return RGB or hex colors?
+    Parameters
+    -----------
+    cmap: str
+        one of ["ae_orange","ae_blue","ae_diverging"]
+    cmap_hex: boolean
+        return RGB or hex colors?
 
-    Returns: one of either
-        cmap_data (matplotlib.colors.LinearSegmentedColormap): used for
-            matplotlib (if cmap_hex == False)
-        cmap_data (list): used for hvplot maps (if cmap_hex == True)
+    Returns
+    --------
+    one of either
+
+    cmap_data: matplotlib.colors.LinearSegmentedColormap
+        used for matplotlib (if cmap_hex == False)
+    cmap_data: list
+        used for hvplot maps (if cmap_hex == True)
 
     """
 
@@ -149,7 +207,7 @@ def _read_ae_colormap(cmap="ae_orange", cmap_hex=False):
         cmap_data = categorical_cb
 
     # Load text file
-    cmap_np = np.loadtxt(cmap_data, dtype=float)
+    cmap_np = np.loadtxt(_package_file_path(cmap_data), dtype=float)
 
     # RBG to hex
     if cmap_hex:
@@ -159,32 +217,50 @@ def _read_ae_colormap(cmap="ae_orange", cmap_hex=False):
     return cmap_data
 
 
-def _reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
+def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
     """Reproject xr.DataArray using rioxarray.
-    Raises ValueError if input data does not have spatial coords x,y
-    Raises ValueError if input data has more than 5 dimensions
 
-    Args:
-        xr_da (xr.DataArray): 2-or-3-dimensional DataArray, with 2 spatial dimensions
-        proj (str): proj to use for reprojection (default to "EPSG:4326"-- lat/lon coords)
-        fill_value (float): fill value (default to np.nan)
+    Parameters
+    -----------
+    xr_da: xr.DataArray
+        2-or-3-dimensional DataArray, with 2 spatial dimensions
+    proj: str
+        proj to use for reprojection (default to "EPSG:4326"-- lat/lon coords)
+    fill_value: float
+        fill value (default to np.nan)
 
-    Returns:
-        data_reprojected (xr.DataArray): 2-or-3-dimensional reprojected DataArray
+    Returns
+    --------
+    data_reprojected: xr.DataArray
+        2-or-3-dimensional reprojected DataArray
+
+    Raises
+    ------
+    ValueError
+        if input data does not have spatial coords x,y
+    ValueError
+        if input data has more than 5 dimensions
 
     """
 
     def _reproject_data_4D(data, reproject_dim, proj="EPSG:4326", fill_value=np.nan):
         """Reproject 4D xr.DataArray across an input dimension
 
-        Args:
-            data (xr.DataArray): 4-dimensional DataArray, with 2 spatial dimensions
-            reproject_dim (str): name of dimensions to use
-            proj (str): proj to use for reprojection (default to "EPSG:4326"-- lat/lon coords)
-            fill_value (float): fill value (default to np.nan)
+        Parameters
+        -----------
+        data: xr.DataArray
+            4-dimensional DataArray, with 2 spatial dimensions
+        reproject_dim: str
+            name of dimensions to use
+        proj: str
+            proj to use for reprojection (default to "EPSG:4326"-- lat/lon coords)
+        fill_value: float
+            fill value (default to np.nan)
 
-        Returns:
-            data_reprojected (xr.DataArray): 4-dimensional reprojected DataArray
+        Returns
+        --------
+        data_reprojected: xr.DataArray
+            4-dimensional reprojected DataArray
 
         """
         rp_list = []
@@ -201,14 +277,21 @@ def _reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
     def _reproject_data_5D(data, reproject_dim, proj="EPSG:4326", fill_value=np.nan):
         """Reproject 5D xr.DataArray across two input dimensions
 
-        Args:
-            data (xr.DataArray): 5-dimensional DataArray, with 2 spatial dimensions
-            reproject_dim (list): list of str dimension names to use
-            proj (str): proj to use for reprojection (default to "EPSG:4326"-- lat/lon coords)
-            fill_value (float): fill value (default to np.nan)
+        Parameters
+        -----------
+        data: xr.DataArray
+            5-dimensional DataArray, with 2 spatial dimensions
+        reproject_dim: list
+            list of str dimension names to use
+        proj: str
+            proj to use for reprojection (default to "EPSG:4326"-- lat/lon coords)
+        fill_value: float
+            fill value (default to np.nan)
 
-        Returns:
-            data_reprojected (xr.DataArray): 5-dimensional reprojected DataArray
+        Returns
+        --------
+        data_reprojected: xr.DataArray
+            5-dimensional reprojected DataArray
 
         """
         rp_list_j = []
@@ -276,129 +359,6 @@ def _reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
     return data_reprojected
 
 
-### some utils for generating warming level reference data in ../data/ ###
-def _write_gwl_files():
-    """Call everything needed to write the global warming level reference files
-    for all of the currently downscaled GCMs."""
-
-    # Connect to AWS S3 storage
-    fs = s3fs.S3FileSystem(anon=True)
-
-    df = pd.read_csv("https://cmip6-pds.s3.amazonaws.com/pangeo-cmip6.csv")
-    df_subset = df[
-        (df.table_id == "Amon")
-        & (df.variable_id == "tas")
-        & (df.experiment_id == "historical")
-    ]
-
-    def build_timeseries(variable, model, ens_mem, scenarios):
-        """Builds an xarray Dataset with only a time dimension, for the appended
-        historical+ssp timeseries for all the scenarios of a particular
-        model/variant combo. Works for all of the models(/GCMs) in the list
-        models_for_now, which appear in the current data catalog of WRF
-        downscaling."""
-        scenario = "historical"
-        data_historical = xr.Dataset()
-        df_scenario = df_subset[(df.source_id == model) & (df.member_id == ens_mem)]
-        with xr.open_zarr(fs.get_mapper(df_scenario.zstore.values[0])) as temp:
-            weightlat = np.sqrt(np.cos(np.deg2rad(temp.lat)))
-            weightlat = weightlat / np.sum(weightlat)
-            data_historical = (temp[variable] * weightlat).sum("lat").mean("lon")
-            if model == "FGOALS-g3":
-                data_historical = data_historical.isel(time=slice(0, -12 * 2))
-
-        data_one_model = xr.Dataset()
-        for scenario in scenarios:
-            df_scenario = df[
-                (df.table_id == "Amon")
-                & (df.variable_id == variable)
-                & (df.experiment_id == scenario)
-                & (df.source_id == model)
-                & (df.member_id == ens_mem)
-            ]
-            with xr.open_zarr(fs.get_mapper(df_scenario.zstore.values[0])) as temp:
-                weightlat = np.sqrt(np.cos(np.deg2rad(temp.lat)))
-                weightlat = weightlat / np.sum(weightlat)
-                timeseries = (temp[variable] * weightlat).sum("lat").mean("lon")
-                timeseries = timeseries.sortby("time")  # needed for MPI-ESM1-2-LR
-                data_one_model[scenario] = xr.concat(
-                    [data_historical, timeseries], dim="time"
-                )
-        return data_one_model
-
-    def get_gwl(smoothed, degrees):
-        """Takes a smoothed timeseries of global mean temperature for multiple
-        scenarios, and returns a small table of the timestamp that a given
-        global warming level is reached."""
-        gwl = smoothed.sub(degrees).abs().idxmin()
-        # make sure it's not just choosing one of the final timestamps just
-        # because it's the highest warming despite being nowhere close to
-        # (much less than) the target value:
-        for scenario in smoothed:
-            if smoothed[scenario].sub(degrees).abs().min() > 0.01:
-                gwl[scenario] = np.NaN
-        return gwl
-
-    def get_gwl_table(
-        variable, model, scenarios, start_year="18500101", end_year="19000101"
-    ):
-        """Loops through global warming levels, and returns an aggregate table
-        for all warming levels (1.5, 2, 3, and 4 degrees) for all scenarios of
-        the model/variant requested."""
-        ens_mem = models[model]
-        data_one_model = build_timeseries(variable, model, ens_mem, scenarios)
-        anom = (
-            data_one_model - data_one_model.sel(time=slice(start_year, end_year)).mean()
-        )
-        smoothed = anom.rolling(time=20 * 12, center=True).mean("time")
-        one_model = (
-            smoothed.to_array(dim="scenario", name=model).dropna("time").to_pandas()
-        )
-        gwlevels = pd.DataFrame()
-        for level in [1.5, 2, 3, 4]:
-            gwlevels[level] = get_gwl(one_model.T, level)
-        return gwlevels
-
-    models_WRF = {
-        "ACCESS-CM2": "",
-        "CanESM5": "",
-        "CESM2": "r11i1p1f1",
-        "CNRM-ESM2-1": "r1i1p1f2",
-        "EC-Earth3": "",
-        "EC-Earth3-Veg": "r1i1p1f1",
-        "FGOALS-g3": "r1i1p1f1",
-        "MPI-ESM1-2-LR": "r7i1p1f1",
-        "UKESM1-0-LL": "",
-    }
-    models_for_now = {
-        "CESM2": "r11i1p1f1",
-        "CNRM-ESM2-1": "r1i1p1f2",
-        "EC-Earth3-Veg": "r1i1p1f1",
-        "FGOALS-g3": "r1i1p1f1",
-        "MPI-ESM1-2-LR": "r7i1p1f1",
-    }
-    models = models_for_now
-
-    variable = "tas"
-    scenarios = ["ssp585", "ssp370", "ssp245"]
-    all_gw_levels = pd.concat(
-        [get_gwl_table(variable, model, scenarios) for model in list(models.keys())],
-        keys=list(models.keys()),
-    )
-    all_gw_levels.to_csv("../data/gwl_1850-1900ref.csv")
-
-    start_year = "19810101"
-    end_year = "20101231"
-    all_gw_levels2 = pd.concat(
-        [
-            get_gwl_table(variable, model, scenarios, start_year, end_year)
-            for model in list(models.keys())
-        ],
-        keys=list(models.keys()),
-    )
-    all_gw_levels2.to_csv("../data/gwl_1981-2010ref.csv")
-
-
 ## DFU notebook-specific functions, flexible for all notebooks
 def compute_annual_aggreggate(data, name, num_grid_cells):
     """Calculates the annual sum of HDD and CDD"""
@@ -446,6 +406,26 @@ def trendline(data):
     trendline = m * data_sim_mean.year + b  # y = mx + b
     trendline.name = "trendline"
     return trendline
+
+
+def combine_hdd_cdd(data):
+    """Drops specific unneeded coords from HDD/CDD data, independent of station or gridded data source"""
+    if data.name not in [
+        "Annual Heating Degree Days (HDD)",
+        "Annual Cooling Degree Days (CDD)",
+        "Heating Degree Hours",
+        "Cooling Degree Hours",
+    ]:
+        raise Exception(
+            "Invalid data provided, please pass cooling/heating degree data"
+        )
+
+    to_drop = ["scenario", "Lambert_Conformal", "variable"]
+    for coord in to_drop:
+        if coord in data.coords:
+            data = data.drop(coord)
+
+    return data
 
 
 ## DFU plotting functions

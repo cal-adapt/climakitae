@@ -1,224 +1,192 @@
-"""Backend functions related to providing and dynamically setting data selections.
-Boundaries function for storing parquet geometries for spatial subsetting."""
-
-import datetime as dt
+import os
+import pandas as pd
+import geopandas as gpd
+from shapely.geometry import box, Polygon
+import intake
 import param
 import panel as pn
-import intake
-from shapely.geometry import box, Polygon
+import warnings
 from matplotlib.figure import Figure
 import matplotlib.ticker as ticker
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
-import geopandas as gpd
-import pandas as pd
-import pkg_resources
-import warnings
-from .unit_conversions import _get_unit_conversion_options
-from .catalog_convert import (
-    _downscaling_method_to_activity_id,
-    _resolution_to_gridlabel,
-    _timescale_to_table_id,
-    _scenario_to_experiment_id,
+from climakitae.core.paths import (
+    variable_descriptions_csv_path,
+    stations_csv_path,
+    data_catalog_url,
+    boundary_catalog_url,
+)
+from climakitae.util.utils import read_csv_file
+from climakitae.core.boundaries import Boundaries
+from climakitae.util.unit_conversions import get_unit_conversion_options
+from climakitae.core.data_load import (
+    downscaling_method_to_activity_id,
+    resolution_to_gridlabel,
+    timescale_to_table_id,
+    scenario_to_experiment_id,
+    read_catalog_from_csv,
+    read_catalog_from_select,
 )
 
 
-# =========================== LOCATION SELECTIONS ==============================
+def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
+    """Using the data catalog, get a list of appropriate scenario and simulation options given a user's
+    selections for downscaling method, timescale, and resolution.
+    Unique variable ids for user selections are returned, then limited further in subsequent steps.
 
+    Parameters
+    ----------
+    cat: intake catalog
+    downscaling_method: list, one of ["Dynamical"], ["Statistical"], or ["Dynamical","Statistical"]
+        Data downscaling method
+    timescale: str, one of "hourly", "daily", or "monthly"
+        Timescale
+    resolution: str, one of "3 km", "9 km", "45 km"
+        Model grid resolution
 
-class Boundaries:
-    """Get geospatial polygon data from the AE catalog.
-    Used to access boundaries for subsetting data by state, county, etc.
+    Returns
+    -------
+    scenario_options: list
+        Unique scenario values for input user selections
+    simulation_options: list
+        Unique simulation values for input user selections
+    unique_variable_ids: list
+        Unique variable id values for input user selections
     """
 
-    def __init__(self):
-        """
-        Parameters
-        -----------
-        _cat: intake.catalog.local.YAMLFileCatalog
-            Catalog for parquet files
-        _us_states: pd.DataFrame
-            Table of US state names and geometries
-        _ca_counties: pd.DataFrame
-            Table of California county names and geometries
-            Sorted by county name alphabetical order
-        _ca_watersheds: pd.DataFrame
-            Table of California watershed names and geometries
-            Sorted by watershed name alphabetical order
-        _ca_utilities: pd.DataFrame
-            Table of California IOUs and POUs, names and geometries
-        _ca_forecast_zones: pd.DataFrame
-            Table of California Demand Forecast Zones
-        """
-        self._cat = intake.open_catalog(
-            "https://cadcat.s3.amazonaws.com/parquet/catalog.yaml"
-        )
-        self._us_states = self._cat.states.read()
-        self._ca_counties = self._cat.counties.read().sort_values("NAME")
-        self._ca_watersheds = self._cat.huc8.read().sort_values("Name")
-        self._ca_utilities = self._cat.utilities.read()
-        self._ca_forecast_zones = self._cat.dfz.read()
-        self._ca_electric_balancing_areas = self._cat.eba.read()
-
-        # EBA CALISO polygon has two options
-        # One of the polygons is super tiny, with a negligible area
-        # Perhaps this is an error from the producers of the data
-        # Just grab the CALISO polygon with the large area
-        tiny_caliso = self._ca_electric_balancing_areas.loc[
-            (self._ca_electric_balancing_areas["NAME"] == "CALISO")
-            & (self._ca_electric_balancing_areas["SHAPE_Area"] < 100)
-        ].index
-        self._ca_electric_balancing_areas = self._ca_electric_balancing_areas.drop(
-            tiny_caliso
+    # Get catalog subset from user inputs
+    with warnings.catch_warnings(record=True):
+        cat_subset = data_catalog.search(
+            activity_id=[
+                downscaling_method_to_activity_id(dm) for dm in downscaling_method
+            ],
+            table_id=timescale_to_table_id(timescale),
+            grid_label=resolution_to_gridlabel(resolution),
         )
 
-        # For Forecast Zones named "Other", replace that with the name of the county
-        self._ca_forecast_zones.loc[
-            self._ca_forecast_zones["FZ_Name"] == "Other", "FZ_Name"
-        ] = self._ca_forecast_zones["FZ_Def"]
+    # For LOCA grid we need to use the UCSD institution ID
+    # This comes into play whenever Statistical is selected
+    # WRF data on LOCA grid is tagged with UCSD institution ID
+    if "Statistical" in downscaling_method:
+        cat_subset = cat_subset.search(institution_id="UCSD")
 
-    def get_us_states(self):
-        """
-        Returns a custom sorted dictionary of state abbreviations and indices.
+    # Limit scenarios if both LOCA and WRF are selected
+    # We just want the scenarios that are present in both datasets
+    if set(["Dynamical", "Statistical"]).issubset(
+        downscaling_method
+    ):  # If both are selected
+        loca_scenarios = cat_subset.search(
+            activity_id="LOCA2"
+        ).df.experiment_id.unique()  # LOCA unique member_ids
+        wrf_scenarios = cat_subset.search(
+            activity_id="WRF"
+        ).df.experiment_id.unique()  # WRF unique member_ids
+        overlapping_scenarios = list(set(loca_scenarios) & set(wrf_scenarios))
+        cat_subset = cat_subset.search(experiment_id=overlapping_scenarios)
 
-        Returns
-        -------
-        dict
+    elif downscaling_method == ["Statistical"]:
+        cat_subset = cat_subset.search(activity_id="LOCA2")
 
-        """
-        _states_subset_list = [
-            "CA",
-            "NV",
-            "OR",
-            "WA",
-            "UT",
-            "MT",
-            "ID",
-            "AZ",
-            "CO",
-            "NM",
-            "WY",
+    # Get scenario options
+    scenario_options = list(cat_subset.df["experiment_id"].unique())
+
+    # Get all unique simulation options from catalog selection
+    try:
+        simulation_options = list(cat_subset.df["source_id"].unique())
+
+        # Remove troublesome simulations
+        simulation_options = [
+            sim
+            for sim in simulation_options
+            if sim not in ["HadGEM3-GC31-LL", "KACE-1-0-G"]
         ]
-        _us_states_subset = self._us_states.query("abbrevs in @_states_subset_list")[
-            ["abbrevs"]
-        ]
-        _us_states_subset["abbrevs"] = pd.Categorical(
-            _us_states_subset["abbrevs"], categories=_states_subset_list
+
+        # Remove ensemble means
+        if "ensmean" in simulation_options:
+            simulation_options.remove("ensmean")
+    except:
+        simulation_options = []
+
+    # Get variable options
+    unique_variable_ids = list(cat_subset.df["variable_id"].unique())
+
+    return scenario_options, simulation_options, unique_variable_ids
+
+
+def _get_variable_options_df(
+    variable_descriptions, unique_variable_ids, downscaling_method, timescale
+):
+    """Get variable options to display depending on downscaling method and timescale
+
+    Parameters
+    ----------
+    variable_descriptions: pd.DataFrame
+        Variable descriptions, units, etc in table format
+    unique_variable_ids: list of strs
+        List of unique variable ids from catalog.
+        Used to subset var_config
+    downscaling_method: list, one of ["Dynamical"], ["Statistical"], or ["Dynamical","Statistical"]
+        Data downscaling method
+    timescale: str, one of "hourly", "daily", or "monthly"
+        Timescale
+
+    Returns
+    -------
+    pd.DataFrame
+        Subset of var_config for input downscaling_method and timescale
+    """
+    # Catalog options and derived options together
+    derived_variables = list(
+        variable_descriptions[
+            variable_descriptions["variable_id"].str.contains("_derived")
+        ]["variable_id"]
+    )
+    var_options_plus_derived = unique_variable_ids + derived_variables
+
+    # Subset dataframe
+    variable_options_df = variable_descriptions[
+        (variable_descriptions["show"] == True)
+        & (  # Make sure it's a valid variable selection
+            variable_descriptions["variable_id"].isin(var_options_plus_derived)
+            & (  # Make sure variable_id is part of the catalog options for user selections
+                variable_descriptions["timescale"].str.contains(timescale)
+            )  # Make sure its the right timescale
         )
-        _us_states_subset.sort_values(by="abbrevs", inplace=True)
-        return dict(zip(_us_states_subset.abbrevs, _us_states_subset.index))
+    ]
 
-    def get_ca_counties(self):
-        """
-        Returns a dictionary of California counties and their indices
-        in the geoparquet file.
-
-        Returns
-        -------
-        dict
-
-        """
-        return pd.Series(
-            self._ca_counties.index, index=self._ca_counties["NAME"]
-        ).to_dict()
-
-    def get_ca_watersheds(self):
-        """
-        Returns a lookup dictionary for CA watersheds that references
-        the geoparquet file.
-
-        Returns
-        -------
-        dict
-
-        """
-        return pd.Series(
-            self._ca_watersheds.index, index=self._ca_watersheds["Name"]
-        ).to_dict()
-
-    def get_forecast_zones(self):
-        """
-        Returns a lookup dictionary for CA watersheds that references
-        the geoparquet file.
-
-        Returns
-        -------
-        dict
-
-        """
-        return pd.Series(
-            self._ca_forecast_zones.index, index=self._ca_forecast_zones["FZ_Name"]
-        ).to_dict()
-
-    def get_ious_pous(self):
-        """
-        Returns a lookup dictionary for IOUs & POUs that references
-        the geoparquet file.
-
-        Returns
-        -------
-        dict
-
-        """
-        put_at_top = [  # Put in the order you want it to appear in the dropdown
-            "Pacific Gas & Electric Company",
-            "San Diego Gas & Electric",
-            "Southern California Edison",
-            "Los Angeles Department of Water & Power",
-            "Sacramento Municipal Utility District",
+    if set(["Dynamical", "Statistical"]).issubset(downscaling_method):
+        variable_options_df = variable_options_df[
+            # Get shared variables
+            variable_options_df["display_name"].duplicated()
         ]
-        other_IOUs_POUs_list = [
-            ut for ut in self._ca_utilities["Utility"] if ut not in put_at_top
+    else:
+        variable_options_df = variable_options_df[
+            # Get variables only from one downscaling method
+            variable_options_df["downscaling_method"].isin(downscaling_method)
         ]
-        other_IOUs_POUs_list = sorted(other_IOUs_POUs_list)  # Put in alphabetical order
-        ordered_list = put_at_top + other_IOUs_POUs_list
-        _subset = self._ca_utilities.query("Utility in @ordered_list")[["Utility"]]
-        _subset["Utility"] = pd.Categorical(_subset["Utility"], categories=ordered_list)
-        _subset.sort_values(by="Utility", inplace=True)
-        return dict(zip(_subset["Utility"], _subset.index))
+    return variable_options_df
 
-    def get_electric_balancing_areas(self):
-        """
-        Returns a lookup dictionary for CA Electric Balancing Authority Areas that references
-        the geoparquet file.
 
-        Returns
-        -------
-        dict
-
-        """
-        return pd.Series(
-            self._ca_electric_balancing_areas.index,
-            index=self._ca_electric_balancing_areas["NAME"],
-        ).to_dict()
-
-    def boundary_dict(self):
-        """
-        This returns a dictionary of lookup dictionaries for each set of
-        geoparquet files that the user might be choosing from. It is used to
-        populate the selector object dynamically as the category in
-        '_LocSelectorArea.area_subset' changes.
-
-        Returns
-        -------
-        dict
-
-        """
-        _all_options = {
-            "none": {"entire domain": 0},
-            "lat/lon": {"coordinate selection": 0},
-            "states": self.get_us_states(),
-            "CA counties": self.get_ca_counties(),
-            "CA watersheds": self.get_ca_watersheds(),
-            "CA Electric Load Serving Entities (IOU & POU)": self.get_ious_pous(),
-            "CA Electricity Demand Forecast Zones": self.get_forecast_zones(),
-            "CA Electric Balancing Authority Areas": self.get_electric_balancing_areas(),
-        }
-        return _all_options
+def _get_var_ids(variable_descriptions, variable, downscaling_method, timescale):
+    """Get variable ids that match the selected variable, timescale, and downscaling method.
+    Required to account for the fact that LOCA, WRF, and various timescales use different variable id values.
+    Used to retrieve the correct variables from the catalog in the backend.
+    """
+    var_id = variable_descriptions[
+        (variable_descriptions["display_name"] == variable)
+        & (  # Make sure it's a valid variable selection
+            variable_descriptions["timescale"].str.contains(timescale)
+        )  # Make sure its the right timescale
+        & (
+            variable_descriptions["downscaling_method"].isin(downscaling_method)
+        )  # Make sure it's the right downscaling method
+    ]
+    var_id = list(var_id.variable_id.values)
+    return var_id
 
 
 def _get_overlapping_station_names(
-    stations_gpd,
+    stations_gdf,
     area_subset,
     cached_area,
     latitude,
@@ -228,9 +196,14 @@ def _get_overlapping_station_names(
 ):
     """Wrapper function that gets the string names of any overlapping weather stations"""
     subarea = _get_subarea(
-        area_subset, cached_area, latitude, longitude, _geographies, _geography_choose
+        area_subset,
+        cached_area,
+        latitude,
+        longitude,
+        _geographies,
+        _geography_choose,
     )
-    overlapping_stations_gpd = _get_overlapping_stations(stations_gpd, subarea)
+    overlapping_stations_gpd = _get_overlapping_stations(stations_gdf, subarea)
     overlapping_stations_names = sorted(
         list(overlapping_stations_gpd["station"].values)
     )
@@ -258,7 +231,12 @@ def _get_overlapping_stations(stations, polygon):
 
 
 def _get_subarea(
-    area_subset, cached_area, latitude, longitude, _geographies, _geography_choose
+    area_subset,
+    cached_area,
+    latitude,
+    longitude,
+    _geographies,
+    _geography_choose,
 ):
     """Get geometry from input settings
     Used for plotting or determining subset of overlapping weather stations in subsequent steps
@@ -269,8 +247,10 @@ def _get_subarea(
 
     """
 
-    def _get_subarea_from_shape_index(boundary_dataset, shape_index):
-        return boundary_dataset[boundary_dataset.index == shape_index]
+    def _get_subarea_from_shape_index(
+        boundary_dataset: Boundaries, shape_indices: list
+    ) -> gpd.GeoDataFrame:
+        return boundary_dataset.loc[shape_indices]
 
     if area_subset == "lat/lon":
         geometry = box(
@@ -284,28 +264,40 @@ def _get_subarea(
             crs="EPSG:4326",
         )
     elif area_subset != "none":
-        shape_index = int(_geography_choose[area_subset][cached_area])
+        # `if-condition` added for catching errors with delays in rendering cached area.
+        if cached_area == None:
+            shape_indices = [0]
+        else:
+            # Filter for indices that are selected in `Location selection` dropdown
+            shape_indices = list(
+                {
+                    key: _geography_choose[area_subset][key] for key in cached_area
+                }.values()
+            )
+
         if area_subset == "states":
-            df_ae = _get_subarea_from_shape_index(_geographies._us_states, shape_index)
+            df_ae = _get_subarea_from_shape_index(
+                _geographies._us_states, shape_indices
+            )
         elif area_subset == "CA counties":
             df_ae = _get_subarea_from_shape_index(
-                _geographies._ca_counties, shape_index
+                _geographies._ca_counties, shape_indices
             )
         elif area_subset == "CA watersheds":
             df_ae = _get_subarea_from_shape_index(
-                _geographies._ca_watersheds, shape_index
+                _geographies._ca_watersheds, shape_indices
             )
         elif area_subset == "CA Electric Load Serving Entities (IOU & POU)":
             df_ae = _get_subarea_from_shape_index(
-                _geographies._ca_utilities, shape_index
+                _geographies._ca_utilities, shape_indices
             )
         elif area_subset == "CA Electricity Demand Forecast Zones":
             df_ae = _get_subarea_from_shape_index(
-                _geographies._ca_forecast_zones, shape_index
+                _geographies._ca_forecast_zones, shape_indices
             )
         elif area_subset == "CA Electric Balancing Authority Areas":
             df_ae = _get_subarea_from_shape_index(
-                _geographies._ca_electric_balancing_areas, shape_index
+                _geographies._ca_electric_balancing_areas, shape_indices
             )
 
     else:  # If no subsetting, make the geometry a big box so all stations are included
@@ -350,7 +342,7 @@ def _add_res_to_ax(
     )
 
 
-def _map_view(selections, stations_gpd):
+def _map_view(selections, stations_gdf):
     """View the current location selections on a map
     Updates dynamically
 
@@ -491,15 +483,15 @@ def _map_view(selections, stations_gpd):
     if selections.data_type == "Station":
         # Subset the stations gpd to get just the user's selected stations
         # We need the stations gpd because it has the coordinates, which will be used to make the plot
-        stations_selection_gpd = stations_gpd.loc[
-            stations_gpd["station"].isin(selections.station)
+        stations_selection_gdf = stations_gdf.loc[
+            stations_gdf["station"].isin(selections.station)
         ]
-        stations_selection_gpd = stations_selection_gpd.to_crs(
+        stations_selection_gdf = stations_selection_gdf.to_crs(
             crs_proj4
         )  # Convert to map projection
         ax.scatter(
-            stations_selection_gpd.LON_X.values,
-            stations_selection_gpd.LAT_Y.values,
+            stations_selection_gdf.LON_X.values,
+            stations_selection_gdf.LAT_Y.values,
             transform=ccrs.PlateCarree(),
             zorder=15,
             color="black",
@@ -513,164 +505,87 @@ def _map_view(selections, stations_gpd):
     return mpl_pane
 
 
-# ============================ DATA SELECTIONS =================================
+class VariableDescriptions:
+    """Load Variable Desciptions CSV only once
 
+    This is a singleton class that needs to be called separately from DataInterface
+    because variable descriptions are used without DataInterface in ck.view. Also
+    ck.view is loaded on package load so this avoids loading boundary data when not
+    needed.
 
-def _get_user_options(cat, downscaling_method, timescale, resolution):
-    """Using the data catalog, get a list of appropriate scenario and simulation options given a user's
-    selections for downscaling method, timescale, and resolution.
-    Unique variable ids for user selections are returned, then limited further in subsequent steps.
-
-    Parameters
-    ----------
-    cat: intake catalog
-    downscaling_method: list, one of ["Dynamical"], ["Statistical"], or ["Dynamical","Statistical"]
-        Data downscaling method
-    timescale: str, one of "hourly", "daily", or "monthly"
-        Timescale
-    resolution: str, one of "3 km", "9 km", "45 km"
-        Model grid resolution
-
-    Returns
-    -------
-    scenario_options: list
-        Unique scenario values for input user selections
-    simulation_options: list
-        Unique simulation values for input user selections
-    unique_variable_ids: list
-        Unique variable id values for input user selections
     """
 
-    # Get catalog subset from user inputs
-    with warnings.catch_warnings(record=True):
-        cat_subset = cat.search(
-            activity_id=[
-                _downscaling_method_to_activity_id(dm) for dm in downscaling_method
-            ],
-            table_id=_timescale_to_table_id(timescale),
-            grid_label=_resolution_to_gridlabel(resolution),
+    def __new__(cls):
+        if not hasattr(cls, "instance"):
+            cls.instance = super(VariableDescriptions, cls).__new__(cls)
+        return cls.instance
+
+    def __init__(self):
+        self.variable_descriptions = pd.DataFrame
+
+    def load(self):
+        if self.variable_descriptions.empty:
+            self.variable_descriptions = read_csv_file(variable_descriptions_csv_path)
+
+
+class DataInterface:
+    """Load data connections into memory once
+
+    This is a singleton class called by the various Param classes to connect to the local
+    data and to the intake data catalog and parquet boundary catalog. The class attributes
+    are read only so that the data does not get changed accidentially.
+
+    """
+
+    def __new__(cls):
+        if not hasattr(cls, "instance"):
+            cls.instance = super(DataInterface, cls).__new__(cls)
+        return cls.instance
+
+    def __init__(self):
+        var_desc = VariableDescriptions()
+        var_desc.load()
+        self._variable_descriptions = var_desc.variable_descriptions
+        self._stations = read_csv_file(stations_csv_path)
+        self._stations_gdf = gpd.GeoDataFrame(
+            self.stations,
+            crs="EPSG:4326",
+            geometry=gpd.points_from_xy(self.stations.LON_X, self.stations.LAT_Y),
         )
+        self._data_catalog = intake.open_esm_datastore(data_catalog_url)
 
-    # For LOCA grid we need to use the UCSD institution ID
-    # This comes into play whenever Statistical is selected
-    # WRF data on LOCA grid is tagged with UCSD institution ID
-    if "Statistical" in downscaling_method:
-        cat_subset = cat_subset.search(institution_id="UCSD")
+        # Get geography boundaries
+        self._boundary_catalog = intake.open_catalog(boundary_catalog_url)
+        self._geographies = Boundaries(self.boundary_catalog)
 
-    # Limit scenarios if both LOCA and WRF are selected
-    # We just want the scenarios that are present in both datasets
-    if set(["Dynamical", "Statistical"]).issubset(
-        downscaling_method
-    ):  # If both are selected
-        loca_scenarios = cat_subset.search(
-            activity_id="LOCA2"
-        ).df.experiment_id.unique()  # LOCA unique member_ids
-        wrf_scenarios = cat_subset.search(
-            activity_id="WRF"
-        ).df.experiment_id.unique()  # WRF unique member_ids
-        overlapping_scenarios = list(set(loca_scenarios) & set(wrf_scenarios))
-        cat_subset = cat_subset.search(experiment_id=overlapping_scenarios)
+        self._geographies.load()
 
-    elif downscaling_method == ["Statistical"]:
-        cat_subset = cat_subset.search(activity_id="LOCA2")
+    @property
+    def variable_descriptions(self):
+        return self._variable_descriptions
 
-    # Get scenario options
-    scenario_options = list(cat_subset.df["experiment_id"].unique())
+    @property
+    def stations(self):
+        return self._stations
 
-    # Get all unique simulation options from catalog selection
-    try:
-        simulation_options = list(cat_subset.df["source_id"].unique())
+    @property
+    def stations_gdf(self):
+        return self._stations_gdf
 
-        # Remove troublesome simulations
-        simulation_options = [
-            sim
-            for sim in simulation_options
-            if sim not in ["HadGEM3-GC31-LL", "KACE-1-0-G"]
-        ]
+    @property
+    def data_catalog(self):
+        return self._data_catalog
 
-        # Remove ensemble means
-        if "ensmean" in simulation_options:
-            simulation_options.remove("ensmean")
-    except:
-        simulation_options = []
+    @property
+    def boundary_catalog(self):
+        return self._boundary_catalog
 
-    # Get variable options
-    unique_variable_ids = list(cat_subset.df["variable_id"].unique())
-
-    return scenario_options, simulation_options, unique_variable_ids
+    @property
+    def geographies(self):
+        return self._geographies
 
 
-def _get_variable_options_df(
-    var_config, unique_variable_ids, downscaling_method, timescale
-):
-    """Get variable options to display depending on downscaling method and timescale
-
-    Parameters
-    ----------
-    var_config: pd.DataFrame
-        Variable descriptions, units, etc in table format
-    unique_variable_ids: list of strs
-        List of unique variable ids from catalog.
-        Used to subset var_config
-    downscaling_method: list, one of ["Dynamical"], ["Statistical"], or ["Dynamical","Statistical"]
-        Data downscaling method
-    timescale: str, one of "hourly", "daily", or "monthly"
-        Timescale
-
-    Returns
-    -------
-    pd.DataFrame
-        Subset of var_config for input downscaling_method and timescale
-    """
-    # Catalog options and derived options together
-    derived_variables = list(
-        var_config[var_config["variable_id"].str.contains("_derived")]["variable_id"]
-    )
-    var_options_plus_derived = unique_variable_ids + derived_variables
-
-    # Subset dataframe
-    variable_options_df = var_config[
-        (var_config["show"] == True)
-        & (  # Make sure it's a valid variable selection
-            var_config["variable_id"].isin(var_options_plus_derived)
-            & (  # Make sure variable_id is part of the catalog options for user selections
-                var_config["timescale"].str.contains(timescale)
-            )  # Make sure its the right timescale
-        )
-    ]
-
-    if set(["Dynamical", "Statistical"]).issubset(downscaling_method):
-        variable_options_df = variable_options_df[
-            # Get shared variables
-            variable_options_df["display_name"].duplicated()
-        ]
-    else:
-        variable_options_df = variable_options_df[
-            # Get variables only from one downscaling method
-            variable_options_df["downscaling_method"].isin(downscaling_method)
-        ]
-    return variable_options_df
-
-
-def _get_var_ids(var_config, variable, downscaling_method, timescale):
-    """Get variable ids that match the selected variable, timescale, and downscaling method.
-    Required to account for the fact that LOCA, WRF, and various timescales use different variable id values.
-    Used to retrieve the correct variables from the catalog in the backend.
-    """
-    var_id = var_config[
-        (var_config["display_name"] == variable)
-        & (  # Make sure it's a valid variable selection
-            var_config["timescale"].str.contains(timescale)
-        )  # Make sure its the right timescale
-        & (
-            var_config["downscaling_method"].isin(downscaling_method)
-        )  # Make sure it's the right downscaling method
-    ]
-    var_id = list(var_id.variable_id.values)
-    return var_id
-
-
-class _DataSelector(param.Parameterized):
+class DataParameters(param.Parameterized):
     """
     An object to hold data parameters, which depends only on the 'param'
     library. Currently used in '_display_select', which uses 'panel' to draw the
@@ -678,21 +593,12 @@ class _DataSelector(param.Parameterized):
     instead.
     """
 
-    # Stations data
-    stations = pkg_resources.resource_filename("climakitae", "data/hadisd_stations.csv")
-    stations_df = pd.read_csv(stations)
-    stations_gpd = gpd.GeoDataFrame(
-        stations_df,
-        crs="EPSG:4326",
-        geometry=gpd.points_from_xy(stations_df.LON_X, stations_df.LAT_Y),
-    )
-
     # Unit conversion options for each unit
-    unit_options_dict = _get_unit_conversion_options()
+    unit_options_dict = get_unit_conversion_options()
 
     # Location defaults
     area_subset = param.Selector(objects=dict())
-    cached_area = param.Selector(objects=dict())
+    cached_area = param.ListSelector(objects=dict())
     latitude = param.Range(default=(32.5, 42), bounds=(10, 67))
     longitude = param.Range(default=(-125.5, -114), bounds=(-156.82317, -84.18701))
 
@@ -751,8 +657,19 @@ class _DataSelector(param.Parameterized):
         # Set default values
         super().__init__(**params)
 
+        self.data_interface = DataInterface()
+
+        # Data Catalog
+        self._data_catalog = self.data_interface.data_catalog
+
+        # variable descriptions
+        self._variable_descriptions = self.data_interface.variable_descriptions
+
+        # station data
+        self._stations_gdf = self.data_interface.stations_gdf
+
         # Get geography boundaries and selection options
-        self._geographies = Boundaries()
+        self._geographies = self.data_interface.geographies
         self._geography_choose = self._geographies.boundary_dict()
 
         # Set location params
@@ -763,14 +680,18 @@ class _DataSelector(param.Parameterized):
         )
 
         # Set data params
-        self.scenario_options, self.simulation, unique_variable_ids = _get_user_options(
-            cat=self.cat,
+        (
+            self.scenario_options,
+            self.simulation,
+            unique_variable_ids,
+        ) = _get_user_options(
+            data_catalog=self._data_catalog,
             downscaling_method=self.downscaling_method,
             timescale=self.timescale,
             resolution=self.resolution,
         )
         self.variable_options_df = _get_variable_options_df(
-            var_config=self.var_config,
+            variable_descriptions=self._variable_descriptions,
             unique_variable_ids=unique_variable_ids,
             downscaling_method=self.downscaling_method,
             timescale=self.timescale,
@@ -792,7 +713,7 @@ class _DataSelector(param.Parameterized):
 
         # Set scenario param
         scenario_ssp_options = [
-            _scenario_to_experiment_id(scen, reverse=True)
+            scenario_to_experiment_id(scen, reverse=True)
             for scen in self.scenario_options
             if "ssp" in scen
         ]
@@ -821,7 +742,10 @@ class _DataSelector(param.Parameterized):
         self.units = var_info.unit.item()
         self.extended_description = var_info.extended_description.item()
         self.variable_id = _get_var_ids(
-            self.var_config, self.variable, self.downscaling_method, self.timescale
+            self._variable_descriptions,
+            self.variable,
+            self.downscaling_method,
+            self.timescale,
         )
         self._data_warning = ""
 
@@ -844,7 +768,8 @@ class _DataSelector(param.Parameterized):
         self.param["cached_area"].objects = list(
             self._geography_choose[self.area_subset].keys()
         )
-        self.cached_area = list(self._geography_choose[self.area_subset].keys())[0]
+        # Needs to be a list [] object in order to contain multiple objects for `cached_area`
+        self.cached_area = [list(self._geography_choose[self.area_subset].keys())[0]]
 
     @param.depends("data_type", watch=True)
     def _update_area_average_based_on_data_type(self):
@@ -958,7 +883,7 @@ class _DataSelector(param.Parameterized):
             self.simulation,
             unique_variable_ids,
         ) = _get_user_options(
-            cat=self.cat,
+            data_catalog=self._data_catalog,
             downscaling_method=downscaling_method,
             timescale=self.timescale,
             resolution=self.resolution,
@@ -973,9 +898,9 @@ class _DataSelector(param.Parameterized):
         else:
             # Otherwise, get a list of variable options using the catalog search
             self.variable_options_df = _get_variable_options_df(
-                var_config=self.var_config,
+                variable_descriptions=self._variable_descriptions,
                 unique_variable_ids=unique_variable_ids,
-                downscaling_method=downscaling_method,
+                downscaling_method=self.downscaling_method,
                 timescale=self.timescale,
             )
 
@@ -1005,7 +930,10 @@ class _DataSelector(param.Parameterized):
         ]  # Get info for just that variable
         self.extended_description = var_info.extended_description.item()
         self.variable_id = _get_var_ids(
-            self.var_config, self.variable, self.downscaling_method, self.timescale
+            self._variable_descriptions,
+            self.variable,
+            self.downscaling_method,
+            self.timescale,
         )
         self.colormap = var_info.colormap.item()
 
@@ -1026,7 +954,7 @@ class _DataSelector(param.Parameterized):
                         "UT",
                         "AZ",
                     ]
-                self.cached_area = "CA"
+                self.cached_area = ["CA"]
             else:
                 self.param["cached_area"].objects = self._geography_choose[
                     "states"
@@ -1059,7 +987,7 @@ class _DataSelector(param.Parameterized):
         """
         # Get scenario options in catalog format
         scenario_ssp_options = [
-            _scenario_to_experiment_id(scen, reverse=True)
+            scenario_to_experiment_id(scen, reverse=True)
             for scen in self.scenario_options
             if "ssp" in scen
         ]
@@ -1076,7 +1004,7 @@ class _DataSelector(param.Parameterized):
 
         historical_scenarios = ["historical", "reanalysis"]
         scenario_historical_options = [
-            _scenario_to_experiment_id(scen, reverse=True)
+            scenario_to_experiment_id(scen, reverse=True)
             for scen in self.scenario_options
             if scen in historical_scenarios
         ]
@@ -1214,7 +1142,7 @@ class _DataSelector(param.Parameterized):
         """Update the list of weather station options if the area subset changes"""
         if self.data_type == "Station":
             overlapping_stations = _get_overlapping_station_names(
-                self.stations_gpd,
+                self._stations_gdf,
                 self.area_subset,
                 self.cached_area,
                 self.latitude,
@@ -1233,6 +1161,60 @@ class _DataSelector(param.Parameterized):
             notice = "Set data type to 'Station' to see options"
             self.param["station"].objects = [notice]
             self.station = [notice]
+
+    def retrieve(self, config=None, merge=True):
+        """Retrieve data from catalog
+
+        By default, DataParameters determines the data retrieved.
+        To retrieve data using the settings in a configuration csv file, set config to the local
+        filepath of the csv.
+        Grabs the data from the AWS S3 bucket, returns lazily loaded dask array.
+        User-facing function that provides a wrapper for read_catalog_from_csv and read_catalog_from_select.
+
+        Parameters
+        ----------
+        config: str, optional
+            Local filepath to configuration csv file
+            Default to None-- retrieve settings in selections
+        merge: bool, optional
+            If config is TRUE and multiple datasets desired, merge to form a single object?
+            Defaults to True.
+
+        Returns
+        -------
+        xr.DataArray
+            Lazily loaded dask array
+            Default if no config file provided
+        xr.Dataset
+            If multiple rows are in the csv, each row is a data_variable
+            Only an option if a config file is provided
+        list of xr.DataArray
+            If multiple rows are in the csv and merge=True,
+            multiple DataArrays are returned in a single list.
+            Only an option if a config file is provided.
+
+        """
+        if config is not None:
+            if type(config) == str:
+                return read_catalog_from_csv(self, config, merge)
+            else:
+                raise ValueError(
+                    "To retrieve data specified in a configuration file, please input the path to your local configuration csv as a string"
+                )
+        try:
+            return read_catalog_from_select(self)
+        except:
+            raise ValueError(
+                "COULD NOT RETRIEVE DATA: For the provided data selections, there is not sufficient data to retrieve. Try selecting a larger spatial area, or a higher resolution. Returning None."
+            )
+
+
+class DataParametersWithPanes(DataParameters):
+    """Extends DataParameters class to include panel widgets that display the time scale and a map overview"""
+
+    def __init__(self, **params):
+        # Set default values
+        super().__init__(**params)
 
     @param.depends(
         "time_slice",
@@ -1355,83 +1337,87 @@ class _DataSelector(param.Parameterized):
         "cached_area",
         "data_type",
         "station",
-        watch=True,
+        watch=False,
     )
     def map_view(self):
         """Create a map of the location selections"""
-        return _map_view(selections=self, stations_gpd=self.stations_gpd)
+        return _map_view(selections=self, stations_gdf=self._stations_gdf)
 
 
-# ================ DISPLAY LOCATION/DATA SELECTIONS IN PANEL ===================
+class Select(DataParametersWithPanes):
+    def show(self):
+        # Show panel visualually
+        select_panel = _display_select(self)
+        return select_panel
 
 
-def _selections_param_to_panel(selections):
+def _selections_param_to_panel(self):
     """For the _DataSelector object, get parameters and parameter
     descriptions formatted as panel widgets
     """
     area_subset = pn.widgets.Select.from_param(
-        selections.param.area_subset, name="Subset the data by..."
+        self.param.area_subset, name="Subset the data by..."
     )
     area_average_text = pn.widgets.StaticText(
         value="Compute an area average across grid cells within your selected region?",
         name="",
     )
     area_average = pn.widgets.RadioBoxGroup.from_param(
-        selections.param.area_average, inline=True
+        self.param.area_average, inline=True
     )
-    cached_area = pn.widgets.Select.from_param(
-        selections.param.cached_area, name="Location selection"
+    cached_area = pn.widgets.MultiSelect.from_param(
+        self.param.cached_area, name="Location selection"
     )
     data_type_text = pn.widgets.StaticText(
         value="",
         name="Data type",
     )
     data_type = pn.widgets.RadioBoxGroup.from_param(
-        selections.param.data_type, inline=True, name=""
+        self.param.data_type, inline=True, name=""
     )
     data_warning = pn.widgets.StaticText.from_param(
-        selections.param._data_warning, name="", style={"color": "red"}
+        self.param._data_warning, name="", style={"color": "red"}
     )
     downscaling_method_text = pn.widgets.StaticText(value="", name="Downscaling method")
     downscaling_method = pn.widgets.CheckBoxGroup.from_param(
-        selections.param.downscaling_method, inline=True
+        self.param.downscaling_method, inline=True
     )
     historical_selection_text = pn.widgets.StaticText(
         value="<br>Estimates of recent historical climatic conditions",
         name="Historical Data",
     )
     historical_selection = pn.widgets.CheckBoxGroup.from_param(
-        selections.param.scenario_historical
+        self.param.scenario_historical
     )
     station_data_info = pn.widgets.StaticText.from_param(
-        selections.param._station_data_info, name="", style={"color": "red"}
+        self.param._station_data_info, name="", style={"color": "red"}
     )
     ssp_selection_text = pn.widgets.StaticText(
         value="<br> Shared Socioeconomic Pathways (SSPs) represent different global emissions scenarios",
         name="Future Model Data",
     )
-    ssp_selection = pn.widgets.CheckBoxGroup.from_param(selections.param.scenario_ssp)
+    ssp_selection = pn.widgets.CheckBoxGroup.from_param(self.param.scenario_ssp)
     resolution_text = pn.widgets.StaticText(
         value="",
         name="Model Grid-Spacing",
     )
     resolution = pn.widgets.RadioBoxGroup.from_param(
-        selections.param.resolution, inline=False
+        self.param.resolution, inline=False
     )
     timescale_text = pn.widgets.StaticText(value="", name="Timescale")
     timescale = pn.widgets.RadioBoxGroup.from_param(
-        selections.param.timescale, name="", inline=False
+        self.param.timescale, name="", inline=False
     )
-    time_slice = pn.widgets.RangeSlider.from_param(selections.param.time_slice, name="")
+    time_slice = pn.widgets.RangeSlider.from_param(self.param.time_slice, name="")
     units_text = pn.widgets.StaticText(name="Variable Units", value="")
-    units = pn.widgets.RadioBoxGroup.from_param(selections.param.units, inline=False)
-    variable = pn.widgets.Select.from_param(selections.param.variable, name="")
+    units = pn.widgets.RadioBoxGroup.from_param(self.param.units, inline=False)
+    variable = pn.widgets.Select.from_param(self.param.variable, name="")
     variable_text = pn.widgets.StaticText(name="Variable", value="")
     variable_description = pn.widgets.StaticText.from_param(
-        selections.param.extended_description, name=""
+        self.param.extended_description, name=""
     )
     variable_type = pn.widgets.RadioBoxGroup.from_param(
-        selections.param.variable_type, inline=True, name=""
+        self.param.variable_type, inline=True, name=""
     )
 
     widgets_dict = {
@@ -1443,8 +1429,8 @@ def _selections_param_to_panel(selections):
         "data_warning": data_warning,
         "downscaling_method": downscaling_method,
         "historical_selection": historical_selection,
-        "latitude": selections.param.latitude,
-        "longitude": selections.param.longitude,
+        "latitude": self.param.latitude,
+        "longitude": self.param.longitude,
         "resolution": resolution,
         "station_data_info": station_data_info,
         "ssp_selection": ssp_selection,
@@ -1470,7 +1456,7 @@ def _selections_param_to_panel(selections):
     return widgets_dict | text_dict
 
 
-def _display_select(selections):
+def _display_select(self):
     """
     Called by 'select' at the beginning of the workflow, to capture user
     selections. Displays panel of widgets from which to make selections.
@@ -1478,7 +1464,7 @@ def _display_select(selections):
     appropriate xarray Dataset.
     """
     # Get formatted panel widgets for each parameter
-    widgets = _selections_param_to_panel(selections)
+    widgets = _selections_param_to_panel(self)
 
     data_choices = pn.Column(
         widgets["variable_text"],
@@ -1492,7 +1478,7 @@ def _display_select(selections):
                 widgets["ssp_selection_text"],
                 widgets["ssp_selection"],
                 pn.Column(
-                    selections.scenario_view,
+                    self.scenario_view,
                     widgets["time_slice"],
                     width=220,
                 ),
@@ -1513,7 +1499,7 @@ def _display_select(selections):
     )
 
     col_1_location = pn.Column(
-        selections.map_view,
+        self.map_view,
         widgets["area_subset"],
         widgets["cached_area"],
         widgets["latitude"],
@@ -1528,7 +1514,7 @@ def _display_select(selections):
             value="",
             name="Weather station",
         ),
-        pn.widgets.CheckBoxGroup.from_param(selections.param.station, name=""),
+        pn.widgets.CheckBoxGroup.from_param(self.param.station, name=""),
         width=270,
     )
     loc_choices = pn.Row(col_1_location, col_2_location)
@@ -1562,51 +1548,3 @@ def _display_select(selections):
         title="Choose Data Available with the Cal-Adapt Analytics Engine",
         collapsible=False,
     )
-
-
-# =============================== EXPORT DATA ==================================
-
-
-class _UserFileChoices:
-    # reserved for later: text boxes for dataset to export
-    # as well as a file name
-    # data_var_name = param.String()
-    # output_file_name = param.String()
-
-    def __init__(self):
-        self._export_format_choices = ["Pick a file format", "CSV", "GeoTIFF", "NetCDF"]
-
-
-class _FileTypeSelector(param.Parameterized):
-    """
-    If the user wants to export an xarray dataset, they can choose
-    their preferred format here. Produces a panel from which to select a
-    supported file type.
-    """
-
-    user_options = _UserFileChoices()
-    output_file_format = param.Selector(objects=user_options._export_format_choices)
-
-    def _export_file_type(self):
-        """Updates the 'user_export_format' object to be the format specified by the user."""
-        user_export_format = self.output_file_format
-
-
-def _user_export_select(user_export_format):
-    """
-    Called by 'export' at the end of the workflow. Displays panel
-    from which to select the export file format. Modifies 'user_export_format'
-    object, which is used by data_export() to export data to the user in their
-    specified format.
-    """
-
-    data_to_export = pn.widgets.TextInput(
-        name="Data to export", placeholder="Type name of dataset here"
-    )
-
-    # reserved for later: text boxes for dataset to export
-    # as well as a file name
-    # file_name = pn.widgets.TextInput(name='File name',
-    #                                 placeholder='Type file name here')
-    # file_input_col = pn.Column(user_export_format.param, data_to_export, file_name)
-    return pn.Row(user_export_format.param)

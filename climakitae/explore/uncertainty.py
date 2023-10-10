@@ -1,22 +1,17 @@
 import numpy as np
 import datetime
 import xarray as xr
-import pyproj
 import rioxarray as rio
 import pandas as pd
 import intake
-import warnings
-from .selectors import Boundaries
 from scipy import stats
-import pkg_resources
-from climakitae.data_loaders import _area_subset_geometry
-import holoviews as hv
-import panel as pn
 
-try:
-    from xmip.preprocessing import rename_cmip6
-except ImportError:
-    from cmip6_preprocessing.preprocessing import rename_cmip6
+from xmip.preprocessing import rename_cmip6
+
+from climakitae.util.utils import read_csv_file
+from climakitae.core.data_interface import DataInterface
+from climakitae.core.data_load import area_subset_geometry
+from climakitae.core.paths import gwl_1850_1900_file, gwl_1981_2010_file
 
 
 ### Utility functions for uncertainty analyses and notebooks
@@ -38,7 +33,7 @@ class CmipOpt:
 
     Methods
     -------
-    cmip_clip
+    _cmip_clip
         CMIP6-specific subsetting
     """
 
@@ -66,7 +61,7 @@ class CmipOpt:
 
         Returns
         -------
-        xr.Dataset
+        ds: xr.Dataset
             Subsetted data, area-weighting applied if area_average is true
         """
         variable = self.variable
@@ -95,7 +90,7 @@ def _cf_to_dt(ds):
 
     Returns
     -------
-    xr.Dataset
+    ds: xr.Dataset
         Converted calendar data
     """
     if type(ds.indexes["time"]) not in [pd.core.indexes.datetimes.DatetimeIndex]:
@@ -121,7 +116,7 @@ def _calendar_align(ds):
 
     Returns
     -------
-    xr.Dataset
+    ds: xr.Dataset
         Calendar-aligned data
     """
     ds["time"] = pd.to_datetime(ds.time.dt.strftime("%Y-%m"))
@@ -147,7 +142,8 @@ def _clip_region(ds, area_subset, location):
     xr.Dataset
         Clipped dataset to region of interest
     """
-    geographies = Boundaries()
+    data_interface = DataInterface()
+    geographies = data_interface.geographies
     us_states = geographies._us_states
     us_counties = geographies._ca_counties
     ds = ds.rio.write_crs(4326)
@@ -180,7 +176,7 @@ def _wrapper(ds):
 
     Returns
     -------
-    xr.Dataset
+    ds: xr.Dataset
         CMIP6 data with consistent dimensions, names, and calendars.
     """
 
@@ -208,7 +204,7 @@ def _area_wgt_average(ds):
 
     Returns
     -------
-    xr.Dataset
+    ds: xr.Dataset
         Area-averaged data by weights
     """
     weights = np.cos(np.deg2rad(ds.y))
@@ -228,7 +224,7 @@ def _drop_member_id(dset_dict):
 
     Returns
     -------
-    xr.Dataset
+    dset_dict: xr.Dataset
         Data, with member_id dim removed
     """
     for dname, dset in dset_dict.items():
@@ -251,7 +247,7 @@ def _precip_flux_to_total(ds):
         CMIP6 output with data variable 'pr'
     Returns
     -------
-    xr.Dataset
+    ds: xr.Dataset
         Data with converted precipitation units
     """
     ds_attrs = ds.attrs
@@ -319,7 +315,7 @@ def grab_multimodel_data(copt, alpha_sort=False):
 
     Returns
     -------
-    xr.Dataset
+    mdls_ds: xr.Dataset
         Processed CMIP6 models concatenated into a single ds
     """
     col = intake.open_esm_datastore(
@@ -443,7 +439,7 @@ def get_ensemble_data(variable, selections, cmip_names, warm_level=3.0):
 
     Returns
     -------
-    xr.Dataset
+    hist_ds, warm_ds: list of xr.Dataset
 
     """
     # Get a list of datasets, each with one simulation (i.e. one dataset with several member_id values for CESM2, etc)
@@ -502,7 +498,7 @@ def get_ensemble_data(variable, selections, cmip_names, warm_level=3.0):
     def _postprocess(ds, selections, variable):
         """Subset the dataset by an input location, convert variables, perform area averaging"""
         # Perform area subsetting
-        ds_region = _area_subset_geometry(selections)
+        ds_region = area_subset_geometry(selections)
         ds = ds.rio.write_crs(4326)
         ds = ds.rio.clip(geometries=ds_region, crs=4326, drop=True)
 
@@ -538,7 +534,7 @@ def cmip_annual(ds):
 
     Returns
     -------
-    xr.Dataset
+    ds_degC: xr.Dataset
         Annual temperature timeseries in degC
     """
     ds_degC = ds - 273.15  # convert to degC
@@ -563,7 +559,7 @@ def calc_anom(ds_yr, base_start, base_end):
 
     Returns
     -------
-    xr.Dataset
+    mdl_temp_anom: xr.Dataset
         Anomaly data calculated with input baseline start and end
     """
     mdl_baseline = ds_yr.sel(year=slice(base_start, base_end)).mean("year")
@@ -581,7 +577,7 @@ def cmip_mmm(ds):
 
     Returns
     -------
-    xr.Dataset
+    ds_mmm: xr.Dataset
         Mean across input data taken on simulation dim
     """
     ds_mmm = ds.mean("simulation")
@@ -600,11 +596,11 @@ def compute_vmin_vmax(da_min, da_max):
 
     Returns
     -------
-    int
+    vmin: int
         minimum value
-    int
+    vmax: int
         maximum value
-    bool
+    sopt: bool
         indicates symmetry if vmin and vmax have opposite signs
     """
     vmin = np.nanpercentile(da_min, 1)
@@ -631,7 +627,7 @@ def get_ks_pval_df(sample1, sample2, sig_lvl=0.05):
 
     Returns
     -------
-    pd.DataFrame
+    p_df: pd.DataFrame
         columns are lat, lon, and p_value;
         only retains spatial points where
         p_value < sig_lvl
@@ -704,14 +700,10 @@ def get_warm_level(warm_level, ds, multi_ens=False, ipcc=True):
         )
 
     if ipcc:
-        gwl_file = pkg_resources.resource_filename(
-            "climakitae", "data/gwl_1850-1900ref.csv"
-        )
+        gwl_file = gwl_1850_1900_file
     else:
-        gwl_file = pkg_resources.resource_filename(
-            "climakitae", "data/gwl_1981-2010ref.csv"
-        )
-    gwl_times = pd.read_csv(gwl_file, index_col=[0, 1, 2])
+        gwl_file = gwl_1981_2010_file
+    gwl_times = read_csv_file(gwl_file, index_col=[0, 1, 2])
 
     # grab the ensemble members specific to our needs here
     sim_idx = []

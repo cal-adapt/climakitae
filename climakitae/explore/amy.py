@@ -26,15 +26,11 @@ import numpy as np
 import pandas as pd
 import param
 import panel as pn
-import warnings
-import pkg_resources
-from .utils import _read_ae_colormap, _julianDay_to_str_date
-from .catalog_convert import (
-    _resolution_to_gridlabel,
-    _timescale_to_table_id,
-    _scenario_to_experiment_id,
-)
-from .data_loaders import _read_catalog_from_select
+
+from climakitae.core.data_interface import DataParametersWithPanes
+from climakitae.core.data_load import read_catalog_from_select
+from climakitae.util.utils import read_ae_colormap, julianDay_to_str_date
+
 from tqdm.auto import tqdm  # Progress bar
 import logging  # Silence warnings
 
@@ -72,8 +68,7 @@ def _set_amy_year_inputs(year_start, year_end):
 
 
 def _retrieve_meteo_yr_data(
-    selections=None,
-    _cat=None,
+    self,
     ssp=None,
     year_start=2015,
     year_end=None,
@@ -86,11 +81,9 @@ def _retrieve_meteo_yr_data(
 
     Parameters
     ----------
-    selections: DataSelector
-        Data settings (variable, unit, timescale, etc)
-    _cat: intake_esm.core.esm_datastore
-        AE data catalog
-    ssp: str, one of "SSP 2-4.5 -- Middle of the Road", "SSP 2-4.5 -- Middle of the Road", "SSP 3-7.0 -- Business as Usual", "SSP 5-8.5 -- Burn it All"
+    self: AverageMetYearParameters
+    ssp: str
+        one of "SSP 2-4.5 -- Middle of the Road", "SSP 2-4.5 -- Middle of the Road", "SSP 3-7.0 -- Business as Usual", "SSP 5-8.5 -- Burn it All"
         Shared Socioeconomic Pathway. Defaults to SSP 3-7.0 -- Business as Usual
     year_start: int, optional
         Year between 1980-2095. Default to 2015
@@ -103,37 +96,37 @@ def _retrieve_meteo_yr_data(
         Hourly ensemble means from year_start-year_end for the ssp specified.
     """
     # Ensure only WRF data is being used
-    selections.downscaling_method = ["Dynamical"]
+    self.downscaling_method = ["Dynamical"]
 
     # Save units. Sometimes they get lost.
-    units = selections.units
+    units = self.units
 
     # Check year start and end inputs
     year_start, year_end = _set_amy_year_inputs(year_start, year_end)
 
     # Set scenario selections
     if (ssp is not None) and (year_end >= 2015):
-        selections.scenario_ssp = [ssp]
+        self.scenario_ssp = [ssp]
     if year_end < 2015:
-        selections.scenario_ssp = []
-    elif (year_end >= 2015) and (selections.scenario_ssp) == []:
-        selections.scenario_ssp = ["SSP 3-7.0 -- Business as Usual"]  # Default
+        self.scenario_ssp = []
+    elif (year_end >= 2015) and (self.scenario_ssp) == []:
+        self.scenario_ssp = ["SSP 3-7.0 -- Business as Usual"]  # Default
     if year_start < 2015:  # Append historical data
-        selections.scenario_historical = ["Historical Climate"]
+        self.scenario_historical = ["Historical Climate"]
     else:
-        selections.scenario_historical = []
-    if len(selections.scenario_ssp) > 1:
-        selections.scenario_ssp == selections.scenario_ssp[0]
+        self.scenario_historical = []
+    if len(self.scenario_ssp) > 1:
+        self.scenario_ssp == self.scenario_ssp[0]
 
     # Set other data parameters
-    selections.simulation = ["ensmean"]
-    selections.time_slice = (year_start, year_end)
-    selections.area_average = "Yes"
-    selections.timescale = "hourly"
-    selections.units = units
+    self.simulation = ["ensmean"]
+    self.time_slice = (year_start, year_end)
+    self.area_average = "Yes"
+    self.timescale = "hourly"
+    self.units = units
 
     # Grab data from the catalog
-    amy_data = _read_catalog_from_select(selections=selections, cat=_cat)
+    amy_data = read_catalog_from_select(self)
     if amy_data is None:
         # Catch small spatial resolutions
         raise ValueError(
@@ -168,7 +161,7 @@ def _format_meteo_yr_df(df):
     else:
         leap_year = False
     new_index = [
-        _julianDay_to_str_date(julday, leap_year=leap_year, str_format="%b-%d")
+        julianDay_to_str_date(julday, leap_year=leap_year, str_format="%b-%d")
         for julday in df.index
     ]
     df.index = pd.Index(new_index, name="Day of Year")
@@ -342,7 +335,7 @@ def meteo_yr_heatmap(
     # Set colormap if it's an ae colormap
     # If using hvplot, set cmap_hex = True
     if cmap in ["ae_orange", "ae_diverging", "ae_blue"]:
-        cmap = _read_ae_colormap(cmap=cmap, cmap_hex=True)
+        cmap = read_ae_colormap(cmap=cmap, cmap_hex=True)
 
     # Set yticks
     idx = [
@@ -402,7 +395,7 @@ def meteo_yr_heatmap_static(
     # Set colormap if it's an ae colormap
     # If using hvplot, set cmap_hex = True
     if cmap in ["ae_orange", "ae_diverging", "ae_blue"]:
-        cmap = _read_ae_colormap(cmap=cmap, cmap_hex=False)
+        cmap = read_ae_colormap(cmap=cmap, cmap_hex=False)
 
     fig, ax = plt.subplots(1, 1, figsize=(9, 5))
     heatmap = ax.imshow(
@@ -525,9 +518,9 @@ def lineplot_from_amy_data(
 # =========================== MAIN AVERAGE METEO YR OBJECT ==============================
 
 
-class _AverageMeteorologicalYear(param.Parameterized):
+class AverageMetYearParameters(DataParametersWithPanes):
     """
-    An object that holds the "Data Options" paramters for the
+    An object that holds the "Data Options" parameters for the
     explore.tmy panel.
     """
 
@@ -566,9 +559,9 @@ class _AverageMeteorologicalYear(param.Parameterized):
     }
 
     # Define TMY params
-    data_type = param.Selector(default="Absolute", objects=["Absolute", "Difference"])
+    amy_type = param.Selector(default="Absolute", objects=["Absolute", "Difference"])
 
-    # Define new advanced options param, that is dependent on the user selection in data_type
+    # Define new advanced options param, that is dependent on the user selection in amy_type
     computation_method = param.Selector(objects=dict())
 
     # Define new computation description param
@@ -593,91 +586,89 @@ class _AverageMeteorologicalYear(param.Parameterized):
         super().__init__(*args, **params)
 
         # Location defaults
-        self.selections.area_subset = "CA counties"
-        self.selections.cached_area = "Los Angeles County"
+        self.area_subset = "CA counties"
+        self.cached_area = ["Los Angeles County"]
 
         # Initialze tmy_adanced_options param
         self.param["computation_method"].objects = self.tmy_advanced_options_dict[
-            self.data_type
+            self.amy_type
         ]["objects"]
-        self.computation_method = self.tmy_advanced_options_dict[self.data_type][
+        self.computation_method = self.tmy_advanced_options_dict[self.amy_type][
             "default"
         ]
 
         # Initialize tmy_computation_description param
         self.tmy_computation_description = self.computatation_description_dict[
-            self.data_type
+            self.amy_type
         ][self.computation_method]
 
         # Postage data and anomalies defaults
         self.historical_tmy_data = _retrieve_meteo_yr_data(
-            selections=self.selections,
-            _cat=self.cat,
+            self,
             year_start=1981,
             year_end=2010,
         ).compute()
         self.future_tmy_data = _retrieve_meteo_yr_data(
-            _cat=self.cat,
-            selections=self.selections,
+            self,
             year_start=self.warming_year_average_range[self.warmlevel][0],
             year_end=self.warming_year_average_range[self.warmlevel][1],
         ).compute()
 
         # Colormap
-        self.cmap = _read_ae_colormap(cmap="ae_orange", cmap_hex=True)
+        self.cmap = read_ae_colormap(cmap="ae_orange", cmap_hex=True)
 
         # Selectors defaults
-        self.selections.downscaling_method = ["Dynamical"]
-        self.selections.append_historical = "No"
-        self.selections.area_average = "Yes"
-        self.selections.resolution = "45 km"
-        self.selections.scenario_historical = ["Historical Climate"]
-        self.selections.scenario_ssp = []
-        self.selections.time_slice = (1981, 2010)
-        self.selections.timescale = "hourly"
-        self.selections.variable = "Air Temperature at 2m"
-        self.selections.simulation = ["ensmean"]
+        self.downscaling_method = ["Dynamical"]
+        self.append_historical = "No"
+        self.area_average = "Yes"
+        self.resolution = "45 km"
+        self.scenario_historical = ["Historical Climate"]
+        self.scenario_ssp = []
+        self.time_slice = (1981, 2010)
+        self.timescale = "hourly"
+        self.variable = "Air Temperature at 2m"
+        self.simulation = ["ensmean"]
 
     # For reloading data and plots
     reload_data = param.Action(
         lambda x: x.param.trigger("reload_data"), label="Reload Data"
     )
 
-    @param.depends("selections.variable", "data_type", watch=True)
+    @param.depends("variable", "amy_type", watch=True)
     def _update_cmap(self):
         """Set colormap depending on variable"""
-        cmap_name = self.var_config[
-            (self.var_config["display_name"] == self.selections.variable)
-            & (self.var_config["timescale"] == "hourly")
+        cmap_name = self._variable_descriptions[
+            (self._variable_descriptions["display_name"] == self.variable)
+            & (self._variable_descriptions["timescale"] == "hourly")
         ].colormap.values[0]
 
         # Set to diverging colormap if difference is selected
-        if self.data_type == "Difference":
+        if self.amy_type == "Difference":
             cmap_name = "ae_diverging"
 
         # Read colormap hex
-        self.cmap = _read_ae_colormap(cmap=cmap_name, cmap_hex=True)
+        self.cmap = read_ae_colormap(cmap=cmap_name, cmap_hex=True)
 
     @param.depends("computation_method", "reload_data", "warmlevel", watch=True)
     def _update_data_to_be_returned(self):
-        """Update self.selections so that the correct data is returned by app.retrieve()"""
+        """Update self so that the correct data is returned by DataParameters.retrieve()"""
 
-        self.selections.downscaling_method = ["Dynamical"]
+        self.downscaling_method = ["Dynamical"]
 
         if self.computation_method == "Historical":
-            self.selections.scenario_historical = ["Historical Climate"]
-            self.selections.scenario_ssp = []
-            self.selections.time_slice = (1981, 2010)
+            self.scenario_historical = ["Historical Climate"]
+            self.scenario_ssp = []
+            self.time_slice = (1981, 2010)
 
         elif self.computation_method == "Warming Level Future":
-            self.selections.scenario_ssp = ["SSP 3-7.0 -- Business as Usual"]
-            self.selections.scenario_historical = []
-            self.selections.time_slice = self.warming_year_average_range[self.warmlevel]
+            self.scenario_ssp = ["SSP 3-7.0 -- Business as Usual"]
+            self.scenario_historical = []
+            self.time_slice = self.warming_year_average_range[self.warmlevel]
 
-        self.selections.simulation = ["ensmean"]
-        self.selections.append_historical = False
-        self.selections.area_average = "Yes"
-        self.selections.timescale = "hourly"
+        self.simulation = ["ensmean"]
+        self.append_historical = False
+        self.area_average = "Yes"
+        self.timescale = "hourly"
 
     @param.depends("reload_data", watch=True)
     def _update_tmy_data(self):
@@ -685,84 +676,97 @@ class _AverageMeteorologicalYear(param.Parameterized):
         reload the tmy data from AWS"""
 
         self.historical_tmy_data = _retrieve_meteo_yr_data(
-            selections=self.selections,
-            _cat=self.cat,
+            self,
             year_start=1981,
             year_end=2010,
         ).compute()
         self.future_tmy_data = _retrieve_meteo_yr_data(
-            _cat=self.cat,
-            selections=self.selections,
+            self,
             year_start=self.warming_year_average_range[self.warmlevel][0],
             year_end=self.warming_year_average_range[self.warmlevel][1],
         ).compute()
 
-    # Create a function that will update computation_method when data_type is modified
-    @param.depends("data_type", watch=True)
+    # Create a function that will update computation_method when amy_type is modified
+    @param.depends("amy_type", watch=True)
     def _update_computation_method(self):
         self.param["computation_method"].objects = self.tmy_advanced_options_dict[
-            self.data_type
+            self.amy_type
         ]["objects"]
-        self.computation_method = self.tmy_advanced_options_dict[self.data_type][
+        self.computation_method = self.tmy_advanced_options_dict[self.amy_type][
             "default"
         ]
 
-    @param.depends("data_type", "computation_method", watch=True)
+    @param.depends("amy_type", "computation_method", watch=True)
     def _update_tmy_computatation_description(self):
         self.tmy_computation_description = self.computatation_description_dict[
-            self.data_type
+            self.amy_type
         ][self.computation_method]
 
     @param.depends("reload_data", watch=False)
     def _tmy_hourly_heatmap(self):
         # update heatmap df and title with selections
+        if len(self.cached_area) == 1:
+            cached_area_str = self.cached_area[0]
+        elif len(self.cached_area) == 2:
+            if self.area_subset == "states":
+                cached_area_str = " ".join(self.cached_area)
+            elif self.area_subset == "CA counties":
+                names = [name.split(" County")[0] for name in self.cached_area]
+                cached_area_str = "{} and {} Counties".format(names[0], names[1])
+            elif self.area_subset == "CA watersheds":
+                cached_area_str = "{} and {} Watersheds".format(
+                    self.cached_area[0], self.cached_area[1]
+                )
+            else:
+                cached_area_str = " and ".join(self.cached_area)
+        else:
+            cached_area_str = "Selected {}".format(self.area_subset)
+
+        # add new line if `cached_area_str` is too long
+        if len(cached_area_str) > 40:
+            cached_area_str = "\n" + cached_area_str
+
         days_in_year = 366
-        if self.data_type == "Absolute":
+        if self.amy_type == "Absolute":
             if self.computation_method == "Historical":
                 df = compute_amy(self.historical_tmy_data, days_in_year=days_in_year)
                 title = "Average Meteorological Year: {}\nAbsolute {} Baseline".format(
-                    self.selections.cached_area, self.computation_method
+                    cached_area_str, self.computation_method
                 )
                 clabel = (
-                    self.selections.variable
-                    + " ("
-                    + self.historical_tmy_data.attrs["units"]
-                    + ")"
+                    self.variable + " (" + self.historical_tmy_data.attrs["units"] + ")"
                 )
             else:
                 df = compute_amy(self.future_tmy_data, days_in_year=days_in_year)
                 title = "Average Meteorological Year: {}\nAbsolute {} at {}°C".format(
-                    self.selections.cached_area, self.computation_method, self.warmlevel
+                    cached_area_str, self.computation_method, self.warmlevel
                 )
-                clabel = self.selections.variable + " (" + self.selections.units + ")"
-        elif self.data_type == "Difference":
-            cmap = _read_ae_colormap("ae_diverging", cmap_hex=True)
+                clabel = self.variable + " (" + self.units + ")"
+        elif self.amy_type == "Difference":
+            cmap = read_ae_colormap("ae_diverging", cmap_hex=True)
             if self.computation_method == "Warming Level Future":
                 df = compute_amy(
                     self.future_tmy_data, days_in_year=days_in_year
                 ) - compute_amy(self.historical_tmy_data, days_in_year=days_in_year)
                 title = "Average Meteorological Year: {}\nDifference between {} at {}°C and Historical Baseline".format(
-                    self.selections.cached_area, self.computation_method, self.warmlevel
+                    cached_area_str, self.computation_method, self.warmlevel
                 )
-                clabel = self.selections.variable + " (" + self.selections.units + ")"
+                clabel = self.variable + " (" + self.units + ")"
             else:
                 df = compute_severe_yr(
                     self.future_tmy_data, days_in_year=days_in_year
                 ) - compute_amy(self.historical_tmy_data, days_in_year=days_in_year)
                 title = "Severe Meteorological Year: {}\nDifference between {} at 90th percentile and Historical Baseline".format(
-                    self.selections.cached_area, self.computation_method
+                    cached_area_str, self.computation_method
                 )
-                clabel = self.selections.variable + " (" + self.selections.units + ")"
+                clabel = self.variable + " (" + self.units + ")"
         else:
-            title = "Average Meteorological Year\n{}".format(
-                self.selections.cached_area
-            )
-
+            title = "Average Meteorological Year for\n{}".format(cached_area_str)
         heatmap = meteo_yr_heatmap(
             meteo_yr_df=df,
             title=title,
             cmap=self.cmap,
-            clabel=self.selections.variable + "(" + self.selections.units + ")",
+            clabel=self.variable + "(" + self.units + ")",
         )
 
         return heatmap
@@ -771,7 +775,7 @@ class _AverageMeteorologicalYear(param.Parameterized):
 # =========================== OBJECT VISUALIZATION USING PARAM ==============================
 
 
-def _amy_visualize(tmy_ob, selections):
+def amy_visualize(self):
     """
     Creates a new AMY focus panel object to display user selections
     """
@@ -781,35 +785,33 @@ def _amy_visualize(tmy_ob, selections):
                 pn.widgets.StaticText(
                     name="", value="Average Meteorological Year Type"
                 ),
-                pn.widgets.RadioButtonGroup.from_param(tmy_ob.param.data_type),
+                pn.widgets.RadioButtonGroup.from_param(self.param.amy_type),
                 pn.widgets.Select.from_param(
-                    tmy_ob.param.computation_method, name="Computation Options"
+                    self.param.computation_method, name="Computation Options"
                 ),
                 pn.widgets.StaticText.from_param(
-                    tmy_ob.param.tmy_computation_description, name=""
+                    self.param.tmy_computation_description, name=""
                 ),
                 pn.widgets.StaticText(name="", value="Warming level (°C)"),
-                pn.widgets.RadioButtonGroup.from_param(tmy_ob.param.warmlevel),
-                pn.widgets.Select.from_param(
-                    selections.param.variable, name="Data variable"
-                ),
+                pn.widgets.RadioButtonGroup.from_param(self.param.warmlevel),
+                pn.widgets.Select.from_param(self.param.variable, name="Data variable"),
                 pn.widgets.StaticText.from_param(
-                    selections.param.extended_description, name=""
+                    self.param.extended_description, name=""
                 ),
                 pn.widgets.StaticText(name="", value="Variable Units"),
-                pn.widgets.RadioButtonGroup.from_param(selections.param.units),
+                pn.widgets.RadioButtonGroup.from_param(self.param.units),
                 pn.widgets.StaticText(name="", value="Model Resolution"),
-                pn.widgets.RadioButtonGroup.from_param(selections.param.resolution),
+                pn.widgets.RadioButtonGroup.from_param(self.param.resolution),
                 width=280,
             ),
             pn.Column(
-                selections.param.area_subset,
-                selections.param.latitude,
-                selections.param.longitude,
-                selections.param.cached_area,
-                selections.map_view,
+                self.param.area_subset,
+                self.param.latitude,
+                self.param.longitude,
+                self.param.cached_area,
+                self.map_view,
                 pn.widgets.Button.from_param(
-                    tmy_ob.param.reload_data,
+                    self.param.reload_data,
                     button_type="primary",
                     width=150,
                     height=30,
@@ -841,11 +843,14 @@ def _amy_visualize(tmy_ob, selections):
 
     TMY = pn.Card(
         pn.widgets.StaticText(value="Absolute AMY", width=600, height=500),
-        tmy_ob._tmy_hourly_heatmap,
+        self._tmy_hourly_heatmap,
     )
 
     tmy_tabs = pn.Card(
-        pn.Tabs(("AMY Heatmap", tmy_ob._tmy_hourly_heatmap), ("Methodology", mthd_bx)),
+        pn.Tabs(
+            ("AMY Heatmap", self._tmy_hourly_heatmap),
+            ("Methodology", mthd_bx),
+        ),
         title=" Average Meteorological Year",
         width=725,
         collapsible=False,

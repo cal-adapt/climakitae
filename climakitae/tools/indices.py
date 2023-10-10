@@ -17,7 +17,7 @@ def effective_temp(T):
 
     Returns
     --------
-    xr.DataArray
+    eft: xr.DataArray
         Effective temperature
 
     References
@@ -58,7 +58,7 @@ def noaa_heat_index(T, RH):
 
     Returns
     --------
-    xr.DataArray
+    HI: xr.DataArray
         Heat index per timestep
 
     References
@@ -134,7 +134,7 @@ def fosberg_fire_index(t2_F, rh_percent, windspeed_mph):
 
     Returns
     -------
-    xr.DataArray
+    FFWI: xr.DataArray
         Fosberg Fire Weather Index computed for each grid cell
 
     References
@@ -185,14 +185,21 @@ def _equilibrium_moisture_constant(h, T):
     Used to compute Fosberg Fire Weather Index.
     Will return three values corresponding to the level of humidity.
 
-    Args:
-        h (xr.DataArray): relative humidity in units of 0-100 (percent)
-        T (xr.DataArray): air temperature in units of Fahrenheit
+    Parameters
+    ----------
+    h: xr.DataArray
+        relative humidity in units of 0-100 (percent)
+    T: xr.DataArray
+        air temperature in units of Fahrenheit
 
-    Returns:
-        m_low (xr.DataArray): equilibrium moisture constant for low humidity (<10%)
-        m_mid (xr.DataArray): equilibrium moisture constant for 10% < humidity <= 50%
-        m_high (xr.DataArray): equilibrium moisture constant for high humidity (>50%)
+    Returns
+    -------
+    m_low: xr.DataArray
+        equilibrium moisture constant for low humidity (<10%)
+    m_mid: xr.DataArray
+        equilibrium moisture constant for 10% < humidity <= 50%
+    m_high: xr.DataArray
+        equilibrium moisture constant for high humidity (>50%)
 
     """
     # h < 10: Low humidity
@@ -211,8 +218,10 @@ def _moisture_dampening_coeff(m):
     """Compute the moisture dampening coefficient.
     Used to compute Fosberg Fire Weather Index.
 
-    Args:
-        m (xr.DataArray): equilibrium moisture constant
+    Parameters
+    ----------
+    m: xr.DataArray
+        equilibrium moisture constant
 
     """
     n = 1 - 2 * (m / 30) + 1.5 * (m / 30) ** 2 - 0.5 * (m / 30) ** 3
