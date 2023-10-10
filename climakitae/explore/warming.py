@@ -60,7 +60,6 @@ class WarmingLevels:
     def choose_data(self):
         return warming_levels_select(self.wl_params)
 
-    # @dask.delayed
     def find_warming_slice(self, level, gwl_times):
         """
         Find the warming slice data for the current level from the catalog data.
@@ -72,19 +71,20 @@ class WarmingLevels:
             window=self.wl_params.window,
             anom=self.wl_params.anom,
         )
-        warming_data = warming_data.expand_dims({"warming_level": [level]})
+        warming_data = warming_data.expand_dims({'warming_level': [level]})
 
         # Cleaning data
         warming_data = clean_warm_data(warming_data)
 
         # Relabeling `all_sims` dimension
-        new_warm_data = warming_data.drop("all_sims")
-        new_warm_data["all_sims"] = relabel_axis(warming_data["all_sims"])
+        new_warm_data = warming_data.drop('all_sims')
+        new_warm_data['all_sims'] = relabel_axis(warming_data['all_sims'])
 
         # Adding warming data to dictionary of data
         # self.sliced_data[level] = warming_data
         return new_warm_data
-
+    
+    
     def calculate(self):
         # manually reset to all SSPs, in case it was inadvertently changed by
         # temporarily have ['Dynamical','Statistical'] for downscaling_method
@@ -105,12 +105,23 @@ class WarmingLevels:
             self.gwl_times = read_csv_file(gwl_1850_1900_file, index_col=[0, 1, 2])
         self.gwl_times = self.gwl_times.dropna(how="all")
         self.catalog_data = clean_list(self.catalog_data, self.gwl_times)
+        
         self.sliced_data = {}
-        warming_levels = ["1.5", "2.0", "3.0", "4.0"]
+        warming_levels = ['1.5','2.0','3.0','4.0']
         for level in warming_levels:
+
             # Assign warming slices to dask computation graph
             self.sliced_data[level] = self.find_warming_slice(level, self.gwl_times)
-
+            
+        #####
+        # Different actionable changes to take from here:
+        #     1. Split up code into separate function calls that each can be @dask.delayed and then call dask.compute on all
+        #     2. Rechunk the data arrays into sizes that reduce number of individual tasks needed
+        #     3. Parallelize for loop by adding all objects into list of dask.delayed objects, and then calling dask.compute
+        #     4. Find a way to free up space in between loops, which will reduce the amount of crashing that occurs from Dask
+        #     5. Rechunk/merge taking the longest time in between loops, look into why that is.
+        #####
+        
         # self.gwl_snapshots = self.sliced_data.reduce(np.nanmean, "time")
         # self.gwl_snapshots = self.gwl_snapshots.compute()
         # self.cmap = _get_cmap(self.wl_params)
@@ -162,15 +173,13 @@ def clean_warm_data(warm_data):
     """
     # Cleaning #1
     warm_data = warm_data.sel(all_sims=~warm_data.centered_year.isnull())
-
+    
     # Cleaning #2
-    warm_data = warm_data.isel(
-        time=slice(0, len(warm_data.time) - 1)
-    )  # -1 is just a placeholder for 30 year window, this could be more specific.
-
+    warm_data = warm_data.isel(time=slice(0, len(warm_data.time) - 1)) # -1 is just a placeholder for 30 year window, this could be more specific.
+    
     # Cleaning #3
-    warm_data = warm_data.dropna(dim="all_sims")
-
+    warm_data = warm_data.dropna(dim='all_sims')
+    
     return warm_data
 
 
@@ -199,42 +208,43 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
     gwl_times_subset = years.loc[process_item(y)]
     attrs_temp = y.attrs
     dims_temp = y.dims
-
+    
     # Checking if the centered year is null, if so, return dummy DataArray
     center_time = gwl_times_subset.loc[level]
     if not pd.isna(center_time):
+        
         # Find the centered year
         centered_year = pd.to_datetime(center_time).year
         start_year = centered_year - window
         end_year = centered_year + (window - 1)
-
+        
         if anom == "Yes":
             sliced = y.sel(time=slice(str(start_year), str(end_year))) - y.sel(
                 time=slice("1981", "2010")
             ).mean("time")
         else:
+            
             # Finding window slice of data
             sliced = y.sel(time=slice(str(start_year), str(end_year)))
-
+            
             # Resetting time index for each data array so they can overlap and save storage space
-            sliced["time"] = sliced.time - sliced.time[0]
-
+            sliced['time'] = sliced.time - sliced.time[0]
+            
             # Assigning `centered_year` as a coordinate to the DataArray
-            sliced = sliced.assign_coords({"centered_year": centered_year})
-
+            sliced = sliced.assign_coords({'centered_year': centered_year})
+            
         return sliced
-
+    
     else:
-        y = y.isel(
-            time=slice(0, window * 2 * 365)
-        )  # This is to create a dummy slice that conforms with other data structure. Can be re-written to something more elegant.
-
+        y = y.isel(time=slice(0, window*2*365)) # This is to create a dummy slice that conforms with other data structure. Can be re-written to something more elegant.
+        
         # Creating attributes
-        y["time"] = y.time - y.time[0]
-        y["centered_year"] = np.nan
-
+        y['time'] = y.time - y.time[0]
+        y['centered_year'] = np.nan
+        
         # Returning DataArray of NaNs to be dropped later.
         return xr.full_like(y, np.nan)
+
 
 
 def _get_cmap(wl_params):
