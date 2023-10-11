@@ -120,6 +120,7 @@ class WarmingLevels:
         #     3. Parallelize for loop by adding all objects into list of dask.delayed objects, and then calling dask.compute
         #     4. Find a way to free up space in between loops, which will reduce the amount of crashing that occurs from Dask
         #     5. Rechunk/merge taking the longest time in between loops, look into why that is.
+        #     6. Pass in chunks of `self.catalog_data` to the workers in dask instead of the whole thing at once (via Brian).
         #####
         
         # self.gwl_snapshots = self.sliced_data.reduce(np.nanmean, "time")
