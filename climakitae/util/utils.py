@@ -603,15 +603,12 @@ def convert_to_local_time(
         end + 1,
         end + 1,
     )  # This is assuming selections passed with be negative UTC time. Also to get the next year of data.
-
-    print("Retrieving data...")
     tz_data = tz_selections.retrieve()
 
     # 2. Combine the data
     total_data = xr.concat([data, tz_data], dim="time")
 
     # 3. Change datetime objects to local time
-    print("Converting to local time...")
     tf = TimezoneFinder()
     local_tz = tf.timezone_at(lat=lat, lng=lon)  # Finding local time zone
     dt_index = xr.CFTimeIndex(
@@ -650,6 +647,6 @@ def convert_to_local_time(
     end = data.time[-1].item()
     sliced_data = total_data.sel(time=slice(start, end))
 
-    print("Finished!")
+    print("Data converted to local timezone!")
 
     return sliced_data
