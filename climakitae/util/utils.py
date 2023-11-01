@@ -369,7 +369,7 @@ def compute_annual_aggreggate(data, name, num_grid_cells):
 
 
 def compute_multimodel_stats(data):
-    """Calculates model mean, min, max across simulations"""
+    """Calculates model mean, min, max, median across simulations"""
     # Compute mean across simulation dimensions and add is as a coordinate
     sim_mean = (
         data.mean(dim="simulation")
@@ -476,10 +476,5 @@ def summary_table(data, add_stats=True):
     
     df = df.unstack().unstack()
     df = df.sort_values(by=['year'])
-    
-    if add_stats==True:
-        df['sim_min'] = df.min(axis=1)
-        df['sim_median'] = df.median(axis=1)
-        df['sim_max'] = df.max(axis=1)
         
     return df
