@@ -393,33 +393,39 @@ def compute_multimodel_stats(data):
 
     # Compute multimodel median
     sim_median = (
-        data.median(dim='simulation')
+        data.median(dim="simulation")
         .assign_coords({"simulation": "simulation median"})
         .expand_dims("simulation")
     )
 
     # Add to main dataset
-    stats_concat = xr.concat([data, sim_mean, sim_min, sim_max, sim_median], dim="simulation")
+    stats_concat = xr.concat(
+        [data, sim_mean, sim_min, sim_max, sim_median], dim="simulation"
+    )
     return stats_concat
 
 
-def trendline(data, kind='mean'):
+def trendline(data, kind="mean"):
     """Calculates treadline of the multi-model mean or median"""
-    if kind=='mean':
+    if kind == "mean":
         if "simulation mean" not in data.simulation:
-            raise Exception("Invalid data provdied, please pass the multimodel mean stats")
+            raise Exception(
+                "Invalid data provdied, please pass the multimodel mean stats"
+            )
 
         data_sim_mean = data.sel(simulation="simulation mean")
         m, b = data_sim_mean.polyfit(dim="year", deg=1).polyfit_coefficients.values
         trendline = m * data_sim_mean.year + b  # y = mx + b
 
-    elif kind=='median':
+    elif kind == "median":
         if "simulation median" not in data.simulation:
-            raise Exception("Invalid data provided, please pass the multimodel median stats")
-    
+            raise Exception(
+                "Invalid data provided, please pass the multimodel median stats"
+            )
+
         data_sim_med = data.sel(simulation="simulation median")
-        m, b = data_sim_med.polyfit(dim='year', deg=1).polyfit_coefficients.values
-        trendline = m * data_sim_med.year + b # y = mx + b
+        m, b = data_sim_med.polyfit(dim="year", deg=1).polyfit_coefficients.values
+        trendline = m * data_sim_med.year + b  # y = mx + b
     trendline.name = "trendline"
     return trendline
 
@@ -468,13 +474,13 @@ def hdh_cdh_lineplot(data):
 
 ## Heat Index summary table helper
 def summary_table(data, add_stats=True):
-    '''Helper function to organize dataset object into a pandas dataframe for ease.
-    Adds min, median, and max value across simulations'''
-    
-    df = data.drop(['lakemask', 'landmask', 'lat', 'lon', 'Lambert_Conformal', 'x', 'y']).to_dataframe(
-        dim_order=['year', 'scenario', 'simulation'])
-    
+    """Helper function to organize dataset object into a pandas dataframe for ease."""
+
+    df = data.drop(
+        ["lakemask", "landmask", "lat", "lon", "Lambert_Conformal", "x", "y"]
+    ).to_dataframe(dim_order=["year", "scenario", "simulation"])
+
     df = df.unstack().unstack()
-    df = df.sort_values(by=['year'])
-        
+    df = df.sort_values(by=["year"])
+
     return df
