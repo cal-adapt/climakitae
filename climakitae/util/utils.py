@@ -503,7 +503,7 @@ def summary_table(data):
     """
 
     # Identify whether the temporal dimension is "time" or "year"
-    if 'time' in ds.dims:
+    if "time" in ds.dims:
         df = data.drop(
             ["lakemask", "landmask", "lat", "lon", "Lambert_Conformal", "x", "y"]
         ).to_dataframe(dim_order=["time", "scenario", "simulation"])
@@ -511,7 +511,7 @@ def summary_table(data):
         df = df.unstack().unstack()
         df = df.sort_values(by=["time"])
 
-    elif 'year' in ds.dims:
+    elif "year" in ds.dims:
         df = data.drop(
             ["lakemask", "landmask", "lat", "lon", "Lambert_Conformal", "x", "y"]
         ).to_dataframe(dim_order=["year", "scenario", "simulation"])
