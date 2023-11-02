@@ -407,20 +407,20 @@ def compute_multimodel_stats(data):
 
 def trendline(data, kind="mean"):
     """Calculates treadline of the multi-model mean or median.
-    
+
     Parameters
     ----------
     data: xr.Dataset
     kind: str (optional)
         Options are 'mean' and 'median'
-        
+
     Returns
     -------
     trendline: xr.Dataset
 
     Note
     ----
-    1. Development note: If an additional option to trendline 'kind' is required, 
+    1. Development note: If an additional option to trendline 'kind' is required,
     compute_multimodel_stats must be modified to update optionality.
     """
     if kind == "mean":
@@ -491,11 +491,11 @@ def hdh_cdh_lineplot(data):
 ## Heat Index summary table helper
 def summary_table(data):
     """Helper function to organize dataset object into a pandas dataframe for ease.
-    
+
     Parameters
     ----------
     data: xr.Dataset
-    
+
     Returns
     -------
     df: pd.DataFrame
