@@ -499,7 +499,7 @@ def summary_table(data):
     Returns
     -------
     df: pd.DataFrame
-        df is organized so that the simulations are stacked in individual columns by year
+        df is organized so that the simulations are stacked in individual columns by year/time
     """
 
     # Identify whether the temporal dimension is "time" or "year"
