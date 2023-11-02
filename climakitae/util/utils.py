@@ -406,11 +406,27 @@ def compute_multimodel_stats(data):
 
 
 def trendline(data, kind="mean"):
-    """Calculates treadline of the multi-model mean or median"""
+    """Calculates treadline of the multi-model mean or median.
+    
+    Parameters
+    ----------
+    data: xr.Dataset
+    kind: str (optional)
+        Options are 'mean' and 'median'
+        
+    Returns
+    -------
+    trendline: xr.Dataset
+
+    Note
+    ----
+    1. Development note: If an additional option to trendline 'kind' is required, 
+    compute_multimodel_stats must be modified to update optionality.
+    """
     if kind == "mean":
         if "simulation mean" not in data.simulation:
             raise Exception(
-                "Invalid data provdied, please pass the multimodel mean stats"
+                "Invalid data provdied, please pass the multimodel stats from compute_multimodel_stats"
             )
 
         data_sim_mean = data.sel(simulation="simulation mean")
@@ -420,7 +436,7 @@ def trendline(data, kind="mean"):
     elif kind == "median":
         if "simulation median" not in data.simulation:
             raise Exception(
-                "Invalid data provided, please pass the multimodel median stats"
+                "Invalid data provided, please pass the multimodel stats from compute_multimodel_stats"
             )
 
         data_sim_med = data.sel(simulation="simulation median")
@@ -473,8 +489,18 @@ def hdh_cdh_lineplot(data):
 
 
 ## Heat Index summary table helper
-def summary_table(data, add_stats=True):
-    """Helper function to organize dataset object into a pandas dataframe for ease."""
+def summary_table(data):
+    """Helper function to organize dataset object into a pandas dataframe for ease.
+    
+    Parameters
+    ----------
+    data: xr.Dataset
+    
+    Returns
+    -------
+    df: pd.DataFrame
+        df is organized so that the simulations are stacked in individual columns by year
+    """
 
     df = data.drop(
         ["lakemask", "landmask", "lat", "lon", "Lambert_Conformal", "x", "y"]
