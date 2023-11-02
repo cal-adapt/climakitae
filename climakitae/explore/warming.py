@@ -960,48 +960,62 @@ def fit_models_and_plots(new_data, trad_data, dist_name):
     Given a xr.DataArray and a distribution name, fit the distribution to the data, and generate
     a plot denoting a histogram of the data and the fitted distribution to the data.
     """
-    plt.figure(figsize=(10,5))
-    
+    plt.figure(figsize=(10, 5))
+
     # Get and fit distribution for new method data and traditional method data
     func = threshold_tools._get_distr_func(dist_name)
     new_fitted_dist = threshold_tools._get_fitted_distr(new_data, dist_name, func)
     trad_fitted_dist = threshold_tools._get_fitted_distr(trad_data, dist_name, func)
-    
+
     # Get params from distribution
     new_params = new_fitted_dist[0].values()
     trad_params = trad_fitted_dist[0].values()
-    
+
     # Create histogram for new method data and traditional method data
     counts, bins = np.histogram(new_data)
-    plt.hist(bins[:-1], 5, weights=counts/sum(counts), label='New GWL counts', lw=3, fc=(1, 0, 0, 0.5))
-    
+    plt.hist(
+        bins[:-1],
+        5,
+        weights=counts / sum(counts),
+        label="New GWL counts",
+        lw=3,
+        fc=(1, 0, 0, 0.5),
+    )
+
     counts, bins = np.histogram(trad_data)
-    plt.hist(bins[:-1], 5, weights=counts/sum(counts), label='Traditional counts', lw=3, fc=(0, 0, 1, 0.5))
+    plt.hist(
+        bins[:-1],
+        5,
+        weights=counts / sum(counts),
+        label="Traditional counts",
+        lw=3,
+        fc=(0, 0, 1, 0.5),
+    )
 
     # Plotting pearson3 PDFs
     skew, loc, scale = new_params
-    x = np.linspace(func.ppf(0.01, skew),func.ppf(0.99, skew), 5000)
-    plt.plot(x, func.pdf(x, skew), 'r-', lw=2, alpha=0.6, label='pearson3 curve new')
+    x = np.linspace(func.ppf(0.01, skew), func.ppf(0.99, skew), 5000)
+    plt.plot(x, func.pdf(x, skew), "r-", lw=2, alpha=0.6, label="pearson3 curve new")
     new_left, new_right = pearson3.interval(0.95, skew, loc, scale)
 
     skew, loc, scale = trad_params
-    x = np.linspace(func.ppf(0.01, skew),func.ppf(0.99, skew), 5000)
-    plt.plot(x, func.pdf(x, skew), 'b-', lw=2, alpha=0.6, label='pearson3 curve trad.')
+    x = np.linspace(func.ppf(0.01, skew), func.ppf(0.99, skew), 5000)
+    plt.plot(x, func.pdf(x, skew), "b-", lw=2, alpha=0.6, label="pearson3 curve trad.")
     trad_left, trad_right = pearson3.interval(0.95, skew, loc, scale)
-    
+
     # Plotting confidence intervals
-    plt.axvline(new_left, color='r', linestyle='dashed', label='95% CI new')
-    plt.axvline(new_right, color='r', linestyle='dashed')
-    plt.axvline(trad_left, color='b', linestyle='dashed', label='95% CI trad.')
-    plt.axvline(trad_right, color='b', linestyle='dashed')
-    
+    plt.axvline(new_left, color="r", linestyle="dashed", label="95% CI new")
+    plt.axvline(new_right, color="r", linestyle="dashed")
+    plt.axvline(trad_left, color="b", linestyle="dashed", label="95% CI trad.")
+    plt.axvline(trad_right, color="b", linestyle="dashed")
+
     # Plotting rest of chart attributes
-    plt.xlabel('Log of Extreme Heat Days Count')
-    plt.ylabel('Probability Density')
+    plt.xlabel("Log of Extreme Heat Days Count")
+    plt.ylabel("Probability Density")
     plt.legend()
-    plt.title('Fitting Pearson3 Distributions to Log-Scaled Extreme Heat Days Counts')
+    plt.title("Fitting Pearson3 Distributions to Log-Scaled Extreme Heat Days Counts")
     plt.xlim(left=0.5, right=max(max(new_data), max(trad_data)))
     plt.ylim(top=1)
     plt.show()
-    
+
     return new_params, trad_params
