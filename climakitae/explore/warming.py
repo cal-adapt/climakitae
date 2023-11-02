@@ -85,9 +85,6 @@ class WarmingLevels:
         # Relabeling `all_sims` dimension
         new_warm_data = warming_data.drop("all_sims")
         new_warm_data["all_sims"] = relabel_axis(warming_data["all_sims"])
-
-        # Adding warming data to dictionary of data
-        # self.sliced_data[level] = warming_data
         return new_warm_data
 
     def calculate(self):
@@ -120,19 +117,6 @@ class WarmingLevels:
             self.gwl_snapshots[level] = warm_slice.reduce(np.nanmean, "time").compute()
 
         self.gwl_snapshots = xr.concat(self.gwl_snapshots.values(), dim="warming_level")
-
-        #####
-        # Different actionable changes to take from here:
-        #     1. Split up code into separate function calls that each can be @dask.delayed and then call dask.compute on all
-        #     2. Rechunk the data arrays into sizes that reduce number of individual tasks needed
-        #     3. Parallelize for loop by adding all objects into list of dask.delayed objects, and then calling dask.compute
-        #     4. Find a way to free up space in between loops, which will reduce the amount of crashing that occurs from Dask
-        #     5. Rechunk/merge taking the longest time in between loops, look into why that is.
-        #     6. Pass in chunks of `self.catalog_data` to the workers in dask instead of the whole thing at once (via Brian).
-        #####
-
-        # self.gwl_snapshots = self.sliced_data.reduce(np.nanmean, "time")
-        # self.gwl_snapshots = self.gwl_snapshots.compute()
         self.cmap = _get_cmap(self.wl_params)
         self.wl_viz = WarmingLevelVisualize(
             gwl_snapshots=self.gwl_snapshots,
