@@ -942,7 +942,8 @@ def _bias_correct_model_data(
         # Input data, sliced to time period of observational data
         gridded_da.sel(
             time=slice(
-                str(obs_da.time.values[0].astype('datetime64[Y]')), str(obs_da.time.values[-1].astype('datetime64[Y]'))
+                str(obs_da.time.values[0].astype("datetime64[Y]")),
+                str(obs_da.time.values[-1].astype("datetime64[Y]")),
             )
         ),
         nquantiles=nquantiles,
