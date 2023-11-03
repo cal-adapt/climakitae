@@ -12,7 +12,6 @@ import warnings
 from functools import partial
 from ast import literal_eval
 from shapely.geometry import box
-from xclim.core.calendar import convert_calendar
 from xclim.sdba import Grouper
 from xclim.sdba.adjustment import QuantileDeltaMapping
 from climakitae.core.boundaries import Boundaries
@@ -933,8 +932,8 @@ def _bias_correct_model_data(
     gridded_da = gridded_da.chunk(dict(time=-1))
     obs_da = obs_da.chunk(dict(time=-1))
     # Convert calendar to no leap year
-    obs_da = convert_calendar(obs_da, "noleap")
-    gridded_da = convert_calendar(gridded_da, "noleap")
+    obs_da = xr.convert_calendar(obs_da, "noleap")
+    gridded_da = xr.convert_calendar(gridded_da, "noleap")
     # Data at the desired time slice
     data_sliced = gridded_da.sel(time=slice(str(time_slice[0]), str(time_slice[1])))
     # Get QDS
