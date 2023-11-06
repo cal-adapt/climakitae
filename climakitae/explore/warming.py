@@ -835,9 +835,9 @@ def warming_levels_visualize(wl_viz):
     postage_stamps_MAIN = pn.Column(
         pn.widgets.StaticText(
             value=(
-                "Panels show the 30-year average centered on the year that each"
-                "GCM run (each panel) reaches the specified warming level."
-                "If you selected 'Yes' to return an anomaly, you will see the difference"
+                "Panels show the 30-year average centered on the year that each "
+                "GCM run (each panel) reaches the specified warming level. "
+                "If you selected 'Yes' to return an anomaly, you will see the difference "
                 "from average over the 1981-2010 historical reference period."
             ),
             width=800,
