@@ -372,7 +372,7 @@ def compute_annual_aggreggate(data, name, num_grid_cells):
 
 
 def compute_multimodel_stats(data):
-    """Calculates model mean, min, max across simulations"""
+    """Calculates model mean, min, max, median across simulations"""
     # Compute mean across simulation dimensions and add is as a coordinate
     sim_mean = (
         data.mean(dim="simulation")
@@ -394,19 +394,57 @@ def compute_multimodel_stats(data):
         .expand_dims("simulation")
     )
 
+    # Compute multimodel median
+    sim_median = (
+        data.median(dim="simulation")
+        .assign_coords({"simulation": "simulation median"})
+        .expand_dims("simulation")
+    )
+
     # Add to main dataset
-    stats_concat = xr.concat([data, sim_mean, sim_min, sim_max], dim="simulation")
+    stats_concat = xr.concat(
+        [data, sim_mean, sim_min, sim_max, sim_median], dim="simulation"
+    )
     return stats_concat
 
 
-def trendline(data):
-    """Calculates treadline of the multi-model mean"""
-    if "simulation mean" not in data.simulation:
-        raise Exception("Invalid data provdied, please pass the multimodel mean stats")
+def trendline(data, kind="mean"):
+    """Calculates treadline of the multi-model mean or median.
 
-    data_sim_mean = data.sel(simulation="simulation mean")
-    m, b = data_sim_mean.polyfit(dim="year", deg=1).polyfit_coefficients.values
-    trendline = m * data_sim_mean.year + b  # y = mx + b
+    Parameters
+    ----------
+    data: xr.Dataset
+    kind: str (optional)
+        Options are 'mean' and 'median'
+
+    Returns
+    -------
+    trendline: xr.Dataset
+
+    Note
+    ----
+    1. Development note: If an additional option to trendline 'kind' is required,
+    compute_multimodel_stats must be modified to update optionality.
+    """
+    if kind == "mean":
+        if "simulation mean" not in data.simulation:
+            raise Exception(
+                "Invalid data provdied, please pass the multimodel stats from compute_multimodel_stats"
+            )
+
+        data_sim_mean = data.sel(simulation="simulation mean")
+        m, b = data_sim_mean.polyfit(dim="year", deg=1).polyfit_coefficients.values
+        trendline = m * data_sim_mean.year + b  # y = mx + b
+
+    elif kind == "median":
+        if "simulation median" not in data.simulation:
+            raise Exception(
+                "Invalid data provided, please pass the multimodel stats from compute_multimodel_stats"
+            )
+
+        data_sim_med = data.sel(simulation="simulation median")
+        m, b = data_sim_med.polyfit(dim="year", deg=1).polyfit_coefficients.values
+        trendline = m * data_sim_med.year + b  # y = mx + b
     trendline.name = "trendline"
     return trendline
 
@@ -516,3 +554,37 @@ def convert_to_local_time(
     print("Finished!")
 
     return sliced_data
+
+
+## Heat Index summary table helper
+def summary_table(data):
+    """Helper function to organize dataset object into a pandas dataframe for ease.
+
+    Parameters
+    ----------
+    data: xr.Dataset
+
+    Returns
+    -------
+    df: pd.DataFrame
+        df is organized so that the simulations are stacked in individual columns by year/time
+    """
+
+    # Identify whether the temporal dimension is "time" or "year"
+    if "time" in data.dims:
+        df = data.drop(
+            ["lakemask", "landmask", "lat", "lon", "Lambert_Conformal", "x", "y"]
+        ).to_dataframe(dim_order=["time", "scenario", "simulation"])
+
+        df = df.unstack().unstack()
+        df = df.sort_values(by=["time"])
+
+    elif "year" in data.dims:
+        df = data.drop(
+            ["lakemask", "landmask", "lat", "lon", "Lambert_Conformal", "x", "y"]
+        ).to_dataframe(dim_order=["year", "scenario", "simulation"])
+
+        df = df.unstack().unstack()
+        df = df.sort_values(by=["year"])
+
+    return df
