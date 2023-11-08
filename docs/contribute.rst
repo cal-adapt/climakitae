@@ -6,7 +6,7 @@ This is an open-source project, and all contributions, including new feature dev
 
 The Analytics Engine consists of two separate open-source repositories (hosted on GitHub) that you may contribute to.
 
-1. `climakitae <https://github.com/cal-adapt/climakitae>`_ (Climate Kit – Analytics Engine, get it?)
+1. The `climakitae <https://github.com/cal-adapt/climakitae>`_ Python library:
 
 	Building primarily on `xarray <https://docs.xarray.dev/en/stable/>`_ and the whole `Pangeo 	<https://pangeo.io/>`_ ecosystem, climakitae primarily offers tools that are:
 
