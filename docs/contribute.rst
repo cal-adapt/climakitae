@@ -18,7 +18,7 @@ The Analytics Engine consists of two separate open-source repositories (hosted o
 	`Jupyter <https://jupyter.org/>`_ notebooks in Python which: 
 
 	* Highlight a particular climakitae tool, or
-	* Do a specific analysis for an example use-case or application of the data
+	* Perform a specific analysis for an example use-case or application of the data
 
 We welcome contributions to either repository.
 
