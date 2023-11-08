@@ -10,9 +10,6 @@ import pandas as pd
 import matplotlib.colors as mcolors
 import matplotlib
 import copy
-import cftime
-from timezonefinder import TimezoneFinder
-from climakitae.core.data_interface import Select
 
 from climakitae.core.paths import (
     ae_orange,
