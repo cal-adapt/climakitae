@@ -26,7 +26,7 @@ Welcomed contributions could involve a performance improvement, something which 
 
 Contributed notebooks should be applications of general interest to our user community, which use the tools in climakitae whenever such a tool exists, and do not have dependencies outside of the `Pangeo libraries <https://github.com/pangeo-data/pangeo-docker-images/blob/master/pangeo-notebook/packages.txt>`_.
 
-If you have an idea for a contribution, please employ the following procedure:
+If you have an idea for contributing to either climakitae or cae-notebooks, please employ the following procedure:
 
 1. Reach out to analytics@cal-adapt.org with a summary of what you are proposing to contribute to make sure that it is complementary to features we are already working on. 
 2. Submit a pull-request to the repository in question for members of our team to review.
