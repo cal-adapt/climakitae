@@ -24,7 +24,7 @@ We welcome contributions to either repository.
 
 Welcomed contributions could involve a performance improvement, something which makes any of the tools more generally applicable, or adds a feature to handle a commonly-requested operation (without duplicating anything that already exists in the Pangeo ecosystem).
 
-Notebooks should be applications of general interest to our user community, which use the tools in climakitae whenever such a tool exists, and do not have dependencies outside of the `Pangeo libraries <https://github.com/pangeo-data/pangeo-docker-images/blob/master/pangeo-notebook/packages.txt>`_.
+Contributed notebooks should be applications of general interest to our user community, which use the tools in climakitae whenever such a tool exists, and do not have dependencies outside of the `Pangeo libraries <https://github.com/pangeo-data/pangeo-docker-images/blob/master/pangeo-notebook/packages.txt>`_.
 
 If you have an idea for a contribution, please employ the following procedure:
 
