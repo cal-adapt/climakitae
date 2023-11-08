@@ -590,9 +590,7 @@ def summary_table(data):
     return df
 
 
-def convert_to_local_time(
-    data: xr.Dataset, selections: Select, lat: float, lon: float
-) -> xr.Dataset:
+def convert_to_local_time(data, selections, lat, lon) -> xr.Dataset:
     """
     Converts the inputted data to the local time of the selection.
     """
@@ -603,48 +601,25 @@ def convert_to_local_time(
         end + 1,
         end + 1,
     )  # This is assuming selections passed with be negative UTC time. Also to get the next year of data.
+
     tz_data = tz_selections.retrieve()
 
     # 2. Combine the data
     total_data = xr.concat([data, tz_data], dim="time")
 
     # 3. Change datetime objects to local time
-    tf = TimezoneFinder()
-    local_tz = tf.timezone_at(lat=lat, lng=lon)  # Finding local time zone
-    dt_index = xr.CFTimeIndex(
-        total_data.time.values
-    ).to_datetimeindex()  # Converting the datetime objects into a format that allows for timezone changes (pandas Datetime Index)
-    localized = dt_index.tz_localize("UTC").tz_convert(
-        local_tz
-    )  # Set timestamps to UTC and convert to local time
-
-    # Convert pandas Datetime objects back to cftime objects
-    def convert_to_cftime(pd_dt):
-        # Manually removing leap days
-        if pd_dt.month == 2 and pd_dt.day == 29:
-            return cftime.DatetimeNoLeap(
-                year=pd_dt.year,
-                month=pd_dt.month,
-                day=28,
-                hour=pd_dt.hour,
-                minute=pd_dt.minute,
-                second=pd_dt.second,
-            )
-        return cftime.DatetimeNoLeap(
-            year=pd_dt.year,
-            month=pd_dt.month,
-            day=pd_dt.day,
-            hour=pd_dt.hour,
-            minute=pd_dt.minute,
-            second=pd_dt.second,
-        )
-
-    # Apply function to Datetime objects and assign back to DataArray
-    total_data["time"] = np.array(localized.map(convert_to_cftime))
+    new_time = (
+        pd.DatetimeIndex(total_data.time)
+        .tz_localize("UTC")
+        .tz_convert("America/Los_Angeles")
+        .tz_localize(None)
+        .astype("datetime64[ns]")
+    )
+    total_data["time"] = new_time
 
     # 4. Subset the data by the initial time
-    start = data.time[0].item()
-    end = data.time[-1].item()
+    start = data.time[0]
+    end = data.time[-1]
     sliced_data = total_data.sel(time=slice(start, end))
 
     print("Data converted to local timezone!")
