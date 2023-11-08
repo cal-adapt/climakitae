@@ -15,7 +15,7 @@ The Analytics Engine consists of two separate open-source repositories (hosted o
 
 2. The `cae-notebooks <https://github.com/cal-adapt/cae-notebooks>`_ repository 
 
-	`Jupyter <https://jupyter.org/>`_ notebooks in python which: 
+	`Jupyter <https://jupyter.org/>`_ notebooks in Python which: 
 
 	* Highlight a particular climakitae tool, or
 	* Do a specific analysis for an example use-case or application of the data
