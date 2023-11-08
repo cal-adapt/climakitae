@@ -2,7 +2,7 @@
 Contribution Guidelines
 **********************
 
-This is an open-source project, and we welcome contributions from the community. 
+This is an open-source project, and all contributions, including new feature development, documentation, bug reports, bug fixes, and other ideas are welcome. 
 
 The Analytics Engine consists of two separate open-source repositories (hosted on GitHub) that you may contribute to.
 
