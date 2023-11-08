@@ -11,7 +11,7 @@ The Analytics Engine consists of two separate open-source repositories (hosted o
 	Building primarily on `xarray <https://docs.xarray.dev/en/stable/>`_ and the whole `Pangeo 	<https://pangeo.io/>`_ ecosystem, climakitae primarily offers tools that are:
 
 	* Meant to be run inside a Jupyter notebook (see below)
-	* Specific to the data for the `State of California <https://analytics.cal-adapt.org/data/>`_ that has 	been downscaled based on CMIP6 climate models.
+	* Specific to the downscaled CMIP6 climate model data produced for the `State of California <https://analytics.cal-adapt.org/data/>`_ .
 
 2. The `cae-notebooks <https://github.com/cal-adapt/cae-notebooks>`_ repository 
 
