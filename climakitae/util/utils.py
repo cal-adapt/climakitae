@@ -10,6 +10,7 @@ import pandas as pd
 import matplotlib.colors as mcolors
 import matplotlib
 import copy
+from timezonefinder import TimezoneFinder
 
 from climakitae.core.paths import (
     ae_orange,
@@ -522,7 +523,7 @@ def summary_table(data):
     return df
 
 
-def convert_to_local_time(data, selections, lat, lon) -> xr.Dataset:
+def convert_to_local_time(data, selections, lat, lng) -> xr.Dataset:
     """
     Converts the inputted data to the local time of the selection.
     """
@@ -540,10 +541,12 @@ def convert_to_local_time(data, selections, lat, lon) -> xr.Dataset:
     total_data = xr.concat([data, tz_data], dim="time")
 
     # 3. Change datetime objects to local time
+    tf = TimezoneFinder()
+    local_tz = tf.timezone_at(lng=lng, lat=lat)
     new_time = (
         pd.DatetimeIndex(total_data.time)
         .tz_localize("UTC")
-        .tz_convert("America/Los_Angeles")
+        .tz_convert(local_tz)
         .tz_localize(None)
         .astype("datetime64[ns]")
     )
