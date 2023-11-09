@@ -11,6 +11,7 @@ import matplotlib.colors as mcolors
 import matplotlib
 import copy
 from timezonefinder import TimezoneFinder
+from climakitae.core.interface import DataParameters
 
 from climakitae.core.paths import (
     ae_orange,
