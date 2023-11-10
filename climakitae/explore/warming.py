@@ -177,7 +177,7 @@ def clean_warm_data(warm_data):
     )  # -1 is just a placeholder for 30 year window, this could be more specific.
 
     # Cleaning #3
-    warm_data = warm_data.dropna(dim="all_sims")
+    # warm_data = warm_data.dropna(dim="all_sims")
 
     return warm_data
 
@@ -217,18 +217,18 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
         end_year = centered_year + (window - 1)
 
         if anom == "Yes":
-            sliced = y.sel(time=slice(str(start_year), str(end_year))) - y.sel(
-                time=slice("1981", "2010")
-            ).mean("time")
+            # Find the anomaly
+            anomaly = y.sel(time=slice("1981", "2010")).mean("time")
+            sliced = y.sel(time=slice(str(start_year), str(end_year))) - anomaly
         else:
             # Finding window slice of data
             sliced = y.sel(time=slice(str(start_year), str(end_year)))
 
-            # Resetting time index for each data array so they can overlap and save storage space
-            sliced["time"] = sliced.time - sliced.time[0]
+        # Resetting time index for each data array so they can overlap and save storage space
+        sliced["time"] = sliced.time - sliced.time[0]
 
-            # Assigning `centered_year` as a coordinate to the DataArray
-            sliced = sliced.assign_coords({"centered_year": centered_year})
+        # Assigning `centered_year` as a coordinate to the DataArray
+        sliced = sliced.assign_coords({"centered_year": centered_year})
 
         return sliced
 
