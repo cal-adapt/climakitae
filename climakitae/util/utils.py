@@ -523,7 +523,7 @@ def summary_table(data):
     return df
 
 
-def convert_to_local_time(data, selections, lat, lng) -> xr.Dataset:
+def convert_to_local_time(data, selections, lat, lon) -> xr.Dataset:
     """
     Converts the inputted data to the local time of the selection.
     """
@@ -542,7 +542,7 @@ def convert_to_local_time(data, selections, lat, lng) -> xr.Dataset:
 
     # 3. Change datetime objects to local time
     tf = TimezoneFinder()
-    local_tz = tf.timezone_at(lng=lng, lat=lat)
+    local_tz = tf.timezone_at(lng=lon, lat=lat)
     new_time = (
         pd.DatetimeIndex(total_data.time)
         .tz_localize("UTC")
@@ -557,6 +557,6 @@ def convert_to_local_time(data, selections, lat, lng) -> xr.Dataset:
     end = data.time[-1]
     sliced_data = total_data.sel(time=slice(start, end))
 
-    print("Data converted to local timezone!")
+    print("Data converted to {} timezone".format(local_tz))
 
     return sliced_data
