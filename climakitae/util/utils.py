@@ -530,13 +530,15 @@ def convert_to_local_time(data, selections, lat, lon) -> xr.Dataset:
     """
     # 1. Find the other data
     start, end = selections.time_slice
-    tz_selections = copy.copy(selections)
-    tz_selections.time_slice = (
+    # tz_selections = copy.copy(selections)
+
+    # Use selections object to retrieve new data
+    selections.time_slice = (
         end + 1,
         end + 1,
     )  # This is assuming selections passed with be negative UTC time. Also to get the next year of data.
 
-    tz_data = tz_selections.retrieve()
+    tz_data = selections.retrieve()
 
     # 2. Combine the data
     total_data = xr.concat([data, tz_data], dim="time")
@@ -559,5 +561,8 @@ def convert_to_local_time(data, selections, lat, lon) -> xr.Dataset:
     sliced_data = total_data.sel(time=slice(start, end))
 
     print("Data converted to {} timezone".format(local_tz))
+
+    # Reset selections object to what it was originally
+    selections.time_slice = (start, end)
 
     return sliced_data
