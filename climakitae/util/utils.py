@@ -11,7 +11,6 @@ import matplotlib.colors as mcolors
 import matplotlib
 import copy
 from timezonefinder import TimezoneFinder
-from climakitae.core.interface import DataParameters
 
 from climakitae.core.paths import (
     ae_orange,
@@ -532,16 +531,22 @@ def convert_to_local_time(data, selections, lat, lon) -> xr.Dataset:
     start, end = selections.time_slice
     # tz_selections = copy.copy(selections)
 
-    # Use selections object to retrieve new data
-    selections.time_slice = (
-        end + 1,
-        end + 1,
-    )  # This is assuming selections passed with be negative UTC time. Also to get the next year of data.
+    # Determining if the selected data is at the end of possible data time interval
+    if end < 2100:
 
-    tz_data = selections.retrieve()
+        # Use selections object to retrieve new data
+        selections.time_slice = (
+            end + 1,
+            end + 1,
+        )  # This is assuming selections passed with be negative UTC time. Also to get the next year of data.
 
-    # 2. Combine the data
-    total_data = xr.concat([data, tz_data], dim="time")
+        tz_data = selections.retrieve()
+
+        # 2. Combine the data
+        total_data = xr.concat([data, tz_data], dim="time")
+
+    else: # 2100 or any years greater that the user has input
+        total_data = data
 
     # 3. Change datetime objects to local time
     tf = TimezoneFinder()
@@ -556,11 +561,11 @@ def convert_to_local_time(data, selections, lat, lon) -> xr.Dataset:
     total_data["time"] = new_time
 
     # 4. Subset the data by the initial time
-    start = data.time[0]
-    end = data.time[-1]
-    sliced_data = total_data.sel(time=slice(start, end))
+    start_slice = data.time[0]
+    end_slice = data.time[-1]
+    sliced_data = total_data.sel(time=slice(start_slice, end_slice))
 
-    print("Data converted to {} timezone".format(local_tz))
+    print("Data converted to {} timezone.".format(local_tz))
 
     # Reset selections object to what it was originally
     selections.time_slice = (start, end)
