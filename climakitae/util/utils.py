@@ -533,7 +533,6 @@ def convert_to_local_time(data, selections, lat, lon) -> xr.Dataset:
 
     # Determining if the selected data is at the end of possible data time interval
     if end < 2100:
-
         # Use selections object to retrieve new data
         selections.time_slice = (
             end + 1,
@@ -545,7 +544,7 @@ def convert_to_local_time(data, selections, lat, lon) -> xr.Dataset:
         # 2. Combine the data
         total_data = xr.concat([data, tz_data], dim="time")
 
-    else: # 2100 or any years greater that the user has input
+    else:  # 2100 or any years greater that the user has input
         total_data = data
 
     # 3. Change datetime objects to local time
