@@ -538,13 +538,22 @@ def convert_to_local_time(data, selections, lat, lon) -> xr.Dataset:
             end + 1,
             end + 1,
         )  # This is assuming selections passed with be negative UTC time. Also to get the next year of data.
-
         tz_data = selections.retrieve()
+
+        if tz_data.time.size == 0:
+            print(
+                "You've selected a time slice that will additionally require a selected SSP. Please select an SSP in your selections and re-run this function."
+            )
+            selections.time_slice = (start, end)
+            return data
 
         # 2. Combine the data
         total_data = xr.concat([data, tz_data], dim="time")
 
     else:  # 2100 or any years greater that the user has input
+        print(
+            "Adjusting timestep but not appending data, as there is no more data after 2100."
+        )
         total_data = data
 
     # 3. Change datetime objects to local time
