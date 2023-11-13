@@ -523,7 +523,7 @@ def summary_table(data):
     return df
 
 
-def convert_to_local_time(data, selections, lat, lon) -> xr.Dataset:
+def convert_to_local_time(data, selections, lat, lon):
     """
     Converts the inputted data to the local time of the selection.
     """
@@ -531,8 +531,18 @@ def convert_to_local_time(data, selections, lat, lon) -> xr.Dataset:
     start, end = selections.time_slice
     # tz_selections = copy.copy(selections)
 
+    # Condition if timezone adjusting is happening at the end of `Historical Reconstruction`
+    if (
+        selections.scenario_historical == ["Historical Reconstruction"] and end == 2022
+    ):  # TODO: Remove 2022 hardcoding
+        print(
+            "Adjusting timestep but not appending data, as there is no more ERA5 data after 2022."
+        )
+        total_data = data
+        pass
+
     # Determining if the selected data is at the end of possible data time interval
-    if end < 2100:
+    elif end < 2100:
         # Use selections object to retrieve new data
         selections.time_slice = (
             end + 1,
