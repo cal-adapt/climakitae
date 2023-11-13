@@ -216,6 +216,8 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
         start_year = centered_year - window
         end_year = centered_year + (window - 1)
 
+        # TODO: This method will fail for daily data, as leap days create different time indices to be merged on. This will create weird time indices that can be visualized with the `out.plot.line` method in `warming_levels.ipynb`.
+
         if anom == "Yes":
             # Find the anomaly
             anomaly = y.sel(time=slice("1981", "2010")).mean("time")
