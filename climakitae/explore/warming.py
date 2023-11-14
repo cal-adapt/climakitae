@@ -205,8 +205,6 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
         Warming level anomalies at all warming levels for a scenario
     """
     gwl_times_subset = years.loc[process_item(y)]
-    attrs_temp = y.attrs
-    dims_temp = y.dims
 
     # Checking if the centered year is null, if so, return dummy DataArray
     center_time = gwl_times_subset.loc[level]
@@ -216,12 +214,12 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
         start_year = centered_year - window
         end_year = centered_year + (window - 1)
 
-        # TODO: This method will fail for daily data, as leap days create different time indices to be merged on. This will create weird time indices that can be visualized with the `out.plot.line` method in `warming_levels.ipynb`.
+        # TODO: This method will create incorrect data for daily data selection, as leap days create different time indices to be merged on. This will create weird time indices that can be visualized with the `out.plot.line` method in `warming_levels.ipynb`.
 
         if anom == "Yes":
             # Find the anomaly
-            anomaly = y.sel(time=slice("1981", "2010")).mean("time")
-            sliced = y.sel(time=slice(str(start_year), str(end_year))) - anomaly
+            anom_val = y.sel(time=slice("1981", "2010")).mean("time")
+            sliced = y.sel(time=slice(str(start_year), str(end_year))) - anom_val
         else:
             # Finding window slice of data
             sliced = y.sel(time=slice(str(start_year), str(end_year)))
