@@ -523,7 +523,12 @@ def summary_table(data):
     return df
 
 
-def convert_to_local_time(data, selections, lat, lon):
+### TIMEZONE FUNCTION
+
+from timezonefinder import TimezoneFinder
+
+
+def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
     """
     Converts the inputted data to the local time of the selection.
     """
@@ -566,7 +571,72 @@ def convert_to_local_time(data, selections, lat, lon):
         )
         total_data = data
 
-    # 3. Change datetime objects to local time
+    # 3. Find the data's centerpoint through selections
+    if selections.data_type == "Station":
+        station_name = selections.station
+
+        from climakitae.core.data_interface import DataInterface
+
+        data_catalog = DataInterface()
+
+        # Getting lat/lon of a specific station
+        station_df = data_catalog.stations.drop(columns=["Unnamed: 0"])
+
+        # Getting specific station geometry
+        station_geom = station_df[station_df["station"] == station_name[0]]
+        lat = station_geom.LAT_Y.item()
+        lon = station_geom.LON_X.item()
+
+    elif selections.data_type == "Gridded" and selections.area_subset == "lat/lon":
+        # Finding avg. lat/lon coordinates from all grid-cells
+        lat = data.lat.mean().item()
+        lon = data.lon.mean().item()
+
+    elif selections.data_type == "Gridded" and selections.area_subset != "none":
+        # Find the avg. lat/lon coordinates from all grid-cells within the area subset
+        # selections.data_type = "Gridded"
+        # selections.area_subset = 'CA counties'
+        # selections.cached_area = ['Alameda County']
+
+        # Find the avg. point of a geometry
+        from climakitae.core.data_interface import DataInterface
+
+        data_catalog = DataInterface()
+
+        # Making mapping for different geographies to different polygons
+        mapping = {
+            "CA counties": (
+                data_catalog.geographies._ca_counties,
+                data_catalog.geographies._get_ca_counties(),
+            ),
+            "CA Electric Balancing Authority Areas": (
+                data_catalog.geographies._ca_electric_balancing_areas,
+                data_catalog.geographies._get_electric_balancing_areas(),
+            ),
+            "CA Electricity Demand Forecast Zones": (
+                data_catalog.geographies._ca_forecast_zones,
+                data_catalog.geographies._get_forecast_zones(),
+            ),
+            "CA Electric Load Serving Entities (IOU & POU)": (
+                data_catalog.geographies._ca_utilities,
+                data_catalog.geographies._get_ious_pous(),
+            ),
+            "CA watersheds": (
+                data_catalog.geographies._ca_watersheds,
+                data_catalog.geographies._get_ca_watersheds(),
+            ),
+        }
+
+        # Finding the center point of the gridded WRF area
+        center_pt = (
+            mapping[selections.area_subset][0]
+            .loc[mapping[selections.area_subset][1][selections.cached_area[0]]]
+            .geometry.centroid
+        )
+        lat = center_pt.y
+        lon = center_pt.x
+
+    # 4. Change datetime objects to local time
     tf = TimezoneFinder()
     local_tz = tf.timezone_at(lng=lon, lat=lat)
     new_time = (
@@ -578,7 +648,7 @@ def convert_to_local_time(data, selections, lat, lon):
     )
     total_data["time"] = new_time
 
-    # 4. Subset the data by the initial time
+    # 5. Subset the data by the initial time
     start_slice = data.time[0]
     end_slice = data.time[-1]
     sliced_data = total_data.sel(time=slice(start_slice, end_slice))
