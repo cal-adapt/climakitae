@@ -546,6 +546,13 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
         total_data = data
         pass
 
+    # Condition if selected data is daily/monthly, to not adjust the data at all since this would not do anything.
+    elif selections.timescale == "monthly" or selections.timescale == "daily":
+        print(
+            "You've selected a timescale that doesn't require any timezone shifting, due to its timescale not being granular enough (hourly). Please pass in more granular level data if you want to adjust its local timezone."
+        )
+        return data
+
     # Determining if the selected data is at the end of possible data time interval
     elif end < 2100:
         # Use selections object to retrieve new data
@@ -587,18 +594,18 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
         lat = station_geom.LAT_Y.item()
         lon = station_geom.LON_X.item()
 
+    elif selections.area_average == "Yes":
+        # Finding avg. lat/lon when the area is averaged because then it must come from selections.
+        lat = np.mean(selections.latitude)
+        lon = np.mean(selections.longitude)
+
     elif selections.data_type == "Gridded" and selections.area_subset == "lat/lon":
         # Finding avg. lat/lon coordinates from all grid-cells
         lat = data.lat.mean().item()
         lon = data.lon.mean().item()
 
     elif selections.data_type == "Gridded" and selections.area_subset != "none":
-        # Find the avg. lat/lon coordinates from all grid-cells within the area subset
-        # selections.data_type = "Gridded"
-        # selections.area_subset = 'CA counties'
-        # selections.cached_area = ['Alameda County']
-
-        # Find the avg. point of a geometry
+        # Find the avg. lat/lon coordinates from entire geometry within an area subset
         from climakitae.core.data_interface import DataInterface
 
         data_catalog = DataInterface()
