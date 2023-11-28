@@ -523,15 +523,15 @@ def get_ensemble_data(variable, selections, cmip_names, warm_level=3.0):
 
 def weighted_temporal_mean(ds):
     """weight by days in each month
-    
+
     Function for calculating annual averages pulled + adapted from NCAR
     Link: https://ncar.github.io/esds/posts/2021/yearly-averages-xarray/
-    
+
     Parameters
     ----------
     ds: xarray.DataArray
-    
-    Returns 
+
+    Returns
     -------
     obs_sum / ones_out : xarray.Dataset
     """
@@ -544,7 +544,7 @@ def weighted_temporal_mean(ds):
 
     # Make sure the weights in each year add up to 1
     np.testing.assert_allclose(wgts.groupby("time.year").sum(xr.ALL_DIMS), 1.0)
-    
+
     # Setup our masking for nan values
     cond = ds.isnull()
     ones = xr.where(cond, 0.0, 1.0)
@@ -554,13 +554,13 @@ def weighted_temporal_mean(ds):
 
     # Calculate the denominator
     ones_out = (ones * wgts).resample(time="AS").sum(dim="time")
-    
+
     # Calculate weighted average
     weighted_avg = obs_sum / ones_out
-    
+
     # Setting time array to the year
-    weighted_avg['time'] = weighted_avg.time.dt.year
-    
+    weighted_avg["time"] = weighted_avg.time.dt.year
+
     return weighted_avg
 
 
