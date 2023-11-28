@@ -584,7 +584,7 @@ def calc_anom(ds_yr, base_start, base_end):
     mdl_temp_anom: xr.Dataset
         Anomaly data calculated with input baseline start and end
     """
-    mdl_baseline = ds_yr.sel(year=slice(base_start, base_end)).mean("year")
+    mdl_baseline = ds_yr.sel(time=slice(base_start, base_end)).mean("year")
     mdl_temp_anom = ds_yr - mdl_baseline
     return mdl_temp_anom
 
