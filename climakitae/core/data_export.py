@@ -36,7 +36,7 @@ def _estimate_file_size(data, format):
         estimated file size in gigabytes
 
     """
-    if format == 'NetCDF':
+    if format == "NetCDF":
         if isinstance(data, xr.core.dataarray.DataArray):
             if not data.name:
                 # name it in order to call to_dataset on it
@@ -46,8 +46,8 @@ def _estimate_file_size(data, format):
             data_size = data.nbytes
         buffer_size = 2 * 1024 * 1024  # 2 MB for miscellaneous metadata
         est_file_size = data_size + buffer_size
-        
-    elif format == 'CSV':
+
+    elif format == "CSV":
         pass  # TODO: estimate CSV file size
 
     return est_file_size / bytes_per_gigabyte
@@ -61,19 +61,21 @@ def _warn_large_export(file_size, file_size_threshold=5):
             + " GB. This might take a while!"
         )
 
+
 def _list_n_none_to_string(dic):
     """Convert list and None to string."""
     for k, v in dic.items():
         if isinstance(v, list):
             dic[k] = str(v)
         if v is None:
-            dic[k] = ''
+            dic[k] = ""
     return dic
+
 
 def _update_attributes(data):
     """
     Update data attributes to prevent issues when exporting them to NetCDF.
-    
+
     Convert list and None attributes to strings. If "time" is a coordinate of
     `data`, remove any of its "units" attribute. Attributes include global data
     attributes as well as that of coordinates and data variables.
@@ -94,28 +96,29 @@ def _update_attributes(data):
     data.attrs = _list_n_none_to_string(data.attrs)
     for coord in data.coords:
         data[coord].attrs = _list_n_none_to_string(data[coord].attrs)
-    if 'time' in data.coords and 'units' in data['time'].attrs:
-        del data['time'].attrs['units']
-        
+    if "time" in data.coords and "units" in data["time"].attrs:
+        del data["time"].attrs["units"]
+
     if isinstance(data, xr.core.dataarray.Dataset):
         for data_var in data.data_vars:
             data[data_var].attrs = _list_n_none_to_string(data[data_var].attrs)
 
+
 def _unencode_missing_value(d):
     """Drop `missing_value` encoding, if any, on data object `d`."""
     try:
-        del d.encoding['missing_value']
+        del d.encoding["missing_value"]
     except:
         pass
-    
+
 
 def _update_encoding(data):
     """
     Update data encodings to prevent issues when exporting them to NetCDF.
-    
-    Drop `missing_value` encoding, if any, on `data` as well as its coordinates 
+
+    Drop `missing_value` encoding, if any, on `data` as well as its coordinates
     and data variables.
-    
+
     Parameters
     ----------
     data : xarray.DataArray or xarray.Dataset
@@ -126,7 +129,7 @@ def _update_encoding(data):
 
     Notes
     -----
-    These encoding updates resolve errors raised when writing NetCDF files to 
+    These encoding updates resolve errors raised when writing NetCDF files to
     S3.
     """
     _unencode_missing_value(data)
@@ -138,7 +141,7 @@ def _update_encoding(data):
             _unencode_missing_value(data[data_var])
 
 
-def _create_presigned_url(bucket_name, object_name, expiration=60*60*24*7):
+def _create_presigned_url(bucket_name, object_name, expiration=60 * 60 * 24 * 7):
     """
     Generate a presigned URL to share an S3 object.
 
@@ -147,7 +150,7 @@ def _create_presigned_url(bucket_name, object_name, expiration=60*60*24*7):
     bucket_name : string
     object_name : string
     expiration : int, optional
-        Time in seconds for the presigned URL to remain valid. The default is 
+        Time in seconds for the presigned URL to remain valid. The default is
         one week.
 
     Returns
@@ -160,12 +163,13 @@ def _create_presigned_url(bucket_name, object_name, expiration=60*60*24*7):
     https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-presigned-urls.html#presigned-urls
 
     """
-    s3_client = boto3.client('s3')
+    s3_client = boto3.client("s3")
     try:
-        url = s3_client.generate_presigned_url('get_object',
-                                                    Params={'Bucket': bucket_name,
-                                                            'Key': object_name},
-                                                    ExpiresIn=expiration)
+        url = s3_client.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": bucket_name, "Key": object_name},
+            ExpiresIn=expiration,
+        )
     except ClientError as e:
         logging.error(e)
         return None
@@ -191,9 +195,9 @@ def _export_to_netcdf(data, save_name):
     None
 
     """
-    est_file_size = _estimate_file_size(data, 'NetCDF')
+    est_file_size = _estimate_file_size(data, "NetCDF")
     disk_space = shutil.disk_usage("./")[2] / bytes_per_gigabyte
-    
+
     if disk_space > est_file_size:
         path = "./" + save_name
 
@@ -208,7 +212,7 @@ def _export_to_netcdf(data, save_name):
             )
 
         print("Alright, exporting specified data to NetCDF.")
-        _warn_large_export(est_file_size)  
+        _warn_large_export(est_file_size)
         _update_attributes(data)
         _update_encoding(data)
         comp = dict(_FillValue=None)
@@ -224,7 +228,7 @@ def _export_to_netcdf(data, save_name):
     else:
         path = f"simplecache::{os.environ['SCRATCH_BUCKET']}/{save_name}"
 
-        with fsspec.open(path, 'wb') as fp:
+        with fsspec.open(path, "wb") as fp:
             print("Alright, exporting specified data to NetCDF.")
             _warn_large_export(est_file_size)
             _update_attributes(data)
@@ -232,10 +236,9 @@ def _export_to_netcdf(data, save_name):
             comp = dict(_FillValue=None)
             encoding = {coord: comp for coord in data.coords}
             data.to_netcdf(fp, encoding=encoding)
-            
+
             download_url = _create_presigned_url(
-                bucket_name='cadcat-tmp',
-                object_name=path.split('cadcat-tmp/')[-1]
+                bucket_name="cadcat-tmp", object_name=path.split("cadcat-tmp/")[-1]
             )
             print(
                 (
@@ -247,7 +250,6 @@ def _export_to_netcdf(data, save_name):
                     "Note: The URL will remain valid for 1 week."
                 )
             )
-
 
 
 def _get_unit(dataarray):
@@ -551,13 +553,12 @@ def export(data, filename="dataexport", format="NetCDF"):
 
     req_format = format.lower()
 
-    if req_format not in ['netcdf', 'csv']:
+    if req_format not in ["netcdf", "csv"]:
         raise Exception('Please select "NetCDF" or "CSV" as the file format.')
 
     extension_dict = {"netcdf": ".nc", "csv": ".csv.gz"}
 
     save_name = filename + extension_dict[req_format]
-
 
     ds_attrs = data.attrs
 
@@ -574,10 +575,9 @@ def export(data, filename="dataexport", format="NetCDF"):
         "Home_page": "https://github.com/cal-adapt/climakitae",
         "License": "BSD 3-Clause License",
     }
-    
+
     ds_attrs.update(ck_attrs)
     data.attrs = ds_attrs
-
 
     # now here is where exporting actually begins
     # we will have different functions for each file type
@@ -629,7 +629,6 @@ def export(data, filename="dataexport", format="NetCDF"):
                 " and download to your local machine from there."
             )
         )
-
 
 
 def _metadata_to_file(ds, output_name):
