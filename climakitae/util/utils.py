@@ -9,7 +9,8 @@ import rioxarray as rio
 import pandas as pd
 import matplotlib.colors as mcolors
 import matplotlib
-
+import copy
+from timezonefinder import TimezoneFinder
 
 from climakitae.core.paths import (
     ae_orange,
@@ -520,3 +521,148 @@ def summary_table(data):
         df = df.sort_values(by=["year"])
 
     return df
+
+
+### TIMEZONE FUNCTION
+
+from timezonefinder import TimezoneFinder
+
+
+def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
+    """
+    Converts the inputted data to the local time of the selection.
+    """
+    # 1. Find the other data
+    start, end = selections.time_slice
+    # tz_selections = copy.copy(selections)
+
+    # Condition if timezone adjusting is happening at the end of `Historical Reconstruction`
+    if (
+        selections.scenario_historical == ["Historical Reconstruction"] and end == 2022
+    ):  # TODO: Remove 2022 hardcoding
+        print(
+            "Adjusting timestep but not appending data, as there is no more ERA5 data after 2022."
+        )
+        total_data = data
+        pass
+
+    # Condition if selected data is daily/monthly, to not adjust the data at all since this would not do anything.
+    elif selections.timescale == "monthly" or selections.timescale == "daily":
+        print(
+            "You've selected a timescale that doesn't require any timezone shifting, due to its timescale not being granular enough (hourly). Please pass in more granular level data if you want to adjust its local timezone."
+        )
+        return data
+
+    # Determining if the selected data is at the end of possible data time interval
+    elif end < 2100:
+        # Use selections object to retrieve new data
+        selections.time_slice = (
+            end + 1,
+            end + 1,
+        )  # This is assuming selections passed with be negative UTC time. Also to get the next year of data.
+        tz_data = selections.retrieve()
+
+        if tz_data.time.size == 0:
+            print(
+                "You've selected a time slice that will additionally require a selected SSP. Please select an SSP in your selections and re-run this function."
+            )
+            selections.time_slice = (start, end)
+            return data
+
+        # 2. Combine the data
+        total_data = xr.concat([data, tz_data], dim="time")
+
+    else:  # 2100 or any years greater that the user has input
+        print(
+            "Adjusting timestep but not appending data, as there is no more data after 2100."
+        )
+        total_data = data
+
+    # 3. Find the data's centerpoint through selections
+    if selections.data_type == "Station":
+        station_name = selections.station
+
+        from climakitae.core.data_interface import DataInterface
+
+        data_catalog = DataInterface()
+
+        # Getting lat/lon of a specific station
+        station_df = data_catalog.stations.drop(columns=["Unnamed: 0"])
+
+        # Getting specific station geometry
+        station_geom = station_df[station_df["station"] == station_name[0]]
+        lat = station_geom.LAT_Y.item()
+        lon = station_geom.LON_X.item()
+
+    elif selections.area_average == "Yes":
+        # Finding avg. lat/lon when the area is averaged because then it must come from selections.
+        lat = np.mean(selections.latitude)
+        lon = np.mean(selections.longitude)
+
+    elif selections.data_type == "Gridded" and selections.area_subset == "lat/lon":
+        # Finding avg. lat/lon coordinates from all grid-cells
+        lat = data.lat.mean().item()
+        lon = data.lon.mean().item()
+
+    elif selections.data_type == "Gridded" and selections.area_subset != "none":
+        # Find the avg. lat/lon coordinates from entire geometry within an area subset
+        from climakitae.core.data_interface import DataInterface
+
+        data_catalog = DataInterface()
+
+        # Making mapping for different geographies to different polygons
+        mapping = {
+            "CA counties": (
+                data_catalog.geographies._ca_counties,
+                data_catalog.geographies._get_ca_counties(),
+            ),
+            "CA Electric Balancing Authority Areas": (
+                data_catalog.geographies._ca_electric_balancing_areas,
+                data_catalog.geographies._get_electric_balancing_areas(),
+            ),
+            "CA Electricity Demand Forecast Zones": (
+                data_catalog.geographies._ca_forecast_zones,
+                data_catalog.geographies._get_forecast_zones(),
+            ),
+            "CA Electric Load Serving Entities (IOU & POU)": (
+                data_catalog.geographies._ca_utilities,
+                data_catalog.geographies._get_ious_pous(),
+            ),
+            "CA watersheds": (
+                data_catalog.geographies._ca_watersheds,
+                data_catalog.geographies._get_ca_watersheds(),
+            ),
+        }
+
+        # Finding the center point of the gridded WRF area
+        center_pt = (
+            mapping[selections.area_subset][0]
+            .loc[mapping[selections.area_subset][1][selections.cached_area[0]]]
+            .geometry.centroid
+        )
+        lat = center_pt.y
+        lon = center_pt.x
+
+    # 4. Change datetime objects to local time
+    tf = TimezoneFinder()
+    local_tz = tf.timezone_at(lng=lon, lat=lat)
+    new_time = (
+        pd.DatetimeIndex(total_data.time)
+        .tz_localize("UTC")
+        .tz_convert(local_tz)
+        .tz_localize(None)
+        .astype("datetime64[ns]")
+    )
+    total_data["time"] = new_time
+
+    # 5. Subset the data by the initial time
+    start_slice = data.time[0]
+    end_slice = data.time[-1]
+    sliced_data = total_data.sel(time=slice(start_slice, end_slice))
+
+    print("Data converted to {} timezone.".format(local_tz))
+
+    # Reset selections object to what it was originally
+    selections.time_slice = (start, end)
+
+    return sliced_data
