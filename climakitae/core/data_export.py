@@ -1,18 +1,19 @@
 """Backend functions for exporting data."""
 
 import os
+import boto3
 import fsspec
 import shutil
+import logging
 import warnings
 import datetime
 import xarray as xr
 import pandas as pd
 from importlib.metadata import version as _version
+from botocore.exceptions import ClientError
 from climakitae.util.utils import read_csv_file
 from climakitae.core.paths import variable_descriptions_csv_path, stations_csv_path
-import logging
-import boto3
-from botocore.exceptions import ClientError
+
 
 xr.set_options(keep_attrs=True)
 
@@ -42,7 +43,7 @@ def _estimate_file_size(data, format):
                 # name it in order to call to_dataset on it
                 data.name = "data"
             data_size = data.to_dataset().nbytes
-        else:  # xarray.Dataset
+        else:  # data is xarray Dataset
             data_size = data.nbytes
         buffer_size = 2 * 1024 * 1024  # 2 MB for miscellaneous metadata
         est_file_size = data_size + buffer_size
@@ -76,8 +77,8 @@ def _update_attributes(data):
     """
     Update data attributes to prevent issues when exporting them to NetCDF.
 
-    Convert list and None attributes to strings. If "time" is a coordinate of
-    `data`, remove any of its "units" attribute. Attributes include global data
+    Convert list and None attributes to strings. If `time` is a coordinate of
+    `data`, remove any of its `units` attribute. Attributes include global data
     attributes as well as that of coordinates and data variables.
 
     Parameters
@@ -182,6 +183,10 @@ def _export_to_netcdf(data, save_name):
     Export user-selected data to NetCDF format.
 
     Export the xarray DataArray or Dataset `data` to a NetCDF file `save_name`.
+    If there is enough disk space, the function saves the file locally; 
+    otherwise, it saves the file to the S3 bucket `cadcat-tmp` and provides a
+    URL for download.
+    
 
     Parameters
     ----------
@@ -203,11 +208,10 @@ def _export_to_netcdf(data, save_name):
 
         if os.path.exists(path):
             raise Exception(
-                "File "
-                + save_name
-                + (
-                    " exists. Please either delete that file from the work"
-                    " space or specify a new file name here."
+                (
+                    f"File {save_name} exists. "
+                    "Please either delete that file from the work space "
+                    "or specify a new file name here."
                 )
             )
 
@@ -238,7 +242,8 @@ def _export_to_netcdf(data, save_name):
             data.to_netcdf(fp, encoding=encoding)
 
             download_url = _create_presigned_url(
-                bucket_name="cadcat-tmp", object_name=path.split("cadcat-tmp/")[-1]
+                bucket_name="cadcat-tmp", 
+                object_name=path.split("cadcat-tmp/")[-1]
             )
             print(
                 (
@@ -588,11 +593,10 @@ def export(data, filename="dataexport", format="NetCDF"):
         output_path = "./" + save_name
         if os.path.exists(output_path):
             raise Exception(
-                "File "
-                + save_name
-                + (
-                    " exists, please either delete that file from the work"
-                    " space or specify a new file name here."
+                (
+                    f"File {save_name} exists. "
+                    "Please either delete that file from the work space "
+                    "or specify a new file name here."
                 )
             )
         # now check file size and avail workspace disk space
