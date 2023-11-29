@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import param
 import panel as pn
+import dask
 
 from climakitae.core.data_load import read_catalog_from_select
 from climakitae.core.data_interface import (
@@ -33,6 +34,10 @@ from climakitae.core.paths import (
     hist_file,
 )
 
+from climakitae.explore import threshold_tools
+import matplotlib.pyplot as plt
+from scipy.stats import pearson3
+
 # Silence warnings
 import logging
 
@@ -55,9 +60,32 @@ class WarmingLevels:
 
     def __init__(self, **params):
         self.wl_params = WarmingLevelChoose()
+        self.warming_levels = ["1.5", "2.0", "3.0", "4.0"]
 
     def choose_data(self):
         return warming_levels_select(self.wl_params)
+
+    def find_warming_slice(self, level, gwl_times):
+        """
+        Find the warming slice data for the current level from the catalog data.
+        """
+        warming_data = self.catalog_data.groupby("all_sims").map(
+            get_sliced_data,
+            level=level,
+            years=gwl_times,
+            window=self.wl_params.window,
+            anom=self.wl_params.anom,
+        )
+        warming_data = warming_data.expand_dims({"warming_level": [level]})
+        warming_data = warming_data.assign_attrs(window=self.wl_params.window)
+
+        # Cleaning data
+        warming_data = clean_warm_data(warming_data)
+
+        # Relabeling `all_sims` dimension
+        new_warm_data = warming_data.drop("all_sims")
+        new_warm_data["all_sims"] = relabel_axis(warming_data["all_sims"])
+        return new_warm_data
 
     def calculate(self):
         # manually reset to all SSPs, in case it was inadvertently changed by
@@ -74,25 +102,29 @@ class WarmingLevels:
         ).squeeze()
         self.catalog_data = self.catalog_data.dropna(dim="all_sims", how="all")
         if self.wl_params.anom == "Yes":
-            gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
+            self.gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
         else:
-            gwl_times = read_csv_file(gwl_1850_1900_file, index_col=[0, 1, 2])
-        gwl_times = gwl_times.dropna(how="all")
-        self.catalog_data = clean_list(self.catalog_data, gwl_times)
+            self.gwl_times = read_csv_file(gwl_1850_1900_file, index_col=[0, 1, 2])
+        self.gwl_times = self.gwl_times.dropna(how="all")
+        self.catalog_data = clean_list(self.catalog_data, self.gwl_times)
 
-        self.sliced_data = self.catalog_data.groupby("all_sims").map(
-            get_sliced_data,
-            years=gwl_times,
-            window=self.wl_params.window,
-            anom=self.wl_params.anom,
-        )
-        self.sliced_data["all_sims"] = relabel_axis(self.sliced_data.all_sims)
-        self.gwl_snapshots = self.sliced_data.reduce(np.nanmean, "time")
-        self.gwl_snapshots = self.gwl_snapshots.compute()
+        self.sliced_data = {}
+        self.gwl_snapshots = {}
+        for level in self.warming_levels:
+            # Assign warming slices to dask computation graph
+            warm_slice = self.find_warming_slice(level, self.gwl_times)
+            self.sliced_data[level] = warm_slice
+            self.gwl_snapshots[level] = warm_slice.reduce(np.nanmean, "time").compute()
+
+        self.gwl_snapshots = xr.concat(self.gwl_snapshots.values(), dim="warming_level")
         self.cmap = _get_cmap(self.wl_params)
         self.wl_viz = WarmingLevelVisualize(
-            gwl_snapshots=self.gwl_snapshots, wl_params=self.wl_params, cmap=self.cmap
+            gwl_snapshots=self.gwl_snapshots,
+            wl_params=self.wl_params,
+            cmap=self.cmap,
+            warming_levels=self.warming_levels,
         )
+        self.wl_viz.compute_stamps()
 
     def visualize(self):
         if self.wl_viz:
@@ -113,8 +145,8 @@ def relabel_axis(all_sims_dim):
 
 def process_item(y):
     # get a tuple of identifiers for the lookup table from DataArray indexers
-    simulation = y.simulation.values.item()
-    scenario = scenario_to_experiment_id(y.scenario.values.item().split("+")[1][1::])
+    simulation = y.simulation.item()
+    scenario = scenario_to_experiment_id(y.scenario.item().split("+")[1].strip())
     downscaling_method, sim_str, ensemble = simulation.split("_")
     return (sim_str, ensemble, scenario)
 
@@ -129,13 +161,36 @@ def clean_list(data, gwl_times):
     return data.sel(all_sims=keep_list)
 
 
-def get_sliced_data(y, years, window=15, anom="Yes"):
+def clean_warm_data(warm_data):
+    """
+    Cleaning the warming levels data in 3 parts:
+      1. Removing simulations where this warming level is not crossed. (centered_year)
+      2. Removing timestamps at the end to account for leap years (time)
+      3. Removing simulations that go past 2100 for its warming level window (all_sims)
+    """
+    # Cleaning #1
+    warm_data = warm_data.sel(all_sims=~warm_data.centered_year.isnull())
+
+    # Cleaning #2
+    warm_data = warm_data.isel(
+        time=slice(0, len(warm_data.time) - 1)
+    )  # -1 is just a placeholder for 30 year window, this could be more specific.
+
+    # Cleaning #3
+    # warm_data = warm_data.dropna(dim="all_sims")
+
+    return warm_data
+
+
+def get_sliced_data(y, level, years, window=15, anom="Yes"):
     """Calculating warming level anomalies.
 
     Parameters
     ----------
     y: xr.DataArray
         Data to compute warming level anomolies, one simulation at a time via groupby
+    level: str
+        Warming level amount
     years: pd.DataFrame
         Lookup table for the date a given simulation reaches each warming level.
     window: int, optional
@@ -150,24 +205,44 @@ def get_sliced_data(y, years, window=15, anom="Yes"):
         Warming level anomalies at all warming levels for a scenario
     """
     gwl_times_subset = years.loc[process_item(y)]
-    attrs_temp = y.attrs
-    one_sim = xr.Dataset()
-    for one_wl in gwl_times_subset.index:
-        centered_year = pd.to_datetime(gwl_times_subset[one_wl]).year
-        if not np.isnan(centered_year):
-            start_year = centered_year - window
-            end_year = centered_year + (window - 1)
-            if anom == "Yes":
-                sliced = y.sel(time=slice(str(start_year), str(end_year))) - y.sel(
-                    time=slice("1981", "2010")
-                ).mean("time")
-            else:
-                sliced = y.sel(time=slice(str(start_year), str(end_year)))
 
-            one_sim[one_wl] = sliced
-    one_sim = one_sim.to_array("warming_level")
-    one_sim.attrs = attrs_temp
-    return one_sim
+    # Checking if the centered year is null, if so, return dummy DataArray
+    center_time = gwl_times_subset.loc[level]
+    if not pd.isna(center_time):
+        # Find the centered year
+        centered_year = pd.to_datetime(center_time).year
+        start_year = centered_year - window
+        end_year = centered_year + (window - 1)
+
+        # TODO: This method will create incorrect data for daily data selection, as leap days create different time indices to be merged on. This will create weird time indices that can be visualized with the `out.plot.line` method in `warming_levels.ipynb`.
+
+        if anom == "Yes":
+            # Find the anomaly
+            anom_val = y.sel(time=slice("1981", "2010")).mean("time")
+            sliced = y.sel(time=slice(str(start_year), str(end_year))) - anom_val
+        else:
+            # Finding window slice of data
+            sliced = y.sel(time=slice(str(start_year), str(end_year)))
+
+        # Resetting time index for each data array so they can overlap and save storage space
+        sliced["time"] = sliced.time - sliced.time[0]
+
+        # Assigning `centered_year` as a coordinate to the DataArray
+        sliced = sliced.assign_coords({"centered_year": centered_year})
+
+        return sliced
+
+    else:
+        y = y.isel(
+            time=slice(0, window * 2 * 365)
+        )  # This is to create a dummy slice that conforms with other data structure. Can be re-written to something more elegant.
+
+        # Creating attributes
+        y["time"] = y.time - y.time[0]
+        y["centered_year"] = np.nan
+
+        # Returning DataArray of NaNs to be dropped later.
+        return xr.full_like(y, np.nan)
 
 
 def _get_cmap(wl_params):
@@ -282,175 +357,36 @@ class WarmingLevelVisualize(param.Parameterized):
         doc="Shared Socioeconomic Pathway.",
     )
 
-    def __init__(self, *args, **params):
+    def __init__(self, gwl_snapshots, wl_params, cmap, warming_levels):
         """
         Two things are passed in where this is initialized, and come in through
         *args, and **params
             wl_params: an instance of WarmingLevelParameters
             gwl_snapshots: xarray DataArray -- anomalies at each warming level
         """
-        super().__init__(*args, **params)
+        # super().__init__(*args, **params)
+        super().__init__()
+        self.gwl_snapshots = gwl_snapshots
+        self.wl_params = wl_params
+        self.warming_levels = warming_levels
+        self.cmap = cmap
         some_dims = self.gwl_snapshots.dims  # different names depending on WRF/LOCA
         some_dims = list(some_dims)
         some_dims.remove("warming_level")
         self.mins = self.gwl_snapshots.min(some_dims).compute()
         self.maxs = self.gwl_snapshots.max(some_dims).compute()
 
+    def compute_stamps(self):
+        self.main_stamps = GCM_PostageStamps_MAIN_compute(self)
+        self.stats_stamps = GCM_PostageStamps_STATS_compute(self)
+
     @param.depends("warmlevel", watch=True)
     def GCM_PostageStamps_MAIN(self):
-        # Get data to plot
-        one_warming_level = str(float(self.warmlevel))
-        all_plot_data = _select_one_gwl(one_warming_level, self.gwl_snapshots)
-        if all_plot_data.all_sims.size != 0:
-            if self.wl_params.variable == "Relative humidity":
-                all_plot_data = all_plot_data * 100
-
-            # Set up plotting arguments
-            width = 210
-            height = 110
-            clabel = (
-                self.wl_params.variable + " (" + self.gwl_snapshots.attrs["units"] + ")"
-            )
-            vmin = self.mins.sel(warming_level=one_warming_level).values.item()
-            vmax = self.maxs.sel(warming_level=one_warming_level).values.item()
-            if (vmin < 0) and (vmax > 0):
-                sopt = True
-            else:
-                sopt = None
-
-            # now prepare the plot object:
-            all_plots = all_plot_data.hvplot.image(
-                by="all_sims",
-                subplots=True,
-                colorbar=False,
-                clim=(vmin, vmax),
-                clabel=clabel,
-                cmap=self.cmap,
-                symmetric=sopt,
-                width=width,
-                height=height,
-                xaxis=False,
-                yaxis=False,
-                title="",
-            ).cols(4)
-
-            try:
-                all_plots.opts(
-                    title=self.wl_params.variable
-                    + ": for "
-                    + str(self.warmlevel)
-                    + "°C Warming by Simulation"
-                )  # Add title
-            except:
-                all_plots.opts(title=str(self.warmlevel) + "°C")  # Add shorter title
-
-            all_plots.opts(toolbar="below")  # Set toolbar location
-            all_plots.opts(hv.opts.Layout(merge_tools=True))  # Merge toolbar
-            return all_plots
-        else:
-            return None
+        return self.main_stamps[str(float(self.warmlevel))]
 
     @param.depends("warmlevel", watch=True)
     def GCM_PostageStamps_STATS(self):
-        # Get data to plot
-        one_warming_level = str(float(self.warmlevel))
-        all_plot_data = _select_one_gwl(one_warming_level, self.gwl_snapshots)
-        if all_plot_data.all_sims.size != 0:
-            if self.wl_params.variable == "Relative humidity":
-                all_plot_data = all_plot_data * 100
-
-            # compute stats
-            def get_name(simulation, my_func_name):
-                method, GCM, run, scenario = simulation.split("_")
-                return (
-                    my_func_name
-                    + ": \n"
-                    + method
-                    + " "
-                    + GCM
-                    + " "
-                    + run
-                    + "\n"
-                    + scenario.split("+")[1]
-                )
-
-            def arg_median(data):
-                """
-                Returns the simulation closest to the median.
-                """
-                return data.loc[
-                    data == data.quantile(0.5, "all_sims", method="nearest")
-                ].all_sims.values.item()
-
-            def find_sim(all_plot_data, area_avgs, stat_funcs, my_func):
-                if my_func == "Median":
-                    one_sim = all_plot_data.sel(all_sims=stat_funcs[my_func](area_avgs))
-                else:
-                    which_sim = area_avgs.reduce(stat_funcs[my_func], dim="all_sims")
-                    one_sim = all_plot_data.isel(all_sims=which_sim)
-                one_sim.all_sims.values = get_name(
-                    one_sim.all_sims.values.item(),
-                    my_func,
-                )
-                return one_sim
-
-            area_avgs = area_average(all_plot_data)
-            stat_funcs = {
-                "Minimum": np.argmin,
-                "Maximum": np.argmax,
-                "Median": arg_median,
-            }
-            stats = xr.concat(
-                [
-                    find_sim(all_plot_data, area_avgs, stat_funcs, one_func)
-                    for one_func in stat_funcs
-                ],
-                dim="all_sims",
-            )
-            stats.name = "Cross-simulation Statistics"
-
-            # Set up plotting arguments
-            width = 410
-            height = 210
-            clabel = (
-                self.wl_params.variable + " (" + self.gwl_snapshots.attrs["units"] + ")"
-            )
-            vmin = self.mins.sel(warming_level=one_warming_level).values.item()
-            vmax = self.maxs.sel(warming_level=one_warming_level).values.item()
-            if (vmin < 0) and (vmax > 0):
-                sopt = True
-            else:
-                sopt = None
-
-            # Make plots
-            plot_list = []
-            for stat in stats:
-                plot_list.append(
-                    stat.squeeze()
-                    .drop(["warming_level"])
-                    .hvplot.image(
-                        clabel=clabel,
-                        cmap=self.cmap,
-                        clim=(vmin, vmax),
-                        symmetric=sopt,
-                        width=width,
-                        height=height,
-                        xaxis=False,
-                        yaxis=False,
-                        title=stat.all_sims.values.item(),  # dim has been overwritten with nicer title
-                    )
-                )
-            all_plots = plot_list[0] + plot_list[1] + plot_list[2]
-
-            all_plots.opts(
-                title=self.wl_params.variable
-                + ": for "
-                + str(self.warmlevel)
-                + "°C Warming Across Models"
-            )  # Add title
-            return all_plots.cols(1)
-        else:
-            return None
+        return self.stats_stamps[str(float(self.warmlevel))]
 
     @param.depends("warmlevel", "ssp", watch=False)
     def GMT_context_plot(self):
@@ -696,6 +632,183 @@ def warming_levels_select(self):
     )
 
 
+def GCM_PostageStamps_MAIN_compute(wl_viz):
+    """
+    Compute helper for main postage stamps.
+    Returns dictionary of warming levels to stats visuals.
+    """
+    # Get data to plot
+    warm_level_dict = {}
+    for warmlevel in wl_viz.warming_levels:  ### TODO: Can parallize this for-loop
+        all_plot_data = _select_one_gwl(warmlevel, wl_viz.gwl_snapshots)
+        if all_plot_data.all_sims.size != 0:
+            if wl_viz.wl_params.variable == "Relative humidity":
+                all_plot_data = all_plot_data * 100
+
+            # Set up plotting arguments
+            width = 210
+            height = 110
+            clabel = (
+                wl_viz.wl_params.variable
+                + " ("
+                + wl_viz.gwl_snapshots.attrs["units"]
+                + ")"
+            )
+            vmin = wl_viz.mins.sel(warming_level=warmlevel).values.item()
+            vmax = wl_viz.maxs.sel(warming_level=warmlevel).values.item()
+            if (vmin < 0) and (vmax > 0):
+                sopt = True
+            else:
+                sopt = None
+
+            # now prepare the plot object:
+            all_plots = all_plot_data.hvplot.image(
+                by="all_sims",
+                subplots=True,
+                colorbar=False,
+                clim=(vmin, vmax),
+                clabel=clabel,
+                cmap=wl_viz.cmap,
+                symmetric=sopt,
+                width=width,
+                height=height,
+                xaxis=False,
+                yaxis=False,
+                title="",
+            ).cols(4)
+
+            try:
+                all_plots.opts(
+                    title=wl_viz.wl_params.variable
+                    + ": for "
+                    + str(warmlevel)
+                    + "°C Warming by Simulation"
+                )  # Add title
+            except:
+                all_plots.opts(title=str(warmlevel) + "°C")  # Add shorter title
+
+            all_plots.opts(toolbar="below")  # Set toolbar location
+            all_plots.opts(hv.opts.Layout(merge_tools=True))  # Merge toolbar
+            warm_level_dict[warmlevel] = all_plots.cols(1)
+
+    return warm_level_dict
+    # return all_plots
+    # else:
+    #     return None
+
+
+def GCM_PostageStamps_STATS_compute(wl_viz):
+    """
+    Compute helper for stats postage stamps.
+    Returns dictionary of warming levels to stats visuals.
+    """
+    # Get data to plot
+    # one_warming_level = str(float(wl_viz.warmlevel))
+    warm_level_dict = {}
+    for warmlevel in wl_viz.warming_levels:
+        all_plot_data = _select_one_gwl(warmlevel, wl_viz.gwl_snapshots)
+        if all_plot_data.all_sims.size != 0:
+            if wl_viz.wl_params.variable == "Relative humidity":
+                all_plot_data = all_plot_data * 100
+
+            # compute stats
+            def get_name(simulation, my_func_name):
+                method, GCM, run, scenario = simulation.split("_")
+                return (
+                    my_func_name
+                    + ": \n"
+                    + method
+                    + " "
+                    + GCM
+                    + " "
+                    + run
+                    + "\n"
+                    + scenario.split("+")[1]
+                )
+
+            def arg_median(data):
+                """
+                Returns the simulation closest to the median.
+                """
+                return data.loc[
+                    data == data.quantile(0.5, "all_sims", method="nearest")
+                ].all_sims.values.item()
+
+            def find_sim(all_plot_data, area_avgs, stat_funcs, my_func):
+                if my_func == "Median":
+                    one_sim = all_plot_data.sel(all_sims=stat_funcs[my_func](area_avgs))
+                else:
+                    which_sim = area_avgs.reduce(stat_funcs[my_func], dim="all_sims")
+                    one_sim = all_plot_data.isel(all_sims=which_sim.values)
+                one_sim.all_sims.values = get_name(
+                    one_sim.all_sims.values.item(),
+                    my_func,
+                )
+                return one_sim
+
+            area_avgs = area_average(all_plot_data)
+            stat_funcs = {
+                "Minimum": np.argmin,
+                "Maximum": np.argmax,
+                "Median": arg_median,
+            }
+            stats = xr.concat(
+                [
+                    find_sim(all_plot_data, area_avgs, stat_funcs, one_func)
+                    for one_func in stat_funcs
+                ],
+                dim="all_sims",
+            )
+            stats.name = "Cross-simulation Statistics"
+
+            # Set up plotting arguments
+            width = 410
+            height = 210
+            clabel = (
+                wl_viz.wl_params.variable
+                + " ("
+                + wl_viz.gwl_snapshots.attrs["units"]
+                + ")"
+            )
+            vmin = wl_viz.mins.sel(warming_level=warmlevel).values.item()
+            vmax = wl_viz.maxs.sel(warming_level=warmlevel).values.item()
+            if (vmin < 0) and (vmax > 0):
+                sopt = True
+            else:
+                sopt = None
+
+            # Make plots
+            plot_list = []
+            for stat in stats:
+                plot_list.append(
+                    stat.squeeze()
+                    .drop(["warming_level"])
+                    .hvplot.image(
+                        clabel=clabel,
+                        cmap=wl_viz.cmap,
+                        clim=(vmin, vmax),
+                        symmetric=sopt,
+                        width=width,
+                        height=height,
+                        xaxis=False,
+                        yaxis=False,
+                        title=stat.all_sims.values.item(),  # dim has been overwritten with nicer title
+                    )
+                )
+            all_plots = plot_list[0] + plot_list[1] + plot_list[2]
+
+            all_plots.opts(
+                title=wl_viz.wl_params.variable
+                + ": for "
+                + str(warmlevel)
+                + "°C Warming Across Models"
+            )  # Add title
+            warm_level_dict[warmlevel] = all_plots.cols(1)
+        # else:
+        # return None
+    return warm_level_dict
+
+
 def warming_levels_visualize(wl_viz):
     # Create panel doodad!
 
@@ -722,9 +835,9 @@ def warming_levels_visualize(wl_viz):
     postage_stamps_MAIN = pn.Column(
         pn.widgets.StaticText(
             value=(
-                "Panels show the 30-year average centered on the year that each"
-                "GCM run (each panel) reaches the specified warming level."
-                "If you selected 'Yes' to return an anomaly, you will see the difference"
+                "Panels show the 30-year average centered on the year that each "
+                "GCM run (each panel) reaches the specified warming level. "
+                "If you selected 'Yes' to return an anomaly, you will see the difference "
                 "from average over the 1981-2010 historical reference period."
             ),
             width=800,
@@ -824,3 +937,69 @@ def _make_hvplot(data, clabel, clim, cmap, sopt, title, width=225, height=210):
             s=150,  # Size of marker
         )
     return _plot
+
+
+def fit_models_and_plots(new_data, trad_data, dist_name):
+    """
+    Given a xr.DataArray and a distribution name, fit the distribution to the data, and generate
+    a plot denoting a histogram of the data and the fitted distribution to the data.
+    """
+    plt.figure(figsize=(10, 5))
+
+    # Get and fit distribution for new method data and traditional method data
+    func = threshold_tools._get_distr_func(dist_name)
+    new_fitted_dist = threshold_tools._get_fitted_distr(new_data, dist_name, func)
+    trad_fitted_dist = threshold_tools._get_fitted_distr(trad_data, dist_name, func)
+
+    # Get params from distribution
+    new_params = new_fitted_dist[0].values()
+    trad_params = trad_fitted_dist[0].values()
+
+    # Create histogram for new method data and traditional method data
+    counts, bins = np.histogram(new_data)
+    plt.hist(
+        bins[:-1],
+        5,
+        weights=counts / sum(counts),
+        label="New GWL counts",
+        lw=3,
+        fc=(1, 0, 0, 0.5),
+    )
+
+    counts, bins = np.histogram(trad_data)
+    plt.hist(
+        bins[:-1],
+        5,
+        weights=counts / sum(counts),
+        label="Traditional counts",
+        lw=3,
+        fc=(0, 0, 1, 0.5),
+    )
+
+    # Plotting pearson3 PDFs
+    skew, loc, scale = new_params
+    x = np.linspace(func.ppf(0.01, skew), func.ppf(0.99, skew), 5000)
+    plt.plot(x, func.pdf(x, skew), "r-", lw=2, alpha=0.6, label="pearson3 curve new")
+    new_left, new_right = pearson3.interval(0.95, skew, loc, scale)
+
+    skew, loc, scale = trad_params
+    x = np.linspace(func.ppf(0.01, skew), func.ppf(0.99, skew), 5000)
+    plt.plot(x, func.pdf(x, skew), "b-", lw=2, alpha=0.6, label="pearson3 curve trad.")
+    trad_left, trad_right = pearson3.interval(0.95, skew, loc, scale)
+
+    # Plotting confidence intervals
+    plt.axvline(new_left, color="r", linestyle="dashed", label="95% CI new")
+    plt.axvline(new_right, color="r", linestyle="dashed")
+    plt.axvline(trad_left, color="b", linestyle="dashed", label="95% CI trad.")
+    plt.axvline(trad_right, color="b", linestyle="dashed")
+
+    # Plotting rest of chart attributes
+    plt.xlabel("Log of Extreme Heat Days Count")
+    plt.ylabel("Probability Density")
+    plt.legend()
+    plt.title("Fitting Pearson3 Distributions to Log-Scaled Extreme Heat Days Counts")
+    plt.xlim(left=0.5, right=max(max(new_data), max(trad_data)))
+    plt.ylim(top=1)
+    plt.show()
+
+    return new_params, trad_params
