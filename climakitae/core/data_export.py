@@ -183,10 +183,10 @@ def _export_to_netcdf(data, save_name):
     Export user-selected data to NetCDF format.
 
     Export the xarray DataArray or Dataset `data` to a NetCDF file `save_name`.
-    If there is enough disk space, the function saves the file locally; 
+    If there is enough disk space, the function saves the file locally;
     otherwise, it saves the file to the S3 bucket `cadcat-tmp` and provides a
     URL for download.
-    
+
 
     Parameters
     ----------
@@ -242,8 +242,7 @@ def _export_to_netcdf(data, save_name):
             data.to_netcdf(fp, encoding=encoding)
 
             download_url = _create_presigned_url(
-                bucket_name="cadcat-tmp", 
-                object_name=path.split("cadcat-tmp/")[-1]
+                bucket_name="cadcat-tmp", object_name=path.split("cadcat-tmp/")[-1]
             )
             print(
                 (
