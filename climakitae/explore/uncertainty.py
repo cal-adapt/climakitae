@@ -521,25 +521,47 @@ def get_ensemble_data(variable, selections, cmip_names, warm_level=3.0):
 ## Useful individual analysis functions
 
 
-def cmip_annual(ds):
-    """Calculates the annual average temperature timeseries in degC from monthly data.
+def weighted_temporal_mean(ds):
+    """weight by days in each month
 
-    Note: as is, is specified for temperature in order to convert units. Can be
-    generalized.
+    Function for calculating annual averages pulled + adapted from NCAR
+    Link: https://ncar.github.io/esds/posts/2021/yearly-averages-xarray/
 
     Parameters
     ----------
-    ds: xr.Dataset
-        Input data, default temperature unit is K
+    ds: xarray.DataArray
 
     Returns
     -------
-    ds_degC: xr.Dataset
-        Annual temperature timeseries in degC
+    obs_sum / ones_out : xarray.Dataset
     """
-    ds_degC = ds - 273.15  # convert to degC
-    ds_degC = ds_degC.groupby("time.year").mean(dim=["time"])
-    return ds_degC
+
+    # Determine the month length
+    month_length = ds.time.dt.days_in_month
+
+    # Calculate the weights
+    wgts = month_length.groupby("time.year") / month_length.groupby("time.year").sum()
+
+    # Make sure the weights in each year add up to 1
+    np.testing.assert_allclose(wgts.groupby("time.year").sum(xr.ALL_DIMS), 1.0)
+
+    # Setup our masking for nan values
+    cond = ds.isnull()
+    ones = xr.where(cond, 0.0, 1.0)
+
+    # Calculate the numerator
+    obs_sum = (ds * wgts).resample(time="AS").sum(dim="time")
+
+    # Calculate the denominator
+    ones_out = (ones * wgts).resample(time="AS").sum(dim="time")
+
+    # Calculate weighted average
+    weighted_avg = obs_sum / ones_out
+
+    # Setting time array to the year
+    weighted_avg["time"] = weighted_avg.time.dt.year
+
+    return weighted_avg
 
 
 def calc_anom(ds_yr, base_start, base_end):
@@ -562,7 +584,7 @@ def calc_anom(ds_yr, base_start, base_end):
     mdl_temp_anom: xr.Dataset
         Anomaly data calculated with input baseline start and end
     """
-    mdl_baseline = ds_yr.sel(year=slice(base_start, base_end)).mean("year")
+    mdl_baseline = ds_yr.sel(time=slice(base_start, base_end)).mean("time")
     mdl_temp_anom = ds_yr - mdl_baseline
     return mdl_temp_anom
 
