@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 def warm_level_to_years(warm_df, scenario, warming_level):
     """Given warming level, plot histogram of years and label median year."""
     datetimes = warm_df[warm_df['scenario'] == scenario][warming_level].astype('datetime64[ns]')
@@ -114,7 +115,7 @@ def find_warm_index(warm_df, scenario, warming_level=None, year=None):
 
         # Given year, plot warming levels and find median
         elif warming_level is None and year is not None:
-            min_year, max_year = 2001, 2090
+            min_year, max_year = 2001, 2090  # years with 10+ simulations
             if not (min_year <= year and year <= max_year):
                 raise ValueError(
                     f'Please provide a year between {min_year} and {max_year}'
