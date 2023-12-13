@@ -14,7 +14,7 @@ def create_lookup_table():
     gcms = data_interface.data_catalog.df.source_id.unique()
     
     # Reading GCM warming levels 1850-1900 table
-    temp_df = pd.read_csv('~/climakitae/climakitae/data/gwl_1850-1900ref_1to4deg_per05.csv')
+    temp_df = pd.read_csv('~/src/climakitae/climakitae/data/gwl_1850-1900ref_1to4deg_per05.csv')
     # Clean long float column names
     temp_df.columns = np.append(
         temp_df.columns[:3], 
