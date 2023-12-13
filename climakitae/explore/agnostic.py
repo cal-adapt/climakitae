@@ -53,35 +53,45 @@ def find_warm_index(warm_df, scenario, warming_level=None, year=None):
     elif warming_level is not None and year is not None:
         print("Pass in either a warming level or a year, but not both.")
         
-    elif warming_level is not None and year is None:
-        
-        warm_level_to_years(warm_df, scenario, warming_level)
-        return warm_level_to_month(warm_df, scenario, warming_level)
+    else:
+        if scenario != 'ssp370':
+            raise NotImplementedError(
+                'Scenarios other than ssp370 are under development.'
+            )
 
-    elif warming_level is None and year is not None:
-        
-        # Given year, find warming level
-        warm_levels = ['1.5', '2.0', '3.0', '4.0']
-        date_df = warm_df[warm_df['scenario'] == 'ssp370'][warm_levels]
+        if warming_level is not None and year is None:
+            allowed_warm_level = ['1.5', '2.0', '3.0']
+            if warming_level not in allowed_warm_level:
+                raise NotImplementedError(
+                    f'Please choose a warming level among {allowed_warm_level}'
+                )
+            warm_level_to_years(warm_df, scenario, warming_level)
+            return warm_level_to_month(warm_df, scenario, warming_level)
 
-        # Creating new counts dataframe
-        counts_df = pd.DataFrame()
-        years = pd.to_datetime(date_df.values.flatten()).year
-        years_idx = set(years[pd.notna(years)].sort_values())
-        counts_df.index = years_idx
-
-        # Creating counts by warming level and year
-        for level in warm_levels:
-            counts_df = counts_df.merge(pd.to_datetime(date_df[level]).dt.year.value_counts(), left_index=True, right_index=True, how='outer')
-            counts_df = counts_df.fillna(0)
-
-        counts_df = counts_df.T
-
-        # Find the median warming level for ssp370 and 2040.
-        levels = counts_df[year]
-        med_level = np.median([float(value) for value, count in levels.items() for _ in range(int(count))])
-        return med_level
+        elif warming_level is None and year is not None:
+            
+            # Given year, find warming level
+            warm_levels = ['1.5', '2.0', '3.0', '4.0']
+            date_df = warm_df[warm_df['scenario'] == 'ssp370'][warm_levels]
     
+            # Creating new counts dataframe
+            counts_df = pd.DataFrame()
+            years = pd.to_datetime(date_df.values.flatten()).year
+            years_idx = set(years[pd.notna(years)].sort_values())
+            counts_df.index = years_idx
+    
+            # Creating counts by warming level and year
+            for level in warm_levels:
+                counts_df = counts_df.merge(pd.to_datetime(date_df[level]).dt.year.value_counts(), left_index=True, right_index=True, how='outer')
+                counts_df = counts_df.fillna(0)
+    
+            counts_df = counts_df.T
+    
+            # Find the median warming level for ssp370 and 2040.
+            levels = counts_df[year]
+            med_level = np.median([float(value) for value, count in levels.items() for _ in range(int(count))])
+            return med_level
+        
 
 # Lambda function to pass in a created warming level table rather than remaking it with every call.
 
