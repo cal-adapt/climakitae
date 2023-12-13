@@ -105,6 +105,7 @@ def year_to_warm_levels(warm_df, scenario, year):
 
 
 def round_to_nearest_half(number):
+    # TODO: what to do with .25
     return round(number * 2) / 2
 
 
