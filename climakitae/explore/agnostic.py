@@ -37,6 +37,49 @@ def warm_level_to_month(warm_df, scenario, warming_level):
     return med_date.strftime('%Y-%m')
 
 
+def plot_warm_levels(ax, levels, med_level):
+    """Plot histogram of years and label median year on axis."""
+    n = len(levels)
+    ax.hist(levels)
+    ax.set_title(f'Warming levels reached in the year by {n} model simulations')
+    ax.set_xlabel('Warming level')
+    ax.set_ylabel('Number of simulations')
+    ax.axvline(
+        med_level, color='black', linestyle='--', 
+        label=f'Median warming level is {med_level}'
+    )
+    ax.legend()
+    return ax
+
+
+def year_to_warm_levels(warm_df, scenario, year):
+    """Given year, give warming levels and their median."""
+    warm_levels = np.arange(1, 4.01, .05).round(2).astype(str)
+    date_df = warm_df[warm_df['scenario'] == scenario][warm_levels]
+
+    # Creating new counts dataframe
+    counts_df = pd.DataFrame()
+    years = pd.to_datetime(date_df.values.flatten()).year
+    years_idx = set(years[pd.notna(years)].sort_values())
+    counts_df.index = years_idx
+
+    # Creating counts by warming level and year
+    for level in warm_levels:
+        counts_df = counts_df.merge(pd.to_datetime(date_df[level]).dt.year.value_counts(), left_index=True, right_index=True, how='outer')
+        counts_df = counts_df.fillna(0)   
+    counts_df = counts_df.T
+
+    # Find the median warming level for ssp370 and 2040.
+    levels = counts_df[year]
+    expanded_levels = [
+        float(value) for value, count in levels.items() for _ in range(int(count))
+    ]
+    med_level = np.quantile(
+        expanded_levels, 0.5, interpolation='nearest'
+    )
+    return expanded_levels, med_level
+
+
 def find_warm_index(warm_df, scenario, warming_level=None, year=None):
     """
     Given a scenario and either a warming level or a year, return either the median warming level or year from all simulations within this scenario.
@@ -59,6 +102,7 @@ def find_warm_index(warm_df, scenario, warming_level=None, year=None):
                 'Scenarios other than ssp370 are under development.'
             )
 
+        # Given warming level, plot years and find month
         if warming_level is not None and year is None:
             allowed_warm_level = ['1.5', '2.0', '3.0']
             if warming_level not in allowed_warm_level:
@@ -68,29 +112,17 @@ def find_warm_index(warm_df, scenario, warming_level=None, year=None):
             warm_level_to_years(warm_df, scenario, warming_level)
             return warm_level_to_month(warm_df, scenario, warming_level)
 
+        # Given year, plot warming levels and find median
         elif warming_level is None and year is not None:
-            
-            # Given year, find warming level
-            warm_levels = ['1.5', '2.0', '3.0', '4.0']
-            date_df = warm_df[warm_df['scenario'] == 'ssp370'][warm_levels]
-    
-            # Creating new counts dataframe
-            counts_df = pd.DataFrame()
-            years = pd.to_datetime(date_df.values.flatten()).year
-            years_idx = set(years[pd.notna(years)].sort_values())
-            counts_df.index = years_idx
-    
-            # Creating counts by warming level and year
-            for level in warm_levels:
-                counts_df = counts_df.merge(pd.to_datetime(date_df[level]).dt.year.value_counts(), left_index=True, right_index=True, how='outer')
-                counts_df = counts_df.fillna(0)
-    
-            counts_df = counts_df.T
-    
-            # Find the median warming level for ssp370 and 2040.
-            levels = counts_df[year]
-            med_level = np.median([float(value) for value, count in levels.items() for _ in range(int(count))])
-            return med_level
+            min_year, max_year = 2001, 2090
+            if not (min_year <= year and year <= max_year):
+                raise ValueError(
+                    f'Please provide a year between {min_year} and {max_year}'
+                )
+            warm_levels, med_level = year_to_warm_levels(warm_df, scenario, year)
+            fig, ax = plt.subplots()
+            plot_warm_levels(ax, warm_levels, med_level)
+            return med_level 
         
 
 # Lambda function to pass in a created warming level table rather than remaking it with every call.
