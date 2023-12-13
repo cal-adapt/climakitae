@@ -4,6 +4,28 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
+def create_lookup_table():
+    """
+    Create a warming level table that is subsetting only on GCMs that we have data for.
+    """
+    # Finding the names of all the GCMs that we catalog
+    from climakitae.core.data_interface import DataInterface
+    data_interface = DataInterface()
+    gcms = data_interface.data_catalog.df.source_id.unique()
+    
+    # Reading GCM warming levels 1850-1900 table
+    temp_df = pd.read_csv('~/climakitae/climakitae/data/gwl_1850-1900ref_1to4deg_per05.csv')
+    # Clean long float column names
+    temp_df.columns = np.append(
+        temp_df.columns[:3], 
+        np.round(temp_df.columns[3:].astype(float), 2).astype(str)
+    )
+    
+    # Subsetting on the table for only the GCMs that we track
+    df = temp_df[temp_df['GCM'].isin(gcms)]
+    return df
+
+
 def warm_level_to_years(warm_df, scenario, warming_level):
     """Given warming level, plot histogram of years and label median year."""
     datetimes = warm_df[warm_df['scenario'] == scenario][warming_level].astype('datetime64[ns]')
@@ -16,9 +38,10 @@ def warm_level_to_years(warm_df, scenario, warming_level):
 
 
 def plot_years(ax, years, med_year):
-    """Plot histogram of years and label median year on axis."""
+    """Plot histogram of years and label median year, on axis."""
+    n = len(years)
     ax.hist(years)
-    ax.set_title('Years when different model simulations reach the warming level')
+    ax.set_title(f'Years when {n} model simulations reach the warming level')
     ax.set_xlabel('Year')
     ax.set_ylabel('Number of simulations')
     ax.axvline(med_year, color='black', linestyle='--', label=f'Median year is {med_year}')
@@ -33,23 +56,23 @@ def warm_level_to_year(warm_df, scenario, warming_level):
 
 
 def warm_level_to_month(warm_df, scenario, warming_level):
-    """Given warming level, give year and month."""
+    """Given warming level, give month."""
     med_date = warm_df[warm_df['scenario'] == scenario][warming_level].astype('datetime64[ns]').quantile(0.5, interpolation='midpoint')
     return med_date.strftime('%Y-%m')
 
 
 def plot_warm_levels(ax, levels, med_level):
-    """Plot histogram of years and label median year on axis."""
+    """Plot histogram of warming levels, on axis."""
     n = len(levels)
     ax.hist(levels)
     ax.set_title(f'Warming levels reached in the year by {n} model simulations')
     ax.set_xlabel('Warming level')
     ax.set_ylabel('Number of simulations')
-    ax.axvline(
-        med_level, color='black', linestyle='--', 
-        label=f'Median warming level is {med_level}'
-    )
-    ax.legend()
+    # ax.axvline(
+    #     med_level, color='black', linestyle='--', 
+    #     label=f'Median warming level is {med_level}'
+    # )
+    # ax.legend()
     return ax
 
 
@@ -70,7 +93,7 @@ def year_to_warm_levels(warm_df, scenario, year):
         counts_df = counts_df.fillna(0)   
     counts_df = counts_df.T
 
-    # Find the median warming level for ssp370 and 2040.
+    # Find the warming levels and their median
     levels = counts_df[year]
     expanded_levels = [
         float(value) for value, count in levels.items() for _ in range(int(count))
@@ -81,15 +104,23 @@ def year_to_warm_levels(warm_df, scenario, year):
     return expanded_levels, med_level
 
 
-def find_warm_index(warm_df, scenario, warming_level=None, year=None):
+def round_to_nearest_half(number):
+    return round(number * 2) / 2
+
+
+def find_warm_index(warm_df, scenario='ssp370', warming_level=None, year=None):
     """
-    Given a scenario and either a warming level or a year, return either the median warming level or year from all simulations within this scenario.
+    Given a scenario and either a warming level or a time, return either the median warming level or month from all simulations within this scenario.
+    
+    Note the median warming level is rounded to the nearest half.
     
     Parameters
     ----------
-    scenario: string ('ssp245', 'ssp370', 'ssp585')
-    warming_level: string ('1.5', '2.0', '3.0', '4.0')
+    scenario: string ('ssp370')
+    warming_level: string ('1.5', '2.0', '3.0')
     year: int
+        Must be in [2001, 2090].
+
     """
     if not warming_level and not year:
         print("Pass in either a warming level or a year.")
@@ -123,12 +154,12 @@ def find_warm_index(warm_df, scenario, warming_level=None, year=None):
             warm_levels, med_level = year_to_warm_levels(warm_df, scenario, year)
             fig, ax = plt.subplots()
             plot_warm_levels(ax, warm_levels, med_level)
-            return med_level 
+            return print(
+                f'The median projected warming level is about {round_to_nearest_half(med_level)}\n'
+            )
         
 
 # Lambda function to pass in a created warming level table rather than remaking it with every call.
-
-# TODO: Check out 2050, 2060, check out 2030
-def pass_in_warm_df(warm_df):
-    return lambda scenario, warming_level=None, year=None: find_warm_index(warm_df, scenario, warming_level, year)
+def create_conversion_function(warm_df):
+    return lambda scenario='ssp370', warming_level=None, year=None: find_warm_index(warm_df, scenario, warming_level, year)
 
