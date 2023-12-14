@@ -524,6 +524,7 @@ def _utc_offset_timezone(lat, lon):
 
     offset_seconds = tz.utcoffset(dt).seconds
     offset_hours = offset_seconds / 3600.0
+
     diff = "{:+d}:{:02d}".format(int(offset_hours), int((offset_hours % 1) * 60))
 
     return diff
@@ -541,7 +542,7 @@ def _tmy_header(location_name, station_code, state, timezone, df):
         station_code, 
         location_name,
         state,
-        _utc_offset_timezone(lon=df["lon"].values[0], lat=df["lat"].values[0]),
+        timezone,
         df["lat"].values[0],
         df["lon"].values[0],
         _grab_dem_elev_m(lat=df["lat"].values[0], lon=df["lon"].values[0]),
@@ -571,7 +572,7 @@ def _epw_header(location_name, station_code, state, timezone, df):
         station_code,
         df["lat"].values[0],
         df["lon"].values[0],
-        _utc_offset_timezone(lon=df["lon"].values[0], lat=df["lat"].values[0]),
+        timezone,
         _grab_dem_elev_m(lat=df["lat"].values[0], lon=df["lon"].values[0])
     )
 
@@ -696,7 +697,7 @@ def _epw_format_data(df):
     return df
 
 
-def write_tmy_file(filename_to_export, df, location_name="location", station_code="custom", file_ext="tmy"):
+def write_tmy_file(filename_to_export, df, location_name="location", station_code="custom", stn_lat, stn_lon, stn_state, file_ext="tmy"):
     """Exports TMY data either as .epw or .tmy file
 
     Parameters
@@ -719,17 +720,18 @@ def write_tmy_file(filename_to_export, df, location_name="location", station_cod
             "The function requires a pandas DataFrame object as the data input"
         )
 
-    # custom station code handling
+    # custom location input handling
     if type(station_code) == str: # custom code passed
         station_code = station_code
-        state = 'XX' # will need to look up via lat/lon
-        timezone = '-8' # will need to look up via lat/lon
+        state = stn_state
+        timezone = _utc_offset_timezone(lon=stn_lon, lat=stn_lat)
+
     elif type(station_code) == int: # hadisd statio code passed
         # look up info
         if station_code in station_df['station id'].values:
             state = station_df.loc[station_df['station id'] == station_code]['state'].values[0]
             station_code = str(station_code)[:6]
-            timezone = '-8'
+            timezone = _utc_offset_timezone(lon=df["lon"].values[0], lat=df["lat"].values[0])
  
     # typical meteorological year format
     if file_ext == "tmy":
