@@ -9,6 +9,9 @@ import pandas as pd
 import numpy as np
 import requests
 import urllib
+import pytz
+from datetime import datetime, timezone
+from timezonefinder import TimezoneFinder
 from importlib.metadata import version as _version
 from climakitae.util.utils import read_csv_file
 from climakitae.core.paths import variable_descriptions_csv_path, stations_csv_path
@@ -508,6 +511,23 @@ def _grab_dem_elev_m(lat, lon):
 
     return dem_elev_short.astype("float")
 
+def _utc_offset_timezone(lat, lon):
+    '''
+    Based on user input of lat lon, returns the UTC offset for that timezone
+    Modified from: 
+    https://www.reddit.com/r/learnpython/comments/zhatrd/how_to_get_time_offset_of_a_given_coordinates/
+    '''
+    
+    tzn = tf.timezone_at(lng=lon, lat=lat)
+    tz = pytz.timezone(tzn)
+    dt = datetime.utcnow()
+
+    offset_seconds = tz.utcoffset(dt).seconds
+    offset_hours = offset_seconds / 3600.0
+    diff = "{:+d}:{:02d}".format(int(offset_hours), int((offset_hours % 1) * 60))
+
+    return diff
+
 
 def _tmy_header(location_name, station_code, state, timezone, df):
     """
@@ -517,11 +537,11 @@ def _tmy_header(location_name, station_code, state, timezone, df):
 
     # line 1 - site information
     # line 1: USAF, station name quote delimited, state, time zone, lat, lon, elev (m), simulation
-    line_1 = "{0}, '{1}', {2}, {3}, {4}, {5}, {6}, {7}, {8}\n".format(
+    line_1 = "{0}, '{1}', {2}, {3}, {4}, {5}, {6}, {7}\n".format(
         station_code, 
         location_name,
         state,
-        timezone,
+        _utc_offset_timezone(lon=df["lon"].values[0], lat=df["lat"].values[0]),
         df["lat"].values[0],
         df["lon"].values[0],
         _grab_dem_elev_m(lat=df["lat"].values[0], lon=df["lon"].values[0]),
@@ -551,7 +571,7 @@ def _epw_header(location_name, station_code, state, timezone, df):
         station_code,
         df["lat"].values[0],
         df["lon"].values[0],
-        timezone,
+        _utc_offset_timezone(lon=df["lon"].values[0], lat=df["lat"].values[0]),
         _grab_dem_elev_m(lat=df["lat"].values[0], lon=df["lon"].values[0])
     )
 
