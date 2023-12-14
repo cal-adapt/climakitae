@@ -491,8 +491,6 @@ def _grab_dem_elev_m(lat, lon):
     https://gis.stackexchange.com/questions/338392/getting-elevation-for-multiple-lat-long-coordinates-in-python
     """
     url = r'https://epqs.nationalmap.gov/v1/json?'
-
-    dem_elev_short = np.ones_like(lats_to_check)*np.nan
     
     # define rest query params
     params = {
