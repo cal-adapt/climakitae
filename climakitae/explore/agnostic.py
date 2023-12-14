@@ -41,7 +41,7 @@ def plot_years(ax, years, med_year):
     """Plot histogram of years and label median year, on axis."""
     n = len(years)
     ax.hist(years)
-    ax.set_title(f'Years when {n} model simulations reach the warming level')
+    ax.set_title(f'Years when each of all {n} model simulations reach the warming level')
     ax.set_xlabel('Year')
     ax.set_ylabel('Number of simulations')
     ax.axvline(med_year, color='black', linestyle='--', label=f'Median year is {med_year}')
@@ -61,12 +61,13 @@ def warm_level_to_month(warm_df, scenario, warming_level):
     return med_date.strftime('%Y-%m')
 
 
-def plot_warm_levels(ax, levels, med_level):
+def plot_warm_levels(fig, ax, levels, med_level):
     """Plot histogram of warming levels, on axis."""
     n = len(levels)
     ax.hist(levels)
-    ax.set_title(f'Warming levels reached in the year by {n} model simulations')
-    ax.set_xlabel('Warming level')
+    fig.suptitle(f'Warming levels reached in the year by {n} model simulations')
+    ax.set_title('(out of 80 simulations)', fontsize=10)
+    ax.set_xlabel('Warming level (°C)')
     ax.set_ylabel('Number of simulations')
     # ax.axvline(
     #     med_level, color='black', linestyle='--', 
@@ -154,9 +155,9 @@ def find_warm_index(warm_df, scenario='ssp370', warming_level=None, year=None):
                 )
             warm_levels, med_level = year_to_warm_levels(warm_df, scenario, year)
             fig, ax = plt.subplots()
-            plot_warm_levels(ax, warm_levels, med_level)
+            plot_warm_levels(fig, ax, warm_levels, med_level)
             return print(
-                f'The median projected warming level is about {round_to_nearest_half(med_level)}\n'
+                f'The median projected warming level is about {round_to_nearest_half(med_level)}°C \n'
             )
         
 
