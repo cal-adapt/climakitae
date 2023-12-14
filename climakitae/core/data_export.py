@@ -697,7 +697,7 @@ def _epw_format_data(df):
     return df
 
 
-def write_tmy_file(filename_to_export, df, location_name="location", station_code="custom", stn_lat, stn_lon, stn_state, file_ext="tmy"):
+def write_tmy_file(filename_to_export, df, location_name, station_code, stn_lat, stn_lon, stn_state, file_ext="tmy"):
     """Exports TMY data either as .epw or .tmy file
 
     Parameters
