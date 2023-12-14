@@ -510,7 +510,7 @@ def _grab_dem_elev_m(lat, lon):
     return dem_elev_short.astype("float")
 
 
-def _tmy_header(location_name, station_code, df):
+def _tmy_header(location_name, station_code, state, df):
     """
     Constructs the header for the TMY output file in .tmy format
     Source: https://www.nrel.gov/docs/fy08osti/43156.pdf (pg. 3)
@@ -537,7 +537,7 @@ def _tmy_header(location_name, station_code, df):
     return headers
 
 
-def _epw_header(location_name, station_code, df):
+def _epw_header(location_name, station_code, state, df):
     """
     Constructs the header for the TMY output file in .epw format
     Source: EnergyPlus Version 23.1.0 Documentation
@@ -680,7 +680,7 @@ def _epw_format_data(df):
 def write_tmy_file(filename_to_export, df, location_name="location", station_code="custom", file_ext="tmy"):
     """Exports TMY data either as .epw or .tmy file
 
-    Paramters
+    Parameters
     ---------
     filename_to_export (str): Filename string, constructed with station name and simulation
     df (pd.DataFrame): Dataframe of TMY data to export
@@ -692,6 +692,8 @@ def write_tmy_file(filename_to_export, df, location_name="location", station_cod
     None
     """
 
+    station_df = read_csv_file(stations_csv_path)
+
     # check that data passed is a DataFrame object
     if type(df) != pd.DataFrame:
         raise ValueError(
@@ -699,17 +701,23 @@ def write_tmy_file(filename_to_export, df, location_name="location", station_cod
         )
 
     # custom station code handling
-    if type(station_code) == str:
-        station_code = station_code # custom code passed
-    elif type(station_code) == int:
-        station_code = str(station_code)[:6]
-
+    if type(station_code) == str: # custom code passed
+        station_code = station_code
+        state = 'XX' # will need to look up via lat/lon
+        timezone = '-8' # will need to look up via lat/lon
+    elif type(station_code) == int: # hadisd statio code passed
+        # look up info
+        if station_code in station_df['station id'].values:
+            state = station_df.loc[station_df['station id'] == station_code]['state'].values[0]
+            station_code = str(station_code)[:6]
+            timezone = '-8'
+ 
     # typical meteorological year format
     if file_ext == "tmy":
         path_to_file = filename_to_export + ".tmy"
 
         with open(path_to_file, "w") as f:
-            f.writelines(_tmy_header(location_name, station_code, df))  # writes required header lines
+            f.writelines(_tmy_header(location_name, station_code, state, df))  # writes required header lines
             df = df.drop(
                 columns=["simulation", "lat", "lon", "scenario"]
             )  # drops header columns from df
@@ -725,7 +733,7 @@ def write_tmy_file(filename_to_export, df, location_name="location", station_cod
     elif file_ext == "epw":
         path_to_file = filename_to_export + ".epw"
         with open(path_to_file, "w") as f:
-            f.writelines(_epw_header(location_name, station_code, df))  # writes required header lines
+            f.writelines(_epw_header(location_name, station_code, state, df))  # writes required header lines
             df_string = _epw_format_data(df).to_csv(sep=",", header=False, index=False)
             f.write(df_string)  # writes data in EPW format
         print(
