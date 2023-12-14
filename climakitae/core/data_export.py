@@ -517,7 +517,7 @@ def _utc_offset_timezone(lat, lon):
     Modified from: 
     https://www.reddit.com/r/learnpython/comments/zhatrd/how_to_get_time_offset_of_a_given_coordinates/
     '''
-    
+    tf = TimezoneFinder()
     tzn = tf.timezone_at(lng=lon, lat=lat)
     tz = pytz.timezone(tzn)
     dt = datetime.utcnow()
