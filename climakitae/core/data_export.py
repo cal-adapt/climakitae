@@ -6,6 +6,7 @@ import warnings
 import datetime
 import xarray as xr
 import pandas as pd
+import numpy as np
 import requests
 import urllib
 from importlib.metadata import version as _version
