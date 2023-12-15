@@ -515,17 +515,14 @@ def _utc_offset_timezone(lat, lon):
     '''
     Based on user input of lat lon, returns the UTC offset for that timezone
     Modified from: 
-    https://www.reddit.com/r/learnpython/comments/zhatrd/how_to_get_time_offset_of_a_given_coordinates/
-    '''
+    https://stackoverflow.com/questions/5537876/get-utc-offset-from-time-zone-name-in-python    '''
     tf = TimezoneFinder()
-    tzn = tf.timezone_at(lng=lon, lat=lat)
-    tz = pytz.timezone(tzn)
-    dt = datetime.utcnow()
+    tzn = tf.timezone_at(lng=stn_lon, lat=stn_lat)
 
-    offset_seconds = tz.utcoffset(dt).seconds
-    offset_hours = offset_seconds / 3600.0
+    time_now = datetime.datetime.now(pytz.timezone(tzn))
+    tz_offset = time_now.utcoffset().total_seconds()/60/60
 
-    diff = "{:+d}:{:02d}".format(int(offset_hours), int((offset_hours % 1) * 60))
+    diff = "{:d}".format(int(tz_offset))
 
     return diff
 
