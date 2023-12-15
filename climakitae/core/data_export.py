@@ -10,7 +10,6 @@ import numpy as np
 import requests
 import urllib
 import pytz
-from datetime import datetime, timezone
 from timezonefinder import TimezoneFinder
 from importlib.metadata import version as _version
 from climakitae.util.utils import read_csv_file
