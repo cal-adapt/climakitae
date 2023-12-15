@@ -771,6 +771,5 @@ def write_tmy_file(
                 filename_to_export
             )
         )
-
     else:
         print('Please pass either "tmy" or "epw" as a file format for export.')
