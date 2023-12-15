@@ -517,7 +517,7 @@ def _utc_offset_timezone(lat, lon):
     Modified from: 
     https://stackoverflow.com/questions/5537876/get-utc-offset-from-time-zone-name-in-python    '''
     tf = TimezoneFinder()
-    tzn = tf.timezone_at(lng=stn_lon, lat=stn_lat)
+    tzn = tf.timezone_at(lng=lon, lat=lat)
 
     time_now = datetime.datetime.now(pytz.timezone(tzn))
     tz_offset = time_now.utcoffset().total_seconds()/60/60
