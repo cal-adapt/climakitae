@@ -487,39 +487,35 @@ def _metadata_to_file(ds, output_name):
 ## TMY export functions
 def _grab_dem_elev_m(lat, lon):
     """
-    Pulls elevation value from the USGS Elevation Point Query Service, 
+    Pulls elevation value from the USGS Elevation Point Query Service,
     lat lon must be in decimal degrees (which it is after cleaning)
-    Modified from: 
+    Modified from:
     https://gis.stackexchange.com/questions/338392/getting-elevation-for-multiple-lat-long-coordinates-in-python
     """
-    url = r'https://epqs.nationalmap.gov/v1/json?'
-    
+    url = r"https://epqs.nationalmap.gov/v1/json?"
+
     # define rest query params
-    params = {
-        'output': 'json',
-        'x': lon,
-        'y': lat,
-        'units': 'Meters'
-    }
+    params = {"output": "json", "x": lon, "y": lat, "units": "Meters"}
 
     # format query string and return value
     result = requests.get((url + urllib.parse.urlencode(params)))
-    dem_elev_long = float(result.json()['value'])
+    dem_elev_long = float(result.json()["value"])
     # make sure to round off lat-lon values so they are not improbably precise for our needs
-    dem_elev_short = np.round(dem_elev_long, decimals=2) 
+    dem_elev_short = np.round(dem_elev_long, decimals=2)
 
     return dem_elev_short.astype("float")
 
+
 def _utc_offset_timezone(lat, lon):
-    '''
+    """
     Based on user input of lat lon, returns the UTC offset for that timezone
-    Modified from: 
-    https://stackoverflow.com/questions/5537876/get-utc-offset-from-time-zone-name-in-python    '''
+    Modified from:
+    https://stackoverflow.com/questions/5537876/get-utc-offset-from-time-zone-name-in-python"""
     tf = TimezoneFinder()
     tzn = tf.timezone_at(lng=lon, lat=lat)
 
     time_now = datetime.datetime.now(pytz.timezone(tzn))
-    tz_offset = time_now.utcoffset().total_seconds()/60/60
+    tz_offset = time_now.utcoffset().total_seconds() / 60 / 60
 
     diff = "{:d}".format(int(tz_offset))
 
@@ -535,14 +531,14 @@ def _tmy_header(location_name, station_code, state, timezone, df):
     # line 1 - site information
     # line 1: USAF, station name quote delimited, state, time zone, lat, lon, elev (m), simulation
     line_1 = "{0}, '{1}', {2}, {3}, {4}, {5}, {6}, {7}\n".format(
-        station_code, 
+        station_code,
         location_name,
         state,
         timezone,
         df["lat"].values[0],
         df["lon"].values[0],
         _grab_dem_elev_m(lat=df["lat"].values[0], lon=df["lon"].values[0]),
-        df["simulation"].values[0]
+        df["simulation"].values[0],
     )
 
     # line 2 - data field name and units, manually setting to ensure matches TMY3 labeling
@@ -569,7 +565,7 @@ def _epw_header(location_name, station_code, state, timezone, df):
         df["lat"].values[0],
         df["lon"].values[0],
         timezone,
-        _grab_dem_elev_m(lat=df["lat"].values[0], lon=df["lon"].values[0])
+        _grab_dem_elev_m(lat=df["lat"].values[0], lon=df["lon"].values[0]),
     )
 
     # line 2 - design conditions, leave blank for now
@@ -633,7 +629,7 @@ def _epw_format_data(df):
         "extdirrad",  # missing - extraterrestrial direct normal radiation
         "extirsky",  # missing - horizontal IR radiation intensity from sky
         "Instantaneous downwelling shortwave flux at bottom",
-        "Shortwave surface downward direct normal irradiance", 
+        "Shortwave surface downward direct normal irradiance",
         "Shortwave surface downward diffuse irradiance",
         "glohorillum",  # missing - global horizontal illuminance (lx)
         "dirnorillum",  # missing - direct normal illuminance (lx)
@@ -693,7 +689,16 @@ def _epw_format_data(df):
     return df
 
 
-def write_tmy_file(filename_to_export, df, location_name, station_code, stn_lat, stn_lon, stn_state, file_ext="tmy"):
+def write_tmy_file(
+    filename_to_export,
+    df,
+    location_name,
+    station_code,
+    stn_lat,
+    stn_lon,
+    stn_state,
+    file_ext="tmy",
+):
     """Exports TMY data either as .epw or .tmy file
 
     Parameters
@@ -717,24 +722,30 @@ def write_tmy_file(filename_to_export, df, location_name, station_code, stn_lat,
         )
 
     # custom location input handling
-    if type(station_code) == str: # custom code passed
+    if type(station_code) == str:  # custom code passed
         station_code = station_code
         state = stn_state
         timezone = _utc_offset_timezone(lon=stn_lon, lat=stn_lat)
 
-    elif type(station_code) == int: # hadisd statio code passed
+    elif type(station_code) == int:  # hadisd statio code passed
         # look up info
-        if station_code in station_df['station id'].values:
-            state = station_df.loc[station_df['station id'] == station_code]['state'].values[0]
+        if station_code in station_df["station id"].values:
+            state = station_df.loc[station_df["station id"] == station_code][
+                "state"
+            ].values[0]
             station_code = str(station_code)[:6]
-            timezone = _utc_offset_timezone(lon=df["lon"].values[0], lat=df["lat"].values[0])
- 
+            timezone = _utc_offset_timezone(
+                lon=df["lon"].values[0], lat=df["lat"].values[0]
+            )
+
     # typical meteorological year format
     if file_ext == "tmy":
         path_to_file = filename_to_export + ".tmy"
 
         with open(path_to_file, "w") as f:
-            f.writelines(_tmy_header(location_name, station_code, state, timezone, df))  # writes required header lines
+            f.writelines(
+                _tmy_header(location_name, station_code, state, timezone, df)
+            )  # writes required header lines
             df = df.drop(
                 columns=["simulation", "lat", "lon", "scenario"]
             )  # drops header columns from df
@@ -750,7 +761,9 @@ def write_tmy_file(filename_to_export, df, location_name, station_code, stn_lat,
     elif file_ext == "epw":
         path_to_file = filename_to_export + ".epw"
         with open(path_to_file, "w") as f:
-            f.writelines(_epw_header(location_name, station_code, state, timezone, df))  # writes required header lines
+            f.writelines(
+                _epw_header(location_name, station_code, state, timezone, df)
+            )  # writes required header lines
             df_string = _epw_format_data(df).to_csv(sep=",", header=False, index=False)
             f.write(df_string)  # writes data in EPW format
         print(
