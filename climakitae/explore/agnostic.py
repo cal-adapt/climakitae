@@ -153,11 +153,39 @@ def find_warm_index(warm_df, scenario='ssp370', warming_level=None, year=None):
                 )
 
             warm_levels, med_level = year_to_warm_levels(warm_df, scenario, year)
+            major_levels = np.arange(1, 4.01, .5)
+            
             fig, ax = plt.subplots()
             plot_warm_levels(fig, ax, warm_levels, med_level)
-            return print(
-                f'The median projected warming level is about {round_to_nearest_half(med_level)}°C \n'
-            )
+            if med_level in major_levels:
+                return print(
+                    f'The median projected warming level is {med_level}°C. \n'
+                )
+            else:
+                major_level = round_to_nearest_half(med_level)
+                print(
+                    (
+                        'The major warming level nearest to the median '
+                        f'projected warming level is {major_level}°C.'
+                    )
+                )
+                if med_level < major_level:
+                    # TODO: unknown lower_level when major_level == 1
+                    lower_level = major_level - .5
+                    upper_level = major_level
+                elif med_level > major_level:
+                    # TODO: unknown upper_level when major_level == 4
+                    lower_level = major_level
+                    upper_level = major_level + .5
+                return print(
+                    (
+                        'The actual median projected warming level is between '
+                        f'{lower_level} and {upper_level}°C.\n'
+                        'Major warming levels considered include 1.0, 1.5, 2.0, '
+                        '2.5, 3.0, 3.5 and 4.0°C.\n'
+                        f'{med_level}'
+                    )
+                )
         
 
 # Lambda function to pass in a created warming level table rather than remaking it with every call.
