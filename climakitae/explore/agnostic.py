@@ -14,7 +14,7 @@ def create_lookup_table():
     gcms = data_interface.data_catalog.df.source_id.unique()
     
     # Reading GCM warming levels 1850-1900 table
-    temp_df = pd.read_csv('~/src/climakitae/climakitae/data/gwl_1850-1900ref_1to4deg_per05.csv')
+    temp_df = pd.read_csv('~/climakitae/climakitae/data/gwl_1850-1900ref_1to4deg_per05.csv')
     # Clean long float column names
     temp_df.columns = np.append(
         temp_df.columns[:3], 
@@ -132,15 +132,13 @@ def find_warm_index(warm_df, scenario='ssp370', warming_level=None, year=None):
         
     else:
         if scenario != 'ssp370':
-            raise NotImplementedError(
-                'Scenarios other than ssp370 are under development.'
-            )
+            return print('Scenarios other than ssp370 are under development.')
 
         # Given warming level, plot years and find month
         if warming_level is not None and year is None:
             allowed_warm_level = ['1.5', '2.0', '3.0']
             if warming_level not in allowed_warm_level:
-                raise NotImplementedError(
+                return print(
                     f'Please choose a warming level among {allowed_warm_level}'
                 )
             warm_level_to_years(warm_df, scenario, warming_level)
@@ -150,9 +148,10 @@ def find_warm_index(warm_df, scenario='ssp370', warming_level=None, year=None):
         elif warming_level is None and year is not None:
             min_year, max_year = 2001, 2090  # years with 10+ simulations
             if not (min_year <= year and year <= max_year):
-                raise ValueError(
-                    f'Please provide a year between {min_year} and {max_year}'
+                return print(
+                    f'Please provide a year between {min_year} and {max_year}.'
                 )
+
             warm_levels, med_level = year_to_warm_levels(warm_df, scenario, year)
             fig, ax = plt.subplots()
             plot_warm_levels(fig, ax, warm_levels, med_level)
