@@ -287,7 +287,7 @@ def main():
     all_wl_data_tbls = pd.DataFrame()
     all_gw_tbls, all_gw_data_tbls = [], []
     for i, model in enumerate(models):
-        print(f'\n...Model {i} {model}...\n')
+        print(f"\n...Model {i} {model}...\n")
         gw_tbl, wl_data_tbl_sim = get_gwl_table(variable, model, scenarios)
         all_gw_tbls.append(gw_tbl)
         all_gw_data_tbls.append(wl_data_tbl_sim)
@@ -396,6 +396,7 @@ def get_sims_on_aws(df):
         sims_on_aws.loc[item]["historical"] = list(set(variants_to_keep))
 
     return sims_on_aws
+
 
 if __name__ == "__main__":
     main()
