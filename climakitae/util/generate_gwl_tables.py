@@ -284,13 +284,19 @@ def main():
     variable = "tas"
     scenarios = ["ssp585", "ssp370", "ssp245"]
     print("Generate all WL table 1850-1900")
+    all_wl_data_tbls = pd.DataFrame()
     all_gw_tbls, all_gw_data_tbls = [], []
-    for model in models:
-        print(model)
+    for i, model in enumerate(models):
+        print(f'\n...Model {i} {model}...\n')
         gw_tbl, wl_data_tbl_sim = get_gwl_table(variable, model, scenarios)
         all_gw_tbls.append(gw_tbl)
         all_gw_data_tbls.append(wl_data_tbl_sim)
-
+        try:
+            all_wl_data_tbls = pd.concat([all_wl_data_tbls, wl_data_tbl_sim], axis=1)
+        except Exception as e:
+            all_wl_data_tbls.to_csv(f"../data/gwl_1850-1900ref_timeidx_{model}.csv")
+            print("\n Table for model {model} cannot be concatenated: \n")
+            print(e)
     ### Writing out all warming level data table for all models
 
     # Resetting index for CESM2 since it records the dates on the 16th rather than the 15th.
@@ -298,7 +304,8 @@ def main():
     # all_gw_data_tbls[1].index = all_gw_data_tbls[0].index
 
     # Combining and writing out
-    all_wl_data_tbls = pd.concat(all_gw_data_tbls + [wl_data_tbl_cesm2], axis=1)
+    # all_wl_data_tbls = pd.concat(all_gw_data_tbls + [wl_data_tbl_cesm2], axis=1)
+    all_wl_data_tbls = pd.concat([all_wl_data_tbls, wl_data_tbl_cesm2], axis=1)
     all_wl_data_tbls.to_csv("../data/gwl_1850-1900ref_timeidx.csv")
 
     # Creating original WL lookup table
