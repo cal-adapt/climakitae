@@ -523,7 +523,7 @@ def _utc_offset_timezone(lat, lon):
     return diff
 
 
-def _tmy_header(location_name, station_code, state, timezone, df):
+def _tmy_header(location_name, station_code, stn_lat, stn_lon, state, timezone, df):
     """
     Constructs the header for the TMY output file in .tmy format
     Source: https://www.nrel.gov/docs/fy08osti/43156.pdf (pg. 3)
@@ -531,14 +531,14 @@ def _tmy_header(location_name, station_code, state, timezone, df):
 
     # line 1 - site information
     # line 1: USAF, station name quote delimited, state, time zone, lat, lon, elev (m), simulation
-    line_1 = "{0}, '{1}', {2}, {3}, {4}, {5}, {6}, {7}\n".format(
+    line_1 = "{0},'{1}',{2},{3},{4},{5},{6},{7}\n".format(
         station_code,
         location_name,
         state,
         timezone,
-        df["lat"].values[0],
-        df["lon"].values[0],
-        _grab_dem_elev_m(lat=df["lat"].values[0], lon=df["lon"].values[0]),
+        stn_lat,
+        stn_lon,
+        _grab_dem_elev_m(lat=stn_lat, lon=stn_lon),
         df["simulation"].values[0],
     )
 
@@ -550,7 +550,7 @@ def _tmy_header(location_name, station_code, state, timezone, df):
     return headers
 
 
-def _epw_header(location_name, station_code, state, timezone, df):
+def _epw_header(location_name, station_code, stn_lat, stn_lon, state, timezone, df):
     """
     Constructs the header for the TMY output file in .epw format
     Source: EnergyPlus Version 23.1.0 Documentation
@@ -558,15 +558,15 @@ def _epw_header(location_name, station_code, state, timezone, df):
 
     # line 1 - location, location name, state, country, WMO, lat, lon
     # line 1 - location, location name, state, country, weather station number (2 cols), lat, lon, time zone, elevation
-    line_1 = "LOCATION,{0},{1},USA,{2},{3},{4},{5},{6}\n".format(
+    line_1 = "LOCATION,{0},{1},USA,{2},{3},{4},{5},{6},{7}\n".format(
         location_name.upper(),
         state,
         "Custom_{}".format(station_code),
         station_code,
-        df["lat"].values[0],
-        df["lon"].values[0],
+        stn_lat,
+        stn_lon,
         timezone,
-        _grab_dem_elev_m(lat=df["lat"].values[0], lon=df["lon"].values[0]),
+        _grab_dem_elev_m(lat=stn_lat, lon=stn_lon),
     )
 
     # line 2 - design conditions, leave blank for now
@@ -736,7 +736,7 @@ def write_tmy_file(
             ].values[0]
             station_code = str(station_code)[:6]
             timezone = _utc_offset_timezone(
-                lon=df["lon"].values[0], lat=df["lat"].values[0]
+                lon=stn_lat, lat=stn_lon
             )
 
     # typical meteorological year format
@@ -745,7 +745,7 @@ def write_tmy_file(
 
         with open(path_to_file, "w") as f:
             f.writelines(
-                _tmy_header(location_name, station_code, state, timezone, df)
+                _tmy_header(location_name, station_code, stn_lat, stn_lon, state, timezone, df)
             )  # writes required header lines
             df = df.drop(
                 columns=["simulation", "lat", "lon", "scenario"]
@@ -763,7 +763,7 @@ def write_tmy_file(
         path_to_file = filename_to_export + ".epw"
         with open(path_to_file, "w") as f:
             f.writelines(
-                _epw_header(location_name, station_code, state, timezone, df)
+                _epw_header(location_name, station_code, stn_lat, stn_lon, state, timezone, df)
             )  # writes required header lines
             df_string = _epw_format_data(df).to_csv(sep=",", header=False, index=False)
             f.write(df_string)  # writes data in EPW format
