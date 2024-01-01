@@ -9,6 +9,11 @@ import warnings
 import datetime
 import xarray as xr
 import pandas as pd
+import numpy as np
+import requests
+import urllib
+import pytz
+from timezonefinder import TimezoneFinder
 from importlib.metadata import version as _version
 from botocore.exceptions import ClientError
 from climakitae.util.utils import read_csv_file
@@ -704,39 +709,93 @@ def _metadata_to_file(ds, output_name):
 
 
 ## TMY export functions
-def _tmy_header(location_name, df):
+def _grab_dem_elev_m(lat, lon):
+    """
+    Pulls elevation value from the USGS Elevation Point Query Service,
+    lat lon must be in decimal degrees (which it is after cleaning)
+    Modified from:
+    https://gis.stackexchange.com/questions/338392/getting-elevation-for-multiple-lat-long-coordinates-in-python
+    """
+    url = r"https://epqs.nationalmap.gov/v1/json?"
+
+    # define rest query params
+    params = {"output": "json", "x": lon, "y": lat, "units": "Meters"}
+
+    # format query string and return value
+    result = requests.get((url + urllib.parse.urlencode(params)))
+
+    # error checking on api call
+    if "value" not in result.json():
+        print("Please re-run the current cell to re-try the API call")
+    else:
+        dem_elev_long = float(result.json()["value"])
+        # make sure to round off lat-lon values so they are not improbably precise for our needs
+        dem_elev_short = np.round(dem_elev_long, decimals=2)
+
+    return dem_elev_short.astype("float")
+
+
+def _utc_offset_timezone(lat, lon):
+    """
+    Based on user input of lat lon, returns the UTC offset for that timezone
+    Modified from:
+    https://stackoverflow.com/questions/5537876/get-utc-offset-from-time-zone-name-in-python
+    """
+    tf = TimezoneFinder()
+    tzn = tf.timezone_at(lng=lon, lat=lat)
+
+    time_now = datetime.datetime.now(pytz.timezone(tzn))
+    tz_offset = time_now.utcoffset().total_seconds() / 60 / 60
+
+    diff = "{:d}".format(int(tz_offset))
+
+    return diff
+
+
+def _tmy_header(location_name, station_code, stn_lat, stn_lon, state, timezone, df):
     """
     Constructs the header for the TMY output file in .tmy format
     Source: https://www.nrel.gov/docs/fy08osti/43156.pdf (pg. 3)
     """
 
     # line 1 - site information
-    # line 1: USAF, station name quote delimited, station state, time zone, lat, lon, elev (m)
-    # line 1: we provide station name, lat, lon, and simulation
-    line_1 = "'{0}', {1}, {2}, {3}\n".format(
+    # line 1: USAF, station name quote delimited, state, time zone, lat, lon, elev (m), simulation
+    line_1 = "{0},'{1}',{2},{3},{4},{5},{6},{7}\n".format(
+        station_code,
         location_name,
-        df["lat"].values[0],
-        df["lon"].values[0],
+        state,
+        timezone,
+        stn_lat,
+        stn_lon,
+        _grab_dem_elev_m(lat=stn_lat, lon=stn_lon),
         df["simulation"].values[0],
     )
 
     # line 2 - data field name and units, manually setting to ensure matches TMY3 labeling
-    line_2 = "Air Temperature at 2m (degC),Dew point temperature (degC),Relative humidity (%),Instantaneous downwelling shortwave flux at bottom (W m-2),Shortwave surface downward diffuse irradiance (W m-2),Instantaneous downwelling longwave flux at bottom (W m-2),Wind speed at 10m (m s-1),Wind direction at 10m (deg),Surface Pressure (Pa)\n"
+    line_2 = "Air Temperature at 2m (degC),Dew point temperature (degC),Relative humidity (%),Instantaneous downwelling shortwave flux at bottom (W m-2),Shortwave surface downward direct normal irradiance (W m-2),Shortwave surface downward diffuse irradiance (W m-2),Instantaneous downwelling longwave flux at bottom (W m-2),Wind speed at 10m (m s-1),Wind direction at 10m (deg),Surface Pressure (Pa)\n"
 
     headers = [line_1, line_2]
 
     return headers
 
 
-def _epw_header(location_name, df):
+def _epw_header(location_name, station_code, stn_lat, stn_lon, state, timezone, df):
     """
     Constructs the header for the TMY output file in .epw format
-    Source:https://designbuilder.co.uk/cahelp/Content/EnergyPlusWeatherFileFormat.htm#:~:text=The%20EPW%20weather%20data%20format,based%20with%20comma%2Dseparated%20data.
+    Source: EnergyPlus Version 23.1.0 Documentation
     """
 
-    # line 1 - location
-    line_1 = "LOCATION,{0},{1},{2}\n".format(
-        location_name, df["lat"].values[0], df["lon"].values[0]
+    # line 1 - location, location name, state, country, WMO, lat, lon
+    # line 1 - location, location name, state, country, weather station number (2 cols), lat, lon, time zone, elevation
+    line_1 = "LOCATION,{0},{1},USA,{2},{3},{4},{5},{6},{7}\n".format(
+        location_name.upper(),
+        state,
+        "Custom_{}".format(station_code),
+        station_code,
+        stn_lat,
+        stn_lon,
+        timezone,
+        _grab_dem_elev_m(lat=stn_lat, lon=stn_lon),
     )
 
     # line 2 - design conditions, leave blank for now
@@ -752,22 +811,124 @@ def _epw_header(location_name, df):
     line_5 = "HOLIDAYS/DAYLIGHT SAVINGS,No,0,0,0\n"
 
     # line 6 - comments 1, going to include simulation + scenario information here
-    line_6 = "COMMENTS 1,Typical meteorological year data produced on the Cal-Adapt: Analytics Engine, Scenario: {0}, Simulation: {1}\n".format(
+    line_6 = "COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Scenario: {0}, Simulation: {1}\n".format(
         df["scenario"].values[0], df["simulation"].values[0]
     )
 
-    # line 7 - comments 2, putting the data variables here manually as they are not specified in epw format, and we are not including all
-    line_7 = "COMMENTS 2,Air Temperature at 2m (degC),Dew point temperature (degC),Relative humidity (%),Instantaneous downwelling shortwave flux at bottom (W m-2),Shortwave surface downward diffuse irradiance (W m-2),Instantaneous downwelling longwave flux at bottom (W m-2),Wind speed at 10m (m s-1),Wind direction at 10m (deg),Surface Pressure (Pa)\n"
+    # line 7 - comments 2, including date range here from which TMY calculated
+    line_7 = "COMMENTS 2, TMY data produced using 1990-2020 climatological period\n"
 
     # line 8 - data periods, num data periods, num records per hour, data period name, data period start day of week, data period start (Jan 1), data period end (Dec 31)
-    line_8 = "DATA PERIODS,1,1,Data,,1/1,12/31\n"
+    line_8 = "DATA PERIODS,1,1,Data,,1/ 1,12/31\n"
 
     headers = [line_1, line_2, line_3, line_4, line_5, line_6, line_7, line_8]
 
     return headers
 
 
-def write_tmy_file(filename_to_export, df, location_name="location", file_ext="tmy"):
+def _epw_format_data(df):
+    """
+    Constructs TMY output file in specific order and missing data codes
+    Source: EnergyPlus Version 23.1.0 Documentation
+    """
+
+    # set time col to datetime object for easy split
+    df["time"] = pd.to_datetime(df["time"], format="%Y-%m-%d %H:%M")
+    df = df.assign(
+        year=df["time"].dt.year,
+        month=df["time"].dt.month,
+        day=df["time"].dt.day,
+        hour=df["time"].dt.hour + 1,  # 1-24, not 0-23
+        minute=df["time"].dt.minute,
+    )
+
+    # set epw variable order, very specific -- manually set
+    # Note: vars not provided by AE are noted as missing
+    colnames = [
+        "year",
+        "month",
+        "day",
+        "hour",
+        "minute",
+        "data_source",  # missing
+        "Air Temperature at 2m",
+        "Dew point temperature",
+        "Relative humidity",
+        "Surface Pressure",
+        "exthorrad",  # missing - extraterrestrial horizontal radiation
+        "extdirrad",  # missing - extraterrestrial direct normal radiation
+        "extirsky",  # missing - horizontal IR radiation intensity from sky
+        "Instantaneous downwelling shortwave flux at bottom",
+        "Shortwave surface downward direct normal irradiance",
+        "Shortwave surface downward diffuse irradiance",
+        "glohorillum",  # missing - global horizontal illuminance (lx)
+        "dirnorillum",  # missing - direct normal illuminance (lx)
+        "difhorillum",  # missing - diffuse horizontal illuminance (lx)
+        "zenlum",  # missing - zenith luminnace (lx)
+        "Wind direction at 10m",
+        "Wind speed at 10m",
+        "totskycvr",  # missing - total sky cover (tenths)
+        "opaqskycvr",  # missing - opaque sky cover (tenths)
+        "visibility",  # missing - visibility (km)
+        "ceiling_hgt",  # missing - ceiling height (m)
+        "presweathobs",  # missing - present weather observation
+        "presweathcodes",  # missing - present weather codes
+        "precip_wtr",  # missing - precipitatble water (mm)
+        "aerosol_opt_depth",  # missing - aerosol optical depth (thousandths)
+        "snowdepth",  # missing - snow depth (cm)
+        "days_last_snow",  # missing - days since last snow
+        "albedo",  # missing - albedo
+        "liq_precip_depth",  # missing - liquid precip depth (mm)
+        "liq_precip_rate",  # missing - liquid precip rate (h)
+    ]
+
+    # set specific missing data flags per variable
+    for var in [
+        "exthorrad",
+        "extdirrad",
+        "extirsky",
+        "dirnorrad",
+        "zenlum",
+        "visibility",
+    ]:
+        df[var] = 9999
+    for var in ["glohorillum", "dirnorillum", "difhorillum"]:
+        df[var] = 999900
+    for var in ["days_last_snow", "liq_precip_rate"]:
+        df[var] = 99
+    for var in ["precip_wtr", "snowdepth", "albedo", "liq_precip_depth"]:
+        df[var] = 999
+    df["ceiling_hgt"] = 99999
+    df["aerosol_opt_depth"] = 0.999
+    df["presweathobs"] = 9
+    df["presweathcodes"] = 999999999
+
+    # Note: Setting cloud cover to 5, per stakeholder recommendation, indicates 5/10ths skycover = 50% cloudy
+    # Note: At present AE has no plans to provide cloud coverage data
+    for var in ["totskycvr", "opaqskycvr"]:
+        df[var] = 5
+
+    # lastly set data source / uncertainty flag (section 2.13 of doc)
+    # on AE: ? = var does not fit source options
+    # on AE: 9 = uncertainty unknown
+    df["data_source"] = "?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9"
+
+    # resets col order and drops any unnamed column from original df
+    df = df.reindex(columns=colnames)
+
+    return df
+
+
+def write_tmy_file(
+    filename_to_export,
+    df,
+    location_name,
+    station_code,
+    stn_lat,
+    stn_lon,
+    stn_state,
+    file_ext="tmy",
+):
     """Exports TMY data either as .epw or .tmy file
 
     Parameters
@@ -782,23 +943,44 @@ def write_tmy_file(filename_to_export, df, location_name="location", file_ext="t
     None
     """
 
+    station_df = read_csv_file(stations_csv_path)
+
     # check that data passed is a DataFrame object
     if type(df) != pd.DataFrame:
         raise ValueError(
             "The function requires a pandas DataFrame object as the data input"
         )
 
+    # custom location input handling
+    if type(station_code) == str:  # custom code passed
+        station_code = station_code
+        state = stn_state
+        timezone = _utc_offset_timezone(lon=stn_lon, lat=stn_lat)
+
+    elif type(station_code) == int:  # hadisd statio code passed
+        # look up info
+        if station_code in station_df["station id"].values:
+            state = station_df.loc[station_df["station id"] == station_code][
+                "state"
+            ].values[0]
+            station_code = str(station_code)[:6]
+            timezone = _utc_offset_timezone(lon=stn_lon, lat=stn_lat)
+
     # typical meteorological year format
     if file_ext == "tmy":
         path_to_file = filename_to_export + ".tmy"
 
         with open(path_to_file, "w") as f:
-            f.writelines(_tmy_header(location_name, df))  # writes required header lines
+            f.writelines(
+                _tmy_header(
+                    location_name, station_code, stn_lat, stn_lon, state, timezone, df
+                )
+            )  # writes required header lines
             df = df.drop(
                 columns=["simulation", "lat", "lon", "scenario"]
             )  # drops header columns from df
             dfAsString = df.to_csv(sep=",", header=False, index=False)
-            f.write(dfAsString)  # writes file
+            f.write(dfAsString)  # writes data in TMY format
         print(
             "TMY data exported to .tmy format with filename {}.tmy".format(
                 filename_to_export
@@ -809,17 +991,17 @@ def write_tmy_file(filename_to_export, df, location_name="location", file_ext="t
     elif file_ext == "epw":
         path_to_file = filename_to_export + ".epw"
         with open(path_to_file, "w") as f:
-            f.writelines(_epw_header(location_name, df))  # writes required header lines
-            df = df.drop(
-                columns=["simulation", "lat", "lon", "scenario"]
-            )  # drops header columns from df
-            dfAsString = df.to_csv(sep=",", header=False, index=False)
-            f.write(dfAsString)  # writes file
+            f.writelines(
+                _epw_header(
+                    location_name, station_code, stn_lat, stn_lon, state, timezone, df
+                )
+            )  # writes required header lines
+            df_string = _epw_format_data(df).to_csv(sep=",", header=False, index=False)
+            f.write(df_string)  # writes data in EPW format
         print(
             "TMY data exported to .epw format with filename {}.epw".format(
                 filename_to_export
             )
         )
-
     else:
         print('Please pass either "tmy" or "epw" as a file format for export.')
