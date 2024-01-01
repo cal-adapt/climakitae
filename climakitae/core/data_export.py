@@ -499,9 +499,14 @@ def _grab_dem_elev_m(lat, lon):
 
     # format query string and return value
     result = requests.get((url + urllib.parse.urlencode(params)))
-    dem_elev_long = float(result.json()["value"])
-    # make sure to round off lat-lon values so they are not improbably precise for our needs
-    dem_elev_short = np.round(dem_elev_long, decimals=2)
+
+    # error checking on api call
+    if "value" not in result.json():
+        print('Please re-run the current cell to re-try the API call')
+    else:
+        dem_elev_long = float(result.json()["value"])
+        # make sure to round off lat-lon values so they are not improbably precise for our needs
+        dem_elev_short = np.round(dem_elev_long, decimals=2)
 
     return dem_elev_short.astype("float")
 
