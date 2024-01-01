@@ -511,14 +511,14 @@ def _grab_dem_elev_m(lat, lon):
     return dem_elev_short.astype("float")
 
 
-def _utc_offset_timezone(lat, lon):
+def _utc_offset_timezone(stn_lat, stn_lon):
     """
     Based on user input of lat lon, returns the UTC offset for that timezone
     Modified from:
     https://stackoverflow.com/questions/5537876/get-utc-offset-from-time-zone-name-in-python
     """
     tf = TimezoneFinder()
-    tzn = tf.timezone_at(lng=lon, lat=lat)
+    tzn = tf.timezone_at(lng=stn_lon, lat=stn_lat)
 
     time_now = datetime.datetime.now(pytz.timezone(tzn))
     tz_offset = time_now.utcoffset().total_seconds() / 60 / 60
