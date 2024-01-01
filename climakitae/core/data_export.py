@@ -502,7 +502,7 @@ def _grab_dem_elev_m(lat, lon):
 
     # error checking on api call
     if "value" not in result.json():
-        print('Please re-run the current cell to re-try the API call')
+        print("Please re-run the current cell to re-try the API call")
     else:
         dem_elev_long = float(result.json()["value"])
         # make sure to round off lat-lon values so they are not improbably precise for our needs
@@ -740,9 +740,7 @@ def write_tmy_file(
                 "state"
             ].values[0]
             station_code = str(station_code)[:6]
-            timezone = _utc_offset_timezone(
-                lon=stn_lon, lat=stn_lat
-            )
+            timezone = _utc_offset_timezone(lon=stn_lon, lat=stn_lat)
 
     # typical meteorological year format
     if file_ext == "tmy":
@@ -750,7 +748,9 @@ def write_tmy_file(
 
         with open(path_to_file, "w") as f:
             f.writelines(
-                _tmy_header(location_name, station_code, stn_lat, stn_lon, state, timezone, df)
+                _tmy_header(
+                    location_name, station_code, stn_lat, stn_lon, state, timezone, df
+                )
             )  # writes required header lines
             df = df.drop(
                 columns=["simulation", "lat", "lon", "scenario"]
@@ -768,7 +768,9 @@ def write_tmy_file(
         path_to_file = filename_to_export + ".epw"
         with open(path_to_file, "w") as f:
             f.writelines(
-                _epw_header(location_name, station_code, stn_lat, stn_lon, state, timezone, df)
+                _epw_header(
+                    location_name, station_code, stn_lat, stn_lon, state, timezone, df
+                )
             )  # writes required header lines
             df_string = _epw_format_data(df).to_csv(sep=",", header=False, index=False)
             f.write(df_string)  # writes data in EPW format
