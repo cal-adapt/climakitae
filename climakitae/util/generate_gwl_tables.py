@@ -295,7 +295,7 @@ def main():
             all_wl_data_tbls = pd.concat([all_wl_data_tbls, wl_data_tbl_sim], axis=1)
         except Exception as e:
             all_wl_data_tbls.to_csv(f"../data/gwl_1850-1900ref_timeidx_{model}.csv")
-            print("\n Table for model {model} cannot be concatenated: \n")
+            print(f"\n Table for model {model} cannot be concatenated: \n")
             print(e)
     ### Writing out all warming level data table for all models
 
