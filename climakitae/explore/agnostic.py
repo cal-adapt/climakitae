@@ -9,31 +9,27 @@ import panel as pn
 from climakitae.core.data_interface import Select
 
 
-def create_lookup_table():
-    """
-    Create a warming level table that is subsetting only on GCMs that we have data for.
-    """
+def create_time_lut():
+    """Prepare lookup table for mapping warming levels to timepoints."""
     # Finding the names of all the GCMs that we catalog
     from climakitae.core.data_interface import DataInterface
 
     data_interface = DataInterface()
     gcms = data_interface.data_catalog.df.source_id.unique()
-
-    # Reading GCM warming levels 1850-1900 table
-    temp_df = pd.read_csv(
-        "~/climakitae/climakitae/data/gwl_1850-1900ref_1to4deg_per05.csv"
+    
+    # Read simulation vs warming levels (1.5, 2, 3, 4) table
+    df = pd.read_csv(
+        "~/climakitae/climakitae/data/gwl_1850-1900ref (2).csv"
     )
-    # Clean long float column names
-    temp_df.columns = np.append(
-        temp_df.columns[:3], np.round(temp_df.columns[3:].astype(float), 2).astype(str)
-    )
-
-    # Subsetting on the table for only the GCMs that we track
-    df = temp_df[temp_df["GCM"].isin(gcms)]
+    # Subset to cataloged GCMs
+    df = df[df["GCM"].isin(gcms)]
+    df.dropna(
+        axis='rows', how='all', subset=['1.5', '2.0', '3.0', '4.0'], inplace=True
+    )  # model EC-Earth3 runs
     return df
 
 
-def get_warm_level_by_year():
+def create_warm_level_lut():
     """Prepare lookup table containing yearly warming levels."""
     # Finding the names of all the GCMs that we catalog
     from climakitae.core.data_interface import DataInterface
