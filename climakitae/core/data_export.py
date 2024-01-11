@@ -1,31 +1,264 @@
 """Backend functions for exporting data."""
 
 import os
+import boto3
+import fsspec
 import shutil
+import logging
 import warnings
 import datetime
 import xarray as xr
 import pandas as pd
+import numpy as np
+import requests
+import urllib
+import pytz
+from timezonefinder import TimezoneFinder
 from importlib.metadata import version as _version
+from botocore.exceptions import ClientError
 from climakitae.util.utils import read_csv_file
 from climakitae.core.paths import variable_descriptions_csv_path, stations_csv_path
 
+
 xr.set_options(keep_attrs=True)
+
+bytes_per_gigabyte = 1024 * 1024 * 1024
+
+
+def _estimate_file_size(data, format):
+    """
+    Estimate file size in gigabytes when exporting `data` in `format`.
+
+    Parameters
+    ----------
+    data : xarray.DataArray or xarray.Dataset
+        data to export to the specified `format`
+    format : str
+        file format ("NetCDF" or "CSV")
+
+    Returns
+    -------
+    float
+        estimated file size in gigabytes
+
+    """
+    if format == "NetCDF":
+        if isinstance(data, xr.core.dataarray.DataArray):
+            if not data.name:
+                # name it in order to call to_dataset on it
+                data.name = "data"
+            data_size = data.to_dataset().nbytes
+        else:  # data is xarray Dataset
+            data_size = data.nbytes
+        buffer_size = 2 * 1024 * 1024  # 2 MB for miscellaneous metadata
+        est_file_size = data_size + buffer_size
+
+    elif format == "CSV":
+        pass  # TODO: estimate CSV file size
+
+    return est_file_size / bytes_per_gigabyte
+
+
+def _warn_large_export(file_size, file_size_threshold=5):
+    if file_size > file_size_threshold:
+        print(
+            "WARNING: Estimated file size is "
+            + str(round(file_size, 2))
+            + " GB. This might take a while!"
+        )
+
+
+def _list_n_none_to_string(dic):
+    """Convert list and None to string."""
+    for k, v in dic.items():
+        if isinstance(v, list):
+            dic[k] = str(v)
+        if v is None:
+            dic[k] = ""
+    return dic
+
+
+def _update_attributes(data):
+    """
+    Update data attributes to prevent issues when exporting them to NetCDF.
+
+    Convert list and None attributes to strings. If `time` is a coordinate of
+    `data`, remove any of its `units` attribute. Attributes include global data
+    attributes as well as that of coordinates and data variables.
+
+    Parameters
+    ----------
+    data : xarray.DataArray or xarray.Dataset
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    These attribute updates resolve errors raised when using the scipy engine
+    to write NetCDF files to S3.
+    """
+    data.attrs = _list_n_none_to_string(data.attrs)
+    for coord in data.coords:
+        data[coord].attrs = _list_n_none_to_string(data[coord].attrs)
+    if "time" in data.coords and "units" in data["time"].attrs:
+        del data["time"].attrs["units"]
+
+    if isinstance(data, xr.core.dataarray.Dataset):
+        for data_var in data.data_vars:
+            data[data_var].attrs = _list_n_none_to_string(data[data_var].attrs)
+
+
+def _unencode_missing_value(d):
+    """Drop `missing_value` encoding, if any, on data object `d`."""
+    try:
+        del d.encoding["missing_value"]
+    except:
+        pass
+
+
+def _update_encoding(data):
+    """
+    Update data encodings to prevent issues when exporting them to NetCDF.
+
+    Drop `missing_value` encoding, if any, on `data` as well as its coordinates
+    and data variables.
+
+    Parameters
+    ----------
+    data : xarray.DataArray or xarray.Dataset
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    These encoding updates resolve errors raised when writing NetCDF files to
+    S3.
+    """
+    _unencode_missing_value(data)
+    for coord in data.coords:
+        _unencode_missing_value(data[coord])
+
+    if isinstance(data, xr.core.dataarray.Dataset):
+        for data_var in data.data_vars:
+            _unencode_missing_value(data[data_var])
+
+
+def _create_presigned_url(bucket_name, object_name, expiration=60 * 60 * 24 * 7):
+    """
+    Generate a presigned URL to share an S3 object.
+
+    Parameters
+    ----------
+    bucket_name : string
+    object_name : string
+    expiration : int, optional
+        Time in seconds for the presigned URL to remain valid. The default is
+        one week.
+
+    Returns
+    -------
+    string
+        Presigned URL. If error, returns None.
+
+    References
+    ----------
+    https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-presigned-urls.html#presigned-urls
+
+    """
+    s3_client = boto3.client("s3")
+    try:
+        url = s3_client.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": bucket_name, "Key": object_name},
+            ExpiresIn=expiration,
+        )
+    except ClientError as e:
+        logging.error(e)
+        return None
+
+    return url
 
 
 def _export_to_netcdf(data, save_name):
     """
-    exports user-selected data to netCDF format.
-    this function is called from the _export_to_user
-    function if the user selected netCDF output.
+    Export user-selected data to NetCDF format.
 
-    data: xarray dataset or array to export
-    save_name: string corresponding to desired output file name + file extension
+    Export the xarray DataArray or Dataset `data` to a NetCDF file `save_name`.
+    If there is enough disk space, the function saves the file locally;
+    otherwise, it saves the file to the S3 bucket `cadcat-tmp` and provides a
+    URL for download.
+
+
+    Parameters
+    ----------
+    data : xarray.DataArray or xarray.Dataset
+        data to export to NetCDF format
+    save_name : string
+        desired output file name, including the file extension
+
+    Returns
+    -------
+    None
+
     """
-    print("Alright, exporting specified data to NetCDF.")
-    comp = dict(_FillValue=None)
-    encoding = {coord: comp for coord in data.coords}
-    data.to_netcdf(save_name, encoding=encoding)
+    est_file_size = _estimate_file_size(data, "NetCDF")
+    disk_space = shutil.disk_usage("./")[2] / bytes_per_gigabyte
+
+    if disk_space > est_file_size:
+        path = "./" + save_name
+
+        if os.path.exists(path):
+            raise Exception(
+                (
+                    f"File {save_name} exists. "
+                    "Please either delete that file from the work space "
+                    "or specify a new file name here."
+                )
+            )
+
+        print("Alright, exporting specified data to NetCDF.")
+        _warn_large_export(est_file_size)
+        _update_attributes(data)
+        _update_encoding(data)
+        comp = dict(_FillValue=None)
+        encoding = {coord: comp for coord in data.coords}
+        data.to_netcdf(path, encoding=encoding)
+        print(
+            (
+                "Saved! You can find your file in the panel to the left"
+                " and download to your local machine from there."
+            )
+        )
+
+    else:
+        path = f"simplecache::{os.environ['SCRATCH_BUCKET']}/{save_name}"
+
+        with fsspec.open(path, "wb") as fp:
+            print("Alright, exporting specified data to NetCDF.")
+            _warn_large_export(est_file_size)
+            _update_attributes(data)
+            _update_encoding(data)
+            comp = dict(_FillValue=None)
+            encoding = {coord: comp for coord in data.coords}
+            data.to_netcdf(fp, encoding=encoding)
+
+            download_url = _create_presigned_url(
+                bucket_name="cadcat-tmp", object_name=path.split("cadcat-tmp/")[-1]
+            )
+            print(
+                (
+                    "Saved! To download the file to your local machine, "
+                    "open the following URL in a web browser:"
+                    "\n\n"
+                    f"{download_url}"
+                    "\n\n"
+                    "Note: The URL will remain valid for 1 week."
+                )
+            )
 
 
 def _get_unit(dataarray):
@@ -251,19 +484,19 @@ def _dataset_to_dataframe(dataset):
     return df
 
 
-def _export_to_csv(data, save_name):
+def _export_to_csv(data, output_path):
     """
     Export user-selected data to CSV format.
 
-    Export the xarray DataArray or Dataset `data` to a CSV file named
-    `save_name`.
+    Export the xarray DataArray or Dataset `data` to a CSV file at
+    `output_path`.
 
     Parameters
     ----------
     data : xarray.DataArray or xarray.Dataset
         data to export to CSV format
-    save_name : string
-        desired output file name, including the file extension
+    output_path : string
+        desired output file path, including the file name and file extension
 
     Returns
     -------
@@ -290,8 +523,8 @@ def _export_to_csv(data, save_name):
             f"and {excel_column_limit} columns."
         )
 
-    _metadata_to_file(data, save_name)
-    df.to_csv(save_name, compression="gzip")
+    _metadata_to_file(data, output_path)
+    df.to_csv(output_path, compression="gzip")
 
 
 def export(data, filename="dataexport", format="NetCDF"):
@@ -316,7 +549,6 @@ def export(data, filename="dataexport", format="NetCDF"):
             + str(ftype).strip("<class >")
             + ". Please pass an xarray dataset or data array."
         )
-    ndims = len(data.dims)
 
     if type(filename) is not str:
         raise Exception(
@@ -328,26 +560,17 @@ def export(data, filename="dataexport", format="NetCDF"):
         )
     filename = filename.split(".")[0]
 
-    req_format = format
+    req_format = format.lower()
 
-    if req_format is None:
-        raise Exception("Please select a file format from the dropdown menu.")
+    if req_format not in ["netcdf", "csv"]:
+        raise Exception('Please select "NetCDF" or "CSV" as the file format.')
 
-    extension_dict = {"NetCDF": ".nc", "CSV": ".csv.gz"}
+    extension_dict = {"netcdf": ".nc", "csv": ".csv.gz"}
 
-    save_name = "./" + filename + extension_dict[req_format]
-
-    if os.path.exists(save_name):
-        raise Exception(
-            "File "
-            + save_name
-            + (
-                " exists, please either delete that file from the work"
-                " space or specify a new file name here."
-            )
-        )
+    save_name = filename + extension_dict[req_format]
 
     ds_attrs = data.attrs
+
     ct = datetime.datetime.now()
     ct_str = ct.strftime("%d-%b-%Y (%H:%M)")
 
@@ -362,57 +585,63 @@ def export(data, filename="dataexport", format="NetCDF"):
         "License": "BSD 3-Clause License",
     }
 
-    # metadata stuff
     ds_attrs.update(ck_attrs)
     data.attrs = ds_attrs
-
-    # now check file size and avail workspace disk space
-    # raise error for not enough space
-    # and warning for large file
-    file_size_threshold = 5  # in GB
-    bytes_per_gigabyte = 1024 * 1024 * 1024
-    disk_space = shutil.disk_usage("./")[2] / bytes_per_gigabyte
-    data_size = data.nbytes / bytes_per_gigabyte
-
-    if disk_space <= data_size:
-        raise Exception(
-            "Not enough disk space to export data! You need at least "
-            + str(data_size)
-            + (
-                " GB free in the hub directory, which has 10 GB total space."
-                " Try smaller subsets of space, time, scenario, and/or"
-                " simulation; pick a coarser spatial or temporal scale;"
-                " or clean any exported datasets which you have already"
-                " downloaded or do not want."
-            )
-        )
-
-    if data_size > file_size_threshold:
-        print(
-            "WARNING: xarray dataset size = "
-            + str(data_size)
-            + " GB. This might take a while!"
-        )
 
     # now here is where exporting actually begins
     # we will have different functions for each file type
     # to keep things clean-ish
-    if "NetCDF" in req_format:
+    if "netcdf" == req_format:
         _export_to_netcdf(data, save_name)
-    elif "CSV" in req_format:
-        _export_to_csv(data, save_name)
+    elif "csv" == req_format:
+        output_path = "./" + save_name
+        if os.path.exists(output_path):
+            raise Exception(
+                (
+                    f"File {save_name} exists. "
+                    "Please either delete that file from the work space "
+                    "or specify a new file name here."
+                )
+            )
+        # now check file size and avail workspace disk space
+        # raise error for not enough space
+        # and warning for large file
+        file_size_threshold = 5  # in GB
+        disk_space = shutil.disk_usage("./")[2] / bytes_per_gigabyte
+        data_size = data.nbytes / bytes_per_gigabyte
 
-    return print(
-        (
-            "Saved! You can find your file(s) in the panel to the left"
-            " and download to your local machine from there."
+        if disk_space <= data_size:
+            raise Exception(
+                "Not enough disk space to export data! You need at least "
+                + str(round(data_size, 2))
+                + (
+                    " GB free in the hub directory, which has 10 GB total space."
+                    " Try smaller subsets of space, time, scenario, and/or"
+                    " simulation; pick a coarser spatial or temporal scale;"
+                    " or clean any exported datasets which you have already"
+                    " downloaded or do not want."
+                )
+            )
+
+        if data_size > file_size_threshold:
+            print(
+                "WARNING: xarray data size is "
+                + str(round(data_size, 2))
+                + " GB. This might take a while!"
+            )
+
+        _export_to_csv(data, output_path)
+        print(
+            (
+                "Saved! You can find your file(s) in the panel to the left"
+                " and download to your local machine from there."
+            )
         )
-    )
 
 
 def _metadata_to_file(ds, output_name):
     """
-    Writes NetCDF metadata to a txt file so users can still access it
+    Write NetCDF metadata to a txt file so users can still access it
     after exporting to a CSV.
     """
 
@@ -480,39 +709,93 @@ def _metadata_to_file(ds, output_name):
 
 
 ## TMY export functions
-def _tmy_header(location_name, df):
+def _grab_dem_elev_m(lat, lon):
+    """
+    Pulls elevation value from the USGS Elevation Point Query Service,
+    lat lon must be in decimal degrees (which it is after cleaning)
+    Modified from:
+    https://gis.stackexchange.com/questions/338392/getting-elevation-for-multiple-lat-long-coordinates-in-python
+    """
+    url = r"https://epqs.nationalmap.gov/v1/json?"
+
+    # define rest query params
+    params = {"output": "json", "x": lon, "y": lat, "units": "Meters"}
+
+    # format query string and return value
+    result = requests.get((url + urllib.parse.urlencode(params)))
+
+    # error checking on api call
+    if "value" not in result.json():
+        print("Please re-run the current cell to re-try the API call")
+    else:
+        dem_elev_long = float(result.json()["value"])
+        # make sure to round off lat-lon values so they are not improbably precise for our needs
+        dem_elev_short = np.round(dem_elev_long, decimals=2)
+
+    return dem_elev_short.astype("float")
+
+
+def _utc_offset_timezone(lat, lon):
+    """
+    Based on user input of lat lon, returns the UTC offset for that timezone
+    Modified from:
+    https://stackoverflow.com/questions/5537876/get-utc-offset-from-time-zone-name-in-python
+    """
+    tf = TimezoneFinder()
+    tzn = tf.timezone_at(lng=lon, lat=lat)
+
+    time_now = datetime.datetime.now(pytz.timezone(tzn))
+    tz_offset = time_now.utcoffset().total_seconds() / 60 / 60
+
+    diff = "{:d}".format(int(tz_offset))
+
+    return diff
+
+
+def _tmy_header(location_name, station_code, stn_lat, stn_lon, state, timezone, df):
     """
     Constructs the header for the TMY output file in .tmy format
     Source: https://www.nrel.gov/docs/fy08osti/43156.pdf (pg. 3)
     """
 
     # line 1 - site information
-    # line 1: USAF, station name quote delimited, station state, time zone, lat, lon, elev (m)
-    # line 1: we provide station name, lat, lon, and simulation
-    line_1 = "'{0}', {1}, {2}, {3}\n".format(
+    # line 1: USAF, station name quote delimited, state, time zone, lat, lon, elev (m), simulation
+    line_1 = "{0},'{1}',{2},{3},{4},{5},{6},{7}\n".format(
+        station_code,
         location_name,
-        df["lat"].values[0],
-        df["lon"].values[0],
+        state,
+        timezone,
+        stn_lat,
+        stn_lon,
+        _grab_dem_elev_m(lat=stn_lat, lon=stn_lon),
         df["simulation"].values[0],
     )
 
     # line 2 - data field name and units, manually setting to ensure matches TMY3 labeling
-    line_2 = "Air Temperature at 2m (degC),Dew point temperature (degC),Relative humidity (%),Instantaneous downwelling shortwave flux at bottom (W m-2),Shortwave surface downward diffuse irradiance (W m-2),Instantaneous downwelling longwave flux at bottom (W m-2),Wind speed at 10m (m s-1),Wind direction at 10m (deg),Surface Pressure (Pa)\n"
+    line_2 = "Air Temperature at 2m (degC),Dew point temperature (degC),Relative humidity (%),Instantaneous downwelling shortwave flux at bottom (W m-2),Shortwave surface downward direct normal irradiance (W m-2),Shortwave surface downward diffuse irradiance (W m-2),Instantaneous downwelling longwave flux at bottom (W m-2),Wind speed at 10m (m s-1),Wind direction at 10m (deg),Surface Pressure (Pa)\n"
 
     headers = [line_1, line_2]
 
     return headers
 
 
-def _epw_header(location_name, df):
+def _epw_header(location_name, station_code, stn_lat, stn_lon, state, timezone, df):
     """
     Constructs the header for the TMY output file in .epw format
-    Source:https://designbuilder.co.uk/cahelp/Content/EnergyPlusWeatherFileFormat.htm#:~:text=The%20EPW%20weather%20data%20format,based%20with%20comma%2Dseparated%20data.
+    Source: EnergyPlus Version 23.1.0 Documentation
     """
 
-    # line 1 - location
-    line_1 = "LOCATION,{0},{1},{2}\n".format(
-        location_name, df["lat"].values[0], df["lon"].values[0]
+    # line 1 - location, location name, state, country, WMO, lat, lon
+    # line 1 - location, location name, state, country, weather station number (2 cols), lat, lon, time zone, elevation
+    line_1 = "LOCATION,{0},{1},USA,{2},{3},{4},{5},{6},{7}\n".format(
+        location_name.upper(),
+        state,
+        "Custom_{}".format(station_code),
+        station_code,
+        stn_lat,
+        stn_lon,
+        timezone,
+        _grab_dem_elev_m(lat=stn_lat, lon=stn_lon),
     )
 
     # line 2 - design conditions, leave blank for now
@@ -528,22 +811,124 @@ def _epw_header(location_name, df):
     line_5 = "HOLIDAYS/DAYLIGHT SAVINGS,No,0,0,0\n"
 
     # line 6 - comments 1, going to include simulation + scenario information here
-    line_6 = "COMMENTS 1,Typical meteorological year data produced on the Cal-Adapt: Analytics Engine, Scenario: {0}, Simulation: {1}\n".format(
+    line_6 = "COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Scenario: {0}, Simulation: {1}\n".format(
         df["scenario"].values[0], df["simulation"].values[0]
     )
 
-    # line 7 - comments 2, putting the data variables here manually as they are not specified in epw format, and we are not including all
-    line_7 = "COMMENTS 2,Air Temperature at 2m (degC),Dew point temperature (degC),Relative humidity (%),Instantaneous downwelling shortwave flux at bottom (W m-2),Shortwave surface downward diffuse irradiance (W m-2),Instantaneous downwelling longwave flux at bottom (W m-2),Wind speed at 10m (m s-1),Wind direction at 10m (deg),Surface Pressure (Pa)\n"
+    # line 7 - comments 2, including date range here from which TMY calculated
+    line_7 = "COMMENTS 2, TMY data produced using 1990-2020 climatological period\n"
 
     # line 8 - data periods, num data periods, num records per hour, data period name, data period start day of week, data period start (Jan 1), data period end (Dec 31)
-    line_8 = "DATA PERIODS,1,1,Data,,1/1,12/31\n"
+    line_8 = "DATA PERIODS,1,1,Data,,1/ 1,12/31\n"
 
     headers = [line_1, line_2, line_3, line_4, line_5, line_6, line_7, line_8]
 
     return headers
 
 
-def write_tmy_file(filename_to_export, df, location_name="location", file_ext="tmy"):
+def _epw_format_data(df):
+    """
+    Constructs TMY output file in specific order and missing data codes
+    Source: EnergyPlus Version 23.1.0 Documentation
+    """
+
+    # set time col to datetime object for easy split
+    df["time"] = pd.to_datetime(df["time"], format="%Y-%m-%d %H:%M")
+    df = df.assign(
+        year=df["time"].dt.year,
+        month=df["time"].dt.month,
+        day=df["time"].dt.day,
+        hour=df["time"].dt.hour + 1,  # 1-24, not 0-23
+        minute=df["time"].dt.minute,
+    )
+
+    # set epw variable order, very specific -- manually set
+    # Note: vars not provided by AE are noted as missing
+    colnames = [
+        "year",
+        "month",
+        "day",
+        "hour",
+        "minute",
+        "data_source",  # missing
+        "Air Temperature at 2m",
+        "Dew point temperature",
+        "Relative humidity",
+        "Surface Pressure",
+        "exthorrad",  # missing - extraterrestrial horizontal radiation
+        "extdirrad",  # missing - extraterrestrial direct normal radiation
+        "extirsky",  # missing - horizontal IR radiation intensity from sky
+        "Instantaneous downwelling shortwave flux at bottom",
+        "Shortwave surface downward direct normal irradiance",
+        "Shortwave surface downward diffuse irradiance",
+        "glohorillum",  # missing - global horizontal illuminance (lx)
+        "dirnorillum",  # missing - direct normal illuminance (lx)
+        "difhorillum",  # missing - diffuse horizontal illuminance (lx)
+        "zenlum",  # missing - zenith luminnace (lx)
+        "Wind direction at 10m",
+        "Wind speed at 10m",
+        "totskycvr",  # missing - total sky cover (tenths)
+        "opaqskycvr",  # missing - opaque sky cover (tenths)
+        "visibility",  # missing - visibility (km)
+        "ceiling_hgt",  # missing - ceiling height (m)
+        "presweathobs",  # missing - present weather observation
+        "presweathcodes",  # missing - present weather codes
+        "precip_wtr",  # missing - precipitatble water (mm)
+        "aerosol_opt_depth",  # missing - aerosol optical depth (thousandths)
+        "snowdepth",  # missing - snow depth (cm)
+        "days_last_snow",  # missing - days since last snow
+        "albedo",  # missing - albedo
+        "liq_precip_depth",  # missing - liquid precip depth (mm)
+        "liq_precip_rate",  # missing - liquid precip rate (h)
+    ]
+
+    # set specific missing data flags per variable
+    for var in [
+        "exthorrad",
+        "extdirrad",
+        "extirsky",
+        "dirnorrad",
+        "zenlum",
+        "visibility",
+    ]:
+        df[var] = 9999
+    for var in ["glohorillum", "dirnorillum", "difhorillum"]:
+        df[var] = 999900
+    for var in ["days_last_snow", "liq_precip_rate"]:
+        df[var] = 99
+    for var in ["precip_wtr", "snowdepth", "albedo", "liq_precip_depth"]:
+        df[var] = 999
+    df["ceiling_hgt"] = 99999
+    df["aerosol_opt_depth"] = 0.999
+    df["presweathobs"] = 9
+    df["presweathcodes"] = 999999999
+
+    # Note: Setting cloud cover to 5, per stakeholder recommendation, indicates 5/10ths skycover = 50% cloudy
+    # Note: At present AE has no plans to provide cloud coverage data
+    for var in ["totskycvr", "opaqskycvr"]:
+        df[var] = 5
+
+    # lastly set data source / uncertainty flag (section 2.13 of doc)
+    # on AE: ? = var does not fit source options
+    # on AE: 9 = uncertainty unknown
+    df["data_source"] = "?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9"
+
+    # resets col order and drops any unnamed column from original df
+    df = df.reindex(columns=colnames)
+
+    return df
+
+
+def write_tmy_file(
+    filename_to_export,
+    df,
+    location_name,
+    station_code,
+    stn_lat,
+    stn_lon,
+    stn_state,
+    file_ext="tmy",
+):
     """Exports TMY data either as .epw or .tmy file
 
     Parameters
@@ -558,23 +943,44 @@ def write_tmy_file(filename_to_export, df, location_name="location", file_ext="t
     None
     """
 
+    station_df = read_csv_file(stations_csv_path)
+
     # check that data passed is a DataFrame object
     if type(df) != pd.DataFrame:
         raise ValueError(
             "The function requires a pandas DataFrame object as the data input"
         )
 
+    # custom location input handling
+    if type(station_code) == str:  # custom code passed
+        station_code = station_code
+        state = stn_state
+        timezone = _utc_offset_timezone(lon=stn_lon, lat=stn_lat)
+
+    elif type(station_code) == int:  # hadisd statio code passed
+        # look up info
+        if station_code in station_df["station id"].values:
+            state = station_df.loc[station_df["station id"] == station_code][
+                "state"
+            ].values[0]
+            station_code = str(station_code)[:6]
+            timezone = _utc_offset_timezone(lon=stn_lon, lat=stn_lat)
+
     # typical meteorological year format
     if file_ext == "tmy":
         path_to_file = filename_to_export + ".tmy"
 
         with open(path_to_file, "w") as f:
-            f.writelines(_tmy_header(location_name, df))  # writes required header lines
+            f.writelines(
+                _tmy_header(
+                    location_name, station_code, stn_lat, stn_lon, state, timezone, df
+                )
+            )  # writes required header lines
             df = df.drop(
                 columns=["simulation", "lat", "lon", "scenario"]
             )  # drops header columns from df
             dfAsString = df.to_csv(sep=",", header=False, index=False)
-            f.write(dfAsString)  # writes file
+            f.write(dfAsString)  # writes data in TMY format
         print(
             "TMY data exported to .tmy format with filename {}.tmy".format(
                 filename_to_export
@@ -585,17 +991,17 @@ def write_tmy_file(filename_to_export, df, location_name="location", file_ext="t
     elif file_ext == "epw":
         path_to_file = filename_to_export + ".epw"
         with open(path_to_file, "w") as f:
-            f.writelines(_epw_header(location_name, df))  # writes required header lines
-            df = df.drop(
-                columns=["simulation", "lat", "lon", "scenario"]
-            )  # drops header columns from df
-            dfAsString = df.to_csv(sep=",", header=False, index=False)
-            f.write(dfAsString)  # writes file
+            f.writelines(
+                _epw_header(
+                    location_name, station_code, stn_lat, stn_lon, state, timezone, df
+                )
+            )  # writes required header lines
+            df_string = _epw_format_data(df).to_csv(sep=",", header=False, index=False)
+            f.write(df_string)  # writes data in EPW format
         print(
             "TMY data exported to .epw format with filename {}.epw".format(
                 filename_to_export
             )
         )
-
     else:
         print('Please pass either "tmy" or "epw" as a file format for export.')
