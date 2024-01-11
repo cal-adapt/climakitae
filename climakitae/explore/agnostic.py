@@ -138,33 +138,9 @@ def plot_warm_levels(fig, ax, levels, med_level):
 
 def year_to_warm_levels(warm_df, scenario, year):
     """Given year, give warming levels and their median."""
-    warm_levels = np.arange(1, 4.01, 0.05).round(2).astype(str)
-    date_df = warm_df[warm_df["scenario"] == scenario][warm_levels]
-
-    # Creating new counts dataframe
-    counts_df = pd.DataFrame()
-    years = pd.to_datetime(date_df.values.flatten()).year
-    years_idx = set(years[pd.notna(years)].sort_values())
-    counts_df.index = years_idx
-
-    # Creating counts by warming level and year
-    for level in warm_levels:
-        counts_df = counts_df.merge(
-            pd.to_datetime(date_df[level]).dt.year.value_counts(),
-            left_index=True,
-            right_index=True,
-            how="outer",
-        )
-        counts_df = counts_df.fillna(0)
-    counts_df = counts_df.T
-
-    # Find the warming levels and their median
-    levels = counts_df[year]
-    expanded_levels = [
-        float(value) for value, count in levels.items() for _ in range(int(count))
-    ]
-    med_level = np.quantile(expanded_levels, 0.5, interpolation="nearest")
-    return expanded_levels, med_level
+    warm_levels = warm_df.loc[year]
+    med_level = np.quantile(warm_levels, 0.5, interpolation="midpoint")
+    return warm_levels, med_level
 
 
 def round_to_nearest_half(number):
