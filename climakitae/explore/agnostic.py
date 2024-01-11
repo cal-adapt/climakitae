@@ -33,6 +33,44 @@ def create_lookup_table():
     return df
 
 
+def get_warm_level_by_year():
+    """Prepare lookup table containing yearly warming levels."""
+    # Finding the names of all the GCMs that we catalog
+    from climakitae.core.data_interface import DataInterface
+    
+    data_interface = DataInterface()
+    gcms = data_interface.data_catalog.df.source_id.unique()
+    
+    # Read time vs simulation table
+    df = pd.read_csv(
+        '~/climakitae/climakitae/data/gwl_1850-1900ref_timeidx.csv',
+        index_col='time',
+        parse_dates=True
+    )
+    month_df = df.groupby(
+        [df.index.year, df.index.month]  
+    ).mean()  # This ignores NaN and gets the only value in each month
+    # MultiIndex to DatetimeIndex
+    month_df.index = pd.to_datetime(
+        ['-'.join(map(str, idx)) for idx in month_df.index]
+    )
+    # Subset time to 2021-2089
+    month_df = month_df[
+        (month_df.index.year > 2020) & (month_df.index.year < 2090)
+    ]
+    # Subset to cataloged GCMs and scenario "ssp370"
+    subset_columns = [
+        col for col in month_df.columns 
+        if col.split('_')[0] in gcms and col.endswith('ssp370')
+    ]
+    month_df = month_df[subset_columns]
+    month_df.dropna(axis='columns', how='all', inplace=True)  # model EC-Earth3 runs
+    
+    year_df = month_df.resample('Y').mean()
+    year_df.index = year_df.index.year # Drop 12-31
+    return year_df
+
+
 def warm_level_to_years(warm_df, scenario, warming_level):
     """Given warming level, plot histogram of years and label median year."""
     datetimes = warm_df[warm_df["scenario"] == scenario][warming_level].astype(
@@ -170,7 +208,7 @@ def find_warm_index(warm_df, scenario="ssp370", warming_level=None, year=None):
 
         # Given year, plot warming levels and find median
         elif warming_level is None and year is not None:
-            min_year, max_year = 2001, 2090  # years with 10+ simulations
+            min_year, max_year = 2021, 2089
             if not (min_year <= year and year <= max_year):
                 return print(
                     f"Please provide a year between {min_year} and {max_year}."
