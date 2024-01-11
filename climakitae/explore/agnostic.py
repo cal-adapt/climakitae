@@ -9,34 +9,39 @@ import panel as pn
 from climakitae.core.data_interface import Select
 
 
-def create_time_lut():
-    """Prepare lookup table for mapping warming levels to timepoints."""
+def create_lookup_tables():
+    """Create lookup tables for mapping between warming level and time."""
     # Finding the names of all the GCMs that we catalog
     from climakitae.core.data_interface import DataInterface
-
     data_interface = DataInterface()
     gcms = data_interface.data_catalog.df.source_id.unique()
     
+    time_df = create_time_lut(gcms)
+    warm_df = create_warm_level_lut(gcms)
+
+    return {
+        'time lookup table': time_df,
+        'warming level lookup table': warm_df
+    }
+
+
+def create_time_lut(gcms):
+    """Prepare lookup table for mapping warming levels to timepoints."""
     # Read simulation vs warming levels (1.5, 2, 3, 4) table
     df = pd.read_csv(
         "~/climakitae/climakitae/data/gwl_1850-1900ref (2).csv"
     )
     # Subset to cataloged GCMs
     df = df[df["GCM"].isin(gcms)]
+
     df.dropna(
         axis='rows', how='all', subset=['1.5', '2.0', '3.0', '4.0'], inplace=True
     )  # model EC-Earth3 runs
     return df
 
 
-def create_warm_level_lut():
+def create_warm_level_lut(gcms):
     """Prepare lookup table containing yearly warming levels."""
-    # Finding the names of all the GCMs that we catalog
-    from climakitae.core.data_interface import DataInterface
-    
-    data_interface = DataInterface()
-    gcms = data_interface.data_catalog.df.source_id.unique()
-    
     # Read time vs simulation table
     df = pd.read_csv(
         '~/climakitae/climakitae/data/gwl_1850-1900ref_timeidx.csv',
@@ -60,6 +65,7 @@ def create_warm_level_lut():
         if col.split('_')[0] in gcms and col.endswith('ssp370')
     ]
     month_df = month_df[subset_columns]
+
     month_df.dropna(axis='columns', how='all', inplace=True)  # model EC-Earth3 runs
     
     year_df = month_df.resample('Y').mean()
@@ -67,9 +73,9 @@ def create_warm_level_lut():
     return year_df
 
 
-def warm_level_to_years(warm_df, scenario, warming_level):
+def warm_level_to_years(time_df, scenario, warming_level):
     """Given warming level, plot histogram of years and label median year."""
-    datetimes = warm_df[warm_df["scenario"] == scenario][warming_level].astype(
+    datetimes = time_df[time_df["scenario"] == scenario][warming_level].astype(
         "datetime64[ns]"
     )
     years = datetimes.dt.year
@@ -96,20 +102,10 @@ def plot_years(ax, years, med_year):
     return ax
 
 
-def warm_level_to_year(warm_df, scenario, warming_level):
-    """Given warming level, give year."""
-    med_date = (
-        warm_df[warm_df["scenario"] == scenario][warming_level]
-        .astype("datetime64[ns]")
-        .quantile(0.5, interpolation="midpoint")
-    )
-    return med_date.year
-
-
-def warm_level_to_month(warm_df, scenario, warming_level):
+def warm_level_to_month(time_df, scenario, warming_level):
     """Given warming level, give month."""
     med_date = (
-        warm_df[warm_df["scenario"] == scenario][warming_level]
+        time_df[time_df["scenario"] == scenario][warming_level]
         .astype("datetime64[ns]")
         .quantile(0.5, interpolation="midpoint")
     )
@@ -124,11 +120,6 @@ def plot_warm_levels(fig, ax, levels, med_level):
     ax.set_title("(out of 80 simulations)", fontsize=10)
     ax.set_xlabel("Warming level (°C)")
     ax.set_ylabel("Number of simulations")
-    # ax.axvline(
-    #     med_level, color='black', linestyle='--',
-    #     label=f'Median warming level is {med_level}'
-    # )
-    # ax.legend()
     return ax
 
 
@@ -144,7 +135,7 @@ def round_to_nearest_half(number):
     return round(number * 2) / 2
 
 
-def find_warm_index(warm_df, scenario="ssp370", warming_level=None, year=None):
+def find_warm_index(lookup_tables, scenario="ssp370", warming_level=None, year=None):
     """
     Given a scenario and either a warming level or a time, return either the median warming level or month from all simulations within this scenario.
 
@@ -155,7 +146,7 @@ def find_warm_index(warm_df, scenario="ssp370", warming_level=None, year=None):
     scenario: string ('ssp370')
     warming_level: string ('1.5', '2.0', '3.0')
     year: int
-        Must be in [2001, 2090].
+        Must be in [2021, 2089].
 
     """
     if not warming_level and not year:
@@ -175,8 +166,10 @@ def find_warm_index(warm_df, scenario="ssp370", warming_level=None, year=None):
                 return print(
                     f"Please choose a warming level among {allowed_warm_level}"
                 )
-            warm_level_to_years(warm_df, scenario, warming_level)
-            return warm_level_to_month(warm_df, scenario, warming_level)
+            
+            lookup_df = lookup_tables['time lookup table']
+            warm_level_to_years(lookup_df, scenario, warming_level)
+            return warm_level_to_month(lookup_df, scenario, warming_level)
 
         # Given year, plot warming levels and find median
         elif warming_level is None and year is not None:
@@ -185,8 +178,9 @@ def find_warm_index(warm_df, scenario="ssp370", warming_level=None, year=None):
                 return print(
                     f"Please provide a year between {min_year} and {max_year}."
                 )
-
-            warm_levels, med_level = year_to_warm_levels(warm_df, scenario, year)
+            
+            lookup_df = lookup_tables['warming level lookup table']
+            warm_levels, med_level = year_to_warm_levels(lookup_df, scenario, year)
             major_levels = np.arange(1, 4.01, 0.5)
 
             fig, ax = plt.subplots()
@@ -221,9 +215,9 @@ def find_warm_index(warm_df, scenario="ssp370", warming_level=None, year=None):
 
 
 # Lambda function to pass in a created warming level table rather than remaking it with every call.
-def create_conversion_function(warm_df):
+def create_conversion_function(lookup_tables):
     return lambda scenario="ssp370", warming_level=None, year=None: find_warm_index(
-        warm_df, scenario, warming_level, year
+        lookup_tables, scenario, warming_level, year
     )
 
 
