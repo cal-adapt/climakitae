@@ -112,7 +112,7 @@ def warm_level_to_month(time_df, scenario, warming_level):
     return med_date.strftime("%Y-%m")
 
 
-def plot_warm_levels(fig, ax, levels, med_level):
+def plot_warm_levels(fig, ax, levels, med_level, year):
     """Plot histogram of warming levels, on axis."""
     n = len(levels)
     ax.hist(levels)
@@ -120,6 +120,11 @@ def plot_warm_levels(fig, ax, levels, med_level):
     ax.set_title("(out of 80 simulations)", fontsize=10)
     ax.set_xlabel("Warming level (°C)")
     ax.set_ylabel("Number of simulations")
+    ax.axvline(
+        med_level, color='black', linestyle='--',
+        label=f'Median warming level is {round(med_level, 2)} in {year}'
+    )
+    ax.legend()
     return ax
 
 
@@ -131,7 +136,6 @@ def year_to_warm_levels(warm_df, scenario, year):
 
 
 def round_to_nearest_half(number):
-    # TODO: what to do with .25
     return round(number * 2) / 2
 
 
@@ -181,10 +185,10 @@ def find_warm_index(lookup_tables, scenario="ssp370", warming_level=None, year=N
             
             lookup_df = lookup_tables['warming level lookup table']
             warm_levels, med_level = year_to_warm_levels(lookup_df, scenario, year)
-            major_levels = np.arange(1, 4.01, 0.5)
+            major_levels = np.arange(1, 4.51, 0.5)
 
-            fig, ax = plt.subplots()
-            plot_warm_levels(fig, ax, warm_levels, med_level)
+            fig, ax = plt.subplots(figsize=(5, 2))
+            plot_warm_levels(fig, ax, warm_levels, med_level, year)
             if med_level in major_levels:
                 return print(f"The median projected warming level is {med_level}°C. \n")
             else:
@@ -196,11 +200,9 @@ def find_warm_index(lookup_tables, scenario="ssp370", warming_level=None, year=N
                     )
                 )
                 if med_level < major_level:
-                    # TODO: unknown lower_level when major_level == 1
                     lower_level = major_level - 0.5
                     upper_level = major_level
                 elif med_level > major_level:
-                    # TODO: unknown upper_level when major_level == 4
                     lower_level = major_level
                     upper_level = major_level + 0.5
                 return print(
@@ -208,8 +210,7 @@ def find_warm_index(lookup_tables, scenario="ssp370", warming_level=None, year=N
                         "The actual median projected warming level is between "
                         f"{lower_level} and {upper_level}°C.\n"
                         "Major warming levels considered include 1.0, 1.5, 2.0, "
-                        "2.5, 3.0, 3.5 and 4.0°C.\n"
-                        f"{med_level}"
+                        "2.5, 3.0, 3.5, 4.0, and 4.5°C.\n"
                     )
                 )
 
