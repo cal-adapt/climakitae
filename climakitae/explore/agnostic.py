@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 import panel as pn
 from climakitae.core.data_interface import Select
 
+sns.set_style("whitegrid")
+
 
 def create_lookup_tables():
     """Create lookup tables for mapping between warming level and time."""
@@ -115,16 +117,19 @@ def warm_level_to_month(time_df, scenario, warming_level):
 def plot_warm_levels(fig, ax, levels, med_level, year):
     """Plot histogram of warming levels, on axis."""
     n = len(levels)
-    ax.hist(levels)
-    fig.suptitle(f"Warming levels reached in the year by {n} model simulations")
-    ax.set_title("(out of 80 simulations)", fontsize=10)
+    sns.histplot(ax=ax, data=levels, binwidth=0.5)
+    ax.set_title(f"Warming levels reached in {year} by all {n} model simulations")
     ax.set_xlabel("Warming level (°C)")
     ax.set_ylabel("Number of simulations")
     ax.axvline(
-        med_level, color='black', linestyle='--',
-        label=f'Median warming level is {round(med_level, 2)} in {year}'
+        med_level, color='black',
+        label=f'Median warming level: {round(med_level, 2)}'
     )
-    ax.legend()
+    ax.axvline(
+        round_to_nearest_half(med_level), color='black', linestyle='--',
+        label=f'Nearest major level:     {round_to_nearest_half(med_level)}'
+    )
+    ax.legend(fontsize=9)
     return ax
 
 
@@ -193,26 +198,27 @@ def find_warm_index(lookup_tables, scenario="ssp370", warming_level=None, year=N
                 return print(f"The median projected warming level is {med_level}°C. \n")
             else:
                 major_level = round_to_nearest_half(med_level)
-                print(
-                    (
-                        "The major warming level nearest to the median "
-                        f"projected warming level is {major_level}°C."
-                    )
-                )
+                # print(
+                #     (
+                #         "The major warming level nearest to the median "
+                #         f"projected warming level is {major_level}°C."
+                #     )
+                # )
                 if med_level < major_level:
                     lower_level = major_level - 0.5
                     upper_level = major_level
                 elif med_level > major_level:
                     lower_level = major_level
                     upper_level = major_level + 0.5
-                return print(
-                    (
-                        "The actual median projected warming level is between "
-                        f"{lower_level} and {upper_level}°C.\n"
-                        "Major warming levels considered include 1.0, 1.5, 2.0, "
-                        "2.5, 3.0, 3.5, 4.0, and 4.5°C.\n"
-                    )
-                )
+                return None
+                # print(
+                #     (
+                #         "The actual median projected warming level is between "
+                #         f"{lower_level} and {upper_level}°C.\n"
+                #         "Major warming levels considered include 1.0, 1.5, 2.0, "
+                #         "2.5, 3.0, 3.5, 4.0, and 4.5°C.\n"
+                #     )
+                # )
 
 
 # Lambda function to pass in a created warming level table rather than remaking it with every call.
