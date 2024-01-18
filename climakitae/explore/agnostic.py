@@ -18,35 +18,31 @@ def create_lookup_tables():
     -------
     dict of pandas.DataFrame
         A dictionary containing two dataframes: "time lookup table" which maps
-        warming levels to their occurence times for each GCM simulation we 
+        warming levels to their occurence times for each GCM simulation we
         catalog, and "warming level lookup table" which contains yearly warming
         levels for those simulations.
     """
     # Find the names of all the GCMs that we catalog
     from climakitae.core.data_interface import DataInterface
+
     data_interface = DataInterface()
     gcms = data_interface.data_catalog.df.source_id.unique()
-    
+
     time_df = _create_time_lut(gcms)
     warm_df = _create_warm_level_lut(gcms)
 
-    return {
-        'time lookup table': time_df,
-        'warming level lookup table': warm_df
-    }
+    return {"time lookup table": time_df, "warming level lookup table": warm_df}
 
 
 def _create_time_lut(gcms):
     """Prepare lookup table for converting warming levels to times."""
     # Read in simulation vs warming levels (1.5, 2, 3, 4) table
-    df = pd.read_csv(
-        "~/src/climakitae/climakitae/data/gwl_1850-1900ref (2).csv"
-    )
+    df = pd.read_csv("~/src/climakitae/climakitae/data/gwl_1850-1900ref (2).csv")
     # Subset to cataloged GCMs
     df = df[df["GCM"].isin(gcms)]
 
     df.dropna(
-        axis='rows', how='all', subset=['1.5', '2.0', '3.0', '4.0'], inplace=True
+        axis="rows", how="all", subset=["1.5", "2.0", "3.0", "4.0"], inplace=True
     )  # model EC-Earth3 runs/simulations
     return df
 
@@ -55,33 +51,32 @@ def _create_warm_level_lut(gcms):
     """Prepare lookup table for converting times to warming levels."""
     # Read in time vs simulation table
     df = pd.read_csv(
-        '~/src/climakitae/climakitae/data/gwl_1850-1900ref_timeidx.csv',
-        index_col='time',
-        parse_dates=True
+        "~/src/climakitae/climakitae/data/gwl_1850-1900ref_timeidx.csv",
+        index_col="time",
+        parse_dates=True,
     )
-    
+
     month_df = df.groupby(
-        [df.index.year, df.index.month]  
+        [df.index.year, df.index.month]
     ).mean()  # This ignores NaN and gets the only value in each month
     # MultiIndex to DatetimeIndex
-    month_df.index = pd.to_datetime(
-        ['-'.join(map(str, idx)) for idx in month_df.index]
-    )
+    month_df.index = pd.to_datetime(["-".join(map(str, idx)) for idx in month_df.index])
     # Subset time to 2021-2089
     subset_rows = (month_df.index.year > 2020) & (month_df.index.year < 2090)
     # Subset to cataloged GCMs and scenario "ssp370"
     subset_columns = [
-        col for col in month_df.columns 
-        if col.split('_')[0] in gcms and col.endswith('ssp370')
+        col
+        for col in month_df.columns
+        if col.split("_")[0] in gcms and col.endswith("ssp370")
     ]
     month_df = month_df.loc[subset_rows, subset_columns]
 
     month_df.dropna(
-        axis='columns', how='all', inplace=True
+        axis="columns", how="all", inplace=True
     )  # model EC-Earth3 runs/simulations
-    
-    year_df = month_df.resample('Y').mean()
-    year_df.index = year_df.index.year # Drop 12-31
+
+    year_df = month_df.resample("Y").mean()
+    year_df.index = year_df.index.year  # Drop 12-31
     return year_df
 
 
@@ -93,7 +88,7 @@ def _warm_level_to_years_plot(time_df, scenario, warming_level):
     med_datetime = datetimes.quantile(0.5, interpolation="midpoint")
     years = datetimes.dt.year
     med_year = med_datetime.year
-    
+
     fig, ax = plt.subplots()
     _plot_years(ax, years, med_year, warming_level)
     return None
@@ -150,26 +145,26 @@ def _round_to_nearest_half(number):
 def find_wl_or_time(lookup_tables, scenario="ssp370", warming_level=None, year=None):
     """
     Given either a warming level or a time, find information about the other.
-    
+
     If given a `warming_level`, the function looks up the times when simulations
-    under the specified `scenario` reach the warming level. It returns the 
-    median month across the simulations. It also plots a histogram of the years 
-    with a label for the median year. The lookup is based on the 
+    under the specified `scenario` reach the warming level. It returns the
+    median month across the simulations. It also plots a histogram of the years
+    with a label for the median year. The lookup is based on the
     "time lookup table" in `lookup_tables`.
-    
+
     If given a `year`, the function looks up the warming levels reached in the
     year by simulations under the specified `scenario`. It plots a histogram of
     the warming levels. It also calculates the median warming level across the
-    simulations and prints the major warming level nearest to the median. 
-    Guidance provided include a list of major warming levels considered (1.0, 
-    1.5, 2.0, 2.5, 3.0, 3.5, 4.0, and 4.5°C), and the 0.5 interval the median 
+    simulations and prints the major warming level nearest to the median.
+    Guidance provided include a list of major warming levels considered (1.0,
+    1.5, 2.0, 2.5, 3.0, 3.5, 4.0, and 4.5°C), and the 0.5 interval the median
     is in.
-    
+
     Parameters
     ----------
     lookup_tables : dict of pandas.DataFrame
-        Lookup tables as output from the `create_lookup_tables` function. It 
-        is a dictionary with a "time lookup table" and a "warming level lookup 
+        Lookup tables as output from the `create_lookup_tables` function. It
+        is a dictionary with a "time lookup table" and a "warming level lookup
         table".
     scenario : str, optional
         The scenario to consider. The default is "ssp370".
@@ -183,7 +178,7 @@ def find_wl_or_time(lookup_tables, scenario="ssp370", warming_level=None, year=N
     str or None
         Given a warming level, returns a string representing the median month.
         Given a year, returns None.
-        None is also returned if neither warming level nor year is given, or 
+        None is also returned if neither warming level nor year is given, or
         if both are given.
     """
     if not warming_level and not year:
@@ -203,8 +198,8 @@ def find_wl_or_time(lookup_tables, scenario="ssp370", warming_level=None, year=N
                 return print(
                     f"Please choose a warming level among {allowed_warm_level}"
                 )
-            
-            lookup_df = lookup_tables['time lookup table']
+
+            lookup_df = lookup_tables["time lookup table"]
             _warm_level_to_years_plot(lookup_df, scenario, warming_level)
             return _warm_level_to_month(lookup_df, scenario, warming_level)
 
@@ -215,8 +210,8 @@ def find_wl_or_time(lookup_tables, scenario="ssp370", warming_level=None, year=N
                 return print(
                     f"Please provide a year between {min_year} and {max_year}."
                 )
-            
-            lookup_df = lookup_tables['warming level lookup table']
+
+            lookup_df = lookup_tables["warming level lookup table"]
             warm_levels, med_level = _year_to_warm_levels(lookup_df, scenario, year)
             major_levels = np.arange(1, 4.51, 0.5)
 
@@ -255,7 +250,7 @@ def create_conversion_function(lookup_tables):
     Parameters
     ----------
     lookup_tables : dict of pandas.DataFrame
-        Lookup tables for the conversions as output from the 
+        Lookup tables for the conversions as output from the
         `create_lookup_tables` function. It is a dictionary with a "time
         lookup table" and a "warming level lookup table".
 
@@ -263,17 +258,16 @@ def create_conversion_function(lookup_tables):
     -------
     function
         The `find_wl_or_time` function preloaded with the given `lookup_tables`.
-        Given either a warming level or a time, the function uses 
-        `lookup_tables` to find information about the other. Please see 
+        Given either a warming level or a time, the function uses
+        `lookup_tables` to find information about the other. Please see
         `find_wl_or_time` for details.
-    
+
     Notes
     -----
-    This saves time otherwise needed to remake the lookup tables for each call.    
+    This saves time otherwise needed to remake the lookup tables for each call.
     """
-    return (
-        lambda scenario="ssp370", warming_level=None, year=None: 
-            find_wl_or_time(lookup_tables, scenario, warming_level, year)
+    return lambda scenario="ssp370", warming_level=None, year=None: find_wl_or_time(
+        lookup_tables, scenario, warming_level, year
     )
 
 
