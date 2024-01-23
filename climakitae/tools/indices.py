@@ -166,7 +166,7 @@ def fosberg_fire_index(t2_F, rh_percent, windspeed_mph):
 
     # If fosberg index is negative, set to 0
     #FFWI = xr.where(FFWI > 0, FFWI, 0, keep_attrs=True)
-    FFWI = xr.where((FFWI < 0) & (FFWI > -1000), 0, FFWI, keep_attrs=True)
+    #FFWI = xr.where((FFWI < 0) & (FFWI > -1000), 0, FFWI, keep_attrs=True)
 
     # Reassign coordinate attributes
     # For some reason, these get improperly assigned in the xr.where step
