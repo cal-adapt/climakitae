@@ -162,7 +162,7 @@ def fosberg_fire_index(t2_F, rh_percent, windspeed_mph):
     FFWI = (n * ((1 + U**2) ** 0.5)) / 0.3002
 
     # If fosberg index > 100, reset to 100
-    FFWI = xr.where(FFWI < 100, FFWI, 100, keep_attrs=True)
+    #FFWI = xr.where(FFWI < 100, FFWI, 100, keep_attrs=True)
 
     # If fosberg index is negative, set to 0
     #FFWI = xr.where(FFWI > 0, FFWI, 0, keep_attrs=True)
