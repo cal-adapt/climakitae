@@ -275,22 +275,74 @@ def create_conversion_function(lookup_tables):
 
 # Making pre-determined metrics
 metrics = {
-    "Average Air Temperature (2030-2059)": {
-        "var": "Maximum air temperature at 2m",
-        "time_slice": (2030, 2059),
-        "agg": np.mean,
-        "units": "degF",
+    'Average Max Air Temperature (2030-2059)': {
+        'var': 'Maximum air temperature at 2m',
+        'time_slice': (2030, 2059),
+        'agg': np.mean,
+        'units': 'degF',
     },
-    "Average Annual Total Precipitation (2030-2059)": {
-        "var": "Precipitation (total)",
-        "time_slice": (2030, 2059),
-        "agg": np.mean,
-        "units": "inches",
+    'Average Min Air Temperature (2030-2059)': {
+        'var': 'Minimum air temperature at 2m',
+        'time_slice': (2030, 2059),
+        'agg': np.mean,
+        'units': 'degF',
+    },
+    'Average Max Relative Humidity (2030-2059)': {
+        'var': 'Maximum relative humidity',
+        'time_slice': (2030, 2059),
+        'agg': np.mean,
+        'units': 'percent',
+    },
+    'Average Annual Total Precipitation (2030-2059)': {
+        'var': 'Precipitation (total)',
+        'time_slice': (2030, 2059),
+        'agg': np.mean,
+        'units': 'inches'
     },
 }
 
 
-def get_all_loca_cached_area(area_subset, cached_area, selected_val):
+# TODO: Re-write this, Dask runs 3x times for the quantile methods
+def _split_compute(sorted_sims):
+    """
+    Takes sorted simulations and creates different dictionaries to describe statistics about the simulations
+    Ex. single model compute = min, q1, median, q3, max
+    multi-model = middle 10%
+    """
+    single_model_compute = {
+        "min": sorted_sims[0].simulation.item(),
+        "q1": sorted_sims.loc[
+            sorted_sims == sorted_sims.quantile(0.25, method="nearest")
+        ].simulation.item(),
+        "median": sorted_sims.loc[
+            sorted_sims == sorted_sims.quantile(0.5, method="nearest")
+        ].simulation.item(),
+        "q3": sorted_sims.loc[
+            sorted_sims == sorted_sims.quantile(0.75, method="nearest")
+        ].simulation.item(),
+        "max": sorted_sims[-1].simulation.item(),
+    }
+
+    multiple_model_compute = {
+        "middle 10%": sorted_sims[
+            round(len(sorted_sims + 1) * 0.45)
+            - 1 : round(len(sorted_sims + 1) * 0.55)
+            - 1
+        ].simulation.values
+    }
+
+    return single_model_compute, multiple_model_compute
+
+
+# def _create_cluster():
+#     """Creates a new cluster instance for parallel computation"""
+#     from climakitae.util.cluster import Cluster
+#     cluster = Cluster()
+#     cluster.adapt(minimum=0, maximum=43)
+#     client = cluster.get_client()
+    
+
+def get_cached_area_loca(area_subset, cached_area, selected_val):
     """
     Given a lat and lon, return statistics of predetermined metric and parameters of all simulations in SSP 3-7.0.
     """
@@ -345,28 +397,8 @@ def get_all_loca_cached_area(area_subset, cached_area, selected_val):
         0
     ]  # Need all the values in order to create histogram + return values
 
-    # TODO: Re-write this, Dask runs 3x times for the quantile methods
-    single_model_compute = {
-        "min": sorted_sims[0].simulation.item(),
-        "q1": sorted_sims.loc[
-            sorted_sims == sorted_sims.quantile(0.25, method="nearest")
-        ].simulation.item(),
-        "median": sorted_sims.loc[
-            sorted_sims == sorted_sims.quantile(0.5, method="nearest")
-        ].simulation.item(),
-        "q3": sorted_sims.loc[
-            sorted_sims == sorted_sims.quantile(0.75, method="nearest")
-        ].simulation.item(),
-        "max": sorted_sims[-1].simulation.item(),
-    }
-
-    multiple_model_compute = {
-        "middle 10%": sorted_sims[
-            round(len(sorted_sims + 1) * 0.45)
-            - 1 : round(len(sorted_sims + 1) * 0.55)
-            - 1
-        ].simulation.values
-    }
+    # Splitting up the models by various statistics
+    single_model_compute, multiple_model_compute = _split_compute(sorted_sims)
 
     # Creating a dictionary of single stats names to the initial models from the dataset
     single_model_stats = dict(
@@ -385,26 +417,11 @@ def get_all_loca_cached_area(area_subset, cached_area, selected_val):
     return (single_model_stats, sorted_sims)
 
 
-def get_all_models_and_stats(lat, lon, selected_val):
+
+def get_lat_lon_loca(lat, lon, selected_val):
     """
     Given a lat and lon, return statistics of predetermined metric and parameters of all simulations in SSP 3-7.0.
     """
-    # Making pre-determined metrics
-    metrics = {
-        "Average Air Temperature (2030-2059)": {
-            "var": "Maximum air temperature at 2m",
-            "time_slice": (2030, 2059),
-            "agg": np.mean,
-            "units": "degF",
-        },
-        "Average Annual Total Precipitation (2030-2059)": {
-            "var": "Precipitation (total)",
-            "time_slice": (2030, 2059),
-            "agg": np.mean,
-            "units": "inches",
-        },
-    }
-
     # Creating Select object
     selections = Select()
 
@@ -444,28 +461,8 @@ def get_all_models_and_stats(lat, lon, selected_val):
         0
     ]  # Need all the values in order to create histogram + return values
 
-    # TODO: Re-write this, Dask runs 3x times for the quantile methods
-    single_model_compute = {
-        "min": sorted_sims[0].simulation.item(),
-        "q1": sorted_sims.loc[
-            sorted_sims == sorted_sims.quantile(0.25, method="nearest")
-        ].simulation.item(),
-        "median": sorted_sims.loc[
-            sorted_sims == sorted_sims.quantile(0.5, method="nearest")
-        ].simulation.item(),
-        "q3": sorted_sims.loc[
-            sorted_sims == sorted_sims.quantile(0.75, method="nearest")
-        ].simulation.item(),
-        "max": sorted_sims[-1].simulation.item(),
-    }
-
-    multiple_model_compute = {
-        "middle 10%": sorted_sims[
-            round(len(sorted_sims + 1) * 0.45)
-            - 1 : round(len(sorted_sims + 1) * 0.55)
-            - 1
-        ].simulation.values
-    }
+    # Splitting up the models by various statistics
+    single_model_compute, multiple_model_compute = _split_compute(sorted_sims)
 
     # Creating a dictionary of single stats names to the initial models from the dataset
     single_model_stats = dict(
@@ -488,11 +485,18 @@ def plot_sims(sim_vals, selected_val):
     """
     Creates resulting plot figures.
     """
+    # Finding the proper title for the plot
+    area_text = ""
+    if sim_vals.location_subset == ['coordinate selection']:
+        area_text = "given lat/lon"
+    elif sim_vals.location_subset == ['Southern California Edison']:
+        area_text = "SCE service territory"
+
     plt.figure(figsize=(10, 5))
-    ax = sns.histplot(sim_vals, edgecolor="white", linewidth=0.3, alpha=0.5)
+    ax = sns.histplot(sim_vals, edgecolor="white", binwidth=0.25)
     ax.set_title(
-        "Histogram of {} of all {} LOCA sims for SCE service territory".format(
-            selected_val, len(sim_vals)
+        "Histogram of {} of all {} LOCA sims for {}".format(
+            selected_val, len(sim_vals), area_text
         )
     )
     ax.set_xlabel("Monthly " + str(sim_vals.units).capitalize())
