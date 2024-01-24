@@ -275,29 +275,29 @@ def create_conversion_function(lookup_tables):
 
 # Making pre-determined metrics
 metrics = {
-    'Average Max Air Temperature (2030-2059)': {
-        'var': 'Maximum air temperature at 2m',
-        'time_slice': (2030, 2059),
-        'agg': np.mean,
-        'units': 'degF',
+    "Average Max Air Temperature (2030-2059)": {
+        "var": "Maximum air temperature at 2m",
+        "time_slice": (2030, 2059),
+        "agg": np.mean,
+        "units": "degF",
     },
-    'Average Min Air Temperature (2030-2059)': {
-        'var': 'Minimum air temperature at 2m',
-        'time_slice': (2030, 2059),
-        'agg': np.mean,
-        'units': 'degF',
+    "Average Min Air Temperature (2030-2059)": {
+        "var": "Minimum air temperature at 2m",
+        "time_slice": (2030, 2059),
+        "agg": np.mean,
+        "units": "degF",
     },
-    'Average Max Relative Humidity (2030-2059)': {
-        'var': 'Maximum relative humidity',
-        'time_slice': (2030, 2059),
-        'agg': np.mean,
-        'units': 'percent',
+    "Average Max Relative Humidity (2030-2059)": {
+        "var": "Maximum relative humidity",
+        "time_slice": (2030, 2059),
+        "agg": np.mean,
+        "units": "percent",
     },
-    'Average Annual Total Precipitation (2030-2059)': {
-        'var': 'Precipitation (total)',
-        'time_slice': (2030, 2059),
-        'agg': np.mean,
-        'units': 'inches'
+    "Average Annual Total Precipitation (2030-2059)": {
+        "var": "Precipitation (total)",
+        "time_slice": (2030, 2059),
+        "agg": np.mean,
+        "units": "inches",
     },
 }
 
@@ -340,7 +340,7 @@ def _split_compute(sorted_sims):
 #     cluster = Cluster()
 #     cluster.adapt(minimum=0, maximum=43)
 #     client = cluster.get_client()
-    
+
 
 def get_cached_area_loca(area_subset, cached_area, selected_val):
     """
@@ -417,7 +417,6 @@ def get_cached_area_loca(area_subset, cached_area, selected_val):
     return (single_model_stats, sorted_sims)
 
 
-
 def get_lat_lon_loca(lat, lon, selected_val):
     """
     Given a lat and lon, return statistics of predetermined metric and parameters of all simulations in SSP 3-7.0.
@@ -487,9 +486,9 @@ def plot_sims(sim_vals, selected_val):
     """
     # Finding the proper title for the plot
     area_text = ""
-    if sim_vals.location_subset == ['coordinate selection']:
+    if sim_vals.location_subset == ["coordinate selection"]:
         area_text = "given lat/lon"
-    elif sim_vals.location_subset == ['Southern California Edison']:
+    elif sim_vals.location_subset == ["Southern California Edison"]:
         area_text = "SCE service territory"
 
     plt.figure(figsize=(10, 5))
