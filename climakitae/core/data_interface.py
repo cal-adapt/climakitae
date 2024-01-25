@@ -622,7 +622,8 @@ class DataParameters(param.Parameterized):
         doc="""Compute an area average?""",
     )
     downscaling_method = param.Selector(
-        default="Dynamical", objects=["Dynamical", "Statistical", "Dynamical+Statistical"]
+        default="Dynamical",
+        objects=["Dynamical", "Statistical", "Dynamical+Statistical"],
     )
     data_type = param.Selector(default="Gridded", objects=["Gridded", "Station"])
     station = param.ListSelector(objects=dict())
@@ -799,7 +800,11 @@ class DataParameters(param.Parameterized):
                 self.downscaling_method.remove("Statistical")
                 self.downscaling_method.remove("Dynamical+Statistical")
         else:
-            self.param["downscaling_method"].objects = ["Dynamical", "Statistical", "Dynamical+Statistical"]
+            self.param["downscaling_method"].objects = [
+                "Dynamical",
+                "Statistical",
+                "Dynamical+Statistical",
+            ]
 
     @param.depends("data_type", "downscaling_method", watch=True)
     def _update_res_based_on_data_type_and_downscaling_method(self):
