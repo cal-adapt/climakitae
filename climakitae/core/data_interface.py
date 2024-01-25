@@ -37,7 +37,7 @@ def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
     Parameters
     ----------
     cat: intake catalog
-    downscaling_method: list, one of ["Dynamical"], ["Statistical"], or ["Dynamical+Statistical"]
+    downscaling_method: str, one of "Dynamical", "Statistical", or "Dynamical+Statistical"
         Data downscaling method
     timescale: str, one of "hourly", "daily", or "monthly"
         Timescale
@@ -55,7 +55,7 @@ def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
     """
     
     method_list = []
-    if downscaling_method == ["Dynamical+Statistical"]:
+    if downscaling_method == "Dynamical+Statistical":
         method_list = ["Dynamical","Statistical"]
     else:
         method_list = downscaling_method
@@ -78,7 +78,7 @@ def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
 
     # Limit scenarios if both LOCA and WRF are selected
     # We just want the scenarios that are present in both datasets
-    if downscaling_method == ["Dynamical+Statistical"]:  # If both are selected
+    if downscaling_method == "Dynamical+Statistical":  # If both are selected
         loca_scenarios = cat_subset.search(
             activity_id="LOCA2"
         ).df.experiment_id.unique()  # LOCA unique member_ids
@@ -88,7 +88,7 @@ def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
         overlapping_scenarios = list(set(loca_scenarios) & set(wrf_scenarios))
         cat_subset = cat_subset.search(experiment_id=overlapping_scenarios)
 
-    elif downscaling_method == ["Statistical"]:
+    elif downscaling_method == "Statistical":
         cat_subset = cat_subset.search(activity_id="LOCA2")
 
     # Get scenario options
@@ -129,7 +129,7 @@ def _get_variable_options_df(
     unique_variable_ids: list of strs
         List of unique variable ids from catalog.
         Used to subset var_config
-    downscaling_method: list, one of ["Dynamical"], ["Statistical"], or ["Dynamical+Statistical"]
+    downscaling_method: str, one of "Dynamical", "Statistical", or "Dynamical+Statistical"
         Data downscaling method
     timescale: str, one of "hourly", "daily", or "monthly"
         Timescale
@@ -158,7 +158,7 @@ def _get_variable_options_df(
         )
     ]
 
-    if downscaling_method == ["Dynamical+Statistical"]:
+    if downscaling_method == "Dynamical+Statistical":
         variable_options_df = variable_options_df[
             # Get shared variables
             variable_options_df["display_name"].duplicated()
@@ -706,7 +706,7 @@ class DataParameters(param.Parameterized):
         indices = True
         if self.data_type == "station":
             indices = False
-        if self.downscaling_method != ["Dynamical"]:
+        if self.downscaling_method != "Dynamical":
             indices = False
         if self.timescale == "monthly":
             indices = False
@@ -882,20 +882,13 @@ class DataParameters(param.Parameterized):
                 self.param["timescale"].objects = ["daily"]
                 self.timescale = "daily"
 
-        if self.downscaling_method == []:
-            # Default options to show if nothing is selected
-            downscaling_method = ["Dynamical"]
-            self.downscaling_method = ["Dynamical"]
-        else:
-            downscaling_method = self.downscaling_method
-
         (
             self.scenario_options,
             self.simulation,
             unique_variable_ids,
         ) = _get_user_options(
             data_catalog=self._data_catalog,
-            downscaling_method=downscaling_method,
+            downscaling_method=self.downscaling_method,
             timescale=self.timescale,
             resolution=self.resolution,
         )
@@ -955,8 +948,7 @@ class DataParameters(param.Parameterized):
                 if "Statistical" in self.downscaling_method:
                     self.param["cached_area"].objects = ["CA"]
                 elif (
-                    self.downscaling_method == ["Dynamical"]
-                    or self.downscaling_method == []
+                    self.downscaling_method == "Dynamical"
                 ):
                     self.param["cached_area"].objects = [
                         "CA",
@@ -1037,9 +1029,9 @@ class DataParameters(param.Parameterized):
         of the selected data."""
 
         # Set time range of historical data
-        if self.downscaling_method == ["Statistical"]:
+        if self.downscaling_method == "Statistical":
             historical_climate_range = self.historical_climate_range_loca
-        elif self.downscaling_method == ["Dynamical+Statistical"]:
+        elif self.downscaling_method == "Dynamical+Statistical":
             historical_climate_range = self.historical_climate_range_wrf_and_loca
         else:
             historical_climate_range = self.historical_climate_range_wrf
@@ -1104,9 +1096,9 @@ class DataParameters(param.Parameterized):
         low_bound, upper_bound = self.time_slice
 
         # Set time range of historical data
-        if self.downscaling_method == ["Statistical"]:
+        if self.downscaling_method == "Statistical":
             historical_climate_range = self.historical_climate_range_loca
-        elif self.downscaling_method == ["Dynamical+Statistical"]:
+        elif self.downscaling_method == "Dynamical+Statistical":
             historical_climate_range = self.historical_climate_range_wrf_and_loca
         else:
             historical_climate_range = self.historical_climate_range_wrf
@@ -1240,9 +1232,9 @@ class DataParametersWithPanes(DataParameters):
         available, and the subset of time slice selected.
         """
         # Set time range of historical data
-        if self.downscaling_method == ["Statistical"]:
+        if self.downscaling_method == "Statistical":
             historical_climate_range = self.historical_climate_range_loca
-        elif self.downscaling_method == ["Dynamical+Statistical"]:
+        elif self.downscaling_method == "Dynamical+Statistical":
             historical_climate_range = self.historical_climate_range_wrf_and_loca
         else:
             historical_climate_range = self.historical_climate_range_wrf
