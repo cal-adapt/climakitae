@@ -166,7 +166,7 @@ def _get_variable_options_df(
     else:
         variable_options_df = variable_options_df[
             # Get variables only from one downscaling method
-            variable_options_df["downscaling_method"].isin(downscaling_method)
+            variable_options_df["downscaling_method"] == downscaling_method
         ]
     return variable_options_df
 
@@ -182,7 +182,7 @@ def _get_var_ids(variable_descriptions, variable, downscaling_method, timescale)
             variable_descriptions["timescale"].str.contains(timescale)
         )  # Make sure its the right timescale
         & (
-            variable_descriptions["downscaling_method"].isin(downscaling_method)
+            variable_descriptions["downscaling_method"] == downscaling_method
         )  # Make sure it's the right downscaling method
     ]
     var_id = list(var_id.variable_id.values)
