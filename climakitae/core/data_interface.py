@@ -870,13 +870,13 @@ class DataParameters(param.Parameterized):
             self.param["variable_type"].objects = ["Variable"]
             self.variable_type = "Variable"
         elif self.data_type == "Gridded":
-            if "Statistical" in self.downscaling_method:
+            if self.downscaling_method == "Statistical":
                 self.param["timescale"].objects = ["daily", "monthly"]
                 if self.timescale == "hourly":
                     self.timescale = "daily"
-            elif "Dynamical" in self.downscaling_method:
+            elif self.downscaling_method == "Dynamical":
                 self.param["timescale"].objects = ["daily", "monthly", "hourly"]
-            else:
+            else: # "Dynamical+Statistical"
                 # If both are selected, only show daily data
                 # We do not have WRF on LOCA grid resampled to monthly
                 self.param["timescale"].objects = ["daily"]
@@ -920,10 +920,6 @@ class DataParameters(param.Parameterized):
                 self.variable_options_df = self.variable_options_df[
                     self.variable_options_df["variable_id"].str.contains("index")
                 ]
-            if len(self.variable_options_df) == 0:
-                raise ValueError(
-                    "You've encountered a bug in the code. There are no variable options for your selections."
-                )
             var_options = self.variable_options_df.display_name.values
             self.param["variable"].objects = var_options
             if self.variable not in var_options:
