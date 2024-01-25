@@ -53,12 +53,18 @@ def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
     unique_variable_ids: list
         Unique variable id values for input user selections
     """
+    
+    method_list = []
+    if downscaling_method == ["Dynamical+Statistical"]:
+        method_list = ["Dynamical","Statistical"]
+    else:
+        method_list = downscaling_method
 
     # Get catalog subset from user inputs
     with warnings.catch_warnings(record=True):
         cat_subset = data_catalog.search(
             activity_id=[
-                downscaling_method_to_activity_id(dm) for dm in downscaling_method
+                downscaling_method_to_activity_id(dm) for dm in method_list
             ],
             table_id=timescale_to_table_id(timescale),
             grid_label=resolution_to_gridlabel(resolution),
