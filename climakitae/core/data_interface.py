@@ -622,7 +622,7 @@ class DataParameters(param.Parameterized):
         doc="""Compute an area average?""",
     )
     downscaling_method = param.Selector(
-        default=["Dynamical"], objects=["Dynamical", "Statistical", "Dynamical+Statistical"]
+        default="Dynamical", objects=["Dynamical", "Statistical", "Dynamical+Statistical"]
     )
     data_type = param.Selector(default="Gridded", objects=["Gridded", "Station"])
     station = param.ListSelector(objects=dict())
