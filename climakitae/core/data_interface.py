@@ -37,7 +37,7 @@ def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
     Parameters
     ----------
     cat: intake catalog
-    downscaling_method: list, one of ["Dynamical"], ["Statistical"], or ["Dynamical","Statistical"]
+    downscaling_method: list, one of ["Dynamical"], ["Statistical"], or ["Dynamical+Statistical"]
         Data downscaling method
     timescale: str, one of "hourly", "daily", or "monthly"
         Timescale
@@ -72,9 +72,7 @@ def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
 
     # Limit scenarios if both LOCA and WRF are selected
     # We just want the scenarios that are present in both datasets
-    if set(["Dynamical", "Statistical"]).issubset(
-        downscaling_method
-    ):  # If both are selected
+    if downscaling_method == ["Dynamical+Statistical"]:  # If both are selected
         loca_scenarios = cat_subset.search(
             activity_id="LOCA2"
         ).df.experiment_id.unique()  # LOCA unique member_ids
@@ -125,7 +123,7 @@ def _get_variable_options_df(
     unique_variable_ids: list of strs
         List of unique variable ids from catalog.
         Used to subset var_config
-    downscaling_method: list, one of ["Dynamical"], ["Statistical"], or ["Dynamical","Statistical"]
+    downscaling_method: list, one of ["Dynamical"], ["Statistical"], or ["Dynamical+Statistical"]
         Data downscaling method
     timescale: str, one of "hourly", "daily", or "monthly"
         Timescale
@@ -154,7 +152,7 @@ def _get_variable_options_df(
         )
     ]
 
-    if set(["Dynamical", "Statistical"]).issubset(downscaling_method):
+    if downscaling_method == ["Dynamical+Statistical"]:
         variable_options_df = variable_options_df[
             # Get shared variables
             variable_options_df["display_name"].duplicated()
@@ -623,8 +621,8 @@ class DataParameters(param.Parameterized):
         objects=["Yes", "No"],
         doc="""Compute an area average?""",
     )
-    downscaling_method = param.ListSelector(
-        default=["Dynamical"], objects=["Dynamical", "Statistical"]
+    downscaling_method = param.Selector(
+        default=["Dynamical"], objects=["Dynamical", "Statistical", "Dynamical+Statistical"]
     )
     data_type = param.Selector(default="Gridded", objects=["Gridded", "Station"])
     station = param.ListSelector(objects=dict())
@@ -799,8 +797,9 @@ class DataParameters(param.Parameterized):
             self.param["downscaling_method"].objects = ["Dynamical"]
             if "Statistical" in self.downscaling_method:
                 self.downscaling_method.remove("Statistical")
+                self.downscaling_method.remove("Dynamical+Statistical")
         else:
-            self.param["downscaling_method"].objects = ["Dynamical", "Statistical"]
+            self.param["downscaling_method"].objects = ["Dynamical", "Statistical", "Dynamical+Statistical"]
 
     @param.depends("data_type", "downscaling_method", watch=True)
     def _update_res_based_on_data_type_and_downscaling_method(self):
@@ -829,7 +828,7 @@ class DataParameters(param.Parameterized):
         if self.data_type == "station":
             # Only air temp available for station data
             indices = False
-        if self.downscaling_method != ["Dynamical"]:
+        if "Dynamical" not in self.downscaling_method:
             # Currently we only have indices for WRF data
             indices = False
         if self.timescale == "monthly":
@@ -860,11 +859,11 @@ class DataParameters(param.Parameterized):
             self.param["variable_type"].objects = ["Variable"]
             self.variable_type = "Variable"
         elif self.data_type == "Gridded":
-            if self.downscaling_method == ["Statistical"]:
+            if "Statistical" in self.downscaling_method:
                 self.param["timescale"].objects = ["daily", "monthly"]
                 if self.timescale == "hourly":
                     self.timescale = "daily"
-            elif self.downscaling_method == ["Dynamical"]:
+            elif "Dynamical" in self.downscaling_method:
                 self.param["timescale"].objects = ["daily", "monthly", "hourly"]
             else:
                 # If both are selected, only show daily data
@@ -1029,7 +1028,7 @@ class DataParameters(param.Parameterized):
         # Set time range of historical data
         if self.downscaling_method == ["Statistical"]:
             historical_climate_range = self.historical_climate_range_loca
-        elif set(["Dynamical", "Statistical"]).issubset(self.downscaling_method):
+        elif self.downscaling_method == ["Dynamical+Statistical"]:
             historical_climate_range = self.historical_climate_range_wrf_and_loca
         else:
             historical_climate_range = self.historical_climate_range_wrf
@@ -1096,7 +1095,7 @@ class DataParameters(param.Parameterized):
         # Set time range of historical data
         if self.downscaling_method == ["Statistical"]:
             historical_climate_range = self.historical_climate_range_loca
-        elif set(["Dynamical", "Statistical"]).issubset(self.downscaling_method):
+        elif self.downscaling_method == ["Dynamical+Statistical"]:
             historical_climate_range = self.historical_climate_range_wrf_and_loca
         else:
             historical_climate_range = self.historical_climate_range_wrf
@@ -1232,7 +1231,7 @@ class DataParametersWithPanes(DataParameters):
         # Set time range of historical data
         if self.downscaling_method == ["Statistical"]:
             historical_climate_range = self.historical_climate_range_loca
-        elif set(["Dynamical", "Statistical"]).issubset(self.downscaling_method):
+        elif self.downscaling_method == ["Dynamical+Statistical"]:
             historical_climate_range = self.historical_climate_range_wrf_and_loca
         else:
             historical_climate_range = self.historical_climate_range_wrf
@@ -1380,7 +1379,7 @@ def _selections_param_to_panel(self):
         self.param._data_warning, name="", style={"color": "red"}
     )
     downscaling_method_text = pn.widgets.StaticText(value="", name="Downscaling method")
-    downscaling_method = pn.widgets.CheckBoxGroup.from_param(
+    downscaling_method = pn.widgets.RadioBoxGroup.from_param(
         self.param.downscaling_method, inline=True
     )
     historical_selection_text = pn.widgets.StaticText(
