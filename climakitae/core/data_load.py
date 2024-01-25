@@ -176,11 +176,15 @@ def _get_cat_subset(selections):
 
     scenario_selections = selections.scenario_ssp + selections.scenario_historical
 
+    method_list = []
+    if selections.downscaling_method == "Dynamical+Statistical":
+        method_list = ["Dynamical", "Statistical"]
+    else:
+        method_list = [selections.downscaling_method]
+
     # Get catalog keys
     # Convert user-friendly names to catalog names (i.e. "45 km" to "d01")
-    activity_id = [
-        downscaling_method_to_activity_id(dm) for dm in selections.downscaling_method
-    ]
+    activity_id = [downscaling_method_to_activity_id(dm) for dm in method_list]
     table_id = timescale_to_table_id(selections.timescale)
     grid_label = resolution_to_gridlabel(selections.resolution)
     experiment_id = [scenario_to_experiment_id(x) for x in scenario_selections]
@@ -384,7 +388,7 @@ def _spatial_subset(dset, selections):
     ds_region = area_subset_geometry(selections)
 
     if ds_region is not None:  # Perform subsetting
-        if selections.downscaling_method == ["Dynamical"]:
+        if selections.downscaling_method == "Dynamical":
             dset = _clip_to_geometry(dset, ds_region)
         else:
             dset = _clip_to_geometry_loca(dset, ds_region)
@@ -639,11 +643,14 @@ def _get_data_one_var(selections):
             set(selections.scenario_ssp)
         )
     ):
+        method_list = []
+        if selections.downscaling_method == "Dynamical+Statistical":
+            method_list = ["Dynamical", "Statistical"]
+        else:
+            method_list = [selections.downscaling_method]
+
         cat_subset2 = selections._data_catalog.search(
-            activity_id=[
-                downscaling_method_to_activity_id(dm)
-                for dm in selections.downscaling_method
-            ],
+            activity_id=[downscaling_method_to_activity_id(dm) for dm in method_list],
             table_id=timescale_to_table_id(selections.timescale),
             grid_label=resolution_to_gridlabel(selections.resolution),
             variable_id=selections.variable_id,
