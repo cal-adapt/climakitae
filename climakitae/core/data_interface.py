@@ -53,19 +53,17 @@ def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
     unique_variable_ids: list
         Unique variable id values for input user selections
     """
-    
+
     method_list = []
     if downscaling_method == "Dynamical+Statistical":
-        method_list = ["Dynamical","Statistical"]
+        method_list = ["Dynamical", "Statistical"]
     else:
         method_list = [downscaling_method]
 
     # Get catalog subset from user inputs
     with warnings.catch_warnings(record=True):
         cat_subset = data_catalog.search(
-            activity_id=[
-                downscaling_method_to_activity_id(dm) for dm in method_list
-            ],
+            activity_id=[downscaling_method_to_activity_id(dm) for dm in method_list],
             table_id=timescale_to_table_id(timescale),
             grid_label=resolution_to_gridlabel(resolution),
         )
@@ -166,7 +164,8 @@ def _get_variable_options_df(
     else:
         variable_options_df = variable_options_df[
             # Get variables only from one downscaling method
-            variable_options_df["downscaling_method"] == downscaling_method
+            variable_options_df["downscaling_method"]
+            == downscaling_method
         ]
     return variable_options_df
 
@@ -876,7 +875,7 @@ class DataParameters(param.Parameterized):
                     self.timescale = "daily"
             elif self.downscaling_method == "Dynamical":
                 self.param["timescale"].objects = ["daily", "monthly", "hourly"]
-            else: # "Dynamical+Statistical"
+            else:  # "Dynamical+Statistical"
                 # If both are selected, only show daily data
                 # We do not have WRF on LOCA grid resampled to monthly
                 self.param["timescale"].objects = ["daily"]
@@ -943,9 +942,7 @@ class DataParameters(param.Parameterized):
             if self.resolution == "3 km":
                 if "Statistical" in self.downscaling_method:
                     self.param["cached_area"].objects = ["CA"]
-                elif (
-                    self.downscaling_method == "Dynamical"
-                ):
+                elif self.downscaling_method == "Dynamical":
                     self.param["cached_area"].objects = [
                         "CA",
                         "NV",
