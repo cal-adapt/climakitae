@@ -58,7 +58,7 @@ def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
     if downscaling_method == "Dynamical+Statistical":
         method_list = ["Dynamical","Statistical"]
     else:
-        method_list = downscaling_method
+        method_list = [downscaling_method]
 
     # Get catalog subset from user inputs
     with warnings.catch_warnings(record=True):
