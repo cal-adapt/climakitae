@@ -274,80 +274,73 @@ def main():
         [historical_cmip6["TREFHT"], future_cmip6["TREFHT"]], dim="time"
     )
 
-    # pre-industrial reference period:
-    model = "CESM2-LENS"
-    scenarios = ["ssp370"]
-    variable = "tas"
-    print("Generate cesm2 table 1850-1900")
-    cesm2_table, wl_data_tbl_cesm2 = get_table_cesm2(variable, model, scenarios)
-
-    variable = "tas"
-    scenarios = ["ssp585", "ssp370", "ssp245"]
-    print("Generate all WL table 1850-1900")
-    all_wl_data_tbls = pd.DataFrame()
-    all_gw_tbls, all_gw_data_tbls = [], []
-    for i, model in enumerate(models):
-        print(f"\n...Model {i} {model}...\n")
-        gw_tbl, wl_data_tbl_sim = get_gwl_table(variable, model, scenarios)
-        all_gw_tbls.append(gw_tbl)
-        all_gw_data_tbls.append(wl_data_tbl_sim)
-        try:
-            all_wl_data_tbls = pd.concat([all_wl_data_tbls, wl_data_tbl_sim], axis=1)
-        except Exception as e:
-            all_wl_data_tbls.to_csv(f"../data/gwl_1850-1900ref_timeidx_{model}.csv")
-            print(f"\n Table for model {model} cannot be concatenated: \n")
-            print(e)
-    ### Writing out all warming level data table for all models
-
-    # Resetting index for CESM2 since it records the dates on the 16th rather than the 15th.
-    wl_data_tbl_cesm2.index = all_gw_data_tbls[0].index
-    # all_gw_data_tbls[1].index = all_gw_data_tbls[0].index
-
-    # Combining and writing out
-    # all_wl_data_tbls = pd.concat(all_gw_data_tbls + [wl_data_tbl_cesm2], axis=1)
-    all_wl_data_tbls = pd.concat([all_wl_data_tbls, wl_data_tbl_cesm2], axis=1)
-    all_wl_data_tbls.to_csv("../data/gwl_1850-1900ref_timeidx.csv")
-
-    # Creating original WL lookup table
-    all_gw_levels = pd.concat(all_gw_tbls, keys=models)
-    all_gw_levels = pd.concat([all_gw_levels, cesm2_table])
-    all_gw_levels.index = pd.MultiIndex.from_tuples(
-        all_gw_levels.index, names=["GCM", "run", "scenario"]
-    )
-    all_gw_levels.to_csv("../data/gwl_1850-1900ref.csv")
-
-    # # reference period overlapping with downscaled data availability:
-    # start_year = "19810101"
-    # end_year = "20101231"
+    # # pre-industrial reference period:
     # model = "CESM2-LENS"
     # scenarios = ["ssp370"]
+    # variable = "tas"
     # print("Generate cesm2 table 1850-1900")
     # cesm2_table, wl_data_tbl_cesm2 = get_table_cesm2(variable, model, scenarios)
 
+    # variable = "tas"
     # scenarios = ["ssp585", "ssp370", "ssp245"]
-    # print("Generate all WL table 1981-2010")
-
-    # all_gw_tbls2, all_gw_data_tbls2 = [], []
-    # for model in models:
+    # print("Generate all WL table 1850-1900")
+    # all_wl_data_tbls = pd.DataFrame()
+    # all_gw_tbls, all_gw_data_tbls = [], []
+    # for i, model in enumerate(models):
+    #     print(f"\n...Model {i} {model}...\n")
     #     gw_tbl, wl_data_tbl_sim = get_gwl_table(variable, model, scenarios)
-    #     all_gw_tbls2.append(gw_tbl)
-    #     all_gw_data_tbls2.append(wl_data_tbl_sim)
-
+    #     all_gw_tbls.append(gw_tbl)
+    #     all_gw_data_tbls.append(wl_data_tbl_sim)
+    #     try:
+    #         all_wl_data_tbls = pd.concat([all_wl_data_tbls, wl_data_tbl_sim], axis=1)
+    #     except Exception as e:
+    #         all_wl_data_tbls.to_csv(f"../data/gwl_1850-1900ref_timeidx_{model}.csv")
+    #         print(f"\n Table for model {model} cannot be concatenated: \n")
+    #         print(e)
     # ### Writing out all warming level data table for all models
 
     # # Resetting index for CESM2 since it records the dates on the 16th rather than the 15th.
-    # wl_data_tbl_cesm2.index = all_gw_data_tbls2[0].index
-    # all_gw_data_tbls2[1].index = all_gw_data_tbls2[0].index
+    # wl_data_tbl_cesm2.index = all_gw_data_tbls[0].index
+    # # all_gw_data_tbls[1].index = all_gw_data_tbls[0].index
 
-    # all_gw_data_tbls2 = pd.concat(all_gw_data_tbls2 + [wl_data_tbl_cesm2], axis=1)
-    # all_gw_data_tbls2.to_csv("../data/gwl_1981-2010ref_timeidx.csv")
+    # # Combining and writing out
+    # # all_wl_data_tbls = pd.concat(all_gw_data_tbls + [wl_data_tbl_cesm2], axis=1)
+    # all_wl_data_tbls = pd.concat([all_wl_data_tbls, wl_data_tbl_cesm2], axis=1)
+    # all_wl_data_tbls.to_csv("../data/gwl_1850-1900ref_timeidx.csv")
 
-    # all_gw_levels2 = pd.concat(all_gw_tbls2, keys=models)
-    # all_gw_levels2 = pd.concat([all_gw_levels2, cesm2_table])
-    # all_gw_levels2.index = pd.MultiIndex.from_tuples(
-    #     all_gw_levels2.index, names=["GCM", "run", "scenario"]
+    # # Creating original WL lookup table
+    # all_gw_levels = pd.concat(all_gw_tbls, keys=models)
+    # all_gw_levels = pd.concat([all_gw_levels, cesm2_table])
+    # all_gw_levels.index = pd.MultiIndex.from_tuples(
+    #     all_gw_levels.index, names=["GCM", "run", "scenario"]
     # )
-    # all_gw_levels2.to_csv("../data/gwl_1981-2010ref.csv")
+    # all_gw_levels.to_csv("../data/gwl_1850-1900ref.csv")
+
+    # reference period overlapping with downscaled data availability:
+    start_year = "19810101"
+    end_year = "20101231"
+    model = "CESM2-LENS"
+    scenarios = ["ssp370"]
+    variable = "tas"
+    print("Generate cesm2 table 1981-2010")
+    cesm2_table2, wl_data_tbl_cesm2 = get_table_cesm2(variable, model, scenarios, start_year, end_year)
+    
+    scenarios = ["ssp585", "ssp370", "ssp245"]
+    print("Generate all WL table 1981-2010")
+
+    all_gw_tbls2 = []
+    for i, model in enumerate(models):
+        print(f"\n...Model {i} {model}...\n")
+        gw_tbl, wl_data_tbl_sim = get_gwl_table(variable, model, scenarios, start_year, end_year)
+        all_gw_tbls2.append(gw_tbl)
+
+    ### Writing out all warming level data table for all models
+    all_gw_levels2 = pd.concat(all_gw_tbls2, keys=models)
+    all_gw_levels2 = pd.concat([all_gw_levels2, cesm2_table2])
+    all_gw_levels2.index = pd.MultiIndex.from_tuples(
+        all_gw_levels2.index, names=["GCM", "run", "scenario"]
+    )
+    all_gw_levels2.to_csv("../data/gwl_1981-2010ref.csv")
 
 
 def get_sims_on_aws(df):
