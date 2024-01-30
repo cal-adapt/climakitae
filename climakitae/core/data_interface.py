@@ -175,17 +175,23 @@ def _get_var_ids(variable_descriptions, variable, downscaling_method, timescale)
     Required to account for the fact that LOCA, WRF, and various timescales use different variable id values.
     Used to retrieve the correct variables from the catalog in the backend.
     """
+
+    method_list = []
+    if downscaling_method == "Dynamical+Statistical":
+        method_list = ["Dynamical", "Statistical"]
+    else:
+        method_list = [downscaling_method]
+
     var_id = variable_descriptions[
         (variable_descriptions["display_name"] == variable)
         & (  # Make sure it's a valid variable selection
             variable_descriptions["timescale"].str.contains(timescale)
         )  # Make sure its the right timescale
         & (
-            variable_descriptions["downscaling_method"] in downscaling_method
+            variable_descriptions["downscaling_method"].isin(method_list)
         )  # Make sure it's the right downscaling method
     ]
     var_id = list(var_id.variable_id.values)
-    print(downscaling_method)
     print(var_id)
     return var_id
 
