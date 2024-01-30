@@ -29,7 +29,7 @@ from climakitae.core.data_load import (
 )
 
 
-def _downscaling_method_as_list(downscaling_method):
+def downscaling_method_as_list(downscaling_method):
     """Function to convert string based radio button values to python list
 
     Parameters
@@ -76,7 +76,7 @@ def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
         Unique variable id values for input user selections
     """
 
-    method_list = _downscaling_method_as_list(downscaling_method)
+    method_list = downscaling_method_as_list(downscaling_method)
 
     # Get catalog subset from user inputs
     with warnings.catch_warnings(record=True):
@@ -194,7 +194,7 @@ def _get_var_ids(variable_descriptions, variable, downscaling_method, timescale)
     Used to retrieve the correct variables from the catalog in the backend.
     """
 
-    method_list = _downscaling_method_as_list(downscaling_method)
+    method_list = downscaling_method_as_list(downscaling_method)
 
     var_id = variable_descriptions[
         (variable_descriptions["display_name"] == variable)

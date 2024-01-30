@@ -15,6 +15,7 @@ from shapely.geometry import box
 from xclim.sdba import Grouper
 from xclim.sdba.adjustment import QuantileDeltaMapping
 from climakitae.core.boundaries import Boundaries
+from climakitae.core.data_interface import downscaling_method_as_list
 from climakitae.util.unit_conversions import convert_units
 from climakitae.util.utils import (
     readable_bytes,
@@ -176,11 +177,7 @@ def _get_cat_subset(selections):
 
     scenario_selections = selections.scenario_ssp + selections.scenario_historical
 
-    method_list = []
-    if selections.downscaling_method == "Dynamical+Statistical":
-        method_list = ["Dynamical", "Statistical"]
-    else:
-        method_list = [selections.downscaling_method]
+    method_list = downscaling_method_as_list(selections.downscaling_method)
 
     # Get catalog keys
     # Convert user-friendly names to catalog names (i.e. "45 km" to "d01")
@@ -643,11 +640,7 @@ def _get_data_one_var(selections):
             set(selections.scenario_ssp)
         )
     ):
-        method_list = []
-        if selections.downscaling_method == "Dynamical+Statistical":
-            method_list = ["Dynamical", "Statistical"]
-        else:
-            method_list = [selections.downscaling_method]
+        method_list = downscaling_method_as_list(selections.downscaling_method)
 
         cat_subset2 = selections._data_catalog.search(
             activity_id=[downscaling_method_to_activity_id(dm) for dm in method_list],
