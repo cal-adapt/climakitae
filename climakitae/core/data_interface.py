@@ -188,6 +188,7 @@ def _get_var_ids(variable_descriptions, variable, downscaling_method, timescale)
         )  # Make sure it's the right downscaling method
     ]
     var_id = list(var_id.variable_id.values)
+    print(var_id)
     return var_id
 
 
