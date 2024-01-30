@@ -112,6 +112,8 @@ def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
     # Get variable options
     unique_variable_ids = list(cat_subset.df["variable_id"].unique())
 
+    print(scenario_options, simulation_options, unique_variable_ids)
+
     return scenario_options, simulation_options, unique_variable_ids
 
 
