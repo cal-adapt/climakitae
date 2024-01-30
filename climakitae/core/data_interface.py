@@ -169,6 +169,7 @@ def _get_variable_options_df(
             variable_options_df["downscaling_method"]
             == downscaling_method
         ]
+    print(variable_options_df)
     return variable_options_df
 
 
