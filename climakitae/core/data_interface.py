@@ -16,7 +16,7 @@ from climakitae.core.paths import (
     data_catalog_url,
     boundary_catalog_url,
 )
-from climakitae.util.utils import read_csv_file
+from climakitae.util.utils import read_csv_file, downscaling_method_as_list
 from climakitae.core.boundaries import Boundaries
 from climakitae.util.unit_conversions import get_unit_conversion_options
 from climakitae.core.data_load import (
@@ -27,28 +27,6 @@ from climakitae.core.data_load import (
     read_catalog_from_csv,
     read_catalog_from_select,
 )
-
-
-def downscaling_method_as_list(downscaling_method):
-    """Function to convert string based radio button values to python list
-
-    Parameters
-    ----------
-    downscaling_method: str one of "Dynamical", "Statistical", or "Dynamical+Statistical"
-        Data downscaling method
-
-    Returns
-    -------
-    method_list: list one of ["Dynamical"], ["Statistical"], or ["Dynamical","Statistical"]
-        Data downscaling method as list
-
-    """
-    method_list = []
-    if downscaling_method == "Dynamical+Statistical":
-        method_list = ["Dynamical", "Statistical"]
-    else:
-        method_list = [downscaling_method]
-    return method_list
 
 
 def _get_user_options(data_catalog, downscaling_method, timescale, resolution):

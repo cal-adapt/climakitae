@@ -15,13 +15,13 @@ from shapely.geometry import box
 from xclim.sdba import Grouper
 from xclim.sdba.adjustment import QuantileDeltaMapping
 from climakitae.core.boundaries import Boundaries
-from climakitae.core.data_interface import downscaling_method_as_list
 from climakitae.util.unit_conversions import convert_units
 from climakitae.util.utils import (
     readable_bytes,
     get_closest_gridcell,
     area_average,
     scenario_to_experiment_id,
+    downscaling_method_as_list,
 )
 from climakitae.tools.derived_variables import (
     compute_relative_humidity,
