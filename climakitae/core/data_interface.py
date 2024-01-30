@@ -29,6 +29,28 @@ from climakitae.core.data_load import (
 )
 
 
+def _downscaling_method_as_list(downscaling_method):
+    """Function to convert string based radio button values to python list
+
+    Parameters
+    ----------
+    downscaling_method: str one of "Dynamical", "Statistical", or "Dynamical+Statistical"
+        Data downscaling method
+
+    Returns
+    -------
+    method_list: list one of ["Dynamical"], ["Statistical"], or ["Dynamical","Statistical"]
+        Data downscaling method as list
+
+    """
+    method_list = []
+    if downscaling_method == "Dynamical+Statistical":
+        method_list = ["Dynamical", "Statistical"]
+    else:
+        method_list = [downscaling_method]
+    return method_list
+
+
 def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
     """Using the data catalog, get a list of appropriate scenario and simulation options given a user's
     selections for downscaling method, timescale, and resolution.
@@ -54,11 +76,7 @@ def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
         Unique variable id values for input user selections
     """
 
-    method_list = []
-    if downscaling_method == "Dynamical+Statistical":
-        method_list = ["Dynamical", "Statistical"]
-    else:
-        method_list = [downscaling_method]
+    method_list = _downscaling_method_as_list(downscaling_method)
 
     # Get catalog subset from user inputs
     with warnings.catch_warnings(record=True):
@@ -176,11 +194,7 @@ def _get_var_ids(variable_descriptions, variable, downscaling_method, timescale)
     Used to retrieve the correct variables from the catalog in the backend.
     """
 
-    method_list = []
-    if downscaling_method == "Dynamical+Statistical":
-        method_list = ["Dynamical", "Statistical"]
-    else:
-        method_list = [downscaling_method]
+    method_list = _downscaling_method_as_list(downscaling_method)
 
     var_id = variable_descriptions[
         (variable_descriptions["display_name"] == variable)
@@ -192,7 +206,6 @@ def _get_var_ids(variable_descriptions, variable, downscaling_method, timescale)
         )  # Make sure it's the right downscaling method
     ]
     var_id = list(var_id.variable_id.values)
-    print(var_id)
     return var_id
 
 
