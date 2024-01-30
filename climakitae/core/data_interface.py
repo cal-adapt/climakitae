@@ -801,9 +801,6 @@ class DataParameters(param.Parameterized):
             self.param["data_type"].objects = ["Gridded", "Station"]
         if "Station" in self.data_type or self.variable_type == "Derived Index":
             self.param["downscaling_method"].objects = ["Dynamical"]
-            if "Statistical" in self.downscaling_method:
-                self.downscaling_method.remove("Statistical")
-                self.downscaling_method.remove("Dynamical+Statistical")
         else:
             self.param["downscaling_method"].objects = [
                 "Dynamical",
