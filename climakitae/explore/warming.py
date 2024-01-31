@@ -288,7 +288,7 @@ class WarmingLevelChoose(DataParametersWithPanes):
 
     def __init__(self, *args, **params):
         super().__init__(*args, **params)
-        self.downscaling_method = ["Dynamical"]
+        self.downscaling_method = "Dynamical"
         self.scenario_historical = ["Historical Climate"]
         self.area_average = "No"
         self.resolution = "45 km"
@@ -310,7 +310,7 @@ class WarmingLevelChoose(DataParametersWithPanes):
         """
         Require 'anomaly' for non-bias-corrected data.
         """
-        if self.downscaling_method == ["Dynamical"]:
+        if self.downscaling_method == "Dynamical":
             self.param["anom"].objects = ["Yes"]
             self.anom = "Yes"
         else:

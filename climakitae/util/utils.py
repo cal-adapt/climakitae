@@ -21,6 +21,28 @@ from climakitae.core.paths import (
 )
 
 
+def downscaling_method_as_list(downscaling_method):
+    """Function to convert string based radio button values to python list
+
+    Parameters
+    ----------
+    downscaling_method: str one of "Dynamical", "Statistical", or "Dynamical+Statistical"
+        Data downscaling method
+
+    Returns
+    -------
+    method_list: list one of ["Dynamical"], ["Statistical"], or ["Dynamical","Statistical"]
+        Data downscaling method as list
+
+    """
+    method_list = []
+    if downscaling_method == "Dynamical+Statistical":
+        method_list = ["Dynamical", "Statistical"]
+    else:
+        method_list = [downscaling_method]
+    return method_list
+
+
 def scenario_to_experiment_id(scenario, reverse=False):
     """
     Convert scenario format to experiment_id format matching catalog names.

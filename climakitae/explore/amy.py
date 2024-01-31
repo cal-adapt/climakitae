@@ -96,7 +96,7 @@ def _retrieve_meteo_yr_data(
         Hourly ensemble means from year_start-year_end for the ssp specified.
     """
     # Ensure only WRF data is being used
-    self.downscaling_method = ["Dynamical"]
+    self.downscaling_method = "Dynamical"
 
     # Save units. Sometimes they get lost.
     units = self.units
@@ -618,7 +618,7 @@ class AverageMetYearParameters(DataParametersWithPanes):
         self.cmap = read_ae_colormap(cmap="ae_orange", cmap_hex=True)
 
         # Selectors defaults
-        self.downscaling_method = ["Dynamical"]
+        self.downscaling_method = "Dynamical"
         self.append_historical = "No"
         self.area_average = "Yes"
         self.resolution = "45 km"
@@ -653,7 +653,7 @@ class AverageMetYearParameters(DataParametersWithPanes):
     def _update_data_to_be_returned(self):
         """Update self so that the correct data is returned by DataParameters.retrieve()"""
 
-        self.downscaling_method = ["Dynamical"]
+        self.downscaling_method = "Dynamical"
 
         if self.computation_method == "Historical":
             self.scenario_historical = ["Historical Climate"]
