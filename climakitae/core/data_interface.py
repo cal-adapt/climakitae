@@ -835,7 +835,7 @@ class DataParameters(param.Parameterized):
         if self.data_type == "station":
             # Only air temp available for station data
             indices = False
-        if "Dynamical" not in self.downscaling_method:
+        if self.downscaling_method != "Dynamical":
             # Currently we only have indices for WRF data
             indices = False
         if self.timescale == "monthly":
