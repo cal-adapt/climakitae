@@ -294,7 +294,7 @@ def main():
             all_wl_data_tbls.to_csv(f"../data/gwl_1850-1900ref_timeidx_{model}.csv")
             print(f"\n Table for model {model} cannot be concatenated: \n")
             print(e)
-            
+
     ### Writing out all warming level data table for all models
 
     # Resetting index for CESM2 since it records the dates on the 16th rather than the 15th.
@@ -338,7 +338,9 @@ def main():
     model = "CESM2-LENS"
     scenarios = ["ssp370"]
     print("Generate cesm2 table 1981-2010")
-    cesm2_table2, wl_data_tbl_cesm2 = get_table_cesm2(variable, model, scenarios, start_year, end_year)
+    cesm2_table2, wl_data_tbl_cesm2 = get_table_cesm2(
+        variable, model, scenarios, start_year, end_year
+    )
 
     scenarios = ["ssp585", "ssp370", "ssp245"]
     print("Generate all WL table 1981-2010")
@@ -346,7 +348,9 @@ def main():
     all_gw_tbls2 = []
     for i, model in enumerate(models):
         print(f"\n...Model {i} {model}...\n")
-        gw_tbl, wl_data_tbl_sim = get_gwl_table(variable, model, scenarios, start_year, end_year)
+        gw_tbl, wl_data_tbl_sim = get_gwl_table(
+            variable, model, scenarios, start_year, end_year
+        )
         all_gw_tbls2.append(gw_tbl)
 
     ### Writing out all warming level data table for all models
