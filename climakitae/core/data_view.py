@@ -154,7 +154,7 @@ def view(data, lat_lon=True, width=None, height=None, cmap=None):
                     width=width,
                     height=height,
                     clim=(vmin, vmax),
-                    sopt=sopt,
+                    symmetric=sopt,
                 )
             else:
                 # Make a scatter plot if it's just one grid cell
@@ -172,7 +172,7 @@ def view(data, lat_lon=True, width=None, height=None, cmap=None):
                     height=height,
                     s=150,  # Size of marker
                     clim=(vmin, vmax),
-                    sopt=sopt,
+                    symmetric=sopt,
                 )
         except:
             # Print message instead of raising error
