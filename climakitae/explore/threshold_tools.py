@@ -689,12 +689,12 @@ def _get_return_variable(
         ] = f"{arg_value} {return_value_unit} event"
         new_ds["return_period"].attrs["units"] = "years"
 
-    new_ds["conf_int_lower_limit"].attrs[
-        "confidence interval lower bound"
-    ] = "{}th percentile".format(str(conf_int_lower_bound))
-    new_ds["conf_int_upper_limit"].attrs[
-        "confidence interval upper bound"
-    ] = "{}th percentile".format(str(conf_int_upper_bound))
+    new_ds["conf_int_lower_limit"].attrs["confidence interval lower bound"] = (
+        "{}th percentile".format(str(conf_int_lower_bound))
+    )
+    new_ds["conf_int_upper_limit"].attrs["confidence interval upper bound"] = (
+        "{}th percentile".format(str(conf_int_upper_bound))
+    )
 
     new_ds.attrs["distribution"] = f"{distr}"
     return new_ds
