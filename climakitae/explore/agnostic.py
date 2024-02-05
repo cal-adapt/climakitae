@@ -50,7 +50,9 @@ def _create_time_lut(gcms):
 def _create_warm_level_lut(gcms):
     """Prepare lookup table for converting times to warming levels."""
     # Read in time vs simulation table
-    df = read_csv_file("data/gwl_1850-1900ref_timeidx.csv", index_col="time", parse_dates=True)
+    df = read_csv_file(
+        "data/gwl_1850-1900ref_timeidx.csv", index_col="time", parse_dates=True
+    )
     month_df = df.groupby(
         [df.index.year, df.index.month]
     ).mean()  # This ignores NaN and gets the only value in each month
