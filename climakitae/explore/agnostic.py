@@ -436,9 +436,7 @@ def _compute_selections_and_stats(selections, metric, years, months):
     results, data = _compute_results(selections, metric, years, months)
 
     # Compute statistics to extract from results
-    single_stats, multiple_stats = _split_stats(
-        results, data
-    )
+    single_stats, multiple_stats = _split_stats(results, data)
 
     # Return single statistic simulations, multiple statistic simulations, and the sorted simulations computed.
     return single_stats, multiple_stats, results
@@ -448,7 +446,7 @@ def get_lat_lon_loca(lat, lon, metric, years, months=list(np.arange(1, 13))):
     """
     Gets aggregated LOCA simulation data for a lat/lon coordinate for a given metric and timeframe (years, months).
     It combines all LOCA simulation data that is filtered by lat/lon, years, and specific months across SSP pathways
-    and runs the passed in metric on all of the data. The results are then returned in ascending order, 
+    and runs the passed in metric on all of the data. The results are then returned in ascending order,
     along with dictionaries mapping specific statistic names to the simulation objects themselves.
 
     Parameters
@@ -487,7 +485,7 @@ def get_area_subset_loca(
     from existing keys in Boundaries.boundary_dict()) and on one of the areas of the values in that
     `area_subset` (`cached_area`). It then extracts this data across all SSP pathways for specific years/months,
     and runs the passed in metric on all of this data. The results are then returned in 3 values, the first
-    as a dict of statistic names to xr.DataArray single simulation objects (i.e. median), 
+    as a dict of statistic names to xr.DataArray single simulation objects (i.e. median),
     the second as a dict of statistic names to xr.DataArray objects consisting of multiple simulation objects (i.e. middle 10%),
     and the last as a xr.DataArray of simulations' aggregated values sorted in ascending order.
 
