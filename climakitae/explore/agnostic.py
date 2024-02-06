@@ -269,20 +269,7 @@ def create_conversion_function(lookup_tables):
 
 ##### TASK 2 #####
 def _get_supported_metrics():
-    """
-    Retrieves the supported metrics for the LOCA simulation finder tool.
-
-    Parameters
-    ----------
-    none
-
-    Returns
-    -------
-    dict of supported metrics
-        Keys of strings that can be passed into `get_cached_area_loca` and `get_lat_lon_loca`
-        functions. Values are the specifications of what variables are needed for the Select tool
-        in the mentioned functions.
-    """
+    """Retrieves the supported metrics for the LOCA simulation finder tool."""
     metrics = {
         "Average Max Air Temperature": {
             "var": "Maximum air temperature at 2m",
@@ -309,9 +296,7 @@ def _get_supported_metrics():
 
 
 def _complete_selections(selections, metric, years):
-    """
-    Completes the attributes for the `selections` objects from `create_lat_lon_select` and `create_cached_area_select`.
-    """
+    """Completes the attributes for the `selections` objects from `create_lat_lon_select` and `create_cached_area_select`."""
     metrics = _get_supported_metrics()
     selections.data_type = "Gridded"
     selections.variable = metrics[metric]["var"]
@@ -325,9 +310,7 @@ def _complete_selections(selections, metric, years):
 
 
 def _create_lat_lon_select(lat, lon, metric, years):
-    """
-    Creates a selection object for the given parameters
-    """
+    """Creates a selection object for the given lat/lon parameters."""
     # Creates a selection object
     selections = Select()
     selections.area_subset = "lat/lon"
@@ -340,9 +323,7 @@ def _create_lat_lon_select(lat, lon, metric, years):
 
 
 def _create_cached_area_select(area_subset, cached_area, metric, years):
-    """
-    Creates a selection object for the given parameters
-    """
+    """Creates a selection object for the given cached area parameters."""
     # Creates a selection object for area subsetting LOCA simulations
     selections = Select()
     selections.area_subset = area_subset
@@ -442,14 +423,12 @@ def _split_stats(sims, data):
     }
 
     return (
-        single_model_names,
-        multiple_model_names,
         single_model_stats,
         multiple_model_stats,
     )
 
 
-def compute_selections_and_stats(selections, metric, years, months):
+def _compute_selections_and_stats(selections, metric, years, months):
     """
     Aggregates the selections data across SSPs and computes statistics from the results
     """
@@ -457,35 +436,90 @@ def compute_selections_and_stats(selections, metric, years, months):
     results, data = _compute_results(selections, metric, years, months)
 
     # Compute statistics to extract from results
-    single_names, multiple_names, single_stats, multiple_stats = _split_stats(
+    single_stats, multiple_stats = _split_stats(
         results, data
     )
 
     # Return single statistic simulations, multiple statistic simulations, and the sorted simulations computed.
-    return single_names, multiple_names, single_stats, multiple_stats, results
+    return single_stats, multiple_stats, results
 
 
 def get_lat_lon_loca(lat, lon, metric, years, months=list(np.arange(1, 13))):
     """
     Gets aggregated LOCA simulation data for a lat/lon coordinate for a given metric and timeframe (years, months).
+    It combines all LOCA simulation data that is filtered by lat/lon, years, and specific months across SSP pathways
+    and runs the passed in metric on all of the data. The results are then returned in ascending order, 
+    along with dictionaries mapping specific statistic names to the simulation objects themselves.
+
+    Parameters
+    ----------
+    lat: float
+        Latitude for specific location of interest.
+    lon: float
+        Longitude for specific location of interest.
+    metric: str
+        The metric to aggregate the LOCA simulations by.
+    years: tuple
+        The lower and upper year bounds (inclusive) to extract LOCA simulation data by.
+    months: list, optional
+        Specific months of interest. The default is all months.
+
+    Returns
+    -------
+    single_stats: dict of str: xr.DataArray
+        Dictionary mapping string names of statistics to single simulation xr.DataArray objects.
+    multiple_stats: dict of str: xr.DataArray
+        Dictionary mapping string names of statistics to multiple simulations xr.DataArray objects.
+    results: xr.DataArray
+        Aggregated results of running the given metric on the lat/lon gridcell of interest. Results are also sorted in ascending order.
     """
     # Create selections object
     selections = _create_lat_lon_select(lat, lon, metric, years)
-    return compute_selections_and_stats(selections, metric, years, months)
+    # Runs calculations and derives statistics from LOCA data pulled via selections object
+    return _compute_selections_and_stats(selections, metric, years, months)
 
 
 def get_area_subset_loca(
     area_subset, cached_area, metric, years, months=list(np.arange(1, 13))
 ):
     """
-    Gets aggregated LOCA simulation data for an area subset for a given metric and timeframe (years, months).
+    This function combines all available LOCA simulation data that is filtered on the `area_subset` (a string
+    from existing keys in Boundaries.boundary_dict()) and on one of the areas of the values in that
+    `area_subset` (`cached_area`). It then extracts this data across all SSP pathways for specific years/months,
+    and runs the passed in metric on all of this data. The results are then returned in 3 values, the first
+    as a dict of statistic names to xr.DataArray single simulation objects (i.e. median), 
+    the second as a dict of statistic names to xr.DataArray objects consisting of multiple simulation objects (i.e. middle 10%),
+    and the last as a xr.DataArray of simulations' aggregated values sorted in ascending order.
+
+    Parameters
+    ----------
+    area_subset: str
+        Describes the category of the boundaries of interest (i.e. "CA Electric Load Serving Entities (IOU & POU)")
+    cached_area: str
+        Describes the specific area of interest (i.e. "Southern California Edison")
+    metric: str
+        The metric to aggregate the LOCA simulations by.
+    years: tuple
+        The lower and upper year bounds (inclusive) to extract LOCA simulation data by.
+    months: list, optional
+        Specific months of interest. The default is all months.
+
+    Returns
+    -------
+    single_stats: dict of str: xr.DataArray
+        Dictionary mapping string names of statistics to single simulation xr.DataArray objects.
+    multiple_stats: dict of str: xr.DataArray
+        Dictionary mapping string names of statistics to multiple simulations xr.DataArray objects.
+    results: xr.DataArray
+        Aggregated results of running the given metric on the lat/lon gridcell of interest. Results are also sorted in ascending order.
     """
-    # Create selections object
+    # Creates the selections object
     selections = _create_cached_area_select(area_subset, cached_area, metric, years)
-    return compute_selections_and_stats(selections, metric, years, months)
+    # Runs calculations and derives statistics from LOCA data pulled via selections object
+    return _compute_selections_and_stats(selections, metric, years, months)
 
 
-def plot_sims(sim_vals, selected_val, time_slice, selections):
+def plot_sims(sim_vals, selected_val, time_slice, stats):
     """
     Creates resulting plot figures.
     """
@@ -512,11 +546,12 @@ def plot_sims(sim_vals, selected_val, time_slice, selections):
     ax.set_ylabel("Count of Simulations")
 
     # Creating pairings between simulations and calculated values
+    sim_stats_names = list([sim.simulation.item() for sim in stats.values()])
     sim_val_pairings = list(
         zip(
-            selections.keys(),
-            selections.values(),
-            sim_vals.sel(simulation=list(selections.values())).values,
+            stats.keys(),
+            sim_stats_names,
+            sim_vals.sel(simulation=sim_stats_names).values,
         )
     )
     color_mapping = {
