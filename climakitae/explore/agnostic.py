@@ -465,7 +465,7 @@ def compute_selections_and_stats(selections, metric, years, months):
     return single_names, multiple_names, single_stats, multiple_stats, results
 
 
-def get_lat_lon_loca_data(lat, lon, metric, years, months=list(np.arange(1, 13))):
+def get_lat_lon_loca(lat, lon, metric, years, months=list(np.arange(1, 13))):
     """
     Gets aggregated LOCA simulation data for a lat/lon coordinate for a given metric and timeframe (years, months).
     """
@@ -474,7 +474,7 @@ def get_lat_lon_loca_data(lat, lon, metric, years, months=list(np.arange(1, 13))
     return compute_selections_and_stats(selections, metric, years, months)
 
 
-def get_area_subset_loca_data(
+def get_area_subset_loca(
     area_subset, cached_area, metric, years, months=list(np.arange(1, 13))
 ):
     """
