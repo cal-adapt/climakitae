@@ -333,7 +333,7 @@ def _create_lat_lon_select(lat, lon, metric, years):
     selections.area_subset = "lat/lon"
     selections.latitude = (lat - 0.05, lat + 0.05)
     selections.longitude = (lon - 0.05, lon + 0.05)
-    
+
     # Add attributes for the rest of the selections object
     selections = _complete_selections(selections, metric, years)
     return selections
@@ -347,7 +347,7 @@ def _create_cached_area_select(area_subset, cached_area, metric, years):
     selections = Select()
     selections.area_subset = area_subset
     selections.cached_area = [cached_area]
-    
+
     # Add attributes for the rest of the selections object
     selections = _complete_selections(selections, metric, years)
     return selections
@@ -361,41 +361,47 @@ def _compute_results(selections, metric, years, months):
     # Aggregating all simulations across all SSP pathways
     all_data = []
     for ssp in [
-            "SSP 3-7.0 -- Business as Usual",
-            "SSP 2-4.5 -- Middle of the Road",
-            "SSP 5-8.5 -- Burn it All",
-        ]:
+        "SSP 3-7.0 -- Business as Usual",
+        "SSP 2-4.5 -- Middle of the Road",
+        "SSP 5-8.5 -- Burn it All",
+    ]:
         selections.scenario_ssp = [ssp]
-        selections.time_slice = years # Must re-instantiate `time_slice` with every `scenario_ssp` change because `time_slice` gets reset.
+        selections.time_slice = years  # Must re-instantiate `time_slice` with every `scenario_ssp` change because `time_slice` gets reset.
 
         # Retrieve data
         ssp_data = selections.retrieve()
 
         # Renaming simulations so that they can be concatenated together correctly
-        ssp_data['simulation'] = ssp_data.simulation.astype('object') + ', ' + ssp_data.scenario.item().split("--")[0].split("+")[1].strip()
+        ssp_data["simulation"] = (
+            ssp_data.simulation.astype("object")
+            + ", "
+            + ssp_data.scenario.item().split("--")[0].split("+")[1].strip()
+        )
 
         # Combining different SSP's simulations together to be aggregated into one xr.DataArray
         all_data.append(ssp_data.squeeze())
 
-    data = xr.concat(all_data, dim='simulation')
+    data = xr.concat(all_data, dim="simulation")
 
     # Retrieving closest grid-cell's data for lat/lon area subsetting
-    if selections.area_subset == 'lat/lon':
-        data = data.sel(lat=np.mean(selections.latitude), lon=np.mean(selections.longitude), method="nearest")
-    
+    if selections.area_subset == "lat/lon":
+        data = data.sel(
+            lat=np.mean(selections.latitude),
+            lon=np.mean(selections.longitude),
+            method="nearest",
+        )
+
     # Calculate the given metric on the data
     metrics = _get_supported_metrics()
     calc_vals = (
-        data.groupby("simulation")
-        .map(metrics[metric]["agg"])
-        .chunk(chunks="auto")
+        data.groupby("simulation").map(metrics[metric]["agg"]).chunk(chunks="auto")
     )
 
     # Sorting sims and getting metrics
     sorted_sims = compute(calc_vals.sortby(calc_vals))[
         0
     ]  # Need all the values in order to create histogram + return values
-    
+
     return sorted_sims, data
 
 
@@ -407,26 +413,20 @@ def _split_stats(sims, data):
     """
     single_model_names = {
         "min": sims[sims.argmin()].simulation.item(),
-        "q1": sims.loc[
-            sims == sims.quantile(0.25, method="nearest")
-        ].simulation.item(),
+        "q1": sims.loc[sims == sims.quantile(0.25, method="nearest")].simulation.item(),
         "median": sims.loc[
             sims == sims.quantile(0.5, method="nearest")
         ].simulation.item(),
-        "q3": sims.loc[
-            sims == sims.quantile(0.75, method="nearest")
-        ].simulation.item(),
-        "max": sims[sims.argmax()].simulation.item()
+        "q3": sims.loc[sims == sims.quantile(0.75, method="nearest")].simulation.item(),
+        "max": sims[sims.argmax()].simulation.item(),
     }
 
     multiple_model_names = {
         "middle 10%": sims[
-            round(len(sims + 1) * 0.45)
-            - 1 : round(len(sims + 1) * 0.55)
-            - 1
+            round(len(sims + 1) * 0.45) - 1 : round(len(sims + 1) * 0.55) - 1
         ].simulation.values
     }
-    
+
     # Creating a dictionary of single stats names to the initial models from the dataset
     single_model_stats = dict(
         zip(
@@ -439,8 +439,13 @@ def _split_stats(sims, data):
     multiple_model_stats = {
         k: data.sel(simulation=v) for k, v in multiple_model_names.items()
     }
-    
-    return single_model_names, multiple_model_names, single_model_stats, multiple_model_stats
+
+    return (
+        single_model_names,
+        multiple_model_names,
+        single_model_stats,
+        multiple_model_stats,
+    )
 
 
 def compute_selections_and_stats(selections, metric, years, months):
@@ -449,10 +454,12 @@ def compute_selections_and_stats(selections, metric, years, months):
     """
     # Compute results on selections object
     results, data = _compute_results(selections, metric, years, months)
-    
+
     # Compute statistics to extract from results
-    single_names, multiple_names, single_stats, multiple_stats = _split_stats(results, data)
-    
+    single_names, multiple_names, single_stats, multiple_stats = _split_stats(
+        results, data
+    )
+
     # Return single statistic simulations, multiple statistic simulations, and the sorted simulations computed.
     return single_names, multiple_names, single_stats, multiple_stats, results
 
@@ -466,7 +473,9 @@ def get_lat_lon_loca_data(lat, lon, metric, years, months=list(np.arange(1, 13))
     return compute_selections_and_stats(selections, metric, years, months)
 
 
-def get_area_subset_loca_data(area_subset, cached_area, metric, years, months=list(np.arange(1, 13))):
+def get_area_subset_loca_data(
+    area_subset, cached_area, metric, years, months=list(np.arange(1, 13))
+):
     """
     Gets aggregated LOCA simulation data for an area subset for a given metric and timeframe (years, months).
     """
@@ -485,10 +494,14 @@ def plot_sims(sim_vals, selected_val, time_slice, selections):
         area_text = "given lat/lon"
     elif sim_vals.location_subset == ["Southern California Edison"]:
         area_text = "SCE service territory"
-        
+
     # Creating the histogram
     plt.figure(figsize=(10, 5))
-    ax = sns.histplot(sim_vals, edgecolor="white", bins=np.linspace(min(sim_vals).item(), max(sim_vals).item(), 12))
+    ax = sns.histplot(
+        sim_vals,
+        edgecolor="white",
+        bins=np.linspace(min(sim_vals).item(), max(sim_vals).item(), 12),
+    )
     ax.set_title(
         "Histogram of {} from {} of all {} LOCA sims for {}".format(
             selected_val, time_slice, len(sim_vals), area_text
@@ -496,23 +509,34 @@ def plot_sims(sim_vals, selected_val, time_slice, selections):
     )
     ax.set_xlabel("Monthly " + str(sim_vals.units).capitalize())
     ax.set_ylabel("Count of Simulations")
-    
+
     # Creating pairings between simulations and calculated values
-    sim_val_pairings = list(zip(selections.keys(), selections.values(), sim_vals.sel(simulation=list(selections.values())).values))
+    sim_val_pairings = list(
+        zip(
+            selections.keys(),
+            selections.values(),
+            sim_vals.sel(simulation=list(selections.values())).values,
+        )
+    )
     color_mapping = {
-        'min': 'red',
-        'q1': 'blue',
-        'median': 'black',
-        'q3': 'blue',
-        'max': 'red'
+        "min": "red",
+        "q1": "blue",
+        "median": "black",
+        "q3": "blue",
+        "max": "red",
     }
-    
+
     # Plotting vertical lines
     for item in sim_val_pairings:
         stat, name, val = item
         # Plotting vertical lines for individual statistics
-        ax.axvline(val, color=color_mapping[stat], linestyle='--', label="{} sim: {}".format(stat.capitalize(), name[6:]))
-                   
+        ax.axvline(
+            val,
+            color=color_mapping[stat],
+            linestyle="--",
+            label="{} sim: {}".format(stat.capitalize(), name[6:]),
+        )
+
     plt.legend()
 
 
