@@ -2,6 +2,7 @@
     to run, type: <<python generate_gwl_tables.py>> at the command line
     expect to wait a while... which is why this is not done on-the-fly
 """
+
 import s3fs
 import intake
 import pandas as pd
@@ -262,10 +263,9 @@ def main():
                     variable, model, ens_mem, scenarios, start_year, end_year
                 )
             )
-            
-            
+
     ##### Generating and writing GWL data tables for all GCMS #####
-    
+
     ### Pre-industrial reference period:
 
     # CESM2-LENS handled differently:
@@ -279,21 +279,21 @@ def main():
     cesm2_lens = xr.concat(
         [historical_cmip6["TREFHT"], future_cmip6["TREFHT"]], dim="time"
     )
-    
+
     # Writing out CESM2-LENS data
     model = "CESM2-LENS"
     scenarios = ["ssp370"]
     variable = "tas"
     print("Generate cesm2 table 1850-1900")
     cesm2_table, wl_data_tbl_cesm2 = get_table_cesm2(variable, model, scenarios)
-    
+
     ## Generating GWL information for rest of models
     variable = "tas"
     scenarios = ["ssp585", "ssp370", "ssp245"]
     print("Generate all WL table 1850-1900")
     all_wl_data_tbls = pd.DataFrame()
     all_gw_tbls, all_gw_data_tbls = [], []
-    
+
     # Extracts GWL information for each model
     for i, model in enumerate(models):
         print(f"\n...Model {i} {model}...\n")
@@ -303,7 +303,9 @@ def main():
         try:
             all_wl_data_tbls = pd.concat([all_wl_data_tbls, wl_data_tbl_sim], axis=1)
         except Exception as e:
-            print(f"\n Model {model} is skipped. Its table cannot be concatenated as its datetime indices are different: \n")
+            print(
+                f"\n Model {model} is skipped. Its table cannot be concatenated as its datetime indices are different: \n"
+            )
             print(e)
 
     # Resetting index for CESM2 since it records the dates on the 16th rather than the 15th.
@@ -321,9 +323,8 @@ def main():
     )
     write_csv_file(all_gw_levels, "data/gwl_1850-1900ref.csv")
 
-    
     ### Secondary reference period overlapping with downscaled data availability:
-    
+
     # CESM2-LENS handled differently:
     start_year = "19810101"
     end_year = "20101231"
@@ -331,17 +332,21 @@ def main():
     scenarios = ["ssp370"]
     variable = "tas"
     print("Generate cesm2 table 1981-2010")
-    cesm2_table2, wl_data_tbl_cesm2 = get_table_cesm2(variable, model, scenarios, start_year, end_year)
-    
+    cesm2_table2, wl_data_tbl_cesm2 = get_table_cesm2(
+        variable, model, scenarios, start_year, end_year
+    )
+
     ## Generating GWL information for rest of models
     scenarios = ["ssp585", "ssp370", "ssp245"]
     print("Generate all WL table 1981-2010")
-    
+
     # Extracts GWL information for each model
     all_gw_tbls2 = []
     for i, model in enumerate(models):
         print(f"\n...Model {i} {model}...\n")
-        gw_tbl, wl_data_tbl_sim = get_gwl_table(variable, model, scenarios, start_year, end_year)
+        gw_tbl, wl_data_tbl_sim = get_gwl_table(
+            variable, model, scenarios, start_year, end_year
+        )
         all_gw_tbls2.append(gw_tbl)
 
     # Creating WL lookup table with 1981-2010 reference period
