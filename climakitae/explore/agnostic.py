@@ -382,6 +382,7 @@ def _compute_results(selections, metric, years, months):
         all_data.append(ssp_data.squeeze())
 
     data = xr.concat(all_data, dim="simulation")
+    data = data.sel(time=data["time"][data.time.dt.month.isin(months)])
 
     # Retrieving closest grid-cell's data for lat/lon area subsetting
     if selections.area_subset == "lat/lon":
