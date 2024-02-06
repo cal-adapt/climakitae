@@ -268,207 +268,214 @@ def create_conversion_function(lookup_tables):
 
 
 ##### TASK 2 #####
-
-# Making pre-determined metrics
-metrics = {
-    "Average Max Air Temperature (2030-2059)": {
-        "var": "Maximum air temperature at 2m",
-        "time_slice": (2030, 2059),
-        "agg": np.mean,
-        "units": "degF",
-    },
-    "Average Min Air Temperature (2030-2059)": {
-        "var": "Minimum air temperature at 2m",
-        "time_slice": (2030, 2059),
-        "agg": np.mean,
-        "units": "degF",
-    },
-    "Average Max Relative Humidity (2030-2059)": {
-        "var": "Maximum relative humidity",
-        "time_slice": (2030, 2059),
-        "agg": np.mean,
-        "units": "percent",
-    },
-    "Average Annual Total Precipitation (2030-2059)": {
-        "var": "Precipitation (total)",
-        "time_slice": (2030, 2059),
-        "agg": np.mean,
-        "units": "inches",
-    },
-}
-
-
-# TODO: Re-write this, Dask runs 3x times for the quantile methods
-def _split_compute(sorted_sims):
+def _get_supported_metrics():
     """
-    Takes sorted simulations and creates different dictionaries to describe statistics about the simulations
+    Retrieves the supported metrics for the LOCA simulation finder tool.
+
+    Parameters
+    ----------
+    none
+
+    Returns
+    -------
+    dict of supported metrics
+        Keys of strings that can be passed into `get_cached_area_loca` and `get_lat_lon_loca`
+        functions. Values are the specifications of what variables are needed for the Select tool
+        in the mentioned functions.
+    """
+    metrics = {
+        "Average Max Air Temperature": {
+            "var": "Maximum air temperature at 2m",
+            "agg": np.mean,
+            "units": "degF",
+        },
+        "Average Min Air Temperature": {
+            "var": "Minimum air temperature at 2m",
+            "agg": np.mean,
+            "units": "degF",
+        },
+        "Average Max Relative Humidity": {
+            "var": "Maximum relative humidity",
+            "agg": np.mean,
+            "units": "percent",
+        },
+        "Average Annual Total Precipitation": {
+            "var": "Precipitation (total)",
+            "agg": np.mean,
+            "units": "inches",
+        },
+    }
+    return metrics
+
+
+def _complete_selections(selections, metric, years):
+    """
+    Completes the attributes for the `selections` objects from `create_lat_lon_select` and `create_cached_area_select`.
+    """
+    metrics = _get_supported_metrics()
+    selections.data_type = "Gridded"
+    selections.variable = metrics[metric]["var"]
+    selections.scenario_historical = ["Historical Climate"]
+    selections.downscaling_method = "Statistical"
+    selections.timescale = "monthly"
+    selections.resolution = "3 km"
+    selections.units = metrics[metric]["units"]
+    selections.time_slice = years
+    return selections
+
+
+def _create_lat_lon_select(lat, lon, metric, years):
+    """
+    Creates a selection object for the given parameters
+    """
+    # Creates a selection object
+    selections = Select()
+    selections.area_subset = "lat/lon"
+    selections.latitude = (lat - 0.05, lat + 0.05)
+    selections.longitude = (lon - 0.05, lon + 0.05)
+    
+    # Add attributes for the rest of the selections object
+    selections = _complete_selections(selections, metric, years)
+    return selections
+
+
+def _create_cached_area_select(area_subset, cached_area, metric, years):
+    """
+    Creates a selection object for the given parameters
+    """
+    # Creates a selection object for area subsetting LOCA simulations
+    selections = Select()
+    selections.area_subset = area_subset
+    selections.cached_area = [cached_area]
+    
+    # Add attributes for the rest of the selections object
+    selections = _complete_selections(selections, metric, years)
+    return selections
+
+
+def _compute_results(selections, metric, years, months):
+    """
+    Retrieves selections object data from all SSP 2-4.5, 3-7.0, 5-8.5 pathways, aggregates the simulations together,
+    and computes the passed in metric on all the simulations.
+    """
+    # Aggregating all simulations across all SSP pathways
+    all_data = []
+    for ssp in [
+            "SSP 3-7.0 -- Business as Usual",
+            "SSP 2-4.5 -- Middle of the Road",
+            "SSP 5-8.5 -- Burn it All",
+        ]:
+        selections.scenario_ssp = [ssp]
+        selections.time_slice = years # Must re-instantiate `time_slice` with every `scenario_ssp` change because `time_slice` gets reset.
+
+        # Retrieve data
+        ssp_data = selections.retrieve()
+
+        # Renaming simulations so that they can be concatenated together correctly
+        ssp_data['simulation'] = ssp_data.simulation.astype('object') + ', ' + ssp_data.scenario.item().split("--")[0].split("+")[1].strip()
+
+        # Combining different SSP's simulations together to be aggregated into one xr.DataArray
+        all_data.append(ssp_data.squeeze())
+
+    data = xr.concat(all_data, dim='simulation')
+
+    # Retrieving closest grid-cell's data for lat/lon area subsetting
+    if selections.area_subset == 'lat/lon':
+        data = data.sel(lat=np.mean(selections.latitude), lon=np.mean(selections.longitude), method="nearest")
+    
+    # Calculate the given metric on the data
+    metrics = _get_supported_metrics()
+    calc_vals = (
+        data.groupby("simulation")
+        .map(metrics[metric]["agg"])
+        .chunk(chunks="auto")
+    )
+
+    # Sorting sims and getting metrics
+    sorted_sims = compute(calc_vals.sortby(calc_vals))[
+        0
+    ]  # Need all the values in order to create histogram + return values
+    
+    return sorted_sims, data
+
+
+def _split_stats(sims, data):
+    """
+    Takes calculated simulations and creates different dictionaries to describe statistics about the simulations
     Ex. single model compute = min, q1, median, q3, max
     multi-model = middle 10%
     """
-    single_model_compute = {
-        "min": sorted_sims[0].simulation.item(),
-        "q1": sorted_sims.loc[
-            sorted_sims == sorted_sims.quantile(0.25, method="nearest")
+    single_model_names = {
+        "min": sims[sims.argmin()].simulation.item(),
+        "q1": sims.loc[
+            sims == sims.quantile(0.25, method="nearest")
         ].simulation.item(),
-        "median": sorted_sims.loc[
-            sorted_sims == sorted_sims.quantile(0.5, method="nearest")
+        "median": sims.loc[
+            sims == sims.quantile(0.5, method="nearest")
         ].simulation.item(),
-        "q3": sorted_sims.loc[
-            sorted_sims == sorted_sims.quantile(0.75, method="nearest")
+        "q3": sims.loc[
+            sims == sims.quantile(0.75, method="nearest")
         ].simulation.item(),
-        "max": sorted_sims[-1].simulation.item(),
+        "max": sims[sims.argmax()].simulation.item()
     }
 
-    multiple_model_compute = {
-        "middle 10%": sorted_sims[
-            round(len(sorted_sims + 1) * 0.45)
-            - 1 : round(len(sorted_sims + 1) * 0.55)
+    multiple_model_names = {
+        "middle 10%": sims[
+            round(len(sims + 1) * 0.45)
+            - 1 : round(len(sims + 1) * 0.55)
             - 1
         ].simulation.values
     }
-
-    return single_model_compute, multiple_model_compute
-
-
-def get_cached_area_loca(area_subset, cached_area, selected_val):
-    """
-    Given a lat and lon, return statistics of predetermined metric and parameters of all simulations in SSP 3-7.0.
-    """
-    ### Creating selection object for each SSP
-    total_data = []
-
-    for ssp in [
-        "SSP 3-7.0 -- Business as Usual",
-        "SSP 2-4.5 -- Middle of the Road",
-        "SSP 5-8.5 -- Burn it All",
-    ]:
-        # Creating Select object
-        selections = Select()
-
-        # Getting warming data for all LOCA models at given location on monthly time-scale at 3km resolution
-        selections.area_subset = area_subset
-        selections.cached_area = [cached_area]
-        selections.scenario_ssp = [ssp]
-        selections.data_type = "Gridded"
-        selections.variable = metrics[selected_val]["var"]
-        selections.scenario_historical = ["Historical Climate"]
-        selections.downscaling_method = "Statistical"
-        selections.timescale = "monthly"
-        selections.resolution = "3 km"
-        selections.units = metrics[selected_val]["units"]
-        selections.time_slice = metrics[selected_val]["time_slice"]
-
-        # Retrieve data
-        data = selections.retrieve()
-        total_data.append(data)
-
-    ### Calculate metric on each SSP subset of data
-    all_calc_vals = []
-    for ssp_data in total_data:
-        calc_vals = (
-            ssp_data.squeeze()
-            .groupby("simulation")
-            .map(metrics[selected_val]["agg"])
-            .chunk(chunks="auto")
-        )
-        calc_vals["simulation"] = (
-            calc_vals.simulation
-            + ", "
-            + calc_vals.scenario.item().split("--")[0].split("+")[1].strip()
-        )
-        calc_vals = calc_vals.drop("scenario")
-        all_calc_vals.append(calc_vals)
-    all_calc_vals = xr.concat(all_calc_vals, dim="simulation")
-
-    # Sorting sims and getting metrics
-    sorted_sims = compute(all_calc_vals.sortby("simulation"))[
-        0
-    ]  # Need all the values in order to create histogram + return values
-
-    # Splitting up the models by various statistics
-    single_model_compute, multiple_model_compute = _split_compute(sorted_sims)
-
+    
     # Creating a dictionary of single stats names to the initial models from the dataset
     single_model_stats = dict(
         zip(
-            list(single_model_compute.keys()),
-            all_calc_vals.sel(
-                simulation=list(single_model_compute.values())
-            ),  # TODO: Fix
-        )
-    )
-
-    # Creating a dictionary of stats that return multiple models to the initial models from the dataset
-    # multiple_model_stats = {k: data.squeeze().sel(simulation=v) for k, v in multiple_model_compute.items()} # TODO: This line doesn't work
-
-    # Returning models from stats and aggregated results
-    return (single_model_stats, sorted_sims)
-
-
-def get_lat_lon_loca(lat, lon, selected_val):
-    """
-    Given a lat and lon, return statistics of predetermined metric and parameters of all simulations in SSP 3-7.0.
-    """
-    # Creating Select object
-    selections = Select()
-
-    # Getting warming data for all LOCA models at given location on monthly time-scale at 3km resolution
-    selections.area_subset = "lat/lon"
-    selections.data_type = "Gridded"
-    selections.variable = metrics[selected_val]["var"]
-    selections.scenario_historical = ["Historical Climate"]
-    selections.downscaling_method = "Statistical"
-    selections.scenario_ssp = ["SSP 3-7.0 -- Business as Usual"]
-    selections.timescale = "monthly"
-    selections.resolution = "3 km"
-    selections.units = metrics[selected_val]["units"]
-    selections.time_slice = metrics[selected_val]["time_slice"]
-    selections.latitude = (lat - 0.1, lat + 0.1)
-    selections.longitude = (lon - 0.1, lon + 0.1)
-
-    # Retrieve data
-    data = selections.retrieve()
-
-    # Retrieving closest grid-cell's data
-    subset_data = data.sel(lat=lat, lon=lon, method="nearest").sel(
-        scenario="Historical + SSP 3-7.0 -- Business as Usual"
-    )
-
-    # Calculate the given metric on the data
-    calc_vals = (
-        subset_data.squeeze()
-        .groupby("simulation")
-        .map(metrics[selected_val]["agg"])
-        .chunk(chunks="auto")
-    )
-    # heat_vals = subset_data.squeeze().groupby('simulation').map(np.mean).chunk(chunks='auto')
-
-    # Sorting sims and getting metrics
-    sorted_sims = compute(calc_vals.sortby("simulation"))[
-        0
-    ]  # Need all the values in order to create histogram + return values
-
-    # Splitting up the models by various statistics
-    single_model_compute, multiple_model_compute = _split_compute(sorted_sims)
-
-    # Creating a dictionary of single stats names to the initial models from the dataset
-    single_model_stats = dict(
-        zip(
-            list(single_model_compute.keys()),
-            subset_data.sel(simulation=list(single_model_compute.values())),
+            list(single_model_names.keys()),
+            data.sel(simulation=list(single_model_names.values())),
         )
     )
 
     # Creating a dictionary of stats that return multiple models to the initial models from the dataset
     multiple_model_stats = {
-        k: subset_data.sel(simulation=v) for k, v in multiple_model_compute.items()
+        k: data.sel(simulation=v) for k, v in multiple_model_names.items()
     }
+    
+    return single_model_names, multiple_model_names, single_model_stats, multiple_model_stats
 
-    # Returning models from stats and aggregated results
-    return (single_model_stats, multiple_model_stats, sorted_sims)
+
+def compute_selections_and_stats(selections, metric, years, months):
+    """
+    Aggregates the selections data across SSPs and computes statistics from the results
+    """
+    # Compute results on selections object
+    results, data = _compute_results(selections, metric, years, months)
+    
+    # Compute statistics to extract from results
+    single_names, multiple_names, single_stats, multiple_stats = _split_stats(results, data)
+    
+    # Return single statistic simulations, multiple statistic simulations, and the sorted simulations computed.
+    return single_names, multiple_names, single_stats, multiple_stats, results
 
 
-def plot_sims(sim_vals, selected_val):
+def get_lat_lon_loca_data(lat, lon, metric, years, months=list(np.arange(1, 13))):
+    """
+    Gets aggregated LOCA simulation data for a lat/lon coordinate for a given metric and timeframe (years, months).
+    """
+    # Create selections object
+    selections = _create_lat_lon_select(lat, lon, metric, years)
+    return compute_selections_and_stats(selections, metric, years, months)
+
+
+def get_area_subset_loca_data(area_subset, cached_area, metric, years, months=list(np.arange(1, 13))):
+    """
+    Gets aggregated LOCA simulation data for an area subset for a given metric and timeframe (years, months).
+    """
+    # Create selections object
+    selections = _create_cached_area_select(area_subset, cached_area, metric, years)
+    return compute_selections_and_stats(selections, metric, years, months)
+
+
+def plot_sims(sim_vals, selected_val, time_slice, selections):
     """
     Creates resulting plot figures.
     """
@@ -478,62 +485,34 @@ def plot_sims(sim_vals, selected_val):
         area_text = "given lat/lon"
     elif sim_vals.location_subset == ["Southern California Edison"]:
         area_text = "SCE service territory"
-
+        
+    # Creating the histogram
     plt.figure(figsize=(10, 5))
-    ax = sns.histplot(sim_vals, edgecolor="white", binwidth=0.25)
+    ax = sns.histplot(sim_vals, edgecolor="white", bins=np.linspace(min(sim_vals).item(), max(sim_vals).item(), 12))
     ax.set_title(
-        "Histogram of {} of all {} LOCA sims for {}".format(
-            selected_val, len(sim_vals), area_text
+        "Histogram of {} from {} of all {} LOCA sims for {}".format(
+            selected_val, time_slice, len(sim_vals), area_text
         )
     )
     ax.set_xlabel("Monthly " + str(sim_vals.units).capitalize())
     ax.set_ylabel("Count of Simulations")
-
-    # Finding different simulations and labeling them on the chart
-    min_sim_name = sim_vals.isel(simulation=[sim_vals.argmin()]).simulation.item()
-    q1_sim_name = sim_vals.loc[
-        sim_vals == sim_vals.quantile(0.25, method="nearest")
-    ].simulation.item()
-    med_sim_name = sim_vals.loc[
-        sim_vals == sim_vals.quantile(0.5, method="nearest")
-    ].simulation.item()
-    q3_sim_name = sim_vals.loc[
-        sim_vals == sim_vals.quantile(0.75, method="nearest")
-    ].simulation.item()
-    max_sim_name = sim_vals.isel(simulation=[sim_vals.argmax()]).simulation.item()
-
-    # Making the vertical lines
-    ax.axvline(
-        np.min(sim_vals),
-        color="red",
-        linestyle="--",
-        label="Min sim: {}".format(min_sim_name[6:]),
-    )
-    ax.axvline(
-        sim_vals.quantile(0.25, method="nearest"),
-        color="blue",
-        linestyle="--",
-        label="Q1 sim: {}".format(q1_sim_name[6:]),
-    )
-    ax.axvline(
-        sim_vals.quantile(0.5, method="nearest"),
-        color="black",
-        linestyle="--",
-        label="Median sim: {}".format(med_sim_name[6:]),
-    )
-    ax.axvline(
-        sim_vals.quantile(0.75, method="nearest"),
-        color="blue",
-        linestyle="--",
-        label="Q3 sim: {}".format(q3_sim_name[6:]),
-    )
-    ax.axvline(
-        np.max(sim_vals),
-        color="red",
-        linestyle="--",
-        label="Max sim: {}".format(max_sim_name[6:]),
-    )
-
+    
+    # Creating pairings between simulations and calculated values
+    sim_val_pairings = list(zip(selections.keys(), selections.values(), sim_vals.sel(simulation=list(selections.values())).values))
+    color_mapping = {
+        'min': 'red',
+        'q1': 'blue',
+        'median': 'black',
+        'q3': 'blue',
+        'max': 'red'
+    }
+    
+    # Plotting vertical lines
+    for item in sim_val_pairings:
+        stat, name, val = item
+        # Plotting vertical lines for individual statistics
+        ax.axvline(val, color=color_mapping[stat], linestyle='--', label="{} sim: {}".format(stat.capitalize(), name[6:]))
+                   
     plt.legend()
 
 
@@ -544,6 +523,8 @@ def create_interactive_panel():
     pn.extension()
 
     # Pre-included metrics for the dropdown
+    metrics = _get_supported_metrics()
+
     dropdown_options = list(metrics.keys())
 
     def on_dropdown_change(event):
