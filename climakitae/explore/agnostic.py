@@ -539,36 +539,3 @@ def plot_sims(sim_vals, selected_val, time_slice, selections):
         )
 
     plt.legend()
-
-
-def create_interactive_panel():
-    """
-    Creates an interactive panel for users to interact with to specify what metrics they'd like calculated on all LOCA runs.
-    """
-    pn.extension()
-
-    # Pre-included metrics for the dropdown
-    metrics = _get_supported_metrics()
-
-    dropdown_options = list(metrics.keys())
-
-    def on_dropdown_change(event):
-        selected_value = dropdown.value
-
-    # Create a Panel column layout
-    column_layout = pn.Column()
-
-    # Create dropdown widget
-    dropdown = pn.widgets.Select(
-        options=dropdown_options,
-        value=dropdown_options[0],
-        name="Pre-calculated metrics",
-        width=350,
-    )
-    dropdown.param.watch(on_dropdown_change, "value")
-
-    # Add the dropdown to the column layout
-    column_layout.append(dropdown)
-
-    # Display the Panel app
-    return column_layout.servable(), dropdown
