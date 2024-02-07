@@ -160,7 +160,7 @@ def find_wl_or_time(lookup_tables, scenario="ssp370", warming_level=None, year=N
     ----------
     lookup_tables : dict of pandas.DataFrame
         Lookup tables as output from the `create_lookup_tables` function. It
-        is a dictionary with a "time lookup table" and a "warming level looku
+        is a dictionary with a "time lookup table" and a "warming level lookup
         table".
     scenario : str, optional
         The scenario to consider. The default is "ssp370".
