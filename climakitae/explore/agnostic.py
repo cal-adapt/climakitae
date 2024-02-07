@@ -7,7 +7,8 @@ import xarray as xr
 import seaborn as sns
 import matplotlib.pyplot as plt
 import panel as pn
-from climakitae.core.data_interface import Select
+from climakitae.core.data_interface import Select, DataInterface
+from climakitae.util.utils import read_csv_file
 
 sns.set_style("whitegrid")
 
@@ -24,8 +25,6 @@ def create_lookup_tables():
         levels for those simulations.
     """
     # Find the names of all the GCMs that we catalog
-    from climakitae.core.data_interface import DataInterface
-
     data_interface = DataInterface()
     gcms = data_interface.data_catalog.df.source_id.unique()
 
@@ -38,7 +37,7 @@ def create_lookup_tables():
 def _create_time_lut(gcms):
     """Prepare lookup table for converting warming levels to times."""
     # Read in simulation vs warming levels (1.5, 2, 3, 4) table
-    df = pd.read_csv("~/src/climakitae/climakitae/data/gwl_1850-1900ref.csv")
+    df = read_csv_file("data/gwl_1850-1900ref.csv")
     # Subset to cataloged GCMs
     df = df[df["GCM"].isin(gcms)]
 
@@ -51,12 +50,9 @@ def _create_time_lut(gcms):
 def _create_warm_level_lut(gcms):
     """Prepare lookup table for converting times to warming levels."""
     # Read in time vs simulation table
-    df = pd.read_csv(
-        "~/src/climakitae/climakitae/data/gwl_1850-1900ref_timeidx.csv",
-        index_col="time",
-        parse_dates=True,
+    df = read_csv_file(
+        "data/gwl_1850-1900ref_timeidx.csv", index_col="time", parse_dates=True
     )
-
     month_df = df.groupby(
         [df.index.year, df.index.month]
     ).mean()  # This ignores NaN and gets the only value in each month
@@ -92,7 +88,6 @@ def _warm_level_to_years_plot(time_df, scenario, warming_level):
 
     fig, ax = plt.subplots()
     _plot_years(ax, years, med_year, warming_level)
-    return None
 
 
 def _plot_years(ax, years, med_year, warming_level):
@@ -165,7 +160,7 @@ def find_wl_or_time(lookup_tables, scenario="ssp370", warming_level=None, year=N
     ----------
     lookup_tables : dict of pandas.DataFrame
         Lookup tables as output from the `create_lookup_tables` function. It
-        is a dictionary with a "time lookup table" and a "warming level lookup
+        is a dictionary with a "time lookup table" and a "warming level looku
         table".
     scenario : str, optional
         The scenario to consider. The default is "ssp370".
@@ -335,14 +330,6 @@ def _split_compute(sorted_sims):
     return single_model_compute, multiple_model_compute
 
 
-# def _create_cluster():
-#     """Creates a new cluster instance for parallel computation"""
-#     from climakitae.util.cluster import Cluster
-#     cluster = Cluster()
-#     cluster.adapt(minimum=0, maximum=43)
-#     client = cluster.get_client()
-
-
 def get_cached_area_loca(area_subset, cached_area, selected_val):
     """
     Given a lat and lon, return statistics of predetermined metric and parameters of all simulations in SSP 3-7.0.
@@ -365,7 +352,7 @@ def get_cached_area_loca(area_subset, cached_area, selected_val):
         selections.data_type = "Gridded"
         selections.variable = metrics[selected_val]["var"]
         selections.scenario_historical = ["Historical Climate"]
-        selections.downscaling_method = ["Statistical"]
+        selections.downscaling_method = "Statistical"
         selections.timescale = "monthly"
         selections.resolution = "3 km"
         selections.units = metrics[selected_val]["units"]
@@ -430,7 +417,7 @@ def get_lat_lon_loca(lat, lon, selected_val):
     selections.data_type = "Gridded"
     selections.variable = metrics[selected_val]["var"]
     selections.scenario_historical = ["Historical Climate"]
-    selections.downscaling_method = ["Statistical"]
+    selections.downscaling_method = "Statistical"
     selections.scenario_ssp = ["SSP 3-7.0 -- Business as Usual"]
     selections.timescale = "monthly"
     selections.resolution = "3 km"

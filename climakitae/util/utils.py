@@ -85,10 +85,9 @@ def area_average(dset):
     return dset
 
 
-def read_csv_file(rel_path, index_col=None):
+def read_csv_file(rel_path, index_col=None, parse_dates=False):
     return pd.read_csv(
-        _package_file_path(rel_path),
-        index_col=index_col,
+        _package_file_path(rel_path), index_col=index_col, parse_dates=parse_dates
     )
 
 
