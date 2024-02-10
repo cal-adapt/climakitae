@@ -37,7 +37,7 @@ def create_lookup_tables():
 def _create_time_lut(gcms):
     """Prepare lookup table for converting warming levels to times."""
     # Read in simulation vs warming levels (1.5, 2, 3, 4) table
-    df = read_csv_file("data/gwl_1850-1900ref.csv")
+    df = read_csv_file("data/gwl_1850-1900ref_agnostic_tools.csv")
     # Subset to cataloged GCMs
     df = df[df["GCM"].isin(gcms)]
 
@@ -53,11 +53,6 @@ def _create_warm_level_lut(gcms):
     df = read_csv_file(
         "data/gwl_1850-1900ref_timeidx.csv", index_col="time", parse_dates=True
     )
-    month_df = df.groupby(
-        [df.index.year, df.index.month]
-    ).mean()  # This ignores NaN and gets the only value in each month
-    # MultiIndex to DatetimeIndex
-    month_df.index = pd.to_datetime(["-".join(map(str, idx)) for idx in month_df.index])
     # Subset time to 2021-2089
     subset_rows = (month_df.index.year > 2020) & (month_df.index.year < 2090)
     # Subset to cataloged GCMs and scenario "ssp370"

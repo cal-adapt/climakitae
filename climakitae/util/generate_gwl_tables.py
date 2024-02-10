@@ -100,7 +100,7 @@ def main():
                 if not df_scenario.empty:
                     with xr.open_zarr(
                         fs.get_mapper(df_scenario.zstore.values[0]), decode_times=False
-                    ) as temp:
+                    ) as temp: # BUG: Some scenarios not returning a full predictive period of values (i.e. not returning time period of 2015-2100 of data)
                         temp = temp.isel(time=slice(0, 1032))
                         temp = xr.decode_cf(temp)
                         try:
@@ -215,7 +215,7 @@ def main():
 
         ### one_model is a dataframe of times and warming levels by scenario (scenarios as columns) WITHIN a specific model and ensemble member
         one_model = (
-            smoothed.to_array(dim="scenario", name=model).dropna("time").to_pandas()
+            smoothed.to_array(dim="scenario", name=model).dropna("time", how='all').to_pandas() # Dropping time slices that are NaN across all SSPs
         )
         gwlevels = pd.DataFrame()
         try:
@@ -308,12 +308,11 @@ def main():
             )
             print(e)
 
-    # Resetting index for CESM2 since it records the dates on the 16th rather than the 15th.
-    wl_data_tbl_cesm2.index = all_gw_data_tbls[0].index
-
-    # Combining and writing out
-    all_wl_data_tbls = pd.concat([all_wl_data_tbls, wl_data_tbl_cesm2], axis=1)
-    write_csv_file(all_wl_data_tbls, "data/gwl_1850-1900ref_timeidx.csv")
+    # Combining dataframes and resetting time index due to conflicting datetime object types
+    wl_timeidx = pd.concat([all_wl_data_tbls, wl_data_tbl_cesm2], axis=1)
+    wl_timeidx.index = wl_timeidx.index.map(lambda time: "-".join(map(str, [time.year, time.month]))) # resetting index
+    wl_timeidx = wl_timeidx.groupby(level=0).mean() # grouping times and removing NaNs via mean()
+    write_csv_file(wl_timeidx, "data/gwl_1850-1900ref_timeidx.csv")
 
     # Creating WL lookup table with 1850-1900 reference period
     all_gw_levels = pd.concat(all_gw_tbls, keys=models)
