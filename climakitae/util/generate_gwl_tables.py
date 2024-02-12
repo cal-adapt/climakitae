@@ -8,6 +8,7 @@ import intake
 import pandas as pd
 import xarray as xr
 import numpy as np
+from climakitae.util.utils import write_csv_file
 
 
 def main():
@@ -124,23 +125,29 @@ def main():
                         )  # .to_pandas())
         return data_one_model
 
-    def get_gwl(smoothed, degrees):
+    def get_gwl(smoothed, degree):
         """Takes a smoothed timeseries of global mean temperature for multiple
         scenarios, and returns a small table of the timestamp that a given
         global warming level is reached."""
-        gwl = smoothed.sub(degrees).abs().idxmin()
 
-        # make sure it's not just choosing one of the final timestamps just
-        # because it's the highest warming despite being nowhere close to
-        # (much less than) the target value:
-        for scenario in smoothed:
-            if smoothed[scenario].sub(degrees).abs().min() > 0.01:
-                gwl[scenario] = np.NaN
+        def get_wl_timestamp(scenario, degree):
+            """
+            Given a scenario of wl's and timestamps, find the timestamp that first crosses the degree passed in.
+            Return np.NaN if none of the timestamps pass this degree level.
+            """
+            if any(scenario >= degree):
+                wl_ts = scenario[scenario >= degree].index[0]
+                return wl_ts
+            else:
+                return np.NaN
+
+        gwl = smoothed.apply(lambda scenario: get_wl_timestamp(scenario, degree))
         return gwl
 
     def get_table_one_cesm2(
         variable, model, ens_mem, scenarios, start_year="18500101", end_year="19000101"
     ):
+        """Generates GWL information for one ensemble member of CESM2."""
         data_one_model = buildDFtimeSeries_cesm2(variable, model, ens_mem, scenarios)
         anom = data_one_model - data_one_model.sel(
             time=slice(start_year, end_year)
@@ -154,20 +161,34 @@ def main():
         gwlevels = pd.DataFrame()
         for level in [1.5, 2, 3, 4]:
             gwlevels[level] = get_gwl(oneModel.T, level)
-        return gwlevels
+
+        # Modifying and returning oneModel to be seen as a WL lookup table with timestamp as index, to get the average WL across all simulations.
+        final_model = oneModel.T
+        final_model.columns = ens_mem + "_" + final_model.columns
+        return gwlevels, final_model
 
     def get_table_cesm2(
         variable, model, scenarios, start_year="18500101", end_year="19000101"
     ):
+        """Generates GWL table for CESM2 model."""
         ens_mem_list = [v for k, v in ens_mems_cesm.items()]
-        return pd.concat(
-            [
-                get_table_one_cesm2(
-                    variable, model, ens_mem, scenarios, start_year, end_year
-                )
-                for ens_mem in ens_mem_list
-            ],
-            keys=[("CESM2-LENS", ens_mem_cesm_rev[one]) for one in ens_mem_list],
+        gwlevels_tbl, wl_data_tbls = [], []
+        for ens_mem in ens_mem_list:
+            gwlevels, wl_data_tbl = get_table_one_cesm2(
+                variable, model, ens_mem, scenarios, start_year, end_year
+            )
+            gwlevels_tbl.append(gwlevels)
+            wl_data_tbls.append(wl_data_tbl)
+
+        # Renaming columns of all ensemble members within model
+        wl_data_tbl_sim = pd.concat(wl_data_tbls, axis=1)
+        wl_data_tbl_sim.columns = model + "_" + wl_data_tbl_sim.columns
+        return (
+            pd.concat(
+                gwlevels_tbl,
+                keys=[("CESM2-LENS", ens_mem_cesm_rev[one]) for one in ens_mem_list],
+            ),
+            wl_data_tbl_sim,
         )
 
     def get_gwl_table_one(
@@ -191,6 +212,8 @@ def main():
             ).mean("time")
 
         smoothed = anom.rolling(time=20 * 12, center=True).mean("time")
+
+        ### one_model is a dataframe of times and warming levels by scenario (scenarios as columns) WITHIN a specific model and ensemble member
         one_model = (
             smoothed.to_array(dim="scenario", name=model).dropna("time").to_pandas()
         )
@@ -198,15 +221,21 @@ def main():
         try:
             for level in [1.5, 2, 3, 4]:
                 gwlevels[level] = get_gwl(one_model.T, level)
-        except:
+        except Exception as e:
             print(
                 model, ens_mem, " problems"
             )  # helps EC-Earth3 not be skipped altogether
-        return gwlevels
+            print(e)
+
+        # Modifying and returning one_model to be seen as a WL table to index by timestamp to get average WL across all simulations.one_model.
+        final_model = one_model.T
+        final_model.columns = ens_mem + "_" + final_model.columns
+        return gwlevels, final_model
 
     def get_gwl_table(
         variable, model, scenarios, start_year="18500101", end_year="19000101"
     ):
+        """Generates GWL table for a given model and scenarios. Used on all GCMs available in AWS catalog, not including CESM2-LENS."""
         ens_mem_list = sims_on_aws.T[model]["historical"]
         if (model == "EC-Earth3") or (model == "EC-Earth3-Veg"):
             for ens_mem in ens_mem_list:
@@ -214,21 +243,30 @@ def main():
                     # These ones were branched off another at 1970
                     ens_mem_list.remove(ens_mem)
         try:
-            return pd.concat(
-                [
-                    get_gwl_table_one(
-                        variable, model, ens_mem, scenarios, start_year, end_year
-                    )
-                    for ens_mem in ens_mem_list
-                ],
-                keys=ens_mem_list,
-            )
+            # Combining all the ensemble members for a given model
+            gwlevels_tbl, wl_data_tbls = [], []
+            for ens_mem in ens_mem_list:
+                gwlevels, wl_data_tbl = get_gwl_table_one(
+                    variable, model, ens_mem, scenarios, start_year, end_year
+                )
+                gwlevels_tbl.append(gwlevels)
+                wl_data_tbls.append(wl_data_tbl)
+
+            # Renaming columns of all ensemble members within model
+            wl_data_tbl_sim = pd.concat(wl_data_tbls, axis=1)
+            wl_data_tbl_sim.columns = model + "_" + wl_data_tbl_sim.columns
+            return pd.concat(gwlevels_tbl, keys=ens_mem_list), wl_data_tbl_sim
+
         except:
             print(
                 get_gwl_table_one(
                     variable, model, ens_mem, scenarios, start_year, end_year
                 )
             )
+
+    ##### Generating and writing GWL data tables for all GCMS #####
+
+    ### Pre-industrial reference period:
 
     # CESM2-LENS handled differently:
     dsets_cesm = catalog_cesm_subset.to_dataset_dict(storage_options={"anon": True})
@@ -242,43 +280,82 @@ def main():
         [historical_cmip6["TREFHT"], future_cmip6["TREFHT"]], dim="time"
     )
 
-    # pre-industrial reference period:
+    # Writing out CESM2-LENS data
     model = "CESM2-LENS"
     scenarios = ["ssp370"]
     variable = "tas"
-    cesm2_table = get_table_cesm2(variable, model, scenarios)
+    print("Generate cesm2 table 1850-1900")
+    cesm2_table, wl_data_tbl_cesm2 = get_table_cesm2(variable, model, scenarios)
 
+    ## Generating GWL information for rest of models
     variable = "tas"
     scenarios = ["ssp585", "ssp370", "ssp245"]
-    all_gw_levels = pd.concat(
-        [get_gwl_table(variable, model, scenarios) for model in models],
-        keys=models,
-    )
+    print("Generate all WL table 1850-1900")
+    all_wl_data_tbls = pd.DataFrame()
+    all_gw_tbls, all_gw_data_tbls = [], []
+
+    # Extracts GWL information for each model
+    for i, model in enumerate(models):
+        print(f"\n...Model {i} {model}...\n")
+        gw_tbl, wl_data_tbl_sim = get_gwl_table(variable, model, scenarios)
+        all_gw_tbls.append(gw_tbl)
+        all_gw_data_tbls.append(wl_data_tbl_sim)
+        try:
+            all_wl_data_tbls = pd.concat([all_wl_data_tbls, wl_data_tbl_sim], axis=1)
+        except Exception as e:
+            print(
+                f"\n Model {model} is skipped. Its table cannot be concatenated as its datetime indices are different: \n"
+            )
+            print(e)
+
+    # Resetting index for CESM2 since it records the dates on the 16th rather than the 15th.
+    wl_data_tbl_cesm2.index = all_gw_data_tbls[0].index
+
+    # Combining and writing out
+    all_wl_data_tbls = pd.concat([all_wl_data_tbls, wl_data_tbl_cesm2], axis=1)
+    write_csv_file(all_wl_data_tbls, "data/gwl_1850-1900ref_timeidx.csv")
+
+    # Creating WL lookup table with 1850-1900 reference period
+    all_gw_levels = pd.concat(all_gw_tbls, keys=models)
     all_gw_levels = pd.concat([all_gw_levels, cesm2_table])
     all_gw_levels.index = pd.MultiIndex.from_tuples(
         all_gw_levels.index, names=["GCM", "run", "scenario"]
     )
-    all_gw_levels.to_csv("../data/gwl_1850-1900ref.csv")
+    write_csv_file(all_gw_levels, "data/gwl_1850-1900ref.csv")
 
-    # reference period overlapping with downscaled data availability:
+    ### Secondary reference period overlapping with downscaled data availability:
+
+    # CESM2-LENS handled differently:
     start_year = "19810101"
     end_year = "20101231"
     model = "CESM2-LENS"
     scenarios = ["ssp370"]
-    cesm2_table2 = get_table_cesm2(variable, model, scenarios, start_year, end_year)
-    scenarios = ["ssp585", "ssp370", "ssp245"]
-    all_gw_levels2 = pd.concat(
-        [
-            get_gwl_table(variable, model, scenarios, start_year, end_year)
-            for model in models
-        ],
-        keys=models,
+    variable = "tas"
+    print("Generate cesm2 table 1981-2010")
+    cesm2_table2, wl_data_tbl_cesm2 = get_table_cesm2(
+        variable, model, scenarios, start_year, end_year
     )
+
+    ## Generating GWL information for rest of models
+    scenarios = ["ssp585", "ssp370", "ssp245"]
+    print("Generate all WL table 1981-2010")
+
+    # Extracts GWL information for each model
+    all_gw_tbls2 = []
+    for i, model in enumerate(models):
+        print(f"\n...Model {i} {model}...\n")
+        gw_tbl, wl_data_tbl_sim = get_gwl_table(
+            variable, model, scenarios, start_year, end_year
+        )
+        all_gw_tbls2.append(gw_tbl)
+
+    # Creating WL lookup table with 1981-2010 reference period
+    all_gw_levels2 = pd.concat(all_gw_tbls2, keys=models)
     all_gw_levels2 = pd.concat([all_gw_levels2, cesm2_table2])
     all_gw_levels2.index = pd.MultiIndex.from_tuples(
         all_gw_levels2.index, names=["GCM", "run", "scenario"]
     )
-    all_gw_levels2.to_csv("../data/gwl_1981-2010ref.csv")
+    write_csv_file(all_gw_levels2, "data/gwl_1981-2010ref.csv")
 
 
 def get_sims_on_aws(df):

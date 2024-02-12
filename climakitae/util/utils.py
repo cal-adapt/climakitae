@@ -91,6 +91,10 @@ def read_csv_file(rel_path, index_col=None, parse_dates=False):
     )
 
 
+def write_csv_file(df, path):
+    return df.to_csv(path)
+
+
 def _package_file_path(rel_path):
     return os.path.normpath(os.path.join(os.path.dirname(__file__), "..", rel_path))
 
