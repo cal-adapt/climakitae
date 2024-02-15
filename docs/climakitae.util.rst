@@ -12,6 +12,14 @@ climakitae.util.cluster module
    :undoc-members:
    :show-inheritance:
 
+climakitae.util.generate\_gwl\_tables module
+------------------------------
+
+.. automodule:: climakitae.util.generate_gwl_tables
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 climakitae.util.unit\_conversions module
 ----------------------------------------
 
