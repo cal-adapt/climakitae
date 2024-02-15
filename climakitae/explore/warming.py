@@ -324,13 +324,6 @@ class WarmingLevelVisualize(param.Parameterized):
     Intended to be accessed through WarmingLevels class.
     Allows the user to toggle between several data options.
     Produces dynamically updating gwl snapshot maps.
-
-    Attributes
-    ----------
-    warmlevel: param.Selector
-        Warming level in degrees Celcius.
-    ssp: param.Selector
-        Shared socioeconomic pathway.
     """
 
     # Read in GMT context plot data

@@ -20,22 +20,6 @@ climakitae.tools.indices module
    :undoc-members:
    :show-inheritance:
 
-climakitae.tools.timeseries module
-----------------------------------
-
-.. automodule:: climakitae.tools.timeseries
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-climakitae.tools.uncertainty module
------------------------------------
-
-.. automodule:: climakitae.tools.uncertainty
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 Module contents
 ---------------
 

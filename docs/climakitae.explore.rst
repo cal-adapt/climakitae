@@ -4,6 +4,14 @@ climakitae.explore package
 Submodules
 ----------
 
+climakitae.explore.agnostic module
+-----------------------------
+
+.. automodule:: climakitae.explore.agnostic
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 climakitae.explore.amy module
 -----------------------------
 
@@ -24,6 +32,22 @@ climakitae.explore.thresholds module
 ------------------------------------
 
 .. automodule:: climakitae.explore.thresholds
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+climakitae.explore.timeseries module
+----------------------------------
+
+.. automodule:: climakitae.explore.timeseries
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+climakitae.explore.uncertainty module
+-----------------------------------
+
+.. automodule:: climakitae.explore.uncertainty
    :members:
    :undoc-members:
    :show-inheritance:
