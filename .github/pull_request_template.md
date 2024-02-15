@@ -1,8 +1,12 @@
-# Description
+# Description of PR
 
-Please include a summary of the changes and the related issue. Please also include relevant motivation and context. List any dependencies that are required for this change.
+**Summary of changes and related issue**
 
-Fixes # (issue)
+**Relevant motivation and context**
+
+**Dependencies required for this change?**
+
+**Fixes # (issue), delete if not necessary**
 
 ## Type of change
 
@@ -15,16 +19,10 @@ Please delete options that are not relevant.
 
 # How Has This Been Tested?
 
-Please describe the tests that you ran to verify your changes. Provide instructions so we can reproduce. Please also list any relevant details for your test configuration
+Please describe the tests that you ran to verify your changes. Provide instructions so we can reproduce.
 
 - [ ] Test A
 - [ ] Test B
-
-**Test Configuration**:
-* Firmware version:
-* Hardware:
-* Toolchain:
-* SDK:
 
 # Checklist:
 
