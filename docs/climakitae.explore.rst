@@ -28,6 +28,22 @@ climakitae.explore.thresholds module
    :undoc-members:
    :show-inheritance:
 
+climakitae.explore.timeseries module
+----------------------------------
+
+.. automodule:: climakitae.explore.timeseries
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+climakitae.explore.uncertainty module
+-----------------------------------
+
+.. automodule:: climakitae.explore.uncertainty
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 climakitae.explore.warming module
 ---------------------------------
 
