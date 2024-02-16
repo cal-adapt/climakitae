@@ -13,7 +13,7 @@ climakitae.util.cluster module
    :show-inheritance:
 
 climakitae.util.generate\_gwl\_tables module
-------------------------------
+--------------------------------------------
 
 .. automodule:: climakitae.util.generate_gwl_tables
    :members:

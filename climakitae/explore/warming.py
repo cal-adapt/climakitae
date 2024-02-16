@@ -319,12 +319,11 @@ class WarmingLevelChoose(DataParametersWithPanes):
 
 
 class WarmingLevelVisualize(param.Parameterized):
-    """Generate warming levels panel GUI in notebook.
+    """Create Warming Levels panel GUI"""
 
-    Intended to be accessed through WarmingLevels class.
-    Allows the user to toggle between several data options.
-    Produces dynamically updating gwl snapshot maps.
-    """
+    ## Intended to be accessed through WarmingLevels class.
+    ## Allows the user to toggle between several data options.
+    ## Produces dynamically updating gwl snapshot maps.
 
     # Read in GMT context plot data
     ssp119_data = read_csv_file(ssp119_file, index_col="Year")
