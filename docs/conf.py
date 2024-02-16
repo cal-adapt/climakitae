@@ -154,6 +154,7 @@ intersphinx_mapping = {
     "sparse": ("https://sparse.pydata.org/en/latest/", None),
     "sparse": ("https://sparse.pydata.org/en/latest/", None),
     "xarray": ("https://docs.xarray.dev/en/stable/", None),
+    "param": ("https://param.holoviz.org/", None),
     "panel": ("https://panel.holoviz.org/", None),
     "hvplot": ("https://hvplot.holoviz.org/", None),
     "holoviews": ("https://holoviews.org/", None),

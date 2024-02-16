@@ -19,6 +19,7 @@ climakitae.explore.amy module
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:
 
 climakitae.explore.threshold\_tools module
 ------------------------------------------
@@ -35,6 +36,7 @@ climakitae.explore.thresholds module
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:
 
 climakitae.explore.timeseries module
 ------------------------------------

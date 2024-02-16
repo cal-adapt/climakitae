@@ -36,10 +36,7 @@ def _get_threshold_data(self):
 
 
 class ThresholdParameters(DataParametersWithPanes):
-    """
-    An object that holds the "Data Options" parameters for the
-    explore.thresholds panel.
-    """
+    """An object that holds the data options parameters for theexplore.thresholds panel."""
 
     # Define the params (before __init__ so that we can access them during __init__)
     threshold_direction = param.Selector(
