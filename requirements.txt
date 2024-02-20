@@ -24,8 +24,4 @@ scipy==1.9.1
 shapely==1.8.4
 pygeos==0.13
 xclim==0.42.0
-timezonefinder==6.0.2
-boto3==1.24.59
-xmip==0.6.1rc0
-seaborn==0.12.0
 
