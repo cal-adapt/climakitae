@@ -547,11 +547,6 @@ def summary_table(data):
     return df
 
 
-### TIMEZONE FUNCTION
-
-from timezonefinder import TimezoneFinder
-
-
 def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
     """
     Converts the inputted data to the local time of the selection.
