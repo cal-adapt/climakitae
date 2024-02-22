@@ -69,7 +69,7 @@ def main():
         downscaling."""
         scenario = "historical"
         data_historical = xr.Dataset()
-        df_scenario = df_subset[(df.source_id == model) & (df.member_id == ens_mem)]
+        df_scenario = df_subset[(df_subset.source_id == model) & (df_subset.member_id == ens_mem)]
         with xr.open_zarr(fs.get_mapper(df_scenario.zstore.values[0])) as temp:
             try:
                 weightlat = np.sqrt(np.cos(np.deg2rad(temp.lat)))
