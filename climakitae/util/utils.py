@@ -22,18 +22,17 @@ from climakitae.core.paths import (
 
 
 def downscaling_method_as_list(downscaling_method):
-    """Function to convert string based radio button values to python list
+    """Function to convert string based radio button values to python list.
 
     Parameters
     ----------
-    downscaling_method: str one of "Dynamical", "Statistical", or "Dynamical+Statistical"
-        Data downscaling method
+    downscaling_method: str
+        one of "Dynamical", "Statistical", or "Dynamical+Statistical"
 
     Returns
     -------
-    method_list: list one of ["Dynamical"], ["Statistical"], or ["Dynamical","Statistical"]
-        Data downscaling method as list
-
+    method_list: list
+        one of ["Dynamical"], ["Statistical"], or ["Dynamical","Statistical"]
     """
     method_list = []
     if downscaling_method == "Dynamical+Statistical":
@@ -546,11 +545,6 @@ def summary_table(data):
         df = df.sort_values(by=["year"])
 
     return df
-
-
-### TIMEZONE FUNCTION
-
-from timezonefinder import TimezoneFinder
 
 
 def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:

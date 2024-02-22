@@ -91,7 +91,7 @@ def _retrieve_meteo_yr_data(
         Year between 1985-2100. Default to year_start+30
 
     Returns
-    --------
+    -------
     xr.DataArray
         Hourly ensemble means from year_start-year_end for the ssp specified.
     """
@@ -185,7 +185,7 @@ def compute_amy(data, days_in_year=366, show_pbar=False):
         Progress bar is nice for using this function within a notebook.
 
     Returns
-    --------
+    -------
     pd.DataFrame
         Average meteorological year table, with days of year as
         the index and hour of day as the columns.
@@ -229,7 +229,7 @@ def compute_severe_yr(data, days_in_year=366, show_pbar=False):
         Progress bar is nice for using this function within a notebook.
 
     Returns
-    --------
+    -------
     pd.DataFrame
         Severe meteorological year table, with days of year as
         the index and hour of day as the columns.
@@ -264,7 +264,7 @@ def compute_mean_monthly_meteo_yr(tmy_df, col_name="mean_value"):
     """Compute mean monthly values for input meteorological year data.
 
     Parameters
-    -----------
+    ----------
     tmy_df: pd.DataFrame
         Matrix with day of year as index and hour as columns
         Output of either compute_severe_yr or compute_meteo_yr
@@ -273,7 +273,7 @@ def compute_mean_monthly_meteo_yr(tmy_df, col_name="mean_value"):
         It may be informative to assign this to the name of the data variable
 
     Returns
-    --------
+    -------
     pd.DataFrame
         Table with month as index and monthly mean as column
     """
@@ -437,7 +437,7 @@ def lineplot_from_amy_data(
     """Generate a lineplot of meteorological year data, with mon-day-hr on the x-axis
 
     Parameters
-    -----------
+    ----------
     amy_data: pd.DataFrame
         Meteorological year dataframe, with hour of day as columns and day of year as index
         Output of either compute_severe_yr or compute_meteo_yr
@@ -519,10 +519,7 @@ def lineplot_from_amy_data(
 
 
 class AverageMetYearParameters(DataParametersWithPanes):
-    """
-    An object that holds the "Data Options" parameters for the
-    explore.tmy panel.
-    """
+    """An object that holds the data options parameters for the explore.tmy panel."""
 
     # Create dictionary of TMY advanced options depending on TMY type
     tmy_advanced_options_dict = {

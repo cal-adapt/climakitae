@@ -588,12 +588,7 @@ class DataInterface:
 
 
 class DataParameters(param.Parameterized):
-    """
-    An object to hold data parameters, which depends only on the 'param'
-    library. Currently used in '_display_select', which uses 'panel' to draw the
-    gui, but another UI could in principle be used to update these parameters
-    instead.
-    """
+    """Python param object to hold data parameters for use in panel GUI."""
 
     # Unit conversion options for each unit
     unit_options_dict = get_unit_conversion_options()
