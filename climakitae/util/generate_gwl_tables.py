@@ -268,8 +268,6 @@ def main():
 
     ##### Generating and writing GWL data tables for all GCMS #####
 
-    ### Pre-industrial reference period:
-
     # CESM2-LENS handled differently:
     dsets_cesm = catalog_cesm_subset.to_dataset_dict(storage_options={"anon": True})
     for ds in dsets_cesm:
@@ -282,7 +280,7 @@ def main():
         [historical_cmip6["TREFHT"], future_cmip6["TREFHT"]], dim="time"
     )
 
-    # Generating WL CSVs
+    ### Generating WL CSVs for two reference periods: pre-industrial and secondary reference period overlapping with downscaled data availability:
     time_periods = [
         {"start_year": "18500101", "end_year": "19000101"},
         {"start_year": "19810101", "end_year": "20101231"},
@@ -347,40 +345,6 @@ def main():
         write_csv_file(
             all_gw_levels, "data/gwl_{}-{}ref.csv".format(start_year[:4], end_year[:4])
         )
-
-    # ### Secondary reference period overlapping with downscaled data availability:
-
-    # # CESM2-LENS handled differently:
-    # start_year = "19810101"
-    # end_year = "20101231"
-    # model = "CESM2-LENS"
-    # scenarios = ["ssp370"]
-    # variable = "tas"
-    # print("Generate cesm2 table 1981-2010")
-    # cesm2_table2, wl_data_tbl_cesm2 = get_table_cesm2(
-    #     variable, model, scenarios, start_year, end_year
-    # )
-
-    # ## Generating GWL information for rest of models
-    # scenarios = ["ssp585", "ssp370", "ssp245"]
-    # print("Generate all WL table 1981-2010")
-
-    # # Extracts GWL information for each model
-    # all_gw_tbls2 = []
-    # for i, model in enumerate(models):
-    #     print(f"\n...Model {i} {model}...\n")
-    #     gw_tbl, wl_data_tbl_sim = get_gwl_table(
-    #         variable, model, scenarios, start_year, end_year
-    #     )
-    #     all_gw_tbls2.append(gw_tbl)
-
-    # # Creating WL lookup table with 1981-2010 reference period
-    # all_gw_levels2 = pd.concat(all_gw_tbls2, keys=models)
-    # all_gw_levels2 = pd.concat([all_gw_levels2, cesm2_table2])
-    # all_gw_levels2.index = pd.MultiIndex.from_tuples(
-    #     all_gw_levels2.index, names=["GCM", "run", "scenario"]
-    # )
-    # write_csv_file(all_gw_levels2, "data/gwl_1981-2010ref.csv")
 
 
 def get_sims_on_aws(df):
