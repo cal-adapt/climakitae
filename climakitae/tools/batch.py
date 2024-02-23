@@ -3,20 +3,26 @@ from climakitae.util.utils import get_closest_gridcell
 import xarray as xr
 
 
-def batch_select(points):
+def batch_select(selections, points, load_data=True):
     """
     Conducts batch mode analysis on a series of points for a given metric.
+    
+    Parameters
+    ----------
+    selections: `Select` object
+        Selections object that describes the area of interest. The `area_subset` and `cached_area` attributes are automatically overwritten.
+    points: np.array
+        An array at lat/lon points to gather the specified data at.
+    load_data: Boolean
+        A boolean that tells the function whether or not to load the data into memory.
+
+    Returns
+    -------
+    cells_of_interest: xr.DataArray of the gridcells that the points lie within, aggregated together into one DataArray. It can or cannot be loaded into memory, depending on `load_data`.
     """
-    # Retrieve data for the entire service area
-    selections = Select()
-    selections.data_type = "Gridded"
+    # Add selections attributes to cover the entire domain since we don't know exactly where the selected points lie.
     selections.area_subset = "none"
     selections.cached_area = ["entire domain"]
-    selections.timescale = "hourly"
-    selections.variable_type = "Derived Index"
-    selections.variable = "NOAA Heat Index"
-    selections.resolution = "9 km"
-    selections.time_slice = (1981, 2010)
     data = selections.retrieve()
 
     # Find the closest gridcell for each lat, lon pair in a series of points
@@ -36,13 +42,14 @@ def batch_select(points):
 
     # Combine data points into a single xr.Dataset
     cells_of_interest = xr.concat(data_pts, dim="simulation").chunk(
-        (8, len(closest_cell.time))
+        (1, len(closest_cell.time))
     )
 
-    # Load in the cells of interest
-    loaded_vals = cells_of_interest.compute()
+    # Load in the cells of interest into memory, if desired.
+    if load_data:
+        cells_of_interest = cells_of_interest.compute()
 
-    return loaded_vals
+    return cells_of_interest
 
 
 def batch_analysis(sims, metric):
