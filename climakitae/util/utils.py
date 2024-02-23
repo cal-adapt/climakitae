@@ -670,7 +670,7 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
 
     # 4. Change datetime objects to local time
     tf = TimezoneFinder()
-    local_tz = tf.timezone_at(lng=float(lon), lat=float(lat))
+    local_tz = tf.timezone_at(lng=lon, lat=lat)
     new_time = (
         pd.DatetimeIndex(total_data.time)
         .tz_localize("UTC")
