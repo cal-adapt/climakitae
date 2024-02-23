@@ -1,6 +1,8 @@
-""" util for generating warming level reference data in ../data/ ###
-    to run, type: <<python generate_gwl_tables.py>> at the command line
-    expect to wait a while... which is why this is not done on-the-fly
+""" 
+Util for generating warming level reference data in ../data/ ###
+
+To run, type: <<python generate_gwl_tables.py>> in the command line and wait for printed model outputs showing progress.
+Generation takes ~1.5 hours for generating all 4 csv's.
 """
 
 import s3fs
