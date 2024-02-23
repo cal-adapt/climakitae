@@ -7,13 +7,7 @@ import pandas as pd
 
 
 class TimeSeriesParameters(param.Parameterized):
-    """Class to hold TimeSeries params
-
-    An object to hold time-series params, which depends only on the 'param'
-    library. Currently used in 'timeseries_visualize', which uses 'panel' to
-    draw the GUI, but another UI could in principle be used to update these
-    parameters instead.
-    """
+    """Class of python Param to hold parameters for Time Series."""
 
     resample_period = param.Selector(default="years", objects=dict())
     _time_scales = dict(

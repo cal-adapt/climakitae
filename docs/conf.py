@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.abspath(".."))
 
 # -- Project information -----------------------------------------------------
 project = "Climakitae"
-copyright = "2023, Cal-Adapt Analytics Engine"
+copyright = "2024, Cal-Adapt Analytics Engine"
 author = "Cal-Adapt Analytics Engine Team"
 # The full version, including alpha/beta/rc tags
 release = "0.1.0"
@@ -154,6 +154,7 @@ intersphinx_mapping = {
     "sparse": ("https://sparse.pydata.org/en/latest/", None),
     "sparse": ("https://sparse.pydata.org/en/latest/", None),
     "xarray": ("https://docs.xarray.dev/en/stable/", None),
+    "param": ("https://param.holoviz.org/", None),
     "panel": ("https://panel.holoviz.org/", None),
     "hvplot": ("https://hvplot.holoviz.org/", None),
     "holoviews": ("https://holoviews.org/", None),

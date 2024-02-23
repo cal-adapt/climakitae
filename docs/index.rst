@@ -46,15 +46,15 @@ scientific analyses with data from the Cal-Adapt Analytics Engine.
         
         Want to add a new feature? Find a bug in the code? See our contribution guidelines for more information.
 
-*************
+************************************
 About the Cal-Adapt Analytics Engine
-*************
+************************************
 Cal-Adapt is the larger project through which *climakitae* is being developed. For more information, check out our `Analytics Engine website <https://analytics.cal-adapt.org/data/>`_.
 
 
-*************
+************
 Installation
-*************
+************
 To begin working with *climakitae*, you can install the current version of the package 
 directly from pip: :: 
 
