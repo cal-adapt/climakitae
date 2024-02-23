@@ -2,6 +2,7 @@ from climakitae.core.data_interface import Select
 from climakitae.util.utils import get_closest_gridcell
 import xarray as xr
 
+
 def batch_select(points):
     """
     Conducts batch mode analysis on a series of points for a given metric.
