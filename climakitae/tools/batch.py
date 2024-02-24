@@ -6,7 +6,7 @@ import xarray as xr
 def batch_select(selections, points, load_data=True):
     """
     Conducts batch mode analysis on a series of points for a given metric.
-    
+
     Parameters
     ----------
     selections: `Select` object

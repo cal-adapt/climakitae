@@ -680,9 +680,9 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
     sliced_data = total_data.sel(time=slice(start_slice, end_slice))
 
     print("Data converted to {} timezone.".format(local_tz))
-    
+
     # 6. Remove daylight savings times
-    
+
     # 7. Remove potential leap days
 
     # Reset selections object to what it was originally
