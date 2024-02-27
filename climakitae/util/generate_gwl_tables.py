@@ -301,7 +301,9 @@ def main():
         model = "CESM2-LENS"
         scenarios = ["ssp370"]
         print("Generate cesm2 table {}-{}".format(start_year[:4], end_year[:4]))
-        cesm2_table, wl_data_tbl_cesm2 = get_table_cesm2(variable, model, scenarios)
+        cesm2_table, wl_data_tbl_cesm2 = get_table_cesm2(
+            variable, model, scenarios, start_year, end_year
+        )
 
         ## Generating GWL information for rest of models
         scenarios = ["ssp585", "ssp370", "ssp245"]
