@@ -581,6 +581,11 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
         )  # This is assuming selections passed with be negative UTC time. Also to get the next year of data.
         tz_data = selections.retrieve()
 
+        # Drop leap days, if applicable
+        tz_data = tz_data.sel(
+            time=~((tz_data.time.dt.month == 2) & (tz_data.time.dt.day == 29))
+        )
+
         if tz_data.time.size == 0:
             print(
                 "You've selected a time slice that will additionally require a selected SSP. Please select an SSP in your selections and re-run this function."
@@ -662,22 +667,38 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
         lat = center_pt.y
         lon = center_pt.x
 
-    # 4. Change datetime objects to local time
+    # 2. Change datetime objects to local time
+    no_leap = pd.DatetimeIndex(total_data.time)
     tf = TimezoneFinder()
     local_tz = tf.timezone_at(lng=lon, lat=lat)
-    new_time = (
-        pd.DatetimeIndex(total_data.time)
-        .tz_localize("UTC")
+    adj_time = (
+        no_leap.tz_localize("UTC")
         .tz_convert(local_tz)
         .tz_localize(None)
         .astype("datetime64[ns]")
     )
-    total_data["time"] = new_time
+    total_data["time"] = adj_time
 
-    # 5. Subset the data by the initial time
+    # 3. Removing extra daylight savings hours
+    # Find indices of timestamps that are NOT repeated, in order to keep these and exclude the others that are repeated
+    time_deltas = np.diff(total_data.time.values.astype("datetime64[h]"))
+    normal_time_idx = np.where(time_deltas > np.timedelta64(0, "h"))[0]
+    no_repeats = total_data.isel(
+        time=np.append(normal_time_idx, len(total_data.time) - 1)
+    )
+
+    # 4. Interpolate for missing daylight savings hours
+    final_data = no_repeats.interp(
+        time=pd.date_range(
+            no_repeats.time[0].values, no_repeats.time[-1].values, freq="1H"
+        ),
+        method="linear",
+    )
+
+    # 8. Subset the data by the initial time
     start_slice = data.time[0]
     end_slice = data.time[-1]
-    sliced_data = total_data.sel(time=slice(start_slice, end_slice))
+    sliced_data = final_data.sel(time=slice(start_slice, end_slice))
 
     print("Data converted to {} timezone.".format(local_tz))
 
