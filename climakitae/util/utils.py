@@ -677,6 +677,10 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
         .tz_localize(None)
         .astype("datetime64[ns]")
     )
+
+    # Removing erroneous leap days popping up because of pandas.DatetimeIndex
+    adj_time = adj_time.where(~((adj_time.month == 2) & (adj_time.day == 29)), adj_time - pd.Timedelta(days=1))
+
     total_data["time"] = adj_time
 
     # Remove extra daylight savings hours. Finds indices of timestamps that are NOT repeated, in order to keep these and exclude the others that are repeated
@@ -687,12 +691,12 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
     )
 
     # Interpolate for missing daylight savings hours
-    final_data = no_repeats.interp(
-        time=pd.date_range(
-            no_repeats.time[0].values, no_repeats.time[-1].values, freq="1H"
-        ),
-        method="linear",
-    )
+    # final_data = no_repeats.interp(
+    #     time=pd.date_range(
+    #         no_repeats.time[0].values, no_repeats.time[-1].values, freq="1H"
+    #     ),
+    #     method="linear",
+    # )
 
     # Subset the data by the initial time
     start_slice = data.time[0]
