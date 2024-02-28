@@ -667,7 +667,7 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
         lat = center_pt.y
         lon = center_pt.x
 
-    # 2. Change datetime objects to local time
+    # Change datetime objects to local time
     no_leap = pd.DatetimeIndex(total_data.time)
     tf = TimezoneFinder()
     local_tz = tf.timezone_at(lng=lon, lat=lat)
@@ -679,15 +679,14 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
     )
     total_data["time"] = adj_time
 
-    # 3. Removing extra daylight savings hours
-    # Find indices of timestamps that are NOT repeated, in order to keep these and exclude the others that are repeated
+    # Remove extra daylight savings hours. Finds indices of timestamps that are NOT repeated, in order to keep these and exclude the others that are repeated
     time_deltas = np.diff(total_data.time.values.astype("datetime64[h]"))
     normal_time_idx = np.where(time_deltas > np.timedelta64(0, "h"))[0]
     no_repeats = total_data.isel(
         time=np.append(normal_time_idx, len(total_data.time) - 1)
     )
 
-    # 4. Interpolate for missing daylight savings hours
+    # Interpolate for missing daylight savings hours
     final_data = no_repeats.interp(
         time=pd.date_range(
             no_repeats.time[0].values, no_repeats.time[-1].values, freq="1H"
@@ -695,7 +694,7 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
         method="linear",
     )
 
-    # 8. Subset the data by the initial time
+    # Subset the data by the initial time
     start_slice = data.time[0]
     end_slice = data.time[-1]
     sliced_data = final_data.sel(time=slice(start_slice, end_slice))
