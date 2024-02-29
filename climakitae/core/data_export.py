@@ -919,6 +919,43 @@ def _epw_format_data(df):
     return df
 
 
+def _tmy_8760_size_check(df):
+    '''Checks the size of the TMY dataframe for export to ensure that it is explicitly 8760 in size. 
+    There are 3 scenarios where the input TMY dataframe would not be 8760 in size: 
+    (1) Size 8761, additional single hour due to time change for local time. Fix removes the duplicate row (typically in Nov.) 
+    (2) Size 8759, missing a single hour due to time change for local time. Fix adds the missing row (typically in Mar.) and interpolates the values from the surrounding rows.
+    (3) Size 8784, 24 extra hours are provided due to inclusion of a leap year February and specific models that retain leap days. Fix removes the additional rows.
+
+    Note: This is a bug introduced by the time zone correction to local time and should be addressed in the future.
+
+    Parameters
+    ----------
+    df (pd.DataFrame): Dataframe of TMY to export
+
+    Returns
+    -------
+    df (pd.Dataframe): Dataframe of TMY to export, explicitly 8760 in size
+    '''
+
+    # first check size of input dataframe
+    if len(df) == 8760:
+        return df
+
+    elif len(df) != 8760:
+        if len(df) == 8761: # Additional hour, remove duplicate row
+            
+
+        elif len(df) == 8759: # Missing hour, add missing row
+
+        elif len(df) == 8784: # Leap day added, remove Feb 29
+
+        else:
+            print('Error: The size of the input dataframe does not comform to standard 8760 size. Please confirm.')
+            return None
+
+    return df
+
+
 def write_tmy_file(
     filename_to_export,
     df,
