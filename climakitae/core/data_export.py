@@ -754,7 +754,9 @@ def _utc_offset_timezone(lat, lon):
     return diff
 
 
-def _tmy_header(location_name, station_code, stn_lat, stn_lon, state, timezone, elevation, df):
+def _tmy_header(
+    location_name, station_code, stn_lat, stn_lon, state, timezone, elevation, df
+):
     """
     Constructs the header for the TMY output file in .tmy format
     Source: https://www.nrel.gov/docs/fy08osti/43156.pdf (pg. 3)
@@ -781,7 +783,9 @@ def _tmy_header(location_name, station_code, stn_lat, stn_lon, state, timezone, 
     return headers
 
 
-def _epw_header(location_name, station_code, stn_lat, stn_lon, state, timezone, elevation, df):
+def _epw_header(
+    location_name, station_code, stn_lat, stn_lon, state, timezone, elevation, df
+):
     """
     Constructs the header for the TMY output file in .epw format
     Source: EnergyPlus Version 23.1.0 Documentation
@@ -958,7 +962,7 @@ def write_tmy_file(
         station_code = station_code
         state = stn_state
         timezone = _utc_offset_timezone(lon=stn_lon, lat=stn_lat)
-        elevation = 0.0 # set to 0 on custom inputs for now
+        elevation = 0.0  # set to 0 on custom inputs for now
 
     elif type(station_code) == int:  # hadisd statio code passed
         # look up info
@@ -979,7 +983,14 @@ def write_tmy_file(
         with open(path_to_file, "w") as f:
             f.writelines(
                 _tmy_header(
-                    location_name, station_code, stn_lat, stn_lon, state, timezone, elevation, df
+                    location_name,
+                    station_code,
+                    stn_lat,
+                    stn_lon,
+                    state,
+                    timezone,
+                    elevation,
+                    df,
                 )
             )  # writes required header lines
             df = df.drop(
@@ -999,7 +1010,14 @@ def write_tmy_file(
         with open(path_to_file, "w") as f:
             f.writelines(
                 _epw_header(
-                    location_name, station_code, stn_lat, stn_lon, state, timezone, elevation, df
+                    location_name,
+                    station_code,
+                    stn_lat,
+                    stn_lon,
+                    state,
+                    timezone,
+                    elevation,
+                    df,
                 )
             )  # writes required header lines
             df_string = _epw_format_data(df).to_csv(sep=",", header=False, index=False)
