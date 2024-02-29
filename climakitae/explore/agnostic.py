@@ -53,26 +53,21 @@ def _create_warm_level_lut(gcms):
     df = read_csv_file(
         "data/gwl_1850-1900ref_timeidx.csv", index_col="time", parse_dates=True
     )
-    month_df = df.groupby(
-        [df.index.year, df.index.month]
-    ).mean()  # This ignores NaN and gets the only value in each month
-    # MultiIndex to DatetimeIndex
-    month_df.index = pd.to_datetime(["-".join(map(str, idx)) for idx in month_df.index])
     # Subset time to 2021-2089
-    subset_rows = (month_df.index.year > 2020) & (month_df.index.year < 2090)
+    subset_rows = (df.index.year > 2020) & (df.index.year < 2090)
     # Subset to cataloged GCMs and scenario "ssp370"
     subset_columns = [
         col
-        for col in month_df.columns
+        for col in df.columns
         if col.split("_")[0] in gcms and col.endswith("ssp370")
     ]
-    month_df = month_df.loc[subset_rows, subset_columns]
+    df = df.loc[subset_rows, subset_columns]
 
-    month_df.dropna(
+    df.dropna(
         axis="columns", how="all", inplace=True
     )  # model EC-Earth3 runs/simulations
 
-    year_df = month_df.resample("Y").mean()
+    year_df = df.resample("Y").mean()
     year_df.index = year_df.index.year  # Drop 12-31
     return year_df
 
