@@ -943,7 +943,7 @@ def write_tmy_file(
     filename_to_export (str): Filename string, constructed with station name and simulation
     df (pd.DataFrame): Dataframe of TMY data to export
     location_name (str): Location name string, often station name
-    station_code (int): Station code 
+    station_code (int): Station code
     stn_lat (float): Station latitude
     stn_lon (float): Station longitude
     stn_state (str): State of station location
@@ -968,7 +968,9 @@ def write_tmy_file(
         station_code = station_code
         state = stn_state
         timezone = _utc_offset_timezone(lon=stn_lon, lat=stn_lat)
-        elevation = stn_elev  # default of 0.0 on custom inputs if elevation is not provided
+        elevation = (
+            stn_elev  # default of 0.0 on custom inputs if elevation is not provided
+        )
 
     elif type(station_code) == int:  # hadisd statio code passed
         # look up info
