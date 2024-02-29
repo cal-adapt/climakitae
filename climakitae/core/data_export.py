@@ -715,6 +715,8 @@ def _grab_dem_elev_m(lat, lon):
     lat lon must be in decimal degrees (which it is after cleaning)
     Modified from:
     https://gis.stackexchange.com/questions/338392/getting-elevation-for-multiple-lat-long-coordinates-in-python
+
+    Note: This is breaking at present (2/29/2024) -- setting to pulling station elevation from csv, 0 for custom
     """
     url = r"https://epqs.nationalmap.gov/v1/json?"
 
@@ -752,7 +754,7 @@ def _utc_offset_timezone(lat, lon):
     return diff
 
 
-def _tmy_header(location_name, station_code, stn_lat, stn_lon, state, timezone, df):
+def _tmy_header(location_name, station_code, stn_lat, stn_lon, state, timezone, elevation, df):
     """
     Constructs the header for the TMY output file in .tmy format
     Source: https://www.nrel.gov/docs/fy08osti/43156.pdf (pg. 3)
@@ -767,7 +769,7 @@ def _tmy_header(location_name, station_code, stn_lat, stn_lon, state, timezone, 
         timezone,
         stn_lat,
         stn_lon,
-        _grab_dem_elev_m(lat=stn_lat, lon=stn_lon),
+        elevation,
         df["simulation"].values[0],
     )
 
@@ -779,7 +781,7 @@ def _tmy_header(location_name, station_code, stn_lat, stn_lon, state, timezone, 
     return headers
 
 
-def _epw_header(location_name, station_code, stn_lat, stn_lon, state, timezone, df):
+def _epw_header(location_name, station_code, stn_lat, stn_lon, state, timezone, elevation, df):
     """
     Constructs the header for the TMY output file in .epw format
     Source: EnergyPlus Version 23.1.0 Documentation
@@ -795,7 +797,7 @@ def _epw_header(location_name, station_code, stn_lat, stn_lon, state, timezone, 
         stn_lat,
         stn_lon,
         timezone,
-        _grab_dem_elev_m(lat=stn_lat, lon=stn_lon),
+        elevation,
     )
 
     # line 2 - design conditions, leave blank for now
@@ -956,6 +958,7 @@ def write_tmy_file(
         station_code = station_code
         state = stn_state
         timezone = _utc_offset_timezone(lon=stn_lon, lat=stn_lat)
+        elevation = 0.0 # set to 0 on custom inputs for now
 
     elif type(station_code) == int:  # hadisd statio code passed
         # look up info
@@ -965,6 +968,9 @@ def write_tmy_file(
             ].values[0]
             station_code = str(station_code)[:6]
             timezone = _utc_offset_timezone(lon=stn_lon, lat=stn_lat)
+            elevation = station_df.loc[station_df["station id"] == station_code][
+                "elevation"
+            ].values[0]
 
     # typical meteorological year format
     if file_ext == "tmy":
@@ -973,7 +979,7 @@ def write_tmy_file(
         with open(path_to_file, "w") as f:
             f.writelines(
                 _tmy_header(
-                    location_name, station_code, stn_lat, stn_lon, state, timezone, df
+                    location_name, station_code, stn_lat, stn_lon, state, timezone, elevation, df
                 )
             )  # writes required header lines
             df = df.drop(
@@ -993,7 +999,7 @@ def write_tmy_file(
         with open(path_to_file, "w") as f:
             f.writelines(
                 _epw_header(
-                    location_name, station_code, stn_lat, stn_lon, state, timezone, df
+                    location_name, station_code, stn_lat, stn_lon, state, timezone, elevation, df
                 )
             )  # writes required header lines
             df_string = _epw_format_data(df).to_csv(sep=",", header=False, index=False)
