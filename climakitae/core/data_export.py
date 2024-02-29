@@ -966,11 +966,11 @@ def write_tmy_file(
             state = station_df.loc[station_df["station id"] == station_code][
                 "state"
             ].values[0]
-            station_code = str(station_code)[:6]
-            timezone = _utc_offset_timezone(lon=stn_lon, lat=stn_lat)
             elevation = station_df.loc[station_df["station id"] == station_code][
                 "elevation"
             ].values[0]
+            station_code = str(station_code)[:6]
+            timezone = _utc_offset_timezone(lon=stn_lon, lat=stn_lat)
 
     # typical meteorological year format
     if file_ext == "tmy":
