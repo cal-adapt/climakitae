@@ -1,5 +1,5 @@
-from climakitae.core.data_interface import Select
 from climakitae.util.utils import get_closest_gridcell
+from climakitae.core.data_load import load
 import xarray as xr
 
 
@@ -47,7 +47,7 @@ def batch_select(selections, points, load_data=True):
 
     # Load in the cells of interest into memory, if desired.
     if load_data:
-        cells_of_interest = cells_of_interest.compute()
+        cells_of_interest = load(cells_of_interest)
 
     return cells_of_interest
 
