@@ -918,6 +918,14 @@ def _epw_format_data(df):
 
     return df
 
+def _leap_day_fix(df):
+    '''Addresses leap day inclusion in TMY dataframe bug by removing the extra nan rows and resetting time index to Feb 28'''
+    df_leap = df.copy(deep=True)
+    df_leap['time'] = pd.to_datetime(df['time']) # set time to datetime
+    df_leap = df_leap.dropna() # drops extra rows
+    df_leap['time'] = np.where((df_leap.time.dt.month == 2) & (df_leap.time.dt.day == 29), df_leap.time - pd.DateOffset(days=1), df_leap.time) # reset remaining feb 29 hours to feb 28
+    
+    return df_leap
 
 def _tmy_8760_size_check(df):
     '''Checks the size of the TMY dataframe for export to ensure that it is explicitly 8760 in size. 
@@ -948,6 +956,8 @@ def _tmy_8760_size_check(df):
         elif len(df) == 8759: # Missing hour, add missing row
 
         elif len(df) == 8784: # Leap day added, remove Feb 29
+            df = _leap_day_fix(df)
+            return df
 
         else:
             print('Error: The size of the input dataframe does not comform to standard 8760 size. Please confirm.')
