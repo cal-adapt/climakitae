@@ -939,7 +939,9 @@ def _leap_day_fix(df):
         or df_leap.simulation.unique()[0] == "WRF_MPI-ESM1-2-HR_r3i1p1f1"
         or df_leap.simulation.unique()[0] == "WRF_MIROC6_r1i1p1f1"
     ):
-        df_leap = df_leap.loc[~((df_leap.time.dt.month == 2) & (df_leap.time.dt.day == 29))]
+        df_leap = df_leap.loc[
+            ~((df_leap.time.dt.month == 2) & (df_leap.time.dt.day == 29))
+        ]
 
     return df_leap
 
@@ -1023,7 +1025,7 @@ def _tmy_8760_size_check(df):
     (2) Size 8759, missing a single hour due to time change for local time. Fix adds the missing row (typically in Mar/Apr) by filling in from the previous hour.
     (3) Size 8784, 24 extra hours due to inclusion of a leap year February and specific models that retain leap days. Fix removes the additional rows.
     (4) Size 8783, 24 extra hours due to inclusion of a leap year February and a missing hour due to time change. Fix adds missing row and removes additional leap day rows.
-    (5) Size 8758, missing two single hours due to time change for local time. Fix adds the missing row by filling in from the previous hour. Run twice. 
+    (5) Size 8758, missing two single hours due to time change for local time. Fix adds the missing row by filling in from the previous hour. Run twice.
         e.g. March 2008 and April 2000 are both time change months. Source: https://en.wikipedia.org/wiki/History_of_time_in_the_United_States
 
     Note: This is a bug introduced by the time zone correction to local time and should be addressed in the future.
@@ -1062,9 +1064,9 @@ def _tmy_8760_size_check(df):
             df_to_check = _missing_hour_fix(df_to_check)
             return df_to_check
 
-        elif len(df_to_check) == 8758: # double missing hour
-            df_to_check = _missing_hour_fix(df_to_check) # march fix
-            df_to_check = _missing_hour_fix(df_to_check) # april fix
+        elif len(df_to_check) == 8758:  # double missing hour
+            df_to_check = _missing_hour_fix(df_to_check)  # march fix
+            df_to_check = _missing_hour_fix(df_to_check)  # april fix
             return df_to_check
 
         else:
