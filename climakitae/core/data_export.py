@@ -1043,10 +1043,10 @@ def _tmy_8760_size_check(df):
             return df_to_check
 
         elif len(df_to_check) == 8783:  # Leap day added AND missing hour
-            # add missing hour first
-            df_to_check = _missing_hour_fix(df_to_check)
             # remove leap day
             df_to_check = _leap_day_fix(df_to_check)
+            # add missing hour first
+            df_to_check = _missing_hour_fix(df_to_check)
             return df_to_check
 
         else:
