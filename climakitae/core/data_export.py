@@ -950,7 +950,7 @@ def _find_missing_val_month(df):
     }
 
     for m in range(1, 13, 1):
-        df_month = df_drop.loc[df_drop.time.dt.month == m]
+        df_month = df.loc[df.time.dt.month == m]
         if len(df_month) != hrs_per_month[m]:
             return m
 
