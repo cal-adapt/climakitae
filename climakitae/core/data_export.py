@@ -959,6 +959,7 @@ def _missing_hour_fix(df):
     """Addresses missing hour in TMY dataframe bug by adding the missing hour at the appropriate spot and duplicating the previous hour's values"""
 
     df_missing = df.copy(deep=True)
+    df_missing["time"] = pd.to_datetime(df["time"])  # set time to datetime
 
     # first identify where missing hour is
     miss_month = _find_missing_val_month(
