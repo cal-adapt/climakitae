@@ -924,11 +924,18 @@ def _leap_day_fix(df):
     df_leap = df.copy(deep=True)
     df_leap["time"] = pd.to_datetime(df["time"])  # set time to datetime
     df_leap = df_leap.dropna()  # drops extra rows
-    df_leap["time"] = np.where(
-        (df_leap.time.dt.month == 2) & (df_leap.time.dt.day == 29),
-        df_leap.time - pd.DateOffset(days=1),
-        df_leap.time,
-    )  # reset remaining feb 29 hours to feb 28
+
+    # 3 models have leap days, 1 model does not -- handling for both
+    # handling for TaiESM1 (no leap day natively)
+    if df_leap.simulation.unique()[0] == 'WRF_TaiESM1_r1i1p1f1':
+        df_leap["time"] = np.where(
+            (df_leap.time.dt.month == 2) & (df_leap.time.dt.day == 29),
+            df_leap.time - pd.DateOffset(days=1),
+            df_leap.time,
+        )  # reset remaining feb 29 hours to feb 28
+    # handling for 3 models with native leap days
+    elif df_leap.simulation.unique()[0] == 'WRF_EC-Earth3_r1i1p1f1' or df_leap.simulation.unique()[0] == 'WRF_MPI-ESM1-2-HR_r3i1p1f1' or df_leap.simulation.unique()[0] == 'WRF_MIROC6_r1i1p1f1':
+        df_leap = df_leap.drop(df_leap.loc[(df_leap.time.dt.month ==2) & (df_leap.time.dt.day == 29)].index)
 
     return df_leap
 
