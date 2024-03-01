@@ -927,11 +927,11 @@ def _leap_day_fix(df):
     
     return df_leap
 
-    def _find_missing_val_month(df):
+def _find_missing_val_month(df):
     hrs_per_month = {1: 744, 2: 672, 3: 744, 4: 720,
-                 5: 744, 6: 720, 7: 744, 8: 744,
-                 9: 720, 10: 744, 11: 720, 12: 744}
-    
+                    5: 744, 6: 720, 7: 744, 8: 744,
+                    9: 720, 10: 744, 11: 720, 12: 744}
+
     for m in range(1,13,1):
         df_month = df_drop.loc[df_drop.time.dt.month == m]
         if len(df_month) != hrs_per_month[m]:
