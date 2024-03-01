@@ -939,11 +939,7 @@ def _leap_day_fix(df):
         or df_leap.simulation.unique()[0] == "WRF_MPI-ESM1-2-HR_r3i1p1f1"
         or df_leap.simulation.unique()[0] == "WRF_MIROC6_r1i1p1f1"
     ):
-        df_leap = df_leap.drop(
-            df_leap.loc[
-                (df_leap.time.dt.month == 2) & (df_leap.time.dt.day == 29)
-            ].index
-        )
+        df_leap = df_leap.loc[~((df_leap.time.dt.month == 2) & (df_leap.time.dt.day == 29))]
 
     return df_leap
 
