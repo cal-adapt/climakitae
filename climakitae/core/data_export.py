@@ -946,7 +946,6 @@ def _leap_day_fix(df):
 
     return df_leap
 
-
 def _find_missing_val_month(df):
     hrs_per_month = {
         1: 744,
