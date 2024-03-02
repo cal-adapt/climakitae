@@ -925,6 +925,142 @@ def _epw_format_data(df):
     return df
 
 
+def _leap_day_fix(df):
+    """Addresses leap day inclusion in TMY dataframe bug by removing the extra nan rows and resetting time index to Feb 28"""
+    df_leap = df.copy(deep=True)
+    df_leap["time"] = pd.to_datetime(df["time"])  # set time to datetime
+    df_leap = df_leap.dropna()  # drops extra rows
+    
+    # 3 models have leap days, 1 model does not -- handling for both
+    # handling for TaiESM1 (no leap day natively)
+    if df_leap.simulation.unique()[0] == "WRF_TaiESM1_r1i1p1f1":
+        df_leap["time"] = np.where(
+            (df_leap.time.dt.month == 2) & (df_leap.time.dt.day == 29),
+            df_leap.time - pd.DateOffset(days=1),
+            df_leap.time,
+        )  # reset remaining feb 29 hours to feb 28
+
+    # handling for 3 models with native leap days
+    elif df_leap.simulation.unique()[0] != "WRF_TaiESM1_r1i1p1f1":
+        df_leap["time"] = pd.to_datetime(df["time"])  # set time to datetime
+        df_leap = df_leap.loc[~((df_leap.time.dt.month == 2) & (df_leap.time.dt.day == 29))]
+        
+    return df_leap
+
+def _find_missing_val_month(df):
+    hrs_per_month = {
+        1: 744,
+        2: 672,
+        3: 744,
+        4: 720,
+        5: 744,
+        6: 720,
+        7: 744,
+        8: 744,
+        9: 720,
+        10: 744,
+        11: 720,
+        12: 744,
+    }
+    for m in range(1, 13, 1):
+        df_month = df.loc[df.time.dt.month == m]
+        if len(df_month) != hrs_per_month[m]:
+            return m
+
+def _missing_hour_fix(df):
+    """Addresses missing hour in TMY dataframe bug by adding the missing hour at the appropriate spot and duplicating the previous hour's values"""
+    df_missing = df.copy(deep=True)
+    df_missing["time"] = pd.to_datetime(df["time"])  # set time to datetime
+    
+    # first identify where missing hour is
+    miss_month = _find_missing_val_month(df_missing)  # typically march or april when DST "goes forward an hour"
+    
+    # brute force way - as it is not a continuous time index (months are spliced together)
+    df_prior = df_missing.loc[df_missing.time.dt.month < miss_month]  # data prior to miss_month
+    df_post = df_missing.loc[df_missing.time.dt.month > miss_month]  # data after miss_month
+    
+    # fix missing hour
+    df_bad = df_missing.loc[df_missing.time.dt.month == miss_month]  # pulls out just the month with the missing hour
+    df_bad.index = pd.to_datetime(df_bad.time)
+    
+    # set up correct df of month with all hours
+    df_full = pd.DataFrame(pd.date_range(start=df_bad.index.min(), end=df_bad.index.max(), freq="H"))
+    missing_cols = [col for col in df_bad.columns]
+    df_full[missing_cols] = np.nan
+    df_full["time"] = df_full[0]
+    df_full.index = pd.to_datetime(df_full.time)
+    
+    df_month_fixed = pd.concat([df_bad, df_full])
+    df_month_fixed = df_month_fixed.drop_duplicates(subset=["time"], keep="first")
+    df_month_fixed = df_month_fixed.drop(columns=["time", 0])
+    df_month_fixed = df_month_fixed.sort_values(by="time", ascending=True)
+    df_month_fixed = df_month_fixed.reset_index()
+    df_month_fixed = df_month_fixed.fillna(method="ffill")  # fill from previous days values
+    
+    # concat dfs together
+    df_fixed = pd.concat([df_prior, df_month_fixed, df_post])
+    return df_fixed
+
+
+def _tmy_8760_size_check(df):
+    """Checks the size of the TMY dataframe for export to ensure that it is explicitly 8760 in size.
+    There are several scenarios where the input TMY dataframe would not be 8760 in size:
+    (1) Size 8761, additional single hour due to time change for local time. Fix removes the duplicate row (typically in Nov.)
+    (2) Size 8759, missing a single hour due to time change for local time. Fix adds the missing row (typically in Mar/Apr) by filling in from the previous hour.
+    (3) Size 8784, 24 extra hours due to inclusion of a leap year February and specific models that retain leap days. Fix removes the additional rows.
+    (4) Size 8783, 24 extra hours due to inclusion of a leap year February and a missing hour due to time change. Fix adds missing row and removes additional leap day rows.
+    (5) Size 8758, missing two single hours due to time change for local time. Fix adds the missing row by filling in from the previous hour. Run twice.
+        e.g. March 2008 and April 2000 are both time change months. Source: https://en.wikipedia.org/wiki/History_of_time_in_the_United_States
+
+    Note: This is a bug introduced by the time zone correction to local time and should be addressed in the future.
+
+    Parameters
+    ----------
+    df (pd.DataFrame): Dataframe of TMY to export
+
+    Returns
+    -------
+    df (pd.Dataframe): Dataframe of TMY to export, explicitly 8760 in size
+
+    """
+    
+    # first drop any duplicate time rows -- some df with 8760 are 8759 with duplicate rows, i.e., not a true 8760
+    # this should handle cases of 8761 by reducing to 8760 or 8759
+    df_to_check = df.copy(deep=True)
+    df_to_check = df_to_check.drop_duplicates(subset=["time"], keep="first")
+
+    # fix cases
+    if len(df_to_check) == 8760:
+        return df_to_check
+    elif len(df_to_check) != 8760:
+        if len(df_to_check) == 8759:  # Missing hour, add missing row
+            df_to_check = _missing_hour_fix(df_to_check)
+            return df_to_check
+
+        elif len(df_to_check) == 8784:  # Leap day added, remove Feb 29
+            df_to_check = _leap_day_fix(df_to_check)
+            return df_to_check
+
+        elif len(df_to_check) == 8783:  # Leap day added AND missing hour
+            # remove leap day
+            df_to_check = _leap_day_fix(df_to_check)
+            # add missing hour first
+            df_to_check = _missing_hour_fix(df_to_check)
+            return df_to_check
+
+        elif len(df_to_check) == 8758: # double missing hour
+            df_to_check = _missing_hour_fix(df_to_check) # march fix
+            df_to_check = _missing_hour_fix(df_to_check) # april fix
+            return df_to_check
+
+        else:
+            print(
+                "Error: The size of the input dataframe ({}) does not comform to standard 8760 size. Please confirm.".format(
+                    len(df)
+                )
+            )
+            return None
+
 def write_tmy_file(
     filename_to_export,
     df,
@@ -962,6 +1098,9 @@ def write_tmy_file(
         raise ValueError(
             "The function requires a pandas DataFrame object as the data input"
         )
+
+    # size check on TMY dataframe
+    df = _tmy_8760_size_check(df)
 
     # custom location input handling
     if type(station_code) == str:  # custom code passed
@@ -1007,8 +1146,8 @@ def write_tmy_file(
             dfAsString = df.to_csv(sep=",", header=False, index=False)
             f.write(dfAsString)  # writes data in TMY format
         print(
-            "TMY data exported to .tmy format with filename {}.tmy".format(
-                filename_to_export
+            "TMY data exported to .tmy format with filename {}.tmy, with size {}".format(
+                filename_to_export, len(df)
             )
         )
 
@@ -1031,8 +1170,8 @@ def write_tmy_file(
             df_string = _epw_format_data(df).to_csv(sep=",", header=False, index=False)
             f.write(df_string)  # writes data in EPW format
         print(
-            "TMY data exported to .epw format with filename {}.epw".format(
-                filename_to_export
+            "TMY data exported to .epw format with filename {}, with size {}.epw".format(
+                filename_to_export, len(df)
             )
         )
     else:
