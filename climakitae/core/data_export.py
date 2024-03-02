@@ -1041,10 +1041,10 @@ def _tmy_8760_size_check(df):
             df_to_check = _leap_day_fix(df_to_check)
             return df_to_check
 
-        elif len(df_to_check) == 8783:  # Leap day added AND missing hour
+        elif len(df_to_check) == 8783:  # Leap day added and missing hour
             # remove leap day
             df_to_check = _leap_day_fix(df_to_check)
-            # add missing hour first
+            # add missing hour
             df_to_check = _missing_hour_fix(df_to_check)
             return df_to_check
 
@@ -1052,6 +1052,13 @@ def _tmy_8760_size_check(df):
             df_to_check = _missing_hour_fix(df_to_check) # march fix
             df_to_check = _missing_hour_fix(df_to_check) # april fix
             return df_to_check
+
+        elif len(df_to_check) == 8782: # Leap day and double missing hour
+            # remove leap day
+            df_to_check = _leap_day_fix(df_to_check)
+            # add missing hours
+            df_to_check = _missing_hour_fix(df_to_check) # march fix
+            df_to_check = _missing_hour_fix(df_to_check) # april fix
 
         else:
             print(
