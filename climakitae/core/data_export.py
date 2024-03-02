@@ -764,15 +764,14 @@ def _tmy_header(
 
     # line 1 - site information
     # line 1: USAF, station name quote delimited, state, time zone, lat, lon, elev (m)
-    line_1 = "{0},'{1}',{2},{3},{4},{5},{6},{7},{8}\n".format(
+    line_1 = "{0},'{1}',{2},{3},{4},{5},{6},{7}\n".format(
         station_code,
         location_name,
         state,
         timezone,
         stn_lat,
         stn_lon,
-        elevation,
-        df['simulation'].unique()[0]
+        elevation
     )
 
     # line 2 - data field name and units, manually setting to ensure matches TMY3 labeling
@@ -817,9 +816,7 @@ def _epw_header(
     line_5 = "HOLIDAYS/DAYLIGHT SAVINGS,No,0,0,0\n"
 
     # line 6 - comments 1, going to include simulation + scenario information here
-    line_6 = "COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Scenario: {0}, Simulation: {1}\n".format(
-        df["scenario"].unique()[0], df["simulation"].unique()[0]
-    )
+    line_6 = "COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine"
 
     # line 7 - comments 2, including date range here from which TMY calculated
     line_7 = "COMMENTS 2, TMY data produced using 1990-2020 climatological period\n"
