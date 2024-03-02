@@ -1147,7 +1147,7 @@ def write_tmy_file(
             "TMY data exported to .tmy format with filename {}.tmy with size {}".format(
                 filename_to_export, len(df)
             )
-        )
+        ) # size check
 
     # energy plus weather format
     elif file_ext == "epw":
@@ -1164,6 +1164,6 @@ def write_tmy_file(
             "TMY data exported to .epw format with filename {}.epw with size {}".format(
                 filename_to_export, len(df)
             )
-        )
+        ) # size check
     else:
         print('Please pass either "tmy" or "epw" as a file format for export.')
