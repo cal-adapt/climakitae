@@ -763,8 +763,8 @@ def _tmy_header(
     """
 
     # line 1 - site information
-    # line 1: USAF, station name quote delimited, state, time zone, lat, lon, elev (m), simulation
-    line_1 = "{0},'{1}',{2},{3},{4},{5},{6},{7}\n".format(
+    # line 1: USAF, station name quote delimited, state, time zone, lat, lon, elev (m)
+    line_1 = "{0},'{1}',{2},{3},{4},{5},{6},{7},{8}\n".format(
         station_code,
         location_name,
         state,
@@ -772,7 +772,7 @@ def _tmy_header(
         stn_lat,
         stn_lon,
         elevation,
-        df["simulation"].values[0],
+        df['simulation'].unique()[0]
     )
 
     # line 2 - data field name and units, manually setting to ensure matches TMY3 labeling
@@ -818,7 +818,7 @@ def _epw_header(
 
     # line 6 - comments 1, going to include simulation + scenario information here
     line_6 = "COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Scenario: {0}, Simulation: {1}\n".format(
-        df["scenario"].values[0], df["simulation"].values[0]
+        df["scenario"].unique()[0], df["simulation"].unique()[0]
     )
 
     # line 7 - comments 2, including date range here from which TMY calculated
