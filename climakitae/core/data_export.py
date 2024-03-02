@@ -939,6 +939,7 @@ def _leap_day_fix(df):
         or df_leap.simulation.unique()[0] == "WRF_MPI-ESM1-2-HR_r3i1p1f1"
         or df_leap.simulation.unique()[0] == "WRF_MIROC6_r1i1p1f1"
     ):
+        df_leap["time"] = pd.to_datetime(df["time"])  # set time to datetime
         df_leap = df_leap.loc[
             ~((df_leap.time.dt.month == 2) & (df_leap.time.dt.day == 29))
         ]
@@ -1144,8 +1145,8 @@ def write_tmy_file(
             dfAsString = df.to_csv(sep=",", header=False, index=False)
             f.write(dfAsString)  # writes data in TMY format
         print(
-            "TMY data exported to .tmy format with filename {}.tmy".format(
-                filename_to_export
+            "TMY data exported to .tmy format with filename {}.tmy with size {}".format(
+                filename_to_export, len(df)
             )
         )
 
@@ -1161,8 +1162,8 @@ def write_tmy_file(
             df_string = _epw_format_data(df).to_csv(sep=",", header=False, index=False)
             f.write(df_string)  # writes data in EPW format
         print(
-            "TMY data exported to .epw format with filename {}.epw".format(
-                filename_to_export
+            "TMY data exported to .epw format with filename {}.epw with size {}".format(
+                filename_to_export, len(df)
             )
         )
     else:
