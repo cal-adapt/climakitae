@@ -764,7 +764,7 @@ def _tmy_header(
 
     # line 1 - site information
     # line 1: USAF, station name quote delimited, state, time zone, lat, lon, elev (m)
-    line_1 = "{0},'{1}',{2},{3},{4},{5},{6},{7},{8}\n".format(
+    line_1 = "{0},'{1}',{2},{3},{4},{5},{6},{7}\n".format(
         station_code,
         location_name,
         state,
