@@ -839,7 +839,7 @@ def _epw_format_data(df):
     """
 
     # set time col to datetime object for easy split
-    # df["time"] = pd.to_datetime(df["time"], format="%Y-%m-%d %H:%M")
+    df["time"] = pd.to_datetime(df["time"])
     df = df.assign(
         year=df["time"].dt.year,
         month=df["time"].dt.month,
