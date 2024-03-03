@@ -1059,6 +1059,7 @@ def _tmy_8760_size_check(df):
             # add missing hours
             df_to_check = _missing_hour_fix(df_to_check) # march fix
             df_to_check = _missing_hour_fix(df_to_check) # april fix
+            return df_to_check
 
         else:
             print(
