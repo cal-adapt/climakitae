@@ -772,7 +772,7 @@ def _tmy_header(
         stn_lat,
         stn_lon,
         elevation,
-        df['simulation'].values[0],
+        df["simulation"].values[0],
     )
 
     # line 2 - data field name and units, manually setting to ensure matches TMY3 labeling
@@ -818,7 +818,7 @@ def _epw_header(
 
     # line 6 - comments 1, going to include simulation + scenario information here
     line_6 = "COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Scenario: {0}, Simulation: {1}\n".format(
-        df['scenario'].values[0], df['simulation'].values[0]
+        df["scenario"].values[0], df["simulation"].values[0]
     )
 
     # line 7 - comments 2, including date range here from which TMY calculated
@@ -930,7 +930,7 @@ def _leap_day_fix(df):
     df_leap = df.copy(deep=True)
     df_leap["time"] = pd.to_datetime(df["time"])  # set time to datetime
     df_leap = df_leap.dropna()  # drops extra rows
-    
+
     # 3 models have leap days, 1 model does not -- handling for both
     # handling for TaiESM1 (no leap day natively)
     if df_leap.simulation.unique()[0] == "WRF_TaiESM1_r1i1p1f1":
@@ -943,9 +943,12 @@ def _leap_day_fix(df):
     # handling for 3 models with native leap days
     elif df_leap.simulation.unique()[0] != "WRF_TaiESM1_r1i1p1f1":
         df_leap["time"] = pd.to_datetime(df["time"])  # set time to datetime
-        df_leap = df_leap.loc[~((df_leap.time.dt.month == 2) & (df_leap.time.dt.day == 29))]
-        
+        df_leap = df_leap.loc[
+            ~((df_leap.time.dt.month == 2) & (df_leap.time.dt.day == 29))
+        ]
+
     return df_leap
+
 
 def _find_missing_val_month(df):
     hrs_per_month = {
@@ -967,36 +970,49 @@ def _find_missing_val_month(df):
         if len(df_month) != hrs_per_month[m]:
             return m
 
+
 def _missing_hour_fix(df):
     """Addresses missing hour in TMY dataframe bug by adding the missing hour at the appropriate spot and duplicating the previous hour's values"""
     df_missing = df.copy(deep=True)
     df_missing["time"] = pd.to_datetime(df["time"])  # set time to datetime
-    
+
     # first identify where missing hour is
-    miss_month = _find_missing_val_month(df_missing)  # typically march or april when DST "goes forward an hour"
-    
+    miss_month = _find_missing_val_month(
+        df_missing
+    )  # typically march or april when DST "goes forward an hour"
+
     # brute force way - as it is not a continuous time index (months are spliced together)
-    df_prior = df_missing.loc[df_missing.time.dt.month < miss_month]  # data prior to miss_month
-    df_post = df_missing.loc[df_missing.time.dt.month > miss_month]  # data after miss_month
-    
+    df_prior = df_missing.loc[
+        df_missing.time.dt.month < miss_month
+    ]  # data prior to miss_month
+    df_post = df_missing.loc[
+        df_missing.time.dt.month > miss_month
+    ]  # data after miss_month
+
     # fix missing hour
-    df_bad = df_missing.loc[df_missing.time.dt.month == miss_month]  # pulls out just the month with the missing hour
+    df_bad = df_missing.loc[
+        df_missing.time.dt.month == miss_month
+    ]  # pulls out just the month with the missing hour
     df_bad.index = pd.to_datetime(df_bad.time)
-    
+
     # set up correct df of month with all hours
-    df_full = pd.DataFrame(pd.date_range(start=df_bad.index.min(), end=df_bad.index.max(), freq="H"))
+    df_full = pd.DataFrame(
+        pd.date_range(start=df_bad.index.min(), end=df_bad.index.max(), freq="H")
+    )
     missing_cols = [col for col in df_bad.columns]
     df_full[missing_cols] = np.nan
     df_full["time"] = df_full[0]
     df_full.index = pd.to_datetime(df_full.time)
-    
+
     df_month_fixed = pd.concat([df_bad, df_full])
     df_month_fixed = df_month_fixed.drop_duplicates(subset=["time"], keep="first")
     df_month_fixed = df_month_fixed.drop(columns=["time", 0])
     df_month_fixed = df_month_fixed.sort_values(by="time", ascending=True)
     df_month_fixed = df_month_fixed.reset_index()
-    df_month_fixed = df_month_fixed.fillna(method="ffill")  # fill from previous days values
-    
+    df_month_fixed = df_month_fixed.fillna(
+        method="ffill"
+    )  # fill from previous days values
+
     # concat dfs together
     df_fixed = pd.concat([df_prior, df_month_fixed, df_post])
     return df_fixed
@@ -1023,7 +1039,7 @@ def _tmy_8760_size_check(df):
     df (pd.Dataframe): Dataframe of TMY to export, explicitly 8760 in size
 
     """
-    
+
     # first drop any duplicate time rows -- some df with 8760 are 8759 with duplicate rows, i.e., not a true 8760
     # this should handle cases of 8761 by reducing to 8760 or 8759
     df_to_check = df.copy(deep=True)
@@ -1048,17 +1064,17 @@ def _tmy_8760_size_check(df):
             df_to_check = _missing_hour_fix(df_to_check)
             return df_to_check
 
-        elif len(df_to_check) == 8758: # double missing hour
-            df_to_check = _missing_hour_fix(df_to_check) # march fix
-            df_to_check = _missing_hour_fix(df_to_check) # april fix
+        elif len(df_to_check) == 8758:  # double missing hour
+            df_to_check = _missing_hour_fix(df_to_check)  # march fix
+            df_to_check = _missing_hour_fix(df_to_check)  # april fix
             return df_to_check
 
-        elif len(df_to_check) == 8782: # Leap day and double missing hour
+        elif len(df_to_check) == 8782:  # Leap day and double missing hour
             # remove leap day
             df_to_check = _leap_day_fix(df_to_check)
             # add missing hours
-            df_to_check = _missing_hour_fix(df_to_check) # march fix
-            df_to_check = _missing_hour_fix(df_to_check) # april fix
+            df_to_check = _missing_hour_fix(df_to_check)  # march fix
+            df_to_check = _missing_hour_fix(df_to_check)  # april fix
             return df_to_check
 
         else:
@@ -1068,6 +1084,7 @@ def _tmy_8760_size_check(df):
                 )
             )
             return None
+
 
 def write_tmy_file(
     filename_to_export,
