@@ -50,7 +50,7 @@ def _estimate_file_size(data, format):
             data_size = data.to_dataset().nbytes
         else:  # data is xarray Dataset
             data_size = data.nbytes
-        buffer_size = 2 * 1024 * 1024  # 2 MB for miscellaneous metadata
+        buffer_size = 100 * 1024 * 1024  # 100 MB for miscellaneous metadata
         est_file_size = data_size + buffer_size
 
     elif format == "CSV":
@@ -206,10 +206,10 @@ def _export_to_netcdf(data, save_name):
 
     """
     est_file_size = _estimate_file_size(data, "NetCDF")
-    disk_space = shutil.disk_usage("./")[2] / bytes_per_gigabyte
+    disk_space = shutil.disk_usage(os.path.expanduser("~"))[2] / bytes_per_gigabyte
 
     if disk_space > est_file_size:
-        path = "./" + save_name
+        path = os.path.join(os.getcwd(), save_name)
 
         if os.path.exists(path):
             raise Exception(
@@ -547,7 +547,7 @@ def export(data, filename="dataexport", format="NetCDF"):
         raise Exception(
             "Cannot export object of type "
             + str(ftype).strip("<class >")
-            + ". Please pass an xarray dataset or data array."
+            + ". Please pass an Xarray Dataset or DataArray."
         )
 
     if type(filename) is not str:
@@ -594,7 +594,7 @@ def export(data, filename="dataexport", format="NetCDF"):
     if "netcdf" == req_format:
         _export_to_netcdf(data, save_name)
     elif "csv" == req_format:
-        output_path = "./" + save_name
+        output_path = os.path.join(os.getcwd(), save_name)
         if os.path.exists(output_path):
             raise Exception(
                 (
@@ -607,7 +607,7 @@ def export(data, filename="dataexport", format="NetCDF"):
         # raise error for not enough space
         # and warning for large file
         file_size_threshold = 5  # in GB
-        disk_space = shutil.disk_usage("./")[2] / bytes_per_gigabyte
+        disk_space = shutil.disk_usage(os.path.expanduser("~"))[2] / bytes_per_gigabyte
         data_size = data.nbytes / bytes_per_gigabyte
 
         if disk_space <= data_size:
