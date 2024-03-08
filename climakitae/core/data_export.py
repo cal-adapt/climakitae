@@ -232,13 +232,14 @@ def _export_to_netcdf(data, save_name):
 
     """
     print("Exporting specified data to NetCDF...")
+
+    est_file_size = _estimate_file_size(data, "NetCDF")
+    disk_space = shutil.disk_usage(os.path.expanduser("~"))[2] / bytes_per_gigabyte
+
     _warn_large_export(est_file_size)
     _update_attributes(data)
     _update_encoding(data)
     encoding = _fillvalue_compression_encoding(data)
-
-    est_file_size = _estimate_file_size(data, "NetCDF")
-    disk_space = shutil.disk_usage(os.path.expanduser("~"))[2] / bytes_per_gigabyte
 
     if disk_space > est_file_size:
         path = os.path.join(os.getcwd(), save_name)
