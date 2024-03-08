@@ -290,6 +290,16 @@ def _get_supported_metrics():
     return metrics
 
 
+def _get_downscaling_method(method_name):
+    """Converts the downscaling method from the method name to the string used for the selections object."""
+    if method_name == 'WRF':
+        return 'Dynamical'
+    elif method_name == 'LOCA':
+        return 'Statistical'
+    else:
+        raise ValueError('Error: Please enter either WRF or LOCA as the downscaling method.')
+
+
 def _complete_selections(selections, metric, years):
     """Completes the attributes for the `selections` objects from `create_lat_lon_select` and `create_cached_area_select`."""
     metrics = _get_supported_metrics()
@@ -304,25 +314,27 @@ def _complete_selections(selections, metric, years):
     return selections
 
 
-def _create_lat_lon_select(lat, lon, metric, years):
+def _create_lat_lon_select(lat, lon, metric, downscaling_method, years):
     """Creates a selection object for the given lat/lon parameters."""
     # Creates a selection object
     selections = Select()
     selections.area_subset = "lat/lon"
     selections.latitude = (lat - 0.05, lat + 0.05)
     selections.longitude = (lon - 0.05, lon + 0.05)
+    selections.downscaling_method = downscaling_method
 
     # Add attributes for the rest of the selections object
     selections = _complete_selections(selections, metric, years)
     return selections
 
 
-def _create_cached_area_select(area_subset, cached_area, metric, years):
+def _create_cached_area_select(area_subset, cached_area, metric, downscaling_method, years):
     """Creates a selection object for the given cached area parameters."""
     # Creates a selection object for area subsetting LOCA simulations
     selections = Select()
     selections.area_subset = area_subset
     selections.cached_area = [cached_area]
+    selections.downscaling_method = downscaling_method
 
     # Add attributes for the rest of the selections object
     selections = _complete_selections(selections, metric, years)
@@ -437,7 +449,7 @@ def _compute_selections_and_stats(selections, metric, years, months):
     return single_stats, multiple_stats, results
 
 
-def get_lat_lon_loca(lat, lon, metric, years, months=list(np.arange(1, 13))):
+def agg_lat_lon_sims(lat, lon, metric, years, downscaling_method='LOCA', months=list(np.arange(1, 13))):
     """
     Gets aggregated LOCA simulation data for a lat/lon coordinate for a given metric and timeframe (years, months).
     It combines all LOCA simulation data that is filtered by lat/lon, years, and specific months across SSP pathways
@@ -466,15 +478,16 @@ def get_lat_lon_loca(lat, lon, metric, years, months=list(np.arange(1, 13))):
     results: xr.DataArray
         Aggregated results of running the given metric on the lat/lon gridcell of interest. Results are also sorted in ascending order.
     """
+    # Maps downscaling_method to appropriate string for Selections
+    downscaling_method = _get_downscaling_method(downscaling_method)
     # Create selections object
-    selections = _create_lat_lon_select(lat, lon, metric, years)
+    selections = _create_lat_lon_select(lat, lon, metric, downscaling_method, years)
     # Runs calculations and derives statistics from LOCA data pulled via selections object
     return _compute_selections_and_stats(selections, metric, years, months)
 
 
-def get_area_subset_loca(
-    area_subset, cached_area, metric, years, months=list(np.arange(1, 13))
-):
+def agg_area_subset_sims(
+    area_subset, cached_area, metric, years, downscaling_method='LOCA', months=list(np.arange(1, 13))):
     """
     This function combines all available LOCA simulation data that is filtered on the `area_subset` (a string
     from existing keys in Boundaries.boundary_dict()) and on one of the areas of the values in that
@@ -506,8 +519,10 @@ def get_area_subset_loca(
     results: xr.DataArray
         Aggregated results of running the given metric on the lat/lon gridcell of interest. Results are also sorted in ascending order.
     """
+    # Maps downscaling_method to appropriate string for Selections
+    downscaling_method = _get_downscaling_method(downscaling_method)
     # Creates the selections object
-    selections = _create_cached_area_select(area_subset, cached_area, metric, years)
+    selections = _create_cached_area_select(area_subset, cached_area, metric, downscaling_method, years)
     # Runs calculations and derives statistics from LOCA data pulled via selections object
     return _compute_selections_and_stats(selections, metric, years, months)
 
