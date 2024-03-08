@@ -383,11 +383,6 @@ def _compute_results(selections, metric, years, months):
 
     # Retrieving closest grid-cell's data for lat/lon area subsetting
     if selections.area_subset == "lat/lon":
-        # data = data.sel(
-        #     lat=np.mean(selections.latitude),
-        #     lon=np.mean(selections.longitude),
-        #     method="nearest",
-        # )
         data = get_closest_gridcell(
             data, np.mean(selections.latitude), np.mean(selections.longitude)
         )
