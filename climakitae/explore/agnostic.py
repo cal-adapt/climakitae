@@ -297,9 +297,7 @@ def _get_downscaling_method(method_name):
     elif method_name == "LOCA":
         return "Statistical"
     else:
-        raise ValueError(
-            "Error: Please enter either WRF or LOCA as the downscaling method."
-        )
+        raise ValueError("Error: Please enter either 'WRF' or 'LOCA' as the downscaling method.")
 
 
 def _complete_selections(selections, metric, years):
