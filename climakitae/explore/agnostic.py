@@ -352,14 +352,14 @@ def _compute_results(selections, metric, years, months):
     # Aggregating all simulations across all SSP pathways
     all_data = []
     available_ssps = {
-        'Statistical': [
+        "Statistical": [
             "SSP 3-7.0 -- Business as Usual",
             "SSP 2-4.5 -- Middle of the Road",
             "SSP 5-8.5 -- Burn it All",
         ],
-        'Dynamical': [
+        "Dynamical": [
             "SSP 3-7.0 -- Business as Usual",
-        ]
+        ],
     }
     for ssp in available_ssps[selections.downscaling_method]:
         selections.scenario_ssp = [ssp]
@@ -388,7 +388,9 @@ def _compute_results(selections, metric, years, months):
         #     lon=np.mean(selections.longitude),
         #     method="nearest",
         # )
-        data = get_closest_gridcell(data, np.mean(selections.latitude), np.mean(selections.longitude))
+        data = get_closest_gridcell(
+            data, np.mean(selections.latitude), np.mean(selections.longitude)
+        )
 
     # Calculate the given metric on the data
     metrics = _get_supported_metrics()
@@ -603,28 +605,32 @@ def plot_sims(sim_vals, selected_val, time_slice, stats):
 
     plt.legend()
 
-    
+
 def plot_WRF(sim_vals, metric):
     """Scatter plot WRF models against their metric values."""
-    sims = [name.split(',')[0] for name in list(sim_vals.simulation.values)]
+    sims = [name.split(",")[0] for name in list(sim_vals.simulation.values)]
     sims = [name[4:] for name in sims]
     vals = sim_vals.values
-    
+
     fig, ax = plt.subplots()
     ax.bar(sims, vals)
-    ax.set_xlabel('WRF Model, Emission Scenario 3-7.0', labelpad=15, fontsize=12)
-    ax.set_ylabel(f'{metric} ({sim_vals.units})', labelpad=10, fontsize=12)
+    ax.set_xlabel("WRF Model, Emission Scenario 3-7.0", labelpad=15, fontsize=12)
+    ax.set_ylabel(f"{metric} ({sim_vals.units})", labelpad=10, fontsize=12)
     ax.set_ylim(bottom=60)
-    plt.title('Average Max Air Temperature of WRF models at {lat/lon}')
-    
+    plt.title("Average Max Air Temperature of WRF models at {lat/lon}")
+
     # Adjust the spacing of x-axis tick labels
     for i, tick in enumerate(ax.xaxis.get_major_ticks()):
         if i == 0 or i == 2:  # Set higher position for Label2 and Label3
-            tick.label1.set_y(tick.label1.get_position()[1])  # Adjust the value as needed for spacing
-            tick.label1.set_verticalalignment('top')
+            tick.label1.set_y(
+                tick.label1.get_position()[1]
+            )  # Adjust the value as needed for spacing
+            tick.label1.set_verticalalignment("top")
         elif i == 1 or i == 3:  # Set lower position for Label4 and Label5
-            tick.label1.set_y(tick.label1.get_position()[1] - 0.06)  # Adjust the value as needed for spacing
-            tick.label1.set_verticalalignment('top')
+            tick.label1.set_y(
+                tick.label1.get_position()[1] - 0.06
+            )  # Adjust the value as needed for spacing
+            tick.label1.set_verticalalignment("top")
 
     plt.tight_layout()  # Automatically adjusts subplot parameters to prevent clipping of labels
     plt.show()
