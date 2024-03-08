@@ -17,7 +17,7 @@ from timezonefinder import TimezoneFinder
 from importlib.metadata import version as _version
 from botocore.exceptions import ClientError
 from climakitae.util.utils import read_csv_file
-from climakitae.core.paths import variable_descriptions_csv_path, stations_csv_path
+from climakitae.core.paths import variable_descriptions_csv_path, stations_csv_path, export_s3_bucket
 
 
 xr.set_options(keep_attrs=True)
@@ -147,6 +147,28 @@ def _update_encoding(data):
             _unencode_missing_value(data[data_var])
 
 
+def _fillvalue_compression_encoding(data):
+    """
+    Creates FillValue and Compression encoding for each variable for export to NetCDF.
+
+    Parameters
+    ----------
+    data : xarray.DataArray or xarray.Dataset
+
+    Returns
+    -------
+    encoding: dict
+    """
+    fill = dict(_FillValue=None)
+    filldict = {coord: fill for coord in data.coords}
+    comp = dict(zlib=True, complevel=6)
+    if isinstance(data, xr.core.dataarray.Dataset):
+        encoding = {var: comp for var in data.data_vars}
+    else:
+        encoding = {data.name: comp}
+    return encoding.update(filldict)
+
+
 def _create_presigned_url(bucket_name, object_name, expiration=60 * 60 * 24 * 7):
     """
     Generate a presigned URL to share an S3 object.
@@ -205,6 +227,12 @@ def _export_to_netcdf(data, save_name):
     None
 
     """
+    print("Exporting specified data to NetCDF...")
+    _warn_large_export(est_file_size)
+    _update_attributes(data)
+    _update_encoding(data)
+    encoding = _fillvalue_compression_encoding(data)
+
     est_file_size = _estimate_file_size(data, "NetCDF")
     disk_space = shutil.disk_usage(os.path.expanduser("~"))[2] / bytes_per_gigabyte
 
@@ -219,20 +247,7 @@ def _export_to_netcdf(data, save_name):
                     "or specify a new file name here."
                 )
             )
-
-        print("Alright, exporting specified data to NetCDF.")
-        _warn_large_export(est_file_size)
-        _update_attributes(data)
-        _update_encoding(data)
-        fill = dict(_FillValue=None)
-        filldict = {coord: fill for coord in data.coords}
-        comp = dict(zlib=True, complevel=6)
-        if isinstance(data, xr.core.dataarray.Dataset):
-            encoding = {var: comp for var in data.data_vars}
-        else:
-            encoding = {data.name: comp}
-        encoding.update(filldict)
-        data.to_netcdf(path, encoding=encoding)
+        data.to_netcdf(path, engine="h5netcdf", encoding=encoding)
         print(
             (
                 "Saved! You can find your file in the panel to the left"
@@ -244,16 +259,10 @@ def _export_to_netcdf(data, save_name):
         path = f"simplecache::{os.environ['SCRATCH_BUCKET']}/{save_name}"
 
         with fsspec.open(path, "wb") as fp:
-            print("Alright, exporting specified data to NetCDF.")
-            _warn_large_export(est_file_size)
-            _update_attributes(data)
-            _update_encoding(data)
-            comp = dict(_FillValue=None)
-            encoding = {coord: comp for coord in data.coords}
-            data.to_netcdf(fp, encoding=encoding)
+            data.to_netcdf(fp, engine="h5netcdf", encoding=encoding)
 
             download_url = _create_presigned_url(
-                bucket_name="cadcat-tmp", object_name=path.split("cadcat-tmp/")[-1]
+                bucket_name=export_s3_bucket, object_name=path.split(export_s3_bucket + "/")[-1]
             )
             print(
                 (
