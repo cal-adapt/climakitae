@@ -17,7 +17,11 @@ from timezonefinder import TimezoneFinder
 from importlib.metadata import version as _version
 from botocore.exceptions import ClientError
 from climakitae.util.utils import read_csv_file
-from climakitae.core.paths import variable_descriptions_csv_path, stations_csv_path, export_s3_bucket
+from climakitae.core.paths import (
+    variable_descriptions_csv_path,
+    stations_csv_path,
+    export_s3_bucket,
+)
 
 
 xr.set_options(keep_attrs=True)
@@ -262,7 +266,8 @@ def _export_to_netcdf(data, save_name):
             data.to_netcdf(fp, engine="h5netcdf", encoding=encoding)
 
             download_url = _create_presigned_url(
-                bucket_name=export_s3_bucket, object_name=path.split(export_s3_bucket + "/")[-1]
+                bucket_name=export_s3_bucket,
+                object_name=path.split(export_s3_bucket + "/")[-1],
             )
             print(
                 (
