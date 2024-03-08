@@ -224,8 +224,14 @@ def _export_to_netcdf(data, save_name):
         _warn_large_export(est_file_size)
         _update_attributes(data)
         _update_encoding(data)
-        comp = dict(_FillValue=None)
-        encoding = {coord: comp for coord in data.coords}
+        fill = dict(_FillValue=None)
+        filldict = {coord: fill for coord in data.coords}
+        comp = dict(zlib=True, complevel=6)
+        if isinstance(data, xr.core.dataarray.Dataset):
+            encoding = {var: comp for var in data.data_vars}
+        else:
+            encoding = {data.name: comp}
+        encoding.update(filldict)
         data.to_netcdf(path, encoding=encoding)
         print(
             (
