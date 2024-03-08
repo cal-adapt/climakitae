@@ -169,7 +169,7 @@ def _fillvalue_compression_encoding(data):
     if isinstance(data, xr.core.dataarray.Dataset):
         encoding = {var: comp for var in data.data_vars}
     else:
-        encoding = {data.name: comp}
+        encoding = {"__xarray_dataarray_variable__": comp}
     return encoding.update(filldict)
 
 
