@@ -264,7 +264,7 @@ def create_conversion_function(lookup_tables):
 
 ##### TASK 2 #####
 def _get_supported_metrics():
-    """Retrieves the supported metrics for the LOCA simulation finder tool."""
+    """Retrieves the supported metrics for the Simulation Finder tool."""
     metrics = {
         "Average Max Air Temperature": {
             "var": "Maximum air temperature at 2m",
@@ -333,7 +333,7 @@ def _create_cached_area_select(
     area_subset, cached_area, metric, downscaling_method, years
 ):
     """Creates a selection object for the given cached area parameters."""
-    # Creates a selection object for area subsetting LOCA simulations
+    # Creates a selection object for area subsetting simulations
     selections = Select()
     selections.area_subset = area_subset
     selections.cached_area = [cached_area]
@@ -462,8 +462,8 @@ def agg_lat_lon_sims(
     lat, lon, metric, years, downscaling_method="LOCA", months=list(np.arange(1, 13))
 ):
     """
-    Gets aggregated LOCA simulation data for a lat/lon coordinate for a given metric and timeframe (years, months).
-    It combines all LOCA simulation data that is filtered by lat/lon, years, and specific months across SSP pathways
+    Gets aggregated WRF or LOCA simulation data for a lat/lon coordinate for a given metric and timeframe (years, months).
+    It combines all selected simulation data that is filtered by lat/lon, years, and specific months across SSP pathways
     and runs the passed in metric on all of the data. The results are then returned in ascending order,
     along with dictionaries mapping specific statistic names to the simulation objects themselves.
 
@@ -474,9 +474,9 @@ def agg_lat_lon_sims(
     lon: float
         Longitude for specific location of interest.
     metric: str
-        The metric to aggregate the LOCA simulations by.
+        The metric to aggregate the simulations by.
     years: tuple
-        The lower and upper year bounds (inclusive) to extract LOCA simulation data by.
+        The lower and upper year bounds (inclusive) to subset simulation data by.
     months: list, optional
         Specific months of interest. The default is all months.
 
@@ -493,7 +493,7 @@ def agg_lat_lon_sims(
     downscaling_method = _get_downscaling_method(downscaling_method)
     # Create selections object
     selections = _create_lat_lon_select(lat, lon, metric, downscaling_method, years)
-    # Runs calculations and derives statistics from LOCA data pulled via selections object
+    # Runs calculations and derives statistics on simulation data pulled via selections object
     return _compute_selections_and_stats(selections, metric, years, months)
 
 
@@ -506,7 +506,7 @@ def agg_area_subset_sims(
     months=list(np.arange(1, 13)),
 ):
     """
-    This function combines all available LOCA simulation data that is filtered on the `area_subset` (a string
+    This function combines all available WRF or LOCA simulation data that is filtered on the `area_subset` (a string
     from existing keys in Boundaries.boundary_dict()) and on one of the areas of the values in that
     `area_subset` (`cached_area`). It then extracts this data across all SSP pathways for specific years/months,
     and runs the passed in metric on all of this data. The results are then returned in 3 values, the first
@@ -521,9 +521,9 @@ def agg_area_subset_sims(
     cached_area: str
         Describes the specific area of interest (i.e. "Southern California Edison")
     metric: str
-        The metric to aggregate the LOCA simulations by.
+        The metric to aggregate the simulations by.
     years: tuple
-        The lower and upper year bounds (inclusive) to extract LOCA simulation data by.
+        The lower and upper year bounds (inclusive) to extract simulation data by.
     months: list, optional
         Specific months of interest. The default is all months.
 
@@ -542,7 +542,7 @@ def agg_area_subset_sims(
     selections = _create_cached_area_select(
         area_subset, cached_area, metric, downscaling_method, years
     )
-    # Runs calculations and derives statistics from LOCA data pulled via selections object
+    # Runs calculations and derives statistics on simulation data pulled via selections object
     return _compute_selections_and_stats(selections, metric, years, months)
 
 
