@@ -161,7 +161,7 @@ def _fillvalue_compression_encoding(data):
     comp = dict(zlib=True, complevel=6)
     encoding = {var: comp for var in data.data_vars}
     print(encoding)
-    return encoding.update(filldict)
+    return filldict | encoding
 
 
 def _create_presigned_url(bucket_name, object_name, expiration=60 * 60 * 24 * 7):
