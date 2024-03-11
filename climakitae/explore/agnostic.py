@@ -538,6 +538,8 @@ def agg_area_subset_sims(
     """
     # Maps downscaling_method to appropriate string for Selections
     downscaling_method = _get_downscaling_method(downscaling_method)
+    # Make sure that the metric (variable) selected is valid for the given downscaling method
+    # allowed_vars = set(_ge t_variable_options_df(available_vars, _get_user_options(data_catalog, 'Dynamical', 'monthly', '3 km')[2], 'Dynamical', 'daily')['display_name'].values)
     # Creates the selections object
     selections = _create_cached_area_select(
         area_subset, cached_area, metric, downscaling_method, years
