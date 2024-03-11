@@ -614,7 +614,7 @@ def plot_WRF(sim_vals, metric):
     ax.set_xlabel("WRF Model, Emission Scenario 3-7.0", labelpad=15, fontsize=12)
     ax.set_ylabel(f"{metric} ({sim_vals.units})", labelpad=10, fontsize=12)
     ax.set_ylim(bottom=60)
-    plt.title("Average Max Air Temperature of WRF models at {lat/lon}")
+    plt.title("Average Max Air Temperature of WRF models at ({}, {})".format(round(sim_vals.lat.item(), 2), round(sim_vals.lon.item(), 2)))
 
     # Adjust the spacing of x-axis tick labels
     for i, tick in enumerate(ax.xaxis.get_major_ticks()):
