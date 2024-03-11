@@ -47,13 +47,7 @@ def _estimate_file_size(data, format):
 
     """
     if format == "NetCDF":
-        if isinstance(data, xr.core.dataarray.DataArray):
-            if not data.name:
-                # name it in order to call to_dataset on it
-                data.name = "data"
-            data_size = data.to_dataset().nbytes
-        else:  # data is xarray Dataset
-            data_size = data.nbytes
+        data_size = data.nbytes
         buffer_size = 100 * 1024 * 1024  # 100 MB for miscellaneous metadata
         est_file_size = data_size + buffer_size
 
@@ -92,7 +86,7 @@ def _update_attributes(data):
 
     Parameters
     ----------
-    data : xarray.DataArray or xarray.Dataset
+    data : xarray.Dataset
 
     Returns
     -------
@@ -109,9 +103,8 @@ def _update_attributes(data):
     if "time" in data.coords and "units" in data["time"].attrs:
         del data["time"].attrs["units"]
 
-    if isinstance(data, xr.core.dataarray.Dataset):
-        for data_var in data.data_vars:
-            data[data_var].attrs = _list_n_none_to_string(data[data_var].attrs)
+    for data_var in data.data_vars:
+        data[data_var].attrs = _list_n_none_to_string(data[data_var].attrs)
 
 
 def _unencode_missing_value(d):
@@ -131,7 +124,7 @@ def _update_encoding(data):
 
     Parameters
     ----------
-    data : xarray.DataArray or xarray.Dataset
+    data : xarray.Dataset
 
     Returns
     -------
@@ -146,9 +139,8 @@ def _update_encoding(data):
     for coord in data.coords:
         _unencode_missing_value(data[coord])
 
-    if isinstance(data, xr.core.dataarray.Dataset):
-        for data_var in data.data_vars:
-            _unencode_missing_value(data[data_var])
+    for data_var in data.data_vars:
+        _unencode_missing_value(data[data_var])
 
 
 def _fillvalue_compression_encoding(data):
@@ -157,7 +149,7 @@ def _fillvalue_compression_encoding(data):
 
     Parameters
     ----------
-    data : xarray.DataArray or xarray.Dataset
+    data : xarray.Dataset
 
     Returns
     -------
@@ -166,10 +158,7 @@ def _fillvalue_compression_encoding(data):
     fill = dict(_FillValue=None)
     filldict = {coord: fill for coord in data.coords}
     comp = dict(zlib=True, complevel=6)
-    if isinstance(data, xr.core.dataarray.Dataset):
-        encoding = {var: comp for var in data.data_vars}
-    else:
-        encoding = {"__xarray_dataarray_variable__": comp}
+    encoding = {var: comp for var in data.data_vars}
     return encoding.update(filldict)
 
 
@@ -232,6 +221,13 @@ def _export_to_netcdf(data, save_name):
 
     """
     print("Exporting specified data to NetCDF...")
+
+    # Convert xr.DataArray to xr.Dataset so that compression can be utilized
+    if isinstance(data, xr.core.dataarray.DataArray):
+        if not data.name:
+            # name it in order to call to_dataset on it
+            data.name = "data"
+        data = data.to_dataset()
 
     est_file_size = _estimate_file_size(data, "NetCDF")
     disk_space = shutil.disk_usage(os.path.expanduser("~"))[2] / bytes_per_gigabyte
