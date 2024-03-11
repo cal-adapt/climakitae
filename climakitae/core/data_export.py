@@ -223,19 +223,20 @@ def _export_to_netcdf(data, save_name):
     print("Exporting specified data to NetCDF...")
 
     # Convert xr.DataArray to xr.Dataset so that compression can be utilized
-    if isinstance(data, xr.core.dataarray.DataArray):
-        if not data.name:
+    _data = data
+    if isinstance(_data, xr.core.dataarray.DataArray):
+        if not _data.name:
             # name it in order to call to_dataset on it
-            data.name = "data"
-        data = data.to_dataset()
+            _data.name = "data"
+        _data.to_dataset()
 
-    est_file_size = _estimate_file_size(data, "NetCDF")
+    est_file_size = _estimate_file_size(_data, "NetCDF")
     disk_space = shutil.disk_usage(os.path.expanduser("~"))[2] / bytes_per_gigabyte
 
     _warn_large_export(est_file_size)
-    _update_attributes(data)
-    _update_encoding(data)
-    encoding = _fillvalue_compression_encoding(data)
+    _update_attributes(_data)
+    _update_encoding(_data)
+    encoding = _fillvalue_compression_encoding(_data)
 
     print(encoding)
 
@@ -250,7 +251,7 @@ def _export_to_netcdf(data, save_name):
                     "or specify a new file name here."
                 )
             )
-        data.to_netcdf(path, engine="h5netcdf", encoding=encoding)
+        _data.to_netcdf(path, engine="h5netcdf", encoding=encoding)
         print(
             (
                 "Saved! You can find your file in the panel to the left"
@@ -262,7 +263,7 @@ def _export_to_netcdf(data, save_name):
         path = f"simplecache::{os.environ['SCRATCH_BUCKET']}/{save_name}"
 
         with fsspec.open(path, "wb") as fp:
-            data.to_netcdf(fp, engine="h5netcdf", encoding=encoding)
+            _data.to_netcdf(fp, engine="h5netcdf", encoding=encoding)
 
             download_url = _create_presigned_url(
                 bucket_name=export_s3_bucket,
