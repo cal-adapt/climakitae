@@ -351,6 +351,8 @@ def _compute_results(selections, metric, years, months):
     """
     # Aggregating all simulations across all SSP pathways
     all_data = []
+
+    # V0.1: Only allow specific SSPs for different 3km applications.
     available_ssps = {
         "Statistical": [
             "SSP 3-7.0 -- Business as Usual",
