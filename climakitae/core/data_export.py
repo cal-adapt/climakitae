@@ -228,7 +228,9 @@ def _export_to_netcdf(data, save_name):
         if not _data.name:
             # name it in order to call to_dataset on it
             _data.name = "data"
-        _data.to_dataset()
+        _data = _data.to_dataset()
+
+    print(type(_data))
 
     est_file_size = _estimate_file_size(_data, "NetCDF")
     disk_space = shutil.disk_usage(os.path.expanduser("~"))[2] / bytes_per_gigabyte
