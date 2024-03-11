@@ -237,6 +237,8 @@ def _export_to_netcdf(data, save_name):
     _update_encoding(data)
     encoding = _fillvalue_compression_encoding(data)
 
+    print(encoding)
+
     if disk_space > est_file_size:
         path = os.path.join(os.getcwd(), save_name)
 
