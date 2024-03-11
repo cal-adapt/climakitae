@@ -157,10 +157,8 @@ def _fillvalue_compression_encoding(data):
     """
     fill = dict(_FillValue=None)
     filldict = {coord: fill for coord in data.coords}
-    print(filldict)
     comp = dict(zlib=True, complevel=6)
     encoding = {var: comp for var in data.data_vars}
-    print(encoding)
     return filldict | encoding
 
 
@@ -232,19 +230,13 @@ def _export_to_netcdf(data, save_name):
             _data.name = "data"
         _data = _data.to_dataset()
 
-    print(type(_data))
-    print(_data.data_vars)
-
     est_file_size = _estimate_file_size(_data, "NetCDF")
     disk_space = shutil.disk_usage(os.path.expanduser("~"))[2] / bytes_per_gigabyte
 
     _warn_large_export(est_file_size)
     _update_attributes(_data)
     _update_encoding(_data)
-    print(_data.data_vars)
     encoding = _fillvalue_compression_encoding(_data)
-
-    print(encoding)
 
     if disk_space > est_file_size:
         path = os.path.join(os.getcwd(), save_name)
