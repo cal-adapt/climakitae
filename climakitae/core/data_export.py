@@ -216,7 +216,7 @@ def _export_to_netcdf(data, save_name, mode):
         desired output file name, including the file extension
     mode : string
         localtion logic for storing export file.
-        
+
     Returns
     -------
     None
