@@ -265,6 +265,7 @@ def _export_to_netcdf(data, save_name, mode):
         file_location = mode
 
     if file_location == "local":
+        print("Saving file locally with compression...")
         path = os.path.join(os.getcwd(), save_name)
 
         if os.path.exists(path):
@@ -288,6 +289,7 @@ def _export_to_netcdf(data, save_name, mode):
         path = f"simplecache::{os.environ['SCRATCH_BUCKET']}/{save_name}"
 
         with fsspec.open(path, "wb") as fp:
+            print("Saving file to S3 scratch bucket without compression...")
             encoding = _fillvalue_encoding(_data)
             _data.to_netcdf(fp, engine="h5netcdf", encoding=encoding)
 
