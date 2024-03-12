@@ -143,9 +143,9 @@ def _update_encoding(data):
         _unencode_missing_value(data[data_var])
 
 
-def _fillvalue_compression_encoding(data):
+def _fillvalue_encoding(data):
     """
-    Creates FillValue and Compression encoding for each variable for export to NetCDF.
+    Creates FillValue encoding for each variable for export to NetCDF.
 
     Parameters
     ----------
@@ -157,9 +157,24 @@ def _fillvalue_compression_encoding(data):
     """
     fill = dict(_FillValue=None)
     filldict = {coord: fill for coord in data.coords}
+    return filldict
+
+
+def _compression_encoding(data):
+    """
+    Creates compression encoding for each variable for export to NetCDF.
+
+    Parameters
+    ----------
+    data : xarray.Dataset
+
+    Returns
+    -------
+    encoding: dict
+    """
     comp = dict(zlib=True, complevel=6)
-    encoding = {var: comp for var in data.data_vars}
-    return filldict | encoding
+    compdict = {var: comp for var in data.data_vars}
+    return compdict
 
 
 def _create_presigned_url(bucket_name, object_name, expiration=60 * 60 * 24 * 7):
@@ -238,8 +253,7 @@ def _export_to_netcdf(data, save_name, mode):
     _warn_large_export(est_file_size)
     _update_attributes(_data)
     _update_encoding(_data)
-    encoding = _fillvalue_compression_encoding(_data)
-
+    
     file_location = "local"
 
     if mode == "auto":
@@ -261,6 +275,7 @@ def _export_to_netcdf(data, save_name, mode):
                     "or specify a new file name here."
                 )
             )
+        encoding = _fillvalue_encoding(data) | _compression_encoding(data)
         _data.to_netcdf(path, engine="h5netcdf", encoding=encoding)
         print(
             (
@@ -273,6 +288,7 @@ def _export_to_netcdf(data, save_name, mode):
         path = f"simplecache::{os.environ['SCRATCH_BUCKET']}/{save_name}"
 
         with fsspec.open(path, "wb") as fp:
+            encoding = _fillvalue_encoding(data)
             _data.to_netcdf(fp, engine="h5netcdf", encoding=encoding)
 
             download_url = _create_presigned_url(
