@@ -31,7 +31,7 @@ bytes_per_gigabyte = 1024 * 1024 * 1024
 
 def _estimate_file_size(data, format):
     """
-    Estimate file size in gigabytes when exporting `data` in `format`.
+    Estimate uncompressed file size in gigabytes when exporting `data` in `format`.
 
     Parameters
     ----------
@@ -198,7 +198,7 @@ def _create_presigned_url(bucket_name, object_name, expiration=60 * 60 * 24 * 7)
     return url
 
 
-def _export_to_netcdf(data, save_name):
+def _export_to_netcdf(data, save_name, mode):
     """
     Export user-selected data to NetCDF format.
 
@@ -214,7 +214,9 @@ def _export_to_netcdf(data, save_name):
         data to export to NetCDF format
     save_name : string
         desired output file name, including the file extension
-
+    mode : string
+        localtion logic for storing export file.
+        
     Returns
     -------
     None
@@ -238,7 +240,17 @@ def _export_to_netcdf(data, save_name):
     _update_encoding(_data)
     encoding = _fillvalue_compression_encoding(_data)
 
-    if disk_space > est_file_size:
+    file_location = "local"
+
+    if mode == "auto":
+        if disk_space > est_file_size:
+            file_location = "local"
+        else:
+            file_location = "s3"
+    else:
+        file_location = mode
+
+    if file_location == "local":
         path = os.path.join(os.getcwd(), save_name)
 
         if os.path.exists(path):
@@ -545,7 +557,7 @@ def _export_to_csv(data, output_path):
     df.to_csv(output_path, compression="gzip")
 
 
-def export(data, filename="dataexport", format="NetCDF"):
+def export(data, filename="dataexport", format="NetCDF", mode="auto"):
     """Save data as a file in the current working directory.
 
     Parameters
@@ -557,6 +569,8 @@ def export(data, filename="dataexport", format="NetCDF"):
         of "my_filename.nc"). The default is "dataexport".
     format : str, optional
         File format ("NetCDF" or "CSV"). The default is "NetCDF".
+    mode : str, optional
+        Save location logic for NetCDF file ("auto", "local", "s3"). The default is "auto"
 
     """
     ftype = type(data)
@@ -610,7 +624,7 @@ def export(data, filename="dataexport", format="NetCDF"):
     # we will have different functions for each file type
     # to keep things clean-ish
     if "netcdf" == req_format:
-        _export_to_netcdf(data, save_name)
+        _export_to_netcdf(data, save_name, mode)
     elif "csv" == req_format:
         output_path = os.path.join(os.getcwd(), save_name)
         if os.path.exists(output_path):
