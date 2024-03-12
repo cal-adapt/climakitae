@@ -275,7 +275,7 @@ def _export_to_netcdf(data, save_name, mode):
                     "or specify a new file name here."
                 )
             )
-        encoding = _fillvalue_encoding(data) | _compression_encoding(data)
+        encoding = _fillvalue_encoding(_data) | _compression_encoding(_data)
         _data.to_netcdf(path, engine="h5netcdf", encoding=encoding)
         print(
             (
@@ -288,7 +288,7 @@ def _export_to_netcdf(data, save_name, mode):
         path = f"simplecache::{os.environ['SCRATCH_BUCKET']}/{save_name}"
 
         with fsspec.open(path, "wb") as fp:
-            encoding = _fillvalue_encoding(data)
+            encoding = _fillvalue_encoding(_data)
             _data.to_netcdf(fp, engine="h5netcdf", encoding=encoding)
 
             download_url = _create_presigned_url(
