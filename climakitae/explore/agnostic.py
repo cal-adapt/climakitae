@@ -643,13 +643,17 @@ def plot_WRF(sim_vals, metric):
 def plot_double_WRF(var1, var2):
     """Plots aggregations of WRF models on a scatterplot of two quantitative variables. Labels points with specific WRF model names."""
     # Make sure that the two variables are the same length and have the same simulation names
-    if (len(var1) != len(var2)) & (set(var1.simulation.values) != set(var2.simulation.values)):
-        raise IndexError('The two variables must have the same length of simulations and have the same simulation names.')
-    
-    var1 = var1.sortby('simulation')
-    var2 = var2.sortby('simulation')
-    fig, ax = plt.subplots(figsize=(7,5))
-    
+    if (len(var1) != len(var2)) & (
+        set(var1.simulation.values) != set(var2.simulation.values)
+    ):
+        raise IndexError(
+            "The two variables must have the same length of simulations and have the same simulation names."
+        )
+
+    var1 = var1.sortby("simulation")
+    var2 = var2.sortby("simulation")
+    fig, ax = plt.subplots(figsize=(7, 5))
+
     # Get sim names
     sims = [name.split(",")[0] for name in list(var1.simulation.values)]
     sims = [name[4:] for name in sims]
@@ -660,12 +664,18 @@ def plot_double_WRF(var1, var2):
     ax.set_title("WRF CA Metrics: CA Statewide Average", fontsize=12)
     ax.set_xlabel(f"{var1.name} ({var1.units})", labelpad=10, fontsize=12)
     ax.set_ylabel(f"{var2.name} ({var2.units})", labelpad=10, fontsize=12)
-    
+
     # Add point annotations
     for i, txt in enumerate(sims):
-        ax.annotate(txt, (var1[i], var2[i]), va='center', textcoords='offset points', xytext=(7,0))
-    ax.set_aspect(aspect='auto', adjustable='box')
-    
+        ax.annotate(
+            txt,
+            (var1[i], var2[i]),
+            va="center",
+            textcoords="offset points",
+            xytext=(7, 0),
+        )
+    ax.set_aspect(aspect="auto", adjustable="box")
+
     # Extra params
     ax.legend(loc="upper right", bbox_to_anchor=(1.45, 1))
     plt.show()
