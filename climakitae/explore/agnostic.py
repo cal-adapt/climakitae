@@ -8,7 +8,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import panel as pn
 from climakitae.core.data_interface import Select, DataInterface
-from climakitae.util.utils import read_csv_file
+from climakitae.util.utils import read_csv_file, get_closest_gridcell
 
 sns.set_style("whitegrid")
 
@@ -264,7 +264,7 @@ def create_conversion_function(lookup_tables):
 
 ##### TASK 2 #####
 def _get_supported_metrics():
-    """Retrieves the supported metrics for the LOCA simulation finder tool."""
+    """Retrieves the supported metrics for the Simulation Finder tool."""
     metrics = {
         "Average Max Air Temperature": {
             "var": "Maximum air temperature at 2m",
@@ -290,13 +290,24 @@ def _get_supported_metrics():
     return metrics
 
 
+def _get_downscaling_method(method_name):
+    """Converts the downscaling method from the method name to the string used for the selections object."""
+    if method_name == "WRF":
+        return "Dynamical"
+    elif method_name == "LOCA":
+        return "Statistical"
+    else:
+        raise ValueError(
+            "Error: Please enter either 'WRF' or 'LOCA' as the downscaling method."
+        )
+
+
 def _complete_selections(selections, metric, years):
     """Completes the attributes for the `selections` objects from `create_lat_lon_select` and `create_cached_area_select`."""
     metrics = _get_supported_metrics()
     selections.data_type = "Gridded"
     selections.variable = metrics[metric]["var"]
     selections.scenario_historical = ["Historical Climate"]
-    selections.downscaling_method = "Statistical"
     selections.timescale = "monthly"
     selections.resolution = "3 km"
     selections.units = metrics[metric]["units"]
@@ -304,25 +315,29 @@ def _complete_selections(selections, metric, years):
     return selections
 
 
-def _create_lat_lon_select(lat, lon, metric, years):
+def _create_lat_lon_select(lat, lon, metric, downscaling_method, years):
     """Creates a selection object for the given lat/lon parameters."""
     # Creates a selection object
     selections = Select()
     selections.area_subset = "lat/lon"
     selections.latitude = (lat - 0.05, lat + 0.05)
     selections.longitude = (lon - 0.05, lon + 0.05)
+    selections.downscaling_method = downscaling_method
 
     # Add attributes for the rest of the selections object
     selections = _complete_selections(selections, metric, years)
     return selections
 
 
-def _create_cached_area_select(area_subset, cached_area, metric, years):
+def _create_cached_area_select(
+    area_subset, cached_area, metric, downscaling_method, years
+):
     """Creates a selection object for the given cached area parameters."""
-    # Creates a selection object for area subsetting LOCA simulations
+    # Creates a selection object for area subsetting simulations
     selections = Select()
     selections.area_subset = area_subset
     selections.cached_area = [cached_area]
+    selections.downscaling_method = downscaling_method
 
     # Add attributes for the rest of the selections object
     selections = _complete_selections(selections, metric, years)
@@ -336,11 +351,19 @@ def _compute_results(selections, metric, years, months):
     """
     # Aggregating all simulations across all SSP pathways
     all_data = []
-    for ssp in [
-        "SSP 3-7.0 -- Business as Usual",
-        "SSP 2-4.5 -- Middle of the Road",
-        "SSP 5-8.5 -- Burn it All",
-    ]:
+
+    # V0.1: Only allow specific SSPs for different 3km applications.
+    available_ssps = {
+        "Statistical": [
+            "SSP 3-7.0 -- Business as Usual",
+            "SSP 2-4.5 -- Middle of the Road",
+            "SSP 5-8.5 -- Burn it All",
+        ],
+        "Dynamical": [
+            "SSP 3-7.0 -- Business as Usual",
+        ],
+    }
+    for ssp in available_ssps[selections.downscaling_method]:
         selections.scenario_ssp = [ssp]
         selections.time_slice = years  # Must re-instantiate `time_slice` with every `scenario_ssp` change because `time_slice` gets reset.
 
@@ -362,10 +385,8 @@ def _compute_results(selections, metric, years, months):
 
     # Retrieving closest grid-cell's data for lat/lon area subsetting
     if selections.area_subset == "lat/lon":
-        data = data.sel(
-            lat=np.mean(selections.latitude),
-            lon=np.mean(selections.longitude),
-            method="nearest",
+        data = get_closest_gridcell(
+            data, np.mean(selections.latitude), np.mean(selections.longitude)
         )
 
     # Calculate the given metric on the data
@@ -400,7 +421,7 @@ def _split_stats(sims, data):
 
     multiple_model_names = {
         "middle 10%": sims[
-            round(len(sims + 1) * 0.45) - 1 : round(len(sims + 1) * 0.55) - 1
+            round(len(sims) * 0.45) - 1 : round(len(sims) * 0.55) - 1
         ].simulation.values
     }
 
@@ -437,10 +458,12 @@ def _compute_selections_and_stats(selections, metric, years, months):
     return single_stats, multiple_stats, results
 
 
-def get_lat_lon_loca(lat, lon, metric, years, months=list(np.arange(1, 13))):
+def agg_lat_lon_sims(
+    lat, lon, metric, years, downscaling_method="LOCA", months=list(np.arange(1, 13))
+):
     """
-    Gets aggregated LOCA simulation data for a lat/lon coordinate for a given metric and timeframe (years, months).
-    It combines all LOCA simulation data that is filtered by lat/lon, years, and specific months across SSP pathways
+    Gets aggregated WRF or LOCA simulation data for a lat/lon coordinate for a given metric and timeframe (years, months).
+    It combines all selected simulation data that is filtered by lat/lon, years, and specific months across SSP pathways
     and runs the passed in metric on all of the data. The results are then returned in ascending order,
     along with dictionaries mapping specific statistic names to the simulation objects themselves.
 
@@ -451,9 +474,9 @@ def get_lat_lon_loca(lat, lon, metric, years, months=list(np.arange(1, 13))):
     lon: float
         Longitude for specific location of interest.
     metric: str
-        The metric to aggregate the LOCA simulations by.
+        The metric to aggregate the simulations by.
     years: tuple
-        The lower and upper year bounds (inclusive) to extract LOCA simulation data by.
+        The lower and upper year bounds (inclusive) to subset simulation data by.
     months: list, optional
         Specific months of interest. The default is all months.
 
@@ -466,17 +489,24 @@ def get_lat_lon_loca(lat, lon, metric, years, months=list(np.arange(1, 13))):
     results: xr.DataArray
         Aggregated results of running the given metric on the lat/lon gridcell of interest. Results are also sorted in ascending order.
     """
+    # Maps downscaling_method to appropriate string for Selections
+    downscaling_method = _get_downscaling_method(downscaling_method)
     # Create selections object
-    selections = _create_lat_lon_select(lat, lon, metric, years)
-    # Runs calculations and derives statistics from LOCA data pulled via selections object
+    selections = _create_lat_lon_select(lat, lon, metric, downscaling_method, years)
+    # Runs calculations and derives statistics on simulation data pulled via selections object
     return _compute_selections_and_stats(selections, metric, years, months)
 
 
-def get_area_subset_loca(
-    area_subset, cached_area, metric, years, months=list(np.arange(1, 13))
+def agg_area_subset_sims(
+    area_subset,
+    cached_area,
+    metric,
+    years,
+    downscaling_method="LOCA",
+    months=list(np.arange(1, 13)),
 ):
     """
-    This function combines all available LOCA simulation data that is filtered on the `area_subset` (a string
+    This function combines all available WRF or LOCA simulation data that is filtered on the `area_subset` (a string
     from existing keys in Boundaries.boundary_dict()) and on one of the areas of the values in that
     `area_subset` (`cached_area`). It then extracts this data across all SSP pathways for specific years/months,
     and runs the passed in metric on all of this data. The results are then returned in 3 values, the first
@@ -491,9 +521,9 @@ def get_area_subset_loca(
     cached_area: str
         Describes the specific area of interest (i.e. "Southern California Edison")
     metric: str
-        The metric to aggregate the LOCA simulations by.
+        The metric to aggregate the simulations by.
     years: tuple
-        The lower and upper year bounds (inclusive) to extract LOCA simulation data by.
+        The lower and upper year bounds (inclusive) to extract simulation data by.
     months: list, optional
         Specific months of interest. The default is all months.
 
@@ -506,9 +536,15 @@ def get_area_subset_loca(
     results: xr.DataArray
         Aggregated results of running the given metric on the lat/lon gridcell of interest. Results are also sorted in ascending order.
     """
+    # Maps downscaling_method to appropriate string for Selections
+    downscaling_method = _get_downscaling_method(downscaling_method)
+    # Make sure that the metric (variable) selected is valid for the given downscaling method
+    # allowed_vars = set(_ge t_variable_options_df(available_vars, _get_user_options(data_catalog, 'Dynamical', 'monthly', '3 km')[2], 'Dynamical', 'daily')['display_name'].values)
     # Creates the selections object
-    selections = _create_cached_area_select(area_subset, cached_area, metric, years)
-    # Runs calculations and derives statistics from LOCA data pulled via selections object
+    selections = _create_cached_area_select(
+        area_subset, cached_area, metric, downscaling_method, years
+    )
+    # Runs calculations and derives statistics on simulation data pulled via selections object
     return _compute_selections_and_stats(selections, metric, years, months)
 
 
@@ -567,3 +603,79 @@ def plot_sims(sim_vals, selected_val, time_slice, stats):
         )
 
     plt.legend()
+
+
+def plot_WRF(sim_vals, metric):
+    """Scatter plot WRF models against their metric values."""
+    sims = [name.split(",")[0] for name in list(sim_vals.simulation.values)]
+    sims = [name[4:] for name in sims]
+    vals = sim_vals.values
+
+    fig, ax = plt.subplots()
+    ax.bar(sims, vals)
+    ax.set_xlabel("WRF Model, Emission Scenario 3-7.0", labelpad=15, fontsize=12)
+    ax.set_ylabel(f"{metric} ({sim_vals.units})", labelpad=10, fontsize=12)
+
+    if sim_vals.location_subset == ["coordinate selection"]:
+        location = (round(sim_vals.lat.item(), 2), round(sim_vals.lon.item(), 2))
+    else:
+        location = sim_vals.location_subset[0]
+
+    plt.title("Average Max Air Temperature of WRF models at {}".format(location))
+
+    # Adjust the spacing of x-axis tick labels
+    for i, tick in enumerate(ax.xaxis.get_major_ticks()):
+        if i == 0 or i == 2:  # Set higher position for Label2 and Label3
+            tick.label1.set_y(
+                tick.label1.get_position()[1]
+            )  # Adjust the value as needed for spacing
+            tick.label1.set_verticalalignment("top")
+        elif i == 1 or i == 3:  # Set lower position for Label4 and Label5
+            tick.label1.set_y(
+                tick.label1.get_position()[1] - 0.06
+            )  # Adjust the value as needed for spacing
+            tick.label1.set_verticalalignment("top")
+
+    plt.tight_layout()  # Automatically adjusts subplot parameters to prevent clipping of labels
+    plt.show()
+
+
+def plot_double_WRF(var1, var2):
+    """Plots aggregations of WRF models on a scatterplot of two quantitative variables. Labels points with specific WRF model names."""
+    # Make sure that the two variables are the same length and have the same simulation names
+    if (len(var1) != len(var2)) & (
+        set(var1.simulation.values) != set(var2.simulation.values)
+    ):
+        raise IndexError(
+            "The two variables must have the same length of simulations and have the same simulation names."
+        )
+
+    var1 = var1.sortby("simulation")
+    var2 = var2.sortby("simulation")
+    fig, ax = plt.subplots(figsize=(7, 5))
+
+    # Get sim names
+    sims = [name.split(",")[0] for name in list(var1.simulation.values)]
+    sims = [name[4:] for name in sims]
+
+    # Plot points and add labels
+    for idx in range(len(var1.simulation)):
+        ax.scatter(var1[idx], var2[idx], label=sims[idx])
+    ax.set_title("WRF CA Metrics: CA Statewide Average", fontsize=12)
+    ax.set_xlabel(f"{var1.name} ({var1.units})", labelpad=10, fontsize=12)
+    ax.set_ylabel(f"{var2.name} ({var2.units})", labelpad=10, fontsize=12)
+
+    # Add point annotations
+    for i, txt in enumerate(sims):
+        ax.annotate(
+            txt,
+            (var1[i], var2[i]),
+            va="center",
+            textcoords="offset points",
+            xytext=(7, 0),
+        )
+    ax.set_aspect(aspect="auto", adjustable="box")
+
+    # Extra params
+    ax.legend(loc="upper right", bbox_to_anchor=(1.45, 1))
+    plt.show()
