@@ -638,3 +638,31 @@ def plot_WRF(sim_vals, metric):
 
     plt.tight_layout()  # Automatically adjusts subplot parameters to prevent clipping of labels
     plt.show()
+
+    
+def plot_double_WRF(combined_ds):
+    """Plots aggregations of WRF models on a scatterplot of two quantitative variables. Labels points with specific WRF model names."""
+    fig, ax = plt.subplots(figsize=(7,5))
+    
+    # Get sim names
+    sims = [name.split(",")[0] for name in list(combined_ds.simulation.values)]
+    sims = [name[4:] for name in sims]
+    
+    # Plot points and add labels
+    first_var, second_var = list(combined_ds.data_vars)
+    for idx in range(len(combined_ds.simulation)):
+        ax.scatter(combined_ds[first_var][idx], combined_ds[second_var][idx], label=sims[idx])
+    ax.set_title("WRF CA Metrics: CA Statewide Average", fontsize=12)
+    ax.set_xlabel(f"{first_var} ({combined_ds[first_var].units})", labelpad=10, fontsize=12)
+    ax.set_ylabel(f"{second_var} ({combined_ds[second_var].units})", labelpad=10, fontsize=12)
+    
+    # Add point annotations
+    for i, txt in enumerate(sims):
+        ax.annotate(txt, (combined_ds[first_var][i], combined_ds[second_var][i]), va='center', textcoords='offset points', xytext=(7,0))
+    ax.set_aspect(aspect='auto', adjustable='box')
+    
+    # Extra params
+    ax.legend(loc='lower right')
+    ax.set_xlim((72, 77))
+    ax.set_ylim((0.4, 1.4))
+    plt.show();
