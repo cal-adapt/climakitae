@@ -615,12 +615,12 @@ def plot_WRF(sim_vals, metric):
     ax.bar(sims, vals)
     ax.set_xlabel("WRF Model, Emission Scenario 3-7.0", labelpad=15, fontsize=12)
     ax.set_ylabel(f"{metric} ({sim_vals.units})", labelpad=10, fontsize=12)
-    
-    if sim_vals.location_subset == ['coordinate selection']:
+
+    if sim_vals.location_subset == ["coordinate selection"]:
         location = (round(sim_vals.lat.item(), 2), round(sim_vals.lon.item(), 2))
     else:
         location = sim_vals.location_subset[0]
-        
+
     plt.title("Average Max Air Temperature of WRF models at {}".format(location))
 
     # Adjust the spacing of x-axis tick labels
@@ -639,30 +639,42 @@ def plot_WRF(sim_vals, metric):
     plt.tight_layout()  # Automatically adjusts subplot parameters to prevent clipping of labels
     plt.show()
 
-    
+
 def plot_double_WRF(var1, var2):
     """Plots aggregations of WRF models on a scatterplot of two quantitative variables. Labels points with specific WRF model names."""
     # Combines the DataArrays together
     combined_ds = xr.Dataset({var1.name: var1, var2.name: var2})
-    
-    fig, ax = plt.subplots(figsize=(7,5))
-    
+
+    fig, ax = plt.subplots(figsize=(7, 5))
+
     # Get sim names
     sims = [name.split(",")[0] for name in list(combined_ds.simulation.values)]
     sims = [name[4:] for name in sims]
-    
+
     # Plot points and add labels
     for idx in range(len(combined_ds.simulation)):
-        ax.scatter(combined_ds[var1.name][idx], combined_ds[var2.name][idx], label=sims[idx])
+        ax.scatter(
+            combined_ds[var1.name][idx], combined_ds[var2.name][idx], label=sims[idx]
+        )
     ax.set_title("WRF CA Metrics: CA Statewide Average", fontsize=12)
-    ax.set_xlabel(f"{var1.name} ({combined_ds[var1.name].units})", labelpad=10, fontsize=12)
-    ax.set_ylabel(f"{var2.name} ({combined_ds[var2.name].units})", labelpad=10, fontsize=12)
-    
+    ax.set_xlabel(
+        f"{var1.name} ({combined_ds[var1.name].units})", labelpad=10, fontsize=12
+    )
+    ax.set_ylabel(
+        f"{var2.name} ({combined_ds[var2.name].units})", labelpad=10, fontsize=12
+    )
+
     # Add point annotations
     for i, txt in enumerate(sims):
-        ax.annotate(txt, (combined_ds[first_var][i], combined_ds[second_var][i]), va='center', textcoords='offset points', xytext=(7,0))
-    ax.set_aspect(aspect='auto', adjustable='box')
-    
+        ax.annotate(
+            txt,
+            (combined_ds[first_var][i], combined_ds[second_var][i]),
+            va="center",
+            textcoords="offset points",
+            xytext=(7, 0),
+        )
+    ax.set_aspect(aspect="auto", adjustable="box")
+
     # Extra params
-    ax.legend(loc='upper right', bbox_to_anchor=(1.45,1))
-    plt.show();
+    ax.legend(loc="upper right", bbox_to_anchor=(1.45, 1))
+    plt.show()
