@@ -615,12 +615,12 @@ def plot_WRF(sim_vals, metric):
     ax.bar(sims, vals)
     ax.set_xlabel("WRF Model, Emission Scenario 3-7.0", labelpad=15, fontsize=12)
     ax.set_ylabel(f"{metric} ({sim_vals.units})", labelpad=10, fontsize=12)
-    
-    if sim_vals.location_subset == ['coordinate selection']:
+
+    if sim_vals.location_subset == ["coordinate selection"]:
         location = (round(sim_vals.lat.item(), 2), round(sim_vals.lon.item(), 2))
     else:
         location = sim_vals.location_subset[0]
-        
+
     plt.title("Average Max Air Temperature of WRF models at {}".format(location))
 
     # Adjust the spacing of x-axis tick labels
@@ -639,7 +639,7 @@ def plot_WRF(sim_vals, metric):
     plt.tight_layout()  # Automatically adjusts subplot parameters to prevent clipping of labels
     plt.show()
 
-    
+
 def plot_double_WRF(var1, var2):
     """Plots aggregations of WRF models on a scatterplot of two quantitative variables. Labels points with specific WRF model names."""
     # Make sure that the two variables are the same length and have the same simulation names
@@ -653,7 +653,7 @@ def plot_double_WRF(var1, var2):
     # Get sim names
     sims = [name.split(",")[0] for name in list(var1.simulation.values)]
     sims = [name[4:] for name in sims]
-    
+
     # Plot points and add labels
     for idx in range(len(var1.simulation)):
         ax.scatter(var1[idx], var2[idx], label=sims[idx])
@@ -667,5 +667,5 @@ def plot_double_WRF(var1, var2):
     ax.set_aspect(aspect='auto', adjustable='box')
     
     # Extra params
-    ax.legend(loc='upper right', bbox_to_anchor=(1.45,1))
-    plt.show();
+    ax.legend(loc="upper right", bbox_to_anchor=(1.45, 1))
+    plt.show()
