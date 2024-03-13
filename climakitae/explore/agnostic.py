@@ -642,25 +642,28 @@ def plot_WRF(sim_vals, metric):
     
 def plot_double_WRF(var1, var2):
     """Plots aggregations of WRF models on a scatterplot of two quantitative variables. Labels points with specific WRF model names."""
-    # Combines the DataArrays together
-    combined_ds = xr.Dataset({var1.name: var1, var2.name: var2})
+    # Make sure that the two variables are the same length and have the same simulation names
+    if (len(var1) != len(var2)) & (set(var1.simulation.values) != set(var2.simulation.values)):
+        raise IndexError('The two variables must have the same length of simulations and have the same simulation names.')
     
+    var1 = var1.sortby('simulation')
+    var2 = var2.sortby('simulation')
     fig, ax = plt.subplots(figsize=(7,5))
     
     # Get sim names
-    sims = [name.split(",")[0] for name in list(combined_ds.simulation.values)]
+    sims = [name.split(",")[0] for name in list(var1.simulation.values)]
     sims = [name[4:] for name in sims]
     
     # Plot points and add labels
-    for idx in range(len(combined_ds.simulation)):
-        ax.scatter(combined_ds[var1.name][idx], combined_ds[var2.name][idx], label=sims[idx])
+    for idx in range(len(var1.simulation)):
+        ax.scatter(var1[idx], var2[idx], label=sims[idx])
     ax.set_title("WRF CA Metrics: CA Statewide Average", fontsize=12)
-    ax.set_xlabel(f"{var1.name} ({combined_ds[var1.name].units})", labelpad=10, fontsize=12)
-    ax.set_ylabel(f"{var2.name} ({combined_ds[var2.name].units})", labelpad=10, fontsize=12)
+    ax.set_xlabel(f"{var1.name} ({var1.units})", labelpad=10, fontsize=12)
+    ax.set_ylabel(f"{var2.name} ({var2.units})", labelpad=10, fontsize=12)
     
     # Add point annotations
     for i, txt in enumerate(sims):
-        ax.annotate(txt, (combined_ds[first_var][i], combined_ds[second_var][i]), va='center', textcoords='offset points', xytext=(7,0))
+        ax.annotate(txt, (var1[i], var2[i]), va='center', textcoords='offset points', xytext=(7,0))
     ax.set_aspect(aspect='auto', adjustable='box')
     
     # Extra params
