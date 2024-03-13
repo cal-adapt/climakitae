@@ -640,8 +640,11 @@ def plot_WRF(sim_vals, metric):
     plt.show()
 
     
-def plot_double_WRF(combined_ds):
+def plot_double_WRF(var1, var2):
     """Plots aggregations of WRF models on a scatterplot of two quantitative variables. Labels points with specific WRF model names."""
+    # Combines the DataArrays together
+    combined_ds = xr.Dataset({var1.name: var1, var2.name: var2})
+    
     fig, ax = plt.subplots(figsize=(7,5))
     
     # Get sim names
@@ -649,12 +652,11 @@ def plot_double_WRF(combined_ds):
     sims = [name[4:] for name in sims]
     
     # Plot points and add labels
-    first_var, second_var = list(combined_ds.data_vars)
     for idx in range(len(combined_ds.simulation)):
         ax.scatter(combined_ds[first_var][idx], combined_ds[second_var][idx], label=sims[idx])
     ax.set_title("WRF CA Metrics: CA Statewide Average", fontsize=12)
-    ax.set_xlabel(f"{first_var} ({combined_ds[first_var].units})", labelpad=10, fontsize=12)
-    ax.set_ylabel(f"{second_var} ({combined_ds[second_var].units})", labelpad=10, fontsize=12)
+    ax.set_xlabel(f"{var1.name} ({combined_ds[var1.name].units})", labelpad=10, fontsize=12)
+    ax.set_ylabel(f"{var2.name} ({combined_ds[var2.name].units})", labelpad=10, fontsize=12)
     
     # Add point annotations
     for i, txt in enumerate(sims):
@@ -662,7 +664,5 @@ def plot_double_WRF(combined_ds):
     ax.set_aspect(aspect='auto', adjustable='box')
     
     # Extra params
-    ax.legend(loc='lower right')
-    ax.set_xlim((72, 77))
-    ax.set_ylim((0.4, 1.4))
+    ax.legend(loc='upper right', bbox_to_anchor=(1.45,1))
     plt.show();
