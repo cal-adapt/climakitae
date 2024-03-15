@@ -391,7 +391,7 @@ def _compute_results(selections, metric, years, months):
             selections.downscaling_method == "Statistical"
             or selections.downscaling_method == "Dynamical+Statistical"
         ):
-            data = data.rename({"x": "lon", "y": "lat"}).drop("spatial_ref")
+            data = data.rename({"lon": "x", "lat": "y"})
             data = data.rio.write_crs("EPSG:4326")
             data = get_closest_gridcell(
                 data, np.mean(selections.latitude), np.mean(selections.longitude)
