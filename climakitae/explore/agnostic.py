@@ -386,18 +386,12 @@ def _compute_results(selections, metric, years, months):
     # Retrieving closest grid-cell's data for lat/lon area subsetting
     if selections.area_subset == "lat/lon":
 
-        # Adding crs attributes to LOCA data
         if (
             selections.downscaling_method == "Statistical"
             or selections.downscaling_method == "Dynamical+Statistical"
         ):
-            data = data.rename({"lon": "x", "lat": "y"})
-            data = data.rio.write_crs("EPSG:4326")
-            data = get_closest_gridcell(
-                data, np.mean(selections.latitude), np.mean(selections.longitude)
-            )
-            data = data.rename({"x": "lon", "y": "lat"}).drop("spatial_ref")
-
+            # Manually finding nearest gridcell for LOCA data, or data with lat/lon coords already.
+            data = data.sel(lat=np.mean(selections.latitude), lon=np.mean(selections.longitude), method="nearest")
         else:
             data = get_closest_gridcell(
                 data, np.mean(selections.latitude), np.mean(selections.longitude)
