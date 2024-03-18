@@ -386,10 +386,7 @@ def _compute_results(selections, metric, years, months):
     # Retrieving closest grid-cell's data for lat/lon area subsetting
     if selections.area_subset == "lat/lon":
 
-        if (
-            selections.downscaling_method == "Statistical"
-            or selections.downscaling_method == "Dynamical+Statistical"
-        ):
+        if "Statistical" in selections.downscaling_method:
             # Manually finding nearest gridcell for LOCA data, or data with lat/lon coords already.
             data = data.sel(
                 lat=np.mean(selections.latitude),
