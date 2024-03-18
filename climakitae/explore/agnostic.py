@@ -385,9 +385,18 @@ def _compute_results(selections, metric, years, months):
 
     # Retrieving closest grid-cell's data for lat/lon area subsetting
     if selections.area_subset == "lat/lon":
-        data = get_closest_gridcell(
-            data, np.mean(selections.latitude), np.mean(selections.longitude)
-        )
+
+        if "Statistical" in selections.downscaling_method:
+            # Manually finding nearest gridcell for LOCA data, or data with lat/lon coords already.
+            data = data.sel(
+                lat=np.mean(selections.latitude),
+                lon=np.mean(selections.longitude),
+                method="nearest",
+            )
+        else:
+            data = get_closest_gridcell(
+                data, np.mean(selections.latitude), np.mean(selections.longitude)
+            )
 
     # Calculate the given metric on the data
     metrics = _get_supported_metrics()
