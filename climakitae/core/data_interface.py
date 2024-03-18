@@ -92,13 +92,6 @@ def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
     try:
         simulation_options = list(cat_subset.df["source_id"].unique())
 
-        # Remove troublesome simulations
-        simulation_options = [
-            sim
-            for sim in simulation_options
-            if sim not in ["HadGEM3-GC31-LL", "KACE-1-0-G"]
-        ]
-
         # Remove ensemble means
         if "ensmean" in simulation_options:
             simulation_options.remove("ensmean")
