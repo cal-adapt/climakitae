@@ -60,7 +60,7 @@ class WarmingLevels:
 
     def __init__(self, **params):
         self.wl_params = WarmingLevelChoose()
-        self.warming_levels = ["1.5", "2.0", "3.0", "4.0"]
+        self.warming_levels = ["1.2", "2.0"]
 
     def choose_data(self):
         return warming_levels_select(self.wl_params)
@@ -114,17 +114,17 @@ class WarmingLevels:
             # Assign warming slices to dask computation graph
             warm_slice = self.find_warming_slice(level, self.gwl_times)
             self.sliced_data[level] = warm_slice
-            self.gwl_snapshots[level] = warm_slice.reduce(np.nanmean, "time").compute()
+            # self.gwl_snapshots[level] = warm_slice.reduce(np.nanmean, "time").compute()
 
-        self.gwl_snapshots = xr.concat(self.gwl_snapshots.values(), dim="warming_level")
-        self.cmap = _get_cmap(self.wl_params)
-        self.wl_viz = WarmingLevelVisualize(
-            gwl_snapshots=self.gwl_snapshots,
-            wl_params=self.wl_params,
-            cmap=self.cmap,
-            warming_levels=self.warming_levels,
-        )
-        self.wl_viz.compute_stamps()
+        # self.gwl_snapshots = xr.concat(self.gwl_snapshots.values(), dim="warming_level")
+        # self.cmap = _get_cmap(self.wl_params)
+        # self.wl_viz = WarmingLevelVisualize(
+        #     gwl_snapshots=self.gwl_snapshots,
+        #     wl_params=self.wl_params,
+        #     cmap=self.cmap,
+        #     warming_levels=self.warming_levels,
+        # )
+        # self.wl_viz.compute_stamps()
 
     def visualize(self):
         if self.wl_viz:
@@ -334,7 +334,7 @@ class WarmingLevelVisualize(param.Parameterized):
     hist_data = read_csv_file(hist_file, index_col="Year")
 
     warmlevel = param.Selector(
-        default=1.5, objects=[1.5, 2, 3, 4], doc="Warming level in degrees Celcius."
+        default=1.5, objects=[1.2, 1.5, 2, 3, 4], doc="Warming level in degrees Celcius."
     )
     ssp = param.Selector(
         default="All",
