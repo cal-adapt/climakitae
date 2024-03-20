@@ -90,6 +90,8 @@ class WarmingLevels:
     def calculate(self):
         # manually reset to all SSPs, in case it was inadvertently changed by
         # temporarily have ['Dynamical','Statistical'] for downscaling_method
+
+        ## Calvin- Look through all scenarios and retrieve individual SSP data? Why does WRF need this to get 245 and 585 but not LOCA?
         self.wl_params.scenario_ssp = [
             "SSP 3-7.0 -- Business as Usual",
             "SSP 2-4.5 -- Middle of the Road",
