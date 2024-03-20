@@ -9,6 +9,9 @@ stations_csv_path = "data/hadisd_stations.csv"
 data_catalog_url = "https://cadcat.s3.amazonaws.com/cae-collection.json"
 boundary_catalog_url = "https://cadcat.s3.amazonaws.com/parquet/catalog.yaml"
 
+# S3 scratch bucket for exporting
+export_s3_bucket = "cadcat-tmp"
+
 # Colormap text files
 
 ae_orange = "data/cmaps/ae_orange.txt"
