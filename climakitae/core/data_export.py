@@ -575,7 +575,7 @@ def _export_to_csv(data, save_name):
         raise Exception(
             " Data too large to export to CSV as it will use too much memory."
             + " Must be smaller than: "
-            + file_size_threshold
+            + str(file_size_threshold)
             + "GB."
             + (
                 " Try smaller subsets of space, time, scenario, and/or"
