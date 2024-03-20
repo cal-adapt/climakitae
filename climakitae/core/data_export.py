@@ -256,13 +256,23 @@ def _export_to_netcdf(data, save_name, mode):
 
     file_location = "local"
 
-    if mode == "auto":
+    if mode == "local":
+        if disk_space <= est_file_size:
+            raise Exception (
+                "Data too large to save locally. Use the mode=s3 option."
+            )
+        file_location = "local"
+    elif mode == "s3":
+        file_location = "s3"
+    elif mode == "auto":
         if disk_space > est_file_size:
             file_location = "local"
         else:
             file_location = "s3"
     else:
-        file_location = mode
+        raise Exception (
+            "Specified mode needs to one of (local, s3, auto)"
+        )
 
     if file_location == "local":
         print("Saving file locally with compression...")
