@@ -532,7 +532,7 @@ def _dataset_to_dataframe(dataset):
     return df
 
 
-def _export_to_csv(data, output_path):
+def _export_to_csv(data, save_name):
     """
     Export user-selected data to CSV format.
 
@@ -543,15 +543,58 @@ def _export_to_csv(data, output_path):
     ----------
     data : xarray.DataArray or xarray.Dataset
         data to export to CSV format
-    output_path : string
-        desired output file path, including the file name and file extension
+    save_name : string
+        desired export file prefix
 
     Returns
     -------
     None
 
     """
-    print("Alright, exporting specified data to CSV.")
+    # Check file size and avail workspace disk space
+    # raise error for not enough space
+    # and warning for large file
+    file_size_threshold = 0.85  # in GB
+    disk_space = shutil.disk_usage(os.path.expanduser("~"))[2] / bytes_per_gigabyte
+    data_size = data.nbytes / bytes_per_gigabyte
+
+    if disk_space <= data_size:
+        raise Exception(
+            "Not enough disk space to export data! You need at least "
+            + str(round(data_size, 2))
+            + (
+                " GB free in the hub directory, which has 10 GB total space."
+                " Try smaller subsets of space, time, scenario, and/or"
+                " simulation; pick a coarser spatial or temporal scale;"
+                " or clean any exported datasets which you have already"
+                " downloaded or do not want."
+            )
+        )
+
+    if data_size > file_size_threshold:
+        raise Exception(
+            " Data too large to export to CSV as it will use too much memory."
+            + " Must be smaller than: "
+            + file_size_threshold
+            + "GB."
+            + (
+                " Try smaller subsets of space, time, scenario, and/or"
+                " simulation; pick a coarser spatial or temporal scale."
+            )
+        )
+
+    # Check if export file already exists and exit if so
+    output_path = os.path.join(os.getcwd(), save_name)
+    if os.path.exists(output_path):
+        raise Exception(
+            (
+                f"File {save_name} exists. "
+                "Please either delete that file from the work space "
+                "or specify a new file name here."
+            )
+        )
+
+    print("Exporting specified data to CSV...")
 
     ftype = type(data)
 
@@ -573,6 +616,12 @@ def _export_to_csv(data, output_path):
 
     _metadata_to_file(data, output_path)
     df.to_csv(output_path, compression="gzip")
+    print(
+        (
+            "Saved! You can find your file(s) in the panel to the left"
+            " and download to your local machine from there."
+        )
+    )
 
 
 def export(data, filename="dataexport", format="NetCDF", mode="auto"):
@@ -644,49 +693,7 @@ def export(data, filename="dataexport", format="NetCDF", mode="auto"):
     if "netcdf" == req_format:
         _export_to_netcdf(data, save_name, mode)
     elif "csv" == req_format:
-        output_path = os.path.join(os.getcwd(), save_name)
-        if os.path.exists(output_path):
-            raise Exception(
-                (
-                    f"File {save_name} exists. "
-                    "Please either delete that file from the work space "
-                    "or specify a new file name here."
-                )
-            )
-        # now check file size and avail workspace disk space
-        # raise error for not enough space
-        # and warning for large file
-        file_size_threshold = 5  # in GB
-        disk_space = shutil.disk_usage(os.path.expanduser("~"))[2] / bytes_per_gigabyte
-        data_size = data.nbytes / bytes_per_gigabyte
-
-        if disk_space <= data_size:
-            raise Exception(
-                "Not enough disk space to export data! You need at least "
-                + str(round(data_size, 2))
-                + (
-                    " GB free in the hub directory, which has 10 GB total space."
-                    " Try smaller subsets of space, time, scenario, and/or"
-                    " simulation; pick a coarser spatial or temporal scale;"
-                    " or clean any exported datasets which you have already"
-                    " downloaded or do not want."
-                )
-            )
-
-        if data_size > file_size_threshold:
-            print(
-                "WARNING: xarray data size is "
-                + str(round(data_size, 2))
-                + " GB. This might take a while!"
-            )
-
-        _export_to_csv(data, output_path)
-        print(
-            (
-                "Saved! You can find your file(s) in the panel to the left"
-                " and download to your local machine from there."
-            )
-        )
+        _export_to_csv(data, save_name)
 
 
 def _metadata_to_file(ds, output_name):
