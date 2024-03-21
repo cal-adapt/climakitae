@@ -97,12 +97,20 @@ class WarmingLevels:
             "SSP 2-4.5 -- Middle of the Road",
             "SSP 5-8.5 -- Burn it All",
         ]
+        # import pdb; pdb.set_trace()
         # Postage data and anomalies
+        import time
+        print("Retrieving data...")
+        t1 = time.time()
         self.catalog_data = self.wl_params.retrieve()
+        t2 = time.time()
+        print("Data retrieved. Taken {} seconds".format(round(t2 - t1, 2)))
+        print("Computing on data...")
+        t3 = time.time()
         self.catalog_data = self.catalog_data.stack(
             all_sims=["simulation", "scenario"]
         ).squeeze()
-        self.catalog_data = self.catalog_data.dropna(dim="all_sims", how="all")
+        # self.catalog_data = self.catalog_data.dropna(dim="all_sims", how="all")
         if self.wl_params.anom == "Yes":
             self.gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
         else:
@@ -112,12 +120,17 @@ class WarmingLevels:
 
         self.sliced_data = {}
         self.gwl_snapshots = {}
+        t4 = time.time()
+        print("Computed on data. Taken {} seconds".format(round(t4 - t3, 2)))
+        print("Generating WL slices...")
+        t5 = time.time()
         for level in self.warming_levels:
             # Assign warming slices to dask computation graph
             warm_slice = self.find_warming_slice(level, self.gwl_times)
             self.sliced_data[level] = warm_slice
             # self.gwl_snapshots[level] = warm_slice.reduce(np.nanmean, "time").compute()
-
+        t6 = time.time()
+        print("Slices generated. Taken {} seconds.".format(round(t6 - t5, 2)))
         # self.gwl_snapshots = xr.concat(self.gwl_snapshots.values(), dim="warming_level")
         # self.cmap = _get_cmap(self.wl_params)
         # self.wl_viz = WarmingLevelVisualize(
@@ -218,9 +231,10 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
 
         # TODO: This method will create incorrect data for daily data selection, as leap days create different time indices to be merged on. This will create weird time indices that can be visualized with the `out.plot.line` method in `warming_levels.ipynb`.
 
+        # import pdb; pdb.set_trace()
         if anom == "Yes":
             # Find the anomaly
-            anom_val = y.sel(time=slice("1981", "2010")).mean("time")
+            anom_val = y.sel(time=slice("1980", "2010")).mean("time")
             sliced = y.sel(time=slice(str(start_year), str(end_year))) - anom_val
         else:
             # Finding window slice of data
@@ -284,7 +298,7 @@ class WarmingLevelChoose(DataParametersWithPanes):
 
     anom = param.Selector(
         default="Yes",
-        objects=["Yes"],
+        objects=["Yes", "No"],
         doc="Return an anomaly \n(difference from historical reference period)?",
     )
 
@@ -307,17 +321,17 @@ class WarmingLevelChoose(DataParametersWithPanes):
         self.area_subset = "states"
         self.cached_area = ["CA"]
 
-    @param.depends("downscaling_method", watch=True)
-    def _anom_allowed(self):
-        """
-        Require 'anomaly' for non-bias-corrected data.
-        """
-        if self.downscaling_method == "Dynamical":
-            self.param["anom"].objects = ["Yes"]
-            self.anom = "Yes"
-        else:
-            self.param["anom"].objects = ["Yes", "No"]
-            self.anom = "Yes"
+    # @param.depends("downscaling_method", watch=True)
+    # def _anom_allowed(self):
+    #     """
+    #     Require 'anomaly' for non-bias-corrected data.
+    #     """
+    #     if self.downscaling_method == "Dynamical":
+    #         self.param["anom"].objects = ["Yes"]
+    #         self.anom = "Yes"
+    #     else:
+    #         self.param["anom"].objects = ["Yes", "No"]
+    #         self.anom = "Yes"
 
 
 class WarmingLevelVisualize(param.Parameterized):
