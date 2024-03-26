@@ -97,16 +97,7 @@ class WarmingLevels:
             "SSP 2-4.5 -- Middle of the Road",
             "SSP 5-8.5 -- Burn it All",
         ]
-        # import pdb; pdb.set_trace()
-        # Postage data and anomalies
-        import time
-        print("Retrieving data...")
-        t1 = time.time()
         self.catalog_data = self.wl_params.retrieve()
-        t2 = time.time()
-        print("Data retrieved. Taken {} seconds".format(round(t2 - t1, 2)))
-        print("Computing on data...")
-        t3 = time.time()
         self.catalog_data = self.catalog_data.stack(
             all_sims=["simulation", "scenario"]
         ).squeeze()
@@ -120,17 +111,11 @@ class WarmingLevels:
 
         self.sliced_data = {}
         self.gwl_snapshots = {}
-        t4 = time.time()
-        print("Computed on data. Taken {} seconds".format(round(t4 - t3, 2)))
-        print("Generating WL slices...")
-        t5 = time.time()
         for level in self.warming_levels:
             # Assign warming slices to dask computation graph
             warm_slice = self.find_warming_slice(level, self.gwl_times)
             self.sliced_data[level] = warm_slice
             # self.gwl_snapshots[level] = warm_slice.reduce(np.nanmean, "time").compute()
-        t6 = time.time()
-        print("Slices generated. Taken {} seconds.".format(round(t6 - t5, 2)))
         # self.gwl_snapshots = xr.concat(self.gwl_snapshots.values(), dim="warming_level")
         # self.cmap = _get_cmap(self.wl_params)
         # self.wl_viz = WarmingLevelVisualize(
