@@ -163,7 +163,7 @@ def main():
             smoothed.to_array(dim="scenario", name=model).dropna("time").to_pandas()
         )
         gwlevels = pd.DataFrame()
-        for level in [1.5, 2, 3, 4]:
+        for level in [1.2, 1.5, 2, 3, 4]:
             gwlevels[level] = get_gwl(oneModel.T, level)
 
         # Modifying and returning oneModel to be seen as a WL lookup table with timestamp as index, to get the average WL across all simulations.
@@ -225,7 +225,7 @@ def main():
         )
         gwlevels = pd.DataFrame()
         try:
-            for level in [1.5, 2, 3, 4]:
+            for level in [1.2, 1.5, 2, 3, 4]:
                 gwlevels[level] = get_gwl(one_model.T, level)
         except Exception as e:
             print(
@@ -287,7 +287,7 @@ def main():
     ### Generating WL CSVs for two reference periods: pre-industrial and secondary reference period overlapping with downscaled data availability:
     time_periods = [
         {"start_year": "18500101", "end_year": "19000101"},
-        {"start_year": "19810101", "end_year": "20101231"},
+        # {"start_year": "19810101", "end_year": "20101231"},
     ]
 
     for period in time_periods:
