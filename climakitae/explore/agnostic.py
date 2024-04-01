@@ -298,16 +298,16 @@ def create_conversion_function(lookup_tables):
 #     return metrics
 
 
-def _get_downscaling_method(method_name):
-    """Converts the downscaling method from the method name to the string used for the selections object."""
-    if method_name == "WRF":
-        return "Dynamical"
-    elif method_name == "LOCA":
-        return "Statistical"
-    else:
-        raise ValueError(
-            "Error: Please enter either 'WRF' or 'LOCA' as the downscaling method."
-        )
+# def _get_downscaling_method(method_name):
+#     """Converts the downscaling method from the method name to the string used for the selections object."""
+#     if method_name == "WRF":
+#         return "Dynamical"
+#     elif method_name == "LOCA":
+#         return "Statistical"
+#     else:
+#         raise ValueError(
+#             "Error: Please enter either 'WRF' or 'LOCA' as the downscaling method."
+#         )
 
 
 def _get_var_info(variable, downscaling_method):
@@ -322,7 +322,7 @@ def _get_var_info(variable, downscaling_method):
 
 def get_available_units(variable, downscaling_method):
     """Get other available units available for the given unit"""
-    downscaling_method = _get_downscaling_method(downscaling_method)
+    # downscaling_method = _get_downscaling_method(downscaling_method)
     # Select your desired units
     var_info_df = _get_var_info(variable, downscaling_method)
     available_units = get_unit_conversion_options()[var_info_df["unit"].item()]
@@ -499,7 +499,7 @@ def _compute_selections_and_stats(selections, variable, agg_func, years, months)
 def show_available_vars(downscaling_method):
     """Function that shows the available variables based on the inputted downscaling method, timescale, and resolution."""
     # Changes downscaling method
-    downscaling_method = _get_downscaling_method(downscaling_method)
+    # downscaling_method = _get_downscaling_method(downscaling_method)
     # Read in catalogs
     data_catalog = intake.open_esm_datastore(data_catalog_url)
     var_desc = read_csv_file(variable_descriptions_csv_path)
@@ -556,7 +556,7 @@ def agg_lat_lon_sims(
         Aggregated results of running the given metric on the lat/lon gridcell of interest. Results are also sorted in ascending order.
     """
     # Maps downscaling_method to appropriate string for Selections
-    downscaling_method = _get_downscaling_method(downscaling_method)
+    # downscaling_method = _get_downscaling_method(downscaling_method)
     _validate_inputs(variable, downscaling_method)
     # Create selections object
     selections = _create_lat_lon_select(lat, lon, variable, downscaling_method, years)
@@ -605,7 +605,6 @@ def agg_area_subset_sims(
         Aggregated results of running the given metric on the lat/lon gridcell of interest. Results are also sorted in ascending order.
     """
     # Maps downscaling_method to appropriate string for Selections
-    downscaling_method = _get_downscaling_method(downscaling_method)
     _validate_inputs(variable, downscaling_method)
     # Make sure that the metric (variable) selected is valid for the given downscaling method
     # allowed_vars = set(_get_variable_options_df(available_vars, _get_user_options(data_catalog, 'Dynamical', 'monthly', '3 km')[2], 'Dynamical', 'daily')['display_name'].values)
