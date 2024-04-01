@@ -16,6 +16,7 @@ from climakitae.core.data_interface import (
 )
 from climakitae.util.utils import read_csv_file, get_closest_gridcell
 from climakitae.core.paths import variable_descriptions_csv_path, data_catalog_url
+from climakitae.util.unit_conversions import get_unit_conversion_options
 
 sns.set_style("whitegrid")
 
@@ -307,17 +308,37 @@ def _get_downscaling_method(method_name):
         raise ValueError(
             "Error: Please enter either 'WRF' or 'LOCA' as the downscaling method."
         )
+    
+
+def _get_var_info(variable, downscaling_method):
+    """Gets the variable info for the specific variable name and downscaling method"""
+    var_desc_df = read_csv_file(variable_descriptions_csv_path)
+    return var_desc_df[(var_desc_df['display_name'] == variable) & (var_desc_df['timescale'].str.contains('monthly')) & (var_desc_df['downscaling_method'] == downscaling_method)]
+
+
+def get_available_units(variable, downscaling_method):
+    """Get other available units available for the given unit"""
+    downscaling_method = _get_downscaling_method(downscaling_method)
+    # Select your desired units
+    var_info_df = _get_var_info(variable, downscaling_method)
+    available_units = get_unit_conversion_options()[var_info_df['unit'].item()]
+    return available_units
 
 
 def _complete_selections(selections, metric, years):
     """Completes the attributes for the `selections` objects from `create_lat_lon_select` and `create_cached_area_select`."""
+    metric_info_df = _get_var_info(metric, selections.downscaling_method)
+
     metrics = _get_supported_metrics()
     selections.data_type = "Gridded"
     selections.variable = metrics[metric]["var"]
     selections.scenario_historical = ["Historical Climate"]
+
+    # If we want to allow users to select on criteria beyond just the metric and downscaling (i.e. also timescale and resolution), then the following line will be useful to present users
+    # print(variable_description_df[['display_name', 'downscaling_method', 'timescale']].to_string())
     selections.timescale = "monthly"
     selections.resolution = "3 km"
-    selections.units = metrics[metric]["units"]
+    selections.units = metric_info_df['unit'].item()
     selections.time_slice = years
     return selections
 
