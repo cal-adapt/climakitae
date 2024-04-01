@@ -382,7 +382,7 @@ def _compute_results(selections, metric, agg_func, years, months):
     # Aggregating all simulations across all SSP pathways
     all_data = []
 
-    # V0.1: Only allow specific SSPs for different 3km applications.
+    # V0.1: Only allow specific SSPs for different `3 km` applications.
     available_ssps = {
         "Statistical": [
             "SSP 3-7.0 -- Business as Usual",
@@ -506,7 +506,7 @@ def show_available_vars(downscaling_method):
 
     # Get available variable IDs
     available_vars = _get_user_options(
-        data_catalog, downscaling_method, timescale='monthly', resolution='3km' # Hard-coded to only accept `monthly` and `3km` options for now.
+        data_catalog, downscaling_method, timescale='monthly', resolution='3 km' # Hard-coded to only accept `monthly` and `3 km` options for now.
     )[2]
 
     # Get variable names in written form
