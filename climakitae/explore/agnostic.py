@@ -271,31 +271,31 @@ def create_conversion_function(lookup_tables):
 
 
 ##### TASK 2 #####
-def _get_supported_metrics():
-    """Retrieves the supported metrics for the Simulation Finder tool."""
-    metrics = {
-        "Average Max Air Temperature": {
-            "var": "Maximum air temperature at 2m",
-            "agg": np.mean,
-            "units": "degF",
-        },
-        "Average Min Air Temperature": {
-            "var": "Minimum air temperature at 2m",
-            "agg": np.mean,
-            "units": "degF",
-        },
-        "Average Max Relative Humidity": {
-            "var": "Maximum relative humidity",
-            "agg": np.mean,
-            "units": "percent",
-        },
-        "Average Annual Total Precipitation": {
-            "var": "Precipitation (total)",
-            "agg": np.mean,
-            "units": "inches",
-        },
-    }
-    return metrics
+# def _get_supported_metrics():
+#     """Retrieves the supported metrics for the Simulation Finder tool."""
+#     metrics = {
+#         "Average Max Air Temperature": {
+#             "var": "Maximum air temperature at 2m",
+#             "agg": np.mean,
+#             "units": "degF",
+#         },
+#         "Average Min Air Temperature": {
+#             "var": "Minimum air temperature at 2m",
+#             "agg": np.mean,
+#             "units": "degF",
+#         },
+#         "Average Max Relative Humidity": {
+#             "var": "Maximum relative humidity",
+#             "agg": np.mean,
+#             "units": "percent",
+#         },
+#         "Average Annual Total Precipitation": {
+#             "var": "Precipitation (total)",
+#             "agg": np.mean,
+#             "units": "inches",
+#         },
+#     }
+#     return metrics
 
 
 def _get_downscaling_method(method_name):
@@ -329,13 +329,11 @@ def get_available_units(variable, downscaling_method):
     return available_units
 
 
-def _complete_selections(selections, metric, years):
+def _complete_selections(selections, variable, years):
     """Completes the attributes for the `selections` objects from `create_lat_lon_select` and `create_cached_area_select`."""
-    metric_info_df = _get_var_info(metric, selections.downscaling_method)
-
-    metrics = _get_supported_metrics()
+    metric_info_df = _get_var_info(variable, selections.downscaling_method)
     selections.data_type = "Gridded"
-    selections.variable = metrics[metric]["var"]
+    selections.variable = metric_info_df['display_name']
     selections.scenario_historical = ["Historical Climate"]
 
     # If we want to allow users to select on criteria beyond just the metric and downscaling (i.e. also timescale and resolution), then the following line will be useful to present users
@@ -347,7 +345,7 @@ def _complete_selections(selections, metric, years):
     return selections
 
 
-def _create_lat_lon_select(lat, lon, metric, downscaling_method, years):
+def _create_lat_lon_select(lat, lon, variable, downscaling_method, years):
     """Creates a selection object for the given lat/lon parameters."""
     # Creates a selection object
     selections = Select()
@@ -357,7 +355,7 @@ def _create_lat_lon_select(lat, lon, metric, downscaling_method, years):
     selections.downscaling_method = downscaling_method
 
     # Add attributes for the rest of the selections object
-    selections = _complete_selections(selections, metric, years)
+    selections = _complete_selections(selections, variable, years)
     return selections
 
 
@@ -376,7 +374,7 @@ def _create_cached_area_select(
     return selections
 
 
-def _compute_results(selections, metric, years, months):
+def _compute_results(selections, metric, agg_func, years, months):
     """
     Retrieves selections object data from all SSP 2-4.5, 3-7.0, 5-8.5 pathways, aggregates the simulations together,
     and computes the passed in metric on all the simulations.
@@ -431,9 +429,8 @@ def _compute_results(selections, metric, years, months):
             )
 
     # Calculate the given metric on the data
-    metrics = _get_supported_metrics()
     calc_vals = (
-        data.groupby("simulation").map(metrics[metric]["agg"]).chunk(chunks="auto")
+        data.groupby("simulation").map(agg_func).chunk(chunks="auto")
     )
 
     # Sorting sims and getting metrics
@@ -485,12 +482,12 @@ def _split_stats(sims, data):
     )
 
 
-def _compute_selections_and_stats(selections, metric, years, months):
+def _compute_selections_and_stats(selections, variable, agg_func, years, months):
     """
     Aggregates the selections data across SSPs and computes statistics from the results
     """
     # Compute results on selections object
-    results, data = _compute_results(selections, metric, years, months)
+    results, data = _compute_results(selections, variable, agg_func, years, months)
 
     # Compute statistics to extract from results
     single_stats, multiple_stats = _split_stats(results, data)
@@ -499,7 +496,7 @@ def _compute_selections_and_stats(selections, metric, years, months):
     return single_stats, multiple_stats, results
 
 
-def show_available_vars(downscaling_method, timescale, resolution):
+def show_available_vars(downscaling_method):
     """Function that shows the available variables based on the inputted downscaling method, timescale, and resolution."""
     # Changes downscaling method
     downscaling_method = _get_downscaling_method(downscaling_method)
@@ -509,19 +506,26 @@ def show_available_vars(downscaling_method, timescale, resolution):
 
     # Get available variable IDs
     available_vars = _get_user_options(
-        data_catalog, downscaling_method, timescale, resolution
+        data_catalog, downscaling_method, timescale='monthly', resolution='3km' # Hard-coded to only accept `monthly` and `3km` options for now.
     )[2]
 
     # Get variable names in written form
     var_opts = _get_variable_options_df(
-        var_desc, available_vars, downscaling_method, timescale
+        var_desc, available_vars, downscaling_method, timescale='monthly'
     )["display_name"].to_list()
 
     return var_opts
 
 
+def _validate_inputs(variable, downscaling_method):
+    if variable not in set(show_available_vars(downscaling_method)):
+        raise ValueError(
+            "Error: Please enter an available variable for the given downscaling method."
+        )
+
+
 def agg_lat_lon_sims(
-    lat, lon, metric, years, downscaling_method="LOCA", months=list(range(1, 13))
+    lat, lon, downscaling_method, variable, agg_func, years, months=list(range(1, 13))
 ):
     """
     Gets aggregated WRF or LOCA simulation data for a lat/lon coordinate for a given metric and timeframe (years, months).
@@ -553,18 +557,20 @@ def agg_lat_lon_sims(
     """
     # Maps downscaling_method to appropriate string for Selections
     downscaling_method = _get_downscaling_method(downscaling_method)
+    _validate_inputs(variable, downscaling_method)
     # Create selections object
-    selections = _create_lat_lon_select(lat, lon, metric, downscaling_method, years)
+    selections = _create_lat_lon_select(lat, lon, variable, downscaling_method, years)
     # Runs calculations and derives statistics on simulation data pulled via selections object
-    return _compute_selections_and_stats(selections, metric, years, months)
+    return _compute_selections_and_stats(selections, agg_func, years, months)
 
 
 def agg_area_subset_sims(
     area_subset,
     cached_area,
-    metric,
+    downscaling_method,
+    variable,
+    agg_func, 
     years,
-    downscaling_method="LOCA",
     months=list(range(1, 13)),
 ):
     """
@@ -600,14 +606,15 @@ def agg_area_subset_sims(
     """
     # Maps downscaling_method to appropriate string for Selections
     downscaling_method = _get_downscaling_method(downscaling_method)
+    _validate_inputs(variable, downscaling_method)
     # Make sure that the metric (variable) selected is valid for the given downscaling method
-    # allowed_vars = set(_ge t_variable_options_df(available_vars, _get_user_options(data_catalog, 'Dynamical', 'monthly', '3 km')[2], 'Dynamical', 'daily')['display_name'].values)
+    # allowed_vars = set(_get_variable_options_df(available_vars, _get_user_options(data_catalog, 'Dynamical', 'monthly', '3 km')[2], 'Dynamical', 'daily')['display_name'].values)
     # Creates the selections object
     selections = _create_cached_area_select(
-        area_subset, cached_area, metric, downscaling_method, years
+        area_subset, cached_area, variable, downscaling_method, years
     )
     # Runs calculations and derives statistics on simulation data pulled via selections object
-    return _compute_selections_and_stats(selections, metric, years, months)
+    return _compute_selections_and_stats(selections, variable, agg_func, years, months)
 
 
 def plot_sims(sim_vals, selected_val, time_slice, stats):
