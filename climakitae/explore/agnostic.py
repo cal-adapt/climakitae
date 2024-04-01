@@ -476,6 +476,8 @@ def _compute_selections_and_stats(selections, metric, years, months):
 
 def show_available_vars(downscaling_method, timescale, resolution):
     """Function that shows the available variables based on the inputted downscaling method, timescale, and resolution."""
+    # Changes downscaling method
+    downscaling_method = _get_downscaling_method(downscaling_method)
     # Read in catalogs
     data_catalog = intake.open_esm_datastore(data_catalog_url)
     var_desc = read_csv_file(variable_descriptions_csv_path)
