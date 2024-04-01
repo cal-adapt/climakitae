@@ -7,8 +7,15 @@ import xarray as xr
 import seaborn as sns
 import matplotlib.pyplot as plt
 import panel as pn
-from climakitae.core.data_interface import Select, DataInterface
+import intake
+from climakitae.core.data_interface import (
+    Select,
+    DataInterface,
+    _get_variable_options_df,
+    _get_user_options,
+)
 from climakitae.util.utils import read_csv_file, get_closest_gridcell
+from climakitae.core.paths import variable_descriptions_csv_path, data_catalog_url
 
 sns.set_style("whitegrid")
 
@@ -467,8 +474,27 @@ def _compute_selections_and_stats(selections, metric, years, months):
     return single_stats, multiple_stats, results
 
 
+def show_available_vars(downscaling_method, timescale, resolution):
+    """Function that shows the available variables based on the inputted downscaling method, timescale, and resolution."""
+    # Read in catalogs
+    data_catalog = intake.open_esm_datastore(data_catalog_url)
+    var_desc = read_csv_file(variable_descriptions_csv_path)
+
+    # Get available variable IDs
+    available_vars = _get_user_options(
+        data_catalog, downscaling_method, timescale, resolution
+    )[2]
+
+    # Get variable names in written form
+    var_opts = _get_variable_options_df(
+        var_desc, available_vars, downscaling_method, timescale
+    )["display_name"].to_list()
+
+    return var_opts
+
+
 def agg_lat_lon_sims(
-    lat, lon, metric, years, downscaling_method="LOCA", months=list(np.arange(1, 13))
+    lat, lon, metric, years, downscaling_method="LOCA", months=list(range(1, 13))
 ):
     """
     Gets aggregated WRF or LOCA simulation data for a lat/lon coordinate for a given metric and timeframe (years, months).
@@ -512,7 +538,7 @@ def agg_area_subset_sims(
     metric,
     years,
     downscaling_method="LOCA",
-    months=list(np.arange(1, 13)),
+    months=list(range(1, 13)),
 ):
     """
     This function combines all available WRF or LOCA simulation data that is filtered on the `area_subset` (a string
