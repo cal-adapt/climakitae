@@ -333,7 +333,7 @@ def _complete_selections(selections, variable, years):
     """Completes the attributes for the `selections` objects from `create_lat_lon_select` and `create_cached_area_select`."""
     metric_info_df = _get_var_info(variable, selections.downscaling_method)
     selections.data_type = "Gridded"
-    selections.variable = metric_info_df['display_name']
+    selections.variable = metric_info_df['display_name'].item()
     selections.scenario_historical = ["Historical Climate"]
 
     # If we want to allow users to select on criteria beyond just the metric and downscaling (i.e. also timescale and resolution), then the following line will be useful to present users
