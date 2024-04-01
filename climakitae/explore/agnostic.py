@@ -333,7 +333,7 @@ def _complete_selections(selections, variable, years):
     """Completes the attributes for the `selections` objects from `create_lat_lon_select` and `create_cached_area_select`."""
     metric_info_df = _get_var_info(variable, selections.downscaling_method)
     selections.data_type = "Gridded"
-    selections.variable = metric_info_df['display_name'].item()
+    selections.variable = metric_info_df["display_name"].item()
     selections.scenario_historical = ["Historical Climate"]
 
     # If we want to allow users to select on criteria beyond just the metric and downscaling (i.e. also timescale and resolution), then the following line will be useful to present users
@@ -429,9 +429,7 @@ def _compute_results(selections, metric, agg_func, years, months):
             )
 
     # Calculate the given metric on the data
-    calc_vals = (
-        data.groupby("simulation").map(agg_func).chunk(chunks="auto")
-    )
+    calc_vals = data.groupby("simulation").map(agg_func).chunk(chunks="auto")
 
     # Sorting sims and getting metrics
     sorted_sims = compute(calc_vals.sortby(calc_vals))[
@@ -506,12 +504,15 @@ def show_available_vars(downscaling_method):
 
     # Get available variable IDs
     available_vars = _get_user_options(
-        data_catalog, downscaling_method, timescale='monthly', resolution='3 km' # Hard-coded to only accept `monthly` and `3 km` options for now.
+        data_catalog,
+        downscaling_method,
+        timescale="monthly",
+        resolution="3 km",  # Hard-coded to only accept `monthly` and `3 km` options for now.
     )[2]
 
     # Get variable names in written form
     var_opts = _get_variable_options_df(
-        var_desc, available_vars, downscaling_method, timescale='monthly'
+        var_desc, available_vars, downscaling_method, timescale="monthly"
     )["display_name"].to_list()
 
     return var_opts
@@ -561,7 +562,7 @@ def agg_lat_lon_sims(
     # Create selections object
     selections = _create_lat_lon_select(lat, lon, variable, downscaling_method, years)
     # Runs calculations and derives statistics on simulation data pulled via selections object
-    return _compute_selections_and_stats(selections, agg_func, years, months)
+    return _compute_selections_and_stats(selections, variable, agg_func, years, months)
 
 
 def agg_area_subset_sims(
@@ -569,7 +570,7 @@ def agg_area_subset_sims(
     cached_area,
     downscaling_method,
     variable,
-    agg_func, 
+    agg_func,
     years,
     months=list(range(1, 13)),
 ):
