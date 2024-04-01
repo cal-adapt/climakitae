@@ -348,7 +348,7 @@ def _create_lat_lon_select(lat, lon, variable, downscaling_method, units, years)
 
 
 def _create_cached_area_select(
-    area_subset, cached_area, metric, downscaling_method, years
+    area_subset, cached_area, metric, downscaling_method, units, years
 ):
     """Creates a selection object for the given cached area parameters."""
     # Creates a selection object for area subsetting simulations
@@ -358,11 +358,11 @@ def _create_cached_area_select(
     selections.downscaling_method = downscaling_method
 
     # Add attributes for the rest of the selections object
-    selections = _complete_selections(selections, metric, years)
+    selections = _complete_selections(selections, metric, units, years)
     return selections
 
 
-def _compute_results(selections, metric, agg_func, years, months):
+def _compute_results(selections, agg_func, years, months):
     """
     Retrieves selections object data from all SSP 2-4.5, 3-7.0, 5-8.5 pathways, aggregates the simulations together,
     and computes the passed in metric on all the simulations.
@@ -468,12 +468,12 @@ def _split_stats(sims, data):
     )
 
 
-def _compute_selections_and_stats(selections, variable, agg_func, years, months):
+def _compute_selections_and_stats(selections, agg_func, years, months):
     """
     Aggregates the selections data across SSPs and computes statistics from the results
     """
     # Compute results on selections object
-    results, data = _compute_results(selections, variable, agg_func, years, months)
+    results, data = _compute_results(selections, agg_func, years, months)
 
     # Compute statistics to extract from results
     single_stats, multiple_stats = _split_stats(results, data)
@@ -556,7 +556,7 @@ def agg_lat_lon_sims(
         lat, lon, variable, downscaling_method, units, years
     )
     # Runs calculations and derives statistics on simulation data pulled via selections object
-    return _compute_selections_and_stats(selections, variable, agg_func, years, months)
+    return _compute_selections_and_stats(selections, agg_func, years, months)
 
 
 def agg_area_subset_sims(
@@ -565,6 +565,7 @@ def agg_area_subset_sims(
     downscaling_method,
     variable,
     agg_func,
+    units,
     years,
     months=list(range(1, 13)),
 ):
@@ -605,10 +606,10 @@ def agg_area_subset_sims(
     # allowed_vars = set(_get_variable_options_df(available_vars, _get_user_options(data_catalog, 'Dynamical', 'monthly', '3 km')[2], 'Dynamical', 'daily')['display_name'].values)
     # Creates the selections object
     selections = _create_cached_area_select(
-        area_subset, cached_area, variable, downscaling_method, years
+        area_subset, cached_area, variable, downscaling_method, units, years
     )
     # Runs calculations and derives statistics on simulation data pulled via selections object
-    return _compute_selections_and_stats(selections, variable, agg_func, years, months)
+    return _compute_selections_and_stats(selections, agg_func, years, months)
 
 
 def plot_sims(sim_vals, selected_val, time_slice, stats):
