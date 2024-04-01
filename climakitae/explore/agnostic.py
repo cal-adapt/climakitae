@@ -17,6 +17,7 @@ from climakitae.core.data_interface import (
 from climakitae.util.utils import read_csv_file, get_closest_gridcell
 from climakitae.core.paths import variable_descriptions_csv_path, data_catalog_url
 from climakitae.util.unit_conversions import get_unit_conversion_options
+from tqdm.auto import tqdm  # Progress bar
 
 sns.set_style("whitegrid")
 
@@ -298,18 +299,6 @@ def create_conversion_function(lookup_tables):
 #     return metrics
 
 
-# def _get_downscaling_method(method_name):
-#     """Converts the downscaling method from the method name to the string used for the selections object."""
-#     if method_name == "WRF":
-#         return "Dynamical"
-#     elif method_name == "LOCA":
-#         return "Statistical"
-#     else:
-#         raise ValueError(
-#             "Error: Please enter either 'WRF' or 'LOCA' as the downscaling method."
-#         )
-
-
 def _get_var_info(variable, downscaling_method):
     """Gets the variable info for the specific variable name and downscaling method"""
     var_desc_df = read_csv_file(variable_descriptions_csv_path)
@@ -322,14 +311,13 @@ def _get_var_info(variable, downscaling_method):
 
 def get_available_units(variable, downscaling_method):
     """Get other available units available for the given unit"""
-    # downscaling_method = _get_downscaling_method(downscaling_method)
     # Select your desired units
     var_info_df = _get_var_info(variable, downscaling_method)
     available_units = get_unit_conversion_options()[var_info_df["unit"].item()]
     return available_units
 
 
-def _complete_selections(selections, variable, years):
+def _complete_selections(selections, variable, units, years):
     """Completes the attributes for the `selections` objects from `create_lat_lon_select` and `create_cached_area_select`."""
     metric_info_df = _get_var_info(variable, selections.downscaling_method)
     selections.data_type = "Gridded"
@@ -340,12 +328,12 @@ def _complete_selections(selections, variable, years):
     # print(variable_description_df[['display_name', 'downscaling_method', 'timescale']].to_string())
     selections.timescale = "monthly"
     selections.resolution = "3 km"
-    selections.units = metric_info_df["unit"].item()
+    selections.units = units
     selections.time_slice = years
     return selections
 
 
-def _create_lat_lon_select(lat, lon, variable, downscaling_method, years):
+def _create_lat_lon_select(lat, lon, variable, downscaling_method, units, years):
     """Creates a selection object for the given lat/lon parameters."""
     # Creates a selection object
     selections = Select()
@@ -355,7 +343,7 @@ def _create_lat_lon_select(lat, lon, variable, downscaling_method, years):
     selections.downscaling_method = downscaling_method
 
     # Add attributes for the rest of the selections object
-    selections = _complete_selections(selections, variable, years)
+    selections = _complete_selections(selections, variable, units, years)
     return selections
 
 
@@ -496,8 +484,6 @@ def _compute_selections_and_stats(selections, variable, agg_func, years, months)
 
 def show_available_vars(downscaling_method):
     """Function that shows the available variables based on the inputted downscaling method, timescale, and resolution."""
-    # Changes downscaling method
-    # downscaling_method = _get_downscaling_method(downscaling_method)
     # Read in catalogs
     data_catalog = intake.open_esm_datastore(data_catalog_url)
     var_desc = read_csv_file(variable_descriptions_csv_path)
@@ -526,7 +512,14 @@ def _validate_inputs(variable, downscaling_method):
 
 
 def agg_lat_lon_sims(
-    lat, lon, downscaling_method, variable, agg_func, years, months=list(range(1, 13))
+    lat,
+    lon,
+    downscaling_method,
+    variable,
+    agg_func,
+    units,
+    years,
+    months=list(range(1, 13)),
 ):
     """
     Gets aggregated WRF or LOCA simulation data for a lat/lon coordinate for a given metric and timeframe (years, months).
@@ -557,10 +550,11 @@ def agg_lat_lon_sims(
         Aggregated results of running the given metric on the lat/lon gridcell of interest. Results are also sorted in ascending order.
     """
     # Maps downscaling_method to appropriate string for Selections
-    # downscaling_method = _get_downscaling_method(downscaling_method)
     _validate_inputs(variable, downscaling_method)
     # Create selections object
-    selections = _create_lat_lon_select(lat, lon, variable, downscaling_method, years)
+    selections = _create_lat_lon_select(
+        lat, lon, variable, downscaling_method, units, years
+    )
     # Runs calculations and derives statistics on simulation data pulled via selections object
     return _compute_selections_and_stats(selections, variable, agg_func, years, months)
 
