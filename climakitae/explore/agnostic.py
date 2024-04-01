@@ -308,12 +308,16 @@ def _get_downscaling_method(method_name):
         raise ValueError(
             "Error: Please enter either 'WRF' or 'LOCA' as the downscaling method."
         )
-    
+
 
 def _get_var_info(variable, downscaling_method):
     """Gets the variable info for the specific variable name and downscaling method"""
     var_desc_df = read_csv_file(variable_descriptions_csv_path)
-    return var_desc_df[(var_desc_df['display_name'] == variable) & (var_desc_df['timescale'].str.contains('monthly')) & (var_desc_df['downscaling_method'] == downscaling_method)]
+    return var_desc_df[
+        (var_desc_df["display_name"] == variable)
+        & (var_desc_df["timescale"].str.contains("monthly"))
+        & (var_desc_df["downscaling_method"] == downscaling_method)
+    ]
 
 
 def get_available_units(variable, downscaling_method):
@@ -321,7 +325,7 @@ def get_available_units(variable, downscaling_method):
     downscaling_method = _get_downscaling_method(downscaling_method)
     # Select your desired units
     var_info_df = _get_var_info(variable, downscaling_method)
-    available_units = get_unit_conversion_options()[var_info_df['unit'].item()]
+    available_units = get_unit_conversion_options()[var_info_df["unit"].item()]
     return available_units
 
 
@@ -338,7 +342,7 @@ def _complete_selections(selections, metric, years):
     # print(variable_description_df[['display_name', 'downscaling_method', 'timescale']].to_string())
     selections.timescale = "monthly"
     selections.resolution = "3 km"
-    selections.units = metric_info_df['unit'].item()
+    selections.units = metric_info_df["unit"].item()
     selections.time_slice = years
     return selections
 
