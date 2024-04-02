@@ -14,10 +14,10 @@ from climakitae.core.data_interface import (
     _get_variable_options_df,
     _get_user_options,
 )
-from climakitae.util.utils import read_csv_file, get_closest_gridcell
+from climakitae.util.utils import read_csv_file, get_closest_gridcell, area_average
 from climakitae.core.paths import variable_descriptions_csv_path, data_catalog_url
 from climakitae.util.unit_conversions import get_unit_conversion_options
-from tqdm.auto import tqdm  # Progress bar
+from typing import Union, Tuple
 
 sns.set_style("whitegrid")
 
@@ -272,32 +272,6 @@ def create_conversion_function(lookup_tables):
 
 
 ##### TASK 2 #####
-# def _get_supported_metrics():
-#     """Retrieves the supported metrics for the Simulation Finder tool."""
-#     metrics = {
-#         "Average Max Air Temperature": {
-#             "var": "Maximum air temperature at 2m",
-#             "agg": np.mean,
-#             "units": "degF",
-#         },
-#         "Average Min Air Temperature": {
-#             "var": "Minimum air temperature at 2m",
-#             "agg": np.mean,
-#             "units": "degF",
-#         },
-#         "Average Max Relative Humidity": {
-#             "var": "Maximum relative humidity",
-#             "agg": np.mean,
-#             "units": "percent",
-#         },
-#         "Average Annual Total Precipitation": {
-#             "var": "Precipitation (total)",
-#             "agg": np.mean,
-#             "units": "inches",
-#         },
-#     }
-#     return metrics
-
 
 def _get_var_info(variable, downscaling_method):
     """Gets the variable info for the specific variable name and downscaling method"""
@@ -338,8 +312,13 @@ def _create_lat_lon_select(lat, lon, variable, downscaling_method, units, years)
     # Creates a selection object
     selections = Select()
     selections.area_subset = "lat/lon"
-    selections.latitude = (lat - 0.05, lat + 0.05)
-    selections.longitude = (lon - 0.05, lon + 0.05)
+    if type(lat) == float: # Creating a box around which to find the nearest gridcell for compute
+        selections.latitude = (lat - 0.05, lat + 0.05)
+        selections.longitude = (lon - 0.05, lon + 0.05)
+    elif type(lat) == tuple:
+        selections.latitude = lat
+        selections.longitude = lon
+        selections.area_average = "Yes"
     selections.downscaling_method = downscaling_method
 
     # Add attributes for the rest of the selections object
@@ -504,16 +483,32 @@ def show_available_vars(downscaling_method):
     return var_opts
 
 
-def _validate_inputs(variable, downscaling_method):
+def _validate_variable(variable, downscaling_method):
     if variable not in set(show_available_vars(downscaling_method)):
         raise ValueError(
             "Error: Please enter an available variable for the given downscaling method."
         )
 
 
+def _validate_lat_lon(lat, lon):
+    if lat and lon: # Only validating lat/lon inputs for `agg_lat_lon_sims`
+        if (type(lat) != float and type(lon) != tuple) or (type(lon) != float and type(lon) != tuple):
+            raise ValueError(
+                "Error: Please enter either a tuple or a float for your each of your lat/lon coordinates."
+            )
+        elif type(lat) != type(lon):
+            raise ValueError(
+                "Error: Please enter lat/lon coordinates both as a float or tuple types."
+            )
+    else:
+        raise ValueError(
+            "Error: Please enter valid lat/lon coordinates."
+        )
+
+
 def agg_lat_lon_sims(
-    lat,
-    lon,
+    lat: Union[float, Tuple[float, float]],
+    lon: Union[float, Tuple[float, float]],
     downscaling_method,
     variable,
     agg_func,
@@ -549,8 +544,9 @@ def agg_lat_lon_sims(
     results: xr.DataArray
         Aggregated results of running the given metric on the lat/lon gridcell of interest. Results are also sorted in ascending order.
     """
-    # Maps downscaling_method to appropriate string for Selections
-    _validate_inputs(variable, downscaling_method)
+    # Validating if inputs are correct (lat/lon is appropriate types and variable is available for selected downscaling method)
+    _validate_lat_lon(lat, lon)
+    _validate_variable(variable, downscaling_method)
     # Create selections object
     selections = _create_lat_lon_select(
         lat, lon, variable, downscaling_method, units, years
@@ -600,8 +596,8 @@ def agg_area_subset_sims(
     results: xr.DataArray
         Aggregated results of running the given metric on the lat/lon gridcell of interest. Results are also sorted in ascending order.
     """
-    # Maps downscaling_method to appropriate string for Selections
-    _validate_inputs(variable, downscaling_method)
+    # Validating if variable is available for the given downscaling method
+    _validate_variable(variable, downscaling_method)
     # Make sure that the metric (variable) selected is valid for the given downscaling method
     # allowed_vars = set(_get_variable_options_df(available_vars, _get_user_options(data_catalog, 'Dynamical', 'monthly', '3 km')[2], 'Dynamical', 'daily')['display_name'].values)
     # Creates the selections object
