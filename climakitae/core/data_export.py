@@ -631,7 +631,10 @@ def _export_to_csv(data, save_name):
 
 
 def export(data, filename="dataexport", format="NetCDF", mode="auto"):
-    """Save data as a file in the current working directory.
+    """Save xarray data as either a NetCDF or CSV in the current working directory,
+    or stream the export file to an AWS S3 scratch bucket and give download URL. Default
+    behavior is for the code to automatically determine the output destination based on whether
+    file is small enough to fit in HUB user partition, this can be overridden using the mode parameter.
 
     Parameters
     ----------
