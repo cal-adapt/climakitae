@@ -11,6 +11,7 @@ import matplotlib.colors as mcolors
 import matplotlib
 import copy
 from timezonefinder import TimezoneFinder
+
 from climakitae.core.paths import (
     ae_orange,
     ae_diverging,
@@ -18,7 +19,6 @@ from climakitae.core.paths import (
     ae_diverging_r,
     categorical_cb,
 )
-from climakitae.core.data_interface import DataInterface
 
 
 def downscaling_method_as_list(downscaling_method):
@@ -600,6 +600,9 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
     # 3. Find the data's centerpoint through selections
     if selections.data_type == "Station":
         station_name = selections.station
+
+        from climakitae.core.data_interface import DataInterface
+
         data_catalog = DataInterface()
 
         # Getting lat/lon of a specific station
@@ -622,6 +625,8 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
 
     elif selections.data_type == "Gridded" and selections.area_subset != "none":
         # Find the avg. lat/lon coordinates from entire geometry within an area subset
+        from climakitae.core.data_interface import DataInterface
+
         data_catalog = DataInterface()
 
         # Making mapping for different geographies to different polygons
