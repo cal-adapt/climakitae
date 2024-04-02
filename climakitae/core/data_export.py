@@ -17,7 +17,11 @@ from timezonefinder import TimezoneFinder
 from importlib.metadata import version as _version
 from botocore.exceptions import ClientError
 from climakitae.util.utils import read_csv_file
-from climakitae.core.paths import variable_descriptions_csv_path, stations_csv_path
+from climakitae.core.paths import (
+    variable_descriptions_csv_path,
+    stations_csv_path,
+    export_s3_bucket,
+)
 
 
 xr.set_options(keep_attrs=True)
@@ -27,7 +31,7 @@ bytes_per_gigabyte = 1024 * 1024 * 1024
 
 def _estimate_file_size(data, format):
     """
-    Estimate file size in gigabytes when exporting `data` in `format`.
+    Estimate uncompressed file size in gigabytes when exporting `data` in `format`.
 
     Parameters
     ----------
@@ -43,14 +47,8 @@ def _estimate_file_size(data, format):
 
     """
     if format == "NetCDF":
-        if isinstance(data, xr.core.dataarray.DataArray):
-            if not data.name:
-                # name it in order to call to_dataset on it
-                data.name = "data"
-            data_size = data.to_dataset().nbytes
-        else:  # data is xarray Dataset
-            data_size = data.nbytes
-        buffer_size = 2 * 1024 * 1024  # 2 MB for miscellaneous metadata
+        data_size = data.nbytes
+        buffer_size = 100 * 1024 * 1024  # 100 MB for miscellaneous metadata
         est_file_size = data_size + buffer_size
 
     elif format == "CSV":
@@ -88,7 +86,7 @@ def _update_attributes(data):
 
     Parameters
     ----------
-    data : xarray.DataArray or xarray.Dataset
+    data : xarray.Dataset
 
     Returns
     -------
@@ -105,9 +103,8 @@ def _update_attributes(data):
     if "time" in data.coords and "units" in data["time"].attrs:
         del data["time"].attrs["units"]
 
-    if isinstance(data, xr.core.dataarray.Dataset):
-        for data_var in data.data_vars:
-            data[data_var].attrs = _list_n_none_to_string(data[data_var].attrs)
+    for data_var in data.data_vars:
+        data[data_var].attrs = _list_n_none_to_string(data[data_var].attrs)
 
 
 def _unencode_missing_value(d):
@@ -127,7 +124,7 @@ def _update_encoding(data):
 
     Parameters
     ----------
-    data : xarray.DataArray or xarray.Dataset
+    data : xarray.Dataset
 
     Returns
     -------
@@ -142,9 +139,42 @@ def _update_encoding(data):
     for coord in data.coords:
         _unencode_missing_value(data[coord])
 
-    if isinstance(data, xr.core.dataarray.Dataset):
-        for data_var in data.data_vars:
-            _unencode_missing_value(data[data_var])
+    for data_var in data.data_vars:
+        _unencode_missing_value(data[data_var])
+
+
+def _fillvalue_encoding(data):
+    """
+    Creates FillValue encoding for each variable for export to NetCDF.
+
+    Parameters
+    ----------
+    data : xarray.Dataset
+
+    Returns
+    -------
+    encoding: dict
+    """
+    fill = dict(_FillValue=None)
+    filldict = {coord: fill for coord in data.coords}
+    return filldict
+
+
+def _compression_encoding(data):
+    """
+    Creates compression encoding for each variable for export to NetCDF.
+
+    Parameters
+    ----------
+    data : xarray.Dataset
+
+    Returns
+    -------
+    encoding: dict
+    """
+    comp = dict(zlib=True, complevel=6)
+    compdict = {var: comp for var in data.data_vars}
+    return compdict
 
 
 def _create_presigned_url(bucket_name, object_name, expiration=60 * 60 * 24 * 7):
@@ -183,14 +213,15 @@ def _create_presigned_url(bucket_name, object_name, expiration=60 * 60 * 24 * 7)
     return url
 
 
-def _export_to_netcdf(data, save_name):
+def _export_to_netcdf(data, save_name, mode):
     """
     Export user-selected data to NetCDF format.
 
     Export the xarray DataArray or Dataset `data` to a NetCDF file `save_name`.
-    If there is enough disk space, the function saves the file locally;
-    otherwise, it saves the file to the S3 bucket `cadcat-tmp` and provides a
-    URL for download.
+    If there is enough disk space, the function saves the file locally to the
+    jupyter hub; otherwise, it saves the file to the S3 bucket `cadcat-tmp`
+    and provides a URL for download. The optional `mode` parameters allows user
+    to override automatic behavior.
 
 
     Parameters
@@ -199,17 +230,50 @@ def _export_to_netcdf(data, save_name):
         data to export to NetCDF format
     save_name : string
         desired output file name, including the file extension
+    mode : string
+        location logic for storing export file.
 
     Returns
     -------
     None
 
     """
-    est_file_size = _estimate_file_size(data, "NetCDF")
-    disk_space = shutil.disk_usage("./")[2] / bytes_per_gigabyte
+    print("Exporting specified data to NetCDF...")
 
-    if disk_space > est_file_size:
-        path = "./" + save_name
+    # Convert xr.DataArray to xr.Dataset so that compression can be utilized
+    _data = data
+    if isinstance(_data, xr.core.dataarray.DataArray):
+        if not _data.name:
+            # name it in order to call to_dataset on it
+            _data.name = "data"
+        _data = _data.to_dataset()
+
+    est_file_size = _estimate_file_size(_data, "NetCDF")
+    disk_space = shutil.disk_usage(os.path.expanduser("~"))[2] / bytes_per_gigabyte
+
+    _warn_large_export(est_file_size)
+    _update_attributes(_data)
+    _update_encoding(_data)
+
+    file_location = "local"
+
+    if mode == "local":
+        if disk_space <= est_file_size:
+            raise Exception("Data too large to save locally. Use the mode=s3 option.")
+        file_location = "local"
+    elif mode == "s3":
+        file_location = "s3"
+    elif mode == "auto":
+        if disk_space > est_file_size:
+            file_location = "local"
+        else:
+            file_location = "s3"
+    else:
+        raise Exception("Specified mode needs to one of (local, s3, auto)")
+
+    if file_location == "local":
+        print("Saving file locally with compression...")
+        path = os.path.join(os.getcwd(), save_name)
 
         if os.path.exists(path):
             raise Exception(
@@ -219,14 +283,8 @@ def _export_to_netcdf(data, save_name):
                     "or specify a new file name here."
                 )
             )
-
-        print("Alright, exporting specified data to NetCDF.")
-        _warn_large_export(est_file_size)
-        _update_attributes(data)
-        _update_encoding(data)
-        comp = dict(_FillValue=None)
-        encoding = {coord: comp for coord in data.coords}
-        data.to_netcdf(path, encoding=encoding)
+        encoding = _fillvalue_encoding(_data) | _compression_encoding(_data)
+        _data.to_netcdf(path, engine="h5netcdf", encoding=encoding)
         print(
             (
                 "Saved! You can find your file in the panel to the left"
@@ -238,16 +296,13 @@ def _export_to_netcdf(data, save_name):
         path = f"simplecache::{os.environ['SCRATCH_BUCKET']}/{save_name}"
 
         with fsspec.open(path, "wb") as fp:
-            print("Alright, exporting specified data to NetCDF.")
-            _warn_large_export(est_file_size)
-            _update_attributes(data)
-            _update_encoding(data)
-            comp = dict(_FillValue=None)
-            encoding = {coord: comp for coord in data.coords}
-            data.to_netcdf(fp, encoding=encoding)
+            print("Saving file to S3 scratch bucket without compression...")
+            encoding = _fillvalue_encoding(_data)
+            _data.to_netcdf(fp, engine="h5netcdf", encoding=encoding)
 
             download_url = _create_presigned_url(
-                bucket_name="cadcat-tmp", object_name=path.split("cadcat-tmp/")[-1]
+                bucket_name=export_s3_bucket,
+                object_name=path.split(export_s3_bucket + "/")[-1],
             )
             print(
                 (
@@ -484,7 +539,7 @@ def _dataset_to_dataframe(dataset):
     return df
 
 
-def _export_to_csv(data, output_path):
+def _export_to_csv(data, save_name):
     """
     Export user-selected data to CSV format.
 
@@ -495,15 +550,58 @@ def _export_to_csv(data, output_path):
     ----------
     data : xarray.DataArray or xarray.Dataset
         data to export to CSV format
-    output_path : string
-        desired output file path, including the file name and file extension
+    save_name : string
+        desired export file prefix
 
     Returns
     -------
     None
 
     """
-    print("Alright, exporting specified data to CSV.")
+    # Check file size and avail workspace disk space
+    # raise error for not enough space
+    # and warning for large file
+    file_size_threshold = 0.85  # in GB
+    disk_space = shutil.disk_usage(os.path.expanduser("~"))[2] / bytes_per_gigabyte
+    data_size = data.nbytes / bytes_per_gigabyte
+
+    if disk_space <= data_size:
+        raise Exception(
+            "Not enough disk space to export data! You need at least "
+            + str(round(data_size, 2))
+            + (
+                " GB free in the hub directory, which has 10 GB total space."
+                " Try smaller subsets of space, time, scenario, and/or"
+                " simulation; pick a coarser spatial or temporal scale;"
+                " or clean any exported datasets which you have already"
+                " downloaded or do not want."
+            )
+        )
+
+    if data_size > file_size_threshold:
+        raise Exception(
+            " Data too large to export to CSV as it will use too much memory."
+            + " Must be smaller than: "
+            + str(file_size_threshold)
+            + "GB."
+            + (
+                " Try smaller subsets of space, time, scenario, and/or"
+                " simulation; pick a coarser spatial or temporal scale."
+            )
+        )
+
+    # Check if export file already exists and exit if so
+    output_path = os.path.join(os.getcwd(), save_name)
+    if os.path.exists(output_path):
+        raise Exception(
+            (
+                f"File {save_name} exists. "
+                "Please either delete that file from the work space "
+                "or specify a new file name here."
+            )
+        )
+
+    print("Exporting specified data to CSV...")
 
     ftype = type(data)
 
@@ -525,10 +623,19 @@ def _export_to_csv(data, output_path):
 
     _metadata_to_file(data, output_path)
     df.to_csv(output_path, compression="gzip")
+    print(
+        (
+            "Saved! You can find your file(s) in the panel to the left"
+            " and download to your local machine from there."
+        )
+    )
 
 
-def export(data, filename="dataexport", format="NetCDF"):
-    """Save data as a file in the current working directory.
+def export(data, filename="dataexport", format="NetCDF", mode="auto"):
+    """Save xarray data as either a NetCDF or CSV in the current working directory,
+    or stream the export file to an AWS S3 scratch bucket and give download URL. Default
+    behavior is for the code to automatically determine the output destination based on whether
+    file is small enough to fit in HUB user partition, this can be overridden using the mode parameter.
 
     Parameters
     ----------
@@ -539,6 +646,8 @@ def export(data, filename="dataexport", format="NetCDF"):
         of "my_filename.nc"). The default is "dataexport".
     format : str, optional
         File format ("NetCDF" or "CSV"). The default is "NetCDF".
+    mode : str, optional
+        Save location logic for NetCDF file ("auto", "local", "s3"). The default is "auto"
 
     """
     ftype = type(data)
@@ -547,7 +656,7 @@ def export(data, filename="dataexport", format="NetCDF"):
         raise Exception(
             "Cannot export object of type "
             + str(ftype).strip("<class >")
-            + ". Please pass an xarray dataset or data array."
+            + ". Please pass an Xarray Dataset or DataArray."
         )
 
     if type(filename) is not str:
@@ -592,51 +701,9 @@ def export(data, filename="dataexport", format="NetCDF"):
     # we will have different functions for each file type
     # to keep things clean-ish
     if "netcdf" == req_format:
-        _export_to_netcdf(data, save_name)
+        _export_to_netcdf(data, save_name, mode)
     elif "csv" == req_format:
-        output_path = "./" + save_name
-        if os.path.exists(output_path):
-            raise Exception(
-                (
-                    f"File {save_name} exists. "
-                    "Please either delete that file from the work space "
-                    "or specify a new file name here."
-                )
-            )
-        # now check file size and avail workspace disk space
-        # raise error for not enough space
-        # and warning for large file
-        file_size_threshold = 5  # in GB
-        disk_space = shutil.disk_usage("./")[2] / bytes_per_gigabyte
-        data_size = data.nbytes / bytes_per_gigabyte
-
-        if disk_space <= data_size:
-            raise Exception(
-                "Not enough disk space to export data! You need at least "
-                + str(round(data_size, 2))
-                + (
-                    " GB free in the hub directory, which has 10 GB total space."
-                    " Try smaller subsets of space, time, scenario, and/or"
-                    " simulation; pick a coarser spatial or temporal scale;"
-                    " or clean any exported datasets which you have already"
-                    " downloaded or do not want."
-                )
-            )
-
-        if data_size > file_size_threshold:
-            print(
-                "WARNING: xarray data size is "
-                + str(round(data_size, 2))
-                + " GB. This might take a while!"
-            )
-
-        _export_to_csv(data, output_path)
-        print(
-            (
-                "Saved! You can find your file(s) in the panel to the left"
-                " and download to your local machine from there."
-            )
-        )
+        _export_to_csv(data, save_name)
 
 
 def _metadata_to_file(ds, output_name):
