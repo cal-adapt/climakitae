@@ -668,8 +668,8 @@ def plot_sims(sim_vals, selected_val, time_slice, stats):
     plt.legend()
 
 
-def plot_WRF(sim_vals, metric):
-    """Scatter plot WRF models against their metric values."""
+def plot_WRF(sim_vals, variable, agg_func):
+    """Scatter plot WRF models with their calculated values."""
     sims = [name.split(",")[0] for name in list(sim_vals.simulation.values)]
     sims = [name[4:] for name in sims]
     vals = sim_vals.values
@@ -677,14 +677,14 @@ def plot_WRF(sim_vals, metric):
     fig, ax = plt.subplots()
     ax.bar(sims, vals)
     ax.set_xlabel("WRF Model, Emission Scenario 3-7.0", labelpad=15, fontsize=12)
-    ax.set_ylabel(f"{metric} ({sim_vals.units})", labelpad=10, fontsize=12)
+    ax.set_ylabel(f"{variable} ({sim_vals.units})", labelpad=10, fontsize=12)
 
     if sim_vals.location_subset == ["coordinate selection"]:
         location = (round(sim_vals.lat.item(), 2), round(sim_vals.lon.item(), 2))
     else:
         location = sim_vals.location_subset[0]
 
-    plt.title("Average Max Air Temperature of WRF models at {}".format(location))
+    plt.title("{} Max Air Temperature of WRF models at {}".format(agg_func, location))
 
     # Adjust the spacing of x-axis tick labels
     for i, tick in enumerate(ax.xaxis.get_major_ticks()):
