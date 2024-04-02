@@ -273,6 +273,7 @@ def create_conversion_function(lookup_tables):
 
 ##### TASK 2 #####
 
+
 def _get_var_info(variable, downscaling_method):
     """Gets the variable info for the specific variable name and downscaling method"""
     var_desc_df = read_csv_file(variable_descriptions_csv_path)
@@ -312,7 +313,9 @@ def _create_lat_lon_select(lat, lon, variable, downscaling_method, units, years)
     # Creates a selection object
     selections = Select()
     selections.area_subset = "lat/lon"
-    if type(lat) == float: # Creating a box around which to find the nearest gridcell for compute
+    if (
+        type(lat) == float
+    ):  # Creating a box around which to find the nearest gridcell for compute
         selections.latitude = (lat - 0.05, lat + 0.05)
         selections.longitude = (lon - 0.05, lon + 0.05)
     elif type(lat) == tuple:
@@ -380,8 +383,8 @@ def _compute_results(selections, agg_func, years, months):
     data = xr.concat(all_data, dim="simulation")
     data = data.sel(time=data["time"][data.time.dt.month.isin(months)])
 
-    # Retrieving closest grid-cell's data for lat/lon area subsetting
-    if selections.area_subset == "lat/lon":
+    # Retrieving closest grid-cell's data for lat/lon area subsetting IF the given lat/lon coordinates are not tuple ranges
+    if selections.area_subset == "lat/lon" and selections.area_average != "Yes":
 
         if "Statistical" in selections.downscaling_method:
             # Manually finding nearest gridcell for LOCA data, or data with lat/lon coords already.
@@ -491,8 +494,10 @@ def _validate_variable(variable, downscaling_method):
 
 
 def _validate_lat_lon(lat, lon):
-    if lat and lon: # Only validating lat/lon inputs for `agg_lat_lon_sims`
-        if (type(lat) != float and type(lon) != tuple) or (type(lon) != float and type(lon) != tuple):
+    if lat and lon:  # Only validating lat/lon inputs for `agg_lat_lon_sims`
+        if (type(lat) != float and type(lon) != tuple) or (
+            type(lon) != float and type(lon) != tuple
+        ):
             raise ValueError(
                 "Error: Please enter either a tuple or a float for your each of your lat/lon coordinates."
             )
@@ -501,9 +506,7 @@ def _validate_lat_lon(lat, lon):
                 "Error: Please enter lat/lon coordinates both as a float or tuple types."
             )
     else:
-        raise ValueError(
-            "Error: Please enter valid lat/lon coordinates."
-        )
+        raise ValueError("Error: Please enter valid lat/lon coordinates.")
 
 
 def agg_lat_lon_sims(
