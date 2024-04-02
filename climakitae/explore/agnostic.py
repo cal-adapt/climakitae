@@ -288,6 +288,10 @@ def get_available_units(variable, downscaling_method):
     """Get other available units available for the given unit"""
     # Select your desired units
     var_info_df = _get_var_info(variable, downscaling_method)
+    if var_info_df.empty:
+        raise ValueError(
+            "Please input a valid variable for the given downscaling method."
+        )
     available_units = get_unit_conversion_options()[var_info_df["unit"].item()]
     return available_units
 
