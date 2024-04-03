@@ -513,6 +513,10 @@ def _validate_lat_lon(lat, lon):
         raise ValueError("Error: Please enter valid lat/lon coordinates.")
 
 
+def _validate_units(variable, downscaling_method, units):
+    if units not in get_available_units(variable, downscaling_method):
+        raise ValueError("Error: Please enter a unit type is available for your selected variable.")
+
 def agg_lat_lon_sims(
     lat: Union[float, Tuple[float, float]],
     lon: Union[float, Tuple[float, float]],
@@ -554,6 +558,7 @@ def agg_lat_lon_sims(
     # Validating if inputs are correct (lat/lon is appropriate types and variable is available for selected downscaling method)
     _validate_lat_lon(lat, lon)
     _validate_variable(variable, downscaling_method)
+    _validate_units(variable, downscaling_method, units)
     # Create selections object
     selections = _create_lat_lon_select(
         lat, lon, variable, downscaling_method, units, years
@@ -605,6 +610,7 @@ def agg_area_subset_sims(
     """
     # Validating if variable is available for the given downscaling method
     _validate_variable(variable, downscaling_method)
+    _validate_units(variable, downscaling_method, units)
     # Make sure that the metric (variable) selected is valid for the given downscaling method
     # allowed_vars = set(_get_variable_options_df(available_vars, _get_user_options(data_catalog, 'Dynamical', 'monthly', '3 km')[2], 'Dynamical', 'daily')['display_name'].values)
     # Creates the selections object
