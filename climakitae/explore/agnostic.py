@@ -7,8 +7,17 @@ import xarray as xr
 import seaborn as sns
 import matplotlib.pyplot as plt
 import panel as pn
-from climakitae.core.data_interface import Select, DataInterface
-from climakitae.util.utils import read_csv_file, get_closest_gridcell
+import intake
+from climakitae.core.data_interface import (
+    Select,
+    DataInterface,
+    _get_variable_options_df,
+    _get_user_options,
+)
+from climakitae.util.utils import read_csv_file, get_closest_gridcell, area_average
+from climakitae.core.paths import variable_descriptions_csv_path, data_catalog_url
+from climakitae.util.unit_conversions import get_unit_conversion_options
+from typing import Union, Tuple
 
 sns.set_style("whitegrid")
 
@@ -263,74 +272,69 @@ def create_conversion_function(lookup_tables):
 
 
 ##### TASK 2 #####
-def _get_supported_metrics():
-    """Retrieves the supported metrics for the Simulation Finder tool."""
-    metrics = {
-        "Average Max Air Temperature": {
-            "var": "Maximum air temperature at 2m",
-            "agg": np.mean,
-            "units": "degF",
-        },
-        "Average Min Air Temperature": {
-            "var": "Minimum air temperature at 2m",
-            "agg": np.mean,
-            "units": "degF",
-        },
-        "Average Max Relative Humidity": {
-            "var": "Maximum relative humidity",
-            "agg": np.mean,
-            "units": "percent",
-        },
-        "Average Annual Total Precipitation": {
-            "var": "Precipitation (total)",
-            "agg": np.mean,
-            "units": "inches",
-        },
-    }
-    return metrics
 
 
-def _get_downscaling_method(method_name):
-    """Converts the downscaling method from the method name to the string used for the selections object."""
-    if method_name == "WRF":
-        return "Dynamical"
-    elif method_name == "LOCA":
-        return "Statistical"
-    else:
+def _get_var_info(variable, downscaling_method):
+    """Gets the variable info for the specific variable name and downscaling method"""
+    var_desc_df = read_csv_file(variable_descriptions_csv_path)
+    return var_desc_df[
+        (var_desc_df["display_name"] == variable)
+        & (var_desc_df["timescale"].str.contains("monthly"))
+        & (var_desc_df["downscaling_method"] == downscaling_method)
+    ]
+
+
+def get_available_units(variable, downscaling_method):
+    """Get other available units available for the given unit"""
+    # Select your desired units
+    var_info_df = _get_var_info(variable, downscaling_method)
+    if var_info_df.empty:
         raise ValueError(
-            "Error: Please enter either 'WRF' or 'LOCA' as the downscaling method."
+            "Please input a valid variable for the given downscaling method."
         )
+    available_units = get_unit_conversion_options()[var_info_df["unit"].item()]
+    return available_units
 
 
-def _complete_selections(selections, metric, years):
+def _complete_selections(selections, variable, units, years):
     """Completes the attributes for the `selections` objects from `create_lat_lon_select` and `create_cached_area_select`."""
-    metrics = _get_supported_metrics()
+    metric_info_df = _get_var_info(variable, selections.downscaling_method)
     selections.data_type = "Gridded"
-    selections.variable = metrics[metric]["var"]
+    selections.variable = metric_info_df["display_name"].item()
     selections.scenario_historical = ["Historical Climate"]
+
+    # If we want to allow users to select on criteria beyond just the metric and downscaling (i.e. also timescale and resolution), then the following line will be useful to present users
+    # print(variable_description_df[['display_name', 'downscaling_method', 'timescale']].to_string())
     selections.timescale = "monthly"
     selections.resolution = "3 km"
-    selections.units = metrics[metric]["units"]
+    selections.units = units
     selections.time_slice = years
     return selections
 
 
-def _create_lat_lon_select(lat, lon, metric, downscaling_method, years):
+def _create_lat_lon_select(lat, lon, variable, downscaling_method, units, years):
     """Creates a selection object for the given lat/lon parameters."""
     # Creates a selection object
     selections = Select()
     selections.area_subset = "lat/lon"
-    selections.latitude = (lat - 0.05, lat + 0.05)
-    selections.longitude = (lon - 0.05, lon + 0.05)
+    if (
+        type(lat) == float
+    ):  # Creating a box around which to find the nearest gridcell for compute
+        selections.latitude = (lat - 0.05, lat + 0.05)
+        selections.longitude = (lon - 0.05, lon + 0.05)
+    elif type(lat) == tuple:
+        selections.latitude = lat
+        selections.longitude = lon
+        selections.area_average = "Yes"
     selections.downscaling_method = downscaling_method
 
     # Add attributes for the rest of the selections object
-    selections = _complete_selections(selections, metric, years)
+    selections = _complete_selections(selections, variable, units, years)
     return selections
 
 
 def _create_cached_area_select(
-    area_subset, cached_area, metric, downscaling_method, years
+    area_subset, cached_area, metric, downscaling_method, units, years
 ):
     """Creates a selection object for the given cached area parameters."""
     # Creates a selection object for area subsetting simulations
@@ -340,11 +344,11 @@ def _create_cached_area_select(
     selections.downscaling_method = downscaling_method
 
     # Add attributes for the rest of the selections object
-    selections = _complete_selections(selections, metric, years)
+    selections = _complete_selections(selections, metric, units, years)
     return selections
 
 
-def _compute_results(selections, metric, years, months):
+def _compute_results(selections, agg_func, years, months):
     """
     Retrieves selections object data from all SSP 2-4.5, 3-7.0, 5-8.5 pathways, aggregates the simulations together,
     and computes the passed in metric on all the simulations.
@@ -352,7 +356,7 @@ def _compute_results(selections, metric, years, months):
     # Aggregating all simulations across all SSP pathways
     all_data = []
 
-    # V0.1: Only allow specific SSPs for different 3km applications.
+    # V0.1: Only allow specific SSPs for different `3 km` applications.
     available_ssps = {
         "Statistical": [
             "SSP 3-7.0 -- Business as Usual",
@@ -383,8 +387,8 @@ def _compute_results(selections, metric, years, months):
     data = xr.concat(all_data, dim="simulation")
     data = data.sel(time=data["time"][data.time.dt.month.isin(months)])
 
-    # Retrieving closest grid-cell's data for lat/lon area subsetting
-    if selections.area_subset == "lat/lon":
+    # Retrieving closest grid-cell's data for lat/lon area subsetting IF the given lat/lon coordinates are not tuple ranges
+    if selections.area_subset == "lat/lon" and selections.area_average != "Yes":
 
         if "Statistical" in selections.downscaling_method:
             # Manually finding nearest gridcell for LOCA data, or data with lat/lon coords already.
@@ -399,10 +403,7 @@ def _compute_results(selections, metric, years, months):
             )
 
     # Calculate the given metric on the data
-    metrics = _get_supported_metrics()
-    calc_vals = (
-        data.groupby("simulation").map(metrics[metric]["agg"]).chunk(chunks="auto")
-    )
+    calc_vals = data.groupby("simulation").map(agg_func).chunk(chunks="auto")
 
     # Sorting sims and getting metrics
     sorted_sims = compute(calc_vals.sortby(calc_vals))[
@@ -453,12 +454,12 @@ def _split_stats(sims, data):
     )
 
 
-def _compute_selections_and_stats(selections, metric, years, months):
+def _compute_selections_and_stats(selections, agg_func, years, months):
     """
     Aggregates the selections data across SSPs and computes statistics from the results
     """
     # Compute results on selections object
-    results, data = _compute_results(selections, metric, years, months)
+    results, data = _compute_results(selections, agg_func, years, months)
 
     # Compute statistics to extract from results
     single_stats, multiple_stats = _split_stats(results, data)
@@ -467,8 +468,67 @@ def _compute_selections_and_stats(selections, metric, years, months):
     return single_stats, multiple_stats, results
 
 
+def show_available_vars(downscaling_method):
+    """Function that shows the available variables based on the inputted downscaling method, timescale, and resolution."""
+    # Read in catalogs
+    data_catalog = intake.open_esm_datastore(data_catalog_url)
+    var_desc = read_csv_file(variable_descriptions_csv_path)
+
+    # Get available variable IDs
+    available_vars = _get_user_options(
+        data_catalog,
+        downscaling_method,
+        timescale="monthly",
+        resolution="3 km",  # Hard-coded to only accept `monthly` and `3 km` options for now.
+    )[2]
+
+    # Get variable names in written form
+    var_opts = _get_variable_options_df(
+        var_desc, available_vars, downscaling_method, timescale="monthly"
+    )["display_name"].to_list()
+
+    return var_opts
+
+
+def _validate_variable(variable, downscaling_method):
+    if variable not in set(show_available_vars(downscaling_method)):
+        raise ValueError(
+            "Error: Please enter an available variable for the given downscaling method."
+        )
+
+
+def _validate_lat_lon(lat, lon):
+    if lat and lon:  # Only validating lat/lon inputs for `agg_lat_lon_sims`
+        if (type(lat) != float and type(lon) != tuple) or (
+            type(lon) != float and type(lon) != tuple
+        ):
+            raise ValueError(
+                "Error: Please enter either a tuple or a float for your each of your lat/lon coordinates."
+            )
+        elif type(lat) != type(lon):
+            raise ValueError(
+                "Error: Please enter lat/lon coordinates both as a float or tuple types."
+            )
+    else:
+        raise ValueError("Error: Please enter valid lat/lon coordinates.")
+
+
+def _validate_units(variable, downscaling_method, units):
+    if units not in get_available_units(variable, downscaling_method):
+        raise ValueError(
+            "Error: Please enter a unit type is available for your selected variable."
+        )
+
+
 def agg_lat_lon_sims(
-    lat, lon, metric, years, downscaling_method="LOCA", months=list(np.arange(1, 13))
+    lat: Union[float, Tuple[float, float]],
+    lon: Union[float, Tuple[float, float]],
+    downscaling_method,
+    variable,
+    agg_func,
+    units,
+    years,
+    months=list(range(1, 13)),
 ):
     """
     Gets aggregated WRF or LOCA simulation data for a lat/lon coordinate for a given metric and timeframe (years, months).
@@ -498,21 +558,27 @@ def agg_lat_lon_sims(
     results: xr.DataArray
         Aggregated results of running the given metric on the lat/lon gridcell of interest. Results are also sorted in ascending order.
     """
-    # Maps downscaling_method to appropriate string for Selections
-    downscaling_method = _get_downscaling_method(downscaling_method)
+    # Validating if inputs are correct (lat/lon is appropriate types and variable is available for selected downscaling method)
+    _validate_lat_lon(lat, lon)
+    _validate_variable(variable, downscaling_method)
+    _validate_units(variable, downscaling_method, units)
     # Create selections object
-    selections = _create_lat_lon_select(lat, lon, metric, downscaling_method, years)
+    selections = _create_lat_lon_select(
+        lat, lon, variable, downscaling_method, units, years
+    )
     # Runs calculations and derives statistics on simulation data pulled via selections object
-    return _compute_selections_and_stats(selections, metric, years, months)
+    return _compute_selections_and_stats(selections, agg_func, years, months)
 
 
 def agg_area_subset_sims(
     area_subset,
     cached_area,
-    metric,
+    downscaling_method,
+    variable,
+    agg_func,
+    units,
     years,
-    downscaling_method="LOCA",
-    months=list(np.arange(1, 13)),
+    months=list(range(1, 13)),
 ):
     """
     This function combines all available WRF or LOCA simulation data that is filtered on the `area_subset` (a string
@@ -545,16 +611,15 @@ def agg_area_subset_sims(
     results: xr.DataArray
         Aggregated results of running the given metric on the lat/lon gridcell of interest. Results are also sorted in ascending order.
     """
-    # Maps downscaling_method to appropriate string for Selections
-    downscaling_method = _get_downscaling_method(downscaling_method)
-    # Make sure that the metric (variable) selected is valid for the given downscaling method
-    # allowed_vars = set(_ge t_variable_options_df(available_vars, _get_user_options(data_catalog, 'Dynamical', 'monthly', '3 km')[2], 'Dynamical', 'daily')['display_name'].values)
+    # Validating if variable is available for the given downscaling method
+    _validate_variable(variable, downscaling_method)
+    _validate_units(variable, downscaling_method, units)
     # Creates the selections object
     selections = _create_cached_area_select(
-        area_subset, cached_area, metric, downscaling_method, years
+        area_subset, cached_area, variable, downscaling_method, units, years
     )
     # Runs calculations and derives statistics on simulation data pulled via selections object
-    return _compute_selections_and_stats(selections, metric, years, months)
+    return _compute_selections_and_stats(selections, agg_func, years, months)
 
 
 def plot_sims(sim_vals, selected_val, time_slice, stats):
@@ -614,8 +679,8 @@ def plot_sims(sim_vals, selected_val, time_slice, stats):
     plt.legend()
 
 
-def plot_WRF(sim_vals, metric):
-    """Scatter plot WRF models against their metric values."""
+def plot_WRF(sim_vals, variable, agg_func):
+    """Scatter plot WRF models with their calculated values."""
     sims = [name.split(",")[0] for name in list(sim_vals.simulation.values)]
     sims = [name[4:] for name in sims]
     vals = sim_vals.values
@@ -623,14 +688,14 @@ def plot_WRF(sim_vals, metric):
     fig, ax = plt.subplots()
     ax.bar(sims, vals)
     ax.set_xlabel("WRF Model, Emission Scenario 3-7.0", labelpad=15, fontsize=12)
-    ax.set_ylabel(f"{metric} ({sim_vals.units})", labelpad=10, fontsize=12)
+    ax.set_ylabel(f"{variable} ({sim_vals.units})", labelpad=10, fontsize=12)
 
     if sim_vals.location_subset == ["coordinate selection"]:
         location = (round(sim_vals.lat.item(), 2), round(sim_vals.lon.item(), 2))
     else:
         location = sim_vals.location_subset[0]
 
-    plt.title("Average Max Air Temperature of WRF models at {}".format(location))
+    plt.title("{} Max Air Temperature of WRF models at {}".format(agg_func, location))
 
     # Adjust the spacing of x-axis tick labels
     for i, tick in enumerate(ax.xaxis.get_major_ticks()):
