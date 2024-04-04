@@ -60,7 +60,7 @@ class WarmingLevels:
 
     def __init__(self, **params):
         self.wl_params = WarmingLevelChoose()
-        self.warming_levels = ["1.5", "2.0", "3.0", "4.0"]
+        self.warming_levels = ["1.2", "2.0"]
 
     def choose_data(self):
         return warming_levels_select(self.wl_params)
@@ -90,17 +90,18 @@ class WarmingLevels:
     def calculate(self):
         # manually reset to all SSPs, in case it was inadvertently changed by
         # temporarily have ['Dynamical','Statistical'] for downscaling_method
+
+        ## Calvin- Look through all scenarios and retrieve individual SSP data? Why does WRF need this to get 245 and 585 but not LOCA?
         self.wl_params.scenario_ssp = [
             "SSP 3-7.0 -- Business as Usual",
             "SSP 2-4.5 -- Middle of the Road",
             "SSP 5-8.5 -- Burn it All",
         ]
-        # Postage data and anomalies
         self.catalog_data = self.wl_params.retrieve()
         self.catalog_data = self.catalog_data.stack(
             all_sims=["simulation", "scenario"]
         ).squeeze()
-        self.catalog_data = self.catalog_data.dropna(dim="all_sims", how="all")
+        # self.catalog_data = self.catalog_data.dropna(dim="all_sims", how="all")
         if self.wl_params.anom == "Yes":
             self.gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
         else:
@@ -114,17 +115,16 @@ class WarmingLevels:
             # Assign warming slices to dask computation graph
             warm_slice = self.find_warming_slice(level, self.gwl_times)
             self.sliced_data[level] = warm_slice
-            self.gwl_snapshots[level] = warm_slice.reduce(np.nanmean, "time").compute()
-
-        self.gwl_snapshots = xr.concat(self.gwl_snapshots.values(), dim="warming_level")
-        self.cmap = _get_cmap(self.wl_params)
-        self.wl_viz = WarmingLevelVisualize(
-            gwl_snapshots=self.gwl_snapshots,
-            wl_params=self.wl_params,
-            cmap=self.cmap,
-            warming_levels=self.warming_levels,
-        )
-        self.wl_viz.compute_stamps()
+            # self.gwl_snapshots[level] = warm_slice.reduce(np.nanmean, "time").compute()
+        # self.gwl_snapshots = xr.concat(self.gwl_snapshots.values(), dim="warming_level")
+        # self.cmap = _get_cmap(self.wl_params)
+        # self.wl_viz = WarmingLevelVisualize(
+        #     gwl_snapshots=self.gwl_snapshots,
+        #     wl_params=self.wl_params,
+        #     cmap=self.cmap,
+        #     warming_levels=self.warming_levels,
+        # )
+        # self.wl_viz.compute_stamps()
 
     def visualize(self):
         if self.wl_viz:
@@ -216,9 +216,10 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
 
         # TODO: This method will create incorrect data for daily data selection, as leap days create different time indices to be merged on. This will create weird time indices that can be visualized with the `out.plot.line` method in `warming_levels.ipynb`.
 
+        # import pdb; pdb.set_trace()
         if anom == "Yes":
             # Find the anomaly
-            anom_val = y.sel(time=slice("1981", "2010")).mean("time")
+            anom_val = y.sel(time=slice("1980", "2010")).mean("time")
             sliced = y.sel(time=slice(str(start_year), str(end_year))) - anom_val
         else:
             # Finding window slice of data
@@ -282,7 +283,7 @@ class WarmingLevelChoose(DataParametersWithPanes):
 
     anom = param.Selector(
         default="Yes",
-        objects=["Yes"],
+        objects=["Yes", "No"],
         doc="Return an anomaly \n(difference from historical reference period)?",
     )
 
@@ -305,17 +306,17 @@ class WarmingLevelChoose(DataParametersWithPanes):
         self.area_subset = "states"
         self.cached_area = ["CA"]
 
-    @param.depends("downscaling_method", watch=True)
-    def _anom_allowed(self):
-        """
-        Require 'anomaly' for non-bias-corrected data.
-        """
-        if self.downscaling_method == "Dynamical":
-            self.param["anom"].objects = ["Yes"]
-            self.anom = "Yes"
-        else:
-            self.param["anom"].objects = ["Yes", "No"]
-            self.anom = "Yes"
+    # @param.depends("downscaling_method", watch=True)
+    # def _anom_allowed(self):
+    #     """
+    #     Require 'anomaly' for non-bias-corrected data.
+    #     """
+    #     if self.downscaling_method == "Dynamical":
+    #         self.param["anom"].objects = ["Yes"]
+    #         self.anom = "Yes"
+    #     else:
+    #         self.param["anom"].objects = ["Yes", "No"]
+    #         self.anom = "Yes"
 
 
 class WarmingLevelVisualize(param.Parameterized):
@@ -334,7 +335,7 @@ class WarmingLevelVisualize(param.Parameterized):
     hist_data = read_csv_file(hist_file, index_col="Year")
 
     warmlevel = param.Selector(
-        default=1.5, objects=[1.5, 2, 3, 4], doc="Warming level in degrees Celcius."
+        default=1.5, objects=[1.2, 1.5, 2, 3, 4], doc="Warming level in degrees Celcius."
     )
     ssp = param.Selector(
         default="All",
