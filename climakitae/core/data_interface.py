@@ -1513,7 +1513,7 @@ def _display_select(self):
             pn.Column(
                 widgets["downscaling_method_text"],
                 widgets["downscaling_method"],
-                width=270,
+                width=300,
             ),
             pn.Column(
                 widgets["data_warning"],
