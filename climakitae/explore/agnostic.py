@@ -519,7 +519,7 @@ def _validate_lat_lon(lat, lon):
 def _validate_units(variable, downscaling_method, units):
     if units not in get_available_units(variable, downscaling_method):
         raise ValueError(
-            "Error: Please enter a unit type is available for your selected variable."
+            "Error: Please enter a unit type that is available for your selected variable."
         )
 
 
@@ -698,7 +698,7 @@ def plot_WRF(sim_vals, variable, agg_func):
     else:
         location = sim_vals.location_subset[0]
 
-    plt.title("{} Max Air Temperature of WRF models at {}".format(agg_func, location))
+    plt.title("{} of {} at {}".format(str(agg_func.__name__).capitalize(), variable, location))
 
     # Adjust the spacing of x-axis tick labels
     for i, tick in enumerate(ax.xaxis.get_major_ticks()):
@@ -717,7 +717,7 @@ def plot_WRF(sim_vals, variable, agg_func):
     plt.show()
 
 
-def plot_double_WRF(var1, var2):
+def plot_climate_response_WRF(var1, var2):
     """Plots aggregations of WRF models on a scatterplot of two quantitative variables. Labels points with specific WRF model names."""
     # Make sure that the two variables are the same length and have the same simulation names
     if (len(var1) != len(var2)) & (
