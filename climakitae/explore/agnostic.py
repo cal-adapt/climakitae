@@ -334,7 +334,8 @@ def _create_lat_lon_select(lat, lon, variable, downscaling_method, units, years)
 
 
 def _create_cached_area_select(
-    area_subset, cached_area, metric, downscaling_method, units, years
+    area_subset, cached_area, variable, downscaling_method, units, years
+
 ):
     """Creates a selection object for the given cached area parameters."""
     # Creates a selection object for area subsetting simulations
@@ -344,7 +345,8 @@ def _create_cached_area_select(
     selections.downscaling_method = downscaling_method
 
     # Add attributes for the rest of the selections object
-    selections = _complete_selections(selections, metric, units, years)
+    selections = _complete_selections(selections, variable, units, years)
+
     return selections
 
 
@@ -469,7 +471,8 @@ def _compute_selections_and_stats(selections, agg_func, years, months):
 
 
 def show_available_vars(downscaling_method):
-    """Function that shows the available variables based on the inputted downscaling method, timescale, and resolution."""
+    """Function that shows the available variables based on the input downscaling method."""
+
     # Read in catalogs
     data_catalog = intake.open_esm_datastore(data_catalog_url)
     var_desc = read_csv_file(variable_descriptions_csv_path)
