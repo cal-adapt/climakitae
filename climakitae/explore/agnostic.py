@@ -335,7 +335,6 @@ def _create_lat_lon_select(lat, lon, variable, downscaling_method, units, years)
 
 def _create_cached_area_select(
     area_subset, cached_area, variable, downscaling_method, units, years
-
 ):
     """Creates a selection object for the given cached area parameters."""
     # Creates a selection object for area subsetting simulations
@@ -698,7 +697,9 @@ def plot_WRF(sim_vals, variable, agg_func):
     else:
         location = sim_vals.location_subset[0]
 
-    plt.title("{} of {} at {}".format(str(agg_func.__name__).capitalize(), variable, location))
+    plt.title(
+        "{} of {} at {}".format(str(agg_func.__name__).capitalize(), variable, location)
+    )
 
     # Adjust the spacing of x-axis tick labels
     for i, tick in enumerate(ax.xaxis.get_major_ticks()):
