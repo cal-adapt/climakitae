@@ -533,7 +533,7 @@ def agg_lat_lon_sims(
     months=list(range(1, 13)),
 ):
     """
-    Gets aggregated WRF or LOCA simulation data for a lat/lon coordinate for a given metric and timeframe (years, months).
+    Gets aggregated WRF or LOCA simulation data for a lat/lon coordinate or lat/lon range for a given metric and timeframe (years, months).
     It combines all selected simulation data that is filtered by lat/lon, years, and specific months across SSP pathways
     and runs the passed in metric on all of the data. The results are then returned in ascending order,
     along with dictionaries mapping specific statistic names to the simulation objects themselves.
@@ -544,8 +544,8 @@ def agg_lat_lon_sims(
         Latitude for specific location of interest.
     lon: float
         Longitude for specific location of interest.
-    metric: str
-        The metric to aggregate the simulations by.
+    agg_func: str
+        The function to aggregate the simulations by.
     years: tuple
         The lower and upper year bounds (inclusive) to subset simulation data by.
     months: list, optional
@@ -558,7 +558,7 @@ def agg_lat_lon_sims(
     multiple_stats: dict of str: xr.DataArray
         Dictionary mapping string names of statistics to multiple simulations xr.DataArray objects.
     results: xr.DataArray
-        Aggregated results of running the given metric on the lat/lon gridcell of interest. Results are also sorted in ascending order.
+        Aggregated results of running the given aggregation function on the lat/lon gridcell of interest. Results are also sorted in ascending order.
     """
     # Validating if inputs are correct (lat/lon is appropriate types and variable is available for selected downscaling method)
     _validate_lat_lon(lat, lon)
@@ -586,7 +586,7 @@ def agg_area_subset_sims(
     This function combines all available WRF or LOCA simulation data that is filtered on the `area_subset` (a string
     from existing keys in Boundaries.boundary_dict()) and on one of the areas of the values in that
     `area_subset` (`cached_area`). It then extracts this data across all SSP pathways for specific years/months,
-    and runs the passed in metric on all of this data. The results are then returned in 3 values, the first
+    and runs the passed in `agg_func` on all of this data. The results are then returned in 3 values, the first
     as a dict of statistic names to xr.DataArray single simulation objects (i.e. median),
     the second as a dict of statistic names to xr.DataArray objects consisting of multiple simulation objects (i.e. middle 10%),
     and the last as a xr.DataArray of simulations' aggregated values sorted in ascending order.
@@ -597,7 +597,7 @@ def agg_area_subset_sims(
         Describes the category of the boundaries of interest (i.e. "CA Electric Load Serving Entities (IOU & POU)")
     cached_area: str
         Describes the specific area of interest (i.e. "Southern California Edison")
-    metric: str
+    agg_func: str
         The metric to aggregate the simulations by.
     years: tuple
         The lower and upper year bounds (inclusive) to extract simulation data by.
@@ -611,7 +611,7 @@ def agg_area_subset_sims(
     multiple_stats: dict of str: xr.DataArray
         Dictionary mapping string names of statistics to multiple simulations xr.DataArray objects.
     results: xr.DataArray
-        Aggregated results of running the given metric on the lat/lon gridcell of interest. Results are also sorted in ascending order.
+        Aggregated results of running the given aggregation function on the lat/lon gridcell of interest. Results are also sorted in ascending order.
     """
     # Validating if variable is available for the given downscaling method
     _validate_variable(variable, downscaling_method)
