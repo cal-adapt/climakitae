@@ -469,29 +469,6 @@ def _compute_selections_and_stats(selections, agg_func, years, months):
     return single_stats, multiple_stats, results
 
 
-def show_available_vars(downscaling_method):
-    """Function that shows the available variables based on the input downscaling method."""
-
-    # Read in catalogs
-    data_catalog = intake.open_esm_datastore(data_catalog_url)
-    var_desc = read_csv_file(variable_descriptions_csv_path)
-
-    # Get available variable IDs
-    available_vars = _get_user_options(
-        data_catalog,
-        downscaling_method,
-        timescale="monthly",
-        resolution="3 km",  # Hard-coded to only accept `monthly` and `3 km` options for now.
-    )[2]
-
-    # Get variable names in written form
-    var_opts = _get_variable_options_df(
-        var_desc, available_vars, downscaling_method, timescale="monthly"
-    )["display_name"].to_list()
-
-    return var_opts
-
-
 def _validate_variable(variable, downscaling_method):
     if variable not in set(show_available_vars(downscaling_method)):
         raise ValueError(
@@ -520,6 +497,29 @@ def _validate_units(variable, downscaling_method, units):
         raise ValueError(
             "Error: Please enter a unit type that is available for your selected variable."
         )
+
+
+def show_available_vars(downscaling_method):
+    """Function that shows the available variables based on the input downscaling method."""
+
+    # Read in catalogs
+    data_catalog = intake.open_esm_datastore(data_catalog_url)
+    var_desc = read_csv_file(variable_descriptions_csv_path)
+
+    # Get available variable IDs
+    available_vars = _get_user_options(
+        data_catalog,
+        downscaling_method,
+        timescale="monthly",
+        resolution="3 km",  # Hard-coded to only accept `monthly` and `3 km` options for now.
+    )[2]
+
+    # Get variable names in written form
+    var_opts = _get_variable_options_df(
+        var_desc, available_vars, downscaling_method, timescale="monthly"
+    )["display_name"].to_list()
+
+    return var_opts
 
 
 def agg_lat_lon_sims(
@@ -625,15 +625,13 @@ def agg_area_subset_sims(
 
 
 def plot_sims(sim_vals, selected_val, time_slice, stats):
-    """
-    Creates resulting plot figures.
-    """
+    """Creates a histogram for LOCA simulations aggregated from `agg_lat_lon_sims` or `agg_area_subset_sims`."""
     # Finding the proper title for the plot
     area_text = ""
     if sim_vals.location_subset == ["coordinate selection"]:
         area_text = "given lat/lon"
-    elif sim_vals.location_subset == ["Southern California Edison"]:
-        area_text = "SCE service territory"
+    else:
+        area_text = sim_vals.location_subset[0]
 
     # Creating the histogram
     plt.figure(figsize=(10, 5))
@@ -678,11 +676,11 @@ def plot_sims(sim_vals, selected_val, time_slice, stats):
             label="{} sim: {}".format(stat.capitalize(), name[6:]),
         )
 
-    plt.legend()
+    plt.legend(fontsize=9.5)
 
 
 def plot_WRF(sim_vals, variable, agg_func):
-    """Scatter plot WRF models with their calculated values."""
+    """Bar plot of WRF models with their aggregated values from `agg_lat_lon_sims` or `agg_area_subset_sims`."""
     sims = [name.split(",")[0] for name in list(sim_vals.simulation.values)]
     sims = [name[4:] for name in sims]
     vals = sim_vals.values
@@ -719,7 +717,9 @@ def plot_WRF(sim_vals, variable, agg_func):
 
 
 def plot_climate_response_WRF(var1, var2):
-    """Plots aggregations of WRF models on a scatterplot of two quantitative variables. Labels points with specific WRF model names."""
+    """
+    Scatter plot of two climate variables from WRF models with their aggregated values from `agg_lat_lon_sims` or `agg_area_subset_sims`.
+    """
     # Make sure that the two variables are the same length and have the same simulation names
     if (len(var1) != len(var2)) & (
         set(var1.simulation.values) != set(var2.simulation.values)
@@ -739,7 +739,9 @@ def plot_climate_response_WRF(var1, var2):
     # Plot points and add labels
     for idx in range(len(var1.simulation)):
         ax.scatter(var1[idx], var2[idx], label=sims[idx])
-    ax.set_title("WRF CA Metrics: CA Statewide Average", fontsize=12)
+    ax.set_title(
+        "WRF CA Metrics: CA Statewide Average", fontsize=12
+    )  # Specifically supporting visualizing CA statewide average (for current applications)
     ax.set_xlabel(f"{var1.name} ({var1.units})", labelpad=10, fontsize=12)
     ax.set_ylabel(f"{var2.name} ({var2.units})", labelpad=10, fontsize=12)
 
@@ -753,7 +755,4 @@ def plot_climate_response_WRF(var1, var2):
             xytext=(7, 0),
         )
     ax.set_aspect(aspect="auto", adjustable="box")
-
-    # Extra params
-    ax.legend(loc="upper right", bbox_to_anchor=(1.45, 1))
     plt.show()
