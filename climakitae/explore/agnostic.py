@@ -616,7 +616,34 @@ def agg_area_subset_sims(
     return _compute_selections_and_stats(selections, agg_func, years, months)
 
 
-def plot_LOCA(sim_vals, selected_val, time_slice, stats):
+def plot_WRF(sim_vals, agg_func, years):
+    """Bar plot of WRF models with their aggregated values from `agg_lat_lon_sims` or `agg_area_subset_sims`."""
+    sims = [name.split(",")[0] for name in list(sim_vals.simulation.values)]
+    sims = [name[4:] for name in sims]
+    sims = ["\n".join(sim_name.split("_")) for sim_name in sims]
+    vals = sim_vals.values
+
+    fig, ax = plt.subplots()
+    ax.bar(sims, vals)
+    ax.set_xlabel("WRF Simulation, Emission Scenario 3-7.0", labelpad=15, fontsize=12)
+    ax.set_ylabel(f"{sim_vals.name} ({sim_vals.units})", labelpad=10, fontsize=12)
+    ax.set_ylim(bottom=min(sim_vals) - 5, top=max(sim_vals) + 5)
+
+    if sim_vals.location_subset == ["coordinate selection"]:
+        if sim_vals.attrs[
+            "lat"
+        ]:  # Determine if lat/lon was manually written onto DataArray because of area averaging or not
+            location = "lat: {}, lon: {}".format(sim_vals.lat, sim_vals.lon)
+        else:
+            location = (round(sim_vals.lat.item(), 2), round(sim_vals.lon.item(), 2))
+    else:
+        location = sim_vals.location_subset[0]
+
+    plt.title(f"{str(agg_func.__name__)} of {sim_vals.name} at {location} from {years}")
+    plt.show()
+
+
+def plot_LOCA(sim_vals, agg_func, time_slice, stats):
     """Creates a histogram for LOCA simulations aggregated from `agg_lat_lon_sims` or `agg_area_subset_sims`."""
     # Finding the proper title for the plot
     area_text = ""
@@ -633,15 +660,9 @@ def plot_LOCA(sim_vals, selected_val, time_slice, stats):
         bins=np.linspace(min(sim_vals).item(), max(sim_vals).item(), 12),
     )
     ax.set_title(
-        "Histogram of {} {} from {} of all {} LOCA sims for {}".format(
-            str(agg_func.__name__).capitalize(),
-            sim_vals.name,
-            time_slice,
-            len(sim_vals),
-            area_text,
-        )
+        f"Histogram of {str(agg_func.__name__).capitalize()} {sim_vals.name} from {time_slice} of all {len(sim_vals)} LOCA sims for {area_text}"
     )
-    ax.set_xlabel("{} ({})".format(sim_vals.name, sim_vals.units))
+    ax.set_xlabel(f"{sim_vals.name} ({sim_vals.units})")
     ax.set_ylabel("Count of Simulations")
 
     # Creating pairings between simulations and calculated values
@@ -669,34 +690,10 @@ def plot_LOCA(sim_vals, selected_val, time_slice, stats):
             val,
             color=color_mapping[stat],
             linestyle="--",
-            label="{} sim: {}".format(stat.capitalize(), name[6:]),
+            label=f"{stat.capitalize()} sim: {name[6:]}",
         )
 
     plt.legend(fontsize=9.5)
-
-
-def plot_WRF(sim_vals, variable, agg_func):
-    """Bar plot of WRF models with their aggregated values from `agg_lat_lon_sims` or `agg_area_subset_sims`."""
-    sims = [name.split(",")[0] for name in list(sim_vals.simulation.values)]
-    sims = [name[4:] for name in sims]
-    sims = ["\n".join(sim_name.split("_")) for sim_name in sims]
-    vals = sim_vals.values
-
-    fig, ax = plt.subplots()
-    ax.bar(sims, vals)
-    ax.set_xlabel("WRF Simulation, Emission Scenario 3-7.0", labelpad=15, fontsize=12)
-    ax.set_ylabel(f"{variable} ({sim_vals.units})", labelpad=10, fontsize=12)
-    ax.set_ylim(bottom=min(sim_vals) - 5, top=max(sim_vals) + 5)
-
-    if sim_vals.location_subset == ["coordinate selection"]:
-        location = (round(sim_vals.lat.item(), 2), round(sim_vals.lon.item(), 2))
-    else:
-        location = sim_vals.location_subset[0]
-
-    plt.title(
-        "{} of {} at {}".format(str(agg_func.__name__).capitalize(), variable, location)
-    )
-    plt.show()
 
 
 def plot_climate_response_WRF(var1, var2):
@@ -723,9 +720,7 @@ def plot_climate_response_WRF(var1, var2):
     for idx in range(len(var1.simulation)):
         ax.scatter(var1[idx], var2[idx], label=sims[idx])
     ax.set_title(
-        "WRF results for {}: \n {} vs {}".format(
-            var1.location_subset[0], var1.name, var2.name
-        ),
+        f"WRF results for {var1.location_subset[0]}: \n {var1.name} vs {var2.name}",
         fontsize=12,
     )  # Specifically supporting visualizing CA statewide average (for current applications)
     ax.set_xlabel(f"{var1.name} ({var1.units})", labelpad=10, fontsize=12)
