@@ -389,9 +389,9 @@ def _compute_results(selections, agg_func, years, months):
     data = data.sel(time=data["time"][data.time.dt.month.isin(months)])
 
     # Add lat/lon attributes to DataArray if the area is averaged (so no lat/lon information is kept)
-    if selections.area_subset == 'lat/lon' and selections.area_average == 'Yes':
-        data.attrs['lat'] = selections.latitude
-        data.attrs['lon'] = selections.longitude
+    if selections.area_subset == "lat/lon" and selections.area_average == "Yes":
+        data.attrs["lat"] = selections.latitude
+        data.attrs["lon"] = selections.longitude
 
     # Calculate the given metric on the data
     calc_vals = data.groupby("simulation").map(agg_func).chunk(chunks="auto")
@@ -422,15 +422,13 @@ def _split_stats(sims, data):
 
     # Multiple model statistics can depend on the number of available simulations. i.e. No middle 10% of sims for 4 WRF sims, so fallback functionality to getting the median simulation.
     if len(sims) < 10:
-        middle_10 = single_model_names['median']
+        middle_10 = single_model_names["median"]
     else:
         middle_10 = sims[
             round(len(sims) * 0.45) - 1 : round(len(sims) * 0.55) - 1
         ].simulation.values
-        
-    multiple_model_names = {
-        "middle 10%": middle_10
-    }
+
+    multiple_model_names = {"middle 10%": middle_10}
 
     # Creating a dictionary of single stats names to the initial models from the dataset
     single_model_stats = dict(
@@ -479,7 +477,7 @@ def _validate_lat_lon(lat, lon):
             )
     else:
         raise ValueError("Error: Please enter valid lat/lon coordinates.")
-    
+
 
 def _validate_inputs(year_range, variable, downscaling_method, units):
     """Validates all the user inputs"""
@@ -492,11 +490,9 @@ def _validate_inputs(year_range, variable, downscaling_method, units):
             "Error: Please enter a unit type that is available for your selected variable."
         )
     if year_range[0] < 1950 or year_range[1] > 2100:
-        raise ValueError(
-            "Error: Please enter a year range from 1950-2100."
-        )
+        raise ValueError("Error: Please enter a year range from 1950-2100.")
 
- 
+
 def show_available_vars(downscaling_method):
     """Function that shows the available variables based on the input downscaling method."""
 
@@ -683,7 +679,7 @@ def plot_WRF(sim_vals, variable, agg_func):
     """Bar plot of WRF models with their aggregated values from `agg_lat_lon_sims` or `agg_area_subset_sims`."""
     sims = [name.split(",")[0] for name in list(sim_vals.simulation.values)]
     sims = [name[4:] for name in sims]
-    sims = ['\n'.join(sim_name.split('_')) for sim_name in sims]
+    sims = ["\n".join(sim_name.split("_")) for sim_name in sims]
     vals = sim_vals.values
 
     fig, ax = plt.subplots()
@@ -744,7 +740,7 @@ def plot_climate_response_WRF(var1, var2):
             textcoords="offset points",
             xytext=(7, 0),
         )
-        
+
     x_padding = (max(var1.values) - min(var1.values)) * 0.2  # 10% padding
     y_padding = (max(var2.values) - min(var2.values)) * 0.2  # 10% padding
 
