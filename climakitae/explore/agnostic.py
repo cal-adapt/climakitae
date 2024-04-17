@@ -388,10 +388,24 @@ def _compute_results(selections, agg_func, years, months):
     data = xr.concat(all_data, dim="simulation")
     data = data.sel(time=data["time"][data.time.dt.month.isin(months)])
 
-    # Add lat/lon attributes to DataArray if the area is averaged (so no lat/lon information is kept)
-    if selections.area_subset == "lat/lon" and selections.area_average == "Yes":
-        data.attrs["lat"] = selections.latitude
-        data.attrs["lon"] = selections.longitude
+    # Dealing with different cases of downscaling method and lat/lon types
+    if selections.area_subset == "lat/lon":
+        if selections.area_average == "Yes":  # Means lat/lon range was given
+            data.attrs["lat"] = selections.latitude
+            data.attrs["lon"] = selections.longitude
+
+        else:  # Otherwise, find the closest gridcell
+            if "Statistical" in selections.downscaling_method:
+                # Manually finding nearest gridcell for LOCA data, or data with lat/lon coords already.
+                data = data.sel(
+                    lat=np.mean(selections.latitude),
+                    lon=np.mean(selections.longitude),
+                    method="nearest",
+                )
+            else:
+                data = get_closest_gridcell(
+                    data, np.mean(selections.latitude), np.mean(selections.longitude)
+                )
 
     # Calculate the given metric on the data
     calc_vals = data.groupby("simulation").map(agg_func).chunk(chunks="auto")
