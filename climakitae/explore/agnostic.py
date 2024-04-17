@@ -430,10 +430,16 @@ def _split_stats(sims, data):
         "max": sims[sims.argmax()].simulation.item(),
     }
 
-    multiple_model_names = {
-        "middle 10%": sims[
+    # Multiple model statistics can depend on the number of available simulations. i.e. No middle 10% of sims for 4 WRF sims, so fallback functionality to getting the median simulation.
+    if len(sims) < 10:
+        middle_10 = single_model_names['median']
+    else:
+        middle_10 = sims[
             round(len(sims) * 0.45) - 1 : round(len(sims) * 0.55) - 1
         ].simulation.values
+        
+    multiple_model_names = {
+        "middle 10%": middle_10
     }
 
     # Creating a dictionary of single stats names to the initial models from the dataset
@@ -624,7 +630,7 @@ def agg_area_subset_sims(
     return _compute_selections_and_stats(selections, agg_func, years, months)
 
 
-def plot_sims(sim_vals, selected_val, time_slice, stats):
+def plot_LOCA(sim_vals, selected_val, time_slice, stats):
     """Creates a histogram for LOCA simulations aggregated from `agg_lat_lon_sims` or `agg_area_subset_sims`."""
     # Finding the proper title for the plot
     area_text = ""
@@ -683,12 +689,14 @@ def plot_WRF(sim_vals, variable, agg_func):
     """Bar plot of WRF models with their aggregated values from `agg_lat_lon_sims` or `agg_area_subset_sims`."""
     sims = [name.split(",")[0] for name in list(sim_vals.simulation.values)]
     sims = [name[4:] for name in sims]
+    sims = ['\n'.join(sim_name.split('_')) for sim_name in sims]
     vals = sim_vals.values
 
     fig, ax = plt.subplots()
     ax.bar(sims, vals)
-    ax.set_xlabel("WRF Model, Emission Scenario 3-7.0", labelpad=15, fontsize=12)
+    ax.set_xlabel("WRF Simulation, Emission Scenario 3-7.0", labelpad=15, fontsize=12)
     ax.set_ylabel(f"{variable} ({sim_vals.units})", labelpad=10, fontsize=12)
+    ax.set_ylim(bottom=min(sim_vals) - 5, top=max(sim_vals) + 5)
 
     if sim_vals.location_subset == ["coordinate selection"]:
         location = (round(sim_vals.lat.item(), 2), round(sim_vals.lon.item(), 2))
@@ -698,21 +706,6 @@ def plot_WRF(sim_vals, variable, agg_func):
     plt.title(
         "{} of {} at {}".format(str(agg_func.__name__).capitalize(), variable, location)
     )
-
-    # Adjust the spacing of x-axis tick labels
-    for i, tick in enumerate(ax.xaxis.get_major_ticks()):
-        if i == 0 or i == 2:  # Set higher position for Label2 and Label3
-            tick.label1.set_y(
-                tick.label1.get_position()[1]
-            )  # Adjust the value as needed for spacing
-            tick.label1.set_verticalalignment("top")
-        elif i == 1 or i == 3:  # Set lower position for Label4 and Label5
-            tick.label1.set_y(
-                tick.label1.get_position()[1] - 0.06
-            )  # Adjust the value as needed for spacing
-            tick.label1.set_verticalalignment("top")
-
-    plt.tight_layout()  # Automatically adjusts subplot parameters to prevent clipping of labels
     plt.show()
 
 
@@ -735,6 +728,7 @@ def plot_climate_response_WRF(var1, var2):
     # Get sim names
     sims = [name.split(",")[0] for name in list(var1.simulation.values)]
     sims = [name[4:] for name in sims]
+    sims = ['\n'.join(sim_name.split('_')) for sim_name in sims]
 
     # Plot points and add labels
     for idx in range(len(var1.simulation)):
@@ -754,5 +748,13 @@ def plot_climate_response_WRF(var1, var2):
             textcoords="offset points",
             xytext=(7, 0),
         )
-    ax.set_aspect(aspect="auto", adjustable="box")
+        
+    x_padding = (max(var1.values) - min(var1.values)) * 0.2  # 10% padding
+    y_padding = (max(var2.values) - min(var2.values)) * 0.2  # 10% padding
+
+    # Adjust limits with padding
+    plt.xlim(min(var1.values) - x_padding, max(var1.values) + x_padding)
+    plt.ylim(min(var2.values) - y_padding, max(var2.values) + y_padding)
+    plt.grid(True)
+    plt.gca().set_aspect("equal")
     plt.show()
