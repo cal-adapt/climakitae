@@ -318,7 +318,7 @@ def _create_lat_lon_select(lat, lon, variable, downscaling_method, units, years)
     selections = Select()
     selections.area_subset = "lat/lon"
     if (
-        type(lat) == float
+        type(lat) == float or type(lat) == int
     ):  # Creating a box around which to find the nearest gridcell for compute
         selections.latitude = (lat - 0.05, lat + 0.05)
         selections.longitude = (lon - 0.05, lon + 0.05)
@@ -637,11 +637,15 @@ def plot_LOCA(sim_vals, selected_val, time_slice, stats):
         bins=np.linspace(min(sim_vals).item(), max(sim_vals).item(), 12),
     )
     ax.set_title(
-        "Histogram of {} from {} of all {} LOCA sims for {}".format(
-            selected_val, time_slice, len(sim_vals), area_text
+        "Histogram of {} {} from {} of all {} LOCA sims for {}".format(
+            str(agg_func.__name__).capitalize(),
+            sim_vals.name,
+            time_slice,
+            len(sim_vals),
+            area_text,
         )
     )
-    ax.set_xlabel("Monthly " + str(sim_vals.units).capitalize())
+    ax.set_xlabel("{} ({})".format(sim_vals.name, sim_vals.units))
     ax.set_ylabel("Count of Simulations")
 
     # Creating pairings between simulations and calculated values
@@ -723,7 +727,10 @@ def plot_climate_response_WRF(var1, var2):
     for idx in range(len(var1.simulation)):
         ax.scatter(var1[idx], var2[idx], label=sims[idx])
     ax.set_title(
-        "WRF CA Metrics: CA Statewide Average", fontsize=12
+        "WRF results for {}: \n {} vs {}".format(
+            var1.location_subset[0], var1.name, var2.name
+        ),
+        fontsize=12,
     )  # Specifically supporting visualizing CA statewide average (for current applications)
     ax.set_xlabel(f"{var1.name} ({var1.units})", labelpad=10, fontsize=12)
     ax.set_ylabel(f"{var2.name} ({var2.units})", labelpad=10, fontsize=12)
