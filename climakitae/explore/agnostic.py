@@ -388,20 +388,10 @@ def _compute_results(selections, agg_func, years, months):
     data = xr.concat(all_data, dim="simulation")
     data = data.sel(time=data["time"][data.time.dt.month.isin(months)])
 
-    # Retrieving closest grid-cell's data for lat/lon area subsetting IF the given lat/lon coordinates are not tuple ranges
-    if selections.area_subset == "lat/lon" and selections.area_average != "Yes":
-
-        if "Statistical" in selections.downscaling_method:
-            # Manually finding nearest gridcell for LOCA data, or data with lat/lon coords already.
-            data = data.sel(
-                lat=np.mean(selections.latitude),
-                lon=np.mean(selections.longitude),
-                method="nearest",
-            )
-        else:
-            data = get_closest_gridcell(
-                data, np.mean(selections.latitude), np.mean(selections.longitude)
-            )
+    # Add lat/lon attributes to DataArray if the area is averaged (so no lat/lon information is kept)
+    if selections.area_subset == 'lat/lon' and selections.area_average == 'Yes':
+        data.attrs['lat'] = selections.latitude
+        data.attrs['lon'] = selections.longitude
 
     # Calculate the given metric on the data
     calc_vals = data.groupby("simulation").map(agg_func).chunk(chunks="auto")
@@ -475,36 +465,38 @@ def _compute_selections_and_stats(selections, agg_func, years, months):
     return single_stats, multiple_stats, results
 
 
-def _validate_variable(variable, downscaling_method):
+def _validate_lat_lon(lat, lon):
+    if lat and lon:  # Only validating lat/lon inputs for `agg_lat_lon_sims`
+        if (type(lat) != float and type(lat) != tuple and type(lat) != int) or (
+            type(lon) != float and type(lon) != tuple and type(lon) != int
+        ):
+            raise ValueError(
+                "Error: Please enter either a tuple or a float or an int for your each of your lat/lon coordinates."
+            )
+        elif type(lat) != type(lon):
+            raise ValueError(
+                "Error: Please enter lat/lon coordinates both as a float, tuple, or int types."
+            )
+    else:
+        raise ValueError("Error: Please enter valid lat/lon coordinates.")
+    
+
+def _validate_inputs(year_range, variable, downscaling_method, units):
+    """Validates all the user inputs"""
     if variable not in set(show_available_vars(downscaling_method)):
         raise ValueError(
             "Error: Please enter an available variable for the given downscaling method."
         )
-
-
-def _validate_lat_lon(lat, lon):
-    if lat and lon:  # Only validating lat/lon inputs for `agg_lat_lon_sims`
-        if (type(lat) != float and type(lon) != tuple) or (
-            type(lon) != float and type(lon) != tuple
-        ):
-            raise ValueError(
-                "Error: Please enter either a tuple or a float for your each of your lat/lon coordinates."
-            )
-        elif type(lat) != type(lon):
-            raise ValueError(
-                "Error: Please enter lat/lon coordinates both as a float or tuple types."
-            )
-    else:
-        raise ValueError("Error: Please enter valid lat/lon coordinates.")
-
-
-def _validate_units(variable, downscaling_method, units):
     if units not in get_available_units(variable, downscaling_method):
         raise ValueError(
             "Error: Please enter a unit type that is available for your selected variable."
         )
+    if year_range[0] < 1950 or year_range[1] > 2100:
+        raise ValueError(
+            "Error: Please enter a year range from 1950-2100."
+        )
 
-
+ 
 def show_available_vars(downscaling_method):
     """Function that shows the available variables based on the input downscaling method."""
 
@@ -568,8 +560,7 @@ def agg_lat_lon_sims(
     """
     # Validating if inputs are correct (lat/lon is appropriate types and variable is available for selected downscaling method)
     _validate_lat_lon(lat, lon)
-    _validate_variable(variable, downscaling_method)
-    _validate_units(variable, downscaling_method, units)
+    _validate_inputs(years, variable, downscaling_method, units)
     # Create selections object
     selections = _create_lat_lon_select(
         lat, lon, variable, downscaling_method, units, years
@@ -620,8 +611,7 @@ def agg_area_subset_sims(
         Aggregated results of running the given aggregation function on the lat/lon gridcell of interest. Results are also sorted in ascending order.
     """
     # Validating if variable is available for the given downscaling method
-    _validate_variable(variable, downscaling_method)
-    _validate_units(variable, downscaling_method, units)
+    _validate_inputs(years, variable, downscaling_method, units)
     # Creates the selections object
     selections = _create_cached_area_select(
         area_subset, cached_area, variable, downscaling_method, units, years
@@ -728,7 +718,6 @@ def plot_climate_response_WRF(var1, var2):
     # Get sim names
     sims = [name.split(",")[0] for name in list(var1.simulation.values)]
     sims = [name[4:] for name in sims]
-    sims = ['\n'.join(sim_name.split('_')) for sim_name in sims]
 
     # Plot points and add labels
     for idx in range(len(var1.simulation)):
