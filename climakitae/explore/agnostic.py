@@ -735,13 +735,4 @@ def plot_climate_response_WRF(var1, var2):
             textcoords="offset points",
             xytext=(7, 0),
         )
-
-    x_padding = (max(var1.values) - min(var1.values)) * 0.2  # 10% padding
-    y_padding = (max(var2.values) - min(var2.values)) * 0.2  # 10% padding
-
-    # Adjust limits with padding
-    plt.xlim(min(var1.values) - x_padding, max(var1.values) + x_padding)
-    plt.ylim(min(var2.values) - y_padding, max(var2.values) + y_padding)
-    plt.grid(True)
-    plt.gca().set_aspect("equal")
     plt.show()
