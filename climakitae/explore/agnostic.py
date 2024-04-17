@@ -633,7 +633,7 @@ def plot_WRF(sim_vals, agg_func, years):
         if sim_vals.attrs[
             "lat"
         ]:  # Determine if lat/lon was manually written onto DataArray because of area averaging or not
-            location = "lat: {}, lon: {}".format(sim_vals.lat, sim_vals.lon)
+            location = f"lat: {sim_vals.lat}, lon: {sim_vals.lon}"
         else:
             location = (round(sim_vals.lat.item(), 2), round(sim_vals.lon.item(), 2))
     else:
