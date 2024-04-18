@@ -631,7 +631,23 @@ def agg_area_subset_sims(
 
 
 def plot_WRF(sim_vals, agg_func, years):
-    """Bar plot of WRF models with their aggregated values from `agg_lat_lon_sims` or `agg_area_subset_sims`."""
+    """
+    Visualizes a barplot of WRF simulations that are aggregated from `agg_lat_lon_sims` or `agg_area_subset_sims`.
+    Used with `results_gridcell` or `results_area` as inputs, as well as the aggregated function and time slice, all predefined within `agnostic_tools.ipynb`.
+
+    Parameters
+    ----------
+    sim_vals: xr.DataArray
+        DataArray of the aggregated results of a climate variable.
+    agg_func: Function
+        Function that takes in a series of values and returns a statistic, like np.mean
+    time_slice: tuple
+        Years of interest
+
+    Returns
+    -------
+    None
+    """
     sims = [name.split(",")[0] for name in list(sim_vals.simulation.values)]
     sims = [name[4:] for name in sims]
     sims = ["\n".join(sim_name.split("_")) for sim_name in sims]
@@ -658,7 +674,26 @@ def plot_WRF(sim_vals, agg_func, years):
 
 
 def plot_LOCA(sim_vals, agg_func, time_slice, stats):
-    """Creates a histogram for LOCA simulations aggregated from `agg_lat_lon_sims` or `agg_area_subset_sims`."""
+    """
+    Visualizes a histogram of LOCA simulations that are aggregated from `agg_lat_lon_sims` or `agg_area_subset_sims`.
+    Used with `results_gridcell` or `results_area` as inputs, as well as the aggregated function, time slice, and
+    simulation stats all predefined within `agnostic_tools.ipynb`.
+
+    Parameters
+    ----------
+    sim_vals: xr.DataArray
+        DataArray of the aggregated results of a climate variable.
+    agg_func: Function
+        Function that takes in a series of values and returns a statistic, like np.mean
+    time_slice: tuple
+        Years of interest
+    stats: dict
+        Statistics that are returned from `single_stats_gridcell` or `single_stats_area` in `agnostic_tools.ipynb`
+
+    Returns
+    -------
+    None
+    """
     # Finding the proper title for the plot
     area_text = ""
     if sim_vals.location_subset == ["coordinate selection"]:
@@ -712,7 +747,19 @@ def plot_LOCA(sim_vals, agg_func, time_slice, stats):
 
 def plot_climate_response_WRF(var1, var2):
     """
-    Scatter plot of two climate variables from WRF models with their aggregated values from `agg_lat_lon_sims` or `agg_area_subset_sims`.
+    Visualizes a scatterplot of two aggregated climate variables from `agg_lat_lon_sims` or `agg_area_subset_sims`.
+    Used with `results_gridcell` or `results_area` as inputs, as seen within `agnostic_tools.ipynb`.
+
+    Parameters
+    ----------
+    var1: xr.DataArray
+        DataArray of the first climate variable, with simulation, name, and units attributes.
+    var2: xr.DataArray
+        DataArray of the second climate variable, with simulation, name, and units attributes.
+
+    Returns
+    -------
+    None
     """
     # Make sure that the two variables are the same length and have the same simulation names
     if (len(var1) != len(var2)) & (
