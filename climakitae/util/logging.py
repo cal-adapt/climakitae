@@ -9,8 +9,8 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # Define a global flag to control logging
 logging_enabled = False
 
-# Define a list of allowed module names containing your library modules
-allowed_modules = ['climakitae']  # Add more modules if necessary
+# Define a list of allowed module names
+allowed_modules = ['climakitae'] 
 
 def enable_logging():
     """
@@ -28,7 +28,7 @@ def disable_logging():
 
 def log_function_execution(func):
     """
-    Decorator function to log the name of the currently executing function or method if its module name starts with 'climakitae'.
+    Decorator function to log the name of the currently executing function or method if its module name starts with `climakitae`.
     """
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -46,14 +46,14 @@ def log_function_execution(func):
 
 def log_class_instantiation(cls):
     """
-    Decorator function to log the instantiation of a class if its module name starts with 'climakitae'.
+    Decorator function to log the instantiation of a class if its module name starts with `climakitae`.
     """
     class WrappedClass(cls):
         def __new__(cls, *args, **kwargs):
             if logging_enabled:
                 # Get the module name of the class
                 module_name = cls.__module__
-                # Check if the module name starts with 'climakitae'
+                # Check if the module name starts with `climakitae`
                 if module_name.startswith('climakitae'):
                     logging.info(f"Instantiating class: {cls.__name__} in module: {module_name}")
             
@@ -82,4 +82,5 @@ def apply_logging_to_library_functions_and_methods():
                 pass
                 # setattr(module, name, log_class_instantiation(obj))
 
-# Apply logging to all functions, methods, and classes within your library modules
+# Apply logging to all functions, methods, and classes within `climakitae`
+# apply_logging_to_library_functions_and_methods()
