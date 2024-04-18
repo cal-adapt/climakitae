@@ -79,6 +79,7 @@ def apply_logging_to_library_functions_and_methods():
             if inspect.isfunction(obj) or inspect.ismethod(obj):
                 setattr(module, name, log_function_execution(obj))
             elif inspect.isclass(obj):
-                setattr(module, name, log_class_instantiation(obj))
+                pass
+                # setattr(module, name, log_class_instantiation(obj))
 
 # Apply logging to all functions, methods, and classes within your library modules
