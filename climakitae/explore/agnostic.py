@@ -6,6 +6,7 @@ from dask import compute
 import xarray as xr
 import seaborn as sns
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import panel as pn
 import intake
 from climakitae.core.data_interface import (
@@ -669,7 +670,9 @@ def plot_WRF(sim_vals, agg_func, years):
     else:
         location = sim_vals.location_subset[0]
 
-    plt.title(f"{str(agg_func.__name__)} of {sim_vals.name} at {location} from {years}")
+    plt.title(
+        f"{str(agg_func.__name__).capitalize()} of {sim_vals.name} at {location} from {years}"
+    )
     plt.show()
 
 
@@ -796,4 +799,70 @@ def plot_climate_response_WRF(var1, var2):
             textcoords="offset points",
             xytext=(7, 0),
         )
+    plt.show()
+
+
+def plot_climate_response_LOCA(var1, var2):
+    """
+    Visualizes a scatterplot of two aggregated climate variables from `agg_lat_lon_sims` or `agg_area_subset_sims`.
+    Used with `results_gridcell` or `results_area` as inputs, as seen within `agnostic_tools.ipynb`.
+
+    Parameters
+    ----------
+    var1: xr.DataArray
+        DataArray of the first climate variable, with simulation, name, and units attributes.
+    var2: xr.DataArray
+        DataArray of the second climate variable, with simulation, name, and units attributes.
+
+    Returns
+    -------
+    None
+    """
+    # Make sure that the two variables are the same length and have the same simulation names
+    if (len(var1) != len(var2)) & (
+        set(var1.simulation.values) != set(var2.simulation.values)
+    ):
+        raise IndexError(
+            "The two variables must have the same length of simulations and have the same simulation names."
+        )
+
+    var1 = var1.sortby("simulation")
+    var2 = var2.sortby("simulation")
+    fig, ax = plt.subplots(figsize=(7, 5))
+
+    # Get sim names
+    sims = [name.split(",")[0] for name in list(var1.simulation.values)]
+    sims = [name[6:].split("_")[0] for name in sims]
+
+    # Creating colormap of points based on GCM
+    color_map = cm.get_cmap("tab20", len(set(sims)))
+    color_maps = {group: color_map(i) for i, group in enumerate(set(sims))}
+
+    # Plot points and add labels
+    for idx in range(len(var1.simulation)):
+        ax.scatter(
+            var1[idx],
+            var2[idx],
+            label=sims[idx],
+            color=color_maps[var1[idx].simulation.item().split("_")[1]],
+        )
+
+    ax.set_title(
+        f"LOCA2 results for {var1.location_subset[0]}: \n {var1.name} vs {var2.name}",
+        fontsize=12,
+    )  # Specifically supporting visualizing CA statewide average (for current applications)
+    ax.set_xlabel(f"{var1.name} ({var1.units})", labelpad=10, fontsize=12)
+    ax.set_ylabel(f"{var2.name} ({var2.units})", labelpad=10, fontsize=12)
+    handles = [
+        plt.Line2D(
+            [0],
+            [0],
+            marker="o",
+            color="w",
+            markerfacecolor=color_maps.get(group, "black"),
+            markersize=10,
+        )
+        for group in set(sims)
+    ]
+    ax.legend(handles, set(sims), loc="upper right", bbox_to_anchor=(1.38, 1))
     plt.show()
