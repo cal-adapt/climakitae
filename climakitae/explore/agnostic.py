@@ -343,6 +343,7 @@ def _create_cached_area_select(
     selections.area_subset = area_subset
     selections.cached_area = [cached_area]
     selections.downscaling_method = downscaling_method
+    selections.area_average = "Yes"
 
     # Add attributes for the rest of the selections object
     selections = _complete_selections(selections, variable, units, years)
