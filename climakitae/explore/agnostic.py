@@ -750,7 +750,7 @@ def plot_LOCA(sim_vals, agg_func, time_slice, stats):
 
 def plot_climate_response_WRF(var1, var2):
     """
-    Visualizes a scatterplot of two aggregated climate variables from `agg_lat_lon_sims` or `agg_area_subset_sims`.
+    Visualizes a scatterplot of two aggregated WRF climate variables from `agg_lat_lon_sims` or `agg_area_subset_sims`.
     Used with `results_gridcell` or `results_area` as inputs, as seen within `agnostic_tools.ipynb`.
 
     Parameters
@@ -804,7 +804,7 @@ def plot_climate_response_WRF(var1, var2):
 
 def plot_climate_response_LOCA(var1, var2):
     """
-    Visualizes a scatterplot of two aggregated climate variables from `agg_lat_lon_sims` or `agg_area_subset_sims`.
+    Visualizes a scatterplot of two aggregated LOCA climate variables from `agg_lat_lon_sims` or `agg_area_subset_sims`.
     Used with `results_gridcell` or `results_area` as inputs, as seen within `agnostic_tools.ipynb`.
 
     Parameters
