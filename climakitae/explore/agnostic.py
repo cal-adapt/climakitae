@@ -661,7 +661,9 @@ def plot_WRF(sim_vals, agg_func, years):
     ax.set_ylim(bottom=min(sim_vals) - 5, top=max(sim_vals) + 5)
 
     if sim_vals.location_subset == ["coordinate selection"]:
-        if "lat" in sim_vals.attrs: # Determine if lat/lon was manually written onto DataArray because of area averaging or not
+        if (
+            "lat" in sim_vals.attrs
+        ):  # Determine if lat/lon was manually written onto DataArray because of area averaging or not
             location = f"lat: {sim_vals.lat}, lon: {sim_vals.lon}"
         else:
             location = (round(sim_vals.lat.item(), 2), round(sim_vals.lon.item(), 2))
