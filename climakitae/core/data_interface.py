@@ -1188,7 +1188,7 @@ class DataParameters(param.Parameterized):
             raise ValueError(
                 "COULD NOT RETRIEVE DATA: For the provided data selections, there is not sufficient data to retrieve. Try selecting a larger spatial area, or a higher resolution. Returning None."
             )
-
+        print("Test print output...")
 
 class DataParametersWithPanes(DataParameters):
     """Extends DataParameters class to include panel widgets that display the time scale and a map overview"""
