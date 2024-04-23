@@ -17,9 +17,7 @@ current_logging_status = lambda: logging_enabled
 logger = logging.getLogger("Climakitae Back-end Debugger")
 logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler(sys.stdout)
-handler.setFormatter(
-    logging.Formatter("%(asctime)s - %(name)s - %(message)s")
-)
+handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(message)s"))
 # logger.addHandler(handler)
 
 indentation_level = 0
@@ -52,7 +50,9 @@ def log(func):
         global indentation_level
         if logging_enabled:
             start_time = time.time()
-            logger.debug("  " * indentation_level + f"Executing function: {func.__name__}")
+            logger.debug(
+                "  " * indentation_level + f"Executing function: {func.__name__}"
+            )
             indentation_level += 1
             results = func(*args, **kwargs)
             indentation_level -= 1
