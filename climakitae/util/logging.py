@@ -4,149 +4,113 @@ import functools
 import sys
 import time
 
+# Define global variables to control logging
+app_log_enabled = False # For users
+lib_log_enabled = False # For developers
 
-# Define a global flag to control logging
-logging_enabled = False
+# Controls the amount of indentation for library logging
+indentation_level = 0
 
-# Define a list of allowed module names
-allowed_modules = ["climakitae"]
-
+# Let user see what the current logging status is
 current_logging_status = lambda: logging_enabled
 
-# Trying to use logger
+# Instantiating loggers
 logger = logging.getLogger("Climakitae Back-end Debugger")
 logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(message)s"))
-# logger.addHandler(handler)
 
-indentation_level = 0
+# Creating an additional logger for adding new lines around logger when enabling full library logger
+# (i.e. view logger lines as well as call stack and runtimes
+class NewlineHandler(logging.Handler):
+    def emit(self, record):
+        timestamp = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(record.created))
+        msg = self.format(record)
+        msg = f"\n{timestamp} - {record.name} - {msg}\n"
+        print(msg)
 
+# Create the extra handlers for new lines
+newline_handler = NewlineHandler()
+newline_handler.setLevel(logging.DEBUG)
+        
 
-def enable_logging():
+### Functions to enable or disable logging in notebooks
+    
+def enable_app_logging():
     """
-    Enable logging for library functions, methods, and class instantiations.
-    """
-    global logging_enabled
-    if not logging_enabled:
-        logging_enabled = True
+    Enables application logging by adding a handler.
+    """"
+    global app_log_enabled
+    if not app_log_enabled:
+        app_log_enabled = True
         logger.addHandler(handler)
 
 
 def disable_logging():
     """
-    Disable logging for library functions, methods, and class instantiations.
-    """
-    global logging_enabled
-    if logging_enabled:
-        logging_enabled = False
+    Disables logging by removing application logger handler.
+    """"
+    global app_log_enabled
+    if app_log_enabled:
+        app_log_enabled = False
         logger.removeHandler(handler)
+        
 
+def enable_lib_logging():
+    """
+    Enables library logging.
+    """"
+    global lib_log_enabled
+    if not lib_log_enabled:
+        lib_log_enabled = True
+        # app_log_enabled = False
+        # logger.addHandler(newline_handler)
+        # logger.removeHandler(handler)
+        
 
+def disable_lib_logging():
+    """
+    Disables library logging.
+    """"
+    global lib_log_enabled
+    if lib_log_enabled:
+        lib_log_enabled = False
+        # logger.removeHandler(newline_handler)
+        
+        
 def log(func):
-    global logging_enabled, logger
+    """
+    Wraps around existing functions, adding print statements upon execution and the amount of time it takes for execution. Allows function's call-stack to be viewed for all sub-functions that also have this wrapper.
+    """
+    global lib_log_enabled, logger
 
     def wrapper(*args, **kwargs):
+        """Wraps timer and print statement around functions if `lib_log_enabled` is True, otherwise
+        just return the function's result."""
         global indentation_level
-        if logging_enabled:
+        if lib_log_enabled:
             start_time = time.time()
-            logger.debug(
+            print(
                 "  " * indentation_level + f"Executing function: {func.__name__}"
             )
             indentation_level += 1
             results = func(*args, **kwargs)
             indentation_level -= 1
             end_time = time.time()
-            logger.debug(
+            print(
                 "  " * indentation_level
                 + f"Execution time for {func.__name__}: {end_time - start_time:.4g}"
             )
             return results
+        return func(*args, **kwargs)
 
     return wrapper
 
 
 def kill_loggers():
+    """
+    Kills all active handlers for current logger.
+    """
     global logger
     for handler in logger.handlers[:]:
         logger.removeHandler(handler)
-
-
-# def log_function_execution(func):
-#     """
-#     Decorator function to log the name of the currently executing function or method if its module name starts with `climakitae`.
-#     """
-#     @functools.wraps(func)
-#     def wrapper(*args, **kwargs):
-#         if logging_enabled:
-#             # Get the module name of the function or method
-#             module_name = func.__module__
-
-#             # Check if the module name starts with 'climakitae'
-#             if module_name.startswith('climakitae'):
-#                 logging.info(f"Executing function or method: {func.__name__} in module: {module_name}")
-#         return func(*args, **kwargs)
-
-#     # Return the wrapped function or method
-#     return wrapper
-
-# def log_class_instantiation(cls):
-#     """
-#     Decorator function to log the instantiation of a class if its module name starts with `climakitae`.
-#     """
-#     class WrappedClass(cls):
-#         def __new__(cls, *args, **kwargs):
-#             if logging_enabled:
-#                 # Get the module name of the class
-#                 module_name = cls.__module__
-#                 # Check if the module name starts with `climakitae`
-#                 if module_name.startswith('climakitae'):
-#                     logging.info(f"Instantiating class: {cls.__name__} in module: {module_name}")
-
-#             # Create an instance of the class
-#             instance = super().__new__(cls)
-
-#             # Decorate functions/methods within the class
-#             for name, obj in inspect.getmembers(instance):
-#                 if inspect.isfunction(obj) or inspect.ismethod(obj):
-#                     setattr(instance, name, log_function_execution(obj))
-
-#             return instance
-
-#     return WrappedClass
-
-# def apply_logging_to_library_functions_and_methods():
-#     """
-#     Apply logging wrapper to all functions, methods, and classes within allowed modules.
-#     """
-#     for module_name in allowed_modules:
-#         module = sys.modules[module_name]
-#         for name, obj in inspect.getmembers(module):
-#             if inspect.isfunction(obj) or inspect.ismethod(obj):
-#                 setattr(module, name, log_function_execution(obj))
-#             elif inspect.isclass(obj):
-#                 pass
-#                 # setattr(module, name, log_class_instantiation(obj))
-
-# # Apply logging to all functions, methods, and classes within `climakitae`
-# # apply_logging_to_library_functions_and_methods()
-
-
-##### Writing out messages to stdout
-# Create and configure logger
-# import sys
-# logger = logging.getLogger('Verbose Mode')
-# logger.setLevel(logging.DEBUG)
-# handler = logging.StreamHandler(sys.stdout)
-# handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-# logger.addHandler(handler)
-
-# # Example usage
-# logger.debug('Debug message')
-# logger.info('Info message')
-# logger.warning('Warning message')
-# logger.error('Error message')
-# logger.critical('Critical message')
-
-# for handler in logger.handlers[:]:
-#     logger.removeHandler(handler)
