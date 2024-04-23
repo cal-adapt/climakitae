@@ -14,7 +14,7 @@ allowed_modules = ["climakitae"]
 current_logging_status = lambda: logging_enabled
 
 # Trying to use logger
-logger = logging.getLogger("Agnostic Logger")
+logger = logging.getLogger("Climakitae Back-end Debugger")
 logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(
