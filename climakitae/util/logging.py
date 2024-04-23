@@ -18,7 +18,7 @@ logger = logging.getLogger("Climakitae Back-end Debugger")
 logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(
-    logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    logging.Formatter("%(asctime)s - %(name)s - %(message)s")
 )
 logger.addHandler(handler)
 
