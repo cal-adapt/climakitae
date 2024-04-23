@@ -89,6 +89,7 @@ def log(func):
     Wraps around existing functions, adding print statements upon execution and the amount of time it takes for execution. Allows function's call-stack to be viewed for all sub-functions that also have this wrapper.
     """
     global lib_log_enabled, logger
+
     def wrapper(*args, **kwargs):
         """Wraps timer and print statement around functions if `lib_log_enabled` is True, otherwise
         just return the function's result."""
@@ -123,7 +124,7 @@ def add_log_wrapper(module):
                 setattr(module, name, log(obj))
     else:
         print("Error: Current object is not a module object.")
-                
+
 
 def remove_log_wrapper(module):
     """
@@ -132,7 +133,7 @@ def remove_log_wrapper(module):
     # TODO: Calvin - I can't seem to remove the decorator on the subfunctions.
     # I am told to get each function's __wrapped__ attribute, but they don't exist on the objects.
     # Currently, the only way to remove all log wrappers to a module is to 1. reload the module 2. restart the kernel.
-    
+
     # if isinstance(agnostic, types.ModuleType):
     #     for name in dir(agnostic):
     #         obj = getattr(agnostic, name)
@@ -140,9 +141,10 @@ def remove_log_wrapper(module):
     #             # Check if the function is wrapped with 'log'
     #             if hasattr(obj, '__wrapped__'):
     #                 setattr(agnostic, name, obj.__wrapped__)
-    
+
     importlib.reload(module)
     return
+
 
 def kill_loggers():
     """
@@ -151,4 +153,3 @@ def kill_loggers():
     global logger
     for handler in logger.handlers[:]:
         logger.removeHandler(handler)
-        
