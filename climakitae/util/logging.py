@@ -20,7 +20,7 @@ handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(
     logging.Formatter("%(asctime)s - %(name)s - %(message)s")
 )
-logger.addHandler(handler)
+# logger.addHandler(handler)
 
 indentation_level = 0
 
@@ -30,7 +30,9 @@ def enable_logging():
     Enable logging for library functions, methods, and class instantiations.
     """
     global logging_enabled
-    logging_enabled = True
+    if not logging_enabled:
+        logging_enabled = True
+        logger.addHandler(handler)
 
 
 def disable_logging():
@@ -38,7 +40,9 @@ def disable_logging():
     Disable logging for library functions, methods, and class instantiations.
     """
     global logging_enabled
-    logging_enabled = False
+    if logging_enabled:
+        logging_enabled = False
+        logger.removeHandler(handler)
 
 
 def log(func):
@@ -48,12 +52,12 @@ def log(func):
         global indentation_level
         if logging_enabled:
             start_time = time.time()
-            print("  " * indentation_level + f"Executing function: {func.__name__}")
+            logger.debug("  " * indentation_level + f"Executing function: {func.__name__}")
             indentation_level += 1
             results = func(*args, **kwargs)
             indentation_level -= 1
             end_time = time.time()
-            print(
+            logger.debug(
                 "  " * indentation_level
                 + f"Execution time for {func.__name__}: {end_time - start_time:.4g}"
             )
