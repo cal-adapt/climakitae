@@ -3,6 +3,9 @@ import inspect
 import functools
 import sys
 import time
+import types
+from functools import wraps
+import importlib
 
 # Define global variables to control logging
 app_log_enabled = False  # For users
@@ -49,7 +52,7 @@ def enable_app_logging():
         logger.addHandler(handler)
 
 
-def disable_logging():
+def disable_app_logging():
     """
     Disables logging by removing application logger handler.
     """
@@ -86,7 +89,6 @@ def log(func):
     Wraps around existing functions, adding print statements upon execution and the amount of time it takes for execution. Allows function's call-stack to be viewed for all sub-functions that also have this wrapper.
     """
     global lib_log_enabled, logger
-
     def wrapper(*args, **kwargs):
         """Wraps timer and print statement around functions if `lib_log_enabled` is True, otherwise
         just return the function's result."""
@@ -108,6 +110,40 @@ def log(func):
     return wrapper
 
 
+def add_log_wrapper(module):
+    """
+    Adds the `log` wrapper to all functions within the given module.
+    """
+    # TODO: Calvin- This function only works when it exists in a notebook, not here.
+    # I believe this has something to do with how modules are referenced in a notebook vs in the back-end.
+    if isinstance(module, types.ModuleType):
+        for name in dir(module):
+            obj = getattr(module, name)
+            if isinstance(obj, types.FunctionType):
+                setattr(module, name, log(obj))
+    else:
+        print("Error: Current object is not a module object.")
+                
+
+def remove_log_wrapper(module):
+    """
+    Removes the `log` wrapper to all functions within the given module.
+    """
+    # TODO: Calvin - I can't seem to remove the decorator on the subfunctions.
+    # I am told to get each function's __wrapped__ attribute, but they don't exist on the objects.
+    # Currently, the only way to remove all log wrappers to a module is to 1. reload the module 2. restart the kernel.
+    
+    # if isinstance(agnostic, types.ModuleType):
+    #     for name in dir(agnostic):
+    #         obj = getattr(agnostic, name)
+    #         if isinstance(obj, types.FunctionType):
+    #             # Check if the function is wrapped with 'log'
+    #             if hasattr(obj, '__wrapped__'):
+    #                 setattr(agnostic, name, obj.__wrapped__)
+    
+    importlib.reload(module)
+    return
+
 def kill_loggers():
     """
     Kills all active handlers for current logger.
@@ -115,3 +151,4 @@ def kill_loggers():
     global logger
     for handler in logger.handlers[:]:
         logger.removeHandler(handler)
+        
