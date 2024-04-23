@@ -19,16 +19,7 @@ from climakitae.util.utils import read_csv_file, get_closest_gridcell, area_aver
 from climakitae.core.paths import variable_descriptions_csv_path, data_catalog_url
 from climakitae.util.unit_conversions import get_unit_conversion_options
 from typing import Union, Tuple
-from climakitae.util.logging import log, logger
-
-# Trying to use logger
-# import logging
-# import sys
-# logger = logging.getLogger('Agnostic Logger')
-# logger.setLevel(logging.DEBUG)
-# handler = logging.StreamHandler(sys.stdout)
-# handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-# logger.addHandler(handler)
+from climakitae.util.logging import logger
 
 sns.set_style("whitegrid")
 
