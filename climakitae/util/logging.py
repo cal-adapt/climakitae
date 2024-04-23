@@ -9,15 +9,17 @@ import time
 logging_enabled = False
 
 # Define a list of allowed module names
-allowed_modules = ['climakitae'] 
+allowed_modules = ["climakitae"]
 
 current_logging_status = lambda: logging_enabled
 
 # Trying to use logger
-logger = logging.getLogger('Agnostic Logger')
+logger = logging.getLogger("Agnostic Logger")
 logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler(sys.stdout)
-handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+handler.setFormatter(
+    logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+)
 logger.addHandler(handler)
 
 indentation_level = 0
@@ -29,18 +31,19 @@ def enable_logging():
     """
     global logging_enabled
     logging_enabled = True
-    
-    
+
+
 def disable_logging():
     """
     Disable logging for library functions, methods, and class instantiations.
     """
     global logging_enabled
     logging_enabled = False
-    
-    
+
+
 def log(func):
     global logging_enabled, logger
+
     def wrapper(*args, **kwargs):
         global indentation_level
         if logging_enabled:
@@ -50,8 +53,12 @@ def log(func):
             results = func(*args, **kwargs)
             indentation_level -= 1
             end_time = time.time()
-            print("  " * indentation_level + f"Execution time for {func.__name__}: {end_time - start_time:.4g}")
+            print(
+                "  " * indentation_level
+                + f"Execution time for {func.__name__}: {end_time - start_time:.4g}"
+            )
             return results
+
     return wrapper
 
 
@@ -59,6 +66,7 @@ def kill_loggers():
     global logger
     for handler in logger.handlers[:]:
         logger.removeHandler(handler)
+
 
 # def log_function_execution(func):
 #     """
@@ -74,7 +82,7 @@ def kill_loggers():
 #             if module_name.startswith('climakitae'):
 #                 logging.info(f"Executing function or method: {func.__name__} in module: {module_name}")
 #         return func(*args, **kwargs)
-    
+
 #     # Return the wrapped function or method
 #     return wrapper
 
@@ -90,7 +98,7 @@ def kill_loggers():
 #                 # Check if the module name starts with `climakitae`
 #                 if module_name.startswith('climakitae'):
 #                     logging.info(f"Instantiating class: {cls.__name__} in module: {module_name}")
-            
+
 #             # Create an instance of the class
 #             instance = super().__new__(cls)
 
@@ -100,7 +108,7 @@ def kill_loggers():
 #                     setattr(instance, name, log_function_execution(obj))
 
 #             return instance
-    
+
 #     return WrappedClass
 
 # def apply_logging_to_library_functions_and_methods():
@@ -138,5 +146,3 @@ def kill_loggers():
 
 # for handler in logger.handlers[:]:
 #     logger.removeHandler(handler)
-
-
