@@ -35,6 +35,7 @@ from climakitae.tools.indices import (
     noaa_heat_index,
     effective_temp,
 )
+from climakitae.util.logging import logger
 
 # Set options
 xr.set_options(keep_attrs=True)
@@ -332,6 +333,7 @@ def _clip_to_geometry(dset, ds_region):
         clipped area of dset
     """
     try:
+        logger.debug("Clipping geometry")
         dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
 
     except NoDataInBounds as e:
@@ -410,6 +412,8 @@ def _process_dset(ds_name, dset, selections):
         sub-setted output data
 
     """
+    logger.debug("Processing dataset")
+
     # Time slice
     dset = _time_slice(dset, selections)
 
@@ -539,6 +543,7 @@ def _merge_all(selections, data_dict):
         output data
 
     """
+    import tqdm
 
     # Get corresponding data for historical period to append:
     reconstruction = [one for one in data_dict.keys() if "reanalysis" in one]
@@ -547,7 +552,7 @@ def _merge_all(selections, data_dict):
         all_hist = xr.concat(
             [
                 _process_dset(one, data_dict[one], selections)
-                for one in data_dict.keys()
+                for one in tqdm(data_dict.keys())
                 if "historical" in one
             ],
             dim="member_id",
