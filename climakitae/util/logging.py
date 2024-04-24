@@ -6,7 +6,6 @@ from functools import wraps
 import importlib
 
 # Define global variables to control logging
-app_log_enabled = False  # For users
 lib_log_enabled = False  # For developers
 
 # Controls the amount of indentation for library logging
@@ -32,7 +31,6 @@ class NewlineHandler(logging.Handler):
 # Create the extra handlers for new lines
 newline_handler = NewlineHandler()
 newline_handler.setLevel(logging.DEBUG)
-
 
 ### Functions to enable or disable logging in notebooks
 
