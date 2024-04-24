@@ -69,7 +69,7 @@ def log(func):
         global indentation_level
         if lib_log_enabled:
             start_time = time.time()
-            print("  " * indentation_level + f"Executing function: {func.__name__}")
+            print("    " * indentation_level + f"Executing function: {func.__name__}")
             indentation_level += 1
             results = func(*args, **kwargs)
             indentation_level -= 1
