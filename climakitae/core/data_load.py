@@ -333,7 +333,6 @@ def _clip_to_geometry(dset, ds_region):
         clipped area of dset
     """
     try:
-        logger.debug("Clipping geometry")
         dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
 
     except NoDataInBounds as e:
@@ -412,8 +411,6 @@ def _process_dset(ds_name, dset, selections):
         sub-setted output data
 
     """
-    logger.debug("Processing dataset")
-
     # Time slice
     dset = _time_slice(dset, selections)
 
