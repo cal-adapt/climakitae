@@ -75,7 +75,7 @@ def log(func):
             indentation_level -= 1
             end_time = time.time()
             print(
-                "  " * indentation_level
+                "    " * indentation_level
                 + f"Execution time for {func.__name__}: {end_time - start_time:.4g}"
             )
             return results
