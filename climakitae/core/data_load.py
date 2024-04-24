@@ -549,7 +549,7 @@ def _merge_all(selections, data_dict):
         all_hist = xr.concat(
             [
                 _process_dset(one, data_dict[one], selections)
-                for one in tqdm(data_dict.keys())
+                for one in tqdm(data_dict.keys(), "Processing datasets")
                 if "historical" in one
             ],
             dim="member_id",
