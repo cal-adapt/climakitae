@@ -1178,11 +1178,11 @@ class DataParameters(param.Parameterized):
         """
 
         def warnoflargefilesize(da):
-            if da.nbytes > int(1e9):
+            if da.nbytes >= int(1e9) and da.nbytes < int(5e9):
                 print("! Returned data array is large and operations will take extra time !")
-            elif da.nbytes > int(5e9):
+            elif da.nbytes >= int(5e9) and da.nbytes < int(1e10):
                 print("!! Returned data array is very large and operations will take considerably more time !!")
-            elif da.nbytes > int(1e10):
+            elif da.nbytes >= int(1e10):
                 print("!!! Returned data array is huge and operations will take vastly more time !!!")
 
         if config is not None:
