@@ -1175,7 +1175,7 @@ class DataParameters(param.Parameterized):
             Only an option if a config file is provided.
 
         """
-        print("<span style="color:red">Test print output...</span>")
+        print("<span style=""color:red"">Test print output...</span>")
         if config is not None:
             if type(config) == str:
                 return read_catalog_from_csv(self, config, merge)
