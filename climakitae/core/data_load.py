@@ -35,7 +35,7 @@ from climakitae.tools.indices import (
     noaa_heat_index,
     effective_temp,
 )
-from climakitae.util.logging import logger
+from dask.diagnostics import ProgressBar
 
 # Set options
 xr.set_options(keep_attrs=True)
@@ -80,10 +80,6 @@ def load(xr_da):
             ),
             end="",
         )
-
-        import dask.array as da
-        from dask.diagnostics import ProgressBar
-
         with ProgressBar():
             da_computed = xr_da.compute()
         print("complete!")
