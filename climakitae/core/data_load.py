@@ -540,7 +540,7 @@ def _merge_all(selections, data_dict):
         output data
 
     """
-    from tqdm import tqdm
+    from tqdm.auto import tqdm
 
     # Get corresponding data for historical period to append:
     reconstruction = [one for one in data_dict.keys() if "reanalysis" in one]
