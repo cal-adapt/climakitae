@@ -1186,11 +1186,15 @@ class DataParameters(param.Parameterized):
                 )
             elif da.nbytes >= int(5e9) and da.nbytes < int(1e10):
                 print(
-                    "!! Returned data array is very large and operations will take considerably more time !!"
+                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+                    "!! Returned data array is very large and operations will take considerably more time !!\n"
+                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
                 )
             elif da.nbytes >= int(1e10):
                 print(
-                    "!!! Returned data array is huge and operations will take vastly more time !!!"
+                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+                    "!!! Returned data array is huge and operations will take vastly more time !!!\n"
+                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
                 )
 
         if config is not None:
