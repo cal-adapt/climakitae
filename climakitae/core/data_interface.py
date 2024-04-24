@@ -1175,7 +1175,7 @@ class DataParameters(param.Parameterized):
             Only an option if a config file is provided.
 
         """
-        print("Test print output...")
+        print("<span style="color:red">Test print output...</span>")
         if config is not None:
             if type(config) == str:
                 return read_catalog_from_csv(self, config, merge)
@@ -1189,6 +1189,7 @@ class DataParameters(param.Parameterized):
             raise ValueError(
                 "COULD NOT RETRIEVE DATA: For the provided data selections, there is not sufficient data to retrieve. Try selecting a larger spatial area, or a higher resolution. Returning None."
             )
+
 
 class DataParametersWithPanes(DataParameters):
     """Extends DataParameters class to include panel widgets that display the time scale and a map overview"""
