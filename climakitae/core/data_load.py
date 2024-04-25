@@ -81,7 +81,7 @@ def load(xr_da):
             end="",
         )
         with ProgressBar():
-            da_computed = xr_da.compute()
+            da_computed = xr_da.load()
         print("complete!")
         return da_computed  # Load data into memory and return
 
@@ -550,7 +550,7 @@ def _merge_all(selections, data_dict):
         all_hist = xr.concat(
             [
                 _process_dset(one, data_dict[one], selections)
-                for one in tqdm(data_dict.keys(), "Processing datasets")
+                for one in tqdm(data_dict.keys(), "Retrieving datasets")
                 if "historical" in one
             ],
             dim="member_id",
