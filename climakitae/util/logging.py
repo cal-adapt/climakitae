@@ -64,10 +64,10 @@ def add_log_wrapper(obj):
     if isinstance(obj, types.ModuleType) or isinstance(obj, type):
         for name in dir(obj):
             res = getattr(obj, name)
-            if isinstance(res, type):
-                add_log_wrapper(res)
-            elif isinstance(res, types.FunctionType):
+            if isinstance(res, types.FunctionType):
                 setattr(obj, name, log(res))
+            elif isinstance(res, type) and name != '__class__':
+                add_log_wrapper(res)
     else:
         print("Error: Current object is not a module object.")
 
