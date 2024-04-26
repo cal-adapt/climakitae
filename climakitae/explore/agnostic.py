@@ -417,7 +417,9 @@ def _compute_results(selections, agg_func, years, months):
 
     # Sorting sims and getting metrics
     logger.debug("Loading data and computing aggregation")
-    sorted_sims = load(calc_vals.sortby(calc_vals)[0])  # Need all the values in order to create histogram + return values
+    loaded_sims = load(calc_vals)
+    sorted_sims = loaded_sims.sortby(loaded_sims)
+    # sorted_sims = load(calc_vals.sortby(calc_vals)[0])  # Need all the values in order to create histogram + return values
 
     return sorted_sims, data
 
