@@ -66,7 +66,9 @@ def add_log_wrapper(obj):
             res = getattr(obj, name)
             if isinstance(res, types.FunctionType):
                 setattr(obj, name, log(res))
-            elif isinstance(res, type) and name != '__class__':
+            
+            # This check makes sure the object is a class type, is not the literal string '__class__', and is created within climakitae.
+            elif isinstance(res, type) and name != '__class__' and res.__module__[:10] == 'climakitae':
                 add_log_wrapper(res)
     else:
         print("Error: Current object is not a module object.")
