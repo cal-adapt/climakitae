@@ -19,6 +19,7 @@ from climakitae.util.utils import read_csv_file, get_closest_gridcell, area_aver
 from climakitae.core.paths import variable_descriptions_csv_path, data_catalog_url
 from climakitae.util.unit_conversions import get_unit_conversion_options
 from typing import Union, Tuple
+from climakitae.core.data_load import load
 from climakitae.util.logging import logger
 
 sns.set_style("whitegrid")
@@ -416,9 +417,7 @@ def _compute_results(selections, agg_func, years, months):
 
     # Sorting sims and getting metrics
     logger.debug("Loading data and computing aggregation")
-    sorted_sims = compute(calc_vals.sortby(calc_vals))[
-        0
-    ]  # Need all the values in order to create histogram + return values
+    sorted_sims = load(calc_vals.sortby(calc_vals)[0])  # Need all the values in order to create histogram + return values
 
     return sorted_sims, data
 

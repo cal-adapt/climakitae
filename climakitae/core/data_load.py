@@ -541,8 +541,6 @@ def _merge_all(selections, data_dict):
         output data
 
     """
-    from tqdm.auto import tqdm
-
     # Get corresponding data for historical period to append:
     reconstruction = [one for one in data_dict.keys() if "reanalysis" in one]
     hist_keys = [one for one in data_dict.keys() if "historical" in one]
@@ -550,7 +548,7 @@ def _merge_all(selections, data_dict):
         all_hist = xr.concat(
             [
                 _process_dset(one, data_dict[one], selections)
-                for one in tqdm(data_dict.keys(), "Retrieving datasets")
+                for one in data_dict.keys()
                 if "historical" in one
             ],
             dim="member_id",
