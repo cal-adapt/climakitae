@@ -63,18 +63,20 @@ def add_log_wrapper(obj):
     if isinstance(obj, types.ModuleType) or isinstance(obj, type):
         for name in dir(obj):
             res = getattr(obj, name)
-            if isinstance(res, types.FunctionType):
-                 
-                 # Only add loggers to custom-created functions
-                 if not name.startswith('__') and not name.endswith('__'):
-                    print(name)
-                    import pdb; pdb.set_trace()
-                    
-                    setattr(obj, name, log(res))
             
-            # This check makes sure the object is a class type, is not the literal string '__class__', and is created within climakitae.
-            elif isinstance(res, type) and name != '__class__' and res.__module__[:10] == 'climakitae':
-                add_log_wrapper(res)
+            # Do not add loggers to any functions not from climakitae
+            if res.__module__ == 'climakitae':
+                if isinstance(res, types.FunctionType):
+                    
+                    # Do not add loggers to innate functions
+                    if not name.startswith('__') and not name.endswith('__'):
+                        print(name)
+                        import pdb; pdb.set_trace()
+                        setattr(obj, name, log(res))
+                
+                # This check makes sure the object is a class type, is not the literal string '__class__', and is created within climakitae.
+                elif isinstance(res, type) and name != '__class__' and res.__module__[:10] == 'climakitae':
+                    add_log_wrapper(res)
     else:
         print("Error: Current object is not a module object.")
 
