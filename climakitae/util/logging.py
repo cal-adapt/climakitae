@@ -67,8 +67,9 @@ def add_log_wrapper(obj):
                  
                  # Only add loggers to custom-created functions
                  if not name.startswith('__') and not name.endswith('__'):
-
+                    print(name)
                     import pdb; pdb.set_trace()
+                    
                     setattr(obj, name, log(res))
             
             # This check makes sure the object is a class type, is not the literal string '__class__', and is created within climakitae.
