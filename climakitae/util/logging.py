@@ -55,15 +55,19 @@ def log(func):
     return wrapper
 
 
-def add_log_wrapper(module):
+def add_log_wrapper(obj):
     """
     Adds the `log` wrapper to all functions within the given module.
     """
-    if isinstance(module, types.ModuleType):
-        for name in dir(module):
-            obj = getattr(module, name)
-            if isinstance(obj, types.FunctionType):
-                setattr(module, name, log(obj))
+    import pdb; pdb.set_trace()
+    # Check if the module 
+    if isinstance(obj, types.ModuleType) or isinstance(obj, type):
+        for name in dir(obj):
+            res = getattr(obj, name)
+            if isinstance(res, type):
+                add_log_wrapper(res)
+            elif isinstance(res, types.FunctionType):
+                setattr(obj, name, log(res))
     else:
         print("Error: Current object is not a module object.")
 
