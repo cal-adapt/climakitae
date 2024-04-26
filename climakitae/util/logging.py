@@ -59,12 +59,12 @@ def add_log_wrapper(obj):
     """
     Adds the `log` wrapper to all functions within the given module.
     """
-    import pdb; pdb.set_trace()
     # Check if the module 
     if isinstance(obj, types.ModuleType) or isinstance(obj, type):
         for name in dir(obj):
             res = getattr(obj, name)
             if isinstance(res, types.FunctionType):
+                import pdb; pdb.set_trace()
                 setattr(obj, name, log(res))
             
             # This check makes sure the object is a class type, is not the literal string '__class__', and is created within climakitae.
