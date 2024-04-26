@@ -64,8 +64,12 @@ def add_log_wrapper(obj):
         for name in dir(obj):
             res = getattr(obj, name)
             if isinstance(res, types.FunctionType):
-                import pdb; pdb.set_trace()
-                setattr(obj, name, log(res))
+                 
+                 # Only add loggers to custom-created functions
+                 if not name.startswith('__') and not name.endswith('__'):
+
+                    import pdb; pdb.set_trace()
+                    setattr(obj, name, log(res))
             
             # This check makes sure the object is a class type, is not the literal string '__class__', and is created within climakitae.
             elif isinstance(res, type) and name != '__class__' and res.__module__[:10] == 'climakitae':
