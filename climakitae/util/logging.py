@@ -67,17 +67,11 @@ def add_log_wrapper(obj):
             # Do not add loggers to any innate functions
             if not name.startswith('__') and not name.endswith('__'):
 
-                # print(f"Curr res name: {res}")
-                # print(f"Curr name: {name}")
-                # import pdb; pdb.set_trace()
-
                 # Only add loggers to objects that are functions
                 if isinstance(res, types.FunctionType):
                     
                     # Only add loggers to functions within AE
                     if 'climakitae' in res.__module__:
-                        
-                        print(f"Name of obj getting attr'd: {name}")
                         setattr(obj, name, log(res))
                     
                 # This check makes sure the object is a class type, is not the literal string '__class__', and is created within climakitae.
