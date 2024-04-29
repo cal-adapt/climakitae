@@ -69,7 +69,7 @@ def add_log_wrapper(obj):
 
                 # print(f"Curr res name: {res}")
                 # print(f"Curr name: {name}")
-                import pdb; pdb.set_trace()
+                # import pdb; pdb.set_trace()
 
                 # Only add loggers to objects that are functions
                 if isinstance(res, types.FunctionType):
