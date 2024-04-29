@@ -65,7 +65,7 @@ def add_log_wrapper(obj):
             res = getattr(obj, name)
             
             # Do not add loggers to any functions not from climakitae
-            if res.__module__ == 'climakitae':
+            if res.__module__ == 'climakitae': # CALVIN- Move this line of logic elsewhere
                 if isinstance(res, types.FunctionType):
                     
                     # Do not add loggers to innate functions
