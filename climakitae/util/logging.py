@@ -64,16 +64,14 @@ def add_log_wrapper(obj):
         for name in dir(obj):
             res = getattr(obj, name)
 
-            import pdb; pdb.set_trace()
-            
+            print(f"Curr res name: {res}")    
             # Do not add loggers to any functions not from climakitae
-            if res.__module__ == 'climakitae': # CALVIN- Move this line of logic elsewhere
+            if 'climakitae' in res.__module__: # CALVIN- Move this line of logic elsewhere
                 if isinstance(res, types.FunctionType):
                     
                     # Do not add loggers to innate functions
                     if not name.startswith('__') and not name.endswith('__'):
-                        print(name)
-                        import pdb; pdb.set_trace()
+                        print(f"Name of obj getting attr'd: {name}")
                         setattr(obj, name, log(res))
                 
                 # This check makes sure the object is a class type, is not the literal string '__class__', and is created within climakitae.
