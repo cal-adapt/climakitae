@@ -72,7 +72,7 @@ def add_log_wrapper(obj):
                 import pdb; pdb.set_trace()
 
                 # Only add loggers to objects that are functions
-                if isinstance(res, types.FunctionType):
+                if isinstance(res, types.FunctionType) or :
                     
                     # Only add loggers to functions within AE
                     if 'climakitae' in res.__module__:
@@ -80,9 +80,9 @@ def add_log_wrapper(obj):
                         print(f"Name of obj getting attr'd: {name}")
                         setattr(obj, name, log(res))
                     
-                    # This check makes sure the object is a class type, is not the literal string '__class__', and is created within climakitae.
-                    elif isinstance(res, type) and name != '__class__' and res.__module__[:10] == 'climakitae':
-                        add_log_wrapper(res)
+                # This check makes sure the object is a class type, is not the literal string '__class__', and is created within climakitae.
+                elif isinstance(res, type) and name != '__class__' and res.__module__[:10] == 'climakitae':
+                    add_log_wrapper(res)
     else:
         print("Error: Current object is not a module object.")
 
