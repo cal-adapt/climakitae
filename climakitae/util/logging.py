@@ -1,31 +1,9 @@
 import time
 import types
-from functools import wraps
 import importlib
-
-# Define global variables to control logging
-lib_log_enabled = False  # For developers
 
 # Controls the amount of indentation for library logging
 indentation_level = 0
-
-
-def enable_lib_logging():
-    """
-    Enables library logging.
-    """
-    global lib_log_enabled
-    if not lib_log_enabled:
-        lib_log_enabled = True
-
-
-def disable_lib_logging():
-    """
-    Disables library logging.
-    """
-    global lib_log_enabled
-    if lib_log_enabled:
-        lib_log_enabled = False
 
 
 def log(func):
@@ -53,7 +31,7 @@ def log(func):
     return wrapper
 
 
-def add_log_wrapper(obj):
+def enable_lib_logging(obj):
     """
     Adds the `log` wrapper to all functions and sub-classes within the given module or class.
 
@@ -83,12 +61,12 @@ def add_log_wrapper(obj):
                     and res.__module__[:10] == "climakitae"
                 ):
                     # Recursively add logging wrapper to any classes within the passed in module/class.
-                    add_log_wrapper(res)
+                    enable_lib_logging(res)
     else:
         print("Error: Current object is not a module object.")
 
 
-def remove_log_wrapper(module):
+def disable_lib_logging(module):
     """
     Removes the `log` wrapper to all functions within the given module.
     """
@@ -96,3 +74,22 @@ def remove_log_wrapper(module):
     # I have tried to reference a `__wrapped__` attribute on wrapped functions, but they don't seem to exist.
     importlib.reload(module)
     return
+
+
+
+# def enable_lib_logging():
+#     """
+#     Enables library logging.
+#     """
+#     global lib_log_enabled
+#     if not lib_log_enabled:
+#         lib_log_enabled = True
+
+
+# def disable_lib_logging():
+#     """
+#     Disables library logging.
+#     """
+#     global lib_log_enabled
+#     if lib_log_enabled:
+#         lib_log_enabled = False
