@@ -59,23 +59,27 @@ def add_log_wrapper(obj):
     """
     Adds the `log` wrapper to all functions within the given module.
     """
-    # Check if the module 
+    # Check if the module
     if isinstance(obj, types.ModuleType) or isinstance(obj, type):
         for name in dir(obj):
             res = getattr(obj, name)
 
             # Do not add loggers to any innate functions
-            if not name.startswith('__') and not name.endswith('__'):
+            if not name.startswith("__") and not name.endswith("__"):
 
                 # Only add loggers to objects that are functions
                 if isinstance(res, types.FunctionType):
-                    
+
                     # Only add loggers to functions within AE
-                    if 'climakitae' in res.__module__:
+                    if "climakitae" in res.__module__:
                         setattr(obj, name, log(res))
-                    
+
                 # This check makes sure the object is a class type, is not the literal string '__class__', and is created within climakitae.
-                elif isinstance(res, type) and name != '__class__' and res.__module__[:10] == 'climakitae':
+                elif (
+                    isinstance(res, type)
+                    and name != "__class__"
+                    and res.__module__[:10] == "climakitae"
+                ):
                     add_log_wrapper(res)
     else:
         print("Error: Current object is not a module object.")
