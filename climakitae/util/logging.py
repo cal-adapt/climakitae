@@ -71,7 +71,7 @@ def add_log_wrapper(obj):
                 import pdb; pdb.set_trace()
 
                 # Do not add loggers to any functions not from climakitae
-                if 'climakitae' in res.__module__: # CALVIN- Move this line of logic elsewhere
+                if not res.__module and 'climakitae' in res.__module__: # CALVIN- Move this line of logic elsewhere
                     if isinstance(res, types.FunctionType):
                         
                         # Do not add loggers to innate functions
