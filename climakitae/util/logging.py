@@ -67,8 +67,8 @@ def add_log_wrapper(obj):
             # Do not add loggers to any innate functions
             if not name.startswith('__') and not name.endswith('__'):
 
-                print(f"Curr res name: {res}")
-                print(f"Curr name: {name}")
+                # print(f"Curr res name: {res}")
+                # print(f"Curr name: {name}")
                 import pdb; pdb.set_trace()
 
                 # Only add loggers to objects that are functions
