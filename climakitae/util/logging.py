@@ -72,7 +72,7 @@ def add_log_wrapper(obj):
                 import pdb; pdb.set_trace()
 
                 # Only add loggers to objects that are functions
-                if isinstance(res, types.FunctionType) or :
+                if isinstance(res, types.FunctionType):
                     
                     # Only add loggers to functions within AE
                     if 'climakitae' in res.__module__:
