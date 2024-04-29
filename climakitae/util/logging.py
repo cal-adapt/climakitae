@@ -63,6 +63,8 @@ def add_log_wrapper(obj):
     if isinstance(obj, types.ModuleType) or isinstance(obj, type):
         for name in dir(obj):
             res = getattr(obj, name)
+
+            import pdb; pdb.set_trace()
             
             # Do not add loggers to any functions not from climakitae
             if res.__module__ == 'climakitae': # CALVIN- Move this line of logic elsewhere
