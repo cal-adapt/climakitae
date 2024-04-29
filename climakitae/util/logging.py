@@ -9,7 +9,7 @@ app_log_enabled = False  # For users
 current_logging_status = lambda: app_log_enabled
 
 # Instantiating loggers
-logger = logging.getLogger("Climakitae Back-end Debugger")
+logger = logging.getLogger("Climakitae Back-end Logger")
 logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(message)s"))

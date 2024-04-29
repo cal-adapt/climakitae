@@ -372,7 +372,7 @@ def _compute_results(selections, agg_func, years, months):
             "SSP 3-7.0 -- Business as Usual",
         ],
     }
-    logger.debug("Retrieving data")
+    logger.debug("Retrieving datasets")
     for ssp in available_ssps[selections.downscaling_method]:
         selections.scenario_ssp = [ssp]
         selections.time_slice = years  # Must re-instantiate `time_slice` with every `scenario_ssp` change because `time_slice` gets reset.
@@ -580,7 +580,7 @@ def agg_lat_lon_sims(
     _validate_inputs(years, variable, downscaling_method, units)
     # Create selections object
 
-    logger.debug("Create selections object")
+    logger.debug("Selecting data")
     selections = _create_lat_lon_select(
         lat, lon, variable, downscaling_method, units, years
     )
