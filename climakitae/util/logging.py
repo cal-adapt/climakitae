@@ -13,20 +13,19 @@ def log(func):
     def wrapper(*args, **kwargs):
         """Wraps timer and print statement around functions if `lib_log_enabled` is True, otherwise
         just return the function's result."""
-        global lib_log_enabled, indentation_level
-        if lib_log_enabled:
-            start_time = time.time()
-            print("    " * indentation_level + f"Executing function: {func.__name__}")
-            indentation_level += 1
-            results = func(*args, **kwargs)
-            indentation_level -= 1
-            end_time = time.time()
-            print(
-                "    " * indentation_level
-                + f"Execution time for {func.__name__}: {end_time - start_time:.4g}"
-            )
-            return results
-        return func(*args, **kwargs)
+        global indentation_level
+        start_time = time.time()
+        print("    " * indentation_level + f"Executing function: {func.__name__}")
+        indentation_level += 1
+        results = func(*args, **kwargs)
+        indentation_level -= 1
+        end_time = time.time()
+        print(
+            "    " * indentation_level
+            + f"Execution time for {func.__name__}: {end_time - start_time:.4g}"
+        )
+        return results
+        # return func(*args, **kwargs)
 
     return wrapper
 
