@@ -32,12 +32,11 @@ def log(func):
     """
     Wraps around existing functions, adding print statements upon execution and the amount of time it takes for execution. Allows function's call-stack to be viewed for all sub-functions that also have this wrapper.
     """
-    global lib_log_enabled
+    global lib_log_enabled, indentation_level
 
     def wrapper(*args, **kwargs):
         """Wraps timer and print statement around functions if `lib_log_enabled` is True, otherwise
         just return the function's result."""
-        global indentation_level
         if lib_log_enabled:
             start_time = time.time()
             print("    " * indentation_level + f"Executing function: {func.__name__}")
