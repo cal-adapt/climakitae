@@ -35,6 +35,7 @@ from climakitae.tools.indices import (
     noaa_heat_index,
     effective_temp,
 )
+from dask.diagnostics import ProgressBar
 
 # Set options
 xr.set_options(keep_attrs=True)
@@ -73,14 +74,16 @@ def load(xr_da):
         raise MemoryError("Your input dataset is too large to read into memory!")
 
     else:
-        print(
-            "Processing data to read {0} of data into memory... ".format(
-                readable_bytes(xr_data_nbytes)
-            ),
-            end="",
-        )
-        da_computed = xr_da.compute()
-        print("complete!")
+        with ProgressBar():
+            print(
+                "Processing data to read {0} of data into memory... ".format(
+                    readable_bytes(xr_data_nbytes)
+                ),
+                end="",
+            )
+            print("\r")
+            da_computed = xr_da.load()
+        print("Complete!")
         return da_computed  # Load data into memory and return
 
 
@@ -539,7 +542,6 @@ def _merge_all(selections, data_dict):
         output data
 
     """
-
     # Get corresponding data for historical period to append:
     reconstruction = [one for one in data_dict.keys() if "reanalysis" in one]
     hist_keys = [one for one in data_dict.keys() if "historical" in one]

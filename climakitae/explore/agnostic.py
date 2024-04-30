@@ -19,6 +19,8 @@ from climakitae.util.utils import read_csv_file, get_closest_gridcell, area_aver
 from climakitae.core.paths import variable_descriptions_csv_path, data_catalog_url
 from climakitae.util.unit_conversions import get_unit_conversion_options
 from typing import Union, Tuple
+from climakitae.core.data_load import load
+from climakitae.util.logging import logger
 
 sns.set_style("whitegrid")
 
@@ -370,6 +372,7 @@ def _compute_results(selections, agg_func, years, months):
             "SSP 3-7.0 -- Business as Usual",
         ],
     }
+    logger.debug("Retrieving datasets")
     for ssp in available_ssps[selections.downscaling_method]:
         selections.scenario_ssp = [ssp]
         selections.time_slice = years  # Must re-instantiate `time_slice` with every `scenario_ssp` change because `time_slice` gets reset.
@@ -413,9 +416,10 @@ def _compute_results(selections, agg_func, years, months):
     calc_vals = data.groupby("simulation").map(agg_func).chunk(chunks="auto")
 
     # Sorting sims and getting metrics
-    sorted_sims = compute(calc_vals.sortby(calc_vals))[
-        0
-    ]  # Need all the values in order to create histogram + return values
+    logger.debug("Loading data and computing aggregation")
+    loaded_sims = load(calc_vals)
+    sorted_sims = loaded_sims.sortby(loaded_sims)
+    # sorted_sims = load(calc_vals.sortby(calc_vals)[0])  # Need all the values in order to create histogram + return values
 
     return sorted_sims, data
 
@@ -571,9 +575,12 @@ def agg_lat_lon_sims(
         Aggregated results of running the given aggregation function on the lat/lon gridcell of interest. Results are also sorted in ascending order.
     """
     # Validating if inputs are correct (lat/lon is appropriate types and variable is available for selected downscaling method)
+    logger.debug("Validating inputs")
     _validate_lat_lon(lat, lon)
     _validate_inputs(years, variable, downscaling_method, units)
     # Create selections object
+
+    logger.debug("Selecting data")
     selections = _create_lat_lon_select(
         lat, lon, variable, downscaling_method, units, years
     )
