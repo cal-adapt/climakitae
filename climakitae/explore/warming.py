@@ -37,6 +37,8 @@ from climakitae.core.paths import (
 from climakitae.explore import threshold_tools
 import matplotlib.pyplot as plt
 from scipy.stats import pearson3
+from tqdm.auto import tqdm
+from climakitae.core.data_load import load
 
 # Silence warnings
 import logging
@@ -100,7 +102,7 @@ class WarmingLevels:
         self.catalog_data = self.catalog_data.stack(
             all_sims=["simulation", "scenario"]
         ).squeeze()
-        self.catalog_data = self.catalog_data.dropna(dim="all_sims", how="all")
+        # self.catalog_data = self.catalog_data.dropna(dim="all_sims", how="all")
         if self.wl_params.anom == "Yes":
             self.gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
         else:
@@ -110,11 +112,11 @@ class WarmingLevels:
 
         self.sliced_data = {}
         self.gwl_snapshots = {}
-        for level in self.warming_levels:
+        for level in tqdm(self.warming_levels):
             # Assign warming slices to dask computation graph
             warm_slice = self.find_warming_slice(level, self.gwl_times)
-            self.sliced_data[level] = warm_slice
-            self.gwl_snapshots[level] = warm_slice.reduce(np.nanmean, "time").compute()
+            self.sliced_data[level] = load(warm_slice)
+            self.gwl_snapshots[level] = warm_slice.reduce(np.nanmean, "time")#.compute()
 
         self.gwl_snapshots = xr.concat(self.gwl_snapshots.values(), dim="warming_level")
         self.cmap = _get_cmap(self.wl_params)
