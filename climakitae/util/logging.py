@@ -42,7 +42,12 @@ def enable_lib_logging(obj):
     if isinstance(obj, types.ModuleType) or isinstance(obj, type):
         for name in dir(obj):
             res = getattr(obj, name)
-
+            
+            # Initial logic to prevent loggers from double wrapping functions
+            if "__name__" in dir(res):
+                if res.__name__ == 'wrapper':
+                    continue
+            
             # Do not add loggers to any built-in functions
             if not name.startswith("__") and not name.endswith("__"):
 
