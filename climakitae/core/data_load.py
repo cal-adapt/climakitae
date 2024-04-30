@@ -45,7 +45,7 @@ dask.config.set({"array.slicing.split_large_chunks": True})
 # ============================ Read data into memory ================================
 
 
-def load(xr_da):
+def load(xr_da, intensive=False):
     """Read data into memory
 
     Parameters
@@ -81,6 +81,11 @@ def load(xr_da):
                 ),
                 end="",
             )
+            if intensive:
+                print("\n")
+                print(
+                    "Progress bars will start slow, but they will accelerate over time as they understand your data request."
+                )
             print("\r")
             da_computed = xr_da.load()
         print("Complete!")
