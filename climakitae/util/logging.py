@@ -10,6 +10,7 @@ def log(func):
     """
     Wraps around existing functions, adding print statements upon execution and the amount of time it takes for execution. Allows function's call-stack to be viewed for all sub-functions that also have this wrapper.
     """
+
     def wrapper(*args, **kwargs):
         """Wraps timer and print statement around functions if `lib_log_enabled` is True, otherwise
         just return the function's result."""
@@ -42,12 +43,12 @@ def enable_lib_logging(obj):
     if isinstance(obj, types.ModuleType) or isinstance(obj, type):
         for name in dir(obj):
             res = getattr(obj, name)
-            
+
             # Initial logic to prevent loggers from double wrapping functions
             if "__name__" in dir(res):
-                if res.__name__ == 'wrapper':
+                if res.__name__ == "wrapper":
                     continue
-            
+
             # Do not add loggers to any built-in functions
             if not name.startswith("__") and not name.endswith("__"):
 
@@ -78,7 +79,6 @@ def disable_lib_logging(module):
     # I have tried to reference a `__wrapped__` attribute on wrapped functions, but they don't seem to exist.
     importlib.reload(module)
     return
-
 
 
 # def enable_lib_logging():
