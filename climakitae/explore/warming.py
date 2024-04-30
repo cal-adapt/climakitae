@@ -114,8 +114,8 @@ class WarmingLevels:
         self.gwl_snapshots = {}
         for level in tqdm(self.warming_levels):
             # Assign warming slices to dask computation graph
-            warm_slice = self.find_warming_slice(level, self.gwl_times)
-            self.sliced_data[level] = load(warm_slice)
+            warm_slice = load(self.find_warming_slice(level, self.gwl_times))
+            self.sliced_data[level] = warm_slice
             self.gwl_snapshots[level] = warm_slice.reduce(
                 np.nanmean, "time"
             )  # .compute()
