@@ -83,7 +83,6 @@ class WarmingLevels:
 
         # Cleaning data
         warming_data = clean_warm_data(warming_data)
-
         # Relabeling `all_sims` dimension
         new_warm_data = warming_data.drop("all_sims")
         new_warm_data["all_sims"] = relabel_axis(warming_data["all_sims"])
@@ -112,13 +111,15 @@ class WarmingLevels:
 
         self.sliced_data = {}
         self.gwl_snapshots = {}
-        for level in tqdm(self.warming_levels):
+        for level in tqdm(self.warming_levels, desc="Computing each warming level"):
             # Assign warming slices to dask computation graph
-            warm_slice = load(self.find_warming_slice(level, self.gwl_times))
+            warm_slice = load(
+                self.find_warming_slice(level, self.gwl_times), intensive=True
+            )
+            # Dropping simulations that only have NaNs
+            warm_slice = warm_slice.dropna(dim="all_sims", how="all")
             self.sliced_data[level] = warm_slice
-            self.gwl_snapshots[level] = warm_slice.reduce(
-                np.nanmean, "time"
-            )  # .compute()
+            self.gwl_snapshots[level] = warm_slice.reduce(np.nanmean, "time")
 
         self.gwl_snapshots = xr.concat(self.gwl_snapshots.values(), dim="warming_level")
         self.cmap = _get_cmap(self.wl_params)
