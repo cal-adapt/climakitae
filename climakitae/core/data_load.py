@@ -542,7 +542,6 @@ def _merge_all(selections, data_dict):
         output data
 
     """
-
     # Get corresponding data for historical period to append:
     reconstruction = [one for one in data_dict.keys() if "reanalysis" in one]
     hist_keys = [one for one in data_dict.keys() if "historical" in one]
