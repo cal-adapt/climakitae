@@ -116,7 +116,9 @@ class WarmingLevels:
             # Assign warming slices to dask computation graph
             warm_slice = self.find_warming_slice(level, self.gwl_times)
             self.sliced_data[level] = load(warm_slice)
-            self.gwl_snapshots[level] = warm_slice.reduce(np.nanmean, "time")#.compute()
+            self.gwl_snapshots[level] = warm_slice.reduce(
+                np.nanmean, "time"
+            )  # .compute()
 
         self.gwl_snapshots = xr.concat(self.gwl_snapshots.values(), dim="warming_level")
         self.cmap = _get_cmap(self.wl_params)
