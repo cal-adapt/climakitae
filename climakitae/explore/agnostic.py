@@ -511,13 +511,15 @@ def _validate_lat_lon(lat, lon):
         raise ValueError("Error: Please enter valid lat/lon coordinates.")
 
 
-def _validate_inputs(year_range, variable, downscaling_method, units):
+def _validate_inputs(
+    year_range, variable, downscaling_method, units, wrf_timescale="monthly"
+):
     """Validates all the user inputs"""
-    if variable not in set(show_available_vars(downscaling_method)):
+    if variable not in set(show_available_vars(downscaling_method, wrf_timescale)):
         raise ValueError(
             "Error: Please enter an available variable for the given downscaling method."
         )
-    if units not in get_available_units(variable, downscaling_method):
+    if units not in get_available_units(variable, downscaling_method, wrf_timescale):
         raise ValueError(
             "Error: Please enter a unit type that is available for your selected variable."
         )
@@ -614,6 +616,7 @@ def agg_area_subset_sims(
     units,
     years,
     months=list(range(1, 13)),
+    wrf_timescale="monthly",
 ):
     """
     This function combines all available WRF or LOCA simulation data that is filtered on the `area_subset` (a string
@@ -647,13 +650,21 @@ def agg_area_subset_sims(
         Aggregated results of running the given aggregation function on the lat/lon gridcell of interest. Results are also sorted in ascending order.
     """
     # Validating if variable is available for the given downscaling method
-    _validate_inputs(years, variable, downscaling_method, units)
+    _validate_inputs(years, variable, downscaling_method, units, wrf_timescale)
     # Creates the selections object
     selections = _create_cached_area_select(
-        area_subset, cached_area, variable, downscaling_method, units, years
+        area_subset,
+        cached_area,
+        variable,
+        downscaling_method,
+        units,
+        years,
+        wrf_timescale,
     )
     # Runs calculations and derives statistics on simulation data pulled via selections object
-    return _compute_selections_and_stats(selections, agg_func, years, months)
+    return _compute_selections_and_stats(
+        selections, agg_func, years, months, wrf_timescale
+    )
 
 
 def plot_WRF(sim_vals, agg_func, years):
