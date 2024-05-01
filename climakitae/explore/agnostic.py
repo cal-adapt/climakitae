@@ -280,9 +280,10 @@ def create_conversion_function(lookup_tables):
 def _get_var_info(variable, downscaling_method):
     """Gets the variable info for the specific variable name and downscaling method"""
     var_desc_df = read_csv_file(variable_descriptions_csv_path)
+    timescale = 'hourly' if downscaling_method == 'Dynamical' else 'monthly'
     return var_desc_df[
         (var_desc_df["display_name"] == variable)
-        & (var_desc_df["timescale"].str.contains("monthly"))
+        & (var_desc_df["timescale"].str.contains(timescale))
         & (var_desc_df["downscaling_method"] == downscaling_method)
     ]
 
@@ -308,7 +309,10 @@ def _complete_selections(selections, variable, units, years):
 
     # If we want to allow users to select on criteria beyond just the metric and downscaling (i.e. also timescale and resolution), then the following line will be useful to present users
     # print(variable_description_df[['display_name', 'downscaling_method', 'timescale']].to_string())
-    selections.timescale = "monthly"
+    if selections.downscaling_method == 'Statistical':
+        selections.timescale = "monthly"
+    elif selections.downscaling_method == 'Dynamical':
+        selections.timescale = 'hourly'
     selections.resolution = "3 km"
     selections.units = units
     selections.time_slice = years
@@ -521,16 +525,20 @@ def show_available_vars(downscaling_method):
     var_desc = read_csv_file(variable_descriptions_csv_path)
 
     # Get available variable IDs
+    if downscaling_method == 'Statistical':
+        timescale = "monthly"
+    elif downscaling_method == 'Dynamical':
+        timescale = "hourly"
     available_vars = _get_user_options(
         data_catalog,
         downscaling_method,
-        timescale="monthly",
+        timescale=timescale,
         resolution="3 km",  # Hard-coded to only accept `monthly` and `3 km` options for now.
     )[2]
 
     # Get variable names in written form
     var_opts = _get_variable_options_df(
-        var_desc, available_vars, downscaling_method, timescale="monthly"
+        var_desc, available_vars, downscaling_method, timescale=timescale
     )["display_name"].to_list()
 
     return var_opts

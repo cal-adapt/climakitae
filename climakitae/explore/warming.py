@@ -40,8 +40,11 @@ from scipy.stats import pearson3
 
 # Silence warnings
 import logging
-
 logging.getLogger("param").setLevel(logging.CRITICAL)
+
+import warnings
+warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning) # Ignore PerforMance warnings, as Dask automatically rechunks when performance is low
+
 xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
 
 
