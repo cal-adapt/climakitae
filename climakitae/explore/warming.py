@@ -128,7 +128,7 @@ class WarmingLevels:
             cmap=self.cmap,
             warming_levels=self.warming_levels,
         )
-        self.wl_viz.compute_stamps()
+        # self.wl_viz.compute_stamps()
 
     def visualize(self):
         if self.wl_viz:
@@ -237,6 +237,7 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
         return sliced
 
     else:
+        # TODO: Change this slice to fit the timescale input (hourly, daily, monthly)
         y = y.isel(
             time=slice(0, window * 2 * 365)
         )  # This is to create a dummy slice that conforms with other data structure. Can be re-written to something more elegant.
