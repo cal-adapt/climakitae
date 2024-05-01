@@ -601,7 +601,7 @@ def agg_lat_lon_sims(
 
     logger.debug("Selecting data")
     selections = _create_lat_lon_select(
-        lat, lon, variable, downscaling_method, units, years
+        lat, lon, variable, downscaling_method, units, years, wrf_timescale
     )
     # Runs calculations and derives statistics on simulation data pulled via selections object
     return _compute_selections_and_stats(selections, agg_func, years, months)
@@ -662,9 +662,7 @@ def agg_area_subset_sims(
         wrf_timescale,
     )
     # Runs calculations and derives statistics on simulation data pulled via selections object
-    return _compute_selections_and_stats(
-        selections, agg_func, years, months, wrf_timescale
-    )
+    return _compute_selections_and_stats(selections, agg_func, years, months)
 
 
 def plot_WRF(sim_vals, agg_func, years):
