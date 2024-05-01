@@ -277,10 +277,10 @@ def create_conversion_function(lookup_tables):
 ##### TASK 2 #####
 
 
-def _get_var_info(variable, downscaling_method):
+def _get_var_info(variable, downscaling_method, wrf_timescale="monthly"):
     """Gets the variable info for the specific variable name and downscaling method"""
     var_desc_df = read_csv_file(variable_descriptions_csv_path)
-    timescale = "hourly" if downscaling_method == "Dynamical" else "monthly"
+    timescale = wrf_timescale if downscaling_method == "Dynamical" else "monthly"
     return var_desc_df[
         (var_desc_df["display_name"] == variable)
         & (var_desc_df["timescale"].str.contains(timescale))
@@ -288,10 +288,10 @@ def _get_var_info(variable, downscaling_method):
     ]
 
 
-def get_available_units(variable, downscaling_method):
+def get_available_units(variable, downscaling_method, wrf_timescale="monthly"):
     """Get other available units available for the given unit"""
     # Select your desired units
-    var_info_df = _get_var_info(variable, downscaling_method)
+    var_info_df = _get_var_info(variable, downscaling_method, wrf_timescale)
     if var_info_df.empty:
         raise ValueError(
             "Please input a valid variable for the given downscaling method."
@@ -300,7 +300,7 @@ def get_available_units(variable, downscaling_method):
     return available_units
 
 
-def _complete_selections(selections, variable, units, years):
+def _complete_selections(selections, variable, units, years, wrf_timescale="monthly"):
     """Completes the attributes for the `selections` objects from `create_lat_lon_select` and `create_cached_area_select`."""
     metric_info_df = _get_var_info(variable, selections.downscaling_method)
     selections.data_type = "Gridded"
@@ -312,14 +312,16 @@ def _complete_selections(selections, variable, units, years):
     if selections.downscaling_method == "Statistical":
         selections.timescale = "monthly"
     elif selections.downscaling_method == "Dynamical":
-        selections.timescale = "hourly"
+        selections.timescale = wrf_timescale
     selections.resolution = "3 km"
     selections.units = units
     selections.time_slice = years
     return selections
 
 
-def _create_lat_lon_select(lat, lon, variable, downscaling_method, units, years):
+def _create_lat_lon_select(
+    lat, lon, variable, downscaling_method, units, years, wrf_timescale="monthly"
+):
     """Creates a selection object for the given lat/lon parameters."""
     # Creates a selection object
     selections = Select()
@@ -336,12 +338,18 @@ def _create_lat_lon_select(lat, lon, variable, downscaling_method, units, years)
     selections.downscaling_method = downscaling_method
 
     # Add attributes for the rest of the selections object
-    selections = _complete_selections(selections, variable, units, years)
+    selections = _complete_selections(selections, variable, units, years, wrf_timescale)
     return selections
 
 
 def _create_cached_area_select(
-    area_subset, cached_area, variable, downscaling_method, units, years
+    area_subset,
+    cached_area,
+    variable,
+    downscaling_method,
+    units,
+    years,
+    wrf_timescale="monthly",
 ):
     """Creates a selection object for the given cached area parameters."""
     # Creates a selection object for area subsetting simulations
@@ -352,7 +360,7 @@ def _create_cached_area_select(
     selections.area_average = "Yes"
 
     # Add attributes for the rest of the selections object
-    selections = _complete_selections(selections, variable, units, years)
+    selections = _complete_selections(selections, variable, units, years, wrf_timescale)
 
     return selections
 
@@ -517,7 +525,7 @@ def _validate_inputs(year_range, variable, downscaling_method, units):
         raise ValueError("Error: Please enter a year range from 1950-2100.")
 
 
-def show_available_vars(downscaling_method):
+def show_available_vars(downscaling_method, wrf_timescale="monthly"):
     """Function that shows the available variables based on the input downscaling method."""
 
     # Read in catalogs
@@ -528,7 +536,7 @@ def show_available_vars(downscaling_method):
     if downscaling_method == "Statistical":
         timescale = "monthly"
     elif downscaling_method == "Dynamical":
-        timescale = "hourly"
+        timescale = wrf_timescale
     available_vars = _get_user_options(
         data_catalog,
         downscaling_method,
@@ -553,6 +561,7 @@ def agg_lat_lon_sims(
     units,
     years,
     months=list(range(1, 13)),
+    wrf_timescale="monthly",
 ):
     """
     Gets aggregated WRF or LOCA simulation data for a lat/lon coordinate or lat/lon range for a given metric and timeframe (years, months).
