@@ -40,6 +40,7 @@ from scipy.stats import pearson3
 
 # Silence warnings
 import logging
+
 logging.getLogger("param").setLevel(logging.CRITICAL)
 xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
 
