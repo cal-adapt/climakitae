@@ -79,7 +79,7 @@ def load(xr_da):
             ),
             end="",
         )
-        da_computed = xr_da.compute()
+        da_computed = xr_da.load()
         print("complete!")
         return da_computed  # Load data into memory and return
 
