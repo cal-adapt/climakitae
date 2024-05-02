@@ -35,7 +35,6 @@ from climakitae.tools.indices import (
     noaa_heat_index,
     effective_temp,
 )
-from dask.diagnostics import ProgressBar
 
 # Set options
 xr.set_options(keep_attrs=True)
