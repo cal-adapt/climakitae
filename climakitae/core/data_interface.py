@@ -1,4 +1,5 @@
 import os
+import xarray as xr
 import pandas as pd
 import geopandas as gpd
 from shapely.geometry import box, Polygon
@@ -1175,19 +1176,46 @@ class DataParameters(param.Parameterized):
             Only an option if a config file is provided.
 
         """
+
+        def warnoflargefilesize(da):
+            if da.nbytes >= int(1e9) and da.nbytes < int(5e9):
+                print(
+                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+                    "! Returned data array is large. Operations could take up to 5x longer than 1GB of data!\n"
+                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+                )
+            elif da.nbytes >= int(5e9) and da.nbytes < int(1e10):
+                print(
+                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+                    "!! Returned data array is very large. Operations could take up to 8x longer than 1GB of data !!\n"
+                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+                )
+            elif da.nbytes >= int(1e10):
+                print(
+                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+                    "!!! Returned data array is huge. Operations could take 10x to infinity longer than 1GB of data !!!\n"
+                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+                )
+
         if config is not None:
             if type(config) == str:
-                return read_catalog_from_csv(self, config, merge)
+                data_return = read_catalog_from_csv(self, config, merge)
             else:
                 raise ValueError(
                     "To retrieve data specified in a configuration file, please input the path to your local configuration csv as a string"
                 )
         try:
-            return read_catalog_from_select(self)
+            data_return = read_catalog_from_select(self)
         except:
             raise ValueError(
                 "COULD NOT RETRIEVE DATA: For the provided data selections, there is not sufficient data to retrieve. Try selecting a larger spatial area, or a higher resolution. Returning None."
             )
+        if isinstance(data_return, list):
+            for l in data_return:
+                warnoflargefilesize(l)
+        else:
+            warnoflargefilesize(data_return)
+        return data_return
 
 
 class DataParametersWithPanes(DataParameters):
@@ -1513,7 +1541,7 @@ def _display_select(self):
             pn.Column(
                 widgets["downscaling_method_text"],
                 widgets["downscaling_method"],
-                width=270,
+                width=325,
             ),
             pn.Column(
                 widgets["data_warning"],
