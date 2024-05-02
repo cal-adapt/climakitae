@@ -81,7 +81,7 @@ def load(xr_da):
                 end="",
             )
             print("\r")
-            return xr_da.load()  # Load data into memory and return
+            return xr_da.compute()  # Load data into memory and return
 
 
 # ============================ Helper functions ================================
