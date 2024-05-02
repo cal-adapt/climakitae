@@ -72,19 +72,15 @@ def load(xr_da):
         print("Available memory: {0}".format(readable_bytes(avail_mem)))
         print("Total memory of input data: {0}".format(readable_bytes(xr_data_nbytes)))
         raise MemoryError("Your input dataset is too large to read into memory!")
-
     else:
-        with ProgressBar():
-            print(
-                "Processing data to read {0} of data into memory... ".format(
-                    readable_bytes(xr_data_nbytes)
-                ),
-                end="",
-            )
-            print("\r")
-            da_computed = xr_da.load()
-        print("Complete!")
-        return da_computed  # Load data into memory and return
+        print(
+            "Processing data to read {0} of data into memory... ".format(
+                readable_bytes(xr_data_nbytes)
+            ),
+            end="",
+        )
+        print("\r")
+        return xr_da.load()  # Load data into memory and return
 
 
 # ============================ Helper functions ================================
