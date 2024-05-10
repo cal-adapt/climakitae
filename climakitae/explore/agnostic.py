@@ -823,41 +823,12 @@ def plot_climate_response_WRF(var1, var2):
         x=var1.name,
         y=var2.name,
         by="simulation",
-        title=f"WRF results for {var1.location_subset[0]}: \n {var1.name} vs {var2.name}",
+        title=f"WRF results for {var1.location_subset[0]}: \n{var1.name} vs {var2.name}",
     )
     plot = plot.opts(
-        legend_position="right", legend_offset=(10, 95), width=800, height=300
+        legend_position="right", legend_offset=(10, 95), width=800, height=350
     )
     return pn.panel(plot)
-
-    # var1 = var1.sortby("simulation")
-    # var2 = var2.sortby("simulation")
-    # fig, ax = plt.subplots(figsize=(7, 5))
-
-    # # Get sim names
-    # sims = [name.split(",")[0] for name in list(var1.simulation.values)]
-    # sims = [name[4:] for name in sims]
-
-    # # Plot points and add labels
-    # for idx in range(len(var1.simulation)):
-    #     ax.scatter(var1[idx], var2[idx], label=sims[idx])
-    # ax.set_title(
-    #     f"WRF results for {var1.location_subset[0]}: \n {var1.name} vs {var2.name}",
-    #     fontsize=12,
-    # )  # Specifically supporting visualizing CA statewide average (for current applications)
-    # ax.set_xlabel(f"{var1.name} ({var1.units})", labelpad=10, fontsize=12)
-    # ax.set_ylabel(f"{var2.name} ({var2.units})", labelpad=10, fontsize=12)
-
-    # # Add point annotations
-    # for i, txt in enumerate(sims):
-    #     ax.annotate(
-    #         txt,
-    #         (var1[i], var2[i]),
-    #         va="center",
-    #         textcoords="offset points",
-    #         xytext=(7, 0),
-    #     )
-    # plt.show()
 
 
 def plot_climate_response_LOCA(var1, var2):
