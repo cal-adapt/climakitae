@@ -280,6 +280,7 @@ def create_conversion_function(lookup_tables):
 def _get_var_info(variable, downscaling_method, wrf_timescale="monthly"):
     """Gets the variable info for the specific variable name and downscaling method"""
     var_desc_df = read_csv_file(variable_descriptions_csv_path)
+    _validate_timescale(wrf_timescale)
     timescale = wrf_timescale if downscaling_method == "Dynamical" else "monthly"
     return var_desc_df[
         (var_desc_df["display_name"] == variable)
@@ -527,8 +528,16 @@ def _validate_inputs(
         raise ValueError("Error: Please enter a year range from 1950-2100.")
 
 
+def _validate_timescale(timescale):
+    if timescale not in ["monthly", "daily", "hourly"]:
+        raise ValueError(
+            "Please enter a valid timescale between 'monthly', 'daily', and 'hourly'."
+        )
+
+
 def show_available_vars(downscaling_method, wrf_timescale="monthly"):
     """Function that shows the available variables based on the input downscaling method."""
+    _validate_timescale(wrf_timescale)
 
     # Read in catalogs
     data_catalog = intake.open_esm_datastore(data_catalog_url)
