@@ -21,6 +21,7 @@ from climakitae.util.unit_conversions import get_unit_conversion_options
 from typing import Union, Tuple
 from climakitae.core.data_load import load
 from climakitae.util.logging import logger
+import panel as pn
 
 sns.set_style("whitegrid")
 
@@ -817,34 +818,46 @@ def plot_climate_response_WRF(var1, var2):
             "The two variables must have the same length of simulations and have the same simulation names."
         )
 
-    var1 = var1.sortby("simulation")
-    var2 = var2.sortby("simulation")
-    fig, ax = plt.subplots(figsize=(7, 5))
+    merged_results = xr.merge([var1, var2])
+    plot = merged_results.hvplot(
+        x=var1.name,
+        y=var2.name,
+        by="simulation",
+        title=f"WRF results for {var1.location_subset[0]}: \n {var1.name} vs {var2.name}",
+    )
+    plot = plot.opts(
+        legend_position="right", legend_offset=(10, 95), width=800, height=300
+    )
+    return pn.panel(plot)
 
-    # Get sim names
-    sims = [name.split(",")[0] for name in list(var1.simulation.values)]
-    sims = [name[4:] for name in sims]
+    # var1 = var1.sortby("simulation")
+    # var2 = var2.sortby("simulation")
+    # fig, ax = plt.subplots(figsize=(7, 5))
 
-    # Plot points and add labels
-    for idx in range(len(var1.simulation)):
-        ax.scatter(var1[idx], var2[idx], label=sims[idx])
-    ax.set_title(
-        f"WRF results for {var1.location_subset[0]}: \n {var1.name} vs {var2.name}",
-        fontsize=12,
-    )  # Specifically supporting visualizing CA statewide average (for current applications)
-    ax.set_xlabel(f"{var1.name} ({var1.units})", labelpad=10, fontsize=12)
-    ax.set_ylabel(f"{var2.name} ({var2.units})", labelpad=10, fontsize=12)
+    # # Get sim names
+    # sims = [name.split(",")[0] for name in list(var1.simulation.values)]
+    # sims = [name[4:] for name in sims]
 
-    # Add point annotations
-    for i, txt in enumerate(sims):
-        ax.annotate(
-            txt,
-            (var1[i], var2[i]),
-            va="center",
-            textcoords="offset points",
-            xytext=(7, 0),
-        )
-    plt.show()
+    # # Plot points and add labels
+    # for idx in range(len(var1.simulation)):
+    #     ax.scatter(var1[idx], var2[idx], label=sims[idx])
+    # ax.set_title(
+    #     f"WRF results for {var1.location_subset[0]}: \n {var1.name} vs {var2.name}",
+    #     fontsize=12,
+    # )  # Specifically supporting visualizing CA statewide average (for current applications)
+    # ax.set_xlabel(f"{var1.name} ({var1.units})", labelpad=10, fontsize=12)
+    # ax.set_ylabel(f"{var2.name} ({var2.units})", labelpad=10, fontsize=12)
+
+    # # Add point annotations
+    # for i, txt in enumerate(sims):
+    #     ax.annotate(
+    #         txt,
+    #         (var1[i], var2[i]),
+    #         va="center",
+    #         textcoords="offset points",
+    #         xytext=(7, 0),
+    #     )
+    # plt.show()
 
 
 def plot_climate_response_LOCA(var1, var2):
