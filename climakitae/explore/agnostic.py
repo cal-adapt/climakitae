@@ -22,6 +22,9 @@ from typing import Union, Tuple
 from climakitae.core.data_load import load
 from climakitae.util.logging import logger
 import panel as pn
+import warnings
+
+warnings.simplefilter(action="ignore", category=FutureWarning)
 
 sns.set_style("whitegrid")
 
