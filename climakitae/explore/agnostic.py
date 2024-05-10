@@ -819,7 +819,7 @@ def plot_climate_response_WRF(var1, var2):
         )
 
     merged_results = xr.merge([var1, var2])
-    plot = merged_results.hvplot(
+    plot = merged_results.hvplot.scatter(
         x=var1.name,
         y=var2.name,
         by="simulation",
