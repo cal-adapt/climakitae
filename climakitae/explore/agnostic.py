@@ -497,6 +497,7 @@ def _compute_selections_and_stats(selections, agg_func, years, months):
 
 
 def _validate_lat_lon(lat, lon):
+    """Validates the lat/lon values input by the user"""
     if lat and lon:  # Only validating lat/lon inputs for `agg_lat_lon_sims`
         if (type(lat) != float and type(lat) != tuple and type(lat) != int) or (
             type(lon) != float and type(lon) != tuple and type(lon) != int
@@ -529,6 +530,7 @@ def _validate_inputs(
 
 
 def _validate_timescale(timescale):
+    """Validates the user input timescale"""
     if timescale not in ["monthly", "daily", "hourly"]:
         raise ValueError(
             "Please enter a valid timescale between 'monthly', 'daily', and 'hourly'."
