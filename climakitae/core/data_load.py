@@ -44,7 +44,7 @@ dask.config.set({"array.slicing.split_large_chunks": True})
 # ============================ Read data into memory ================================
 
 
-def load(xr_da):
+def load(xr_da, intensive=False):
     """Read data into memory
 
     Parameters
@@ -72,14 +72,21 @@ def load(xr_da):
         print("Total memory of input data: {0}".format(readable_bytes(xr_data_nbytes)))
         raise MemoryError("Your input dataset is too large to read into memory!")
     else:
-        print(
-            "Processing data to read {0} of data into memory... ".format(
-                readable_bytes(xr_data_nbytes)
-            ),
-            end="",
-        )
-        print("\r")
-        return xr_da.compute()  # Load data into memory and return
+        with ProgressBar():
+            print(
+                "Processing data to read {0} of data into memory... ".format(
+                    readable_bytes(xr_data_nbytes)
+                ),
+                end="",
+            )
+            if intensive:
+                print("\n")
+                print(
+                    "Progress bars will start slow, but they will accelerate over time as they understand your data request."
+                )
+            print("\r")
+            da_computed = xr_da.load()
+        return da_computed  # Load data into memory and return
 
 
 # ============================ Helper functions ================================

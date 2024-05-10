@@ -37,6 +37,8 @@ from climakitae.core.paths import (
 from climakitae.explore import threshold_tools
 import matplotlib.pyplot as plt
 from scipy.stats import pearson3
+from tqdm.auto import tqdm
+from climakitae.core.data_load import load
 
 # Silence warnings
 import logging
@@ -81,7 +83,6 @@ class WarmingLevels:
 
         # Cleaning data
         warming_data = clean_warm_data(warming_data)
-
         # Relabeling `all_sims` dimension
         new_warm_data = warming_data.drop("all_sims")
         new_warm_data["all_sims"] = relabel_axis(warming_data["all_sims"])
@@ -100,7 +101,6 @@ class WarmingLevels:
         self.catalog_data = self.catalog_data.stack(
             all_sims=["simulation", "scenario"]
         ).squeeze()
-        self.catalog_data = self.catalog_data.dropna(dim="all_sims", how="all")
         if self.wl_params.anom == "Yes":
             self.gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
         else:
@@ -110,11 +110,15 @@ class WarmingLevels:
 
         self.sliced_data = {}
         self.gwl_snapshots = {}
-        for level in self.warming_levels:
+        for level in tqdm(self.warming_levels, desc="Computing each warming level"):
             # Assign warming slices to dask computation graph
-            warm_slice = self.find_warming_slice(level, self.gwl_times)
+            warm_slice = load(
+                self.find_warming_slice(level, self.gwl_times), intensive=True
+            )
+            # Dropping simulations that only have NaNs
+            warm_slice = warm_slice.dropna(dim="all_sims", how="all")
             self.sliced_data[level] = warm_slice
-            self.gwl_snapshots[level] = warm_slice.reduce(np.nanmean, "time").compute()
+            self.gwl_snapshots[level] = warm_slice.reduce(np.nanmean, "time")
 
         self.gwl_snapshots = xr.concat(self.gwl_snapshots.values(), dim="warming_level")
         self.cmap = _get_cmap(self.wl_params)
@@ -124,7 +128,7 @@ class WarmingLevels:
             cmap=self.cmap,
             warming_levels=self.warming_levels,
         )
-        self.wl_viz.compute_stamps()
+        # self.wl_viz.compute_stamps()
 
     def visualize(self):
         if self.wl_viz:
@@ -233,6 +237,7 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
         return sliced
 
     else:
+        # TODO: Change this slice to fit the timescale input (hourly, daily, monthly)
         y = y.isel(
             time=slice(0, window * 2 * 365)
         )  # This is to create a dummy slice that conforms with other data structure. Can be re-written to something more elegant.
