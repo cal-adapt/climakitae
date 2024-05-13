@@ -879,9 +879,10 @@ def plot_climate_response_LOCA(var1, var2):
     sims = [name.split(",")[0] for name in list(merged_results.simulation.values)]
     sims = [name[6:].split("_")[0] for name in sims]
     merged_results["simulation"] = sims
+    merged_results = merged_results.rename({"simulation": "Global Climate Model"})
 
     plot = merged_results.hvplot.scatter(
-        x=var1.name, y=var2.name, by="simulation", size=45
+        x=var1.name, y=var2.name, by="Global Climate Model", size=45
     )
     plot = plot.opts(
         legend_position="right",
