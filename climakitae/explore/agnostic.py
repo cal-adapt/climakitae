@@ -703,7 +703,13 @@ def plot_WRF(sim_vals, agg_func, years):
     sims = ["\n".join(sim_name.split("_")) for sim_name in sims]
     vals = sim_vals.values
 
-    fig, ax = plt.subplots()
+    # Allowing WRF labels to be plotted when visualizing 4 or 8 sims
+    if len(sims) == 8:
+        figsize = (12, 3)
+    else:
+        figsize = None
+
+    fig, ax = plt.subplots(figsize=figsize)
     ax.bar(sims, vals)
     ax.set_xlabel("WRF Simulation, Emission Scenario 3-7.0", labelpad=15, fontsize=12)
     ax.set_ylabel(f"{sim_vals.name} ({sim_vals.units})", labelpad=10, fontsize=12)
@@ -828,8 +834,17 @@ def plot_climate_response_WRF(var1, var2):
         by="simulation",
         title=f"WRF results for {var1.location_subset[0]}: \n{var1.name} vs {var2.name}",
     )
+
+    # Changing legend location depending on number of simulations
+    if len(merged_results.simulation) == 4:
+        legend_offset = (10, 128)
+    elif len(merged_results.simulation) == 8:
+        legend_offset = (10, 30)
+    else:
+        legend_offset = (10, 0)
+
     plot = plot.opts(
-        legend_position="right", legend_offset=(10, 95), width=800, height=350
+        legend_position="right", legend_offset=legend_offset, width=800, height=350
     )
     return pn.panel(plot)
 
