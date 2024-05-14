@@ -128,7 +128,7 @@ class WarmingLevels:
             cmap=self.cmap,
             warming_levels=self.warming_levels,
         )
-        # self.wl_viz.compute_stamps()
+        self.wl_viz.compute_stamps()
 
     def visualize(self):
         if self.wl_viz:
@@ -225,7 +225,7 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
 
         if anom == "Yes":
             # Find the anomaly
-            anom_val = y.sel(time=slice("1981", "2010")).mean("time")
+            anom_val = y.sel(time=slice("1980", "2010")).mean("time")
             sliced = y.sel(time=slice(str(start_year), str(end_year))) - anom_val
         else:
             # Finding window slice of data
@@ -233,8 +233,6 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
 
         # Resetting time index for each data array so they can overlap and save storage space
         sliced["time"] = sliced.time - sliced.time[0]
-
-        # import pdb; pdb.set_trace()
 
         # Assigning `centered_year` as a coordinate to the DataArray
         sliced = sliced.assign_coords({"centered_year": centered_year})
@@ -672,20 +670,36 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
                 sopt = None
 
             # now prepare the plot object:
-            all_plots = all_plot_data.hvplot.image(
-                by="all_sims",
-                subplots=True,
-                colorbar=False,
-                clim=(vmin, vmax),
-                clabel=clabel,
-                cmap=wl_viz.cmap,
-                symmetric=sopt,
-                width=width,
-                height=height,
-                xaxis=False,
-                yaxis=False,
-                title="",
-            ).cols(4)
+            plot_image_kwargs = {
+                "by": "all_sims",
+                "subplots": True,
+                "colorbar": False,
+                "clim": (vmin, vmax),
+                "clabel": clabel,
+                "cmap": wl_viz.cmap,
+                "symmetric": sopt,
+                "width": width,
+                "height": height,
+                "xaxis": False,
+                "yaxis": False,
+                "title": "",
+            }
+
+            # Splitting up logic to plot postage stamps IF there exists more than 4 gridcells (min for hvplot.image) and spatial coords exist as dimensions (lat, lon, or x, y).
+            if (
+                set(["lat", "lon"]).issubset(set(all_plot_data.dims))
+                and len(all_plot_data.lat) * len(all_plot_data.lon) >= 4
+            ):
+                all_plots = all_plot_data.hvplot.image(**plot_image_kwargs).cols(4)
+            elif (
+                set(["x", "y"]).issubset(set(all_plot_data.dims))
+                and len(all_plot_data.x) * len(all_plot_data.y) >= 4
+            ):
+                all_plots = all_plot_data.hvplot.image(**plot_image_kwargs).cols(4)
+            else:
+                all_plots = (
+                    all_plot_data.hvplot.bar()
+                )  # This doesn't account for a missing lat or lon dimension, will change
 
             try:
                 all_plots.opts(
@@ -700,6 +714,13 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
             all_plots.opts(toolbar="below")  # Set toolbar location
             all_plots.opts(hv.opts.Layout(merge_tools=True))  # Merge toolbar
             warm_level_dict[warmlevel] = all_plots.cols(1)
+
+        # This means that there does not exist any simulations that reach this degree of warming (WRF models).
+        else:
+            # Pass in a dummy visualization for now to stay consistent with viz data structures
+            warm_level_dict[warmlevel] = pn.pane.Markdown(
+                "**No simulations reach this degree of warming.**"
+            )  # all_plot_data.hvplot()
 
     return warm_level_dict
     # return all_plots
@@ -814,8 +835,14 @@ def GCM_PostageStamps_STATS_compute(wl_viz):
                 + "°C Warming Across Models"
             )  # Add title
             warm_level_dict[warmlevel] = all_plots.cols(1)
-        # else:
-        # return None
+
+        # This means that there does not exist any simulations that reach this degree of warming (WRF models).
+        else:
+            # Pass in a dummy visualization for now to stay consistent with viz data structures
+            warm_level_dict[warmlevel] = pn.pane.Markdown(
+                "**No simulations reach this degree of warming.**"
+            )  # all_plot_data.hvplot()
+
     return warm_level_dict
 
 
