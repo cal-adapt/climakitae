@@ -172,16 +172,19 @@ def clean_warm_data(warm_data):
       2. Removing timestamps at the end to account for leap years (time)
       3. Removing simulations that go past 2100 for its warming level window (all_sims)
     """
-    # Cleaning #1
-    warm_data = warm_data.sel(all_sims=~warm_data.centered_year.isnull())
+    # Check that there exist simulations that reached this warming level before cleaning. Otherwise, don't modify anything.
+    if not (warm_data.centered_year.isnull()).all():
 
-    # Cleaning #2
-    warm_data = warm_data.isel(
-        time=slice(0, len(warm_data.time) - 1)
-    )  # -1 is just a placeholder for 30 year window, this could be more specific.
+        # Cleaning #1
+        warm_data = warm_data.sel(all_sims=~warm_data.centered_year.isnull())
 
-    # Cleaning #3
-    # warm_data = warm_data.dropna(dim="all_sims")
+        # Cleaning #2
+        warm_data = warm_data.isel(
+            time=slice(0, len(warm_data.time) - 1)
+        )  # -1 is just a placeholder for 30 year window, this could be more specific.
+
+        # Cleaning #3
+        # warm_data = warm_data.dropna(dim="all_sims")
 
     return warm_data
 
@@ -231,15 +234,28 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
         # Resetting time index for each data array so they can overlap and save storage space
         sliced["time"] = sliced.time - sliced.time[0]
 
+        # import pdb; pdb.set_trace()
+
         # Assigning `centered_year` as a coordinate to the DataArray
         sliced = sliced.assign_coords({"centered_year": centered_year})
+
+        # nulls_over_time = self.sliced_data['3.0'].isnull().sum(dim=['x', 'y']).isel(all_sims=0)
+        # xr.where(self.sliced_data['3.0'].isel(all_sims=2).isnull(), 0, 1).squeeze().isel(time=-1)
 
         return sliced
 
     else:
-        # TODO: Change this slice to fit the timescale input (hourly, daily, monthly)
+
+        # This creates an approximately appropriately sized DataArray to be dropped later
+        if y.frequency == "monthly":
+            time_freq = 12
+        elif y.frequency == "daily":
+            time_freq = 365
+        elif y.frequency == "hourly":
+            time_freq = 8760
+
         y = y.isel(
-            time=slice(0, window * 2 * 365)
+            time=slice(0, window * 2 * time_freq)
         )  # This is to create a dummy slice that conforms with other data structure. Can be re-written to something more elegant.
 
         # Creating attributes
