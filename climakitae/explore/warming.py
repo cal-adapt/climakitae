@@ -239,9 +239,6 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
         # Assigning `centered_year` as a coordinate to the DataArray
         sliced = sliced.assign_coords({"centered_year": centered_year})
 
-        # nulls_over_time = self.sliced_data['3.0'].isnull().sum(dim=['x', 'y']).isel(all_sims=0)
-        # xr.where(self.sliced_data['3.0'].isel(all_sims=2).isnull(), 0, 1).squeeze().isel(time=-1)
-
         return sliced
 
     else:
