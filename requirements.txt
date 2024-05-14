@@ -1,4 +1,5 @@
 xarray==2022.6.0
+dask==2022.9.1
 cartopy==0.21.0
 dask-gateway==2023.1.1
 geopandas==0.11.1
