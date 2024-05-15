@@ -83,6 +83,7 @@ class WarmingLevels:
 
         # Cleaning data
         warming_data = clean_warm_data(warming_data)
+
         # Relabeling `all_sims` dimension
         new_warm_data = warming_data.drop("all_sims")
         new_warm_data["all_sims"] = relabel_axis(warming_data["all_sims"])
@@ -117,8 +118,14 @@ class WarmingLevels:
             )
             # Dropping simulations that only have NaNs
             warm_slice = warm_slice.dropna(dim="all_sims", how="all")
-            self.sliced_data[level] = warm_slice
             self.gwl_snapshots[level] = warm_slice.reduce(np.nanmean, "time")
+
+            # Renaming time dimension for warming slice once "time" is all computed on
+            freq_strs = {"monthly": "months", "daily": "days", "hourly": "hours"}
+            warm_slice = warm_slice.rename(
+                {"time": f"{freq_strs[warm_slice.frequency]}_from_center"}
+            )
+            self.sliced_data[level] = warm_slice
 
         self.gwl_snapshots = xr.concat(self.gwl_snapshots.values(), dim="warming_level")
         self.cmap = _get_cmap(self.wl_params)
@@ -179,9 +186,9 @@ def clean_warm_data(warm_data):
         warm_data = warm_data.sel(all_sims=~warm_data.centered_year.isnull())
 
         # Cleaning #2
-        warm_data = warm_data.isel(
-            time=slice(0, len(warm_data.time) - 1)
-        )  # -1 is just a placeholder for 30 year window, this could be more specific.
+        # warm_data = warm_data.isel(
+        #     time=slice(0, len(warm_data.time) - 1)
+        # )  # -1 is just a placeholder for 30 year window, this could be more specific.
 
         # Cleaning #3
         # warm_data = warm_data.dropna(dim="all_sims")
@@ -215,6 +222,10 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
 
     # Checking if the centered year is null, if so, return dummy DataArray
     center_time = gwl_times_subset.loc[level]
+
+    # Dropping leap days before slicing time dimension because the window size can affect number of leap days per slice
+    y = y.loc[~((y.time.dt.month == 2) & (y.time.dt.day == 29))]
+
     if not pd.isna(center_time):
         # Find the centered year
         centered_year = pd.to_datetime(center_time).year
@@ -231,8 +242,8 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
             # Finding window slice of data
             sliced = y.sel(time=slice(str(start_year), str(end_year)))
 
-        # Resetting time index for each data array so they can overlap and save storage space
-        sliced["time"] = sliced.time - sliced.time[0]
+        # Resetting and renaming time index for each data array so they can overlap and save storage space
+        sliced["time"] = np.arange(-len(sliced.time) / 2, len(sliced.time) / 2)
 
         # Assigning `centered_year` as a coordinate to the DataArray
         sliced = sliced.assign_coords({"centered_year": centered_year})
@@ -254,7 +265,7 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
         )  # This is to create a dummy slice that conforms with other data structure. Can be re-written to something more elegant.
 
         # Creating attributes
-        y["time"] = y.time - y.time[0]
+        y["time"] = np.arange(-len(y.time) / 2, len(y.time) / 2)
         y["centered_year"] = np.nan
 
         # Returning DataArray of NaNs to be dropped later.
