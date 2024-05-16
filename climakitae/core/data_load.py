@@ -40,6 +40,8 @@ from climakitae.tools.indices import (
 xr.set_options(keep_attrs=True)
 dask.config.set({"array.slicing.split_large_chunks": True})
 
+from dask.diagnostics import ProgressBar
+
 
 # ============================ Read data into memory ================================
 
