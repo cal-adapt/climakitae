@@ -68,7 +68,7 @@ def _estimate_file_size(data, format):
     return est_file_size / bytes_per_gigabyte
 
 
-def _warn_large_export(file_size, file_size_threshold=5):
+def _warn_large_export(file_size, file_size_threshold=5.0):
     if file_size > file_size_threshold:
         print(
             "WARNING: Estimated file size is "
@@ -600,6 +600,7 @@ def _export_to_csv(data, save_name):
         )
 
     print("Exporting specified data to CSV...")
+    _warn_large_export(est_file_size, 1.0)
 
     ftype = type(data)
 
