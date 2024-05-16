@@ -52,6 +52,9 @@ def _estimate_file_size(data, format):
         est_file_size = data_size + buffer_size
 
     elif format == "CSV":
+        # Rough estimate of the number of chars per CSV line
+        # Will overestimate uncompressed size by 10-20%
+        chars_per_line = 150
 
         def multiply_tuple_elements(tuple):
             result = 1
@@ -60,7 +63,7 @@ def _estimate_file_size(data, format):
             return result
 
         est_file_size = (
-            multiply_tuple_elements(data.shape) * 150
+            multiply_tuple_elements(data.shape) * chars_per_line
         )  # 1st approximation of number of bytes per CSV row
     return est_file_size / bytes_per_gigabyte
 
