@@ -52,8 +52,16 @@ def _estimate_file_size(data, format):
         est_file_size = data_size + buffer_size
 
     elif format == "CSV":
-        pass  # TODO: estimate CSV file size
 
+        def multiply_tuple_elements(tuple):
+            result = 1
+            for item in tuple:
+                result *= item
+            return result
+
+        est_file_size = (
+            multiply_tuple_elements(data.shape) * 150
+        )  # 1st approximation of number of bytes per CSV row
     return est_file_size / bytes_per_gigabyte
 
 
@@ -561,32 +569,19 @@ def _export_to_csv(data, save_name):
     # Check file size and avail workspace disk space
     # raise error for not enough space
     # and warning for large file
-    file_size_threshold = 0.85  # in GB
+    est_file_size = _estimate_file_size(data, "CSV")
     disk_space = shutil.disk_usage(os.path.expanduser("~"))[2] / bytes_per_gigabyte
-    data_size = data.nbytes / bytes_per_gigabyte
 
-    if disk_space <= data_size:
+    if disk_space <= est_file_size:
         raise Exception(
             "Not enough disk space to export data! You need at least "
-            + str(round(data_size, 2))
+            + str(round(est_file_size, 2))
             + (
                 " GB free in the hub directory, which has 10 GB total space."
                 " Try smaller subsets of space, time, scenario, and/or"
                 " simulation; pick a coarser spatial or temporal scale;"
                 " or clean any exported datasets which you have already"
                 " downloaded or do not want."
-            )
-        )
-
-    if data_size > file_size_threshold:
-        raise Exception(
-            " Data too large to export to CSV as it will use too much memory."
-            + " Must be smaller than: "
-            + str(file_size_threshold)
-            + "GB."
-            + (
-                " Try smaller subsets of space, time, scenario, and/or"
-                " simulation; pick a coarser spatial or temporal scale."
             )
         )
 
