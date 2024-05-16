@@ -84,6 +84,7 @@ def load(xr_da):
             print("\r")
             da_computed = xr_da.compute()
         print("Complete!")
+        return da_computed
 
 
 # ============================ Helper functions ================================
