@@ -236,7 +236,9 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
 
         if anom == "Yes":
             # Find the anomaly
-            anom_val = y.sel(time=slice("1980", "2010")).mean("time")
+            anom_val = y.sel(time=slice("1980", "2010")).mean(
+                "time"
+            )  # Calvin- this line is run 3-4x the number of times it actually needs to be run. Each simulation gets this value calculated for each warming level, so there is no need to calculate this 3-4x when it only needs to be calculated once.
             sliced = y.sel(time=slice(str(start_year), str(end_year))) - anom_val
         else:
             # Finding window slice of data
@@ -309,7 +311,7 @@ class WarmingLevelChoose(DataParametersWithPanes):
 
     anom = param.Selector(
         default="Yes",
-        objects=["Yes"],
+        objects=["Yes", "No"],
         doc="Return an anomaly \n(difference from historical reference period)?",
     )
 
@@ -338,7 +340,7 @@ class WarmingLevelChoose(DataParametersWithPanes):
         Require 'anomaly' for non-bias-corrected data.
         """
         if self.downscaling_method == "Dynamical":
-            self.param["anom"].objects = ["Yes"]
+            self.param["anom"].objects = ["Yes", "No"]
             self.anom = "Yes"
         else:
             self.param["anom"].objects = ["Yes", "No"]

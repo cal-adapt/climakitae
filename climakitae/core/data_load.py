@@ -81,13 +81,8 @@ def load(xr_da, intensive=False):
                 ),
                 end="",
             )
-            if intensive:
-                print("\n")
-                print(
-                    "Progress bars will start slow, but they will accelerate over time as they understand your data request."
-                )
             print("\r")
-            da_computed = xr_da.load()
+            da_computed = xr_da.compute()
         print("Complete!")
         return da_computed  # Load data into memory and return
 
