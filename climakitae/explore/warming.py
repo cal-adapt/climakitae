@@ -62,7 +62,7 @@ class WarmingLevels:
 
     def __init__(self, **params):
         self.wl_params = WarmingLevelChoose()
-        self.warming_levels = ["1.5", "2.0", "3.0", "4.0"]
+        # self.warming_levels = ["1.5", "2.0", "3.0", "4.0"]
 
     def choose_data(self):
         return warming_levels_select(self.wl_params)
@@ -111,7 +111,9 @@ class WarmingLevels:
 
         self.sliced_data = {}
         self.gwl_snapshots = {}
-        for level in tqdm(self.warming_levels, desc="Computing each warming level"):
+        for level in tqdm(
+            self.wl_params.warming_levels, desc="Computing each warming level"
+        ):
             # Assign warming slices to dask computation graph
             warm_slice = load(
                 self.find_warming_slice(level, self.gwl_times), intensive=True
@@ -133,7 +135,7 @@ class WarmingLevels:
             gwl_snapshots=self.gwl_snapshots,
             wl_params=self.wl_params,
             cmap=self.cmap,
-            warming_levels=self.warming_levels,
+            warming_levels=self.wl_params.warming_levels,
         )
         self.wl_viz.compute_stamps()
 
@@ -329,6 +331,9 @@ class WarmingLevelChoose(DataParametersWithPanes):
         self.time_slice = (1980, 2100)
         self.timescale = "monthly"
         self.variable = "Air Temperature at 2m"
+
+        # Choosing specific warming levels
+        self.warming_levels = ["1.5", "2.0", "3.0", "4.0"]
 
         # Location defaults
         self.area_subset = "states"
