@@ -37,6 +37,8 @@ from climakitae.core.paths import (
 from climakitae.explore import threshold_tools
 import matplotlib.pyplot as plt
 from scipy.stats import pearson3
+from tqdm.auto import tqdm
+from climakitae.core.data_load import load
 
 # Silence warnings
 import logging
@@ -100,7 +102,6 @@ class WarmingLevels:
         self.catalog_data = self.catalog_data.stack(
             all_sims=["simulation", "scenario"]
         ).squeeze()
-        self.catalog_data = self.catalog_data.dropna(dim="all_sims", how="all")
         if self.wl_params.anom == "Yes":
             self.gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
         else:
@@ -110,11 +111,21 @@ class WarmingLevels:
 
         self.sliced_data = {}
         self.gwl_snapshots = {}
-        for level in self.warming_levels:
+        for level in tqdm(self.warming_levels, desc="Computing each warming level"):
             # Assign warming slices to dask computation graph
-            warm_slice = self.find_warming_slice(level, self.gwl_times)
+            warm_slice = load(
+                self.find_warming_slice(level, self.gwl_times), intensive=True
+            )
+            # Dropping simulations that only have NaNs
+            warm_slice = warm_slice.dropna(dim="all_sims", how="all")
+            self.gwl_snapshots[level] = warm_slice.reduce(np.nanmean, "time")
+
+            # Renaming time dimension for warming slice once "time" is all computed on
+            freq_strs = {"monthly": "months", "daily": "days", "hourly": "hours"}
+            warm_slice = warm_slice.rename(
+                {"time": f"{freq_strs[warm_slice.frequency]}_from_center"}
+            )
             self.sliced_data[level] = warm_slice
-            self.gwl_snapshots[level] = warm_slice.reduce(np.nanmean, "time").compute()
 
         self.gwl_snapshots = xr.concat(self.gwl_snapshots.values(), dim="warming_level")
         self.cmap = _get_cmap(self.wl_params)
@@ -168,16 +179,19 @@ def clean_warm_data(warm_data):
       2. Removing timestamps at the end to account for leap years (time)
       3. Removing simulations that go past 2100 for its warming level window (all_sims)
     """
-    # Cleaning #1
-    warm_data = warm_data.sel(all_sims=~warm_data.centered_year.isnull())
+    # Check that there exist simulations that reached this warming level before cleaning. Otherwise, don't modify anything.
+    if not (warm_data.centered_year.isnull()).all():
 
-    # Cleaning #2
-    warm_data = warm_data.isel(
-        time=slice(0, len(warm_data.time) - 1)
-    )  # -1 is just a placeholder for 30 year window, this could be more specific.
+        # Cleaning #1
+        warm_data = warm_data.sel(all_sims=~warm_data.centered_year.isnull())
 
-    # Cleaning #3
-    # warm_data = warm_data.dropna(dim="all_sims")
+        # Cleaning #2
+        # warm_data = warm_data.isel(
+        #     time=slice(0, len(warm_data.time) - 1)
+        # )  # -1 is just a placeholder for 30 year window, this could be more specific.
+
+        # Cleaning #3
+        # warm_data = warm_data.dropna(dim="all_sims")
 
     return warm_data
 
@@ -208,6 +222,10 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
 
     # Checking if the centered year is null, if so, return dummy DataArray
     center_time = gwl_times_subset.loc[level]
+
+    # Dropping leap days before slicing time dimension because the window size can affect number of leap days per slice
+    y = y.loc[~((y.time.dt.month == 2) & (y.time.dt.day == 29))]
+
     if not pd.isna(center_time):
         # Find the centered year
         centered_year = pd.to_datetime(center_time).year
@@ -218,14 +236,14 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
 
         if anom == "Yes":
             # Find the anomaly
-            anom_val = y.sel(time=slice("1981", "2010")).mean("time")
+            anom_val = y.sel(time=slice("1980", "2010")).mean("time")
             sliced = y.sel(time=slice(str(start_year), str(end_year))) - anom_val
         else:
             # Finding window slice of data
             sliced = y.sel(time=slice(str(start_year), str(end_year)))
 
-        # Resetting time index for each data array so they can overlap and save storage space
-        sliced["time"] = sliced.time - sliced.time[0]
+        # Resetting and renaming time index for each data array so they can overlap and save storage space
+        sliced["time"] = np.arange(-len(sliced.time) / 2, len(sliced.time) / 2)
 
         # Assigning `centered_year` as a coordinate to the DataArray
         sliced = sliced.assign_coords({"centered_year": centered_year})
@@ -233,12 +251,21 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
         return sliced
 
     else:
+
+        # This creates an approximately appropriately sized DataArray to be dropped later
+        if y.frequency == "monthly":
+            time_freq = 12
+        elif y.frequency == "daily":
+            time_freq = 365
+        elif y.frequency == "hourly":
+            time_freq = 8760
+
         y = y.isel(
-            time=slice(0, window * 2 * 365)
+            time=slice(0, window * 2 * time_freq)
         )  # This is to create a dummy slice that conforms with other data structure. Can be re-written to something more elegant.
 
         # Creating attributes
-        y["time"] = y.time - y.time[0]
+        y["time"] = np.arange(-len(y.time) / 2, len(y.time) / 2)
         y["centered_year"] = np.nan
 
         # Returning DataArray of NaNs to be dropped later.
@@ -654,20 +681,36 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
                 sopt = None
 
             # now prepare the plot object:
-            all_plots = all_plot_data.hvplot.image(
-                by="all_sims",
-                subplots=True,
-                colorbar=False,
-                clim=(vmin, vmax),
-                clabel=clabel,
-                cmap=wl_viz.cmap,
-                symmetric=sopt,
-                width=width,
-                height=height,
-                xaxis=False,
-                yaxis=False,
-                title="",
-            ).cols(4)
+            plot_image_kwargs = {
+                "by": "all_sims",
+                "subplots": True,
+                "colorbar": False,
+                "clim": (vmin, vmax),
+                "clabel": clabel,
+                "cmap": wl_viz.cmap,
+                "symmetric": sopt,
+                "width": width,
+                "height": height,
+                "xaxis": False,
+                "yaxis": False,
+                "title": "",
+            }
+
+            # Splitting up logic to plot postage stamps IF there exists more than 4 gridcells (min for hvplot.image) and spatial coords exist as dimensions (lat, lon, or x, y).
+            if (
+                set(["lat", "lon"]).issubset(set(all_plot_data.dims))
+                and len(all_plot_data.lat) * len(all_plot_data.lon) >= 4
+            ):
+                all_plots = all_plot_data.hvplot.image(**plot_image_kwargs).cols(4)
+            elif (
+                set(["x", "y"]).issubset(set(all_plot_data.dims))
+                and len(all_plot_data.x) * len(all_plot_data.y) >= 4
+            ):
+                all_plots = all_plot_data.hvplot.image(**plot_image_kwargs).cols(4)
+            else:
+                all_plots = (
+                    all_plot_data.hvplot.bar()
+                )  # This doesn't account for a missing lat or lon dimension, will change
 
             try:
                 all_plots.opts(
@@ -682,6 +725,13 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
             all_plots.opts(toolbar="below")  # Set toolbar location
             all_plots.opts(hv.opts.Layout(merge_tools=True))  # Merge toolbar
             warm_level_dict[warmlevel] = all_plots.cols(1)
+
+        # This means that there does not exist any simulations that reach this degree of warming (WRF models).
+        else:
+            # Pass in a dummy visualization for now to stay consistent with viz data structures
+            warm_level_dict[warmlevel] = pn.pane.Markdown(
+                "**No simulations reach this degree of warming.**"
+            )  # all_plot_data.hvplot()
 
     return warm_level_dict
     # return all_plots
@@ -796,8 +846,14 @@ def GCM_PostageStamps_STATS_compute(wl_viz):
                 + "°C Warming Across Models"
             )  # Add title
             warm_level_dict[warmlevel] = all_plots.cols(1)
-        # else:
-        # return None
+
+        # This means that there does not exist any simulations that reach this degree of warming (WRF models).
+        else:
+            # Pass in a dummy visualization for now to stay consistent with viz data structures
+            warm_level_dict[warmlevel] = pn.pane.Markdown(
+                "**No simulations reach this degree of warming.**"
+            )  # all_plot_data.hvplot()
+
     return warm_level_dict
 
 
