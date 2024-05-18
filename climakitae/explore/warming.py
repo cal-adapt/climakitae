@@ -697,16 +697,21 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
             }
 
             # Splitting up logic to plot postage stamps IF there exists more than 4 gridcells (min for hvplot.image) and spatial coords exist as dimensions (lat, lon, or x, y).
+            plot_type = ""
             if (
                 set(["lat", "lon"]).issubset(set(all_plot_data.dims))
                 and len(all_plot_data.lat) * len(all_plot_data.lon) >= 4
             ):
                 all_plots = all_plot_data.hvplot.image(**plot_image_kwargs).cols(4)
+                plot_type = "image"
+
             elif (
                 set(["x", "y"]).issubset(set(all_plot_data.dims))
                 and len(all_plot_data.x) * len(all_plot_data.y) >= 4
             ):
                 all_plots = all_plot_data.hvplot.image(**plot_image_kwargs).cols(4)
+                plot_type = "image"
+
             else:
                 # Aggregate all data to just the `all_sims` dimension
                 all_plot_data = all_plot_data.mean(
@@ -723,6 +728,7 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
                 all_plots = all_plot_data.hvplot.bar(
                     x="all_sims", xlabel="Simulation", ylabel="Deg of Warming"
                 ).opts(multi_level=False, show_legend=False)
+                plot_type = "bar"
 
             try:
                 all_plots.opts(
@@ -736,7 +742,11 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
 
             all_plots.opts(toolbar="below")  # Set toolbar location
             all_plots.opts(hv.opts.Layout(merge_tools=True))  # Merge toolbar
-            warm_level_dict[warmlevel] = all_plots.cols(1)
+
+            if plot_type == "image":
+                warm_level_dict[warmlevel] = all_plots.cols(1)
+            elif plot_type == "bar":
+                warm_level_dict[warmlevel] = all_plots
 
         # This means that there does not exist any simulations that reach this degree of warming (WRF models).
         else:
