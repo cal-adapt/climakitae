@@ -708,9 +708,21 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
             ):
                 all_plots = all_plot_data.hvplot.image(**plot_image_kwargs).cols(4)
             else:
-                all_plots = (
-                    all_plot_data.hvplot.bar()
-                )  # This doesn't account for a missing lat or lon dimension, will change
+                # Aggregate all data to just the `all_sims` dimension
+                all_plot_data = all_plot_data.mean(
+                    dim=[dim for dim in all_plot_data.dims if dim != "all_sims"]
+                )
+
+                # Shortening simulation names, might not work with LOCA data, if certain simulations exist with the same name across SSPs
+                all_plot_data["all_sims"] = [
+                    "_".join(sim_name.item().split("_")[:3])
+                    for sim_name in all_plot_data.all_sims
+                ]
+
+                # Creating singular bar plot
+                all_plots = all_plot_data.hvplot.bar(
+                    x="all_sims", xlabel="Simulation", ylabel="Deg of Warming"
+                ).opts(multi_level=False, show_legend=False)
 
             try:
                 all_plots.opts(
