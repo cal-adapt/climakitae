@@ -137,7 +137,7 @@ class WarmingLevels:
             cmap=self.cmap,
             warming_levels=self.wl_params.warming_levels,
         )
-        self.wl_viz.compute_stamps()
+        # self.wl_viz.compute_stamps()
 
     def visualize(self):
         if self.wl_viz:
