@@ -236,7 +236,7 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
 
         if anom == "Yes":
             # Find the anomaly
-            anom_val = y.sel(time=slice("1980", "2010")).mean("time")
+            anom_val = y.sel(time=slice("1981", "2010")).mean("time")
             sliced = y.sel(time=slice(str(start_year), str(end_year))) - anom_val
         else:
             # Finding window slice of data
