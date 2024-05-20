@@ -46,7 +46,7 @@ from dask.diagnostics import ProgressBar
 # ============================ Read data into memory ================================
 
 
-def load(xr_da):
+def load(xr_da, progress_bar=False):
     """Read data into memory
 
     Parameters
@@ -74,14 +74,17 @@ def load(xr_da):
         print("Total memory of input data: {0}".format(readable_bytes(xr_data_nbytes)))
         raise MemoryError("Your input dataset is too large to read into memory!")
     else:
-        with ProgressBar():
-            print(
-                "Processing data to read {0} of data into memory... ".format(
-                    readable_bytes(xr_data_nbytes)
-                ),
-                end="",
-            )
-            print("\r")
+        print(
+            "Processing data to read {0} of data into memory... ".format(
+                readable_bytes(xr_data_nbytes)
+            ),
+            end="",
+        )
+        if progress_bar:
+            with ProgressBar():
+                print("\r")
+                da_computed = xr_da.compute()
+        else:
             da_computed = xr_da.compute()
         print("Complete!")
         return da_computed
