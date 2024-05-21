@@ -40,11 +40,13 @@ from climakitae.tools.indices import (
 xr.set_options(keep_attrs=True)
 dask.config.set({"array.slicing.split_large_chunks": True})
 
+from dask.diagnostics import ProgressBar
+
 
 # ============================ Read data into memory ================================
 
 
-def load(xr_da):
+def load(xr_da, progress_bar=False):
     """Read data into memory
 
     Parameters
@@ -78,8 +80,14 @@ def load(xr_da):
             ),
             end="",
         )
-        print("\r")
-        return xr_da.compute()  # Load data into memory and return
+        if progress_bar:
+            with ProgressBar():
+                print("\r")
+                da_computed = xr_da.compute()
+        else:
+            da_computed = xr_da.compute()
+        print("Complete!")
+        return da_computed
 
 
 # ============================ Helper functions ================================
