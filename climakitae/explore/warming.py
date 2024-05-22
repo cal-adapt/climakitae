@@ -37,7 +37,6 @@ from climakitae.core.paths import (
 from climakitae.explore import threshold_tools
 import matplotlib.pyplot as plt
 from scipy.stats import pearson3
-from tqdm.auto import tqdm
 from climakitae.core.data_load import load
 
 # Silence warnings
