@@ -16,6 +16,7 @@ import pytz
 from timezonefinder import TimezoneFinder
 from importlib.metadata import version as _version
 from botocore.exceptions import ClientError
+from math import prod
 from climakitae.util.utils import read_csv_file
 from climakitae.core.paths import (
     variable_descriptions_csv_path,
@@ -56,15 +57,14 @@ def _estimate_file_size(data, format):
         # Will overestimate uncompressed size by 10-20%
         chars_per_line = 150
 
-        def multiply_tuple_elements(tuple):
-            result = 1
-            for item in tuple:
-                result *= item
-            return result
-
-        est_file_size = (
-            multiply_tuple_elements(data.shape) * chars_per_line
-        )  # 1st approximation of number of bytes per CSV row
+        if isinstance(data, xr.core.dataarray.DataArray):
+            est_file_size = (
+                np.prod(data.shape) * chars_per_line
+            )
+        elif isinstance(data, xr.core.dataarray.DataSet):
+            est_file_size = (
+                prod(data.dims.values()) * chars_per_line
+            )
     return est_file_size / bytes_per_gigabyte
 
 
