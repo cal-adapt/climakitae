@@ -59,7 +59,7 @@ def _estimate_file_size(data, format):
 
         if isinstance(data, xr.core.dataarray.DataArray):
             est_file_size = np.prod(data.shape) * chars_per_line
-        elif isinstance(data, xr.core.dataarray.DataSet):
+        elif isinstance(data, xr.core.dataset.DataSet):
             est_file_size = prod(data.dims.values()) * chars_per_line
     return est_file_size / bytes_per_gigabyte
 
