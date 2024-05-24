@@ -13,7 +13,7 @@ import hvplot.pandas
 import hvplot.xarray
 import panel as pn
 import statsmodels as sm
-from climakitae.util.utils import read_ae_colormap
+from climakitae.util.colormap import read_ae_colormap
 
 
 def calculate_ess(data, nlags=None):

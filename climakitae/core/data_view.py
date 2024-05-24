@@ -5,7 +5,8 @@ import numpy as np
 import hvplot.xarray
 import matplotlib.pyplot as plt
 import panel as pn
-from climakitae.util.utils import reproject_data, read_ae_colormap
+from climakitae.util.utils import reproject_data
+from climakitae.util.colormap import read_ae_colormap
 from climakitae.core.data_interface import VariableDescriptions
 
 

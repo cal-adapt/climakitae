@@ -19,10 +19,10 @@ from climakitae.core.data_interface import (
 from climakitae.core.data_view import compute_vmin_vmax
 from climakitae.util.utils import (
     read_csv_file,
-    read_ae_colormap,
     area_average,
     scenario_to_experiment_id,
 )
+from climakitae.util.colormap import read_ae_colormap
 from climakitae.core.paths import (
     gwl_1981_2010_file,
     gwl_1850_1900_file,
