@@ -332,8 +332,6 @@ def _add_res_to_ax(
     )
 
 
-
-
 class VariableDescriptions:
     """Load Variable Desciptions CSV only once
 
@@ -1049,6 +1047,3 @@ class DataParameters(param.Parameterized):
         else:
             warnoflargefilesize(data_return)
         return data_return
-
-
-

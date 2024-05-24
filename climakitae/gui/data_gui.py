@@ -11,6 +11,7 @@ from climakitae.core.data_interface import (
     DataParameters,
 )
 
+
 def _map_view(selections, stations_gdf):
     """View the current location selections on a map
     Updates dynamically
@@ -172,6 +173,8 @@ def _map_view(selections, stations_gdf):
     ax.add_feature(cfeature.COASTLINE, linewidth=0.5, edgecolor="darkgray")
     ax.add_feature(cfeature.BORDERS, edgecolor="darkgray")
     return mpl_pane
+
+
 class DataParametersWithPanes(DataParameters):
     """Extends DataParameters class to include panel widgets that display the time scale and a map overview"""
 
