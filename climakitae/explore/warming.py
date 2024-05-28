@@ -300,6 +300,19 @@ def _select_one_gwl(one_gwl, snapshots):
     return all_plot_data
 
 
+def _check_single_spatial_dims(da):
+    """
+    This checks needs to happen to determine whether or not the plots in postage stamps should be image plots or bar plots, depending on whether or not one of the spatial dimensions is <= a length of 1.
+    """
+    if set(["lat", "lon"]).issubset(set(da.dims)):
+        if len(da.x) <= 1 or len(da.y) <= 1:
+            return True
+    elif set(["x", "y"]).issubset(set(da.dims)):
+        if len(da.x) <= 1 or len(da.y) <= 1:
+            return True
+    return False
+
+
 class WarmingLevelChoose(DataParametersWithPanes):
     window = param.Integer(
         default=15,
@@ -696,22 +709,12 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
                 "title": "",
             }
 
-            # Splitting up logic to plot postage stamps IF there exists more than 4 gridcells (min for hvplot.image) and spatial coords exist as dimensions (lat, lon, or x, y).
+            # Splitting up logic to plot images or bar for postage stamps depending on if there exist more/less than 2x2 gridcells
             plot_type = ""
-            if (
-                set(["lat", "lon"]).issubset(set(all_plot_data.dims))
-                and len(all_plot_data.lat) * len(all_plot_data.lon) >= 4
-            ):
+            any_single_dims = _check_single_spatial_dims(all_plot_data)
+            if not any_single_dims:
                 all_plots = all_plot_data.hvplot.image(**plot_image_kwargs).cols(4)
                 plot_type = "image"
-
-            elif (
-                set(["x", "y"]).issubset(set(all_plot_data.dims))
-                and len(all_plot_data.x) * len(all_plot_data.y) >= 4
-            ):
-                all_plots = all_plot_data.hvplot.image(**plot_image_kwargs).cols(4)
-                plot_type = "image"
-
             else:
                 # Aggregate all data to just the `all_sims` dimension
                 all_plot_data = all_plot_data.mean(
@@ -843,11 +846,26 @@ def GCM_PostageStamps_STATS_compute(wl_viz):
 
             # Make plots
             plot_list = []
+            any_single_dims = _check_single_spatial_dims(all_plot_data)
+            if any_single_dims:
+                plot_type = "bar"
+            else:
+                plot_type = "image"
             for stat in stats:
-                plot_list.append(
-                    stat.squeeze()
-                    .drop(["warming_level"])
-                    .hvplot.image(
+
+                # Making bar plots vs image plots depending on size of spatial dimensions
+                if any_single_dims:
+                    plot = (
+                        stat.expand_dims("all_sims")
+                        .hvplot.bar(
+                            x="all_sims", xlabel="Simulation", ylabel="Deg of Warming"
+                        )
+                        .opts(multi_level=False, show_legend=False)
+                    )
+
+                else:
+                    # Plot hvplot image
+                    plot = stat.drop(["warming_level"]).hvplot.image(
                         clabel=clabel,
                         cmap=wl_viz.cmap,
                         clim=(vmin, vmax),
@@ -858,7 +876,7 @@ def GCM_PostageStamps_STATS_compute(wl_viz):
                         yaxis=False,
                         title=stat.all_sims.values.item(),  # dim has been overwritten with nicer title
                     )
-                )
+                plot_list.append(plot)
             all_plots = plot_list[0] + plot_list[1] + plot_list[2]
 
             all_plots.opts(
@@ -867,8 +885,10 @@ def GCM_PostageStamps_STATS_compute(wl_viz):
                 + str(warmlevel)
                 + "°C Warming Across Models"
             )  # Add title
-            warm_level_dict[warmlevel] = all_plots.cols(1)
-
+            if plot_type == "image":
+                warm_level_dict[warmlevel] = all_plots.cols(1)
+            elif plot_type == "bar":
+                warm_level_dict[warmlevel] = all_plots
         # This means that there does not exist any simulations that reach this degree of warming (WRF models).
         else:
             # Pass in a dummy visualization for now to stay consistent with viz data structures
