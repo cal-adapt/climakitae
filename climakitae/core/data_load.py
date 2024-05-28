@@ -87,7 +87,7 @@ def load(xr_da, progress_bar=False):
         else:
             da_computed = xr_da.compute()
         print("Complete!")
-        return da_computed  # Load data into memory and return
+        return da_computed
 
 
 # ============================ Helper functions ================================

@@ -687,36 +687,20 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
                 sopt = None
 
             # now prepare the plot object:
-            plot_image_kwargs = {
-                "by": "all_sims",
-                "subplots": True,
-                "colorbar": False,
-                "clim": (vmin, vmax),
-                "clabel": clabel,
-                "cmap": wl_viz.cmap,
-                "symmetric": sopt,
-                "width": width,
-                "height": height,
-                "xaxis": False,
-                "yaxis": False,
-                "title": "",
-            }
-
-            # Splitting up logic to plot postage stamps IF there exists more than 4 gridcells (min for hvplot.image) and spatial coords exist as dimensions (lat, lon, or x, y).
-            if (
-                set(["lat", "lon"]).issubset(set(all_plot_data.dims))
-                and len(all_plot_data.lat) * len(all_plot_data.lon) >= 4
-            ):
-                all_plots = all_plot_data.hvplot.image(**plot_image_kwargs).cols(4)
-            elif (
-                set(["x", "y"]).issubset(set(all_plot_data.dims))
-                and len(all_plot_data.x) * len(all_plot_data.y) >= 4
-            ):
-                all_plots = all_plot_data.hvplot.image(**plot_image_kwargs).cols(4)
-            else:
-                all_plots = (
-                    all_plot_data.hvplot.bar()
-                )  # This doesn't account for a missing lat or lon dimension, will change
+            all_plots = all_plot_data.hvplot.image(
+                by="all_sims",
+                subplots=True,
+                colorbar=False,
+                clim=(vmin, vmax),
+                clabel=clabel,
+                cmap=wl_viz.cmap,
+                symmetric=sopt,
+                width=width,
+                height=height,
+                xaxis=False,
+                yaxis=False,
+                title="",
+            ).cols(4)
 
             try:
                 all_plots.opts(
