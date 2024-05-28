@@ -757,13 +757,6 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
                 "**No simulations reach this degree of warming.**"
             )  # all_plot_data.hvplot()
 
-        # This means that there does not exist any simulations that reach this degree of warming (WRF models).
-        else:
-            # Pass in a dummy visualization for now to stay consistent with viz data structures
-            warm_level_dict[warmlevel] = pn.pane.Markdown(
-                "**No simulations reach this degree of warming.**"
-            )  # all_plot_data.hvplot()
-
     return warm_level_dict
     # return all_plots
     # else:
