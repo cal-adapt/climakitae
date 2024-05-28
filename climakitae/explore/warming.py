@@ -101,9 +101,7 @@ class WarmingLevels:
         ]
         # Postage data and anomalies
         self.catalog_data = self.wl_params.retrieve()
-        self.catalog_data = self.catalog_data.stack(
-            all_sims=["simulation", "scenario"]
-        ).squeeze()
+        self.catalog_data = self.catalog_data.stack(all_sims=["simulation", "scenario"])
         if self.wl_params.anom == "Yes":
             self.gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
         else:
