@@ -40,11 +40,7 @@ from climakitae.core.paths import (
 from climakitae.explore import threshold_tools
 import matplotlib.pyplot as plt
 from scipy.stats import pearson3
-<<<<<<< HEAD
-from climakitae.core.data_load import load
-=======
 from tqdm.auto import tqdm
->>>>>>> 5d62636b7a7afc769e89b54335b110ca732a17d7
 
 # Silence warnings
 import logging
@@ -119,13 +115,9 @@ class WarmingLevels:
         self.gwl_snapshots = {}
         for level in tqdm(self.warming_levels, desc="Computing each warming level"):
             # Assign warming slices to dask computation graph
-<<<<<<< HEAD
-            warm_slice = load(self.find_warming_slice(level, self.gwl_times))
-=======
             warm_slice = load(
                 self.find_warming_slice(level, self.gwl_times), progress_bar=True
             )
->>>>>>> 5d62636b7a7afc769e89b54335b110ca732a17d7
             # Dropping simulations that only have NaNs
             warm_slice = warm_slice.dropna(dim="all_sims", how="all")
             self.gwl_snapshots[level] = warm_slice.reduce(np.nanmean, "time")
