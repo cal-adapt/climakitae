@@ -11,7 +11,7 @@ import param
 import panel as pn
 import dask
 
-from climakitae.core.data_load import read_catalog_from_select
+from climakitae.core.data_load import read_catalog_from_select, load
 from climakitae.core.data_interface import (
     DataParametersWithPanes,
     _selections_param_to_panel,
@@ -37,7 +37,7 @@ from climakitae.core.paths import (
 from climakitae.explore import threshold_tools
 import matplotlib.pyplot as plt
 from scipy.stats import pearson3
-from climakitae.core.data_load import load
+from tqdm.auto import tqdm
 
 # Silence warnings
 import logging
