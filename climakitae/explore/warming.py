@@ -74,6 +74,7 @@ class WarmingLevels:
             get_sliced_data,
             level=level,
             years=gwl_times,
+            months=self.wl_params.months,
             window=self.wl_params.window,
             anom=self.wl_params.anom,
         )
@@ -197,7 +198,7 @@ def clean_warm_data(warm_data):
     return warm_data
 
 
-def get_sliced_data(y, level, years, window=15, anom="Yes"):
+def get_sliced_data(y, level, years, months, window=15, anom="Yes"):
     """Calculating warming level anomalies.
 
     Parameters
@@ -245,8 +246,14 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
             # Finding window slice of data
             sliced = y.sel(time=slice(str(start_year), str(end_year)))
 
+        # Creating a mask for timestamps that are within the desired months
+        valid_months_mask = sliced.time.dt.month.isin([months])
+
         # Resetting and renaming time index for each data array so they can overlap and save storage space
         sliced["time"] = np.arange(-len(sliced.time) / 2, len(sliced.time) / 2)
+
+        # Removing data not in the desired months (in this new time dimension)
+        sliced = sliced.sel(time=valid_months_mask)
 
         # Assigning `centered_year` as a coordinate to the DataArray
         sliced = sliced.assign_coords({"centered_year": centered_year})
@@ -254,15 +261,28 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
         return sliced
 
     else:
+        days_per_month = {
+            1: 31,
+            2: 28,
+            3: 31,
+            4: 30,
+            5: 31,
+            6: 30,
+            7: 31,
+            8: 31,
+            9: 30,
+            10: 31,
+            11: 30,
+            12: 31,
+        }
 
         # This creates an approximately appropriately sized DataArray to be dropped later
         if y.frequency == "monthly":
-            time_freq = 12
+            time_freq = len(months)
         elif y.frequency == "daily":
-            time_freq = 365
+            time_freq = sum([days_per_month[month] for month in months])
         elif y.frequency == "hourly":
-            time_freq = 8760
-
+            time_freq = sum([days_per_month[month] for month in months]) * 24
         y = y.isel(
             time=slice(0, window * 2 * time_freq)
         )  # This is to create a dummy slice that conforms with other data structure. Can be re-written to something more elegant.
@@ -333,6 +353,7 @@ class WarmingLevelChoose(DataParametersWithPanes):
 
         # Choosing specific warming levels
         self.warming_levels = ["1.5", "2.0", "3.0", "4.0"]
+        self.months = np.arange(1, 13)
 
         # Location defaults
         self.area_subset = "states"
