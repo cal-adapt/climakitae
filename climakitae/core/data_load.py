@@ -15,7 +15,7 @@ from shapely.geometry import box
 from xclim.sdba import Grouper
 from xclim.sdba.adjustment import QuantileDeltaMapping
 from climakitae.core.boundaries import Boundaries
-from climakitae.util.unit_conversions import convert_units, get_unit_conversion_options 
+from climakitae.util.unit_conversions import convert_units, get_unit_conversion_options
 from climakitae.util.utils import (
     readable_bytes,
     get_closest_gridcell,
@@ -725,15 +725,17 @@ def read_catalog_from_select(selections):
         raise ValueError(
             "Historical Reconstruction data is not available with SSP data. Please modify your selections and try again."
         )
-        
-    # Validate unit selection 
-    native_unit = selections.variable_options_df[selections.variable_options_df["variable_id"].isin(selections.variable_id)].unit.item()
+
+    # Validate unit selection
+    native_unit = selections.variable_options_df[
+        selections.variable_options_df["variable_id"].isin(selections.variable_id)
+    ].unit.item()
     valid_units = get_unit_conversion_options()[native_unit]
-    if selections.units not in valid_units: 
+    if selections.units not in valid_units:
         print("Units selected: {}".format(selections.units))
-        print("Valid units: "+ ", ".join(valid_units))
+        print("Valid units: " + ", ".join(valid_units))
         raise ValueError("Selected unit is not valid for the selected variable.")
-    
+
     # Raise error if no scenarios are selected
     scenario_selections = selections.scenario_ssp + selections.scenario_historical
     if scenario_selections == []:

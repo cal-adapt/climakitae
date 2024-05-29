@@ -7,9 +7,10 @@ import intake
 import pandas as pd
 from climakitae.core.data_interface import DataParameters
 
-class TestErrorRaisedIfBadUnitsManuallySet_Precipitation: 
+
+class TestErrorRaisedIfBadUnitsManuallySet_Precipitation:
     """Check for precipitation"""
-    
+
     @pytest.fixture
     def selections(self):
         # Create a DataParameters object
@@ -22,15 +23,16 @@ class TestErrorRaisedIfBadUnitsManuallySet_Precipitation:
     def test_error_raised(self, selections):
         with pytest.raises(Exception) as e_info:
             selections.retrieve()
-            
-class TestErrorRaisedIfBadUnitsManuallySet_AirTemp2m: 
+
+
+class TestErrorRaisedIfBadUnitsManuallySet_AirTemp2m:
     """Check for air temp at 2m"""
-    
+
     @pytest.fixture
     def selections(self):
         # Create a DataParameters object
         test_selections = DataParameters()
-        test_selections.variable = 'Air Temperature at 2m'
+        test_selections.variable = "Air Temperature at 2m"
         test_selections.units = "degreeees Kelllviinnnn"
 
         return test_selections
@@ -38,16 +40,16 @@ class TestErrorRaisedIfBadUnitsManuallySet_AirTemp2m:
     def test_error_raised(self, selections):
         with pytest.raises(Exception) as e_info:
             selections.retrieve()
-            
-            
-class TestErrorRaisedIfBadUnitsManuallySet_SurfacePressure: 
+
+
+class TestErrorRaisedIfBadUnitsManuallySet_SurfacePressure:
     """Check for Surface Pressure"""
-    
+
     @pytest.fixture
     def selections(self):
         # Create a DataParameters object
         test_selections = DataParameters()
-        test_selections.variable = 'Surface Pressure'
+        test_selections.variable = "Surface Pressure"
         test_selections.units = "snails per second"
 
         return test_selections
@@ -55,4 +57,3 @@ class TestErrorRaisedIfBadUnitsManuallySet_SurfacePressure:
     def test_error_raised(self, selections):
         with pytest.raises(Exception) as e_info:
             selections.retrieve()
-        
