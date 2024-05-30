@@ -67,7 +67,7 @@ def _estimate_file_size(data, format):
 def _warn_large_export(file_size, file_size_threshold=5.0):
     if file_size > file_size_threshold:
         print(
-            "WARNING: Estimated file size is "
+            "WARNING: Estimated uncompressed file size is "
             + str(round(file_size, 2))
             + " GB. This might take a while!"
         )
