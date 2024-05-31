@@ -261,20 +261,9 @@ def get_sliced_data(y, level, years, months, window=15, anom="Yes"):
         return sliced
 
     else:
-        days_per_month = {
-            1: 31,
-            2: 28,
-            3: 31,
-            4: 30,
-            5: 31,
-            6: 30,
-            7: 31,
-            8: 31,
-            9: 30,
-            10: 31,
-            11: 30,
-            12: 31,
-        }
+
+        # Get number of days per month for non-leap year
+        days_per_month = {i: calendar.monthrange(2001, i)[1] for i in np.range(1, 13)}
 
         # This creates an approximately appropriately sized DataArray to be dropped later
         if y.frequency == "monthly":
