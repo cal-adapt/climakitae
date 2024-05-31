@@ -102,34 +102,6 @@ def _round_to_nearest_half(number):
     return round(number * 2) / 2
 
 
-def create_conversion_function(lookup_tables):
-    """
-    Create a function that converts between warming level and time.
-
-    Parameters
-    ----------
-    lookup_tables : dict of pandas.DataFrame
-        Lookup tables for the conversions as output from the
-        `create_lookup_tables` function. It is a dictionary with a "time
-        lookup table" and a "warming level lookup table".
-
-    Returns
-    -------
-    function
-        The `find_wl_or_time` function preloaded with the given `lookup_tables`.
-        Given either a warming level or a time, the function uses
-        `lookup_tables` to find information about the other. Please see
-        `find_wl_or_time` for details.
-
-    Notes
-    -----
-    This saves time otherwise needed to remake the lookup tables for each call.
-    """
-    return lambda scenario="ssp370", warming_level=None, year=None: find_wl_or_time(
-        lookup_tables, scenario, warming_level, year
-    )
-
-
 ##### TASK 2 #####
 
 
