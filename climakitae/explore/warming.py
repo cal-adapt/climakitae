@@ -10,6 +10,7 @@ import pandas as pd
 import param
 import panel as pn
 import dask
+import calendar
 
 from climakitae.core.data_load import read_catalog_from_select, load
 from climakitae.core.data_interface import (
