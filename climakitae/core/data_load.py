@@ -709,7 +709,7 @@ def _check_valid_unit_selection(selections):
 
     Parameters
     -----------
-    selections: DataParameters
+    selections: DataParameters 
 
     Returns
     -------
