@@ -703,6 +703,30 @@ def _get_data_attributes(selections):
     return new_attrs
 
 
+def _check_valid_unit_selection(selections):
+    """Check that units weren't manually set in DataParameters to an invalid option.
+    Raises ValueError if units are not set to a valid option.
+
+    Parameters
+    -----------
+    selections: DataParameters
+
+    Returns
+    -------
+    None
+
+    """
+    native_unit = selections.variable_options_df[
+        selections.variable_options_df["variable_id"].isin(selections.variable_id)
+    ].unit.item()
+    valid_units = get_unit_conversion_options()[native_unit]
+    if selections.units not in valid_units:
+        print("Units selected: {}".format(selections.units))
+        print("Valid units: " + ", ".join(valid_units))
+        raise ValueError("Selected unit is not valid for the selected variable.")
+    return None
+
+
 def read_catalog_from_select(selections):
     """The primary and first data loading method, called by
     core.Application.retrieve, it returns a DataArray (which can be quite large)
@@ -727,14 +751,8 @@ def read_catalog_from_select(selections):
         )
 
     # Validate unit selection
-    native_unit = selections.variable_options_df[
-        selections.variable_options_df["variable_id"].isin(selections.variable_id)
-    ].unit.item()
-    valid_units = get_unit_conversion_options()[native_unit]
-    if selections.units not in valid_units:
-        print("Units selected: {}".format(selections.units))
-        print("Valid units: " + ", ".join(valid_units))
-        raise ValueError("Selected unit is not valid for the selected variable.")
+    # Returns None if units are valid, raises error if not
+    _check_valid_unit_selection(selections)
 
     # Raise error if no scenarios are selected
     scenario_selections = selections.scenario_ssp + selections.scenario_historical
@@ -1054,6 +1072,10 @@ def read_catalog_from_csv(selections, csv, merge=True):
         if multiple rows are in the csv and merge=True,
         multiple DataArrays are returned in a single list.
     """
+
+    # Validate unit selection
+    # Returns None if units are valid, raises error if not
+    _check_valid_unit_selection(selections)
 
     df = pd.read_csv(csv)
     df = df.fillna("")  # Replace empty cells (set to NaN by read_csv) with empty string
