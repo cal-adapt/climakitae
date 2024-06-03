@@ -305,7 +305,7 @@ def _check_single_spatial_dims(da):
     This checks needs to happen to determine whether or not the plots in postage stamps should be image plots or bar plots, depending on whether or not one of the spatial dimensions is <= a length of 1.
     """
     if set(["lat", "lon"]).issubset(set(da.dims)):
-        if len(da.x) <= 1 or len(da.y) <= 1:
+        if len(da.lat) <= 1 or len(da.lon) <= 1:
             return True
     elif set(["x", "y"]).issubset(set(da.dims)):
         if len(da.x) <= 1 or len(da.y) <= 1:
