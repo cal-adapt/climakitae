@@ -729,7 +729,7 @@ def _check_valid_unit_selection(selections):
 
 def read_catalog_from_select(selections):
     """The primary and first data loading method, called by
-    core.Application.retrieve, it returns a DataArray (which can be quite large)
+    core.data_interface.DataParameters.retrieve, it returns a DataArray (which can be quite large)
     containing everything requested by the user (which is stored in 'selections').
 
     Parameters
