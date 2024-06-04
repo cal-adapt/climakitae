@@ -1047,3 +1047,85 @@ class DataParameters(param.Parameterized):
         else:
             warnoflargefilesize(data_return)
         return data_return
+
+
+def retrieve(
+    area_subset="none",
+    cached_area="['entire domain']",
+    latitude=(32.5, 42),
+    longitude=(-125.5, -114),
+    time_slice=(1980, 2015),
+    resolution="9 km",
+    timescale="monthly",
+    scenario_historical=["Historical Climate"],
+    scenario_ssp=[],
+    area_average="No",
+    downscaling_method="Dynamical",
+    data_type="Gridded",
+    variable="Air Temperature at 2m",
+    units="",
+    config=None,
+    merge=True,
+):
+    """Retrieve data from catalog via manually set parameters.
+
+    Grabs the data from the AWS S3 bucket, returns lazily loaded dask array.
+    User-facing function that provides a wrapper for read_catalog_from_csv and read_catalog_from_select.
+
+    Parameters
+    ----------
+    area_subset: str, optional
+    cached_area: str, optional but tied to area_subset
+    latitude: tuple, optional but used if area_subset = "none"
+    longitude: tuple, opptional but used if area_subset = "none"
+    time_slice: tuple
+    resolution: str
+    timescale: str
+    scenario_historical: list
+    scenario_ssp: list, optional
+    area_average: str
+    downscaling_method: str
+    data_type: str
+    variable: str
+    units: str, optional
+    config: str, optional
+        Local filepath to configuration csv file
+        Default to None-- retrieve settings in selections
+    merge: bool, optional
+        If config is TRUE and multiple datasets desired, merge to form a single object?
+        Defaults to True.
+
+    Returns
+    -------
+    xr.DataArray
+        Lazily loaded dask array
+        Default if no config file provided
+    xr.Dataset
+        If multiple rows are in the csv, each row is a data_variable
+        Only an option if a config file is provided
+    list of xr.DataArray
+        If multiple rows are in the csv and merge=True,
+        multiple DataArrays are returned in a single list.
+        Only an option if a config file is provided.
+
+    """
+    dp = DataParameters()
+
+    if config is not None:
+        dp.retrieve(config=config, merge=merge)
+    else:
+        dp.area_subset = area_subset
+        dp.cached_area = cached_area
+        dp.latitude = latitude
+        dp.longitude = longitude
+        dp.time_slice = time_slice
+        dp.resolution = resolution
+        dp.timescale = timescale
+        dp.scenario_historical = scenario_historical
+        dp.scenario_ssp = scenario_ssp
+        dp.area_average = area_average
+        dp.downscaling_method = downscaling_method
+        dp.data_type = data_type
+        dp.variable = variable
+        dp.units = units
+        dp.retrieve(merge=merge)
