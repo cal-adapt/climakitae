@@ -1128,4 +1128,5 @@ def retrieve(
         dp.data_type = data_type
         dp.variable = variable
         dp.units = units
+        print(dp)
         dp.retrieve(merge=merge)
