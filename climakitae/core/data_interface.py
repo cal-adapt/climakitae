@@ -1204,12 +1204,8 @@ class DataParameters(param.Parameterized):
                 raise ValueError(
                     "To retrieve data specified in a configuration file, please input the path to your local configuration csv as a string"
                 )
-        try:
-            data_return = read_catalog_from_select(self)
-        except:
-            raise ValueError(
-                "COULD NOT RETRIEVE DATA: For the provided data selections, there is not sufficient data to retrieve. Try selecting a larger spatial area, or a higher resolution. Returning None."
-            )
+        data_return = read_catalog_from_select(self)
+
         if isinstance(data_return, list):
             for l in data_return:
                 warnoflargefilesize(l)
