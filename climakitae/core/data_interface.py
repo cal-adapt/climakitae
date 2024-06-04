@@ -1063,7 +1063,7 @@ def retrieve(
     downscaling_method="Dynamical",
     data_type="Gridded",
     variable="Air Temperature at 2m",
-    units="",
+    units="K",
     config=None,
     merge=True,
 ):
