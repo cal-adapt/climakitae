@@ -1112,7 +1112,7 @@ def retrieve(
     dp = DataParameters()
 
     if config is not None:
-        dp.retrieve(config=config, merge=merge)
+        return dp.retrieve(config=config, merge=merge)
     else:
         dp.area_subset = area_subset
         dp.cached_area = cached_area
@@ -1128,5 +1128,4 @@ def retrieve(
         dp.data_type = data_type
         dp.variable = variable
         dp.units = units
-        print(dp)
-        dp.retrieve(merge=merge)
+        return dp.retrieve(merge=merge)
