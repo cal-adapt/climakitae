@@ -257,7 +257,9 @@ def get_sliced_data(y, level, years, months, window=15, anom="Yes"):
         sliced = sliced.sel(time=valid_months_mask)
 
         # Assigning `centered_year` as a coordinate to the DataArray
-        sliced = sliced.assign_coords({"centered_year": centered_year})
+        sliced = sliced.assign_coords(
+            {"centered_year": centered_year, "months": months}
+        )
 
         return sliced
 
