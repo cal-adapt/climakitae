@@ -10,9 +10,8 @@ import pandas as pd
 import param
 import panel as pn
 import dask
-import calendar
 
-from climakitae.core.data_load import read_catalog_from_select, load
+from climakitae.core.data_load import read_catalog_from_select
 from climakitae.core.data_interface import (
     DataParametersWithPanes,
     _selections_param_to_panel,
@@ -38,7 +37,7 @@ from climakitae.core.paths import (
 from climakitae.explore import threshold_tools
 import matplotlib.pyplot as plt
 from scipy.stats import pearson3
-from tqdm.auto import tqdm
+from climakitae.core.data_load import load
 
 # Silence warnings
 import logging
@@ -62,7 +61,7 @@ class WarmingLevels:
 
     def __init__(self, **params):
         self.wl_params = WarmingLevelChoose()
-        # self.warming_levels = ["1.5", "2.0", "3.0", "4.0"]
+        self.warming_levels = ["1.5", "2.0", "3.0", "4.0"]
 
     def choose_data(self):
         return warming_levels_select(self.wl_params)
@@ -75,7 +74,6 @@ class WarmingLevels:
             get_sliced_data,
             level=level,
             years=gwl_times,
-            months=self.wl_params.months,
             window=self.wl_params.window,
             anom=self.wl_params.anom,
         )
@@ -103,6 +101,7 @@ class WarmingLevels:
         self.catalog_data = self.catalog_data.stack(
             all_sims=["simulation", "scenario"]
         ).squeeze()
+        self.catalog_data = self.catalog_data.dropna(dim="all_sims", how="all")
         if self.wl_params.anom == "Yes":
             self.gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
         else:
@@ -112,13 +111,9 @@ class WarmingLevels:
 
         self.sliced_data = {}
         self.gwl_snapshots = {}
-        for level in tqdm(
-            self.wl_params.warming_levels, desc="Computing each warming level"
-        ):
+        for level in self.warming_levels:
             # Assign warming slices to dask computation graph
-            warm_slice = load(
-                self.find_warming_slice(level, self.gwl_times), progress_bar=True
-            )
+            warm_slice = load(self.find_warming_slice(level, self.gwl_times))
             # Dropping simulations that only have NaNs
             warm_slice = warm_slice.dropna(dim="all_sims", how="all")
             self.gwl_snapshots[level] = warm_slice.reduce(np.nanmean, "time")
@@ -136,7 +131,7 @@ class WarmingLevels:
             gwl_snapshots=self.gwl_snapshots,
             wl_params=self.wl_params,
             cmap=self.cmap,
-            warming_levels=self.wl_params.warming_levels,
+            warming_levels=self.warming_levels,
         )
         self.wl_viz.compute_stamps()
 
@@ -199,7 +194,7 @@ def clean_warm_data(warm_data):
     return warm_data
 
 
-def get_sliced_data(y, level, years, months, window=15, anom="Yes"):
+def get_sliced_data(y, level, years, window=15, anom="Yes"):
     """Calculating warming level anomalies.
 
     Parameters
@@ -239,22 +234,14 @@ def get_sliced_data(y, level, years, months, window=15, anom="Yes"):
 
         if anom == "Yes":
             # Find the anomaly
-            anom_val = y.sel(time=slice("1980", "2010")).mean(
-                "time"
-            )  # Calvin- this line is run 3-4x the number of times it actually needs to be run. Each simulation gets this value calculated for each warming level, so there is no need to calculate this 3-4x when it only needs to be calculated once.
+            anom_val = y.sel(time=slice("1981", "2010")).mean("time")
             sliced = y.sel(time=slice(str(start_year), str(end_year))) - anom_val
         else:
             # Finding window slice of data
             sliced = y.sel(time=slice(str(start_year), str(end_year)))
 
-        # Creating a mask for timestamps that are within the desired months
-        valid_months_mask = sliced.time.dt.month.isin([months])
-
         # Resetting and renaming time index for each data array so they can overlap and save storage space
         sliced["time"] = np.arange(-len(sliced.time) / 2, len(sliced.time) / 2)
-
-        # Removing data not in the desired months (in this new time dimension)
-        sliced = sliced.sel(time=valid_months_mask)
 
         # Assigning `centered_year` as a coordinate to the DataArray
         sliced = sliced.assign_coords({"centered_year": centered_year})
@@ -263,16 +250,14 @@ def get_sliced_data(y, level, years, months, window=15, anom="Yes"):
 
     else:
 
-        # Get number of days per month for non-leap year
-        days_per_month = {i: calendar.monthrange(2001, i)[1] for i in np.arange(1, 13)}
-
         # This creates an approximately appropriately sized DataArray to be dropped later
         if y.frequency == "monthly":
-            time_freq = len(months)
+            time_freq = 12
         elif y.frequency == "daily":
-            time_freq = sum([days_per_month[month] for month in months])
+            time_freq = 365
         elif y.frequency == "hourly":
-            time_freq = sum([days_per_month[month] for month in months]) * 24
+            time_freq = 8760
+
         y = y.isel(
             time=slice(0, window * 2 * time_freq)
         )  # This is to create a dummy slice that conforms with other data structure. Can be re-written to something more elegant.
@@ -322,7 +307,7 @@ class WarmingLevelChoose(DataParametersWithPanes):
 
     anom = param.Selector(
         default="Yes",
-        objects=["Yes", "No"],
+        objects=["Yes"],
         doc="Return an anomaly \n(difference from historical reference period)?",
     )
 
@@ -341,10 +326,6 @@ class WarmingLevelChoose(DataParametersWithPanes):
         self.timescale = "monthly"
         self.variable = "Air Temperature at 2m"
 
-        # Choosing specific warming levels
-        self.warming_levels = ["1.5", "2.0", "3.0", "4.0"]
-        self.months = np.arange(1, 13)
-
         # Location defaults
         self.area_subset = "states"
         self.cached_area = ["CA"]
@@ -355,7 +336,7 @@ class WarmingLevelChoose(DataParametersWithPanes):
         Require 'anomaly' for non-bias-corrected data.
         """
         if self.downscaling_method == "Dynamical":
-            self.param["anom"].objects = ["Yes", "No"]
+            self.param["anom"].objects = ["Yes"]
             self.anom = "Yes"
         else:
             self.param["anom"].objects = ["Yes", "No"]
