@@ -858,6 +858,7 @@ def GCM_PostageStamps_STATS_compute(wl_viz):
                 )
             
             else:
+                plot_type = "image"
                 plot_list = []
                 for stat in stats:
                     plot = stat.drop(["warming_level"]).hvplot.image(
