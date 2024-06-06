@@ -845,26 +845,21 @@ def GCM_PostageStamps_STATS_compute(wl_viz):
                 sopt = None
 
             # Make plots
-            plot_list = []
             any_single_dims = _check_single_spatial_dims(all_plot_data)
             if any_single_dims:
                 plot_type = "bar"
-            else:
-                plot_type = "image"
-            for stat in stats:
-
-                # Making bar plots vs image plots depending on size of spatial dimensions
-                if any_single_dims:
-                    plot = (
-                        stat.expand_dims("all_sims")
-                        .hvplot.bar(
-                            x="all_sims", xlabel="Simulation", ylabel="Deg of Warming"
-                        )
-                        .opts(multi_level=False, show_legend=False)
+                only_sims = area_average(stats)
+                all_plots = (
+                    only_sims
+                    .hvplot.bar(
+                        x="all_sims", xlabel="Simulation", ylabel="Deg of Warming"
                     )
-
-                else:
-                    # Plot hvplot image
+                    .opts(multi_level=False, show_legend=False)
+                )
+            
+            else:
+                plot_list = []
+                for stat in stats:
                     plot = stat.drop(["warming_level"]).hvplot.image(
                         clabel=clabel,
                         cmap=wl_viz.cmap,
@@ -876,8 +871,8 @@ def GCM_PostageStamps_STATS_compute(wl_viz):
                         yaxis=False,
                         title=stat.all_sims.values.item(),  # dim has been overwritten with nicer title
                     )
-                plot_list.append(plot)
-            all_plots = plot_list[0] + plot_list[1] + plot_list[2]
+                    plot_list.append(plot)
+                all_plots = plot_list[0] + plot_list[1] + plot_list[2]
 
             all_plots.opts(
                 title=wl_viz.wl_params.variable
