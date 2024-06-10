@@ -719,7 +719,14 @@ def _check_valid_unit_selection(selections):
     native_unit = selections.variable_options_df[
         selections.variable_options_df["variable_id"].isin(selections.variable_id)
     ].unit.item()
-    valid_units = get_unit_conversion_options()[native_unit]
+
+    try:
+        # See if there are more than one unit option for this variable
+        valid_units = get_unit_conversion_options()[native_unit]
+    except:
+        # If not, the only unit option is the native unit
+        valid_units = [native_unit]
+
     if selections.units not in valid_units:
         print("Units selected: {}".format(selections.units))
         print("Valid units: " + ", ".join(valid_units))
