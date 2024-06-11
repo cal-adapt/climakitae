@@ -15,7 +15,7 @@ from shapely.geometry import box
 from xclim.sdba import Grouper
 from xclim.sdba.adjustment import QuantileDeltaMapping
 from climakitae.core.boundaries import Boundaries
-from climakitae.util.unit_conversions import convert_units
+from climakitae.util.unit_conversions import convert_units, get_unit_conversion_options
 from climakitae.util.utils import (
     readable_bytes,
     get_closest_gridcell,
@@ -703,9 +703,40 @@ def _get_data_attributes(selections):
     return new_attrs
 
 
+def _check_valid_unit_selection(selections):
+    """Check that units weren't manually set in DataParameters to an invalid option.
+    Raises ValueError if units are not set to a valid option.
+
+    Parameters
+    -----------
+    selections: DataParameters
+
+    Returns
+    -------
+    None
+
+    """
+    native_unit = selections.variable_options_df[
+        selections.variable_options_df["variable_id"].isin(selections.variable_id)
+    ].unit.item()
+
+    try:
+        # See if there are more than one unit option for this variable
+        valid_units = get_unit_conversion_options()[native_unit]
+    except:
+        # If not, the only unit option is the native unit
+        valid_units = [native_unit]
+
+    if selections.units not in valid_units:
+        print("Units selected: {}".format(selections.units))
+        print("Valid units: " + ", ".join(valid_units))
+        raise ValueError("Selected unit is not valid for the selected variable.")
+    return None
+
+
 def read_catalog_from_select(selections):
     """The primary and first data loading method, called by
-    core.Application.retrieve, it returns a DataArray (which can be quite large)
+    core.data_interface.DataParameters.retrieve, it returns a DataArray (which can be quite large)
     containing everything requested by the user (which is stored in 'selections').
 
     Parameters
@@ -725,6 +756,10 @@ def read_catalog_from_select(selections):
         raise ValueError(
             "Historical Reconstruction data is not available with SSP data. Please modify your selections and try again."
         )
+
+    # Validate unit selection
+    # Returns None if units are valid, raises error if not
+    _check_valid_unit_selection(selections)
 
     # Raise error if no scenarios are selected
     scenario_selections = selections.scenario_ssp + selections.scenario_historical
@@ -1044,6 +1079,10 @@ def read_catalog_from_csv(selections, csv, merge=True):
         if multiple rows are in the csv and merge=True,
         multiple DataArrays are returned in a single list.
     """
+
+    # Validate unit selection
+    # Returns None if units are valid, raises error if not
+    _check_valid_unit_selection(selections)
 
     df = pd.read_csv(csv)
     df = df.fillna("")  # Replace empty cells (set to NaN by read_csv) with empty string
