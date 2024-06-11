@@ -227,12 +227,11 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
     y = y.loc[~((y.time.dt.month == 2) & (y.time.dt.day == 29))]
 
     if not pd.isna(center_time):
+
         # Find the centered year
         centered_year = pd.to_datetime(center_time).year
         start_year = centered_year - window
         end_year = centered_year + (window - 1)
-
-        # TODO: This method will create incorrect data for daily data selection, as leap days create different time indices to be merged on. This will create weird time indices that can be visualized with the `out.plot.line` method in `warming_levels.ipynb`.
 
         if anom == "Yes":
             # Find the anomaly
@@ -680,12 +679,8 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
             # Set up plotting arguments
             width = 210
             height = 110
-            clabel = (
-                wl_viz.wl_params.variable
-                + " ("
-                + wl_viz.gwl_snapshots.attrs["units"]
-                + ")"
-            )
+            units = wl_viz.gwl_snapshots.attrs["units"]
+            clabel = wl_viz.wl_params.variable + " (" + units + ")"
             vmin = wl_viz.mins.sel(warming_level=warmlevel).values.item()
             vmax = wl_viz.maxs.sel(warming_level=warmlevel).values.item()
             if (vmin < 0) and (vmax > 0):
@@ -716,27 +711,27 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
                 all_plots = all_plot_data.hvplot.image(**plot_image_kwargs).cols(4)
                 plot_type = "image"
             else:
-                # Aggregate all data to just the `all_sims` dimension
+                # Aggregate all data to just the `all_sims` dimension. This will average the data across all dimensions, which may not necessarily be desired for calculations with 'Max' variables, if you are for instance looking for a 'max of maxes'.
                 all_plot_data = all_plot_data.mean(
                     dim=[dim for dim in all_plot_data.dims if dim != "all_sims"]
                 )
 
-                # Shortening simulation names, might not work with LOCA data, if certain simulations exist with the same name across SSPs
+                # Remove SSP descriptions
                 all_plot_data["all_sims"] = [
-                    "_".join(sim_name.item().split("_")[:3])
+                    sim_name.item().split("--")[0].strip()
                     for sim_name in all_plot_data.all_sims
                 ]
 
                 # Creating singular bar plot
-                all_plots = all_plot_data.hvplot.bar(
-                    x="all_sims", xlabel="Simulation", ylabel="Deg of Warming"
+                all_plots = all_plot_data.hvplot.barh(
+                    x="all_sims", xlabel="Simulation", ylabel=f"{units} of Warming"
                 ).opts(multi_level=False, show_legend=False)
                 plot_type = "bar"
 
             try:
                 all_plots.opts(
                     title=wl_viz.wl_params.variable
-                    + ": for "
+                    + " for "
                     + str(warmlevel)
                     + "°C Warming by Simulation"
                 )  # Add title
@@ -831,12 +826,8 @@ def GCM_PostageStamps_STATS_compute(wl_viz):
             # Set up plotting arguments
             width = 410
             height = 210
-            clabel = (
-                wl_viz.wl_params.variable
-                + " ("
-                + wl_viz.gwl_snapshots.attrs["units"]
-                + ")"
-            )
+            units = wl_viz.gwl_snapshots.attrs["units"]
+            clabel = wl_viz.wl_params.variable + " (" + units + ")"
             vmin = wl_viz.mins.sel(warming_level=warmlevel).values.item()
             vmax = wl_viz.maxs.sel(warming_level=warmlevel).values.item()
             if (vmin < 0) and (vmax > 0):
@@ -849,14 +840,10 @@ def GCM_PostageStamps_STATS_compute(wl_viz):
             if any_single_dims:
                 plot_type = "bar"
                 only_sims = area_average(stats)
-                all_plots = (
-                    only_sims
-                    .hvplot.bar(
-                        x="all_sims", xlabel="Simulation", ylabel="Deg of Warming"
-                    )
-                    .opts(multi_level=False, show_legend=False)
-                )
-            
+                all_plots = only_sims.hvplot.barh(
+                    x="all_sims", xlabel="Simulation", ylabel=f"{units} of Warming"
+                ).opts(multi_level=False, show_legend=False)
+
             else:
                 plot_type = "image"
                 plot_list = []
@@ -877,7 +864,7 @@ def GCM_PostageStamps_STATS_compute(wl_viz):
 
             all_plots.opts(
                 title=wl_viz.wl_params.variable
-                + ": for "
+                + " for "
                 + str(warmlevel)
                 + "°C Warming Across Models"
             )  # Add title
