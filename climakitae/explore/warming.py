@@ -724,7 +724,7 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
 
                 # Creating singular bar plot
                 all_plots = all_plot_data.hvplot.barh(
-                    x="all_sims", xlabel="Simulation", ylabel=f"{units} of Warming"
+                    x="all_sims", xlabel="Simulation", ylabel=f"{units}"
                 ).opts(multi_level=False, show_legend=False)
                 plot_type = "bar"
 
