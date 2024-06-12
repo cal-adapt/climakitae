@@ -11,7 +11,10 @@ import param
 import panel as pn
 import dask
 
-from climakitae.core.data_load import read_catalog_from_select
+from climakitae.core.data_load import (
+    read_catalog_from_select,
+    load,
+)
 from climakitae.core.data_interface import (
     DataParametersWithPanes,
     _selections_param_to_panel,
@@ -37,7 +40,7 @@ from climakitae.core.paths import (
 from climakitae.explore import threshold_tools
 import matplotlib.pyplot as plt
 from scipy.stats import pearson3
-from climakitae.core.data_load import load
+from tqdm.auto import tqdm
 
 # Silence warnings
 import logging
@@ -98,10 +101,7 @@ class WarmingLevels:
         ]
         # Postage data and anomalies
         self.catalog_data = self.wl_params.retrieve()
-        self.catalog_data = self.catalog_data.stack(
-            all_sims=["simulation", "scenario"]
-        ).squeeze()
-        self.catalog_data = self.catalog_data.dropna(dim="all_sims", how="all")
+        self.catalog_data = self.catalog_data.stack(all_sims=["simulation", "scenario"])
         if self.wl_params.anom == "Yes":
             self.gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
         else:
@@ -111,9 +111,11 @@ class WarmingLevels:
 
         self.sliced_data = {}
         self.gwl_snapshots = {}
-        for level in self.warming_levels:
+        for level in tqdm(self.warming_levels, desc="Computing each warming level"):
             # Assign warming slices to dask computation graph
-            warm_slice = load(self.find_warming_slice(level, self.gwl_times))
+            warm_slice = load(
+                self.find_warming_slice(level, self.gwl_times), progress_bar=True
+            )
             # Dropping simulations that only have NaNs
             warm_slice = warm_slice.dropna(dim="all_sims", how="all")
             self.gwl_snapshots[level] = warm_slice.reduce(np.nanmean, "time")
@@ -225,12 +227,11 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
     y = y.loc[~((y.time.dt.month == 2) & (y.time.dt.day == 29))]
 
     if not pd.isna(center_time):
+
         # Find the centered year
         centered_year = pd.to_datetime(center_time).year
         start_year = centered_year - window
         end_year = centered_year + (window - 1)
-
-        # TODO: This method will create incorrect data for daily data selection, as leap days create different time indices to be merged on. This will create weird time indices that can be visualized with the `out.plot.line` method in `warming_levels.ipynb`.
 
         if anom == "Yes":
             # Find the anomaly
@@ -296,6 +297,19 @@ def _select_one_gwl(one_gwl, snapshots):
     all_plot_data = snapshots.sel(warming_level=one_gwl).copy()
     all_plot_data = all_plot_data.dropna("all_sims", how="all")
     return all_plot_data
+
+
+def _check_single_spatial_dims(da):
+    """
+    This checks needs to happen to determine whether or not the plots in postage stamps should be image plots or bar plots, depending on whether or not one of the spatial dimensions is <= a length of 1.
+    """
+    if set(["lat", "lon"]).issubset(set(da.dims)):
+        if len(da.lat) <= 1 or len(da.lon) <= 1:
+            return True
+    elif set(["x", "y"]).issubset(set(da.dims)):
+        if len(da.x) <= 1 or len(da.y) <= 1:
+            return True
+    return False
 
 
 class WarmingLevelChoose(DataParametersWithPanes):
@@ -665,12 +679,8 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
             # Set up plotting arguments
             width = 210
             height = 110
-            clabel = (
-                wl_viz.wl_params.variable
-                + " ("
-                + wl_viz.gwl_snapshots.attrs["units"]
-                + ")"
-            )
+            units = wl_viz.gwl_snapshots.attrs["units"]
+            clabel = wl_viz.wl_params.variable + " (" + units + ")"
             vmin = wl_viz.mins.sel(warming_level=warmlevel).values.item()
             vmax = wl_viz.maxs.sel(warming_level=warmlevel).values.item()
             if (vmin < 0) and (vmax > 0):
@@ -679,25 +689,49 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
                 sopt = None
 
             # now prepare the plot object:
-            all_plots = all_plot_data.hvplot.image(
-                by="all_sims",
-                subplots=True,
-                colorbar=False,
-                clim=(vmin, vmax),
-                clabel=clabel,
-                cmap=wl_viz.cmap,
-                symmetric=sopt,
-                width=width,
-                height=height,
-                xaxis=False,
-                yaxis=False,
-                title="",
-            ).cols(4)
+            plot_image_kwargs = {
+                "by": "all_sims",
+                "subplots": True,
+                "colorbar": False,
+                "clim": (vmin, vmax),
+                "clabel": clabel,
+                "cmap": wl_viz.cmap,
+                "symmetric": sopt,
+                "width": width,
+                "height": height,
+                "xaxis": False,
+                "yaxis": False,
+                "title": "",
+            }
+
+            # Splitting up logic to plot images or bar for postage stamps depending on if there exist more/less than 2x2 gridcells
+            plot_type = ""
+            any_single_dims = _check_single_spatial_dims(all_plot_data)
+            if not any_single_dims:
+                all_plots = all_plot_data.hvplot.image(**plot_image_kwargs).cols(4)
+                plot_type = "image"
+            else:
+                # Aggregate all data to just the `all_sims` dimension. This will average the data across all dimensions, which may not necessarily be desired for calculations with 'Max' variables, if you are for instance looking for a 'max of maxes'.
+                all_plot_data = all_plot_data.mean(
+                    dim=[dim for dim in all_plot_data.dims if dim != "all_sims"]
+                )
+
+                # Remove SSP descriptions
+                all_plot_data["all_sims"] = [
+                    sim_name.item().split("--")[0].strip()
+                    for sim_name in all_plot_data.all_sims
+                ]
+
+                # Creating singular bar plot
+                all_plots = all_plot_data.hvplot.barh(
+                    x="all_sims", xlabel="Simulation", ylabel=f"{units}"
+                ).opts(multi_level=False, show_legend=False)
+                plot_type = "bar"
 
             try:
                 all_plots.opts(
                     title=wl_viz.wl_params.variable
-                    + ": for "
+                    + " for "
                     + str(warmlevel)
                     + "°C Warming by Simulation"
                 )  # Add title
@@ -706,7 +740,11 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
 
             all_plots.opts(toolbar="below")  # Set toolbar location
             all_plots.opts(hv.opts.Layout(merge_tools=True))  # Merge toolbar
-            warm_level_dict[warmlevel] = all_plots.cols(1)
+
+            if plot_type == "image":
+                warm_level_dict[warmlevel] = all_plots.cols(1)
+            elif plot_type == "bar":
+                warm_level_dict[warmlevel] = all_plots
 
         # This means that there does not exist any simulations that reach this degree of warming (WRF models).
         else:
@@ -788,12 +826,8 @@ def GCM_PostageStamps_STATS_compute(wl_viz):
             # Set up plotting arguments
             width = 410
             height = 210
-            clabel = (
-                wl_viz.wl_params.variable
-                + " ("
-                + wl_viz.gwl_snapshots.attrs["units"]
-                + ")"
-            )
+            units = wl_viz.gwl_snapshots.attrs["units"]
+            clabel = wl_viz.wl_params.variable + " (" + units + ")"
             vmin = wl_viz.mins.sel(warming_level=warmlevel).values.item()
             vmax = wl_viz.maxs.sel(warming_level=warmlevel).values.item()
             if (vmin < 0) and (vmax > 0):
@@ -802,12 +836,19 @@ def GCM_PostageStamps_STATS_compute(wl_viz):
                 sopt = None
 
             # Make plots
-            plot_list = []
-            for stat in stats:
-                plot_list.append(
-                    stat.squeeze()
-                    .drop(["warming_level"])
-                    .hvplot.image(
+            any_single_dims = _check_single_spatial_dims(all_plot_data)
+            if any_single_dims:
+                plot_type = "bar"
+                only_sims = area_average(stats)
+                all_plots = only_sims.hvplot.barh(
+                    x="all_sims", xlabel="Simulation", ylabel=f"{units} of Warming"
+                ).opts(multi_level=False, show_legend=False)
+
+            else:
+                plot_type = "image"
+                plot_list = []
+                for stat in stats:
+                    plot = stat.drop(["warming_level"]).hvplot.image(
                         clabel=clabel,
                         cmap=wl_viz.cmap,
                         clim=(vmin, vmax),
@@ -818,17 +859,19 @@ def GCM_PostageStamps_STATS_compute(wl_viz):
                         yaxis=False,
                         title=stat.all_sims.values.item(),  # dim has been overwritten with nicer title
                     )
-                )
-            all_plots = plot_list[0] + plot_list[1] + plot_list[2]
+                    plot_list.append(plot)
+                all_plots = plot_list[0] + plot_list[1] + plot_list[2]
 
             all_plots.opts(
                 title=wl_viz.wl_params.variable
-                + ": for "
+                + " for "
                 + str(warmlevel)
                 + "°C Warming Across Models"
             )  # Add title
-            warm_level_dict[warmlevel] = all_plots.cols(1)
-
+            if plot_type == "image":
+                warm_level_dict[warmlevel] = all_plots.cols(1)
+            elif plot_type == "bar":
+                warm_level_dict[warmlevel] = all_plots
         # This means that there does not exist any simulations that reach this degree of warming (WRF models).
         else:
             # Pass in a dummy visualization for now to stay consistent with viz data structures
