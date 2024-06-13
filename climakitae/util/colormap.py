@@ -1,5 +1,15 @@
 import matplotlib.colors as mcolors
 import matplotlib
+import numpy as np
+
+from climakitae.core.paths import (
+    ae_orange,
+    ae_diverging,
+    ae_blue,
+    ae_diverging_r,
+    categorical_cb,
+)
+from climakitae.util.utils import _package_file_path
 
 
 def read_ae_colormap(cmap="ae_orange", cmap_hex=False):
