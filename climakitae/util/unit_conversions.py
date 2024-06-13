@@ -76,6 +76,8 @@ def convert_units(da, selected_units):
         elif selected_units == "kg m-2 s-1":
             da = da / 86400
     elif native_units == "kg m-2 s-1":
+        if da.frequency == "monthly":
+            da = da * da["time"].dt.days_in_month
         if selected_units == "mm":
             da = da * 86400
         elif selected_units == "inches":
