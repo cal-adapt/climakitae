@@ -23,7 +23,7 @@ from climakitae.core.paths import (
     ssp585_file,
     hist_file,
 )
-
+from climakitae.core.data_interface import DataParameters
 from climakitae.explore import threshold_tools
 from scipy.stats import pearson3
 from climakitae.core.data_load import load
@@ -278,7 +278,7 @@ def _select_one_gwl(one_gwl, snapshots):
     return all_plot_data
 
 
-class WarmingLevelChoose(DataParametersWithPanes):
+class WarmingLevelChoose(DataParameters):
     window = param.Integer(
         default=15,
         bounds=(5, 25),
@@ -554,6 +554,3 @@ class WarmingLevelVisualize(param.Parameterized):
         )
         to_plot.opts(legend_position="bottom", fontsize=10)
         return to_plot
-
-
-
