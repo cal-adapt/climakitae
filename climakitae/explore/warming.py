@@ -11,12 +11,6 @@ from climakitae.core.data_load import load
 from climakitae.core.paths import (
     gwl_1981_2010_file,
     gwl_1850_1900_file,
-    ssp119_file,
-    ssp126_file,
-    ssp245_file,
-    ssp370_file,
-    ssp585_file,
-    hist_file,
 )
 from climakitae.util.utils import (
     read_csv_file,
@@ -68,7 +62,7 @@ class WarmingLevels:
         else:
             self.gwl_times = read_csv_file(gwl_1850_1900_file, index_col=[0, 1, 2])
         self.gwl_times = self.gwl_times.dropna(how="all")
-        self.catalog_data = clean_list(self.catalog_data, self.gwl_times)
+        self.catalog_data = _clean_list(self.catalog_data, self.gwl_times)
 
         def _find_warming_slice(self, level, gwl_times):
             """
@@ -148,13 +142,6 @@ class WarmingLevels:
             return cmap
 
         self.cmap = _get_cmap(self.wl_params)
-        # self.wl_viz = WarmingLevelVisualize(
-        #     gwl_snapshots=self.gwl_snapshots,
-        #     wl_params=self.wl_params,
-        #     cmap=self.cmap,
-        #     warming_levels=self.warming_levels,
-        # )
-        # self.wl_viz.compute_stamps()
 
 
 def relabel_axis(all_sims_dim):
@@ -167,7 +154,7 @@ def relabel_axis(all_sims_dim):
     return new_arr
 
 
-def process_item(y):
+def _process_item(y):
     # get a tuple of identifiers for the lookup table from DataArray indexers
     simulation = y.simulation.item()
     scenario = scenario_to_experiment_id(y.scenario.item().split("+")[1].strip())
@@ -175,12 +162,12 @@ def process_item(y):
     return (sim_str, ensemble, scenario)
 
 
-def clean_list(data, gwl_times):
+def _clean_list(data, gwl_times):
     # this is necessary because there are two simulations that
     # lack data for any warming level in the lookup table
     keep_list = list(data.all_sims.values)
     for sim in data.all_sims:
-        if process_item(data.sel(all_sims=sim)) not in list(gwl_times.index):
+        if _process_item(data.sel(all_sims=sim)) not in list(gwl_times.index):
             keep_list.remove(sim.item())
     return data.sel(all_sims=keep_list)
 
@@ -207,7 +194,7 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
     anomaly_da: xr.DataArray
         Warming level anomalies at all warming levels for a scenario
     """
-    gwl_times_subset = years.loc[process_item(y)]
+    gwl_times_subset = years.loc[_process_item(y)]
 
     # Checking if the centered year is null, if so, return dummy DataArray
     center_time = gwl_times_subset.loc[level]
@@ -317,236 +304,3 @@ class WarmingLevelDataParameters(DataParameters):
         else:
             self.param["anom"].objects = ["Yes", "No"]
             self.anom = "Yes"
-
-
-class WarmingLevelVisualize(param.Parameterized):
-    """Create Warming Levels panel GUI"""
-
-    ## Intended to be accessed through WarmingLevels class.
-    ## Allows the user to toggle between several data options.
-    ## Produces dynamically updating gwl snapshot maps.
-
-    # Read in GMT context plot data
-    ssp119_data = read_csv_file(ssp119_file, index_col="Year")
-    ssp126_data = read_csv_file(ssp126_file, index_col="Year")
-    ssp245_data = read_csv_file(ssp245_file, index_col="Year")
-    ssp370_data = read_csv_file(ssp370_file, index_col="Year")
-    ssp585_data = read_csv_file(ssp585_file, index_col="Year")
-    hist_data = read_csv_file(hist_file, index_col="Year")
-
-    warmlevel = param.Selector(
-        default=1.5, objects=[1.5, 2, 3, 4], doc="Warming level in degrees Celcius."
-    )
-    ssp = param.Selector(
-        default="All",
-        objects=[
-            "All",
-            "SSP 1-1.9 -- Very Low Emissions Scenario",
-            "SSP 1-2.6 -- Low Emissions Scenario",
-            "SSP 2-4.5 -- Middle of the Road",
-            "SSP 3-7.0 -- Business as Usual",
-            "SSP 5-8.5 -- Burn it All",
-        ],
-        doc="Shared Socioeconomic Pathway.",
-    )
-
-    def __init__(self, gwl_snapshots, wl_params, cmap, warming_levels):
-        """
-        Two things are passed in where this is initialized, and come in through
-        *args, and **params
-            wl_params: an instance of WarmingLevelParameters
-            gwl_snapshots: xarray DataArray -- anomalies at each warming level
-        """
-        # super().__init__(*args, **params)
-        super().__init__()
-        self.gwl_snapshots = gwl_snapshots
-        self.wl_params = wl_params
-        self.warming_levels = warming_levels
-        self.cmap = cmap
-        some_dims = self.gwl_snapshots.dims  # different names depending on WRF/LOCA
-        some_dims = list(some_dims)
-        some_dims.remove("warming_level")
-        self.mins = self.gwl_snapshots.min(some_dims).compute()
-        self.maxs = self.gwl_snapshots.max(some_dims).compute()
-
-    def compute_stamps(self):
-        self.main_stamps = GCM_PostageStamps_MAIN_compute(self)
-        self.stats_stamps = GCM_PostageStamps_STATS_compute(self)
-
-    @param.depends("warmlevel", watch=True)
-    def GCM_PostageStamps_MAIN(self):
-        return self.main_stamps[str(float(self.warmlevel))]
-
-    @param.depends("warmlevel", watch=True)
-    def GCM_PostageStamps_STATS(self):
-        return self.stats_stamps[str(float(self.warmlevel))]
-
-    @param.depends("warmlevel", "ssp", watch=False)
-    def GMT_context_plot(self):
-        """Display GMT plot using package data that updates whenever the warming level or SSP is changed by the user."""
-        ## Plot dimensions
-        width = 575
-        height = 300
-
-        ## Plot figure
-        hist_t = np.arange(1950, 2015, 1)
-        cmip_t = np.arange(2015, 2100, 1)
-
-        ## https://pyam-iamc.readthedocs.io/en/stable/tutorials/ipcc_colors.html
-        c119 = "#00a9cf"
-        c126 = "#003466"
-        c245 = "#f69320"
-        c370 = "#df0000"
-        c585 = "#980002"
-
-        ipcc_data = self.hist_data.hvplot(
-            y="Mean", color="k", label="Historical", width=width, height=height
-        ) * self.hist_data.hvplot.area(
-            x="Year",
-            y="5%",
-            y2="95%",
-            alpha=0.1,
-            color="k",
-            ylabel="°C",
-            xlabel="",
-            ylim=[-1, 5],
-            xlim=[1950, 2100],
-        )
-        if self.ssp == "All":
-            ipcc_data = (
-                ipcc_data
-                * self.ssp119_data.hvplot(y="Mean", color=c119, label="SSP1-1.9")
-                * self.ssp126_data.hvplot(y="Mean", color=c126, label="SSP1-2.6")
-                * self.ssp245_data.hvplot(y="Mean", color=c245, label="SSP2-4.5")
-                * self.ssp370_data.hvplot(y="Mean", color=c370, label="SSP3-7.0")
-                * self.ssp585_data.hvplot(y="Mean", color=c585, label="SSP5-8.5")
-            )
-        elif self.ssp == "SSP 1-1.9 -- Very Low Emissions Scenario":
-            ipcc_data = ipcc_data * self.ssp119_data.hvplot(
-                y="Mean", color=c119, label="SSP1-1.9"
-            )
-        elif self.ssp == "SSP 1-2.6 -- Low Emissions Scenario":
-            ipcc_data = ipcc_data * self.ssp126_data.hvplot(
-                y="Mean", color=c126, label="SSP1-2.6"
-            )
-        elif self.ssp == "SSP 2-4.5 -- Middle of the Road":
-            ipcc_data = ipcc_data * self.ssp245_data.hvplot(
-                y="Mean", color=c245, label="SSP2-4.5"
-            )
-        elif self.ssp == "SSP 3-7.0 -- Business as Usual":
-            ipcc_data = ipcc_data * self.ssp370_data.hvplot(
-                y="Mean", color=c370, label="SSP3-7.0"
-            )
-        elif self.ssp == "SSP 5-8.5 -- Burn it All":
-            ipcc_data = ipcc_data * self.ssp585_data.hvplot(
-                y="Mean", color=c585, label="SSP5-8.5"
-            )
-
-        # SSP intersection lines
-        cmip_t = np.arange(2015, 2101, 1)
-
-        # Warming level connection lines & additional labeling
-        warmlevel_line = hv.HLine(self.warmlevel).opts(
-            color="black", line_width=1.0
-        ) * hv.Text(
-            x=1964,
-            y=self.warmlevel + 0.25,
-            text=".    " + str(self.warmlevel) + "°C warming level",
-        ).opts(
-            style=dict(text_font_size="8pt")
-        )
-
-        # Create plot
-        to_plot = ipcc_data * warmlevel_line
-
-        if self.ssp != "All":
-            # Label to give addional plot info
-            info_label = "Intersection information"
-
-            # Add interval line and shading around selected SSP
-            ssp_dict = {
-                "SSP 1-1.9 -- Very Low Emissions Scenario": (self.ssp119_data, c119),
-                "SSP 1-2.6 -- Low Emissions Scenario": (self.ssp126_data, c126),
-                "SSP 2-4.5 -- Middle of the Road": (self.ssp245_data, c245),
-                "SSP 3-7.0 -- Business as Usual": (self.ssp370_data, c370),
-                "SSP 5-8.5 -- Burn it All": (self.ssp585_data, c585),
-            }
-
-            ssp_selected = ssp_dict[self.ssp][0]  # data selected
-            ssp_color = ssp_dict[self.ssp][1]  # color corresponding to ssp selected
-
-            # Shading around selected SSP
-            ci_label = "90% interval"
-            ssp_shading = ssp_selected.hvplot.area(
-                x="Year", y="5%", y2="95%", alpha=0.28, color=ssp_color, label=ci_label
-            )
-            to_plot = to_plot * ssp_shading
-
-            # If the mean/upperbound/lowerbound does not cross threshold,
-            # set to 2100 (not visible)
-            if (np.argmax(ssp_selected["Mean"] > self.warmlevel)) > 0:
-                # Add dashed line
-                label1 = "Warming level reached"
-                year_warmlevel_reached = (
-                    ssp_selected.where(ssp_selected["Mean"] > self.warmlevel)
-                    .dropna()
-                    .index[0]
-                )
-                ssp_int = hv.Curve(
-                    [[year_warmlevel_reached, -2], [year_warmlevel_reached, 10]],
-                    label=label1,
-                ).opts(color=ssp_color, line_dash="dashed", line_width=1)
-                ssp_int = ssp_int * hv.Text(
-                    x=year_warmlevel_reached - 2,
-                    y=4.5,
-                    text=str(int(year_warmlevel_reached)),
-                    rotation=90,
-                    label=label1,
-                ).opts(style=dict(text_font_size="8pt", color=ssp_color))
-                to_plot *= ssp_int  # Add to plot
-
-            if (np.argmax(ssp_selected["95%"] > self.warmlevel)) > 0 and (
-                np.argmax(ssp_selected["5%"] > self.warmlevel)
-            ) > 0:
-                # Make 95% CI line
-                x_95 = cmip_t[0] + np.argmax(ssp_selected["95%"] > self.warmlevel)
-                ssp_firstdate = hv.Curve([[x_95, -2], [x_95, 10]], label=ci_label).opts(
-                    color=ssp_color, line_width=1
-                )
-                to_plot *= ssp_firstdate
-
-                # Make 5% CI line
-                x_5 = cmip_t[0] + np.argmax(ssp_selected["5%"] > self.warmlevel)
-                ssp_lastdate = hv.Curve([[x_5, -2], [x_5, 10]], label=ci_label).opts(
-                    color=ssp_color, line_width=1
-                )
-                to_plot *= ssp_lastdate
-
-                ## Bar to connect firstdate and lastdate of threshold cross
-                bar_y = -0.5
-                yr_len = [(x_95, bar_y), (x_5, bar_y)]
-                yr_rng = np.argmax(ssp_selected["5%"] > self.warmlevel) - np.argmax(
-                    ssp_selected["95%"] > self.warmlevel
-                )
-                if yr_rng > 0:
-                    interval = hv.Curve(
-                        [[x_95, bar_y], [x_5, bar_y]], label=ci_label
-                    ).opts(color=ssp_color, line_width=1) * hv.Text(
-                        x=x_95 + 5,
-                        y=bar_y + 0.25,
-                        text=str(yr_rng) + "yrs",
-                        label=ci_label,
-                    ).opts(
-                        style=dict(text_font_size="8pt", color=ssp_color)
-                    )
-
-                    to_plot *= interval
-
-        to_plot.opts(
-            opts.Overlay(
-                title="Global mean surface temperature change relative to 1850-1900",
-                fontsize=12,
-            )
-        )
-        to_plot.opts(legend_position="bottom", fontsize=10)
-        return to_plot
