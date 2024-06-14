@@ -4,7 +4,6 @@ import xarray as xr
 import numpy as np
 import pandas as pd
 import param
-import dask
 
 from climakitae.core.data_interface import DataParameters
 from climakitae.core.data_load import load
@@ -16,7 +15,6 @@ from climakitae.util.utils import (
     read_csv_file,
     scenario_to_experiment_id,
 )
-from climakitae.util.colormap import read_ae_colormap
 
 # Silence warnings
 import logging
@@ -43,7 +41,6 @@ class WarmingLevels:
         self.wl_params = WarmingLevelDataParameters()
         self.warming_levels = ["1.5", "2.0", "3.0", "4.0"]
 
-
     def calculate(self):
         # manually reset to all SSPs, in case it was inadvertently changed by
         # temporarily have ['Dynamical','Statistical'] for downscaling_method
@@ -65,45 +62,35 @@ class WarmingLevels:
         self.gwl_times = self.gwl_times.dropna(how="all")
         self.catalog_data = _clean_list(self.catalog_data, self.gwl_times)
 
-        def _find_warming_slice(self, level, gwl_times):
+        def _find_warming_slice(level, gwl_times):
             """
             Find the warming slice data for the current level from the catalog data.
             """
             warming_data = self.catalog_data.groupby("all_sims").map(
-                get_sliced_data,
+                _get_sliced_data,
                 level=level,
                 years=gwl_times,
                 window=self.wl_params.window,
                 anom=self.wl_params.anom,
             )
+
+            # Examining all the simulations by `centered_year` to determine if there are any simulations to drop.
+            # This occurs if 1. a simulation does not reach the given `level` of warming, or 2. all simulations do not reach the given `level` of warming.
+
+            # 1. Dropping all simulations that don't have a centered year. `centered_year` is assigned to be
+            # np.nan from `get_sliced_data` if the simulation does NOT cross this level of warming at all.
+            if not (warming_data.centered_year.isnull()).all():
+                warming_data = warming_data.sel(
+                    all_sims=~warming_data.centered_year.isnull()
+                )
+
+            # 2. Dropping all simulations if NONE of the simulations reached this `centered_year` (i.e. WRF 4 degree warming).
+            else:
+                warming_data = warming_data.dropna(dim="all_sims", how="all")
+
+            # Expanding dimensions/attributes
             warming_data = warming_data.expand_dims({"warming_level": [level]})
             warming_data = warming_data.assign_attrs(window=self.wl_params.window)
-
-            def _clean_warm_data(warm_data):
-                """
-                Cleaning the warming levels data in 3 parts:
-                1. Removing simulations where this warming level is not crossed. (centered_year)
-                2. Removing timestamps at the end to account for leap years (time)
-                3. Removing simulations that go past 2100 for its warming level window (all_sims)
-                """
-                # Check that there exist simulations that reached this warming level before cleaning. Otherwise, don't modify anything.
-                if not (warm_data.centered_year.isnull()).all():
-
-                    # Cleaning #1
-                    warm_data = warm_data.sel(all_sims=~warm_data.centered_year.isnull())
-
-                    # Cleaning #2
-                    # warm_data = warm_data.isel(
-                    #     time=slice(0, len(warm_data.time) - 1)
-                    # )  # -1 is just a placeholder for 30 year window, this could be more specific.
-
-                    # Cleaning #3
-                    # warm_data = warm_data.dropna(dim="all_sims")
-
-                return warm_data
-
-            # Cleaning data
-            warming_data = _clean_warm_data(warming_data)
 
             # Relabeling `all_sims` dimension
             new_warm_data = warming_data.drop("all_sims")
@@ -114,9 +101,10 @@ class WarmingLevels:
         self.gwl_snapshots = {}
         for level in self.warming_levels:
             # Assign warming slices to dask computation graph
-            warm_slice = load(_find_warming_slice(level, self.gwl_times))
-            # Dropping simulations that only have NaNs
-            warm_slice = warm_slice.dropna(dim="all_sims", how="all")
+            warm_slice = load(
+                _find_warming_slice(level, self.gwl_times), progress_bar=True
+            )
+
             self.gwl_snapshots[level] = warm_slice.reduce(np.nanmean, "time")
 
             # Renaming time dimension for warming slice once "time" is all computed on
@@ -125,24 +113,6 @@ class WarmingLevels:
                 {"time": f"{freq_strs[warm_slice.frequency]}_from_center"}
             )
             self.sliced_data[level] = warm_slice
-
-        self.gwl_snapshots = xr.concat(self.gwl_snapshots.values(), dim="warming_level")
-
-        def _get_cmap(wl_params):
-            """Set colormap depending on variable"""
-            if (
-                wl_params.variable == "Air Temperature at 2m"
-                or wl_params.variable == "Dew point temperature"
-            ):
-                cmap_name = "ae_orange"
-            else:
-                cmap_name = "ae_diverging"
-
-            # Read colormap hex
-            cmap = read_ae_colormap(cmap=cmap_name, cmap_hex=True)
-            return cmap
-
-        self.cmap = _get_cmap(self.wl_params)
 
 
 def relabel_axis(all_sims_dim):
@@ -173,7 +143,7 @@ def _clean_list(data, gwl_times):
     return data.sel(all_sims=keep_list)
 
 
-def get_sliced_data(y, level, years, window=15, anom="Yes"):
+def _get_sliced_data(y, level, years, window=15, anom="Yes"):
     """Calculating warming level anomalies.
 
     Parameters
@@ -247,19 +217,6 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
 
         # Returning DataArray of NaNs to be dropped later.
         return xr.full_like(y, np.nan)
-
-
-def _select_one_gwl(one_gwl, snapshots):
-    """
-    This needs to happen in two places. You have to drop the sims
-    which are nan because they don't reach that warming level, else the
-    plotting functions and cross-sim statistics will get confused.
-    But it's important that you drop it from a copy, or it may modify the
-    original data.
-    """
-    all_plot_data = snapshots.sel(warming_level=one_gwl).copy()
-    all_plot_data = all_plot_data.dropna("all_sims", how="all")
-    return all_plot_data
 
 
 class WarmingLevelDataParameters(DataParameters):
