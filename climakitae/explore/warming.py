@@ -65,14 +65,14 @@ class WarmingLevels:
         self.gwl_times = self.gwl_times.dropna(how="all")
         self.catalog_data = _clean_list(self.catalog_data, self.gwl_times)
 
-        def _find_warming_slice(self, level, gwl_times):
+        def _find_warming_slice(self, level):
             """
             Find the warming slice data for the current level from the catalog data.
             """
             warming_data = self.catalog_data.groupby("all_sims").map(
                 get_sliced_data,
                 level=level,
-                years=gwl_times,
+                years=self.gwl_times,
                 window=self.wl_params.window,
                 anom=self.wl_params.anom,
             )
@@ -114,7 +114,7 @@ class WarmingLevels:
         self.gwl_snapshots = {}
         for level in self.warming_levels:
             # Assign warming slices to dask computation graph
-            warm_slice = load(_find_warming_slice(level, self.gwl_times))
+            warm_slice = load(_find_warming_slice(level))
             # Dropping simulations that only have NaNs
             warm_slice = warm_slice.dropna(dim="all_sims", how="all")
             self.gwl_snapshots[level] = warm_slice.reduce(np.nanmean, "time")
