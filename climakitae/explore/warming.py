@@ -6,13 +6,8 @@ import pandas as pd
 import param
 import dask
 
-from climakitae.core.data_load import read_catalog_from_select
-from climakitae.util.utils import (
-    read_csv_file,
-    area_average,
-    scenario_to_experiment_id,
-)
-from climakitae.util.colormap import read_ae_colormap
+from climakitae.core.data_interface import DataParameters
+from climakitae.core.data_load import load
 from climakitae.core.paths import (
     gwl_1981_2010_file,
     gwl_1850_1900_file,
@@ -23,10 +18,11 @@ from climakitae.core.paths import (
     ssp585_file,
     hist_file,
 )
-from climakitae.core.data_interface import DataParameters
-from climakitae.explore import threshold_tools
-from scipy.stats import pearson3
-from climakitae.core.data_load import load
+from climakitae.util.utils import (
+    read_csv_file,
+    scenario_to_experiment_id,
+)
+from climakitae.util.colormap import read_ae_colormap
 
 # Silence warnings
 import logging
@@ -49,30 +45,9 @@ class WarmingLevels:
     gwl_snapshots = xr.DataArray()
 
     def __init__(self, **params):
-        self.wl_params = WarmingLevelChoose()
+        self.wl_params = WarmingLevelDataParameters()
         self.warming_levels = ["1.5", "2.0", "3.0", "4.0"]
 
-    def find_warming_slice(self, level, gwl_times):
-        """
-        Find the warming slice data for the current level from the catalog data.
-        """
-        warming_data = self.catalog_data.groupby("all_sims").map(
-            get_sliced_data,
-            level=level,
-            years=gwl_times,
-            window=self.wl_params.window,
-            anom=self.wl_params.anom,
-        )
-        warming_data = warming_data.expand_dims({"warming_level": [level]})
-        warming_data = warming_data.assign_attrs(window=self.wl_params.window)
-
-        # Cleaning data
-        warming_data = clean_warm_data(warming_data)
-
-        # Relabeling `all_sims` dimension
-        new_warm_data = warming_data.drop("all_sims")
-        new_warm_data["all_sims"] = relabel_axis(warming_data["all_sims"])
-        return new_warm_data
 
     def calculate(self):
         # manually reset to all SSPs, in case it was inadvertently changed by
@@ -95,11 +70,56 @@ class WarmingLevels:
         self.gwl_times = self.gwl_times.dropna(how="all")
         self.catalog_data = clean_list(self.catalog_data, self.gwl_times)
 
+        def _find_warming_slice(self, level, gwl_times):
+            """
+            Find the warming slice data for the current level from the catalog data.
+            """
+            warming_data = self.catalog_data.groupby("all_sims").map(
+                get_sliced_data,
+                level=level,
+                years=gwl_times,
+                window=self.wl_params.window,
+                anom=self.wl_params.anom,
+            )
+            warming_data = warming_data.expand_dims({"warming_level": [level]})
+            warming_data = warming_data.assign_attrs(window=self.wl_params.window)
+
+            def _clean_warm_data(warm_data):
+                """
+                Cleaning the warming levels data in 3 parts:
+                1. Removing simulations where this warming level is not crossed. (centered_year)
+                2. Removing timestamps at the end to account for leap years (time)
+                3. Removing simulations that go past 2100 for its warming level window (all_sims)
+                """
+                # Check that there exist simulations that reached this warming level before cleaning. Otherwise, don't modify anything.
+                if not (warm_data.centered_year.isnull()).all():
+
+                    # Cleaning #1
+                    warm_data = warm_data.sel(all_sims=~warm_data.centered_year.isnull())
+
+                    # Cleaning #2
+                    # warm_data = warm_data.isel(
+                    #     time=slice(0, len(warm_data.time) - 1)
+                    # )  # -1 is just a placeholder for 30 year window, this could be more specific.
+
+                    # Cleaning #3
+                    # warm_data = warm_data.dropna(dim="all_sims")
+
+                return warm_data
+
+            # Cleaning data
+            warming_data = _clean_warm_data(warming_data)
+
+            # Relabeling `all_sims` dimension
+            new_warm_data = warming_data.drop("all_sims")
+            new_warm_data["all_sims"] = relabel_axis(warming_data["all_sims"])
+            return new_warm_data
+
         self.sliced_data = {}
         self.gwl_snapshots = {}
         for level in self.warming_levels:
             # Assign warming slices to dask computation graph
-            warm_slice = load(self.find_warming_slice(level, self.gwl_times))
+            warm_slice = load(_find_warming_slice(level, self.gwl_times))
             # Dropping simulations that only have NaNs
             warm_slice = warm_slice.dropna(dim="all_sims", how="all")
             self.gwl_snapshots[level] = warm_slice.reduce(np.nanmean, "time")
@@ -112,7 +132,22 @@ class WarmingLevels:
             self.sliced_data[level] = warm_slice
 
         self.gwl_snapshots = xr.concat(self.gwl_snapshots.values(), dim="warming_level")
-        # self.cmap = _get_cmap(self.wl_params)
+
+        def _get_cmap(wl_params):
+            """Set colormap depending on variable"""
+            if (
+                wl_params.variable == "Air Temperature at 2m"
+                or wl_params.variable == "Dew point temperature"
+            ):
+                cmap_name = "ae_orange"
+            else:
+                cmap_name = "ae_diverging"
+
+            # Read colormap hex
+            cmap = read_ae_colormap(cmap=cmap_name, cmap_hex=True)
+            return cmap
+
+        self.cmap = _get_cmap(self.wl_params)
         # self.wl_viz = WarmingLevelVisualize(
         #     gwl_snapshots=self.gwl_snapshots,
         #     wl_params=self.wl_params,
@@ -148,30 +183,6 @@ def clean_list(data, gwl_times):
         if process_item(data.sel(all_sims=sim)) not in list(gwl_times.index):
             keep_list.remove(sim.item())
     return data.sel(all_sims=keep_list)
-
-
-def clean_warm_data(warm_data):
-    """
-    Cleaning the warming levels data in 3 parts:
-      1. Removing simulations where this warming level is not crossed. (centered_year)
-      2. Removing timestamps at the end to account for leap years (time)
-      3. Removing simulations that go past 2100 for its warming level window (all_sims)
-    """
-    # Check that there exist simulations that reached this warming level before cleaning. Otherwise, don't modify anything.
-    if not (warm_data.centered_year.isnull()).all():
-
-        # Cleaning #1
-        warm_data = warm_data.sel(all_sims=~warm_data.centered_year.isnull())
-
-        # Cleaning #2
-        # warm_data = warm_data.isel(
-        #     time=slice(0, len(warm_data.time) - 1)
-        # )  # -1 is just a placeholder for 30 year window, this could be more specific.
-
-        # Cleaning #3
-        # warm_data = warm_data.dropna(dim="all_sims")
-
-    return warm_data
 
 
 def get_sliced_data(y, level, years, window=15, anom="Yes"):
@@ -250,21 +261,6 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
         return xr.full_like(y, np.nan)
 
 
-def _get_cmap(wl_params):
-    """Set colormap depending on variable"""
-    if (
-        wl_params.variable == "Air Temperature at 2m"
-        or wl_params.variable == "Dew point temperature"
-    ):
-        cmap_name = "ae_orange"
-    else:
-        cmap_name = "ae_diverging"
-
-    # Read colormap hex
-    cmap = read_ae_colormap(cmap=cmap_name, cmap_hex=True)
-    return cmap
-
-
 def _select_one_gwl(one_gwl, snapshots):
     """
     This needs to happen in two places. You have to drop the sims
@@ -278,7 +274,7 @@ def _select_one_gwl(one_gwl, snapshots):
     return all_plot_data
 
 
-class WarmingLevelChoose(DataParameters):
+class WarmingLevelDataParameters(DataParameters):
     window = param.Integer(
         default=15,
         bounds=(5, 25),
