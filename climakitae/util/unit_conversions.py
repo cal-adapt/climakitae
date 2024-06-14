@@ -75,8 +75,10 @@ def convert_units(da, selected_units):
             da = da / 25.4
         elif selected_units == "kg m-2 s-1":
             da = da / 86400
+            if da.attrs["frequency"] == "monthly":
+                da = da / da["time"].dt.days_in_month
     elif native_units == "kg m-2 s-1":
-        if da.frequency == "monthly":
+        if da.attrs["frequency"] == "monthly":
             da = da * da["time"].dt.days_in_month
         if selected_units == "mm":
             da = da * 86400
