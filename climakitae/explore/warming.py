@@ -262,7 +262,7 @@ def _select_one_gwl(one_gwl, snapshots):
     return all_plot_data
 
 
-class WarmingLevelParamMixin(param.Parameterized):
+class WarmingLevelDataParameters(DataParameters):
     window = param.Integer(
         default=15,
         bounds=(5, 25),
@@ -274,19 +274,7 @@ class WarmingLevelParamMixin(param.Parameterized):
         objects=["Yes"],
         doc="Return an anomaly \n(difference from historical reference period)?",
     )
-    @param.depends("downscaling_method", watch=True)
-    def _anom_allowed(self):
-        """
-        Require 'anomaly' for non-bias-corrected data.
-        """
-        if self.downscaling_method == "Dynamical":
-            self.param["anom"].objects = ["Yes"]
-            self.anom = "Yes"
-        else:
-            self.param["anom"].objects = ["Yes", "No"]
-            self.anom = "Yes"
 
-class WarmingLevelDataParameters(DataParameters, WarmingLevelParamMixin):
     def __init__(self, *args, **params):
         super.__init__(*args, **params)
         self.downscaling_method = "Dynamical"
@@ -305,3 +293,15 @@ class WarmingLevelDataParameters(DataParameters, WarmingLevelParamMixin):
         # Location defaults
         self.area_subset = "states"
         self.cached_area = ["CA"]
+
+    @param.depends("downscaling_method", watch=True)
+    def _anom_allowed(self):
+        """
+        Require 'anomaly' for non-bias-corrected data.
+        """
+        if self.downscaling_method == "Dynamical":
+            self.param["anom"].objects = ["Yes"]
+            self.anom = "Yes"
+        else:
+            self.param["anom"].objects = ["Yes", "No"]
+            self.anom = "Yes"
