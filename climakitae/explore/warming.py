@@ -276,7 +276,7 @@ class WarmingLevelDataParameters(DataParameters):
     )
 
     def __init__(self, **params):
-        super.__init__(**params)
+        super().__init__(**params)
         self.downscaling_method = "Dynamical"
         self.scenario_historical = ["Historical Climate"]
         self.area_average = "No"
