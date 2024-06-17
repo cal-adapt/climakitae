@@ -275,8 +275,8 @@ class WarmingLevelDataParameters(DataParameters):
         doc="Return an anomaly \n(difference from historical reference period)?",
     )
 
-    def __init__(self, *args, **params):
-        super.__init__(*args, **params)
+    def __init__(self, **params):
+        super.__init__(**params)
         self.downscaling_method = "Dynamical"
         self.scenario_historical = ["Historical Climate"]
         self.area_average = "No"
