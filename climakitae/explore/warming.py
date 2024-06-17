@@ -38,6 +38,7 @@ class WarmingLevels:
     sliced_data = xr.DataArray()
     gwl_snapshots = xr.DataArray()
     gwl_times = pd.DataFrame()
+    warming_levels = []
 
     def __init__(self, **params):
         self.wl_params = WarmingLevelDataParameters()
