@@ -115,7 +115,7 @@ class WarmingLevels:
         self.gwl_snapshots = {}
         for level in self.warming_levels:
             # Assign warming slices to dask computation graph
-            warm_slice = load(_find_warming_slice(level))
+            warm_slice = load(_find_warming_slice(self, level))
             # Dropping simulations that only have NaNs
             warm_slice = warm_slice.dropna(dim="all_sims", how="all")
             self.gwl_snapshots[level] = warm_slice.reduce(np.nanmean, "time")
