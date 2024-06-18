@@ -549,7 +549,9 @@ def _merge_all(selections, data_dict):
     # Two LOCA2 simulations have their hourly time coordinate shifted 12HR beyond the rest of the simulations
     # Here we reindex the time dimension to shift it by 12HR for the two troublesome simulations
     # This avoids the issue where every other day is set to NaN when you concat the datasets!
-    if selections.downscaling_method in ["Statistical", "Dynamical+Statistical"]:
+    if (selections.downscaling_method in ["Statistical", "Dynamical+Statistical"]) and (
+        selections.timescale == "daily"
+    ):
         troublesome_sims = ["HadGEM3-GC31-LL", "KACE-1-0-G"]
         for sim in troublesome_sims:
             for dset_name in list(data_dict):
