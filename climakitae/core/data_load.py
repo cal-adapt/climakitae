@@ -3,6 +3,7 @@
 import xarray as xr
 import dask
 import rioxarray
+from datetime import timedelta
 from rioxarray.exceptions import NoDataInBounds
 import numpy as np
 import pandas as pd
@@ -545,6 +546,18 @@ def _merge_all(selections, data_dict):
         output data
 
     """
+    # Two LOCA2 simulations have their hourly time coordinate shifted 12HR beyond the rest of the simulations
+    # Here we reindex the time dimension to shift it by 12HR for the two troublesome simulations
+    # This avoids the issue where every other day is set to NaN when you concat the datasets!
+    if selections.downscaling_method in ["Statistical", "Dynamical+Statistical"]:
+        troublesome_sims = ["HadGEM3-GC31-LL", "KACE-1-0-G"]
+        for sim in troublesome_sims:
+            for dset_name in list(data_dict):
+                if sim in dset_name:
+                    data_dict[dset_name]["time"] = data_dict[dset_name].time.get_index(
+                        "time"
+                    ) + timedelta(hours=12)
+
     # Get corresponding data for historical period to append:
     reconstruction = [one for one in data_dict.keys() if "reanalysis" in one]
     hist_keys = [one for one in data_dict.keys() if "historical" in one]
