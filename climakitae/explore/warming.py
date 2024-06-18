@@ -128,6 +128,8 @@ class WarmingLevels:
             self.sliced_data[level] = warm_slice
 
         self.gwl_snapshots = xr.concat(self.gwl_snapshots.values(), dim="warming_level")
+
+    def visualize(self):
         self.cmap = _get_cmap(self.wl_params)
         self.wl_viz = WarmingLevelVisualize(
             gwl_snapshots=self.gwl_snapshots,
@@ -136,12 +138,7 @@ class WarmingLevels:
             warming_levels=self.warming_levels,
         )
         self.wl_viz.compute_stamps()
-
-    def visualize(self):
-        if self.wl_viz:
-            return warming_levels_visualize(self.wl_viz)
-        else:
-            print("Please run 'calculate' first.")
+        return warming_levels_visualize(self.wl_viz)
 
 
 def relabel_axis(all_sims_dim):
