@@ -213,7 +213,6 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
     Returns
     --------
     anomaly_da: xr.DataArray
-        Warming level anomalies at all warming levels for a scenario
     """
     gwl_times_subset = years.loc[process_item(y)]
 
@@ -837,14 +836,12 @@ def GCM_PostageStamps_STATS_compute(wl_viz):
             # Make plots
             any_single_dims = _check_single_spatial_dims(all_plot_data)
             if any_single_dims:
-                plot_type = "bar"
                 only_sims = area_average(stats)
                 all_plots = only_sims.hvplot.bar(
                     x="all_sims", xlabel="Simulation", ylabel=f"{units} of Warming"
                 ).opts(multi_level=False, show_legend=False)
 
             else:
-                plot_type = "image"
                 plot_list = []
                 for stat in stats:
                     plot = stat.drop(["warming_level"]).hvplot.image(
@@ -867,9 +864,9 @@ def GCM_PostageStamps_STATS_compute(wl_viz):
                 + str(warmlevel)
                 + "°C Warming Across Models"
             )  # Add title
-            if plot_type == "image":
+            if not any_single_dims:
                 warm_level_dict[warmlevel] = all_plots.cols(1)
-            elif plot_type == "bar":
+            else:
                 warm_level_dict[warmlevel] = all_plots
         # This means that there does not exist any simulations that reach this degree of warming (WRF models).
         else:
