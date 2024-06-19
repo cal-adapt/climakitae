@@ -111,7 +111,9 @@ class WarmingLevels:
 
         self.sliced_data = {}
         self.gwl_snapshots = {}
-        for level in tqdm(self.wl_params.warming_levels, desc="Computing each warming level"):
+        for level in tqdm(
+            self.wl_params.warming_levels, desc="Computing each warming level"
+        ):
             # Assign warming slices to dask computation graph
             warm_slice = load(
                 self.find_warming_slice(level, self.gwl_times), progress_bar=True
