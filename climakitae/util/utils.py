@@ -685,3 +685,46 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
     selections.time_slice = (start, end)
 
     return sliced_data
+
+
+def add_dummy_time_to_wl(wl_da):
+    """
+    Replace the `[hours/days/months]_from_center` dimension in a DataArray returned from WarmingLevels with a dummy time index for calculations with tools that require a `time` dimension.
+
+    Parameters
+    ----------
+    wl_da : xarray.DataArray
+        The input Warming Levels DataArray. It is expected to have a time-based dimension which typically includes "from_center"
+        in its name indicating the time dimension in relation to the year that the given warming level is reached per simulation.
+
+    Returns
+    -------
+    xarray.DataArray
+        A modified version of the input DataArray with the original time dimension replaced by a dummy time series. The new dimension
+        will be named "time".
+
+    Notes
+    -----
+    - The function looks for the dimension name containing "from_center" to identify the time-based dimension.
+    - It supports creating dummy time series with frequencies of hours, days, or months, based on the prefix of the dimension name.
+    - The dummy time series starts from "2000-01-01".
+    """
+    # Adjusting the time index into dummy time-series for counting
+    # Finding time-based dimension
+    wl_time_dim = [dim for dim in wl_da.dims if "from_center" in dim][0]
+
+    # Finding time frequency
+    time_freq_name = wl_time_dim.split("_")[0]
+    name_to_freq = {"hours": "H", "days": "D", "months": "M"}
+
+    # Creating dummy timestamps
+    timestamps = pd.date_range(
+        "2000-01-01",
+        periods=len(wl_da[wl_time_dim]),
+        freq=name_to_freq[time_freq_name],
+    )
+
+    # Replacing WL timestamps with dummy timestamps so that calculations from tools like `thresholds_tools`
+    # can be computed on a DataArray with a time dimension
+    wl_da = wl_da.assign_coords({wl_time_dim: timestamps}).rename({wl_time_dim: "time"})
+    return wl_da

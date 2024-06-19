@@ -18,7 +18,7 @@ lwupbc,Dynamical,hourly,W/m2,Instantaneous upwelling clear sky longwave flux at 
 swddni,Dynamical,hourly,W/m2,Shortwave surface downward direct normal irradiance,"The portion of the total incoming solar radiation that is received perpendicular to the sun.",ae_orange,TRUE
 swddir,Dynamical,hourly,W/m2,Shortwave surface downward direct irradiance,"The portion of the total incoming solar radiation that is received directly at the Earth's surface (not scattered).",ae_orange,TRUE
 swddif,Dynamical,hourly,W/m2,Shortwave surface downward diffuse irradiance,"The portion of the total incoming solar radiation that has been scattered (by the atmosphere, clouds, etc.) before reaching the Earth's surface.",ae_orange,TRUE
-swdnb,Dynamical,hourly,W/m2,Instantaneous downwelling shortwave flux at bottom,"Shortwave radiation from the sun that reaches Earth's surface, minus radiation reflected back to space by clouds or absorbed by the atmosphere.",ae_orange,TRUE
+swdnb,Dynamical,hourly,W/m2,Instantaneous downwelling shortwave flux at bottom,"Shortwave radiation from the sun that reaches Earth's surface.",ae_orange,TRUE
 swdnbc,Dynamical,hourly,W/m2,Instantaneous downwelling clear sky shortwave flux at bottom,"Shortwave radiation from the sun that reaches Earth's surface, excluding impacts of clouds.",ae_orange,TRUE
 swupb,Dynamical,hourly,W/m2,Instantaneous upwelling shortwave flux at bottom,"Shortwave radiation from the sun that is reflected by Earth's surface, some of which may be reflected or absorbed by clouds (i.e. not emitted to space).",ae_orange,TRUE
 swupbc,Dynamical,hourly,W/m2,Instantaneous upwelling clear sky shortwave flux at bottom,Shortwave radiation from the sun that is reflected by Earth's surface back to space.,ae_orange,TRUE
