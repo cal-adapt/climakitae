@@ -83,7 +83,9 @@ class WarmingLevels:
             anom=self.wl_params.anom,
         )
         warming_data = warming_data.expand_dims({"warming_level": [level]})
-        warming_data = warming_data.assign_attrs(window=self.wl_params.window, months=self.wl_params.months)
+        warming_data = warming_data.assign_attrs(
+            window=self.wl_params.window, months=self.wl_params.months
+        )
 
         # Cleaning data
         warming_data = clean_warm_data(warming_data)
