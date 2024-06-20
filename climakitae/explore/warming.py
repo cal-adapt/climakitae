@@ -277,6 +277,7 @@ def _get_cmap(wl_params):
     if (
         wl_params.variable == "Air Temperature at 2m"
         or wl_params.variable == "Dew point temperature"
+        or wl_params.variable == "Maximum air temperature at 2m"
     ):
         cmap_name = "ae_orange"
     else:
