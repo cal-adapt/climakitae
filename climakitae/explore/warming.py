@@ -64,7 +64,7 @@ class WarmingLevels:
 
     def __init__(self, **params):
         self.wl_params = WarmingLevelChoose()
-        self.warming_levels = ["1.5", "2.0", "3.0", "4.0"]
+        # self.warming_levels = ["1.5", "2.0", "3.0", "4.0"]
 
     def choose_data(self):
         return warming_levels_select(self.wl_params)
@@ -111,7 +111,9 @@ class WarmingLevels:
 
         self.sliced_data = {}
         self.gwl_snapshots = {}
-        for level in tqdm(self.warming_levels, desc="Computing each warming level"):
+        for level in tqdm(
+            self.wl_params.warming_levels, desc="Computing each warming level"
+        ):
             # Assign warming slices to dask computation graph
             warm_slice = load(
                 self.find_warming_slice(level, self.gwl_times), progress_bar=True
@@ -135,7 +137,7 @@ class WarmingLevels:
             gwl_snapshots=self.gwl_snapshots,
             wl_params=self.wl_params,
             cmap=self.cmap,
-            warming_levels=self.warming_levels,
+            warming_levels=self.wl_params.warming_levels,
         )
         self.wl_viz.compute_stamps()
         return warming_levels_visualize(self.wl_viz)
@@ -232,7 +234,9 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
 
         if anom == "Yes":
             # Find the anomaly
-            anom_val = y.sel(time=slice("1981", "2010")).mean("time")
+            anom_val = y.sel(time=slice("1981", "2010")).mean(
+                "time"
+            )  # Calvin- this line is run 3-4x the number of times it actually needs to be run. Each simulation gets this value calculated for each warming level, so there is no need to calculate this 3-4x when it only needs to be calculated once.
             sliced = y.sel(time=slice(str(start_year), str(end_year))) - anom_val
         else:
             # Finding window slice of data
@@ -318,7 +322,7 @@ class WarmingLevelChoose(DataParametersWithPanes):
 
     anom = param.Selector(
         default="Yes",
-        objects=["Yes"],
+        objects=["Yes", "No"],
         doc="Return an anomaly \n(difference from historical reference period)?",
     )
 
@@ -337,6 +341,9 @@ class WarmingLevelChoose(DataParametersWithPanes):
         self.timescale = "monthly"
         self.variable = "Air Temperature at 2m"
 
+        # Choosing specific warming levels
+        self.warming_levels = ["1.5", "2.0", "3.0", "4.0"]
+
         # Location defaults
         self.area_subset = "states"
         self.cached_area = ["CA"]
@@ -347,7 +354,7 @@ class WarmingLevelChoose(DataParametersWithPanes):
         Require 'anomaly' for non-bias-corrected data.
         """
         if self.downscaling_method == "Dynamical":
-            self.param["anom"].objects = ["Yes"]
+            self.param["anom"].objects = ["Yes", "No"]
             self.anom = "Yes"
         else:
             self.param["anom"].objects = ["Yes", "No"]
