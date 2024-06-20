@@ -83,7 +83,7 @@ class WarmingLevels:
             anom=self.wl_params.anom,
         )
         warming_data = warming_data.expand_dims({"warming_level": [level]})
-        warming_data = warming_data.assign_attrs(window=self.wl_params.window)
+        warming_data = warming_data.assign_attrs(window=self.wl_params.window, months=self.wl_params.months)
 
         # Cleaning data
         warming_data = clean_warm_data(warming_data)
@@ -254,9 +254,7 @@ def get_sliced_data(y, level, years, months, window=15, anom="Yes"):
         sliced = sliced.sel(time=valid_months_mask)
 
         # Assigning `centered_year` as a coordinate to the DataArray
-        sliced = sliced.assign_coords(
-            {"centered_year": centered_year, "months": months}
-        )
+        sliced = sliced.assign_coords({"centered_year": centered_year})
 
         return sliced
 
