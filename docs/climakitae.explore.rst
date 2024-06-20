@@ -54,18 +54,18 @@ climakitae.explore.uncertainty module
    :undoc-members:
    :show-inheritance:
 
-climakitae.explore.timeseries module
-----------------------------------
+climakitae.explore.vulnerability module
+---------------------------------------
 
-.. automodule:: climakitae.explore.timeseries
+.. automodule:: climakitae.explore.vulnerability
    :members:
    :undoc-members:
    :show-inheritance:
 
-climakitae.explore.uncertainty module
------------------------------------
+climakitae.explore.vulnerability\_table module
+----------------------------------------------
 
-.. automodule:: climakitae.explore.uncertainty
+.. automodule:: climakitae.explore.vulnerability\_table
    :members:
    :undoc-members:
    :show-inheritance:
