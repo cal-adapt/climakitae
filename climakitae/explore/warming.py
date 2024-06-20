@@ -10,6 +10,7 @@ import pandas as pd
 import param
 import panel as pn
 import dask
+import calendar
 
 from climakitae.core.data_load import (
     read_catalog_from_select,
@@ -77,11 +78,14 @@ class WarmingLevels:
             get_sliced_data,
             level=level,
             years=gwl_times,
+            months=self.wl_params.months,
             window=self.wl_params.window,
             anom=self.wl_params.anom,
         )
         warming_data = warming_data.expand_dims({"warming_level": [level]})
-        warming_data = warming_data.assign_attrs(window=self.wl_params.window)
+        warming_data = warming_data.assign_attrs(
+            window=self.wl_params.window, months=self.wl_params.months
+        )
 
         # Cleaning data
         warming_data = clean_warm_data(warming_data)
@@ -195,7 +199,7 @@ def clean_warm_data(warm_data):
     return warm_data
 
 
-def get_sliced_data(y, level, years, window=15, anom="Yes"):
+def get_sliced_data(y, level, years, months=np.arange(1, 13), window=15, anom="Yes"):
     """Calculating warming level anomalies.
 
     Parameters
@@ -206,6 +210,8 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
         Warming level amount
     years: pd.DataFrame
         Lookup table for the date a given simulation reaches each warming level.
+    months: np.ndarray
+        Months to include in a warming level slice.
     window: int, optional
         Number of years to generate time window for. Default to 15 years.
         For example, a 15 year window would generate a window of 15 years in the past from the central warming level date, and 15 years into the future. I.e. if a warming level is reached in 2030, the window would be (2015,2045).
@@ -242,8 +248,14 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
             # Finding window slice of data
             sliced = y.sel(time=slice(str(start_year), str(end_year)))
 
+        # Creating a mask for timestamps that are within the desired months
+        valid_months_mask = sliced.time.dt.month.isin([months])
+
         # Resetting and renaming time index for each data array so they can overlap and save storage space
         sliced["time"] = np.arange(-len(sliced.time) / 2, len(sliced.time) / 2)
+
+        # Removing data not in the desired months (in this new time dimension)
+        sliced = sliced.sel(time=valid_months_mask)
 
         # Assigning `centered_year` as a coordinate to the DataArray
         sliced = sliced.assign_coords({"centered_year": centered_year})
@@ -252,14 +264,16 @@ def get_sliced_data(y, level, years, window=15, anom="Yes"):
 
     else:
 
+        # Get number of days per month for non-leap year
+        days_per_month = {i: calendar.monthrange(2001, i)[1] for i in np.arange(1, 13)}
+
         # This creates an approximately appropriately sized DataArray to be dropped later
         if y.frequency == "monthly":
-            time_freq = 12
+            time_freq = len(months)
         elif y.frequency == "daily":
-            time_freq = 365
+            time_freq = sum([days_per_month[month] for month in months])
         elif y.frequency == "hourly":
-            time_freq = 8760
-
+            time_freq = sum([days_per_month[month] for month in months]) * 24
         y = y.isel(
             time=slice(0, window * 2 * time_freq)
         )  # This is to create a dummy slice that conforms with other data structure. Can be re-written to something more elegant.
@@ -344,6 +358,7 @@ class WarmingLevelChoose(DataParametersWithPanes):
 
         # Choosing specific warming levels
         self.warming_levels = ["1.5", "2.0", "3.0", "4.0"]
+        self.months = np.arange(1, 13)
 
         # Location defaults
         self.area_subset = "states"
