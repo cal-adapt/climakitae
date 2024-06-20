@@ -65,7 +65,7 @@ climakitae.explore.vulnerability module
 climakitae.explore.vulnerability\_table module
 ----------------------------------------------
 
-.. automodule:: climakitae.explore.vulnerability\_table
+.. automodule:: climakitae.explore.vulnerability_table
    :members:
    :undoc-members:
    :show-inheritance:
