@@ -236,7 +236,7 @@ def get_sliced_data(y, level, years, months, window=15, anom="Yes"):
 
         if anom == "Yes":
             # Find the anomaly
-            anom_val = y.sel(time=slice("1980", "2010")).mean(
+            anom_val = y.sel(time=slice("1981", "2010")).mean(
                 "time"
             )  # Calvin- this line is run 3-4x the number of times it actually needs to be run. Each simulation gets this value calculated for each warming level, so there is no need to calculate this 3-4x when it only needs to be calculated once.
             sliced = y.sel(time=slice(str(start_year), str(end_year))) - anom_val
