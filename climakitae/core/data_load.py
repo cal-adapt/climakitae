@@ -3,6 +3,7 @@
 import xarray as xr
 import dask
 import rioxarray
+from datetime import timedelta
 from rioxarray.exceptions import NoDataInBounds
 import numpy as np
 import pandas as pd
@@ -545,6 +546,20 @@ def _merge_all(selections, data_dict):
         output data
 
     """
+    # Two LOCA2 simulations report a daily timestamp coordinate at 12am (midnight) when the rest of the simulations report at 12pm (noon)
+    # Here we reindex the time dimension to shift it by 12HR for the two troublesome simulations
+    # This avoids the issue where every other day is set to NaN when you concat the datasets!
+    if (selections.downscaling_method in ["Statistical", "Dynamical+Statistical"]) and (
+        selections.timescale == "daily"
+    ):
+        troublesome_sims = ["HadGEM3-GC31-LL", "KACE-1-0-G"]
+        for sim in troublesome_sims:
+            for dset_name in list(data_dict):
+                if sim in dset_name:
+                    data_dict[dset_name]["time"] = data_dict[dset_name].time.get_index(
+                        "time"
+                    ) + timedelta(hours=12)
+
     # Get corresponding data for historical period to append:
     reconstruction = [one for one in data_dict.keys() if "reanalysis" in one]
     hist_keys = [one for one in data_dict.keys() if "historical" in one]
@@ -597,10 +612,6 @@ def _merge_all(selections, data_dict):
     var_id = list(all_ssps.data_vars)[0]
     all_ssps = all_ssps[var_id]
 
-    # Convert units:
-    all_ssps = _override_unit_defaults(all_ssps, var_id)
-    all_ssps = convert_units(da=all_ssps, selected_units=selections.units)
-
     return all_ssps
 
 
@@ -619,6 +630,8 @@ def _get_data_one_var(selections):
     da: xr.DataArray
         with datasets combined over new dimensions 'simulation' and 'scenario'
     """
+
+    orig_units = selections.units
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")  # Silence warning if empty dataset returned
@@ -668,12 +681,19 @@ def _get_data_one_var(selections):
     da = _merge_all(selections=selections, data_dict=data_dict)
 
     # Set data attributes and name
+    native_units = da.attrs["units"]
     data_attrs = _get_data_attributes(selections)
     if "grid_mapping" in da.attrs:
         data_attrs = data_attrs | {"grid_mapping": da.attrs["grid_mapping"]}
     data_attrs = data_attrs | {"institution": _institution}
     da.attrs = data_attrs
     da.name = selections.variable
+
+    # Convert units
+    da.attrs["units"] = native_units
+    da = _override_unit_defaults(da, selections.variable_id)
+    da = convert_units(da=da, selected_units=orig_units)
+
     return da
 
 
@@ -719,7 +739,14 @@ def _check_valid_unit_selection(selections):
     native_unit = selections.variable_options_df[
         selections.variable_options_df["variable_id"].isin(selections.variable_id)
     ].unit.item()
-    valid_units = get_unit_conversion_options()[native_unit]
+
+    try:
+        # See if there are more than one unit option for this variable
+        valid_units = get_unit_conversion_options()[native_unit]
+    except:
+        # If not, the only unit option is the native unit
+        valid_units = [native_unit]
+
     if selections.units not in valid_units:
         print("Units selected: {}".format(selections.units))
         print("Valid units: " + ", ".join(valid_units))
@@ -814,9 +841,6 @@ def read_catalog_from_select(selections):
                 "You've encountered a bug. No data available for selected derived variable."
             )
 
-        da = convert_units(da, selected_units=orig_unit_selection)
-        da.name = orig_variable_selection  # Set name of DataArray
-
         # Set attributes
         # Some of the derived variables may be constructed from data that comes from the same institution
         # The dev team hasn't looked into this yet -- opportunity for future improvement
@@ -824,6 +848,10 @@ def read_catalog_from_select(selections):
             data_attrs = data_attrs | {"grid_mapping": da.attrs["grid_mapping"]}
         data_attrs = data_attrs | {"institution": "Multiple"}
         da.attrs = data_attrs
+
+        # Convert units
+        da = convert_units(da, selected_units=orig_unit_selection)
+        da.name = orig_variable_selection  # Set name of DataArray
 
         # Reset selections to user's original selections
         selections.variable_id = [orig_var_id_selection]
