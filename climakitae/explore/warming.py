@@ -199,7 +199,7 @@ def clean_warm_data(warm_data):
     return warm_data
 
 
-def get_sliced_data(y, level, years, months, window=15, anom="Yes"):
+def get_sliced_data(y, level, years, months=np.arange(1, 13), window=15, anom="Yes"):
     """Calculating warming level anomalies.
 
     Parameters
@@ -210,6 +210,8 @@ def get_sliced_data(y, level, years, months, window=15, anom="Yes"):
         Warming level amount
     years: pd.DataFrame
         Lookup table for the date a given simulation reaches each warming level.
+    months: np.ndarray
+        Months to include in a warming level slice.
     window: int, optional
         Number of years to generate time window for. Default to 15 years.
         For example, a 15 year window would generate a window of 15 years in the past from the central warming level date, and 15 years into the future. I.e. if a warming level is reached in 2030, the window would be (2015,2045).
