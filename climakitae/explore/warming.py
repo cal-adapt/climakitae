@@ -46,6 +46,14 @@ class WarmingLevels:
 
 
     def calculate(self):
+        def _clean_list(data, gwl_times):
+            # this is necessary because there are two simulations that
+            # lack data for any warming level in the lookup table
+            keep_list = list(data.all_sims.values)
+            for sim in data.all_sims:
+                if _process_item(data.sel(all_sims=sim)) not in list(gwl_times.index):
+                    keep_list.remove(sim.item())
+            return data.sel(all_sims=keep_list)
         # manually reset to all SSPs, in case it was inadvertently changed by
         # temporarily have ['Dynamical','Statistical'] for downscaling_method
         self.wl_params.scenario_ssp = [
@@ -71,7 +79,7 @@ class WarmingLevels:
             Find the warming slice data for the current level from the catalog data.
             """
             warming_data = self.catalog_data.groupby("all_sims").map(
-                get_sliced_data,
+                _get_sliced_data,
                 level=level,
                 years=self.gwl_times,
                 window=self.wl_params.window,
@@ -164,18 +172,8 @@ def _process_item(y):
     return (sim_str, ensemble, scenario)
 
 
-def _clean_list(data, gwl_times):
-    # this is necessary because there are two simulations that
-    # lack data for any warming level in the lookup table
-    keep_list = list(data.all_sims.values)
-    for sim in data.all_sims:
-        if _process_item(data.sel(all_sims=sim)) not in list(gwl_times.index):
-            keep_list.remove(sim.item())
-    return data.sel(all_sims=keep_list)
-
-
-def get_sliced_data(y, level, years, window=15, anom="Yes"):
-    """Calculating warming level anomalies.
+def _get_sliced_data(y, level, years, window=15, anom="Yes"):
+    """Calculating warming level anomalies mapping function.
 
     Parameters
     ----------
