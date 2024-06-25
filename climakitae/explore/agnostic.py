@@ -20,7 +20,7 @@ from climakitae.core.paths import variable_descriptions_csv_path, data_catalog_u
 from climakitae.util.unit_conversions import get_unit_conversion_options
 from typing import Union, Tuple
 from climakitae.core.data_load import load
-from climakitae.util.logging import logger
+from climakitae.util.logger import logger
 import panel as pn
 import warnings
 
