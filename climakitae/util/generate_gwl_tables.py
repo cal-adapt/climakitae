@@ -163,7 +163,7 @@ def main():
             smoothed.to_array(dim="scenario", name=model).dropna("time").to_pandas()
         )
         gwlevels = pd.DataFrame()
-        for level in [1.5, 2, 3, 4]:
+        for level in [1.5, 2, 2.5, 3, 4]:
             gwlevels[level] = get_gwl(oneModel.T, level)
 
         # Modifying and returning oneModel to be seen as a WL lookup table with timestamp as index, to get the average WL across all simulations.
@@ -199,7 +199,7 @@ def main():
         variable, model, ens_mem, scenarios, start_year="18500101", end_year="19000101"
     ):
         """Loops through global warming levels, and returns an aggregate table
-        for all warming levels (1.5, 2, 3, and 4 degrees) for all scenarios of
+        for all warming levels (1.5, 2, 2.5, 3, and 4 degrees) for all scenarios of
         the model/variant requested."""
         data_one_model = build_timeseries(variable, model, ens_mem, scenarios)
         try:
@@ -225,7 +225,7 @@ def main():
         )
         gwlevels = pd.DataFrame()
         try:
-            for level in [1.5, 2, 3, 4]:
+            for level in [1.5, 2, 2.5, 3, 4]:
                 gwlevels[level] = get_gwl(one_model.T, level)
         except Exception as e:
             print(
