@@ -147,6 +147,10 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
     try:
         closest_gridcell = data.sel(x=x, y=y, method="nearest", tolerance=tolerance)
     except KeyError:
+        print(
+            "Input coordinates: (%.2f, %.2f)" % (lat, lon)
+            + " OUTSIDE of data extent by more than one cell"
+        )   
         return None
 
     # Output information
