@@ -125,6 +125,12 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
     --------
     xarray.DataArray.sel
     """
+
+    # Use data cellsize as tolerance for selecting nearest
+    # Using this method to guard against single row|col
+    # Assumes data is from climakitae retrieve
+    tolerance = int(data.resolution.split(" km")[0]) * 1000
+
     # Make Transformer object
     lat_lon_to_model_projection = pyproj.Transformer.from_crs(
         crs_from="epsg:4326",  # Lat/lon
