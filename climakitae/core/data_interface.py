@@ -1004,7 +1004,7 @@ class DataParameters(param.Parameterized):
             b_arr = np.array(b)
         
             for i in range(len(b_arr)):
-                if np.array_equala(a_arr, b_arr[i:i+len(a_arr)]):
+                if np.array_equal(a_arr, b_arr[i:i+len(a_arr)]):
                     return True
             return False
 
