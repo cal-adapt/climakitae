@@ -969,6 +969,7 @@ class DataParameters(param.Parameterized):
         """
         # Set incoming scenario_historical
         _scenario_historical = self.scenario_historical
+        print(_scenario_historical)
 
         # Get scenario options in catalog format
         scenario_ssp_options = [
