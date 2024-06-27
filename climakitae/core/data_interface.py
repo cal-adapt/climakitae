@@ -962,7 +962,7 @@ class DataParameters(param.Parameterized):
             self.param["units"].objects = [native_unit]
             self.units = native_unit
 
-    @param.depends("resolution", "downscaling_method", "data_type", watch=True)
+    @param.depends("downscaling_method", "data_type", watch=True)
     def _update_scenarios(self):
         """
         Update scenario options. Raise data warning if a bad selection is made.
