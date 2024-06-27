@@ -118,7 +118,7 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
 
     Returns
     --------
-    xr.DataArray
+    xr.DataArray or None
         Grid cell closest to input lat,lon coordinate pair
 
     See also
