@@ -997,14 +997,14 @@ class DataParameters(param.Parameterized):
         self.param["scenario_historical"].objects = scenario_historical_options
 
         def _check_list_contained(a, b):
-        
+
             # convert list a to numpy array
             a_arr = np.array(a)
             # convert list b to numpy array
             b_arr = np.array(b)
-        
+
             for i in range(len(b_arr)):
-                if np.array_equal(a_arr, b_arr[i:i+len(a_arr)]):
+                if np.array_equal(a_arr, b_arr[i : i + len(a_arr)]):
                     return True
             return False
 
