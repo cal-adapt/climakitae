@@ -1,5 +1,6 @@
 import os
 import xarray as xr
+import numpy as np
 import pandas as pd
 import geopandas as gpd
 from shapely.geometry import box, Polygon
@@ -969,7 +970,6 @@ class DataParameters(param.Parameterized):
         """
         # Set incoming scenario_historical
         _scenario_historical = self.scenario_historical
-        print(_scenario_historical)
 
         # Get scenario options in catalog format
         scenario_ssp_options = [
@@ -995,10 +995,23 @@ class DataParameters(param.Parameterized):
             if scen in historical_scenarios
         ]
         self.param["scenario_historical"].objects = scenario_historical_options
-        if _scenario_historical not in scenario_historical_options:
-            self.scenario_historical = [scenario_historical_options[0]]
-        else:
+
+        def _check_list_contained(a, b):
+        
+            # convert list a to numpy array
+            a_arr = np.array(a)
+            # convert list b to numpy array
+            b_arr = np.array(b)
+        
+            for i in range(len(b_arr)):
+                if np.array_equala(a_arr, b_arr[i:i+len(a_arr)]):
+                    return True
+            return False
+
+        if _check_list_contained(_scenario_historical, scenario_historical_options):
             self.scenario_historical = _scenario_historical
+        else:
+            self.scenario_historical = [scenario_historical_options[0]]
 
     @param.depends(
         "scenario_ssp",
