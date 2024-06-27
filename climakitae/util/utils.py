@@ -118,13 +118,19 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
 
     Returns
     --------
-    xr.DataArray
+    xr.DataArray or None
         Grid cell closest to input lat,lon coordinate pair
 
     See also
     --------
     xarray.DataArray.sel
     """
+
+    # Use data cellsize as tolerance for selecting nearest
+    # Using this method to guard against single row|col
+    # Assumes data is from climakitae retrieve
+    tolerance = int(data.resolution.split(" km")[0]) * 1000
+
     # Make Transformer object
     lat_lon_to_model_projection = pyproj.Transformer.from_crs(
         crs_from="epsg:4326",  # Lat/lon
@@ -135,8 +141,16 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
     # Convert coordinates to x,y
     x, y = lat_lon_to_model_projection.transform(lon, lat)
 
-    # Get closest gridcell
-    closest_gridcell = data.sel(x=x, y=y, method="nearest")
+    # Get closest gridcell using tolerance
+    # If input point outside of dataset by greater than one
+    # grid cell, then None is returned
+    try:
+        closest_gridcell = data.sel(x=x, y=y, method="nearest", tolerance=tolerance)
+    except KeyError:
+        print(
+            f"Input coordinates: ({lat:.2f}, {lon:.2f}) OUTSIDE of data extent by more than one cell. Returning None"
+        )
+        return None
 
     # Output information
     if print_coords:
