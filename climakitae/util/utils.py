@@ -141,8 +141,13 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
     # Convert coordinates to x,y
     x, y = lat_lon_to_model_projection.transform(lon, lat)
 
-    # Get closest gridcell
-    closest_gridcell = data.sel(x=x, y=y, method="nearest")
+    # Get closest gridcell using tolerance
+    # If input point outside of dataset by greater than one 
+    # grid cell, then None is returned
+    try:
+        closest_gridcell = data.sel(x=x, y=y, method="nearest", tolerance=tolerance)
+    except KeyError:
+        return None
 
     # Output information
     if print_coords:
