@@ -5,6 +5,10 @@ import panel as pn
 import hvplot.xarray
 import pandas as pd
 
+# Remove param's parameter descriptions from docstring because
+# ANSI escape sequences in them complicate their rendering
+param.parameterized.docstring_describe_params = False
+
 
 class TimeSeriesParameters(param.Parameterized):
     """Class of python Param to hold parameters for Time Series."""

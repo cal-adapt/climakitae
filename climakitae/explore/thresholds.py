@@ -14,6 +14,11 @@ from climakitae.explore.threshold_tools import (
     exceedance_plot_subtitle,
 )
 
+# Remove param's parameter descriptions from docstring because
+# ANSI escape sequences in them complicate their rendering
+param.parameterized.docstring_describe_params = False
+
+
 # ============ Class and methods for the explore.thresholds() GUI ==============
 
 
