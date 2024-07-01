@@ -52,9 +52,11 @@ class Boundaries:
     _ca_electric_balancing_areas = None
 
     def __init__(self, boundary_catalog):
+        # Connect intake Catalog to class
         self._cat = boundary_catalog
 
     def load(self):
+        # Load parquet files from boundary catalog into pd.DataFrame objects
         self._us_states = self._cat.states.read()
         self._ca_counties = self._cat.counties.read().sort_values("NAME")
         self._ca_watersheds = self._cat.huc8.read().sort_values("Name")
@@ -81,7 +83,7 @@ class Boundaries:
 
     def _get_us_states(self):
         """
-        Returns a custom sorted dictionary of state abbreviations and indices.
+        Returns a custom sorted dictionary of western state abbreviations and indices.
 
         Returns
         -------
@@ -198,8 +200,8 @@ class Boundaries:
         """
         This returns a dictionary of lookup dictionaries for each set of
         geoparquet files that the user might be choosing from. It is used to
-        populate the selector object dynamically as the category in
-        '_LocSelectorArea.area_subset' changes.
+        populate the `DataParameters` cached_area dynamically as the category
+        in the area_subset parameter changes.
 
         Returns
         -------
