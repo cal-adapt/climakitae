@@ -44,7 +44,6 @@ class WarmingLevels:
         self.wl_params = WarmingLevelDataParameters()
         self.warming_levels = ["1.5", "2.0", "3.0", "4.0"]
 
-
     def calculate(self):
         def _clean_list(data, gwl_times):
             # this is necessary because there are two simulations that
@@ -54,6 +53,7 @@ class WarmingLevels:
                 if _process_item(data.sel(all_sims=sim)) not in list(gwl_times.index):
                     keep_list.remove(sim.item())
             return data.sel(all_sims=keep_list)
+
         # manually reset to all SSPs, in case it was inadvertently changed by
         # temporarily have ['Dynamical','Statistical'] for downscaling_method
         self.wl_params.scenario_ssp = [
@@ -99,7 +99,9 @@ class WarmingLevels:
                 if not (warm_data.centered_year.isnull()).all():
 
                     # Cleaning #1
-                    warm_data = warm_data.sel(all_sims=~warm_data.centered_year.isnull())
+                    warm_data = warm_data.sel(
+                        all_sims=~warm_data.centered_year.isnull()
+                    )
 
                     # Cleaning #2
                     # warm_data = warm_data.isel(

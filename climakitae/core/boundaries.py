@@ -43,7 +43,6 @@ class Boundaries:
         Returns a dict of the other boundary dicts, used to populate ck.Select
     """
 
-
     _cat = None
     _us_states = None
     _ca_counties = None
