@@ -26,3 +26,11 @@ shapely==1.8.4
 pygeos==0.13
 xclim==0.42.0
 statsmodels==0.14.1
+timezonefinder==6.0.2
+boto3==1.24.59
+pydantic==1.10.2
+pyarrow==9.0.0
+intake-geopandas==0.4.0
+dask-geopandas==0.3.1
+importlib_metadata==4.11.4
+h5netcdf==1.0.2
