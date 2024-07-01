@@ -280,7 +280,7 @@ def _get_subarea(
         reference to Boundaries class
     _geography_choose: dict
         dict of dicts containing boundary attributes
-    
+
     Returns
     -------
     gpd.GeoDataFrame
