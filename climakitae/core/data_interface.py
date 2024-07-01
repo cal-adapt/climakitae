@@ -362,6 +362,15 @@ class VariableDescriptions:
     ck.view is loaded on package load so this avoids loading boundary data when not
     needed.
 
+    Attributes
+    ----------
+    variable_descriptions: pd.DataFrame
+        pandas dataframe that stores available data variables usable with the package
+
+    Methods
+    -------
+    load(self)
+        read the variable descriptions csv into class variable
     """
 
     def __new__(cls):
@@ -384,6 +393,20 @@ class DataInterface:
     data and to the intake data catalog and parquet boundary catalog. The class attributes
     are read only so that the data does not get changed accidentially.
 
+    Attributes
+    ----------
+    variable_descriptions: pd.DataFrame
+        variable descriptions pandas data frame
+    stations: gpd.DataFrame
+        station locations pandas data frame
+    stations_gdf: gpd.GeoDataFrame
+        station locations geopandas data frame
+    data_catalog: intake_esm.source.ESMDataSource
+        intake ESM data catalog
+    boundary_catalog: intake.catalog.Catalog
+        parquet boundary catalog
+    geographies: Boundaries
+        boundary dictionaries class
     """
 
     def __new__(cls):
