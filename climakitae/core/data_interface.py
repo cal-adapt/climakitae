@@ -31,7 +31,8 @@ def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
 
     Parameters
     ----------
-    cat: intake catalog
+    data_catalog: intake_esm.source.ESMDataSource
+        Intake ESM data catalog
     downscaling_method: str, one of "Dynamical", "Statistical", or "Dynamical+Statistical"
         Data downscaling method
     timescale: str, one of "hourly", "daily", or "monthly"
@@ -158,6 +159,22 @@ def _get_var_ids(variable_descriptions, variable, downscaling_method, timescale)
     """Get variable ids that match the selected variable, timescale, and downscaling method.
     Required to account for the fact that LOCA, WRF, and various timescales use different variable id values.
     Used to retrieve the correct variables from the catalog in the backend.
+
+    Parameters
+    ----------
+    variable_descriptions: pd.DataFrame
+        Variable descriptions, units, etc in table format
+    variable: str
+        variable display name from catalog.
+    downscaling_method: str, one of "Dynamical", "Statistical", or "Dynamical+Statistical"
+        Data downscaling method
+    timescale: str, one of "hourly", "daily", or "monthly"
+        Timescale
+
+    Returns
+    -------
+    list
+        variable ids from intake catalog matching incoming query
     """
 
     method_list = downscaling_method_as_list(downscaling_method)
@@ -184,7 +201,25 @@ def _get_overlapping_station_names(
     _geographies,
     _geography_choose,
 ):
-    """Wrapper function that gets the string names of any overlapping weather stations"""
+    """Wrapper function that gets the string names of any overlapping weather stations
+
+    Parameters
+    ----------
+    stations_gdf: gpd.GeoDataFrame
+        geopandas GeoDataFrame of station locations
+    area_subset: str
+        DataParameters.area_subset param value
+    cached_area: str
+        DataParameters.cached_area param value
+    latitude: float
+        DataParameters.latitude param value
+    longitude: float
+        DataParameters.longitude param value
+    _geographies: Boundaries
+        reference to Boundaries class
+    _geography_choose: dict
+        dict of dicts containing boundary attributes
+    """
     subarea = _get_subarea(
         area_subset,
         cached_area,
@@ -231,6 +266,21 @@ def _get_subarea(
     """Get geometry from input settings
     Used for plotting or determining subset of overlapping weather stations in subsequent steps
 
+    Parameters
+    ----------
+    area_subset: str
+        DataParameters.area_subset param value
+    cached_area: str
+        DataParameters.cached_area param value
+    latitude: float
+        DataParameters.latitude param value
+    longitude: float
+        DataParameters.longitude param value
+    _geographies: Boundaries
+        reference to Boundaries class
+    _geography_choose: dict
+        dict of dicts containing boundary attributes
+    
     Returns
     -------
     gpd.GeoDataFrame
