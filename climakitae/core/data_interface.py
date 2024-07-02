@@ -459,7 +459,7 @@ class DataInterface:
 
 class DataParameters(param.Parameterized):
     """Python param object to hold data parameters for use in panel GUI.
-    
+
     Attributes
     ----------
     unit_options_dict: dict
@@ -534,6 +534,10 @@ class DataParameters(param.Parameterized):
         shorthand alias to Boundaries.boundary_dict()
     colormap: str
         default colormap to render the currently selected data
+    scenario_options: list of strs
+        list of available scenarios (historical and ssp) for selection
+    variable_options_df: pd.DataFrame
+        filtered variable descriptions for the downscaling_method and timescale
     """
 
     # Unit conversion options for each unit
