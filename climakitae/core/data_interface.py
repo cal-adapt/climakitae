@@ -272,9 +272,9 @@ def _get_subarea(
         DataParameters.area_subset param value
     cached_area: str
         DataParameters.cached_area param value
-    latitude: float
+    latitude: tuple
         DataParameters.latitude param value
-    longitude: float
+    longitude: tuple
         DataParameters.longitude param value
     _geographies: Boundaries
         reference to Boundaries class
@@ -458,7 +458,83 @@ class DataInterface:
 
 
 class DataParameters(param.Parameterized):
-    """Python param object to hold data parameters for use in panel GUI."""
+    """Python param object to hold data parameters for use in panel GUI.
+    
+    Attributes
+    ----------
+    unit_options_dict: dict
+        options dictionary for converting unit to other units
+    area_subset: str
+        dataset to use from Boundaries for sub area selection
+    cached_area: list of strs
+        one or more features from area_subset datasets to use for selection
+    latitude: tuple
+        latitude range of selection box
+    longitude: tuple
+        longitude range of selection box
+    variable_type: str
+        toggle raw or derived variable selection
+    default_variable: str
+        initial variable to have selected in widget
+    time_slice: tuple
+        year range to select
+    resolution: str
+        resolution of data to select ("3 km", "9 km", "45 km")
+    timescale: str
+        frequency of dataset ("hourly", "daily", "monthly")
+    scenario_historical: list of strs
+        historical scenario selections
+    area_average: str
+        whether to comput area average ("Yes", "No")
+    downscaling_method: str
+        whether to choose WRF or LOCA2 data or both ("Dynamical", "Statistical", "Dynamical+Statistical")
+    data_type: str
+        whether to choose gridded or station based data ("Gridded", "Station")
+    station: list or strs
+        list of stations that can be filtered by cached_area
+    _station_data_info: str
+        informational statement when station data selected with data_type
+    scenario_ssp: list of strs
+        list of future climate scenarios selected (availability depends on other params)
+    simulation: list of strs
+        list of simulations (models) selected (availability depends on other params)
+    variable: str
+        variable long display name
+    units: str
+        unit abbreviation currently of the data (native or converted)
+    extended_description: str
+        extended description of the data variable
+    variable_id: list of strs
+        list of variable ids that match the variable (WRF and LOCA2 can have different codes for same type of variable)
+    historical_climate_range_wrf: tuple
+        time range of historical WRF data
+    historical_climate_range_loca: tuple
+        time range of historical LOCA2 data
+    historical_climate_range_wrf_and_loca: tuple
+        time range of historical WRF and LOCA2 data combined
+    historical_reconstruction_range: tuple
+        time range of historical reanalysis data
+    ssp_range: tuple
+        time range of future scenario SSP data
+    _info_about_station_data: str
+        warning message about station data
+    _data_warning: str
+        warning about selecting unavailable data combination
+    data_interface: DataInterface
+        data connection singleton class that provides data
+    _data_catalog: intake_esm.source.ESMDataSource
+        shorthand alias to DataInterface.data_catalog
+    _variable_descriptions: pd.DataFrame
+        shorthand alias to DataInterface.variable_descriptions
+    _stations_gdf: gpd.GeoDataFrame
+        shorthand alias to DataInterface.stations_gdf
+    _geographies: Boundaries
+        shorthand alias to DataInterface.geographies
+    _geography_choose: dict
+        shorthand alias to Boundaries.boundary_dict()
+    colormap: str
+        default colormap to render the currently selected data
+    """
 
     # Unit conversion options for each unit
     unit_options_dict = get_unit_conversion_options()
