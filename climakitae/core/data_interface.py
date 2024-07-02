@@ -996,6 +996,7 @@ class DataParameters(param.Parameterized):
         ]
         self.param["scenario_historical"].objects = scenario_historical_options
 
+        # test to check if one list is contained within another as python doesn't have that out of the box
         def _check_list_contained(a, b):
 
             # convert list a to numpy array
@@ -1008,6 +1009,7 @@ class DataParameters(param.Parameterized):
                     return True
             return False
 
+        # check if new selection has the historical scenario options and if not select the first new option
         if _check_list_contained(_scenario_historical, scenario_historical_options):
             self.scenario_historical = _scenario_historical
         else:
