@@ -51,6 +51,8 @@ xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
 # Remove param's parameter descriptions from docstring because
 # ANSI escape sequences in them complicate their rendering
 param.parameterized.docstring_describe_params = False
+# Docstring signatures are also hard to read and therefore removed
+param.parameterized.docstring_signature = False
 
 
 class WarmingLevels:
