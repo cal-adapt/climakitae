@@ -29,6 +29,12 @@ from climakitae.core.data_load import (
     read_catalog_from_select,
 )
 
+# Remove param's parameter descriptions from docstring because
+# ANSI escape sequences in them complicate their rendering
+param.parameterized.docstring_describe_params = False
+# Docstring signatures are also hard to read and therefore removed
+param.parameterized.docstring_signature = False
+
 
 def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
     """Using the data catalog, get a list of appropriate scenario and simulation options given a user's
