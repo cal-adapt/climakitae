@@ -996,21 +996,19 @@ class DataParameters(param.Parameterized):
         ]
         self.param["scenario_historical"].objects = scenario_historical_options
 
-        # test to check if list "a" is contained within list "b" as python doesn't have that out of the box
-        def _check_list_contained(a, b):
-
-            # convert list a to numpy array
-            a_arr = np.array(a)
-            # convert list b to numpy array
-            b_arr = np.array(b)
-
-            for i in range(len(b_arr)):
-                if np.array_equal(a_arr, b_arr[i : i + len(a_arr)]):
-                    return True
-            return False
+        # check if input historical scenarios match new available scenarios
+        # if no reanalysis scenario then return False
+        def _check_inputs(a, b):
+            chk = False
+            if len(b) < 2:
+                return chk
+            for i in a:
+                if i in a:
+                    chk = True
+            return chk
 
         # check if new selection has the historical scenario options and if not select the first new option
-        if _check_list_contained(_scenario_historical, scenario_historical_options):
+        if _check_inputs(_scenario_historical, scenario_historical_options):
             self.scenario_historical = _scenario_historical
         else:
             self.scenario_historical = [scenario_historical_options[0]]
