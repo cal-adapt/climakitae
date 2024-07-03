@@ -973,6 +973,9 @@ class DataParameters(param.Parameterized):
         """
         Update scenario options. Raise data warning if a bad selection is made.
         """
+        # Set incoming scenario_historical
+        _scenario_historical = self.scenario_historical
+
         # Get scenario options in catalog format
         scenario_ssp_options = [
             scenario_to_experiment_id(scen, reverse=True)
@@ -997,7 +1000,22 @@ class DataParameters(param.Parameterized):
             if scen in historical_scenarios
         ]
         self.param["scenario_historical"].objects = scenario_historical_options
-        if self.scenario_historical not in scenario_historical_options:
+
+        # check if input historical scenarios match new available scenarios
+        # if no reanalysis scenario then return False
+        def _check_inputs(a, b):
+            chk = False
+            if len(b) < 2:
+                return chk
+            for i in a:
+                if i in a:
+                    chk = True
+            return chk
+
+        # check if new selection has the historical scenario options and if not select the first new option
+        if _check_inputs(_scenario_historical, scenario_historical_options):
+            self.scenario_historical = _scenario_historical
+        else:
             self.scenario_historical = [scenario_historical_options[0]]
 
     @param.depends(
