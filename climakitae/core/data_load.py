@@ -1,7 +1,6 @@
-"""Backend functions for retrieving and subsetting data from the AE catalog"""
-
 import xarray as xr
 import dask
+from dask.diagnostics import ProgressBar
 import rioxarray
 from rioxarray.exceptions import NoDataInBounds
 import numpy as np
@@ -36,26 +35,24 @@ from climakitae.tools.indices import (
     effective_temp,
 )
 
-# Set options
+# Set Xarray options
+# keep array attributes after operations
 xr.set_options(keep_attrs=True)
+# slice array into smaller chunks to opitimize reading
 dask.config.set({"array.slicing.split_large_chunks": True})
-
-from dask.diagnostics import ProgressBar
-
-
-# ============================ Read data into memory ================================
 
 
 def load(xr_da, progress_bar=False):
-    """Read data into memory
+    """Read lazily loaded dask array into memory for faster access
 
     Parameters
     ----------
-    xr_da: xarray.DataArray
+    xr_da: xr.DataArray
+    progress_bar: boolean
 
     Returns
     -------
-    da_computed: xarray.DataArray
+    da_computed: xrq.DataArray
 
     """
 
@@ -88,60 +85,6 @@ def load(xr_da, progress_bar=False):
             da_computed = xr_da.compute()
         print("Complete!")
         return da_computed
-
-
-# ============================ Helper functions ================================
-
-
-def _get_as_shapely(selections):
-    """
-    Takes the location data, and turns it into a
-    shapely object. Just doing polygons for now. Later other point/station data
-    will be available too.
-
-    Parameters
-    ----------
-    selections: DataParameters
-        Data settings (variable, unit, timescale, etc)
-
-    Returns
-    ----------
-    shapely_geom: shapely.geometry
-
-    """
-    # Box is formed using the following shape:
-    #   shapely.geometry.box(minx, miny, maxx, maxy)
-    shapely_geom = box(
-        selections.longitude[0],  # minx
-        selections.latitude[0],  # miny
-        selections.longitude[1],  # maxx
-        selections.latitude[1],  # maxy
-    )
-    return shapely_geom
-
-
-def _sim_index_item(ds_name, member_id):
-    """Identify a simulation by its downscaling type, driving GCM, and member id.
-
-    Parameters
-    ----------
-    ds_name: str
-        dataset name from catalog
-    member_id: xr.Dataset.attr
-        ensemble member id from dataset attributes
-
-    Returns
-    ----------
-    str: joined by underscores
-
-    """
-    downscaling_type = ds_name.split(".")[0]
-    gcm_name = ds_name.split(".")[2]
-    ensemble_member = str(member_id.values)
-    if ensemble_member != "nan":
-        return "_".join([downscaling_type, gcm_name, ensemble_member])
-    else:
-        return "_".join([downscaling_type, gcm_name])
 
 
 def _scenarios_in_data_dict(keys):
@@ -286,6 +229,34 @@ def area_subset_geometry(selections):
     def set_subarea(boundary_dataset: Boundaries, shape_indices: list) -> GeoDataFrame:
         return boundary_dataset.loc[shape_indices].geometry.unary_union
 
+
+    def _get_as_shapely(selections):
+        """
+        Takes the location data, and turns it into a
+        shapely box object. Just doing polygons for now. Later other point/station data
+        will be available too.
+
+        Parameters
+        ----------
+        selections: DataParameters
+            Data settings (variable, unit, timescale, etc)
+
+        Returns
+        ----------
+        shapely_geom: shapely.geometry
+
+        """
+        # Box is formed using the following shape:
+        #   shapely.geometry.box(minx, miny, maxx, maxy)
+        shapely_geom = box(
+            selections.longitude[0],  # minx
+            selections.latitude[0],  # miny
+            selections.longitude[1],  # maxx
+            selections.latitude[1],  # maxy
+        )
+        return shapely_geom
+
+
     if area_subset == "lat/lon":
         geom = _get_as_shapely(selections)
         if not geom.is_valid:
@@ -425,6 +396,31 @@ def _process_dset(ds_name, dset, selections):
     # Perform area averaging
     if selections.area_average == "Yes":
         dset = area_average(dset)
+
+
+    def _sim_index_item(ds_name, member_id):
+        """Identify a simulation by its downscaling type, driving GCM, and member id.
+
+        Parameters
+        ----------
+        ds_name: str
+            dataset name from catalog
+        member_id: xr.Dataset.attr
+            ensemble member id from dataset attributes
+
+        Returns
+        ----------
+        str: joined by underscores
+
+        """
+        downscaling_type = ds_name.split(".")[0]
+        gcm_name = ds_name.split(".")[2]
+        ensemble_member = str(member_id.values)
+        if ensemble_member != "nan":
+            return "_".join([downscaling_type, gcm_name, ensemble_member])
+        else:
+            return "_".join([downscaling_type, gcm_name])
+
 
     # Rename member_id value to include more info
     dset = dset.assign_coords(
