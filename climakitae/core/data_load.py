@@ -229,7 +229,6 @@ def area_subset_geometry(selections):
     def set_subarea(boundary_dataset: Boundaries, shape_indices: list) -> GeoDataFrame:
         return boundary_dataset.loc[shape_indices].geometry.unary_union
 
-
     def _get_as_shapely(selections):
         """
         Takes the location data, and turns it into a
@@ -255,7 +254,6 @@ def area_subset_geometry(selections):
             selections.latitude[1],  # maxy
         )
         return shapely_geom
-
 
     if area_subset == "lat/lon":
         geom = _get_as_shapely(selections)
@@ -397,7 +395,6 @@ def _process_dset(ds_name, dset, selections):
     if selections.area_average == "Yes":
         dset = area_average(dset)
 
-
     def _sim_index_item(ds_name, member_id):
         """Identify a simulation by its downscaling type, driving GCM, and member id.
 
@@ -420,7 +417,6 @@ def _process_dset(ds_name, dset, selections):
             return "_".join([downscaling_type, gcm_name, ensemble_member])
         else:
             return "_".join([downscaling_type, gcm_name])
-
 
     # Rename member_id value to include more info
     dset = dset.assign_coords(
