@@ -459,6 +459,12 @@ class DataInterface:
 
 class DataParameters(param.Parameterized):
     """Python param object to hold data parameters for use in panel GUI.
+    Call DataParameters when you want to select and retrieve data from the
+    climakitae data catalog without using the ck.Select GUI. ck.Select uses
+    this class to store selections and retrieve data.
+
+    DataParameters calls DataInterface, a singleton class that makes the connection
+    to the intake-esm data store in S3 bucket.
 
     Attributes
     ----------
