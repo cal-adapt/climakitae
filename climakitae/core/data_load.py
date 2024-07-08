@@ -106,9 +106,6 @@ def _scenarios_in_data_dict(keys):
     return list(scenarios)
 
 
-# ============= Main functions used in data reading/processing =================
-
-
 def _get_cat_subset(selections):
     """For an input set of data selections, get the catalog subset.
 
@@ -119,7 +116,7 @@ def _get_cat_subset(selections):
 
     Returns
     ----------
-    cat_subset: intake_esm.core.esm_datastore
+    cat_subset: intake_esm.source.ESMDataSource
         catalog subset
 
     """
@@ -185,31 +182,6 @@ def _time_slice(dset, selections):
     return dset.sel(time=slice(window_start, window_end))
 
 
-def _override_area_selections(selections):
-    """Account for 'station' special-case
-    You need to retrieve the entire domain because the shapefiles will cut out
-    the ocean grid cells, but the some station's closest gridcells are the ocean!
-
-    Parameters
-    ----------
-    selections: DataParameters
-        object holding user's selections
-
-    Returns
-    ----------
-    area_subset: str
-    cached_area: str
-    """
-    if selections.data_type == "Station":
-        area_subset = "none"
-        cached_area = "entire domain"
-    else:
-        area_subset = selections.area_subset
-        cached_area = selections.cached_area
-
-    return area_subset, cached_area
-
-
 def area_subset_geometry(selections):
     """Get geometry to perform area subsetting with.
 
@@ -224,9 +196,32 @@ def area_subset_geometry(selections):
         geometry to use for subsetting
 
     """
-    area_subset, cached_area = _override_area_selections(selections)
 
-    def set_subarea(boundary_dataset: Boundaries, shape_indices: list) -> GeoDataFrame:
+    def _override_area_selections(selections):
+        """Account for 'station' special-case
+        You need to retrieve the entire domain because the shapefiles will cut out
+        the ocean grid cells, but the some station's closest gridcells are the ocean!
+
+        Parameters
+        ----------
+        selections: DataParameters
+            object holding user's selections
+
+        Returns
+        ----------
+        area_subset: str
+        cached_area: str
+        """
+        if selections.data_type == "Station":
+            area_subset = "none"
+            cached_area = "entire domain"
+        else:
+            area_subset = selections.area_subset
+            cached_area = selections.cached_area
+
+        return area_subset, cached_area
+
+    def _set_subarea(boundary_dataset: Boundaries, shape_indices: list) -> GeoDataFrame:
         return boundary_dataset.loc[shape_indices].geometry.unary_union
 
     def _get_as_shapely(selections):
@@ -255,6 +250,8 @@ def area_subset_geometry(selections):
         )
         return shapely_geom
 
+    area_subset, cached_area = _override_area_selections(selections)
+
     if area_subset == "lat/lon":
         geom = _get_as_shapely(selections)
         if not geom.is_valid:
@@ -270,19 +267,19 @@ def area_subset_geometry(selections):
             }.values()
         )
         if area_subset == "states":
-            shape = set_subarea(selections._geographies._us_states, shape_indices)
+            shape = _set_subarea(selections._geographies._us_states, shape_indices)
         elif area_subset == "CA counties":
-            shape = set_subarea(selections._geographies._ca_counties, shape_indices)
+            shape = _set_subarea(selections._geographies._ca_counties, shape_indices)
         elif area_subset == "CA watersheds":
-            shape = set_subarea(selections._geographies._ca_watersheds, shape_indices)
+            shape = _set_subarea(selections._geographies._ca_watersheds, shape_indices)
         elif area_subset == "CA Electric Load Serving Entities (IOU & POU)":
-            shape = set_subarea(selections._geographies._ca_utilities, shape_indices)
+            shape = _set_subarea(selections._geographies._ca_utilities, shape_indices)
         elif area_subset == "CA Electricity Demand Forecast Zones":
-            shape = set_subarea(
+            shape = _set_subarea(
                 selections._geographies._ca_forecast_zones, shape_indices
             )
         elif area_subset == "CA Electric Balancing Authority Areas":
-            shape = set_subarea(
+            shape = _set_subarea(
                 selections._geographies._ca_electric_balancing_areas, shape_indices
             )
         ds_region = [shape]
