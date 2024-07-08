@@ -288,57 +288,6 @@ def area_subset_geometry(selections):
     return ds_region
 
 
-def _clip_to_geometry(dset, ds_region):
-    """Clip to geometry if large enough
-
-    Parameters
-    ----------
-    dset: xr.Dataset
-        one dataset from the catalog
-    ds_region: shapely.geometry.polygon.Polygon
-        area to clip to
-
-    Returns
-    ----------
-    xr.Dataset
-        clipped area of dset
-    """
-    try:
-        dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
-
-    except NoDataInBounds as e:
-        # Catch small geometry error
-        print(e)
-        print("Skipping spatial subsetting.")
-
-    return dset
-
-
-def _clip_to_geometry_loca(dset, ds_region):
-    """Clip to geometry, adding missing grid info
-        because crs and x, y are missing from LOCA datasets
-        Otherwise rioxarray will raise this error:
-        'MissingSpatialDimensionError: x dimension not found.'
-
-    Parameters
-    ----------
-    dset: xr.Dataset
-        one dataset from the catalog
-    ds_region: shapely.geometry.polygon.Polygon
-        area to clip to
-
-    Returns
-    ----------
-    xr.Dataset
-        clipped area of dset
-    """
-    dset = dset.rename({"lon": "x", "lat": "y"})
-    dset = dset.rio.write_crs("EPSG:4326")
-    dset = _clip_to_geometry(dset, ds_region)
-    dset = dset.rename({"x": "lon", "y": "lat"}).drop("spatial_ref")
-    return dset
-
-
 def _spatial_subset(dset, selections):
     """Subset over spatial area
 
@@ -354,6 +303,56 @@ def _spatial_subset(dset, selections):
     xr.Dataset
         subsetted area of dset
     """
+
+    def _clip_to_geometry(dset, ds_region):
+        """Clip to geometry if large enough
+
+        Parameters
+        ----------
+        dset: xr.Dataset
+            one dataset from the catalog
+        ds_region: shapely.geometry.polygon.Polygon
+            area to clip to
+
+        Returns
+        ----------
+        xr.Dataset
+            clipped area of dset
+        """
+        try:
+            dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
+
+        except NoDataInBounds as e:
+            # Catch small geometry error
+            print(e)
+            print("Skipping spatial subsetting.")
+
+        return dset
+
+    def _clip_to_geometry_loca(dset, ds_region):
+        """Clip to geometry, adding missing grid info
+            because crs and x, y are missing from LOCA datasets
+            Otherwise rioxarray will raise this error:
+            'MissingSpatialDimensionError: x dimension not found.'
+
+        Parameters
+        ----------
+        dset: xr.Dataset
+            one dataset from the catalog
+        ds_region: shapely.geometry.polygon.Polygon
+            area to clip to
+
+        Returns
+        ----------
+        xr.Dataset
+            clipped area of dset
+        """
+        dset = dset.rename({"lon": "x", "lat": "y"})
+        dset = dset.rio.write_crs("EPSG:4326")
+        dset = _clip_to_geometry(dset, ds_region)
+        dset = dset.rename({"x": "lon", "y": "lat"}).drop("spatial_ref")
+        return dset
+
     ds_region = area_subset_geometry(selections)
 
     if ds_region is not None:  # Perform subsetting
