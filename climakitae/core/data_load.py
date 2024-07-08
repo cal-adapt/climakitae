@@ -52,7 +52,7 @@ def load(xr_da, progress_bar=False):
 
     Returns
     -------
-    da_computed: xrq.DataArray
+    da_computed: xr.DataArray
 
     """
 
