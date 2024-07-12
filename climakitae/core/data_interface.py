@@ -1898,3 +1898,115 @@ def get_subsetting_options(area_subset="all"):
         )  # Create multiindex
 
     return geoms_df
+
+
+def get_data(
+    variable,
+    downscaling_method,
+    resolution,
+    timescale,
+    scenario,
+    units=None,
+    area_subset="none",
+    cached_area=["entire domain"],
+    area_average="No",
+):
+    # Need to add error handing for bad variable input
+    """Retrieve data from the catalog using a simple function.
+    Contrasts with selections.retrieve(), which retrieves data from the user imputs in climakitae's selections GUI.
+
+    Parameters
+    ----------
+    variable: str
+    downscaling_method: str
+    resolution: str
+    timescale: str
+    scenario: str
+    units: None, optional
+        Defaults to native units of data
+    area_subset: str, optional
+        Area category: i.e "CA counties"
+        Defaults to entire domain ("none")
+    cached_area: list, optional
+        Area: i.e "Alameda county"
+        Defaults to entire domain ("none")
+    area_average: str, one of "No" or "Yes", optional
+        Take an average over spatial domain?
+        Default to No
+
+    Returns
+    --------
+    data: xarray.core.dataarray.DataArray
+
+    """
+
+    # Get variable descriptions from DataInterface object
+    data_interface = DataInterface()
+    var_pd = data_interface.variable_descriptions
+
+    if type(cached_area) == str:
+        cached_area = [cached_area]
+
+    # Maybe the user put an input for cached area but not for area subset
+    # We need to have the matching/correct area subset in order for selections.retrieve() to actually subset the data
+    # Here, we load in the geometry options to set area_subset to the correct value
+    # This also raises an appropriate error if the user has a bad input
+    if area_subset == "none" and cached_area != ["entire domain"]:
+        geom_df = get_subsetting_options(area_subset="all").reset_index()
+        area_subset_vals = geom_df[geom_df["cached_area"] == cached_area[0]][
+            "area_subset"
+        ].values
+        if len(area_subset_vals) == 0:
+            print(
+                "'"
+                + str(cached_area[0])
+                + "' is not a valid option for function argument 'cached_area'"
+            )
+            raise ValueError("Bad input for argument 'cached_area'")
+        else:
+            area_subset = area_subset_vals[0]
+
+    # Query the table based on input values
+    var_pd_query = var_pd[
+        (var_pd["display_name"] == variable)
+        & (var_pd["downscaling_method"] == downscaling_method)
+    ]
+
+    # Timescale in table needs to be handled differently
+    # This is because the monthly variables are derived from daily variables, so they are listed in the table as "daily, monthly"
+    # Hourly variables may be different
+    # Querying the data needs special handling due to the layout of the csv file
+    var_pd_query = var_pd_query[var_pd_query["timescale"].str.contains(timescale)]
+
+    if units is None:
+        units = var_pd_query["unit"].item()
+
+    # Create selections object
+    selections = Select()
+
+    # Defaults
+    selections.area_average = area_average
+    selections.area_subset = area_subset
+    selections.cached_area = cached_area
+
+    # Function not currently flexible enough to allow for appending historical
+    # Need to add in error control
+    selections.append_historical = False
+
+    # User selections
+    selections.downscaling_method = downscaling_method
+    selections.variable = variable
+    selections.resolution = resolution
+    selections.timescale = timescale
+    selections.units = units
+
+    if scenario in ["Historical Climate", "Historical Reconstruction"]:
+        selections.scenario_historical = [scenario]
+        selections.scenario_ssp = []
+    else:
+        selections.scenario_historical = []
+        selections.scenario_ssp = [scenario]
+
+    # Retrieve data
+    data = selections.retrieve()
+    return data
