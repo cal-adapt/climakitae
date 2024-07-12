@@ -15,6 +15,8 @@ from ast import literal_eval
 from shapely.geometry import box
 from xclim.sdba import Grouper
 from xclim.sdba.adjustment import QuantileDeltaMapping
+import difflib
+from climakitae.core.data_interface import DataInterface
 from climakitae.core.boundaries import Boundaries
 from climakitae.util.unit_conversions import convert_units, get_unit_conversion_options
 from climakitae.util.utils import (
@@ -1431,3 +1433,230 @@ def _get_fosberg_fire_index(selections):
     )
 
     return da
+
+
+## -------------- Data access without GUI -------------------
+
+
+def _get_user_friendly_catalog(intake_catalog, variable_descriptions):
+    """Get a user-friendly version of the intake data catalog using climakitae naming conventions"""
+
+    # Get the catalog as a dataframe
+    cat_df = intake_catalog.df.copy()
+
+    # Create new, user friendly catalog in pandas DataFrame format
+    cat_df_cleaned = pd.DataFrame()
+    cat_df_cleaned["downscaling_method"] = cat_df["activity_id"].apply(
+        lambda x: downscaling_method_to_activity_id(x, reverse=True)
+    )
+    cat_df_cleaned["resolution"] = cat_df["grid_label"].apply(
+        lambda x: resolution_to_gridlabel(x, reverse=True)
+    )
+    cat_df_cleaned["timescale"] = cat_df["table_id"].apply(
+        lambda x: timescale_to_table_id(x, reverse=True)
+    )
+    cat_df_cleaned["scenario"] = cat_df["experiment_id"].apply(
+        lambda x: scenario_to_experiment_id(x, reverse=True)
+    )
+    cat_df_cleaned["variable_id"] = cat_df["variable_id"]
+
+    # Get user-friendly variable names from variable_descriptions.csv and add to dataframe
+    cat_df_cleaned["variable"] = cat_df_cleaned.apply(
+        lambda x: _get_var_name_from_table(
+            x["variable_id"],
+            x["downscaling_method"],
+            x["timescale"],
+            variable_descriptions,
+        ),
+        axis=1,
+    )
+
+    # We dont' show the users all the available variables in the catalog
+    # These variables aren't defined in variable_descriptions.csv
+    # Here, we just remove all those variables
+    cat_df_cleaned = cat_df_cleaned[cat_df_cleaned["variable"] != "NONE"]
+
+    # Move variable column to first position
+    col = cat_df_cleaned.pop("variable")
+    cat_df_cleaned.insert(0, col.name, col)
+
+    # Remove variable_id column
+    cat_df_cleaned.pop("variable_id")
+
+    # Remove duplicate columns
+    # Duplicates occur due to the many unique member_ids
+    cat_df_cleaned = cat_df_cleaned.drop_duplicates(ignore_index=True)
+
+    return cat_df_cleaned
+
+
+def _get_var_name_from_table(variable_id, downscaling_method, timescale, var_pd):
+    """Get the variable name corresponding to its ID, downscaling method, and timescale
+    Enables the _get_user_friendly_catalog function to get the name of a variable corresponding to a set of user inputs
+    i.e we have several different precip variables, corresponding to different downscaling methods (WRF vs. LOCA)
+
+    Parameters
+    ----------
+    variable_id: str
+    downscaling_method: str
+    timescale: str
+    var_pd: pd.DataFrame
+        Variable descriptions table
+
+    Returns
+    -------
+    var_name: str
+        Display name of variable from variable descriptions table
+        Will match what the user would see in the selections GUI
+    """
+    # Query the table based on input values
+    var_pd_query = var_pd[
+        (var_pd["variable_id"] == variable_id)
+        & (var_pd["downscaling_method"] == downscaling_method)
+    ]
+
+    # Timescale in table needs to be handled differently
+    # This is because the monthly variables are derived from daily variables, so they are listed in the table as "daily, monthly"
+    # Hourly variables may be different
+    # Querying the data needs special handling due to the layout of the csv file
+    var_pd_query = var_pd_query[var_pd_query["timescale"].str.contains(timescale)]
+
+    # This might return nothing if the variable is one we don't want to show the users
+    # If so, set the var_name to nan
+    # The row will later be dropped
+    if len(var_pd_query) == 0:
+        var_name = "NONE"
+
+    # If a variable name is found, grab and return its proper name
+    else:
+        var_name = var_pd_query["display_name"].item()
+
+    return var_name
+
+
+def get_data_options(
+    variable=None,
+    downscaling_method=None,
+    resolution=None,
+    timescale=None,
+    scenario=None,
+    tidy=True,
+):
+    """Get data options, in the same format as the Select GUI, given a set of possible inputs.
+    Allows the user to access the data using the same language as the GUI, bypassing the sometimes unintuitive naming in the catalog.
+    If no function inputs are provided, the function returns the entire AE catalog that is available via the Select GUI
+
+    Parameters
+    ----------
+    variable: str, optional
+        Default to None
+    downscaling_method: str, optional
+        Default to None
+    resolution: str, optional
+        Default to None
+    timescale: str, optional
+        Default to None
+    scenario: str, optional
+        Default to None
+    tidy: boolean, optional
+        Format the pandas dataframe? This creates a DataFrame with a MultiIndex that makes it easier to parse the options.
+        Default to True
+
+    Returns
+    -------
+    cat_subset: pd.DataFrame
+        Catalog options for user-provided inputs
+
+    """
+
+    # Get intake catalog and variable descriptions from DataInterface object
+    data_interface = DataInterface()
+    var_pd = data_interface.variable_descriptions
+    catalog = data_interface.data_catalog
+
+    cat_df = _get_user_friendly_catalog(
+        intake_catalog=catalog, variable_descriptions=var_pd
+    )
+
+    # Raise error for bad input from user
+    for user_input in [variable, downscaling_method, resolution, timescale, scenario]:
+        if (user_input is not None) and (type(user_input) != str):
+            print("Function arguments require a single string value for your inputs")
+            return None
+
+    d = {
+        "variable": variable,
+        "timescale": timescale,
+        "downscaling_method": downscaling_method,
+        "scenario": scenario,
+        "resolution": resolution,
+    }
+
+    for key, val in zip(
+        d.keys(), d.values()
+    ):  # Loop through each key, value pair in the dictionary
+        # Use the catalog to find the valid values in the list
+        valid_options = np.unique(cat_df[key].values)
+        if (
+            val == None
+        ):  # If the user didn't input anything for that key, set the values to all the valid options
+            d[key] = valid_options
+            continue  # Don't finish the loop
+        # If the input value is not in the valid options, see if you can help the user out
+        elif val not in valid_options:
+
+            # Perhaps they didn't capitalize it correctly?
+            if val.lower().capitalize() in valid_options:
+                d[key] = [val.lower().capitalize()]
+                continue  # Don't finish the loop
+
+            # This catches any common bad inputs for resolution: i.e. "3KM" or "3km" instead of "3 km"
+            if key == "resolution":
+                try:
+                    good_resolution_input = val.lower().split("km")[0] + " km"
+                    if good_resolution_input in valid_options:
+                        d[key] = [good_resolution_input]
+                        continue
+                except:
+                    pass
+
+            print("Input " + key + "='" + val + "' is not a valid option.")
+            # Use difflib package to make a guess for what the input might have been
+            # For example, if they input "statistikal" instead of "Statistical", difflib will find "Statistical"
+            # Change the cutoff to increase/decrease the flexibility of the function
+            closest_option = difflib.get_close_matches(val, valid_options, cutoff=0.59)
+            if len(closest_option) == 0:
+                # Sad! No closest options found. Just set the key to all valid options
+                print("Valid options: " + ", ".join(valid_options))
+                raise ValueError("Bad input")
+            else:  # difflib made a guess! Set the key to the guess (or, guesses)
+                if len(closest_option) == 1:
+                    print("Did you mean '" + closest_option[0] + "'?")
+                else:
+                    print(
+                        "Did you mean: \n- "
+                        + "\n- ".join([x + "?" for x in closest_option])
+                    )
+                d[key] = closest_option
+    # Dictionary values should be a list for the pandas logic to work correctly
+    for key, val in zip(d.keys(), d.values()):
+        if type(val) not in (list, np.ndarray):
+            d[key] = [val]
+
+    # Subset the catalog with the user's inputs
+    cat_subset = cat_df[
+        (cat_df["variable"].isin(d["variable"]))
+        & (cat_df["downscaling_method"].isin(d["downscaling_method"]))
+        & (cat_df["resolution"].isin(d["resolution"]))
+        & (cat_df["timescale"].isin(d["timescale"]))
+        & (cat_df["scenario"].isin(d["scenario"]))
+    ].reset_index(drop=True)
+    if len(cat_subset) == 0:
+        print("No data found for your input values")
+        return None
+
+    if tidy:
+        cat_subset = cat_subset.set_index(
+            ["downscaling_method", "scenario", "timescale"]
+        )
+    return cat_subset
