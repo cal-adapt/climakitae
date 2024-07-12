@@ -22,6 +22,9 @@ from climakitae.util.utils import (
     get_closest_gridcell,
     area_average,
     scenario_to_experiment_id,
+    resolution_to_gridlabel,
+    timescale_to_table_id,
+    downscaling_method_to_activity_id,
     downscaling_method_as_list,
 )
 from climakitae.tools.derived_variables import (
@@ -1428,38 +1431,3 @@ def _get_fosberg_fire_index(selections):
     )
 
     return da
-
-
-"""Backend functions for working with ESM catalog and user data selections"""
-
-
-def downscaling_method_to_activity_id(downscaling_method, reverse=False):
-    """Convert downscaling method to activity id to match catalog names
-    Set reverse=True to get downscaling method from input activity_id"""
-    downscaling_dict = {"Dynamical": "WRF", "Statistical": "LOCA2"}
-
-    if reverse == True:
-        downscaling_dict = {v: k for k, v in downscaling_dict.items()}
-    return downscaling_dict[downscaling_method]
-
-
-def resolution_to_gridlabel(resolution, reverse=False):
-    """Convert resolution format to grid_label format matching catalog names.
-    Set reverse=True to get resolution format from input grid_label.
-    """
-    res_dict = {"45 km": "d01", "9 km": "d02", "3 km": "d03"}
-
-    if reverse == True:
-        res_dict = {v: k for k, v in res_dict.items()}
-    return res_dict[resolution]
-
-
-def timescale_to_table_id(timescale, reverse=False):
-    """Convert resolution format to table_id format matching catalog names.
-    Set reverse=True to get resolution format from input table_id.
-    """
-    timescale_dict = {"monthly": "mon", "daily": "day", "hourly": "1hr"}
-
-    if reverse == True:
-        timescale_dict = {v: k for k, v in timescale_dict.items()}
-    return timescale_dict[timescale]
