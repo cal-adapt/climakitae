@@ -124,7 +124,7 @@ class WarmingLevels:
             self.wl_params.warming_levels, desc="Computing each warming level"
         ):
             warm_slice = self.find_warming_slice(level, self.gwl_times)
-            if self.load_data:
+            if self.wl_params.load_data:
                 warm_slice = load(warm_slice)
 
             # Dropping simulations that only have NaNs
