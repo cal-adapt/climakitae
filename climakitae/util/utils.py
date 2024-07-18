@@ -773,12 +773,12 @@ def drop_invalid_wrf_sims(ds):
         return ds
 
     valid_45km = [
-        ("Historical + SSP 2-4.5 -- Middle of the Road", "WRF_CESM2_r11i1p1f1"),
-        ("Historical + SSP 3-7.0 -- Business as Usual", "WRF_CNRM-ESM2-1_r1i1p1f2"),
-        ("Historical + SSP 3-7.0 -- Business as Usual", "WRF_EC-Earth3-Veg_r1i1p1f1"),
-        ("Historical + SSP 3-7.0 -- Business as Usual", "WRF_EC-Earth3_r1i1p1f1"),
-        ("Historical + SSP 3-7.0 -- Business as Usual", "WRF_FGOALS-g3_r1i1p1f1"),
-        ("Historical + SSP 5-8.5 -- Burn it All", "WRF_CESM2_r11i1p1f1"),
+        ("WRF_CESM2_r11i1p1f1", "Historical + SSP 2-4.5 -- Middle of the Road"),
+        ("WRF_CNRM-ESM2-1_r1i1p1f2", "Historical + SSP 3-7.0 -- Business as Usual"),
+        ("WRF_EC-Earth3-Veg_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
+        ("WRF_EC-Earth3_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
+        ("WRF_FGOALS-g3_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
+        ("WRF_CESM2_r11i1p1f1", "Historical + SSP 5-8.5 -- Burn it All"),
     ]
 
     valid_9km = [
