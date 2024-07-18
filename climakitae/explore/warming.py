@@ -123,13 +123,13 @@ class WarmingLevels:
         for level in tqdm(
             self.wl_params.warming_levels, desc="Computing each warming level"
         ):
-            # Assign warming slices to dask computation graph
-            warm_slice = load(
-                self.find_warming_slice(level, self.gwl_times), progress_bar=True
-            )
+            warm_slice = self.find_warming_slice(level, self.gwl_times)
+            if self.load_data:
+                warm_slice = load(warm_slice)
+
             # Dropping simulations that only have NaNs
-            warm_slice = warm_slice.dropna(dim="all_sims", how="all")
-            self.gwl_snapshots[level] = warm_slice.reduce(np.nanmean, "time")
+            # warm_slice = warm_slice.dropna(dim="all_sims", how="all")
+            # self.gwl_snapshots[level] = warm_slice.reduce(np.nanmean, "time")
 
             # Renaming time dimension for warming slice once "time" is all computed on
             freq_strs = {"monthly": "months", "daily": "days", "hourly": "hours"}
@@ -138,7 +138,7 @@ class WarmingLevels:
             )
             self.sliced_data[level] = warm_slice
 
-        self.gwl_snapshots = xr.concat(self.gwl_snapshots.values(), dim="warming_level")
+        # self.gwl_snapshots = xr.concat(self.gwl_snapshots.values(), dim="warming_level")
 
     def visualize(self):
         self.cmap = _get_cmap(self.wl_params)
@@ -367,6 +367,9 @@ class WarmingLevelChoose(DataParametersWithPanes):
         # Location defaults
         self.area_subset = "states"
         self.cached_area = ["CA"]
+
+        # Toggle whether or not data is loaded in as it is being computed
+        self.load_data = False
 
     @param.depends("downscaling_method", watch=True)
     def _anom_allowed(self):
