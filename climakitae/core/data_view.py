@@ -1,26 +1,11 @@
-"""Backend function for creating generic visualizations of xarray DataArray."""
-
 import warnings
 import numpy as np
 import hvplot.xarray
 import matplotlib.pyplot as plt
 import panel as pn
-from climakitae.util.utils import reproject_data
 from climakitae.util.colormap import read_ae_colormap
+from climakitae.util.utils import reproject_data
 from climakitae.core.data_interface import VariableDescriptions
-
-
-def compute_vmin_vmax(da_min, da_max):
-    """Compute min, max, and center for plotting"""
-    vmin = np.nanpercentile(da_min, 1)
-    vmax = np.nanpercentile(da_max, 99)
-    # define center for diverging symmetric data
-    if (vmin < 0) and (vmax > 0):
-        # dabs = abs(vmax) - abs(vmin)
-        sopt = True
-    else:
-        sopt = None
-    return vmin, vmax, sopt
 
 
 def view(data, lat_lon=True, width=None, height=None, cmap=None):
@@ -65,6 +50,35 @@ def view(data, lat_lon=True, width=None, height=None, cmap=None):
 
     variable_descriptions = var_desc.variable_descriptions
 
+    def _compute_vmin_vmax(da_min, da_max):
+        """Compute min, max, and center for plotting
+
+        Parameters
+        ----------
+        da_min: xr.Dataset
+            data input to calculate the minimum
+        da_max: xr.Dataset
+            data input to calculate the maximum
+
+        Returns
+        -------
+        vmin: int
+            minimum value
+        vmax: int
+            maximum value
+        sopt: bool
+            indicates symmetry if vmin and vmax have opposite signs
+        """
+        vmin = np.nanpercentile(da_min, 1)
+        vmax = np.nanpercentile(da_max, 99)
+        # define center for diverging symmetric data
+        if (vmin < 0) and (vmax > 0):
+            # dabs = abs(vmax) - abs(vmin)
+            sopt = True
+        else:
+            sopt = None
+        return vmin, vmax, sopt
+
     # Warn user about speed if passing a zarr to the function
     if data.chunks is None or str(data.chunks) == "Frozen({})":
         pass
@@ -88,7 +102,7 @@ def view(data, lat_lon=True, width=None, height=None, cmap=None):
             if data.chunks is None or str(data.chunks) == "Frozen({})":
                 min_data = data.min(dim="simulation")
                 max_data = data.max(dim="simulation")
-                vmin, vmax, sopt = compute_vmin_vmax(min_data, max_data)
+                vmin, vmax, sopt = _compute_vmin_vmax(min_data, max_data)
 
         # Set default cmap if no user input
         if cmap is None:
@@ -202,8 +216,5 @@ def view(data, lat_lon=True, width=None, height=None, cmap=None):
             "Default plot could not be generated: input data must contain valid spatial dimensions (x,y and/or lat,lon) and/or time dimensions"
         )
         _plot = None
-
-    # Put plot object into a panel Pane object
-    # _plot_as_pane = pn.Pane(_plot)
 
     return _plot
