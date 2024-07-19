@@ -3,7 +3,7 @@ from climakitae.core.data_load import load
 import xarray as xr
 
 
-def batch_select(selections, points, load_data=True):
+def batch_select(selections, points, load_data=True, progress_bar=True):
     """
     Conducts batch mode analysis on a series of points for a given metric.
 
@@ -47,7 +47,7 @@ def batch_select(selections, points, load_data=True):
 
     # Load in the cells of interest into memory, if desired.
     if load_data:
-        cells_of_interest = load(cells_of_interest)
+        cells_of_interest = load(cells_of_interest, progress_bar=progress_bar)
 
     return cells_of_interest
 
