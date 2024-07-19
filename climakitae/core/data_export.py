@@ -23,194 +23,8 @@ from climakitae.core.paths import (
     export_s3_bucket,
 )
 
-
 xr.set_options(keep_attrs=True)
-
 bytes_per_gigabyte = 1024 * 1024 * 1024
-
-
-def _estimate_file_size(data, format):
-    """
-    Estimate uncompressed file size in gigabytes when exporting `data` in `format`.
-
-    Parameters
-    ----------
-    data : xarray.DataArray or xarray.Dataset
-        data to export to the specified `format`
-    format : str
-        file format ("NetCDF" or "CSV")
-
-    Returns
-    -------
-    float
-        estimated file size in gigabytes
-
-    """
-    if format == "NetCDF":
-        data_size = data.nbytes
-        buffer_size = 100 * 1024 * 1024  # 100 MB for miscellaneous metadata
-        est_file_size = data_size + buffer_size
-
-    elif format == "CSV":
-        pass  # TODO: estimate CSV file size
-
-    return est_file_size / bytes_per_gigabyte
-
-
-def _warn_large_export(file_size, file_size_threshold=5):
-    if file_size > file_size_threshold:
-        print(
-            "WARNING: Estimated file size is "
-            + str(round(file_size, 2))
-            + " GB. This might take a while!"
-        )
-
-
-def _list_n_none_to_string(dic):
-    """Convert list and None to string."""
-    for k, v in dic.items():
-        if isinstance(v, list):
-            dic[k] = str(v)
-        if v is None:
-            dic[k] = ""
-    return dic
-
-
-def _update_attributes(data):
-    """
-    Update data attributes to prevent issues when exporting them to NetCDF.
-
-    Convert list and None attributes to strings. If `time` is a coordinate of
-    `data`, remove any of its `units` attribute. Attributes include global data
-    attributes as well as that of coordinates and data variables.
-
-    Parameters
-    ----------
-    data : xarray.Dataset
-
-    Returns
-    -------
-    None
-
-    Notes
-    -----
-    These attribute updates resolve errors raised when using the scipy engine
-    to write NetCDF files to S3.
-    """
-    data.attrs = _list_n_none_to_string(data.attrs)
-    for coord in data.coords:
-        data[coord].attrs = _list_n_none_to_string(data[coord].attrs)
-    if "time" in data.coords and "units" in data["time"].attrs:
-        del data["time"].attrs["units"]
-
-    for data_var in data.data_vars:
-        data[data_var].attrs = _list_n_none_to_string(data[data_var].attrs)
-
-
-def _unencode_missing_value(d):
-    """Drop `missing_value` encoding, if any, on data object `d`."""
-    try:
-        del d.encoding["missing_value"]
-    except:
-        pass
-
-
-def _update_encoding(data):
-    """
-    Update data encodings to prevent issues when exporting them to NetCDF.
-
-    Drop `missing_value` encoding, if any, on `data` as well as its coordinates
-    and data variables.
-
-    Parameters
-    ----------
-    data : xarray.Dataset
-
-    Returns
-    -------
-    None
-
-    Notes
-    -----
-    These encoding updates resolve errors raised when writing NetCDF files to
-    S3.
-    """
-    _unencode_missing_value(data)
-    for coord in data.coords:
-        _unencode_missing_value(data[coord])
-
-    for data_var in data.data_vars:
-        _unencode_missing_value(data[data_var])
-
-
-def _fillvalue_encoding(data):
-    """
-    Creates FillValue encoding for each variable for export to NetCDF.
-
-    Parameters
-    ----------
-    data : xarray.Dataset
-
-    Returns
-    -------
-    encoding: dict
-    """
-    fill = dict(_FillValue=None)
-    filldict = {coord: fill for coord in data.coords}
-    return filldict
-
-
-def _compression_encoding(data):
-    """
-    Creates compression encoding for each variable for export to NetCDF.
-
-    Parameters
-    ----------
-    data : xarray.Dataset
-
-    Returns
-    -------
-    encoding: dict
-    """
-    comp = dict(zlib=True, complevel=6)
-    compdict = {var: comp for var in data.data_vars}
-    return compdict
-
-
-def _create_presigned_url(bucket_name, object_name, expiration=60 * 60 * 24 * 7):
-    """
-    Generate a presigned URL to share an S3 object.
-
-    Parameters
-    ----------
-    bucket_name : string
-    object_name : string
-    expiration : int, optional
-        Time in seconds for the presigned URL to remain valid. The default is
-        one week.
-
-    Returns
-    -------
-    string
-        Presigned URL. If error, returns None.
-
-    References
-    ----------
-    https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-presigned-urls.html#presigned-urls
-
-    """
-    s3_client = boto3.client("s3")
-    try:
-        url = s3_client.generate_presigned_url(
-            "get_object",
-            Params={"Bucket": bucket_name, "Key": object_name},
-            ExpiresIn=expiration,
-        )
-    except ClientError as e:
-        logging.error(e)
-        return None
-
-    return url
 
 
 def _export_to_netcdf(data, save_name, mode):
@@ -248,12 +62,208 @@ def _export_to_netcdf(data, save_name, mode):
             _data.name = "data"
         _data = _data.to_dataset()
 
+    def _estimate_file_size(data, format):
+        """
+        Estimate uncompressed file size in gigabytes when exporting `data` in `format`.
+
+        Parameters
+        ----------
+        data : xarray.DataArray or xarray.Dataset
+            data to export to the specified `format`
+        format : str
+            file format ("NetCDF" or "CSV")
+
+        Returns
+        -------
+        float
+            estimated file size in gigabytes
+        """
+        if format == "NetCDF":
+            data_size = data.nbytes
+            buffer_size = 100 * 1024 * 1024  # 100 MB for miscellaneous metadata
+            est_file_size = data_size + buffer_size
+
+        elif format == "CSV":
+            pass  # TODO: estimate CSV file size
+
+        return est_file_size / bytes_per_gigabyte
+
     est_file_size = _estimate_file_size(_data, "NetCDF")
     disk_space = shutil.disk_usage(os.path.expanduser("~"))[2] / bytes_per_gigabyte
 
+    def _warn_large_export(file_size, file_size_threshold=5):
+        if file_size > file_size_threshold:
+            print(
+                "WARNING: Estimated file size is "
+                + str(round(file_size, 2))
+                + " GB. This might take a while!"
+            )
+
     _warn_large_export(est_file_size)
+
+    def _update_attributes(data):
+        """
+        Update data attributes to prevent issues when exporting them to NetCDF.
+
+        Convert list and None attributes to strings. If `time` is a coordinate of
+        `data`, remove any of its `units` attribute. Attributes include global data
+        attributes as well as that of coordinates and data variables.
+
+        Parameters
+        ----------
+        data : xarray.Dataset
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        These attribute updates resolve errors raised when using the scipy engine
+        to write NetCDF files to S3.
+        """
+
+        def _list_n_none_to_string(dic):
+            """Convert list and None to string.
+
+            Parameters
+            ----------
+            dic : dict
+
+            Returns
+            -------
+            dict
+            """
+            for k, v in dic.items():
+                if isinstance(v, list):
+                    dic[k] = str(v)
+                if v is None:
+                    dic[k] = ""
+            return dic
+
+        data.attrs = _list_n_none_to_string(data.attrs)
+        for coord in data.coords:
+            data[coord].attrs = _list_n_none_to_string(data[coord].attrs)
+        if "time" in data.coords and "units" in data["time"].attrs:
+            del data["time"].attrs["units"]
+
+        for data_var in data.data_vars:
+            data[data_var].attrs = _list_n_none_to_string(data[data_var].attrs)
+
     _update_attributes(_data)
+
+    def _update_encoding(data):
+        """
+        Update data encodings to prevent issues when exporting them to NetCDF.
+
+        Drop `missing_value` encoding, if any, on `data` as well as its coordinates
+        and data variables.
+
+        Parameters
+        ----------
+        data : xarray.Dataset
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        These encoding updates resolve errors raised when writing NetCDF files to
+        S3.
+        """
+
+        def _unencode_missing_value(d):
+            """Drop `missing_value` encoding, if any, on data object `d`.
+
+            Parameters
+            ----------
+            d : xarray.Dataset
+
+            Returns
+            -------
+            None
+            """
+            try:
+                del d.encoding["missing_value"]
+            except:
+                pass
+
+        _unencode_missing_value(data)
+        for coord in data.coords:
+            _unencode_missing_value(data[coord])
+
+        for data_var in data.data_vars:
+            _unencode_missing_value(data[data_var])
+
     _update_encoding(_data)
+
+    def _fillvalue_encoding(data):
+        """
+        Creates FillValue encoding for each variable for export to NetCDF.
+
+        Parameters
+        ----------
+        data : xarray.Dataset
+
+        Returns
+        -------
+        encoding: dict
+        """
+        fill = dict(_FillValue=None)
+        filldict = {coord: fill for coord in data.coords}
+        return filldict
+
+    def _compression_encoding(data):
+        """
+        Creates compression encoding for each variable for export to NetCDF.
+
+        Parameters
+        ----------
+        data : xarray.Dataset
+
+        Returns
+        -------
+        encoding: dict
+        """
+        comp = dict(zlib=True, complevel=6)
+        compdict = {var: comp for var in data.data_vars}
+        return compdict
+
+    def _create_presigned_url(bucket_name, object_name, expiration=60 * 60 * 24 * 7):
+        """
+        Generate a presigned URL to share an S3 object.
+
+        Parameters
+        ----------
+        bucket_name : string
+        object_name : string
+        expiration : int, optional
+            Time in seconds for the presigned URL to remain valid. The default is
+            one week.
+
+        Returns
+        -------
+        string
+            Presigned URL. If error, returns None.
+
+        References
+        ----------
+        https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-presigned-urls.html#presigned-urls
+
+        """
+        s3_client = boto3.client("s3")
+        try:
+            url = s3_client.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": bucket_name, "Key": object_name},
+                ExpiresIn=expiration,
+            )
+        except ClientError as e:
+            logging.error(e)
+            return None
+
+        return url
 
     file_location = "local"
 
@@ -556,7 +566,6 @@ def _export_to_csv(data, save_name):
     Returns
     -------
     None
-
     """
     # Check file size and avail workspace disk space
     # raise error for not enough space
@@ -620,6 +629,83 @@ def _export_to_csv(data, save_name):
             f"Dataset exceeds Excel limits of {excel_row_limit} rows "
             f"and {excel_column_limit} columns."
         )
+
+    def _metadata_to_file(ds, output_name):
+        """
+        Write NetCDF metadata to a txt file so users can still access it
+        after exporting to a CSV.
+
+        Parameters
+        ----------
+        ds: xr.DataSet
+        output_name: str
+
+        Returns
+        -------
+        None
+        """
+
+        def _rchop(s, suffix):
+            if suffix and s.endswith(suffix):
+                return s[: -len(suffix)]
+            return s
+
+        output_name = _rchop(output_name, ".csv.gz")
+
+        if os.path.exists(output_name + "_metadata.txt"):
+            os.remove(output_name + "_metadata.txt")
+
+        print(
+            "NOTE: File metadata will be written in "
+            + output_name
+            + (
+                "_metadata.txt. We recommend you download this along with "
+                "the CSV for your records."
+            )
+        )
+
+        with open(output_name + "_metadata.txt", "w") as f:
+            f.write("======== Metadata for CSV file " + output_name + " ========")
+            f.write("\n")
+            f.write("\n")
+            f.write("\n")
+            f.write("===== Global file attributes =====")
+            if type(ds) == xr.core.dataarray.DataArray:
+                f.write("\n")
+                f.write("Name: " + ds.name)
+            f.write("\n")
+            for att_keys, att_values in ds.attrs.items():
+                f.write(str(att_keys) + " : " + str(att_values))
+                f.write("\n")
+
+            f.write("\n")
+            f.write("\n")
+            f.write("===== Coordinate descriptions =====")
+            f.write("\n")
+            f.write("Note: coordinate values are in the CSV")
+            f.write("\n")
+
+            for coord in ds.coords:
+                f.write("\n")
+                f.write("== " + str(coord) + " ==")
+                f.write("\n")
+                for att_keys, att_values in ds[coord].attrs.items():
+                    f.write(str(att_keys) + " : " + str(att_values))
+                    f.write("\n")
+
+            if type(ds) == xr.core.dataset.Dataset:
+                f.write("\n")
+                f.write("\n")
+                f.write("===== Variable descriptions =====")
+                f.write("\n")
+
+                for var in ds.data_vars:
+                    f.write("\n")
+                    f.write("== " + str(var) + " ==")
+                    f.write("\n")
+                    for att_keys, att_values in ds[var].attrs.items():
+                        f.write(str(att_keys) + " : " + str(att_values))
+                        f.write("\n")
 
     _metadata_to_file(data, output_path)
     df.to_csv(output_path, compression="gzip")
@@ -706,75 +792,6 @@ def export(data, filename="dataexport", format="NetCDF", mode="auto"):
         _export_to_csv(data, save_name)
 
 
-def _metadata_to_file(ds, output_name):
-    """
-    Write NetCDF metadata to a txt file so users can still access it
-    after exporting to a CSV.
-    """
-
-    def _rchop(s, suffix):
-        if suffix and s.endswith(suffix):
-            return s[: -len(suffix)]
-        return s
-
-    output_name = _rchop(output_name, ".csv.gz")
-
-    if os.path.exists(output_name + "_metadata.txt"):
-        os.remove(output_name + "_metadata.txt")
-
-    print(
-        "NOTE: File metadata will be written in "
-        + output_name
-        + (
-            "_metadata.txt. We recommend you download this along with "
-            "the CSV for your records."
-        )
-    )
-
-    with open(output_name + "_metadata.txt", "w") as f:
-        f.write("======== Metadata for CSV file " + output_name + " ========")
-        f.write("\n")
-        f.write("\n")
-        f.write("\n")
-        f.write("===== Global file attributes =====")
-        if type(ds) == xr.core.dataarray.DataArray:
-            f.write("\n")
-            f.write("Name: " + ds.name)
-        f.write("\n")
-        for att_keys, att_values in ds.attrs.items():
-            f.write(str(att_keys) + " : " + str(att_values))
-            f.write("\n")
-
-        f.write("\n")
-        f.write("\n")
-        f.write("===== Coordinate descriptions =====")
-        f.write("\n")
-        f.write("Note: coordinate values are in the CSV")
-        f.write("\n")
-
-        for coord in ds.coords:
-            f.write("\n")
-            f.write("== " + str(coord) + " ==")
-            f.write("\n")
-            for att_keys, att_values in ds[coord].attrs.items():
-                f.write(str(att_keys) + " : " + str(att_values))
-                f.write("\n")
-
-        if type(ds) == xr.core.dataset.Dataset:
-            f.write("\n")
-            f.write("\n")
-            f.write("===== Variable descriptions =====")
-            f.write("\n")
-
-            for var in ds.data_vars:
-                f.write("\n")
-                f.write("== " + str(var) + " ==")
-                f.write("\n")
-                for att_keys, att_values in ds[var].attrs.items():
-                    f.write(str(att_keys) + " : " + str(att_values))
-                    f.write("\n")
-
-
 ## TMY export functions
 def _grab_dem_elev_m(lat, lon):
     """
@@ -802,101 +819,6 @@ def _grab_dem_elev_m(lat, lon):
         dem_elev_short = np.round(dem_elev_long, decimals=2)
 
     return dem_elev_short.astype("float")
-
-
-def _utc_offset_timezone(lat, lon):
-    """
-    Based on user input of lat lon, returns the UTC offset for that timezone
-    Modified from:
-    https://stackoverflow.com/questions/5537876/get-utc-offset-from-time-zone-name-in-python
-    """
-    tf = TimezoneFinder()
-    tzn = tf.timezone_at(lng=lon, lat=lat)
-
-    time_now = datetime.datetime.now(pytz.timezone(tzn))
-    tz_offset = time_now.utcoffset().total_seconds() / 60 / 60
-
-    diff = "{:d}".format(int(tz_offset))
-
-    return diff
-
-
-def _tmy_header(
-    location_name, station_code, stn_lat, stn_lon, state, timezone, elevation, df
-):
-    """
-    Constructs the header for the TMY output file in .tmy format
-    Source: https://www.nrel.gov/docs/fy08osti/43156.pdf (pg. 3)
-    """
-
-    # line 1 - site information
-    # line 1: USAF, station name quote delimited, state, time zone, lat, lon, elev (m)
-    line_1 = "{0},'{1}',{2},{3},{4},{5},{6},{7}\n".format(
-        station_code,
-        location_name,
-        state,
-        timezone,
-        stn_lat,
-        stn_lon,
-        elevation,
-        df["simulation"].values[0],
-    )
-
-    # line 2 - data field name and units, manually setting to ensure matches TMY3 labeling
-    line_2 = "Air Temperature at 2m (degC),Dew point temperature (degC),Relative humidity (%),Instantaneous downwelling shortwave flux at bottom (W m-2),Shortwave surface downward direct normal irradiance (W m-2),Shortwave surface downward diffuse irradiance (W m-2),Instantaneous downwelling longwave flux at bottom (W m-2),Wind speed at 10m (m s-1),Wind direction at 10m (deg),Surface Pressure (Pa)\n"
-
-    headers = [line_1, line_2]
-
-    return headers
-
-
-def _epw_header(
-    location_name, station_code, stn_lat, stn_lon, state, timezone, elevation, df
-):
-    """
-    Constructs the header for the TMY output file in .epw format
-    Source: EnergyPlus Version 23.1.0 Documentation
-    """
-
-    # line 1 - location, location name, state, country, WMO, lat, lon
-    # line 1 - location, location name, state, country, weather station number (2 cols), lat, lon, time zone, elevation
-    line_1 = "LOCATION,{0},{1},USA,{2},{3},{4},{5},{6},{7}\n".format(
-        location_name.upper(),
-        state,
-        "Custom_{}".format(station_code),
-        station_code,
-        stn_lat,
-        stn_lon,
-        timezone,
-        elevation,
-    )
-
-    # line 2 - design conditions, leave blank for now
-    line_2 = "DESIGN CONDITIONS\n"
-
-    # line 3 - typical/extreme periods, leave blank for now
-    line_3 = "TYPICAL/EXTREME PERIODS\n"
-
-    # line 4 - ground temperatures, leave blank for now
-    line_4 = "GROUND TEMPERATURES\n"
-
-    # line 5 - holidays/daylight savings, leap year (yes/no), daylight savings start, daylight savings end, num of holidays
-    line_5 = "HOLIDAYS/DAYLIGHT SAVINGS,No,0,0,0\n"
-
-    # line 6 - comments 1, going to include simulation + scenario information here
-    line_6 = "COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Scenario: {0}, Simulation: {1}\n".format(
-        df["scenario"].values[0], df["simulation"].values[0]
-    )
-
-    # line 7 - comments 2, including date range here from which TMY calculated
-    line_7 = "COMMENTS 2, TMY data produced using 1990-2020 climatological period\n"
-
-    # line 8 - data periods, num data periods, num records per hour, data period name, data period start day of week, data period start (Jan 1), data period end (Dec 31)
-    line_8 = "DATA PERIODS,1,1,Data,,1/ 1,12/31\n"
-
-    headers = [line_1, line_2, line_3, line_4, line_5, line_6, line_7, line_8]
-
-    return headers
 
 
 def _epw_format_data(df):
@@ -1167,7 +1089,7 @@ def write_tmy_file(
     """Exports TMY data either as .epw or .tmy file
 
     Parameters
-    ---------
+    ----------
     filename_to_export (str): Filename string, constructed with station name and simulation
     df (pd.DataFrame): Dataframe of TMY data to export
     location_name (str): Location name string, often station name
@@ -1194,6 +1116,32 @@ def write_tmy_file(
     # size check on TMY dataframe
     df = _tmy_8760_size_check(df)
 
+    def _utc_offset_timezone(lat, lon):
+        """
+        Based on user input of lat lon, returns the UTC offset for that timezone
+
+        Parameters
+        ----------
+        lat: float
+        lon: float
+
+        Returns
+        -------
+        str
+
+        Modified from:
+        https://stackoverflow.com/questions/5537876/get-utc-offset-from-time-zone-name-in-python
+        """
+        tf = TimezoneFinder()
+        tzn = tf.timezone_at(lng=lon, lat=lat)
+
+        time_now = datetime.datetime.now(pytz.timezone(tzn))
+        tz_offset = time_now.utcoffset().total_seconds() / 60 / 60
+
+        diff = "{:d}".format(int(tz_offset))
+
+        return diff
+
     # custom location input handling
     if type(station_code) == str:  # custom code passed
         station_code = station_code
@@ -1214,6 +1162,114 @@ def write_tmy_file(
             ].values[0]
             station_code = str(station_code)[:6]
             timezone = _utc_offset_timezone(lon=stn_lon, lat=stn_lat)
+
+    def _tmy_header(
+        location_name, station_code, stn_lat, stn_lon, state, timezone, elevation, df
+    ):
+        """
+        Constructs the header for the TMY output file in .tmy format
+
+        Parameters
+        ----------
+        location_name: str
+        station_code: int
+        stn_lat: float
+        stn_lon: float
+        state: str
+        timezone: str
+        elevation: float
+        df: pd.DataFrame
+
+        Returns
+        -------
+        headers: list of strs
+
+        Source: https://www.nrel.gov/docs/fy08osti/43156.pdf (pg. 3)
+        """
+
+        # line 1 - site information
+        # line 1: USAF, station name quote delimited, state, time zone, lat, lon, elev (m)
+        line_1 = "{0},'{1}',{2},{3},{4},{5},{6},{7}\n".format(
+            station_code,
+            location_name,
+            state,
+            timezone,
+            stn_lat,
+            stn_lon,
+            elevation,
+            df["simulation"].values[0],
+        )
+
+        # line 2 - data field name and units, manually setting to ensure matches TMY3 labeling
+        line_2 = "Air Temperature at 2m (degC),Dew point temperature (degC),Relative humidity (%),Instantaneous downwelling shortwave flux at bottom (W m-2),Shortwave surface downward direct normal irradiance (W m-2),Shortwave surface downward diffuse irradiance (W m-2),Instantaneous downwelling longwave flux at bottom (W m-2),Wind speed at 10m (m s-1),Wind direction at 10m (deg),Surface Pressure (Pa)\n"
+
+        headers = [line_1, line_2]
+
+        return headers
+
+    def _epw_header(
+        location_name, station_code, stn_lat, stn_lon, state, timezone, elevation, df
+    ):
+        """
+        Constructs the header for the TMY output file in .epw format
+
+        Parameters
+        ----------
+        location_name: str
+        station_code: int
+        stn_lat: float
+        stn_lon: float
+        state: str
+        timezone: str
+        elevation: float
+        df: pd.DataFrame
+
+        Returns
+        -------
+        headers: list of strs
+
+        Source: EnergyPlus Version 23.1.0 Documentation
+        """
+
+        # line 1 - location, location name, state, country, WMO, lat, lon
+        # line 1 - location, location name, state, country, weather station number (2 cols), lat, lon, time zone, elevation
+        line_1 = "LOCATION,{0},{1},USA,{2},{3},{4},{5},{6},{7}\n".format(
+            location_name.upper(),
+            state,
+            "Custom_{}".format(station_code),
+            station_code,
+            stn_lat,
+            stn_lon,
+            timezone,
+            elevation,
+        )
+
+        # line 2 - design conditions, leave blank for now
+        line_2 = "DESIGN CONDITIONS\n"
+
+        # line 3 - typical/extreme periods, leave blank for now
+        line_3 = "TYPICAL/EXTREME PERIODS\n"
+
+        # line 4 - ground temperatures, leave blank for now
+        line_4 = "GROUND TEMPERATURES\n"
+
+        # line 5 - holidays/daylight savings, leap year (yes/no), daylight savings start, daylight savings end, num of holidays
+        line_5 = "HOLIDAYS/DAYLIGHT SAVINGS,No,0,0,0\n"
+
+        # line 6 - comments 1, going to include simulation + scenario information here
+        line_6 = "COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Scenario: {0}, Simulation: {1}\n".format(
+            df["scenario"].values[0], df["simulation"].values[0]
+        )
+
+        # line 7 - comments 2, including date range here from which TMY calculated
+        line_7 = "COMMENTS 2, TMY data produced using 1990-2020 climatological period\n"
+
+        # line 8 - data periods, num data periods, num records per hour, data period name, data period start day of week, data period start (Jan 1), data period end (Dec 31)
+        line_8 = "DATA PERIODS,1,1,Data,,1/ 1,12/31\n"
+
+        headers = [line_1, line_2, line_3, line_4, line_5, line_6, line_7, line_8]
+
+        return headers
 
     # typical meteorological year format
     if file_ext == "tmy":
@@ -1242,7 +1298,6 @@ def write_tmy_file(
                 filename_to_export, len(df)
             )
         )
-
     # energy plus weather format
     elif file_ext == "epw":
         path_to_file = filename_to_export + ".epw"
