@@ -176,7 +176,6 @@ def compute_relative_humidity(pressure, temperature, mixing_ratio, name="rh_deri
 
     # Reset unrealistically low relative humidity values
     # Lowest recorded relative humidity value in CA is 0.8%
-    import pdb; pdb.set_trace()
     rel_hum = xr.where(rel_hum > 0.5, rel_hum, 0.5)
 
     # Reset values above 100 to 100
