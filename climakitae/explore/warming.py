@@ -147,7 +147,7 @@ class WarmingLevels:
             cmap=self.cmap,
             warming_levels=self.wl_params.warming_levels,
         )
-        # self.wl_viz.compute_stamps()
+        self.wl_viz.compute_stamps()
         return warming_levels_visualize(self.wl_viz)
 
 
@@ -411,7 +411,6 @@ class WarmingLevelVisualize(param.Parameterized):
         ],
         doc="Shared Socioeconomic Pathway.",
     )
-    print(1)
 
     def __init__(self, gwl_snapshots, wl_params, cmap, warming_levels):
         """
@@ -425,11 +424,6 @@ class WarmingLevelVisualize(param.Parameterized):
         self.gwl_snapshots = gwl_snapshots
         self.wl_params = wl_params
         self.warming_levels = warming_levels
-        
-        # Overriding `self.warmlevel` to be filled with dynamically populated values
-        self.param.warmlevel.objects = [float(wl) for wl in self.warming_levels]
-        self.warmlevel = float(warming_levels[0])
-        # self.param.warmlevel = float(warming_levels[0])
         self.cmap = cmap
         some_dims = self.gwl_snapshots.dims  # different names depending on WRF/LOCA
         some_dims = list(some_dims)
