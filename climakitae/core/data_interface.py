@@ -29,6 +29,12 @@ from climakitae.core.data_load import (
     read_catalog_from_select,
 )
 
+# Remove param's parameter descriptions from docstring because
+# ANSI escape sequences in them complicate their rendering
+param.parameterized.docstring_describe_params = False
+# Docstring signatures are also hard to read and therefore removed
+param.parameterized.docstring_signature = False
+
 
 def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
     """Using the data catalog, get a list of appropriate scenario and simulation options given a user's
@@ -967,6 +973,9 @@ class DataParameters(param.Parameterized):
         """
         Update scenario options. Raise data warning if a bad selection is made.
         """
+        # Set incoming scenario_historical
+        _scenario_historical = self.scenario_historical
+
         # Get scenario options in catalog format
         scenario_ssp_options = [
             scenario_to_experiment_id(scen, reverse=True)
@@ -991,7 +1000,22 @@ class DataParameters(param.Parameterized):
             if scen in historical_scenarios
         ]
         self.param["scenario_historical"].objects = scenario_historical_options
-        if self.scenario_historical not in scenario_historical_options:
+
+        # check if input historical scenarios match new available scenarios
+        # if no reanalysis scenario then return False
+        def _check_inputs(a, b):
+            chk = False
+            if len(b) < 2:
+                return chk
+            for i in a:
+                if i in a:
+                    chk = True
+            return chk
+
+        # check if new selection has the historical scenario options and if not select the first new option
+        if _check_inputs(_scenario_historical, scenario_historical_options):
+            self.scenario_historical = _scenario_historical
+        else:
             self.scenario_historical = [scenario_historical_options[0]]
 
     @param.depends(
