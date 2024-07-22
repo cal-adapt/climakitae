@@ -13,14 +13,12 @@ import dask
 import calendar
 
 from climakitae.core.data_load import (
-    read_catalog_from_select,
     load,
 )
 from climakitae.core.data_interface import (
     DataParametersWithPanes,
     _selections_param_to_panel,
 )
-from climakitae.core.data_view import compute_vmin_vmax
 from climakitae.util.utils import (
     read_csv_file,
     read_ae_colormap,
@@ -125,11 +123,10 @@ class WarmingLevels:
         ):
             warm_slice = self.find_warming_slice(level, self.gwl_times)
             if self.wl_params.load_data:
-                warm_slice = load(warm_slice)
+                warm_slice = load(warm_slice, progress_bar=True)
 
-            # Dropping simulations that only have NaNs
-            # warm_slice = warm_slice.dropna(dim="all_sims", how="all")
-            # self.gwl_snapshots[level] = warm_slice.reduce(np.nanmean, "time")
+            # Add GWL snapshots
+            self.gwl_snapshots[level] = warm_slice.mean(dim="time", skipna=True)
 
             # Renaming time dimension for warming slice once "time" is all computed on
             freq_strs = {"monthly": "months", "daily": "days", "hourly": "hours"}
@@ -138,17 +135,19 @@ class WarmingLevels:
             )
             self.sliced_data[level] = warm_slice
 
-        # self.gwl_snapshots = xr.concat(self.gwl_snapshots.values(), dim="warming_level")
+        self.gwl_snapshots = xr.concat(self.gwl_snapshots.values(), dim="warming_level")
 
     def visualize(self):
         self.cmap = _get_cmap(self.wl_params)
+        print("Loading in GWL snapshots...")
+        self.gwl_snapshots = load(self.gwl_snapshots, progress_bar=True)
         self.wl_viz = WarmingLevelVisualize(
             gwl_snapshots=self.gwl_snapshots,
             wl_params=self.wl_params,
             cmap=self.cmap,
             warming_levels=self.wl_params.warming_levels,
         )
-        self.wl_viz.compute_stamps()
+        # self.wl_viz.compute_stamps()
         return warming_levels_visualize(self.wl_viz)
 
 
@@ -385,8 +384,6 @@ class WarmingLevelChoose(DataParametersWithPanes):
 
 
 class WarmingLevelVisualize(param.Parameterized):
-    """Create Warming Levels panel GUI"""
-
     ## Intended to be accessed through WarmingLevels class.
     ## Allows the user to toggle between several data options.
     ## Produces dynamically updating gwl snapshot maps.
@@ -414,6 +411,7 @@ class WarmingLevelVisualize(param.Parameterized):
         ],
         doc="Shared Socioeconomic Pathway.",
     )
+    print(1)
 
     def __init__(self, gwl_snapshots, wl_params, cmap, warming_levels):
         """
@@ -427,14 +425,17 @@ class WarmingLevelVisualize(param.Parameterized):
         self.gwl_snapshots = gwl_snapshots
         self.wl_params = wl_params
         self.warming_levels = warming_levels
+        
+        # Overriding `self.warmlevel` to be filled with dynamically populated values
+        self.param.warmlevel.objects = [float(wl) for wl in self.warming_levels]
+        self.warmlevel = float(warming_levels[0])
+        # self.param.warmlevel = float(warming_levels[0])
         self.cmap = cmap
         some_dims = self.gwl_snapshots.dims  # different names depending on WRF/LOCA
         some_dims = list(some_dims)
         some_dims.remove("warming_level")
         self.mins = self.gwl_snapshots.min(some_dims).compute()
         self.maxs = self.gwl_snapshots.max(some_dims).compute()
-
-    def compute_stamps(self):
         self.main_stamps = GCM_PostageStamps_MAIN_compute(self)
         self.stats_stamps = GCM_PostageStamps_STATS_compute(self)
 
