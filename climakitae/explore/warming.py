@@ -13,14 +13,12 @@ import dask
 import calendar
 
 from climakitae.core.data_load import (
-    read_catalog_from_select,
     load,
 )
 from climakitae.core.data_interface import (
     DataParametersWithPanes,
     _selections_param_to_panel,
 )
-from climakitae.core.data_view import compute_vmin_vmax
 from climakitae.util.utils import (
     read_csv_file,
     read_ae_colormap,
@@ -125,11 +123,10 @@ class WarmingLevels:
         ):
             warm_slice = self.find_warming_slice(level, self.gwl_times)
             if self.wl_params.load_data:
-                warm_slice = load(warm_slice)
+                warm_slice = load(warm_slice, progress_bar=True)
 
-            # Dropping simulations that only have NaNs
-            # warm_slice = warm_slice.dropna(dim="all_sims", how="all")
-            # self.gwl_snapshots[level] = warm_slice.reduce(np.nanmean, "time")
+            # Add GWL snapshots
+            self.gwl_snapshots[level] = warm_slice.mean(dim="time", skipna=True)
 
             # Renaming time dimension for warming slice once "time" is all computed on
             freq_strs = {"monthly": "months", "daily": "days", "hourly": "hours"}
@@ -138,10 +135,12 @@ class WarmingLevels:
             )
             self.sliced_data[level] = warm_slice
 
-        # self.gwl_snapshots = xr.concat(self.gwl_snapshots.values(), dim="warming_level")
+        self.gwl_snapshots = xr.concat(self.gwl_snapshots.values(), dim="warming_level")
 
     def visualize(self):
         self.cmap = _get_cmap(self.wl_params)
+        print("Loading in GWL snapshots...")
+        self.gwl_snapshots = load(self.gwl_snapshots, progress_bar=True)
         self.wl_viz = WarmingLevelVisualize(
             gwl_snapshots=self.gwl_snapshots,
             wl_params=self.wl_params,
