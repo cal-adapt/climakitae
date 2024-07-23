@@ -774,26 +774,6 @@ def drop_invalid_wrf_sims(ds):
     if ds.resolution == "3 km":
         return ds
 
-    if ds.resolution == "45 km":
-        valid_sims = [
-            ("WRF_CESM2_r11i1p1f1", "Historical + SSP 2-4.5 -- Middle of the Road"),
-            ("WRF_CNRM-ESM2-1_r1i1p1f2", "Historical + SSP 3-7.0 -- Business as Usual"),
-            (
-                "WRF_EC-Earth3-Veg_r1i1p1f1",
-                "Historical + SSP 3-7.0 -- Business as Usual",
-            ),
-            ("WRF_CESM2_r11i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
-            ("WRF_FGOALS-g3_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
-            ("WRF_CESM2_r11i1p1f1", "Historical + SSP 5-8.5 -- Burn it All"),
-        ]
-        if ds.frequency == "hourly":
-            valid_sims += (
-                (
-                    "WRF_EC-Earth3_r1i1p1f1",
-                    "Historical + SSP 3-7.0 -- Business as Usual",
-                ),
-            )
-
     if ds.resolution == "9 km":
         valid_sims = [
             ("WRF_CESM2_r11i1p1f1", "Historical + SSP 2-4.5 -- Middle of the Road"),
@@ -819,5 +799,25 @@ def drop_invalid_wrf_sims(ds):
                 ),
                 ("WRF_TaiESM1_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
             ]
+
+    if ds.resolution == "45 km":
+        valid_sims = [
+            ("WRF_CESM2_r11i1p1f1", "Historical + SSP 2-4.5 -- Middle of the Road"),
+            ("WRF_CNRM-ESM2-1_r1i1p1f2", "Historical + SSP 3-7.0 -- Business as Usual"),
+            (
+                "WRF_EC-Earth3-Veg_r1i1p1f1",
+                "Historical + SSP 3-7.0 -- Business as Usual",
+            ),
+            ("WRF_CESM2_r11i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
+            ("WRF_FGOALS-g3_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
+            ("WRF_CESM2_r11i1p1f1", "Historical + SSP 5-8.5 -- Burn it All"),
+        ]
+        if ds.frequency == "hourly":
+            valid_sims += (
+                (
+                    "WRF_EC-Earth3_r1i1p1f1",
+                    "Historical + SSP 3-7.0 -- Business as Usual",
+                ),
+            )
 
     return ds.sel(all_sims=valid_sims)
