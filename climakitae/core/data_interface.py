@@ -27,10 +27,6 @@ from climakitae.core.data_load import (
 )
 
 from climakitae.util.utils import (
-    scenario_to_experiment_id,
-    resolution_to_gridlabel,
-    timescale_to_table_id,
-    downscaling_method_to_activity_id,
     downscaling_method_as_list,
     read_csv_file,
 )
@@ -75,9 +71,9 @@ def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
     # Get catalog subset from user inputs
     with warnings.catch_warnings(record=True):
         cat_subset = data_catalog.search(
-            activity_id=[downscaling_method_to_activity_id(dm) for dm in method_list],
-            table_id=timescale_to_table_id(timescale),
-            grid_label=resolution_to_gridlabel(resolution),
+            activity_id=[_downscaling_method_to_activity_id(dm) for dm in method_list],
+            table_id=_timescale_to_table_id(timescale),
+            grid_label=_resolution_to_gridlabel(resolution),
         )
 
     # For LOCA grid we need to use the UCSD institution ID
@@ -720,7 +716,7 @@ class DataParameters(param.Parameterized):
 
         # Set scenario param
         scenario_ssp_options = [
-            scenario_to_experiment_id(scen, reverse=True)
+            _scenario_to_experiment_id(scen, reverse=True)
             for scen in self.scenario_options
             if "ssp" in scen
         ]
@@ -987,7 +983,7 @@ class DataParameters(param.Parameterized):
 
         # Get scenario options in catalog format
         scenario_ssp_options = [
-            scenario_to_experiment_id(scen, reverse=True)
+            _scenario_to_experiment_id(scen, reverse=True)
             for scen in self.scenario_options
             if "ssp" in scen
         ]
@@ -1004,7 +1000,7 @@ class DataParameters(param.Parameterized):
 
         historical_scenarios = ["historical", "reanalysis"]
         scenario_historical_options = [
-            scenario_to_experiment_id(scen, reverse=True)
+            _scenario_to_experiment_id(scen, reverse=True)
             for scen in self.scenario_options
             if scen in historical_scenarios
         ]
@@ -1600,16 +1596,16 @@ def _get_user_friendly_catalog(intake_catalog, variable_descriptions):
     # Create new, user friendly catalog in pandas DataFrame format
     cat_df_cleaned = pd.DataFrame()
     cat_df_cleaned["downscaling_method"] = cat_df["activity_id"].apply(
-        lambda x: downscaling_method_to_activity_id(x, reverse=True)
+        lambda x: _downscaling_method_to_activity_id(x, reverse=True)
     )
     cat_df_cleaned["resolution"] = cat_df["grid_label"].apply(
-        lambda x: resolution_to_gridlabel(x, reverse=True)
+        lambda x: _resolution_to_gridlabel(x, reverse=True)
     )
     cat_df_cleaned["timescale"] = cat_df["table_id"].apply(
-        lambda x: timescale_to_table_id(x, reverse=True)
+        lambda x: _timescale_to_table_id(x, reverse=True)
     )
     cat_df_cleaned["scenario"] = cat_df["experiment_id"].apply(
-        lambda x: scenario_to_experiment_id(x, reverse=True)
+        lambda x: _scenario_to_experiment_id(x, reverse=True)
     )
     cat_df_cleaned["variable_id"] = cat_df["variable_id"]
 
@@ -1757,7 +1753,6 @@ def get_data_options(
             continue  # Don't finish the loop
         # If the input value is not in the valid options, see if you can help the user out
         elif val not in valid_options:
-
             # Perhaps they didn't capitalize it correctly?
             if val.lower().capitalize() in valid_options:
                 d[key] = [val.lower().capitalize()]
@@ -1982,7 +1977,7 @@ def get_data(
         units = var_pd_query["unit"].item()
 
     # Create selections object
-    selections = Select()
+    selections = DataParameters()
 
     # Defaults
     selections.area_average = area_average
@@ -2010,3 +2005,106 @@ def get_data(
     # Retrieve data
     data = selections.retrieve()
     return data
+
+
+### ============== convert between climakitae naming conventions and intake naming conventions ========
+
+
+def _downscaling_method_to_activity_id(downscaling_method, reverse=False):
+    """Convert downscaling method to activity id to match catalog names
+
+    Parameters
+    -----------
+    downscaling_method: str
+    reverse: boolean, optional
+        Set reverse=True to get downscaling method from input activity_id
+        Default to False
+
+    Returns
+    --------
+    str
+    """
+    downscaling_dict = {"Dynamical": "WRF", "Statistical": "LOCA2"}
+
+    if reverse == True:
+        downscaling_dict = {v: k for k, v in downscaling_dict.items()}
+    return downscaling_dict[downscaling_method]
+
+
+def _resolution_to_gridlabel(resolution, reverse=False):
+    """Convert resolution format to grid_label format matching catalog names.
+
+    Parameters
+    -----------
+    resolution: str
+    reverse: boolean, optional
+        Set reverse=True to get resolution format from input grid_label.
+        Default to False
+
+    Returns
+    -------
+    str
+
+    """
+    res_dict = {"45 km": "d01", "9 km": "d02", "3 km": "d03"}
+
+    if reverse == True:
+        res_dict = {v: k for k, v in res_dict.items()}
+    return res_dict[resolution]
+
+
+def _timescale_to_table_id(timescale, reverse=False):
+    """Convert resolution format to table_id format matching catalog names.
+
+    Paramaters
+    ----------
+    timescale: str
+    reverse: boolean, optional
+        Set reverse=True to get resolution format from input table_id.
+        Default to False
+
+    Returns
+    -------
+    str
+
+    """
+    # yearly max is not an option in the Selections GUI, but its included here to make parsing through the data easier for the non-GUI data access/view options
+    timescale_dict = {
+        "monthly": "mon",
+        "daily": "day",
+        "hourly": "1hr",
+        "yearly_max": "yrmax",
+    }
+
+    if reverse == True:
+        timescale_dict = {v: k for k, v in timescale_dict.items()}
+    return timescale_dict[timescale]
+
+
+def _scenario_to_experiment_id(scenario, reverse=False):
+    """
+    Convert scenario format to experiment_id format matching catalog names.
+
+    Parameters
+    ----------
+    scenario: str
+    reverse: boolean, optional
+        Set reverse=True to get scenario format from input experiement_id.
+        Default to False
+
+    Returns
+    -------
+    str
+
+    """
+    scenario_dict = {
+        "Historical Reconstruction": "reanalysis",
+        "Historical Climate": "historical",
+        "SSP 2-4.5 -- Middle of the Road": "ssp245",
+        "SSP 5-8.5 -- Burn it All": "ssp585",
+        "SSP 3-7.0 -- Business as Usual": "ssp370",
+    }
+
+    if reverse == True:
+        scenario_dict = {v: k for k, v in scenario_dict.items()}
+    return scenario_dict[scenario]

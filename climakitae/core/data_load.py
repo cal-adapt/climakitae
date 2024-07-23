@@ -21,12 +21,15 @@ from climakitae.util.utils import (
     readable_bytes,
     get_closest_gridcell,
     area_average,
-    scenario_to_experiment_id,
-    resolution_to_gridlabel,
-    timescale_to_table_id,
-    downscaling_method_to_activity_id,
     downscaling_method_as_list,
 )
+from climakitae.core.data_interface import (
+    _scenario_to_experiment_id,
+    _resolution_to_gridlabel,
+    _timescale_to_table_id,
+    _downscaling_method_to_activity_id,
+)
+
 from climakitae.tools.derived_variables import (
     compute_relative_humidity,
     compute_wind_mag,
@@ -191,10 +194,10 @@ def _get_cat_subset(selections):
 
     # Get catalog keys
     # Convert user-friendly names to catalog names (i.e. "45 km" to "d01")
-    activity_id = [downscaling_method_to_activity_id(dm) for dm in method_list]
-    table_id = timescale_to_table_id(selections.timescale)
-    grid_label = resolution_to_gridlabel(selections.resolution)
-    experiment_id = [scenario_to_experiment_id(x) for x in scenario_selections]
+    activity_id = [_downscaling_method_to_activity_id(dm) for dm in method_list]
+    table_id = _timescale_to_table_id(selections.timescale)
+    grid_label = _resolution_to_gridlabel(selections.resolution)
+    experiment_id = [_scenario_to_experiment_id(x) for x in scenario_selections]
     source_id = selections.simulation
     variable_id = selections.variable_id
 
@@ -461,7 +464,7 @@ def _concat_sims(data_dict, hist_data, selections, scenario):
     one_scenario: xr.Dataset
         combined data object
     """
-    scen_name = scenario_to_experiment_id(scenario, reverse=True)
+    scen_name = _scenario_to_experiment_id(scenario, reverse=True)
 
     # Merge along expanded 'member_id' dimension:
     one_scenario = xr.concat(
@@ -664,12 +667,12 @@ def _get_data_one_var(selections):
         method_list = downscaling_method_as_list(selections.downscaling_method)
 
         cat_subset2 = selections._data_catalog.search(
-            activity_id=[downscaling_method_to_activity_id(dm) for dm in method_list],
-            table_id=timescale_to_table_id(selections.timescale),
-            grid_label=resolution_to_gridlabel(selections.resolution),
+            activity_id=[_downscaling_method_to_activity_id(dm) for dm in method_list],
+            table_id=_timescale_to_table_id(selections.timescale),
+            grid_label=_resolution_to_gridlabel(selections.resolution),
             variable_id=selections.variable_id,
             experiment_id=[
-                scenario_to_experiment_id(x) for x in selections.scenario_ssp
+                _scenario_to_experiment_id(x) for x in selections.scenario_ssp
             ],
             source_id=["CESM2"],
         )
