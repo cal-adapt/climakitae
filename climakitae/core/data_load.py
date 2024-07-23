@@ -22,8 +22,6 @@ from climakitae.util.utils import (
     get_closest_gridcell,
     area_average,
     downscaling_method_as_list,
-)
-from climakitae.core.data_interface import (
     _scenario_to_experiment_id,
     _resolution_to_gridlabel,
     _timescale_to_table_id,
