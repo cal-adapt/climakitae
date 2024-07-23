@@ -725,10 +725,6 @@ def add_dummy_time_to_wl(wl_da):
     wl_da = wl_da.assign_coords({wl_time_dim: timestamps}).rename({wl_time_dim: "time"})
     return wl_da
 
-
-### ============== convert between climakitae naming conventions and intake naming conventions ========
-
-
 def _downscaling_method_to_activity_id(downscaling_method, reverse=False):
     """Convert downscaling method to activity id to match catalog names
 
@@ -827,3 +823,59 @@ def _scenario_to_experiment_id(scenario, reverse=False):
     if reverse == True:
         scenario_dict = {v: k for k, v in scenario_dict.items()}
     return scenario_dict[scenario]
+=======
+def drop_invalid_wrf_sims(ds):
+    """
+    Drops invalid WRF simulations from the given dataset since there is an unequal number of simulations per SSP.
+
+    Parameters:
+    ds (xarray.Dataset): The dataset containing WRF simulations. The dataset must have a dimension `all_sims` that
+                         results from stacking `simulation` and `scenario`.
+
+    Returns:
+    xarray.Dataset: The dataset with only valid WRF simulations retained.
+
+    Raises:
+    AttributeError: If the dataset does not have an `all_sims` dimension.
+
+    Notes:
+    - For datasets with a resolution of '3 km', no simulations are dropped, and the original dataset is returned.
+    - For datasets with a resolution of '9 km', only specific valid simulations are retained.
+    - For datasets with a resolution of '45 km', only specific valid simulations are retained.
+    """
+    if "all_sims" not in ds.dims:
+        raise AttributeError(
+            "Missing an `all_sims` dimension on the dataset. Create `all_sims` with .stack on `simulation` and `scenario`."
+        )
+
+    # There are no simulations that need to be dropped at a `3 km` resolution, since the only simulations are in SSP 3-7.0.
+    if ds.resolution == "3 km":
+        return ds
+
+    valid_45km = [
+        ("WRF_CESM2_r11i1p1f1", "Historical + SSP 2-4.5 -- Middle of the Road"),
+        ("WRF_CNRM-ESM2-1_r1i1p1f2", "Historical + SSP 3-7.0 -- Business as Usual"),
+        ("WRF_EC-Earth3-Veg_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
+        ("WRF_CESM2_r11i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
+        ("WRF_EC-Earth3_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
+        ("WRF_FGOALS-g3_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
+        ("WRF_CESM2_r11i1p1f1", "Historical + SSP 5-8.5 -- Burn it All"),
+    ]
+
+    valid_9km = [
+        ("WRF_CESM2_r11i1p1f1", "Historical + SSP 2-4.5 -- Middle of the Road"),
+        ("WRF_CESM2_r11i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
+        ("WRF_CESM2_r11i1p1f1", "Historical + SSP 5-8.5 -- Burn it All"),
+        ("WRF_CNRM-ESM2-1_r1i1p1f2", "Historical + SSP 3-7.0 -- Business as Usual"),
+        ("WRF_EC-Earth3-Veg_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
+        ("WRF_EC-Earth3_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
+        ("WRF_FGOALS-g3_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
+        ("WRF_MIROC6_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
+        ("WRF_MPI-ESM1-2-HR_r3i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
+        ("WRF_TaiESM1_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
+    ]
+
+    if ds.resolution == "9 km":
+        return ds.sel(all_sims=valid_9km)
+    elif ds.resolution == "45 km":
+        return ds.sel(all_sims=valid_45km)

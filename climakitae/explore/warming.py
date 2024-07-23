@@ -26,6 +26,7 @@ from climakitae.util.utils import (
     read_ae_colormap,
     area_average,
     scenario_to_experiment_id,
+    drop_invalid_wrf_sims,
 )
 from climakitae.core.paths import (
     gwl_1981_2010_file,
@@ -111,6 +112,11 @@ class WarmingLevels:
         # Postage data and anomalies
         self.catalog_data = self.wl_params.retrieve()
         self.catalog_data = self.catalog_data.stack(all_sims=["simulation", "scenario"])
+
+        # For WRF, dropping invalid simulations before doing any other computation
+        if self.wl_params.downscaling_method == "Dynamical":
+            self.catalog_data = drop_invalid_wrf_sims(self.catalog_data)
+
         if self.wl_params.anom == "Yes":
             self.gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
         else:
