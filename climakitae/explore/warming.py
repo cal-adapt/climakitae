@@ -384,6 +384,8 @@ class WarmingLevelChoose(DataParametersWithPanes):
 
 
 class WarmingLevelVisualize(param.Parameterized):
+    """Create Warming Levels panel GUI"""
+
     ## Intended to be accessed through WarmingLevels class.
     ## Allows the user to toggle between several data options.
     ## Produces dynamically updating gwl snapshot maps.
@@ -430,6 +432,8 @@ class WarmingLevelVisualize(param.Parameterized):
         some_dims.remove("warming_level")
         self.mins = self.gwl_snapshots.min(some_dims).compute()
         self.maxs = self.gwl_snapshots.max(some_dims).compute()
+
+    def compute_stamps(self):
         self.main_stamps = GCM_PostageStamps_MAIN_compute(self)
         self.stats_stamps = GCM_PostageStamps_STATS_compute(self)
 
