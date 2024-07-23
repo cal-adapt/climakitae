@@ -96,7 +96,7 @@ def _scenarios_in_data_dict(keys):
         list of dataset names from catalog
 
     Returns
-    ----------
+    -------
     scenario_list: list[str]
         unique scenarios
 
@@ -115,7 +115,7 @@ def _get_cat_subset(selections):
         object holding user's selections
 
     Returns
-    ----------
+    -------
     cat_subset: intake_esm.source.ESMDataSource
         catalog subset
 
@@ -171,7 +171,7 @@ def _time_slice(dset, selections):
         object holding user's selections
 
     Returns
-    ----------
+    -------
     xr.Dataset
         time-slice of dset
     """
@@ -191,7 +191,7 @@ def area_subset_geometry(selections):
         object holding user's selections
 
     Returns
-    ----------
+    -------
     ds_region: shapely.geometry
         geometry to use for subsetting
 
@@ -208,7 +208,7 @@ def area_subset_geometry(selections):
             object holding user's selections
 
         Returns
-        ----------
+        -------
         area_subset: str
         cached_area: str
         """
@@ -236,7 +236,7 @@ def area_subset_geometry(selections):
             Data settings (variable, unit, timescale, etc)
 
         Returns
-        ----------
+        -------
         shapely_geom: shapely.geometry
 
         """
@@ -299,7 +299,7 @@ def _spatial_subset(dset, selections):
         object holding user's selections
 
     Returns
-    ----------
+    -------
     xr.Dataset
         subsetted area of dset
     """
@@ -315,7 +315,7 @@ def _spatial_subset(dset, selections):
             area to clip to
 
         Returns
-        ----------
+        -------
         xr.Dataset
             clipped area of dset
         """
@@ -343,7 +343,7 @@ def _spatial_subset(dset, selections):
             area to clip to
 
         Returns
-        ----------
+        -------
         xr.Dataset
             clipped area of dset
         """
@@ -376,7 +376,7 @@ def _process_dset(ds_name, dset, selections):
         object holding user's selections
 
     Returns
-    ----------
+    -------
     xr.Dataset
         sub-setted output data
 
@@ -402,7 +402,7 @@ def _process_dset(ds_name, dset, selections):
             ensemble member id from dataset attributes
 
         Returns
-        ----------
+        -------
         str: joined by underscores
 
         """
@@ -437,7 +437,7 @@ def _merge_all(selections, data_dict):
         being its name and each item the zarr store
 
     Returns
-    ----------
+    -------
     da: xr.DataArray
         output data
 
@@ -474,7 +474,7 @@ def _merge_all(selections, data_dict):
             short designation for one SSP
 
         Returns
-        ----------
+        -------
         one_scenario: xr.Dataset
             combined data object
         """
@@ -512,7 +512,7 @@ def _merge_all(selections, data_dict):
             desired value for scenario along new dimension
 
         Returns
-        ----------
+        -------
         da: xr.DataArray
             data object with singleton scenario dimension added.
 
@@ -567,7 +567,7 @@ def _merge_all(selections, data_dict):
             any xarray DataArray with a units attribute
 
         Returns
-        ----------
+        -------
         xr.DataArray
             output data
 
@@ -600,7 +600,7 @@ def _get_data_one_var(selections):
         object holding user's selections
 
     Returns
-    ----------
+    -------
     da: xr.DataArray
         with datasets combined over new dimensions 'simulation' and 'scenario'
     """
@@ -670,7 +670,7 @@ def _get_data_attributes(selections):
     selections: DataParameters
 
     Returns
-    ----------
+    -------
     new_attrs: dict
         attributes
     """
@@ -699,7 +699,7 @@ def read_catalog_from_select(selections):
         object holding user's selections
 
     Returns
-    ----------
+    -------
     da: xr.DataArray
         output data
     """
@@ -753,7 +753,7 @@ def read_catalog_from_select(selections):
         selections: DataParameters
 
         Returns
-        ----------
+        -------
         da: xr.DataArray
         """
         # Load u10 data
@@ -780,7 +780,7 @@ def read_catalog_from_select(selections):
         selections: DataParameters
 
         Returns
-        ----------
+        -------
         da: xr.DataArray
         """
         # Load u10 data
@@ -807,7 +807,7 @@ def read_catalog_from_select(selections):
         selections: DataParameters
 
         Returns
-        ----------
+        -------
         da: xr.DataArray
         """
         # Daily/monthly dew point inputs have different units
@@ -836,7 +836,7 @@ def read_catalog_from_select(selections):
         selections: DataParameters
 
         Returns
-        ----------
+        -------
         da: xr.DataArray
         """
         # Load temperature data
@@ -878,7 +878,7 @@ def read_catalog_from_select(selections):
         selections: DataParameters
 
         Returns
-        ----------
+        -------
         da: xr.DataArray
         """
         # Load temperature data
@@ -914,7 +914,7 @@ def read_catalog_from_select(selections):
         selections: DataParameters
 
         Returns
-        ----------
+        -------
         da: xr.DataArray
         """
         # Load temperature data
@@ -964,7 +964,7 @@ def read_catalog_from_select(selections):
         selections: DataParameters
 
         Returns
-        ----------
+        -------
         da: xr.DataArray
         """
 
@@ -1007,7 +1007,7 @@ def read_catalog_from_select(selections):
         selections: DataParameters
 
         Returns
-        ----------
+        -------
         da: xr.DataArray
         """
 
@@ -1027,7 +1027,7 @@ def read_catalog_from_select(selections):
         selections: DataParameters
 
         Returns
-        ----------
+        -------
         da: xr.DataArray
         """
 
@@ -1151,7 +1151,7 @@ def _station_apply(selections, da, original_time_slice):
     original_time_slice: tuple
 
     Returns
-    ----------
+    -------
     apply_output: xr.DataArray
         output data
     """
@@ -1181,7 +1181,7 @@ def _station_apply(selections, da, original_time_slice):
             station data frame
 
         Returns
-        ----------
+        -------
         ds: xr.Dataset
 
         """
@@ -1234,7 +1234,7 @@ def _station_apply(selections, da, original_time_slice):
         time_slice: tuple
 
         Returns
-        ----------
+        -------
         bias_corrected: xr.DataArray
         """
         # Get the closest gridcell to the station
@@ -1286,7 +1286,7 @@ def _station_apply(selections, da, original_time_slice):
                 the adjustment kind, either additive or multiplicative
 
             Returns
-            ----------
+            -------
             da_adj: xr.DataArray
                 output data
 
