@@ -368,7 +368,7 @@ class WarmingLevelChoose(DataParametersWithPanes):
         self.cached_area = ["CA"]
 
         # Toggle whether or not data is loaded in as it is being computed
-        self.load_data = False
+        self.load_data = True
 
     @param.depends("downscaling_method", watch=True)
     def _anom_allowed(self):
