@@ -1967,7 +1967,7 @@ def get_data(
 ):
     # Need to add error handing for bad variable input
     """Retrieve data from the catalog using a simple function.
-    Contrasts with selections.retrieve(), which retrieves data from the user imputs in climakitae's selections GUI.
+    Contrasts with selections.retrieve(), which retrieves data from the user inputs in climakitae's selections GUI.
 
     Parameters
     ----------
