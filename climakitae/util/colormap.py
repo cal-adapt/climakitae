@@ -16,14 +16,14 @@ def read_ae_colormap(cmap="ae_orange", cmap_hex=False):
     """Read in AE colormap by name
 
     Parameters
-    -----------
+    ----------
     cmap: str
         one of ["ae_orange","ae_blue","ae_diverging"]
     cmap_hex: boolean
         return RGB or hex colors?
 
     Returns
-    --------
+    -------
     one of either
 
     cmap_data: matplotlib.colors.LinearSegmentedColormap

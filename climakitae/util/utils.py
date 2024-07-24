@@ -67,7 +67,7 @@ def area_average(dset):
         one dataset from the catalog
 
     Returns
-    ----------
+    -------
     xr.Dataset
         sub-setted output data
 
@@ -103,7 +103,7 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
     Then, it uses xarray’s built in method .sel to get the nearest gridcell.
 
     Parameters
-    -----------
+    ----------
     data: xr.DataArray or xr.Dataset
         Gridded data
     lat: float
@@ -115,7 +115,7 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
         Default to True. Set to False for backend use.
 
     Returns
-    --------
+    -------
     xr.DataArray
         Grid cell closest to input lat,lon coordinate pair
 
@@ -151,7 +151,7 @@ def julianDay_to_str_date(julday, leap_year=True, str_format="%b-%d"):
     i.e. if str_format = "%b-%d", the output will be Mon-Day ("Jan-01")
 
     Parameters
-    -----------
+    ----------
     julday: int
         Julian day
     leap_year: boolean
@@ -160,7 +160,7 @@ def julianDay_to_str_date(julday, leap_year=True, str_format="%b-%d"):
         string format of output date
 
     Returns
-    --------
+    -------
     date: str
         Julian day in the input format month-day (i.e. "Jan-01")
     """
@@ -175,8 +175,16 @@ def julianDay_to_str_date(julday, leap_year=True, str_format="%b-%d"):
 
 
 def readable_bytes(B):
-    """
-    Return the given bytes as a human friendly KB, MB, GB, or TB string.
+    """Return the given bytes as a human friendly KB, MB, GB, or TB string.
+
+    Parameters
+    ----------
+    B: byte
+
+    Returns
+    -------
+    str
+
     Code from stackoverflow: https://stackoverflow.com/questions/12523586/python-format-size-application-converting-b-to-kb-mb-gb-tb
     """
     B = float(B)
@@ -201,7 +209,7 @@ def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
     """Reproject xr.DataArray using rioxarray.
 
     Parameters
-    -----------
+    ----------
     xr_da: xr.DataArray
         2-or-3-dimensional DataArray, with 2 spatial dimensions
     proj: str
@@ -210,7 +218,7 @@ def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
         fill value (default to np.nan)
 
     Returns
-    --------
+    -------
     data_reprojected: xr.DataArray
         2-or-3-dimensional reprojected DataArray
 
@@ -220,14 +228,13 @@ def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
         if input data does not have spatial coords x,y
     ValueError
         if input data has more than 5 dimensions
-
     """
 
     def _reproject_data_4D(data, reproject_dim, proj="EPSG:4326", fill_value=np.nan):
         """Reproject 4D xr.DataArray across an input dimension
 
         Parameters
-        -----------
+        ----------
         data: xr.DataArray
             4-dimensional DataArray, with 2 spatial dimensions
         reproject_dim: str
@@ -238,10 +245,9 @@ def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
             fill value (default to np.nan)
 
         Returns
-        --------
+        -------
         data_reprojected: xr.DataArray
             4-dimensional reprojected DataArray
-
         """
         rp_list = []
         for i in range(len(data[reproject_dim])):
@@ -258,7 +264,7 @@ def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
         """Reproject 5D xr.DataArray across two input dimensions
 
         Parameters
-        -----------
+        ----------
         data: xr.DataArray
             5-dimensional DataArray, with 2 spatial dimensions
         reproject_dim: list
@@ -269,10 +275,9 @@ def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
             fill value (default to np.nan)
 
         Returns
-        --------
+        -------
         data_reprojected: xr.DataArray
             5-dimensional reprojected DataArray
-
         """
         rp_list_j = []
         reproject_dim_j = reproject_dim[0]
@@ -341,7 +346,18 @@ def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
 
 ## DFU notebook-specific functions, flexible for all notebooks
 def compute_annual_aggreggate(data, name, num_grid_cells):
-    """Calculates the annual sum of HDD and CDD"""
+    """Calculates the annual sum of HDD and CDD
+
+    Parameters
+    ----------
+    data: xr.DataArray
+    name: str
+    num_grid_cells: int
+
+    Returns
+    -------
+    annual_ag: xr.DataArray
+    """
     annual_ag = data.squeeze().groupby("time.year").sum(["time"])  # Aggregate annually
     annual_ag = annual_ag / num_grid_cells  # Divide by number of gridcells
     annual_ag.name = name  # Give new name to dataset
@@ -349,7 +365,16 @@ def compute_annual_aggreggate(data, name, num_grid_cells):
 
 
 def compute_multimodel_stats(data):
-    """Calculates model mean, min, max, median across simulations"""
+    """Calculates model mean, min, max, median across simulations
+
+    Parameters
+    ----------
+    data: xr.DataArray
+
+    Returns
+    -------
+    stats_concat: xr.DataArray
+    """
     # Compute mean across simulation dimensions and add is as a coordinate
     sim_mean = (
         data.mean(dim="simulation")
@@ -427,7 +452,16 @@ def trendline(data, kind="mean"):
 
 
 def combine_hdd_cdd(data):
-    """Drops specific unneeded coords from HDD/CDD data, independent of station or gridded data source"""
+    """Drops specific unneeded coords from HDD/CDD data, independent of station or gridded data source
+
+    Parameters
+    ----------
+    data: xr.DataArray
+
+    Returns
+    -------
+    data: xr.DataArray
+    """
     if data.name not in [
         "Annual Heating Degree Days (HDD)",
         "Annual Cooling Degree Days (CDD)",
@@ -448,7 +482,18 @@ def combine_hdd_cdd(data):
 
 ## DFU plotting functions
 def hdd_cdd_lineplot(annual_data, trendline, title="title"):
-    """Plots annual CDD/HDD with trendline provided"""
+    """Plots annual CDD/HDD with trendline provided
+
+    Parameters
+    ----------
+    annual_data: xr.DataArray
+    trendline: xr.Dataset
+    title: str
+
+    Returns
+    -------
+    data: hvplot.line
+    """
     return annual_data.hvplot.line(
         x="year",
         by="simulation",
@@ -462,7 +507,16 @@ def hdd_cdd_lineplot(annual_data, trendline, title="title"):
 
 
 def hdh_cdh_lineplot(data):
-    """Plots HDH/CDH"""
+    """Plots HDH/CDH
+
+    Parameters
+    ----------
+    data: xr.DataArray
+
+    Returns
+    -------
+    data: hvplot.line
+    """
     return data.hvplot.line(
         x="time", by="simulation", title=data.name, ylabel=data.name + " (degF)"
     )
@@ -503,8 +557,16 @@ def summary_table(data):
 
 
 def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
-    """
-    Converts the inputted data to the local time of the selection.
+    """Converts the inputted data to the local time of the selection.
+
+    Parameters
+    ----------
+    data: xr.DataArray
+    selections: DataParameters
+
+    Returns
+    -------
+    sliced_data: xr.DataArray
     """
     # 1. Find the other data
     start, end = selections.time_slice

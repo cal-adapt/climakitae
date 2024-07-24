@@ -39,8 +39,8 @@ def convert_units(da, selected_units):
     da: xr.DataArray
         data with converted units and updated units attribute
 
-    References:
-    -------
+    References
+    ----------
     Wind speed: https://www.weather.gov/media/epz/wxcalc/windConversion.pdf
     Pressure: https://www.weather.gov/media/epz/wxcalc/pressureConversion.pdf
     """
