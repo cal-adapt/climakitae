@@ -368,6 +368,7 @@ class WarmingLevelChoose(DataParametersWithPanes):
         self.cached_area = ["CA"]
 
         # Toggle whether or not data is loaded in as it is being computed
+        # This may be set to False if you are interested in loading smaller chunks of data at a time, or with batch computing a series of warming level data points.
         self.load_data = True
 
     @param.depends("downscaling_method", watch=True)
