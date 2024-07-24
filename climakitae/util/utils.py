@@ -725,6 +725,7 @@ def add_dummy_time_to_wl(wl_da):
     wl_da = wl_da.assign_coords({wl_time_dim: timestamps}).rename({wl_time_dim: "time"})
     return wl_da
 
+
 def _downscaling_method_to_activity_id(downscaling_method, reverse=False):
     """Convert downscaling method to activity id to match catalog names
 
@@ -823,7 +824,8 @@ def _scenario_to_experiment_id(scenario, reverse=False):
     if reverse == True:
         scenario_dict = {v: k for k, v in scenario_dict.items()}
     return scenario_dict[scenario]
-=======
+
+
 def drop_invalid_wrf_sims(ds):
     """
     Drops invalid WRF simulations from the given dataset since there is an unequal number of simulations per SSP.
