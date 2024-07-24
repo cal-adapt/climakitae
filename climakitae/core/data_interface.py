@@ -1629,21 +1629,21 @@ def _get_user_friendly_catalog(intake_catalog, variable_descriptions):
     # Here, we just remove all those variables
     cat_df_cleaned = cat_df_cleaned[cat_df_cleaned["variable"] != "NONE"]
 
-    # Move variable column to first position
+    # Move variable row to first position
     col = cat_df_cleaned.pop("variable")
     cat_df_cleaned.insert(0, col.name, col)
 
-    # Remove variable_id column
+    # Remove variable_id row
     cat_df_cleaned.pop("variable_id")
 
-    # Remove duplicate columns
+    # Remove duplicate rows
     # Duplicates occur due to the many unique member_ids
     cat_df_cleaned = cat_df_cleaned.drop_duplicates(ignore_index=True)
 
     return cat_df_cleaned
 
 
-def _get_var_name_from_table(variable_id, downscaling_method, timescale, var_pd):
+def _get_var_name_from_table(variable_id, downscaling_method, timescale, var_df):
     """Get the variable name corresponding to its ID, downscaling method, and timescale
     Enables the _get_user_friendly_catalog function to get the name of a variable corresponding to a set of user inputs
     i.e we have several different precip variables, corresponding to different downscaling methods (WRF vs. LOCA)
@@ -1653,7 +1653,7 @@ def _get_var_name_from_table(variable_id, downscaling_method, timescale, var_pd)
     variable_id: str
     downscaling_method: str
     timescale: str
-    var_pd: pd.DataFrame
+    var_df: pd.DataFrame
         Variable descriptions table
 
     Returns
@@ -1663,28 +1663,76 @@ def _get_var_name_from_table(variable_id, downscaling_method, timescale, var_pd)
         Will match what the user would see in the selections GUI
     """
     # Query the table based on input values
-    var_pd_query = var_pd[
-        (var_pd["variable_id"] == variable_id)
-        & (var_pd["downscaling_method"] == downscaling_method)
+    var_df_query = var_df[
+        (var_df["variable_id"] == variable_id)
+        & (var_df["downscaling_method"] == downscaling_method)
     ]
 
     # Timescale in table needs to be handled differently
     # This is because the monthly variables are derived from daily variables, so they are listed in the table as "daily, monthly"
     # Hourly variables may be different
     # Querying the data needs special handling due to the layout of the csv file
-    var_pd_query = var_pd_query[var_pd_query["timescale"].str.contains(timescale)]
+    var_df_query = var_df_query[var_df_query["timescale"].str.contains(timescale)]
 
     # This might return nothing if the variable is one we don't want to show the users
     # If so, set the var_name to nan
     # The row will later be dropped
-    if len(var_pd_query) == 0:
+    if len(var_df_query) == 0:
         var_name = "NONE"
 
     # If a variable name is found, grab and return its proper name
     else:
-        var_name = var_pd_query["display_name"].item()
+        var_name = var_df_query["display_name"].item()
 
     return var_name
+
+
+def _get_closest_options(val, valid_options):
+    """
+    If the user inputs a bad option, find the closest option from a list of valid options
+
+    Parameters
+    ----------
+    val: str
+        User input
+    valid_options: list
+        Valid options for that key from the catalog
+
+    Returns
+    -------
+    closest_options: list or None
+        List of best guesses, or None if nothing close is found
+
+    """
+
+    # Perhaps the user just capitalized it wrong?
+    is_it_just_capitalized_wrong = [
+        i for i in valid_options if val.lower() == i.lower()
+    ]
+
+    # Perhaps the input is a substring of a valid option?
+    is_it_a_substring = [i for i in valid_options if val.lower() in i.lower()]
+
+    # Use difflib package to make a guess for what the input might have been
+    # For example, if they input "statistikal" instead of "Statistical", difflib will find "Statistical"
+    # Change the cutoff to increase/decrease the flexibility of the function
+    maybe_difflib_can_find_something = difflib.get_close_matches(
+        val, valid_options, cutoff=0.59
+    )
+
+    if len(is_it_just_capitalized_wrong) > 0:
+        closest_options = is_it_just_capitalized_wrong
+
+    elif len(is_it_a_substring) > 0:
+        closest_options = is_it_a_substring
+
+    elif len(maybe_difflib_can_find_something) > 0:
+        closest_options = maybe_difflib_can_find_something
+
+    else:
+        closest_options = None
+
+    return closest_options
 
 
 def get_data_options(
@@ -1724,11 +1772,10 @@ def get_data_options(
 
     # Get intake catalog and variable descriptions from DataInterface object
     data_interface = DataInterface()
-    var_pd = data_interface.variable_descriptions
+    var_df = data_interface.variable_descriptions
     catalog = data_interface.data_catalog
-
     cat_df = _get_user_friendly_catalog(
-        intake_catalog=catalog, variable_descriptions=var_pd
+        intake_catalog=catalog, variable_descriptions=var_df
     )
 
     # Raise error for bad input from user
@@ -1757,39 +1804,47 @@ def get_data_options(
             continue  # Don't finish the loop
         # If the input value is not in the valid options, see if you can help the user out
         elif val not in valid_options:
-            # Perhaps they didn't capitalize it correctly?
-            if val.lower().capitalize() in valid_options:
-                d[key] = [val.lower().capitalize()]
-                continue  # Don't finish the loop
 
             # This catches any common bad inputs for resolution: i.e. "3KM" or "3km" instead of "3 km"
             if key == "resolution":
                 try:
                     good_resolution_input = val.lower().split("km")[0] + " km"
                     if good_resolution_input in valid_options:
+                        print("Input " + key + "='" + val + "' is not a valid option.")
+                        print(
+                            "Returning output for closest option: '"
+                            + good_resolution_input
+                            + "'"
+                        )
                         d[key] = [good_resolution_input]
                         continue
                 except:
                     pass
 
             print("Input " + key + "='" + val + "' is not a valid option.")
-            # Use difflib package to make a guess for what the input might have been
-            # For example, if they input "statistikal" instead of "Statistical", difflib will find "Statistical"
-            # Change the cutoff to increase/decrease the flexibility of the function
-            closest_option = difflib.get_close_matches(val, valid_options, cutoff=0.59)
-            if len(closest_option) == 0:
-                # Sad! No closest options found. Just set the key to all valid options
+
+            closest_options = _get_closest_options(val, valid_options)
+
+            # Sad! No closest options found. Just set the key to all valid options
+            if closest_options is None:
                 print("Valid options: " + ", ".join(valid_options))
                 raise ValueError("Bad input")
-            else:  # difflib made a guess! Set the key to the guess (or, guesses)
-                if len(closest_option) == 1:
-                    print("Did you mean '" + closest_option[0] + "'?")
-                else:
-                    print(
-                        "Did you mean: \n- "
-                        + "\n- ".join([x + "?" for x in closest_option])
-                    )
-                d[key] = closest_option
+
+            # Just one option in the list
+            elif len(closest_options) == 1:
+                print(
+                    "Returning output for closest option: '" + closest_options[0] + "'"
+                )
+
+            elif len(closest_options) > 1:
+                print(
+                    "Returning output for closest options: \n- "
+                    + "\n- ".join(closest_options)
+                )
+                print("\n")
+            # Set key to closest option
+            d[key] = closest_options
+
     # Dictionary values should be a list for the pandas logic to work correctly
     for key, val in zip(d.keys(), d.values()):
         if type(val) not in (list, np.ndarray):
@@ -1938,13 +1993,92 @@ def get_data(
     data: xarray.core.dataarray.DataArray
 
     """
+    # Make dictionary of inputs for easy parsing and error control
+    d = {
+        "variable": variable,
+        "timescale": timescale,
+        "downscaling_method": downscaling_method,
+        "scenario": scenario,
+        "resolution": resolution,
+    }
 
-    # Get variable descriptions from DataInterface object
-    data_interface = DataInterface()
-    var_pd = data_interface.variable_descriptions
+    # Make sure the user inputs a string!!
+    for key, val in zip(d.keys(), d.values()):
+        if type(val) != str:
+            print(
+                "This function requires a single string input for argument '"
+                + key
+                + "'"
+            )
+            print("Your input type: " + str(type(val)))
+            raise ValueError("Bad input type")
 
+    # But actually, we need a list for cached area
     if type(cached_area) == str:
         cached_area = [cached_area]
+
+    # Get intake catalog and variable descriptions from DataInterface object
+    # This is used to check if the user's inputs are valid
+    # This adds some initial runtime to the function... not the most efficient, but makes it more user-friendly
+    # So, maybe it's worth the additional time? I'm not 100% convinced personally (Nicole)
+    data_interface = DataInterface()
+    var_df = data_interface.variable_descriptions
+    catalog = data_interface.data_catalog
+    cat_df = _get_user_friendly_catalog(
+        intake_catalog=catalog, variable_descriptions=var_df
+    )
+
+    # Check that inputs are valid, make guess if not valid
+    for key, val in zip(
+        d.keys(), d.values()
+    ):  # Loop through each key, value pair in the dictionary
+        # Use the catalog to find the valid values in the list
+        valid_options = np.unique(cat_df[key].values)
+        if (
+            val == None
+        ):  # If the user didn't input anything for that key, set the values to all the valid options
+            d[key] = valid_options
+            continue  # Don't finish the loop
+        # If the input value is not in the valid options, see if you can help the user out
+        elif val not in valid_options:
+
+            # This catches any common bad inputs for resolution: i.e. "3KM" or "3km" instead of "3 km"
+            if key == "resolution":
+                try:
+                    good_resolution_input = val.lower().split("km")[0] + " km"
+                    if good_resolution_input in valid_options:
+                        print("Input " + key + "='" + val + "' is not a valid option.")
+                        print(
+                            "Outputting data for "
+                            + key
+                            + "='"
+                            + good_resolution_input
+                            + "'\n"
+                        )
+                        d[key] = good_resolution_input
+                        continue
+                except:
+                    pass
+
+            print("Input " + key + "='" + val + "' is not a valid option.")
+
+            closest_options = _get_closest_options(val, valid_options)
+
+            # Sad! No closest options found. Just set the key to all valid options
+            if closest_options is None:
+                print("Valid options: " + ", ".join(valid_options))
+                raise ValueError("Bad input")
+
+            # Just one option in the list
+            elif len(closest_options) == 1:
+                print("Closest option: '" + closest_options[0] + "'")
+
+            elif len(closest_options) > 1:
+                print("Closest options: \n- " + "\n- ".join(closest_options))
+
+            # Set key to closest option
+            print("Outputting data for " + key + "='" + closest_options[0] + "'\n")
+            d[key] = closest_options[0]
 
     # Maybe the user put an input for cached area but not for area subset
     # We need to have the matching/correct area subset in order for selections.retrieve() to actually subset the data
@@ -1966,19 +2100,19 @@ def get_data(
             area_subset = area_subset_vals[0]
 
     # Query the table based on input values
-    var_pd_query = var_pd[
-        (var_pd["display_name"] == variable)
-        & (var_pd["downscaling_method"] == downscaling_method)
+    var_df_query = var_df[
+        (var_df["display_name"] == d["variable"])
+        & (var_df["downscaling_method"] == d["downscaling_method"])
     ]
 
     # Timescale in table needs to be handled differently
     # This is because the monthly variables are derived from daily variables, so they are listed in the table as "daily, monthly"
     # Hourly variables may be different
     # Querying the data needs special handling due to the layout of the csv file
-    var_pd_query = var_pd_query[var_pd_query["timescale"].str.contains(timescale)]
+    var_df_query = var_df_query[var_df_query["timescale"].str.contains(d["timescale"])]
 
     if units is None:
-        units = var_pd_query["unit"].item()
+        units = var_df_query["unit"].item()
 
     # Create selections object
     selections = DataParameters()
@@ -1993,18 +2127,18 @@ def get_data(
     selections.append_historical = False
 
     # User selections
-    selections.downscaling_method = downscaling_method
-    selections.variable = variable
-    selections.resolution = resolution
-    selections.timescale = timescale
+    selections.downscaling_method = d["downscaling_method"]
+    selections.variable = d["variable"]
+    selections.resolution = d["resolution"]
+    selections.timescale = d["timescale"]
     selections.units = units
 
-    if scenario in ["Historical Climate", "Historical Reconstruction"]:
-        selections.scenario_historical = [scenario]
+    if d["scenario"] in ["Historical Climate", "Historical Reconstruction"]:
+        selections.scenario_historical = [d["scenario"]]
         selections.scenario_ssp = []
     else:
         selections.scenario_historical = []
-        selections.scenario_ssp = [scenario]
+        selections.scenario_ssp = [d["scenario"]]
 
     # Retrieve data
     data = selections.retrieve()
