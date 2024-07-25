@@ -52,7 +52,8 @@ def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
 
     Parameters
     ----------
-    cat: intake catalog
+    data_catalog: intake_esm.source.ESMDataSource
+        Intake ESM data catalog
     downscaling_method: str, one of "Dynamical", "Statistical", or "Dynamical+Statistical"
         Data downscaling method
     timescale: str, one of "hourly", "daily", or "monthly"
@@ -179,6 +180,22 @@ def _get_var_ids(variable_descriptions, variable, downscaling_method, timescale)
     """Get variable ids that match the selected variable, timescale, and downscaling method.
     Required to account for the fact that LOCA, WRF, and various timescales use different variable id values.
     Used to retrieve the correct variables from the catalog in the backend.
+
+    Parameters
+    ----------
+    variable_descriptions: pd.DataFrame
+        Variable descriptions, units, etc in table format
+    variable: str
+        variable display name from catalog.
+    downscaling_method: str, one of "Dynamical", "Statistical", or "Dynamical+Statistical"
+        Data downscaling method
+    timescale: str, one of "hourly", "daily", or "monthly"
+        Timescale
+
+    Returns
+    -------
+    list
+        variable ids from intake catalog matching incoming query
     """
 
     method_list = downscaling_method_as_list(downscaling_method)
@@ -205,7 +222,25 @@ def _get_overlapping_station_names(
     _geographies,
     _geography_choose,
 ):
-    """Wrapper function that gets the string names of any overlapping weather stations"""
+    """Wrapper function that gets the string names of any overlapping weather stations
+
+    Parameters
+    ----------
+    stations_gdf: gpd.GeoDataFrame
+        geopandas GeoDataFrame of station locations
+    area_subset: str
+        DataParameters.area_subset param value
+    cached_area: str
+        DataParameters.cached_area param value
+    latitude: float
+        DataParameters.latitude param value
+    longitude: float
+        DataParameters.longitude param value
+    _geographies: Boundaries
+        reference to Boundaries class
+    _geography_choose: dict
+        dict of dicts containing boundary attributes
+    """
     subarea = _get_subarea(
         area_subset,
         cached_area,
@@ -236,7 +271,6 @@ def _get_overlapping_stations(stations, polygon):
     -------
     gpd.GeoDataFrame
         stations gpd subsetted to include only points contained within polygon
-
     """
     return gpd.sjoin(stations, polygon, predicate="within")
 
@@ -252,10 +286,24 @@ def _get_subarea(
     """Get geometry from input settings
     Used for plotting or determining subset of overlapping weather stations in subsequent steps
 
+    Parameters
+    ----------
+    area_subset: str
+        DataParameters.area_subset param value
+    cached_area: str
+        DataParameters.cached_area param value
+    latitude: tuple
+        DataParameters.latitude param value
+    longitude: tuple
+        DataParameters.longitude param value
+    _geographies: Boundaries
+        reference to Boundaries class
+    _geography_choose: dict
+        dict of dicts containing boundary attributes
+
     Returns
     -------
     gpd.GeoDataFrame
-
     """
 
     def _get_subarea_from_shape_index(
@@ -339,7 +387,6 @@ def _add_res_to_ax(
     xy: tuple
     label: str
     crs: projection
-
     """
     ax.add_geometries(
         [poly], crs=ccrs.PlateCarree(), edgecolor=color, facecolor="white"
@@ -359,11 +406,14 @@ def _map_view(selections, stations_gdf):
 
     Parameters
     ----------
-    selections: DataSelector
+    selections: DataParameters
         User data selections
     stations_gpd: gpd.DataFrame
         DataFrame with station coordinates
 
+    Returns
+    -------
+    mpl_pane: pn.Pane
     """
 
     _wrf_bb = {
@@ -524,6 +574,15 @@ class VariableDescriptions:
     ck.view is loaded on package load so this avoids loading boundary data when not
     needed.
 
+    Attributes
+    ----------
+    variable_descriptions: pd.DataFrame
+        pandas dataframe that stores available data variables usable with the package
+
+    Methods
+    -------
+    load(self)
+        read the variable descriptions csv into class variable
     """
 
     def __new__(cls):
@@ -545,7 +604,21 @@ class DataInterface:
     This is a singleton class called by the various Param classes to connect to the local
     data and to the intake data catalog and parquet boundary catalog. The class attributes
     are read only so that the data does not get changed accidentially.
-
+    
+    Attributes
+    ----------
+    variable_descriptions: pd.DataFrame
+        variable descriptions pandas data frame
+    stations: gpd.DataFrame
+        station locations pandas data frame
+    stations_gdf: gpd.GeoDataFrame
+        station locations geopandas data frame
+    data_catalog: intake_esm.source.ESMDataSource
+        intake ESM data catalog
+    boundary_catalog: intake.catalog.Catalog
+        parquet boundary catalog
+    geographies: Boundaries
+        boundary dictionaries class
     """
 
     def __new__(cls):
@@ -597,7 +670,93 @@ class DataInterface:
 
 
 class DataParameters(param.Parameterized):
-    """Python param object to hold data parameters for use in panel GUI."""
+    """Python param object to hold data parameters for use in panel GUI.
+    Call DataParameters when you want to select and retrieve data from the
+    climakitae data catalog without using the ck.Select GUI. ck.Select uses
+    this class to store selections and retrieve data.
+
+    DataParameters calls DataInterface, a singleton class that makes the connection
+    to the intake-esm data store in S3 bucket.
+
+    Attributes
+    ----------
+    unit_options_dict: dict
+        options dictionary for converting unit to other units
+    area_subset: str
+        dataset to use from Boundaries for sub area selection
+    cached_area: list of strs
+        one or more features from area_subset datasets to use for selection
+    latitude: tuple
+        latitude range of selection box
+    longitude: tuple
+        longitude range of selection box
+    variable_type: str
+        toggle raw or derived variable selection
+    default_variable: str
+        initial variable to have selected in widget
+    time_slice: tuple
+        year range to select
+    resolution: str
+        resolution of data to select ("3 km", "9 km", "45 km")
+    timescale: str
+        frequency of dataset ("hourly", "daily", "monthly")
+    scenario_historical: list of strs
+        historical scenario selections
+    area_average: str
+        whether to comput area average ("Yes", "No")
+    downscaling_method: str
+        whether to choose WRF or LOCA2 data or both ("Dynamical", "Statistical", "Dynamical+Statistical")
+    data_type: str
+        whether to choose gridded or station based data ("Gridded", "Station")
+    station: list or strs
+        list of stations that can be filtered by cached_area
+    _station_data_info: str
+        informational statement when station data selected with data_type
+    scenario_ssp: list of strs
+        list of future climate scenarios selected (availability depends on other params)
+    simulation: list of strs
+        list of simulations (models) selected (availability depends on other params)
+    variable: str
+        variable long display name
+    units: str
+        unit abbreviation currently of the data (native or converted)
+    extended_description: str
+        extended description of the data variable
+    variable_id: list of strs
+        list of variable ids that match the variable (WRF and LOCA2 can have different codes for same type of variable)
+    historical_climate_range_wrf: tuple
+        time range of historical WRF data
+    historical_climate_range_loca: tuple
+        time range of historical LOCA2 data
+    historical_climate_range_wrf_and_loca: tuple
+        time range of historical WRF and LOCA2 data combined
+    historical_reconstruction_range: tuple
+        time range of historical reanalysis data
+    ssp_range: tuple
+        time range of future scenario SSP data
+    _info_about_station_data: str
+        warning message about station data
+    _data_warning: str
+        warning about selecting unavailable data combination
+    data_interface: DataInterface
+        data connection singleton class that provides data
+    _data_catalog: intake_esm.source.ESMDataSource
+        shorthand alias to DataInterface.data_catalog
+    _variable_descriptions: pd.DataFrame
+        shorthand alias to DataInterface.variable_descriptions
+    _stations_gdf: gpd.GeoDataFrame
+        shorthand alias to DataInterface.stations_gdf
+    _geographies: Boundaries
+        shorthand alias to DataInterface.geographies
+    _geography_choose: dict
+        shorthand alias to Boundaries.boundary_dict()
+    colormap: str
+        default colormap to render the currently selected data
+    scenario_options: list of strs
+        list of available scenarios (historical and ssp) for selection
+    variable_options_df: pd.DataFrame
+        filtered variable descriptions for the downscaling_method and timescale
+    """
 
     # Unit conversion options for each unit
     unit_options_dict = get_unit_conversion_options()
@@ -1384,14 +1543,18 @@ class DataParametersWithPanes(DataParameters):
 
 class Select(DataParametersWithPanes):
     def show(self):
-        # Show panel visualually
+        # Show panel visually
         select_panel = _display_select(self)
         return select_panel
 
 
 def _selections_param_to_panel(self):
-    """For the _DataSelector object, get parameters and parameter
+    """For the Select object, get parameters and parameter
     descriptions formatted as panel widgets
+
+    Returns
+    -------
+    dict
     """
     area_subset = pn.widgets.Select.from_param(
         self.param.area_subset, name="Subset the data by..."
@@ -1496,10 +1659,14 @@ def _selections_param_to_panel(self):
 
 def _display_select(self):
     """
-    Called by 'select' at the beginning of the workflow, to capture user
+    Called by Select at the beginning of the workflow, to capture user
     selections. Displays panel of widgets from which to make selections.
-    Modifies 'selections' object, which is used by retrieve() to build an
+    Modifies DataParameters object, which is used by retrieve() to build an
     appropriate xarray Dataset.
+
+    Returns
+    -------
+    pn.Card
     """
     # Get formatted panel widgets for each parameter
     widgets = _selections_param_to_panel(self)
@@ -1592,7 +1759,17 @@ def _display_select(self):
 
 
 def _get_user_friendly_catalog(intake_catalog, variable_descriptions):
-    """Get a user-friendly version of the intake data catalog using climakitae naming conventions"""
+    """Get a user-friendly version of the intake data catalog using climakitae naming conventions
+    
+    Parameters
+    ----------
+    intake_catalog: intake_esm.source.ESMDataSource
+    variable_descriptions: pd.DataFrame
+    
+    Returns
+    -------
+    cat_df_cleaned: intake_esm.source.ESMDataSource
+    """
 
     # Get the catalog as a dataframe
     cat_df = intake_catalog.df.copy()
@@ -1688,8 +1865,7 @@ def _get_var_name_from_table(variable_id, downscaling_method, timescale, var_df)
 
 
 def _get_closest_options(val, valid_options):
-    """
-    If the user inputs a bad option, find the closest option from a list of valid options
+    """If the user inputs a bad option, find the closest option from a list of valid options
 
     Parameters
     ----------
@@ -1702,7 +1878,6 @@ def _get_closest_options(val, valid_options):
     -------
     closest_options: list or None
         List of best guesses, or None if nothing close is found
-
     """
 
     # Perhaps the user just capitalized it wrong?
@@ -1749,17 +1924,17 @@ def get_data_options(
 
     Parameters
     ----------
-    variable: str, optional
+    variable: str (optional)
         Default to None
-    downscaling_method: str, optional
+    downscaling_method: str (optional)
         Default to None
-    resolution: str, optional
+    resolution: str (optional)
         Default to None
-    timescale: str, optional
+    timescale: str (optional)
         Default to None
-    scenario: str, optional
+    scenario: str (optional)
         Default to None
-    tidy: boolean, optional
+    tidy: boolean (optional)
         Format the pandas dataframe? This creates a DataFrame with a MultiIndex that makes it easier to parse the options.
         Default to True
 
@@ -1767,7 +1942,6 @@ def get_data_options(
     -------
     cat_subset: pd.DataFrame
         Catalog options for user-provided inputs
-
     """
 
     # Get intake catalog and variable descriptions from DataInterface object
@@ -1874,7 +2048,7 @@ def get_subsetting_options(area_subset="all"):
     Options match those in selections GUI
 
     Parameters
-    -----------
+    ----------
     area_subset: str, one of "all", "states", "CA counties", "CA Electricity Demand Forecast Zones", "CA watersheds", "CA Electric Balancing Authority Areas", "CA Electric Load Serving Entities (IOU & POU)"
         Defaults to "all", which shows all the geometry options with area_subset as a multiindex
 
@@ -1976,22 +2150,21 @@ def get_data(
     resolution: str
     timescale: str
     scenario: str
-    units: None, optional
+    units: None (optional)
         Defaults to native units of data
-    area_subset: str, optional
+    area_subset: str (optional)
         Area category: i.e "CA counties"
         Defaults to entire domain ("none")
-    cached_area: list, optional
+    cached_area: list (optional)
         Area: i.e "Alameda county"
         Defaults to entire domain ("none")
-    area_average: str, one of "No" or "Yes", optional
+    area_average: str, one of "No" or "Yes" (optional)
         Take an average over spatial domain?
         Default to No
 
     Returns
-    --------
-    data: xarray.core.dataarray.DataArray
-
+    -------
+    data: xr.DataArray
     """
     # Make dictionary of inputs for easy parsing and error control
     d = {
