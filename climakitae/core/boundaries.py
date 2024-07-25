@@ -5,8 +5,10 @@ class Boundaries:
     """Get geospatial polygon data from the S3 stored parquet catalog.
     Used to access boundaries for subsetting data by state, county, etc.
 
-    Parameters
-    -----------
+    Attributes
+    ----------
+    _cat: intake.catalog.Catalog
+        Parquet boundary catalog instance
     _us_states: pd.DataFrame
         Table of US state names and geometries
     _ca_counties: pd.DataFrame
@@ -21,6 +23,25 @@ class Boundaries:
         Table of California Demand Forecast Zones
     _ca_electric_balancing_areas: pd.DataFrame
         Table of Electric Balancing Areas
+
+    Methods
+    -------
+    load(self)
+        Reads parquet files and sets class attributes
+    _get_us_states(self)
+        Returns a dict of state abbreviations and indices
+    _get_ca_counties(self)
+        Returns a dict of California counties and their indices
+    _get_ca_watersheds(self)
+        Returns a dict for CA watersheds and their indices
+    _get_forecast_zones(self)
+        Returns a dict for CA electricity demand forecast zones
+    _get_ious_pous(self)
+        Returns a dict for CA electric load serving entities IOUs & POUs
+    _get_electric_balancing_areas(self)
+        Returns a dict for CA Electric Balancing Authority Areas
+    boundary_dict(self)
+        Returns a dict of the other boundary dicts, used to populate ck.Select
     """
 
     _cat = None
