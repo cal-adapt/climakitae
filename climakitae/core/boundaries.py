@@ -23,6 +23,7 @@ class Boundaries:
         Table of California Demand Forecast Zones
     _ca_electric_balancing_areas: pd.DataFrame
         Table of Electric Balancing Areas
+
     Methods
     -------
     load(self)

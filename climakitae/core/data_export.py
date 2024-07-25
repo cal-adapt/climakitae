@@ -1,5 +1,3 @@
-"""Backend functions for exporting data."""
-
 import os
 import boto3
 import fsspec
@@ -40,17 +38,16 @@ def _export_to_netcdf(data, save_name, mode):
 
     Parameters
     ----------
-    data : xarray.DataArray or xarray.Dataset
+    data: xarray.DataArray or xarray.Dataset
         data to export to NetCDF format
-    save_name : string
+    save_name: string
         desired output file name, including the file extension
-    mode : string
+    mode: string
         location logic for storing export file.
 
     Returns
     -------
     None
-
     """
     print("Exporting specified data to NetCDF...")
 
@@ -68,9 +65,9 @@ def _export_to_netcdf(data, save_name, mode):
 
         Parameters
         ----------
-        data : xarray.DataArray or xarray.Dataset
+        data: xarray.DataArray or xarray.Dataset
             data to export to the specified `format`
-        format : str
+        format: str
             file format ("NetCDF" or "CSV")
 
         Returns
@@ -111,7 +108,7 @@ def _export_to_netcdf(data, save_name, mode):
 
         Parameters
         ----------
-        data : xarray.Dataset
+        data: xarray.Dataset
 
         Returns
         -------
@@ -128,7 +125,7 @@ def _export_to_netcdf(data, save_name, mode):
 
             Parameters
             ----------
-            dic : dict
+            dic: dict
 
             Returns
             -------
@@ -161,7 +158,7 @@ def _export_to_netcdf(data, save_name, mode):
 
         Parameters
         ----------
-        data : xarray.Dataset
+        data: xarray.Dataset
 
         Returns
         -------
@@ -178,7 +175,7 @@ def _export_to_netcdf(data, save_name, mode):
 
             Parameters
             ----------
-            d : xarray.Dataset
+            d: xarray.Dataset
 
             Returns
             -------
@@ -204,7 +201,7 @@ def _export_to_netcdf(data, save_name, mode):
 
         Parameters
         ----------
-        data : xarray.Dataset
+        data: xarray.Dataset
 
         Returns
         -------
@@ -220,7 +217,7 @@ def _export_to_netcdf(data, save_name, mode):
 
         Parameters
         ----------
-        data : xarray.Dataset
+        data: xarray.Dataset
 
         Returns
         -------
@@ -236,21 +233,20 @@ def _export_to_netcdf(data, save_name, mode):
 
         Parameters
         ----------
-        bucket_name : string
-        object_name : string
-        expiration : int, optional
+        bucket_name: str
+        object_name: str
+        expiration: int, optional
             Time in seconds for the presigned URL to remain valid. The default is
             one week.
 
         Returns
         -------
-        string
+        str
             Presigned URL. If error, returns None.
 
         References
         ----------
         https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-presigned-urls.html#presigned-urls
-
         """
         s3_client = boto3.client("s3")
         try:
@@ -332,12 +328,11 @@ def _get_unit(dataarray):
 
     Parameters
     ----------
-    dataarray : xarray.DataArray
+    dataarray: xarray.DataArray
 
     Returns
     -------
     str
-
     """
     data_attrs = dataarray.attrs
     if "units" in data_attrs and data_attrs["units"] is not None:
@@ -356,7 +351,7 @@ def _ease_access_in_R(column_name):
 
     Parameters
     ----------
-    column_name : str
+    column_name: str
 
     Returns
     -------
@@ -372,7 +367,6 @@ def _ease_access_in_R(column_name):
     https://github.com/cal-adapt/climakitae/blob/main/climakitae/data/variable_descriptions.csv
     or one of the station names:
     https://github.com/cal-adapt/climakitae/blob/main/climakitae/data/hadisd_stations.csv
-
     """
     return (
         column_name.replace("(", "")
@@ -394,9 +388,9 @@ def _update_header(df, variable_unit_map):
 
     Parameters
     ----------
-    df : pandas.DataFrame
+    df: pandas.DataFrame
         data table to update
-    variable_unit_map : list of tuple
+    variable_unit_map: list of tuple
         list of tuples where each tuple contains the name and unit of the data
         variable in a column of the input data table
 
@@ -404,7 +398,6 @@ def _update_header(df, variable_unit_map):
     -------
     pandas.DataFrame
         data table with updated header
-
     """
     df.columns = pd.MultiIndex.from_tuples(
         variable_unit_map,
@@ -426,14 +419,13 @@ def _dataarray_to_dataframe(dataarray):
 
     Parameters
     ----------
-    dataarray : xarray.DataArray
+    dataarray: xarray.DataArray
         data to be prepared for export
 
     Returns
     -------
     pandas.DataFrame
         data ready for export
-
     """
     if not dataarray.name:
         # name it in order to call to_dataframe on it
@@ -468,14 +460,13 @@ def _dataset_to_dataframe(dataset):
 
     Parameters
     ----------
-    dataset : xarray.Dataset
+    dataset: xarray.Dataset
         data to be prepared for export
 
     Returns
     -------
     pandas.DataFrame
         data ready for export
-
     """
     df = dataset.to_dataframe()
 
@@ -501,6 +492,14 @@ def _dataset_to_dataframe(dataset):
         Return the "display_name" associated with the "variable_id" in
         variable_descriptions.csv. If `var_id` is not a "variable_id" in the
         CSV file, return an empty string.
+
+        Parameters
+        ----------
+        var_id: str
+
+        Returns
+        -------
+        str
         """
         if var_id in variable_ids:
             var_name_series = variable_description_df.loc[
@@ -515,6 +514,15 @@ def _dataset_to_dataframe(dataset):
         """Get name of climate variable stored in `dataset` variable `station`.
 
         Return an empty string if that is not possible.
+
+        Parameters
+        ----------
+        dataset: xr.Dataset
+        station: str
+
+        Returns
+        -------
+        str
         """
         try:
             station_da = dataset[station]  # DataArray
@@ -734,7 +742,6 @@ def export(data, filename="dataexport", format="NetCDF", mode="auto"):
         File format ("NetCDF" or "CSV"). The default is "NetCDF".
     mode : str, optional
         Save location logic for NetCDF file ("auto", "local", "s3"). The default is "auto"
-
     """
     ftype = type(data)
 
@@ -825,6 +832,14 @@ def _epw_format_data(df):
     """
     Constructs TMY output file in specific order and missing data codes
     Source: EnergyPlus Version 23.1.0 Documentation
+
+    Parameters
+    ----------
+    df: pd.DataFrame
+
+    Returns
+    -------
+    df: pd.DataFrame
     """
 
     # set time col to datetime object for easy split
@@ -915,7 +930,16 @@ def _epw_format_data(df):
 
 
 def _leap_day_fix(df):
-    """Addresses leap day inclusion in TMY dataframe bug by removing the extra nan rows and resetting time index to Feb 28"""
+    """Addresses leap day inclusion in TMY dataframe bug by removing the extra nan rows and resetting time index to Feb 28
+
+    Parameters
+    ----------
+    df: pd.DataFrame
+
+    Returns
+    -------
+    df_leap: pd.DataFrame
+    """
     df_leap = df.copy(deep=True)
     df_leap["time"] = pd.to_datetime(df["time"])  # set time to datetime
     df_leap = df_leap.dropna()  # drops extra rows
@@ -940,6 +964,16 @@ def _leap_day_fix(df):
 
 
 def _find_missing_val_month(df):
+    """Finds month that does not match expected hours
+
+    Parameters
+    ----------
+    df: pd.DataFrame
+
+    Returns
+    -------
+    int
+    """
     hrs_per_month = {
         1: 744,
         2: 672,
@@ -961,7 +995,16 @@ def _find_missing_val_month(df):
 
 
 def _missing_hour_fix(df):
-    """Addresses missing hour in TMY dataframe bug by adding the missing hour at the appropriate spot and duplicating the previous hour's values"""
+    """Addresses missing hour in TMY dataframe bug by adding the missing hour at the appropriate spot and duplicating the previous hour's values
+
+    Parameters
+    ----------
+    df: pd.DataFrame
+
+    Returns
+    -------
+    df_fixed: pd.DataFrame
+    """
     df_missing = df.copy(deep=True)
     df_missing["time"] = pd.to_datetime(df["time"])  # set time to datetime
 
