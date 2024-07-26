@@ -1,5 +1,3 @@
-"""Backend functions for retrieving and subsetting data from the AE catalog"""
-
 import xarray as xr
 import dask
 import rioxarray
@@ -48,20 +46,17 @@ dask.config.set({"array.slicing.split_large_chunks": True})
 from dask.diagnostics import ProgressBar
 
 
-# ============================ Read data into memory ================================
-
-
 def load(xr_da, progress_bar=False):
     """Read data into memory
 
     Parameters
     ----------
-    xr_da: xarray.DataArray
+    xr_da: xr.DataArray
+    progress_bar: boolean
 
     Returns
     -------
-    da_computed: xarray.DataArray
-
+    da_computed: xr.DataArray
     """
 
     # Check if data is already loaded into memory
@@ -95,9 +90,6 @@ def load(xr_da, progress_bar=False):
         return da_computed
 
 
-# ============================ Helper functions ================================
-
-
 def _get_as_shapely(selections):
     """
     Takes the location data, and turns it into a
@@ -110,7 +102,7 @@ def _get_as_shapely(selections):
         Data settings (variable, unit, timescale, etc)
 
     Returns
-    ----------
+    -------
     shapely_geom: shapely.geometry
 
     """
@@ -136,9 +128,8 @@ def _sim_index_item(ds_name, member_id):
         ensemble member id from dataset attributes
 
     Returns
-    ----------
+    -------
     str: joined by underscores
-
     """
     downscaling_type = ds_name.split(".")[0]
     gcm_name = ds_name.split(".")[2]
@@ -158,7 +149,7 @@ def _scenarios_in_data_dict(keys):
         list of dataset names from catalog
 
     Returns
-    ----------
+    -------
     scenario_list: list[str]
         unique scenarios
 
@@ -166,9 +157,6 @@ def _scenarios_in_data_dict(keys):
     scenarios = set([one.split(".")[3] for one in keys if "ssp" in one])
 
     return list(scenarios)
-
-
-# ============= Main functions used in data reading/processing =================
 
 
 def _get_cat_subset(selections):
@@ -180,10 +168,9 @@ def _get_cat_subset(selections):
         object holding user's selections
 
     Returns
-    ----------
-    cat_subset: intake_esm.core.esm_datastore
+    -------
+    cat_subset: intake_esm.source.ESMDataSource
         catalog subset
-
     """
 
     scenario_selections = selections.scenario_ssp + selections.scenario_historical
@@ -236,7 +223,7 @@ def _time_slice(dset, selections):
         object holding user's selections
 
     Returns
-    ----------
+    -------
     xr.Dataset
         time-slice of dset
     """
@@ -258,7 +245,7 @@ def _override_area_selections(selections):
         object holding user's selections
 
     Returns
-    ----------
+    -------
     area_subset: str
     cached_area: str
     """
@@ -281,10 +268,9 @@ def area_subset_geometry(selections):
         object holding user's selections
 
     Returns
-    ----------
+    -------
     ds_region: shapely.geometry
         geometry to use for subsetting
-
     """
     area_subset, cached_area = _override_area_selections(selections)
 
@@ -338,7 +324,7 @@ def _clip_to_geometry(dset, ds_region):
         area to clip to
 
     Returns
-    ----------
+    -------
     xr.Dataset
         clipped area of dset
     """
@@ -367,7 +353,7 @@ def _clip_to_geometry_loca(dset, ds_region):
         area to clip to
 
     Returns
-    ----------
+    -------
     xr.Dataset
         clipped area of dset
     """
@@ -389,7 +375,7 @@ def _spatial_subset(dset, selections):
         object holding user's selections
 
     Returns
-    ----------
+    -------
     xr.Dataset
         subsetted area of dset
     """
@@ -419,7 +405,6 @@ def _process_dset(ds_name, dset, selections):
     ----------
     xr.Dataset
         sub-setted output data
-
     """
     # Time slice
     dset = _time_slice(dset, selections)
@@ -458,7 +443,7 @@ def _concat_sims(data_dict, hist_data, selections, scenario):
         short designation for one SSP
 
     Returns
-    ----------
+    -------
     one_scenario: xr.Dataset
         combined data object
     """
@@ -495,10 +480,9 @@ def _override_unit_defaults(da, var_id):
         any xarray DataArray with a units attribute
 
     Returns
-    ----------
+    -------
     xr.DataArray
         output data
-
     """
     if var_id == "huss":
         # Units for LOCA specific humidity are set to 1
@@ -522,10 +506,9 @@ def _add_scenario_dim(da, scen_name):
         desired value for scenario along new dimension
 
     Returns
-    ----------
+    -------
     da: xr.DataArray
         data object with singleton scenario dimension added.
-
     """
     da = da.assign_coords({"scenario": scen_name})
     da = da.expand_dims(dim={"scenario": 1})
@@ -548,7 +531,6 @@ def _merge_all(selections, data_dict):
     ----------
     da: xr.DataArray
         output data
-
     """
     # Two LOCA2 simulations report a daily timestamp coordinate at 12am (midnight) when the rest of the simulations report at 12pm (noon)
     # Here we reindex the time dimension to shift it by 12HR for the two troublesome simulations
@@ -630,7 +612,7 @@ def _get_data_one_var(selections):
         object holding user's selections
 
     Returns
-    ----------
+    -------
     da: xr.DataArray
         with datasets combined over new dimensions 'simulation' and 'scenario'
     """
@@ -769,7 +751,7 @@ def read_catalog_from_select(selections):
         object holding user's selections
 
     Returns
-    ----------
+    -------
     da: xr.DataArray
         output data
     """
@@ -875,11 +857,9 @@ def read_catalog_from_select(selections):
     return da
 
 
-# USE XR APPLY TO GET BIAS CORRECTED DATA TO STATION
-
-
 def _station_apply(selections, da, original_time_slice):
-    """
+    """Use xr.apply to get bias corrected data to station
+
     Parameters
     ----------
     selections: DataParameters
@@ -888,7 +868,7 @@ def _station_apply(selections, da, original_time_slice):
     original_time_slice: tuple
 
     Returns
-    ----------
+    -------
     apply_output: xr.DataArray
         output data
     """
@@ -1073,9 +1053,6 @@ def _preprocess_hadisd(ds, stations_gdf):
     return ds
 
 
-# ============ Retrieve data from a csv input ===============
-
-
 def read_catalog_from_csv(selections, csv, merge=True):
     """Retrieve user data selections from csv input.
 
@@ -1093,7 +1070,7 @@ def read_catalog_from_csv(selections, csv, merge=True):
         Default to True.
 
     Returns
-    ----------
+    -------
     one of the following, depending on csv input and merge:
 
     xr_ds: xr.Dataset
@@ -1163,9 +1140,17 @@ def read_catalog_from_csv(selections, csv, merge=True):
         return xr_da
 
 
-## HELPER FUNCTIONS: DERIVED VARIABLES
 def _get_wind_speed_derived(selections):
-    """Get input data and derive wind speed for hourly data"""
+    """Get input data and derive wind speed for hourly data
+
+    Parameters
+    ----------
+    selections: DataParameters
+
+    Returns
+    -------
+    da: xr.DataArray
+    """
     # Load u10 data
     selections.variable_id = ["u10"]
     selections.units = (
@@ -1184,7 +1169,16 @@ def _get_wind_speed_derived(selections):
 
 
 def _get_wind_dir_derived(selections):
-    """Get input data and derive wind direction for hourly data"""
+    """Get input data and derive wind direction for hourly data
+
+    Parameters
+    ----------
+    selections: DataParameters
+
+    Returns
+    -------
+    da: xr.DataArray
+    """
     # Load u10 data
     selections.variable_id = ["u10"]
     selections.units = (
@@ -1203,7 +1197,16 @@ def _get_wind_dir_derived(selections):
 
 
 def _get_monthly_daily_dewpoint(selections):
-    """Derive dew point temp for monthly/daily data."""
+    """Derive dew point temp for monthly/daily data.
+
+    Parameters
+    ----------
+    selections: DataParameters
+
+    Returns
+    -------
+    da: xr.DataArray
+    """
     # Daily/monthly dew point inputs have different units
     # Hourly dew point temp derived differently because you also have to derive relative humidity
 
@@ -1225,6 +1228,14 @@ def _get_monthly_daily_dewpoint(selections):
 def _get_hourly_dewpoint(selections):
     """Derive dew point temp for hourly data.
     Requires first deriving relative humidity.
+
+    Parameters
+    ----------
+    selections: DataParameters
+
+    Returns
+    -------
+    da: xr.DataArray
     """
     # Load temperature data
     selections.variable_id = ["t2"]
@@ -1259,7 +1270,16 @@ def _get_hourly_dewpoint(selections):
 
 
 def _get_hourly_rh(selections):
-    """Derive hourly relative humidity."""
+    """Derive hourly relative humidity.
+
+    Parameters
+    ----------
+    selections: DataParameters
+
+    Returns
+    -------
+    da: xr.DataArray
+    """
     # Load temperature data
     selections.variable_id = ["t2"]
     selections.units = "degC"  # Celsius required for humidity
@@ -1288,6 +1308,14 @@ def _get_hourly_rh(selections):
 def _get_hourly_specific_humidity(selections):
     """Derive hourly specific humidity.
     Requires first deriving relative humidity, then dew point temp.
+
+    Parameters
+    ----------
+    selections: DataParameters
+
+    Returns
+    -------
+    da: xr.DataArray
     """
     # Load temperature data
     selections.variable_id = ["t2"]
@@ -1330,7 +1358,16 @@ def _get_hourly_specific_humidity(selections):
 
 
 def _get_noaa_heat_index(selections):
-    """Derive NOAA heat index"""
+    """Derive NOAA heat index
+
+    Parameters
+    ----------
+    selections: DataParameters
+
+    Returns
+    -------
+    da: xr.DataArray
+    """
 
     # Load mixing ratio data
     selections.variable_id = ["q2"]
@@ -1365,7 +1402,16 @@ def _get_noaa_heat_index(selections):
 
 
 def _get_eff_temp(selections):
-    """Derive the effective temperature"""
+    """Derive the effective temperature
+
+    Parameters
+    ----------
+    selections: DataParameters
+
+    Returns
+    -------
+    da: xr.DataArray
+    """
 
     # Load temperature data
     selections.variable_id = ["t2"]
@@ -1377,7 +1423,16 @@ def _get_eff_temp(selections):
 
 
 def _get_fosberg_fire_index(selections):
-    """Derive the fosberg fire index."""
+    """Derive the fosberg fire index.
+
+    Parameters
+    ----------
+    selections: DataParameters
+
+    Returns
+    -------
+    da: xr.DataArray
+    """
 
     # Hard set timescale to hourly
     orig_timescale = selections.timescale  # Preserve original user selection
