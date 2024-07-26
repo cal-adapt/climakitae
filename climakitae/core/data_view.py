@@ -1,5 +1,3 @@
-"""Backend function for creating generic visualizations of xarray DataArray."""
-
 import warnings
 import numpy as np
 import hvplot.xarray
@@ -10,7 +8,24 @@ from climakitae.core.data_interface import VariableDescriptions
 
 
 def compute_vmin_vmax(da_min, da_max):
-    """Compute min, max, and center for plotting"""
+    """Compute min, max, and center for plotting
+
+    Parameters
+    ----------
+    da_min: xr.Dataset
+        data input to calculate the minimum
+    da_max: xr.Dataset
+        data input to calculate the maximum
+
+    Returns
+    -------
+    vmin: int
+        minimum value
+    vmax: int
+        maximum value
+    sopt: bool
+        indicates symmetry if vmin and vmax have opposite signs
+    """
     vmin = np.nanpercentile(da_min, 1)
     vmax = np.nanpercentile(da_max, 99)
     # define center for diverging symmetric data
