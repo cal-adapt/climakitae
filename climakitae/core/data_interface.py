@@ -250,7 +250,6 @@ def _get_overlapping_stations(stations, polygon):
     -------
     gpd.GeoDataFrame
         stations gpd subsetted to include only points contained within polygon
-
     """
     return gpd.sjoin(stations, polygon, predicate="within")
 
@@ -284,7 +283,6 @@ def _get_subarea(
     Returns
     -------
     gpd.GeoDataFrame
-
     """
 
     def _get_subarea_from_shape_index(
@@ -1136,7 +1134,6 @@ class DataParameters(param.Parameterized):
             If multiple rows are in the csv and merge=True,
             multiple DataArrays are returned in a single list.
             Only an option if a config file is provided.
-
         """
 
         def warnoflargefilesize(da):
