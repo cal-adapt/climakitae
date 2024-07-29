@@ -842,8 +842,10 @@ def drop_invalid_wrf_sims(ds):
 
     Notes:
     - For datasets with a resolution of '3 km', no simulations are dropped, and the original dataset is returned.
-    - For datasets with a resolution of '9 km', only specific valid simulations are retained.
-    - For datasets with a resolution of '45 km', only specific valid simulations are retained.
+    - For datasets with a resolution of '9 km' at hourly timescale, only 10 simulations are returned.
+    - For datasets with a resolution of '9 km' at daily/monthly timescale, only 6 simulations are returned.
+    - For datasets with a resolution of '45 km' at hourly timescale, only 7 simulations are returned.
+    - For datasets with a resolution of '45 km' at daily/monthly timescale, only 6 simulations are returned.
     """
     if "all_sims" not in ds.dims:
         raise AttributeError(
@@ -854,30 +856,50 @@ def drop_invalid_wrf_sims(ds):
     if ds.resolution == "3 km":
         return ds
 
-    valid_45km = [
-        ("WRF_CESM2_r11i1p1f1", "Historical + SSP 2-4.5 -- Middle of the Road"),
-        ("WRF_CNRM-ESM2-1_r1i1p1f2", "Historical + SSP 3-7.0 -- Business as Usual"),
-        ("WRF_EC-Earth3-Veg_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
-        ("WRF_CESM2_r11i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
-        ("WRF_EC-Earth3_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
-        ("WRF_FGOALS-g3_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
-        ("WRF_CESM2_r11i1p1f1", "Historical + SSP 5-8.5 -- Burn it All"),
-    ]
-
-    valid_9km = [
-        ("WRF_CESM2_r11i1p1f1", "Historical + SSP 2-4.5 -- Middle of the Road"),
-        ("WRF_CESM2_r11i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
-        ("WRF_CESM2_r11i1p1f1", "Historical + SSP 5-8.5 -- Burn it All"),
-        ("WRF_CNRM-ESM2-1_r1i1p1f2", "Historical + SSP 3-7.0 -- Business as Usual"),
-        ("WRF_EC-Earth3-Veg_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
-        ("WRF_EC-Earth3_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
-        ("WRF_FGOALS-g3_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
-        ("WRF_MIROC6_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
-        ("WRF_MPI-ESM1-2-HR_r3i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
-        ("WRF_TaiESM1_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
-    ]
-
     if ds.resolution == "9 km":
-        return ds.sel(all_sims=valid_9km)
-    elif ds.resolution == "45 km":
-        return ds.sel(all_sims=valid_45km)
+        valid_sims = [
+            ("WRF_CESM2_r11i1p1f1", "Historical + SSP 2-4.5 -- Middle of the Road"),
+            ("WRF_CESM2_r11i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
+            ("WRF_CESM2_r11i1p1f1", "Historical + SSP 5-8.5 -- Burn it All"),
+            ("WRF_CNRM-ESM2-1_r1i1p1f2", "Historical + SSP 3-7.0 -- Business as Usual"),
+            (
+                "WRF_EC-Earth3-Veg_r1i1p1f1",
+                "Historical + SSP 3-7.0 -- Business as Usual",
+            ),
+            ("WRF_FGOALS-g3_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
+        ]
+        if ds.frequency == "hourly":
+            valid_sims += [
+                (
+                    "WRF_EC-Earth3_r1i1p1f1",
+                    "Historical + SSP 3-7.0 -- Business as Usual",
+                ),
+                ("WRF_MIROC6_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
+                (
+                    "WRF_MPI-ESM1-2-HR_r3i1p1f1",
+                    "Historical + SSP 3-7.0 -- Business as Usual",
+                ),
+                ("WRF_TaiESM1_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
+            ]
+
+    if ds.resolution == "45 km":
+        valid_sims = [
+            ("WRF_CESM2_r11i1p1f1", "Historical + SSP 2-4.5 -- Middle of the Road"),
+            ("WRF_CNRM-ESM2-1_r1i1p1f2", "Historical + SSP 3-7.0 -- Business as Usual"),
+            (
+                "WRF_EC-Earth3-Veg_r1i1p1f1",
+                "Historical + SSP 3-7.0 -- Business as Usual",
+            ),
+            ("WRF_CESM2_r11i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
+            ("WRF_FGOALS-g3_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
+            ("WRF_CESM2_r11i1p1f1", "Historical + SSP 5-8.5 -- Burn it All"),
+        ]
+        if ds.frequency == "hourly":
+            valid_sims += (
+                (
+                    "WRF_EC-Earth3_r1i1p1f1",
+                    "Historical + SSP 3-7.0 -- Business as Usual",
+                ),
+            )
+
+    return ds.sel(all_sims=valid_sims)
