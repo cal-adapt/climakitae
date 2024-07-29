@@ -41,9 +41,18 @@ def downscaling_method_as_list(downscaling_method):
 
 
 def scenario_to_experiment_id(scenario, reverse=False):
-    """
-    Convert scenario format to experiment_id format matching catalog names.
-    Set reverse=True to get scenario format from input experiement_id.
+    """Convert scenario format to experiment_id format matching catalog names.
+
+    Parameters
+    ----------
+    scenario: str
+    reverse: boolean, optional
+        Set reverse=True to get scenario format from input experiement_id.
+        Default to False
+
+    Returns
+    -------
+    str
     """
     scenario_dict = {
         "Historical Reconstruction": "reanalysis",
@@ -70,7 +79,6 @@ def area_average(dset):
     -------
     xr.Dataset
         sub-setted output data
-
     """
     weights = np.cos(np.deg2rad(dset.lat))
     if set(["x", "y"]).issubset(set(dset.dims)):
@@ -83,16 +91,55 @@ def area_average(dset):
 
 
 def read_csv_file(rel_path, index_col=None, parse_dates=False):
+    """Read CSV file into pandas DataFrame
+
+    Parameters
+    ----------
+    rel_path: str
+        path to CSV file relative to this util python file
+    index_col: str
+        CSV column to index DataFrame on
+    parse_dates: boolean
+        Whether to have pandas parse the date strings
+
+    Returns
+    -------
+    pd.DataFrame
+    """
     return pd.read_csv(
         _package_file_path(rel_path), index_col=index_col, parse_dates=parse_dates
     )
 
 
 def write_csv_file(df, rel_path):
+    """Write CSV file from pandas DataFrame
+
+    Parameters
+    ----------
+    df: pd.DataFrame
+        pandas DataFrame to write out
+    rel_path: str
+        path to CSV file relative to this util python file
+
+    Returns
+    -------
+    None or str
+    """
     return df.to_csv(_package_file_path(rel_path))
 
 
 def _package_file_path(rel_path):
+    """Find OS full path name given relative path
+
+    Parameters
+    ----------
+    rel_path: str
+        path to file relative to this util python file
+
+    Returns
+    -------
+    str
+    """
     return os.path.normpath(os.path.join(os.path.dirname(__file__), "..", rel_path))
 
 
@@ -121,7 +168,7 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
 
     See also
     --------
-    xarray.DataArray.sel
+    xr.DataArray.sel
     """
     # Make Transformer object
     lat_lon_to_model_projection = pyproj.Transformer.from_crs(
@@ -480,7 +527,6 @@ def combine_hdd_cdd(data):
     return data
 
 
-## DFU plotting functions
 def hdd_cdd_lineplot(annual_data, trendline, title="title"):
     """Plots annual CDD/HDD with trendline provided
 
