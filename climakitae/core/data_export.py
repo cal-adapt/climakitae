@@ -1064,12 +1064,13 @@ def _tmy_8760_size_check(df):
 
     Parameters
     ----------
-    df (pd.DataFrame): Dataframe of TMY to export
+    df: pd.DataFrame
+        Dataframe of TMY to export
 
     Returns
     -------
-    df (pd.Dataframe): Dataframe of TMY to export, explicitly 8760 in size
-
+    df: pd.Dataframe
+        Dataframe of TMY to export, explicitly 8760 in size
     """
 
     # first drop any duplicate time rows -- some df with 8760 are 8759 with duplicate rows, i.e., not a true 8760
@@ -1133,15 +1134,24 @@ def write_tmy_file(
 
     Parameters
     ----------
-    filename_to_export (str): Filename string, constructed with station name and simulation
-    df (pd.DataFrame): Dataframe of TMY data to export
-    location_name (str): Location name string, often station name
-    station_code (int): Station code
-    stn_lat (float): Station latitude
-    stn_lon (float): Station longitude
-    stn_state (str): State of station location
-    stn_elev (float, optional): Elevation of station, default is 0.0
-    file_ext (str, optional): File extension for export, default is .tmy, options are "tmy" and "epw"
+    filename_to_export: str
+        Filename string, constructed with station name and simulation
+    df: pd.DataFrame
+        Dataframe of TMY data to export
+    location_name: str
+        Location name string, often station name
+    station_code: int
+        Station code
+    stn_lat: float
+        Station latitude
+    stn_lon: float
+        Station longitude
+    stn_state: str
+        State of station location
+    stn_elev: float (optional)
+        Elevation of station, default is 0.0
+    file_ext: str (optional)
+        File extension for export, default is .tmy, options are "tmy" and "epw"
 
     Returns
     -------

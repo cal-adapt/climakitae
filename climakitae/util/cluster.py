@@ -25,7 +25,6 @@ class Cluster(GatewayCluster):
         Returns
         -------
         distributed.client.Client
-
         """
         clusters = self.gateway.list_clusters()
         if clusters:

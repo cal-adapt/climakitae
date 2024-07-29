@@ -53,7 +53,6 @@ def load(xr_da, progress_bar=False):
     Returns
     -------
     da_computed: xr.DataArray
-
     """
 
     # Check if data is already loaded into memory
@@ -99,7 +98,6 @@ def _scenarios_in_data_dict(keys):
     -------
     scenario_list: list[str]
         unique scenarios
-
     """
     scenarios = set([one.split(".")[3] for one in keys if "ssp" in one])
 
@@ -118,7 +116,6 @@ def _get_cat_subset(selections):
     -------
     cat_subset: intake_esm.source.ESMDataSource
         catalog subset
-
     """
 
     scenario_selections = selections.scenario_ssp + selections.scenario_historical
@@ -194,7 +191,6 @@ def area_subset_geometry(selections):
     -------
     ds_region: shapely.geometry
         geometry to use for subsetting
-
     """
 
     def _override_area_selections(selections):
@@ -379,7 +375,6 @@ def _process_dset(ds_name, dset, selections):
     -------
     xr.Dataset
         sub-setted output data
-
     """
     # Time slice
     dset = _time_slice(dset, selections)
@@ -404,7 +399,6 @@ def _process_dset(ds_name, dset, selections):
         Returns
         -------
         str: joined by underscores
-
         """
         downscaling_type = ds_name.split(".")[0]
         gcm_name = ds_name.split(".")[2]
@@ -440,7 +434,6 @@ def _merge_all(selections, data_dict):
     -------
     da: xr.DataArray
         output data
-
     """
     # Get corresponding data for historical period to append:
     reconstruction = [one for one in data_dict.keys() if "reanalysis" in one]
@@ -515,7 +508,6 @@ def _merge_all(selections, data_dict):
         -------
         da: xr.DataArray
             data object with singleton scenario dimension added.
-
         """
         da = da.assign_coords({"scenario": scen_name})
         da = da.expand_dims(dim={"scenario": 1})
@@ -570,7 +562,6 @@ def _merge_all(selections, data_dict):
         -------
         xr.DataArray
             output data
-
         """
         if var_id == "huss":
             # Units for LOCA specific humidity are set to 1
