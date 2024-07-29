@@ -843,7 +843,7 @@ def _utc_offset_timezone(lat, lon):
     Returns
     -------
     str
-        
+
     Modified from:
     https://stackoverflow.com/questions/5537876/get-utc-offset-from-time-zone-name-in-python
     """

@@ -604,7 +604,7 @@ class DataInterface:
     This is a singleton class called by the various Param classes to connect to the local
     data and to the intake data catalog and parquet boundary catalog. The class attributes
     are read only so that the data does not get changed accidentially.
-    
+
     Attributes
     ----------
     variable_descriptions: pd.DataFrame
@@ -1760,12 +1760,12 @@ def _display_select(self):
 
 def _get_user_friendly_catalog(intake_catalog, variable_descriptions):
     """Get a user-friendly version of the intake data catalog using climakitae naming conventions
-    
+
     Parameters
     ----------
     intake_catalog: intake_esm.source.ESMDataSource
     variable_descriptions: pd.DataFrame
-    
+
     Returns
     -------
     cat_df_cleaned: intake_esm.source.ESMDataSource
