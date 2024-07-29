@@ -31,10 +31,10 @@ def batch_select(selections, points, load_data=True, progress_bar=True):
         lat, lon = point
         closest_cell = get_closest_gridcell(
             data, lat, lon, print_coords=False
-        ).squeeze()
+        )
         closest_cell["simulation"] = [
             "{}_{}_{}".format(
-                sim_name, closest_cell.lat.item(), closest_cell.lon.item()
+                sim_name, closest_cell.lat.compute().item(), closest_cell.lon.compute().item()
             )
             for sim_name in closest_cell.simulation
         ]
