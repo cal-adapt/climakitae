@@ -20,24 +20,25 @@ def batch_select(selection_params, points, approach, load_data=True, progress_ba
     -------
     cells_of_interest: xr.DataArray of the gridcells that the points lie within, aggregated together into one DataArray. It can or cannot be loaded into memory, depending on `load_data`.
     """
+
     def _retrieve_pts(data, sim_dim_name):
         """Retrieving all individual points within the entire domain of data pulled."""
         data_pts = []
         for point in points:
             lat, lon = point
-            closest_cell = get_closest_gridcell(
-                data, lat, lon, print_coords=False
-            ).squeeze()
+            closest_cell = get_closest_gridcell(data, lat, lon, print_coords=False)
             closest_cell[sim_dim_name] = [
                 "{}_{}_{}".format(
-                    sim_name, closest_cell.lat.item(), closest_cell.lon.item()
+                    sim_name,
+                    closest_cell.lat.compute().item(),
+                    closest_cell.lon.compute().item(),
                 )
                 for sim_name in closest_cell[sim_dim_name]
             ]
             data_pts.append(closest_cell)
         return data_pts
-    
-    dim_name = 'simulation' if approach == 'time' else 'all_sims'
+
+    dim_name = "simulation" if approach == "time" else "all_sims"
 
     # Add selections attributes to cover the entire domain since we don't know exactly where the selected points lie.
     selection_params.area_subset = "none"
@@ -46,7 +47,6 @@ def batch_select(selection_params, points, approach, load_data=True, progress_ba
     if approach == "time":
         data = selection_params.retrieve()
         data_pts = _retrieve_pts(data, dim_name)
-        time_length = data_pts[0].time.size
 
     elif approach == "warming_level":
         selection_params.calculate()
@@ -54,13 +54,9 @@ def batch_select(selection_params, points, approach, load_data=True, progress_ba
         for wl in data.keys():
             data_pts = _retrieve_pts(data[wl], dim_name)
 
-        # Find the WL time dim name
-        wl_time_dim = [dim for dim in data_pts[0].dims if "from_center" in dim][0]
-        time_length = data_pts[0][wl_time_dim].size
-
     # Combine data points into a single xr.Dataset
-    cells_of_interest = xr.concat(data_pts, dim=dim_name).chunk((1, time_length))
-    
+    cells_of_interest = xr.concat(data_pts, dim=dim_name).chunk(chunks="auto")
+
     # Load in the cells of interest into memory, if desired.
     if load_data:
         cells_of_interest = load(cells_of_interest, progress_bar=progress_bar)

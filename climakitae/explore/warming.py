@@ -18,12 +18,12 @@ from climakitae.core.data_load import (
 from climakitae.core.data_interface import (
     DataParametersWithPanes,
     _selections_param_to_panel,
+    _scenario_to_experiment_id,
 )
 from climakitae.util.utils import (
     read_csv_file,
     read_ae_colormap,
     area_average,
-    scenario_to_experiment_id,
     drop_invalid_wrf_sims,
 )
 from climakitae.core.paths import (
@@ -170,7 +170,7 @@ def relabel_axis(all_sims_dim):
 def process_item(y):
     # get a tuple of identifiers for the lookup table from DataArray indexers
     simulation = y.simulation.item()
-    scenario = scenario_to_experiment_id(y.scenario.item().split("+")[1].strip())
+    scenario = _scenario_to_experiment_id(y.scenario.item().split("+")[1].strip())
     downscaling_method, sim_str, ensemble = simulation.split("_")
     return (sim_str, ensemble, scenario)
 
