@@ -27,8 +27,8 @@ def batch_select(selection_params, points, approach, load_data=True, progress_ba
         for point in points:
             lat, lon = point
             closest_cell = get_closest_gridcell(data, lat, lon, print_coords=False)
-            data = stack_sims_across_locs(closest_cell, sim_dim_name)
-            data_pts.append(closest_cell)
+            stacked_data = stack_sims_across_locs(closest_cell, sim_dim_name)
+            data_pts.append(stacked_data)
         return data_pts
 
     dim_name = "simulation" if approach == "time" else "all_sims"
@@ -43,12 +43,10 @@ def batch_select(selection_params, points, approach, load_data=True, progress_ba
 
     elif approach == "warming_level":
         selection_params.calculate()
-        data = selection_params.sliced_data
-
-        import pdb; pdb.set_trace()
-
+        
         # This will only retrieve points for 1 warming level at a time.
-        data_pts = _retrieve_pts(data[selection_params.wl.warming_level], dim_name, points)
+        data = selection_params.sliced_data[selection_params.wl_params.warming_levels[0]]
+        data_pts = _retrieve_pts(data, dim_name, points)
 
     # Combine data points into a single xr.Dataset
     cells_of_interest = xr.concat(data_pts, dim=dim_name).chunk(chunks="auto")
