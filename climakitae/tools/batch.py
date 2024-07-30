@@ -1,4 +1,4 @@
-from climakitae.util.utils import get_closest_gridcell
+from climakitae.util.utils import get_closest_gridcell, stack_sims_across_locs
 from climakitae.core.data_load import load
 import xarray as xr
 
@@ -21,20 +21,13 @@ def batch_select(selection_params, points, approach, load_data=True, progress_ba
     cells_of_interest: xr.DataArray of the gridcells that the points lie within, aggregated together into one DataArray. It can or cannot be loaded into memory, depending on `load_data`.
     """
 
-    def _retrieve_pts(data, sim_dim_name):
+    def _retrieve_pts(data, sim_dim_name, points):
         """Retrieving all individual points within the entire domain of data pulled."""
         data_pts = []
         for point in points:
             lat, lon = point
             closest_cell = get_closest_gridcell(data, lat, lon, print_coords=False)
-            closest_cell[sim_dim_name] = [
-                "{}_{}_{}".format(
-                    sim_name,
-                    closest_cell.lat.compute().item(),
-                    closest_cell.lon.compute().item(),
-                )
-                for sim_name in closest_cell[sim_dim_name]
-            ]
+            data = stack_sims_across_locs(closest_cell, sim_dim_name)
             data_pts.append(closest_cell)
         return data_pts
 
@@ -46,13 +39,16 @@ def batch_select(selection_params, points, approach, load_data=True, progress_ba
 
     if approach == "time":
         data = selection_params.retrieve()
-        data_pts = _retrieve_pts(data, dim_name)
+        data_pts = _retrieve_pts(data, dim_name, points)
 
     elif approach == "warming_level":
         selection_params.calculate()
         data = selection_params.sliced_data
-        for wl in data.keys():
-            data_pts = _retrieve_pts(data[wl], dim_name)
+
+        import pdb; pdb.set_trace()
+
+        # This will only retrieve points for 1 warming level at a time.
+        data_pts = _retrieve_pts(data[selection_params.wl.warming_level], dim_name, points)
 
     # Combine data points into a single xr.Dataset
     cells_of_interest = xr.concat(data_pts, dim=dim_name).chunk(chunks="auto")
