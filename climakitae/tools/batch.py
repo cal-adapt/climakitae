@@ -43,11 +43,15 @@ def batch_select(selection_params, points, approach, load_data=True, progress_ba
 
     elif approach == "warming_level":
         selection_params.calculate()
-        
+
         # This will only retrieve points for 1 warming level at a time.
-        data = selection_params.sliced_data[selection_params.wl_params.warming_levels[0]]
-        
-        import pdb; pdb.set_trace()
+        data = selection_params.sliced_data[
+            selection_params.wl_params.warming_levels[0]
+        ]
+
+        import pdb
+
+        pdb.set_trace()
         data_pts = _retrieve_pts(data, dim_name, points)
 
     # Combine data points into a single xr.Dataset

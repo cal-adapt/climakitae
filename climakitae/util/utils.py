@@ -113,7 +113,7 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
     # Assumes data is from climakitae retrieve
     tolerance = int(data.resolution.split(" km")[0]) * 1000
 
-    if 'x' and 'y' in data.dims:
+    if "x" and "y" in data.dims:
         # Make Transformer object
         lat_lon_to_model_projection = pyproj.Transformer.from_crs(
             crs_from="epsg:4326",  # Lat/lon
@@ -128,11 +128,13 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
     # If input point outside of dataset by greater than one
     # grid cell, then None is returned
     try:
-        if 'x' and 'y' in data.dims:
+        if "x" and "y" in data.dims:
             closest_gridcell = data.sel(x=x, y=y, method="nearest", tolerance=tolerance)
-        elif 'lat' and 'lon' in data.dims:
-            closest_gridcell = data.sel(lat=lat, lon=lon, method="nearest", tolerance=tolerance)
-            
+        elif "lat" and "lon" in data.dims:
+            closest_gridcell = data.sel(
+                lat=lat, lon=lon, method="nearest", tolerance=tolerance
+            )
+
     except KeyError:
         print(
             f"Input coordinates: ({lat:.2f}, {lon:.2f}) OUTSIDE of data extent by more than one cell. Returning None"
@@ -911,7 +913,7 @@ def drop_invalid_wrf_sims(ds):
 
 
 def stack_sims_across_locs(ds, sim_dim_name):
-     # Renaming gridcell so that it can be concatenated with other lat/lon gridcells
+    # Renaming gridcell so that it can be concatenated with other lat/lon gridcells
     ds[sim_dim_name] = [
         "{}_{}_{}".format(
             sim_name,
