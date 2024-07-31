@@ -568,7 +568,6 @@ def hdh_cdh_lineplot(data):
     )
 
 
-## Heat Index summary table helper
 def summary_table(data):
     """Helper function to organize dataset object into a pandas dataframe for ease.
 
