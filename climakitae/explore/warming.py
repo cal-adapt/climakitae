@@ -12,19 +12,22 @@ import panel as pn
 import dask
 import calendar
 
+from climakitae.core.data_view import compute_vmin_vmax
+
 from climakitae.core.data_load import (
     load,
 )
 from climakitae.core.data_interface import (
     DataParametersWithPanes,
+    DataInterface,
     _selections_param_to_panel,
-    _scenario_to_experiment_id,
 )
 from climakitae.util.utils import (
     read_csv_file,
     read_ae_colormap,
     area_average,
     drop_invalid_wrf_sims,
+    _scenario_to_experiment_id,
 )
 from climakitae.core.paths import (
     gwl_1981_2010_file,
@@ -144,13 +147,11 @@ class WarmingLevels:
         self.gwl_snapshots = xr.concat(self.gwl_snapshots.values(), dim="warming_level")
 
     def visualize(self):
-        self.cmap = _get_cmap(self.wl_params)
         print("Loading in GWL snapshots...")
         self.gwl_snapshots = load(self.gwl_snapshots, progress_bar=True)
         self.wl_viz = WarmingLevelVisualize(
             gwl_snapshots=self.gwl_snapshots,
             wl_params=self.wl_params,
-            cmap=self.cmap,
             warming_levels=self.wl_params.warming_levels,
         )
         self.wl_viz.compute_stamps()
@@ -295,16 +296,35 @@ def get_sliced_data(y, level, years, months=np.arange(1, 13), window=15, anom="Y
         return xr.full_like(y, np.nan)
 
 
-def _get_cmap(wl_params):
-    """Set colormap depending on variable"""
-    if (
-        wl_params.variable == "Air Temperature at 2m"
-        or wl_params.variable == "Dew point temperature"
-        or wl_params.variable == "Maximum air temperature at 2m"
-    ):
+def _get_cmap(variable, variable_descriptions, vmin):
+    """Set colormap depending on variable and minimum value in data
+    See read_ae_colormap function for more info on function output
+
+    Parameters
+    ----------
+    variable: str
+        Display name of variable
+    variable_descriptions: pd.DataFrame
+        climakitae package data with variable descriptions and corresponding colormaps
+    vmin: float
+        minimum value of data
+
+    Returns
+    -------
+    cmap: list
+        Colormap
+
+    """
+
+    # Get colormap based on variable
+    cmap_name = variable_descriptions[
+        variable_descriptions["display_name"] == variable
+    ]["colormap"].values[0]
+
+    # Force reset cmap to ae orange if minimum value is greater than 0
+    if cmap_name == "ae_diverging" and vmin >= 0:
         cmap_name = "ae_orange"
-    else:
-        cmap_name = "ae_diverging"
+        # Ideally this should also force-set moisture variables to ae_blue...
 
     # Read colormap hex
     cmap = read_ae_colormap(cmap=cmap_name, cmap_hex=True)
@@ -421,7 +441,7 @@ class WarmingLevelVisualize(param.Parameterized):
         doc="Shared Socioeconomic Pathway.",
     )
 
-    def __init__(self, gwl_snapshots, wl_params, cmap, warming_levels):
+    def __init__(self, gwl_snapshots, wl_params, warming_levels):
         """
         Two things are passed in where this is initialized, and come in through
         *args, and **params
@@ -433,12 +453,14 @@ class WarmingLevelVisualize(param.Parameterized):
         self.gwl_snapshots = gwl_snapshots
         self.wl_params = wl_params
         self.warming_levels = warming_levels
-        self.cmap = cmap
         some_dims = self.gwl_snapshots.dims  # different names depending on WRF/LOCA
         some_dims = list(some_dims)
         some_dims.remove("warming_level")
         self.mins = self.gwl_snapshots.min(some_dims).compute()
         self.maxs = self.gwl_snapshots.max(some_dims).compute()
+
+        # Need the DataInterface class to get the variable descriptions table
+        self.variable_descriptions = DataInterface().variable_descriptions
 
     def compute_stamps(self):
         self.main_stamps = GCM_PostageStamps_MAIN_compute(self)
@@ -697,6 +719,87 @@ def warming_levels_select(self):
 
 
 def GCM_PostageStamps_MAIN_compute(wl_viz):
+    # Make plots by warming level. Add to dictionary
+    warm_level_dict = {}
+    for warmlevel in wl_viz.warming_levels:
+
+        # Get data for just that warming level
+        # Rename simulation dimension to make the plot titles more intuitive
+        data_to_plot = wl_viz.gwl_snapshots.sel(warming_level=warmlevel).rename(
+            {"all_sims": "simulation"}
+        )
+
+        # Get min and max to use for colorbar
+        vmin, vmax, _ = compute_vmin_vmax(data_to_plot.min(), data_to_plot.max())
+
+        # Get cmap
+        cmap = _get_cmap(wl_viz.wl_params.variable, wl_viz.variable_descriptions, vmin)
+
+        # Create postage stamp plots
+        num_columns = 2
+        wl_plots = (
+            data_to_plot.hvplot.quadmesh(
+                x="lon",
+                y="lat",
+                col_wrap="simulation",
+                clim=(vmin, vmax),
+                cmap=cmap,
+                colorbar=False,
+                shared_axis=True,
+                rasterize=True,  # set to True, otherwise hvplot has a bug where hovertool leaves a question mark
+                frame_width=220,
+            )
+            .layout()
+            .cols(num_columns)
+        )
+        wl_plots.opts(toolbar="right")  # Set toolbar location
+        wl_plots.opts(
+            title=data_to_plot.name
+            + " for "
+            + str(warmlevel)
+            + "°C Warming by Simulation"
+        )  # Add suptitle
+
+        # Add titles to each subplot
+        for pl, sim_name in zip(wl_plots, data_to_plot.simulation.values):
+            title = " ".join(
+                sim_name.split("_")[:3]
+            )  # just get the downscaling method, simulation, and simulation run for plot title
+            pl.opts(title=title)
+
+        # Add a shared colorbar to the right of the plots
+        shared_colorbar = (
+            wl_plots.values()[0]
+            .clone()
+            .opts(
+                colorbar=True,
+                frame_width=0,
+                frame_height=500,
+                show_frame=False,
+                shared_axes=False,
+                xaxis=None,
+                yaxis=None,
+                toolbar=None,
+                title="",
+                colorbar_opts={
+                    "width": 20,
+                    "height": 400,
+                    "title": data_to_plot.name
+                    + " ("
+                    + data_to_plot.attrs["units"]
+                    + ")",
+                },
+            )
+        )
+
+        # Create panel object: combine plot with shared colorbar
+        # Add to dictionary
+        warm_level_dict[warmlevel] = pn.Row(wl_plots, shared_colorbar, align="center")
+
+    return warm_level_dict
+
+
+def _GCM_PostageStamps_MAIN_compute(wl_viz):
     """
     Compute helper for main postage stamps.
     Returns dictionary of warming levels to stats visuals.
@@ -721,6 +824,11 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
             else:
                 sopt = None
 
+            # Get cmap
+            cmap = _get_cmap(
+                wl_viz.wl_params.variable, wl_viz.variable_descriptions, vmin
+            )
+
             # now prepare the plot object:
             plot_image_kwargs = {
                 "by": "all_sims",
@@ -728,7 +836,7 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
                 "colorbar": False,
                 "clim": (vmin, vmax),
                 "clabel": clabel,
-                "cmap": wl_viz.cmap,
+                "cmap": cmap,
                 "symmetric": sopt,
                 "width": width,
                 "height": height,
@@ -789,9 +897,6 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
             )  # all_plot_data.hvplot()
 
     return warm_level_dict
-    # return all_plots
-    # else:
-    #     return None
 
 
 def GCM_PostageStamps_STATS_compute(wl_viz):
@@ -883,7 +988,7 @@ def GCM_PostageStamps_STATS_compute(wl_viz):
                 for stat in stats:
                     plot = stat.drop(["warming_level"]).hvplot.image(
                         clabel=clabel,
-                        cmap=wl_viz.cmap,
+                        cmap="coolwarm",
                         clim=(vmin, vmax),
                         symmetric=sopt,
                         width=width,
@@ -917,6 +1022,8 @@ def GCM_PostageStamps_STATS_compute(wl_viz):
 
 def warming_levels_visualize(wl_viz):
     # Create panel doodad!
+
+    postage_stamps_height = 800
 
     GMT_plot = pn.Card(
         pn.Column(
@@ -952,21 +1059,21 @@ def warming_levels_visualize(wl_viz):
             wl_viz.GCM_PostageStamps_MAIN,
             pn.Column(
                 pn.widgets.StaticText(value="<br><br><br>", width=150),
-                pn.widgets.StaticText(
-                    value=(
-                        "<b>Tip</b>: There's a toolbar below the maps."
-                        " Try clicking the magnifying glass to zoom in on a"
-                        " particular region. You can also click the save button"
-                        " to save a copy of the figure to your computer."
-                    ),
-                    width=150,
-                    style={
-                        "border": "1.2px red solid",
-                        "padding": "5px",
-                        "border-radius": "4px",
-                        "font-size": "13px",
-                    },
-                ),
+                # pn.widgets.StaticText(
+                #     value=(
+                #         "<b>Tip</b>: There's a toolbar below the maps."
+                #         " Try clicking the magnifying glass to zoom in on a"
+                #         " particular region. You can also click the save button"
+                #         " to save a copy of the figure to your computer."
+                #     ),
+                #     width=150,
+                #     style={
+                #         "border": "1.2px red solid",
+                #         "padding": "5px",
+                #         "border-radius": "4px",
+                #         "font-size": "13px",
+                #     },
+                # ),
             ),
         ),
     )
