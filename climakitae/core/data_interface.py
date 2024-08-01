@@ -579,10 +579,6 @@ class VariableDescriptions:
     variable_descriptions: pd.DataFrame
         pandas dataframe that stores available data variables usable with the package
 
-    Methods
-    -------
-    load(self)
-        read the variable descriptions csv into class variable
     """
 
     def __new__(cls):
@@ -594,6 +590,7 @@ class VariableDescriptions:
         self.variable_descriptions = pd.DataFrame
 
     def load(self):
+        """Read the variable descriptions csv into class variable."""
         if self.variable_descriptions.empty:
             self.variable_descriptions = read_csv_file(variable_descriptions_csv_path)
 
@@ -1924,17 +1921,17 @@ def get_data_options(
 
     Parameters
     ----------
-    variable: str (optional)
+    variable: str, optional
         Default to None
-    downscaling_method: str (optional)
+    downscaling_method: str, optional
         Default to None
-    resolution: str (optional)
+    resolution: str, optional
         Default to None
-    timescale: str (optional)
+    timescale: str, optional
         Default to None
-    scenario: str (optional)
+    scenario: str, optional
         Default to None
-    tidy: boolean (optional)
+    tidy: boolean, optional
         Format the pandas dataframe? This creates a DataFrame with a MultiIndex that makes it easier to parse the options.
         Default to True
 
@@ -2150,15 +2147,15 @@ def get_data(
     resolution: str
     timescale: str
     scenario: str
-    units: None (optional)
+    units: None, optional
         Defaults to native units of data
-    area_subset: str (optional)
+    area_subset: str, optional
         Area category: i.e "CA counties"
         Defaults to entire domain ("none")
-    cached_area: list (optional)
+    cached_area: list, optional
         Area: i.e "Alameda county"
         Defaults to entire domain ("none")
-    area_average: str, one of "No" or "Yes" (optional)
+    area_average: str, one of "No" or "Yes", optional
         Take an average over spatial domain?
         Default to No
 

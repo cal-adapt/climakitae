@@ -1071,8 +1071,6 @@ def read_catalog_from_csv(selections, csv, merge=True):
 
     Returns
     -------
-    one of the following, depending on csv input and merge:
-
     xr_ds: xr.Dataset
         if multiple rows are in the csv, each row is a data_variable
     xr_da: xr.DataArray

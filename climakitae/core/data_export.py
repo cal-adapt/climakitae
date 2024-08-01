@@ -1288,9 +1288,9 @@ def write_tmy_file(
         Station longitude
     stn_state: str
         State of station location
-    stn_elev: float (optional)
+    stn_elev: float, optional
         Elevation of station, default is 0.0
-    file_ext: str (optional)
+    file_ext: str, optional
         File extension for export, default is .tmy, options are "tmy" and "epw"
 
     Returns
