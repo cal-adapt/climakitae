@@ -11,6 +11,9 @@ import param
 import panel as pn
 import dask
 import calendar
+import warnings
+
+warnings.simplefilter(action="ignore", category=FutureWarning)
 
 from climakitae.core.data_view import compute_vmin_vmax
 
@@ -734,17 +737,34 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
 
         # Get cmap
         cmap = _get_cmap(wl_viz.wl_params.variable, wl_viz.variable_descriptions, vmin)
-                
-        # If there are less than or equal to four simulations, make postage stamps 
-        if len(data_to_plot.simulation.values) <= 4: 
-            
+
+        # If there are less than or equal to four simulations, make postage stamps
+        if len(data_to_plot.simulation.values) <= 4:
+
             # if there's only one data point, make a scatter plot
-            if len(data_to_plot.x.values) == 1 and len(data_to_plot.y.values) == 1: 
-                wl_plots = data_to_plot.hvplot.scatter(x="lon",y="lat", col_wrap="simulation", marker="s",s=150, frame_width=220)
-                warm_level_dict[warmlevel] = pn.Pane(wl_plots)
+            if len(data_to_plot.x.values) == 1 and len(data_to_plot.y.values) == 1:
+                wl_plots = (
+                    data_to_plot.hvplot.scatter(
+                        x="lon", y="lat", marker="s", s=150, frame_width=220
+                    )
+                    .layout()
+                    .cols(2)
+                )
+                wl_plots.opts(toolbar="right")  # Set toolbar location
+                wl_plots.opts(
+                    title=data_to_plot.name
+                    + " for "
+                    + str(warmlevel)
+                    + "°C Warming by Simulation"
+                )  # Add suptitle
+
+                # Add titles to each subplot
+                # this removes the default "simulation:" at the beginning
+                for pl, sim_name in zip(wl_plots, data_to_plot.simulation.values):
+                    pl.opts(title=sim_name)
 
             # Otherwise, create postage stamp plots
-            else: 
+            else:
                 wl_plots = (
                     data_to_plot.hvplot.quadmesh(
                         x="lon",
@@ -760,6 +780,7 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
                     .layout()
                     .cols(2)
                 )
+
                 wl_plots.opts(toolbar="right")  # Set toolbar location
                 wl_plots.opts(
                     title=data_to_plot.name
@@ -799,25 +820,40 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
                 )
 
                 # Create panel object: combine plot with shared colorbar
-                # Add to dictionary
-                warm_level_dict[warmlevel] = pn.Row(wl_plots, shared_colorbar, align="center")
-            
-        # If there are more than 4 simulations, make a dropdown 
-        else: 
-            #data_to_plot["simulation"] = sim_names_cleaned # make the simulation names prettier 
-            wl_plot = data_to_plot.hvplot.quadmesh(
-                x="lon", y="lat", 
-                col_wrap="simulation",
-                clim=(vmin, vmax),
-                cmap=cmap,
-                rasterize=True, 
-                frame_width=500, 
-                widget_location="bottom"
-            )
-            
+                wl_plots = pn.Row(wl_plots, shared_colorbar, align="center")
+
             # Add to dictionary
-            warm_level_dict[warmlevel] = pn.Pane(wl_plot) 
-            
+            warm_level_dict[warmlevel] = wl_plots
+
+        # If there are more than 4 simulations, make a dropdown
+        else:
+
+            # if there's only one data point, make a scatter plot
+            if len(data_to_plot.x.values) == 1 and len(data_to_plot.y.values) == 1:
+                wl_plot = data_to_plot.hvplot.scatter(
+                    x="lon",
+                    y="lat",
+                    col_wrap="simulation",
+                    marker="s",
+                    s=150,
+                    frame_width=500,
+                    widget_location="bottom",
+                )
+
+            else:
+                wl_plot = data_to_plot.hvplot.quadmesh(
+                    x="lon",
+                    y="lat",
+                    col_wrap="simulation",
+                    clim=(vmin, vmax),
+                    cmap=cmap,
+                    rasterize=True,
+                    frame_width=500,
+                    widget_location="bottom",
+                )
+
+            # Add to dictionary
+            warm_level_dict[warmlevel] = pn.Pane(wl_plot)
 
     return warm_level_dict
 
@@ -897,9 +933,11 @@ def GCM_PostageStamps_STATS_compute(wl_viz):
                 sopt = True
             else:
                 sopt = None
-                
+
             # Get cmap
-            cmap = _get_cmap(wl_viz.wl_params.variable, wl_viz.variable_descriptions, vmin)
+            cmap = _get_cmap(
+                wl_viz.wl_params.variable, wl_viz.variable_descriptions, vmin
+            )
 
             # Make plots
             any_single_dims = _check_single_spatial_dims(all_plot_data)
@@ -948,9 +986,6 @@ def GCM_PostageStamps_STATS_compute(wl_viz):
 
 def warming_levels_visualize(wl_viz):
     # Create panel doodad!
-
-    postage_stamps_height = 800
-
     GMT_plot = pn.Card(
         pn.Column(
             (
@@ -1032,7 +1067,7 @@ def warming_levels_visualize(wl_viz):
         ),
         title="Regional response at selected warming level",
         width=850,
-        height=600,
+        height=850,
         collapsible=False,
     )
 
