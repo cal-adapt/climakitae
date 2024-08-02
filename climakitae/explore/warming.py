@@ -734,167 +734,90 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
 
         # Get cmap
         cmap = _get_cmap(wl_viz.wl_params.variable, wl_viz.variable_descriptions, vmin)
+                
+        # If there are less than or equal to four simulations, make postage stamps 
+        if len(data_to_plot.simulation.values) <= 4: 
+            
+            # if there's only one data point, make a scatter plot
+            if len(data_to_plot.x.values) == 1 and len(data_to_plot.y.values) == 1: 
+                wl_plots = data_to_plot.hvplot.scatter(x="lon",y="lat", col_wrap="simulation", marker="s",s=150, frame_width=220)
+                warm_level_dict[warmlevel] = pn.Pane(wl_plots)
 
-        # Create postage stamp plots
-        num_columns = 2
-        wl_plots = (
-            data_to_plot.hvplot.quadmesh(
-                x="lon",
-                y="lat",
-                col_wrap="simulation",
-                clim=(vmin, vmax),
-                cmap=cmap,
-                colorbar=False,
-                shared_axis=True,
-                rasterize=True,  # set to True, otherwise hvplot has a bug where hovertool leaves a question mark
-                frame_width=220,
-            )
-            .layout()
-            .cols(num_columns)
-        )
-        wl_plots.opts(toolbar="right")  # Set toolbar location
-        wl_plots.opts(
-            title=data_to_plot.name
-            + " for "
-            + str(warmlevel)
-            + "°C Warming by Simulation"
-        )  # Add suptitle
-
-        # Add titles to each subplot
-        for pl, sim_name in zip(wl_plots, data_to_plot.simulation.values):
-            title = " ".join(
-                sim_name.split("_")[:3]
-            )  # just get the downscaling method, simulation, and simulation run for plot title
-            pl.opts(title=title)
-
-        # Add a shared colorbar to the right of the plots
-        shared_colorbar = (
-            wl_plots.values()[0]
-            .clone()
-            .opts(
-                colorbar=True,
-                frame_width=0,
-                frame_height=500,
-                show_frame=False,
-                shared_axes=False,
-                xaxis=None,
-                yaxis=None,
-                toolbar=None,
-                title="",
-                colorbar_opts={
-                    "width": 20,
-                    "height": 400,
-                    "title": data_to_plot.name
-                    + " ("
-                    + data_to_plot.attrs["units"]
-                    + ")",
-                },
-            )
-        )
-
-        # Create panel object: combine plot with shared colorbar
-        # Add to dictionary
-        warm_level_dict[warmlevel] = pn.Row(wl_plots, shared_colorbar, align="center")
-
-    return warm_level_dict
-
-
-def _GCM_PostageStamps_MAIN_compute(wl_viz):
-    """
-    Compute helper for main postage stamps.
-    Returns dictionary of warming levels to stats visuals.
-    """
-    # Get data to plot
-    warm_level_dict = {}
-    for warmlevel in wl_viz.warming_levels:  ### TODO: Can parallize this for-loop
-        all_plot_data = _select_one_gwl(warmlevel, wl_viz.gwl_snapshots)
-        if all_plot_data.all_sims.size != 0:
-            if wl_viz.wl_params.variable == "Relative humidity":
-                all_plot_data = all_plot_data * 100
-
-            # Set up plotting arguments
-            width = 210
-            height = 110
-            units = wl_viz.gwl_snapshots.attrs["units"]
-            clabel = wl_viz.wl_params.variable + " (" + units + ")"
-            vmin = wl_viz.mins.sel(warming_level=warmlevel).values.item()
-            vmax = wl_viz.maxs.sel(warming_level=warmlevel).values.item()
-            if (vmin < 0) and (vmax > 0):
-                sopt = True
-            else:
-                sopt = None
-
-            # Get cmap
-            cmap = _get_cmap(
-                wl_viz.wl_params.variable, wl_viz.variable_descriptions, vmin
-            )
-
-            # now prepare the plot object:
-            plot_image_kwargs = {
-                "by": "all_sims",
-                "subplots": True,
-                "colorbar": False,
-                "clim": (vmin, vmax),
-                "clabel": clabel,
-                "cmap": cmap,
-                "symmetric": sopt,
-                "width": width,
-                "height": height,
-                "xaxis": False,
-                "yaxis": False,
-                "title": "",
-            }
-
-            # Splitting up logic to plot images or bar for postage stamps depending on if there exist more/less than 2x2 gridcells
-            any_single_dims = _check_single_spatial_dims(all_plot_data)
-            if not any_single_dims:
-                all_plots = all_plot_data.hvplot.image(**plot_image_kwargs).cols(4)
-            else:
-                # Aggregate all data to just the `all_sims` dimension. This will average the data across all dimensions, which may not necessarily be desired for calculations with 'Max' variables, if you are for instance looking for a 'max of maxes'.
-                all_plot_data = all_plot_data.mean(
-                    dim=[dim for dim in all_plot_data.dims if dim != "all_sims"]
+            # Otherwise, create postage stamp plots
+            else: 
+                wl_plots = (
+                    data_to_plot.hvplot.quadmesh(
+                        x="lon",
+                        y="lat",
+                        col_wrap="simulation",
+                        clim=(vmin, vmax),
+                        cmap=cmap,
+                        colorbar=False,
+                        shared_axis=True,
+                        rasterize=True,  # set to True, otherwise hvplot has a bug where hovertool leaves a question mark
+                        frame_width=220,
+                    )
+                    .layout()
+                    .cols(2)
                 )
-
-                # Remove SSP descriptions
-                all_plot_data["all_sims"] = [
-                    sim_name.item().split("--")[0].strip()
-                    for sim_name in all_plot_data.all_sims
-                ]
-
-                if wl_viz.wl_params.downscaling_method == "Dynamical":
-                    # Creating barh plot since there's only max 8 WRF simulations, so each bar and label is still legible
-                    all_plots = all_plot_data.hvplot.barh(
-                        x="all_sims", xlabel="Simulation", ylabel=f"{units}"
-                    ).opts(multi_level=False, show_legend=False)
-
-                else:
-                    # Creating histogram since all simulations are too many to put on a bar plot
-                    all_plots = all_plot_data.hvplot.hist()
-
-            try:
-                all_plots.opts(
-                    title=wl_viz.wl_params.variable
+                wl_plots.opts(toolbar="right")  # Set toolbar location
+                wl_plots.opts(
+                    title=data_to_plot.name
                     + " for "
                     + str(warmlevel)
                     + "°C Warming by Simulation"
-                )  # Add title
-            except:
-                all_plots.opts(title=str(warmlevel) + "°C")  # Add shorter title
+                )  # Add suptitle
 
-            all_plots.opts(toolbar="below")  # Set toolbar location
-            all_plots.opts(hv.opts.Layout(merge_tools=True))  # Merge toolbar
+                # Add titles to each subplot
+                # this removes the default "simulation:" at the beginning
+                for pl, sim_name in zip(wl_plots, data_to_plot.simulation.values):
+                    pl.opts(title=sim_name)
 
-            if not any_single_dims:
-                warm_level_dict[warmlevel] = all_plots.cols(1)
-            else:
-                warm_level_dict[warmlevel] = all_plots
+                # Add a shared colorbar to the right of the plots
+                shared_colorbar = (
+                    wl_plots.values()[0]
+                    .clone()
+                    .opts(
+                        colorbar=True,
+                        frame_width=0,
+                        frame_height=500,
+                        show_frame=False,
+                        shared_axes=False,
+                        xaxis=None,
+                        yaxis=None,
+                        toolbar=None,
+                        title="",
+                        colorbar_opts={
+                            "width": 20,
+                            "height": 400,
+                            "title": data_to_plot.name
+                            + " ("
+                            + data_to_plot.attrs["units"]
+                            + ")",
+                        },
+                    )
+                )
 
-        # This means that there does not exist any simulations that reach this degree of warming (WRF models).
-        else:
-            # Pass in a dummy visualization for now to stay consistent with viz data structures
-            warm_level_dict[warmlevel] = pn.pane.Markdown(
-                "**No simulations reach this degree of warming.**"
-            )  # all_plot_data.hvplot()
+                # Create panel object: combine plot with shared colorbar
+                # Add to dictionary
+                warm_level_dict[warmlevel] = pn.Row(wl_plots, shared_colorbar, align="center")
+            
+        # If there are more than 4 simulations, make a dropdown 
+        else: 
+            #data_to_plot["simulation"] = sim_names_cleaned # make the simulation names prettier 
+            wl_plot = data_to_plot.hvplot.quadmesh(
+                x="lon", y="lat", 
+                col_wrap="simulation",
+                clim=(vmin, vmax),
+                cmap=cmap,
+                rasterize=True, 
+                frame_width=500, 
+                widget_location="bottom"
+            )
+            
+            # Add to dictionary
+            warm_level_dict[warmlevel] = pn.Pane(wl_plot) 
+            
 
     return warm_level_dict
 
@@ -974,6 +897,9 @@ def GCM_PostageStamps_STATS_compute(wl_viz):
                 sopt = True
             else:
                 sopt = None
+                
+            # Get cmap
+            cmap = _get_cmap(wl_viz.wl_params.variable, wl_viz.variable_descriptions, vmin)
 
             # Make plots
             any_single_dims = _check_single_spatial_dims(all_plot_data)
@@ -988,7 +914,7 @@ def GCM_PostageStamps_STATS_compute(wl_viz):
                 for stat in stats:
                     plot = stat.drop(["warming_level"]).hvplot.image(
                         clabel=clabel,
-                        cmap="coolwarm",
+                        cmap=cmap,
                         clim=(vmin, vmax),
                         symmetric=sopt,
                         width=width,
@@ -1052,6 +978,7 @@ def warming_levels_visualize(wl_viz):
                 "GCM run (each panel) reaches the specified warming level. "
                 "If you selected 'Yes' to return an anomaly, you will see the difference "
                 "from average over the 1981-2010 historical reference period."
+                "An empty plot indicates the warming level was never reached for that simulation."
             ),
             width=800,
         ),
