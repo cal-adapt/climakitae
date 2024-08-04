@@ -923,16 +923,14 @@ def GCM_PostageStamps_STATS_compute(wl_viz):
             stats.name = "Cross-simulation Statistics"
 
             # Set up plotting arguments
-            width = 410
-            height = 210
             units = wl_viz.gwl_snapshots.attrs["units"]
             clabel = wl_viz.wl_params.variable + " (" + units + ")"
-            vmin = wl_viz.mins.sel(warming_level=warmlevel).values.item()
-            vmax = wl_viz.maxs.sel(warming_level=warmlevel).values.item()
-            if (vmin < 0) and (vmax > 0):
-                sopt = True
-            else:
-                sopt = None
+
+            # Get min and max to use for colorbar
+            vmin, vmax, sopt = compute_vmin_vmax(
+                wl_viz.mins.sel(warming_level=warmlevel).values.item(),
+                wl_viz.maxs.sel(warming_level=warmlevel).values.item(),
+            )
 
             # Get cmap
             cmap = _get_cmap(
@@ -950,17 +948,17 @@ def GCM_PostageStamps_STATS_compute(wl_viz):
             else:
                 plot_list = []
                 for stat in stats:
-                    plot = stat.drop(["warming_level"]).hvplot.image(
+                    plot = stat.drop(["warming_level"]).hvplot.quadmesh(
+                        x="lon",
+                        y="lat",
+                        title=stat.all_sims.values.item(),
+                        symmetric=sopt,
+                        clim=(vmin, vmax),
                         clabel=clabel,
                         cmap=cmap,
-                        clim=(vmin, vmax),
-                        symmetric=sopt,
-                        width=width,
-                        height=height,
-                        xaxis=False,
-                        yaxis=False,
-                        title=stat.all_sims.values.item(),  # dim has been overwritten with nicer title
+                        frame_width=220,
                     )
+
                     plot_list.append(plot)
                 all_plots = plot_list[0] + plot_list[1] + plot_list[2]
 
@@ -971,7 +969,7 @@ def GCM_PostageStamps_STATS_compute(wl_viz):
                 + "°C Warming Across Models"
             )  # Add title
             if not any_single_dims:
-                warm_level_dict[warmlevel] = all_plots.cols(1)
+                warm_level_dict[warmlevel] = all_plots.cols(2)
             else:
                 warm_level_dict[warmlevel] = all_plots
         # This means that there does not exist any simulations that reach this degree of warming (WRF models).
