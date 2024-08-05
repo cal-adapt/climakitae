@@ -25,6 +25,44 @@ from climakitae.core.paths import (
 xr.set_options(keep_attrs=True)
 bytes_per_gigabyte = 1024 * 1024 * 1024
 
+def _estimate_file_size(data, format):
+    """
+    Estimate uncompressed file size in gigabytes when exporting `data` in `format`.
+
+    Parameters
+    ----------
+    data: xarray.DataArray or xarray.Dataset
+        data to export to the specified `format`
+    format: str
+        file format ("NetCDF" or "CSV")
+
+    Returns
+    -------
+    float
+        estimated file size in gigabytes
+    """
+    if format == "NetCDF":
+        data_size = data.nbytes
+        buffer_size = 100 * 1024 * 1024  # 100 MB for miscellaneous metadata
+        est_file_size = data_size + buffer_size
+    elif format == "CSV":
+        # Rough estimate of the number of chars per CSV line
+        # Will overestimate uncompressed size by 10-20%
+        chars_per_line = 150
+
+        if isinstance(data, xr.core.dataarray.DataArray):
+            est_file_size = data.size * chars_per_line
+        elif isinstance(data, xr.core.dataset.Dataset):
+            est_file_size = prod(data.dims.values()) * chars_per_line
+    return est_file_size / bytes_per_gigabyte
+
+def _warn_large_export(file_size, file_size_threshold=5):
+    if file_size > file_size_threshold:
+        print(
+            "WARNING: Estimated file size is "
+            + str(round(file_size, 2))
+            + " GB. This might take a while!"
+        )
 
 def _export_to_netcdf(data, save_name, mode):
     """
@@ -60,48 +98,8 @@ def _export_to_netcdf(data, save_name, mode):
             _data.name = "data"
         _data = _data.to_dataset()
 
-    def _estimate_file_size(data, format):
-        """
-        Estimate uncompressed file size in gigabytes when exporting `data` in `format`.
-
-        Parameters
-        ----------
-        data: xarray.DataArray or xarray.Dataset
-            data to export to the specified `format`
-        format: str
-            file format ("NetCDF" or "CSV")
-
-        Returns
-        -------
-        float
-            estimated file size in gigabytes
-        """
-        if format == "NetCDF":
-            data_size = data.nbytes
-            buffer_size = 100 * 1024 * 1024  # 100 MB for miscellaneous metadata
-            est_file_size = data_size + buffer_size
-
-        elif format == "CSV":
-            # Rough estimate of the number of chars per CSV line
-            # Will overestimate uncompressed size by 10-20%
-            chars_per_line = 150
-
-        if isinstance(data, xr.core.dataarray.DataArray):
-            est_file_size = data.size * chars_per_line
-        elif isinstance(data, xr.core.dataset.Dataset):
-            est_file_size = prod(data.dims.values()) * chars_per_line
-    return est_file_size / bytes_per_gigabyte
-
     est_file_size = _estimate_file_size(_data, "NetCDF")
     disk_space = shutil.disk_usage(os.path.expanduser("~"))[2] / bytes_per_gigabyte
-
-def _warn_large_export(file_size, file_size_threshold=5):
-    if file_size > file_size_threshold:
-        print(
-            "WARNING: Estimated file size is "
-            + str(round(file_size, 2))
-            + " GB. This might take a while!"
-        )
 
     _warn_large_export(est_file_size)
 
