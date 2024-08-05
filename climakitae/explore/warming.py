@@ -732,8 +732,30 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
             {"all_sims": "simulation"}
         )
 
+        # If allllll the simulations don't reach the warming level, print a message
+        if data_to_plot.isnull().all().item():
+            warm_level_dict[warmlevel] = pn.widgets.StaticText(
+                value=("<b>No simulations reach this warming level</b>"),
+                width=300,
+                style={
+                    "border": "1.2px red solid",
+                    "padding": "5px",
+                    "border-radius": "4px",
+                    "font-size": "13px",
+                },
+            )
+            continue
+
+        # If some of the simulations reach the warming level, but not ALL, remove that simulation
+        # This is so an empty plot isn't generated
+        for sim in data_to_plot.simulation.values:
+            if data_to_plot.sel(simulation=sim).isnull().all().item() == True:
+                data_to_plot = data_to_plot.where(
+                    data_to_plot["simulation"] != sim, drop=True
+                )
+
         # Get min and max to use for colorbar
-        vmin, vmax, _ = compute_vmin_vmax(data_to_plot.min(), data_to_plot.max())
+        vmin, vmax, sopt = compute_vmin_vmax(data_to_plot.min(), data_to_plot.max())
 
         # Get cmap
         cmap = _get_cmap(wl_viz.wl_params.variable, wl_viz.variable_descriptions, vmin)
@@ -772,6 +794,7 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
                         col_wrap="simulation",
                         clim=(vmin, vmax),
                         cmap=cmap,
+                        symmetric=sopt,
                         colorbar=False,
                         shared_axis=True,
                         rasterize=True,  # set to True, otherwise hvplot has a bug where hovertool leaves a question mark
@@ -977,9 +1000,16 @@ def GCM_PostageStamps_STATS_compute(wl_viz):
         # This means that there does not exist any simulations that reach this degree of warming (WRF models).
         else:
             # Pass in a dummy visualization for now to stay consistent with viz data structures
-            warm_level_dict[warmlevel] = pn.pane.Markdown(
-                "**No simulations reach this degree of warming.**"
-            )  # all_plot_data.hvplot()
+            warm_level_dict[warmlevel] = pn.widgets.StaticText(
+                value=("<b>No simulations reach this warming level</b>"),
+                width=300,
+                style={
+                    "border": "1.2px red solid",
+                    "padding": "5px",
+                    "border-radius": "4px",
+                    "font-size": "13px",
+                },
+            )
 
     return warm_level_dict
 
