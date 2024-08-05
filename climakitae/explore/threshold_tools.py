@@ -1124,8 +1124,6 @@ def _exceedance_count_name(exceedance_count):
     return f"Number of {event}"
 
 
-
-
 def exceedance_plot_title(exceedance_count):
     """Function to build title for exceedance plots
 

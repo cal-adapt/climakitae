@@ -1,6 +1,7 @@
 import pandas as pd
 from climakitae.core.data_load import read_catalog_from_select
 
+
 def get_threshold_data(self):
     """
     This function pulls data from the catalog and reads it into memory
