@@ -14,6 +14,7 @@ import pytz
 from timezonefinder import TimezoneFinder
 from importlib.metadata import version as _version
 from botocore.exceptions import ClientError
+from math import prod
 from climakitae.util.utils import read_csv_file
 from climakitae.core.paths import (
     variable_descriptions_csv_path,
@@ -81,20 +82,26 @@ def _export_to_netcdf(data, save_name, mode):
             est_file_size = data_size + buffer_size
 
         elif format == "CSV":
-            pass  # TODO: estimate CSV file size
+            # Rough estimate of the number of chars per CSV line
+            # Will overestimate uncompressed size by 10-20%
+            chars_per_line = 150
 
-        return est_file_size / bytes_per_gigabyte
+        if isinstance(data, xr.core.dataarray.DataArray):
+            est_file_size = data.size * chars_per_line
+        elif isinstance(data, xr.core.dataset.Dataset):
+            est_file_size = prod(data.dims.values()) * chars_per_line
+    return est_file_size / bytes_per_gigabyte
 
     est_file_size = _estimate_file_size(_data, "NetCDF")
     disk_space = shutil.disk_usage(os.path.expanduser("~"))[2] / bytes_per_gigabyte
 
-    def _warn_large_export(file_size, file_size_threshold=5):
-        if file_size > file_size_threshold:
-            print(
-                "WARNING: Estimated file size is "
-                + str(round(file_size, 2))
-                + " GB. This might take a while!"
-            )
+def _warn_large_export(file_size, file_size_threshold=5):
+    if file_size > file_size_threshold:
+        print(
+            "WARNING: Estimated file size is "
+            + str(round(file_size, 2))
+            + " GB. This might take a while!"
+        )
 
     _warn_large_export(est_file_size)
 
@@ -578,32 +585,19 @@ def _export_to_csv(data, save_name):
     # Check file size and avail workspace disk space
     # raise error for not enough space
     # and warning for large file
-    file_size_threshold = 0.85  # in GB
+    est_file_size = _estimate_file_size(data, "CSV")
     disk_space = shutil.disk_usage(os.path.expanduser("~"))[2] / bytes_per_gigabyte
-    data_size = data.nbytes / bytes_per_gigabyte
 
-    if disk_space <= data_size:
+    if disk_space <= est_file_size:
         raise Exception(
             "Not enough disk space to export data! You need at least "
-            + str(round(data_size, 2))
+            + str(round(est_file_size, 2))
             + (
                 " GB free in the hub directory, which has 10 GB total space."
                 " Try smaller subsets of space, time, scenario, and/or"
                 " simulation; pick a coarser spatial or temporal scale;"
-                " or clean any exported datasets which you have already"
+                " or delete any exported datasets which you have already"
                 " downloaded or do not want."
-            )
-        )
-
-    if data_size > file_size_threshold:
-        raise Exception(
-            " Data too large to export to CSV as it will use too much memory."
-            + " Must be smaller than: "
-            + str(file_size_threshold)
-            + "GB."
-            + (
-                " Try smaller subsets of space, time, scenario, and/or"
-                " simulation; pick a coarser spatial or temporal scale."
             )
         )
 
@@ -619,6 +613,7 @@ def _export_to_csv(data, save_name):
         )
 
     print("Exporting specified data to CSV...")
+    _warn_large_export(est_file_size, 1.0)
 
     ftype = type(data)
 

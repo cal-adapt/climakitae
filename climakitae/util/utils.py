@@ -40,6 +40,7 @@ def downscaling_method_as_list(downscaling_method):
     return method_list
 
 
+<<<<<<< HEAD
 def scenario_to_experiment_id(scenario, reverse=False):
     """Convert scenario format to experiment_id format matching catalog names.
 
@@ -67,6 +68,8 @@ def scenario_to_experiment_id(scenario, reverse=False):
     return scenario_dict[scenario]
 
 
+=======
+>>>>>>> main
 def area_average(dset):
     """Weighted area-average
 
@@ -162,14 +165,25 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
         Default to True. Set to False for backend use.
 
     Returns
+<<<<<<< HEAD
     -------
     xr.DataArray
+=======
+    --------
+    xr.DataArray or None
+>>>>>>> main
         Grid cell closest to input lat,lon coordinate pair
 
     See also
     --------
     xr.DataArray.sel
     """
+
+    # Use data cellsize as tolerance for selecting nearest
+    # Using this method to guard against single row|col
+    # Assumes data is from climakitae retrieve
+    tolerance = int(data.resolution.split(" km")[0]) * 1000
+
     # Make Transformer object
     lat_lon_to_model_projection = pyproj.Transformer.from_crs(
         crs_from="epsg:4326",  # Lat/lon
@@ -180,8 +194,16 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
     # Convert coordinates to x,y
     x, y = lat_lon_to_model_projection.transform(lon, lat)
 
-    # Get closest gridcell
-    closest_gridcell = data.sel(x=x, y=y, method="nearest")
+    # Get closest gridcell using tolerance
+    # If input point outside of dataset by greater than one
+    # grid cell, then None is returned
+    try:
+        closest_gridcell = data.sel(x=x, y=y, method="nearest", tolerance=tolerance)
+    except KeyError:
+        print(
+            f"Input coordinates: ({lat:.2f}, {lon:.2f}) OUTSIDE of data extent by more than one cell. Returning None"
+        )
+        return None
 
     # Output information
     if print_coords:
@@ -747,3 +769,225 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
     selections.time_slice = (start, end)
 
     return sliced_data
+
+
+def add_dummy_time_to_wl(wl_da):
+    """
+    Replace the `[hours/days/months]_from_center` dimension in a DataArray returned from WarmingLevels with a dummy time index for calculations with tools that require a `time` dimension.
+
+    Parameters
+    ----------
+    wl_da : xarray.DataArray
+        The input Warming Levels DataArray. It is expected to have a time-based dimension which typically includes "from_center"
+        in its name indicating the time dimension in relation to the year that the given warming level is reached per simulation.
+
+    Returns
+    -------
+    xarray.DataArray
+        A modified version of the input DataArray with the original time dimension replaced by a dummy time series. The new dimension
+        will be named "time".
+
+    Notes
+    -----
+    - The function looks for the dimension name containing "from_center" to identify the time-based dimension.
+    - It supports creating dummy time series with frequencies of hours, days, or months, based on the prefix of the dimension name.
+    - The dummy time series starts from "2000-01-01".
+    """
+    # Adjusting the time index into dummy time-series for counting
+    # Finding time-based dimension
+    wl_time_dim = [dim for dim in wl_da.dims if "from_center" in dim][0]
+
+    # Finding time frequency
+    time_freq_name = wl_time_dim.split("_")[0]
+    name_to_freq = {"hours": "H", "days": "D", "months": "M"}
+
+    # Creating dummy timestamps
+    timestamps = pd.date_range(
+        "2000-01-01",
+        periods=len(wl_da[wl_time_dim]),
+        freq=name_to_freq[time_freq_name],
+    )
+
+    # Replacing WL timestamps with dummy timestamps so that calculations from tools like `thresholds_tools`
+    # can be computed on a DataArray with a time dimension
+    wl_da = wl_da.assign_coords({wl_time_dim: timestamps}).rename({wl_time_dim: "time"})
+    return wl_da
+
+
+def _downscaling_method_to_activity_id(downscaling_method, reverse=False):
+    """Convert downscaling method to activity id to match catalog names
+
+    Parameters
+    -----------
+    downscaling_method: str
+    reverse: boolean, optional
+        Set reverse=True to get downscaling method from input activity_id
+        Default to False
+
+    Returns
+    --------
+    str
+    """
+    downscaling_dict = {"Dynamical": "WRF", "Statistical": "LOCA2"}
+
+    if reverse == True:
+        downscaling_dict = {v: k for k, v in downscaling_dict.items()}
+    return downscaling_dict[downscaling_method]
+
+
+def _resolution_to_gridlabel(resolution, reverse=False):
+    """Convert resolution format to grid_label format matching catalog names.
+
+    Parameters
+    -----------
+    resolution: str
+    reverse: boolean, optional
+        Set reverse=True to get resolution format from input grid_label.
+        Default to False
+
+    Returns
+    -------
+    str
+
+    """
+    res_dict = {"45 km": "d01", "9 km": "d02", "3 km": "d03"}
+
+    if reverse == True:
+        res_dict = {v: k for k, v in res_dict.items()}
+    return res_dict[resolution]
+
+
+def _timescale_to_table_id(timescale, reverse=False):
+    """Convert resolution format to table_id format matching catalog names.
+
+    Paramaters
+    ----------
+    timescale: str
+    reverse: boolean, optional
+        Set reverse=True to get resolution format from input table_id.
+        Default to False
+
+    Returns
+    -------
+    str
+
+    """
+    # yearly max is not an option in the Selections GUI, but its included here to make parsing through the data easier for the non-GUI data access/view options
+    timescale_dict = {
+        "monthly": "mon",
+        "daily": "day",
+        "hourly": "1hr",
+        "yearly_max": "yrmax",
+    }
+
+    if reverse == True:
+        timescale_dict = {v: k for k, v in timescale_dict.items()}
+    return timescale_dict[timescale]
+
+
+def _scenario_to_experiment_id(scenario, reverse=False):
+    """
+    Convert scenario format to experiment_id format matching catalog names.
+
+    Parameters
+    ----------
+    scenario: str
+    reverse: boolean, optional
+        Set reverse=True to get scenario format from input experiement_id.
+        Default to False
+
+    Returns
+    -------
+    str
+
+    """
+    scenario_dict = {
+        "Historical Reconstruction": "reanalysis",
+        "Historical Climate": "historical",
+        "SSP 2-4.5 -- Middle of the Road": "ssp245",
+        "SSP 5-8.5 -- Burn it All": "ssp585",
+        "SSP 3-7.0 -- Business as Usual": "ssp370",
+    }
+
+    if reverse == True:
+        scenario_dict = {v: k for k, v in scenario_dict.items()}
+    return scenario_dict[scenario]
+
+
+def drop_invalid_wrf_sims(ds):
+    """
+    Drops invalid WRF simulations from the given dataset since there is an unequal number of simulations per SSP.
+
+    Parameters:
+    ds (xarray.Dataset): The dataset containing WRF simulations. The dataset must have a dimension `all_sims` that
+                         results from stacking `simulation` and `scenario`.
+
+    Returns:
+    xarray.Dataset: The dataset with only valid WRF simulations retained.
+
+    Raises:
+    AttributeError: If the dataset does not have an `all_sims` dimension.
+
+    Notes:
+    - For datasets with a resolution of '3 km', no simulations are dropped, and the original dataset is returned.
+    - For datasets with a resolution of '9 km' at hourly timescale, only 10 simulations are returned.
+    - For datasets with a resolution of '9 km' at daily/monthly timescale, only 6 simulations are returned.
+    - For datasets with a resolution of '45 km' at hourly timescale, only 7 simulations are returned.
+    - For datasets with a resolution of '45 km' at daily/monthly timescale, only 6 simulations are returned.
+    """
+    if "all_sims" not in ds.dims:
+        raise AttributeError(
+            "Missing an `all_sims` dimension on the dataset. Create `all_sims` with .stack on `simulation` and `scenario`."
+        )
+
+    # There are no simulations that need to be dropped at a `3 km` resolution, since the only simulations are in SSP 3-7.0.
+    if ds.resolution == "3 km":
+        return ds
+
+    if ds.resolution == "9 km":
+        valid_sims = [
+            ("WRF_CESM2_r11i1p1f1", "Historical + SSP 2-4.5 -- Middle of the Road"),
+            ("WRF_CESM2_r11i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
+            ("WRF_CESM2_r11i1p1f1", "Historical + SSP 5-8.5 -- Burn it All"),
+            ("WRF_CNRM-ESM2-1_r1i1p1f2", "Historical + SSP 3-7.0 -- Business as Usual"),
+            (
+                "WRF_EC-Earth3-Veg_r1i1p1f1",
+                "Historical + SSP 3-7.0 -- Business as Usual",
+            ),
+            ("WRF_FGOALS-g3_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
+        ]
+        if ds.frequency == "hourly":
+            valid_sims += [
+                (
+                    "WRF_EC-Earth3_r1i1p1f1",
+                    "Historical + SSP 3-7.0 -- Business as Usual",
+                ),
+                ("WRF_MIROC6_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
+                (
+                    "WRF_MPI-ESM1-2-HR_r3i1p1f1",
+                    "Historical + SSP 3-7.0 -- Business as Usual",
+                ),
+                ("WRF_TaiESM1_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
+            ]
+
+    if ds.resolution == "45 km":
+        valid_sims = [
+            ("WRF_CESM2_r11i1p1f1", "Historical + SSP 2-4.5 -- Middle of the Road"),
+            ("WRF_CNRM-ESM2-1_r1i1p1f2", "Historical + SSP 3-7.0 -- Business as Usual"),
+            (
+                "WRF_EC-Earth3-Veg_r1i1p1f1",
+                "Historical + SSP 3-7.0 -- Business as Usual",
+            ),
+            ("WRF_CESM2_r11i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
+            ("WRF_FGOALS-g3_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
+            ("WRF_CESM2_r11i1p1f1", "Historical + SSP 5-8.5 -- Burn it All"),
+        ]
+        if ds.frequency == "hourly":
+            valid_sims += (
+                (
+                    "WRF_EC-Earth3_r1i1p1f1",
+                    "Historical + SSP 3-7.0 -- Business as Usual",
+                ),
+            )
+
+    return ds.sel(all_sims=valid_sims)
