@@ -423,6 +423,30 @@ def _process_dset(ds_name, dset, selections):
     return dset
 
 
+def _override_unit_defaults(da, var_id):
+    """Override non-standard unit specifications in some dataset attributes
+
+    Parameters
+    ----------
+    da: xr.DataArray
+        any xarray DataArray with a units attribute
+
+    Returns
+    -------
+    xr.DataArray
+        output data
+    """
+    if var_id == "huss":
+        # Units for LOCA specific humidity are set to 1
+        # Reset to kg/kg so they can be converted if neccessary to g/kg
+        da.attrs["units"] = "kg/kg"
+    elif var_id == "rsds":
+        # rsds units are "W m-2"
+        # rename them to W/m2 to match the lookup catalog, and the units for WRF radiation variables
+        da.attrs["units"] = "W/m2"
+    return da
+
+
 def _merge_all(selections, data_dict):
     """Merge all datasets into one, subsetting each consistently;
        clean-up format, and convert units.
@@ -440,6 +464,20 @@ def _merge_all(selections, data_dict):
     da: xr.DataArray
         output data
     """
+    # Two LOCA2 simulations report a daily timestamp coordinate at 12am (midnight) when the rest of the simulations report at 12pm (noon)
+    # Here we reindex the time dimension to shift it by 12HR for the two troublesome simulations
+    # This avoids the issue where every other day is set to NaN when you concat the datasets!
+    if (selections.downscaling_method in ["Statistical", "Dynamical+Statistical"]) and (
+        selections.timescale == "daily"
+    ):
+        troublesome_sims = ["HadGEM3-GC31-LL", "KACE-1-0-G"]
+        for sim in troublesome_sims:
+            for dset_name in list(data_dict):
+                if sim in dset_name:
+                    data_dict[dset_name]["time"] = data_dict[dset_name].time.get_index(
+                        "time"
+                    ) + timedelta(hours=12)
+
     # Get corresponding data for historical period to append:
     reconstruction = [one for one in data_dict.keys() if "reanalysis" in one]
     hist_keys = [one for one in data_dict.keys() if "historical" in one]
@@ -517,40 +555,6 @@ def _merge_all(selections, data_dict):
         da = da.assign_coords({"scenario": scen_name})
         da = da.expand_dims(dim={"scenario": 1})
         return da
-
-
-def _merge_all(selections, data_dict):
-    """Merge all datasets into one, subsetting each consistently;
-       clean-up format, and convert units.
-
-    Parameters
-    ----------
-    selections: DataParameters
-        object holding user's selections
-    data_dict: dict
-        dictionary of zarrs from catalog, with each key
-        being its name and each item the zarr store
-
-    Returns
-    ----------
-    da: xr.DataArray
-        output data
-
-    """
-    # Get corresponding data for historical period to append:
-    reconstruction = [one for one in data_dict.keys() if "reanalysis" in one]
-    hist_keys = [one for one in data_dict.keys() if "historical" in one]
-    if hist_keys:
-        all_hist = xr.concat(
-            [
-                _process_dset(one, data_dict[one], selections)
-                for one in data_dict.keys()
-                if "historical" in one
-            ],
-            dim="member_id",
-        )
-    else:
-        all_hist = None
 
     # Get (and double-check) list of SSP scenarios:
     _scenarios = _scenarios_in_data_dict(data_dict.keys())
@@ -796,73 +800,12 @@ def read_catalog_from_select(selections):
     orig_unit_selection = selections.units
     orig_variable_selection = selections.variable
 
-    # Get data attributes beforehand since selections is modified
-    data_attrs = _get_data_attributes(selections)
-    if "_derived" in orig_var_id_selection:
-        if orig_var_id_selection == "wind_speed_derived":  # Hourly
-            da = _get_wind_speed_derived(selections)
-        elif orig_var_id_selection == "wind_direction_derived":  # Hourly
-            da = _get_wind_dir_derived(selections)
-        elif orig_var_id_selection == "dew_point_derived":  # Monthly/daily
-            da = _get_monthly_daily_dewpoint(selections)
-        elif orig_var_id_selection == "dew_point_derived_hrly":  # Hourly
-            da = _get_hourly_dewpoint(selections)
-        elif orig_var_id_selection == "rh_derived":  # Hourly
-            da = _get_hourly_rh(selections)
-        elif orig_var_id_selection == "q2_derived":  # Hourly
-            da = _get_hourly_specific_humidity(selections)
-        elif orig_var_id_selection == "fosberg_index_derived":  # Hourly
-            da = _get_fosberg_fire_index(selections)
-        elif orig_var_id_selection == "noaa_heat_index_derived":  # Hourly
-            da = _get_noaa_heat_index(selections)
-        elif orig_var_id_selection == "effective_temp_index_derived":
-            da = _get_eff_temp(selections)
-        else:
-            raise ValueError(
-                "You've encountered a bug. No data available for selected derived variable."
-            )
+    def _get_wind_speed_derived(selections):
+        """Get input data and derive wind speed for hourly data
 
-        # Set attributes
-        # Some of the derived variables may be constructed from data that comes from the same institution
-        # The dev team hasn't looked into this yet -- opportunity for future improvement
-        if "grid_mapping" in da.attrs:
-            data_attrs = data_attrs | {"grid_mapping": da.attrs["grid_mapping"]}
-        data_attrs = data_attrs | {"institution": "Multiple"}
-        da.attrs = data_attrs
-
-        # Convert units
-        da = convert_units(da, selected_units=orig_unit_selection)
-        da.name = orig_variable_selection  # Set name of DataArray
-
-        # Reset selections to user's original selections
-        selections.variable_id = [orig_var_id_selection]
-        selections.units = orig_unit_selection
-
-    else:
-        da = _get_data_one_var(selections)
-
-    if selections.data_type == "Station":
-        da = _station_apply(selections, da, original_time_slice)
-        # Reset original selections
-        if "Historical Climate" not in original_scenario_historical:
-            selections.scenario_historical.remove("Historical Climate")
-            da["scenario"] = [x.split("Historical + ")[1] for x in da.scenario.values]
-        selections.time_slice = original_time_slice
-
-    return da
-
-
-# USE XR APPLY TO GET BIAS CORRECTED DATA TO STATION
-
-
-def _station_apply(selections, da, original_time_slice):
-    """
-    Parameters
-    ----------
-    selections: DataParameters
-        object holding user's selections
-    da: xr.DataArray
-    original_time_slice: tuple
+        Parameters
+        ----------
+        selections: DataParameters
 
         Returns
         -------
@@ -1195,4 +1138,356 @@ def _station_apply(selections, da, original_time_slice):
             t2_F=t2_da_F, rh_percent=rh_da, windspeed_mph=windspeed_da_mph
         )
 
+        return da
+
+    # Get data attributes beforehand since selections is modified
+    data_attrs = _get_data_attributes(selections)
+    if "_derived" in orig_var_id_selection:
+        if orig_var_id_selection == "wind_speed_derived":  # Hourly
+            da = _get_wind_speed_derived(selections)
+        elif orig_var_id_selection == "wind_direction_derived":  # Hourly
+            da = _get_wind_dir_derived(selections)
+        elif orig_var_id_selection == "dew_point_derived":  # Monthly/daily
+            da = _get_monthly_daily_dewpoint(selections)
+        elif orig_var_id_selection == "dew_point_derived_hrly":  # Hourly
+            da = _get_hourly_dewpoint(selections)
+        elif orig_var_id_selection == "rh_derived":  # Hourly
+            da = _get_hourly_rh(selections)
+        elif orig_var_id_selection == "q2_derived":  # Hourly
+            da = _get_hourly_specific_humidity(selections)
+        elif orig_var_id_selection == "fosberg_index_derived":  # Hourly
+            da = _get_fosberg_fire_index(selections)
+        elif orig_var_id_selection == "noaa_heat_index_derived":  # Hourly
+            da = _get_noaa_heat_index(selections)
+        elif orig_var_id_selection == "effective_temp_index_derived":
+            da = _get_eff_temp(selections)
+        else:
+            raise ValueError(
+                "You've encountered a bug. No data available for selected derived variable."
+            )
+
+        # Set attributes
+        # Some of the derived variables may be constructed from data that comes from the same institution
+        # The dev team hasn't looked into this yet -- opportunity for future improvement
+        if "grid_mapping" in da.attrs:
+            data_attrs = data_attrs | {"grid_mapping": da.attrs["grid_mapping"]}
+        data_attrs = data_attrs | {"institution": "Multiple"}
+        da.attrs = data_attrs
+
+        # Convert units
+        da = convert_units(da, selected_units=orig_unit_selection)
+        da.name = orig_variable_selection  # Set name of DataArray
+
+        # Reset selections to user's original selections
+        selections.variable_id = [orig_var_id_selection]
+        selections.units = orig_unit_selection
+
+    else:
+        da = _get_data_one_var(selections)
+
+    if selections.data_type == "Station":
+        da = _station_apply(selections, da, original_time_slice)
+        # Reset original selections
+        if "Historical Climate" not in original_scenario_historical:
+            selections.scenario_historical.remove("Historical Climate")
+            da["scenario"] = [x.split("Historical + ")[1] for x in da.scenario.values]
+        selections.time_slice = original_time_slice
+
     return da
+
+
+def _station_apply(selections, da, original_time_slice):
+    """Use xr.apply to get bias corrected data to station
+
+    Parameters
+    ----------
+    selections: DataParameters
+        object holding user's selections
+    da: xr.DataArray
+    original_time_slice: tuple
+
+    Returns
+    -------
+    apply_output: xr.DataArray
+        output data
+    """
+    # Grab zarr data
+    station_subset = selections._stations_gdf.loc[
+        selections._stations_gdf["station"].isin(selections.station)
+    ]
+    filepaths = [
+        "s3://cadcat/hadisd/HadISD_{}.zarr".format(s_id)
+        for s_id in station_subset["station id"]
+    ]
+
+    def _preprocess_hadisd(ds, stations_gdf):
+        """
+        Preprocess station data so that it can be more seamlessly integrated into the wrangling process
+        Get name of station id and station name
+        Rename data variable to the station name; this allows the return of a Dataset object, with each unique station as a data variable
+        Convert celcius to kelvin
+        Assign descriptive attributes
+        Drop unneccessary coordinates that can cause issues when bias correcting with the model data
+
+        Parameters
+        ----------
+        ds: xr.Dataset
+            data for a single HadISD station
+        stations_gdf: gpd.GeoDataFrame
+            station data frame
+
+        Returns
+        -------
+        ds: xr.Dataset
+
+        """
+        # Get station ID from file name
+        station_id = ds.encoding["source"].split("HadISD_")[1].split(".zarr")[0]
+        # Get name of station from station_id
+        station_name = stations_gdf.loc[stations_gdf["station id"] == int(station_id)][
+            "station"
+        ].item()
+        # Rename data variable to station name
+        ds = ds.rename({"tas": station_name})
+        # Convert Celcius to Kelvin
+        ds[station_name] = ds[station_name] + 273.15
+        # Assign descriptive attributes to the data variable
+        ds[station_name] = ds[station_name].assign_attrs(
+            {
+                "coordinates": (
+                    ds.latitude.values.item(),
+                    ds.longitude.values.item(),
+                ),
+                "elevation": "{0} {1}".format(
+                    ds.elevation.item(), ds.elevation.attrs["units"]
+                ),
+                "units": "K",
+            }
+        )
+        # Drop all coordinates except time
+        ds = ds.drop(["elevation", "latitude", "longitude"])
+        return ds
+
+    _partial_func = partial(_preprocess_hadisd, stations_gdf=selections._stations_gdf)
+
+    station_ds = xr.open_mfdataset(
+        filepaths,
+        preprocess=_partial_func,
+        engine="zarr",
+        consolidated=False,
+        parallel=True,
+        backend_kwargs=dict(storage_options={"anon": True}),
+    )
+
+    def _get_bias_corrected_closest_gridcell(station_da, gridded_da, time_slice):
+        """Get the closest gridcell to a weather station.
+        Bias correct the data using historical station data
+
+        Parameters
+        ----------
+        station_da: xr.DataArray
+        gridded_da: xr.DataArray
+        time_slice: tuple
+
+        Returns
+        -------
+        bias_corrected: xr.DataArray
+        """
+        # Get the closest gridcell to the station
+        station_lat, station_lon = station_da.attrs["coordinates"]
+        gridded_da_closest_gridcell = get_closest_gridcell(
+            gridded_da, station_lat, station_lon, print_coords=False
+        )
+
+        # Droop any coordinates in the output dataset that are not also dimensions
+        # This makes merging all the stations together easier and drops superfluous coordinates
+        gridded_da_closest_gridcell = gridded_da_closest_gridcell.drop(
+            [
+                i
+                for i in gridded_da_closest_gridcell.coords
+                if i not in gridded_da_closest_gridcell.dims
+            ]
+        )
+
+        def _bias_correct_model_data(
+            obs_da,
+            gridded_da,
+            time_slice,
+            window=90,
+            nquantiles=20,
+            group="time.dayofyear",
+            kind="+",
+        ):
+            """Bias correct model data using observational station data
+            Converts units of the station data to whatever the input model data's units are
+            Converts calendars of both datasets to a no leap calendar
+            Time slices the data
+            Performs bias correction
+
+            Parameters
+            ----------
+            obs_da: xr.DataArray
+                station data, preprocessed with the function _preprocess_hadisd
+            gridded_da: xr.DataArray
+                input model data
+            time_slice: tuple
+                temporal slice to cut gridded_da to, after bias correction
+            window: int
+                window of days +/-
+            nquantiles: int
+                number of quantiles
+            group: str
+                time frequency to group data by
+            kind: str
+                the adjustment kind, either additive or multiplicative
+
+            Returns
+            -------
+            da_adj: xr.DataArray
+                output data
+
+            """
+            # Get group by window
+            # Use 90 day window (+/- 45 days) to account for seasonality
+            grouper = Grouper(group, window=window)
+
+            # Convert units to whatever the gridded data units are
+            obs_da = convert_units(obs_da, gridded_da.units)
+            # Rechunk data. Cannot be chunked along time dimension
+            # Error raised by xclim: ValueError: Multiple chunks along the main adjustment dimension time is not supported.
+            gridded_da = gridded_da.chunk(dict(time=-1))
+            obs_da = obs_da.sel(time=slice(obs_da.time.values[0], "2014-08-31"))
+            obs_da = obs_da.chunk(dict(time=-1))
+            # Convert calendar to no leap year
+            obs_da = obs_da.convert_calendar("noleap")
+            gridded_da = gridded_da.convert_calendar("noleap")
+            # Data at the desired time slice
+            data_sliced = gridded_da.sel(
+                time=slice(str(time_slice[0]), str(time_slice[1]))
+            )
+            # Get QDS
+            QDM = QuantileDeltaMapping.train(
+                obs_da,
+                # Input data, sliced to time period of observational data
+                gridded_da.sel(
+                    time=slice(
+                        str(obs_da.time.values[0]),
+                        str(obs_da.time.values[-1]),
+                    )
+                ),
+                nquantiles=nquantiles,
+                group=grouper,
+                kind=kind,
+            )
+            # Bias correct the data
+            da_adj = QDM.adjust(data_sliced)
+            da_adj.name = gridded_da.name  # Rename it to get back to original name
+            da_adj["time"] = da_adj.indexes["time"].to_datetimeindex()
+
+            return da_adj
+
+        # Bias correct the model data using the station data
+        # Cut the output data back to the user's selected time slice
+        bias_corrected = _bias_correct_model_data(
+            station_da, gridded_da_closest_gridcell, time_slice
+        )
+
+        # Add descriptive coordinates to the bias corrected data
+        bias_corrected.attrs["station_coordinates"] = station_da.attrs[
+            "coordinates"
+        ]  # Coordinates of station
+        bias_corrected.attrs["station_elevation"] = station_da.attrs[
+            "elevation"
+        ]  # Elevation of station
+        return bias_corrected
+
+    apply_output = station_ds.apply(
+        _get_bias_corrected_closest_gridcell,
+        keep_attrs=False,
+        gridded_da=da,
+        time_slice=original_time_slice,
+    )
+    return apply_output
+
+
+def read_catalog_from_csv(selections, csv, merge=True):
+    """Retrieve user data selections from csv input.
+
+    Allows user to bypass ck.Select() GUI and allows developers to
+    pre-set inputs in a csv file for ease of use in a notebook.
+
+    Parameters
+    ----------
+    selections: DataParameters
+        Data settings (variable, unit, timescale, etc).
+    csv: str
+        Filepath to local csv file.
+    merge: bool, optional
+        If multiple datasets desired, merge to form a single object?
+        Default to True.
+
+    Returns
+    -------
+    one of the following, depending on csv input and merge:
+
+    xr_ds: xr.Dataset
+        if multiple rows are in the csv, each row is a data_variable
+    xr_da: xr.DataArray
+        if csv only has one row
+    xr_list: list of xr.DataArrays
+        if multiple rows are in the csv and merge=True,
+        multiple DataArrays are returned in a single list.
+    """
+
+    df = pd.read_csv(csv)
+    df = df.fillna("")  # Replace empty cells (set to NaN by read_csv) with empty string
+    df = df.apply(
+        lambda x: x.str.strip()
+    )  # Strip any accidental white space before or after each input
+    xr_list = []
+    for index, row in df.iterrows():
+        selections.variable = row.variable
+        selections.scenario_historical = (
+            []
+            if (row.scenario_historical == "")
+            else [
+                # This fancy list comprehension deals with the fact that scenario_historical
+                # can be set to an empty list, which would coded as an empty string in the csv
+                item.strip()
+                for item in row.scenario_historical.split(",")
+            ]
+        )
+        selections.scenario_ssp = (
+            []
+            if (row.scenario_ssp == "")
+            else [item.strip() for item in row.scenario_ssp.split(",")]
+        )
+        selections.area_average = row.area_average
+        selections.timescale = row.timescale
+        selections.resolution = row.resolution
+        # Evaluate string time slice as tuple... i.e "(1980,2000)" --> (1980,2000)
+        selections.time_slice = literal_eval(row.time_slice)
+        selections.units = row.units
+        selections.area_subset = row.area_subset
+        selections.cached_area = row.cached_area
+
+        # Retrieve data
+        xr_da = read_catalog_from_select(selections)
+        xr_list.append(xr_da)
+
+    if len(xr_list) > 1:  # If there's more than one element in the list
+        if merge:  # Should we merge each element in the list?
+            try:  # Try to merge
+                xr_ds = xr.merge(
+                    xr_list, combine_attrs="drop_conflicts"
+                )  # Merge to form one Dataset object
+                return xr_ds
+            except:  # If data is incompatable with merging
+                print(
+                    "Unable to merge datasets. Function returning a list of each item"
+                )
+                pass
+        else:  # If user does not want to merge elements, return a list of DataArrays
+            return xr_list
+    else:  # If only one DataArray is in the list, just return the single DataArray
+        return xr_da
