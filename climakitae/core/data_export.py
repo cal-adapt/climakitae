@@ -25,6 +25,7 @@ from climakitae.core.paths import (
 xr.set_options(keep_attrs=True)
 bytes_per_gigabyte = 1024 * 1024 * 1024
 
+
 def _estimate_file_size(data, format):
     """
     Estimate uncompressed file size in gigabytes when exporting `data` in `format`.
@@ -56,6 +57,7 @@ def _estimate_file_size(data, format):
             est_file_size = prod(data.dims.values()) * chars_per_line
     return est_file_size / bytes_per_gigabyte
 
+
 def _warn_large_export(file_size, file_size_threshold=5):
     if file_size > file_size_threshold:
         print(
@@ -63,6 +65,7 @@ def _warn_large_export(file_size, file_size_threshold=5):
             + str(round(file_size, 2))
             + " GB. This might take a while!"
         )
+
 
 def _export_to_netcdf(data, save_name, mode):
     """
