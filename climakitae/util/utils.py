@@ -40,7 +40,6 @@ def downscaling_method_as_list(downscaling_method):
     return method_list
 
 
-<<<<<<< HEAD
 def scenario_to_experiment_id(scenario, reverse=False):
     """Convert scenario format to experiment_id format matching catalog names.
 
@@ -68,8 +67,6 @@ def scenario_to_experiment_id(scenario, reverse=False):
     return scenario_dict[scenario]
 
 
-=======
->>>>>>> main
 def area_average(dset):
     """Weighted area-average
 
@@ -165,13 +162,8 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
         Default to True. Set to False for backend use.
 
     Returns
-<<<<<<< HEAD
-    -------
-    xr.DataArray
-=======
     --------
     xr.DataArray or None
->>>>>>> main
         Grid cell closest to input lat,lon coordinate pair
 
     See also
@@ -814,7 +806,7 @@ def add_dummy_time_to_wl(wl_da):
     return wl_da
 
 
-def _downscaling_method_to_activity_id(downscaling_method, reverse=False):
+def downscaling_method_to_activity_id(downscaling_method, reverse=False):
     """Convert downscaling method to activity id to match catalog names
 
     Parameters
@@ -835,7 +827,7 @@ def _downscaling_method_to_activity_id(downscaling_method, reverse=False):
     return downscaling_dict[downscaling_method]
 
 
-def _resolution_to_gridlabel(resolution, reverse=False):
+def resolution_to_gridlabel(resolution, reverse=False):
     """Convert resolution format to grid_label format matching catalog names.
 
     Parameters
@@ -857,7 +849,7 @@ def _resolution_to_gridlabel(resolution, reverse=False):
     return res_dict[resolution]
 
 
-def _timescale_to_table_id(timescale, reverse=False):
+def timescale_to_table_id(timescale, reverse=False):
     """Convert resolution format to table_id format matching catalog names.
 
     Paramaters
@@ -885,7 +877,7 @@ def _timescale_to_table_id(timescale, reverse=False):
     return timescale_dict[timescale]
 
 
-def _scenario_to_experiment_id(scenario, reverse=False):
+def scenario_to_experiment_id(scenario, reverse=False):
     """
     Convert scenario format to experiment_id format matching catalog names.
 
