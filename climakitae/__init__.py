@@ -1,3 +1,5 @@
+from climakitae.core.data_export import export
+
 try:
     from importlib.metadata import version as _version
 except ImportError:
@@ -12,6 +14,8 @@ except Exception:
     __version__ = "999"
 
 __all__ = (
+    # Methods
+    "export",
     # Constants
     "__version__",
 )
