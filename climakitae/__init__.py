@@ -1,3 +1,4 @@
+from climakitae.core.data_load import load
 from climakitae.core.data_export import export
 
 try:
@@ -15,6 +16,7 @@ except Exception:
 
 __all__ = (
     # Methods
+    "load",
     "export",
     # Constants
     "__version__",
