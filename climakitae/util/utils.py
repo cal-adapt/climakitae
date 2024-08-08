@@ -111,7 +111,8 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
     # Use data cellsize as tolerance for selecting nearest
     # Using this method to guard against single row|col
     # Assumes data is from climakitae retrieve
-    tolerance = int(data.resolution.split(" km")[0]) * 1000
+    km_num = int(data.resolution.split(" km")[0])
+    # tolerance = int(data.resolution.split(" km")[0]) * 1000
 
     if "x" and "y" in data.dims:
         # Make Transformer object
@@ -129,8 +130,12 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
     # grid cell, then None is returned
     try:
         if "x" and "y" in data.dims:
+            import pdb; pdb.set_trace()
+            tolerance = km_num * 1000 # Converting km to m
             closest_gridcell = data.sel(x=x, y=y, method="nearest", tolerance=tolerance)
         elif "lat" and "lon" in data.dims:
+            import pdb; pdb.set_trace()
+            tolerance = km_num / 111 # Rough translation of km to degrees
             closest_gridcell = data.sel(
                 lat=lat, lon=lon, method="nearest", tolerance=tolerance
             )
