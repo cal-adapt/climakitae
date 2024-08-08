@@ -111,23 +111,39 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
     # Use data cellsize as tolerance for selecting nearest
     # Using this method to guard against single row|col
     # Assumes data is from climakitae retrieve
-    tolerance = int(data.resolution.split(" km")[0]) * 1000
+    km_num = int(data.resolution.split(" km")[0])
+    # tolerance = int(data.resolution.split(" km")[0]) * 1000
 
-    # Make Transformer object
-    lat_lon_to_model_projection = pyproj.Transformer.from_crs(
-        crs_from="epsg:4326",  # Lat/lon
-        crs_to=data.rio.crs,  # Model projection
-        always_xy=True,
-    )
+    if "x" and "y" in data.dims:
+        # Make Transformer object
+        lat_lon_to_model_projection = pyproj.Transformer.from_crs(
+            crs_from="epsg:4326",  # Lat/lon
+            crs_to=data.rio.crs,  # Model projection
+            always_xy=True,
+        )
 
-    # Convert coordinates to x,y
-    x, y = lat_lon_to_model_projection.transform(lon, lat)
+        # Convert coordinates to x,y
+        x, y = lat_lon_to_model_projection.transform(lon, lat)
 
     # Get closest gridcell using tolerance
     # If input point outside of dataset by greater than one
     # grid cell, then None is returned
     try:
-        closest_gridcell = data.sel(x=x, y=y, method="nearest", tolerance=tolerance)
+        if "x" and "y" in data.dims:
+            import pdb
+
+            pdb.set_trace()
+            tolerance = km_num * 1000  # Converting km to m
+            closest_gridcell = data.sel(x=x, y=y, method="nearest", tolerance=tolerance)
+        elif "lat" and "lon" in data.dims:
+            import pdb
+
+            pdb.set_trace()
+            tolerance = km_num / 111  # Rough translation of km to degrees
+            closest_gridcell = data.sel(
+                lat=lat, lon=lon, method="nearest", tolerance=tolerance
+            )
+
     except KeyError:
         print(
             f"Input coordinates: ({lat:.2f}, {lon:.2f}) OUTSIDE of data extent by more than one cell. Returning None"
@@ -903,3 +919,16 @@ def drop_invalid_wrf_sims(ds):
             )
 
     return ds.sel(all_sims=valid_sims)
+
+
+def stack_sims_across_locs(ds, sim_dim_name):
+    # Renaming gridcell so that it can be concatenated with other lat/lon gridcells
+    ds[sim_dim_name] = [
+        "{}_{}_{}".format(
+            sim_name,
+            ds.lat.compute().item(),
+            ds.lon.compute().item(),
+        )
+        for sim_name in ds[sim_dim_name]
+    ]
+    return ds
