@@ -10,6 +10,7 @@ import pandas as pd
 import copy
 from timezonefinder import TimezoneFinder
 
+
 def downscaling_method_as_list(downscaling_method):
     """Function to convert string based radio button values to python list.
 
