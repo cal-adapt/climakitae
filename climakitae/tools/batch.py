@@ -31,6 +31,8 @@ def batch_select(selection_params, points, approach, load_data=True, progress_ba
             data_pts.append(stacked_data)
         return data_pts
 
+    print(f"Batch retrieving all {len(points)} points passed in...\n")
+
     dim_name = "simulation" if approach == "time" else "all_sims"
 
     # Add selections attributes to cover the entire domain since we don't know exactly where the selected points lie.
