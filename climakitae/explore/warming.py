@@ -12,6 +12,12 @@ from climakitae.core.data_load import load
 from climakitae.core.paths import (
     gwl_1981_2010_file,
     gwl_1850_1900_file,
+    ssp119_file,
+    ssp126_file,
+    ssp245_file,
+    ssp370_file,
+    ssp585_file,
+    hist_file,
 )
 from climakitae.util.utils import (
     read_csv_file,
