@@ -1191,17 +1191,3 @@ def exceedance_plot_subtitle(exceedance_count):
         _exceedance_count_name(exceedance_count) + period_str + dur_str + grp_str
     )
     return _subtitle
-
-
-##### Visualize the data
-def _rename_distr_abbrev(distr):
-    """Makes abbreviated distribution name human-readable"""
-    distr_abbrev = ["gev", "gumbel", "weibull", "pearson3", "genpareto"]
-    distr_readable = [
-        "GEV",
-        "Gumbel",
-        "Weibull",
-        "Pearson Type III",
-        "Generalized Pareto",
-    ]
-    return distr_readable[distr_abbrev.index(distr)]
