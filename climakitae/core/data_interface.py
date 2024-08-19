@@ -3,8 +3,6 @@ import geopandas as gpd
 from shapely.geometry import box
 import intake
 import param
-import panel as pn
-import numpy as np
 import warnings
 import cartopy.crs as ccrs
 from climakitae.core.paths import (
