@@ -46,3 +46,12 @@ def test_dataset_01Jan2015_LAcounty_45km_hourly(rootdir):
     filepath = os.path.join(rootdir, filename)
     ds = xr.open_dataset(filepath)
     return ds
+
+
+@pytest.fixture
+def test_dataset_WL_Alamedacounty_45km_hourly(rootdir):
+    """Read in test dataset using xarray."""
+    filename = "test_data/test_dataset_WL_Alamedacounty_45km_hourly.nc"
+    filepath = os.path.join(rootdir, filename)
+    ds = xr.open_dataset(filepath)
+    return ds
