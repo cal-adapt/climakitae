@@ -1,9 +1,9 @@
 """Create test dataset for daily data"""
 
-# Import climakitae and initialize Application object
-import climakitae as ck
+# Import DataParameters from climakitae and initialize
+from climakitae.core.data_interface import DataParameters
 
-selections = ck.Select()
+selections = DataParameters()
 
 # Set selections
 selections.timescale = "daily"
