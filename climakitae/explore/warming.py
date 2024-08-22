@@ -890,7 +890,7 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
                     clabel=data_to_plot.name + " (" + data_to_plot.attrs["units"] + ")",
                     marker="s",
                     s=150,
-                    frame_width=500,
+                    frame_width=450,
                     widget_location="bottom",
                 )
 
@@ -903,7 +903,7 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
                     cmap=cmap,
                     clabel=data_to_plot.name + " (" + data_to_plot.attrs["units"] + ")",
                     rasterize=True,
-                    frame_width=500,
+                    frame_width=450,
                     widget_location="bottom",
                 )
 
@@ -919,13 +919,10 @@ def GCM_PostageStamps_STATS_compute(wl_viz):
     Returns dictionary of warming levels to stats visuals.
     """
     # Get data to plot
-    # one_warming_level = str(float(wl_viz.warmlevel))
     warm_level_dict = {}
     for warmlevel in wl_viz.warming_levels:
         all_plot_data = _select_one_gwl(warmlevel, wl_viz.gwl_snapshots)
         if all_plot_data.all_sims.size != 0:
-            if wl_viz.wl_params.variable == "Relative humidity":
-                all_plot_data = all_plot_data * 100
 
             # compute stats
             def get_name(simulation, my_func_name):
@@ -939,7 +936,9 @@ def GCM_PostageStamps_STATS_compute(wl_viz):
                     + " "
                     + run
                     + "\n"
-                    + scenario.split("+")[1]
+                    + scenario.split("+")[1][
+                        1:
+                    ]  # The [1:] removes the first value, which is a space
                 )
 
             def arg_median(data):
@@ -974,61 +973,117 @@ def GCM_PostageStamps_STATS_compute(wl_viz):
                     for one_func in stat_funcs
                 ],
                 dim="all_sims",
-            )
-            stats.name = "Cross-simulation Statistics"
+            ).rename({"all_sims": "simulation"})
 
-            # Set up plotting arguments
-            width = 410
-            height = 210
-            units = wl_viz.gwl_snapshots.attrs["units"]
-            clabel = wl_viz.wl_params.variable + " (" + units + ")"
-            vmin = wl_viz.mins.sel(warming_level=warmlevel).values.item()
-            vmax = wl_viz.maxs.sel(warming_level=warmlevel).values.item()
-            if (vmin < 0) and (vmax > 0):
-                sopt = True
-            else:
-                sopt = None
+            # Get min and max to use for colorbar
+            vmin, vmax, sopt = compute_vmin_vmax(
+                all_plot_data.min(), all_plot_data.max()
+            )
 
             # Get cmap
             cmap = _get_cmap(
                 wl_viz.wl_params.variable, wl_viz.variable_descriptions, vmin
             )
 
-            # Make plots
-            any_single_dims = _check_single_spatial_dims(all_plot_data)
-            if any_single_dims:
+            # Colorbar label and plot suptitle
+            clabel = all_plot_data.name + " (" + all_plot_data.attrs["units"] + ")"
+            title = "Cross-Simulation Statistics for " + str(warmlevel) + "°C Warming"
+
+            if _check_single_spatial_dims(all_plot_data):
                 only_sims = area_average(stats)
-                all_plots = only_sims.hvplot.bar(
-                    x="all_sims", xlabel="Simulation", ylabel=f"{units} of Warming"
+                wl_plots = only_sims.hvplot.bar(
+                    x="simulation", xlabel="Simulation", ylabel=clabel, title=title
                 ).opts(multi_level=False, show_legend=False)
 
             else:
-                plot_list = []
-                for stat in stats:
-                    plot = stat.drop(["warming_level"]).hvplot.image(
-                        clabel=clabel,
-                        cmap=cmap,
+                wl_plots = (
+                    stats.hvplot.quadmesh(
+                        x="lon",
+                        y="lat",
+                        col_wrap="simulation",
                         clim=(vmin, vmax),
+                        cmap=cmap,
                         symmetric=sopt,
-                        width=width,
-                        height=height,
-                        xaxis=False,
-                        yaxis=False,
-                        title=stat.all_sims.values.item(),  # dim has been overwritten with nicer title
+                        colorbar=False,
+                        shared_axis=True,
+                        rasterize=True,  # set to True, otherwise hvplot has a bug where hovertool leaves a question mark
+                        frame_width=260,
                     )
-                    plot_list.append(plot)
-                all_plots = plot_list[0] + plot_list[1] + plot_list[2]
+                    .layout()
+                    .cols(2)
+                )
 
-            all_plots.opts(
-                title=wl_viz.wl_params.variable
-                + " for "
-                + str(warmlevel)
-                + "°C Warming Across Models"
-            )  # Add title
-            if not any_single_dims:
-                warm_level_dict[warmlevel] = all_plots.cols(1)
-            else:
-                warm_level_dict[warmlevel] = all_plots
+                wl_plots.opts(toolbar="right")  # Set toolbar location
+                wl_plots.opts(title=title)  # Add suptitle
+
+                # Add titles to each subplot
+                # this removes the default "simulation:" at the beginning
+                for pl, sim_name in zip(wl_plots, stats.simulation.values):
+                    pl.opts(title=sim_name)
+
+                # Add a shared colorbar to the right of the plots
+                shared_colorbar = (
+                    wl_plots.values()[0]
+                    .clone()
+                    .opts(
+                        colorbar=True,
+                        frame_width=0,
+                        frame_height=500,
+                        show_frame=False,
+                        shared_axes=False,
+                        xaxis=None,
+                        yaxis=None,
+                        toolbar=None,
+                        title="",
+                        colorbar_opts={
+                            "width": 20,
+                            "height": 300,
+                            "title": clabel,
+                        },
+                    )
+                )
+
+                # Create panel object: combine plot with shared colorbar
+                wl_plots = pn.Row(wl_plots, shared_colorbar, align="center")
+
+            warm_level_dict[warmlevel] = wl_plots
+
+        #             # Make plots
+        #             any_single_dims = _check_single_spatial_dims(all_plot_data)
+        #             if any_single_dims:
+        #                 only_sims = area_average(stats)
+        #                 all_plots = only_sims.hvplot.bar(
+        #                     x="all_sims", xlabel="Simulation", ylabel=f"{units} of Warming"
+        #                 ).opts(multi_level=False, show_legend=False)
+
+        #             else:
+        #                 plot_list = []
+        #                 for stat in stats:
+        #                     plot = stat.drop(["warming_level"]).hvplot.image(
+        #                         clabel=clabel,
+        #                         cmap=cmap,
+        #                         clim=(vmin, vmax),
+        #                         symmetric=sopt,
+        #                         width=width,
+        #                         height=height,
+        #                         xaxis=False,
+        #                         yaxis=False,
+        #                         title=stat.all_sims.values.item(),  # dim has been overwritten with nicer title
+        #                     )
+        #                     plot_list.append(plot)
+        #                 all_plots = plot_list[0] + plot_list[1] + plot_list[2]
+
+        #             all_plots.opts(
+        #                 title=wl_viz.wl_params.variable
+        #                 + " for "
+        #                 + str(warmlevel)
+        #                 + "°C Warming Across Models"
+        #             )  # Add title
+        #             if not any_single_dims:
+        #                 warm_level_dict[warmlevel] = all_plots.cols(1)
+        #             else:
+        #                 warm_level_dict[warmlevel] = all_plots
+
         # This means that there does not exist any simulations that reach this degree of warming (WRF models).
         else:
             # Pass in a dummy visualization for now to stay consistent with viz data structures
