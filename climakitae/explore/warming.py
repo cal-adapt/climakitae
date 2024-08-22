@@ -1048,42 +1048,6 @@ def GCM_PostageStamps_STATS_compute(wl_viz):
 
             warm_level_dict[warmlevel] = wl_plots
 
-        #             # Make plots
-        #             any_single_dims = _check_single_spatial_dims(all_plot_data)
-        #             if any_single_dims:
-        #                 only_sims = area_average(stats)
-        #                 all_plots = only_sims.hvplot.bar(
-        #                     x="all_sims", xlabel="Simulation", ylabel=f"{units} of Warming"
-        #                 ).opts(multi_level=False, show_legend=False)
-
-        #             else:
-        #                 plot_list = []
-        #                 for stat in stats:
-        #                     plot = stat.drop(["warming_level"]).hvplot.image(
-        #                         clabel=clabel,
-        #                         cmap=cmap,
-        #                         clim=(vmin, vmax),
-        #                         symmetric=sopt,
-        #                         width=width,
-        #                         height=height,
-        #                         xaxis=False,
-        #                         yaxis=False,
-        #                         title=stat.all_sims.values.item(),  # dim has been overwritten with nicer title
-        #                     )
-        #                     plot_list.append(plot)
-        #                 all_plots = plot_list[0] + plot_list[1] + plot_list[2]
-
-        #             all_plots.opts(
-        #                 title=wl_viz.wl_params.variable
-        #                 + " for "
-        #                 + str(warmlevel)
-        #                 + "°C Warming Across Models"
-        #             )  # Add title
-        #             if not any_single_dims:
-        #                 warm_level_dict[warmlevel] = all_plots.cols(1)
-        #             else:
-        #                 warm_level_dict[warmlevel] = all_plots
-
         # This means that there does not exist any simulations that reach this degree of warming (WRF models).
         else:
             # Pass in a dummy visualization for now to stay consistent with viz data structures
