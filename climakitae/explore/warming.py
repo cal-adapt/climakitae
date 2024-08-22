@@ -791,7 +791,12 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
             if _check_single_spatial_dims(data_to_plot):
                 wl_plots = (
                     data_to_plot.hvplot.scatter(
-                        x="lon", y="lat", marker="s", s=150, frame_width=220
+                        x="lon",
+                        y="lat",
+                        marker="s",
+                        s=150,
+                        frame_width=220,
+                        hover_cols=data_to_plot.name,
                     )
                     .layout()
                     .cols(2)
@@ -876,10 +881,11 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
         else:
 
             # if there's only one data point, make a scatter plot
-            if len(data_to_plot.x.values) == 1 and len(data_to_plot.y.values) == 1:
+            if _check_single_spatial_dims(data_to_plot):
                 wl_plot = data_to_plot.hvplot.scatter(
                     x="lon",
                     y="lat",
+                    hover_cols=data_to_plot.name,
                     col_wrap="simulation",
                     clabel=data_to_plot.name + " (" + data_to_plot.attrs["units"] + ")",
                     marker="s",
