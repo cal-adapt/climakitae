@@ -319,15 +319,39 @@ def _get_cmap(variable, variable_descriptions, vmin):
 
     """
 
+    # Moisture/precip-related variables
+    moisture_variables = [
+        "Precipitation (total)",
+        "Water Vapor Mixing Ratio at 2m",
+        "Snowfall (snow and ice)",
+        "Precipitation (cumulus portion only)",
+        "Precipitation (grid-scale portion only)",
+        "Subsurface runoff",
+        "Surface runoff",
+        "Snow water equivalent",
+        "Snowfall",
+        "Precipitation (convective only)",
+    ]
+
     # Get colormap based on variable
     cmap_name = variable_descriptions[
         variable_descriptions["display_name"] == variable
     ]["colormap"].values[0]
 
-    # Force reset cmap to ae orange if minimum value is greater than 0
-    if cmap_name == "ae_diverging" and vmin >= 0:
-        cmap_name = "ae_orange"
-        # Ideally this should also force-set moisture variables to ae_blue...
+    # Force reset to diverging if data is diverging but default variable colormap is not
+    if (vmin < 0) and ("ae_diverging" not in cmap_name):
+        if variable in moisture_variables:
+            cmap_name = "ae_diverging_r"  # Reverse diverging colormap
+        else:
+            cmap_name = "ae_diverging"
+
+    # Force reset diverging cmap to ae_orange or ae_blue if minimum value is greater than 0
+    if (cmap_name == "ae_diverging") and (vmin >= 0):
+        # Set to reverse diverging for moisture related variables
+        if variable in moisture_variables:
+            cmap_name = "ae_blue"
+        else:
+            cmap_name = "ae_orange"
 
     # Read colormap hex
     cmap = read_ae_colormap(cmap=cmap_name, cmap_hex=True)
@@ -764,7 +788,7 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
         if len(data_to_plot.simulation.values) <= 4:
 
             # if there's only one data point, make a scatter plot
-            if len(data_to_plot.x.values) == 1 and len(data_to_plot.y.values) == 1:
+            if _check_single_spatial_dims(data_to_plot):
                 wl_plots = (
                     data_to_plot.hvplot.scatter(
                         x="lon", y="lat", marker="s", s=150, frame_width=220
@@ -857,6 +881,7 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
                     x="lon",
                     y="lat",
                     col_wrap="simulation",
+                    clabel=data_to_plot.name + " (" + data_to_plot.attrs["units"] + ")",
                     marker="s",
                     s=150,
                     frame_width=500,
@@ -870,6 +895,7 @@ def GCM_PostageStamps_MAIN_compute(wl_viz):
                     col_wrap="simulation",
                     clim=(vmin, vmax),
                     cmap=cmap,
+                    clabel=data_to_plot.name + " (" + data_to_plot.attrs["units"] + ")",
                     rasterize=True,
                     frame_width=500,
                     widget_location="bottom",
