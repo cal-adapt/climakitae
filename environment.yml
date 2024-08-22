@@ -11,6 +11,7 @@ dependencies:
   - intake-xarray
   - intake-esm
   - jinja2
+  - matplotlib
   - metpy
   - numpy
   - pandas
