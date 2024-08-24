@@ -280,6 +280,12 @@ def get_sliced_data(y, level, years, months=np.arange(1, 13), window=15, anom="Y
             - (expected_counts[y.frequency] - len(sliced)),
         )
 
+        # Add user warning if the total slice is missing any time that exceeds the 2100 year bound.
+        if len(sliced["time"]) < expected_counts[sliced.frequency]:
+            print(
+                f"Warming Level data for {sliced.simulation} is not completely available, since the warming level slice's center year is towards the end of the century. All other valid data is returned."
+            )
+
         # Removing data not in the desired months (in this new time dimension)
         sliced = sliced.sel(time=valid_months_mask)
 
