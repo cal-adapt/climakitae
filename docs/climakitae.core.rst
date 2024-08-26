@@ -36,14 +36,6 @@ climakitae.core.data\_load module
    :undoc-members:
    :show-inheritance:
 
-climakitae.core.data\_view module
----------------------------------
-
-.. automodule:: climakitae.core.data_view
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 climakitae.core.paths module
 ----------------------------
 
