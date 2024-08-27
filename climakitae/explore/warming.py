@@ -5,6 +5,9 @@ import numpy as np
 import pandas as pd
 import param
 import calendar
+import warnings
+
+warnings.simplefilter(action="ignore", category=FutureWarning)
 
 from climakitae.core.data_interface import DataParameters
 from climakitae.core.data_load import load
@@ -13,6 +16,7 @@ from climakitae.util.utils import (
     read_csv_file,
     scenario_to_experiment_id,
     drop_invalid_wrf_sims,
+    _scenario_to_experiment_id,
 )
 
 from tqdm.auto import tqdm
@@ -191,6 +195,12 @@ def get_sliced_data(y, level, years, months=np.arange(1, 13), window=15, anom="Y
     --------
     anomaly_da: xr.DataArray
     """
+
+    def get_safe_slice(da, start_year, end_year):
+        if end_year >= 2100:
+
+            da.sel(time=slice(str(start_year), str(end_year)))
+
     gwl_times_subset = years.loc[process_item(y)]
 
     # Checking if the centered year is null, if so, return dummy DataArray
@@ -219,8 +229,25 @@ def get_sliced_data(y, level, years, months=np.arange(1, 13), window=15, anom="Y
         # Creating a mask for timestamps that are within the desired months
         valid_months_mask = sliced.time.dt.month.isin([months])
 
-        # Resetting and renaming time index for each data array so they can overlap and save storage space
-        sliced["time"] = np.arange(-len(sliced.time) / 2, len(sliced.time) / 2)
+        ### Resetting and renaming time index for each data array so they can overlap and save storage space.
+        expected_counts = {
+            "monthly": window * 2 * 12,
+            "daily": window * 2 * 365,
+            "hourly": window * 2 * 8760,
+        }
+        # There may be missing time for time slices that exceed the 2100 year bound. If that is the case, only return a warming slice for the amount of valid data available AND correctly center `time_from_center` values.
+        # Otherwise, if no time is missing, then the warming slice will just center the center year.
+        sliced["time"] = np.arange(
+            -expected_counts[y.frequency] / 2,
+            expected_counts[y.frequency] / 2
+            - (expected_counts[y.frequency] - len(sliced)),
+        )
+
+        # Add user warning if the total slice is missing any time that exceeds the 2100 year bound.
+        if len(sliced["time"]) < expected_counts[sliced.frequency]:
+            print(
+                f"\nWarming Level data for {sliced.simulation[0]} is not completely available, since the warming level slice's center year is towards the end of the century. All other valid data is returned.\n"
+            )
 
         # Removing data not in the desired months (in this new time dimension)
         sliced = sliced.sel(time=valid_months_mask)

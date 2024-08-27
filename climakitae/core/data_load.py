@@ -46,6 +46,8 @@ xr.set_options(keep_attrs=True)
 # slice array into smaller chunks to opitimize reading
 dask.config.set({"array.slicing.split_large_chunks": True})
 
+from dask.diagnostics import ProgressBar
+
 
 def load(xr_da, progress_bar=False):
     """Read lazily loaded dask array into memory for faster access
