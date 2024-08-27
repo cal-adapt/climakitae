@@ -15,8 +15,7 @@ from climakitae.core.paths import gwl_1981_2010_file, gwl_1850_1900_file
 from climakitae.util.utils import (
     read_csv_file,
     scenario_to_experiment_id,
-    drop_invalid_wrf_sims,
-    scenario_to_experiment_id,
+    drop_invalid_wrf_sims
 )
 
 from tqdm.auto import tqdm
