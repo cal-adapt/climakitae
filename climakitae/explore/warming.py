@@ -16,7 +16,7 @@ from climakitae.util.utils import (
     read_csv_file,
     scenario_to_experiment_id,
     drop_invalid_wrf_sims,
-    _scenario_to_experiment_id,
+    scenario_to_experiment_id,
 )
 
 from tqdm.auto import tqdm
