@@ -594,11 +594,15 @@ class DataParameters(param.Parameterized):
     _station_data_info = param.String(
         default="", doc="Information about the bias correction process and resolution"
     )
+    retrieval_method = param.Selector(
+        default="Time", objects=["Time", "Warming Levels"]
+    )
 
     # Empty params, initialized in __init__
     scenario_ssp = param.ListSelector(objects=dict())
     simulation = param.ListSelector(objects=dict())
     variable = param.Selector(objects=dict())
+    warming_levels = param.ListSelector(objects=dict())
     units = param.Selector(objects=dict())
     extended_description = param.Selector(objects=dict())
     variable_id = param.ListSelector(objects=dict())
@@ -609,6 +613,10 @@ class DataParameters(param.Parameterized):
     historical_climate_range_wrf_and_loca = (1981, 2015)
     historical_reconstruction_range = (1950, 2022)
     ssp_range = (2015, 2100)
+
+    # WL stuff
+    wl_time_option = ["None"]
+    wl_options = [1.5, 2, 3, 4]
 
     # User warnings
     _info_about_station_data = "When you retrieve the station data, gridded model data will be bias-corrected to that point. This process can start from any model grid-spacing."
@@ -711,6 +719,16 @@ class DataParameters(param.Parameterized):
             self.timescale,
         )
         self._data_warning = ""
+        self.warming_levels = self.wl_time_option
+
+    @param.depends("retrieval_method", watch=True)
+    def _update_warming_levels_options(self):
+        if self.retrieval_method == "Warming Levels":
+            self.param["warming_levels"].objects = self.wl_options
+            self.warming_levels = self.wl_options
+        elif self.retrieval_method == "Time":
+            self.param["warming_levels"].objects = self.wl_time_option
+            self.warming_levels = self.wl_time_option
 
     @param.depends("latitude", "longitude", watch=True)
     def _update_area_subset_to_lat_lon(self):
