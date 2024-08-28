@@ -1357,6 +1357,87 @@ def _get_closest_options(val, valid_options):
     return closest_options
 
 
+def _check_if_good_input(d, cat_df):
+    """Check if inputs are valid and makes a "guess" using cat_df if the input is not valid
+
+    Parameters
+    ----------
+    d: dict
+        Dictionary of str: list
+        The keys should correspond to valid column names in cat_df
+        THE ITEMS NEED TO BE LISTS, even if its just a single length list
+        i.e {"scenario": ["Historical Climate"]}
+    cat_df: pd.DataFrame
+        User-friendly catalog
+
+    Returns
+    -------
+    d: dict
+        Cleaned up dictionary
+
+    """
+    # Check that inputs are valid, make guess if not valid
+    for key, val in zip(
+        d.keys(), d.values()
+    ):  # Loop through each key, value pair in the dictionary
+        # Use the catalog to find the valid values in the list
+        valid_options = np.unique(cat_df[key].values)
+        if (
+            val == None
+        ):  # If the user didn't input anything for that key, set the values to all the valid options
+            d[key] = valid_options
+            continue  # Don't finish the loop
+        # If the input value is not in the valid options, see if you can help the user out
+        key_updated = []
+        for val_i in val:
+
+            # This catches any common bad inputs for resolution: i.e. "3KM" or "3km" instead of "3 km"
+            if key == "resolution":
+                try:
+                    good_resolution_input = val_i.lower().split("km")[0] + " km"
+                    if good_resolution_input in valid_options:
+                        print(
+                            "Input " + key + "='" + val_i + "' is not a valid option."
+                        )
+                        print(
+                            "Outputting data for "
+                            + key
+                            + "='"
+                            + good_resolution_input
+                            + "'\n"
+                        )
+                        key_updated.append(good_resolution_input)
+                        continue
+                except:
+                    pass
+
+            if val_i not in valid_options:
+
+                print("Input " + key + "='" + val_i + "' is not a valid option.")
+
+                closest_options = _get_closest_options(val_i, valid_options)
+
+                # Sad! No closest options found. Just set the key to all valid options
+                if closest_options is None:
+                    print("Valid options: " + ", ".join(valid_options))
+                    raise ValueError("Bad input")
+
+                # Just one option in the list
+                elif len(closest_options) == 1:
+                    print("Closest option: '" + closest_options[0] + "'")
+
+                elif len(closest_options) > 1:
+                    print("Closest options: \n- " + "\n- ".join(closest_options))
+
+                # Set key to closest option
+                print("Outputting data for " + key + "='" + closest_options[0] + "'\n")
+                key_updated.append(closest_options[0])
+            else:
+                key_updated.append(val_i)
+        d[key] = key_updated
+    return d
+
+
 def get_data_options(
     variable=None,
     downscaling_method=None,
@@ -1400,76 +1481,23 @@ def get_data_options(
     )
 
     # Raise error for bad input from user
-    for user_input in [variable, downscaling_method, resolution, timescale, scenario]:
-        if (user_input is not None) and (type(user_input) != str):
+    for user_input in [variable, downscaling_method, resolution, timescale]:
+        if (user_input is not None) and (type(user_input) not in [str, list]):
             print("Function arguments require a single string value for your inputs")
             return None
-
     d = {
-        "variable": variable,
-        "timescale": timescale,
-        "downscaling_method": downscaling_method,
-        "scenario": scenario,
-        "resolution": resolution,
+        "variable": variable if type(variable) == list else [variable],
+        "timescale": timescale if type(timescale) == list else [timescale],
+        "downscaling_method": (
+            downscaling_method
+            if type(downscaling_method) == list
+            else [downscaling_method]
+        ),
+        "scenario": scenario if type(scenario) == list else [scenario],
+        "resolution": resolution if type(resolution) == list else [resolution],
     }
 
-    for key, val in zip(
-        d.keys(), d.values()
-    ):  # Loop through each key, value pair in the dictionary
-        # Use the catalog to find the valid values in the list
-        valid_options = np.unique(cat_df[key].values)
-        if (
-            val == None
-        ):  # If the user didn't input anything for that key, set the values to all the valid options
-            d[key] = valid_options
-            continue  # Don't finish the loop
-        # If the input value is not in the valid options, see if you can help the user out
-        elif val not in valid_options:
-
-            # This catches any common bad inputs for resolution: i.e. "3KM" or "3km" instead of "3 km"
-            if key == "resolution":
-                try:
-                    good_resolution_input = val.lower().split("km")[0] + " km"
-                    if good_resolution_input in valid_options:
-                        print("Input " + key + "='" + val + "' is not a valid option.")
-                        print(
-                            "Returning output for closest option: '"
-                            + good_resolution_input
-                            + "'"
-                        )
-                        d[key] = [good_resolution_input]
-                        continue
-                except:
-                    pass
-
-            print("Input " + key + "='" + val + "' is not a valid option.")
-
-            closest_options = _get_closest_options(val, valid_options)
-
-            # Sad! No closest options found. Just set the key to all valid options
-            if closest_options is None:
-                print("Valid options: " + ", ".join(valid_options))
-                raise ValueError("Bad input")
-
-            # Just one option in the list
-            elif len(closest_options) == 1:
-                print(
-                    "Returning output for closest option: '" + closest_options[0] + "'"
-                )
-
-            elif len(closest_options) > 1:
-                print(
-                    "Returning output for closest options: \n- "
-                    + "\n- ".join(closest_options)
-                )
-                print("\n")
-            # Set key to closest option
-            d[key] = closest_options
-
-    # Dictionary values should be a list for the pandas logic to work correctly
-    for key, val in zip(d.keys(), d.values()):
-        if type(val) not in (list, np.ndarray):
-            d[key] = [val]
+    d = _check_if_good_input(d, cat_df)
 
     # Subset the catalog with the user's inputs
     cat_subset = cat_df[
@@ -1596,7 +1624,7 @@ def get_data(
     downscaling_method: str
     resolution: str
     timescale: str
-    scenario: str
+    scenario: str or list of str
     units: None, optional
         Defaults to native units of data
     area_subset: str, optional
@@ -1613,34 +1641,8 @@ def get_data(
     -------
     data: xr.DataArray
     """
-    # Make dictionary of inputs for easy parsing and error control
-    d = {
-        "variable": variable,
-        "timescale": timescale,
-        "downscaling_method": downscaling_method,
-        "scenario": scenario,
-        "resolution": resolution,
-    }
-
-    # Make sure the user inputs a string!!
-    for key, val in zip(d.keys(), d.values()):
-        if type(val) != str:
-            print(
-                "This function requires a single string input for argument '"
-                + key
-                + "'"
-            )
-            print("Your input type: " + str(type(val)))
-            raise ValueError("Bad input type")
-
-    # But actually, we need a list for cached area
-    if type(cached_area) == str:
-        cached_area = [cached_area]
 
     # Get intake catalog and variable descriptions from DataInterface object
-    # This is used to check if the user's inputs are valid
-    # This adds some initial runtime to the function... not the most efficient, but makes it more user-friendly
-    # So, maybe it's worth the additional time? I'm not 100% convinced personally (Nicole)
     data_interface = DataInterface()
     var_df = data_interface.variable_descriptions
     catalog = data_interface.data_catalog
@@ -1648,57 +1650,36 @@ def get_data(
         intake_catalog=catalog, variable_descriptions=var_df
     )
 
-    # Check that inputs are valid, make guess if not valid
-    for key, val in zip(
-        d.keys(), d.values()
-    ):  # Loop through each key, value pair in the dictionary
-        # Use the catalog to find the valid values in the list
-        valid_options = np.unique(cat_df[key].values)
-        if (
-            val == None
-        ):  # If the user didn't input anything for that key, set the values to all the valid options
-            d[key] = valid_options
-            continue  # Don't finish the loop
-        # If the input value is not in the valid options, see if you can help the user out
-        elif val not in valid_options:
+    # Raise error for bad input from user
+    for user_input in [variable, downscaling_method, resolution, timescale]:
+        if (user_input is not None) and (type(user_input) not in [str, list]):
+            print("Function arguments require a single string value for your inputs")
+            return None
 
-            # This catches any common bad inputs for resolution: i.e. "3KM" or "3km" instead of "3 km"
-            if key == "resolution":
-                try:
-                    good_resolution_input = val.lower().split("km")[0] + " km"
-                    if good_resolution_input in valid_options:
-                        print("Input " + key + "='" + val + "' is not a valid option.")
-                        print(
-                            "Outputting data for "
-                            + key
-                            + "='"
-                            + good_resolution_input
-                            + "'\n"
-                        )
-                        d[key] = good_resolution_input
-                        continue
-                except:
-                    pass
+    d = {
+        "variable": variable if type(variable) == list else [variable],
+        "timescale": timescale if type(timescale) == list else [timescale],
+        "downscaling_method": (
+            downscaling_method
+            if type(downscaling_method) == list
+            else [downscaling_method]
+        ),
+        "scenario": scenario if type(scenario) == list else [scenario],
+        "resolution": resolution if type(resolution) == list else [resolution],
+    }
 
-            print("Input " + key + "='" + val + "' is not a valid option.")
+    d = _check_if_good_input(d, cat_df)
 
-            closest_options = _get_closest_options(val, valid_options)
+    # Convert list items back to single str to match formatting in data
+    # Except for scenario which requires a list
+    d["variable"] = d["variable"][0]
+    d["timescale"] = d["timescale"][0]
+    d["downscaling_method"] = d["downscaling_method"][0]
+    d["resolution"] = d["resolution"][0]
 
-            # Sad! No closest options found. Just set the key to all valid options
-            if closest_options is None:
-                print("Valid options: " + ", ".join(valid_options))
-                raise ValueError("Bad input")
-
-            # Just one option in the list
-            elif len(closest_options) == 1:
-                print("Closest option: '" + closest_options[0] + "'")
-
-            elif len(closest_options) > 1:
-                print("Closest options: \n- " + "\n- ".join(closest_options))
-
-            # Set key to closest option
-            print("Outputting data for " + key + "='" + closest_options[0] + "'\n")
-            d[key] = closest_options[0]
+    # We need a list for cached area
+    if type(cached_area) == str:
+        cached_area = [cached_area]
 
     # Maybe the user put an input for cached area but not for area subset
     # We need to have the matching/correct area subset in order for selections.retrieve() to actually subset the data
@@ -1753,12 +1734,18 @@ def get_data(
     selections.timescale = d["timescale"]
     selections.units = units
 
-    if d["scenario"] in ["Historical Climate", "Historical Reconstruction"]:
-        selections.scenario_historical = [d["scenario"]]
+    if "Historical Reconstruction" in d["scenario"]:
+        selections.scenario_historical = ["Historical Reconstruction"]
         selections.scenario_ssp = []
+        if len(d["scenario"]) != 1:
+            print(
+                "WARNING: Historical Reconstruction data cannot be retrieved in the same data object as other scenario options. Only returning Historical Reconstruction data."
+            )
+
     else:
-        selections.scenario_historical = []
-        selections.scenario_ssp = [d["scenario"]]
+        if "Historical Climate" in d["scenario"]:
+            selections.scenario_historical = ["Historical Climate"]
+        selections.scenario_ssp = [x for x in d["scenario"] if "Historical" not in x]
 
     # Retrieve data
     data = selections.retrieve()
