@@ -1460,7 +1460,7 @@ def get_data_options(
         Default to None
     timescale: str, optional
         Default to None
-    scenario: str, optional
+    scenario: str or list, optional
         Default to None
     tidy: boolean, optional
         Format the pandas dataframe? This creates a DataFrame with a MultiIndex that makes it easier to parse the options.
