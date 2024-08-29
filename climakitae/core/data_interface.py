@@ -1379,9 +1379,10 @@ def _check_if_good_input(d, cat_df):
     ):  # Loop through each key, value pair in the dictionary
         # Use the catalog to find the valid values in the list
         valid_options = np.unique(cat_df[key].values)
-        if (
-            val == None
-        ):  # If the user didn't input anything for that key, set the values to all the valid options
+        if val in [
+            [None],
+            None,
+        ]:  # If the user didn't input anything for that key, set the values to all the valid options
             d[key] = valid_options
             continue  # Don't finish the loop
         # If the input value is not in the valid options, see if you can help the user out
@@ -1479,20 +1480,32 @@ def get_data_options(
 
     # Raise error for bad input from user
     for user_input in [variable, downscaling_method, resolution, timescale]:
-        if (user_input is not None) and (type(user_input) not in [str, list]):
+        if (user_input is not None) and (type(user_input) != str):
             print("Function arguments require a single string value for your inputs")
             return None
+
+    def _list(x):
+        """Convert x to a list if its not a list"""
+        if type(x) == list:
+            return x
+        elif type(x) != list:
+            return [x]
+
     d = {
-        "variable": variable if type(variable) == list else [variable],
-        "timescale": timescale if type(timescale) == list else [timescale],
-        "downscaling_method": (
-            downscaling_method
-            if type(downscaling_method) == list
-            else [downscaling_method]
-        ),
-        "scenario": scenario if type(scenario) == list else [scenario],
-        "resolution": resolution if type(resolution) == list else [resolution],
+        "variable": _list(variable),
+        "timescale": _list(timescale),
+        "downscaling_method": _list(downscaling_method),
+        "scenario": _list(scenario),
+        "resolution": _list(resolution),
     }
+
+    # For the non-None inputs, check if the inputs are good
+    # If they're not good, make a guess
+    # vals_w_non_nan_input = {key: value for key, value in d.items() if value != [None}
+    # print(vals_w_non_nan_input)
+    # vals_w_non_nan_input = _check_if_good_input(vals_w_non_nan_input, cat_df)
+    # d = vals_w_non_nan_input | d  # Add back in the keys with None values
+    # print(d)
 
     d = _check_if_good_input(d, cat_df)
 
