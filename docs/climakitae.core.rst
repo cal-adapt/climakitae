@@ -12,6 +12,7 @@ climakitae.core.boundaries module
    :undoc-members:
    :show-inheritance:
 
+
 climakitae.core.data\_export module
 -----------------------------------
 
@@ -20,13 +21,20 @@ climakitae.core.data\_export module
    :undoc-members:
    :show-inheritance:
 
+
 climakitae.core.data\_interface module
 --------------------------------------
 
 .. automodule:: climakitae.core.data_interface
    :members:
+   :exclude-members: DataParameters
    :undoc-members:
    :show-inheritance:
+
+   .. autoclass:: climakitae.core.data_interface.DataParameters
+      :members:
+      :show-inheritance:
+
 
 climakitae.core.data\_load module
 ---------------------------------
@@ -36,6 +44,7 @@ climakitae.core.data\_load module
    :undoc-members:
    :show-inheritance:
 
+
 climakitae.core.paths module
 ----------------------------
 
@@ -43,6 +52,8 @@ climakitae.core.paths module
    :members:
    :undoc-members:
    :show-inheritance:
+
+
 
 Module contents
 ---------------

@@ -16,6 +16,8 @@ def get_unit_conversion_options():
         "m s-1": ["m s-1", "mph", "knots"],
         "[0 to 100]": ["[0 to 100]", "fraction"],
         "mm": ["mm", "inches"],
+        "mm/d": ["mm/d", "inches/d"],
+        "mm/h": ["mm/h", "inches/h"],
         "kg/kg": ["kg/kg", "g/kg"],
         "kg kg-1": ["kg kg-1", "g kg-1"],
         "kg m-2 s-1": ["kg m-2 s-1", "mm", "inches"],
@@ -71,7 +73,7 @@ def convert_units(da, selected_units):
 
     # Precipitation units
     elif native_units in ["mm", "mm/d", "mm/h"]:
-        if selected_units == "inches":
+        if selected_units in ["inches", "inches/h", "inches/d"]:
             da = da / 25.4
         elif selected_units == "kg m-2 s-1":
             da = da / 86400

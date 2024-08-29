@@ -3,7 +3,9 @@ import geopandas as gpd
 from shapely.geometry import box
 import intake
 import param
+import numpy as np
 import warnings
+import difflib
 import cartopy.crs as ccrs
 from climakitae.core.paths import (
     variable_descriptions_csv_path,
@@ -377,10 +379,6 @@ class VariableDescriptions:
     variable_descriptions: pd.DataFrame
         pandas dataframe that stores available data variables usable with the package
 
-    Methods
-    -------
-    load(self)
-        read the variable descriptions csv into class variable
     """
 
     def __new__(cls):
@@ -392,6 +390,7 @@ class VariableDescriptions:
         self.variable_descriptions = pd.DataFrame
 
     def load(self):
+        """Read the variable descriptions csv into class variable."""
         if self.variable_descriptions.empty:
             self.variable_descriptions = read_csv_file(variable_descriptions_csv_path)
 
@@ -921,9 +920,6 @@ class DataParameters(param.Parameterized):
             self.variable_options_df["display_name"] == self.variable
         ]
         native_unit = var_info.unit.item()
-        if native_unit in ["mm/d", "mm/h"]:
-            # Show same unit options for all mm
-            native_unit = "mm"
         if (
             native_unit in self.unit_options_dict.keys()
         ):  # See if there's unit conversion options for native variable
@@ -1201,3 +1197,566 @@ class DataParameters(param.Parameterized):
         else:
             warnoflargefilesize(data_return)
         return data_return
+
+
+## -------------- Data access without GUI -------------------
+
+
+def _get_user_friendly_catalog(intake_catalog, variable_descriptions):
+    """Get a user-friendly version of the intake data catalog using climakitae naming conventions
+
+    Parameters
+    ----------
+    intake_catalog: intake_esm.source.ESMDataSource
+    variable_descriptions: pd.DataFrame
+
+    Returns
+    -------
+    cat_df_cleaned: intake_esm.source.ESMDataSource
+    """
+
+    # Get the catalog as a dataframe
+    cat_df = intake_catalog.df.copy()
+
+    # Create new, user friendly catalog in pandas DataFrame format
+    cat_df_cleaned = pd.DataFrame()
+    cat_df_cleaned["downscaling_method"] = cat_df["activity_id"].apply(
+        lambda x: downscaling_method_to_activity_id(x, reverse=True)
+    )
+    cat_df_cleaned["resolution"] = cat_df["grid_label"].apply(
+        lambda x: resolution_to_gridlabel(x, reverse=True)
+    )
+    cat_df_cleaned["timescale"] = cat_df["table_id"].apply(
+        lambda x: timescale_to_table_id(x, reverse=True)
+    )
+    cat_df_cleaned["scenario"] = cat_df["experiment_id"].apply(
+        lambda x: scenario_to_experiment_id(x, reverse=True)
+    )
+    cat_df_cleaned["variable_id"] = cat_df["variable_id"]
+
+    # Get user-friendly variable names from variable_descriptions.csv and add to dataframe
+    cat_df_cleaned["variable"] = cat_df_cleaned.apply(
+        lambda x: _get_var_name_from_table(
+            x["variable_id"],
+            x["downscaling_method"],
+            x["timescale"],
+            variable_descriptions,
+        ),
+        axis=1,
+    )
+
+    # We dont' show the users all the available variables in the catalog
+    # These variables aren't defined in variable_descriptions.csv
+    # Here, we just remove all those variables
+    cat_df_cleaned = cat_df_cleaned[cat_df_cleaned["variable"] != "NONE"]
+
+    # Move variable row to first position
+    col = cat_df_cleaned.pop("variable")
+    cat_df_cleaned.insert(0, col.name, col)
+
+    # Remove variable_id row
+    cat_df_cleaned.pop("variable_id")
+
+    # Remove duplicate rows
+    # Duplicates occur due to the many unique member_ids
+    cat_df_cleaned = cat_df_cleaned.drop_duplicates(ignore_index=True)
+
+    return cat_df_cleaned
+
+
+def _get_var_name_from_table(variable_id, downscaling_method, timescale, var_df):
+    """Get the variable name corresponding to its ID, downscaling method, and timescale
+    Enables the _get_user_friendly_catalog function to get the name of a variable corresponding to a set of user inputs
+    i.e we have several different precip variables, corresponding to different downscaling methods (WRF vs. LOCA)
+
+    Parameters
+    ----------
+    variable_id: str
+    downscaling_method: str
+    timescale: str
+    var_df: pd.DataFrame
+        Variable descriptions table
+
+    Returns
+    -------
+    var_name: str
+        Display name of variable from variable descriptions table
+        Will match what the user would see in the selections GUI
+    """
+    # Query the table based on input values
+    var_df_query = var_df[
+        (var_df["variable_id"] == variable_id)
+        & (var_df["downscaling_method"] == downscaling_method)
+    ]
+
+    # Timescale in table needs to be handled differently
+    # This is because the monthly variables are derived from daily variables, so they are listed in the table as "daily, monthly"
+    # Hourly variables may be different
+    # Querying the data needs special handling due to the layout of the csv file
+    var_df_query = var_df_query[var_df_query["timescale"].str.contains(timescale)]
+
+    # This might return nothing if the variable is one we don't want to show the users
+    # If so, set the var_name to nan
+    # The row will later be dropped
+    if len(var_df_query) == 0:
+        var_name = "NONE"
+
+    # If a variable name is found, grab and return its proper name
+    else:
+        var_name = var_df_query["display_name"].item()
+
+    return var_name
+
+
+def _get_closest_options(val, valid_options):
+    """If the user inputs a bad option, find the closest option from a list of valid options
+
+    Parameters
+    ----------
+    val: str
+        User input
+    valid_options: list
+        Valid options for that key from the catalog
+
+    Returns
+    -------
+    closest_options: list or None
+        List of best guesses, or None if nothing close is found
+    """
+
+    # Perhaps the user just capitalized it wrong?
+    is_it_just_capitalized_wrong = [
+        i for i in valid_options if val.lower() == i.lower()
+    ]
+
+    # Perhaps the input is a substring of a valid option?
+    is_it_a_substring = [i for i in valid_options if val.lower() in i.lower()]
+
+    # Use difflib package to make a guess for what the input might have been
+    # For example, if they input "statistikal" instead of "Statistical", difflib will find "Statistical"
+    # Change the cutoff to increase/decrease the flexibility of the function
+    maybe_difflib_can_find_something = difflib.get_close_matches(
+        val, valid_options, cutoff=0.59
+    )
+
+    if len(is_it_just_capitalized_wrong) > 0:
+        closest_options = is_it_just_capitalized_wrong
+
+    elif len(is_it_a_substring) > 0:
+        closest_options = is_it_a_substring
+
+    elif len(maybe_difflib_can_find_something) > 0:
+        closest_options = maybe_difflib_can_find_something
+
+    else:
+        closest_options = None
+
+    return closest_options
+
+
+def get_data_options(
+    variable=None,
+    downscaling_method=None,
+    resolution=None,
+    timescale=None,
+    scenario=None,
+    tidy=True,
+):
+    """Get data options, in the same format as the Select GUI, given a set of possible inputs.
+    Allows the user to access the data using the same language as the GUI, bypassing the sometimes unintuitive naming in the catalog.
+    If no function inputs are provided, the function returns the entire AE catalog that is available via the Select GUI
+
+    Parameters
+    ----------
+    variable: str, optional
+        Default to None
+    downscaling_method: str, optional
+        Default to None
+    resolution: str, optional
+        Default to None
+    timescale: str, optional
+        Default to None
+    scenario: str, optional
+        Default to None
+    tidy: boolean, optional
+        Format the pandas dataframe? This creates a DataFrame with a MultiIndex that makes it easier to parse the options.
+        Default to True
+
+    Returns
+    -------
+    cat_subset: pd.DataFrame
+        Catalog options for user-provided inputs
+    """
+
+    # Get intake catalog and variable descriptions from DataInterface object
+    data_interface = DataInterface()
+    var_df = data_interface.variable_descriptions
+    catalog = data_interface.data_catalog
+    cat_df = _get_user_friendly_catalog(
+        intake_catalog=catalog, variable_descriptions=var_df
+    )
+
+    # Raise error for bad input from user
+    for user_input in [variable, downscaling_method, resolution, timescale, scenario]:
+        if (user_input is not None) and (type(user_input) != str):
+            print("Function arguments require a single string value for your inputs")
+            return None
+
+    d = {
+        "variable": variable,
+        "timescale": timescale,
+        "downscaling_method": downscaling_method,
+        "scenario": scenario,
+        "resolution": resolution,
+    }
+
+    for key, val in zip(
+        d.keys(), d.values()
+    ):  # Loop through each key, value pair in the dictionary
+        # Use the catalog to find the valid values in the list
+        valid_options = np.unique(cat_df[key].values)
+        if (
+            val == None
+        ):  # If the user didn't input anything for that key, set the values to all the valid options
+            d[key] = valid_options
+            continue  # Don't finish the loop
+        # If the input value is not in the valid options, see if you can help the user out
+        elif val not in valid_options:
+
+            # This catches any common bad inputs for resolution: i.e. "3KM" or "3km" instead of "3 km"
+            if key == "resolution":
+                try:
+                    good_resolution_input = val.lower().split("km")[0] + " km"
+                    if good_resolution_input in valid_options:
+                        print("Input " + key + "='" + val + "' is not a valid option.")
+                        print(
+                            "Returning output for closest option: '"
+                            + good_resolution_input
+                            + "'"
+                        )
+                        d[key] = [good_resolution_input]
+                        continue
+                except:
+                    pass
+
+            print("Input " + key + "='" + val + "' is not a valid option.")
+
+            closest_options = _get_closest_options(val, valid_options)
+
+            # Sad! No closest options found. Just set the key to all valid options
+            if closest_options is None:
+                print("Valid options: " + ", ".join(valid_options))
+                raise ValueError("Bad input")
+
+            # Just one option in the list
+            elif len(closest_options) == 1:
+                print(
+                    "Returning output for closest option: '" + closest_options[0] + "'"
+                )
+
+            elif len(closest_options) > 1:
+                print(
+                    "Returning output for closest options: \n- "
+                    + "\n- ".join(closest_options)
+                )
+                print("\n")
+            # Set key to closest option
+            d[key] = closest_options
+
+    # Dictionary values should be a list for the pandas logic to work correctly
+    for key, val in zip(d.keys(), d.values()):
+        if type(val) not in (list, np.ndarray):
+            d[key] = [val]
+
+    # Subset the catalog with the user's inputs
+    cat_subset = cat_df[
+        (cat_df["variable"].isin(d["variable"]))
+        & (cat_df["downscaling_method"].isin(d["downscaling_method"]))
+        & (cat_df["resolution"].isin(d["resolution"]))
+        & (cat_df["timescale"].isin(d["timescale"]))
+        & (cat_df["scenario"].isin(d["scenario"]))
+    ].reset_index(drop=True)
+    if len(cat_subset) == 0:
+        print("No data found for your input values")
+        return None
+
+    if tidy:
+        cat_subset = cat_subset.set_index(
+            ["downscaling_method", "scenario", "timescale"]
+        )
+    return cat_subset
+
+
+def get_subsetting_options(area_subset="all"):
+    """Get all geometry options for spatial subsetting.
+    Options match those in selections GUI
+
+    Parameters
+    ----------
+    area_subset: str, one of "all", "states", "CA counties", "CA Electricity Demand Forecast Zones", "CA watersheds", "CA Electric Balancing Authority Areas", "CA Electric Load Serving Entities (IOU & POU)"
+        Defaults to "all", which shows all the geometry options with area_subset as a multiindex
+
+    Returns
+    -------
+    geom_df: pd.DataFrame
+        Geometry options
+        Shows only options for one area_subset if input is provided that is not "all"
+        i.e. if area_subset = "states", only the options for states will be returned
+    """
+    # Get geographies from DataInterface object
+    data_interface = DataInterface()
+    geographies = data_interface._geographies
+    boundary_dict = geographies.boundary_dict()
+
+    # Get geometries and labels from Boundaries object
+    df_dict = {
+        "states": geographies._us_states[["abbrevs", "geometry"]].rename(
+            columns={"abbrevs": "NAME"}
+        ),
+        "CA counties": geographies._ca_counties[["NAME", "geometry"]],
+        "CA Electricity Demand Forecast Zones": geographies._ca_forecast_zones.rename(
+            columns={"FZ_Name": "NAME"}
+        )[["NAME", "geometry"]],
+        "CA watersheds": geographies._ca_watersheds.rename(columns={"Name": "NAME"})[
+            ["NAME", "geometry"]
+        ],
+        "CA Electric Balancing Authority Areas": geographies._ca_electric_balancing_areas[
+            ["NAME", "geometry"]
+        ],
+        "CA Electric Load Serving Entities (IOU & POU)": geographies._ca_utilities.rename(
+            columns={"Utility": "NAME"}
+        )[
+            ["NAME", "geometry"]
+        ],
+    }
+
+    # Confirm that input for argument "area_subset" is valid
+    # Raise error and print helpful statements if bad input
+    valid_inputs = list(df_dict.keys()) + ["all"]
+    if area_subset not in valid_inputs:
+        print(
+            "'"
+            + str(area_subset)
+            + "' is not a valid option for function argument 'area_subset'.\nChoose one of the following: "
+            + ", ".join(valid_inputs)
+        )
+        print("Default argument 'all' will show all valid geometry options.")
+        raise ValueError("Bad input for argument 'area_subset'")
+
+    # Some of the geometry options are limited further by the selections.show() GUI
+    # i.e. not all US states are an option in the GUI, even though the parquet file provided by geographies._us_states contains all US states
+    # Here, we limit the output to return the same options as the GUI
+    for name, df in df_dict.items():
+        df["area_subset"] = [name] * len(
+            df
+        )  # Add area subset as a column. Used to create multiindex if area_subset = "all"
+        df = df[df["NAME"].isin(list(boundary_dict[name].keys()))]
+        df_dict[name] = df  # Replace the DataFrame with the new, reduced DataFrame
+
+    if area_subset != "all":
+        # Only return the desired area subset
+        geoms_df = (
+            df_dict[area_subset]
+            .drop(columns="area_subset")
+            .rename(columns={"NAME": "cached_area"})
+            .set_index("cached_area")
+        )
+    else:
+        geoms_df = pd.concat(list(df_dict.values())).rename(
+            columns={"NAME": "cached_area"}
+        )
+        geoms_df = geoms_df.set_index(
+            ["area_subset", "cached_area"]
+        )  # Create multiindex
+
+    return geoms_df
+
+
+def get_data(
+    variable,
+    downscaling_method,
+    resolution,
+    timescale,
+    scenario,
+    units=None,
+    area_subset="none",
+    cached_area=["entire domain"],
+    area_average="No",
+):
+    # Need to add error handing for bad variable input
+    """Retrieve data from the catalog using a simple function.
+    Contrasts with selections.retrieve(), which retrieves data from the user inputs in climakitae's selections GUI.
+
+    Parameters
+    ----------
+    variable: str
+    downscaling_method: str
+    resolution: str
+    timescale: str
+    scenario: str
+    units: None, optional
+        Defaults to native units of data
+    area_subset: str, optional
+        Area category: i.e "CA counties"
+        Defaults to entire domain ("none")
+    cached_area: list, optional
+        Area: i.e "Alameda county"
+        Defaults to entire domain ("none")
+    area_average: str, one of "No" or "Yes", optional
+        Take an average over spatial domain?
+        Default to No
+
+    Returns
+    -------
+    data: xr.DataArray
+    """
+    # Make dictionary of inputs for easy parsing and error control
+    d = {
+        "variable": variable,
+        "timescale": timescale,
+        "downscaling_method": downscaling_method,
+        "scenario": scenario,
+        "resolution": resolution,
+    }
+
+    # Make sure the user inputs a string!!
+    for key, val in zip(d.keys(), d.values()):
+        if type(val) != str:
+            print(
+                "This function requires a single string input for argument '"
+                + key
+                + "'"
+            )
+            print("Your input type: " + str(type(val)))
+            raise ValueError("Bad input type")
+
+    # But actually, we need a list for cached area
+    if type(cached_area) == str:
+        cached_area = [cached_area]
+
+    # Get intake catalog and variable descriptions from DataInterface object
+    # This is used to check if the user's inputs are valid
+    # This adds some initial runtime to the function... not the most efficient, but makes it more user-friendly
+    # So, maybe it's worth the additional time? I'm not 100% convinced personally (Nicole)
+    data_interface = DataInterface()
+    var_df = data_interface.variable_descriptions
+    catalog = data_interface.data_catalog
+    cat_df = _get_user_friendly_catalog(
+        intake_catalog=catalog, variable_descriptions=var_df
+    )
+
+    # Check that inputs are valid, make guess if not valid
+    for key, val in zip(
+        d.keys(), d.values()
+    ):  # Loop through each key, value pair in the dictionary
+        # Use the catalog to find the valid values in the list
+        valid_options = np.unique(cat_df[key].values)
+        if (
+            val == None
+        ):  # If the user didn't input anything for that key, set the values to all the valid options
+            d[key] = valid_options
+            continue  # Don't finish the loop
+        # If the input value is not in the valid options, see if you can help the user out
+        elif val not in valid_options:
+
+            # This catches any common bad inputs for resolution: i.e. "3KM" or "3km" instead of "3 km"
+            if key == "resolution":
+                try:
+                    good_resolution_input = val.lower().split("km")[0] + " km"
+                    if good_resolution_input in valid_options:
+                        print("Input " + key + "='" + val + "' is not a valid option.")
+                        print(
+                            "Outputting data for "
+                            + key
+                            + "='"
+                            + good_resolution_input
+                            + "'\n"
+                        )
+                        d[key] = good_resolution_input
+                        continue
+                except:
+                    pass
+
+            print("Input " + key + "='" + val + "' is not a valid option.")
+
+            closest_options = _get_closest_options(val, valid_options)
+
+            # Sad! No closest options found. Just set the key to all valid options
+            if closest_options is None:
+                print("Valid options: " + ", ".join(valid_options))
+                raise ValueError("Bad input")
+
+            # Just one option in the list
+            elif len(closest_options) == 1:
+                print("Closest option: '" + closest_options[0] + "'")
+
+            elif len(closest_options) > 1:
+                print("Closest options: \n- " + "\n- ".join(closest_options))
+
+            # Set key to closest option
+            print("Outputting data for " + key + "='" + closest_options[0] + "'\n")
+            d[key] = closest_options[0]
+
+    # Maybe the user put an input for cached area but not for area subset
+    # We need to have the matching/correct area subset in order for selections.retrieve() to actually subset the data
+    # Here, we load in the geometry options to set area_subset to the correct value
+    # This also raises an appropriate error if the user has a bad input
+    if area_subset == "none" and cached_area != ["entire domain"]:
+        geom_df = get_subsetting_options(area_subset="all").reset_index()
+        area_subset_vals = geom_df[geom_df["cached_area"] == cached_area[0]][
+            "area_subset"
+        ].values
+        if len(area_subset_vals) == 0:
+            print(
+                "'"
+                + str(cached_area[0])
+                + "' is not a valid option for function argument 'cached_area'"
+            )
+            raise ValueError("Bad input for argument 'cached_area'")
+        else:
+            area_subset = area_subset_vals[0]
+
+    # Query the table based on input values
+    var_df_query = var_df[
+        (var_df["display_name"] == d["variable"])
+        & (var_df["downscaling_method"] == d["downscaling_method"])
+    ]
+
+    # Timescale in table needs to be handled differently
+    # This is because the monthly variables are derived from daily variables, so they are listed in the table as "daily, monthly"
+    # Hourly variables may be different
+    # Querying the data needs special handling due to the layout of the csv file
+    var_df_query = var_df_query[var_df_query["timescale"].str.contains(d["timescale"])]
+
+    if units is None:
+        units = var_df_query["unit"].item()
+
+    # Create selections object
+    selections = DataParameters()
+
+    # Defaults
+    selections.area_average = area_average
+    selections.area_subset = area_subset
+    selections.cached_area = cached_area
+
+    # Function not currently flexible enough to allow for appending historical
+    # Need to add in error control
+    selections.append_historical = False
+
+    # User selections
+    selections.downscaling_method = d["downscaling_method"]
+    selections.variable = d["variable"]
+    selections.resolution = d["resolution"]
+    selections.timescale = d["timescale"]
+    selections.units = units
+
+    if d["scenario"] in ["Historical Climate", "Historical Reconstruction"]:
+        selections.scenario_historical = [d["scenario"]]
+        selections.scenario_ssp = []
+    else:
+        selections.scenario_historical = []
+        selections.scenario_ssp = [d["scenario"]]
+
+    # Retrieve data
+    data = selections.retrieve()
+    return data

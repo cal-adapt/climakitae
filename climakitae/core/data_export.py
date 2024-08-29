@@ -1128,30 +1128,36 @@ def write_tmy_file(
 ):
     """Exports TMY data either as .epw or .tmy file
 
-    Parameters
-    ----------
-    filename_to_export: str
-        Filename string, constructed with station name and simulation
-    df: pd.DataFrame
-        Dataframe of TMY data to export
-    location_name: str
-        Location name string, often station name
-    station_code: int
-        Station code
-    stn_lat: float
-        Station latitude
-    stn_lon: float
-        Station longitude
-    stn_state: str
-        State of station location
-    stn_elev: float (optional)
-        Elevation of station, default is 0.0
-    file_ext: str (optional)
-        File extension for export, default is .tmy, options are "tmy" and "epw"
+        Parameters
+        ----------
+        filename_to_export: str
+            Filename string, constructed with station name and simulation
+        df: pd.DataFrame
+            Dataframe of TMY data to export
+        location_name: str
+            Location name string, often station name
+        station_code: int
+            Station code
+        stn_lat: float
+            Station latitude
+        stn_lon: float
+            Station longitude
+        stn_state: str
+            State of station location
+    <<<<<<< HEAD
+        stn_elev: float (optional)
+            Elevation of station, default is 0.0
+        file_ext: str (optional)
+    =======
+        stn_elev: float, optional
+            Elevation of station, default is 0.0
+        file_ext: str, optional
+    >>>>>>> main
+            File extension for export, default is .tmy, options are "tmy" and "epw"
 
-    Returns
-    -------
-    None
+        Returns
+        -------
+        None
     """
 
     station_df = read_csv_file(stations_csv_path)

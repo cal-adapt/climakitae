@@ -26,8 +26,6 @@ class Boundaries:
 
     Methods
     -------
-    load(self)
-        Reads parquet files and sets class attributes
     _get_us_states(self)
         Returns a dict of state abbreviations and indices
     _get_ca_counties(self)
@@ -40,8 +38,6 @@ class Boundaries:
         Returns a dict for CA electric load serving entities IOUs & POUs
     _get_electric_balancing_areas(self)
         Returns a dict for CA Electric Balancing Authority Areas
-    boundary_dict(self)
-        Returns a dict of the other boundary dicts, used to populate ck.Select
     """
 
     _cat = None
@@ -57,7 +53,7 @@ class Boundaries:
         self._cat = boundary_catalog
 
     def load(self):
-        # Load parquet files from boundary catalog into pd.DataFrame objects
+        """Read parquet files and sets class attributes."""
         self._us_states = self._cat.states.read()
         self._ca_counties = self._cat.counties.read().sort_values("NAME")
         self._ca_watersheds = self._cat.huc8.read().sort_values("Name")
@@ -198,7 +194,8 @@ class Boundaries:
         ).to_dict()
 
     def boundary_dict(self):
-        """
+        """Return a dict of the other boundary dicts, used to populate ck.Select.
+
         This returns a dictionary of lookup dictionaries for each set of
         geoparquet files that the user might be choosing from. It is used to
         populate the `DataParameters` cached_area dynamically as the category

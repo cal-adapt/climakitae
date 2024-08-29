@@ -1,11 +1,11 @@
 Climakitae
 ==========
-A python toolkit for retrieving, visualizing, and performing scientific analyses with climate data from the [Cal-Adapt Analytics Engine](https://analytics.cal-adapt.org).
+A python toolkit for retrieving, and performing scientific analyses with climate data from the [Cal-Adapt Analytics Engine](https://analytics.cal-adapt.org).
 
 **Note:** This package is in active development and should be considered a work in progress. 
 
 Documentation
---------------
+-------------
 Check out the official documentation on ReadTheDocs: https://climakitae.readthedocs.io/en/latest/ 
 
 Installation
@@ -22,12 +22,10 @@ Basic Usage
 
 ```
 import climakitae as ck                        # Import the package
-sel = ck.Select().show()                       # Pull up selections GUI to make data settings
+from climakitae.core.data_interface import DataParameters
+sel = DataParameters()                         # Pull up selections to make data settings
 data = sel.retrieve()                          # Retrieve the data from the AWS catalog
 data = ck.load(data)                           # Read the data into memory
-ck.view(data)                                  # Generate a basic visualization of the data
-from climakitae.explore import warming_levels  # Import warming levels code
-wl = warming_levels().show()                   # Explore Warming Levels GUI
 ```
 
 Links
@@ -37,5 +35,5 @@ Links
 * Issue tracker: https://github.com/cal-adapt/climakitae/issues
 
 Contributors
--------------
+------------
 [![Contributors](https://contrib.rocks/image?repo=cal-adapt/climakitae)](https://github.com/cal-adapt/climakitae/graphs/contributors)
