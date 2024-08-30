@@ -26,7 +26,7 @@ snownc,Dynamical,hourly,mm,Snowfall (snow and ice),"Portion of the total frozen 
 rainc,Dynamical,hourly,mm,Precipitation (cumulus portion only),"Any form of precipitation (rain, snow, etc.) that is produced specifically by cumulus/cumulonimbus clouds. These are generally small clouds that bring heavy precipitation.",ae_blue,TRUE
 rainnc,Dynamical,hourly,mm,Precipitation (grid-scale portion only),"Any form of precipitation (rain, snow, etc.) captured by the model resolution (i.e. 45km). Small clouds (including cumulus clouds) typically are excluded from this.",ae_blue,TRUE
 runsb,Dynamical,hourly,mm/s,Subsurface runoff,"The rate at which  water that has infiltrated the ground surface travels underground until it reaches a body of water (stream, river, etc.)",ae_blue,FALSE
-runsf,Dynamical,hourly,mm/s,Surface runoff,"The rate at which water travels over the ground surface until it reaches a body of water (stream, river, etc.)",ae_blue,FALSE
+runsf,Dynamical,hourly,mm/s,Surface runoff,"The rate at which water travels over the ground surface until it reaches a body of water (stream, river, etc.)",ae_blue,TRUE
 snow,Dynamical,hourly,kg m-2,Snow water equivalent,The amount of water on surface that would be present if all snow melted. ,ae_blue,FALSE
 t2,Dynamical,"daily, monthly",K,Air Temperature at 2m,Temperature of the air 2m above Earth's surface. This is the measure of air temperature used for most modeling applications.,ae_orange,TRUE
 prec,Dynamical,"daily, monthly",mm,Precipitation (total),Total precipitation. Computed by summing total gridscale precipitation and total cumulus precipitation.,ae_blue,TRUE
