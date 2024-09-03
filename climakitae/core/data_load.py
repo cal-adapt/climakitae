@@ -596,8 +596,8 @@ def _merge_all(selections, data_dict):
     all_ssps = all_ssps[var_id]
 
     # Convert units:
-    all_ssps = _override_unit_defaults(all_ssps, var_id)
-    all_ssps = convert_units(da=all_ssps, selected_units=selections.units)
+    # all_ssps = _override_unit_defaults(all_ssps, var_id)
+    # all_ssps = convert_units(da=all_ssps, selected_units=selections.units)
 
     return all_ssps
 
