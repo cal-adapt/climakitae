@@ -1499,14 +1499,6 @@ def get_data_options(
         "resolution": _list(resolution),
     }
 
-    # For the non-None inputs, check if the inputs are good
-    # If they're not good, make a guess
-    # vals_w_non_nan_input = {key: value for key, value in d.items() if value != [None}
-    # print(vals_w_non_nan_input)
-    # vals_w_non_nan_input = _check_if_good_input(vals_w_non_nan_input, cat_df)
-    # d = vals_w_non_nan_input | d  # Add back in the keys with None values
-    # print(d)
-
     d = _check_if_good_input(d, cat_df)
 
     # Subset the catalog with the user's inputs
