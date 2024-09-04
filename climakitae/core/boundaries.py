@@ -49,6 +49,7 @@ class Boundaries:
     _ca_electric_balancing_areas = None
 
     def __init__(self, boundary_catalog):
+        # Connect intake Catalog to class
         self._cat = boundary_catalog
 
     def load(self):
@@ -79,7 +80,7 @@ class Boundaries:
 
     def _get_us_states(self):
         """
-        Returns a custom sorted dictionary of state abbreviations and indices.
+        Returns a custom sorted dictionary of western state abbreviations and indices.
 
         Returns
         -------
@@ -138,7 +139,7 @@ class Boundaries:
 
     def _get_forecast_zones(self):
         """
-        Returns a lookup dictionary for CA watersheds that references
+        Returns a lookup dictionary for CA Electricity Demand Forecast Zones that references
         the geoparquet file.
 
         Returns
@@ -152,7 +153,7 @@ class Boundaries:
 
     def _get_ious_pous(self):
         """
-        Returns a lookup dictionary for IOUs & POUs that references
+        Returns a lookup dictionary for CA Electric Load Serving Entities IOUs & POUs that references
         the geoparquet file.
 
         Returns
@@ -197,8 +198,8 @@ class Boundaries:
 
         This returns a dictionary of lookup dictionaries for each set of
         geoparquet files that the user might be choosing from. It is used to
-        populate the selector object dynamically as the category in
-        '_LocSelectorArea.area_subset' changes.
+        populate the `DataParameters` cached_area dynamically as the category
+        in the area_subset parameter changes.
 
         Returns
         -------
