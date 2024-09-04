@@ -236,12 +236,6 @@ def get_sliced_data(y, level, years, months=np.arange(1, 13), window=15, anom="Y
     --------
     anomaly_da: xr.DataArray
     """
-
-    def get_safe_slice(da, start_year, end_year):
-        if end_year >= 2100:
-
-            da.sel(time=slice(str(start_year), str(end_year)))
-
     gwl_times_subset = years.loc[process_item(y)]
 
     # Checking if the centered year is null, if so, return dummy DataArray
