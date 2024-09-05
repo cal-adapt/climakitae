@@ -1,5 +1,6 @@
 import xarray as xr
 import dask
+from dask.diagnostics import ProgressBar
 import rioxarray
 from datetime import timedelta
 from rioxarray.exceptions import NoDataInBounds
@@ -20,10 +21,10 @@ from climakitae.util.utils import (
     get_closest_gridcell,
     area_average,
     downscaling_method_as_list,
-    _scenario_to_experiment_id,
-    _resolution_to_gridlabel,
-    _timescale_to_table_id,
-    _downscaling_method_to_activity_id,
+    scenario_to_experiment_id,
+    resolution_to_gridlabel,
+    timescale_to_table_id,
+    downscaling_method_to_activity_id,
 )
 
 from climakitae.tools.derived_variables import (
@@ -39,15 +40,17 @@ from climakitae.tools.indices import (
     effective_temp,
 )
 
-# Set options
+# Set Xarray options
+# keep array attributes after operations
 xr.set_options(keep_attrs=True)
+# slice array into smaller chunks to opitimize reading
 dask.config.set({"array.slicing.split_large_chunks": True})
 
 from dask.diagnostics import ProgressBar
 
 
 def load(xr_da, progress_bar=False):
-    """Read data into memory
+    """Read lazily loaded dask array into memory for faster access
 
     Parameters
     ----------
@@ -90,56 +93,6 @@ def load(xr_da, progress_bar=False):
         return da_computed
 
 
-def _get_as_shapely(selections):
-    """
-    Takes the location data, and turns it into a
-    shapely object. Just doing polygons for now. Later other point/station data
-    will be available too.
-
-    Parameters
-    ----------
-    selections: DataParameters
-        Data settings (variable, unit, timescale, etc)
-
-    Returns
-    -------
-    shapely_geom: shapely.geometry
-
-    """
-    # Box is formed using the following shape:
-    #   shapely.geometry.box(minx, miny, maxx, maxy)
-    shapely_geom = box(
-        selections.longitude[0],  # minx
-        selections.latitude[0],  # miny
-        selections.longitude[1],  # maxx
-        selections.latitude[1],  # maxy
-    )
-    return shapely_geom
-
-
-def _sim_index_item(ds_name, member_id):
-    """Identify a simulation by its downscaling type, driving GCM, and member id.
-
-    Parameters
-    ----------
-    ds_name: str
-        dataset name from catalog
-    member_id: xr.Dataset.attr
-        ensemble member id from dataset attributes
-
-    Returns
-    -------
-    str: joined by underscores
-    """
-    downscaling_type = ds_name.split(".")[0]
-    gcm_name = ds_name.split(".")[2]
-    ensemble_member = str(member_id.values)
-    if ensemble_member != "nan":
-        return "_".join([downscaling_type, gcm_name, ensemble_member])
-    else:
-        return "_".join([downscaling_type, gcm_name])
-
-
 def _scenarios_in_data_dict(keys):
     """Return unique list of ssp scenarios in dataset dictionary.
 
@@ -152,7 +105,6 @@ def _scenarios_in_data_dict(keys):
     -------
     scenario_list: list[str]
         unique scenarios
-
     """
     scenarios = set([one.split(".")[3] for one in keys if "ssp" in one])
 
@@ -179,10 +131,10 @@ def _get_cat_subset(selections):
 
     # Get catalog keys
     # Convert user-friendly names to catalog names (i.e. "45 km" to "d01")
-    activity_id = [_downscaling_method_to_activity_id(dm) for dm in method_list]
-    table_id = _timescale_to_table_id(selections.timescale)
-    grid_label = _resolution_to_gridlabel(selections.resolution)
-    experiment_id = [_scenario_to_experiment_id(x) for x in scenario_selections]
+    activity_id = [downscaling_method_to_activity_id(dm) for dm in method_list]
+    table_id = timescale_to_table_id(selections.timescale)
+    grid_label = resolution_to_gridlabel(selections.resolution)
+    experiment_id = [scenario_to_experiment_id(x) for x in scenario_selections]
     source_id = selections.simulation
     variable_id = selections.variable_id
 
@@ -234,31 +186,6 @@ def _time_slice(dset, selections):
     return dset.sel(time=slice(window_start, window_end))
 
 
-def _override_area_selections(selections):
-    """Account for 'station' special-case
-    You need to retrieve the entire domain because the shapefiles will cut out
-    the ocean grid cells, but the some station's closest gridcells are the ocean!
-
-    Parameters
-    ----------
-    selections: DataParameters
-        object holding user's selections
-
-    Returns
-    -------
-    area_subset: str
-    cached_area: str
-    """
-    if selections.data_type == "Station":
-        area_subset = "none"
-        cached_area = "entire domain"
-    else:
-        area_subset = selections.area_subset
-        cached_area = selections.cached_area
-
-    return area_subset, cached_area
-
-
 def area_subset_geometry(selections):
     """Get geometry to perform area subsetting with.
 
@@ -272,10 +199,61 @@ def area_subset_geometry(selections):
     ds_region: shapely.geometry
         geometry to use for subsetting
     """
-    area_subset, cached_area = _override_area_selections(selections)
 
-    def set_subarea(boundary_dataset: Boundaries, shape_indices: list) -> GeoDataFrame:
+    def _override_area_selections(selections):
+        """Account for 'station' special-case
+        You need to retrieve the entire domain because the shapefiles will cut out
+        the ocean grid cells, but the some station's closest gridcells are the ocean!
+
+        Parameters
+        ----------
+        selections: DataParameters
+            object holding user's selections
+
+        Returns
+        -------
+        area_subset: str
+        cached_area: str
+        """
+        if selections.data_type == "Station":
+            area_subset = "none"
+            cached_area = "entire domain"
+        else:
+            area_subset = selections.area_subset
+            cached_area = selections.cached_area
+
+        return area_subset, cached_area
+
+    def _set_subarea(boundary_dataset: Boundaries, shape_indices: list) -> GeoDataFrame:
         return boundary_dataset.loc[shape_indices].geometry.unary_union
+
+    def _get_as_shapely(selections):
+        """
+        Takes the location data, and turns it into a
+        shapely box object. Just doing polygons for now. Later other point/station data
+        will be available too.
+
+        Parameters
+        ----------
+        selections: DataParameters
+            Data settings (variable, unit, timescale, etc)
+
+        Returns
+        -------
+        shapely_geom: shapely.geometry
+
+        """
+        # Box is formed using the following shape:
+        #   shapely.geometry.box(minx, miny, maxx, maxy)
+        shapely_geom = box(
+            selections.longitude[0],  # minx
+            selections.latitude[0],  # miny
+            selections.longitude[1],  # maxx
+            selections.latitude[1],  # maxy
+        )
+        return shapely_geom
+
+    area_subset, cached_area = _override_area_selections(selections)
 
     if area_subset == "lat/lon":
         geom = _get_as_shapely(selections)
@@ -292,76 +270,25 @@ def area_subset_geometry(selections):
             }.values()
         )
         if area_subset == "states":
-            shape = set_subarea(selections._geographies._us_states, shape_indices)
+            shape = _set_subarea(selections._geographies._us_states, shape_indices)
         elif area_subset == "CA counties":
-            shape = set_subarea(selections._geographies._ca_counties, shape_indices)
+            shape = _set_subarea(selections._geographies._ca_counties, shape_indices)
         elif area_subset == "CA watersheds":
-            shape = set_subarea(selections._geographies._ca_watersheds, shape_indices)
+            shape = _set_subarea(selections._geographies._ca_watersheds, shape_indices)
         elif area_subset == "CA Electric Load Serving Entities (IOU & POU)":
-            shape = set_subarea(selections._geographies._ca_utilities, shape_indices)
+            shape = _set_subarea(selections._geographies._ca_utilities, shape_indices)
         elif area_subset == "CA Electricity Demand Forecast Zones":
-            shape = set_subarea(
+            shape = _set_subarea(
                 selections._geographies._ca_forecast_zones, shape_indices
             )
         elif area_subset == "CA Electric Balancing Authority Areas":
-            shape = set_subarea(
+            shape = _set_subarea(
                 selections._geographies._ca_electric_balancing_areas, shape_indices
             )
         ds_region = [shape]
     else:
         ds_region = None
     return ds_region
-
-
-def _clip_to_geometry(dset, ds_region):
-    """Clip to geometry if large enough
-
-    Parameters
-    ----------
-    dset: xr.Dataset
-        one dataset from the catalog
-    ds_region: shapely.geometry.polygon.Polygon
-        area to clip to
-
-    Returns
-    -------
-    xr.Dataset
-        clipped area of dset
-    """
-    try:
-        dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
-
-    except NoDataInBounds as e:
-        # Catch small geometry error
-        print(e)
-        print("Skipping spatial subsetting.")
-
-    return dset
-
-
-def _clip_to_geometry_loca(dset, ds_region):
-    """Clip to geometry, adding missing grid info
-        because crs and x, y are missing from LOCA datasets
-        Otherwise rioxarray will raise this error:
-        'MissingSpatialDimensionError: x dimension not found.'
-
-    Parameters
-    ----------
-    dset: xr.Dataset
-        one dataset from the catalog
-    ds_region: shapely.geometry.polygon.Polygon
-        area to clip to
-
-    Returns
-    -------
-    xr.Dataset
-        clipped area of dset
-    """
-    dset = dset.rename({"lon": "x", "lat": "y"})
-    dset = dset.rio.write_crs("EPSG:4326")
-    dset = _clip_to_geometry(dset, ds_region)
-    dset = dset.rename({"x": "lon", "y": "lat"}).drop("spatial_ref")
-    return dset
 
 
 def _spatial_subset(dset, selections):
@@ -379,6 +306,56 @@ def _spatial_subset(dset, selections):
     xr.Dataset
         subsetted area of dset
     """
+
+    def _clip_to_geometry(dset, ds_region):
+        """Clip to geometry if large enough
+
+        Parameters
+        ----------
+        dset: xr.Dataset
+            one dataset from the catalog
+        ds_region: shapely.geometry.polygon.Polygon
+            area to clip to
+
+        Returns
+        -------
+        xr.Dataset
+            clipped area of dset
+        """
+        try:
+            dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
+
+        except NoDataInBounds as e:
+            # Catch small geometry error
+            print(e)
+            print("Skipping spatial subsetting.")
+
+        return dset
+
+    def _clip_to_geometry_loca(dset, ds_region):
+        """Clip to geometry, adding missing grid info
+            because crs and x, y are missing from LOCA datasets
+            Otherwise rioxarray will raise this error:
+            'MissingSpatialDimensionError: x dimension not found.'
+
+        Parameters
+        ----------
+        dset: xr.Dataset
+            one dataset from the catalog
+        ds_region: shapely.geometry.polygon.Polygon
+            area to clip to
+
+        Returns
+        -------
+        xr.Dataset
+            clipped area of dset
+        """
+        dset = dset.rename({"lon": "x", "lat": "y"})
+        dset = dset.rio.write_crs("EPSG:4326")
+        dset = _clip_to_geometry(dset, ds_region)
+        dset = dset.rename({"x": "lon", "y": "lat"}).drop("spatial_ref")
+        return dset
+
     ds_region = area_subset_geometry(selections)
 
     if ds_region is not None:  # Perform subsetting
@@ -402,7 +379,7 @@ def _process_dset(ds_name, dset, selections):
         object holding user's selections
 
     Returns
-    ----------
+    -------
     xr.Dataset
         sub-setted output data
     """
@@ -416,6 +393,28 @@ def _process_dset(ds_name, dset, selections):
     if selections.area_average == "Yes":
         dset = area_average(dset)
 
+    def _sim_index_item(ds_name, member_id):
+        """Identify a simulation by its downscaling type, driving GCM, and member id.
+
+        Parameters
+        ----------
+        ds_name: str
+            dataset name from catalog
+        member_id: xr.Dataset.attr
+            ensemble member id from dataset attributes
+
+        Returns
+        -------
+        str: joined by underscores
+        """
+        downscaling_type = ds_name.split(".")[0]
+        gcm_name = ds_name.split(".")[2]
+        ensemble_member = str(member_id.values)
+        if ensemble_member != "nan":
+            return "_".join([downscaling_type, gcm_name, ensemble_member])
+        else:
+            return "_".join([downscaling_type, gcm_name])
+
     # Rename member_id value to include more info
     dset = dset.assign_coords(
         member_id=[_sim_index_item(ds_name, mem_id) for mem_id in dset.member_id]
@@ -424,51 +423,6 @@ def _process_dset(ds_name, dset, selections):
     dset = dset.rename({list(dset.data_vars)[0]: selections.variable})
 
     return dset
-
-
-def _concat_sims(data_dict, hist_data, selections, scenario):
-    """Combine datasets along expanded 'member_id' dimension, and append
-        historical if relevant.
-
-    Parameters
-    ----------
-    data_dict: dict
-        dictionary of zarrs from catalog, with each key
-        being its name and each item the zarr store
-    hist_data: xr.Dataset
-        subsetted historical data to append
-    selections: DataParameters
-        class holding data selections
-    scenario: str
-        short designation for one SSP
-
-    Returns
-    -------
-    one_scenario: xr.Dataset
-        combined data object
-    """
-    scen_name = _scenario_to_experiment_id(scenario, reverse=True)
-
-    # Merge along expanded 'member_id' dimension:
-    one_scenario = xr.concat(
-        [
-            _process_dset(one, data_dict[one], selections)
-            for one in data_dict.keys()
-            if scenario in one
-        ],
-        dim="member_id",
-    )
-
-    # Append historical if relevant:
-    if hist_data != None:
-        hist_data = hist_data.sel(member_id=one_scenario.member_id)
-        scen_name = "Historical + " + scen_name
-        one_scenario = xr.concat([hist_data, one_scenario], dim="time")
-
-    # Set-up coordinate:
-    one_scenario = one_scenario.assign_coords({"scenario": scen_name})
-
-    return one_scenario
 
 
 def _override_unit_defaults(da, var_id):
@@ -495,26 +449,6 @@ def _override_unit_defaults(da, var_id):
     return da
 
 
-def _add_scenario_dim(da, scen_name):
-    """Add a singleton dimension for 'scenario' to the DataArray.
-
-    Parameters
-    ----------
-    da: xr.DataArray
-        consolidated data object missing a scenario dimension
-    scen_name: str
-        desired value for scenario along new dimension
-
-    Returns
-    -------
-    da: xr.DataArray
-        data object with singleton scenario dimension added.
-    """
-    da = da.assign_coords({"scenario": scen_name})
-    da = da.expand_dims(dim={"scenario": 1})
-    return da
-
-
 def _merge_all(selections, data_dict):
     """Merge all datasets into one, subsetting each consistently;
        clean-up format, and convert units.
@@ -528,7 +462,7 @@ def _merge_all(selections, data_dict):
         being its name and each item the zarr store
 
     Returns
-    ----------
+    -------
     da: xr.DataArray
         output data
     """
@@ -560,6 +494,69 @@ def _merge_all(selections, data_dict):
         )
     else:
         all_hist = None
+
+    def _concat_sims(data_dict, hist_data, selections, scenario):
+        """Combine datasets along expanded 'member_id' dimension, and append
+            historical if relevant.
+
+        Parameters
+        ----------
+        data_dict: dict
+            dictionary of zarrs from catalog, with each key
+            being its name and each item the zarr store
+        hist_data: xr.Dataset
+            subsetted historical data to append
+        selections: DataParameters
+            class holding data selections
+        scenario: str
+            short designation for one SSP
+
+        Returns
+        -------
+        one_scenario: xr.Dataset
+            combined data object
+        """
+        scen_name = scenario_to_experiment_id(scenario, reverse=True)
+
+        # Merge along expanded 'member_id' dimension:
+        one_scenario = xr.concat(
+            [
+                _process_dset(one, data_dict[one], selections)
+                for one in data_dict.keys()
+                if scenario in one
+            ],
+            dim="member_id",
+        )
+
+        # Append historical if relevant:
+        if hist_data != None:
+            hist_data = hist_data.sel(member_id=one_scenario.member_id)
+            scen_name = "Historical + " + scen_name
+            one_scenario = xr.concat([hist_data, one_scenario], dim="time")
+
+        # Set-up coordinate:
+        one_scenario = one_scenario.assign_coords({"scenario": scen_name})
+
+        return one_scenario
+
+    def _add_scenario_dim(da, scen_name):
+        """Add a singleton dimension for 'scenario' to the DataArray.
+
+        Parameters
+        ----------
+        da: xr.DataArray
+            consolidated data object missing a scenario dimension
+        scen_name: str
+            desired value for scenario along new dimension
+
+        Returns
+        -------
+        da: xr.DataArray
+            data object with singleton scenario dimension added.
+        """
+        da = da.assign_coords({"scenario": scen_name})
+        da = da.expand_dims(dim={"scenario": 1})
+        return da
 
     # Get (and double-check) list of SSP scenarios:
     _scenarios = _scenarios_in_data_dict(data_dict.keys())
@@ -647,12 +644,12 @@ def _get_data_one_var(selections):
         method_list = downscaling_method_as_list(selections.downscaling_method)
 
         cat_subset2 = selections._data_catalog.search(
-            activity_id=[_downscaling_method_to_activity_id(dm) for dm in method_list],
-            table_id=_timescale_to_table_id(selections.timescale),
-            grid_label=_resolution_to_gridlabel(selections.resolution),
+            activity_id=[downscaling_method_to_activity_id(dm) for dm in method_list],
+            table_id=timescale_to_table_id(selections.timescale),
+            grid_label=resolution_to_gridlabel(selections.resolution),
             variable_id=selections.variable_id,
             experiment_id=[
-                _scenario_to_experiment_id(x) for x in selections.scenario_ssp
+                scenario_to_experiment_id(x) for x in selections.scenario_ssp
             ],
             source_id=["CESM2"],
         )
@@ -691,7 +688,7 @@ def _get_data_attributes(selections):
     selections: DataParameters
 
     Returns
-    ----------
+    -------
     new_attrs: dict
         attributes
     """
@@ -742,7 +739,7 @@ def _check_valid_unit_selection(selections):
 
 def read_catalog_from_select(selections):
     """The primary and first data loading method, called by
-    core.data_interface.DataParameters.retrieve, it returns a DataArray (which can be quite large)
+    DataParameters.retrieve, it returns a DataArray (which can be quite large)
     containing everything requested by the user (which is stored in 'selections').
 
     Parameters
@@ -800,6 +797,346 @@ def read_catalog_from_select(selections):
     orig_var_id_selection = selections.variable_id[0]
     orig_unit_selection = selections.units
     orig_variable_selection = selections.variable
+
+    def _get_wind_speed_derived(selections):
+        """Get input data and derive wind speed for hourly data
+
+        Parameters
+        ----------
+        selections: DataParameters
+
+        Returns
+        -------
+        da: xr.DataArray
+        """
+        # Load u10 data
+        selections.variable_id = ["u10"]
+        selections.units = (
+            "m s-1"  # Need to set units to required units for compute_wind_mag
+        )
+        u10_da = _get_data_one_var(selections)
+
+        # Load v10 data
+        selections.variable_id = ["v10"]
+        selections.units = "m s-1"
+        v10_da = _get_data_one_var(selections)
+
+        # Derive the variable
+        da = compute_wind_mag(u10=u10_da, v10=v10_da)  # m/s
+        return da
+
+    def _get_wind_dir_derived(selections):
+        """Get input data and derive wind direction for hourly data
+
+        Parameters
+        ----------
+        selections: DataParameters
+
+        Returns
+        -------
+        da: xr.DataArray
+        """
+        # Load u10 data
+        selections.variable_id = ["u10"]
+        selections.units = (
+            "m s-1"  # Need to set units to required units for compute_wind_mag
+        )
+        u10_da = _get_data_one_var(selections)
+
+        # Load v10 data
+        selections.variable_id = ["v10"]
+        selections.units = "m s-1"
+        v10_da = _get_data_one_var(selections)
+
+        # Derive the variable
+        da = compute_wind_dir(u10=u10_da, v10=v10_da)
+        return da
+
+    def _get_monthly_daily_dewpoint(selections):
+        """Derive dew point temp for monthly/daily data.
+
+        Parameters
+        ----------
+        selections: DataParameters
+
+        Returns
+        -------
+        da: xr.DataArray
+        """
+        # Daily/monthly dew point inputs have different units
+        # Hourly dew point temp derived differently because you also have to derive relative humidity
+
+        # Load temperature data
+        selections.variable_id = ["t2"]
+        selections.units = "K"  # Kelvin required for humidity and dew point computation
+        t2_da = _get_data_one_var(selections)
+
+        selections.variable_id = ["rh"]
+        selections.units = "[0 to 100]"
+        rh_da = _get_data_one_var(selections)
+
+        # Derive dew point temperature
+        # Returned in units of Kelvin
+        da = compute_dewpointtemp(temperature=t2_da, rel_hum=rh_da)  # Kelvin  # [0-100]
+        return da
+
+    def _get_hourly_dewpoint(selections):
+        """Derive dew point temp for hourly data.
+        Requires first deriving relative humidity.
+
+        Parameters
+        ----------
+        selections: DataParameters
+
+        Returns
+        -------
+        da: xr.DataArray
+        """
+        # Load temperature data
+        selections.variable_id = ["t2"]
+        selections.units = "degC"  # Celsius required for humidity
+        t2_da = _get_data_one_var(selections)
+
+        # Load mixing ratio data
+        selections.variable_id = ["q2"]
+        selections.units = "g kg-1"
+        q2_da = _get_data_one_var(selections)
+
+        # Load pressure data
+        selections.variable_id = ["psfc"]
+        selections.units = "hPa"
+        pressure_da = _get_data_one_var(selections)
+
+        # Derive relative humidity
+        # Returned in units of [0-100]
+        rh_da = compute_relative_humidity(
+            pressure=pressure_da,  # hPa
+            temperature=t2_da,  # degC
+            mixing_ratio=q2_da,  # g/kg
+        )
+
+        # Dew point temperature requires temperature in Kelvin
+        t2_da = convert_units(t2_da, "K")
+
+        # Derive dew point temperature
+        # Returned in units of Kelvin
+        da = compute_dewpointtemp(temperature=t2_da, rel_hum=rh_da)  # Kelvin  # [0-100]
+        return da
+
+    def _get_hourly_rh(selections):
+        """Derive hourly relative humidity.
+
+        Parameters
+        ----------
+        selections: DataParameters
+
+        Returns
+        -------
+        da: xr.DataArray
+        """
+        # Load temperature data
+        selections.variable_id = ["t2"]
+        selections.units = "degC"  # Celsius required for humidity
+        t2_da = _get_data_one_var(selections)
+
+        # Load mixing ratio data
+        selections.variable_id = ["q2"]
+        selections.units = "g kg-1"
+        q2_da = _get_data_one_var(selections)
+
+        # Load pressure data
+        selections.variable_id = ["psfc"]
+        selections.units = "hPa"
+        pressure_da = _get_data_one_var(selections)
+
+        # Derive relative humidity
+        # Returned in units of [0-100]
+        da = compute_relative_humidity(
+            pressure=pressure_da,  # hPa
+            temperature=t2_da,  # degC
+            mixing_ratio=q2_da,  # g/kg
+        )
+        return da
+
+    def _get_hourly_specific_humidity(selections):
+        """Derive hourly specific humidity.
+        Requires first deriving relative humidity, then dew point temp.
+
+        Parameters
+        ----------
+        selections: DataParameters
+
+        Returns
+        -------
+        da: xr.DataArray
+        """
+        # Load temperature data
+        selections.variable_id = ["t2"]
+        selections.units = "degC"  # degC required for humidity
+        t2_da = _get_data_one_var(selections)
+
+        # Load mixing ratio data
+        selections.variable_id = ["q2"]
+        selections.units = "g kg-1"
+        q2_da = _get_data_one_var(selections)
+
+        # Load pressure data
+        selections.variable_id = ["psfc"]
+        selections.units = "hPa"
+        pressure_da = _get_data_one_var(selections)
+
+        # Derive relative humidity
+        # Returned in units of [0-100]
+        rh_da = compute_relative_humidity(
+            pressure=pressure_da,  # hPa
+            temperature=t2_da,  # degC
+            mixing_ratio=q2_da,  # g/kg
+        )
+
+        # Dew point temperature requires temperature in Kelvin
+        t2_da = convert_units(t2_da, "K")
+
+        # Derive dew point temperature
+        # Returned in units of Kelvin
+        dew_pnt_da = compute_dewpointtemp(
+            temperature=t2_da, rel_hum=rh_da  # Kelvin  # [0-100]
+        )
+
+        # Derive specific humidity
+        # Returned in units of g/kg
+        da = compute_specific_humidity(
+            tdps=dew_pnt_da, pressure=pressure_da  # Kelvin  # Pa
+        )
+        return da
+
+    def _get_noaa_heat_index(selections):
+        """Derive NOAA heat index
+
+        Parameters
+        ----------
+        selections: DataParameters
+
+        Returns
+        -------
+        da: xr.DataArray
+        """
+
+        # Load mixing ratio data
+        selections.variable_id = ["q2"]
+        selections.units = "kg kg-1"
+        q2_da = _get_data_one_var(selections)
+
+        # Load pressure data
+        selections.variable_id = ["psfc"]
+        selections.units = "Pa"
+        pressure_da = _get_data_one_var(selections)
+
+        # Load temperature data
+        selections.variable_id = ["t2"]
+        selections.units = "K"  # Kelvin required for humidity and dew point computation
+        t2_da_K = _get_data_one_var(selections)
+
+        # Derive relative humidity
+        # Returned in units of [0-100]
+        rh_da = compute_relative_humidity(
+            pressure=pressure_da,  # Pa
+            temperature=t2_da_K,  # Kelvin
+            mixing_ratio=q2_da,  # kg/kg
+        )
+
+        # Convert temperature to proper units for noaa heat index
+        t2_da_F = convert_units(t2_da_K, "degF")
+
+        # Derive index
+        # Returned in units of F
+        da = noaa_heat_index(T=t2_da_F, RH=rh_da)
+        return da
+
+    def _get_eff_temp(selections):
+        """Derive the effective temperature
+
+        Parameters
+        ----------
+        selections: DataParameters
+
+        Returns
+        -------
+        da: xr.DataArray
+        """
+
+        # Load temperature data
+        selections.variable_id = ["t2"]
+        t2_da = _get_data_one_var(selections)
+
+        # Derive effective temp
+        da = effective_temp(T=t2_da)
+        return da
+
+    def _get_fosberg_fire_index(selections):
+        """Derive the fosberg fire index.
+
+        Parameters
+        ----------
+        selections: DataParameters
+
+        Returns
+        -------
+        da: xr.DataArray
+        """
+
+        # Hard set timescale to hourly
+        orig_timescale = selections.timescale  # Preserve original user selection
+        selections.timescale = "hourly"
+
+        # Load temperature data
+        selections.variable_id = ["t2"]
+        selections.units = "degC"  # Kelvin required for humidity
+        t2_da_C = _get_data_one_var(selections)
+
+        # Load mixing ratio data
+        selections.variable_id = ["q2"]
+        selections.units = "g kg-1"
+        q2_da = _get_data_one_var(selections)
+
+        # Load pressure data
+        selections.variable_id = ["psfc"]
+        selections.units = "hPa"
+        pressure_da = _get_data_one_var(selections)
+
+        # Load u10 data
+        selections.variable_id = ["u10"]
+        selections.units = (
+            "m s-1"  # Need to set units to required units for compute_wind_mag
+        )
+        u10_da = _get_data_one_var(selections)
+
+        # Load v10 data
+        selections.variable_id = ["v10"]
+        selections.units = "m s-1"
+        v10_da = _get_data_one_var(selections)
+
+        # Derive relative humidity
+        # Returned in units of [0-100]
+        rh_da = compute_relative_humidity(
+            pressure=pressure_da,  # hPa
+            temperature=t2_da_C,  # degC
+            mixing_ratio=q2_da,  # g/kg
+        )
+
+        # Derive windspeed
+        # Returned in units of m/s
+        windspeed_da_ms = compute_wind_mag(u10=u10_da, v10=v10_da)  # m/s
+
+        # Convert units to proper units for fosberg index
+        t2_da_F = convert_units(t2_da_C, "degF")
+        windspeed_da_mph = convert_units(windspeed_da_ms, "mph")
+
+        # Compute the index
+        da = fosberg_fire_index(
+            t2_F=t2_da_F, rh_percent=rh_da, windspeed_mph=windspeed_da_mph
+        )
+
+        return da
 
     # Get data attributes beforehand since selections is modified
     data_attrs = _get_data_attributes(selections)
@@ -881,6 +1218,54 @@ def _station_apply(selections, da, original_time_slice):
         for s_id in station_subset["station id"]
     ]
 
+    def _preprocess_hadisd(ds, stations_gdf):
+        """
+        Preprocess station data so that it can be more seamlessly integrated into the wrangling process
+        Get name of station id and station name
+        Rename data variable to the station name; this allows the return of a Dataset object, with each unique station as a data variable
+        Convert celcius to kelvin
+        Assign descriptive attributes
+        Drop unneccessary coordinates that can cause issues when bias correcting with the model data
+
+        Parameters
+        ----------
+        ds: xr.Dataset
+            data for a single HadISD station
+        stations_gdf: gpd.GeoDataFrame
+            station data frame
+
+        Returns
+        -------
+        ds: xr.Dataset
+
+        """
+        # Get station ID from file name
+        station_id = ds.encoding["source"].split("HadISD_")[1].split(".zarr")[0]
+        # Get name of station from station_id
+        station_name = stations_gdf.loc[stations_gdf["station id"] == int(station_id)][
+            "station"
+        ].item()
+        # Rename data variable to station name
+        ds = ds.rename({"tas": station_name})
+        # Convert Celcius to Kelvin
+        ds[station_name] = ds[station_name] + 273.15
+        # Assign descriptive attributes to the data variable
+        ds[station_name] = ds[station_name].assign_attrs(
+            {
+                "coordinates": (
+                    ds.latitude.values.item(),
+                    ds.longitude.values.item(),
+                ),
+                "elevation": "{0} {1}".format(
+                    ds.elevation.item(), ds.elevation.attrs["units"]
+                ),
+                "units": "K",
+            }
+        )
+        # Drop all coordinates except time
+        ds = ds.drop(["elevation", "latitude", "longitude"])
+        return ds
+
     _partial_func = partial(_preprocess_hadisd, stations_gdf=selections._stations_gdf)
 
     station_ds = xr.open_mfdataset(
@@ -891,6 +1276,129 @@ def _station_apply(selections, da, original_time_slice):
         parallel=True,
         backend_kwargs=dict(storage_options={"anon": True}),
     )
+
+    def _get_bias_corrected_closest_gridcell(station_da, gridded_da, time_slice):
+        """Get the closest gridcell to a weather station.
+        Bias correct the data using historical station data
+
+        Parameters
+        ----------
+        station_da: xr.DataArray
+        gridded_da: xr.DataArray
+        time_slice: tuple
+
+        Returns
+        -------
+        bias_corrected: xr.DataArray
+        """
+        # Get the closest gridcell to the station
+        station_lat, station_lon = station_da.attrs["coordinates"]
+        gridded_da_closest_gridcell = get_closest_gridcell(
+            gridded_da, station_lat, station_lon, print_coords=False
+        )
+
+        # Droop any coordinates in the output dataset that are not also dimensions
+        # This makes merging all the stations together easier and drops superfluous coordinates
+        gridded_da_closest_gridcell = gridded_da_closest_gridcell.drop(
+            [
+                i
+                for i in gridded_da_closest_gridcell.coords
+                if i not in gridded_da_closest_gridcell.dims
+            ]
+        )
+
+        def _bias_correct_model_data(
+            obs_da,
+            gridded_da,
+            time_slice,
+            window=90,
+            nquantiles=20,
+            group="time.dayofyear",
+            kind="+",
+        ):
+            """Bias correct model data using observational station data
+            Converts units of the station data to whatever the input model data's units are
+            Converts calendars of both datasets to a no leap calendar
+            Time slices the data
+            Performs bias correction
+
+            Parameters
+            ----------
+            obs_da: xr.DataArray
+                station data, preprocessed with the function _preprocess_hadisd
+            gridded_da: xr.DataArray
+                input model data
+            time_slice: tuple
+                temporal slice to cut gridded_da to, after bias correction
+            window: int
+                window of days +/-
+            nquantiles: int
+                number of quantiles
+            group: str
+                time frequency to group data by
+            kind: str
+                the adjustment kind, either additive or multiplicative
+
+            Returns
+            -------
+            da_adj: xr.DataArray
+                output data
+
+            """
+            # Get group by window
+            # Use 90 day window (+/- 45 days) to account for seasonality
+            grouper = Grouper(group, window=window)
+
+            # Convert units to whatever the gridded data units are
+            obs_da = convert_units(obs_da, gridded_da.units)
+            # Rechunk data. Cannot be chunked along time dimension
+            # Error raised by xclim: ValueError: Multiple chunks along the main adjustment dimension time is not supported.
+            gridded_da = gridded_da.chunk(dict(time=-1))
+            obs_da = obs_da.sel(time=slice(obs_da.time.values[0], "2014-08-31"))
+            obs_da = obs_da.chunk(dict(time=-1))
+            # Convert calendar to no leap year
+            obs_da = obs_da.convert_calendar("noleap")
+            gridded_da = gridded_da.convert_calendar("noleap")
+            # Data at the desired time slice
+            data_sliced = gridded_da.sel(
+                time=slice(str(time_slice[0]), str(time_slice[1]))
+            )
+            # Get QDS
+            QDM = QuantileDeltaMapping.train(
+                obs_da,
+                # Input data, sliced to time period of observational data
+                gridded_da.sel(
+                    time=slice(
+                        str(obs_da.time.values[0]),
+                        str(obs_da.time.values[-1]),
+                    )
+                ),
+                nquantiles=nquantiles,
+                group=grouper,
+                kind=kind,
+            )
+            # Bias correct the data
+            da_adj = QDM.adjust(data_sliced)
+            da_adj.name = gridded_da.name  # Rename it to get back to original name
+            da_adj["time"] = da_adj.indexes["time"].to_datetimeindex()
+
+            return da_adj
+
+        # Bias correct the model data using the station data
+        # Cut the output data back to the user's selected time slice
+        bias_corrected = _bias_correct_model_data(
+            station_da, gridded_da_closest_gridcell, time_slice
+        )
+
+        # Add descriptive coordinates to the bias corrected data
+        bias_corrected.attrs["station_coordinates"] = station_da.attrs[
+            "coordinates"
+        ]  # Coordinates of station
+        bias_corrected.attrs["station_elevation"] = station_da.attrs[
+            "elevation"
+        ]  # Elevation of station
+        return bias_corrected
+
     apply_output = station_ds.apply(
         _get_bias_corrected_closest_gridcell,
         keep_attrs=False,
@@ -898,159 +1406,6 @@ def _station_apply(selections, da, original_time_slice):
         time_slice=original_time_slice,
     )
     return apply_output
-
-
-def _get_bias_corrected_closest_gridcell(station_da, gridded_da, time_slice):
-    """Get the closest gridcell to a weather station.
-    Bias correct the data using historical station data
-    """
-    # Get the closest gridcell to the station
-    station_lat, station_lon = station_da.attrs["coordinates"]
-    gridded_da_closest_gridcell = get_closest_gridcell(
-        gridded_da, station_lat, station_lon, print_coords=False
-    )
-
-    # Droop any coordinates in the output dataset that are not also dimensions
-    # This makes merging all the stations together easier and drops superfluous coordinates
-    gridded_da_closest_gridcell = gridded_da_closest_gridcell.drop(
-        [
-            i
-            for i in gridded_da_closest_gridcell.coords
-            if i not in gridded_da_closest_gridcell.dims
-        ]
-    )
-
-    # Bias correct the model data using the station data
-    # Cut the output data back to the user's selected time slice
-    bias_corrected = _bias_correct_model_data(
-        station_da, gridded_da_closest_gridcell, time_slice
-    )
-
-    # Add descriptive coordinates to the bias corrected data
-    bias_corrected.attrs["station_coordinates"] = station_da.attrs[
-        "coordinates"
-    ]  # Coordinates of station
-    bias_corrected.attrs["station_elevation"] = station_da.attrs[
-        "elevation"
-    ]  # Elevation of station
-    return bias_corrected
-
-
-def _bias_correct_model_data(
-    obs_da,
-    gridded_da,
-    time_slice,
-    window=90,
-    nquantiles=20,
-    group="time.dayofyear",
-    kind="+",
-):
-    """Bias correct model data using observational station data
-    Converts units of the station data to whatever the input model data's units are
-    Converts calendars of both datasets to a no leap calendar
-    Time slices the data
-    Performs bias correction
-
-    Parameters
-    ----------
-    obs_da: xr.DataArray
-        station data, preprocessed with the function _preprocess_hadisd
-    gridded_da: xr.DataArray
-        input model data
-    time_slice: tuple
-        temporal slice to cut gridded_da to, after bias correction
-
-    Returns
-    ----------
-    da_adj: xr.DataArray
-        output data
-
-    """
-    # Get group by window
-    # Use 90 day window (+/- 45 days) to account for seasonality
-    grouper = Grouper(group, window=window)
-
-    # Convert units to whatever the gridded data units are
-    obs_da = convert_units(obs_da, gridded_da.units)
-    # Rechunk data. Cannot be chunked along time dimension
-    # Error raised by xclim: ValueError: Multiple chunks along the main adjustment dimension time is not supported.
-    gridded_da = gridded_da.chunk(dict(time=-1))
-    obs_da = obs_da.sel(time=slice(obs_da.time.values[0], "2014-08-31"))
-    obs_da = obs_da.chunk(dict(time=-1))
-    # Convert calendar to no leap year
-    obs_da = obs_da.convert_calendar("noleap")
-    gridded_da = gridded_da.convert_calendar("noleap")
-    # Data at the desired time slice
-    data_sliced = gridded_da.sel(time=slice(str(time_slice[0]), str(time_slice[1])))
-    # Get QDS
-    QDM = QuantileDeltaMapping.train(
-        obs_da,
-        # Input data, sliced to time period of observational data
-        gridded_da.sel(
-            time=slice(
-                str(obs_da.time.values[0]),
-                str(obs_da.time.values[-1]),
-            )
-        ),
-        nquantiles=nquantiles,
-        group=grouper,
-        kind=kind,
-    )
-    # Bias correct the data
-    da_adj = QDM.adjust(data_sliced)
-    da_adj.name = gridded_da.name  # Rename it to get back to original name
-    da_adj["time"] = da_adj.indexes["time"].to_datetimeindex()
-
-    return da_adj
-
-
-def _preprocess_hadisd(ds, stations_gdf):
-    """
-    Preprocess station data so that it can be more seamlessly integrated into the wrangling process
-    Get name of station id and station name
-    Rename data variable to the station name; this allows the return of a Dataset object, with each unique station as a data variable
-    Convert celcius to kelvin
-    Assign descriptive attributes
-    Drop unneccessary coordinates that can cause issues when bias correcting with the model data
-
-    Parameters
-    ----------
-    ds: xr.Dataset
-        data for a single HadISD station
-    stations_gdf: gpd.GeoDataFrame
-        station data frame
-
-    Returns
-    ----------
-    ds: xr.Dataset
-
-    """
-    # Get station ID from file name
-    station_id = ds.encoding["source"].split("HadISD_")[1].split(".zarr")[0]
-    # Get name of station from station_id
-    station_name = stations_gdf.loc[stations_gdf["station id"] == int(station_id)][
-        "station"
-    ].item()
-    # Rename data variable to station name
-    ds = ds.rename({"tas": station_name})
-    # Convert Celcius to Kelvin
-    ds[station_name] = ds[station_name] + 273.15
-    # Assign descriptive attributes to the data variable
-    ds[station_name] = ds[station_name].assign_attrs(
-        {
-            "coordinates": (
-                ds.latitude.values.item(),
-                ds.longitude.values.item(),
-            ),
-            "elevation": "{0} {1}".format(
-                ds.elevation.item(), ds.elevation.attrs["units"]
-            ),
-            "units": "K",
-        }
-    )
-    # Drop all coordinates except time
-    ds = ds.drop(["elevation", "latitude", "longitude"])
-    return ds
 
 
 def read_catalog_from_csv(selections, csv, merge=True):
@@ -1071,6 +1426,8 @@ def read_catalog_from_csv(selections, csv, merge=True):
 
     Returns
     -------
+    one of the following, depending on csv input and merge:
+
     xr_ds: xr.Dataset
         if multiple rows are in the csv, each row is a data_variable
     xr_da: xr.DataArray
@@ -1079,10 +1436,6 @@ def read_catalog_from_csv(selections, csv, merge=True):
         if multiple rows are in the csv and merge=True,
         multiple DataArrays are returned in a single list.
     """
-
-    # Validate unit selection
-    # Returns None if units are valid, raises error if not
-    _check_valid_unit_selection(selections)
 
     df = pd.read_csv(csv)
     df = df.fillna("")  # Replace empty cells (set to NaN by read_csv) with empty string
@@ -1136,352 +1489,3 @@ def read_catalog_from_csv(selections, csv, merge=True):
             return xr_list
     else:  # If only one DataArray is in the list, just return the single DataArray
         return xr_da
-
-
-def _get_wind_speed_derived(selections):
-    """Get input data and derive wind speed for hourly data
-
-    Parameters
-    ----------
-    selections: DataParameters
-
-    Returns
-    -------
-    da: xr.DataArray
-    """
-    # Load u10 data
-    selections.variable_id = ["u10"]
-    selections.units = (
-        "m s-1"  # Need to set units to required units for compute_wind_mag
-    )
-    u10_da = _get_data_one_var(selections)
-
-    # Load v10 data
-    selections.variable_id = ["v10"]
-    selections.units = "m s-1"
-    v10_da = _get_data_one_var(selections)
-
-    # Derive the variable
-    da = compute_wind_mag(u10=u10_da, v10=v10_da)  # m/s
-    return da
-
-
-def _get_wind_dir_derived(selections):
-    """Get input data and derive wind direction for hourly data
-
-    Parameters
-    ----------
-    selections: DataParameters
-
-    Returns
-    -------
-    da: xr.DataArray
-    """
-    # Load u10 data
-    selections.variable_id = ["u10"]
-    selections.units = (
-        "m s-1"  # Need to set units to required units for compute_wind_mag
-    )
-    u10_da = _get_data_one_var(selections)
-
-    # Load v10 data
-    selections.variable_id = ["v10"]
-    selections.units = "m s-1"
-    v10_da = _get_data_one_var(selections)
-
-    # Derive the variable
-    da = compute_wind_dir(u10=u10_da, v10=v10_da)
-    return da
-
-
-def _get_monthly_daily_dewpoint(selections):
-    """Derive dew point temp for monthly/daily data.
-
-    Parameters
-    ----------
-    selections: DataParameters
-
-    Returns
-    -------
-    da: xr.DataArray
-    """
-    # Daily/monthly dew point inputs have different units
-    # Hourly dew point temp derived differently because you also have to derive relative humidity
-
-    # Load temperature data
-    selections.variable_id = ["t2"]
-    selections.units = "K"  # Kelvin required for humidity and dew point computation
-    t2_da = _get_data_one_var(selections)
-
-    selections.variable_id = ["rh"]
-    selections.units = "[0 to 100]"
-    rh_da = _get_data_one_var(selections)
-
-    # Derive dew point temperature
-    # Returned in units of Kelvin
-    da = compute_dewpointtemp(temperature=t2_da, rel_hum=rh_da)  # Kelvin  # [0-100]
-    return da
-
-
-def _get_hourly_dewpoint(selections):
-    """Derive dew point temp for hourly data.
-    Requires first deriving relative humidity.
-
-    Parameters
-    ----------
-    selections: DataParameters
-
-    Returns
-    -------
-    da: xr.DataArray
-    """
-    # Load temperature data
-    selections.variable_id = ["t2"]
-    selections.units = "degC"  # Celsius required for humidity
-    t2_da = _get_data_one_var(selections)
-
-    # Load mixing ratio data
-    selections.variable_id = ["q2"]
-    selections.units = "g kg-1"
-    q2_da = _get_data_one_var(selections)
-
-    # Load pressure data
-    selections.variable_id = ["psfc"]
-    selections.units = "hPa"
-    pressure_da = _get_data_one_var(selections)
-
-    # Derive relative humidity
-    # Returned in units of [0-100]
-    rh_da = compute_relative_humidity(
-        pressure=pressure_da,  # hPa
-        temperature=t2_da,  # degC
-        mixing_ratio=q2_da,  # g/kg
-    )
-
-    # Dew point temperature requires temperature in Kelvin
-    t2_da = convert_units(t2_da, "K")
-
-    # Derive dew point temperature
-    # Returned in units of Kelvin
-    da = compute_dewpointtemp(temperature=t2_da, rel_hum=rh_da)  # Kelvin  # [0-100]
-    return da
-
-
-def _get_hourly_rh(selections):
-    """Derive hourly relative humidity.
-
-    Parameters
-    ----------
-    selections: DataParameters
-
-    Returns
-    -------
-    da: xr.DataArray
-    """
-    # Load temperature data
-    selections.variable_id = ["t2"]
-    selections.units = "degC"  # Celsius required for humidity
-    t2_da = _get_data_one_var(selections)
-
-    # Load mixing ratio data
-    selections.variable_id = ["q2"]
-    selections.units = "g kg-1"
-    q2_da = _get_data_one_var(selections)
-
-    # Load pressure data
-    selections.variable_id = ["psfc"]
-    selections.units = "hPa"
-    pressure_da = _get_data_one_var(selections)
-
-    # Derive relative humidity
-    # Returned in units of [0-100]
-    da = compute_relative_humidity(
-        pressure=pressure_da,  # hPa
-        temperature=t2_da,  # degC
-        mixing_ratio=q2_da,  # g/kg
-    )
-    return da
-
-
-def _get_hourly_specific_humidity(selections):
-    """Derive hourly specific humidity.
-    Requires first deriving relative humidity, then dew point temp.
-
-    Parameters
-    ----------
-    selections: DataParameters
-
-    Returns
-    -------
-    da: xr.DataArray
-    """
-    # Load temperature data
-    selections.variable_id = ["t2"]
-    selections.units = "degC"  # degC required for humidity
-    t2_da = _get_data_one_var(selections)
-
-    # Load mixing ratio data
-    selections.variable_id = ["q2"]
-    selections.units = "g kg-1"
-    q2_da = _get_data_one_var(selections)
-
-    # Load pressure data
-    selections.variable_id = ["psfc"]
-    selections.units = "hPa"
-    pressure_da = _get_data_one_var(selections)
-
-    # Derive relative humidity
-    # Returned in units of [0-100]
-    rh_da = compute_relative_humidity(
-        pressure=pressure_da,  # hPa
-        temperature=t2_da,  # degC
-        mixing_ratio=q2_da,  # g/kg
-    )
-
-    # Dew point temperature requires temperature in Kelvin
-    t2_da = convert_units(t2_da, "K")
-
-    # Derive dew point temperature
-    # Returned in units of Kelvin
-    dew_pnt_da = compute_dewpointtemp(
-        temperature=t2_da, rel_hum=rh_da  # Kelvin  # [0-100]
-    )
-
-    # Derive specific humidity
-    # Returned in units of g/kg
-    da = compute_specific_humidity(
-        tdps=dew_pnt_da, pressure=pressure_da  # Kelvin  # Pa
-    )
-    return da
-
-
-def _get_noaa_heat_index(selections):
-    """Derive NOAA heat index
-
-    Parameters
-    ----------
-    selections: DataParameters
-
-    Returns
-    -------
-    da: xr.DataArray
-    """
-
-    # Load mixing ratio data
-    selections.variable_id = ["q2"]
-    selections.units = "kg kg-1"
-    q2_da = _get_data_one_var(selections)
-
-    # Load pressure data
-    selections.variable_id = ["psfc"]
-    selections.units = "Pa"
-    pressure_da = _get_data_one_var(selections)
-
-    # Load temperature data
-    selections.variable_id = ["t2"]
-    selections.units = "K"  # Kelvin required for humidity and dew point computation
-    t2_da_K = _get_data_one_var(selections)
-
-    # Derive relative humidity
-    # Returned in units of [0-100]
-    rh_da = compute_relative_humidity(
-        pressure=pressure_da,  # Pa
-        temperature=t2_da_K,  # Kelvin
-        mixing_ratio=q2_da,  # kg/kg
-    )
-
-    # Convert temperature to proper units for noaa heat index
-    t2_da_F = convert_units(t2_da_K, "degF")
-
-    # Derive index
-    # Returned in units of F
-    da = noaa_heat_index(T=t2_da_F, RH=rh_da)
-    return da
-
-
-def _get_eff_temp(selections):
-    """Derive the effective temperature
-
-    Parameters
-    ----------
-    selections: DataParameters
-
-    Returns
-    -------
-    da: xr.DataArray
-    """
-
-    # Load temperature data
-    selections.variable_id = ["t2"]
-    t2_da = _get_data_one_var(selections)
-
-    # Derive effective temp
-    da = effective_temp(T=t2_da)
-    return da
-
-
-def _get_fosberg_fire_index(selections):
-    """Derive the fosberg fire index.
-
-    Parameters
-    ----------
-    selections: DataParameters
-
-    Returns
-    -------
-    da: xr.DataArray
-    """
-
-    # Hard set timescale to hourly
-    orig_timescale = selections.timescale  # Preserve original user selection
-    selections.timescale = "hourly"
-
-    # Load temperature data
-    selections.variable_id = ["t2"]
-    selections.units = "degC"  # Kelvin required for humidity
-    t2_da_C = _get_data_one_var(selections)
-
-    # Load mixing ratio data
-    selections.variable_id = ["q2"]
-    selections.units = "g kg-1"
-    q2_da = _get_data_one_var(selections)
-
-    # Load pressure data
-    selections.variable_id = ["psfc"]
-    selections.units = "hPa"
-    pressure_da = _get_data_one_var(selections)
-
-    # Load u10 data
-    selections.variable_id = ["u10"]
-    selections.units = (
-        "m s-1"  # Need to set units to required units for compute_wind_mag
-    )
-    u10_da = _get_data_one_var(selections)
-
-    # Load v10 data
-    selections.variable_id = ["v10"]
-    selections.units = "m s-1"
-    v10_da = _get_data_one_var(selections)
-
-    # Derive relative humidity
-    # Returned in units of [0-100]
-    rh_da = compute_relative_humidity(
-        pressure=pressure_da,  # hPa
-        temperature=t2_da_C,  # degC
-        mixing_ratio=q2_da,  # g/kg
-    )
-
-    # Derive windspeed
-    # Returned in units of m/s
-    windspeed_da_ms = compute_wind_mag(u10=u10_da, v10=v10_da)  # m/s
-
-    # Convert units to proper units for fosberg index
-    t2_da_F = convert_units(t2_da_C, "degF")
-    windspeed_da_mph = convert_units(windspeed_da_ms, "mph")
-
-    # Compute the index
-    da = fosberg_fire_index(
-        t2_F=t2_da_F, rh_percent=rh_da, windspeed_mph=windspeed_da_mph
-    )
-
-    return da
