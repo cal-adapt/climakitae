@@ -331,6 +331,10 @@ def _get_fitted_distr(bms, distr, distr_func):
         p_names = ("c", "loc", "scale")
         parameters = get_param_dict(p_names, p_values)
         fitted_distr = stats.genpareto(**parameters)
+    elif distr == "gamma":
+        p_names = ("a", "loc", "scale")
+        parameters = get_param_dict(p_names, p_values)
+        fitted_distr = stats.gamma(**parameters)
     else:
         raise ValueError("invalid distribution type.")
     return parameters, fitted_distr
