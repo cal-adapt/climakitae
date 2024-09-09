@@ -1,5 +1,3 @@
-"""Wrapper for creating a Dask Gateway Cluster"""
-
 from dask.distributed import PipInstall
 from dask_gateway import Gateway, GatewayCluster
 
@@ -27,7 +25,6 @@ class Cluster(GatewayCluster):
         Returns
         -------
         distributed.client.Client
-
         """
         clusters = self.gateway.list_clusters()
         if clusters:

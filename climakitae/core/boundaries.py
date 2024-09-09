@@ -5,8 +5,10 @@ class Boundaries:
     """Get geospatial polygon data from the S3 stored parquet catalog.
     Used to access boundaries for subsetting data by state, county, etc.
 
-    Parameters
-    -----------
+    Attributes
+    ----------
+    _cat: intake.catalog.Catalog
+        Parquet boundary catalog instance
     _us_states: pd.DataFrame
         Table of US state names and geometries
     _ca_counties: pd.DataFrame
@@ -21,6 +23,21 @@ class Boundaries:
         Table of California Demand Forecast Zones
     _ca_electric_balancing_areas: pd.DataFrame
         Table of Electric Balancing Areas
+
+    Methods
+    -------
+    _get_us_states(self)
+        Returns a dict of state abbreviations and indices
+    _get_ca_counties(self)
+        Returns a dict of California counties and their indices
+    _get_ca_watersheds(self)
+        Returns a dict for CA watersheds and their indices
+    _get_forecast_zones(self)
+        Returns a dict for CA electricity demand forecast zones
+    _get_ious_pous(self)
+        Returns a dict for CA electric load serving entities IOUs & POUs
+    _get_electric_balancing_areas(self)
+        Returns a dict for CA Electric Balancing Authority Areas
     """
 
     _cat = None
@@ -32,9 +49,11 @@ class Boundaries:
     _ca_electric_balancing_areas = None
 
     def __init__(self, boundary_catalog):
+        # Connect intake Catalog to class
         self._cat = boundary_catalog
 
     def load(self):
+        """Read parquet files and sets class attributes."""
         self._us_states = self._cat.states.read()
         self._ca_counties = self._cat.counties.read().sort_values("NAME")
         self._ca_watersheds = self._cat.huc8.read().sort_values("Name")
@@ -61,7 +80,7 @@ class Boundaries:
 
     def _get_us_states(self):
         """
-        Returns a custom sorted dictionary of state abbreviations and indices.
+        Returns a custom sorted dictionary of western state abbreviations and indices.
 
         Returns
         -------
@@ -120,7 +139,7 @@ class Boundaries:
 
     def _get_forecast_zones(self):
         """
-        Returns a lookup dictionary for CA watersheds that references
+        Returns a lookup dictionary for CA Electricity Demand Forecast Zones that references
         the geoparquet file.
 
         Returns
@@ -134,7 +153,7 @@ class Boundaries:
 
     def _get_ious_pous(self):
         """
-        Returns a lookup dictionary for IOUs & POUs that references
+        Returns a lookup dictionary for CA Electric Load Serving Entities IOUs & POUs that references
         the geoparquet file.
 
         Returns
@@ -175,11 +194,12 @@ class Boundaries:
         ).to_dict()
 
     def boundary_dict(self):
-        """
+        """Return a dict of the other boundary dicts, used to populate ck.Select.
+
         This returns a dictionary of lookup dictionaries for each set of
         geoparquet files that the user might be choosing from. It is used to
-        populate the selector object dynamically as the category in
-        '_LocSelectorArea.area_subset' changes.
+        populate the `DataParameters` cached_area dynamically as the category
+        in the area_subset parameter changes.
 
         Returns
         -------

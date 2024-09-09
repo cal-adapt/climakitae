@@ -1,18 +1,12 @@
-import os
-import xarray as xr
 import pandas as pd
 import geopandas as gpd
-from shapely.geometry import box, Polygon
+from shapely.geometry import box
 import intake
 import param
-import panel as pn
 import numpy as np
 import warnings
-from matplotlib.figure import Figure
-import matplotlib.ticker as ticker
 import difflib
 import cartopy.crs as ccrs
-import cartopy.feature as cfeature
 from climakitae.core.paths import (
     variable_descriptions_csv_path,
     stations_csv_path,
@@ -25,14 +19,13 @@ from climakitae.core.data_load import (
     read_catalog_from_csv,
     read_catalog_from_select,
 )
-
 from climakitae.util.utils import (
     downscaling_method_as_list,
     read_csv_file,
-    _scenario_to_experiment_id,
-    _resolution_to_gridlabel,
-    _timescale_to_table_id,
-    _downscaling_method_to_activity_id,
+    scenario_to_experiment_id,
+    resolution_to_gridlabel,
+    timescale_to_table_id,
+    downscaling_method_to_activity_id,
 )
 
 # Warnings raised by function get_subsetting_options, not sure why but they are silenced here
@@ -52,7 +45,8 @@ def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
 
     Parameters
     ----------
-    cat: intake catalog
+    data_catalog: intake_esm.source.ESMDataSource
+        Intake ESM data catalog
     downscaling_method: str, one of "Dynamical", "Statistical", or "Dynamical+Statistical"
         Data downscaling method
     timescale: str, one of "hourly", "daily", or "monthly"
@@ -75,9 +69,9 @@ def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
     # Get catalog subset from user inputs
     with warnings.catch_warnings(record=True):
         cat_subset = data_catalog.search(
-            activity_id=[_downscaling_method_to_activity_id(dm) for dm in method_list],
-            table_id=_timescale_to_table_id(timescale),
-            grid_label=_resolution_to_gridlabel(resolution),
+            activity_id=[downscaling_method_to_activity_id(dm) for dm in method_list],
+            table_id=timescale_to_table_id(timescale),
+            grid_label=resolution_to_gridlabel(resolution),
         )
 
     # For LOCA grid we need to use the UCSD institution ID
@@ -179,6 +173,22 @@ def _get_var_ids(variable_descriptions, variable, downscaling_method, timescale)
     """Get variable ids that match the selected variable, timescale, and downscaling method.
     Required to account for the fact that LOCA, WRF, and various timescales use different variable id values.
     Used to retrieve the correct variables from the catalog in the backend.
+
+    Parameters
+    ----------
+    variable_descriptions: pd.DataFrame
+        Variable descriptions, units, etc in table format
+    variable: str
+        variable display name from catalog.
+    downscaling_method: str, one of "Dynamical", "Statistical", or "Dynamical+Statistical"
+        Data downscaling method
+    timescale: str, one of "hourly", "daily", or "monthly"
+        Timescale
+
+    Returns
+    -------
+    list
+        variable ids from intake catalog matching incoming query
     """
 
     method_list = downscaling_method_as_list(downscaling_method)
@@ -205,7 +215,25 @@ def _get_overlapping_station_names(
     _geographies,
     _geography_choose,
 ):
-    """Wrapper function that gets the string names of any overlapping weather stations"""
+    """Wrapper function that gets the string names of any overlapping weather stations
+
+    Parameters
+    ----------
+    stations_gdf: gpd.GeoDataFrame
+        geopandas GeoDataFrame of station locations
+    area_subset: str
+        DataParameters.area_subset param value
+    cached_area: str
+        DataParameters.cached_area param value
+    latitude: float
+        DataParameters.latitude param value
+    longitude: float
+        DataParameters.longitude param value
+    _geographies: Boundaries
+        reference to Boundaries class
+    _geography_choose: dict
+        dict of dicts containing boundary attributes
+    """
     subarea = _get_subarea(
         area_subset,
         cached_area,
@@ -236,7 +264,6 @@ def _get_overlapping_stations(stations, polygon):
     -------
     gpd.GeoDataFrame
         stations gpd subsetted to include only points contained within polygon
-
     """
     return gpd.sjoin(stations, polygon, predicate="within")
 
@@ -252,10 +279,24 @@ def _get_subarea(
     """Get geometry from input settings
     Used for plotting or determining subset of overlapping weather stations in subsequent steps
 
+    Parameters
+    ----------
+    area_subset: str
+        DataParameters.area_subset param value
+    cached_area: str
+        DataParameters.cached_area param value
+    latitude: tuple
+        DataParameters.latitude param value
+    longitude: tuple
+        DataParameters.longitude param value
+    _geographies: Boundaries
+        reference to Boundaries class
+    _geography_choose: dict
+        dict of dicts containing boundary attributes
+
     Returns
     -------
     gpd.GeoDataFrame
-
     """
 
     def _get_subarea_from_shape_index(
@@ -325,197 +366,6 @@ def _get_subarea(
     return df_ae
 
 
-def _add_res_to_ax(
-    poly, ax, rotation, xy, label, color="black", crs=ccrs.PlateCarree()
-):
-    """Add resolution line and label to axis
-
-    Parameters
-    ----------
-    poly: geometry to plot
-    ax: matplotlib axis
-    color: matplotlib color
-    rotation: int
-    xy: tuple
-    label: str
-    crs: projection
-
-    """
-    ax.add_geometries(
-        [poly], crs=ccrs.PlateCarree(), edgecolor=color, facecolor="white"
-    )
-    ax.annotate(
-        label,
-        xy=xy,
-        rotation=rotation,
-        color="black",
-        xycoords=crs._as_mpl_transform(ax),
-    )
-
-
-def _map_view(selections, stations_gdf):
-    """View the current location selections on a map
-    Updates dynamically
-
-    Parameters
-    ----------
-    selections: DataSelector
-        User data selections
-    stations_gpd: gpd.DataFrame
-        DataFrame with station coordinates
-
-    """
-
-    _wrf_bb = {
-        "45 km": Polygon(
-            [
-                (-123.52125549316406, 9.475631713867188),
-                (-156.8231658935547, 35.449039459228516),
-                (-102.43182373046875, 67.32866668701172),
-                (-84.18701171875, 26.643436431884766),
-            ]
-        ),
-        "9 km": Polygon(
-            [
-                (-116.69509887695312, 22.267112731933594),
-                (-138.42117309570312, 43.23344802856445),
-                (-110.90779113769531, 57.5806770324707),
-                (-94.9368896484375, 31.627288818359375),
-            ]
-        ),
-        "3 km": Polygon(
-            [
-                (-117.80029, 29.978943),
-                (-127.95593, 40.654625),
-                (-120.79376, 44.8999),
-                (-111.23247, 33.452168),
-            ]
-        ),
-    }
-
-    fig0 = Figure(figsize=(2.25, 2.25))
-    proj = ccrs.Orthographic(-118, 40)
-    crs_proj4 = proj.proj4_init  # used below
-    xy = ccrs.PlateCarree()
-    ax = fig0.add_subplot(111, projection=proj)
-    mpl_pane = pn.pane.Matplotlib(fig0, dpi=1000)
-
-    # Get geometry of selected location
-    subarea_gpd = _get_subarea(
-        selections.area_subset,
-        selections.cached_area,
-        selections.latitude,
-        selections.longitude,
-        selections._geographies,
-        selections._geography_choose,
-    )
-    # Set plot extent
-    ca_extent = [-125, -114, 31, 43]  # Zoom in on CA
-    us_extent = [
-        -130,
-        -100,
-        25,
-        50,
-    ]  # Western USA + a lil bit of baja (viva mexico)
-    na_extent = [-150, -88, 8, 66]  # North America extent (largest extent)
-    if selections.area_subset == "lat/lon":
-        extent = na_extent  # default
-        # Dynamically update extent depending on borders of lat/lon selection
-        for extent_i in [ca_extent, us_extent, na_extent]:
-            # Construct a polygon from the extent
-            geom_extent = Polygon(
-                box(extent_i[0], extent_i[2], extent_i[1], extent_i[3])
-            )
-            # Check if user selections for lat/lon are contained in the extent
-            if geom_extent.contains(subarea_gpd.geometry.values[0]):
-                # If so, set the extent to the smallest extent possible
-                # Such that the lat/lon selection is contained within the map's boundaries
-                extent = extent_i
-                break
-    elif (selections.resolution == "3 km") or ("CA" in selections.area_subset):
-        extent = ca_extent
-    elif (selections.resolution == "9 km") or (selections.area_subset == "states"):
-        extent = us_extent
-    elif selections.area_subset == "none":
-        extent = na_extent
-    else:  # Default for all other selections
-        extent = ca_extent
-    ax.set_extent(extent, crs=xy)
-
-    # Set size of markers for stations depending on map boundaries
-    if extent == ca_extent:
-        scatter_size = 4.5
-    elif extent == us_extent:
-        scatter_size = 2.5
-    elif extent == na_extent:
-        scatter_size = 1.5
-
-    if selections.resolution == "45 km":
-        _add_res_to_ax(
-            poly=_wrf_bb["45 km"],
-            ax=ax,
-            color="green",
-            rotation=28,
-            xy=(-154, 33.8),
-            label="45 km",
-        )
-    elif selections.resolution == "9 km":
-        _add_res_to_ax(
-            poly=_wrf_bb["9 km"],
-            ax=ax,
-            color="red",
-            rotation=32,
-            xy=(-134, 42),
-            label="9 km",
-        )
-    elif selections.resolution == "3 km":
-        _add_res_to_ax(
-            poly=_wrf_bb["3 km"],
-            ax=ax,
-            color="darkorange",
-            rotation=32,
-            xy=(-127, 40),
-            label="3 km",
-        )
-
-    # Add user-selected geometries
-    if selections.area_subset == "lat/lon":
-        ax.add_geometries(
-            subarea_gpd["geometry"].values,
-            crs=ccrs.PlateCarree(),
-            edgecolor="b",
-            facecolor="None",
-        )
-    elif selections.area_subset != "none":
-        subarea_gpd.to_crs(crs_proj4).plot(ax=ax, color="deepskyblue", zorder=2)
-        mpl_pane.param.trigger("object")
-
-    # Overlay the weather stations as points on the map
-    if selections.data_type == "Station":
-        # Subset the stations gpd to get just the user's selected stations
-        # We need the stations gpd because it has the coordinates, which will be used to make the plot
-        stations_selection_gdf = stations_gdf.loc[
-            stations_gdf["station"].isin(selections.station)
-        ]
-        stations_selection_gdf = stations_selection_gdf.to_crs(
-            crs_proj4
-        )  # Convert to map projection
-        ax.scatter(
-            stations_selection_gdf.LON_X.values,
-            stations_selection_gdf.LAT_Y.values,
-            transform=ccrs.PlateCarree(),
-            zorder=15,
-            color="black",
-            s=scatter_size,  # Scatter size is dependent on extent of map
-        )
-
-    # Add state lines, international borders, and coastline
-    ax.add_feature(cfeature.STATES, linewidth=0.5, edgecolor="gray")
-    ax.add_feature(cfeature.COASTLINE, linewidth=0.5, edgecolor="darkgray")
-    ax.add_feature(cfeature.BORDERS, edgecolor="darkgray")
-    return mpl_pane
-
-
 class VariableDescriptions:
     """Load Variable Desciptions CSV only once
 
@@ -523,6 +373,11 @@ class VariableDescriptions:
     because variable descriptions are used without DataInterface in ck.view. Also
     ck.view is loaded on package load so this avoids loading boundary data when not
     needed.
+
+    Attributes
+    ----------
+    variable_descriptions: pd.DataFrame
+        pandas dataframe that stores available data variables usable with the package
 
     """
 
@@ -535,6 +390,7 @@ class VariableDescriptions:
         self.variable_descriptions = pd.DataFrame
 
     def load(self):
+        """Read the variable descriptions csv into class variable."""
         if self.variable_descriptions.empty:
             self.variable_descriptions = read_csv_file(variable_descriptions_csv_path)
 
@@ -546,6 +402,20 @@ class DataInterface:
     data and to the intake data catalog and parquet boundary catalog. The class attributes
     are read only so that the data does not get changed accidentially.
 
+    Attributes
+    ----------
+    variable_descriptions: pd.DataFrame
+        variable descriptions pandas data frame
+    stations: gpd.DataFrame
+        station locations pandas data frame
+    stations_gdf: gpd.GeoDataFrame
+        station locations geopandas data frame
+    data_catalog: intake_esm.source.ESMDataSource
+        intake ESM data catalog
+    boundary_catalog: intake.catalog.Catalog
+        parquet boundary catalog
+    geographies: Boundaries
+        boundary dictionaries class
     """
 
     def __new__(cls):
@@ -597,7 +467,93 @@ class DataInterface:
 
 
 class DataParameters(param.Parameterized):
-    """Python param object to hold data parameters for use in panel GUI."""
+    """Python param object to hold data parameters for use in panel GUI.
+    Call DataParameters when you want to select and retrieve data from the
+    climakitae data catalog without using the ck.Select GUI. ck.Select uses
+    this class to store selections and retrieve data.
+
+    DataParameters calls DataInterface, a singleton class that makes the connection
+    to the intake-esm data store in S3 bucket.
+
+    Attributes
+    ----------
+    unit_options_dict: dict
+        options dictionary for converting unit to other units
+    area_subset: str
+        dataset to use from Boundaries for sub area selection
+    cached_area: list of strs
+        one or more features from area_subset datasets to use for selection
+    latitude: tuple
+        latitude range of selection box
+    longitude: tuple
+        longitude range of selection box
+    variable_type: str
+        toggle raw or derived variable selection
+    default_variable: str
+        initial variable to have selected in widget
+    time_slice: tuple
+        year range to select
+    resolution: str
+        resolution of data to select ("3 km", "9 km", "45 km")
+    timescale: str
+        frequency of dataset ("hourly", "daily", "monthly")
+    scenario_historical: list of strs
+        historical scenario selections
+    area_average: str
+        whether to comput area average ("Yes", "No")
+    downscaling_method: str
+        whether to choose WRF or LOCA2 data or both ("Dynamical", "Statistical", "Dynamical+Statistical")
+    data_type: str
+        whether to choose gridded or station based data ("Gridded", "Station")
+    station: list or strs
+        list of stations that can be filtered by cached_area
+    _station_data_info: str
+        informational statement when station data selected with data_type
+    scenario_ssp: list of strs
+        list of future climate scenarios selected (availability depends on other params)
+    simulation: list of strs
+        list of simulations (models) selected (availability depends on other params)
+    variable: str
+        variable long display name
+    units: str
+        unit abbreviation currently of the data (native or converted)
+    extended_description: str
+        extended description of the data variable
+    variable_id: list of strs
+        list of variable ids that match the variable (WRF and LOCA2 can have different codes for same type of variable)
+    historical_climate_range_wrf: tuple
+        time range of historical WRF data
+    historical_climate_range_loca: tuple
+        time range of historical LOCA2 data
+    historical_climate_range_wrf_and_loca: tuple
+        time range of historical WRF and LOCA2 data combined
+    historical_reconstruction_range: tuple
+        time range of historical reanalysis data
+    ssp_range: tuple
+        time range of future scenario SSP data
+    _info_about_station_data: str
+        warning message about station data
+    _data_warning: str
+        warning about selecting unavailable data combination
+    data_interface: DataInterface
+        data connection singleton class that provides data
+    _data_catalog: intake_esm.source.ESMDataSource
+        shorthand alias to DataInterface.data_catalog
+    _variable_descriptions: pd.DataFrame
+        shorthand alias to DataInterface.variable_descriptions
+    _stations_gdf: gpd.GeoDataFrame
+        shorthand alias to DataInterface.stations_gdf
+    _geographies: Boundaries
+        shorthand alias to DataInterface.geographies
+    _geography_choose: dict
+        shorthand alias to Boundaries.boundary_dict()
+    colormap: str
+        default colormap to render the currently selected data
+    scenario_options: list of strs
+        list of available scenarios (historical and ssp) for selection
+    variable_options_df: pd.DataFrame
+        filtered variable descriptions for the downscaling_method and timescale
+    """
 
     # Unit conversion options for each unit
     unit_options_dict = get_unit_conversion_options()
@@ -720,7 +676,7 @@ class DataParameters(param.Parameterized):
 
         # Set scenario param
         scenario_ssp_options = [
-            _scenario_to_experiment_id(scen, reverse=True)
+            scenario_to_experiment_id(scen, reverse=True)
             for scen in self.scenario_options
             if "ssp" in scen
         ]
@@ -964,9 +920,6 @@ class DataParameters(param.Parameterized):
             self.variable_options_df["display_name"] == self.variable
         ]
         native_unit = var_info.unit.item()
-        if native_unit in ["mm/d", "mm/h"]:
-            # Show same unit options for all mm
-            native_unit = "mm"
         if (
             native_unit in self.unit_options_dict.keys()
         ):  # See if there's unit conversion options for native variable
@@ -987,7 +940,7 @@ class DataParameters(param.Parameterized):
 
         # Get scenario options in catalog format
         scenario_ssp_options = [
-            _scenario_to_experiment_id(scen, reverse=True)
+            scenario_to_experiment_id(scen, reverse=True)
             for scen in self.scenario_options
             if "ssp" in scen
         ]
@@ -1004,7 +957,7 @@ class DataParameters(param.Parameterized):
 
         historical_scenarios = ["historical", "reanalysis"]
         scenario_historical_options = [
-            _scenario_to_experiment_id(scen, reverse=True)
+            scenario_to_experiment_id(scen, reverse=True)
             for scen in self.scenario_options
             if scen in historical_scenarios
         ]
@@ -1207,7 +1160,6 @@ class DataParameters(param.Parameterized):
             If multiple rows are in the csv and merge=True,
             multiple DataArrays are returned in a single list.
             Only an option if a config file is provided.
-
         """
 
         def warnoflargefilesize(da):
@@ -1247,352 +1199,21 @@ class DataParameters(param.Parameterized):
         return data_return
 
 
-class DataParametersWithPanes(DataParameters):
-    """Extends DataParameters class to include panel widgets that display the time scale and a map overview"""
-
-    def __init__(self, **params):
-        # Set default values
-        super().__init__(**params)
-
-    @param.depends(
-        "time_slice",
-        "scenario_ssp",
-        "scenario_historical",
-        "downscaling_method",
-        watch=False,
-    )
-    def scenario_view(self):
-        """
-        Displays a timeline to help the user visualize the time ranges
-        available, and the subset of time slice selected.
-        """
-        # Set time range of historical data
-        if self.downscaling_method == "Statistical":
-            historical_climate_range = self.historical_climate_range_loca
-        elif self.downscaling_method == "Dynamical+Statistical":
-            historical_climate_range = self.historical_climate_range_wrf_and_loca
-        else:
-            historical_climate_range = self.historical_climate_range_wrf
-        historical_central_year = sum(historical_climate_range) / 2
-        historical_x_width = historical_central_year - historical_climate_range[0]
-
-        fig0 = Figure(figsize=(2, 2))
-        ax = fig0.add_subplot(111)
-        ax.spines["right"].set_color("none")
-        ax.spines["left"].set_color("none")
-        ax.yaxis.set_major_locator(ticker.NullLocator())
-        ax.spines["top"].set_color("none")
-        ax.xaxis.set_ticks_position("bottom")
-        ax.set_xlim(1950, 2100)
-        ax.set_ylim(0, 1)
-        ax.tick_params(labelsize=11)
-        ax.xaxis.set_major_locator(ticker.AutoLocator())
-        ax.xaxis.set_minor_locator(ticker.AutoMinorLocator())
-        mpl_pane = pn.pane.Matplotlib(fig0, dpi=1000)
-
-        y_offset = 0.15
-        if (self.scenario_ssp is not None) and (self.scenario_historical is not None):
-            for scen in self.scenario_ssp + self.scenario_historical:
-                if ["SSP" in one for one in self.scenario_ssp]:
-                    if scen in [
-                        "Historical Climate",
-                        "Historical Reconstruction",
-                    ]:
-                        continue
-
-                if scen == "Historical Reconstruction":
-                    color = "darkblue"
-                    if "Historical Climate" in self.scenario_historical:
-                        center = historical_central_year
-                        x_width = historical_x_width
-                        ax.annotate(
-                            "Reconstruction", xy=(1967 - 6, y_offset + 0.06), fontsize=9
-                        )
-                    else:
-                        center = 1986  # 1950-2022
-                        x_width = 36
-                        ax.annotate(
-                            "Reconstruction", xy=(1955 - 6, y_offset + 0.06), fontsize=9
-                        )
-
-                elif scen == "Historical Climate":
-                    color = "c"
-                    center = historical_central_year
-                    x_width = historical_x_width
-                    ax.annotate(
-                        "Historical",
-                        xy=(historical_climate_range[0] - 6, y_offset + 0.06),
-                        fontsize=9,
-                    )
-
-                elif "SSP" in scen:
-                    center = 2057.5  # 2015-2100
-                    x_width = 42.5
-                    scenario_label = scen[:10]
-                    if "2-4.5" in scen:
-                        color = "#f69320"
-                    elif "3-7.0" in scen:
-                        color = "#df0000"
-                    elif "5-8.5" in scen:
-                        color = "#980002"
-                    if "Historical Climate" in self.scenario_historical:
-                        ax.errorbar(
-                            x=historical_central_year,
-                            y=y_offset,
-                            xerr=historical_x_width,
-                            linewidth=8,
-                            color="c",
-                        )
-                        ax.annotate(
-                            "Historical",
-                            xy=(historical_climate_range[0] - 6, y_offset + 0.06),
-                            fontsize=9,
-                        )
-
-                    ax.annotate(scen[:10], xy=(2035, y_offset + 0.06), fontsize=9)
-
-                ax.errorbar(
-                    x=center, y=y_offset, xerr=x_width, linewidth=8, color=color
-                )
-
-                y_offset += 0.28
-
-        ax.fill_betweenx(
-            [0, 1],
-            self.time_slice[0],
-            self.time_slice[1],
-            alpha=0.8,
-            facecolor="lightgrey",
-        )
-        return mpl_pane
-
-    @param.depends(
-        "downscaling_method",
-        "resolution",
-        "latitude",
-        "longitude",
-        "area_subset",
-        "cached_area",
-        "data_type",
-        "station",
-        watch=False,
-    )
-    def map_view(self):
-        """Create a map of the location selections"""
-        return _map_view(selections=self, stations_gdf=self._stations_gdf)
-
-
-class Select(DataParametersWithPanes):
-    def show(self):
-        # Show panel visualually
-        select_panel = _display_select(self)
-        return select_panel
-
-
-def _selections_param_to_panel(self):
-    """For the _DataSelector object, get parameters and parameter
-    descriptions formatted as panel widgets
-    """
-    area_subset = pn.widgets.Select.from_param(
-        self.param.area_subset, name="Subset the data by..."
-    )
-    area_average_text = pn.widgets.StaticText(
-        value="Compute an area average across grid cells within your selected region?",
-        name="",
-    )
-    area_average = pn.widgets.RadioBoxGroup.from_param(
-        self.param.area_average, inline=True
-    )
-    cached_area = pn.widgets.MultiSelect.from_param(
-        self.param.cached_area, name="Location selection"
-    )
-    data_type_text = pn.widgets.StaticText(
-        value="",
-        name="Data type",
-    )
-    data_type = pn.widgets.RadioBoxGroup.from_param(
-        self.param.data_type, inline=True, name=""
-    )
-    data_warning = pn.widgets.StaticText.from_param(
-        self.param._data_warning, name="", style={"color": "red"}
-    )
-    downscaling_method_text = pn.widgets.StaticText(value="", name="Downscaling method")
-    downscaling_method = pn.widgets.RadioBoxGroup.from_param(
-        self.param.downscaling_method, inline=True
-    )
-    historical_selection_text = pn.widgets.StaticText(
-        value="<br>Estimates of recent historical climatic conditions",
-        name="Historical Data",
-    )
-    historical_selection = pn.widgets.CheckBoxGroup.from_param(
-        self.param.scenario_historical
-    )
-    station_data_info = pn.widgets.StaticText.from_param(
-        self.param._station_data_info, name="", style={"color": "red"}
-    )
-    ssp_selection_text = pn.widgets.StaticText(
-        value="<br> Shared Socioeconomic Pathways (SSPs) represent different global emissions scenarios",
-        name="Future Model Data",
-    )
-    ssp_selection = pn.widgets.CheckBoxGroup.from_param(self.param.scenario_ssp)
-    resolution_text = pn.widgets.StaticText(
-        value="",
-        name="Model Grid-Spacing",
-    )
-    resolution = pn.widgets.RadioBoxGroup.from_param(
-        self.param.resolution, inline=False
-    )
-    timescale_text = pn.widgets.StaticText(value="", name="Timescale")
-    timescale = pn.widgets.RadioBoxGroup.from_param(
-        self.param.timescale, name="", inline=False
-    )
-    time_slice = pn.widgets.RangeSlider.from_param(self.param.time_slice, name="")
-    units_text = pn.widgets.StaticText(name="Variable Units", value="")
-    units = pn.widgets.RadioBoxGroup.from_param(self.param.units, inline=False)
-    variable = pn.widgets.Select.from_param(self.param.variable, name="")
-    variable_text = pn.widgets.StaticText(name="Variable", value="")
-    variable_description = pn.widgets.StaticText.from_param(
-        self.param.extended_description, name=""
-    )
-    variable_type = pn.widgets.RadioBoxGroup.from_param(
-        self.param.variable_type, inline=True, name=""
-    )
-
-    widgets_dict = {
-        "area_average": area_average,
-        "area_subset": area_subset,
-        "cached_area": cached_area,
-        "data_type": data_type,
-        "data_type_text": data_type_text,
-        "data_warning": data_warning,
-        "downscaling_method": downscaling_method,
-        "historical_selection": historical_selection,
-        "latitude": self.param.latitude,
-        "longitude": self.param.longitude,
-        "resolution": resolution,
-        "station_data_info": station_data_info,
-        "ssp_selection": ssp_selection,
-        "resolution": resolution,
-        "timescale": timescale,
-        "time_slice": time_slice,
-        "units": units,
-        "variable": variable,
-        "variable_description": variable_description,
-        "variable_type": variable_type,
-    }
-    text_dict = {
-        "area_average_text": area_average_text,
-        "downscaling_method_text": downscaling_method_text,
-        "historical_selection_text": historical_selection_text,
-        "resolution_text": resolution_text,
-        "ssp_selection_text": ssp_selection_text,
-        "units_text": units_text,
-        "timescale_text": timescale_text,
-        "variable_text": variable_text,
-    }
-
-    return widgets_dict | text_dict
-
-
-def _display_select(self):
-    """
-    Called by 'select' at the beginning of the workflow, to capture user
-    selections. Displays panel of widgets from which to make selections.
-    Modifies 'selections' object, which is used by retrieve() to build an
-    appropriate xarray Dataset.
-    """
-    # Get formatted panel widgets for each parameter
-    widgets = _selections_param_to_panel(self)
-
-    data_choices = pn.Column(
-        widgets["variable_text"],
-        widgets["variable_type"],
-        widgets["variable"],
-        widgets["variable_description"],
-        pn.Row(
-            pn.Column(
-                widgets["historical_selection_text"],
-                widgets["historical_selection"],
-                widgets["ssp_selection_text"],
-                widgets["ssp_selection"],
-                pn.Column(
-                    self.scenario_view,
-                    widgets["time_slice"],
-                    width=220,
-                ),
-                width=250,
-            ),
-            pn.Column(
-                widgets["units_text"],
-                widgets["units"],
-                widgets["timescale_text"],
-                widgets["timescale"],
-                widgets["resolution_text"],
-                widgets["resolution"],
-                widgets["station_data_info"],
-                width=150,
-            ),
-        ),
-        width=380,
-    )
-
-    col_1_location = pn.Column(
-        self.map_view,
-        widgets["area_subset"],
-        widgets["cached_area"],
-        widgets["latitude"],
-        widgets["longitude"],
-        widgets["area_average_text"],
-        widgets["area_average"],
-        width=220,
-    )
-    col_2_location = pn.Column(
-        pn.Spacer(height=10),
-        pn.widgets.StaticText(
-            value="",
-            name="Weather station",
-        ),
-        pn.widgets.CheckBoxGroup.from_param(self.param.station, name=""),
-        width=270,
-    )
-    loc_choices = pn.Row(col_1_location, col_2_location)
-
-    everything_else = pn.Row(data_choices, pn.layout.HSpacer(width=10), loc_choices)
-
-    # Panel overall structure:
-    all_things = pn.Column(
-        pn.Row(
-            pn.Column(
-                widgets["data_type_text"],
-                widgets["data_type"],
-                width=150,
-            ),
-            pn.Column(
-                widgets["downscaling_method_text"],
-                widgets["downscaling_method"],
-                width=325,
-            ),
-            pn.Column(
-                widgets["data_warning"],
-                width=400,
-            ),
-        ),
-        pn.Spacer(background="black", height=1),
-        everything_else,
-    )
-
-    return pn.Card(
-        all_things,
-        title="Choose Data Available with the Cal-Adapt Analytics Engine",
-        collapsible=False,
-    )
-
-
 ## -------------- Data access without GUI -------------------
 
 
 def _get_user_friendly_catalog(intake_catalog, variable_descriptions):
-    """Get a user-friendly version of the intake data catalog using climakitae naming conventions"""
+    """Get a user-friendly version of the intake data catalog using climakitae naming conventions
+
+    Parameters
+    ----------
+    intake_catalog: intake_esm.source.ESMDataSource
+    variable_descriptions: pd.DataFrame
+
+    Returns
+    -------
+    cat_df_cleaned: intake_esm.source.ESMDataSource
+    """
 
     # Get the catalog as a dataframe
     cat_df = intake_catalog.df.copy()
@@ -1600,16 +1221,16 @@ def _get_user_friendly_catalog(intake_catalog, variable_descriptions):
     # Create new, user friendly catalog in pandas DataFrame format
     cat_df_cleaned = pd.DataFrame()
     cat_df_cleaned["downscaling_method"] = cat_df["activity_id"].apply(
-        lambda x: _downscaling_method_to_activity_id(x, reverse=True)
+        lambda x: downscaling_method_to_activity_id(x, reverse=True)
     )
     cat_df_cleaned["resolution"] = cat_df["grid_label"].apply(
-        lambda x: _resolution_to_gridlabel(x, reverse=True)
+        lambda x: resolution_to_gridlabel(x, reverse=True)
     )
     cat_df_cleaned["timescale"] = cat_df["table_id"].apply(
-        lambda x: _timescale_to_table_id(x, reverse=True)
+        lambda x: timescale_to_table_id(x, reverse=True)
     )
     cat_df_cleaned["scenario"] = cat_df["experiment_id"].apply(
-        lambda x: _scenario_to_experiment_id(x, reverse=True)
+        lambda x: scenario_to_experiment_id(x, reverse=True)
     )
     cat_df_cleaned["variable_id"] = cat_df["variable_id"]
 
@@ -1688,8 +1309,7 @@ def _get_var_name_from_table(variable_id, downscaling_method, timescale, var_df)
 
 
 def _get_closest_options(val, valid_options):
-    """
-    If the user inputs a bad option, find the closest option from a list of valid options
+    """If the user inputs a bad option, find the closest option from a list of valid options
 
     Parameters
     ----------
@@ -1702,7 +1322,6 @@ def _get_closest_options(val, valid_options):
     -------
     closest_options: list or None
         List of best guesses, or None if nothing close is found
-
     """
 
     # Perhaps the user just capitalized it wrong?
@@ -1735,6 +1354,88 @@ def _get_closest_options(val, valid_options):
     return closest_options
 
 
+def _check_if_good_input(d, cat_df):
+    """Check if inputs are valid and makes a "guess" using cat_df if the input is not valid
+
+    Parameters
+    ----------
+    d: dict
+        Dictionary of str: list
+        The keys should correspond to valid column names in cat_df
+        THE ITEMS NEED TO BE LISTS, even if its just a single length list
+        i.e {"scenario": ["Historical Climate"]}
+    cat_df: pd.DataFrame
+        User-friendly catalog
+
+    Returns
+    -------
+    d: dict
+        Cleaned up dictionary
+
+    """
+    # Check that inputs are valid, make guess if not valid
+    for key, val in zip(
+        d.keys(), d.values()
+    ):  # Loop through each key, value pair in the dictionary
+        # Use the catalog to find the valid values in the list
+        valid_options = np.unique(cat_df[key].values)
+        if val in [
+            [None],
+            None,
+        ]:  # If the user didn't input anything for that key, set the values to all the valid options
+            d[key] = valid_options
+            continue  # Don't finish the loop
+        # If the input value is not in the valid options, see if you can help the user out
+        key_updated = []
+        for val_i in val:
+
+            # This catches any common bad inputs for resolution: i.e. "3KM" or "3km" instead of "3 km"
+            if key == "resolution":
+                try:
+                    good_resolution_input = val_i.lower().split("km")[0] + " km"
+                    if good_resolution_input in valid_options:
+                        print(
+                            "Input " + key + "='" + val_i + "' is not a valid option."
+                        )
+                        print(
+                            "Outputting data for "
+                            + key
+                            + "='"
+                            + good_resolution_input
+                            + "'\n"
+                        )
+                        key_updated.append(good_resolution_input)
+                        continue
+                except:
+                    pass
+
+            if val_i not in valid_options:
+
+                print("Input " + key + "='" + val_i + "' is not a valid option.")
+
+                closest_options = _get_closest_options(val_i, valid_options)
+
+                # Sad! No closest options found. Just set the key to all valid options
+                if closest_options is None:
+                    print("Valid options: " + ", ".join(valid_options))
+                    raise ValueError("Bad input")
+
+                # Just one option in the list
+                elif len(closest_options) == 1:
+                    print("Closest option: '" + closest_options[0] + "'")
+
+                elif len(closest_options) > 1:
+                    print("Closest options: \n- " + "\n- ".join(closest_options))
+
+                # Set key to closest option
+                print("Outputting data for " + key + "='" + closest_options[0] + "'\n")
+                key_updated.append(closest_options[0])
+            else:
+                key_updated.append(val_i)
+        d[key] = key_updated
+    return d
+
+
 def get_data_options(
     variable=None,
     downscaling_method=None,
@@ -1757,7 +1458,7 @@ def get_data_options(
         Default to None
     timescale: str, optional
         Default to None
-    scenario: str, optional
+    scenario: str or list, optional
         Default to None
     tidy: boolean, optional
         Format the pandas dataframe? This creates a DataFrame with a MultiIndex that makes it easier to parse the options.
@@ -1767,7 +1468,6 @@ def get_data_options(
     -------
     cat_subset: pd.DataFrame
         Catalog options for user-provided inputs
-
     """
 
     # Get intake catalog and variable descriptions from DataInterface object
@@ -1779,76 +1479,27 @@ def get_data_options(
     )
 
     # Raise error for bad input from user
-    for user_input in [variable, downscaling_method, resolution, timescale, scenario]:
+    for user_input in [variable, downscaling_method, resolution, timescale]:
         if (user_input is not None) and (type(user_input) != str):
             print("Function arguments require a single string value for your inputs")
             return None
 
+    def _list(x):
+        """Convert x to a list if its not a list"""
+        if type(x) == list:
+            return x
+        elif type(x) != list:
+            return [x]
+
     d = {
-        "variable": variable,
-        "timescale": timescale,
-        "downscaling_method": downscaling_method,
-        "scenario": scenario,
-        "resolution": resolution,
+        "variable": _list(variable),
+        "timescale": _list(timescale),
+        "downscaling_method": _list(downscaling_method),
+        "scenario": _list(scenario),
+        "resolution": _list(resolution),
     }
 
-    for key, val in zip(
-        d.keys(), d.values()
-    ):  # Loop through each key, value pair in the dictionary
-        # Use the catalog to find the valid values in the list
-        valid_options = np.unique(cat_df[key].values)
-        if (
-            val == None
-        ):  # If the user didn't input anything for that key, set the values to all the valid options
-            d[key] = valid_options
-            continue  # Don't finish the loop
-        # If the input value is not in the valid options, see if you can help the user out
-        elif val not in valid_options:
-
-            # This catches any common bad inputs for resolution: i.e. "3KM" or "3km" instead of "3 km"
-            if key == "resolution":
-                try:
-                    good_resolution_input = val.lower().split("km")[0] + " km"
-                    if good_resolution_input in valid_options:
-                        print("Input " + key + "='" + val + "' is not a valid option.")
-                        print(
-                            "Returning output for closest option: '"
-                            + good_resolution_input
-                            + "'"
-                        )
-                        d[key] = [good_resolution_input]
-                        continue
-                except:
-                    pass
-
-            print("Input " + key + "='" + val + "' is not a valid option.")
-
-            closest_options = _get_closest_options(val, valid_options)
-
-            # Sad! No closest options found. Just set the key to all valid options
-            if closest_options is None:
-                print("Valid options: " + ", ".join(valid_options))
-                raise ValueError("Bad input")
-
-            # Just one option in the list
-            elif len(closest_options) == 1:
-                print(
-                    "Returning output for closest option: '" + closest_options[0] + "'"
-                )
-
-            elif len(closest_options) > 1:
-                print(
-                    "Returning output for closest options: \n- "
-                    + "\n- ".join(closest_options)
-                )
-                print("\n")
-            # Set key to closest option
-            d[key] = closest_options
-
-    # Dictionary values should be a list for the pandas logic to work correctly
-    for key, val in zip(d.keys(), d.values()):
-        if type(val) not in (list, np.ndarray):
-            d[key] = [val]
+    d = _check_if_good_input(d, cat_df)
 
     # Subset the catalog with the user's inputs
     cat_subset = cat_df[
@@ -1874,7 +1525,7 @@ def get_subsetting_options(area_subset="all"):
     Options match those in selections GUI
 
     Parameters
-    -----------
+    ----------
     area_subset: str, one of "all", "states", "CA counties", "CA Electricity Demand Forecast Zones", "CA watersheds", "CA Electric Balancing Authority Areas", "CA Electric Load Serving Entities (IOU & POU)"
         Defaults to "all", which shows all the geometry options with area_subset as a multiindex
 
@@ -1975,7 +1626,7 @@ def get_data(
     downscaling_method: str
     resolution: str
     timescale: str
-    scenario: str
+    scenario: str or list of str
     units: None, optional
         Defaults to native units of data
     area_subset: str, optional
@@ -1989,38 +1640,11 @@ def get_data(
         Default to No
 
     Returns
-    --------
-    data: xarray.core.dataarray.DataArray
-
+    -------
+    data: xr.DataArray
     """
-    # Make dictionary of inputs for easy parsing and error control
-    d = {
-        "variable": variable,
-        "timescale": timescale,
-        "downscaling_method": downscaling_method,
-        "scenario": scenario,
-        "resolution": resolution,
-    }
-
-    # Make sure the user inputs a string!!
-    for key, val in zip(d.keys(), d.values()):
-        if type(val) != str:
-            print(
-                "This function requires a single string input for argument '"
-                + key
-                + "'"
-            )
-            print("Your input type: " + str(type(val)))
-            raise ValueError("Bad input type")
-
-    # But actually, we need a list for cached area
-    if type(cached_area) == str:
-        cached_area = [cached_area]
 
     # Get intake catalog and variable descriptions from DataInterface object
-    # This is used to check if the user's inputs are valid
-    # This adds some initial runtime to the function... not the most efficient, but makes it more user-friendly
-    # So, maybe it's worth the additional time? I'm not 100% convinced personally (Nicole)
     data_interface = DataInterface()
     var_df = data_interface.variable_descriptions
     catalog = data_interface.data_catalog
@@ -2028,57 +1652,36 @@ def get_data(
         intake_catalog=catalog, variable_descriptions=var_df
     )
 
-    # Check that inputs are valid, make guess if not valid
-    for key, val in zip(
-        d.keys(), d.values()
-    ):  # Loop through each key, value pair in the dictionary
-        # Use the catalog to find the valid values in the list
-        valid_options = np.unique(cat_df[key].values)
-        if (
-            val == None
-        ):  # If the user didn't input anything for that key, set the values to all the valid options
-            d[key] = valid_options
-            continue  # Don't finish the loop
-        # If the input value is not in the valid options, see if you can help the user out
-        elif val not in valid_options:
+    # Raise error for bad input from user
+    for user_input in [variable, downscaling_method, resolution, timescale]:
+        if (user_input is not None) and (type(user_input) not in [str, list]):
+            print("Function arguments require a single string value for your inputs")
+            return None
 
-            # This catches any common bad inputs for resolution: i.e. "3KM" or "3km" instead of "3 km"
-            if key == "resolution":
-                try:
-                    good_resolution_input = val.lower().split("km")[0] + " km"
-                    if good_resolution_input in valid_options:
-                        print("Input " + key + "='" + val + "' is not a valid option.")
-                        print(
-                            "Outputting data for "
-                            + key
-                            + "='"
-                            + good_resolution_input
-                            + "'\n"
-                        )
-                        d[key] = good_resolution_input
-                        continue
-                except:
-                    pass
+    d = {
+        "variable": variable if type(variable) == list else [variable],
+        "timescale": timescale if type(timescale) == list else [timescale],
+        "downscaling_method": (
+            downscaling_method
+            if type(downscaling_method) == list
+            else [downscaling_method]
+        ),
+        "scenario": scenario if type(scenario) == list else [scenario],
+        "resolution": resolution if type(resolution) == list else [resolution],
+    }
 
-            print("Input " + key + "='" + val + "' is not a valid option.")
+    d = _check_if_good_input(d, cat_df)
 
-            closest_options = _get_closest_options(val, valid_options)
+    # Convert list items back to single str to match formatting in data
+    # Except for scenario which requires a list
+    d["variable"] = d["variable"][0]
+    d["timescale"] = d["timescale"][0]
+    d["downscaling_method"] = d["downscaling_method"][0]
+    d["resolution"] = d["resolution"][0]
 
-            # Sad! No closest options found. Just set the key to all valid options
-            if closest_options is None:
-                print("Valid options: " + ", ".join(valid_options))
-                raise ValueError("Bad input")
-
-            # Just one option in the list
-            elif len(closest_options) == 1:
-                print("Closest option: '" + closest_options[0] + "'")
-
-            elif len(closest_options) > 1:
-                print("Closest options: \n- " + "\n- ".join(closest_options))
-
-            # Set key to closest option
-            print("Outputting data for " + key + "='" + closest_options[0] + "'\n")
-            d[key] = closest_options[0]
+    # We need a list for cached area
+    if type(cached_area) == str:
+        cached_area = [cached_area]
 
     # Maybe the user put an input for cached area but not for area subset
     # We need to have the matching/correct area subset in order for selections.retrieve() to actually subset the data
@@ -2133,12 +1736,18 @@ def get_data(
     selections.timescale = d["timescale"]
     selections.units = units
 
-    if d["scenario"] in ["Historical Climate", "Historical Reconstruction"]:
-        selections.scenario_historical = [d["scenario"]]
+    if "Historical Reconstruction" in d["scenario"]:
+        selections.scenario_historical = ["Historical Reconstruction"]
         selections.scenario_ssp = []
+        if len(d["scenario"]) != 1:
+            print(
+                "WARNING: Historical Reconstruction data cannot be retrieved in the same data object as other scenario options. Only returning Historical Reconstruction data."
+            )
+
     else:
-        selections.scenario_historical = []
-        selections.scenario_ssp = [d["scenario"]]
+        if "Historical Climate" in d["scenario"]:
+            selections.scenario_historical = ["Historical Climate"]
+        selections.scenario_ssp = [x for x in d["scenario"] if "Historical" not in x]
 
     # Retrieve data
     data = selections.retrieve()

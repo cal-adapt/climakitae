@@ -58,11 +58,10 @@ def _log(func):
 
 
 def _enable_lib_logging(obj):
-    """
-    Adds the `log` wrapper to all functions and sub-classes within the given module or class.
+    """Adds the `log` wrapper to all functions and sub-classes within the given module or class.
 
     Parameters
-    -----------
+    ----------
     obj: types.ModuleType or type (module or class)
     """
     # Check if the passed in object is a module or a class
