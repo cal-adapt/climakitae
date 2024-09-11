@@ -892,19 +892,30 @@ def drop_invalid_wrf_sims(ds):
         raise AttributeError(
             "Missing an `all_sims` dimension on the dataset. Create `all_sims` with .stack on `simulation` and `scenario`."
         )
-    
+
     # Find valid simulation from catalog
     df = intake.open_esm_datastore(data_catalog_url).df
     filter_df = df[
-        (df['activity_id'] == 'WRF') & 
-        (df['table_id'] == timescale_to_table_id(ds.frequency)) & 
-        (df['grid_label'] == resolution_to_gridlabel(ds.resolution)) & 
-        (df['variable_id'] == ds.variable_id) & 
-        (df['experiment_id'] != 'historical') & 
-        (df['experiment_id'] != 'reanalysis') & 
-        (df['source_id'] != 'ensmean')
+        (df["activity_id"] == "WRF")
+        & (df["table_id"] == timescale_to_table_id(ds.frequency))
+        & (df["grid_label"] == resolution_to_gridlabel(ds.resolution))
+        & (df["variable_id"] == ds.variable_id)
+        & (df["experiment_id"] != "historical")
+        & (df["experiment_id"] != "reanalysis")
+        & (df["source_id"] != "ensmean")
     ]
-    valid_sim_list = list(zip(filter_df['activity_id'] + '_' + filter_df['source_id'] + '_' + filter_df['member_id'], filter_df['experiment_id'].apply(lambda val: f"Historical + {scenario_to_experiment_id(val, reverse=True)}")))
+    valid_sim_list = list(
+        zip(
+            filter_df["activity_id"]
+            + "_"
+            + filter_df["source_id"]
+            + "_"
+            + filter_df["member_id"],
+            filter_df["experiment_id"].apply(
+                lambda val: f"Historical + {scenario_to_experiment_id(val, reverse=True)}"
+            ),
+        )
+    )
     return ds.sel(all_sims=valid_sim_list)
 
 
