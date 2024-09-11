@@ -389,6 +389,9 @@ def get_ks_stat(bms, distr="gev", multiple_points=True):
         elif distr == "genpareto":
             cdf = "genpareto"
             args = (parameters["c"], parameters["loc"], parameters["scale"])
+        elif distr == "gamma":
+            cdf = "gamma"
+            args = (parameters["a"], parameters["loc"], parameters["scale"])
 
         try:
             ks = stats.kstest(bms, cdf, args=args)
