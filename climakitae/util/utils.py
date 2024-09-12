@@ -874,8 +874,8 @@ def drop_invalid_wrf_sims(ds):
     Parameters
     ----------
     ds : xr.Dataset
-        The dataset containing WRF simulations. The dataset must have a 
-        dimension `all_sims` that results from stacking `simulation` and 
+        The dataset containing WRF simulations. The dataset must have a
+        dimension `all_sims` that results from stacking `simulation` and
         `scenario`.
 
     Returns
