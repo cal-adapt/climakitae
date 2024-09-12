@@ -8,7 +8,9 @@ import pyproj
 import rioxarray as rio
 import pandas as pd
 import copy
+import intake
 from timezonefinder import TimezoneFinder
+from climakitae.core.paths import data_catalog_url
 
 
 def downscaling_method_as_list(downscaling_method):
@@ -638,8 +640,6 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
     if selections.data_type == "Station":
         station_name = selections.station
 
-        from climakitae.core.data_interface import DataInterface
-
         data_catalog = DataInterface()
 
         # Getting lat/lon of a specific station
@@ -893,57 +893,30 @@ def drop_invalid_wrf_sims(ds):
             "Missing an `all_sims` dimension on the dataset. Create `all_sims` with .stack on `simulation` and `scenario`."
         )
 
-    # There are no simulations that need to be dropped at a `3 km` resolution, since the only simulations are in SSP 3-7.0.
-    if ds.resolution == "3 km":
-        return ds
-
-    if ds.resolution == "9 km":
-        valid_sims = [
-            ("WRF_CESM2_r11i1p1f1", "Historical + SSP 2-4.5 -- Middle of the Road"),
-            ("WRF_CESM2_r11i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
-            ("WRF_CESM2_r11i1p1f1", "Historical + SSP 5-8.5 -- Burn it All"),
-            ("WRF_CNRM-ESM2-1_r1i1p1f2", "Historical + SSP 3-7.0 -- Business as Usual"),
-            (
-                "WRF_EC-Earth3-Veg_r1i1p1f1",
-                "Historical + SSP 3-7.0 -- Business as Usual",
+    # Find valid simulation from catalog
+    df = intake.open_esm_datastore(data_catalog_url).df
+    filter_df = df[
+        (df["activity_id"] == "WRF")
+        & (df["table_id"] == timescale_to_table_id(ds.frequency))
+        & (df["grid_label"] == resolution_to_gridlabel(ds.resolution))
+        & (df["variable_id"] == ds.variable_id)
+        & (df["experiment_id"] != "historical")
+        & (df["experiment_id"] != "reanalysis")
+        & (df["source_id"] != "ensmean")
+    ]
+    valid_sim_list = list(
+        zip(
+            filter_df["activity_id"]
+            + "_"
+            + filter_df["source_id"]
+            + "_"
+            + filter_df["member_id"],
+            filter_df["experiment_id"].apply(
+                lambda val: f"Historical + {scenario_to_experiment_id(val, reverse=True)}"
             ),
-            ("WRF_FGOALS-g3_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
-        ]
-        if ds.frequency == "hourly":
-            valid_sims += [
-                (
-                    "WRF_EC-Earth3_r1i1p1f1",
-                    "Historical + SSP 3-7.0 -- Business as Usual",
-                ),
-                ("WRF_MIROC6_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
-                (
-                    "WRF_MPI-ESM1-2-HR_r3i1p1f1",
-                    "Historical + SSP 3-7.0 -- Business as Usual",
-                ),
-                ("WRF_TaiESM1_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
-            ]
-
-    if ds.resolution == "45 km":
-        valid_sims = [
-            ("WRF_CESM2_r11i1p1f1", "Historical + SSP 2-4.5 -- Middle of the Road"),
-            ("WRF_CNRM-ESM2-1_r1i1p1f2", "Historical + SSP 3-7.0 -- Business as Usual"),
-            (
-                "WRF_EC-Earth3-Veg_r1i1p1f1",
-                "Historical + SSP 3-7.0 -- Business as Usual",
-            ),
-            ("WRF_CESM2_r11i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
-            ("WRF_FGOALS-g3_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
-            ("WRF_CESM2_r11i1p1f1", "Historical + SSP 5-8.5 -- Burn it All"),
-        ]
-        if ds.frequency == "hourly":
-            valid_sims += (
-                (
-                    "WRF_EC-Earth3_r1i1p1f1",
-                    "Historical + SSP 3-7.0 -- Business as Usual",
-                ),
-            )
-
-    return ds.sel(all_sims=valid_sims)
+        )
+    )
+    return ds.sel(all_sims=valid_sim_list)
 
 
 def stack_sims_across_locs(ds, sim_dim_name):
