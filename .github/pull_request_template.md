@@ -1,35 +1,37 @@
 # Description of PR
 
-**Summary of changes and related issue**
+### Summary of changes and related issue
+[What's changed in this PR?]
 
-**Relevant motivation and context**
+### Relevant motivation and context
+[Why did you change this and what applicable context is needed to understand why this change is needed?]
 
-**Dependencies required for this change?**
-
-**Fixes # (issue), delete if not necessary**
-
-## Type of change
-
+### Type of change
 - [ ] Bug fix (non-breaking change which fixes an issue)
 - [ ] New feature (non-breaking change which adds functionality)
 - [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
 - [ ] This change requires a documentation update
 
-# How Has This Been Tested?
+<br>
 
-**Please describe the tests that you ran to verify your changes. Provide instructions so we can reproduce.**
+## Definition of Done Checklist
 
-- [ ] Test A
-- [ ] Test B
+#### Practical
+- [ ] 80% unit test coverage
+- [ ] Documentation
+  - [ ] All functions/adjusted functions documented in the [readthedocs](https://climakitae.readthedocs.io/en/latest/).
+  - [ ] Documentation is pushed
+- [ ] Complex code commented
+- [ ] Naming conventions followed
+  - [ ] Helper functions hidden with `_` before the name
+- [ ] Context of function is clearly provided
+  - [ ] Intent of function is provided
+  - [ ] How to test, so that it is not siloed on scientists and anyone can review
+  - [ ] Appropriate manual testing was completed
+- [ ] Any notebooks known to utilize the affected functions are still working
+- [ ] Linting completed and resolved
 
-# Checklist:
-
-- [ ] My code follows the style guidelines of this project
-- [ ] I have performed a self-review of my code
-- [ ] I have commented my code, particularly in hard-to-understand areas
-- [ ] I have made corresponding changes to the documentation
-- [ ] My changes generate no new warnings
-- [ ] I have added tests that prove my fix is effective or that my feature works
-- [ ] New and existing unit tests pass locally with my changes
-- [ ] Any dependent changes have been merged and published in downstream modules
-
+#### Conceptual
+- [ ] Doesn't replicate existing functionality
+- [ ] Aligns with general coding standard of existing functions
+- [ ] Matches desired functinonality from users/scientists
