@@ -260,7 +260,7 @@ def _get_distr_func(distr):
     scipy.stats
     """
 
-    distrs = ["gev", "gumbel", "weibull", "pearson3", "genpareto"]
+    distrs = ["gev", "gumbel", "weibull", "pearson3", "genpareto", "gamma"]
 
     if distr == "gev":
         distr_func = stats.genextreme
@@ -272,6 +272,8 @@ def _get_distr_func(distr):
         distr_func = stats.pearson3
     elif distr == "genpareto":
         distr_func = stats.genpareto
+    elif distr == "gamma":
+        distr_func = stats.gamma
     else:
         raise ValueError(
             "invalid distribution type. expected one of the following: %s" % distrs
@@ -331,6 +333,10 @@ def _get_fitted_distr(bms, distr, distr_func):
         p_names = ("c", "loc", "scale")
         parameters = get_param_dict(p_names, p_values)
         fitted_distr = stats.genpareto(**parameters)
+    elif distr == "gamma":
+        p_names = ("a", "loc", "scale")
+        parameters = get_param_dict(p_names, p_values)
+        fitted_distr = stats.gamma(**parameters)
     else:
         raise ValueError("invalid distribution type.")
     return parameters, fitted_distr
