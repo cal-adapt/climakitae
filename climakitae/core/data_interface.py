@@ -527,6 +527,8 @@ class DataParameters(param.Parameterized):
         variable long display name
     units: str
         unit abbreviation currently of the data (native or converted)
+    enable_hidden_vars: boolean
+        enable selection of variables that are hidden from the GUI?
     extended_description: str
         extended description of the data variable
     variable_id: list of strs
