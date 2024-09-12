@@ -115,7 +115,11 @@ def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
 
 
 def _get_variable_options_df(
-    variable_descriptions, unique_variable_ids, downscaling_method, timescale
+    variable_descriptions,
+    unique_variable_ids,
+    downscaling_method,
+    timescale,
+    enable_hidden_vars=False,
 ):
     """Get variable options to display depending on downscaling method and timescale
 
@@ -130,12 +134,18 @@ def _get_variable_options_df(
         Data downscaling method
     timescale: str, one of "hourly", "daily", or "monthly"
         Timescale
+    enable_hidden_vars: boolean, default to False
+        Return all variables, including the ones in which "show" is set to False?
 
     Returns
     -------
     pd.DataFrame
         Subset of var_config for input downscaling_method and timescale
     """
+
+    # Based on logic in the code and the name of the variable this needs to be the opposite of the variable named enable_hidden_vars
+    hide_hidden_vars = not enable_hidden_vars
+
     # Catalog options and derived options together
     derived_variables = list(
         variable_descriptions[
@@ -146,7 +156,7 @@ def _get_variable_options_df(
 
     # Subset dataframe
     variable_options_df = variable_descriptions[
-        (variable_descriptions["show"] == True)
+        (variable_descriptions["show"] == hide_hidden_vars)
         & (  # Make sure it's a valid variable selection
             variable_descriptions["variable_id"].isin(var_options_plus_derived)
             & (  # Make sure variable_id is part of the catalog options for user selections
@@ -594,6 +604,7 @@ class DataParameters(param.Parameterized):
     _station_data_info = param.String(
         default="", doc="Information about the bias correction process and resolution"
     )
+    enable_hidden_vars = param.Boolean(False)
 
     # Empty params, initialized in __init__
     scenario_ssp = param.ListSelector(objects=dict())
@@ -658,6 +669,7 @@ class DataParameters(param.Parameterized):
             unique_variable_ids=unique_variable_ids,
             downscaling_method=self.downscaling_method,
             timescale=self.timescale,
+            enable_hidden_vars=self.enable_hidden_vars,
         )
 
         # Show derived index option?
@@ -814,6 +826,7 @@ class DataParameters(param.Parameterized):
         "data_type",
         "variable",
         "variable_type",
+        "enable_hidden_vars",
         watch=True,
     )
     def _update_user_options(self):
@@ -862,6 +875,7 @@ class DataParameters(param.Parameterized):
                 unique_variable_ids=unique_variable_ids,
                 downscaling_method=self.downscaling_method,
                 timescale=self.timescale,
+                enable_hidden_vars=self.enable_hidden_vars,
             )
 
             # Filter for derived indices
