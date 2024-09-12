@@ -563,6 +563,10 @@ class DataParameters(param.Parameterized):
         list of available scenarios (historical and ssp) for selection
     variable_options_df: pd.DataFrame
         filtered variable descriptions for the downscaling_method and timescale
+    warming_level: array
+        global warming level(s)
+    retrieval_method: str, "Warming Level" or "Time"
+        how do you want the data to be retrieved?
     """
 
     # Unit conversion options for each unit
@@ -605,6 +609,9 @@ class DataParameters(param.Parameterized):
         default="", doc="Information about the bias correction process and resolution"
     )
     enable_hidden_vars = param.Boolean(False)
+    retrieval_method = param.Selector(
+        default="Warming Level", objects=["Warming Level", "Time"]
+    )
 
     # Empty params, initialized in __init__
     scenario_ssp = param.ListSelector(objects=dict())
@@ -613,6 +620,7 @@ class DataParameters(param.Parameterized):
     units = param.Selector(objects=dict())
     extended_description = param.Selector(objects=dict())
     variable_id = param.ListSelector(objects=dict())
+    warming_level = param.ListSelector(objects=dict())
 
     # Temporal range of each dataset
     historical_climate_range_wrf = (1980, 2015)
@@ -620,6 +628,14 @@ class DataParameters(param.Parameterized):
     historical_climate_range_wrf_and_loca = (1981, 2015)
     historical_reconstruction_range = (1950, 2022)
     ssp_range = (2015, 2100)
+
+    # Warming level options
+    wl_options = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4]
+    wl_default = [2]
+    wl_time_option = ["n/a"]
+    warming_level = param.ListSelector(
+        default=[2], objects=[0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4]
+    )
 
     # User warnings
     _info_about_station_data = "When you retrieve the station data, gridded model data will be bias-corrected to that point. This process can start from any model grid-spacing."
@@ -944,11 +960,50 @@ class DataParameters(param.Parameterized):
             self.param["units"].objects = [native_unit]
             self.units = native_unit
 
+    @param.depends("retrieval_method", watch=True)
+    def _update_scenarios_retrieval_method(self):
+        if self.retrieval_method == "Warming Level":
+            self.param["scenario_ssp"].objects = ["n/a"]
+            self.scenario_ssp = ["n/a"]
+            self.param["scenario_historical"].objects = ["n/a"]
+            self.scenario_historical = ["n/a"]
+            self.param["warming_level"].objects = wl_options
+            self.warming_level = [2]
+        elif self.retrieval_method == "Time":
+            self.param["warming_level"].objects = ["n/a"]
+            self.warming_level = ["n/a"]
+
+            # Set scenario param
+            scenario_ssp_options = [
+                scenario_to_experiment_id(scen, reverse=True)
+                for scen in self.scenario_options
+                if "ssp" in scen
+            ]
+            for scenario_i in [
+                "SSP 3-7.0 -- Business as Usual",
+                "SSP 2-4.5 -- Middle of the Road",
+                "SSP 5-8.5 -- Burn it All",
+            ]:
+                if scenario_i in scenario_ssp_options:  # Reorder list
+                    scenario_ssp_options.remove(scenario_i)  # Remove item
+                    scenario_ssp_options.append(scenario_i)  # Add to back of list
+            self.param["scenario_ssp"].objects = scenario_ssp_options
+            self.scenario_ssp = []
+
+            historical_scenarios = ["historical", "reanalysis"]
+            scenario_historical_options = [
+                scenario_to_experiment_id(scen, reverse=True)
+                for scen in self.scenario_options
+                if scen in historical_scenarios
+            ]
+            self.param["scenario_historical"].objects = scenario_historical_options
+
     @param.depends("resolution", "downscaling_method", "data_type", watch=True)
     def _update_scenarios(self):
         """
         Update scenario options. Raise data warning if a bad selection is made.
         """
+
         # Set incoming scenario_historical
         _scenario_historical = self.scenario_historical
 
