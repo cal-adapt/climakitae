@@ -609,9 +609,7 @@ class DataParameters(param.Parameterized):
         default="", doc="Information about the bias correction process and resolution"
     )
     enable_hidden_vars = param.Boolean(False)
-    retrieval_method = param.Selector(
-        default="Warming Level", objects=["Warming Level", "Time"]
-    )
+    retrieval_method = param.Selector(default="Time", objects=["Time", "Warming Level"])
 
     # Empty params, initialized in __init__
     scenario_ssp = param.ListSelector(objects=dict())
@@ -633,8 +631,11 @@ class DataParameters(param.Parameterized):
     wl_options = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4]
     wl_default = [2]
     wl_time_option = ["n/a"]
-    warming_level = param.ListSelector(
-        default=[2], objects=[0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4]
+    warming_level = param.ListSelector(default=["n/a"], objects=["n/a"])
+    wl_window = param.Integer(
+        default=15,
+        bounds=(5, 25),
+        doc="Years around Global Warming Level (+/-) \n (e.g. 15 means a 30yr window)",
     )
 
     # User warnings
@@ -739,6 +740,35 @@ class DataParameters(param.Parameterized):
             self.timescale,
         )
         self._data_warning = ""
+
+    @param.depends("retrieval_method", watch=True)
+    def _update_scenarios_retrieval_method(self):
+        if self.retrieval_method == "Warming Level":
+            self.param["warming_level"].objects = self.wl_options
+            self.warming_level = [2]
+
+            self.param["scenario_ssp"].objects = ["n/a"]
+            self.scenario_ssp = ["n/a"]
+
+            self.param["scenario_historical"].objects = ["n/a"]
+            self.scenario_historical = ["n/a"]
+
+        elif self.retrieval_method == "Time":
+            self.param["warming_level"].objects = ["n/a"]
+            self.warming_level = ["n/a"]
+
+            self.param["scenario_ssp"].objects = [
+                "SSP 3-7.0 -- Business as Usual",
+                "SSP 2-4.5 -- Middle of the Road",
+                "SSP 5-8.5 -- Burn it All",
+            ]
+            self.scenario_ssp = []
+
+            self.param["scenario_historical"].objects = [
+                "Historical Climate",
+                "Historical Reconstruction",
+            ]
+            self.scenario_historical = ["Historical Climate"]
 
     @param.depends("latitude", "longitude", watch=True)
     def _update_area_subset_to_lat_lon(self):
@@ -960,20 +990,20 @@ class DataParameters(param.Parameterized):
             self.param["units"].objects = [native_unit]
             self.units = native_unit
 
-    @param.depends("retrieval_method", watch=True)
-    def _update_scenarios_retrieval_method(self):
-        if self.retrieval_method == "Warming Level":
-            self.param["scenario_ssp"].objects = ["n/a"]
-            self.scenario_ssp = ["n/a"]
-            self.param["scenario_historical"].objects = ["n/a"]
-            self.scenario_historical = ["n/a"]
-            self.param["warming_level"].objects = wl_options
-            self.warming_level = [2]
-        elif self.retrieval_method == "Time":
-            self.param["warming_level"].objects = ["n/a"]
-            self.warming_level = ["n/a"]
+    @param.depends(
+        "resolution", "downscaling_method", "data_type", "retrieval_method", watch=True
+    )
+    def _update_scenarios(self):
+        """
+        Update scenario options. Raise data warning if a bad selection is made.
+        """
 
-            # Set scenario param
+        if self.retrieval_method == "Time":
+
+            # Set incoming scenario_historical
+            _scenario_historical = self.scenario_historical
+
+            # Get scenario options in catalog format
             scenario_ssp_options = [
                 scenario_to_experiment_id(scen, reverse=True)
                 for scen in self.scenario_options
@@ -988,7 +1018,9 @@ class DataParameters(param.Parameterized):
                     scenario_ssp_options.remove(scenario_i)  # Remove item
                     scenario_ssp_options.append(scenario_i)  # Add to back of list
             self.param["scenario_ssp"].objects = scenario_ssp_options
-            self.scenario_ssp = []
+            self.scenario_ssp = [
+                x for x in self.scenario_ssp if x in scenario_ssp_options
+            ]
 
             historical_scenarios = ["historical", "reanalysis"]
             scenario_historical_options = [
@@ -998,58 +1030,28 @@ class DataParameters(param.Parameterized):
             ]
             self.param["scenario_historical"].objects = scenario_historical_options
 
-    @param.depends("resolution", "downscaling_method", "data_type", watch=True)
-    def _update_scenarios(self):
-        """
-        Update scenario options. Raise data warning if a bad selection is made.
-        """
-
-        # Set incoming scenario_historical
-        _scenario_historical = self.scenario_historical
-
-        # Get scenario options in catalog format
-        scenario_ssp_options = [
-            scenario_to_experiment_id(scen, reverse=True)
-            for scen in self.scenario_options
-            if "ssp" in scen
-        ]
-        for scenario_i in [
-            "SSP 3-7.0 -- Business as Usual",
-            "SSP 2-4.5 -- Middle of the Road",
-            "SSP 5-8.5 -- Burn it All",
-        ]:
-            if scenario_i in scenario_ssp_options:  # Reorder list
-                scenario_ssp_options.remove(scenario_i)  # Remove item
-                scenario_ssp_options.append(scenario_i)  # Add to back of list
-        self.param["scenario_ssp"].objects = scenario_ssp_options
-        self.scenario_ssp = [x for x in self.scenario_ssp if x in scenario_ssp_options]
-
-        historical_scenarios = ["historical", "reanalysis"]
-        scenario_historical_options = [
-            scenario_to_experiment_id(scen, reverse=True)
-            for scen in self.scenario_options
-            if scen in historical_scenarios
-        ]
-        self.param["scenario_historical"].objects = scenario_historical_options
-
-        # check if input historical scenarios match new available scenarios
-        # if no reanalysis scenario then return False
-        def _check_inputs(a, b):
-            chk = False
-            if len(b) < 2:
+            # check if input historical scenarios match new available scenarios
+            # if no reanalysis scenario then return False
+            def _check_inputs(a, b):
+                chk = False
+                if len(b) < 2:
+                    return chk
+                for i in a:
+                    if i in a:
+                        chk = True
                 return chk
-            for i in a:
-                if i in a:
-                    chk = True
-            return chk
 
-        # check if new selection has the historical scenario options and if not select the first new option
-        if _check_inputs(_scenario_historical, scenario_historical_options):
-            self.scenario_historical = _scenario_historical
+            # check if new selection has the historical scenario options and if not select the first new option
+            if _check_inputs(_scenario_historical, scenario_historical_options):
+                self.scenario_historical = _scenario_historical
+            else:
+                self.scenario_historical = [scenario_historical_options[0]]
+
         else:
-            self.scenario_historical = [scenario_historical_options[0]]
+            pass
 
     @param.depends(
+        "retrieval_method",
         "scenario_ssp",
         "scenario_historical",
         "downscaling_method",
@@ -1062,62 +1064,69 @@ class DataParameters(param.Parameterized):
         bad_time_slice_warning = """You've selected a time slice that is outside the temporal range 
         of the selected data."""
 
-        # Set time range of historical data
-        if self.downscaling_method == "Statistical":
-            historical_climate_range = self.historical_climate_range_loca
-        elif self.downscaling_method == "Dynamical+Statistical":
-            historical_climate_range = self.historical_climate_range_wrf_and_loca
+        if self.retrieval_method == "Warming Level":
+            pass
+
         else:
-            historical_climate_range = self.historical_climate_range_wrf
-
-        # Warning based on data scenario selections
-        if (  # Warn user that they cannot have SSP data and ERA5-WRF data
-            True in ["SSP" in one for one in self.scenario_ssp]
-        ) and ("Historical Reconstruction" in self.scenario_historical):
-            data_warning = """Historical Reconstruction data is not available with SSP data.
-            Try using the Historical Climate data instead."""
-
-        elif (  # Warn user if no data is selected
-            not True in ["SSP" in one for one in self.scenario_ssp]
-        ) and (not True in ["Historical" in one for one in self.scenario_historical]):
-            data_warning = "Please select as least one dataset."
-
-        elif (
-            (  # If both historical options are selected, warn user the data will be cut
-                "Historical Reconstruction" in self.scenario_historical
-            )
-            and ("Historical Climate" in self.scenario_historical)
-        ):
-            data_warning = """The timescale of Historical Reconstruction data will be cut 
-            to match that of the Historical Climate data if both are retrieved."""
-
-        # Warnings based on time slice selections
-        if (not True in ["SSP" in one for one in self.scenario_ssp]) and (
-            "Historical Climate" in self.scenario_historical
-        ):
-            if (self.time_slice[0] < historical_climate_range[0]) or (
-                self.time_slice[1] > historical_climate_range[1]
-            ):
-                data_warning = bad_time_slice_warning
-        elif True in ["SSP" in one for one in self.scenario_ssp]:
-            if not True in ["Historical" in one for one in self.scenario_historical]:
-                if (self.time_slice[0] < self.ssp_range[0]) or (
-                    self.time_slice[1] > self.ssp_range[1]
-                ):
-                    data_warning = bad_time_slice_warning
+            # Set time range of historical data
+            if self.downscaling_method == "Statistical":
+                historical_climate_range = self.historical_climate_range_loca
+            elif self.downscaling_method == "Dynamical+Statistical":
+                historical_climate_range = self.historical_climate_range_wrf_and_loca
             else:
+                historical_climate_range = self.historical_climate_range_wrf
+
+            # Warning based on data scenario selections
+            if (  # Warn user that they cannot have SSP data and ERA5-WRF data
+                True in ["SSP" in one for one in self.scenario_ssp]
+            ) and ("Historical Reconstruction" in self.scenario_historical):
+                data_warning = """Historical Reconstruction data is not available with SSP data.
+                Try using the Historical Climate data instead."""
+
+            elif (  # Warn user if no data is selected
+                not True in ["SSP" in one for one in self.scenario_ssp]
+            ) and (
+                not True in ["Historical" in one for one in self.scenario_historical]
+            ):
+                data_warning = "Please select as least one dataset."
+
+            elif (  # If both historical options are selected, warn user the data will be cut
+                "Historical Reconstruction" in self.scenario_historical
+            ) and (
+                "Historical Climate" in self.scenario_historical
+            ):
+                data_warning = """The timescale of Historical Reconstruction data will be cut 
+                to match that of the Historical Climate data if both are retrieved."""
+
+            # Warnings based on time slice selections
+            if (not True in ["SSP" in one for one in self.scenario_ssp]) and (
+                "Historical Climate" in self.scenario_historical
+            ):
                 if (self.time_slice[0] < historical_climate_range[0]) or (
-                    self.time_slice[1] > self.ssp_range[1]
+                    self.time_slice[1] > historical_climate_range[1]
                 ):
                     data_warning = bad_time_slice_warning
-        elif self.scenario_historical == ["Historical Reconstruction"]:
-            if (self.time_slice[0] < self.historical_reconstruction_range[0]) or (
-                self.time_slice[1] > self.historical_reconstruction_range[1]
-            ):
-                data_warning = bad_time_slice_warning
+            elif True in ["SSP" in one for one in self.scenario_ssp]:
+                if not True in [
+                    "Historical" in one for one in self.scenario_historical
+                ]:
+                    if (self.time_slice[0] < self.ssp_range[0]) or (
+                        self.time_slice[1] > self.ssp_range[1]
+                    ):
+                        data_warning = bad_time_slice_warning
+                else:
+                    if (self.time_slice[0] < historical_climate_range[0]) or (
+                        self.time_slice[1] > self.ssp_range[1]
+                    ):
+                        data_warning = bad_time_slice_warning
+            elif self.scenario_historical == ["Historical Reconstruction"]:
+                if (self.time_slice[0] < self.historical_reconstruction_range[0]) or (
+                    self.time_slice[1] > self.historical_reconstruction_range[1]
+                ):
+                    data_warning = bad_time_slice_warning
 
-        # Show warning
-        self._data_warning = data_warning
+            # Show warning
+            self._data_warning = data_warning
 
     @param.depends(
         "scenario_ssp", "scenario_historical", "downscaling_method", watch=True
