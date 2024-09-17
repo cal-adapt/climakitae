@@ -6,9 +6,6 @@ dependencies:
   - python
   - cartopy
   - geopandas
-  - geoviews
-  - holoviews
-  - hvplot
   - intake
   - intake-geopandas
   - intake-xarray
@@ -18,7 +15,6 @@ dependencies:
   - metpy
   - numpy
   - pandas
-  - panel
   - param
   - proj
   - psutil
@@ -29,6 +25,7 @@ dependencies:
   - scipy
   - shapely
   - xarray
+  - dask
   - xmip
   - pygeos
   - pip

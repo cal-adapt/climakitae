@@ -12,6 +12,14 @@ climakitae.util.cluster module
    :undoc-members:
    :show-inheritance:
 
+climakitae.util.colormap module
+-------------------------------
+
+.. automodule:: climakitae.util.colormap
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 climakitae.util.generate\_gwl\_tables module
 --------------------------------------------
 

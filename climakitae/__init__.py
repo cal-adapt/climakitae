@@ -1,6 +1,4 @@
-from climakitae.core.data_interface import Select
 from climakitae.core.data_load import load
-from climakitae.core.data_view import view
 from climakitae.core.data_export import export
 
 try:
@@ -17,11 +15,8 @@ except Exception:
     __version__ = "999"
 
 __all__ = (
-    # Classes
-    "Select",
     # Methods
     "load",
-    "view",
     "export",
     # Constants
     "__version__",

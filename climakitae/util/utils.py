@@ -7,18 +7,10 @@ import xarray as xr
 import pyproj
 import rioxarray as rio
 import pandas as pd
-import matplotlib.colors as mcolors
-import matplotlib
 import copy
+import intake
 from timezonefinder import TimezoneFinder
-
-from climakitae.core.paths import (
-    ae_orange,
-    ae_diverging,
-    ae_blue,
-    ae_diverging_r,
-    categorical_cb,
-)
+from climakitae.core.paths import data_catalog_url
 
 
 def downscaling_method_as_list(downscaling_method):
@@ -42,6 +34,33 @@ def downscaling_method_as_list(downscaling_method):
     return method_list
 
 
+def scenario_to_experiment_id(scenario, reverse=False):
+    """Convert scenario format to experiment_id format matching catalog names.
+
+    Parameters
+    ----------
+    scenario: str
+    reverse: boolean, optional
+        Set reverse=True to get scenario format from input experiement_id.
+        Default to False
+
+    Returns
+    -------
+    str
+    """
+    scenario_dict = {
+        "Historical Reconstruction": "reanalysis",
+        "Historical Climate": "historical",
+        "SSP 2-4.5 -- Middle of the Road": "ssp245",
+        "SSP 5-8.5 -- Burn it All": "ssp585",
+        "SSP 3-7.0 -- Business as Usual": "ssp370",
+    }
+
+    if reverse == True:
+        scenario_dict = {v: k for k, v in scenario_dict.items()}
+    return scenario_dict[scenario]
+
+
 def area_average(dset):
     """Weighted area-average
 
@@ -51,10 +70,9 @@ def area_average(dset):
         one dataset from the catalog
 
     Returns
-    ----------
+    -------
     xr.Dataset
         sub-setted output data
-
     """
     weights = np.cos(np.deg2rad(dset.lat))
     if set(["x", "y"]).issubset(set(dset.dims)):
@@ -67,16 +85,55 @@ def area_average(dset):
 
 
 def read_csv_file(rel_path, index_col=None, parse_dates=False):
+    """Read CSV file into pandas DataFrame
+
+    Parameters
+    ----------
+    rel_path: str
+        path to CSV file relative to this util python file
+    index_col: str
+        CSV column to index DataFrame on
+    parse_dates: boolean
+        Whether to have pandas parse the date strings
+
+    Returns
+    -------
+    pd.DataFrame
+    """
     return pd.read_csv(
         _package_file_path(rel_path), index_col=index_col, parse_dates=parse_dates
     )
 
 
 def write_csv_file(df, rel_path):
+    """Write CSV file from pandas DataFrame
+
+    Parameters
+    ----------
+    df: pd.DataFrame
+        pandas DataFrame to write out
+    rel_path: str
+        path to CSV file relative to this util python file
+
+    Returns
+    -------
+    None or str
+    """
     return df.to_csv(_package_file_path(rel_path))
 
 
 def _package_file_path(rel_path):
+    """Find OS full path name given relative path
+
+    Parameters
+    ----------
+    rel_path: str
+        path to file relative to this util python file
+
+    Returns
+    -------
+    str
+    """
     return os.path.normpath(os.path.join(os.path.dirname(__file__), "..", rel_path))
 
 
@@ -87,7 +144,7 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
     Then, it uses xarray’s built in method .sel to get the nearest gridcell.
 
     Parameters
-    -----------
+    ----------
     data: xr.DataArray or xr.Dataset
         Gridded data
     lat: float
@@ -105,7 +162,7 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
 
     See also
     --------
-    xarray.DataArray.sel
+    xr.DataArray.sel
     """
 
     # Use data cellsize as tolerance for selecting nearest
@@ -159,7 +216,7 @@ def julianDay_to_str_date(julday, leap_year=True, str_format="%b-%d"):
     i.e. if str_format = "%b-%d", the output will be Mon-Day ("Jan-01")
 
     Parameters
-    -----------
+    ----------
     julday: int
         Julian day
     leap_year: boolean
@@ -168,7 +225,7 @@ def julianDay_to_str_date(julday, leap_year=True, str_format="%b-%d"):
         string format of output date
 
     Returns
-    --------
+    -------
     date: str
         Julian day in the input format month-day (i.e. "Jan-01")
     """
@@ -183,8 +240,16 @@ def julianDay_to_str_date(julday, leap_year=True, str_format="%b-%d"):
 
 
 def readable_bytes(B):
-    """
-    Return the given bytes as a human friendly KB, MB, GB, or TB string.
+    """Return the given bytes as a human friendly KB, MB, GB, or TB string.
+
+    Parameters
+    ----------
+    B: byte
+
+    Returns
+    -------
+    str
+
     Code from stackoverflow: https://stackoverflow.com/questions/12523586/python-format-size-application-converting-b-to-kb-mb-gb-tb
     """
     B = float(B)
@@ -205,54 +270,11 @@ def readable_bytes(B):
         return "{0:.2f} TB".format(B / TB)
 
 
-def read_ae_colormap(cmap="ae_orange", cmap_hex=False):
-    """Read in AE colormap by name
-
-    Parameters
-    -----------
-    cmap: str
-        one of ["ae_orange","ae_blue","ae_diverging"]
-    cmap_hex: boolean
-        return RGB or hex colors?
-
-    Returns
-    --------
-    one of either
-
-    cmap_data: matplotlib.colors.LinearSegmentedColormap
-        used for matplotlib (if cmap_hex == False)
-    cmap_data: list
-        used for hvplot maps (if cmap_hex == True)
-
-    """
-
-    if cmap == "ae_orange":
-        cmap_data = ae_orange
-    elif cmap == "ae_diverging":
-        cmap_data = ae_diverging
-    elif cmap == "ae_blue":
-        cmap_data = ae_blue
-    elif cmap == "ae_diverging_r":
-        cmap_data = ae_diverging_r
-    elif cmap == "categorical_cb":
-        cmap_data = categorical_cb
-
-    # Load text file
-    cmap_np = np.loadtxt(_package_file_path(cmap_data), dtype=float)
-
-    # RBG to hex
-    if cmap_hex:
-        cmap_data = [matplotlib.colors.rgb2hex(color) for color in cmap_np]
-    else:
-        cmap_data = mcolors.LinearSegmentedColormap.from_list(cmap, cmap_np, N=256)
-    return cmap_data
-
-
 def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
     """Reproject xr.DataArray using rioxarray.
 
     Parameters
-    -----------
+    ----------
     xr_da: xr.DataArray
         2-or-3-dimensional DataArray, with 2 spatial dimensions
     proj: str
@@ -261,7 +283,7 @@ def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
         fill value (default to np.nan)
 
     Returns
-    --------
+    -------
     data_reprojected: xr.DataArray
         2-or-3-dimensional reprojected DataArray
 
@@ -271,14 +293,13 @@ def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
         if input data does not have spatial coords x,y
     ValueError
         if input data has more than 5 dimensions
-
     """
 
     def _reproject_data_4D(data, reproject_dim, proj="EPSG:4326", fill_value=np.nan):
         """Reproject 4D xr.DataArray across an input dimension
 
         Parameters
-        -----------
+        ----------
         data: xr.DataArray
             4-dimensional DataArray, with 2 spatial dimensions
         reproject_dim: str
@@ -289,10 +310,9 @@ def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
             fill value (default to np.nan)
 
         Returns
-        --------
+        -------
         data_reprojected: xr.DataArray
             4-dimensional reprojected DataArray
-
         """
         rp_list = []
         for i in range(len(data[reproject_dim])):
@@ -309,7 +329,7 @@ def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
         """Reproject 5D xr.DataArray across two input dimensions
 
         Parameters
-        -----------
+        ----------
         data: xr.DataArray
             5-dimensional DataArray, with 2 spatial dimensions
         reproject_dim: list
@@ -320,10 +340,9 @@ def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
             fill value (default to np.nan)
 
         Returns
-        --------
+        -------
         data_reprojected: xr.DataArray
             5-dimensional reprojected DataArray
-
         """
         rp_list_j = []
         reproject_dim_j = reproject_dim[0]
@@ -392,7 +411,18 @@ def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
 
 ## DFU notebook-specific functions, flexible for all notebooks
 def compute_annual_aggreggate(data, name, num_grid_cells):
-    """Calculates the annual sum of HDD and CDD"""
+    """Calculates the annual sum of HDD and CDD
+
+    Parameters
+    ----------
+    data: xr.DataArray
+    name: str
+    num_grid_cells: int
+
+    Returns
+    -------
+    annual_ag: xr.DataArray
+    """
     annual_ag = data.squeeze().groupby("time.year").sum(["time"])  # Aggregate annually
     annual_ag = annual_ag / num_grid_cells  # Divide by number of gridcells
     annual_ag.name = name  # Give new name to dataset
@@ -400,7 +430,16 @@ def compute_annual_aggreggate(data, name, num_grid_cells):
 
 
 def compute_multimodel_stats(data):
-    """Calculates model mean, min, max, median across simulations"""
+    """Calculates model mean, min, max, median across simulations
+
+    Parameters
+    ----------
+    data: xr.DataArray
+
+    Returns
+    -------
+    stats_concat: xr.DataArray
+    """
     # Compute mean across simulation dimensions and add is as a coordinate
     sim_mean = (
         data.mean(dim="simulation")
@@ -478,7 +517,16 @@ def trendline(data, kind="mean"):
 
 
 def combine_hdd_cdd(data):
-    """Drops specific unneeded coords from HDD/CDD data, independent of station or gridded data source"""
+    """Drops specific unneeded coords from HDD/CDD data, independent of station or gridded data source
+
+    Parameters
+    ----------
+    data: xr.DataArray
+
+    Returns
+    -------
+    data: xr.DataArray
+    """
     if data.name not in [
         "Annual Heating Degree Days (HDD)",
         "Annual Cooling Degree Days (CDD)",
@@ -497,29 +545,6 @@ def combine_hdd_cdd(data):
     return data
 
 
-## DFU plotting functions
-def hdd_cdd_lineplot(annual_data, trendline, title="title"):
-    """Plots annual CDD/HDD with trendline provided"""
-    return annual_data.hvplot.line(
-        x="year",
-        by="simulation",
-        width=800,
-        height=350,
-        title=title,
-        yformatter="%.0f",  # Remove scientific notation
-    ) * trendline.hvplot.line(  # Add trendline
-        x="year", color="black", line_dash="dashed", label="trendline"
-    )
-
-
-def hdh_cdh_lineplot(data):
-    """Plots HDH/CDH"""
-    return data.hvplot.line(
-        x="time", by="simulation", title=data.name, ylabel=data.name + " (degF)"
-    )
-
-
-## Heat Index summary table helper
 def summary_table(data):
     """Helper function to organize dataset object into a pandas dataframe for ease.
 
@@ -554,8 +579,16 @@ def summary_table(data):
 
 
 def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
-    """
-    Converts the inputted data to the local time of the selection.
+    """Converts the inputted data to the local time of the selection.
+
+    Parameters
+    ----------
+    data: xr.DataArray
+    selections: DataParameters
+
+    Returns
+    -------
+    sliced_data: xr.DataArray
     """
     # 1. Find the other data
     start, end = selections.time_slice
@@ -606,8 +639,6 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
     # 3. Find the data's centerpoint through selections
     if selections.data_type == "Station":
         station_name = selections.station
-
-        from climakitae.core.data_interface import DataInterface
 
         data_catalog = DataInterface()
 
@@ -736,7 +767,7 @@ def add_dummy_time_to_wl(wl_da):
     return wl_da
 
 
-def _downscaling_method_to_activity_id(downscaling_method, reverse=False):
+def downscaling_method_to_activity_id(downscaling_method, reverse=False):
     """Convert downscaling method to activity id to match catalog names
 
     Parameters
@@ -757,7 +788,7 @@ def _downscaling_method_to_activity_id(downscaling_method, reverse=False):
     return downscaling_dict[downscaling_method]
 
 
-def _resolution_to_gridlabel(resolution, reverse=False):
+def resolution_to_gridlabel(resolution, reverse=False):
     """Convert resolution format to grid_label format matching catalog names.
 
     Parameters
@@ -779,13 +810,13 @@ def _resolution_to_gridlabel(resolution, reverse=False):
     return res_dict[resolution]
 
 
-def _timescale_to_table_id(timescale, reverse=False):
+def timescale_to_table_id(timescale, reverse=False):
     """Convert resolution format to table_id format matching catalog names.
 
-    Paramaters
+    Parameters
     ----------
-    timescale: str
-    reverse: boolean, optional
+    timescale : str
+    reverse : boolean, optional
         Set reverse=True to get resolution format from input table_id.
         Default to False
 
@@ -807,7 +838,7 @@ def _timescale_to_table_id(timescale, reverse=False):
     return timescale_dict[timescale]
 
 
-def _scenario_to_experiment_id(scenario, reverse=False):
+def scenario_to_experiment_id(scenario, reverse=False):
     """
     Convert scenario format to experiment_id format matching catalog names.
 
@@ -838,19 +869,27 @@ def _scenario_to_experiment_id(scenario, reverse=False):
 
 def drop_invalid_wrf_sims(ds):
     """
-    Drops invalid WRF simulations from the given dataset since there is an unequal number of simulations per SSP.
+    Drop invalid WRF simulations from the given dataset since there is an unequal number of simulations per SSP.
 
-    Parameters:
-    ds (xarray.Dataset): The dataset containing WRF simulations. The dataset must have a dimension `all_sims` that
-                         results from stacking `simulation` and `scenario`.
+    Parameters
+    ----------
+    ds : xr.Dataset
+        The dataset containing WRF simulations. The dataset must have a
+        dimension `all_sims` that results from stacking `simulation` and
+        `scenario`.
 
-    Returns:
-    xarray.Dataset: The dataset with only valid WRF simulations retained.
+    Returns
+    -------
+    xr.Dataset
+        The dataset with only valid WRF simulations retained.
 
-    Raises:
-    AttributeError: If the dataset does not have an `all_sims` dimension.
+    Raises
+    ------
+    AttributeError
+        If the dataset does not have an `all_sims` dimension.
 
-    Notes:
+    Notes
+    -----
     - For datasets with a resolution of '3 km', no simulations are dropped, and the original dataset is returned.
     - For datasets with a resolution of '9 km' at hourly timescale, only 10 simulations are returned.
     - For datasets with a resolution of '9 km' at daily/monthly timescale, only 6 simulations are returned.
@@ -862,57 +901,30 @@ def drop_invalid_wrf_sims(ds):
             "Missing an `all_sims` dimension on the dataset. Create `all_sims` with .stack on `simulation` and `scenario`."
         )
 
-    # There are no simulations that need to be dropped at a `3 km` resolution, since the only simulations are in SSP 3-7.0.
-    if ds.resolution == "3 km":
-        return ds
-
-    if ds.resolution == "9 km":
-        valid_sims = [
-            ("WRF_CESM2_r11i1p1f1", "Historical + SSP 2-4.5 -- Middle of the Road"),
-            ("WRF_CESM2_r11i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
-            ("WRF_CESM2_r11i1p1f1", "Historical + SSP 5-8.5 -- Burn it All"),
-            ("WRF_CNRM-ESM2-1_r1i1p1f2", "Historical + SSP 3-7.0 -- Business as Usual"),
-            (
-                "WRF_EC-Earth3-Veg_r1i1p1f1",
-                "Historical + SSP 3-7.0 -- Business as Usual",
+    # Find valid simulation from catalog
+    df = intake.open_esm_datastore(data_catalog_url).df
+    filter_df = df[
+        (df["activity_id"] == "WRF")
+        & (df["table_id"] == timescale_to_table_id(ds.frequency))
+        & (df["grid_label"] == resolution_to_gridlabel(ds.resolution))
+        & (df["variable_id"] == ds.variable_id)
+        & (df["experiment_id"] != "historical")
+        & (df["experiment_id"] != "reanalysis")
+        & (df["source_id"] != "ensmean")
+    ]
+    valid_sim_list = list(
+        zip(
+            filter_df["activity_id"]
+            + "_"
+            + filter_df["source_id"]
+            + "_"
+            + filter_df["member_id"],
+            filter_df["experiment_id"].apply(
+                lambda val: f"Historical + {scenario_to_experiment_id(val, reverse=True)}"
             ),
-            ("WRF_FGOALS-g3_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
-        ]
-        if ds.frequency == "hourly":
-            valid_sims += [
-                (
-                    "WRF_EC-Earth3_r1i1p1f1",
-                    "Historical + SSP 3-7.0 -- Business as Usual",
-                ),
-                ("WRF_MIROC6_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
-                (
-                    "WRF_MPI-ESM1-2-HR_r3i1p1f1",
-                    "Historical + SSP 3-7.0 -- Business as Usual",
-                ),
-                ("WRF_TaiESM1_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
-            ]
-
-    if ds.resolution == "45 km":
-        valid_sims = [
-            ("WRF_CESM2_r11i1p1f1", "Historical + SSP 2-4.5 -- Middle of the Road"),
-            ("WRF_CNRM-ESM2-1_r1i1p1f2", "Historical + SSP 3-7.0 -- Business as Usual"),
-            (
-                "WRF_EC-Earth3-Veg_r1i1p1f1",
-                "Historical + SSP 3-7.0 -- Business as Usual",
-            ),
-            ("WRF_CESM2_r11i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
-            ("WRF_FGOALS-g3_r1i1p1f1", "Historical + SSP 3-7.0 -- Business as Usual"),
-            ("WRF_CESM2_r11i1p1f1", "Historical + SSP 5-8.5 -- Burn it All"),
-        ]
-        if ds.frequency == "hourly":
-            valid_sims += (
-                (
-                    "WRF_EC-Earth3_r1i1p1f1",
-                    "Historical + SSP 3-7.0 -- Business as Usual",
-                ),
-            )
-
-    return ds.sel(all_sims=valid_sims)
+        )
+    )
+    return ds.sel(all_sims=valid_sim_list)
 
 
 def stack_sims_across_locs(ds, sim_dim_name):
