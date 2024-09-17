@@ -14,9 +14,14 @@ from climakitae.util.utils import write_csv_file
 
 
 def main():
-    """Call everything needed to write the global warming level reference files
-    for all of the available GCMs."""
+    """
+    Generates global warming level (GWL) reference files for all available CMIP6 GCMs and CESM2-LENS.
 
+    This includes:
+    - Connecting to AWS S3 storage to access CMIP6 and CESM2-LENS data.
+    - Filtering and processing data to create global temperature time series.
+    - Generating and saving warming level tables in CSV format for different reference periods.
+    """
     # Connect to AWS S3 storage
     fs = s3fs.S3FileSystem(anon=True)
 
@@ -54,7 +59,21 @@ def main():
 
     def make_weighted_timeseries(temp):
         """
-        Create a single-dimension timeseries of global temperature that is spatially-weighted across latitudes and averaged across all longitudes.
+        Creates a spatially-weighted single-dimension time series of global temperature.
+
+        The function weights the latitude grids by size and averages across all longitudes,
+        resulting in a single time series object.
+
+        Parameters:
+        ----------
+        temp : xarray.DataArray
+            An xarray DataArray of global temperature with latitude and longitude coordinates.
+
+        Returns:
+        -------
+        xarray.DataArray
+            A time series of global temperature that is spatially weighted across latitudes and averaged
+            across all longitudes.
         """
         # Find variable names for latitude and longitude to make code more readable
         lat, lon = "lat", "lon"
@@ -69,7 +88,24 @@ def main():
 
     def buildDFtimeSeries_cesm2(variable, model, ens_mem, scenarios):
         """
-        Builds a time-series of global temperature by weighting latitudes and averaging longitudes across time from 1980-2100.
+        Builds a global temperature time series by weighting latitudes and averaging longitudes
+        for the CESM2 model across specified scenarios from 1980 to 2100.
+
+        Parameters:
+        ----------
+        variable : str
+            The variable to process, hardcoded to 'tas' (Air Temperature at 2m).
+        model : str
+            The model name, e.g., 'CESM2'.
+        ens_mem : str
+            The ensemble member ID.
+        scenarios : list
+            A list of scenario names to include in the time series, e.g., ['historical', 'ssp370'].
+
+        Returns:
+        -------
+        xarray.Dataset
+            A dataset containing the global temperature time series for each scenario.
         """
         temp = cesm2_lens.sel(member_id=ens_mem)
         data_one_model = xr.Dataset()
@@ -83,11 +119,28 @@ def main():
         return data_one_model
 
     def build_timeseries(variable, model, ens_mem, scenarios):
-        """Builds an xarray Dataset with only a time dimension, for the appended
-        historical+ssp timeseries for all the scenarios of a particular
-        model/variant combo. Works for all of the models(/GCMs) in the list
-        `models`, which appear in the current data catalog of WRF
-        downscaling."""
+        """
+        Builds an xarray Dataset with a time dimension, containing the concatenated historical
+        and SSP time series for all specified scenarios of a given model and ensemble member.
+        Works for all of the models(/GCMs) in the list `models`, which appear in the current
+        data catalog of WRF downscaling.
+
+        Parameters:
+        ----------
+        variable : str
+            The variable to process, e.g., `tas`. `tas` is the only variable used in this file currently.
+        model : str
+            The model name.
+        ens_mem : str
+            The ensemble member ID.
+        scenarios : list
+            A list of scenario names to include, e.g., ['historical', 'ssp585', 'ssp370'].
+
+        Returns:
+        -------
+        xarray.Dataset
+            A dataset with time as the dimension, containing the appended historical and SSP time series.
+        """
         scenario = "historical"
         data_historical = xr.Dataset()
         df_scenario = df_subset[
@@ -134,9 +187,23 @@ def main():
         return data_one_model
 
     def get_gwl(smoothed, degree):
-        """Takes a smoothed timeseries of global mean temperature for multiple
-        scenarios, and returns a small table of the timestamp that a given
-        global warming level is reached."""
+        """
+        Computes the timestamp when a given global warming level (GWL) is first reached.
+        Takes a smoothed time series of global mean temperature of different scenarios for a model
+        and returns a table indicating the timestamp at which the specified warming level is reached.
+
+        Parameters:
+        ----------
+        smoothed : pandas.DataFrame
+            A DataFrame containing a global mean temperature time series for a model for multiple scenarios.
+        degree : float
+            The global warming level to detect, e.g., 1.5, 2, etc.
+
+        Returns:
+        -------
+        pandas.DataFrame
+            A table containing timestamps for when each scenario first crosses the specified warming level.
+        """
 
         def get_wl_timestamp(scenario, degree):
             """
@@ -155,7 +222,29 @@ def main():
     def get_table_one_cesm2(
         variable, model, ens_mem, scenarios, start_year="18500101", end_year="19000101"
     ):
-        """Generates GWL information for one ensemble member of CESM2."""
+        """
+        Generates a GWL lookup table for one ensemble member of CESM2.
+
+        Parameters:
+        ----------
+        variable : str
+            The variable to process, e.g., 'tas'.
+        model : str
+            The model name, e.g., 'CESM2'.
+        ens_mem : str
+            The ensemble member ID.
+        scenarios : list
+            A list of scenario names, e.g., ['historical', 'ssp370'].
+        start_year : str, optional
+            The start year for the reference period in the format 'YYYYMMDD'.
+        end_year : str, optional
+            The end year for the reference period in the format 'YYYYMMDD'.
+
+        Returns:
+        -------
+        tuple
+            A DataFrame of warming levels and a DataFrame of global mean temperature time series.
+        """
         data_one_model = buildDFtimeSeries_cesm2(variable, model, ens_mem, scenarios)
         anom = data_one_model - data_one_model.sel(
             time=slice(start_year, end_year)
@@ -178,7 +267,27 @@ def main():
     def get_table_cesm2(
         variable, model, scenarios, start_year="18500101", end_year="19000101"
     ):
-        """Generates GWL table for CESM2 model."""
+        """
+        Generates a global warming level (GWL) table for the CESM2 model.
+
+        Parameters:
+        ----------
+        variable : str
+            The variable to process, e.g., 'tas'.
+        model : str
+            The model name, e.g., 'CESM2'.
+        scenarios : list
+            A list of scenario names to include, e.g., ['ssp370'].
+        start_year : str, optional
+            The start year for the reference period in the format 'YYYYMMDD'.
+        end_year : str, optional
+            The end year for the reference period in the format 'YYYYMMDD'.
+
+        Returns:
+        -------
+        tuple
+            A DataFrame of warming levels and a DataFrame of global mean temperature time series for the CESM2 model.
+        """
         ens_mem_list = [v for k, v in ens_mems_cesm.items()]
         gwlevels_tbl, wl_data_tbls = [], []
         for ens_mem in ens_mem_list:
@@ -202,9 +311,32 @@ def main():
     def get_gwl_table_one(
         variable, model, ens_mem, scenarios, start_year="18500101", end_year="19000101"
     ):
-        """Loops through global warming levels, and returns an aggregate table
-        for all warming levels (1.5, 2, 2.5, 3, and 4 degrees) for all scenarios of
-        the model/variant requested."""
+        """
+        Generates a GWL table for a single model and ensemble member.
+
+        Loops through various global warming levels (1.5, 2, 2.5, 3, and 4 degrees)
+        for the requested model/variant and scenarios.
+
+        Parameters:
+        ----------
+        variable : str
+            The variable to process, e.g., 'tas'.
+        model : str
+            The model name.
+        ens_mem : str
+            The ensemble member ID.
+        scenarios : list
+            A list of scenario names to include, e.g., ['historical', 'ssp585', 'ssp370'].
+        start_year : str, optional
+            The start year for the reference period in the format 'YYYYMMDD'.
+        end_year : str, optional
+            The end year for the reference period in the format 'YYYYMMDD'.
+
+        Returns:
+        -------
+        tuple
+            A DataFrame containing warming levels and a DataFrame with global mean temperature time series.
+        """
         data_one_model = build_timeseries(variable, model, ens_mem, scenarios)
         try:
             anom = data_one_model - data_one_model.sel(
@@ -245,7 +377,28 @@ def main():
     def get_gwl_table(
         variable, model, scenarios, start_year="18500101", end_year="19000101"
     ):
-        """Generates GWL table for a given model and scenarios. Used on all GCMs available in AWS catalog, not including CESM2-LENS."""
+        """
+        Generates a GWL table for a given model and scenarios.
+
+        Parameters:
+        ----------
+        variable : str
+            The variable to process, e.g., 'tas'.
+        model : str
+            The model name.
+        scenarios : list
+            A list of scenario names to include, e.g., ['ssp585', 'ssp370', 'ssp245'].
+        start_year : str, optional
+            The start year for the reference period in the format 'YYYYMMDD'.
+        end_year : str, optional
+            The end year for the reference period in the format 'YYYYMMDD'.
+
+        Returns:
+        -------
+        tuple
+            A DataFrame containing warming levels and a DataFrame with global mean temperature time series.
+            To be exported into `gwl_[time period]ref.csv` and `gwl_[time period]ref_timeidx.csv`.
+        """
         ens_mem_list = sims_on_aws.T[model]["historical"].copy()
         if (model == "EC-Earth3") or (model == "EC-Earth3-Veg"):
             for ens_mem in ens_mem_list[:]:
@@ -359,7 +512,24 @@ def main():
 
 def get_sims_on_aws(df):
     """
-    Make a table of all of the relevant CMIP6 simulations on AWS.
+    Generates a pandas DataFrame listing all relevant CMIP6 simulations available on AWS.
+
+    This function filters the input DataFrame `df` and identifies and lists CMIP6 model simulations
+    for historical and various SSP (Shared Socioeconomic Pathway) scenarios. It only includes
+    models that have both historical and at least one SSP ensemble member. Additionally, it ensures
+    that only historical ensemble members with variants in at least one SSP are kept.
+
+    Parameters:
+    ----------
+    df : pandas.DataFrame
+        A DataFrame containing metadata for CMIP6 simulations.
+
+    Returns:
+    -------
+    pandas.DataFrame
+        A DataFrame indexed by model names (source_id) and columns corresponding to scenarios
+        ('historical', 'ssp585', 'ssp370', 'ssp245', 'ssp126'). Each cell contains a list of
+        ensemble member IDs available on AWS for that model and scenario.
     """
     df_subset = df[
         (df.table_id == "Amon")
