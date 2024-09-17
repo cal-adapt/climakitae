@@ -479,7 +479,7 @@ class DataInterface:
 class DataParameters(param.Parameterized):
     """Python param object to hold data parameters for use in panel GUI.
     Call DataParameters when you want to select and retrieve data from the
-    climakitae data catalog without using the ck.Select GUI. ck.Select uses
+    climakitae data catalog without using the ckg.Select GUI. ckg.Select uses
     this class to store selections and retrieve data.
 
     DataParameters calls DataInterface, a singleton class that makes the connection
@@ -527,6 +527,8 @@ class DataParameters(param.Parameterized):
         variable long display name
     units: str
         unit abbreviation currently of the data (native or converted)
+    enable_hidden_vars: boolean
+        enable selection of variables that are hidden from the GUI?
     extended_description: str
         extended description of the data variable
     variable_id: list of strs
@@ -1540,7 +1542,8 @@ def get_subsetting_options(area_subset="all"):
 
     Parameters
     ----------
-    area_subset: str, one of "all", "states", "CA counties", "CA Electricity Demand Forecast Zones", "CA watersheds", "CA Electric Balancing Authority Areas", "CA Electric Load Serving Entities (IOU & POU)"
+    area_subset: str
+        One of "all", "states", "CA counties", "CA Electricity Demand Forecast Zones", "CA watersheds", "CA Electric Balancing Authority Areas", "CA Electric Load Serving Entities (IOU & POU)"
         Defaults to "all", which shows all the geometry options with area_subset as a multiindex
 
     Returns
@@ -1632,7 +1635,7 @@ def get_data(
 ):
     # Need to add error handing for bad variable input
     """Retrieve data from the catalog using a simple function.
-    Contrasts with selections.retrieve(), which retrieves data from the user inputs in climakitae's selections GUI.
+    Contrasts with selections.retrieve(), which retrieves data from the user inputs in climakitaegui's selections GUI.
 
     Parameters
     ----------
@@ -1649,9 +1652,9 @@ def get_data(
     cached_area: list, optional
         Area: i.e "Alameda county"
         Defaults to entire domain ("none")
-    area_average: str, one of "No" or "Yes", optional
+    area_average: str, optional
         Take an average over spatial domain?
-        Default to No
+        One of "No" or "Yes". Default to No
 
     Returns
     -------

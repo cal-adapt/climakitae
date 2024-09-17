@@ -4,6 +4,14 @@ climakitae.tools package
 Submodules
 ----------
 
+climakitae.tools.batch module
+-----------------------------
+
+.. automodule:: climakitae.tools.batch
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 climakitae.tools.derived\_variables module
 ------------------------------------------
 
