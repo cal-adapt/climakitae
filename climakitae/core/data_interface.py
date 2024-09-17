@@ -115,7 +115,11 @@ def _get_user_options(data_catalog, downscaling_method, timescale, resolution):
 
 
 def _get_variable_options_df(
-    variable_descriptions, unique_variable_ids, downscaling_method, timescale
+    variable_descriptions,
+    unique_variable_ids,
+    downscaling_method,
+    timescale,
+    enable_hidden_vars=False,
 ):
     """Get variable options to display depending on downscaling method and timescale
 
@@ -130,12 +134,18 @@ def _get_variable_options_df(
         Data downscaling method
     timescale: str, one of "hourly", "daily", or "monthly"
         Timescale
+    enable_hidden_vars: boolean, default to False
+        Return all variables, including the ones in which "show" is set to False?
 
     Returns
     -------
     pd.DataFrame
         Subset of var_config for input downscaling_method and timescale
     """
+
+    # Based on logic in the code and the name of the variable this needs to be the opposite of the variable named enable_hidden_vars
+    hide_hidden_vars = not enable_hidden_vars
+
     # Catalog options and derived options together
     derived_variables = list(
         variable_descriptions[
@@ -146,7 +156,7 @@ def _get_variable_options_df(
 
     # Subset dataframe
     variable_options_df = variable_descriptions[
-        (variable_descriptions["show"] == True)
+        (variable_descriptions["show"] == hide_hidden_vars)
         & (  # Make sure it's a valid variable selection
             variable_descriptions["variable_id"].isin(var_options_plus_derived)
             & (  # Make sure variable_id is part of the catalog options for user selections
@@ -469,7 +479,7 @@ class DataInterface:
 class DataParameters(param.Parameterized):
     """Python param object to hold data parameters for use in panel GUI.
     Call DataParameters when you want to select and retrieve data from the
-    climakitae data catalog without using the ck.Select GUI. ck.Select uses
+    climakitae data catalog without using the ckg.Select GUI. ckg.Select uses
     this class to store selections and retrieve data.
 
     DataParameters calls DataInterface, a singleton class that makes the connection
@@ -517,6 +527,8 @@ class DataParameters(param.Parameterized):
         variable long display name
     units: str
         unit abbreviation currently of the data (native or converted)
+    enable_hidden_vars: boolean
+        enable selection of variables that are hidden from the GUI?
     extended_description: str
         extended description of the data variable
     variable_id: list of strs
@@ -594,6 +606,7 @@ class DataParameters(param.Parameterized):
     _station_data_info = param.String(
         default="", doc="Information about the bias correction process and resolution"
     )
+    enable_hidden_vars = param.Boolean(False)
 
     # Empty params, initialized in __init__
     scenario_ssp = param.ListSelector(objects=dict())
@@ -658,6 +671,7 @@ class DataParameters(param.Parameterized):
             unique_variable_ids=unique_variable_ids,
             downscaling_method=self.downscaling_method,
             timescale=self.timescale,
+            enable_hidden_vars=self.enable_hidden_vars,
         )
 
         # Show derived index option?
@@ -814,6 +828,7 @@ class DataParameters(param.Parameterized):
         "data_type",
         "variable",
         "variable_type",
+        "enable_hidden_vars",
         watch=True,
     )
     def _update_user_options(self):
@@ -862,6 +877,7 @@ class DataParameters(param.Parameterized):
                 unique_variable_ids=unique_variable_ids,
                 downscaling_method=self.downscaling_method,
                 timescale=self.timescale,
+                enable_hidden_vars=self.enable_hidden_vars,
             )
 
             # Filter for derived indices
@@ -1526,7 +1542,8 @@ def get_subsetting_options(area_subset="all"):
 
     Parameters
     ----------
-    area_subset: str, one of "all", "states", "CA counties", "CA Electricity Demand Forecast Zones", "CA watersheds", "CA Electric Balancing Authority Areas", "CA Electric Load Serving Entities (IOU & POU)"
+    area_subset: str
+        One of "all", "states", "CA counties", "CA Electricity Demand Forecast Zones", "CA watersheds", "CA Electric Balancing Authority Areas", "CA Electric Load Serving Entities (IOU & POU)"
         Defaults to "all", which shows all the geometry options with area_subset as a multiindex
 
     Returns
@@ -1618,7 +1635,7 @@ def get_data(
 ):
     # Need to add error handing for bad variable input
     """Retrieve data from the catalog using a simple function.
-    Contrasts with selections.retrieve(), which retrieves data from the user inputs in climakitae's selections GUI.
+    Contrasts with selections.retrieve(), which retrieves data from the user inputs in climakitaegui's selections GUI.
 
     Parameters
     ----------
@@ -1635,9 +1652,9 @@ def get_data(
     cached_area: list, optional
         Area: i.e "Alameda county"
         Defaults to entire domain ("none")
-    area_average: str, one of "No" or "Yes", optional
+    area_average: str, optional
         Take an average over spatial domain?
-        Default to No
+        One of "No" or "Yes". Default to No
 
     Returns
     -------
