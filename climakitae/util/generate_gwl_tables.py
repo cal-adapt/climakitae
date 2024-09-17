@@ -131,9 +131,6 @@ def main():
                         data_one_model[scenario] = xr.concat(
                             [data_historical, timeseries], dim="time"
                         )  # .to_pandas())
-            else:
-                print(f"Nothing found: {variable, scenario, model, ens_mem}")
-                # import pdb; pdb.set_trace()
         return data_one_model
 
     def get_gwl(smoothed, degree):
@@ -408,5 +405,5 @@ def get_sims_on_aws(df):
     return sims_on_aws
 
 
-# if __name__ == "__main__":
-#     main()
+if __name__ == "__main__":
+    main()
