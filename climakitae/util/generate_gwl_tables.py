@@ -188,7 +188,7 @@ def main():
 
     def get_gwl(smoothed, degree):
         """
-        Computes the timestamp when a given global warming level (GWL) is first reached.
+        Computes the timestamp when a given GWL is first reached.
         Takes a smoothed time series of global mean temperature of different scenarios for a model
         and returns a table indicating the timestamp at which the specified warming level is reached.
 
@@ -268,7 +268,7 @@ def main():
         variable, model, scenarios, start_year="18500101", end_year="19000101"
     ):
         """
-        Generates a global warming level (GWL) table for the CESM2 model.
+        Generates a GWL table for the CESM2 model.
 
         Parameters:
         ----------
