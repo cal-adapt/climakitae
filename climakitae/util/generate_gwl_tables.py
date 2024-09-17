@@ -52,14 +52,33 @@ def main():
     }
     ens_mem_cesm_rev = dict([(v, k) for k, v in ens_mems_cesm.items()])
 
+    def make_weighted_timeseries(temp):
+        """
+        Create a single-dimension timeseries of global temperature that is spatially-weighted across latitudes and averaged across all longitudes.
+        """
+        # Find variable names for latitude and longitude to make code more readable
+        lat, lon = "lat", "lon"
+        if "lat" not in temp.coords and "lon" not in temp.coords:
+            lat, lon = "latitude", "longitude"
+
+        # Weight latitude grids by size, then average across all longitudes to create single time-series object
+        weightlat = np.sqrt(np.cos(np.deg2rad(temp[lat])))
+        weightlat = weightlat / np.sum(weightlat)
+        timeseries = (temp * weightlat).sum(lat).mean(lon)
+        return timeseries
+
     def buildDFtimeSeries_cesm2(variable, model, ens_mem, scenarios):
+        """
+        Builds a time-series of global temperature by weighting latitudes and averaging longitudes across time from 1980-2100.
+        """
         temp = cesm2_lens.sel(member_id=ens_mem)
         data_one_model = xr.Dataset()
         for scenario in scenarios:
-            weightlat = np.sqrt(np.cos(np.deg2rad(temp.lat)))
-            weightlat = weightlat / np.sum(weightlat)
-            timeseries = (temp * weightlat).sum("lat").mean("lon")
+
+            # Create global weighted time-series of variable
+            timeseries = make_weighted_timeseries(temp)
             timeseries = timeseries.sortby("time")
+
             data_one_model[scenario] = timeseries
         return data_one_model
 
@@ -67,7 +86,7 @@ def main():
         """Builds an xarray Dataset with only a time dimension, for the appended
         historical+ssp timeseries for all the scenarios of a particular
         model/variant combo. Works for all of the models(/GCMs) in the list
-        models_for_now, which appear in the current data catalog of WRF
+        `models`, which appear in the current data catalog of WRF
         downscaling."""
         scenario = "historical"
         data_historical = xr.Dataset()
@@ -75,16 +94,10 @@ def main():
             (df_subset.source_id == model) & (df_subset.member_id == ens_mem)
         ]
         with xr.open_zarr(fs.get_mapper(df_scenario.zstore.values[0])) as temp:
-            try:
-                weightlat = np.sqrt(np.cos(np.deg2rad(temp.lat)))
-                weightlat = weightlat / np.sum(weightlat)
-                data_historical = (temp[variable] * weightlat).sum("lat").mean("lon")
-            except:
-                weightlat = np.sqrt(np.cos(np.deg2rad(temp.latitude)))
-                weightlat = weightlat / np.sum(weightlat)
-                data_historical = (
-                    (temp[variable] * weightlat).sum("latitude").mean("longitude")
-                )
+
+            # Create global weighted time-series of variable
+            data_historical = make_weighted_timeseries(temp[variable])
+
             if model == "FGOALS-g3" or (
                 model == "EC-Earth3-Veg" and ens_mem == "r5i1p1f1"
             ):
@@ -107,26 +120,20 @@ def main():
                     ) as temp:  # BUG: Some scenarios not returning a full predictive period of values (i.e. not returning time period of 2015-2100 of data)
                         temp = temp.isel(time=slice(0, 1032))
                         temp = xr.decode_cf(temp)
-                        try:
-                            weightlat = np.sqrt(np.cos(np.deg2rad(temp.lat)))
-                            weightlat = weightlat / np.sum(weightlat)
-                            timeseries = (
-                                (temp[variable] * weightlat).sum("lat").mean("lon")
-                            )
-                        except:
-                            weightlat = np.sqrt(np.cos(np.deg2rad(temp.latitude)))
-                            weightlat = weightlat / np.sum(weightlat)
-                            timeseries = (
-                                (temp[variable] * weightlat)
-                                .sum("latitude")
-                                .mean("longitude")
-                            )
+
+                        # Create global weighted time-series of variable
+                        timeseries = make_weighted_timeseries(temp[variable])
+
+                        # Clean data and append to `data_one_model`
                         timeseries = timeseries.sortby(
                             "time"
                         )  # needed for MPI-ESM1-2-LR
                         data_one_model[scenario] = xr.concat(
                             [data_historical, timeseries], dim="time"
                         )  # .to_pandas())
+            else:
+                print(f"Nothing found: {variable, scenario, model, ens_mem}")
+                # import pdb; pdb.set_trace()
         return data_one_model
 
     def get_gwl(smoothed, degree):
@@ -242,9 +249,9 @@ def main():
         variable, model, scenarios, start_year="18500101", end_year="19000101"
     ):
         """Generates GWL table for a given model and scenarios. Used on all GCMs available in AWS catalog, not including CESM2-LENS."""
-        ens_mem_list = sims_on_aws.T[model]["historical"]
+        ens_mem_list = sims_on_aws.T[model]["historical"].copy()
         if (model == "EC-Earth3") or (model == "EC-Earth3-Veg"):
-            for ens_mem in ens_mem_list:
+            for ens_mem in ens_mem_list[:]:
                 if int(ens_mem.split("r")[1].split("i")[0]) > 100:
                     # These ones were branched off another at 1970
                     ens_mem_list.remove(ens_mem)
@@ -401,5 +408,5 @@ def get_sims_on_aws(df):
     return sims_on_aws
 
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
