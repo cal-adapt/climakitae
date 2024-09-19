@@ -900,12 +900,12 @@ def drop_invalid_wrf_sims(ds):
         raise AttributeError(
             "Missing an `all_sims` dimension on the dataset. Create `all_sims` with .stack on `simulation` and `scenario`."
         )
-    
+
     # Checking for derived variables separately since we don't store their IDs in the catalog
     # Future derived variables that don't use `t2` will be broken because of this function.
     variable = ds.variable_id
-    if 'derived' in variable:
-        variable = 't2'
+    if "derived" in variable:
+        variable = "t2"
 
     # Find valid simulation from catalog
     df = intake.open_esm_datastore(data_catalog_url).df
