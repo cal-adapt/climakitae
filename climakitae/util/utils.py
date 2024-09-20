@@ -918,6 +918,7 @@ def drop_invalid_wrf_sims(ds):
         & (df["experiment_id"] != "reanalysis")
         & (df["source_id"] != "ensmean")
     ]
+    import pdb; pdb.set_trace()
     valid_sim_list = list(
         zip(
             filter_df["activity_id"]

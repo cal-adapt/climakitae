@@ -53,6 +53,7 @@ class WarmingLevels:
         """
         Find the warming slice data for the current level from the catalog data.
         """
+        import pdb; pdb.set_trace()
         warming_data = self.catalog_data.groupby("all_sims").map(
             get_sliced_data,
             level=level,
