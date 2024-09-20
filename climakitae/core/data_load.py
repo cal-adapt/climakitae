@@ -1091,16 +1091,19 @@ def read_catalog_from_select(selections):
         # Load temperature data
         selections.variable_id = ["t2"]
         selections.units = "degC"  # Kelvin required for humidity
+        print(f"I am retrieving a variable {selections.variable_id}")
         t2_da_C = _get_data_one_var(selections)
 
         # Load mixing ratio data
         selections.variable_id = ["q2"]
         selections.units = "g kg-1"
+        print(f"I am retrieving a variable {selections.variable_id}")
         q2_da = _get_data_one_var(selections)
 
         # Load pressure data
         selections.variable_id = ["psfc"]
         selections.units = "hPa"
+        print(f"I am retrieving a variable {selections.variable_id}")
         pressure_da = _get_data_one_var(selections)
 
         # Load u10 data
@@ -1108,11 +1111,13 @@ def read_catalog_from_select(selections):
         selections.units = (
             "m s-1"  # Need to set units to required units for compute_wind_mag
         )
+        print(f"I am retrieving a variable {selections.variable_id}")
         u10_da = _get_data_one_var(selections)
 
         # Load v10 data
         selections.variable_id = ["v10"]
         selections.units = "m s-1"
+        print(f"I am retrieving a variable {selections.variable_id}")
         v10_da = _get_data_one_var(selections)
 
         # Derive relative humidity
