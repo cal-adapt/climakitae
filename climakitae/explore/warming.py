@@ -85,6 +85,7 @@ class WarmingLevels:
         ]
         # Postage data and anomalies
         self.catalog_data = self.wl_params.retrieve()
+        print("Catalog data has been retrieved.")
         self.catalog_data = self.catalog_data.stack(all_sims=["simulation", "scenario"])
 
         # For WRF, dropping invalid simulations before doing any other computation
@@ -103,6 +104,7 @@ class WarmingLevels:
         for level in tqdm(
             self.wl_params.warming_levels, desc="Computing each warming level"
         ):
+            print("Finding warming slices")
             warm_slice = self.find_warming_slice(level, self.gwl_times)
             if self.wl_params.load_data:
                 warm_slice = load(warm_slice, progress_bar=True)
