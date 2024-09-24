@@ -565,6 +565,8 @@ class DataParameters(param.Parameterized):
         filtered variable descriptions for the downscaling_method and timescale
     warming_level: array
         global warming level(s)
+    wl_window: integer
+        Years around Global Warming Level (+/-) \n (e.g. 15 means a 30yr window)
     retrieval_method: str, "Warming Level" or "Time"
         how do you want the data to be retrieved?
     """
@@ -1065,7 +1067,7 @@ class DataParameters(param.Parameterized):
         of the selected data."""
 
         if self.retrieval_method == "Warming Level":
-            pass
+            data_warning = ""
 
         else:
             # Set time range of historical data
@@ -1083,10 +1085,16 @@ class DataParameters(param.Parameterized):
                 data_warning = """Historical Reconstruction data is not available with SSP data.
                 Try using the Historical Climate data instead."""
 
-            elif (  # Warn user if no data is selected
-                not True in ["SSP" in one for one in self.scenario_ssp]
-            ) and (
-                not True in ["Historical" in one for one in self.scenario_historical]
+            elif (
+                (  # Warn user if no data is selected
+                    not True in ["SSP" in one for one in self.scenario_ssp]
+                )
+                and (
+                    not True
+                    in ["Historical" in one for one in self.scenario_historical]
+                )
+                and (self.scenario_ssp != ["n/a"])
+                and (self.scenario_historical != ["n/a"])
             ):
                 data_warning = "Please select as least one dataset."
 
@@ -1125,8 +1133,8 @@ class DataParameters(param.Parameterized):
                 ):
                     data_warning = bad_time_slice_warning
 
-            # Show warning
-            self._data_warning = data_warning
+        # Show warning
+        self._data_warning = data_warning
 
     @param.depends(
         "scenario_ssp", "scenario_historical", "downscaling_method", watch=True
