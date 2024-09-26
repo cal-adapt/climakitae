@@ -745,6 +745,11 @@ class DataParameters(param.Parameterized):
 
     @param.depends("retrieval_method", watch=True)
     def _update_scenarios_retrieval_method(self):
+        """
+        Update the scenario options shown based on retrieval method.
+        If warming level is selected, there should be no scenario options shown.
+        If time-based is selected, there should be no warming levels options shown.
+        """
         if self.retrieval_method == "Warming Level":
             self.param["warming_level"].objects = self.wl_options
             self.warming_level = [2]
@@ -1061,7 +1066,9 @@ class DataParameters(param.Parameterized):
         watch=True,
     )
     def _update_data_warning(self):
-        """Update warning raised to user based on their data selections."""
+        """Update warning raised to user based on their data selections.
+        No warming shown if retrieval_method is set to warming level.
+        """
         data_warning = ""
         bad_time_slice_warning = """You've selected a time slice that is outside the temporal range 
         of the selected data."""
