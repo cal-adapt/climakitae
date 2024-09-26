@@ -13,7 +13,7 @@ climakitae.util.cluster module
    :show-inheritance:
 
 climakitae.util.colormap module
-------------------------------
+-------------------------------
 
 .. automodule:: climakitae.util.colormap
    :members:

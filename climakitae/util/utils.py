@@ -813,10 +813,10 @@ def resolution_to_gridlabel(resolution, reverse=False):
 def timescale_to_table_id(timescale, reverse=False):
     """Convert resolution format to table_id format matching catalog names.
 
-    Paramaters
+    Parameters
     ----------
-    timescale: str
-    reverse: boolean, optional
+    timescale : str
+    reverse : boolean, optional
         Set reverse=True to get resolution format from input table_id.
         Default to False
 
@@ -869,19 +869,27 @@ def scenario_to_experiment_id(scenario, reverse=False):
 
 def drop_invalid_wrf_sims(ds):
     """
-    Drops invalid WRF simulations from the given dataset since there is an unequal number of simulations per SSP.
+    Drop invalid WRF simulations from the given dataset since there is an unequal number of simulations per SSP.
 
-    Parameters:
-    ds (xarray.Dataset): The dataset containing WRF simulations. The dataset must have a dimension `all_sims` that
-                         results from stacking `simulation` and `scenario`.
+    Parameters
+    ----------
+    ds : xr.Dataset
+        The dataset containing WRF simulations. The dataset must have a
+        dimension `all_sims` that results from stacking `simulation` and
+        `scenario`.
 
-    Returns:
-    xarray.Dataset: The dataset with only valid WRF simulations retained.
+    Returns
+    -------
+    xr.Dataset
+        The dataset with only valid WRF simulations retained.
 
-    Raises:
-    AttributeError: If the dataset does not have an `all_sims` dimension.
+    Raises
+    ------
+    AttributeError
+        If the dataset does not have an `all_sims` dimension.
 
-    Notes:
+    Notes
+    -----
     - For datasets with a resolution of '3 km', no simulations are dropped, and the original dataset is returned.
     - For datasets with a resolution of '9 km' at hourly timescale, only 10 simulations are returned.
     - For datasets with a resolution of '9 km' at daily/monthly timescale, only 6 simulations are returned.
@@ -893,13 +901,19 @@ def drop_invalid_wrf_sims(ds):
             "Missing an `all_sims` dimension on the dataset. Create `all_sims` with .stack on `simulation` and `scenario`."
         )
 
+    # Checking for derived variables separately since we don't store their IDs in the catalog
+    # Future derived variables that don't use `t2` will be broken because of this function.
+    variable = ds.variable_id
+    if "derived" in variable:
+        variable = "t2"
+
     # Find valid simulation from catalog
     df = intake.open_esm_datastore(data_catalog_url).df
     filter_df = df[
         (df["activity_id"] == "WRF")
         & (df["table_id"] == timescale_to_table_id(ds.frequency))
         & (df["grid_label"] == resolution_to_gridlabel(ds.resolution))
-        & (df["variable_id"] == ds.variable_id)
+        & (df["variable_id"] == variable)
         & (df["experiment_id"] != "historical")
         & (df["experiment_id"] != "reanalysis")
         & (df["source_id"] != "ensmean")
