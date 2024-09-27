@@ -1,6 +1,5 @@
 pip==24.2
 boltons==24.0.0
-#lmoments3==1.0.7
 jsonpickle==3.3.0
 llvmlite==0.43.0
 bottleneck==1.4.0
@@ -28,8 +27,6 @@ pytest==8.3.3
 rioxarray==0.17.0
 s3fs==2024.9.0
 scipy==1.14.1
-#shapely==2.0.6
-#pygeos==0.13
 statsmodels==0.14.2
 numba==0.60.0
 timezonefinder==6.5.2
