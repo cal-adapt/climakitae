@@ -737,6 +737,355 @@ def _check_valid_unit_selection(selections):
     return None
 
 
+def _get_wind_speed_derived(selections):
+    """Get input data and derive wind speed for hourly data
+
+    Parameters
+    ----------
+    selections: DataParameters
+
+    Returns
+    -------
+    da: xr.DataArray
+    """
+    # Load u10 data
+    selections.variable_id = ["u10"]
+    selections.units = (
+        "m s-1"  # Need to set units to required units for compute_wind_mag
+    )
+    u10_da = _get_data_one_var(selections)
+
+    # Load v10 data
+    selections.variable_id = ["v10"]
+    selections.units = "m s-1"
+    v10_da = _get_data_one_var(selections)
+
+    # Derive the variable
+    da = compute_wind_mag(u10=u10_da, v10=v10_da)  # m/s
+    return da
+
+
+def _get_wind_dir_derived(selections):
+    """Get input data and derive wind direction for hourly data
+
+    Parameters
+    ----------
+    selections: DataParameters
+
+    Returns
+    -------
+    da: xr.DataArray
+    """
+    # Load u10 data
+    selections.variable_id = ["u10"]
+    selections.units = (
+        "m s-1"  # Need to set units to required units for compute_wind_mag
+    )
+    u10_da = _get_data_one_var(selections)
+
+    # Load v10 data
+    selections.variable_id = ["v10"]
+    selections.units = "m s-1"
+    v10_da = _get_data_one_var(selections)
+
+    # Derive the variable
+    da = compute_wind_dir(u10=u10_da, v10=v10_da)
+    return da
+
+
+def _get_monthly_daily_dewpoint(selections):
+    """Derive dew point temp for monthly/daily data.
+
+    Parameters
+    ----------
+    selections: DataParameters
+
+    Returns
+    -------
+    da: xr.DataArray
+    """
+    # Daily/monthly dew point inputs have different units
+    # Hourly dew point temp derived differently because you also have to derive relative humidity
+
+    # Load temperature data
+    selections.variable_id = ["t2"]
+    selections.units = "K"  # Kelvin required for humidity and dew point computation
+    t2_da = _get_data_one_var(selections)
+
+    selections.variable_id = ["rh"]
+    selections.units = "[0 to 100]"
+    rh_da = _get_data_one_var(selections)
+
+    # Derive dew point temperature
+    # Returned in units of Kelvin
+    da = compute_dewpointtemp(temperature=t2_da, rel_hum=rh_da)  # Kelvin  # [0-100]
+    return da
+
+
+def _get_hourly_dewpoint(selections):
+    """Derive dew point temp for hourly data.
+    Requires first deriving relative humidity.
+
+    Parameters
+    ----------
+    selections: DataParameters
+
+    Returns
+    -------
+    da: xr.DataArray
+    """
+    # Load temperature data
+    selections.variable_id = ["t2"]
+    selections.units = "degC"  # Celsius required for humidity
+    t2_da = _get_data_one_var(selections)
+
+    # Load mixing ratio data
+    selections.variable_id = ["q2"]
+    selections.units = "g kg-1"
+    q2_da = _get_data_one_var(selections)
+
+    # Load pressure data
+    selections.variable_id = ["psfc"]
+    selections.units = "hPa"
+    pressure_da = _get_data_one_var(selections)
+
+    # Derive relative humidity
+    # Returned in units of [0-100]
+    rh_da = compute_relative_humidity(
+        pressure=pressure_da,  # hPa
+        temperature=t2_da,  # degC
+        mixing_ratio=q2_da,  # g/kg
+    )
+
+    # Dew point temperature requires temperature in Kelvin
+    t2_da = convert_units(t2_da, "K")
+
+    # Derive dew point temperature
+    # Returned in units of Kelvin
+    da = compute_dewpointtemp(temperature=t2_da, rel_hum=rh_da)  # Kelvin  # [0-100]
+    return da
+
+
+def _get_hourly_rh(selections):
+    """Derive hourly relative humidity.
+
+    Parameters
+    ----------
+    selections: DataParameters
+
+    Returns
+    -------
+    da: xr.DataArray
+    """
+    # Load temperature data
+    selections.variable_id = ["t2"]
+    selections.units = "degC"  # Celsius required for humidity
+    t2_da = _get_data_one_var(selections)
+
+    # Load mixing ratio data
+    selections.variable_id = ["q2"]
+    selections.units = "g kg-1"
+    q2_da = _get_data_one_var(selections)
+
+    # Load pressure data
+    selections.variable_id = ["psfc"]
+    selections.units = "hPa"
+    pressure_da = _get_data_one_var(selections)
+
+    # Derive relative humidity
+    # Returned in units of [0-100]
+    da = compute_relative_humidity(
+        pressure=pressure_da,  # hPa
+        temperature=t2_da,  # degC
+        mixing_ratio=q2_da,  # g/kg
+    )
+    return da
+
+
+def _get_hourly_specific_humidity(selections):
+    """Derive hourly specific humidity.
+    Requires first deriving relative humidity, then dew point temp.
+
+    Parameters
+    ----------
+    selections: DataParameters
+
+    Returns
+    -------
+    da: xr.DataArray
+    """
+    # Load temperature data
+    selections.variable_id = ["t2"]
+    selections.units = "degC"  # degC required for humidity
+    t2_da = _get_data_one_var(selections)
+
+    # Load mixing ratio data
+    selections.variable_id = ["q2"]
+    selections.units = "g kg-1"
+    q2_da = _get_data_one_var(selections)
+
+    # Load pressure data
+    selections.variable_id = ["psfc"]
+    selections.units = "hPa"
+    pressure_da = _get_data_one_var(selections)
+
+    # Derive relative humidity
+    # Returned in units of [0-100]
+    rh_da = compute_relative_humidity(
+        pressure=pressure_da,  # hPa
+        temperature=t2_da,  # degC
+        mixing_ratio=q2_da,  # g/kg
+    )
+
+    # Dew point temperature requires temperature in Kelvin
+    t2_da = convert_units(t2_da, "K")
+
+    # Derive dew point temperature
+    # Returned in units of Kelvin
+    dew_pnt_da = compute_dewpointtemp(
+        temperature=t2_da, rel_hum=rh_da  # Kelvin  # [0-100]
+    )
+
+    # Derive specific humidity
+    # Returned in units of g/kg
+    da = compute_specific_humidity(
+        tdps=dew_pnt_da, pressure=pressure_da  # Kelvin  # Pa
+    )
+    return da
+
+
+def _get_noaa_heat_index(selections):
+    """Derive NOAA heat index
+
+    Parameters
+    ----------
+    selections: DataParameters
+
+    Returns
+    -------
+    da: xr.DataArray
+    """
+
+    # Load mixing ratio data
+    selections.variable_id = ["q2"]
+    selections.units = "kg kg-1"
+    q2_da = _get_data_one_var(selections)
+
+    # Load pressure data
+    selections.variable_id = ["psfc"]
+    selections.units = "Pa"
+    pressure_da = _get_data_one_var(selections)
+
+    # Load temperature data
+    selections.variable_id = ["t2"]
+    selections.units = "K"  # Kelvin required for humidity and dew point computation
+    t2_da_K = _get_data_one_var(selections)
+
+    # Derive relative humidity
+    # Returned in units of [0-100]
+    rh_da = compute_relative_humidity(
+        pressure=pressure_da,  # Pa
+        temperature=t2_da_K,  # Kelvin
+        mixing_ratio=q2_da,  # kg/kg
+    )
+
+    # Convert temperature to proper units for noaa heat index
+    t2_da_F = convert_units(t2_da_K, "degF")
+
+    # Derive index
+    # Returned in units of F
+    da = noaa_heat_index(T=t2_da_F, RH=rh_da)
+    return da
+
+
+def _get_eff_temp(selections):
+    """Derive the effective temperature
+
+    Parameters
+    ----------
+    selections: DataParameters
+
+    Returns
+    -------
+    da: xr.DataArray
+    """
+
+    # Load temperature data
+    selections.variable_id = ["t2"]
+    t2_da = _get_data_one_var(selections)
+
+    # Derive effective temp
+    da = effective_temp(T=t2_da)
+    return da
+
+
+def _get_fosberg_fire_index(selections):
+    """Derive the fosberg fire index.
+
+    Parameters
+    ----------
+    selections: DataParameters
+
+    Returns
+    -------
+    da: xr.DataArray
+    """
+
+    # Hard set timescale to hourly
+    orig_timescale = selections.timescale  # Preserve original user selection
+    selections.timescale = "hourly"
+
+    # Load temperature data
+    selections.variable_id = ["t2"]
+    selections.units = "degC"  # Kelvin required for humidity
+    t2_da_C = _get_data_one_var(selections)
+
+    # Load mixing ratio data
+    selections.variable_id = ["q2"]
+    selections.units = "g kg-1"
+    q2_da = _get_data_one_var(selections)
+
+    # Load pressure data
+    selections.variable_id = ["psfc"]
+    selections.units = "hPa"
+    pressure_da = _get_data_one_var(selections)
+
+    # Load u10 data
+    selections.variable_id = ["u10"]
+    selections.units = (
+        "m s-1"  # Need to set units to required units for compute_wind_mag
+    )
+    u10_da = _get_data_one_var(selections)
+
+    # Load v10 data
+    selections.variable_id = ["v10"]
+    selections.units = "m s-1"
+    v10_da = _get_data_one_var(selections)
+
+    # Derive relative humidity
+    # Returned in units of [0-100]
+    rh_da = compute_relative_humidity(
+        pressure=pressure_da,  # hPa
+        temperature=t2_da_C,  # degC
+        mixing_ratio=q2_da,  # g/kg
+    )
+
+    # Derive windspeed
+    # Returned in units of m/s
+    windspeed_da_ms = compute_wind_mag(u10=u10_da, v10=v10_da)  # m/s
+
+    # Convert units to proper units for fosberg index
+    t2_da_F = convert_units(t2_da_C, "degF")
+    windspeed_da_mph = convert_units(windspeed_da_ms, "mph")
+
+    # Compute the index
+    da = fosberg_fire_index(
+        t2_F=t2_da_F, rh_percent=rh_da, windspeed_mph=windspeed_da_mph
+    )
+
+    return da
+
+
 def read_catalog_from_select(selections):
     """The primary and first data loading method, called by
     DataParameters.retrieve, it returns a DataArray (which can be quite large)
@@ -797,346 +1146,6 @@ def read_catalog_from_select(selections):
     orig_var_id_selection = selections.variable_id[0]
     orig_unit_selection = selections.units
     orig_variable_selection = selections.variable
-
-    def _get_wind_speed_derived(selections):
-        """Get input data and derive wind speed for hourly data
-
-        Parameters
-        ----------
-        selections: DataParameters
-
-        Returns
-        -------
-        da: xr.DataArray
-        """
-        # Load u10 data
-        selections.variable_id = ["u10"]
-        selections.units = (
-            "m s-1"  # Need to set units to required units for compute_wind_mag
-        )
-        u10_da = _get_data_one_var(selections)
-
-        # Load v10 data
-        selections.variable_id = ["v10"]
-        selections.units = "m s-1"
-        v10_da = _get_data_one_var(selections)
-
-        # Derive the variable
-        da = compute_wind_mag(u10=u10_da, v10=v10_da)  # m/s
-        return da
-
-    def _get_wind_dir_derived(selections):
-        """Get input data and derive wind direction for hourly data
-
-        Parameters
-        ----------
-        selections: DataParameters
-
-        Returns
-        -------
-        da: xr.DataArray
-        """
-        # Load u10 data
-        selections.variable_id = ["u10"]
-        selections.units = (
-            "m s-1"  # Need to set units to required units for compute_wind_mag
-        )
-        u10_da = _get_data_one_var(selections)
-
-        # Load v10 data
-        selections.variable_id = ["v10"]
-        selections.units = "m s-1"
-        v10_da = _get_data_one_var(selections)
-
-        # Derive the variable
-        da = compute_wind_dir(u10=u10_da, v10=v10_da)
-        return da
-
-    def _get_monthly_daily_dewpoint(selections):
-        """Derive dew point temp for monthly/daily data.
-
-        Parameters
-        ----------
-        selections: DataParameters
-
-        Returns
-        -------
-        da: xr.DataArray
-        """
-        # Daily/monthly dew point inputs have different units
-        # Hourly dew point temp derived differently because you also have to derive relative humidity
-
-        # Load temperature data
-        selections.variable_id = ["t2"]
-        selections.units = "K"  # Kelvin required for humidity and dew point computation
-        t2_da = _get_data_one_var(selections)
-
-        selections.variable_id = ["rh"]
-        selections.units = "[0 to 100]"
-        rh_da = _get_data_one_var(selections)
-
-        # Derive dew point temperature
-        # Returned in units of Kelvin
-        da = compute_dewpointtemp(temperature=t2_da, rel_hum=rh_da)  # Kelvin  # [0-100]
-        return da
-
-    def _get_hourly_dewpoint(selections):
-        """Derive dew point temp for hourly data.
-        Requires first deriving relative humidity.
-
-        Parameters
-        ----------
-        selections: DataParameters
-
-        Returns
-        -------
-        da: xr.DataArray
-        """
-        # Load temperature data
-        selections.variable_id = ["t2"]
-        selections.units = "degC"  # Celsius required for humidity
-        t2_da = _get_data_one_var(selections)
-
-        # Load mixing ratio data
-        selections.variable_id = ["q2"]
-        selections.units = "g kg-1"
-        q2_da = _get_data_one_var(selections)
-
-        # Load pressure data
-        selections.variable_id = ["psfc"]
-        selections.units = "hPa"
-        pressure_da = _get_data_one_var(selections)
-
-        # Derive relative humidity
-        # Returned in units of [0-100]
-        rh_da = compute_relative_humidity(
-            pressure=pressure_da,  # hPa
-            temperature=t2_da,  # degC
-            mixing_ratio=q2_da,  # g/kg
-        )
-
-        # Dew point temperature requires temperature in Kelvin
-        t2_da = convert_units(t2_da, "K")
-
-        # Derive dew point temperature
-        # Returned in units of Kelvin
-        da = compute_dewpointtemp(temperature=t2_da, rel_hum=rh_da)  # Kelvin  # [0-100]
-        return da
-
-    def _get_hourly_rh(selections):
-        """Derive hourly relative humidity.
-
-        Parameters
-        ----------
-        selections: DataParameters
-
-        Returns
-        -------
-        da: xr.DataArray
-        """
-        # Load temperature data
-        selections.variable_id = ["t2"]
-        selections.units = "degC"  # Celsius required for humidity
-        t2_da = _get_data_one_var(selections)
-
-        # Load mixing ratio data
-        selections.variable_id = ["q2"]
-        selections.units = "g kg-1"
-        q2_da = _get_data_one_var(selections)
-
-        # Load pressure data
-        selections.variable_id = ["psfc"]
-        selections.units = "hPa"
-        pressure_da = _get_data_one_var(selections)
-
-        # Derive relative humidity
-        # Returned in units of [0-100]
-        da = compute_relative_humidity(
-            pressure=pressure_da,  # hPa
-            temperature=t2_da,  # degC
-            mixing_ratio=q2_da,  # g/kg
-        )
-        return da
-
-    def _get_hourly_specific_humidity(selections):
-        """Derive hourly specific humidity.
-        Requires first deriving relative humidity, then dew point temp.
-
-        Parameters
-        ----------
-        selections: DataParameters
-
-        Returns
-        -------
-        da: xr.DataArray
-        """
-        # Load temperature data
-        selections.variable_id = ["t2"]
-        selections.units = "degC"  # degC required for humidity
-        t2_da = _get_data_one_var(selections)
-
-        # Load mixing ratio data
-        selections.variable_id = ["q2"]
-        selections.units = "g kg-1"
-        q2_da = _get_data_one_var(selections)
-
-        # Load pressure data
-        selections.variable_id = ["psfc"]
-        selections.units = "hPa"
-        pressure_da = _get_data_one_var(selections)
-
-        # Derive relative humidity
-        # Returned in units of [0-100]
-        rh_da = compute_relative_humidity(
-            pressure=pressure_da,  # hPa
-            temperature=t2_da,  # degC
-            mixing_ratio=q2_da,  # g/kg
-        )
-
-        # Dew point temperature requires temperature in Kelvin
-        t2_da = convert_units(t2_da, "K")
-
-        # Derive dew point temperature
-        # Returned in units of Kelvin
-        dew_pnt_da = compute_dewpointtemp(
-            temperature=t2_da, rel_hum=rh_da  # Kelvin  # [0-100]
-        )
-
-        # Derive specific humidity
-        # Returned in units of g/kg
-        da = compute_specific_humidity(
-            tdps=dew_pnt_da, pressure=pressure_da  # Kelvin  # Pa
-        )
-        return da
-
-    def _get_noaa_heat_index(selections):
-        """Derive NOAA heat index
-
-        Parameters
-        ----------
-        selections: DataParameters
-
-        Returns
-        -------
-        da: xr.DataArray
-        """
-
-        # Load mixing ratio data
-        selections.variable_id = ["q2"]
-        selections.units = "kg kg-1"
-        q2_da = _get_data_one_var(selections)
-
-        # Load pressure data
-        selections.variable_id = ["psfc"]
-        selections.units = "Pa"
-        pressure_da = _get_data_one_var(selections)
-
-        # Load temperature data
-        selections.variable_id = ["t2"]
-        selections.units = "K"  # Kelvin required for humidity and dew point computation
-        t2_da_K = _get_data_one_var(selections)
-
-        # Derive relative humidity
-        # Returned in units of [0-100]
-        rh_da = compute_relative_humidity(
-            pressure=pressure_da,  # Pa
-            temperature=t2_da_K,  # Kelvin
-            mixing_ratio=q2_da,  # kg/kg
-        )
-
-        # Convert temperature to proper units for noaa heat index
-        t2_da_F = convert_units(t2_da_K, "degF")
-
-        # Derive index
-        # Returned in units of F
-        da = noaa_heat_index(T=t2_da_F, RH=rh_da)
-        return da
-
-    def _get_eff_temp(selections):
-        """Derive the effective temperature
-
-        Parameters
-        ----------
-        selections: DataParameters
-
-        Returns
-        -------
-        da: xr.DataArray
-        """
-
-        # Load temperature data
-        selections.variable_id = ["t2"]
-        t2_da = _get_data_one_var(selections)
-
-        # Derive effective temp
-        da = effective_temp(T=t2_da)
-        return da
-
-    def _get_fosberg_fire_index(selections):
-        """Derive the fosberg fire index.
-
-        Parameters
-        ----------
-        selections: DataParameters
-
-        Returns
-        -------
-        da: xr.DataArray
-        """
-
-        # Hard set timescale to hourly
-        orig_timescale = selections.timescale  # Preserve original user selection
-        selections.timescale = "hourly"
-
-        # Load temperature data
-        selections.variable_id = ["t2"]
-        selections.units = "degC"  # Kelvin required for humidity
-        t2_da_C = _get_data_one_var(selections)
-
-        # Load mixing ratio data
-        selections.variable_id = ["q2"]
-        selections.units = "g kg-1"
-        q2_da = _get_data_one_var(selections)
-
-        # Load pressure data
-        selections.variable_id = ["psfc"]
-        selections.units = "hPa"
-        pressure_da = _get_data_one_var(selections)
-
-        # Load u10 data
-        selections.variable_id = ["u10"]
-        selections.units = (
-            "m s-1"  # Need to set units to required units for compute_wind_mag
-        )
-        u10_da = _get_data_one_var(selections)
-
-        # Load v10 data
-        selections.variable_id = ["v10"]
-        selections.units = "m s-1"
-        v10_da = _get_data_one_var(selections)
-
-        # Derive relative humidity
-        # Returned in units of [0-100]
-        rh_da = compute_relative_humidity(
-            pressure=pressure_da,  # hPa
-            temperature=t2_da_C,  # degC
-            mixing_ratio=q2_da,  # g/kg
-        )
-
-        # Derive windspeed
-        # Returned in units of m/s
-        windspeed_da_ms = compute_wind_mag(u10=u10_da, v10=v10_da)  # m/s
-
-        # Convert units to proper units for fosberg index
-        t2_da_F = convert_units(t2_da_C, "degF")
-        windspeed_da_mph = convert_units(windspeed_da_ms, "mph")
-
-        # Compute the index
-        da = fosberg_fire_index(
-            t2_F=t2_da_F, rh_percent=rh_da, windspeed_mph=windspeed_da_mph
-        )
-
-        return da
 
     # Get data attributes beforehand since selections is modified
     data_attrs = _get_data_attributes(selections)
