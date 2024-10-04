@@ -12,6 +12,7 @@ from climakitae.core.paths import (
     stations_csv_path,
     data_catalog_url,
     boundary_catalog_url,
+    gwl_1850_1900_file,
 )
 from climakitae.core.boundaries import Boundaries
 from climakitae.util.unit_conversions import get_unit_conversion_options
@@ -426,6 +427,8 @@ class DataInterface:
         parquet boundary catalog
     geographies: Boundaries
         boundary dictionaries class
+    warming_levels: pd.DataFrame
+        table of when each simulation/scenario reaches each warming level
     """
 
     def __new__(cls):
@@ -444,6 +447,7 @@ class DataInterface:
             geometry=gpd.points_from_xy(self.stations.LON_X, self.stations.LAT_Y),
         )
         self._data_catalog = intake.open_esm_datastore(data_catalog_url)
+        self._warming_levels = read_csv_file(gwl_1850_1900_file, index_col=[0, 1, 2])
 
         # Get geography boundaries
         self._boundary_catalog = intake.open_catalog(boundary_catalog_url)
@@ -466,6 +470,10 @@ class DataInterface:
     @property
     def data_catalog(self):
         return self._data_catalog
+
+    @property
+    def warming_levels(self):
+        return self._warming_levels
 
     @property
     def boundary_catalog(self):
@@ -559,6 +567,8 @@ class DataParameters(param.Parameterized):
         shorthand alias to DataInterface.geographies
     _geography_choose: dict
         shorthand alias to Boundaries.boundary_dict()
+    _warming_levels: pd.DataFrame
+        shorthand alias to DataInterface.warming_levels
     colormap: str
         default colormap to render the currently selected data
     scenario_options: list of strs
@@ -567,10 +577,13 @@ class DataParameters(param.Parameterized):
         filtered variable descriptions for the downscaling_method and timescale
     warming_level: array
         global warming level(s)
-    wl_window: integer
+    warming_level_window: integer
         Years around Global Warming Level (+/-) \n (e.g. 15 means a 30yr window)
     retrieval_method: str, "Warming Level" or "Time"
         how do you want the data to be retrieved?
+    warming_level_months: array
+        which months to use for computing warming levels?
+        default to entire calendar year: 1,2,3,4,5,6,7,8,9,10,11,12
     """
 
     # Unit conversion options for each unit
@@ -633,13 +646,16 @@ class DataParameters(param.Parameterized):
 
     # Warming level options
     wl_options = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4]
-    wl_default = [2]
     wl_time_option = ["n/a"]
     warming_level = param.ListSelector(default=["n/a"], objects=["n/a"])
-    wl_window = param.Integer(
+    warming_level_window = param.Integer(
         default=15,
         bounds=(5, 25),
         doc="Years around Global Warming Level (+/-) \n (e.g. 15 means a 30yr window)",
+    )
+    warming_level_months = param.ListSelector(
+        default=list(np.arange(1, 13)),  # All 12 months of the year
+        objects=list(np.arange(1, 13)),  # All 12 months of the year
     )
 
     # User warnings
@@ -656,6 +672,9 @@ class DataParameters(param.Parameterized):
 
         # Data Catalog
         self._data_catalog = self.data_interface.data_catalog
+
+        # Warming Levels Table
+        self._warming_levels = self.data_interface.warming_levels
 
         # variable descriptions
         self._variable_descriptions = self.data_interface.variable_descriptions

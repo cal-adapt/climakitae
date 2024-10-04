@@ -15,7 +15,8 @@ from climakitae.core.paths import gwl_1981_2010_file, gwl_1850_1900_file
 from climakitae.util.utils import (
     read_csv_file,
     scenario_to_experiment_id,
-    drop_invalid_wrf_sims,
+    timescale_to_table_id,
+    resolution_to_gridlabel,
 )
 
 from tqdm.auto import tqdm
@@ -88,7 +89,9 @@ class WarmingLevels:
 
         # For WRF, dropping invalid simulations before doing any other computation
         if self.wl_params.downscaling_method == "Dynamical":
-            self.catalog_data = drop_invalid_wrf_sims(self.catalog_data)
+            self.catalog_data = _drop_invalid_wrf_sims(
+                self.catalog_data, self.wl_params._data_catalog.df
+            )
 
         if self.wl_params.anom == "Yes":
             self.gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
@@ -325,3 +328,194 @@ class WarmingLevelChoose(DataParameters):
         else:
             self.param["anom"].objects = ["Yes", "No"]
             self.anom = "Yes"
+
+
+## ========= New as of Oct 2024 ========
+# Some of the functions are the same but with different names and/or improved documentation
+
+
+def _calculate_warming_level(warming_data, gwl_times, level, months, window):
+    """Perform warming level computation for a single level"""
+    warming_data = warming_data.groupby("simulation").map(
+        _get_sliced_data, level=level, gwl_times=gwl_times, months=months, window=window
+    )
+
+    warming_data = warming_data.expand_dims({"warming_level": [level]})
+
+    # Check that there exist simulations that reached this warming level before cleaning. Otherwise, don't modify anything.
+    if not (warming_data.centered_year.isnull()).all():
+        # Removing simulations where this warming level is not crossed. (centered_year)
+        warming_data = warming_data.sel(all_sims=~warming_data.centered_year.isnull())
+
+    return warming_data
+
+
+def _get_sliced_data(y, level, gwl_times, months=np.arange(1, 13), window=15):
+    """Calculate warming level anomalies.
+    Warming level is computed for each individual simulation/scenario.
+
+    Parameters
+    ----------
+    y: xr.DataArray
+        Data to compute warming level anomolies, one simulation at a time via groupby
+    level: float
+        Warming level amount
+    gwl_times: pd.DataFrame
+        Lookup table for the date a given simulation reaches each warming level.
+    months: np.ndarray
+        Months to include in a warming level slice.
+    window: int, optional
+        Number of years to generate time window for. Default to 15 years.
+        For example, a 15 year window would generate a window of 15 years in the past from the central warming level date, and 15 years into the future. I.e. if a warming level is reached in 2030, the window would be (2015,2045).
+
+    Returns
+    --------
+    anomaly_da: xr.DataArray
+    """
+    # Get the years when the global warming level is reached for all levels available in the gwl_times dataframe
+    gwl_times_subset = gwl_times.loc[_extract_string_identifiers(y)]
+
+    # Checking if the centered year is null, if so, return dummy DataArray
+    center_time = gwl_times_subset.loc[str(level)]
+
+    # Dropping leap days before slicing time dimension because the window size can affect number of leap days per slice
+    y = y.loc[~((y.time.dt.month == 2) & (y.time.dt.day == 29))]
+
+    if not pd.isna(center_time):
+
+        # Find the centered year
+        centered_year = pd.to_datetime(center_time).year
+        start_year = centered_year - window
+        end_year = centered_year + (window - 1)
+
+        sliced = y.sel(time=slice(str(start_year), str(end_year)))
+
+        # Creating a mask for timestamps that are within the desired months
+        valid_months_mask = sliced.time.dt.month.isin([months])
+
+        ### Resetting and renaming time index for each data array so they can overlap and save storage space.
+        expected_counts = {
+            "monthly": window * 2 * 12,
+            "daily": window * 2 * 365,
+            "hourly": window * 2 * 8760,
+        }
+        # There may be missing time for time slices that exceed the 2100 year bound. If that is the case, only return a warming slice for the amount of valid data available AND correctly center `time_from_center` values.
+        # Otherwise, if no time is missing, then the warming slice will just center the center year.
+        sliced["time"] = np.arange(
+            -expected_counts[y.frequency] / 2,
+            expected_counts[y.frequency] / 2
+            - (expected_counts[y.frequency] - len(sliced)),
+        )
+
+        # Removing data not in the desired months (in this new time dimension)
+        sliced = sliced.sel(time=valid_months_mask)
+
+        # Assigning `centered_year` as a coordinate to the DataArray
+        sliced = sliced.assign_coords({"centered_year": centered_year})
+
+    else:
+
+        # Get number of days per month for non-leap year
+        days_per_month = {i: calendar.monthrange(2001, i)[1] for i in np.arange(1, 13)}
+
+        # This creates an approximately appropriately sized DataArray to be dropped later
+        if y.frequency == "monthly":
+            time_freq = len(months)
+        elif y.frequency == "daily":
+            time_freq = sum([days_per_month[month] for month in months])
+        elif y.frequency == "hourly":
+            time_freq = sum([days_per_month[month] for month in months]) * 24
+        y = y.isel(
+            time=slice(0, window * 2 * time_freq)
+        )  # This is to create a dummy slice that conforms with other data structure. Can be re-written to something more elegant.
+
+        # Creating attributes
+        y["time"] = np.arange(-len(y.time) / 2, len(y.time) / 2)
+        y["centered_year"] = np.nan
+
+        # Returning DataArray of NaNs to be dropped later.
+        sliced = xr.full_like(y, np.nan)
+
+    return sliced
+
+
+def _extract_string_identifiers(da):
+    """
+    Extract string identifiers from DataArray coordinate.
+    Function returns the simulation, the ensemble, and the scenario (in the format of experiement_id which can be used to search the catalog)
+
+    Parameters
+    ----------
+    da: xr.DataArray
+        Catalog data in the format as returned by data_load (with simulation and scenario as coordinates)
+
+    Returns
+    -------
+    tuple
+        Simulation, ensemble, and scenario, as string values
+    """
+    simulation = da.simulation.item()
+    scenario = scenario_to_experiment_id(da.scenario.item().split("+")[1].strip())
+    downscaling_method, sim_str, ensemble = simulation.split("_")
+    return (sim_str, ensemble, scenario)
+
+
+def _drop_invalid_wrf_sims(ds, data_catalog):
+    """
+    As part of the warming levels calculation, the data is stacked by simulation and scenario, creating some empty values for that coordinate.
+    Here, we remove those empty coordinate values.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        The dataset containing WRF simulations. The dataset must have a
+        dimension `all_sims` that results from stacking `simulation` and
+        `scenario`.
+    data_catalog: pd.DataFrame
+        intake catalog, loaded as a pandas dataframe
+
+    Returns
+    -------
+    xr.Dataset
+        The dataset with only valid WRF simulations retained.
+
+    Raises
+    ------
+    AttributeError
+        If the dataset does not have an `all_sims` dimension.
+
+    """
+    if "all_sims" not in ds.dims:
+        raise AttributeError(
+            "Missing an `all_sims` dimension on the dataset. Create `all_sims` with .stack on `simulation` and `scenario`."
+        )
+
+    # Checking for derived variables separately since we don't store their IDs in the catalog
+    # Future derived variables that don't use `t2` will be broken because of this function.
+    variable = ds.variable_id
+    if "derived" in variable:
+        variable = "t2"
+
+    # Find valid simulation from catalog
+    filter_df = data_catalog[
+        (data_catalog["activity_id"] == "WRF")
+        & (data_catalog["table_id"] == timescale_to_table_id(ds.frequency))
+        & (data_catalog["grid_label"] == resolution_to_gridlabel(ds.resolution))
+        & (data_catalog["variable_id"] == variable)
+        & (data_catalog["experiment_id"] != "historical")
+        & (data_catalog["experiment_id"] != "reanalysis")
+        & (data_catalog["source_id"] != "ensmean")
+    ]
+    valid_sim_list = list(
+        zip(
+            filter_df["activity_id"]
+            + "_"
+            + filter_df["source_id"]
+            + "_"
+            + filter_df["member_id"],
+            filter_df["experiment_id"].apply(
+                lambda val: f"Historical + {scenario_to_experiment_id(val, reverse=True)}"
+            ),
+        )
+    )
+    return ds.sel(all_sims=valid_sim_list)
