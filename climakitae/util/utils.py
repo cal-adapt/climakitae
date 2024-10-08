@@ -901,13 +901,19 @@ def drop_invalid_wrf_sims(ds):
             "Missing an `all_sims` dimension on the dataset. Create `all_sims` with .stack on `simulation` and `scenario`."
         )
 
+    # Checking for derived variables separately since we don't store their IDs in the catalog
+    # Future derived variables that don't use `t2` will be broken because of this function.
+    variable = ds.variable_id
+    if "derived" in variable:
+        variable = "t2"
+
     # Find valid simulation from catalog
     df = intake.open_esm_datastore(data_catalog_url).df
     filter_df = df[
         (df["activity_id"] == "WRF")
         & (df["table_id"] == timescale_to_table_id(ds.frequency))
         & (df["grid_label"] == resolution_to_gridlabel(ds.resolution))
-        & (df["variable_id"] == ds.variable_id)
+        & (df["variable_id"] == variable)
         & (df["experiment_id"] != "historical")
         & (df["experiment_id"] != "reanalysis")
         & (df["source_id"] != "ensmean")
