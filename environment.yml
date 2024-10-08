@@ -33,3 +33,7 @@ dependencies:
     - dask-gateway
     - dask-geopandas
     - xclim
+    - boto3
+    - IPython
+    - timezonefinder
+    - h5netcdf
