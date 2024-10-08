@@ -159,7 +159,8 @@ def fosberg_fire_index(t2_F, rh_percent, windspeed_mph):
     # Compute the index
     U = windspeed_mph
     # If the value falls out of [0-100] range clip the value
-    FFWI = np.clip((n * ((1 + U**2) ** 0.5)) / 0.3002, 0.0, 100.0)
+    tmp = (n * ((1 + U**2) ** 0.5)) / 0.3002
+    FFWI = tmp.clip(min=0.0, max=100.0)
 
     # Reassign coordinate attributes
     # For some reason, these get improperly assigned in the xr.where step
