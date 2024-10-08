@@ -15,6 +15,10 @@ from shapely.geometry import box
 from xclim.sdba import Grouper
 from xclim.sdba.adjustment import QuantileDeltaMapping
 from climakitae.core.boundaries import Boundaries
+from climakitae.util.warming_levels import (
+    _drop_invalid_wrf_sims,
+    _calculate_warming_level,
+)
 from climakitae.util.unit_conversions import convert_units, get_unit_conversion_options
 from climakitae.util.utils import (
     readable_bytes,
@@ -125,7 +129,9 @@ def _get_cat_subset(selections):
         catalog subset
     """
 
-    scenario_selections = selections.scenario_ssp + selections.scenario_historical
+    scenario_ssp, scenario_historical = _get_scenario_from_selections(selections)
+
+    scenario_selections = scenario_ssp + scenario_historical
 
     method_list = downscaling_method_as_list(selections.downscaling_method)
 
@@ -598,6 +604,38 @@ def _merge_all(selections, data_dict):
     return all_ssps
 
 
+def _get_scenario_from_selections(selections):
+    """Get scenario from DataParameters object
+    This needs to be handled differently due to warming levels retrieval method, which sets scenario to "n/a" for both historical and ssp.
+
+    Parameters
+    ----------
+    selections: DataParameters
+        object holding user's selections
+
+    Returns
+    -------
+    scenario_ssp: list of str
+    scenario_historical: list of str
+
+    """
+
+    if selections.retrieval_method == "Time":
+        scenario_ssp = selections.scenario_ssp
+        scenario_historical = selections.scenario_historical
+
+    elif selections.retrieval_method == "Warming Level":
+        # Need all scenarios for warming level approach
+        scenario_ssp = [
+            "SSP 3-7.0 -- Business as Usual",
+            "SSP 2-4.5 -- Middle of the Road",
+            "SSP 5-8.5 -- Burn it All",
+        ]
+        scenario_historical = ["Historical Climate"]
+
+    return scenario_ssp, scenario_historical
+
+
 def _get_data_one_var(selections):
     """Get data for one variable
     Retrieves dataset dictionary from AWS, handles some special cases, merges
@@ -615,6 +653,8 @@ def _get_data_one_var(selections):
     """
 
     orig_units = selections.units
+
+    scenario_ssp, scenario_historical = _get_scenario_from_selections(selections)
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")  # Silence warning if empty dataset returned
@@ -638,7 +678,7 @@ def _get_data_one_var(selections):
     # We want to return the single available CESM2 model
     if ("ensmean" in selections.simulation) and (
         {"SSP 2-4.5 -- Middle of the Road", "SSP 5-8.5 -- Burn it All"}.intersection(
-            set(selections.scenario_ssp)
+            set(scenario_ssp)
         )
     ):
         method_list = downscaling_method_as_list(selections.downscaling_method)
@@ -648,9 +688,7 @@ def _get_data_one_var(selections):
             table_id=timescale_to_table_id(selections.timescale),
             grid_label=resolution_to_gridlabel(selections.resolution),
             variable_id=selections.variable_id,
-            experiment_id=[
-                scenario_to_experiment_id(x) for x in selections.scenario_ssp
-            ],
+            experiment_id=[scenario_to_experiment_id(x) for x in scenario_ssp],
             source_id=["CESM2"],
         )
         data_dict2 = cat_subset2.to_dataset_dict(
@@ -1102,21 +1140,24 @@ def read_catalog_from_select(selections):
         output data
     """
 
-    if (selections.scenario_ssp != []) and (
-        "Historical Reconstruction" in selections.scenario_historical
-    ):
-        raise ValueError(
-            "Historical Reconstruction data is not available with SSP data. Please modify your selections and try again."
-        )
+    # Raise appropriate errors for time-based retrieval
+    if selections.retrieval_method == "Time":
 
-    # Validate unit selection
-    # Returns None if units are valid, raises error if not
-    _check_valid_unit_selection(selections)
+        if (selections.scenario_ssp != []) and (
+            "Historical Reconstruction" in selections.scenario_historical
+        ):
+            raise ValueError(
+                "Historical Reconstruction data is not available with SSP data. Please modify your selections and try again."
+            )
 
-    # Raise error if no scenarios are selected
-    scenario_selections = selections.scenario_ssp + selections.scenario_historical
-    if scenario_selections == []:
-        raise ValueError("Please select as least one dataset.")
+        # Validate unit selection
+        # Returns None if units are valid, raises error if not
+        _check_valid_unit_selection(selections)
+
+        # Raise error if no scenarios are selected
+        scenario_selections = selections.scenario_ssp + selections.scenario_historical
+        if scenario_selections == []:
+            raise ValueError("Please select as least one dataset.")
 
     # Raise error if station data selected, but no station is selected
     if (selections.data_type == "Station") and (
@@ -1199,6 +1240,11 @@ def read_catalog_from_select(selections):
             selections.scenario_historical.remove("Historical Climate")
             da["scenario"] = [x.split("Historical + ")[1] for x in da.scenario.values]
         selections.time_slice = original_time_slice
+
+    if selections.retrieval_method == "Warming Level":
+        # Reset original selections
+        selections.scenario_ssp = ["n/a"]
+        selections.scenario_historical = ["n/a"]
 
     return da
 
