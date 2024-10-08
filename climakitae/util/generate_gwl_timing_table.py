@@ -87,7 +87,6 @@ def main():
 
         wl_timing_df.loc[warmlevel] = row
 
-    wl_timing_df.to_csv("gwl_timing.csv")
     write_csv_file(wl_timing_df, "data/gwl_timing_table.csv")
 
 
