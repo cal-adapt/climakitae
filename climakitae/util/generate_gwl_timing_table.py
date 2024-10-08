@@ -36,21 +36,21 @@ def main():
     ssp585_data = read_csv_file(ssp585_file, index_col="Year")
 
     ssp_dict = {
-        # "SSP 1-1.9": ssp119_data, # skip this one scenario because it does not reach any warming levels
-        "SSP 1-2.6": ssp126_data,
-        "SSP 2-4.5": ssp245_data,
-        "SSP 3-7.0": ssp370_data,
-        "SSP 5-8.5": ssp585_data,
+        "SSP 1-1.9": ssp119_data, 
+        "SSP_1-2.6": ssp126_data,
+        "SSP_2-4.5": ssp245_data,
+        "SSP_3-7.0": ssp370_data,
+        "SSP_5-8.5": ssp585_data,
     }
 
     # specify options
-    warmlevels = [1.5, 2.0, 2.5, 3.0]
+    warmlevels = [1.5, 2.0, 2.5, 3.0, 3.5, 4.0]
     cmip_t = np.arange(2015, 2100, 1)
 
     # construct dataframe
     cols = []
     for ssp in ssp_dict.keys():
-        cols.extend([ssp + "_05", ssp + "_mean", ssp + "_95"])
+        cols.extend([ssp + "_05_percentile", ssp + "_mean", ssp + "_95_percentile"])
     wl_timing_df = pd.DataFrame(columns=cols)
 
     # fill dataframe with crossing years
