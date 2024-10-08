@@ -740,6 +740,8 @@ def _get_data_attributes(selections):
         "resolution": selections.resolution,
         "frequency": selections.timescale,
         "location_subset": selections.cached_area,
+        "retrieval_method": selections.retrieval_method,
+        "downscaling_method": selections.downscaling_method,
     }
     return new_attrs
 

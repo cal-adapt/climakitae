@@ -8,6 +8,7 @@ from climakitae.util.utils import (
     scenario_to_experiment_id,
     timescale_to_table_id,
     resolution_to_gridlabel,
+    downscaling_method_to_activity_id,
 )
 
 
@@ -53,7 +54,7 @@ def _get_sliced_data(y, level, gwl_times, months=np.arange(1, 13), window=15):
     gwl_times_subset = gwl_times.loc[_extract_string_identifiers(y)]
 
     # Checking if the centered year is null, if so, return dummy DataArray
-    center_time = gwl_times_subset.loc[str(level)]
+    center_time = gwl_times_subset.loc[str(float(level))]
 
     # Dropping leap days before slicing time dimension because the window size can affect number of leap days per slice
     y = y.loc[~((y.time.dt.month == 2) & (y.time.dt.day == 29))]
@@ -145,7 +146,7 @@ def _drop_invalid_wrf_sims(ds, data_catalog):
     Parameters
     ----------
     ds : xr.Dataset
-        The dataset containing WRF simulations. The dataset must have a
+        The dataset must have a
         dimension `all_sims` that results from stacking `simulation` and
         `scenario`.
     data_catalog: pd.DataFrame
@@ -154,7 +155,7 @@ def _drop_invalid_wrf_sims(ds, data_catalog):
     Returns
     -------
     xr.Dataset
-        The dataset with only valid WRF simulations retained.
+        The dataset with only valid simulations retained.
 
     Raises
     ------
@@ -173,9 +174,15 @@ def _drop_invalid_wrf_sims(ds, data_catalog):
     if "derived" in variable:
         variable = "t2"
 
+    downscaling_method = (
+        ["WRF", "LOCA2"]
+        if ds.downscaling_method == "Dynamical+Statistical"
+        else [downscaling_method_to_activity_id(ds.downscaling_method)]
+    )
+
     # Find valid simulation from catalog
     filter_df = data_catalog[
-        (data_catalog["activity_id"] == "WRF")
+        (data_catalog["activity_id"].isin(downscaling_method))
         & (data_catalog["table_id"] == timescale_to_table_id(ds.frequency))
         & (data_catalog["grid_label"] == resolution_to_gridlabel(ds.resolution))
         & (data_catalog["variable_id"] == variable)

@@ -645,7 +645,7 @@ class DataParameters(param.Parameterized):
     ssp_range = (2015, 2100)
 
     # Warming level options
-    wl_options = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4]
+    wl_options = [1.5, 2.0, 2.5, 3.0, 4.0]
     wl_time_option = ["n/a"]
     warming_level = param.ListSelector(default=["n/a"], objects=["n/a"])
     warming_level_window = param.Integer(
@@ -773,7 +773,7 @@ class DataParameters(param.Parameterized):
         """
         if self.retrieval_method == "Warming Level":
             self.param["warming_level"].objects = self.wl_options
-            self.warming_level = [2]
+            self.warming_level = [2.0]
 
             self.param["scenario_ssp"].objects = ["n/a"]
             self.scenario_ssp = ["n/a"]
@@ -832,13 +832,26 @@ class DataParameters(param.Parameterized):
             self.param["area_average"].objects = ["Yes", "No"]
             self.area_average = "No"
 
-    @param.depends("downscaling_method", "data_type", "variable_type", watch=True)
-    def _update_data_type_options_if_loca_or_derived_var_selected(self):
-        """If statistical downscaling is selected, remove option for station data because we don't
-        have the 2m temp variable for LOCA"""
+    @param.depends(
+        "downscaling_method",
+        "data_type",
+        "variable_type",
+        "retrieval_method",
+        watch=True,
+    )
+    def _update_data_type_option_for_some_selections(self):
+        """
+        Station data selection not permitted for the following selections:
+        - If statistical downscaling is selected, remove option for station data because we don't
+        have the 2m temp variable for LOCA.
+        - No station data (yet) for warming levels-- can explore adding in the future. Order of operations for station based retrieval using a warming levels approach should be: quantile mapping first to adjust to observations, then retrieve the sliced data.
+        - No station data (yet) for derived indices-- can explore adding in the future
+
+        """
         if (
             "Statistical" in self.downscaling_method
             or self.variable_type == "Derived Index"
+            or self.retrieval_method == "Warming Level"
         ):
             self.param["data_type"].objects = ["Gridded"]
             self.data_type = "Gridded"
@@ -847,12 +860,16 @@ class DataParameters(param.Parameterized):
         if "Station" in self.data_type or self.variable_type == "Derived Index":
             self.param["downscaling_method"].objects = ["Dynamical"]
             self.downscaling_method = "Dynamical"
+
+            self.param["retrieval_method"].objects = ["Time"]
+            self.retrieval_method = "Time"
         else:
             self.param["downscaling_method"].objects = [
                 "Dynamical",
                 "Statistical",
                 "Dynamical+Statistical",
             ]
+            self.param["retrieval_method"].objects = ["Time", "Warming Level"]
 
     @param.depends("data_type", "downscaling_method", watch=True)
     def _update_res_based_on_data_type_and_downscaling_method(self):
