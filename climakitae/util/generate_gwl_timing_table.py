@@ -36,7 +36,7 @@ def main():
     ssp585_data = read_csv_file(ssp585_file, index_col="Year")
 
     ssp_dict = {
-        "SSP 1-1.9": ssp119_data,
+        "SSP_1-1.9": ssp119_data,
         "SSP_1-2.6": ssp126_data,
         "SSP_2-4.5": ssp245_data,
         "SSP_3-7.0": ssp370_data,
