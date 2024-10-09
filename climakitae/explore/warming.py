@@ -15,7 +15,7 @@ from climakitae.core.paths import gwl_1981_2010_file, gwl_1850_1900_file
 from climakitae.util.utils import (
     read_csv_file,
     scenario_to_experiment_id,
-    drop_invalid_wrf_sims,
+    drop_invalid_wl_sims,
 )
 
 from tqdm.auto import tqdm
@@ -86,9 +86,10 @@ class WarmingLevels:
         self.catalog_data = self.wl_params.retrieve()
         self.catalog_data = self.catalog_data.stack(all_sims=["simulation", "scenario"])
 
-        # For WRF, dropping invalid simulations before doing any other computation
-        if self.wl_params.downscaling_method == "Dynamical":
-            self.catalog_data = drop_invalid_wrf_sims(self.catalog_data)
+        # Dropping invalid simulations that come up from stacking scenarios and simulations together
+        self.catalog_data = drop_invalid_wl_sims(
+            self.catalog_data, self.wl_params.downscaling_method
+        )
 
         if self.wl_params.anom == "Yes":
             self.gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
