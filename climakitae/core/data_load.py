@@ -16,7 +16,7 @@ from xclim.sdba import Grouper
 from xclim.sdba.adjustment import QuantileDeltaMapping
 from climakitae.core.boundaries import Boundaries
 from climakitae.util.warming_levels import (
-    _drop_invalid_wrf_sims,
+    _drop_invalid_sims,
     _calculate_warming_level,
 )
 from climakitae.util.unit_conversions import convert_units, get_unit_conversion_options
@@ -51,6 +51,12 @@ xr.set_options(keep_attrs=True)
 dask.config.set({"array.slicing.split_large_chunks": True})
 
 from dask.diagnostics import ProgressBar
+
+# Silence performance warnings
+# This warning is triggered when large chunks are created
+from dask.array.core import PerformanceWarning
+
+warnings.filterwarnings("ignore", category=PerformanceWarning)
 
 
 def load(xr_da, progress_bar=False):
@@ -620,11 +626,11 @@ def _get_scenario_from_selections(selections):
 
     """
 
-    if selections.retrieval_method == "Time":
+    if selections.approach == "Time":
         scenario_ssp = selections.scenario_ssp
         scenario_historical = selections.scenario_historical
 
-    elif selections.retrieval_method == "Warming Level":
+    elif selections.approach == "Warming Level":
         # Need all scenarios for warming level approach
         scenario_ssp = [
             "SSP 3-7.0 -- Business as Usual",
@@ -740,7 +746,7 @@ def _get_data_attributes(selections):
         "resolution": selections.resolution,
         "frequency": selections.timescale,
         "location_subset": selections.cached_area,
-        "retrieval_method": selections.retrieval_method,
+        "approach": selections.approach,
         "downscaling_method": selections.downscaling_method,
     }
     return new_attrs
@@ -1142,8 +1148,11 @@ def read_catalog_from_select(selections):
         output data
     """
 
+    if selections.approach == "Warming Level":
+        selections.time_slice = (1980, 2100)  # Retrieve entire time period
+
     # Raise appropriate errors for time-based retrieval
-    if selections.retrieval_method == "Time":
+    if selections.approach == "Time":
 
         if (selections.scenario_ssp != []) and (
             "Historical Reconstruction" in selections.scenario_historical
@@ -1236,19 +1245,108 @@ def read_catalog_from_select(selections):
         da = _get_data_one_var(selections)
 
     if selections.data_type == "Station":
+        # Bias-correct the station data
         da = _station_apply(selections, da, original_time_slice)
+
         # Reset original selections
         if "Historical Climate" not in original_scenario_historical:
             selections.scenario_historical.remove("Historical Climate")
             da["scenario"] = [x.split("Historical + ")[1] for x in da.scenario.values]
         selections.time_slice = original_time_slice
 
-    if selections.retrieval_method == "Warming Level":
+    if selections.approach == "Warming Level":
+
+        # Process data object using warming levels approach
+        # Dimensions and coordinates will change
+        # See function documentation for more information
+        da = _apply_warming_levels_approach(da, selections)
+
         # Reset original selections
         selections.scenario_ssp = ["n/a"]
         selections.scenario_historical = ["n/a"]
 
     return da
+
+
+def _apply_warming_levels_approach(da, selections):
+    """
+    Apply warming levels approach to data object.
+    Internal function only-- many settings are set in the backend for this function to work appropriately.
+
+    Parameters
+    ----------
+    da: xr.DataArray
+        Object returned by _get_data_one_var for a time-based approach
+        Needs to have simulation, scenario, and time dimension.
+        Time needs to be from 1980-2100.
+        Historical Climate must be appended.
+    selections: DataParameters
+        Data settings (variable, unit, timescale, etc).
+        selections.approach must be "Warming Level".
+
+    Returns
+    -------
+    warming_data: xr.DataArray
+        Object with dimensions warming_level, time_delta, simulation, and spatial coordinates
+        "simulation" dimension reflects the simulation+scenario combo from the time-based approach; i.e. it is the coordinate returned by stacking both simulation and scenario dimensions.
+        "time_delta" dimensions reflects the hours/days/months (depends on user selections for timescale) from the central year
+    """
+
+    # Stack by simulation and scenario to combine the coordinates into a single dimension
+    data_stacked = da.stack(all_sims=["simulation", "scenario"])
+
+    # The xarray stacking function results in some non-existant scenario/simulation combos
+    # We need to drop them here such that the global warming levels table can be adequately parsed by the _calculate_warming_level function
+    data_stacked = _drop_invalid_sims(data_stacked, selections._data_catalog.df)
+
+    # Calculate warming level DataArray for each individual warming level
+    # Function will be applied for each individual warming level
+    # Then, the list of DataArrays (one for each warming level) will be concatenated into a single DataArray object
+    da_list = []
+    for level in selections.warming_level:
+        da_by_wl = _calculate_warming_level(
+            data_stacked,
+            gwl_times=selections._warming_levels,
+            level=level,
+            months=selections.warming_level_months,
+            window=selections.warming_level_window,
+        )
+        da_list.append(da_by_wl)
+
+    # Concatenate along warming levels dimension
+    warming_data = xr.concat(da_list, dim="warming_level")
+
+    # Need to remove confusing MultiIndex dimension
+    # And add back in the simulation + scenario information in a better format
+    # Do we think these are the right names??
+    sim_and_scen_str = [
+        x[0]
+        + "_historical+"
+        + scenario_to_experiment_id(x[1].split("Historical + ")[1])
+        for x in warming_data["all_sims"].values
+    ]
+    warming_data = warming_data.drop(["simulation", "scenario"])
+    warming_data["all_sims"] = sim_and_scen_str
+
+    # Add descriptive attributes to coordinates
+    freq_strs = {"monthly": "months", "daily": "days", "hourly": "hours"}
+    warming_data["time"].attrs = {
+        "description": freq_strs[warming_data.frequency] + " from center year"
+    }
+    warming_data["centered_year"].attrs = {
+        "description": "central year in +/-{0} year window".format(
+            selections.warming_level_window
+        )
+    }
+    warming_data["warming_level"].attrs = {
+        "description": "degrees Celcius above the historical baseline"
+    }
+    warming_data["all_sims"].attrs = {"description": "combined simulation and scenario"}
+
+    # Give a better name to the "all_sims" and "time" dimension to better reflect the warming levels approach
+    warming_data = warming_data.rename({"all_sims": "simulation", "time": "time_delta"})
+
+    return warming_data
 
 
 def _station_apply(selections, da, original_time_slice):

@@ -1,9 +1,9 @@
+"""Helper functions related to applying a warming levels approach to a data object"""
+
 import xarray as xr
 import numpy as np
 import pandas as pd
-import param
 import calendar
-from climakitae.core.paths import gwl_1981_2010_file
 from climakitae.util.utils import (
     scenario_to_experiment_id,
     timescale_to_table_id,
@@ -13,7 +13,37 @@ from climakitae.util.utils import (
 
 
 def _calculate_warming_level(warming_data, gwl_times, level, months, window):
-    """Perform warming level computation for a single level"""
+    """Perform warming level computation for a single warming level.
+    Assumes the data has already been stacked by simulation and scenario to create a MultiIndex dimension "all_sims" and that the invalid simulations have been removed such that the gwl_times table can be adequately parsed.
+    Internal function only; see the function _apply_warming_levels_approach for more documentation on how this function is applied internally.
+    Appropriate attributes for new dimensions are applied by the retrieval function (not here).
+
+    Parameters
+    ----------
+    warming_data: xr.DataArray
+        Data object returned by _get_data_one_var, stacked by simulation/scenario, and then with invalid simulations removed.
+    gwl_times: pd.DataFrame
+        Global warming levels table indicating when each unique model/run/scenario (simulation) reaches each warming level.
+    level: float
+        Warming level. Must be a valid column in gwl_times table.
+    months: list of int
+        Months of the year (in integers) to compute function for.
+        i.e. for a full year, months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    window: int
+        Years around Global Warming Level (+/-) \n (e.g. 15 means a 30yr window)
+
+    Returns
+    -------
+    warming_data: xr.DataArray
+
+    """
+    # Raise error if proper processing has not been performed on the data before calling the function
+    if "all_sims" not in warming_data.dims:
+        raise AttributeError(
+            "Missing an `all_sims` dimension on the dataset. Create `all_sims` with .stack on `simulation` and `scenario`."
+        )
+
+    # Apply _get_sliced_data function by simulation dimension
     warming_data = warming_data.groupby("simulation").map(
         _get_sliced_data, level=level, gwl_times=gwl_times, months=months, window=window
     )
@@ -28,7 +58,7 @@ def _calculate_warming_level(warming_data, gwl_times, level, months, window):
     return warming_data
 
 
-def _get_sliced_data(y, level, gwl_times, months=np.arange(1, 13), window=15):
+def _get_sliced_data(y, level, gwl_times, months, window):
     """Calculate warming level anomalies.
     Warming level is computed for each individual simulation/scenario.
 
@@ -36,15 +66,15 @@ def _get_sliced_data(y, level, gwl_times, months=np.arange(1, 13), window=15):
     ----------
     y: xr.DataArray
         Data to compute warming level anomolies, one simulation at a time via groupby
-    level: float
-        Warming level amount
     gwl_times: pd.DataFrame
-        Lookup table for the date a given simulation reaches each warming level.
-    months: np.ndarray
-        Months to include in a warming level slice.
-    window: int, optional
-        Number of years to generate time window for. Default to 15 years.
-        For example, a 15 year window would generate a window of 15 years in the past from the central warming level date, and 15 years into the future. I.e. if a warming level is reached in 2030, the window would be (2015,2045).
+        Global warming levels table indicating when each unique model/run/scenario (simulation) reaches each warming level.
+    level: float
+        Warming level. Must be a valid column in gwl_times table.
+    months: list of int
+        Months of the year (in integers) to compute function for.
+        i.e. for a full year, months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    window: int
+        Years around Global Warming Level (+/-) \n (e.g. 15 means a 30yr window)
 
     Returns
     --------
@@ -71,7 +101,7 @@ def _get_sliced_data(y, level, gwl_times, months=np.arange(1, 13), window=15):
         # Creating a mask for timestamps that are within the desired months
         valid_months_mask = sliced.time.dt.month.isin([months])
 
-        ### Resetting and renaming time index for each data array so they can overlap and save storage space.
+        # Resetting and renaming time index for each data array so they can overlap and save storage space.
         expected_counts = {
             "monthly": window * 2 * 12,
             "daily": window * 2 * 365,
@@ -138,7 +168,7 @@ def _extract_string_identifiers(da):
     return (sim_str, ensemble, scenario)
 
 
-def _drop_invalid_wrf_sims(ds, data_catalog):
+def _drop_invalid_sims(ds, data_catalog):
     """
     As part of the warming levels calculation, the data is stacked by simulation and scenario, creating some empty values for that coordinate.
     Here, we remove those empty coordinate values.
@@ -163,10 +193,6 @@ def _drop_invalid_wrf_sims(ds, data_catalog):
         If the dataset does not have an `all_sims` dimension.
 
     """
-    if "all_sims" not in ds.dims:
-        raise AttributeError(
-            "Missing an `all_sims` dimension on the dataset. Create `all_sims` with .stack on `simulation` and `scenario`."
-        )
 
     # Checking for derived variables separately since we don't store their IDs in the catalog
     # Future derived variables that don't use `t2` will be broken because of this function.
@@ -174,6 +200,8 @@ def _drop_invalid_wrf_sims(ds, data_catalog):
     if "derived" in variable:
         variable = "t2"
 
+    # Downscaling method as activity_id
+    # Retrieved separately to account for Dynamical+Statistical option, which is not a valid converion option for the downscaling_method_to_activity_id function
     downscaling_method = (
         ["WRF", "LOCA2"]
         if ds.downscaling_method == "Dynamical+Statistical"

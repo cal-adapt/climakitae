@@ -579,7 +579,7 @@ class DataParameters(param.Parameterized):
         global warming level(s)
     warming_level_window: integer
         Years around Global Warming Level (+/-) \n (e.g. 15 means a 30yr window)
-    retrieval_method: str, "Warming Level" or "Time"
+    approach: str, "Warming Level" or "Time"
         how do you want the data to be retrieved?
     warming_level_months: array
         which months to use for computing warming levels?
@@ -626,7 +626,7 @@ class DataParameters(param.Parameterized):
         default="", doc="Information about the bias correction process and resolution"
     )
     enable_hidden_vars = param.Boolean(False)
-    retrieval_method = param.Selector(default="Time", objects=["Time", "Warming Level"])
+    approach = param.Selector(default="Time", objects=["Time", "Warming Level"])
 
     # Empty params, initialized in __init__
     scenario_ssp = param.ListSelector(objects=dict())
@@ -764,14 +764,14 @@ class DataParameters(param.Parameterized):
         )
         self._data_warning = ""
 
-    @param.depends("retrieval_method", watch=True)
-    def _update_scenarios_retrieval_method(self):
+    @param.depends("approach", watch=True)
+    def _update_scenarios_approach(self):
         """
         Update the scenario options shown based on retrieval method.
         If warming level is selected, there should be no scenario options shown.
         If time-based is selected, there should be no warming levels options shown.
         """
-        if self.retrieval_method == "Warming Level":
+        if self.approach == "Warming Level":
             self.param["warming_level"].objects = self.wl_options
             self.warming_level = [2.0]
 
@@ -781,7 +781,7 @@ class DataParameters(param.Parameterized):
             self.param["scenario_historical"].objects = ["n/a"]
             self.scenario_historical = ["n/a"]
 
-        elif self.retrieval_method == "Time":
+        elif self.approach == "Time":
             self.param["warming_level"].objects = ["n/a"]
             self.warming_level = ["n/a"]
 
@@ -836,7 +836,7 @@ class DataParameters(param.Parameterized):
         "downscaling_method",
         "data_type",
         "variable_type",
-        "retrieval_method",
+        "approach",
         watch=True,
     )
     def _update_data_type_option_for_some_selections(self):
@@ -851,7 +851,7 @@ class DataParameters(param.Parameterized):
         if (
             "Statistical" in self.downscaling_method
             or self.variable_type == "Derived Index"
-            or self.retrieval_method == "Warming Level"
+            or self.approach == "Warming Level"
         ):
             self.param["data_type"].objects = ["Gridded"]
             self.data_type = "Gridded"
@@ -861,15 +861,15 @@ class DataParameters(param.Parameterized):
             self.param["downscaling_method"].objects = ["Dynamical"]
             self.downscaling_method = "Dynamical"
 
-            self.param["retrieval_method"].objects = ["Time"]
-            self.retrieval_method = "Time"
+            self.param["approach"].objects = ["Time"]
+            self.approach = "Time"
         else:
             self.param["downscaling_method"].objects = [
                 "Dynamical",
                 "Statistical",
                 "Dynamical+Statistical",
             ]
-            self.param["retrieval_method"].objects = ["Time", "Warming Level"]
+            self.param["approach"].objects = ["Time", "Warming Level"]
 
     @param.depends("data_type", "downscaling_method", watch=True)
     def _update_res_based_on_data_type_and_downscaling_method(self):
@@ -1036,14 +1036,14 @@ class DataParameters(param.Parameterized):
             self.units = native_unit
 
     @param.depends(
-        "resolution", "downscaling_method", "data_type", "retrieval_method", watch=True
+        "resolution", "downscaling_method", "data_type", "approach", watch=True
     )
     def _update_scenarios(self):
         """
         Update scenario options. Raise data warning if a bad selection is made.
         """
 
-        if self.retrieval_method == "Time":
+        if self.approach == "Time":
 
             # Set incoming scenario_historical
             _scenario_historical = self.scenario_historical
@@ -1096,7 +1096,7 @@ class DataParameters(param.Parameterized):
             pass
 
     @param.depends(
-        "retrieval_method",
+        "approach",
         "scenario_ssp",
         "scenario_historical",
         "downscaling_method",
@@ -1105,13 +1105,13 @@ class DataParameters(param.Parameterized):
     )
     def _update_data_warning(self):
         """Update warning raised to user based on their data selections.
-        No warming shown if retrieval_method is set to warming level.
+        No warming shown if approach is set to warming level.
         """
         data_warning = ""
         bad_time_slice_warning = """You've selected a time slice that is outside the temporal range 
         of the selected data."""
 
-        if self.retrieval_method == "Warming Level":
+        if self.approach == "Warming Level":
             data_warning = ""
 
         else:
@@ -1293,7 +1293,7 @@ class DataParameters(param.Parameterized):
             Only an option if a config file is provided.
         """
 
-        def warnoflargefilesize(da):
+        def warn_of_large_file_size(da):
             if da.nbytes >= int(1e9) and da.nbytes < int(5e9):
                 print(
                     "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
@@ -1313,6 +1313,16 @@ class DataParameters(param.Parameterized):
                     "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
                 )
 
+        def warn_of_empty_data(self):
+            if self.approach == "Warming Level":
+                print(
+                    "WARNING FOR WARMING LEVELS APPROACH\n-----------------------------------\nThere may be NaNs in your data for certain simulation/warming level combinations if the warming level is not reached for that particular simulation before the year 2100. \n\nThis does not mean you have missing data, but rather a feature of how the data is combined in retrieval to return a single data object. \n\nIf you want to remove these empty simulations, it is recommended to first subset the data object by each individual warming level and then dropping NaN values."
+                )
+            elif (self.approach == "Time") and (len(self.scenario_ssp) > 1):
+                print(
+                    "WARNING\n-------\nYou have retrieved data for more than one SSP, but not all ensemble members for each GCM are available for all SSPs.\n\nAs a result, some scenario and simulation combinations may contain NaN values.\n\nIf you want to remove these empty simulations, it is recommended to first subset the data object by each individual scenario and then dropping NaN values."
+                )
+
         if config is not None:
             if type(config) == str:
                 data_return = read_catalog_from_csv(self, config, merge)
@@ -1324,9 +1334,13 @@ class DataParameters(param.Parameterized):
 
         if isinstance(data_return, list):
             for l in data_return:
-                warnoflargefilesize(l)
+                warn_of_large_file_size(l)
         else:
-            warnoflargefilesize(data_return)
+            warn_of_large_file_size(data_return)
+
+        # Warn about empty simulations for certain selections
+        warn_of_empty_data(self)
+
         return data_return
 
 
