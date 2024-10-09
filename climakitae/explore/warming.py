@@ -158,7 +158,10 @@ def clean_warm_data(warm_data):
     if not (warm_data.centered_year.isnull()).all():
 
         # Cleaning #1
-        warm_data = warm_data.sel(all_sims=~warm_data.centered_year.isnull())
+        if warm_data.centered_year.isnull().size == 1:
+            warm_data = warm_data.sel(all_sims=[~warm_data.centered_year.isnull()])
+        else:
+            warm_data = warm_data.sel(all_sims=~warm_data.centered_year.isnull())
 
         # Cleaning #2
         # warm_data = warm_data.isel(
