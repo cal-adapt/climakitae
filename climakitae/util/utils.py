@@ -867,7 +867,7 @@ def scenario_to_experiment_id(scenario, reverse=False):
     return scenario_dict[scenario]
 
 
-def drop_invalid_wrf_sims(ds):
+def drop_invalid_wl_sims(ds, downscaling_method):
     """
     Drop invalid WRF simulations from the given dataset since there is an unequal number of simulations per SSP.
 
@@ -910,7 +910,7 @@ def drop_invalid_wrf_sims(ds):
     # Find valid simulation from catalog
     df = intake.open_esm_datastore(data_catalog_url).df
     filter_df = df[
-        (df["activity_id"] == "WRF")
+        (df["activity_id"] == ("WRF" if downscaling_method == "Dynamical" else "LOCA2"))
         & (df["table_id"] == timescale_to_table_id(ds.frequency))
         & (df["grid_label"] == resolution_to_gridlabel(ds.resolution))
         & (df["variable_id"] == variable)
