@@ -906,11 +906,18 @@ def drop_invalid_wl_sims(ds, downscaling_method):
     variable = ds.variable_id
     if "derived" in variable:
         variable = "t2"
+        
+    # Modifying downscaling method filtering
+    downscaling_filter = (
+        ["WRF", "LOCA2"]
+        if downscaling_method == "Dynamical+Statistical"
+        else [downscaling_method_to_activity_id(ds.downscaling_method)]
+    )
 
     # Find valid simulation from catalog
     df = intake.open_esm_datastore(data_catalog_url).df
     filter_df = df[
-        (df["activity_id"] == ("WRF" if downscaling_method == "Dynamical" else "LOCA2"))
+        (data_catalog["activity_id"].isin(downscaling_filter))
         & (df["table_id"] == timescale_to_table_id(ds.frequency))
         & (df["grid_label"] == resolution_to_gridlabel(ds.resolution))
         & (df["variable_id"] == variable)
