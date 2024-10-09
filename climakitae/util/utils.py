@@ -906,7 +906,7 @@ def drop_invalid_wl_sims(ds, downscaling_method):
     variable = ds.variable_id
     if "derived" in variable:
         variable = "t2"
-        
+
     # Modifying downscaling method filtering
     downscaling_filter = (
         ["WRF", "LOCA2"]
