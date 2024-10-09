@@ -937,7 +937,8 @@ def drop_invalid_wl_sims(ds, downscaling_method):
             ),
         )
     )
-    return ds.sel(all_sims=valid_sim_list)
+    filtered_sims = [sim for sim in valid_sim_list if sim in list(ds.all_sims.values)]
+    return ds.sel(all_sims=filtered_sims)
 
 
 def stack_sims_across_locs(ds, sim_dim_name):
