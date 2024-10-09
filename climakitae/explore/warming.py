@@ -87,7 +87,9 @@ class WarmingLevels:
         self.catalog_data = self.catalog_data.stack(all_sims=["simulation", "scenario"])
 
         # Dropping invalid simulations that come up from stacking scenarios and simulations together
-        self.catalog_data = drop_invalid_wl_sims(self.catalog_data, self.wl_params.downscaling_method)
+        self.catalog_data = drop_invalid_wl_sims(
+            self.catalog_data, self.wl_params.downscaling_method
+        )
 
         if self.wl_params.anom == "Yes":
             self.gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
