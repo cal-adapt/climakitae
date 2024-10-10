@@ -1769,6 +1769,7 @@ def get_data(
     # Need to add error handing for bad variable input
     """Retrieve data from the catalog using a simple function.
     Contrasts with selections.retrieve(), which retrieves data from the user inputs in climakitaegui's selections GUI.
+    You must input a variable, downscaling_method, resolution, and timescale.
 
     Parameters
     ----------
@@ -1777,7 +1778,7 @@ def get_data(
     resolution: str
     timescale: str
     approach: one of ["Time", "Warming Level"], optional
-        Default to time
+        Default to "Time"
     scenario: str or list of str, optional
         If approach = "Time", you need to set a valid option
         If approach = "Warming Level", scenario is ignored
@@ -1788,11 +1789,10 @@ def get_data(
         Defaults to entire domain ("none")
     cached_area: list, optional
         Area: i.e "Alameda county"
-        Defaults to entire domain ("none")
-    area_average: str, optional
+        Defaults to entire domain (["entire domain"])
+    area_average: one of ["Yes","No"], optional
         Take an average over spatial domain?
-        One of "No" or "Yes"
-    warming_level: list or float, optional
+    warming_level: list of float, optional
     time_slice: tuple, optional
 
     Returns
