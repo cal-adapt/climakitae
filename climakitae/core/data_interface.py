@@ -1801,7 +1801,7 @@ def get_data(
     """
 
     # Internal functions
-    def _error_handling_approach_inputs(approach, scenario):
+    def _error_handling_approach_inputs(approach, scenario, warming_level, time_slice):
         """Error handling for approach and scenario inputs"""
         _valid_options_approach = ["Time", "Warming Level"]
         if approach not in _valid_options_approach:
@@ -1819,7 +1819,16 @@ def get_data(
                 'WARNING: "scenario" argument will be ignored for warming levels approach'
             )
             scenario = None
-        return approach, scenario
+        if approach == "Warming Level" and time_slice != None:
+            print(
+                'WARNING: "time_slice" argument will be ignored for warming levels approach'
+            )
+            time_slice = None
+
+        if approach == "Time":
+            warming_level = ["n/a"]
+
+        return approach, scenario, warming_level, time_slice
 
     def _error_handling_location_settings(area_subset, cached_area):
         """Maybe the user put an input for cached area but not for area subset
@@ -1849,16 +1858,17 @@ def get_data(
             scenario_ssp = ["n/a"]
             scenario_historical = ["n/a"]
         elif approach == "Time":
+
             if (
                 "Historical Reconstruction" in scenario
             ):  # Handling for Historical Reconstruction option
-                scenario_historical = ["Historical Reconstruction"]
+                scenario_historical = [x for x in scenario if "Historical" in x]
                 scenario_ssp = []
                 if (
                     len(scenario) != 1
                 ):  # No SSP options for Historical Reconstruction data
                     print(
-                        "WARNING: Historical Reconstruction data cannot be retrieved in the same data object as other scenario options. Only returning Historical Reconstruction data."
+                        "WARNING: Historical Reconstruction data cannot be retrieved in the same data object as SSP scenario options. SSP data will not be retrieved."
                     )
 
             else:
@@ -1908,7 +1918,9 @@ def get_data(
 
     # Make sure approach matches the scenario setting
     # See function documentation for more details
-    approach, scenario = _error_handling_approach_inputs(approach, scenario)
+    approach, scenario, warming_level, time_slice = _error_handling_approach_inputs(
+        approach, scenario, warming_level, time_slice
+    )
 
     # Make sure the area subset is set to a valid input
     # See function documentation for more details
