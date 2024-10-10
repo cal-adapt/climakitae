@@ -749,6 +749,11 @@ def _get_data_attributes(selections):
         "approach": selections.approach,
         "downscaling_method": selections.downscaling_method,
     }
+
+    if selections.approach == "Warming Level":
+        new_attrs["warming_level_window"] = "+/- {0} years from central year".format(
+            selections.warming_level_window
+        )
     return new_attrs
 
 
