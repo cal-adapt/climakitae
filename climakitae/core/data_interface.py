@@ -1877,6 +1877,8 @@ def get_data(
                 ]  # Add non-historical SSPs to scenario_ssp key
                 if "Historical Climate" in scenario:
                     scenario_historical = ["Historical Climate"]
+                else:
+                    scenario_historical = []
         else:
             scenario_ssp, scenario_historical = None, None
         return scenario_ssp, scenario_historical
