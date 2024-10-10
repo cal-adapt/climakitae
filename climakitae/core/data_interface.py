@@ -1760,11 +1760,12 @@ def get_data(
     scenario=None,
     units=None,
     warming_level=None,
-    warming_level_window=None,
     area_subset="none",
     cached_area=["entire domain"],
     area_average=None,
     time_slice=None,
+    warming_level_months=None,
+    warming_level_window=None,
 ):
     # Need to add error handing for bad variable input
     """Retrieve data from the catalog using a simple function.
@@ -1792,8 +1793,10 @@ def get_data(
         Defaults to entire domain (["entire domain"])
     area_average: one of ["Yes","No"], optional
         Take an average over spatial domain?
-    warming_level: list of float, optional
     time_slice: tuple, optional
+        Time range. Only valid for approach = "Time"
+    warming_level: list of float, optional
+    warming_level_months: list of int, optional
 
     Returns
     -------
@@ -1960,6 +1963,7 @@ def get_data(
         "approach": approach,
         "warming_level": warming_level,
         "warming_level_window": warming_level_window,
+        "warming_level_months": warming_level_months,
         "time_slice": time_slice,
     }
 
@@ -2010,7 +2014,8 @@ def get_data(
             selections.area_average = d["area_average"]
         if d["time_slice"] is not None:
             selections.time_slice = d["time_slice"]
-
+        if d["warming_level_months"] is not None:
+            selections.warming_level_months = d["warming_level_months"]
     except ValueError as e:
         # The error message is really long
         # And sometimes has a confusing Attribute Error: Pieces mismatch that is hard to interpret
