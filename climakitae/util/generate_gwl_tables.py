@@ -32,7 +32,7 @@ def main():
         & (df.experiment_id == "historical")
     ]
     sims_on_aws = get_sims_on_aws(df)
-    models = list(sims_on_aws.T.columns)
+    models = ['EC-Earth3']  # list(sims_on_aws.T.columns)
 
     # CESM2-LENS is in a separate catalog:
     catalog_cesm = intake.open_esm_datastore(
