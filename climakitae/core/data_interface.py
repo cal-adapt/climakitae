@@ -1986,6 +1986,8 @@ def get_data(
         selections.resolution = d["resolution"]
         selections.timescale = d["timescale"]
         selections.units = d["units"]
+
+        # Setting the values like this enables us to take advantage of the default settings in DataParameters without having to manually set defaults in this function
         if d["warming_level"] is not None:
             selections.warming_level = d["warming_level"]
         if d["warming_level_window"] is not None:
@@ -1996,6 +1998,9 @@ def get_data(
             selections.time_slice = d["time_slice"]
 
     except ValueError as e:
+        # The error message is really long
+        # And sometimes has a confusing Attribute Error: Pieces mismatch that is hard to interpret
+        # Here we just print the error message and return None instead of allowing the long error to be raised by default
         print("ERROR: {} \n\nReturning None".format(e))
         return None
 
