@@ -1764,6 +1764,7 @@ def get_data(
     area_subset="none",
     cached_area=["entire domain"],
     area_average=None,
+    time_slice=None,
 ):
     # Need to add error handing for bad variable input
     """Retrieve data from the catalog using a simple function.
@@ -1792,6 +1793,7 @@ def get_data(
         Take an average over spatial domain?
         One of "No" or "Yes"
     warming_level: list or float, optional
+    time_slice: tuple, optional
 
     Returns
     -------
@@ -1944,6 +1946,7 @@ def get_data(
         "approach": approach,
         "warming_level": warming_level,
         "warming_level_window": warming_level_window,
+        "time_slice": time_slice,
     }
 
     scenario_ssp, scenario_historical = _get_scenario_ssp_scenario_historical(
@@ -1989,6 +1992,8 @@ def get_data(
             selections.warming_level_window = d["warming_level_window"]
         if d["area_average"] is not None:
             selections.area_average = d["area_average"]
+        if d["time_slice"] is not None:
+            selections.time_slice = d["time_slice"]
 
     except ValueError as e:
         print("ERROR: {} \n\nReturning None".format(e))
