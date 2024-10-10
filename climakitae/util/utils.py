@@ -839,6 +839,78 @@ def scenario_to_experiment_id(scenario, reverse=False):
         scenario_dict = {v: k for k, v in scenario_dict.items()}
     return scenario_dict[scenario]
 
+def drop_invalid_wl_sims(ds, downscaling_method):
+    """
+    Drop invalid WRF simulations from the given dataset since there is an unequal number of simulations per SSP.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        The dataset containing WRF simulations. The dataset must have a
+        dimension `all_sims` that results from stacking `simulation` and
+        `scenario`.
+
+    Returns
+    -------
+    xr.Dataset
+        The dataset with only valid WRF simulations retained.
+
+    Raises
+    ------
+    AttributeError
+        If the dataset does not have an `all_sims` dimension.
+
+    Notes
+    -----
+    - For datasets with a resolution of '3 km', no simulations are dropped, and the original dataset is returned.
+    - For datasets with a resolution of '9 km' at hourly timescale, only 10 simulations are returned.
+    - For datasets with a resolution of '9 km' at daily/monthly timescale, only 6 simulations are returned.
+    - For datasets with a resolution of '45 km' at hourly timescale, only 7 simulations are returned.
+    - For datasets with a resolution of '45 km' at daily/monthly timescale, only 6 simulations are returned.
+    """
+    if "all_sims" not in ds.dims:
+        raise AttributeError(
+            "Missing an `all_sims` dimension on the dataset. Create `all_sims` with .stack on `simulation` and `scenario`."
+        )
+
+    # Checking for derived variables separately since we don't store their IDs in the catalog
+    # Future derived variables that don't use `t2` will be broken because of this function.
+    variable = ds.variable_id
+    if "derived" in variable:
+        variable = "t2"
+
+    # Modifying downscaling method filtering
+    downscaling_filter = (
+        ["WRF", "LOCA2"]
+        if downscaling_method == "Dynamical+Statistical"
+        else [downscaling_method_to_activity_id(downscaling_method)]
+    )
+
+    # Find valid simulation from catalog
+    df = intake.open_esm_datastore(data_catalog_url).df
+    filter_df = df[
+        (df["activity_id"].isin(downscaling_filter))
+        & (df["table_id"] == timescale_to_table_id(ds.frequency))
+        & (df["grid_label"] == resolution_to_gridlabel(ds.resolution))
+        & (df["variable_id"] == variable)
+        & (df["experiment_id"] != "historical")
+        & (df["experiment_id"] != "reanalysis")
+        & (df["source_id"] != "ensmean")
+    ]
+    valid_sim_list = list(
+        zip(
+            filter_df["activity_id"]
+            + "_"
+            + filter_df["source_id"]
+            + "_"
+            + filter_df["member_id"],
+            filter_df["experiment_id"].apply(
+                lambda val: f"Historical + {scenario_to_experiment_id(val, reverse=True)}"
+            ),
+        )
+    )
+    filtered_sims = [sim for sim in valid_sim_list if sim in list(ds.all_sims.values)]
+    return ds.sel(all_sims=filtered_sims)
 
 def stack_sims_across_locs(ds, sim_dim_name):
     # Renaming gridcell so that it can be concatenated with other lat/lon gridcells
