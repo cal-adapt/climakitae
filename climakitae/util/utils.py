@@ -839,6 +839,7 @@ def scenario_to_experiment_id(scenario, reverse=False):
         scenario_dict = {v: k for k, v in scenario_dict.items()}
     return scenario_dict[scenario]
 
+
 def drop_invalid_wl_sims(ds, downscaling_method):
     """
     Drop invalid WRF simulations from the given dataset since there is an unequal number of simulations per SSP.
@@ -911,6 +912,7 @@ def drop_invalid_wl_sims(ds, downscaling_method):
     )
     filtered_sims = [sim for sim in valid_sim_list if sim in list(ds.all_sims.values)]
     return ds.sel(all_sims=filtered_sims)
+
 
 def stack_sims_across_locs(ds, sim_dim_name):
     # Renaming gridcell so that it can be concatenated with other lat/lon gridcells
