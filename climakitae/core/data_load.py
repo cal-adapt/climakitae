@@ -751,8 +751,15 @@ def _get_data_attributes(selections):
     }
 
     if selections.approach == "Warming Level":
-        new_attrs["warming_level_window"] = "+/- {0} years from central year".format(
+        new_attrs["warming_level_window"] = "+/- {0} years from centered year".format(
             selections.warming_level_window
+        )
+    if selections.warming_level_months != list(np.arange(1, 13)):
+        # Only add this attribute if it's not a full year
+        # Otherwise users can just assume its a full year
+        # This option is hidden from the GUI so I think adding the attribute is confusing otherwise
+        new_attrs["warming_level_months"] = ", ".join(
+            [str(x) for x in selections.warming_level_months]
         )
     return new_attrs
 
