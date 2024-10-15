@@ -1801,31 +1801,43 @@ def get_data(
     Returns
     -------
     data: xr.DataArray
-    
+
     Notes
     -----
     Errors aren't raised by the function. Rather, an appropriate informative message is printed, and the function returns None. This is due to the fact that the AE Jupyter Hub raises a strange Pieces Mismatch Error for some bad inputs; we want to override that and print a more informative error message.
-    
+
     """
 
     # Internal functions
-    
-    def _format_error_print_message(error_message): 
+
+    def _format_error_print_message(error_message):
         """Format error message using the same format"""
         return "ERROR: {0} \nReturning None".format(error_message)
-    
-    def _error_handling_warming_level_inputs(wl, argument_name): 
+
+    def _error_handling_warming_level_inputs(wl, argument_name):
         """Error handling for arguments: warming_level and warming_level_month
         Both require a list of either floats or ints
         argument_name is either "warming_level" or "warming_level_months" and is used to print an appropriate error message for bad input
-        """ 
-        if (wl is not None) and (type(wl) !=list): 
-            if type(wl) in [float, int]: # Convert float to a singleton list
+        """
+        if (wl is not None) and (type(wl) != list):
+            if type(wl) in [float, int]:  # Convert float to a singleton list
                 wl = [wl]
-            if type(wl) != list: 
-                raise ValueError("Function argument {0} requires a float/int or list of floats/ints input. Your input: {1}".format(argument_name, type(wl)))
+            if type(wl) != list:
+                raise ValueError(
+                    "Function argument {0} requires a float/int or list of floats/ints input. Your input: {1}".format(
+                        argument_name, type(wl)
+                    )
+                )
+        if type(wl) == list:
+            for x in wl:
+                if type(x) not in [float, int]:
+                    raise ValueError(
+                        "Function argument {0} requires a float/int or list of floats/ints input. Your input: {1}".format(
+                            argument_name, type(x)
+                        )
+                    )
         return wl
-    
+
     def _error_handling_approach_inputs(approach, scenario, warming_level, time_slice):
         """Error handling for approach and scenario inputs"""
         _valid_options_approach = ["Time", "Warming Level"]
@@ -1913,15 +1925,19 @@ def get_data(
 
     ## --------- ERROR HANDLING ----------
     # Deal with bad or missing users inputs
-    
-    # Check warming level inputs  
-    try: 
-        warming_level = _error_handling_warming_level_inputs(warming_level, "warming_level")
-        warming_level_months = _error_handling_warming_level_inputs(warming_level_months, "warming_level_months")
-    except ValueError as error_message: 
+
+    # Check warming level inputs
+    try:
+        warming_level = _error_handling_warming_level_inputs(
+            warming_level, "warming_level"
+        )
+        warming_level_months = _error_handling_warming_level_inputs(
+            warming_level_months, "warming_level_months"
+        )
+    except ValueError as error_message:
         print(_format_error_print_message(error_message))
         return None
-    
+
     # Make sure the inputs are a valid type (no floats, ints, dictionaries, etc)
     for user_input in [
         variable,
@@ -1934,7 +1950,9 @@ def get_data(
         scenario,
     ]:
         if (user_input is not None) and (type(user_input) not in [str, list]):
-            error_message = "Function arguments require a single string value for your inputs"
+            error_message = (
+                "Function arguments require a single string value for your inputs"
+            )
             print(_format_error_print_message(error_message))
             return None
 
@@ -1955,9 +1973,9 @@ def get_data(
 
     # Make sure the area subset is set to a valid input
     # See function documentation for more details
-    try: 
+    try:
         area_subset = _error_handling_location_settings(area_subset, cached_area)
-    except ValueError as error_message: 
+    except ValueError as error_message:
         print(_format_error_print_message(error_message))
         return None
 
