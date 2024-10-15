@@ -1293,7 +1293,7 @@ class DataParameters(param.Parameterized):
             Only an option if a config file is provided.
         """
 
-        def warn_of_large_file_size(da):
+        def _warn_of_large_file_size(da):
             if da.nbytes >= int(1e9) and da.nbytes < int(5e9):
                 print(
                     "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
@@ -1313,7 +1313,7 @@ class DataParameters(param.Parameterized):
                     "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
                 )
 
-        def warn_of_empty_data(self):
+        def _warn_of_empty_data(self):
             if self.approach == "Warming Level":
                 print(
                     "WARNING FOR WARMING LEVELS APPROACH\n-----------------------------------\nThere may be NaNs in your data for certain simulation/warming level combinations if the warming level is not reached for that particular simulation before the year 2100. \n\nThis does not mean you have missing data, but rather a feature of how the data is combined in retrieval to return a single data object. \n\nIf you want to remove these empty simulations, it is recommended to first subset the data object by each individual warming level and then dropping NaN values."
@@ -1334,12 +1334,12 @@ class DataParameters(param.Parameterized):
 
         if isinstance(data_return, list):
             for l in data_return:
-                warn_of_large_file_size(l)
+                _warn_of_large_file_size(l)
         else:
-            warn_of_large_file_size(data_return)
+            _warn_of_large_file_size(data_return)
 
         # Warn about empty simulations for certain selections
-        warn_of_empty_data(self)
+        _warn_of_empty_data(self)
 
         return data_return
 
