@@ -723,9 +723,14 @@ def get_warm_level(warm_level, ds, multi_ens=False, ipcc=True):
 
     if ipcc:
         gwl_file = gwl_1850_1900_file
+        gwl_times = read_csv_file(gwl_file, index_col=[0, 1, 2])
     else:
-        gwl_file = gwl_1981_2010_file
-    gwl_times = read_csv_file(gwl_file, index_col=[0, 1, 2])
+        gwl_file_all = gwl_1981_2010_file
+        gwl_file_ece3 = "data/gwl_1981-2010ref_EC-Earth3.csv"
+        gwl_times_all = read_csv_file(gwl_file_all, index_col=[0, 1, 2])
+        gwl_times_ece3 = read_csv_file(gwl_file_ece3, index_col=[0, 1, 2])
+        gwl_times = pd.concat([gwl_times_all, gwl_times_ece3])
+
 
     # grab the ensemble members specific to our needs here
     sim_idx = []
