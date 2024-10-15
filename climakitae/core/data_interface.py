@@ -1132,7 +1132,7 @@ class DataParameters(param.Parameterized):
 
             elif (
                 (  # Warn user if no data is selected
-                    not True in ["SSP" in one for one in self.scenario_ssp]
+                    all("SSP" not in one for one in self.scenario_ssp)
                 )
                 and (
                     not True
@@ -1152,7 +1152,7 @@ class DataParameters(param.Parameterized):
                 to match that of the Historical Climate data if both are retrieved."""
 
             # Warnings based on time slice selections
-            if (not True in ["SSP" in one for one in self.scenario_ssp]) and (
+            if (all("SSP" not in one for one in self.scenario_ssp)) and (
                 "Historical Climate" in self.scenario_historical
             ):
                 if (self.time_slice[0] < historical_climate_range[0]) or (
