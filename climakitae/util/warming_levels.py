@@ -123,6 +123,9 @@ def _get_sliced_data(y, level, gwl_times, months, window):
 
     else:
 
+        # This clause creates an empty DataArray with similar shape to real WL slices
+        # to get dropped after the `.groupby` method is finished.
+
         # Get number of days per month for non-leap year
         days_per_month = {i: calendar.monthrange(2001, i)[1] for i in np.arange(1, 13)}
 
