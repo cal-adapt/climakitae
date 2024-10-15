@@ -1766,26 +1766,32 @@ def get_data(
     cached_area=["entire domain"],
     area_average=None,
     time_slice=None,
-    warming_level_months=None,
     warming_level_window=None,
+    warming_level_months=None,
 ):
     # Need to add error handing for bad variable input
-    """Retrieve data from the catalog using a simple function.
-    Contrasts with selections.retrieve(), which retrieves data from the user inputs in climakitaegui's selections GUI.
-    You must input a variable, downscaling_method, resolution, and timescale.
+    """Retrieve formatted data from the Analytics Engine data catalog using a simple function.
+    Contrasts with DataParameters().retrieve(), which retrieves data from the user inputs in climakitaegui's selections GUI.
 
     Parameters
     ----------
     variable: str
-    downscaling_method: str
-    resolution: str
-    timescale: str
+        String name of climate variable
+    downscaling_method: str, one of ["Dynamical", "Statistical", "Dynamical+Statistical"]
+        Downscaling method of the data:
+        WRF ("Dynamical"), LOCA2 ("Statistical"), or both "Dynamical+Statistical"
+    resolution: str, one of ["3 km", "9 km", "45 km"]
+        Resolution of data in kilometers
+    timescale: str, one of ["hourly", "daily", "monthly"]
+        Temporal frequency of dataset
     approach: one of ["Time", "Warming Level"], optional
         Default to "Time"
     scenario: str or list of str, optional
+        SSP scenario and/or historical data selection ("Historical Climate", "Historical Reconstruction")
         If approach = "Time", you need to set a valid option
         If approach = "Warming Level", scenario is ignored
     units: str, optional
+        Variable units.
         Defaults to native units of data
     area_subset: str, optional
         Area category: i.e "CA counties"
@@ -1795,10 +1801,21 @@ def get_data(
         Defaults to entire domain (["entire domain"])
     area_average: one of ["Yes","No"], optional
         Take an average over spatial domain?
+        Default to "No".
     time_slice: tuple, optional
-        Time range. Only valid for approach = "Time"
+        Time range for retrieved data
+        Only valid for approach = "Time"
     warming_level: list of float, optional
+        Must be one of [1.5, 2.0, 2.5, 3.0, 4.0]
+        Only valid for approach = "Warming Level"
+    warming_level_window: int in range (5,25), optional
+        Years around Global Warming Level (+/-) \n (e.g. 15 means a 30yr window)
+        Only valid for approach = "Warming Level"
     warming_level_months: list of int, optional
+        Months of year for which to perform warming level computation
+        Default to all months in a year: [1,2,3,4,5,6,7,8,9,10,11,12]
+        For example, you may want to set warming_level_months=[12,1,2] to perform the analysis for the winter season.
+        Only valid for approach = "Warming Level"
 
     Returns
     -------
@@ -1806,7 +1823,7 @@ def get_data(
 
     Notes
     -----
-    Errors aren't raised by the function. Rather, an appropriate informative message is printed, and the function returns None. This is due to the fact that the AE Jupyter Hub raises a strange Pieces Mismatch Error for some bad inputs; we want to override that and print a more informative error message.
+    Errors aren't raised by the function. Rather, an appropriate informative message is printed, and the function returns None. This is due to the fact that the AE Jupyter Hub raises a strange Pieces Mismatch Error for some bad inputs; instead, that error is ignored and a more informative error message is printed instead.
 
     """
 
