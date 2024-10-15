@@ -427,7 +427,7 @@ class DataInterface:
         parquet boundary catalog
     geographies: Boundaries
         boundary dictionaries class
-    warming_levels: pd.DataFrame
+    warming_level_times: pd.DataFrame
         table of when each simulation/scenario reaches each warming level
     """
 
@@ -447,7 +447,9 @@ class DataInterface:
             geometry=gpd.points_from_xy(self.stations.LON_X, self.stations.LAT_Y),
         )
         self._data_catalog = intake.open_esm_datastore(data_catalog_url)
-        self._warming_levels = read_csv_file(gwl_1850_1900_file, index_col=[0, 1, 2])
+        self._warming_level_times = read_csv_file(
+            gwl_1850_1900_file, index_col=[0, 1, 2]
+        )
 
         # Get geography boundaries
         self._boundary_catalog = intake.open_catalog(boundary_catalog_url)
@@ -472,8 +474,8 @@ class DataInterface:
         return self._data_catalog
 
     @property
-    def warming_levels(self):
-        return self._warming_levels
+    def warming_level_times(self):
+        return self_warming_level_times
 
     @property
     def boundary_catalog(self):
@@ -567,8 +569,8 @@ class DataParameters(param.Parameterized):
         shorthand alias to DataInterface.geographies
     _geography_choose: dict
         shorthand alias to Boundaries.boundary_dict()
-    _warming_levels: pd.DataFrame
-        shorthand alias to DataInterface.warming_levels
+    _warming_level_times: pd.DataFrame
+        shorthand alias to DataInterface.warming_level_times
     colormap: str
         default colormap to render the currently selected data
     scenario_options: list of strs
@@ -674,7 +676,7 @@ class DataParameters(param.Parameterized):
         self._data_catalog = self.data_interface.data_catalog
 
         # Warming Levels Table
-        self._warming_levels = self.data_interface.warming_levels
+        self._warming_level_times = self.data_interface.warming_level_times
 
         # variable descriptions
         self._variable_descriptions = self.data_interface.variable_descriptions

@@ -1318,7 +1318,7 @@ def _apply_warming_levels_approach(da, selections):
     for level in selections.warming_level:
         da_by_wl = _calculate_warming_level(
             data_stacked,
-            gwl_times=selections._warming_levels,
+            gwl_times=selections._warming_level_times,
             level=level,
             months=selections.warming_level_months,
             window=selections.warming_level_window,
