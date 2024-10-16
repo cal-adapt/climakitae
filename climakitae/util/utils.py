@@ -914,14 +914,14 @@ def drop_invalid_wl_sims(ds, downscaling_method):
     return ds.sel(all_sims=filtered_sims)
 
 
-def stack_sims_across_locs(ds, sim_dim_name):
-    # Renaming gridcell so that it can be concatenated with other lat/lon gridcells
-    ds[sim_dim_name] = [
-        "{}_{}_{}".format(
-            sim_name,
-            ds.lat.compute().item(),
-            ds.lon.compute().item(),
-        )
-        for sim_name in ds[sim_dim_name]
-    ]
-    return ds
+# def stack_sims_across_locs(ds, sim_dim_name):
+#     # Renaming gridcell so that it can be concatenated with other lat/lon gridcells
+#     ds[sim_dim_name] = [
+#         "{}_{}_{}".format(
+#             sim_name,
+#             ds.lat.compute().item(),
+#             ds.lon.compute().item(),
+#         )
+#         for sim_name in ds[sim_dim_name]
+#     ]
+#     return ds
