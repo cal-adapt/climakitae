@@ -727,9 +727,9 @@ def get_warm_level(warm_level, ds, multi_ens=False, ipcc=True):
     else:
         gwl_file_all = gwl_1981_2010_file
         gwl_file_ece3 = "data/gwl_1981-2010ref_EC-Earth3.csv"
-        gwl_times_all = read_csv_file(gwl_file_all, index_col=[0, 1, 2])
-        gwl_times_ece3 = read_csv_file(gwl_file_ece3, index_col=[0, 1, 2])
-        gwl_times = pd.concat([gwl_times_all, gwl_times_ece3])
+        gwl_times_all = read_csv_file(gwl_file_all)
+        gwl_times_ece3 = read_csv_file(gwl_file_ece3)
+        gwl_times = pd.concat([gwl_times_all, gwl_times_ece3]).drop_duplicates().set_index(['GCM', 'run', 'scenario'])
 
 
     # grab the ensemble members specific to our needs here
