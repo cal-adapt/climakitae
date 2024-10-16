@@ -475,7 +475,7 @@ class DataInterface:
 
     @property
     def warming_level_times(self):
-        return self_warming_level_times
+        return self._warming_level_times
 
     @property
     def boundary_catalog(self):
