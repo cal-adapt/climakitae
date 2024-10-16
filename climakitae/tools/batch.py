@@ -3,7 +3,7 @@ from climakitae.core.data_load import load
 import xarray as xr
 
 
-def batch_select(selection_params, points, approach, load_data=True, progress_bar=True):
+def batch_select(selections, points, load_data=False, progress_bar=True):
     """
     Conducts batch mode analysis on a series of points for a given metric.
 
@@ -21,39 +21,29 @@ def batch_select(selection_params, points, approach, load_data=True, progress_ba
     cells_of_interest: xr.DataArray of the gridcells that the points lie within, aggregated together into one DataArray. It can or cannot be loaded into memory, depending on `load_data`.
     """
 
-    def _retrieve_pts(data, sim_dim_name, points):
+    def _retrieve_pts(data, points):
         """Retrieving all individual points within the entire domain of data pulled."""
         data_pts = []
         for point in points:
             lat, lon = point
             closest_cell = get_closest_gridcell(data, lat, lon, print_coords=False)
-            stacked_data = stack_sims_across_locs(closest_cell, sim_dim_name)
-            data_pts.append(stacked_data)
+            # stacked_data = stack_sims_across_locs(closest_cell)
+            data_pts.append(closest_cell)
         return data_pts
 
     print(f"Batch retrieving all {len(points)} points passed in...\n")
 
-    dim_name = "simulation" if approach == "time" else "all_sims"
-
     # Add selections attributes to cover the entire domain since we don't know exactly where the selected points lie.
-    selection_params.area_subset = "none"
-    selection_params.cached_area = ["entire domain"]
+    selections.area_subset = "none"
+    selections.cached_area = ["entire domain"]
 
-    if approach == "time":
-        data = selection_params.retrieve()
-        data_pts = _retrieve_pts(data, dim_name, points)
+    data = selections.retrieve()
 
-    elif approach == "warming_level":
-        selection_params.calculate()
-
-        # This will only retrieve points for 1 warming level at a time.
-        data = selection_params.sliced_data[
-            selection_params.wl_params.warming_levels[0]
-        ]
-        data_pts = _retrieve_pts(data, dim_name, points)
+    data_pts = _retrieve_pts(data, points)
+    import pdb; pdb.set_trace()
 
     # Combine data points into a single xr.Dataset
-    cells_of_interest = xr.concat(data_pts, dim=dim_name).chunk(chunks="auto")
+    cells_of_interest = xr.concat(data_pts).chunk(chunks="auto")
 
     # Load in the cells of interest into memory, if desired.
     if load_data:
