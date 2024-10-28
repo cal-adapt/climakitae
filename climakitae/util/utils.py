@@ -731,13 +731,15 @@ def add_dummy_time_to_wl(wl_da):
     # Creating dummy timestamps
     timestamps = pd.date_range(
         "2000-01-01",
-        periods=len(wl_da['time_delta']),
+        periods=len(wl_da["time_delta"]),
         freq=name_to_freq[wl_da.frequency],
     )
 
     # Replacing WL timestamps with dummy timestamps so that calculations from tools like `thresholds_tools`
     # can be computed on a DataArray with a time dimension
-    wl_da = wl_da.assign_coords({'time_delta': timestamps}).rename({'time_delta': "time"})
+    wl_da = wl_da.assign_coords({"time_delta": timestamps}).rename(
+        {"time_delta": "time"}
+    )
     return wl_da
 
 
@@ -917,12 +919,12 @@ def drop_invalid_wl_sims(ds, downscaling_method):
 
 def stack_sims_across_locs(ds):
     # Renaming gridcell so that it can be concatenated with other lat/lon gridcells
-    ds['simulation'] = [
+    ds["simulation"] = [
         "{}_{}_{}".format(
             sim_name,
             ds.lat.compute().item(),
             ds.lon.compute().item(),
         )
-        for sim_name in ds['simulation']
+        for sim_name in ds["simulation"]
     ]
     return ds

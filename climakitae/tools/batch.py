@@ -43,7 +43,7 @@ def batch_select(selections, points, load_data=False, progress_bar=True):
     # import pdb; pdb.set_trace()
 
     # Combine data points into a single xr.Dataset
-    cells_of_interest = xr.concat(data_pts, dim='simulation').chunk(chunks="auto")
+    cells_of_interest = xr.concat(data_pts, dim="simulation").chunk(chunks="auto")
 
     # Load in the cells of interest into memory, if desired.
     if load_data:
