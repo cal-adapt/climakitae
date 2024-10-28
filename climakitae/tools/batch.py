@@ -40,7 +40,6 @@ def batch_select(selections, points, load_data=False, progress_bar=True):
     data = selections.retrieve()
 
     data_pts = _retrieve_pts(data, points)
-    # import pdb; pdb.set_trace()
 
     # Combine data points into a single xr.Dataset
     cells_of_interest = xr.concat(data_pts, dim="simulation").chunk(chunks="auto")

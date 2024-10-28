@@ -719,13 +719,7 @@ def add_dummy_time_to_wl(wl_da):
     - It supports creating dummy time series with frequencies of hours, days, or months, based on the prefix of the dimension name.
     - The dummy time series starts from "2000-01-01".
     """
-    # Adjusting the time index into dummy time-series for counting
-    # Finding time-based dimension
-    # wl_time_dim = 'time_delta'#[dim for dim in wl_da.dims if "from_center" in dim][0]
-
-    # Finding time frequency
-    # time_freq_name = wl_time_dim.split("_")[0]
-    # name_to_freq = {"hours": "H", "days": "D", "months": "M"}
+    # Creating map from frequency name to freq var needed for pandas date range
     name_to_freq = {"hourly": "H", "daily": "D", "monthly": "M"}
 
     # Creating dummy timestamps
