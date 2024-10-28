@@ -27,7 +27,7 @@ def batch_select(selections, points, load_data=False, progress_bar=True):
         for point in points:
             lat, lon = point
             closest_cell = get_closest_gridcell(data, lat, lon, print_coords=False)
-            # stacked_data = stack_sims_across_locs(closest_cell)
+            stacked_data = stack_sims_across_locs(closest_cell)
             data_pts.append(closest_cell)
         return data_pts
 
@@ -40,10 +40,10 @@ def batch_select(selections, points, load_data=False, progress_bar=True):
     data = selections.retrieve()
 
     data_pts = _retrieve_pts(data, points)
-    import pdb; pdb.set_trace()
+    # import pdb; pdb.set_trace()
 
     # Combine data points into a single xr.Dataset
-    cells_of_interest = xr.concat(data_pts).chunk(chunks="auto")
+    cells_of_interest = xr.concat(data_pts, dim='simulation').chunk(chunks="auto")
 
     # Load in the cells of interest into memory, if desired.
     if load_data:

@@ -721,22 +721,23 @@ def add_dummy_time_to_wl(wl_da):
     """
     # Adjusting the time index into dummy time-series for counting
     # Finding time-based dimension
-    wl_time_dim = [dim for dim in wl_da.dims if "from_center" in dim][0]
+    # wl_time_dim = 'time_delta'#[dim for dim in wl_da.dims if "from_center" in dim][0]
 
     # Finding time frequency
-    time_freq_name = wl_time_dim.split("_")[0]
-    name_to_freq = {"hours": "H", "days": "D", "months": "M"}
+    # time_freq_name = wl_time_dim.split("_")[0]
+    # name_to_freq = {"hours": "H", "days": "D", "months": "M"}
+    name_to_freq = {"hourly": "H", "daily": "D", "monthly": "M"}
 
     # Creating dummy timestamps
     timestamps = pd.date_range(
         "2000-01-01",
-        periods=len(wl_da[wl_time_dim]),
-        freq=name_to_freq[time_freq_name],
+        periods=len(wl_da['time_delta']),
+        freq=name_to_freq[wl_da.frequency],
     )
 
     # Replacing WL timestamps with dummy timestamps so that calculations from tools like `thresholds_tools`
     # can be computed on a DataArray with a time dimension
-    wl_da = wl_da.assign_coords({wl_time_dim: timestamps}).rename({wl_time_dim: "time"})
+    wl_da = wl_da.assign_coords({'time_delta': timestamps}).rename({'time_delta': "time"})
     return wl_da
 
 
@@ -914,14 +915,14 @@ def drop_invalid_wl_sims(ds, downscaling_method):
     return ds.sel(all_sims=filtered_sims)
 
 
-# def stack_sims_across_locs(ds, sim_dim_name):
-#     # Renaming gridcell so that it can be concatenated with other lat/lon gridcells
-#     ds[sim_dim_name] = [
-#         "{}_{}_{}".format(
-#             sim_name,
-#             ds.lat.compute().item(),
-#             ds.lon.compute().item(),
-#         )
-#         for sim_name in ds[sim_dim_name]
-#     ]
-#     return ds
+def stack_sims_across_locs(ds):
+    # Renaming gridcell so that it can be concatenated with other lat/lon gridcells
+    ds['simulation'] = [
+        "{}_{}_{}".format(
+            sim_name,
+            ds.lat.compute().item(),
+            ds.lon.compute().item(),
+        )
+        for sim_name in ds['simulation']
+    ]
+    return ds
