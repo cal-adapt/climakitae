@@ -580,11 +580,11 @@ class DataParameters(param.Parameterized):
     warming_level: array
         global warming level(s)
     warming_level_window: integer
-        Years around Global Warming Level (+/-) \n (e.g. 15 means a 30yr window)
+        years around Global Warming Level (+/-) \n (e.g. 15 means a 30yr window)
     approach: str, "Warming Level" or "Time"
         how do you want the data to be retrieved?
     warming_level_months: array
-        which months to use for computing warming levels?
+        months of year to use for computing warming levels
         default to entire calendar year: 1,2,3,4,5,6,7,8,9,10,11,12
     """
 
@@ -2018,7 +2018,7 @@ def get_data(
     cat_dict = _check_if_good_input(cat_dict, cat_df)
 
     # Settings for selections
-    d = {
+    selections_dict = {
         "variable": cat_dict["variable"][0],
         "timescale": cat_dict["timescale"][0],
         "downscaling_method": cat_dict["downscaling_method"][0],
@@ -2035,10 +2035,10 @@ def get_data(
     }
 
     scenario_ssp, scenario_historical = _get_scenario_ssp_scenario_historical(
-        d["approach"], d["scenario"]
+        selections_dict["approach"], selections_dict["scenario"]
     )
-    d["scenario_ssp"] = scenario_ssp
-    d["scenario_historical"] = scenario_historical
+    selections_dict["scenario_ssp"] = scenario_ssp
+    selections_dict["scenario_historical"] = scenario_historical
 
     ## ----- SET THE UNITS ------
 
@@ -2048,12 +2048,14 @@ def get_data(
     # Hourly variables may be different
     # Querying the data needs special handling due to the layout of the csv file
     var_df_query = var_df[
-        (var_df["display_name"] == d["variable"])
-        & (var_df["downscaling_method"] == d["downscaling_method"])
+        (var_df["display_name"] == selections_dict["variable"])
+        & (var_df["downscaling_method"] == selections_dict["downscaling_method"])
     ]
-    var_df_query = var_df_query[var_df_query["timescale"].str.contains(d["timescale"])]
+    var_df_query = var_df_query[
+        var_df_query["timescale"].str.contains(selections_dict["timescale"])
+    ]
 
-    d["units"] = (
+    selections_dict["units"] = (
         units if units is not None else var_df_query["unit"].item()
     )  # Set units if user doesn't set them manually
 
@@ -2061,28 +2063,28 @@ def get_data(
     selections = DataParameters()
 
     try:
-        selections.approach = d["approach"]
-        selections.scenario_ssp = d["scenario_ssp"]
-        selections.scenario_historical = d["scenario_historical"]
-        selections.area_subset = d["area_subset"]
-        selections.cached_area = d["cached_area"]
-        selections.downscaling_method = d["downscaling_method"]
-        selections.variable = d["variable"]
-        selections.resolution = d["resolution"]
-        selections.timescale = d["timescale"]
-        selections.units = d["units"]
+        selections.approach = selections_dict["approach"]
+        selections.scenario_ssp = selections_dict["scenario_ssp"]
+        selections.scenario_historical = selections_dict["scenario_historical"]
+        selections.area_subset = selections_dict["area_subset"]
+        selections.cached_area = selections_dict["cached_area"]
+        selections.downscaling_method = selections_dict["downscaling_method"]
+        selections.variable = selections_dict["variable"]
+        selections.resolution = selections_dict["resolution"]
+        selections.timescale = selections_dict["timescale"]
+        selections.units = selections_dict["units"]
 
         # Setting the values like this enables us to take advantage of the default settings in DataParameters without having to manually set defaults in this function
-        if d["warming_level"] is not None:
-            selections.warming_level = d["warming_level"]
-        if d["warming_level_window"] is not None:
-            selections.warming_level_window = d["warming_level_window"]
-        if d["area_average"] is not None:
-            selections.area_average = d["area_average"]
-        if d["time_slice"] is not None:
-            selections.time_slice = d["time_slice"]
-        if d["warming_level_months"] is not None:
-            selections.warming_level_months = d["warming_level_months"]
+        if selections_dict["warming_level"] is not None:
+            selections.warming_level = selections_dict["warming_level"]
+        if selections_dict["warming_level_window"] is not None:
+            selections.warming_level_window = selections_dict["warming_level_window"]
+        if selections_dict["area_average"] is not None:
+            selections.area_average = selections_dict["area_average"]
+        if selections_dict["time_slice"] is not None:
+            selections.time_slice = selections_dict["time_slice"]
+        if selections_dict["warming_level_months"] is not None:
+            selections.warming_level_months = selections_dict["warming_level_months"]
     except ValueError as error_message:
         # The error message is really long
         # And sometimes has a confusing Attribute Error: Pieces mismatch that is hard to interpret
