@@ -12,6 +12,7 @@ from climakitae.core.paths import (
     stations_csv_path,
     data_catalog_url,
     boundary_catalog_url,
+    gwl_1850_1900_file,
 )
 from climakitae.core.boundaries import Boundaries
 from climakitae.util.unit_conversions import get_unit_conversion_options
@@ -426,6 +427,8 @@ class DataInterface:
         parquet boundary catalog
     geographies: Boundaries
         boundary dictionaries class
+    warming_level_times: pd.DataFrame
+        table of when each simulation/scenario reaches each warming level
     """
 
     def __new__(cls):
@@ -444,6 +447,9 @@ class DataInterface:
             geometry=gpd.points_from_xy(self.stations.LON_X, self.stations.LAT_Y),
         )
         self._data_catalog = intake.open_esm_datastore(data_catalog_url)
+        self._warming_level_times = read_csv_file(
+            gwl_1850_1900_file, index_col=[0, 1, 2]
+        )
 
         # Get geography boundaries
         self._boundary_catalog = intake.open_catalog(boundary_catalog_url)
@@ -466,6 +472,10 @@ class DataInterface:
     @property
     def data_catalog(self):
         return self._data_catalog
+
+    @property
+    def warming_level_times(self):
+        return self._warming_level_times
 
     @property
     def boundary_catalog(self):
@@ -559,12 +569,23 @@ class DataParameters(param.Parameterized):
         shorthand alias to DataInterface.geographies
     _geography_choose: dict
         shorthand alias to Boundaries.boundary_dict()
+    _warming_level_times: pd.DataFrame
+        shorthand alias to DataInterface.warming_level_times
     colormap: str
         default colormap to render the currently selected data
     scenario_options: list of strs
         list of available scenarios (historical and ssp) for selection
     variable_options_df: pd.DataFrame
         filtered variable descriptions for the downscaling_method and timescale
+    warming_level: array
+        global warming level(s)
+    warming_level_window: integer
+        years around Global Warming Level (+/-) \n (e.g. 15 means a 30yr window)
+    approach: str, "Warming Level" or "Time"
+        how do you want the data to be retrieved?
+    warming_level_months: array
+        months of year to use for computing warming levels
+        default to entire calendar year: 1,2,3,4,5,6,7,8,9,10,11,12
     """
 
     # Unit conversion options for each unit
@@ -607,6 +628,7 @@ class DataParameters(param.Parameterized):
         default="", doc="Information about the bias correction process and resolution"
     )
     enable_hidden_vars = param.Boolean(False)
+    approach = param.Selector(default="Time", objects=["Time", "Warming Level"])
 
     # Empty params, initialized in __init__
     scenario_ssp = param.ListSelector(objects=dict())
@@ -615,6 +637,7 @@ class DataParameters(param.Parameterized):
     units = param.Selector(objects=dict())
     extended_description = param.Selector(objects=dict())
     variable_id = param.ListSelector(objects=dict())
+    warming_level = param.ListSelector(objects=dict())
 
     # Temporal range of each dataset
     historical_climate_range_wrf = (1980, 2015)
@@ -622,6 +645,20 @@ class DataParameters(param.Parameterized):
     historical_climate_range_wrf_and_loca = (1981, 2015)
     historical_reconstruction_range = (1950, 2022)
     ssp_range = (2015, 2100)
+
+    # Warming level options
+    wl_options = [1.5, 2.0, 2.5, 3.0, 4.0]
+    wl_time_option = ["n/a"]
+    warming_level = param.ListSelector(default=["n/a"], objects=["n/a"])
+    warming_level_window = param.Integer(
+        default=15,
+        bounds=(5, 25),
+        doc="Years around Global Warming Level (+/-) \n (e.g. 15 means a 30yr window)",
+    )
+    warming_level_months = param.ListSelector(
+        default=list(np.arange(1, 13)),  # All 12 months of the year
+        objects=list(np.arange(1, 13)),  # All 12 months of the year
+    )
 
     # User warnings
     _info_about_station_data = "When you retrieve the station data, gridded model data will be bias-corrected to that point. This process can start from any model grid-spacing."
@@ -637,6 +674,9 @@ class DataParameters(param.Parameterized):
 
         # Data Catalog
         self._data_catalog = self.data_interface.data_catalog
+
+        # Warming Levels Table
+        self._warming_level_times = self.data_interface.warming_level_times
 
         # variable descriptions
         self._variable_descriptions = self.data_interface.variable_descriptions
@@ -726,6 +766,40 @@ class DataParameters(param.Parameterized):
         )
         self._data_warning = ""
 
+    @param.depends("approach", watch=True)
+    def _update_scenarios_approach(self):
+        """
+        Update the scenario options shown based on retrieval method.
+        If warming level is selected, there should be no scenario options shown.
+        If time-based is selected, there should be no warming levels options shown.
+        """
+        if self.approach == "Warming Level":
+            self.param["warming_level"].objects = self.wl_options
+            self.warming_level = [2.0]
+
+            self.param["scenario_ssp"].objects = ["n/a"]
+            self.scenario_ssp = ["n/a"]
+
+            self.param["scenario_historical"].objects = ["n/a"]
+            self.scenario_historical = ["n/a"]
+
+        elif self.approach == "Time":
+            self.param["warming_level"].objects = ["n/a"]
+            self.warming_level = ["n/a"]
+
+            self.param["scenario_ssp"].objects = [
+                "SSP 3-7.0 -- Business as Usual",
+                "SSP 2-4.5 -- Middle of the Road",
+                "SSP 5-8.5 -- Burn it All",
+            ]
+            self.scenario_ssp = []
+
+            self.param["scenario_historical"].objects = [
+                "Historical Climate",
+                "Historical Reconstruction",
+            ]
+            self.scenario_historical = ["Historical Climate"]
+
     @param.depends("latitude", "longitude", watch=True)
     def _update_area_subset_to_lat_lon(self):
         """
@@ -760,13 +834,26 @@ class DataParameters(param.Parameterized):
             self.param["area_average"].objects = ["Yes", "No"]
             self.area_average = "No"
 
-    @param.depends("downscaling_method", "data_type", "variable_type", watch=True)
-    def _update_data_type_options_if_loca_or_derived_var_selected(self):
-        """If statistical downscaling is selected, remove option for station data because we don't
-        have the 2m temp variable for LOCA"""
+    @param.depends(
+        "downscaling_method",
+        "data_type",
+        "variable_type",
+        "approach",
+        watch=True,
+    )
+    def _update_data_type_option_for_some_selections(self):
+        """
+        Station data selection not permitted for the following selections:
+        - If statistical downscaling is selected, remove option for station data because we don't
+        have the 2m temp variable for LOCA.
+        - No station data (yet) for warming levels-- can explore adding in the future. Order of operations for station based retrieval using a warming levels approach should be: quantile mapping first to adjust to observations, then retrieve the sliced data.
+        - No station data (yet) for derived indices-- can explore adding in the future
+
+        """
         if (
             "Statistical" in self.downscaling_method
             or self.variable_type == "Derived Index"
+            or self.approach == "Warming Level"
         ):
             self.param["data_type"].objects = ["Gridded"]
             self.data_type = "Gridded"
@@ -775,12 +862,16 @@ class DataParameters(param.Parameterized):
         if "Station" in self.data_type or self.variable_type == "Derived Index":
             self.param["downscaling_method"].objects = ["Dynamical"]
             self.downscaling_method = "Dynamical"
+
+            self.param["approach"].objects = ["Time"]
+            self.approach = "Time"
         else:
             self.param["downscaling_method"].objects = [
                 "Dynamical",
                 "Statistical",
                 "Dynamical+Statistical",
             ]
+            self.param["approach"].objects = ["Time", "Warming Level"]
 
     @param.depends("data_type", "downscaling_method", watch=True)
     def _update_res_based_on_data_type_and_downscaling_method(self):
@@ -946,57 +1037,68 @@ class DataParameters(param.Parameterized):
             self.param["units"].objects = [native_unit]
             self.units = native_unit
 
-    @param.depends("resolution", "downscaling_method", "data_type", watch=True)
+    @param.depends(
+        "resolution", "downscaling_method", "data_type", "approach", watch=True
+    )
     def _update_scenarios(self):
         """
         Update scenario options. Raise data warning if a bad selection is made.
         """
-        # Set incoming scenario_historical
-        _scenario_historical = self.scenario_historical
 
-        # Get scenario options in catalog format
-        scenario_ssp_options = [
-            scenario_to_experiment_id(scen, reverse=True)
-            for scen in self.scenario_options
-            if "ssp" in scen
-        ]
-        for scenario_i in [
-            "SSP 3-7.0 -- Business as Usual",
-            "SSP 2-4.5 -- Middle of the Road",
-            "SSP 5-8.5 -- Burn it All",
-        ]:
-            if scenario_i in scenario_ssp_options:  # Reorder list
-                scenario_ssp_options.remove(scenario_i)  # Remove item
-                scenario_ssp_options.append(scenario_i)  # Add to back of list
-        self.param["scenario_ssp"].objects = scenario_ssp_options
-        self.scenario_ssp = [x for x in self.scenario_ssp if x in scenario_ssp_options]
+        if self.approach == "Time":
 
-        historical_scenarios = ["historical", "reanalysis"]
-        scenario_historical_options = [
-            scenario_to_experiment_id(scen, reverse=True)
-            for scen in self.scenario_options
-            if scen in historical_scenarios
-        ]
-        self.param["scenario_historical"].objects = scenario_historical_options
+            # Set incoming scenario_historical
+            _scenario_historical = self.scenario_historical
 
-        # check if input historical scenarios match new available scenarios
-        # if no reanalysis scenario then return False
-        def _check_inputs(a, b):
-            chk = False
-            if len(b) < 2:
+            # Get scenario options in catalog format
+            scenario_ssp_options = [
+                scenario_to_experiment_id(scen, reverse=True)
+                for scen in self.scenario_options
+                if "ssp" in scen
+            ]
+            for scenario_i in [
+                "SSP 3-7.0 -- Business as Usual",
+                "SSP 2-4.5 -- Middle of the Road",
+                "SSP 5-8.5 -- Burn it All",
+            ]:
+                if scenario_i in scenario_ssp_options:  # Reorder list
+                    scenario_ssp_options.remove(scenario_i)  # Remove item
+                    scenario_ssp_options.append(scenario_i)  # Add to back of list
+            self.param["scenario_ssp"].objects = scenario_ssp_options
+            self.scenario_ssp = [
+                x for x in self.scenario_ssp if x in scenario_ssp_options
+            ]
+
+            historical_scenarios = ["historical", "reanalysis"]
+            scenario_historical_options = [
+                scenario_to_experiment_id(scen, reverse=True)
+                for scen in self.scenario_options
+                if scen in historical_scenarios
+            ]
+            self.param["scenario_historical"].objects = scenario_historical_options
+
+            # check if input historical scenarios match new available scenarios
+            # if no reanalysis scenario then return False
+            def _check_inputs(a, b):
+                chk = False
+                if len(b) < 2:
+                    return chk
+                for i in a:
+                    if i in a:
+                        chk = True
                 return chk
-            for i in a:
-                if i in a:
-                    chk = True
-            return chk
 
-        # check if new selection has the historical scenario options and if not select the first new option
-        if _check_inputs(_scenario_historical, scenario_historical_options):
-            self.scenario_historical = _scenario_historical
+            # check if new selection has the historical scenario options and if not select the first new option
+            if _check_inputs(_scenario_historical, scenario_historical_options):
+                self.scenario_historical = _scenario_historical
+            else:
+                self.scenario_historical = [scenario_historical_options[0]]
+
         else:
-            self.scenario_historical = [scenario_historical_options[0]]
+            pass
 
     @param.depends(
+        "approach",
         "scenario_ssp",
         "scenario_historical",
         "downscaling_method",
@@ -1004,64 +1106,79 @@ class DataParameters(param.Parameterized):
         watch=True,
     )
     def _update_data_warning(self):
-        """Update warning raised to user based on their data selections."""
+        """Update warning raised to user based on their data selections.
+        No warming shown if approach is set to warming level.
+        """
         data_warning = ""
         bad_time_slice_warning = """You've selected a time slice that is outside the temporal range 
         of the selected data."""
 
-        # Set time range of historical data
-        if self.downscaling_method == "Statistical":
-            historical_climate_range = self.historical_climate_range_loca
-        elif self.downscaling_method == "Dynamical+Statistical":
-            historical_climate_range = self.historical_climate_range_wrf_and_loca
+        if self.approach == "Warming Level":
+            data_warning = ""
+
         else:
-            historical_climate_range = self.historical_climate_range_wrf
-
-        # Warning based on data scenario selections
-        if (  # Warn user that they cannot have SSP data and ERA5-WRF data
-            True in ["SSP" in one for one in self.scenario_ssp]
-        ) and ("Historical Reconstruction" in self.scenario_historical):
-            data_warning = """Historical Reconstruction data is not available with SSP data.
-            Try using the Historical Climate data instead."""
-
-        elif (  # Warn user if no data is selected
-            not True in ["SSP" in one for one in self.scenario_ssp]
-        ) and (not True in ["Historical" in one for one in self.scenario_historical]):
-            data_warning = "Please select as least one dataset."
-
-        elif (
-            (  # If both historical options are selected, warn user the data will be cut
-                "Historical Reconstruction" in self.scenario_historical
-            )
-            and ("Historical Climate" in self.scenario_historical)
-        ):
-            data_warning = """The timescale of Historical Reconstruction data will be cut 
-            to match that of the Historical Climate data if both are retrieved."""
-
-        # Warnings based on time slice selections
-        if (not True in ["SSP" in one for one in self.scenario_ssp]) and (
-            "Historical Climate" in self.scenario_historical
-        ):
-            if (self.time_slice[0] < historical_climate_range[0]) or (
-                self.time_slice[1] > historical_climate_range[1]
-            ):
-                data_warning = bad_time_slice_warning
-        elif True in ["SSP" in one for one in self.scenario_ssp]:
-            if not True in ["Historical" in one for one in self.scenario_historical]:
-                if (self.time_slice[0] < self.ssp_range[0]) or (
-                    self.time_slice[1] > self.ssp_range[1]
-                ):
-                    data_warning = bad_time_slice_warning
+            # Set time range of historical data
+            if self.downscaling_method == "Statistical":
+                historical_climate_range = self.historical_climate_range_loca
+            elif self.downscaling_method == "Dynamical+Statistical":
+                historical_climate_range = self.historical_climate_range_wrf_and_loca
             else:
+                historical_climate_range = self.historical_climate_range_wrf
+
+            # Warning based on data scenario selections
+            if (  # Warn user that they cannot have SSP data and ERA5-WRF data
+                True in ["SSP" in one for one in self.scenario_ssp]
+            ) and ("Historical Reconstruction" in self.scenario_historical):
+                data_warning = """Historical Reconstruction data is not available with SSP data.
+                Try using the Historical Climate data instead."""
+
+            elif (
+                (  # Warn user if no data is selected
+                    all("SSP" not in one for one in self.scenario_ssp)
+                )
+                and (
+                    not True
+                    in ["Historical" in one for one in self.scenario_historical]
+                )
+                and (self.scenario_ssp != ["n/a"])
+                and (self.scenario_historical != ["n/a"])
+            ):
+                data_warning = "Please select as least one dataset."
+
+            elif (  # If both historical options are selected, warn user the data will be cut
+                "Historical Reconstruction" in self.scenario_historical
+            ) and (
+                "Historical Climate" in self.scenario_historical
+            ):
+                data_warning = """The timescale of Historical Reconstruction data will be cut 
+                to match that of the Historical Climate data if both are retrieved."""
+
+            # Warnings based on time slice selections
+            if (all("SSP" not in one for one in self.scenario_ssp)) and (
+                "Historical Climate" in self.scenario_historical
+            ):
                 if (self.time_slice[0] < historical_climate_range[0]) or (
-                    self.time_slice[1] > self.ssp_range[1]
+                    self.time_slice[1] > historical_climate_range[1]
                 ):
                     data_warning = bad_time_slice_warning
-        elif self.scenario_historical == ["Historical Reconstruction"]:
-            if (self.time_slice[0] < self.historical_reconstruction_range[0]) or (
-                self.time_slice[1] > self.historical_reconstruction_range[1]
-            ):
-                data_warning = bad_time_slice_warning
+            elif True in ["SSP" in one for one in self.scenario_ssp]:
+                if not True in [
+                    "Historical" in one for one in self.scenario_historical
+                ]:
+                    if (self.time_slice[0] < self.ssp_range[0]) or (
+                        self.time_slice[1] > self.ssp_range[1]
+                    ):
+                        data_warning = bad_time_slice_warning
+                else:
+                    if (self.time_slice[0] < historical_climate_range[0]) or (
+                        self.time_slice[1] > self.ssp_range[1]
+                    ):
+                        data_warning = bad_time_slice_warning
+            elif self.scenario_historical == ["Historical Reconstruction"]:
+                if (self.time_slice[0] < self.historical_reconstruction_range[0]) or (
+                    self.time_slice[1] > self.historical_reconstruction_range[1]
+                ):
+                    data_warning = bad_time_slice_warning
 
         # Show warning
         self._data_warning = data_warning
@@ -1178,7 +1295,7 @@ class DataParameters(param.Parameterized):
             Only an option if a config file is provided.
         """
 
-        def warnoflargefilesize(da):
+        def _warn_of_large_file_size(da):
             if da.nbytes >= int(1e9) and da.nbytes < int(5e9):
                 print(
                     "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
@@ -1198,6 +1315,16 @@ class DataParameters(param.Parameterized):
                     "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
                 )
 
+        def _warn_of_empty_data(self):
+            if self.approach == "Warming Level" and (len(self.warming_level) > 1):
+                print(
+                    "WARNING FOR WARMING LEVELS APPROACH\n-----------------------------------\nThere may be NaNs in your data for certain simulation/warming level combinations if the warming level is not reached for that particular simulation before the year 2100. \n\nThis does not mean you have missing data, but rather a feature of how the data is combined in retrieval to return a single data object. \n\nIf you want to remove these empty simulations, it is recommended to first subset the data object by each individual warming level and then dropping NaN values."
+                )
+            elif (self.approach == "Time") and (len(self.scenario_ssp) > 1):
+                print(
+                    "WARNING\n-------\nYou have retrieved data for more than one SSP, but not all ensemble members for each GCM are available for all SSPs.\n\nAs a result, some scenario and simulation combinations may contain NaN values.\n\nIf you want to remove these empty simulations, it is recommended to first subset the data object by each individual scenario and then dropping NaN values."
+                )
+
         if config is not None:
             if type(config) == str:
                 data_return = read_catalog_from_csv(self, config, merge)
@@ -1209,9 +1336,13 @@ class DataParameters(param.Parameterized):
 
         if isinstance(data_return, list):
             for l in data_return:
-                warnoflargefilesize(l)
+                _warn_of_large_file_size(l)
         else:
-            warnoflargefilesize(data_return)
+            _warn_of_large_file_size(data_return)
+
+        # Warn about empty simulations for certain selections
+        _warn_of_empty_data(self)
+
         return data_return
 
 
@@ -1627,39 +1758,181 @@ def get_data(
     downscaling_method,
     resolution,
     timescale,
-    scenario,
+    approach="Time",
+    scenario=None,
     units=None,
+    warming_level=None,
     area_subset="none",
     cached_area=["entire domain"],
-    area_average="No",
+    area_average=None,
+    time_slice=None,
+    warming_level_window=None,
+    warming_level_months=None,
 ):
     # Need to add error handing for bad variable input
-    """Retrieve data from the catalog using a simple function.
-    Contrasts with selections.retrieve(), which retrieves data from the user inputs in climakitaegui's selections GUI.
+    """Retrieve formatted data from the Analytics Engine data catalog using a simple function.
+    Contrasts with DataParameters().retrieve(), which retrieves data from the user inputs in climakitaegui's selections GUI.
 
     Parameters
     ----------
     variable: str
-    downscaling_method: str
-    resolution: str
-    timescale: str
-    scenario: str or list of str
-    units: None, optional
+        String name of climate variable
+    downscaling_method: str, one of ["Dynamical", "Statistical", "Dynamical+Statistical"]
+        Downscaling method of the data:
+        WRF ("Dynamical"), LOCA2 ("Statistical"), or both "Dynamical+Statistical"
+    resolution: str, one of ["3 km", "9 km", "45 km"]
+        Resolution of data in kilometers
+    timescale: str, one of ["hourly", "daily", "monthly"]
+        Temporal frequency of dataset
+    approach: one of ["Time", "Warming Level"], optional
+        Default to "Time"
+    scenario: str or list of str, optional
+        SSP scenario and/or historical data selection ("Historical Climate", "Historical Reconstruction")
+        If approach = "Time", you need to set a valid option
+        If approach = "Warming Level", scenario is ignored
+    units: str, optional
+        Variable units.
         Defaults to native units of data
     area_subset: str, optional
         Area category: i.e "CA counties"
         Defaults to entire domain ("none")
     cached_area: list, optional
         Area: i.e "Alameda county"
-        Defaults to entire domain ("none")
-    area_average: str, optional
+        Defaults to entire domain (["entire domain"])
+    area_average: one of ["Yes","No"], optional
         Take an average over spatial domain?
-        One of "No" or "Yes". Default to No
+        Default to "No".
+    time_slice: tuple, optional
+        Time range for retrieved data
+        Only valid for approach = "Time"
+    warming_level: list of float, optional
+        Must be one of [1.5, 2.0, 2.5, 3.0, 4.0]
+        Only valid for approach = "Warming Level"
+    warming_level_window: int in range (5,25), optional
+        Years around Global Warming Level (+/-) \n (e.g. 15 means a 30yr window)
+        Only valid for approach = "Warming Level"
+    warming_level_months: list of int, optional
+        Months of year for which to perform warming level computation
+        Default to all months in a year: [1,2,3,4,5,6,7,8,9,10,11,12]
+        For example, you may want to set warming_level_months=[12,1,2] to perform the analysis for the winter season.
+        Only valid for approach = "Warming Level"
 
     Returns
     -------
     data: xr.DataArray
+
+    Notes
+    -----
+    Errors aren't raised by the function. Rather, an appropriate informative message is printed, and the function returns None. This is due to the fact that the AE Jupyter Hub raises a strange Pieces Mismatch Error for some bad inputs; instead, that error is ignored and a more informative error message is printed instead.
+
     """
+
+    # Internal functions
+
+    def _format_error_print_message(error_message):
+        """Format error message using the same format"""
+        return "ERROR: {0} \nReturning None".format(error_message)
+
+    def _error_handling_warming_level_inputs(wl, argument_name):
+        """Error handling for arguments: warming_level and warming_level_month
+        Both require a list of either floats or ints
+        argument_name is either "warming_level" or "warming_level_months" and is used to print an appropriate error message for bad input
+        """
+        if (wl is not None) and (type(wl) != list):
+            if type(wl) in [float, int]:  # Convert float to a singleton list
+                wl = [wl]
+            if type(wl) != list:
+                raise ValueError(
+                    "Function argument {0} requires a float/int or list of floats/ints input. Your input: {1}".format(
+                        argument_name, type(wl)
+                    )
+                )
+        if type(wl) == list:
+            for x in wl:
+                if type(x) not in [float, int]:
+                    raise ValueError(
+                        "Function argument {0} requires a float/int or list of floats/ints input. Your input: {1}".format(
+                            argument_name, type(x)
+                        )
+                    )
+        return wl
+
+    def _error_handling_approach_inputs(approach, scenario, warming_level, time_slice):
+        """Error handling for approach and scenario inputs"""
+        _valid_options_approach = ["Time", "Warming Level"]
+        if approach not in _valid_options_approach:
+            # Maybe the user just capitalized it wrong
+            # If so, fix it for them-- don't raise an error
+            if approach.lower().title() in _valid_options_approach:
+                approach = approach.lower().title()
+            else:
+                # An error will be raised later when you try to set selections
+                pass
+
+        # Print a warming if scenario is set but approach is Warming Level
+        if approach == "Warming Level" and scenario not in [None, ["n/a"], "n/a"]:
+            print(
+                'WARNING: "scenario" argument will be ignored for warming levels approach'
+            )
+            scenario = None
+        if approach == "Warming Level" and time_slice != None:
+            print(
+                'WARNING: "time_slice" argument will be ignored for warming levels approach'
+            )
+            time_slice = None
+
+        if approach == "Time":
+            warming_level = ["n/a"]
+
+        return approach, scenario, warming_level, time_slice
+
+    def _error_handling_location_settings(area_subset, cached_area):
+        """Maybe the user put an input for cached area but not for area subset
+        We need to have the matching/correct area subset in order for selections.retrieve() to actually subset the data
+        Here, we load in the geometry options to set area_subset to the correct value
+        This also raises an appropriate error if the user has a bad input
+        """
+        if area_subset == "none" and cached_area != ["entire domain"]:
+            geom_df = get_subsetting_options(area_subset="all").reset_index()
+            area_subset_vals = geom_df[geom_df["cached_area"] == cached_area[0]][
+                "area_subset"
+            ].values
+            if len(area_subset_vals) == 0:
+                raise ValueError("Invalid input for argument 'cached_area'")
+            else:
+                area_subset = area_subset_vals[0]
+        return area_subset
+
+    def _get_scenario_ssp_scenario_historical(approach, scenario):
+        """Get scenario_ssp, scenario_historical depending on user inputs"""
+        if approach == "Warming Level":
+            scenario_ssp = ["n/a"]
+            scenario_historical = ["n/a"]
+        elif approach == "Time":
+
+            if (
+                "Historical Reconstruction" in scenario
+            ):  # Handling for Historical Reconstruction option
+                scenario_historical = [x for x in scenario if "Historical" in x]
+                scenario_ssp = []
+                if (
+                    len(scenario) != 1
+                ):  # No SSP options for Historical Reconstruction data
+                    print(
+                        "WARNING: Historical Reconstruction data cannot be retrieved in the same data object as SSP scenario options. SSP data will not be retrieved."
+                    )
+
+            else:
+                scenario_ssp = [
+                    x for x in scenario if "Historical" not in x
+                ]  # Add non-historical SSPs to scenario_ssp key
+                if "Historical Climate" in scenario:
+                    scenario_historical = ["Historical Climate"]
+                else:
+                    scenario_historical = []
+        else:
+            scenario_ssp, scenario_historical = None, None
+        return scenario_ssp, scenario_historical
 
     # Get intake catalog and variable descriptions from DataInterface object
     data_interface = DataInterface()
@@ -1669,13 +1942,67 @@ def get_data(
         intake_catalog=catalog, variable_descriptions=var_df
     )
 
-    # Raise error for bad input from user
-    for user_input in [variable, downscaling_method, resolution, timescale]:
+    ## --------- ERROR HANDLING ----------
+    # Deal with bad or missing users inputs
+
+    # Check warming level inputs
+    try:
+        warming_level = _error_handling_warming_level_inputs(
+            warming_level, "warming_level"
+        )
+        warming_level_months = _error_handling_warming_level_inputs(
+            warming_level_months, "warming_level_months"
+        )
+    except ValueError as error_message:
+        print(_format_error_print_message(error_message))
+        return None
+
+    # Make sure the inputs are a valid type (no floats, ints, dictionaries, etc)
+    for user_input in [
+        variable,
+        downscaling_method,
+        resolution,
+        timescale,
+        area_subset,
+        area_average,
+        approach,
+        scenario,
+    ]:
         if (user_input is not None) and (type(user_input) not in [str, list]):
-            print("Function arguments require a single string value for your inputs")
+            error_message = (
+                "Function arguments require a single string value for your inputs"
+            )
+            print(_format_error_print_message(error_message))
             return None
 
-    d = {
+    # Maybe area average was capitalized wrong
+    # Fix it instead of raising an error
+    if area_average is not None:
+        if area_average.lower().title() in ["Yes", "No"]:
+            area_average = area_average.lower().title()
+
+    # Cached area should be a list even if its just a single string value (i.e. [str])
+    cached_area = [cached_area] if type(cached_area) != list else cached_area
+
+    # Make sure approach matches the scenario setting
+    # See function documentation for more details
+    approach, scenario, warming_level, time_slice = _error_handling_approach_inputs(
+        approach, scenario, warming_level, time_slice
+    )
+
+    # Make sure the area subset is set to a valid input
+    # See function documentation for more details
+    try:
+        area_subset = _error_handling_location_settings(area_subset, cached_area)
+    except ValueError as error_message:
+        print(_format_error_print_message(error_message))
+        return None
+
+    # Add arguments to a dictionary
+    # A dictionary is used for all the inputs in selections because it enables better error handling and cleaner code when we set selections.thing = thing
+    # It also makes parsing through the arguments easier
+    # The inputs here need to be a list so that they can be parsed easier by the _check_if_good_input function when comparing with the valid catalog options to confirm the user input is valid
+    cat_dict = {
         "variable": variable if type(variable) == list else [variable],
         "timescale": timescale if type(timescale) == list else [timescale],
         "downscaling_method": (
@@ -1687,84 +2014,83 @@ def get_data(
         "resolution": resolution if type(resolution) == list else [resolution],
     }
 
-    d = _check_if_good_input(d, cat_df)
+    # Check if the user inputs make sense
+    cat_dict = _check_if_good_input(cat_dict, cat_df)
 
-    # Convert list items back to single str to match formatting in data
-    # Except for scenario which requires a list
-    d["variable"] = d["variable"][0]
-    d["timescale"] = d["timescale"][0]
-    d["downscaling_method"] = d["downscaling_method"][0]
-    d["resolution"] = d["resolution"][0]
+    # Settings for selections
+    selections_dict = {
+        "variable": cat_dict["variable"][0],
+        "timescale": cat_dict["timescale"][0],
+        "downscaling_method": cat_dict["downscaling_method"][0],
+        "resolution": cat_dict["resolution"][0],
+        "scenario": cat_dict["scenario"],
+        "area_average": area_average,
+        "area_subset": area_subset,
+        "cached_area": cached_area,
+        "approach": approach,
+        "warming_level": warming_level,
+        "warming_level_window": warming_level_window,
+        "warming_level_months": warming_level_months,
+        "time_slice": time_slice,
+    }
 
-    # We need a list for cached area
-    if type(cached_area) == str:
-        cached_area = [cached_area]
+    scenario_ssp, scenario_historical = _get_scenario_ssp_scenario_historical(
+        selections_dict["approach"], selections_dict["scenario"]
+    )
+    selections_dict["scenario_ssp"] = scenario_ssp
+    selections_dict["scenario_historical"] = scenario_historical
 
-    # Maybe the user put an input for cached area but not for area subset
-    # We need to have the matching/correct area subset in order for selections.retrieve() to actually subset the data
-    # Here, we load in the geometry options to set area_subset to the correct value
-    # This also raises an appropriate error if the user has a bad input
-    if area_subset == "none" and cached_area != ["entire domain"]:
-        geom_df = get_subsetting_options(area_subset="all").reset_index()
-        area_subset_vals = geom_df[geom_df["cached_area"] == cached_area[0]][
-            "area_subset"
-        ].values
-        if len(area_subset_vals) == 0:
-            print(
-                "'"
-                + str(cached_area[0])
-                + "' is not a valid option for function argument 'cached_area'"
-            )
-            raise ValueError("Bad input for argument 'cached_area'")
-        else:
-            area_subset = area_subset_vals[0]
+    ## ----- SET THE UNITS ------
 
     # Query the table based on input values
-    var_df_query = var_df[
-        (var_df["display_name"] == d["variable"])
-        & (var_df["downscaling_method"] == d["downscaling_method"])
-    ]
-
     # Timescale in table needs to be handled differently
     # This is because the monthly variables are derived from daily variables, so they are listed in the table as "daily, monthly"
     # Hourly variables may be different
     # Querying the data needs special handling due to the layout of the csv file
-    var_df_query = var_df_query[var_df_query["timescale"].str.contains(d["timescale"])]
+    var_df_query = var_df[
+        (var_df["display_name"] == selections_dict["variable"])
+        & (var_df["downscaling_method"] == selections_dict["downscaling_method"])
+    ]
+    var_df_query = var_df_query[
+        var_df_query["timescale"].str.contains(selections_dict["timescale"])
+    ]
 
-    if units is None:
-        units = var_df_query["unit"].item()
+    selections_dict["units"] = (
+        units if units is not None else var_df_query["unit"].item()
+    )  # Set units if user doesn't set them manually
 
-    # Create selections object
+    ## ------ CREATE SELECTIONS OBJECT AND SET EACH ATTRIBUTE -------
     selections = DataParameters()
 
-    # Defaults
-    selections.area_average = area_average
-    selections.area_subset = area_subset
-    selections.cached_area = cached_area
+    try:
+        selections.approach = selections_dict["approach"]
+        selections.scenario_ssp = selections_dict["scenario_ssp"]
+        selections.scenario_historical = selections_dict["scenario_historical"]
+        selections.area_subset = selections_dict["area_subset"]
+        selections.cached_area = selections_dict["cached_area"]
+        selections.downscaling_method = selections_dict["downscaling_method"]
+        selections.variable = selections_dict["variable"]
+        selections.resolution = selections_dict["resolution"]
+        selections.timescale = selections_dict["timescale"]
+        selections.units = selections_dict["units"]
 
-    # Function not currently flexible enough to allow for appending historical
-    # Need to add in error control
-    selections.append_historical = False
-
-    # User selections
-    selections.downscaling_method = d["downscaling_method"]
-    selections.variable = d["variable"]
-    selections.resolution = d["resolution"]
-    selections.timescale = d["timescale"]
-    selections.units = units
-
-    if "Historical Reconstruction" in d["scenario"]:
-        selections.scenario_historical = ["Historical Reconstruction"]
-        selections.scenario_ssp = []
-        if len(d["scenario"]) != 1:
-            print(
-                "WARNING: Historical Reconstruction data cannot be retrieved in the same data object as other scenario options. Only returning Historical Reconstruction data."
-            )
-
-    else:
-        if "Historical Climate" in d["scenario"]:
-            selections.scenario_historical = ["Historical Climate"]
-        selections.scenario_ssp = [x for x in d["scenario"] if "Historical" not in x]
+        # Setting the values like this enables us to take advantage of the default settings in DataParameters without having to manually set defaults in this function
+        if selections_dict["warming_level"] is not None:
+            selections.warming_level = selections_dict["warming_level"]
+        if selections_dict["warming_level_window"] is not None:
+            selections.warming_level_window = selections_dict["warming_level_window"]
+        if selections_dict["area_average"] is not None:
+            selections.area_average = selections_dict["area_average"]
+        if selections_dict["time_slice"] is not None:
+            selections.time_slice = selections_dict["time_slice"]
+        if selections_dict["warming_level_months"] is not None:
+            selections.warming_level_months = selections_dict["warming_level_months"]
+    except ValueError as error_message:
+        # The error message is really long
+        # And sometimes has a confusing Attribute Error: Pieces mismatch that is hard to interpret
+        # Here we just print the error message and return None instead of allowing the long error to be raised by default
+        print(_format_error_print_message(error_message))
+        return None
 
     # Retrieve data
     data = selections.retrieve()

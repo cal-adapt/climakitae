@@ -15,7 +15,9 @@ from climakitae.core.paths import gwl_1981_2010_file, gwl_1850_1900_file
 from climakitae.util.utils import (
     read_csv_file,
     scenario_to_experiment_id,
-    drop_invalid_wrf_sims,
+    timescale_to_table_id,
+    resolution_to_gridlabel,
+    drop_invalid_wl_sims,
 )
 
 from tqdm.auto import tqdm
@@ -86,9 +88,10 @@ class WarmingLevels:
         self.catalog_data = self.wl_params.retrieve()
         self.catalog_data = self.catalog_data.stack(all_sims=["simulation", "scenario"])
 
-        # For WRF, dropping invalid simulations before doing any other computation
-        if self.wl_params.downscaling_method == "Dynamical":
-            self.catalog_data = drop_invalid_wrf_sims(self.catalog_data)
+        # Dropping invalid simulations that come up from stacking scenarios and simulations together
+        self.catalog_data = drop_invalid_wl_sims(
+            self.catalog_data, self.wl_params.downscaling_method
+        )
 
         if self.wl_params.anom == "Yes":
             self.gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
@@ -158,7 +161,10 @@ def clean_warm_data(warm_data):
     if not (warm_data.centered_year.isnull()).all():
 
         # Cleaning #1
-        warm_data = warm_data.sel(all_sims=~warm_data.centered_year.isnull())
+        if warm_data.centered_year.isnull().size == 1:
+            warm_data = warm_data.sel(all_sims=[~warm_data.centered_year.isnull()])
+        else:
+            warm_data = warm_data.sel(all_sims=~warm_data.centered_year.isnull())
 
         # Cleaning #2
         # warm_data = warm_data.isel(
@@ -238,9 +244,14 @@ def get_sliced_data(y, level, years, months=np.arange(1, 13), window=15, anom="Y
 
         # Add user warning if the total slice is missing any time that exceeds the 2100 year bound.
         if len(sliced["time"]) < expected_counts[sliced.frequency]:
-            print(
-                f"\nWarming Level data for {sliced.simulation[0]} is not completely available, since the warming level slice's center year is towards the end of the century. All other valid data is returned.\n"
-            )
+            try:
+                print(
+                    f"\nWarming Level data for {sliced.simulation[0]} is not completely available, since the warming level slice's center year is towards the end of the century. All other valid data is returned.\n"
+                )
+            except:
+                print(
+                    "\nWarming Level data for a simulation is not completely available, since the warming level slice's center year is towards the end of the century. All other valid data is returned.\n"
+                )
 
         # Removing data not in the desired months (in this new time dimension)
         sliced = sliced.sel(time=valid_months_mask)
@@ -325,3 +336,69 @@ class WarmingLevelChoose(DataParameters):
         else:
             self.param["anom"].objects = ["Yes", "No"]
             self.anom = "Yes"
+
+
+def drop_invalid_wrf_sims(ds):
+    """
+    Drop invalid WRF simulations from the given dataset since there is an unequal number of simulations per SSP.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        The dataset containing WRF simulations. The dataset must have a
+        dimension `all_sims` that results from stacking `simulation` and
+        `scenario`.
+
+    Returns
+    -------
+    xr.Dataset
+        The dataset with only valid WRF simulations retained.
+
+    Raises
+    ------
+    AttributeError
+        If the dataset does not have an `all_sims` dimension.
+
+    Notes
+    -----
+    - For datasets with a resolution of '3 km', no simulations are dropped, and the original dataset is returned.
+    - For datasets with a resolution of '9 km' at hourly timescale, only 10 simulations are returned.
+    - For datasets with a resolution of '9 km' at daily/monthly timescale, only 6 simulations are returned.
+    - For datasets with a resolution of '45 km' at hourly timescale, only 7 simulations are returned.
+    - For datasets with a resolution of '45 km' at daily/monthly timescale, only 6 simulations are returned.
+    """
+    if "all_sims" not in ds.dims:
+        raise AttributeError(
+            "Missing an `all_sims` dimension on the dataset. Create `all_sims` with .stack on `simulation` and `scenario`."
+        )
+
+    # Checking for derived variables separately since we don't store their IDs in the catalog
+    # Future derived variables that don't use `t2` will be broken because of this function.
+    variable = ds.variable_id
+    if "derived" in variable:
+        variable = "t2"
+
+    # Find valid simulation from catalog
+    df = intake.open_esm_datastore(data_catalog_url).df
+    filter_df = df[
+        (df["activity_id"] == "WRF")
+        & (df["table_id"] == timescale_to_table_id(ds.frequency))
+        & (df["grid_label"] == resolution_to_gridlabel(ds.resolution))
+        & (df["variable_id"] == variable)
+        & (df["experiment_id"] != "historical")
+        & (df["experiment_id"] != "reanalysis")
+        & (df["source_id"] != "ensmean")
+    ]
+    valid_sim_list = list(
+        zip(
+            filter_df["activity_id"]
+            + "_"
+            + filter_df["source_id"]
+            + "_"
+            + filter_df["member_id"],
+            filter_df["experiment_id"].apply(
+                lambda val: f"Historical + {scenario_to_experiment_id(val, reverse=True)}"
+            ),
+        )
+    )
+    return ds.sel(all_sims=valid_sim_list)

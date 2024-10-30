@@ -34,33 +34,6 @@ def downscaling_method_as_list(downscaling_method):
     return method_list
 
 
-def scenario_to_experiment_id(scenario, reverse=False):
-    """Convert scenario format to experiment_id format matching catalog names.
-
-    Parameters
-    ----------
-    scenario: str
-    reverse: boolean, optional
-        Set reverse=True to get scenario format from input experiement_id.
-        Default to False
-
-    Returns
-    -------
-    str
-    """
-    scenario_dict = {
-        "Historical Reconstruction": "reanalysis",
-        "Historical Climate": "historical",
-        "SSP 2-4.5 -- Middle of the Road": "ssp245",
-        "SSP 5-8.5 -- Burn it All": "ssp585",
-        "SSP 3-7.0 -- Business as Usual": "ssp370",
-    }
-
-    if reverse == True:
-        scenario_dict = {v: k for k, v in scenario_dict.items()}
-    return scenario_dict[scenario]
-
-
 def area_average(dset):
     """Weighted area-average
 
@@ -867,7 +840,7 @@ def scenario_to_experiment_id(scenario, reverse=False):
     return scenario_dict[scenario]
 
 
-def drop_invalid_wrf_sims(ds):
+def drop_invalid_wl_sims(ds, downscaling_method):
     """
     Drop invalid WRF simulations from the given dataset since there is an unequal number of simulations per SSP.
 
@@ -907,10 +880,17 @@ def drop_invalid_wrf_sims(ds):
     if "derived" in variable:
         variable = "t2"
 
+    # Modifying downscaling method filtering
+    downscaling_filter = (
+        ["WRF", "LOCA2"]
+        if downscaling_method == "Dynamical+Statistical"
+        else [downscaling_method_to_activity_id(downscaling_method)]
+    )
+
     # Find valid simulation from catalog
     df = intake.open_esm_datastore(data_catalog_url).df
     filter_df = df[
-        (df["activity_id"] == "WRF")
+        (df["activity_id"].isin(downscaling_filter))
         & (df["table_id"] == timescale_to_table_id(ds.frequency))
         & (df["grid_label"] == resolution_to_gridlabel(ds.resolution))
         & (df["variable_id"] == variable)
@@ -930,7 +910,8 @@ def drop_invalid_wrf_sims(ds):
             ),
         )
     )
-    return ds.sel(all_sims=valid_sim_list)
+    filtered_sims = [sim for sim in valid_sim_list if sim in list(ds.all_sims.values)]
+    return ds.sel(all_sims=filtered_sims)
 
 
 def stack_sims_across_locs(ds, sim_dim_name):
