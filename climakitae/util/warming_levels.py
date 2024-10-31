@@ -10,6 +10,7 @@ from climakitae.util.utils import (
     resolution_to_gridlabel,
     downscaling_method_to_activity_id,
 )
+from climakitae.core.data_load import _get_cat_subset
 
 
 def _calculate_warming_level(warming_data, gwl_times, level, months, window):
@@ -171,7 +172,7 @@ def _extract_string_identifiers(da):
     return (sim_str, ensemble, scenario)
 
 
-def _drop_invalid_sims(ds, data_catalog):
+def _drop_invalid_sims(ds, selections):
     """
     As part of the warming levels calculation, the data is stacked by simulation and scenario, creating some empty values for that coordinate.
     Here, we remove those empty coordinate values.
@@ -194,33 +195,13 @@ def _drop_invalid_sims(ds, data_catalog):
     ------
     AttributeError
         If the dataset does not have an `all_sims` dimension.
-
     """
-
-    # Checking for derived variables separately since we don't store their IDs in the catalog
-    # Future derived variables that don't use `t2` will be broken because of this function.
-    variable = ds.variable_id
-    if "derived" in variable:
-        variable = "t2"
-
-    # Downscaling method as activity_id
-    # Retrieved separately to account for Dynamical+Statistical option, which is not a valid converion option for the downscaling_method_to_activity_id function
-    downscaling_method = (
-        ["WRF", "LOCA2"]
-        if ds.downscaling_method == "Dynamical+Statistical"
-        else [downscaling_method_to_activity_id(ds.downscaling_method)]
-    )
-
-    # Find valid simulation from catalog
-    filter_df = data_catalog[
-        (data_catalog["activity_id"].isin(downscaling_method))
-        & (data_catalog["table_id"] == timescale_to_table_id(ds.frequency))
-        & (data_catalog["grid_label"] == resolution_to_gridlabel(ds.resolution))
-        & (data_catalog["variable_id"] == variable)
-        & (data_catalog["experiment_id"] != "historical")
-        & (data_catalog["experiment_id"] != "reanalysis")
-        & (data_catalog["source_id"] != "ensmean")
-    ]
+    df = _get_cat_subset(selections).df
+    
+    # Just trying to see simulations across SSPs, not including historical period
+    filter_df = df[df['experiment_id'] != 'historical']
+    
+    # Creating a valid simulation list to filter the original dataset from
     valid_sim_list = list(
         zip(
             filter_df["activity_id"]

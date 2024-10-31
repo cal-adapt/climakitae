@@ -1309,7 +1309,7 @@ def _apply_warming_levels_approach(da, selections):
 
     # The xarray stacking function results in some non-existant scenario/simulation combos
     # We need to drop them here such that the global warming levels table can be adequately parsed by the _calculate_warming_level function
-    data_stacked = _drop_invalid_sims(data_stacked, selections._data_catalog.df)
+    data_stacked = _drop_invalid_sims(data_stacked, selections)
 
     # Calculate warming level DataArray for each individual warming level
     # Function will be applied for each individual warming level
