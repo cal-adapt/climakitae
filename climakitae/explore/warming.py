@@ -15,6 +15,8 @@ from climakitae.core.paths import gwl_1981_2010_file, gwl_1850_1900_file
 from climakitae.util.utils import (
     read_csv_file,
     scenario_to_experiment_id,
+    timescale_to_table_id,
+    resolution_to_gridlabel,
     drop_invalid_wl_sims,
 )
 
@@ -334,3 +336,69 @@ class WarmingLevelChoose(DataParameters):
         else:
             self.param["anom"].objects = ["Yes", "No"]
             self.anom = "Yes"
+
+
+def drop_invalid_wrf_sims(ds):
+    """
+    Drop invalid WRF simulations from the given dataset since there is an unequal number of simulations per SSP.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        The dataset containing WRF simulations. The dataset must have a
+        dimension `all_sims` that results from stacking `simulation` and
+        `scenario`.
+
+    Returns
+    -------
+    xr.Dataset
+        The dataset with only valid WRF simulations retained.
+
+    Raises
+    ------
+    AttributeError
+        If the dataset does not have an `all_sims` dimension.
+
+    Notes
+    -----
+    - For datasets with a resolution of '3 km', no simulations are dropped, and the original dataset is returned.
+    - For datasets with a resolution of '9 km' at hourly timescale, only 10 simulations are returned.
+    - For datasets with a resolution of '9 km' at daily/monthly timescale, only 6 simulations are returned.
+    - For datasets with a resolution of '45 km' at hourly timescale, only 7 simulations are returned.
+    - For datasets with a resolution of '45 km' at daily/monthly timescale, only 6 simulations are returned.
+    """
+    if "all_sims" not in ds.dims:
+        raise AttributeError(
+            "Missing an `all_sims` dimension on the dataset. Create `all_sims` with .stack on `simulation` and `scenario`."
+        )
+
+    # Checking for derived variables separately since we don't store their IDs in the catalog
+    # Future derived variables that don't use `t2` will be broken because of this function.
+    variable = ds.variable_id
+    if "derived" in variable:
+        variable = "t2"
+
+    # Find valid simulation from catalog
+    df = intake.open_esm_datastore(data_catalog_url).df
+    filter_df = df[
+        (df["activity_id"] == "WRF")
+        & (df["table_id"] == timescale_to_table_id(ds.frequency))
+        & (df["grid_label"] == resolution_to_gridlabel(ds.resolution))
+        & (df["variable_id"] == variable)
+        & (df["experiment_id"] != "historical")
+        & (df["experiment_id"] != "reanalysis")
+        & (df["source_id"] != "ensmean")
+    ]
+    valid_sim_list = list(
+        zip(
+            filter_df["activity_id"]
+            + "_"
+            + filter_df["source_id"]
+            + "_"
+            + filter_df["member_id"],
+            filter_df["experiment_id"].apply(
+                lambda val: f"Historical + {scenario_to_experiment_id(val, reverse=True)}"
+            ),
+        )
+    )
+    return ds.sel(all_sims=valid_sim_list)
