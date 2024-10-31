@@ -17,6 +17,7 @@ from climakitae.util.utils import (
     scenario_to_experiment_id,
     timescale_to_table_id,
     resolution_to_gridlabel,
+    get_cat_subset,
 )
 
 from tqdm.auto import tqdm
