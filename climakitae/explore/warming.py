@@ -88,9 +88,7 @@ class WarmingLevels:
         self.catalog_data = self.catalog_data.stack(all_sims=["simulation", "scenario"])
 
         # Dropping invalid simulations that come up from stacking scenarios and simulations together
-        self.catalog_data = _drop_invalid_wl_sims(
-            self.catalog_data, self.wl_params
-        )
+        self.catalog_data = _drop_invalid_wl_sims(self.catalog_data, self.wl_params)
 
         if self.wl_params.anom == "Yes":
             self.gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
@@ -362,10 +360,10 @@ def _drop_invalid_sims(ds, selections):
         If the dataset does not have an `all_sims` dimension.
     """
     df = get_cat_subset(selections).df
-    
+
     # Just trying to see simulations across SSPs, not including historical period
-    filter_df = df[df['experiment_id'] != 'historical']
-    
+    filter_df = df[df["experiment_id"] != "historical"]
+
     # Creating a valid simulation list to filter the original dataset from
     valid_sim_list = list(
         zip(

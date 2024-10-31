@@ -197,7 +197,7 @@ def _drop_invalid_sims(ds, selections):
         If the dataset does not have an `all_sims` dimension.
     """
     df = get_cat_subset(selections).df
-    
+
     # Just trying to see simulations across SSPs, not including historical period
     filter_df = df[df["experiment_id"] != "historical"]
 
