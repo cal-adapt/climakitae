@@ -10,7 +10,7 @@ from climakitae.util.utils import (
     resolution_to_gridlabel,
     downscaling_method_to_activity_id,
 )
-from climakitae.core.data_load import _get_cat_subset
+from climakitae.util.utils import get_cat_subset
 
 
 def _calculate_warming_level(warming_data, gwl_times, level, months, window):
@@ -196,7 +196,7 @@ def _drop_invalid_sims(ds, selections):
     AttributeError
         If the dataset does not have an `all_sims` dimension.
     """
-    df = _get_cat_subset(selections).df
+    df = get_cat_subset(selections).df
     
     # Just trying to see simulations across SSPs, not including historical period
     filter_df = df[df['experiment_id'] != 'historical']
