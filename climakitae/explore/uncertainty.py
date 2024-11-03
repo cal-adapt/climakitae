@@ -729,11 +729,13 @@ def get_warm_level(warm_level, ds, multi_ens=False, ipcc=True):
         gwl_times_all = read_csv_file(gwl_file_all)
         # Add information on a more complete list of ensemble members of
         # EC-Earth3 to cover internal variability notebook needs
-        gwl_file_ece3 = "data/gwl_1981-2010ref_EC-Earth3_ssp370.csv"  
+        gwl_file_ece3 = "data/gwl_1981-2010ref_EC-Earth3_ssp370.csv"
         gwl_times_ece3 = read_csv_file(gwl_file_ece3)
-        gwl_times = pd.concat([gwl_times_all, gwl_times_ece3]).drop_duplicates(
-        ).set_index(['GCM', 'run', 'scenario'])
-
+        gwl_times = (
+            pd.concat([gwl_times_all, gwl_times_ece3])
+            .drop_duplicates()
+            .set_index(["GCM", "run", "scenario"])
+        )
 
     # grab the ensemble members specific to our needs here
     sim_idx = []

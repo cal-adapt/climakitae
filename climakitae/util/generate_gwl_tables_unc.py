@@ -37,8 +37,7 @@ def main():
         & (df.experiment_id == "historical")
     ]
     sims_on_aws = get_sims_on_aws(df)
-    models = ['EC-Earth3']
-
+    models = ["EC-Earth3"]
 
     def make_weighted_timeseries(temp):
         """
@@ -68,7 +67,6 @@ def main():
         weightlat = weightlat / np.sum(weightlat)
         timeseries = (temp * weightlat).sum(lat).mean(lon)
         return timeseries
-
 
     def build_timeseries(variable, model, ens_mem, scenarios):
         """
@@ -166,7 +164,6 @@ def main():
         gwl = smoothed.apply(lambda scenario: get_wl_timestamp(scenario, degree))
         return gwl
 
-
     def get_gwl_table_one(
         variable, model, ens_mem, scenarios, start_year="18500101", end_year="19000101"
     ):
@@ -258,14 +255,14 @@ def main():
             A DataFrame containing warming levels and a DataFrame with global mean temperature time series.
             To be exported into `gwl_[time period]ref*.csv`.
         """
-        ens_mem_list = sims_on_aws.T[model]["ssp370"].copy()  
-        # "historical" gives same list as "ssp370" 
-        print(f'Number of ensemble members: {len(ens_mem_list)}')
+        ens_mem_list = sims_on_aws.T[model]["ssp370"].copy()
+        # "historical" gives same list as "ssp370"
+        print(f"Number of ensemble members: {len(ens_mem_list)}")
         try:
             # Combining all the ensemble members for a given model
             gwlevels_tbl, wl_data_tbls = [], []
             for i, ens_mem in enumerate(ens_mem_list):
-                print(f'Getting gwl table for ensemble member {ens_mem}...')
+                print(f"Getting gwl table for ensemble member {ens_mem}...")
                 gwlevels, wl_data_tbl = get_gwl_table_one(
                     variable, model, ens_mem, scenarios, start_year, end_year
                 )
@@ -278,15 +275,13 @@ def main():
             return pd.concat(gwlevels_tbl, keys=ens_mem_list), wl_data_tbl_sim
 
         except:
-            print('Cannot get gwl table')
-            print(f'{i}th ensemble member {ens_mem}')
+            print("Cannot get gwl table")
+            print(f"{i}th ensemble member {ens_mem}")
 
     ##### Generating and writing GWL data table EC-Earth3 #####
 
     ### Generating WL CSV for a reference period overlapping with downscaled data availability:
-    time_periods = [
-        {"start_year": "19810101", "end_year": "20101231"}
-    ]
+    time_periods = [{"start_year": "19810101", "end_year": "20101231"}]
 
     for period in time_periods:
 
@@ -319,14 +314,16 @@ def main():
                 )
                 print(e)
 
-
         # Creating WL lookup table
         all_gw_levels = pd.concat(all_gw_tbls, keys=models)
         all_gw_levels.index = pd.MultiIndex.from_tuples(
             all_gw_levels.index, names=["GCM", "run", "scenario"]
         )
         write_csv_file(
-            all_gw_levels, "data/gwl_{}-{}ref_EC-Earth3_ssp370.csv".format(start_year[:4], end_year[:4])
+            all_gw_levels,
+            "data/gwl_{}-{}ref_EC-Earth3_ssp370.csv".format(
+                start_year[:4], end_year[:4]
+            ),
         )
 
 
