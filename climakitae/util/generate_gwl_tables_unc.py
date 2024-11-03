@@ -1,8 +1,13 @@
 """ 
-Util for generating warming level reference data in ../data/ ###
+Util for generating warming level reference data file 
+"gwl_1981-2010ref_EC-Earth3_ssp370.csv" in ../data
 
-To run, type: <<python generate_gwl_tables.py>> in the command line and wait for printed model outputs showing progress.
-Generation takes ~1.5 hours for generating all 4 csv's.
+The CSV file is generated for use in ../explore/uncertainty.py. It contains, 
+for each ensemble member of EC-Earth3, the times when five major warming levels
+are reached under SSP3-7.0.
+
+To run, type: <<python generate_gwl_tables_unc.py>> in the command line and wait 
+for printed model outputs showing progress.
 """
 
 import s3fs
@@ -15,12 +20,12 @@ from climakitae.util.utils import write_csv_file
 
 def main():
     """
-    Generates global warming level (GWL) reference files for all available CMIP6 GCMs and CESM2-LENS.
+    Generates global warming level (GWL) reference file for CMIP6 GCM EC-Earth3.
 
     This includes:
-    - Connecting to AWS S3 storage to access CMIP6 and CESM2-LENS data.
+    - Connecting to AWS S3 storage to access EC-Earth3 data.
     - Filtering and processing data to create global temperature time series.
-    - Generating and saving warming level tables in CSV format for different reference periods.
+    - Generating and saving warming level table in CSV format for 1981-2010 reference period.
     """
     # Connect to AWS S3 storage
     fs = s3fs.S3FileSystem(anon=True)
@@ -251,9 +256,10 @@ def main():
         -------
         tuple
             A DataFrame containing warming levels and a DataFrame with global mean temperature time series.
-            To be exported into `gwl_[time period]ref.csv` and `gwl_[time period]ref_timeidx.csv`.
+            To be exported into `gwl_[time period]ref*.csv`.
         """
-        ens_mem_list = sims_on_aws.T[model]["ssp370"].copy()
+        ens_mem_list = sims_on_aws.T[model]["ssp370"].copy()  
+        # "historical" gives same list as "ssp370" 
         print(f'Number of ensemble members: {len(ens_mem_list)}')
         try:
             # Combining all the ensemble members for a given model
@@ -275,9 +281,9 @@ def main():
             print('Cannot get gwl table')
             print(f'{i}th ensemble member {ens_mem}')
 
-    ##### Generating and writing GWL data tables for all GCMS #####
+    ##### Generating and writing GWL data table EC-Earth3 #####
 
-    ### Generating WL CSVs for two reference periods: pre-industrial and secondary reference period overlapping with downscaled data availability:
+    ### Generating WL CSV for a reference period overlapping with downscaled data availability:
     time_periods = [
         {"start_year": "19810101", "end_year": "20101231"}
     ]
@@ -314,13 +320,13 @@ def main():
                 print(e)
 
 
-        # Creating WL lookup table with 1850-1900 reference period
+        # Creating WL lookup table
         all_gw_levels = pd.concat(all_gw_tbls, keys=models)
         all_gw_levels.index = pd.MultiIndex.from_tuples(
             all_gw_levels.index, names=["GCM", "run", "scenario"]
         )
         write_csv_file(
-            all_gw_levels, "data/gwl_{}-{}ref_EC-Earth3.csv".format(start_year[:4], end_year[:4])
+            all_gw_levels, "data/gwl_{}-{}ref_EC-Earth3_ssp370.csv".format(start_year[:4], end_year[:4])
         )
 
 
