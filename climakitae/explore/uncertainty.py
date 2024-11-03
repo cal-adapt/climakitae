@@ -751,13 +751,17 @@ def get_warm_level(warm_level, ds, multi_ens=False, ipcc=True):
         year_warmlevel_reached = str(gwl_times[str(warm_level)].loc[sim_idx])[:4]
         if len(year_warmlevel_reached) != 4:
             print(
-                "{}°C warming level not reached for {}".format(warm_level, simulation)
+                "{}°C warming level not reached for ensemble member {} of model {}".format(
+                    warm_level, sim_idx[1], sim_idx[0]
+                )
             )
         else:
             if (int(year_warmlevel_reached) + 15) > 2100:
                 print(
                     "End year for SSP time slice occurs after 2100;"
-                    + " skipping {}".format(simulation)
+                    + " skipping ensemble member {} of model {}".format(
+                        sim_idx[1], sim_idx[0]
+                    )
                 )
             else:
                 year0 = str(int(year_warmlevel_reached) - 14)
