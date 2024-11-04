@@ -17,7 +17,7 @@ from climakitae.util.utils import (
     scenario_to_experiment_id,
     timescale_to_table_id,
     resolution_to_gridlabel,
-    get_cat_subset,
+    _get_cat_subset,
 )
 
 from tqdm.auto import tqdm
@@ -360,7 +360,7 @@ def _drop_invalid_sims(ds, selections):
     AttributeError
         If the dataset does not have an `all_sims` dimension.
     """
-    df = get_cat_subset(selections).df
+    df = _get_cat_subset(selections).df
 
     # Just trying to see simulations across SSPs, not including historical period
     filter_df = df[df["experiment_id"] != "historical"]
