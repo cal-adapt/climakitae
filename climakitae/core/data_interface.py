@@ -1763,6 +1763,8 @@ def get_data(
     units=None,
     warming_level=None,
     area_subset="none",
+    latitude=None,
+    longitude=None,
     cached_area=["entire domain"],
     area_average=None,
     time_slice=None,
@@ -1802,6 +1804,12 @@ def get_data(
     area_average: one of ["Yes","No"], optional
         Take an average over spatial domain?
         Default to "No".
+    latitude: None or tuple of float, optional
+        Tuple of valid latitude bounds
+        Default to None: spatial subset by shapefile
+    longitude: None or tuple of float, optional
+        Tuple of valid longitude bounds
+        Default to None: spatial subset by shapefile
     time_slice: tuple, optional
         Time range for retrieved data
         Only valid for approach = "Time"
@@ -1945,6 +1953,11 @@ def get_data(
     ## --------- ERROR HANDLING ----------
     # Deal with bad or missing users inputs
 
+    # If lat/lon input, change cached_area and area_subset
+    if latitude is not None and longitude is not None:
+        area_subset = "lat/lon"
+        cached_area = ["coordinate selection"]
+
     # Check warming level inputs
     try:
         warming_level = _error_handling_warming_level_inputs(
@@ -1998,7 +2011,7 @@ def get_data(
         print(_format_error_print_message(error_message))
         return None
 
-    # Add arguments to a dictionary
+    ## --------- ADD ARGUMENTS TO A DICTIONARY ----------
     # A dictionary is used for all the inputs in selections because it enables better error handling and cleaner code when we set selections.thing = thing
     # It also makes parsing through the arguments easier
     # The inputs here need to be a list so that they can be parsed easier by the _check_if_good_input function when comparing with the valid catalog options to confirm the user input is valid
@@ -2032,6 +2045,8 @@ def get_data(
         "warming_level_window": warming_level_window,
         "warming_level_months": warming_level_months,
         "time_slice": time_slice,
+        "latitude": latitude,
+        "longitude": longitude,
     }
 
     scenario_ssp, scenario_historical = _get_scenario_ssp_scenario_historical(
@@ -2063,6 +2078,7 @@ def get_data(
     selections = DataParameters()
 
     try:
+        selections.data_type = "Gridded"  # Haven't added option to get station data yet
         selections.approach = selections_dict["approach"]
         selections.scenario_ssp = selections_dict["scenario_ssp"]
         selections.scenario_historical = selections_dict["scenario_historical"]
@@ -2085,6 +2101,10 @@ def get_data(
             selections.time_slice = selections_dict["time_slice"]
         if selections_dict["warming_level_months"] is not None:
             selections.warming_level_months = selections_dict["warming_level_months"]
+        if selections_dict["latitude"] is not None:
+            selections.latitude = selections_dict["latitude"]
+        if selections_dict["longitude"] is not None:
+            selections.longitude = selections_dict["longitude"]
     except ValueError as error_message:
         # The error message is really long
         # And sometimes has a confusing Attribute Error: Pieces mismatch that is hard to interpret
