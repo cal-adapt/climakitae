@@ -840,7 +840,7 @@ def scenario_to_experiment_id(scenario, reverse=False):
     return scenario_dict[scenario]
 
 
-def get_cat_subset(selections):
+def _get_cat_subset(selections):
     """For an input set of data selections, get the catalog subset.
 
     Parameters
@@ -854,7 +854,7 @@ def get_cat_subset(selections):
         catalog subset
     """
 
-    scenario_ssp, scenario_historical = get_scenario_from_selections(selections)
+    scenario_ssp, scenario_historical = _get_scenario_from_selections(selections)
 
     scenario_selections = scenario_ssp + scenario_historical
 
@@ -895,7 +895,7 @@ def get_cat_subset(selections):
     return cat_subset
 
 
-def get_scenario_from_selections(selections):
+def _get_scenario_from_selections(selections):
     """Get scenario from DataParameters object
     This needs to be handled differently due to warming levels retrieval method, which sets scenario to "n/a" for both historical and ssp.
 

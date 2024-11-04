@@ -29,8 +29,8 @@ from climakitae.util.utils import (
     resolution_to_gridlabel,
     timescale_to_table_id,
     downscaling_method_to_activity_id,
-    get_cat_subset,
-    get_scenario_from_selections,
+    _get_cat_subset,
+    _get_scenario_from_selections,
 )
 
 from climakitae.tools.derived_variables import (
@@ -575,13 +575,13 @@ def _get_data_one_var(selections):
 
     orig_units = selections.units
 
-    scenario_ssp, scenario_historical = get_scenario_from_selections(selections)
+    scenario_ssp, scenario_historical = _get_scenario_from_selections(selections)
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")  # Silence warning if empty dataset returned
 
         # Get catalog subset for a set of user selections
-        cat_subset = get_cat_subset(selections=selections)
+        cat_subset = _get_cat_subset(selections=selections)
 
         if len(cat_subset.df["institution_id"].unique()) == 1:
             _institution = cat_subset.df["institution_id"].unique()[0]

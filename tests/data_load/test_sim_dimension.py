@@ -5,7 +5,7 @@ from climakitae.core.data_interface import DataParameters
 from climakitae.core.data_load import (
     _scenarios_in_data_dict,
 )
-from climakitae.util.utils import scenario_to_experiment_id, get_cat_subset
+from climakitae.util.utils import scenario_to_experiment_id, _get_cat_subset
 
 
 @pytest.fixture
@@ -25,7 +25,7 @@ def test_scenario_dim(test_SEL):
     ]
 
     # Get the corresponding dataset dictionary:
-    cat_subset = get_cat_subset(selections=test_SEL)
+    cat_subset = _get_cat_subset(selections=test_SEL)
     ds_names = cat_subset.keys()
 
     result = set(_scenarios_in_data_dict(ds_names))
