@@ -29,6 +29,8 @@ from climakitae.util.utils import (
     resolution_to_gridlabel,
     timescale_to_table_id,
     downscaling_method_to_activity_id,
+    _get_cat_subset,
+    _get_scenario_from_selections,
 )
 
 from climakitae.tools.derived_variables import (
@@ -119,61 +121,6 @@ def _scenarios_in_data_dict(keys):
     scenarios = set([one.split(".")[3] for one in keys if "ssp" in one])
 
     return list(scenarios)
-
-
-def _get_cat_subset(selections):
-    """For an input set of data selections, get the catalog subset.
-
-    Parameters
-    ----------
-    selections: DataParameters
-        object holding user's selections
-
-    Returns
-    -------
-    cat_subset: intake_esm.source.ESMDataSource
-        catalog subset
-    """
-
-    scenario_ssp, scenario_historical = _get_scenario_from_selections(selections)
-
-    scenario_selections = scenario_ssp + scenario_historical
-
-    method_list = downscaling_method_as_list(selections.downscaling_method)
-
-    # Get catalog keys
-    # Convert user-friendly names to catalog names (i.e. "45 km" to "d01")
-    activity_id = [downscaling_method_to_activity_id(dm) for dm in method_list]
-    table_id = timescale_to_table_id(selections.timescale)
-    grid_label = resolution_to_gridlabel(selections.resolution)
-    experiment_id = [scenario_to_experiment_id(x) for x in scenario_selections]
-    source_id = selections.simulation
-    variable_id = selections.variable_id
-
-    cat_subset = selections._data_catalog.search(
-        activity_id=activity_id,
-        table_id=table_id,
-        grid_label=grid_label,
-        variable_id=variable_id,
-        experiment_id=experiment_id,
-        source_id=source_id,
-    )
-
-    # Get just data that's on the LOCA grid
-    # This will include LOCA data and WRF data on the LOCA native grid
-    # Both datasets are tagged with UCSD as the institution_id, so we can use "UCSD" to further subset the catalog data
-    if "Statistical" in selections.downscaling_method:
-        cat_subset = cat_subset.search(institution_id="UCSD")
-    # If only dynamical is selected, we need to remove UCSD from the WRF query
-    else:
-        wrf_on_native_grid = [
-            institution
-            for institution in selections._data_catalog.df.institution_id.unique()
-            if institution != "UCSD"
-        ]
-        cat_subset = cat_subset.search(institution_id=wrf_on_native_grid)
-
-    return cat_subset
 
 
 def _time_slice(dset, selections):
@@ -608,38 +555,6 @@ def _merge_all(selections, data_dict):
     all_ssps = all_ssps[var_id]
 
     return all_ssps
-
-
-def _get_scenario_from_selections(selections):
-    """Get scenario from DataParameters object
-    This needs to be handled differently due to warming levels retrieval method, which sets scenario to "n/a" for both historical and ssp.
-
-    Parameters
-    ----------
-    selections: DataParameters
-        object holding user's selections
-
-    Returns
-    -------
-    scenario_ssp: list of str
-    scenario_historical: list of str
-
-    """
-
-    if selections.approach == "Time":
-        scenario_ssp = selections.scenario_ssp
-        scenario_historical = selections.scenario_historical
-
-    elif selections.approach == "Warming Level":
-        # Need all scenarios for warming level approach
-        scenario_ssp = [
-            "SSP 3-7.0 -- Business as Usual",
-            "SSP 2-4.5 -- Middle of the Road",
-            "SSP 5-8.5 -- Burn it All",
-        ]
-        scenario_historical = ["Historical Climate"]
-
-    return scenario_ssp, scenario_historical
 
 
 def _get_data_one_var(selections):
@@ -1309,7 +1224,7 @@ def _apply_warming_levels_approach(da, selections):
 
     # The xarray stacking function results in some non-existant scenario/simulation combos
     # We need to drop them here such that the global warming levels table can be adequately parsed by the _calculate_warming_level function
-    data_stacked = _drop_invalid_sims(data_stacked, selections._data_catalog.df)
+    data_stacked = _drop_invalid_sims(data_stacked, selections)
 
     # Calculate warming level DataArray for each individual warming level
     # Function will be applied for each individual warming level
