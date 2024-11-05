@@ -726,7 +726,7 @@ def add_dummy_time_to_wl(wl_da):
     timestamps = pd.date_range(
         "2000-01-01",
         periods=len(wl_da["time_delta"]),
-        freq=name_to_freq[wl_da.resolution],
+        freq=name_to_freq[wl_da.frequency],
     )
 
     # Replacing WL timestamps with dummy timestamps so that calculations from tools like `thresholds_tools`
