@@ -1,26 +1,31 @@
-"""Create test dataset for Warming Level data"""
+from climakitae.core.data_interface import DataParameters
 
-import numpy as np
-import climakitae as ck
-import xarray as xr
-from climakitae.explore import warming_levels
+selections = DataParameters()
+selections.approach = "Warming Level"
+selections.variable = "Air Temperature at 2m"
+selections.scenario_historical = ["n/a"]
+selections.scenario_ssp = ["SSP 3-7.0 -- Business as Usual"]
+selections.downscaling_method = "Dynamical"
+selections.units = "degF"
+selections.timescale = "hourly"
+selections.resolution = "3 km"
+selections.area_subset = "lat/lon"
+selections.latitude = (35.43424 - 0.02, 35.43424 + 0.02)
+selections.longitude = (-119.05524 - 0.02, -119.05524 + 0.02)
+selections.time_slice = (2030, 2035)
 
-wl = warming_levels()
-wl.wl_params.timescale = "hourly"
-wl.wl_params.resolution = "45 km"
-wl.wl_params.downscaling_method = "Dynamical"
-wl.wl_params.variable_type = "Variable"
-wl.wl_params.variable = "Air Temperature at 2m"
-wl.wl_params.warming_levels = ["1.5", "2.0", "3.0", "4.0"]
-wl.wl_params.units = "degF"
-wl.wl_params.resolution = "3 km"
-wl.wl_params.anom = "No"
-wl.wl_params.months = np.arange(1, 13)
-wl.wl_params.area_subset = "CA counties"
-wl.wl_params.cached_area = ["Alameda County"]
+# Compute data
+da = selections.retrieve()
 
-# Compute warming levels
-wl.calculate()
+# Export data
+da.to_netcdf("test_data/test_dataset_wl_wrf_single_cell_3km_hourly_2030_2035.nc")
 
-ds = xr.concat(wl.sliced_data.values(), dim="warming_level")
-ds.to_netcdf("test_data/test_dataset_WL_Alamedacounty_45km_hourly.nc.nc")
+### Create LOCA dataset
+selections.downscaling_method = "Statistical"
+selections.timescale = "daily"
+
+# Compute data
+da = selections.retrieve()
+
+# Export data
+da.to_netcdf("test_data/test_dataset_wl_loca_single_cell_3km_daily_2030_2035.nc")
