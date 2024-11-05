@@ -719,7 +719,7 @@ def add_dummy_time_to_wl(wl_da):
     - It supports creating dummy time series with frequencies of hours, days, or months, based on the prefix of the dimension name.
     - The dummy time series starts from "2000-01-01".
     """
-    # Finding time frequency
+    # Creating map from frequency name to freq var needed for pandas date range
     name_to_freq = {"hourly": "H", "daily": "D", "monthly": "M"}
 
     # Creating dummy timestamps
@@ -924,14 +924,14 @@ def _get_scenario_from_selections(selections):
     return scenario_ssp, scenario_historical
 
 
-def stack_sims_across_locs(ds, sim_dim_name):
+def stack_sims_across_locs(ds):
     # Renaming gridcell so that it can be concatenated with other lat/lon gridcells
-    ds[sim_dim_name] = [
+    ds["simulation"] = [
         "{}_{}_{}".format(
             sim_name,
             ds.lat.compute().item(),
             ds.lon.compute().item(),
         )
-        for sim_name in ds[sim_dim_name]
+        for sim_name in ds["simulation"]
     ]
     return ds
