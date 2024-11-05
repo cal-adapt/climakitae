@@ -837,78 +837,91 @@ def scenario_to_experiment_id(scenario, reverse=False):
     return scenario_dict[scenario]
 
 
-def drop_invalid_wl_sims(ds, downscaling_method):
-    """
-    Drop invalid WRF simulations from the given dataset since there is an unequal number of simulations per SSP.
+def _get_cat_subset(selections):
+    """For an input set of data selections, get the catalog subset.
 
     Parameters
     ----------
-    ds : xr.Dataset
-        The dataset containing WRF simulations. The dataset must have a
-        dimension `all_sims` that results from stacking `simulation` and
-        `scenario`.
+    selections: DataParameters
+        object holding user's selections
 
     Returns
     -------
-    xr.Dataset
-        The dataset with only valid WRF simulations retained.
-
-    Raises
-    ------
-    AttributeError
-        If the dataset does not have an `all_sims` dimension.
-
-    Notes
-    -----
-    - For datasets with a resolution of '3 km', no simulations are dropped, and the original dataset is returned.
-    - For datasets with a resolution of '9 km' at hourly timescale, only 10 simulations are returned.
-    - For datasets with a resolution of '9 km' at daily/monthly timescale, only 6 simulations are returned.
-    - For datasets with a resolution of '45 km' at hourly timescale, only 7 simulations are returned.
-    - For datasets with a resolution of '45 km' at daily/monthly timescale, only 6 simulations are returned.
+    cat_subset: intake_esm.source.ESMDataSource
+        catalog subset
     """
-    if "all_sims" not in ds.dims:
-        raise AttributeError(
-            "Missing an `all_sims` dimension on the dataset. Create `all_sims` with .stack on `simulation` and `scenario`."
-        )
 
-    # Checking for derived variables separately since we don't store their IDs in the catalog
-    # Future derived variables that don't use `t2` will be broken because of this function.
-    variable = ds.variable_id
-    if "derived" in variable:
-        variable = "t2"
+    scenario_ssp, scenario_historical = _get_scenario_from_selections(selections)
 
-    # Modifying downscaling method filtering
-    downscaling_filter = (
-        ["WRF", "LOCA2"]
-        if downscaling_method == "Dynamical+Statistical"
-        else [downscaling_method_to_activity_id(downscaling_method)]
+    scenario_selections = scenario_ssp + scenario_historical
+
+    method_list = downscaling_method_as_list(selections.downscaling_method)
+
+    # Get catalog keys
+    # Convert user-friendly names to catalog names (i.e. "45 km" to "d01")
+    activity_id = [downscaling_method_to_activity_id(dm) for dm in method_list]
+    table_id = timescale_to_table_id(selections.timescale)
+    grid_label = resolution_to_gridlabel(selections.resolution)
+    experiment_id = [scenario_to_experiment_id(x) for x in scenario_selections]
+    source_id = selections.simulation
+    variable_id = selections.variable_id
+
+    cat_subset = selections._data_catalog.search(
+        activity_id=activity_id,
+        table_id=table_id,
+        grid_label=grid_label,
+        variable_id=variable_id,
+        experiment_id=experiment_id,
+        source_id=source_id,
     )
 
-    # Find valid simulation from catalog
-    df = intake.open_esm_datastore(data_catalog_url).df
-    filter_df = df[
-        (df["activity_id"].isin(downscaling_filter))
-        & (df["table_id"] == timescale_to_table_id(ds.frequency))
-        & (df["grid_label"] == resolution_to_gridlabel(ds.resolution))
-        & (df["variable_id"] == variable)
-        & (df["experiment_id"] != "historical")
-        & (df["experiment_id"] != "reanalysis")
-        & (df["source_id"] != "ensmean")
-    ]
-    valid_sim_list = list(
-        zip(
-            filter_df["activity_id"]
-            + "_"
-            + filter_df["source_id"]
-            + "_"
-            + filter_df["member_id"],
-            filter_df["experiment_id"].apply(
-                lambda val: f"Historical + {scenario_to_experiment_id(val, reverse=True)}"
-            ),
-        )
-    )
-    filtered_sims = [sim for sim in valid_sim_list if sim in list(ds.all_sims.values)]
-    return ds.sel(all_sims=filtered_sims)
+    # Get just data that's on the LOCA grid
+    # This will include LOCA data and WRF data on the LOCA native grid
+    # Both datasets are tagged with UCSD as the institution_id, so we can use "UCSD" to further subset the catalog data
+    if "Statistical" in selections.downscaling_method:
+        cat_subset = cat_subset.search(institution_id="UCSD")
+    # If only dynamical is selected, we need to remove UCSD from the WRF query
+    else:
+        wrf_on_native_grid = [
+            institution
+            for institution in selections._data_catalog.df.institution_id.unique()
+            if institution != "UCSD"
+        ]
+        cat_subset = cat_subset.search(institution_id=wrf_on_native_grid)
+
+    return cat_subset
+
+
+def _get_scenario_from_selections(selections):
+    """Get scenario from DataParameters object
+    This needs to be handled differently due to warming levels retrieval method, which sets scenario to "n/a" for both historical and ssp.
+
+    Parameters
+    ----------
+    selections: DataParameters
+        object holding user's selections
+
+    Returns
+    -------
+    scenario_ssp: list of str
+    scenario_historical: list of str
+
+    """
+
+    if selections.approach == "Time":
+        scenario_ssp = selections.scenario_ssp
+        scenario_historical = selections.scenario_historical
+
+    elif selections.approach == "Warming Level":
+        # Need all scenarios for warming level approach
+        scenario_ssp = [
+            "SSP 3-7.0 -- Business as Usual",
+            "SSP 2-4.5 -- Middle of the Road",
+            "SSP 5-8.5 -- Burn it All",
+        ]
+        scenario_historical = ["Historical Climate"]
+
+    return scenario_ssp, scenario_historical
 
 
 def stack_sims_across_locs(ds):
