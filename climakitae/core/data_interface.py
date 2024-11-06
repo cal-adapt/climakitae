@@ -1806,10 +1806,10 @@ def get_data(
         Default to "No".
     latitude: None or tuple of float, optional
         Tuple of valid latitude bounds
-        Default to None: spatial subset by shapefile
+        Default to entire domain 
     longitude: None or tuple of float, optional
         Tuple of valid longitude bounds
-        Default to None: spatial subset by shapefile
+        Default to entire domain 
     time_slice: tuple, optional
         Time range for retrieved data
         Only valid for approach = "Time"
