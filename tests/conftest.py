@@ -67,36 +67,45 @@ def test_dataset_time_Alamedacounty_45km_hourly_2030_2035(rootdir):
 
 
 @pytest.fixture
-def test_dataset_time_wrf_single_cell_3km_hourly_2030_2035(rootdir):
+def test_dataset_time_2030_2035_loca_3km_daily(rootdir):
     """Read in test dataset using xarray."""
-    filename = "test_data/test_dataset_time_wrf_single_cell_3km_hourly_2030_2035.nc"
+    filename = "test_data/test_dataset_time_2030_2035_loca_3km_daily.nc"
     filepath = os.path.join(rootdir, filename)
     ds = xr.open_dataarray(filepath)
     return ds
 
 
 @pytest.fixture
-def test_dataset_time_loca_single_cell_3km_hourly_2030_2035(rootdir):
+def test_dataset_time_2030_2035_wrf_3km_hourly(rootdir):
     """Read in test dataset using xarray."""
-    filename = "test_data/test_dataset_time_loca_single_cell_3km_hourly_2030_2035.nc"
+    filename = "test_data/test_dataset_time_2030_2035_wrf_3km_hourly.nc"
     filepath = os.path.join(rootdir, filename)
     ds = xr.open_dataarray(filepath)
     return ds
 
 
 @pytest.fixture
-def test_dataset_wl_wrf_single_cell_3km_hourly_2030_2035(rootdir):
+def test_dataset_wl_20_all_season_loca_3km_daily(rootdir):
     """Read in test dataset using xarray."""
-    filename = "test_data/test_dataset_wl_wrf_single_cell_3km_hourly_2030_2035.nc"
+    filename = "test_data/test_dataset_wl_20_all_season_loca_3km_daily.nc"
     filepath = os.path.join(rootdir, filename)
     ds = xr.open_dataarray(filepath)
     return ds
 
 
 @pytest.fixture
-def test_dataset_wl_loca_single_cell_3km_hourly_2030_2035(rootdir):
+def test_dataset_wl_20_all_season_wrf_3km_hourly(rootdir):
     """Read in test dataset using xarray."""
-    filename = "test_data/test_dataset_wl_loca_single_cell_3km_hourly_2030_2035.nc"
+    filename = "test_data/test_dataset_wl_20_all_season_wrf_3km_hourly.nc"
+    filepath = os.path.join(rootdir, filename)
+    ds = xr.open_dataarray(filepath)
+    return ds
+
+
+@pytest.fixture
+def test_dataset_wl_20_summer_season_loca_3km_daily(rootdir):
+    """Read in test dataset using xarray."""
+    filename = "test_data/test_dataset_wl_20_summer_season_loca_3km_daily.nc"
     filepath = os.path.join(rootdir, filename)
     ds = xr.open_dataarray(filepath)
     return ds
