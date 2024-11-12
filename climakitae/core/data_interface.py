@@ -1408,6 +1408,10 @@ def _get_user_friendly_catalog(intake_catalog, variable_descriptions):
     # Duplicates occur due to the many unique member_ids
     cat_df_cleaned = cat_df_cleaned.drop_duplicates(ignore_index=True)
 
+    # Add in the derived variables
+    derived_vars = _get_and_reformat_derived_variables(variable_descriptions)
+    cat_df_cleaned = pd.concat([cat_df_cleaned, derived_vars], ignore_index=True)
+
     return cat_df_cleaned
 
 
@@ -2115,3 +2119,77 @@ def get_data(
     # Retrieve data
     data = selections.retrieve()
     return data
+
+
+def _get_and_reformat_derived_variables(variable_descriptions):
+    """(1) Get the just derived variables from the variables_descriptions csv and
+    (2) Reformat the data such that the timescales are split into separate rows
+
+    This is such that it can match the formatting in the catalog, where each independent data option is separated into a distinct row
+    i.e. if derived variable "var" has "timescale" = "hourly, monthly", it is separated into two separate rows with one row having "timescale" = "hourly" and the second row having "timescale" = "monthly"
+
+    Backend helper function for retrieving a user-friendly version of the intake catalog that contains our added climakitae derived variables
+
+    Arguments
+    ---------
+    variable_descriptions: pd.DataFrame
+        Variable descriptions, units, etc in table format
+
+    Returns
+    -------
+    derived_vars_df: pd.DataFrame
+        Subset of variable_descriptions containing only variables with variable_id containing the substring "_derived"
+        "timescale" column separated into unique timescales for each row
+
+    """
+    # Just get subset of derived variables
+    derived_variables = variable_descriptions[
+        variable_descriptions["variable_id"].str.contains("_derived")
+    ].reset_index(drop=True)
+
+    # Get columns that match those returned by the _get_user_friendly_catalog function
+    derived_variables = derived_variables[
+        ["downscaling_method", "timescale", "display_name"]
+    ].rename(columns={"display_name": "variable"})
+
+    # WORK FOR A LATER DATE: these shouldn't say unknown
+    # The columns should be further elaborated to indicate which resolutions and scenarios are available for each derived variable
+    # Not sure how to easily do that without hard-coding
+    # There's definitely a way, but it's not a priority at the moment for me
+    # Leaving as "unknown" until it becomes a priority to fix
+    derived_variables["resolution"] = "derived index: unknown"
+    derived_variables["scenario"] = "derived index: unknown"
+
+    # Get the derived variables that are valid across multile timescales
+    # They will have a comma-separated timescale i.e. "daily, monthly"
+    derived_variables_multi_timescale = derived_variables[
+        derived_variables["timescale"].str.contains(", ")
+    ]
+
+    # loop through each row in the DataFrame
+    derived_variables_split = []
+    for i in range(len(derived_variables_multi_timescale)):
+
+        # Get single row, containing one variable
+        row = derived_variables_multi_timescale.iloc[i]
+
+        # Split the comma-separated timescale into a list
+        # i.e. "daily, monthly" becomes ["daily","monthly"]
+        timescale = row["timescale"].split(", ")
+
+        # Create a dataframe with one row per timescale
+        # i.e. "derived index" for a timescale of "daily, monthly" becomes a two-row dataframe...
+        # i.e. row 1 containing "derived index" and "daily" and row 2 containing "derived index" and "monthly"
+        row_split_i = pd.DataFrame([row] * len(timescale))
+        row_split_i["timescale"] = timescale
+        derived_variables_split.append(row_split_i)
+
+    # Now, append a pandas dataframe with remaining derived variables
+    # These are the ones that have a single timescale (i.e. "hourly" or "daily")
+    derived_variables_single_timescale = derived_variables[
+        ~derived_variables["timescale"].str.contains(", ")
+    ]
+    derived_variables_split.append(derived_variables_single_timescale)
+    derived_vars_df = pd.concat(derived_variables_split, ignore_index=True)
+
+    return derived_vars_df
