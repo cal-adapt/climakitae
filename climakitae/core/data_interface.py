@@ -2066,6 +2066,12 @@ def get_data(
     # Check if the user inputs make sense
     cat_dict = _check_if_good_input(cat_dict, cat_df)
 
+    # Check if it's an index
+    variable_id = (
+        var_df[var_df["display_name"] == cat_dict["variable"][0]].iloc[0].variable_id
+    )
+    variable_type = "Derived Index" if "_index" in variable_id else "Variable"
+
     # Settings for selections
     selections_dict = {
         "variable": cat_dict["variable"][0],
@@ -2080,6 +2086,7 @@ def get_data(
         "warming_level": warming_level,
         "warming_level_window": warming_level_window,
         "warming_level_months": warming_level_months,
+        "variable_type": variable_type,
         "time_slice": time_slice,
         "latitude": latitude,
         "longitude": longitude,
@@ -2121,9 +2128,10 @@ def get_data(
         selections.area_subset = selections_dict["area_subset"]
         selections.cached_area = selections_dict["cached_area"]
         selections.downscaling_method = selections_dict["downscaling_method"]
-        selections.variable = selections_dict["variable"]
         selections.resolution = selections_dict["resolution"]
         selections.timescale = selections_dict["timescale"]
+        selections.variable_type = selections_dict["variable_type"]
+        selections.variable = selections_dict["variable"]
         selections.units = selections_dict["units"]
 
         # Setting the values like this enables us to take advantage of the default settings in DataParameters without having to manually set defaults in this function
