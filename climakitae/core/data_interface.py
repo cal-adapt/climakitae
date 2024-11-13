@@ -1362,6 +1362,30 @@ def _get_user_friendly_catalog(intake_catalog, variable_descriptions):
     cat_df_cleaned: intake_esm.source.ESMDataSource
     """
 
+    def _expand(row, cat_df):
+        """Used for adding climakitae derived variables into catalog options
+        Expand the row for each individual derived variable to include the appropriate resolution and scenario options from it's variable dependency.
+        For example, the fosberg fire index is dependent on temperature.
+        We don't store info in the variable_descriptions csv on the options for scenario and resolution for derived variables
+        So, we need to pull those options from the valid options from the catalog variables that the derived variables are built from
+
+        """
+        # Just get the first dependency
+        # Ideally it should look at all the dependent variables but it's a lot of messy code and I'm not sure if it actually matters
+        first_dependency = row["dependencies"].split(", ")[0]
+
+        # Get the dependency info from the catalog
+        dependency_options = cat_df[
+            (cat_df["variable_id"] == first_dependency)
+            & (cat_df["downscaling_method"] == row["downscaling_method"])
+            & (cat_df["timescale"] == row["timescale"])
+        ].reset_index(drop=True)
+
+        # Basically, replace the info from the dependent variable with the derived variable
+        # We assume they are the same
+        dependency_options["variable"] = row.variable  # Add derived var as variable
+        return dependency_options
+
     # Get the catalog as a dataframe
     cat_df = intake_catalog.df.copy()
 
@@ -1401,18 +1425,26 @@ def _get_user_friendly_catalog(intake_catalog, variable_descriptions):
     col = cat_df_cleaned.pop("variable")
     cat_df_cleaned.insert(0, col.name, col)
 
-    # Remove variable_id row
-    cat_df_cleaned.pop("variable_id")
-
     # Remove duplicate rows
     # Duplicates occur due to the many unique member_ids
     cat_df_cleaned = cat_df_cleaned.drop_duplicates(ignore_index=True)
 
-    # Add in the derived variables
+    # Get the derived variables
     derived_vars = _get_and_reformat_derived_variables(variable_descriptions)
-    cat_df_cleaned = pd.concat([cat_df_cleaned, derived_vars], ignore_index=True)
 
-    return cat_df_cleaned
+    # For each row (with unique variable, timescale, and downscaling method), get the options for scenario and resolution
+    # This will "expand" the row because there will be multiple combinations possible (likely)
+    derived_vars_all = pd.DataFrame()
+    for index, row in derived_vars.iterrows():  # Loop through each row
+        derived_vars_all = pd.concat(
+            [derived_vars_all, _expand(row, cat_df_cleaned)], ignore_index=True
+        )
+
+    # Combine derived and catalog variables into one!
+    options_all = pd.concat([cat_df_cleaned, derived_vars_all], ignore_index=True)
+    options_all.pop("variable_id")  # Remove variable id column
+
+    return options_all
 
 
 def _get_var_name_from_table(variable_id, downscaling_method, timescale, var_df):
@@ -2143,22 +2175,13 @@ def _get_and_reformat_derived_variables(variable_descriptions):
 
     """
     # Just get subset of derived variables
-    derived_variables = variable_descriptions[
-        variable_descriptions["variable_id"].str.contains("_derived")
-    ].reset_index(drop=True)
-
-    # Get columns that match those returned by the _get_user_friendly_catalog function
-    derived_variables = derived_variables[
-        ["downscaling_method", "timescale", "display_name"]
-    ].rename(columns={"display_name": "variable"})
-
-    # WORK FOR A LATER DATE: these shouldn't say unknown
-    # The columns should be further elaborated to indicate which resolutions and scenarios are available for each derived variable
-    # Not sure how to easily do that without hard-coding
-    # There's definitely a way, but it's not a priority at the moment for me
-    # Leaving as "unknown" until it becomes a priority to fix
-    derived_variables["resolution"] = "derived index: unknown"
-    derived_variables["scenario"] = "derived index: unknown"
+    derived_variables = (
+        variable_descriptions[
+            variable_descriptions["variable_id"].str.contains("_derived")
+        ]
+        .reset_index(drop=True)
+        .rename(columns={"display_name": "variable"})
+    )
 
     # Get the derived variables that are valid across multile timescales
     # They will have a comma-separated timescale i.e. "daily, monthly"
