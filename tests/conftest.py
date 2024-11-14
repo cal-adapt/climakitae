@@ -49,24 +49,6 @@ def test_dataset_01Jan2015_LAcounty_45km_hourly(rootdir):
 
 
 @pytest.fixture
-def test_dataset_WL_Alamedacounty_45km_hourly(rootdir):
-    """Read in test dataset using xarray."""
-    filename = "test_data/test_dataset_WL_Alamedacounty_45km_hourly.nc"
-    filepath = os.path.join(rootdir, filename)
-    ds = xr.open_dataset(filepath)
-    return ds
-
-
-@pytest.fixture
-def test_dataarray_time_Alamedacounty_45km_hourly_2030_2035(rootdir):
-    """Read in test dataset using xarray."""
-    filename = "test_data/test_dataset_time_Alamedacounty_45km_hourly_2030_2035.nc"
-    filepath = os.path.join(rootdir, filename)
-    ds = xr.open_dataset(filepath)
-    return ds
-
-
-@pytest.fixture
 def test_dataarray_time_2030_2035_loca_3km_daily_temp(rootdir):
     """Read in test dataset using xarray."""
     filename = "test_data/test_dataarray_time_2030_2035_loca_3km_daily_temp.nc"
