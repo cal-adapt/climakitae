@@ -62,14 +62,14 @@ def test_dataarray_time_Alamedacounty_45km_hourly_2030_2035(rootdir):
     """Read in test dataset using xarray."""
     filename = "test_data/test_dataset_time_Alamedacounty_45km_hourly_2030_2035.nc"
     filepath = os.path.join(rootdir, filename)
-    da = xr.open_dataarray(filepath)
-    return da
+    ds = xr.open_dataset(filepath)
+    return ds
 
 
 @pytest.fixture
 def test_dataarray_time_2030_2035_loca_3km_daily_temp(rootdir):
     """Read in test dataset using xarray."""
-    filename = "test_data/test_dataset_time_2030_2035_loca_3km_daily_temp.nc"
+    filename = "test_data/test_dataarray_time_2030_2035_loca_3km_daily_temp.nc"
     filepath = os.path.join(rootdir, filename)
     da = xr.open_dataarray(filepath)
     return da
@@ -78,7 +78,7 @@ def test_dataarray_time_2030_2035_loca_3km_daily_temp(rootdir):
 @pytest.fixture
 def test_dataarray_time_2030_2035_wrf_3km_hourly_temp(rootdir):
     """Read in test dataset using xarray."""
-    filename = "test_data/test_dataset_time_2030_2035_wrf_3km_hourly_temp.nc"
+    filename = "test_data/test_dataarray_time_2030_2035_wrf_3km_hourly_temp.nc"
     filepath = os.path.join(rootdir, filename)
     da = xr.open_dataarray(filepath)
     return da
@@ -87,7 +87,7 @@ def test_dataarray_time_2030_2035_wrf_3km_hourly_temp(rootdir):
 @pytest.fixture
 def test_dataarray_wl_20_all_season_loca_3km_daily_temp(rootdir):
     """Read in test dataset using xarray."""
-    filename = "test_data/test_dataset_wl_20_all_season_loca_3km_daily_temp.nc"
+    filename = "test_data/test_dataarray_wl_20_all_season_loca_3km_daily_temp.nc"
     filepath = os.path.join(rootdir, filename)
     da = xr.open_dataarray(filepath)
     return da
@@ -96,7 +96,7 @@ def test_dataarray_wl_20_all_season_loca_3km_daily_temp(rootdir):
 @pytest.fixture
 def test_dataarray_wl_20_all_season_wrf_3km_hourly_temp(rootdir):
     """Read in test dataset using xarray."""
-    filename = "test_data/test_dataset_wl_20_all_season_wrf_3km_hourly_temp.nc"
+    filename = "test_data/test_dataarray_wl_20_all_season_wrf_3km_hourly_temp.nc"
     filepath = os.path.join(rootdir, filename)
     da = xr.open_dataarray(filepath)
     return da
@@ -105,7 +105,7 @@ def test_dataarray_wl_20_all_season_wrf_3km_hourly_temp(rootdir):
 @pytest.fixture
 def test_dataarray_wl_20_summer_season_loca_3km_daily_temp(rootdir):
     """Read in test dataset using xarray."""
-    filename = "test_data/test_dataset_wl_20_summer_season_loca_3km_daily_temp.nc"
+    filename = "test_data/test_dataarray_wl_20_summer_season_loca_3km_daily_temp.nc"
     filepath = os.path.join(rootdir, filename)
     da = xr.open_dataarray(filepath)
     return da
@@ -114,7 +114,7 @@ def test_dataarray_wl_20_summer_season_loca_3km_daily_temp(rootdir):
 @pytest.fixture
 def test_dataarray_time_2030_2035_wrf_3km_hourly_prec(rootdir):
     """Read in test dataset using xarray."""
-    filename = "test_data/test_dataset_time_2030_2035_wrf_3km_hourly_prec.nc"
+    filename = "test_data/test_dataarray_time_2030_2035_wrf_3km_hourly_prec.nc"
     filepath = os.path.join(rootdir, filename)
     da = xr.open_dataarray(filepath)
     return da
@@ -123,7 +123,7 @@ def test_dataarray_time_2030_2035_wrf_3km_hourly_prec(rootdir):
 @pytest.fixture
 def test_dataarray_time_2030_2035_wrf_3km_hourly_heat_index(rootdir):
     """Read in test dataset using xarray."""
-    filename = "test_data/test_dataset_time_2030_2035_wrf_3km_hourly_heat_index.nc"
+    filename = "test_data/test_dataarray_time_2030_2035_wrf_3km_hourly_heat_index.nc"
     filepath = os.path.join(rootdir, filename)
     da = xr.open_dataarray(filepath)
     return da
