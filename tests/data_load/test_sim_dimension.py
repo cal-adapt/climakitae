@@ -1,7 +1,7 @@
 import pytest
 import intake
 import pandas as pd
-from climakitae.core.data_interface import DataParameters
+#from climakitae.core.data_interface import DataParameters
 from climakitae.core.data_load import (
     _scenarios_in_data_dict,
 )
