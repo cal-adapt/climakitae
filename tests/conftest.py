@@ -130,19 +130,18 @@ def test_dataarray_time_2030_2035_wrf_3km_hourly_heat_index(rootdir):
 
 
 @pytest.fixture
-def test_dataarray_time_2010_2015_histrecon_wrf_3km_hourly_temp_no_batch(rootdir):
+def test_dataarray_time_2010_2015_histrecon_wrf_3km_hourly_temp_single_cell(rootdir):
     """Read in test dataset using xarray."""
-    filename = "test_data/test_dataarray_time_2010_2015_histrecon_wrf_3km_hourly_temp_no_batch.nc"
+    filename = "test_data/test_dataarray_time_2010_2015_histrecon_wrf_3km_hourly_temp_single_cell.nc"
     filepath = os.path.join(rootdir, filename)
     da = xr.open_dataarray(filepath)
-    da = da.expand_dims(["x", "y"])
     return da
 
 
-# @pytest.fixture
-# def test_dataarray_time_2010_2015_histrecon_wrf_3km_hourly_temp_batch(rootdir):
-#     """Read in test dataset using xarray."""
-#     filename = "test_data/test_dataarray_time_2010_2015_histrecon_wrf_3km_hourly_temp_batch.nc"
-#     filepath = os.path.join(rootdir, filename)
-#     da = xr.open_dataarray(filepath)
-#     return da
+@pytest.fixture
+def test_dataarray_time_2010_2015_histrecon_wrf_3km_hourly_temp_gridded_area(rootdir):
+    """Read in test dataset using xarray."""
+    filename = "test_data/test_dataarray_time_2010_2015_histrecon_wrf_3km_hourly_temp_gridded_area.nc"
+    filepath = os.path.join(rootdir, filename)
+    da = xr.open_dataarray(filepath)
+    return da
