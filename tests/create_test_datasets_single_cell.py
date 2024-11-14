@@ -133,7 +133,6 @@ warming_level = None
 
 da = _get_data_and_export(downscaling_method, approach, time_slice, warming_level)
 
-
 ### 2. Time, Statistical approach
 
 downscaling_method = "Statistical"
