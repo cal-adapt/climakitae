@@ -696,14 +696,14 @@ def get_warm_level(warm_level, ds, multi_ens=False, ipcc=True):
 
     Parameters
     ----------
-    warm_level: float or int
+    warm_level : float or int
         options: 1.5, 2.0, 3.0, 4.0
-    ds: xr.Dataset
+    ds : xr.Dataset
         Can only have one 'simulation' coordinate
-    multi_ens: bool, default=False
+    multi_ens : bool, default=False
         Set to True if passing a simulation with multiple member_id
-    ipcc: bool, default=True
-        Set to False if performing warming level analysis with
+    ipcc : bool, default=True
+        Set to False if not performing warming level analysis with
         respect to IPCC standard baseline (1850-1900)
 
     Returns
@@ -723,36 +723,51 @@ def get_warm_level(warm_level, ds, multi_ens=False, ipcc=True):
 
     if ipcc:
         gwl_file = gwl_1850_1900_file
+        gwl_times = read_csv_file(gwl_file, index_col=[0, 1, 2])
     else:
-        gwl_file = gwl_1981_2010_file
-    gwl_times = read_csv_file(gwl_file, index_col=[0, 1, 2])
+        gwl_file_all = gwl_1981_2010_file
+        gwl_times_all = read_csv_file(gwl_file_all)
+        # Add information on a more complete list of ensemble members of
+        # EC-Earth3 to cover internal variability notebook needs
+        gwl_file_ece3 = "data/gwl_1981-2010ref_EC-Earth3_ssp370.csv"
+        gwl_times_ece3 = read_csv_file(gwl_file_ece3)
+        gwl_times = (
+            pd.concat([gwl_times_all, gwl_times_ece3])
+            .drop_duplicates()
+            .set_index(["GCM", "run", "scenario"])
+        )
 
     # grab the ensemble members specific to our needs here
     sim_idx = []
     scenario = "ssp370"
-    simulation = str(ds.simulation.values)
-    if simulation in gwl_times.index:
+    model = str(ds.simulation.values)
+    if model in gwl_times.index:
         if multi_ens:
-            sim_idx = (simulation, str(ds["member_id"].values), scenario)
+            member_id = str(ds["member_id"].values)
         else:
-            if simulation == "CESM2":
-                sim_idx = (simulation, "r11i1p1f1", scenario)
-            elif simulation == "CNRM-ESM2-1":
-                sim_idx = (simulation, "r1i1p1f2", scenario)
+            if model == "CESM2":
+                member_id = "r11i1p1f1"
+            elif model == "CNRM-ESM2-1":
+                member_id = "r1i1p1f2"
             else:
-                sim_idx = (simulation, "r1i1p1f1", scenario)
+                member_id = "r1i1p1f1"
+        sim_idx = (model, member_id, scenario)
 
         # identify the year that the selected warming level is reached for each ensemble member
         year_warmlevel_reached = str(gwl_times[str(warm_level)].loc[sim_idx])[:4]
         if len(year_warmlevel_reached) != 4:
             print(
-                "{}°C warming level not reached for {}".format(warm_level, simulation)
+                "{}°C warming level not reached for ensemble member {} of model {}".format(
+                    warm_level, member_id, model
+                )
             )
         else:
             if (int(year_warmlevel_reached) + 15) > 2100:
                 print(
                     "End year for SSP time slice occurs after 2100;"
-                    + " skipping {}".format(simulation)
+                    + " skipping ensemble member {} of model {}".format(
+                        member_id, model
+                    )
                 )
             else:
                 year0 = str(int(year_warmlevel_reached) - 14)
