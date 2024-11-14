@@ -1814,7 +1814,7 @@ def get_data(
         Time range for retrieved data
         Only valid for approach = "Time"
     warming_level: list of float, optional
-        Must be one of [1.5, 2.0, 2.5, 3.0, 4.0]
+        Must be one of [0.8, 1.2, 1.5, 2.0, 2.5, 3.0, 4.0]
         Only valid for approach = "Warming Level"
     warming_level_window: int in range (5,25), optional
         Years around Global Warming Level (+/-) \n (e.g. 15 means a 30yr window)
