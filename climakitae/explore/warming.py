@@ -15,8 +15,6 @@ from climakitae.core.paths import gwl_1981_2010_file, gwl_1850_1900_file
 from climakitae.util.utils import (
     read_csv_file,
     scenario_to_experiment_id,
-    timescale_to_table_id,
-    resolution_to_gridlabel,
     _get_cat_subset,
 )
 
@@ -89,7 +87,7 @@ class WarmingLevels:
         self.catalog_data = self.catalog_data.stack(all_sims=["simulation", "scenario"])
 
         # Dropping invalid simulations that come up from stacking scenarios and simulations together
-        self.catalog_data = _drop_invalid_wl_sims(self.catalog_data, self.wl_params)
+        self.catalog_data = _drop_invalid_sims(self.catalog_data, self.wl_params)
 
         if self.wl_params.anom == "Yes":
             self.gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
