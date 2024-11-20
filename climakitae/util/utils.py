@@ -857,6 +857,20 @@ def _get_cat_subset(selections):
 
     method_list = downscaling_method_as_list(selections.downscaling_method)
 
+    # If the variable is a derived variable, get the catalog subset for the first variable dependency
+    if "_derived" in selections.variable_id[0]:
+        var_descrip_df = selections._variable_descriptions
+        first_dependency_var_id = (
+            var_descrip_df[var_descrip_df["variable_id"] == selections.variable_id[0]][
+                "dependencies"
+            ]
+            .values[0]
+            .split(",")[0]
+        )
+        variable_id = [first_dependency_var_id]
+    else:  # Otherwise, just use the variable id
+        variable_id = selections.variable_id
+
     # Get catalog keys
     # Convert user-friendly names to catalog names (i.e. "45 km" to "d01")
     activity_id = [downscaling_method_to_activity_id(dm) for dm in method_list]
@@ -864,7 +878,6 @@ def _get_cat_subset(selections):
     grid_label = resolution_to_gridlabel(selections.resolution)
     experiment_id = [scenario_to_experiment_id(x) for x in scenario_selections]
     source_id = selections.simulation
-    variable_id = selections.variable_id
 
     cat_subset = selections._data_catalog.search(
         activity_id=activity_id,

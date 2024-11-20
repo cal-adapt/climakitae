@@ -3,7 +3,7 @@ from climakitae.core.data_load import load
 import xarray as xr
 
 
-def batch_select(selections, points, load_data=False, progress_bar=True):
+def batch_select(approach, selections, points, load_data=False, progress_bar=True):
     """
     Conducts batch mode analysis on a series of points for a given metric.
 
@@ -38,6 +38,10 @@ def batch_select(selections, points, load_data=False, progress_bar=True):
     selections.cached_area = ["entire domain"]
 
     data = selections.retrieve()
+
+    if approach == "Time":
+        # Remove leap days, if applicable
+        data = data.sel(time=~((data.time.dt.month == 2) & (data.time.dt.day == 29)))
 
     data_pts = _retrieve_pts(data, points)
 

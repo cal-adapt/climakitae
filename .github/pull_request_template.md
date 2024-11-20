@@ -12,8 +12,6 @@
 - [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
 - [ ] This change requires a documentation update
 
-<br>
-
 ## Definition of Done Checklist
 
 #### Practical
@@ -34,4 +32,4 @@
 #### Conceptual
 - [ ] Doesn't replicate existing functionality
 - [ ] Aligns with general coding standard of existing functions
-- [ ] Matches desired functinonality from users/scientists
+- [ ] Matches desired functionality from users/scientists

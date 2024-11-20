@@ -47,7 +47,7 @@ year_end = 2051
 timescale = "hourly"
 resolution = "45 km"
 append_historical = False
-area_average = True
+area_average = "Yes"
 scenarios = ["SSP 2-4.5 -- Middle of the Road"]
 filename = "threshold_data_T2_2050_2051_hourly_45km"
 
@@ -72,7 +72,7 @@ def _read_data_for_var(
     """Read data from catalog for a given variable."""
 
     selections.append_historical = append_historical
-    selections.area_average = False
+    selections.area_average = "No"
     selections.resolutions = resolution
     selections.scenario = scenarios
     selections.time_slice = (year_start, year_end)
@@ -157,7 +157,7 @@ test_dataset = xr_ds.where(mask_lon & mask_lat, drop=True)
 print("COMPLETE.")
 
 # Area average?
-if area_average:
+if area_average == "Yes":
     test_dataset = test_dataset.mean("x").mean("y")
 
 # Load lazy dask data
