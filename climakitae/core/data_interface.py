@@ -1362,6 +1362,30 @@ def _get_user_friendly_catalog(intake_catalog, variable_descriptions):
     cat_df_cleaned: intake_esm.source.ESMDataSource
     """
 
+    def _expand(row, cat_df):
+        """Used for adding climakitae derived variables into catalog options
+        Expand the row for each individual derived variable to include the appropriate resolution and scenario options from it's variable dependency.
+        For example, the fosberg fire index is dependent on temperature.
+        We don't store info in the variable_descriptions csv on the options for scenario and resolution for derived variables
+        So, we need to pull those options from the valid options from the catalog variables that the derived variables are built from
+
+        """
+        # Just get the first dependency
+        # Ideally it should look at all the dependent variables but it's a lot of messy code and I'm not sure if it actually matters
+        first_dependency = row["dependencies"].split(", ")[0]
+
+        # Get the dependency info from the catalog
+        dependency_options = cat_df[
+            (cat_df["variable_id"] == first_dependency)
+            & (cat_df["downscaling_method"] == row["downscaling_method"])
+            & (cat_df["timescale"] == row["timescale"])
+        ].reset_index(drop=True)
+
+        # Basically, replace the info from the dependent variable with the derived variable
+        # We assume they are the same
+        dependency_options["variable"] = row.variable  # Add derived var as variable
+        return dependency_options
+
     # Get the catalog as a dataframe
     cat_df = intake_catalog.df.copy()
 
@@ -1401,14 +1425,26 @@ def _get_user_friendly_catalog(intake_catalog, variable_descriptions):
     col = cat_df_cleaned.pop("variable")
     cat_df_cleaned.insert(0, col.name, col)
 
-    # Remove variable_id row
-    cat_df_cleaned.pop("variable_id")
-
     # Remove duplicate rows
     # Duplicates occur due to the many unique member_ids
     cat_df_cleaned = cat_df_cleaned.drop_duplicates(ignore_index=True)
 
-    return cat_df_cleaned
+    # Get the derived variables
+    derived_vars = _get_and_reformat_derived_variables(variable_descriptions)
+
+    # For each row (with unique variable, timescale, and downscaling method), get the options for scenario and resolution
+    # This will "expand" the row because there will be multiple combinations possible (likely)
+    derived_vars_all = pd.DataFrame()
+    for index, row in derived_vars.iterrows():  # Loop through each row
+        derived_vars_all = pd.concat(
+            [derived_vars_all, _expand(row, cat_df_cleaned)], ignore_index=True
+        )
+
+    # Combine derived and catalog variables into one!
+    options_all = pd.concat([cat_df_cleaned, derived_vars_all], ignore_index=True)
+    options_all.pop("variable_id")  # Remove variable id column
+
+    return options_all
 
 
 def _get_var_name_from_table(variable_id, downscaling_method, timescale, var_df):
@@ -2030,6 +2066,12 @@ def get_data(
     # Check if the user inputs make sense
     cat_dict = _check_if_good_input(cat_dict, cat_df)
 
+    # Check if it's an index
+    variable_id = (
+        var_df[var_df["display_name"] == cat_dict["variable"][0]].iloc[0].variable_id
+    )
+    variable_type = "Derived Index" if "_index" in variable_id else "Variable"
+
     # Settings for selections
     selections_dict = {
         "variable": cat_dict["variable"][0],
@@ -2044,6 +2086,7 @@ def get_data(
         "warming_level": warming_level,
         "warming_level_window": warming_level_window,
         "warming_level_months": warming_level_months,
+        "variable_type": variable_type,
         "time_slice": time_slice,
         "latitude": latitude,
         "longitude": longitude,
@@ -2085,9 +2128,10 @@ def get_data(
         selections.area_subset = selections_dict["area_subset"]
         selections.cached_area = selections_dict["cached_area"]
         selections.downscaling_method = selections_dict["downscaling_method"]
-        selections.variable = selections_dict["variable"]
         selections.resolution = selections_dict["resolution"]
         selections.timescale = selections_dict["timescale"]
+        selections.variable_type = selections_dict["variable_type"]
+        selections.variable = selections_dict["variable"]
         selections.units = selections_dict["units"]
 
         # Setting the values like this enables us to take advantage of the default settings in DataParameters without having to manually set defaults in this function
@@ -2115,3 +2159,68 @@ def get_data(
     # Retrieve data
     data = selections.retrieve()
     return data
+
+
+def _get_and_reformat_derived_variables(variable_descriptions):
+    """(1) Get the just derived variables from the variables_descriptions csv and
+    (2) Reformat the data such that the timescales are split into separate rows
+
+    This is such that it can match the formatting in the catalog, where each independent data option is separated into a distinct row
+    i.e. if derived variable "var" has "timescale" = "hourly, monthly", it is separated into two separate rows with one row having "timescale" = "hourly" and the second row having "timescale" = "monthly"
+
+    Backend helper function for retrieving a user-friendly version of the intake catalog that contains our added climakitae derived variables
+
+    Arguments
+    ---------
+    variable_descriptions: pd.DataFrame
+        Variable descriptions, units, etc in table format
+
+    Returns
+    -------
+    derived_vars_df: pd.DataFrame
+        Subset of variable_descriptions containing only variables with variable_id containing the substring "_derived"
+        "timescale" column separated into unique timescales for each row
+
+    """
+    # Just get subset of derived variables
+    derived_variables = (
+        variable_descriptions[
+            variable_descriptions["variable_id"].str.contains("_derived")
+        ]
+        .reset_index(drop=True)
+        .rename(columns={"display_name": "variable"})
+    )
+
+    # Get the derived variables that are valid across multile timescales
+    # They will have a comma-separated timescale i.e. "daily, monthly"
+    derived_variables_multi_timescale = derived_variables[
+        derived_variables["timescale"].str.contains(", ")
+    ]
+
+    # loop through each row in the DataFrame
+    derived_variables_split = []
+    for i in range(len(derived_variables_multi_timescale)):
+
+        # Get single row, containing one variable
+        row = derived_variables_multi_timescale.iloc[i]
+
+        # Split the comma-separated timescale into a list
+        # i.e. "daily, monthly" becomes ["daily","monthly"]
+        timescale = row["timescale"].split(", ")
+
+        # Create a dataframe with one row per timescale
+        # i.e. "derived index" for a timescale of "daily, monthly" becomes a two-row dataframe...
+        # i.e. row 1 containing "derived index" and "daily" and row 2 containing "derived index" and "monthly"
+        row_split_i = pd.DataFrame([row] * len(timescale))
+        row_split_i["timescale"] = timescale
+        derived_variables_split.append(row_split_i)
+
+    # Now, append a pandas dataframe with remaining derived variables
+    # These are the ones that have a single timescale (i.e. "hourly" or "daily")
+    derived_variables_single_timescale = derived_variables[
+        ~derived_variables["timescale"].str.contains(", ")
+    ]
+    derived_variables_split.append(derived_variables_single_timescale)
+    derived_vars_df = pd.concat(derived_variables_split, ignore_index=True)
+
+    return derived_vars_df
