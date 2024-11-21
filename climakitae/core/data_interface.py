@@ -14,6 +14,7 @@ from climakitae.core.paths import (
     boundary_catalog_url,
     gwl_1850_1900_file,
 )
+from climakitae.core.constants import WARMING_LEVELS
 from climakitae.core.boundaries import Boundaries
 from climakitae.util.unit_conversions import get_unit_conversion_options
 from climakitae.core.data_load import (
@@ -647,7 +648,7 @@ class DataParameters(param.Parameterized):
     ssp_range = (2015, 2100)
 
     # Warming level options
-    wl_options = [0.8, 1.2, 1.5, 2.0, 2.5, 3.0, 4.0]
+    wl_options = WARMING_LEVELS
     wl_time_option = ["n/a"]
     warming_level = param.ListSelector(default=["n/a"], objects=["n/a"])
     warming_level_window = param.Integer(
@@ -1850,7 +1851,7 @@ def get_data(
         Time range for retrieved data
         Only valid for approach = "Time"
     warming_level: list of float, optional
-        Must be one of [0.8, 1.2, 1.5, 2.0, 2.5, 3.0, 4.0]
+        Must be one of the warming level options in `WARMING_LEVELS` in `climakitae.core.constants`
         Only valid for approach = "Warming Level"
     warming_level_window: int in range (5,25), optional
         Years around Global Warming Level (+/-) \n (e.g. 15 means a 30yr window)
