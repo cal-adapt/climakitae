@@ -5,9 +5,9 @@ calculations; they just ensure that the functions run without error, or raise
 the expected error messages for invalid argument specifications.
 """
 
+import pytest
 import os
 import numpy as np
-import pytest
 import xarray as xr
 
 from climakitae.explore import threshold_tools
