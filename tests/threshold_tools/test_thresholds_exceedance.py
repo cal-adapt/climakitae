@@ -1,7 +1,5 @@
-import numpy as np
-import os
-import pandas as pd
 import pytest
+import pandas as pd
 import xarray as xr
 
 from climakitae.explore import threshold_tools

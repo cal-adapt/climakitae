@@ -1,9 +1,7 @@
 """This script tests that the functions used to derive indices perform as expected. """
 
-import xarray as xr
-import numpy as np
 import pytest
-import os
+import xarray as xr
 from climakitae.tools.indices import (
     effective_temp,
     noaa_heat_index,

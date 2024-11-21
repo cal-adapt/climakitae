@@ -3,8 +3,6 @@ Test that an appropriate error is raised.
 """
 
 import pytest
-import intake
-import pandas as pd
 from climakitae.core.data_interface import DataParameters
 
 

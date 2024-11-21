@@ -2,8 +2,6 @@
 """
 
 import pytest
-import intake
-import pandas as pd
 from climakitae.core.data_interface import DataInterface
 
 
