@@ -618,6 +618,7 @@ class DataParameters(param.Parameterized):
         objects=["Yes", "No"],
         doc="""Compute an area average?""",
     )
+    delta_signal = param.Boolean(False)
     downscaling_method = param.Selector(
         default="Dynamical",
         objects=["Dynamical", "Statistical", "Dynamical+Statistical"],
