@@ -20,7 +20,7 @@ def test_file_structure(name, df):
     - Ensures the DataFrame is not empty.
     - Validates that all required columns ('GCM', 'run', 'scenario', and WARMING_LEVELS values) are present.
     """
-    required_columns = ["GCM", "run", "scenario"] + WARMING_LEVELS
+    required_columns = ["GCM", "run", "scenario"] + [str(wl) for wl in WARMING_LEVELS]
     assert not df.empty, f"{name} DataFrame is empty."
     assert all(
         col in df.columns for col in required_columns
