@@ -859,7 +859,15 @@ class DataParameters(param.Parameterized):
             self.data_type = "Gridded"
         else:
             self.param["data_type"].objects = ["Gridded", "Station"]
-        if "Station" in self.data_type or self.variable_type == "Derived Index":
+        if self.variable_type == "Derived Index":
+
+            # Haven't built into the code to retrieve derive index for statistically downscaled data yet. Derived indices at the moment only work for hourly data.
+            self.param["downscaling_method"].objects = ["Dynamical"]
+            self.downscaling_method = "Dynamical"
+
+            self.param["approach"].objects = ["Time", "Warming Level"]
+
+        elif "Station" in self.data_type:
             self.param["downscaling_method"].objects = ["Dynamical"]
             self.downscaling_method = "Dynamical"
 
