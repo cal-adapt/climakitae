@@ -105,7 +105,7 @@ def TestAppropriateStringErrorReturnedIfBadInputGetData():
         """
 
         # Error message we expect to be printed by the function
-        expected_print_message = "ERROR: No data found for your input values"
+        expected_print_message = "ERROR: No data found for your input values\n"
 
         # NOTE: function PRINTS this message-- it does not return it as en error
         # Because of this, we have to use sys to capture the print message
