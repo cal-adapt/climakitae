@@ -97,3 +97,29 @@ def TestAppropriateStringErrorReturnedIfBadInputGetData():
         sys.stdout = save
 
         assert capture.getvalue() == expected_print_message
+
+    def test_error_raised_bad_timescale_input(self):
+        """Test that an appropriate message is printed if bad input for timescale
+        Previously, this input would raise a confusing error!
+        Fixed in November 2024 to return a useful print message and None instead
+        """
+
+        # Error message we expect to be printed by the function
+        expected_print_message = "ERROR: No data found for your input values"
+
+        # NOTE: function PRINTS this message-- it does not return it as en error
+        # Because of this, we have to use sys to capture the print message
+        capture = io.StringIO()
+        save, sys.stdout = sys.stdout, capture
+        ds = get_data(
+            variable="Effective Temperature",
+            timescale="hourly",
+            resolution="9 km",
+            downscaling_method="Dynamical",
+            area_subset="states",
+            cached_area="CA",
+            time_slice=(1980, 2010),
+        )
+        sys.stdout = save
+
+        assert capture.getvalue() == expected_print_message
