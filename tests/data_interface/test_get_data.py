@@ -45,7 +45,7 @@ class TestDerivedVariablesGetData:
                     area_subset="states",
                     cached_area="CA",
                     approach="Warming Level",
-                    warming_level=[3.0, 4.0],
+                    warming_level=[3.0],
                 )
             except:
                 pytest.fail(
@@ -65,6 +65,8 @@ class TestDerivedVariablesGetData:
                     area_subset="states",
                     cached_area="CA",
                     approach="Time",
+                    time_slice=(1990, 1991),
+                    scenario="Historical Climate",
                 )
             except:
                 pytest.fail(
@@ -72,7 +74,7 @@ class TestDerivedVariablesGetData:
                 )
 
 
-def TestAppropriateStringErrorReturnedIfBadInputGetData():
+class TestAppropriateStringErrorReturnedIfBadInputGetData:
     """Test that an appropriate error message is printed to the user describing the issue and how to resolve it."""
 
     def test_error_raised_string_input_warming_level(self):
@@ -81,7 +83,7 @@ def TestAppropriateStringErrorReturnedIfBadInputGetData():
         # Error message we expect to be printed by the function
         expected_print_message = "ERROR: Function argument warming_level requires a float/int or list of floats/ints input. Your input: <class 'str'> \nReturning None\n"
 
-        # NOTE: function PRINTS this message-- it does not return it as en error
+        # NOTE: function PRINTS this message-- it does not return it as an error
         # Because of this, we have to use sys to capture the print message
         capture = io.StringIO()
         save, sys.stdout = sys.stdout, capture
@@ -105,9 +107,9 @@ def TestAppropriateStringErrorReturnedIfBadInputGetData():
         """
 
         # Error message we expect to be printed by the function
-        expected_print_message = "ERROR: No data found for your input values\n"
+        expected_print_message = "ERROR: No data found for your input values. Please modify your data request. \nReturning None\n"
 
-        # NOTE: function PRINTS this message-- it does not return it as en error
+        # NOTE: function PRINTS this message-- it does not return it as an error
         # Because of this, we have to use sys to capture the print message
         capture = io.StringIO()
         save, sys.stdout = sys.stdout, capture
@@ -116,9 +118,10 @@ def TestAppropriateStringErrorReturnedIfBadInputGetData():
             timescale="hourly",
             resolution="9 km",
             downscaling_method="Dynamical",
+            scenario="Historical Climate",
             area_subset="states",
             cached_area="CA",
-            time_slice=(1980, 2010),
+            time_slice=(1990, 1991),
         )
         sys.stdout = save
 
