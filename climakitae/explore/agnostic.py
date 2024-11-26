@@ -45,7 +45,7 @@ def create_lookup_tables():
 
 def _create_time_lut(gcms):
     """Prepare lookup table for converting warming levels to times."""
-    # Read in simulation vs warming levels (1.5, 2, 3, 4) table
+    # Read in simulation vs warming levels table
     df = read_csv_file("data/gwl_1850-1900ref.csv")
     # Subset to cataloged GCMs
     df = df[df["GCM"].isin(gcms)]

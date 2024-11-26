@@ -11,6 +11,7 @@ import pandas as pd
 import xarray as xr
 import numpy as np
 from climakitae.util.utils import write_csv_file
+from climakitae.core.constants import WARMING_LEVELS
 
 
 def main():
@@ -256,7 +257,7 @@ def main():
             smoothed.to_array(dim="scenario", name=model).dropna("time").to_pandas()
         )
         gwlevels = pd.DataFrame()
-        for level in [1.5, 2, 2.5, 3, 4]:
+        for level in WARMING_LEVELS:
             gwlevels[level] = get_gwl(oneModel.T, level)
 
         # Modifying and returning oneModel to be seen as a WL lookup table with timestamp as index, to get the average WL across all simulations.
@@ -314,7 +315,7 @@ def main():
         """
         Generates a GWL table for a single model and ensemble member.
 
-        Loops through various global warming levels (1.5, 2, 2.5, 3, and 4 degrees)
+        Loops through various global warming levels from `climakitae.core.constants`
         for the requested model/variant and scenarios.
 
         Parameters:
@@ -361,7 +362,7 @@ def main():
         )
         gwlevels = pd.DataFrame()
         try:
-            for level in [1.5, 2, 2.5, 3, 4]:
+            for level in WARMING_LEVELS:
                 gwlevels[level] = get_gwl(one_model.T, level)
         except Exception as e:
             print(
