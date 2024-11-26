@@ -1266,7 +1266,7 @@ def _apply_warming_levels_approach(da, selections):
         )
     }
     warming_data["warming_level"].attrs = {
-        "description": "degrees Celcius above the historical baseline"
+        "description": "degrees Celsius above the historical baseline"
     }
     warming_data["all_sims"].attrs = {"description": "combined simulation and scenario"}
 
@@ -1305,7 +1305,7 @@ def _station_apply(selections, da, original_time_slice):
         Preprocess station data so that it can be more seamlessly integrated into the wrangling process
         Get name of station id and station name
         Rename data variable to the station name; this allows the return of a Dataset object, with each unique station as a data variable
-        Convert celcius to kelvin
+        Convert Celsius to Kelvin
         Assign descriptive attributes
         Drop unneccessary coordinates that can cause issues when bias correcting with the model data
 
@@ -1329,7 +1329,7 @@ def _station_apply(selections, da, original_time_slice):
         ].item()
         # Rename data variable to station name
         ds = ds.rename({"tas": station_name})
-        # Convert Celcius to Kelvin
+        # Convert Celsius to Kelvin
         ds[station_name] = ds[station_name] + 273.15
         # Assign descriptive attributes to the data variable
         ds[station_name] = ds[station_name].assign_attrs(
