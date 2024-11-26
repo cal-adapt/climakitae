@@ -1705,7 +1705,11 @@ def get_data_options(
         & (cat_df["scenario"].isin(d["scenario"]))
     ].reset_index(drop=True)
     if len(cat_subset) == 0:
-        print("ERROR: No data found for your input values")
+        print(
+            _format_error_print_message(
+                "No data found for your input values. Please modify your data request."
+            )
+        )
         return None
 
     if tidy:
