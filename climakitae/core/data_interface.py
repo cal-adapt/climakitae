@@ -647,7 +647,7 @@ class DataParameters(param.Parameterized):
     ssp_range = (2015, 2100)
 
     # Warming level options
-    wl_options = [1.5, 2.0, 2.5, 3.0, 4.0]
+    wl_options = [0.8, 1.2, 1.5, 2.0, 2.5, 3.0, 4.0]
     wl_time_option = ["n/a"]
     warming_level = param.ListSelector(default=["n/a"], objects=["n/a"])
     warming_level_window = param.Integer(
