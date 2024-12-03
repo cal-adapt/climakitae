@@ -652,6 +652,7 @@ class DataParameters(param.Parameterized):
     ssp_range = (2015, 2100)
 
     # Warming level options
+    wl_historical = [0.8, 1.2]
     wl_options = [0.8, 1.2, 1.5, 2.0, 2.5, 3.0, 4.0]
     wl_time_option = ["n/a"]
     wl_default = [2.0]
@@ -780,14 +781,37 @@ class DataParameters(param.Parameterized):
         If time-based is selected, there should be no warming levels options shown.
         """
         if self.approach == "Warming Level":
-            self.param["warming_level"].objects = self.wl_options
-            self.warming_level = self.wl_default
 
             self.param["scenario_ssp"].objects = ["n/a"]
             self.scenario_ssp = ["n/a"]
-            
+
             self.param["scenario_historical"].objects = ["n/a"]
             self.scenario_historical = ["n/a"]
+
+            if self.delta_signal == "Yes":
+
+                # Set the options to everything but the historical options
+                self.param["warming_level"].objects = [
+                    x for x in self.wl_options if x not in self.wl_historical
+                ]
+
+                # Check if the user has selected historical WL options
+                _non_historical_wl = [
+                    x for x in self.warming_level if x not in self.wl_historical
+                ]
+                if len(_non_historical_wl) == 0:
+                    # If the user had previously only selected one or both of the historical WL options, and no future WL, set to the default
+                    self.warming_level = self.wl_default
+                else:
+                    # Otherwise, preserve their original selections with the historical WL dropped
+                    self.warming_level = _non_historical_wl
+
+            elif self.delta_signal == "No":
+                self.param["warming_level"].objects = self.wl_options
+
+                if self.warming_level == ["n/a"]:
+                    # Set to default if previous selection was time
+                    self.warming_level = self.wl_default
 
         elif self.approach == "Time":
             self.param["warming_level"].objects = ["n/a"]
@@ -800,7 +824,7 @@ class DataParameters(param.Parameterized):
             ]
 
             if self.delta_signal == "No":
-            
+
                 # Set incoming scenario_historical
                 _scenario_historical = self.scenario_historical
 
@@ -811,10 +835,10 @@ class DataParameters(param.Parameterized):
                     if scen in historical_scenarios
                 ]
                 self.param["scenario_historical"].objects = scenario_historical_options
-                
-                if _scenario_historical == ["n/a"]: 
+
+                if _scenario_historical == ["n/a"]:
                     self.scenario_historical = [scenario_historical_options[0]]
-                else: 
+                else:
                     # check if input historical scenarios match new available scenarios
                     # if no reanalysis scenario then return False
                     def _check_inputs(a, b):
@@ -831,13 +855,12 @@ class DataParameters(param.Parameterized):
                         self.scenario_historical = _scenario_historical
                     else:
                         self.scenario_historical = [scenario_historical_options[0]]
-                    
-            elif self.delta_signal == "Yes": 
+
+            elif self.delta_signal == "Yes":
                 self.param["scenario_historical"].objects = ["n/a"]
                 self.scenario_historical = ["n/a"]
-                # Default select all objects 
+                # Default select all objects
                 self.scenario_ssp = [x for x in self.param["scenario_ssp"].objects]
-
 
     @param.depends("latitude", "longitude", watch=True)
     def _update_area_subset_to_lat_lon(self):
