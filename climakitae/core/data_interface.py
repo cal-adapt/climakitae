@@ -852,7 +852,15 @@ class DataParameters(param.Parameterized):
             self.data_type = "Gridded"
         else:
             self.param["data_type"].objects = ["Gridded", "Station"]
-        if "Station" in self.data_type or self.variable_type == "Derived Index":
+        if self.variable_type == "Derived Index":
+
+            # Haven't built into the code to retrieve derive index for statistically downscaled data yet. Derived indices at the moment only work for hourly data.
+            self.param["downscaling_method"].objects = ["Dynamical"]
+            self.downscaling_method = "Dynamical"
+
+            self.param["approach"].objects = ["Time", "Warming Level"]
+
+        elif "Station" in self.data_type:
             self.param["downscaling_method"].objects = ["Dynamical"]
             self.downscaling_method = "Dynamical"
 
@@ -1653,7 +1661,11 @@ def get_data_options(
     # Raise error for bad input from user
     for user_input in [variable, downscaling_method, resolution, timescale]:
         if (user_input is not None) and (type(user_input) != str):
-            print("Function arguments require a single string value for your inputs")
+            print(
+                _format_error_print_message(
+                    "Function arguments require a single string value for your inputs"
+                )
+            )
             return None
 
     def _list(x):
@@ -1682,7 +1694,11 @@ def get_data_options(
         & (cat_df["scenario"].isin(d["scenario"]))
     ].reset_index(drop=True)
     if len(cat_subset) == 0:
-        print("No data found for your input values")
+        print(
+            _format_error_print_message(
+                "No data found for your input values. Please modify your data request."
+            )
+        )
         return None
 
     if tidy:
@@ -1778,6 +1794,11 @@ def get_subsetting_options(area_subset="all"):
     return geoms_df
 
 
+def _format_error_print_message(error_message):
+    """Format error message using the same format"""
+    return "ERROR: {0} \nReturning None".format(error_message)
+
+
 def get_data(
     variable,
     downscaling_method,
@@ -1861,11 +1882,6 @@ def get_data(
     """
 
     # Internal functions
-
-    def _format_error_print_message(error_message):
-        """Format error message using the same format"""
-        return "ERROR: {0} \nReturning None".format(error_message)
-
     def _error_handling_warming_level_inputs(wl, argument_name):
         """Error handling for arguments: warming_level and warming_level_month
         Both require a list of either floats or ints
@@ -1969,7 +1985,9 @@ def get_data(
 
     # Get intake catalog and variable descriptions from DataInterface object
     data_interface = DataInterface()
-    var_df = data_interface.variable_descriptions
+    var_df = data_interface.variable_descriptions.rename(
+        columns={"variable": "display_name"}
+    )  # Rename column so that it can be merged with cat_df
     catalog = data_interface.data_catalog
     cat_df = _get_user_friendly_catalog(
         intake_catalog=catalog, variable_descriptions=var_df
@@ -2040,20 +2058,42 @@ def get_data(
     # A dictionary is used for all the inputs in selections because it enables better error handling and cleaner code when we set selections.thing = thing
     # It also makes parsing through the arguments easier
     # The inputs here need to be a list so that they can be parsed easier by the _check_if_good_input function when comparing with the valid catalog options to confirm the user input is valid
-    cat_dict = {
-        "variable": variable if type(variable) == list else [variable],
-        "timescale": timescale if type(timescale) == list else [timescale],
-        "downscaling_method": (
-            downscaling_method
-            if type(downscaling_method) == list
-            else [downscaling_method]
-        ),
-        "scenario": scenario if type(scenario) == list else [scenario],
-        "resolution": resolution if type(resolution) == list else [resolution],
-    }
+    scenario_user_input = scenario  # What the user originally input for scenario
 
-    # Check if the user inputs make sense
-    cat_dict = _check_if_good_input(cat_dict, cat_df)
+    check_input_df = get_data_options(
+        variable=variable,
+        downscaling_method=downscaling_method,
+        resolution=resolution,
+        timescale=timescale,
+        scenario=scenario,
+        tidy=False,
+    )
+
+    if check_input_df is None:
+
+        return None
+
+    # Merge with variable dataframe to get all the info about the data in one place
+    check_input_df = check_input_df.merge(var_df, how="left")
+
+    # Convert to a dictionary so it can be easily parsed by the function
+    cat_dict = check_input_df.to_dict(orient="list")
+    for key, values in cat_dict.items():
+        # Remove non-unique values
+        # This happens because we converted a pandas dataframe to a dictionary
+        cat_dict[key] = list(np.unique(values))
+
+    # _check_if_good_input will default fill the scenario options with EVERY possible option
+    # It will in most cases give a list of all the available SSPs and the two historical data options (Historical Climate AND Historical Reconstruction)
+    # I'd like the function to just default to Historical Climate + SSPs
+    # So, if the user input None for scenario, I just remove Historical Reconstruction from the list
+    if scenario_user_input == None:
+        if "Historical Reconstruction" in cat_dict["scenario"]:
+            cat_dict["scenario"] = [
+                item
+                for item in cat_dict["scenario"]
+                if item != "Historical Reconstruction"
+            ]
 
     # Check if it's an index
     variable_id = (
