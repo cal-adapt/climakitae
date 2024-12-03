@@ -28,7 +28,7 @@ from climakitae.util.utils import (
     timescale_to_table_id,
     downscaling_method_to_activity_id,
 )
-from climakitae.core.constants import WARMING_LEVELS
+from climakitae.core.constants import WARMING_LEVELS, SSPS
 
 # Warnings raised by function get_subsetting_options, not sure why but they are silenced here
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -735,11 +735,7 @@ class DataParameters(param.Parameterized):
             for scen in self.scenario_options
             if "ssp" in scen
         ]
-        for scenario_i in [
-            "SSP 3-7.0 -- Business as Usual",
-            "SSP 2-4.5 -- Middle of the Road",
-            "SSP 5-8.5 -- Burn it All",
-        ]:
+        for scenario_i in SSPS:
             if scenario_i in scenario_ssp_options:  # Reorder list
                 scenario_ssp_options.remove(scenario_i)  # Remove item
                 scenario_ssp_options.append(scenario_i)  # Add to back of list
@@ -788,11 +784,7 @@ class DataParameters(param.Parameterized):
             self.param["warming_level"].objects = ["n/a"]
             self.warming_level = ["n/a"]
 
-            self.param["scenario_ssp"].objects = [
-                "SSP 3-7.0 -- Business as Usual",
-                "SSP 2-4.5 -- Middle of the Road",
-                "SSP 5-8.5 -- Burn it All",
-            ]
+            self.param["scenario_ssp"].objects = SSPS
             self.scenario_ssp = []
 
             self.param["scenario_historical"].objects = [
@@ -1057,11 +1049,7 @@ class DataParameters(param.Parameterized):
                 for scen in self.scenario_options
                 if "ssp" in scen
             ]
-            for scenario_i in [
-                "SSP 3-7.0 -- Business as Usual",
-                "SSP 2-4.5 -- Middle of the Road",
-                "SSP 5-8.5 -- Burn it All",
-            ]:
+            for scenario_i in SSPS:
                 if scenario_i in scenario_ssp_options:  # Reorder list
                     scenario_ssp_options.remove(scenario_i)  # Remove item
                     scenario_ssp_options.append(scenario_i)  # Add to back of list

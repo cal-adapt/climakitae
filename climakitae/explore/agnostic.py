@@ -17,6 +17,7 @@ from climakitae.util.unit_conversions import get_unit_conversion_options
 from typing import Union, Tuple
 from climakitae.core.data_load import load
 from climakitae.util.logger import logger
+from climakitae.core.constants import SSPS
 import warnings
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
@@ -204,11 +205,7 @@ def _compute_results(selections, agg_func, years, months):
 
     # V0.1: Only allow specific SSPs for different `3 km` applications.
     available_ssps = {
-        "Statistical": [
-            "SSP 3-7.0 -- Business as Usual",
-            "SSP 2-4.5 -- Middle of the Road",
-            "SSP 5-8.5 -- Burn it All",
-        ],
+        "Statistical": SSPS,
         "Dynamical": [
             "SSP 3-7.0 -- Business as Usual",
         ],

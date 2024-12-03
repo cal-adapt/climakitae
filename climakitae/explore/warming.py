@@ -17,6 +17,7 @@ from climakitae.util.utils import (
     scenario_to_experiment_id,
     _get_cat_subset,
 )
+from climakitae.core.constants import SSPS
 
 from tqdm.auto import tqdm
 
@@ -77,11 +78,7 @@ class WarmingLevels:
     def calculate(self):
         # manually reset to all SSPs, in case it was inadvertently changed by
         # temporarily have ['Dynamical','Statistical'] for downscaling_method
-        self.wl_params.scenario_ssp = [
-            "SSP 3-7.0 -- Business as Usual",
-            "SSP 2-4.5 -- Middle of the Road",
-            "SSP 5-8.5 -- Burn it All",
-        ]
+        self.wl_params.scenario_ssp = SSPS
         # Postage data and anomalies
         self.catalog_data = self.wl_params.retrieve()
         self.catalog_data = self.catalog_data.stack(all_sims=["simulation", "scenario"])
@@ -300,11 +297,7 @@ class WarmingLevelChoose(DataParameters):
         self.scenario_historical = ["Historical Climate"]
         self.area_average = "No"
         self.resolution = "45 km"
-        self.scenario_ssp = [
-            "SSP 3-7.0 -- Business as Usual",
-            "SSP 2-4.5 -- Middle of the Road",
-            "SSP 5-8.5 -- Burn it All",
-        ]
+        self.scenario_ssp = SSPS
         self.time_slice = (1980, 2100)
         self.timescale = "monthly"
         self.variable = "Air Temperature at 2m"
