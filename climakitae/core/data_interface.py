@@ -799,8 +799,9 @@ class DataParameters(param.Parameterized):
                 _non_historical_wl = [
                     x for x in self.warming_level if x not in self.wl_historical
                 ]
-                if len(_non_historical_wl) == 0:
+                if (len(_non_historical_wl) == 0) or (self.warming_level == ["n/a"]):
                     # If the user had previously only selected one or both of the historical WL options, and no future WL, set to the default
+                    # Or, if the user is changing from Time approach
                     self.warming_level = self.wl_default
                 else:
                     # Otherwise, preserve their original selections with the historical WL dropped
