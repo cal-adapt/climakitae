@@ -7,3 +7,15 @@ SSPS = [
     "SSP 3-7.0 -- Business as Usual",
     "SSP 5-8.5 -- Burn it All",
 ]
+WRF_BA_MODELS = [
+    "WRF_EC-Earth3_r1i1p1f1",
+    "WRF_MPI-ESM1-2-HR_r3i1p1f1",
+    "WRF_TaiESM1_r1i1p1f1",
+    "WRF_MIROC6_r1i1p1f1",
+    "WRF_EC-Earth3-Veg_r1i1p1f1",
+]
+NON_WRF_BA_MODELS = [
+    'WRF_FGOALS-g3_r1i1p1f1',
+    'WRF_CNRM-ESM2-1_r1i1p1f2',
+    'WRF_CESM2_r11i1p1f1',
+]
