@@ -10,6 +10,7 @@ import sys
 import xarray as xr
 from climakitae.core.data_load import read_catalog_from_select
 from climakitae.core.data_interface import DataParameters
+from climakitae.core.constants import SSPS
 
 
 # ----------------- CHOOSE SETTINGS FOR TEST DATASET -----------------
@@ -62,11 +63,7 @@ def _read_data_for_var(
     append_historical=True,
     timescale="monthly",
     resolution="45 km",
-    scenarios=[
-        "SSP 2-4.5 -- Middle of the Road",
-        "SSP 3-7.0 -- Business as Usual",
-        "SSP 5-8.5 -- Burn it All",
-    ],
+    scenarios=SSPS,
 ):
     """Read data from catalog for a given variable."""
 

@@ -11,6 +11,7 @@ import copy
 import intake
 from timezonefinder import TimezoneFinder
 from climakitae.core.paths import data_catalog_url
+from climakitae.core.constants import SSPS
 
 
 def downscaling_method_as_list(downscaling_method):
@@ -927,11 +928,7 @@ def _get_scenario_from_selections(selections):
 
     elif selections.approach == "Warming Level":
         # Need all scenarios for warming level approach
-        scenario_ssp = [
-            "SSP 3-7.0 -- Business as Usual",
-            "SSP 2-4.5 -- Middle of the Road",
-            "SSP 5-8.5 -- Burn it All",
-        ]
+        scenario_ssp = SSPS
         scenario_historical = ["Historical Climate"]
 
     return scenario_ssp, scenario_historical
