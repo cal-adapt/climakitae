@@ -310,9 +310,9 @@ def _export_to_netcdf(data, save_name, mode):
         path = f"simplecache::{os.environ['SCRATCH_BUCKET']}/{save_name}"
 
         with fsspec.open(path, "wb") as fp:
-            print("Saving file to S3 scratch bucket without compression...")
+            print("Saving NETCDF3_64BIT file to S3 scratch bucket without compression...")
             encoding = _fillvalue_encoding(_data)
-            _data.to_netcdf(fp, engine="h5netcdf", format="NETCDF3_64BIT", encoding=encoding)
+            _data.to_netcdf(fp, format="NETCDF3_64BIT", encoding=encoding)
 
             download_url = _create_presigned_url(
                 bucket_name=export_s3_bucket,
