@@ -28,6 +28,7 @@ from climakitae.util.utils import (
     timescale_to_table_id,
     downscaling_method_to_activity_id,
 )
+from climakitae.core.constants import WARMING_LEVELS, SSPS
 
 # Warnings raised by function get_subsetting_options, not sure why but they are silenced here
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -647,7 +648,7 @@ class DataParameters(param.Parameterized):
     ssp_range = (2015, 2100)
 
     # Warming level options
-    wl_options = [0.8, 1.2, 1.5, 2.0, 2.5, 3.0, 4.0]
+    wl_options = WARMING_LEVELS
     wl_time_option = ["n/a"]
     warming_level = param.ListSelector(default=["n/a"], objects=["n/a"])
     warming_level_window = param.Integer(
@@ -734,11 +735,7 @@ class DataParameters(param.Parameterized):
             for scen in self.scenario_options
             if "ssp" in scen
         ]
-        for scenario_i in [
-            "SSP 3-7.0 -- Business as Usual",
-            "SSP 2-4.5 -- Middle of the Road",
-            "SSP 5-8.5 -- Burn it All",
-        ]:
+        for scenario_i in SSPS:
             if scenario_i in scenario_ssp_options:  # Reorder list
                 scenario_ssp_options.remove(scenario_i)  # Remove item
                 scenario_ssp_options.append(scenario_i)  # Add to back of list
@@ -787,11 +784,7 @@ class DataParameters(param.Parameterized):
             self.param["warming_level"].objects = ["n/a"]
             self.warming_level = ["n/a"]
 
-            self.param["scenario_ssp"].objects = [
-                "SSP 3-7.0 -- Business as Usual",
-                "SSP 2-4.5 -- Middle of the Road",
-                "SSP 5-8.5 -- Burn it All",
-            ]
+            self.param["scenario_ssp"].objects = SSPS
             self.scenario_ssp = []
 
             self.param["scenario_historical"].objects = [
@@ -1064,11 +1057,7 @@ class DataParameters(param.Parameterized):
                 for scen in self.scenario_options
                 if "ssp" in scen
             ]
-            for scenario_i in [
-                "SSP 3-7.0 -- Business as Usual",
-                "SSP 2-4.5 -- Middle of the Road",
-                "SSP 5-8.5 -- Burn it All",
-            ]:
+            for scenario_i in SSPS:
                 if scenario_i in scenario_ssp_options:  # Reorder list
                     scenario_ssp_options.remove(scenario_i)  # Remove item
                     scenario_ssp_options.append(scenario_i)  # Add to back of list
@@ -1871,7 +1860,7 @@ def get_data(
         Time range for retrieved data
         Only valid for approach = "Time"
     warming_level: list of float, optional
-        Must be one of [1.5, 2.0, 2.5, 3.0, 4.0]
+        Must be one of the warming levels available in `clmakitae.core.constants`
         Only valid for approach = "Warming Level"
     warming_level_window: int in range (5,25), optional
         Years around Global Warming Level (+/-) \n (e.g. 15 means a 30yr window)

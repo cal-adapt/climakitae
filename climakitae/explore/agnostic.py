@@ -17,6 +17,7 @@ from climakitae.util.unit_conversions import get_unit_conversion_options
 from typing import Union, Tuple
 from climakitae.core.data_load import load
 from climakitae.util.logger import logger
+from climakitae.core.constants import SSPS
 import warnings
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
@@ -45,7 +46,7 @@ def create_lookup_tables():
 
 def _create_time_lut(gcms):
     """Prepare lookup table for converting warming levels to times."""
-    # Read in simulation vs warming levels (1.5, 2, 3, 4) table
+    # Read in simulation vs warming levels table
     df = read_csv_file("data/gwl_1850-1900ref.csv")
     # Subset to cataloged GCMs
     df = df[df["GCM"].isin(gcms)]
@@ -204,11 +205,7 @@ def _compute_results(selections, agg_func, years, months):
 
     # V0.1: Only allow specific SSPs for different `3 km` applications.
     available_ssps = {
-        "Statistical": [
-            "SSP 3-7.0 -- Business as Usual",
-            "SSP 2-4.5 -- Middle of the Road",
-            "SSP 5-8.5 -- Burn it All",
-        ],
+        "Statistical": SSPS,
         "Dynamical": [
             "SSP 3-7.0 -- Business as Usual",
         ],
