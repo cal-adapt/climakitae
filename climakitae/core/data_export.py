@@ -371,7 +371,7 @@ def _export_to_zarr(data, save_name):
     with fsspec.open(path, "wb") as fp:
         print("Saving file to S3 scratch bucket without compression...")
         encoding = _fillvalue_encoding(_data) | _compression_encoding(_data)
-        _data.to_zarr(fp, engine="h5netcdf", encoding=encoding)
+        _data.to_zarr(fp, encoding=encoding)
 
         download_url = _create_presigned_url(
             bucket_name=export_s3_bucket,
