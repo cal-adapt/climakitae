@@ -613,7 +613,7 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
     # 3. Find the data's centerpoint through selections
     if selections.data_type == "Station":
         station_name = selections.station
-        
+
         from climakitae.core.data_interface import DataInterface
 
         data_catalog = DataInterface()
@@ -698,9 +698,9 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
 
     # Reset selections object to what it was originally
     selections.time_slice = (start, end)
-    
+
     # Add timezone attribute to data
-    sliced_data = sliced_data.assign_attrs({'timezone': local_tz})
+    sliced_data = sliced_data.assign_attrs({"timezone": local_tz})
 
     return sliced_data
 
