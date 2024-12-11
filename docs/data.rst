@@ -63,7 +63,7 @@ To set the the variable to Air Temperature at 2m and retrieve the data in units 
 
 Similarly, to set the model resolution, timescale, time slice, and scenario: :: 
 
-   selections.scenario_ssp = "SSP 3-7.0 -- Business as Usual"
+   selections.scenario_ssp = "SSP 3-7.0"
    selections.scenario_historical = "Historical Climate"
    selections.resolution = "9 km"
    selections.time_slice = (2005, 2025)

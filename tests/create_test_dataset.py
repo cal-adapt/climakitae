@@ -48,7 +48,7 @@ timescale = "hourly"
 resolution = "45 km"
 append_historical = False
 area_average = "Yes"
-scenarios = ["SSP 2-4.5 -- Middle of the Road"]
+scenarios = ["SSP 2-4.5"]
 filename = "threshold_data_T2_2050_2051_hourly_45km"
 
 
