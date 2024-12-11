@@ -366,27 +366,27 @@ def _export_to_zarr(data, save_name):
 
     _update_encoding(_data)
 
-    path = f"simplecache::{os.environ['SCRATCH_BUCKET']}/{save_name}"
+    #path = f"simplecache::{os.environ['SCRATCH_BUCKET']}/{save_name}"
+    path = 's3://' + export_s3_bucket + "/" + save_name
 
-    with fsspec.open(path, "wb") as fp:
-        print("Saving file to S3 scratch bucket without compression...")
-        encoding = _fillvalue_encoding(_data) | _compression_encoding(_data)
-        _data.to_zarr(fp, encoding=encoding)
+    print("Saving file to S3 scratch bucket without compression...")
+    encoding = _fillvalue_encoding(_data)
+    _data.to_zarr(path, encoding=encoding)
 
-        download_url = _create_presigned_url(
-            bucket_name=export_s3_bucket,
-            object_name=path.split(export_s3_bucket + "/")[-1],
+    download_url = _create_presigned_url(
+        bucket_name=export_s3_bucket,
+        object_name=path.split(export_s3_bucket + "/")[-1],
+    )
+    print(
+        (
+            "Saved! To download the file to your local machine, "
+            "open the following URL in a web browser:"
+            "\n\n"
+            f"{download_url}"
+            "\n\n"
+            "Note: The URL will remain valid for 1 week."
         )
-        print(
-            (
-                "Saved! To download the file to your local machine, "
-                "open the following URL in a web browser:"
-                "\n\n"
-                f"{download_url}"
-                "\n\n"
-                "Note: The URL will remain valid for 1 week."
-            )
-        )
+    )
 
 
 def _get_unit(dataarray):
