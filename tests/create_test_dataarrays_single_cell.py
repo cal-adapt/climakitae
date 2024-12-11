@@ -83,13 +83,13 @@ def _get_filename(approach, downscaling, warming_level, time_slice):
         - Time LOCA:  'test_data/test_dataarray_time_2030_2035_loca_3km_hourly'
 
     """
-    res_no_space = resolution.replace(" ", "") # convert "3 km" --> "3km" 
+    res_no_space = resolution.replace(" ", "")  # convert "3 km" --> "3km"
     return (
         f"test_data/test_dataarray_"
         f"{_get_approach_str(approach)}_"
         f"{_get_duration_str(approach, warming_level, time_slice)}_"
         f"{_get_downscaling_str(downscaling)}_"
-        f"{res_no_space}_{timescale}"
+        f"{res_no_space}_{timescale}.nc"
     )
 
 
@@ -121,7 +121,7 @@ def _get_data_and_export(
     return params, filename
 
 
-### -------------------------------- 
+### --------------------------------
 
 ### 1. Time, Dynamical approach
 
@@ -155,7 +155,7 @@ da = _get_data_and_export(downscaling_method, approach, time_slice, warming_leve
 
 downscaling_method = "Statistical"
 variable = "Maximum air temperature at 2m"
-timescale = "daily" 
+timescale = "daily"
 warming_level_months = list(range(1, 13))
 da = _get_data_and_export(downscaling_method, approach, time_slice, warming_level)
 
@@ -163,7 +163,7 @@ da = _get_data_and_export(downscaling_method, approach, time_slice, warming_leve
 
 downscaling_method = "Dynamical"
 variable = "Air Temperature at 2m"
-timescale = "hourly" 
+timescale = "hourly"
 warming_level_months = [6, 7, 8]
 da = _get_data_and_export(
     downscaling_method, approach, time_slice, warming_level, warming_level_months
