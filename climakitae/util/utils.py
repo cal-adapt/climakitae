@@ -613,6 +613,8 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
     # 3. Find the data's centerpoint through selections
     if selections.data_type == "Station":
         station_name = selections.station
+        
+        from climakitae.core.data_interface import DataInterface
 
         data_catalog = DataInterface()
 
@@ -623,6 +625,7 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
         station_geom = station_df[station_df["station"] == station_name[0]]
         lat = station_geom.LAT_Y.item()
         lon = station_geom.LON_X.item()
+        print(lat, lon)
 
     elif selections.area_average == "Yes":
         # Finding avg. lat/lon when the area is averaged because then it must come from selections.
@@ -676,6 +679,7 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
     # 4. Change datetime objects to local time
     tf = TimezoneFinder()
     local_tz = tf.timezone_at(lng=lon, lat=lat)
+    print(local_tz)
     new_time = (
         pd.DatetimeIndex(total_data.time)
         .tz_localize("UTC")
@@ -683,6 +687,7 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
         .tz_localize(None)
         .astype("datetime64[ns]")
     )
+    # import pdb; pdb.set_trace()
     total_data["time"] = new_time
 
     # 5. Subset the data by the initial time
