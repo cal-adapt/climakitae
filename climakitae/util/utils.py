@@ -10,7 +10,7 @@ import pandas as pd
 import copy
 import intake
 from timezonefinder import TimezoneFinder
-from climakitae.core.paths import data_catalog_url
+from climakitae.core.paths import data_catalog_url, stations_csv_path
 from climakitae.core.constants import SSPS
 
 
@@ -614,18 +614,14 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
     if selections.data_type == "Station":
         station_name = selections.station
 
-        from climakitae.core.data_interface import DataInterface
-
-        data_catalog = DataInterface()
-
         # Getting lat/lon of a specific station
-        station_df = data_catalog.stations.drop(columns=["Unnamed: 0"])
+        stations_df = read_csv_file(stations_csv_path)
+        stations_df = stations_df.drop(columns=["Unnamed: 0"])
 
         # Getting specific station geometry
-        station_geom = station_df[station_df["station"] == station_name[0]]
+        station_geom = stations_df[stations_df["station"] == station_name[0]]
         lat = station_geom.LAT_Y.item()
         lon = station_geom.LON_X.item()
-        print(lat, lon)
 
     elif selections.area_average == "Yes":
         # Finding avg. lat/lon when the area is averaged because then it must come from selections.
@@ -639,31 +635,31 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
 
     elif selections.data_type == "Gridded" and selections.area_subset != "none":
         # Find the avg. lat/lon coordinates from entire geometry within an area subset
-        from climakitae.core.data_interface import DataInterface
+        from climakitae.core.boundaries import Boundaries
 
-        data_catalog = DataInterface()
+        boundaries = Boundaries()
 
         # Making mapping for different geographies to different polygons
         mapping = {
             "CA counties": (
-                data_catalog.geographies._ca_counties,
-                data_catalog.geographies._get_ca_counties(),
+                boundaries.geographies._ca_counties,
+                boundaries.geographies._get_ca_counties(),
             ),
             "CA Electric Balancing Authority Areas": (
-                data_catalog.geographies._ca_electric_balancing_areas,
-                data_catalog.geographies._get_electric_balancing_areas(),
+                boundaries.geographies._ca_electric_balancing_areas,
+                boundaries.geographies._get_electric_balancing_areas(),
             ),
             "CA Electricity Demand Forecast Zones": (
-                data_catalog.geographies._ca_forecast_zones,
-                data_catalog.geographies._get_forecast_zones(),
+                boundaries.geographies._ca_forecast_zones,
+                boundaries.geographies._get_forecast_zones(),
             ),
             "CA Electric Load Serving Entities (IOU & POU)": (
-                data_catalog.geographies._ca_utilities,
-                data_catalog.geographies._get_ious_pous(),
+                boundaries.geographies._ca_utilities,
+                boundaries.geographies._get_ious_pous(),
             ),
             "CA watersheds": (
-                data_catalog.geographies._ca_watersheds,
-                data_catalog.geographies._get_ca_watersheds(),
+                boundaries.geographies._ca_watersheds,
+                boundaries.geographies._get_ca_watersheds(),
             ),
         }
 
