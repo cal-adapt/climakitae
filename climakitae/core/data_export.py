@@ -822,7 +822,7 @@ def export(data, filename="dataexport", format="NetCDF", mode="auto"):
     if req_format not in ["zarr", "netcdf", "csv"]:
         raise Exception('Please select "NetCDF" or "CSV" as the file format.')
 
-    extension_dict = {"zarr": "", "netcdf": ".nc", "csv": ".csv.gz"}
+    extension_dict = {"zarr": ".zarr", "netcdf": ".nc", "csv": ".csv.gz"}
 
     save_name = filename + extension_dict[req_format]
 
