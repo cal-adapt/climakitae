@@ -109,7 +109,7 @@ The row values must match valid options in our data catalog, and the headers of 
    * - Air Temperature at 2m
      - degF
      - Historical Climate
-     - SSP 3-7.0 -- Business as Usual
+     - SSP 3-7.0
      - Yes
      - hourly
      - 9 km
