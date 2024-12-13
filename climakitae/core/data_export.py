@@ -366,8 +366,7 @@ def _export_to_zarr(data, save_name):
 
     _update_encoding(_data)
 
-    #path = f"simplecache::{os.environ['SCRATCH_BUCKET']}/{save_name}"
-    path = 's3://' + export_s3_bucket + "/" + save_name
+    path = f"simplecache::{os.environ['SCRATCH_BUCKET']}/{save_name}"
 
     print("Saving file to S3 scratch bucket without compression...")
     encoding = _fillvalue_encoding(_data)
