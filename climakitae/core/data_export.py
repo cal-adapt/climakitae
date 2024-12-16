@@ -376,13 +376,18 @@ def _export_to_zarr(data, save_name):
 
     print(
         (
-            "Saved! To download the file to your local machine, "
+            "Saved! To open the file in your local machine, "
             "open the following S3 URI using xarray:"
             "\n\n"
             f"{display_path}"
             "\n\n"
-            "Example: ds = xr.open_zarr('" + display_path + "', storage_options={'anon': True})"
+            "Example of opening and saving to netCDF:"
+            "ds = xr.open_zarr('" + display_path + "', storage_options={'anon': True})"
+            "comp = dict(zlib=True, complevel=6)"
+            "compdict = {var: comp for var in ds.data_vars}"
+            "ds.to_netcdf(" + display_path.rstrip('.zarr') + ".nc, encoding=compdict)"
             "\n\n"
+            ""
             "Note: The URL will remain valid for 1 week."
         )
     )
