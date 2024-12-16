@@ -385,7 +385,7 @@ def _export_to_zarr(data, save_name):
             "ds = xr.open_zarr('" + display_path + "', storage_options={'anon': True})\n"
             "comp = dict(zlib=True, complevel=6)\n"
             "compdict = {var: comp for var in ds.data_vars}\n"
-            "ds.to_netcdf('" + display_path.rstrip('.zarr') + ".nc', encoding=compdict)\n"
+            "ds.to_netcdf('" + save_name.rstrip('.zarr') + ".nc', encoding=compdict)\n"
             "\n\n"
             ""
             "Note: The URL will remain valid for 1 week."
