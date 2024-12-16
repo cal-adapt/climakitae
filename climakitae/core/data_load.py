@@ -598,9 +598,7 @@ def _get_data_one_var(selections):
     # If SSP 2-4.5 or SSP 5-8.5 are selected, along with ensmean as the simulation,
     # We want to return the single available CESM2 model
     if ("ensmean" in selections.simulation) and (
-        {"SSP 2-4.5 -- Middle of the Road", "SSP 5-8.5 -- Burn it All"}.intersection(
-            set(scenario_ssp)
-        )
+        {"SSP 2-4.5", "SSP 5-8.5"}.intersection(set(scenario_ssp))
     ):
         method_list = downscaling_method_as_list(selections.downscaling_method)
 

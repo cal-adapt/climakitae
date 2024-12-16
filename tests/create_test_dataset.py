@@ -26,7 +26,7 @@ from climakitae.core.constants import SSPS
 # resolution = "45 km" # Resolution (string): 3 km, 9 km , or 45 km
 # append_historical = False # Append historical data? (boolean) year_start must be < 2015
 # area_average = False
-# scenarios = ['SSP 2-4.5 -- Middle of the Road', 'SSP 3-7.0 -- Business as Usual', 'SSP 5-8.5 -- Burn it All']
+# scenarios = ['SSP 2-4.5', 'SSP 3-7.0', 'SSP 5-8.5']
 # filename = None
 
 # ---- Settings to generate testing file timeseries_data_T2_2014_2016_monthly_45km.nc
@@ -37,7 +37,7 @@ from climakitae.core.constants import SSPS
 # resolution = "45 km"
 # append_historical = True
 # area_average = False
-# scenarios = ['SSP 2-4.5 -- Middle of the Road', 'Historical Climate']
+# scenarios = ['SSP 2-4.5', 'Historical Climate']
 # filename = "timeseries_data_T2_2014_2016_monthly_45km"
 
 # ---- Settings to generate testing file threshold_data_T2_2050_2051_hourly_45km.nc
@@ -48,7 +48,7 @@ timescale = "hourly"
 resolution = "45 km"
 append_historical = False
 area_average = "Yes"
-scenarios = ["SSP 2-4.5 -- Middle of the Road"]
+scenarios = ["SSP 2-4.5"]
 filename = "threshold_data_T2_2050_2051_hourly_45km"
 
 
