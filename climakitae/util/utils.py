@@ -831,9 +831,9 @@ def scenario_to_experiment_id(scenario, reverse=False):
     scenario_dict = {
         "Historical Reconstruction": "reanalysis",
         "Historical Climate": "historical",
-        "SSP 2-4.5 -- Middle of the Road": "ssp245",
-        "SSP 5-8.5 -- Burn it All": "ssp585",
-        "SSP 3-7.0 -- Business as Usual": "ssp370",
+        "SSP 2-4.5": "ssp245",
+        "SSP 5-8.5": "ssp585",
+        "SSP 3-7.0": "ssp370",
     }
 
     if reverse == True:

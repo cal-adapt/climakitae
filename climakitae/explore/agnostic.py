@@ -207,7 +207,7 @@ def _compute_results(selections, agg_func, years, months):
     available_ssps = {
         "Statistical": SSPS,
         "Dynamical": [
-            "SSP 3-7.0 -- Business as Usual",
+            "SSP 3-7.0",
         ],
     }
     logger.debug("Retrieving datasets")

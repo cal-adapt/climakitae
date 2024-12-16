@@ -18,8 +18,8 @@ def test_SEL():
 def test_scenario_dim(test_SEL):
     # Set various non-default selections:
     test_SEL.scenario_ssp = [
-        "SSP 3-7.0 -- Business as Usual",
-        "SSP 2-4.5 -- Middle of the Road",
+        "SSP 3-7.0",
+        "SSP 2-4.5",
     ]
 
     # Get the corresponding dataset dictionary:
