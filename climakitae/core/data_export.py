@@ -368,20 +368,18 @@ def _export_to_zarr(data, save_name):
 
     path = f"simplecache::{os.environ['SCRATCH_BUCKET']}/{save_name}"
 
-    print("Saving file to S3 scratch bucket without compression...")
+    print("Saving file to S3 scratch bucket as Zarr...")
     encoding = _fillvalue_encoding(_data)
     _data.to_zarr(path, encoding=encoding)
 
-    download_url = _create_presigned_url(
-        bucket_name=export_s3_bucket,
-        object_name=path.split(export_s3_bucket + "/")[-1],
-    )
     print(
         (
             "Saved! To download the file to your local machine, "
-            "open the following URL in a web browser:"
+            "open the following S3 URI using xarray:"
             "\n\n"
-            f"{download_url}"
+            f"{path}"
+            "\n\n"
+            "Example: ds = xr.open_zarr('" + path + "', storage_options={'anon': True})"
             "\n\n"
             "Note: The URL will remain valid for 1 week."
         )
