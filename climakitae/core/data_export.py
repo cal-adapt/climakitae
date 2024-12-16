@@ -372,14 +372,16 @@ def _export_to_zarr(data, save_name):
     encoding = _fillvalue_encoding(_data)
     _data.to_zarr(path, encoding=encoding)
 
+    display_path = f"{os.environ['SCRATCH_BUCKET']}/{save_name}"
+
     print(
         (
             "Saved! To download the file to your local machine, "
             "open the following S3 URI using xarray:"
             "\n\n"
-            f"{path}"
+            f"{display_path}"
             "\n\n"
-            "Example: ds = xr.open_zarr('" + path + "', storage_options={'anon': True})"
+            "Example: ds = xr.open_zarr('" + display_path + "', storage_options={'anon': True})"
             "\n\n"
             "Note: The URL will remain valid for 1 week."
         )
