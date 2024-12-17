@@ -42,7 +42,7 @@ def _estimate_file_size(data, format):
     float
         estimated file size in gigabytes
     """
-    if (format == "NetCDF" or format == "Zarr"):
+    if format == "NetCDF" or format == "Zarr":
         data_size = data.nbytes
         buffer_size = 100 * 1024 * 1024  # 100 MB for miscellaneous metadata
         est_file_size = data_size + buffer_size
@@ -116,6 +116,7 @@ def _update_attributes(data):
     for data_var in data.data_vars:
         data[data_var].attrs = _list_n_none_to_string(data[data_var].attrs)
 
+
 def _update_encoding(data):
     """
     Update data encodings to prevent issues when exporting them to NetCDF.
@@ -160,6 +161,7 @@ def _update_encoding(data):
     for data_var in data.data_vars:
         _unencode_missing_value(data[data_var])
 
+
 def _fillvalue_encoding(data):
     """
     Creates FillValue encoding for each variable for export to NetCDF.
@@ -176,6 +178,7 @@ def _fillvalue_encoding(data):
     filldict = {coord: fill for coord in data.coords}
     return filldict
 
+
 def _compression_encoding(data):
     """
     Creates compression encoding for each variable for export to NetCDF.
@@ -191,6 +194,7 @@ def _compression_encoding(data):
     comp = dict(zlib=True, complevel=6)
     compdict = {var: comp for var in data.data_vars}
     return compdict
+
 
 def _create_presigned_url(bucket_name, object_name, expiration=60 * 60 * 24 * 7):
     """
@@ -330,6 +334,7 @@ def _export_to_netcdf(data, save_name, mode):
                 )
             )
 
+
 def _export_to_zarr(data, save_name):
     """
     Export user-selected data to Zarr format.
@@ -382,10 +387,12 @@ def _export_to_zarr(data, save_name):
             f"{display_path}"
             "\n\n"
             "Example of opening and saving to netCDF:\n"
-            "ds = xr.open_zarr('" + display_path + "', storage_options={'anon': True})\n"
+            "ds = xr.open_zarr('"
+            + display_path
+            + "', storage_options={'anon': True})\n"
             "comp = dict(zlib=True, complevel=6)\n"
             "compdict = {var: comp for var in ds.data_vars}\n"
-            "ds.to_netcdf('" + save_name.rstrip('.zarr') + ".nc', encoding=compdict)\n"
+            "ds.to_netcdf('" + save_name.rstrip(".zarr") + ".nc', encoding=compdict)\n"
             "\n\n"
             ""
             "Note: The URL will remain valid for 1 week."
