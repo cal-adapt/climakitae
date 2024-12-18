@@ -726,7 +726,7 @@ def get_warm_level(warm_level, ds, multi_ens=False, ipcc=True):
         gwl_times = read_csv_file(gwl_file, index_col=[0, 1, 2])
     else:
         gwl_file_all = gwl_1981_2010_file
-        gwl_times_all = read_csv_file(gwl_file_all).drop(columns=["0.8", "1.2"])
+        gwl_times_all = read_csv_file(gwl_file_all)
         # Add information on a more complete list of ensemble members of
         # EC-Earth3 to cover internal variability notebook needs
         gwl_file_ece3 = "data/gwl_1981-2010ref_EC-Earth3_ssp370.csv"
