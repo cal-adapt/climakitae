@@ -370,34 +370,49 @@ def _export_to_zarr(data, save_name):
     _update_attributes(_data)
 
     _update_encoding(_data)
+ 
+    s3_client = boto3.client("s3")
+    try:
+        s3_client.head_object(Bucket=os.environ['SCRATCH_BUCKET'], Key=save_name).load()
+    except botocore.exceptions.ClientError as e:
+        if e.response['Error']['Code'] == "404":
+            # The object does not exist so go ahead and write to S3
+            _write_zarr_to_s3(save_name, _data)
+        else:
+            # Something else has gone wrong.
+            raise
+        else:
+            # The object does exist
+            s3_client.delete_object(Bucket=os.environ['SCRATCH_BUCKET'], Key=save_name)
+            _write_zarr_to_s3(save_name, _data)
 
-    path = f"simplecache::{os.environ['SCRATCH_BUCKET']}/{save_name}"
+    def _write_zarr_to_s3(save_name, data):
+        display_path = f"{os.environ['SCRATCH_BUCKET']}/{save_name}"
+        path = "simplecache::" + display_path
 
-    print("Saving file to S3 scratch bucket as Zarr...")
-    encoding = _fillvalue_encoding(_data)
-    _data.to_zarr(path, encoding=encoding)
-
-    display_path = f"{os.environ['SCRATCH_BUCKET']}/{save_name}"
-
-    print(
-        (
-            "Saved! To open the file in your local machine, "
-            "open the following S3 URI using xarray:"
-            "\n\n"
-            f"{display_path}"
-            "\n\n"
-            "Example of opening and saving to netCDF:\n"
-            "ds = xr.open_zarr('"
-            + display_path
-            + "', storage_options={'anon': True})\n"
-            "comp = dict(zlib=True, complevel=6)\n"
-            "compdict = {var: comp for var in ds.data_vars}\n"
-            "ds.to_netcdf('" + save_name.rstrip(".zarr") + ".nc', encoding=compdict)\n"
-            "\n\n"
-            ""
-            "Note: The URL will remain valid for 1 week."
+        print("Saving file to S3 scratch bucket as Zarr...")
+        encoding = _fillvalue_encoding(data)
+        _data.to_zarr(path, encoding=encoding)
+        
+        print(
+            (
+                "Saved! To open the file in your local machine, "
+                "open the following S3 URI using xarray:"
+                "\n\n"
+                f"{display_path}"
+                "\n\n"
+                "Example of opening and saving to netCDF:\n"
+                "ds = xr.open_zarr('"
+                + display_path
+                + "', storage_options={'anon': True})\n"
+                "comp = dict(zlib=True, complevel=6)\n"
+                "compdict = {var: comp for var in ds.data_vars}\n"
+                "ds.to_netcdf('" + save_name.rstrip(".zarr") + ".nc', encoding=compdict)\n"
+                "\n\n"
+                ""
+                "Note: The URL will remain valid for 1 week."
+            )
         )
-    )
 
 
 def _get_unit(dataarray):
