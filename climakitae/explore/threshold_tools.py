@@ -112,7 +112,7 @@ def get_block_maxima(
 
         # select the max (min) in each group
         if extremes_type == "max":
-            da_series = da_series.resample(time=f"{group_len}D", label="left").max(numeric_only=True)
+            da_series = da_series.resample(time=f"{group_len}D", label="left").max(min_count=1)
             print("2", da_series.values.max()) # testing
         elif extremes_type == "min":
             da_series = da_series.resample(time=f"{group_len}D", label="left").min()
