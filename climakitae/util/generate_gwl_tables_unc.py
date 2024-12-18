@@ -3,7 +3,7 @@ Util for generating warming level reference data file
 "gwl_1981-2010ref_EC-Earth3_ssp370.csv" in ../data
 
 The CSV file is generated for use in ../explore/uncertainty.py. It contains, 
-for each ensemble member of EC-Earth3, the times when five major warming levels
+for each ensemble member of EC-Earth3, the times when seven major warming levels
 are reached under SSP3-7.0.
 
 To run, type: <<python generate_gwl_tables_unc.py>> in the command line and wait 
@@ -170,7 +170,7 @@ def main():
         """
         Generates a GWL table for a single model and ensemble member.
 
-        Loops through various global warming levels (1.5, 2, 2.5, 3, and 4 degrees)
+        Loops through various global warming levels (0.8, 1.2, 1.5, 2, 2.5, 3, and 4 degrees)
         for the requested model/variant and scenarios.
 
         Parameters:
@@ -217,7 +217,7 @@ def main():
         )
         gwlevels = pd.DataFrame()
         try:
-            for level in [1.5, 2, 2.5, 3, 4]:
+            for level in [0.8, 1.2, 1.5, 2, 2.5, 3, 4]:
                 gwlevels[level] = get_gwl(one_model.T, level)
         except Exception as e:
             print(
