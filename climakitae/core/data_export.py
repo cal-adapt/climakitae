@@ -1,5 +1,6 @@
 import os
 import boto3
+import botocore
 import fsspec
 import shutil
 import logging
