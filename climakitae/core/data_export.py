@@ -374,6 +374,7 @@ def _export_to_zarr(data, save_name):
 
     display_path = f"{os.environ['SCRATCH_BUCKET']}/{save_name}"
     path = "simplecache::" + display_path
+    prefix = display_path.split(export_s3_bucket + "/")[-1]
 
     def _write_zarr_to_s3(display_path, path, save_name, data):
         print("Saving file to S3 scratch bucket as Zarr...")
@@ -402,10 +403,10 @@ def _export_to_zarr(data, save_name):
             )
         )
 
-    s3_client = boto3.client("s3")
+    s3 = boto3.resource("s3")
     try:
-        s3_client.head_object(
-            Bucket=export_s3_bucket, Key=display_path.split(export_s3_bucket + "/")[-1]
+        s3.Object(
+            Bucket=export_s3_bucket, Key= prefix + "/.zattrs"
         ).load()
     except botocore.exceptions.ClientError as e:
         if e.response["Error"]["Code"] == "404":
@@ -416,7 +417,8 @@ def _export_to_zarr(data, save_name):
             raise
     else:
         # The object does exist
-        s3_client.delete_object(Bucket=os.environ["SCRATCH_BUCKET"], Key=save_name)
+        bucket = s3.Bucket(export_s3_bucket)
+        bucket.objects.filter(Prefix=prefix + "/").delete()
         _write_zarr_to_s3(display_path, path, save_name, _data)
 
 
