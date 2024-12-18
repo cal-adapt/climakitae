@@ -381,10 +381,10 @@ def _export_to_zarr(data, save_name):
         else:
             # Something else has gone wrong.
             raise
-        else:
-            # The object does exist
-            s3_client.delete_object(Bucket=os.environ['SCRATCH_BUCKET'], Key=save_name)
-            _write_zarr_to_s3(save_name, _data)
+    else:
+        # The object does exist
+        s3_client.delete_object(Bucket=os.environ['SCRATCH_BUCKET'], Key=save_name)
+        _write_zarr_to_s3(save_name, _data)
 
     def _write_zarr_to_s3(save_name, data):
         display_path = f"{os.environ['SCRATCH_BUCKET']}/{save_name}"
