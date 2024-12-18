@@ -371,30 +371,15 @@ def _export_to_zarr(data, save_name):
     _update_attributes(_data)
 
     _update_encoding(_data)
- 
+
     display_path = f"{os.environ['SCRATCH_BUCKET']}/{save_name}"
     path = "simplecache::" + display_path
-
-    s3_client = boto3.client("s3")
-    try:
-        s3_client.head_object(Bucket=export_s3_bucket, Key=display_path.split(export_s3_bucket + "/")[-1]).load()
-    except botocore.exceptions.ClientError as e:
-        if e.response['Error']['Code'] == "404":
-            # The object does not exist so go ahead and write to S3
-            _write_zarr_to_s3(display_path, path, save_name, _data)
-        else:
-            # Something else has gone wrong.
-            raise
-    else:
-        # The object does exist
-        s3_client.delete_object(Bucket=os.environ['SCRATCH_BUCKET'], Key=save_name)
-        _write_zarr_to_s3(display_path, path, save_name, _data)
 
     def _write_zarr_to_s3(display_path, path, save_name, data):
         print("Saving file to S3 scratch bucket as Zarr...")
         encoding = _fillvalue_encoding(data)
         _data.to_zarr(path, encoding=encoding)
-        
+
         print(
             (
                 "Saved! To open the file in your local machine, "
@@ -408,12 +393,31 @@ def _export_to_zarr(data, save_name):
                 + "', storage_options={'anon': True})\n"
                 "comp = dict(zlib=True, complevel=6)\n"
                 "compdict = {var: comp for var in ds.data_vars}\n"
-                "ds.to_netcdf('" + save_name.rstrip(".zarr") + ".nc', encoding=compdict)\n"
+                "ds.to_netcdf('"
+                + save_name.rstrip(".zarr")
+                + ".nc', encoding=compdict)\n"
                 "\n\n"
                 ""
                 "Note: The URL will remain valid for 1 week."
             )
         )
+
+    s3_client = boto3.client("s3")
+    try:
+        s3_client.head_object(
+            Bucket=export_s3_bucket, Key=display_path.split(export_s3_bucket + "/")[-1]
+        ).load()
+    except botocore.exceptions.ClientError as e:
+        if e.response["Error"]["Code"] == "404":
+            # The object does not exist so go ahead and write to S3
+            _write_zarr_to_s3(display_path, path, save_name, _data)
+        else:
+            # Something else has gone wrong.
+            raise
+    else:
+        # The object does exist
+        s3_client.delete_object(Bucket=os.environ["SCRATCH_BUCKET"], Key=save_name)
+        _write_zarr_to_s3(display_path, path, save_name, _data)
 
 
 def _get_unit(dataarray):
