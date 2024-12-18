@@ -405,9 +405,7 @@ def _export_to_zarr(data, save_name):
 
     s3 = boto3.resource("s3")
     try:
-        s3.Object(
-            Bucket=export_s3_bucket, Key= prefix + "/.zattrs"
-        ).load()
+        s3.Object(export_s3_bucket, prefix + "/.zattrs").load()
     except botocore.exceptions.ClientError as e:
         if e.response["Error"]["Code"] == "404":
             # The object does not exist so go ahead and write to S3
