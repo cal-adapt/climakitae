@@ -98,7 +98,7 @@ def get_block_maxima(
             # In the case of "max" events, need to first identify the minimum value
             # in each window of the specified duration
             da_series = da_series.rolling(time=dur_len, center=False).min("time")
-            print(da_series.values) # testing
+            print(da_series.values.min()) # testing
         elif extremes_type == "min":
             da_series = da_series.rolling(time=dur_len, center=False).max("time")
 
@@ -114,7 +114,7 @@ def get_block_maxima(
         # select the max (min) in each group
         if extremes_type == "max":
             da_series = da_series.resample(time=f"{group_len}D", label="left").max()
-            print(da_series.values) # testing
+            print(da_series.values.max()) # testing
         elif extremes_type == "min":
             da_series = da_series.resample(time=f"{group_len}D", label="left").min()
 
@@ -134,7 +134,7 @@ def get_block_maxima(
         # Now select the min (max) from the duration period
         if extremes_type == "max":
             da_series = da_series.rolling(time=dur2_len, center=False).min("time")
-            print(da_series.values) # testing
+            print(da_series.values.min()) # testing
         elif extremes_type == "min":
             da_series = da_series.rolling(time=dur2_len, center=False).max("time")
 
@@ -142,7 +142,7 @@ def get_block_maxima(
     if extremes_type == "max":
         bms = da_series.resample(time=f"{block_size}A").max(keep_attrs=True)
         bms.attrs["extremes type"] = "maxima"
-        print(bms.values) # testing
+        print(bms.values.max()) # testing
     elif extremes_type == "min":
         bms = da_series.resample(time=f"{block_size}A").min(keep_attrs=True)
         bms.attrs["extremes type"] = "minima"
