@@ -374,7 +374,7 @@ def _export_to_zarr(data, save_name):
  
     s3_client = boto3.client("s3")
     try:
-        s3_client.head_object(Bucket=os.environ['SCRATCH_BUCKET'], Key=save_name).load()
+        s3_client.head_object(Bucket=export_s3_bucket, Key=path.split(export_s3_bucket + "/")[-1]).load()
     except botocore.exceptions.ClientError as e:
         if e.response['Error']['Code'] == "404":
             # The object does not exist so go ahead and write to S3
