@@ -114,15 +114,28 @@ def get_block_maxima(
         if extremes_type == "max":
             # note: fillna is used to replace nans in timeseries with 0s in precipitation ONLY
             # TODO: evaluate nan in other variables, and more programmatic fix
-            if da_series.name == 'Precipitation (total)':
-                da_series = da_series.resample(time=f"{group_len}D", label="left").max().fillna(value=0) # fill value of 0 will always be precip min, "safe" for max calculation if nan present
-            else: 
+            if da_series.name == "Precipitation (total)":
+                da_series = (
+                    da_series.resample(time=f"{group_len}D", label="left")
+                    .max()
+                    .fillna(value=0)
+                )  # fill value of 0 will always be precip min, "safe" for max calculation if nan present
+            else:
                 da_series = da_series.resample(time=f"{group_len}D", label="left").max()
         elif extremes_type == "min":
             if da_series.name == "Precipitation (total)":
                 # "fix" in min is to set missing value to series max
-                da_series_fillmax = da_series.resample(time=f"{group_len}D", label="left").max().fillna(value=0).values.max()
-                da_series = da_series.resample(time=f"{group_len}D", label="left").min().fillna(value=da_series_fillmax) # fill value set to precip max, "patch" for min calculation if nan present
+                da_series_fillmax = (
+                    da_series.resample(time=f"{group_len}D", label="left")
+                    .max()
+                    .fillna(value=0)
+                    .values.max()
+                )
+                da_series = (
+                    da_series.resample(time=f"{group_len}D", label="left")
+                    .min()
+                    .fillna(value=da_series_fillmax)
+                )  # fill value set to precip max, "patch" for min calculation if nan present
             else:
                 da_series = da_series.resample(time=f"{group_len}D", label="left").min()
 
