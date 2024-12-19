@@ -116,7 +116,6 @@ def get_block_maxima(
             # TODO: evaluate nan in other variables, and more programmatic fix
             if da_series.name == 'Precipitation (total)':
                 da_series = da_series.resample(time=f"{group_len}D", label="left").max().fillna(value=0) # fill value of 0 will always be precip min, "safe" for max calculation if nan present
-                print("LINE TO CHECK", da_series.values.min(), da_series.values.max()) # testing
             else: 
                 da_series = da_series.resample(time=f"{group_len}D", label="left").max()
         elif extremes_type == "min":
@@ -150,7 +149,6 @@ def get_block_maxima(
     if extremes_type == "max":
         bms = da_series.resample(time=f"{block_size}A").max(keep_attrs=True)
         bms.attrs["extremes type"] = "maxima"
-        print("TESTING: ", bms.values)
     elif extremes_type == "min":
         bms = da_series.resample(time=f"{block_size}A").min(keep_attrs=True)
         bms.attrs["extremes type"] = "minima"
