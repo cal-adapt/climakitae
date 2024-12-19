@@ -114,13 +114,13 @@ def get_block_maxima(
         if extremes_type == "max":
             # note: fillna is used to replace nans in timeseries with 0s in precipitation ONLY
             # todo: evaluate a solution for temperature and heat index (if needed)
-            if da.name == 'Precipitation (total)':
+            if da_series.name == 'Precipitation (total)':
                 da_series = da_series.resample(time=f"{group_len}D", label="left").max().fillna(value=0)
                 print("2", da_series.values.max()) # testing
             else: 
                 da_series = da_series.resample(time=f"{group_len}D", label="left").max()
         elif extremes_type == "min":
-            if da.name == "Precipitation (total)":
+            if da_series.name == "Precipitation (total)":
                 da_series = da_series.resample(time=f"{group_len}D", label="left").min().fillna(value=0)
             else:
                 da_series = da_series.resample(time=f"{group_len}D", label="left").min()
