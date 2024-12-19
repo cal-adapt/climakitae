@@ -113,15 +113,14 @@ def get_block_maxima(
         # select the max (min) in each group
         if extremes_type == "max":
             # note: fillna is used to replace nans in timeseries with 0s in precipitation ONLY
-            # todo: evaluate a solution for temperature and heat index (if needed)
             if da_series.name == 'Precipitation (total)':
-                da_series = da_series.resample(time=f"{group_len}D", label="left").max().fillna(value=0)
-                print("2", da_series.values.max()) # testing
+                da_series = da_series.resample(time=f"{group_len}D", label="left").max().fillna(value=0) # fill value of 0 will always be precip min
+                print("LINE TO CHECK", da_series.values.max()) # testing
             else: 
                 da_series = da_series.resample(time=f"{group_len}D", label="left").max()
         elif extremes_type == "min":
             if da_series.name == "Precipitation (total)":
-                da_series = da_series.resample(time=f"{group_len}D", label="left").min().fillna(value=0)
+                da_series = da_series.resample(time=f"{group_len}D", label="left").min().fillna(value=0) # evaluate best fillna fit here!
             else:
                 da_series = da_series.resample(time=f"{group_len}D", label="left").min()
 
@@ -148,7 +147,6 @@ def get_block_maxima(
     if extremes_type == "max":
         bms = da_series.resample(time=f"{block_size}A").max(keep_attrs=True)
         bms.attrs["extremes type"] = "maxima"
-        print("4", bms.values.max()) # testing
     elif extremes_type == "min":
         bms = da_series.resample(time=f"{block_size}A").min(keep_attrs=True)
         bms.attrs["extremes type"] = "minima"
