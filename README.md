@@ -21,12 +21,31 @@ Basic Usage
 -----------
 
 ```
-import climakitae as ck                        # Import the package
-from climakitae.core.data_interface import DataParameters
-sel = DataParameters()                         # Pull up selections to make data settings
-data = sel.retrieve()                          # Retrieve the data from the AWS catalog
-data = ck.load(data)                           # Read the data into memory
+# Import functions of interest from climakitae
+from climakitae.core.data_interface import (
+    get_data_options, 
+    get_subsetting_options, 
+    get_data
+)
+
+# See all the data catalog options as a pandas DataFrame object
+get_data_options()
+
+# See all the area subset options for retrieving a spatial subset of the catalog data
+get_subsetting_options()
+
+# Retrieve data for a single variable for the state of California
+get_data(
+    variable = "Precipitation (total)", 
+    downscaling_method = "Dynamical", 
+    resolution = "9 km", 
+    timescale = "monthly", 
+    scenario = "SSP 3-7.0 -- Business as Usual",
+    cached_area = "CA"
+)
 ```
+
+If you want to use graphic user interfaces to retrieve and view data visualization options (among other features), you'll need to import our sister package `climakitaegui`, which works in tandem with climakitae to produce interactive GUIs. See [climakitaegui](https://github.com/cal-adapt/climakitaegui) for more information on how to use this library. 
 
 Links
 -----
