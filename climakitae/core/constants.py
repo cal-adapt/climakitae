@@ -28,9 +28,7 @@ NON_WRF_BA_MODELS = [
 ]
 
 # WRF models that do not reach 0.8°C GWL
-WRF_NO_0PT8_GWL_MODELS = [
-    "WRF_EC-Earth3-Veg_r1i1p1f1_historical+ssp370"
-]
+WRF_NO_0PT8_GWL_MODELS = ["WRF_EC-Earth3-Veg_r1i1p1f1_historical+ssp370"]
 
 # LOCA models that do not reach 0.8°C GWL
 LOCA_NO_0PT8_GWL_MODELS = [
