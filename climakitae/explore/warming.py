@@ -48,7 +48,7 @@ class WarmingLevels:
 
     def __init__(self, **params):
         self.wl_params = WarmingLevelChoose()
-        # self.warming_levels = ["1.5", "2.0", "3.0", "4.0"]
+        # self.warming_levels = ["0.8", "1.2", "1.5", "2.0", "3.0", "4.0"]
 
     def find_warming_slice(self, level, gwl_times):
         """
@@ -79,6 +79,7 @@ class WarmingLevels:
         # manually reset to all SSPs, in case it was inadvertently changed by
         # temporarily have ['Dynamical','Statistical'] for downscaling_method
         self.wl_params.scenario_ssp = SSPS
+
         # Postage data and anomalies
         self.catalog_data = self.wl_params.retrieve()
         self.catalog_data = self.catalog_data.stack(all_sims=["simulation", "scenario"])
@@ -170,7 +171,7 @@ def clean_warm_data(warm_data):
     return warm_data
 
 
-def get_sliced_data(y, level, years, months=np.arange(1, 13), window=15, anom="Yes"):
+def get_sliced_data(y, level, years, months=np.arange(1, 13), window=15, anom="No"):
     """Calculating warming level anomalies.
 
     Parameters
@@ -288,7 +289,7 @@ class WarmingLevelChoose(DataParameters):
     anom = param.Selector(
         default="Yes",
         objects=["Yes", "No"],
-        doc="Return an anomaly \n(difference from historical reference period)?",
+        doc="Return a delta signal \n(difference from historical reference period)?",
     )
 
     def __init__(self, *args, **params):
@@ -303,7 +304,7 @@ class WarmingLevelChoose(DataParameters):
         self.variable = "Air Temperature at 2m"
 
         # Choosing specific warming levels
-        self.warming_levels = ["1.5", "2.0", "3.0", "4.0"]
+        self.warming_levels = ["0.8", "1.2", "1.5", "2.0", "3.0", "4.0"]
         self.months = np.arange(1, 13)
 
         # Location defaults
