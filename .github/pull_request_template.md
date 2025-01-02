@@ -5,7 +5,7 @@
 [Why did you change this and what applicable context is needed to understand why this change is needed?]
 
 ## How to test 
-[How should reviewer's test the changes?] 
+[How should reviewers test the changes?] 
 
 ## Type of change
 - [ ] Bug fix (non-breaking change which fixes an issue)
@@ -27,3 +27,4 @@
   - [ ] Helper functions hidden with `_` before the name
 - [ ] Any notebooks known to utilize the affected functions are still working
 - [ ] Black formatting has been utilized
+- [ ] Tagged/notified 2 reviewers for this PR
