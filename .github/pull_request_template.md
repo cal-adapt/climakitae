@@ -14,7 +14,7 @@
 - [ ] This change requires a documentation update
 - [ ] None of the above  
 
-## Practical
+## To-Do
 - [ ] Unit tests
   - [ ] Existing unit tests are passing
   - [ ] If relevant, new unit tests are written (required 80% unit test coverage)
