@@ -19,7 +19,6 @@
   - [ ] Existing unit tests are passing
   - [ ] If relevant, new unit tests are written (required 80% unit test coverage)
 - [ ] Documentation
-  - [ ] All functions/adjusted functions documented in the [readthedocs](https://climakitae.readthedocs.io/en/latest/).
   - [ ] Intent of all functions included
   - [ ] Complex code commented
   - [ ] Functions include [NumPy style docstrings](https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_numpy.html) 
