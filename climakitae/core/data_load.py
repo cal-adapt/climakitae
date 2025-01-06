@@ -708,6 +708,78 @@ def _check_valid_unit_selection(selections):
     return None
 
 
+def _get_Uearth(selections):
+    """Rotate winds from WRF grid --> spherical earth
+    We need to rotate U and V to Earth-relative coordinates in order to properly derive wind direction and generally make comparisons against observations.
+    Reference: https://www-k12.atmos.washington.edu/~ovens/wrfwinds.html
+    Ideally, this should NOT be done programmatically... we should update the zarrs and remove this code
+
+    Parameters
+    ----------
+    selections: DataParameters
+
+    Returns
+    -------
+    da: xr.DataArray
+    """
+    # Load u10 data
+    selections.variable_id = ["u10"]
+    u10_da = _get_data_one_var(selections)
+
+    # Load v10 data
+    selections.variable_id = ["v10"]
+    v10_da = _get_data_one_var(selections)
+
+    # Read in the appropriate file depending on the data resolution
+    # This file contains sinalpha and cosalpha for the WRF grid
+    gridlabel = resolution_to_gridlabel(selections.resolution)
+    wrf_angles_ds = xr.open_zarr("s3://cadcat-tmp/wrfinput_{}.zarr/".format(gridlabel))
+    sinalpha = wrf_angles_ds.SINALPHA
+    cosalpha = wrf_angles_ds.COSALPHA
+
+    # Compute Uearth
+    Uearth = u10_da * cosalpha - v10_da * sinalpha
+
+    return Uearth
+
+
+def _get_Vearth(selections):
+    """Rotate winds from WRF grid --> spherical earth
+    We need to rotate U and V to Earth-relative coordinates in order to properly derive wind direction and generally make comparisons against observations.
+    Reference: https://www-k12.atmos.washington.edu/~ovens/wrfwinds.html
+    Ideally, this should NOT be done programmatically... we should update the zarrs and remove this code
+
+    Parameters
+    ----------
+    selections: DataParameters
+
+    Returns
+    -------
+    da: xr.DataArray
+    """
+    # Load u10 data
+    selections.variable_id = ["u10"]
+    # u10_da = _get_data_one_var(selections)
+    u10_da = _get_Uearth(selections)
+
+    # Load v10 data
+    selections.variable_id = ["v10"]
+    # v10_da = _get_data_one_var(selections)
+    v10_da = _get_Vearth(selections)
+
+    # Read in the appropriate file depending on the data resolution
+    # This file contains sinalpha and cosalpha for the WRF grid
+    gridlabel = resolution_to_gridlabel(selections.resolution)
+    wrf_angles_ds = xr.open_zarr("s3://cadcat-tmp/wrfinput_{}.zarr/".format(gridlabel))
+    sinalpha = wrf_angles_ds.SINALPHA
+    cosalpha = wrf_angles_ds.COSALPHA
+
+    # Compute Uearth
+    Vearth = v10_da * cosalpha + u10_da * sinalpha
+
+    return Vearth
+
+
 def _get_wind_speed_derived(selections):
     """Get input data and derive wind speed for hourly data
 
@@ -724,12 +796,14 @@ def _get_wind_speed_derived(selections):
     selections.units = (
         "m s-1"  # Need to set units to required units for compute_wind_mag
     )
-    u10_da = _get_data_one_var(selections)
+    # u10_da = _get_data_one_var(selections)
+    u10_da = _get_Uearth(selections)
 
     # Load v10 data
     selections.variable_id = ["v10"]
     selections.units = "m s-1"
-    v10_da = _get_data_one_var(selections)
+    # v10_da = _get_data_one_var(selections)
+    v10_da = _get_Vearth(selections)
 
     # Derive the variable
     da = compute_wind_mag(u10=u10_da, v10=v10_da)  # m/s
@@ -1119,7 +1193,7 @@ def read_catalog_from_select(selections):
         if original_time_slice[1] < obs_data_bounds[1]:
             selections.time_slice = (selections.time_slice[0], obs_data_bounds[1])
 
-    # Deal with derived variables
+    ## ------ Deal with derived variables ------
     orig_var_id_selection = selections.variable_id[0]
     orig_unit_selection = selections.units
     orig_variable_selection = selections.variable
@@ -1150,7 +1224,7 @@ def read_catalog_from_select(selections):
                 "You've encountered a bug. No data available for selected derived variable."
             )
 
-        # Set attributes
+        # ------ Set attributes ------
         # Some of the derived variables may be constructed from data that comes from the same institution
         # The dev team hasn't looked into this yet -- opportunity for future improvement
         if "grid_mapping" in da.attrs:
@@ -1166,6 +1240,17 @@ def read_catalog_from_select(selections):
         selections.variable_id = [orig_var_id_selection]
         selections.units = orig_unit_selection
 
+    # Rotate wind vectors
+    elif (
+        any(x in selections.variable_id for x in ["u10", "v10"])
+        and selections.downscaling_method == "Dynamical"
+    ):
+        if "u10" in selections.variable_id:
+            da = _get_Uearth(selections)
+        elif "v10" in selections.variable_id:
+            da = _get_Vearth(selections)
+
+    # Any other variable... i.e. not an index, derived var, or a WRF wind vector
     else:
         da = _get_data_one_var(selections)
 
