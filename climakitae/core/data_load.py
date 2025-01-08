@@ -1251,14 +1251,14 @@ def read_catalog_from_select(selections):
         selections.units = orig_unit_selection
 
     # Rotate wind vectors
-    # elif (
-    #     any(x in selections.variable_id for x in ["u10", "v10"])
-    #     and selections.downscaling_method == "Dynamical"
-    # ):
-    #     if "u10" in selections.variable_id:
-    #         da = _get_Uearth(selections)
-    #     elif "v10" in selections.variable_id:
-    #         da = _get_Vearth(selections)
+    elif (
+        any(x in selections.variable_id for x in ["u10", "v10"])
+        and selections.downscaling_method == "Dynamical"
+    ):
+        if "u10" in selections.variable_id:
+            da = _get_Uearth(selections)
+        elif "v10" in selections.variable_id:
+            da = _get_Vearth(selections)
 
     # Any other variable... i.e. not an index, derived var, or a WRF wind vector
     else:
