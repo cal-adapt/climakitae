@@ -733,7 +733,12 @@ def _get_Uearth(selections):
     # Read in the appropriate file depending on the data resolution
     # This file contains sinalpha and cosalpha for the WRF grid
     gridlabel = resolution_to_gridlabel(selections.resolution)
-    wrf_angles_ds = xr.open_zarr("s3://cadcat-tmp/wrfinput_{}.zarr/".format(gridlabel))
+    wrf_angles_ds = xr.open_zarr(
+        "s3://cadcat-tmp/wrf_angles_{}.zarr/".format(gridlabel)
+    )
+    wrf_angles_ds = _spatial_subset(
+        wrf_angles_ds, selections
+    )  # Clip to spatial subset of data
     sinalpha = wrf_angles_ds.SINALPHA
     cosalpha = wrf_angles_ds.COSALPHA
 
@@ -770,7 +775,12 @@ def _get_Vearth(selections):
     # Read in the appropriate file depending on the data resolution
     # This file contains sinalpha and cosalpha for the WRF grid
     gridlabel = resolution_to_gridlabel(selections.resolution)
-    wrf_angles_ds = xr.open_zarr("s3://cadcat-tmp/wrfinput_{}.zarr/".format(gridlabel))
+    wrf_angles_ds = xr.open_zarr(
+        "s3://cadcat-tmp/wrf_angles_{}.zarr/".format(gridlabel)
+    )
+    wrf_angles_ds = _spatial_subset(
+        wrf_angles_ds, selections
+    )  # Clip to spatial subset of data
     sinalpha = wrf_angles_ds.SINALPHA
     cosalpha = wrf_angles_ds.COSALPHA
 
@@ -826,12 +836,14 @@ def _get_wind_dir_derived(selections):
     selections.units = (
         "m s-1"  # Need to set units to required units for compute_wind_mag
     )
-    u10_da = _get_data_one_var(selections)
+    # u10_da = _get_data_one_var(selections)
+    u10_da = _get_Uearth(selections)
 
     # Load v10 data
     selections.variable_id = ["v10"]
     selections.units = "m s-1"
-    v10_da = _get_data_one_var(selections)
+    # v10_da = _get_data_one_var(selections)
+    v10_da = _get_Vearth(selections)
 
     # Derive the variable
     da = compute_wind_dir(u10=u10_da, v10=v10_da)
@@ -1241,14 +1253,14 @@ def read_catalog_from_select(selections):
         selections.units = orig_unit_selection
 
     # Rotate wind vectors
-    elif (
-        any(x in selections.variable_id for x in ["u10", "v10"])
-        and selections.downscaling_method == "Dynamical"
-    ):
-        if "u10" in selections.variable_id:
-            da = _get_Uearth(selections)
-        elif "v10" in selections.variable_id:
-            da = _get_Vearth(selections)
+    # elif (
+    #     any(x in selections.variable_id for x in ["u10", "v10"])
+    #     and selections.downscaling_method == "Dynamical"
+    # ):
+    #     if "u10" in selections.variable_id:
+    #         da = _get_Uearth(selections)
+    #     elif "v10" in selections.variable_id:
+    #         da = _get_Vearth(selections)
 
     # Any other variable... i.e. not an index, derived var, or a WRF wind vector
     else:
