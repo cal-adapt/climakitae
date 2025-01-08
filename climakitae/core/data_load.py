@@ -722,13 +722,13 @@ def _get_Uearth(selections):
     -------
     da: xr.DataArray
     """
-    # Load u10 data
-    selections.variable_id = ["u10"]
-    u10_da = _get_data_one_var(selections)
-
     # Load v10 data
     selections.variable_id = ["v10"]
     v10_da = _get_data_one_var(selections)
+
+    # Load u10 data
+    selections.variable_id = ["u10"]
+    u10_da = _get_data_one_var(selections)
 
     # Read in the appropriate file depending on the data resolution
     # This file contains sinalpha and cosalpha for the WRF grid
@@ -764,13 +764,11 @@ def _get_Vearth(selections):
     """
     # Load u10 data
     selections.variable_id = ["u10"]
-    # u10_da = _get_data_one_var(selections)
-    u10_da = _get_Uearth(selections)
+    u10_da = _get_data_one_var(selections)
 
     # Load v10 data
     selections.variable_id = ["v10"]
-    # v10_da = _get_data_one_var(selections)
-    v10_da = _get_Vearth(selections)
+    v10_da = _get_data_one_var(selections)
 
     # Read in the appropriate file depending on the data resolution
     # This file contains sinalpha and cosalpha for the WRF grid
