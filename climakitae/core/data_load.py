@@ -745,6 +745,9 @@ def _get_Uearth(selections):
     # Compute Uearth
     Uearth = u10_da * cosalpha - v10_da * sinalpha
 
+    # Add variable name
+    Uearth.name = selections.variable
+
     return Uearth
 
 
@@ -784,6 +787,9 @@ def _get_Vearth(selections):
 
     # Compute Uearth
     Vearth = v10_da * cosalpha + u10_da * sinalpha
+
+    # Add variable name
+    Vearth.name = selections.variable
 
     return Vearth
 
