@@ -345,6 +345,11 @@ def _process_dset(ds_name, dset, selections):
     # Time slice
     dset = _time_slice(dset, selections)
 
+    # Trim WRF domain edges
+    # Clip 10 grid cells around the entire grid
+    if selections.downscaling_method == "Dynamical":
+        dset = dset.isel(x=slice(10, -10), y=slice(10, -10))
+
     # Perform area subsetting
     dset = _spatial_subset(dset, selections)
 
