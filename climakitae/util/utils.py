@@ -12,6 +12,7 @@ import intake
 from timezonefinder import TimezoneFinder
 from climakitae.core.paths import data_catalog_url, stations_csv_path
 from climakitae.core.constants import SSPS
+from climakitae.core.boundaries import Boundaries
 
 
 def downscaling_method_as_list(downscaling_method):
@@ -635,31 +636,30 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
 
     elif selections.data_type == "Gridded" and selections.area_subset != "none":
         # Find the avg. lat/lon coordinates from entire geometry within an area subset
-        from climakitae.core.boundaries import Boundaries
 
-        boundaries = Boundaries()
+        boundaries = selections._geographies
 
         # Making mapping for different geographies to different polygons
         mapping = {
             "CA counties": (
-                boundaries.geographies._ca_counties,
-                boundaries.geographies._get_ca_counties(),
+                boundaries._ca_counties,
+                boundaries._get_ca_counties(),
             ),
             "CA Electric Balancing Authority Areas": (
-                boundaries.geographies._ca_electric_balancing_areas,
-                boundaries.geographies._get_electric_balancing_areas(),
+                boundaries._ca_electric_balancing_areas,
+                boundaries._get_electric_balancing_areas(),
             ),
             "CA Electricity Demand Forecast Zones": (
-                boundaries.geographies._ca_forecast_zones,
-                boundaries.geographies._get_forecast_zones(),
+                boundaries._ca_forecast_zones,
+                boundaries._get_forecast_zones(),
             ),
             "CA Electric Load Serving Entities (IOU & POU)": (
-                boundaries.geographies._ca_utilities,
-                boundaries.geographies._get_ious_pous(),
+                boundaries._ca_utilities,
+                boundaries._get_ious_pous(),
             ),
             "CA watersheds": (
-                boundaries.geographies._ca_watersheds,
-                boundaries.geographies._get_ca_watersheds(),
+                boundaries._ca_watersheds,
+                boundaries._get_ca_watersheds(),
             ),
         }
 
