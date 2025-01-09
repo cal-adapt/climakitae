@@ -15,10 +15,9 @@ from climakitae.core.paths import gwl_1981_2010_file, gwl_1850_1900_file
 from climakitae.util.utils import (
     read_csv_file,
     scenario_to_experiment_id,
-    timescale_to_table_id,
-    resolution_to_gridlabel,
-    drop_invalid_wl_sims,
+    _get_cat_subset,
 )
+from climakitae.core.constants import SSPS
 
 from tqdm.auto import tqdm
 
@@ -49,7 +48,7 @@ class WarmingLevels:
 
     def __init__(self, **params):
         self.wl_params = WarmingLevelChoose()
-        # self.warming_levels = ["1.5", "2.0", "3.0", "4.0"]
+        # self.warming_levels = ["0.8", "1.2", "1.5", "2.0", "3.0", "4.0"]
 
     def find_warming_slice(self, level, gwl_times):
         """
@@ -79,19 +78,14 @@ class WarmingLevels:
     def calculate(self):
         # manually reset to all SSPs, in case it was inadvertently changed by
         # temporarily have ['Dynamical','Statistical'] for downscaling_method
-        self.wl_params.scenario_ssp = [
-            "SSP 3-7.0 -- Business as Usual",
-            "SSP 2-4.5 -- Middle of the Road",
-            "SSP 5-8.5 -- Burn it All",
-        ]
+        self.wl_params.scenario_ssp = SSPS
+
         # Postage data and anomalies
         self.catalog_data = self.wl_params.retrieve()
         self.catalog_data = self.catalog_data.stack(all_sims=["simulation", "scenario"])
 
         # Dropping invalid simulations that come up from stacking scenarios and simulations together
-        self.catalog_data = drop_invalid_wl_sims(
-            self.catalog_data, self.wl_params.downscaling_method
-        )
+        self.catalog_data = _drop_invalid_sims(self.catalog_data, self.wl_params)
 
         if self.wl_params.anom == "Yes":
             self.gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
@@ -177,7 +171,7 @@ def clean_warm_data(warm_data):
     return warm_data
 
 
-def get_sliced_data(y, level, years, months=np.arange(1, 13), window=15, anom="Yes"):
+def get_sliced_data(y, level, years, months=np.arange(1, 13), window=15, anom="No"):
     """Calculating warming level anomalies.
 
     Parameters
@@ -295,7 +289,7 @@ class WarmingLevelChoose(DataParameters):
     anom = param.Selector(
         default="Yes",
         objects=["Yes", "No"],
-        doc="Return an anomaly \n(difference from historical reference period)?",
+        doc="Return a delta signal \n(difference from historical reference period)?",
     )
 
     def __init__(self, *args, **params):
@@ -304,17 +298,13 @@ class WarmingLevelChoose(DataParameters):
         self.scenario_historical = ["Historical Climate"]
         self.area_average = "No"
         self.resolution = "45 km"
-        self.scenario_ssp = [
-            "SSP 3-7.0 -- Business as Usual",
-            "SSP 2-4.5 -- Middle of the Road",
-            "SSP 5-8.5 -- Burn it All",
-        ]
+        self.scenario_ssp = SSPS
         self.time_slice = (1980, 2100)
         self.timescale = "monthly"
         self.variable = "Air Temperature at 2m"
 
         # Choosing specific warming levels
-        self.warming_levels = ["1.5", "2.0", "3.0", "4.0"]
+        self.warming_levels = ["0.8", "1.2", "1.5", "2.0", "3.0", "4.0"]
         self.months = np.arange(1, 13)
 
         # Location defaults
@@ -338,57 +328,36 @@ class WarmingLevelChoose(DataParameters):
             self.anom = "Yes"
 
 
-def drop_invalid_wrf_sims(ds):
+def _drop_invalid_sims(ds, selections):
     """
-    Drop invalid WRF simulations from the given dataset since there is an unequal number of simulations per SSP.
+    As part of the warming levels calculation, the data is stacked by simulation and scenario, creating some empty values for that coordinate.
+    Here, we remove those empty coordinate values.
 
     Parameters
     ----------
     ds : xr.Dataset
-        The dataset containing WRF simulations. The dataset must have a
+        The dataset must have a
         dimension `all_sims` that results from stacking `simulation` and
         `scenario`.
+    data_catalog: pd.DataFrame
+        intake catalog, loaded as a pandas dataframe
 
     Returns
     -------
     xr.Dataset
-        The dataset with only valid WRF simulations retained.
+        The dataset with only valid simulations retained.
 
     Raises
     ------
     AttributeError
         If the dataset does not have an `all_sims` dimension.
-
-    Notes
-    -----
-    - For datasets with a resolution of '3 km', no simulations are dropped, and the original dataset is returned.
-    - For datasets with a resolution of '9 km' at hourly timescale, only 10 simulations are returned.
-    - For datasets with a resolution of '9 km' at daily/monthly timescale, only 6 simulations are returned.
-    - For datasets with a resolution of '45 km' at hourly timescale, only 7 simulations are returned.
-    - For datasets with a resolution of '45 km' at daily/monthly timescale, only 6 simulations are returned.
     """
-    if "all_sims" not in ds.dims:
-        raise AttributeError(
-            "Missing an `all_sims` dimension on the dataset. Create `all_sims` with .stack on `simulation` and `scenario`."
-        )
+    df = _get_cat_subset(selections).df
 
-    # Checking for derived variables separately since we don't store their IDs in the catalog
-    # Future derived variables that don't use `t2` will be broken because of this function.
-    variable = ds.variable_id
-    if "derived" in variable:
-        variable = "t2"
+    # Just trying to see simulations across SSPs, not including historical period
+    filter_df = df[df["experiment_id"] != "historical"]
 
-    # Find valid simulation from catalog
-    df = intake.open_esm_datastore(data_catalog_url).df
-    filter_df = df[
-        (df["activity_id"] == "WRF")
-        & (df["table_id"] == timescale_to_table_id(ds.frequency))
-        & (df["grid_label"] == resolution_to_gridlabel(ds.resolution))
-        & (df["variable_id"] == variable)
-        & (df["experiment_id"] != "historical")
-        & (df["experiment_id"] != "reanalysis")
-        & (df["source_id"] != "ensmean")
-    ]
+    # Creating a valid simulation list to filter the original dataset from
     valid_sim_list = list(
         zip(
             filter_df["activity_id"]

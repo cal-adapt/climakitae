@@ -10,7 +10,8 @@ import pandas as pd
 import copy
 import intake
 from timezonefinder import TimezoneFinder
-from climakitae.core.paths import data_catalog_url
+from climakitae.core.paths import data_catalog_url, stations_csv_path
+from climakitae.core.constants import SSPS
 
 
 def downscaling_method_as_list(downscaling_method):
@@ -613,13 +614,12 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
     if selections.data_type == "Station":
         station_name = selections.station
 
-        data_catalog = DataInterface()
-
         # Getting lat/lon of a specific station
-        station_df = data_catalog.stations.drop(columns=["Unnamed: 0"])
+        stations_df = read_csv_file(stations_csv_path)
+        stations_df = stations_df.drop(columns=["Unnamed: 0"])
 
         # Getting specific station geometry
-        station_geom = station_df[station_df["station"] == station_name[0]]
+        station_geom = stations_df[stations_df["station"] == station_name[0]]
         lat = station_geom.LAT_Y.item()
         lon = station_geom.LON_X.item()
 
@@ -635,31 +635,31 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
 
     elif selections.data_type == "Gridded" and selections.area_subset != "none":
         # Find the avg. lat/lon coordinates from entire geometry within an area subset
-        from climakitae.core.data_interface import DataInterface
+        from climakitae.core.boundaries import Boundaries
 
-        data_catalog = DataInterface()
+        boundaries = Boundaries()
 
         # Making mapping for different geographies to different polygons
         mapping = {
             "CA counties": (
-                data_catalog.geographies._ca_counties,
-                data_catalog.geographies._get_ca_counties(),
+                boundaries.geographies._ca_counties,
+                boundaries.geographies._get_ca_counties(),
             ),
             "CA Electric Balancing Authority Areas": (
-                data_catalog.geographies._ca_electric_balancing_areas,
-                data_catalog.geographies._get_electric_balancing_areas(),
+                boundaries.geographies._ca_electric_balancing_areas,
+                boundaries.geographies._get_electric_balancing_areas(),
             ),
             "CA Electricity Demand Forecast Zones": (
-                data_catalog.geographies._ca_forecast_zones,
-                data_catalog.geographies._get_forecast_zones(),
+                boundaries.geographies._ca_forecast_zones,
+                boundaries.geographies._get_forecast_zones(),
             ),
             "CA Electric Load Serving Entities (IOU & POU)": (
-                data_catalog.geographies._ca_utilities,
-                data_catalog.geographies._get_ious_pous(),
+                boundaries.geographies._ca_utilities,
+                boundaries.geographies._get_ious_pous(),
             ),
             "CA watersheds": (
-                data_catalog.geographies._ca_watersheds,
-                data_catalog.geographies._get_ca_watersheds(),
+                boundaries.geographies._ca_watersheds,
+                boundaries.geographies._get_ca_watersheds(),
             ),
         }
 
@@ -682,6 +682,7 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
         .tz_localize(None)
         .astype("datetime64[ns]")
     )
+    # import pdb; pdb.set_trace()
     total_data["time"] = new_time
 
     # 5. Subset the data by the initial time
@@ -693,6 +694,9 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
 
     # Reset selections object to what it was originally
     selections.time_slice = (start, end)
+
+    # Add timezone attribute to data
+    sliced_data = sliced_data.assign_attrs({"timezone": local_tz})
 
     return sliced_data
 
@@ -719,24 +723,21 @@ def add_dummy_time_to_wl(wl_da):
     - It supports creating dummy time series with frequencies of hours, days, or months, based on the prefix of the dimension name.
     - The dummy time series starts from "2000-01-01".
     """
-    # Adjusting the time index into dummy time-series for counting
-    # Finding time-based dimension
-    wl_time_dim = [dim for dim in wl_da.dims if "from_center" in dim][0]
-
-    # Finding time frequency
-    time_freq_name = wl_time_dim.split("_")[0]
-    name_to_freq = {"hours": "H", "days": "D", "months": "M"}
+    # Creating map from frequency name to freq var needed for pandas date range
+    name_to_freq = {"hourly": "H", "daily": "D", "monthly": "M"}
 
     # Creating dummy timestamps
     timestamps = pd.date_range(
         "2000-01-01",
-        periods=len(wl_da[wl_time_dim]),
-        freq=name_to_freq[time_freq_name],
+        periods=len(wl_da["time_delta"]),
+        freq=name_to_freq[wl_da.frequency],
     )
 
     # Replacing WL timestamps with dummy timestamps so that calculations from tools like `thresholds_tools`
     # can be computed on a DataArray with a time dimension
-    wl_da = wl_da.assign_coords({wl_time_dim: timestamps}).rename({wl_time_dim: "time"})
+    wl_da = wl_da.assign_coords({"time_delta": timestamps}).rename(
+        {"time_delta": "time"}
+    )
     return wl_da
 
 
@@ -830,9 +831,9 @@ def scenario_to_experiment_id(scenario, reverse=False):
     scenario_dict = {
         "Historical Reconstruction": "reanalysis",
         "Historical Climate": "historical",
-        "SSP 2-4.5 -- Middle of the Road": "ssp245",
-        "SSP 5-8.5 -- Burn it All": "ssp585",
-        "SSP 3-7.0 -- Business as Usual": "ssp370",
+        "SSP 2-4.5": "ssp245",
+        "SSP 5-8.5": "ssp585",
+        "SSP 3-7.0": "ssp370",
     }
 
     if reverse == True:
@@ -840,88 +841,110 @@ def scenario_to_experiment_id(scenario, reverse=False):
     return scenario_dict[scenario]
 
 
-def drop_invalid_wl_sims(ds, downscaling_method):
-    """
-    Drop invalid WRF simulations from the given dataset since there is an unequal number of simulations per SSP.
+def _get_cat_subset(selections):
+    """For an input set of data selections, get the catalog subset.
 
     Parameters
     ----------
-    ds : xr.Dataset
-        The dataset containing WRF simulations. The dataset must have a
-        dimension `all_sims` that results from stacking `simulation` and
-        `scenario`.
+    selections: DataParameters
+        object holding user's selections
 
     Returns
     -------
-    xr.Dataset
-        The dataset with only valid WRF simulations retained.
-
-    Raises
-    ------
-    AttributeError
-        If the dataset does not have an `all_sims` dimension.
-
-    Notes
-    -----
-    - For datasets with a resolution of '3 km', no simulations are dropped, and the original dataset is returned.
-    - For datasets with a resolution of '9 km' at hourly timescale, only 10 simulations are returned.
-    - For datasets with a resolution of '9 km' at daily/monthly timescale, only 6 simulations are returned.
-    - For datasets with a resolution of '45 km' at hourly timescale, only 7 simulations are returned.
-    - For datasets with a resolution of '45 km' at daily/monthly timescale, only 6 simulations are returned.
+    cat_subset: intake_esm.source.ESMDataSource
+        catalog subset
     """
-    if "all_sims" not in ds.dims:
-        raise AttributeError(
-            "Missing an `all_sims` dimension on the dataset. Create `all_sims` with .stack on `simulation` and `scenario`."
+
+    scenario_ssp, scenario_historical = _get_scenario_from_selections(selections)
+
+    scenario_selections = scenario_ssp + scenario_historical
+
+    method_list = downscaling_method_as_list(selections.downscaling_method)
+
+    # If the variable is a derived variable, get the catalog subset for the first variable dependency
+    if "_derived" in selections.variable_id[0]:
+        var_descrip_df = selections._variable_descriptions
+        first_dependency_var_id = (
+            var_descrip_df[var_descrip_df["variable_id"] == selections.variable_id[0]][
+                "dependencies"
+            ]
+            .values[0]
+            .split(",")[0]
         )
+        variable_id = [first_dependency_var_id]
+    else:  # Otherwise, just use the variable id
+        variable_id = selections.variable_id
 
-    # Checking for derived variables separately since we don't store their IDs in the catalog
-    # Future derived variables that don't use `t2` will be broken because of this function.
-    variable = ds.variable_id
-    if "derived" in variable:
-        variable = "t2"
+    # Get catalog keys
+    # Convert user-friendly names to catalog names (i.e. "45 km" to "d01")
+    activity_id = [downscaling_method_to_activity_id(dm) for dm in method_list]
+    table_id = timescale_to_table_id(selections.timescale)
+    grid_label = resolution_to_gridlabel(selections.resolution)
+    experiment_id = [scenario_to_experiment_id(x) for x in scenario_selections]
+    source_id = selections.simulation
 
-    # Modifying downscaling method filtering
-    downscaling_filter = (
-        ["WRF", "LOCA2"]
-        if downscaling_method == "Dynamical+Statistical"
-        else [downscaling_method_to_activity_id(downscaling_method)]
+    cat_subset = selections._data_catalog.search(
+        activity_id=activity_id,
+        table_id=table_id,
+        grid_label=grid_label,
+        variable_id=variable_id,
+        experiment_id=experiment_id,
+        source_id=source_id,
     )
 
-    # Find valid simulation from catalog
-    df = intake.open_esm_datastore(data_catalog_url).df
-    filter_df = df[
-        (df["activity_id"].isin(downscaling_filter))
-        & (df["table_id"] == timescale_to_table_id(ds.frequency))
-        & (df["grid_label"] == resolution_to_gridlabel(ds.resolution))
-        & (df["variable_id"] == variable)
-        & (df["experiment_id"] != "historical")
-        & (df["experiment_id"] != "reanalysis")
-        & (df["source_id"] != "ensmean")
-    ]
-    valid_sim_list = list(
-        zip(
-            filter_df["activity_id"]
-            + "_"
-            + filter_df["source_id"]
-            + "_"
-            + filter_df["member_id"],
-            filter_df["experiment_id"].apply(
-                lambda val: f"Historical + {scenario_to_experiment_id(val, reverse=True)}"
-            ),
-        )
-    )
-    filtered_sims = [sim for sim in valid_sim_list if sim in list(ds.all_sims.values)]
-    return ds.sel(all_sims=filtered_sims)
+    # Get just data that's on the LOCA grid
+    # This will include LOCA data and WRF data on the LOCA native grid
+    # Both datasets are tagged with UCSD as the institution_id, so we can use "UCSD" to further subset the catalog data
+    if "Statistical" in selections.downscaling_method:
+        cat_subset = cat_subset.search(institution_id="UCSD")
+    # If only dynamical is selected, we need to remove UCSD from the WRF query
+    else:
+        wrf_on_native_grid = [
+            institution
+            for institution in selections._data_catalog.df.institution_id.unique()
+            if institution != "UCSD"
+        ]
+        cat_subset = cat_subset.search(institution_id=wrf_on_native_grid)
+
+    return cat_subset
 
 
-def stack_sims_across_locs(ds, sim_dim_name):
+def _get_scenario_from_selections(selections):
+    """Get scenario from DataParameters object
+    This needs to be handled differently due to warming levels retrieval method, which sets scenario to "n/a" for both historical and ssp.
+
+    Parameters
+    ----------
+    selections: DataParameters
+        object holding user's selections
+
+    Returns
+    -------
+    scenario_ssp: list of str
+    scenario_historical: list of str
+
+    """
+
+    if selections.approach == "Time":
+        scenario_ssp = selections.scenario_ssp
+        scenario_historical = selections.scenario_historical
+
+    elif selections.approach == "Warming Level":
+        # Need all scenarios for warming level approach
+        scenario_ssp = SSPS
+        scenario_historical = ["Historical Climate"]
+
+    return scenario_ssp, scenario_historical
+
+
+def stack_sims_across_locs(ds):
     # Renaming gridcell so that it can be concatenated with other lat/lon gridcells
-    ds[sim_dim_name] = [
+    ds["simulation"] = [
         "{}_{}_{}".format(
             sim_name,
             ds.lat.compute().item(),
             ds.lon.compute().item(),
         )
-        for sim_name in ds[sim_dim_name]
+        for sim_name in ds["simulation"]
     ]
     return ds

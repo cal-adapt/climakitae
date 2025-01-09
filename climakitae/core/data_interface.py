@@ -28,6 +28,7 @@ from climakitae.util.utils import (
     timescale_to_table_id,
     downscaling_method_to_activity_id,
 )
+from climakitae.core.constants import WARMING_LEVELS, SSPS
 
 # Warnings raised by function get_subsetting_options, not sure why but they are silenced here
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -647,7 +648,7 @@ class DataParameters(param.Parameterized):
     ssp_range = (2015, 2100)
 
     # Warming level options
-    wl_options = [1.5, 2.0, 2.5, 3.0, 4.0]
+    wl_options = WARMING_LEVELS
     wl_time_option = ["n/a"]
     warming_level = param.ListSelector(default=["n/a"], objects=["n/a"])
     warming_level_window = param.Integer(
@@ -734,11 +735,7 @@ class DataParameters(param.Parameterized):
             for scen in self.scenario_options
             if "ssp" in scen
         ]
-        for scenario_i in [
-            "SSP 3-7.0 -- Business as Usual",
-            "SSP 2-4.5 -- Middle of the Road",
-            "SSP 5-8.5 -- Burn it All",
-        ]:
+        for scenario_i in SSPS:
             if scenario_i in scenario_ssp_options:  # Reorder list
                 scenario_ssp_options.remove(scenario_i)  # Remove item
                 scenario_ssp_options.append(scenario_i)  # Add to back of list
@@ -787,11 +784,7 @@ class DataParameters(param.Parameterized):
             self.param["warming_level"].objects = ["n/a"]
             self.warming_level = ["n/a"]
 
-            self.param["scenario_ssp"].objects = [
-                "SSP 3-7.0 -- Business as Usual",
-                "SSP 2-4.5 -- Middle of the Road",
-                "SSP 5-8.5 -- Burn it All",
-            ]
+            self.param["scenario_ssp"].objects = SSPS
             self.scenario_ssp = []
 
             self.param["scenario_historical"].objects = [
@@ -859,7 +852,15 @@ class DataParameters(param.Parameterized):
             self.data_type = "Gridded"
         else:
             self.param["data_type"].objects = ["Gridded", "Station"]
-        if "Station" in self.data_type or self.variable_type == "Derived Index":
+        if self.variable_type == "Derived Index":
+
+            # Haven't built into the code to retrieve derive index for statistically downscaled data yet. Derived indices at the moment only work for hourly data.
+            self.param["downscaling_method"].objects = ["Dynamical"]
+            self.downscaling_method = "Dynamical"
+
+            self.param["approach"].objects = ["Time", "Warming Level"]
+
+        elif "Station" in self.data_type:
             self.param["downscaling_method"].objects = ["Dynamical"]
             self.downscaling_method = "Dynamical"
 
@@ -1056,11 +1057,7 @@ class DataParameters(param.Parameterized):
                 for scen in self.scenario_options
                 if "ssp" in scen
             ]
-            for scenario_i in [
-                "SSP 3-7.0 -- Business as Usual",
-                "SSP 2-4.5 -- Middle of the Road",
-                "SSP 5-8.5 -- Burn it All",
-            ]:
+            for scenario_i in SSPS:
                 if scenario_i in scenario_ssp_options:  # Reorder list
                     scenario_ssp_options.remove(scenario_i)  # Remove item
                     scenario_ssp_options.append(scenario_i)  # Add to back of list
@@ -1362,6 +1359,30 @@ def _get_user_friendly_catalog(intake_catalog, variable_descriptions):
     cat_df_cleaned: intake_esm.source.ESMDataSource
     """
 
+    def _expand(row, cat_df):
+        """Used for adding climakitae derived variables into catalog options
+        Expand the row for each individual derived variable to include the appropriate resolution and scenario options from it's variable dependency.
+        For example, the fosberg fire index is dependent on temperature.
+        We don't store info in the variable_descriptions csv on the options for scenario and resolution for derived variables
+        So, we need to pull those options from the valid options from the catalog variables that the derived variables are built from
+
+        """
+        # Just get the first dependency
+        # Ideally it should look at all the dependent variables but it's a lot of messy code and I'm not sure if it actually matters
+        first_dependency = row["dependencies"].split(", ")[0]
+
+        # Get the dependency info from the catalog
+        dependency_options = cat_df[
+            (cat_df["variable_id"] == first_dependency)
+            & (cat_df["downscaling_method"] == row["downscaling_method"])
+            & (cat_df["timescale"] == row["timescale"])
+        ].reset_index(drop=True)
+
+        # Basically, replace the info from the dependent variable with the derived variable
+        # We assume they are the same
+        dependency_options["variable"] = row.variable  # Add derived var as variable
+        return dependency_options
+
     # Get the catalog as a dataframe
     cat_df = intake_catalog.df.copy()
 
@@ -1401,14 +1422,26 @@ def _get_user_friendly_catalog(intake_catalog, variable_descriptions):
     col = cat_df_cleaned.pop("variable")
     cat_df_cleaned.insert(0, col.name, col)
 
-    # Remove variable_id row
-    cat_df_cleaned.pop("variable_id")
-
     # Remove duplicate rows
     # Duplicates occur due to the many unique member_ids
     cat_df_cleaned = cat_df_cleaned.drop_duplicates(ignore_index=True)
 
-    return cat_df_cleaned
+    # Get the derived variables
+    derived_vars = _get_and_reformat_derived_variables(variable_descriptions)
+
+    # For each row (with unique variable, timescale, and downscaling method), get the options for scenario and resolution
+    # This will "expand" the row because there will be multiple combinations possible (likely)
+    derived_vars_all = pd.DataFrame()
+    for index, row in derived_vars.iterrows():  # Loop through each row
+        derived_vars_all = pd.concat(
+            [derived_vars_all, _expand(row, cat_df_cleaned)], ignore_index=True
+        )
+
+    # Combine derived and catalog variables into one!
+    options_all = pd.concat([cat_df_cleaned, derived_vars_all], ignore_index=True)
+    options_all.pop("variable_id")  # Remove variable id column
+
+    return options_all
 
 
 def _get_var_name_from_table(variable_id, downscaling_method, timescale, var_df):
@@ -1628,7 +1661,11 @@ def get_data_options(
     # Raise error for bad input from user
     for user_input in [variable, downscaling_method, resolution, timescale]:
         if (user_input is not None) and (type(user_input) != str):
-            print("Function arguments require a single string value for your inputs")
+            print(
+                _format_error_print_message(
+                    "Function arguments require a single string value for your inputs"
+                )
+            )
             return None
 
     def _list(x):
@@ -1657,7 +1694,11 @@ def get_data_options(
         & (cat_df["scenario"].isin(d["scenario"]))
     ].reset_index(drop=True)
     if len(cat_subset) == 0:
-        print("No data found for your input values")
+        print(
+            _format_error_print_message(
+                "No data found for your input values. Please modify your data request."
+            )
+        )
         return None
 
     if tidy:
@@ -1753,6 +1794,11 @@ def get_subsetting_options(area_subset="all"):
     return geoms_df
 
 
+def _format_error_print_message(error_message):
+    """Format error message using the same format"""
+    return "ERROR: {0} \nReturning None".format(error_message)
+
+
 def get_data(
     variable,
     downscaling_method,
@@ -1763,6 +1809,8 @@ def get_data(
     units=None,
     warming_level=None,
     area_subset="none",
+    latitude=None,
+    longitude=None,
     cached_area=["entire domain"],
     area_average=None,
     time_slice=None,
@@ -1802,11 +1850,17 @@ def get_data(
     area_average: one of ["Yes","No"], optional
         Take an average over spatial domain?
         Default to "No".
+    latitude: None or tuple of float, optional
+        Tuple of valid latitude bounds
+        Default to entire domain
+    longitude: None or tuple of float, optional
+        Tuple of valid longitude bounds
+        Default to entire domain
     time_slice: tuple, optional
         Time range for retrieved data
         Only valid for approach = "Time"
     warming_level: list of float, optional
-        Must be one of [1.5, 2.0, 2.5, 3.0, 4.0]
+        Must be one of the warming levels available in `clmakitae.core.constants`
         Only valid for approach = "Warming Level"
     warming_level_window: int in range (5,25), optional
         Years around Global Warming Level (+/-) \n (e.g. 15 means a 30yr window)
@@ -1828,11 +1882,6 @@ def get_data(
     """
 
     # Internal functions
-
-    def _format_error_print_message(error_message):
-        """Format error message using the same format"""
-        return "ERROR: {0} \nReturning None".format(error_message)
-
     def _error_handling_warming_level_inputs(wl, argument_name):
         """Error handling for arguments: warming_level and warming_level_month
         Both require a list of either floats or ints
@@ -1936,7 +1985,9 @@ def get_data(
 
     # Get intake catalog and variable descriptions from DataInterface object
     data_interface = DataInterface()
-    var_df = data_interface.variable_descriptions
+    var_df = data_interface.variable_descriptions.rename(
+        columns={"variable": "display_name"}
+    )  # Rename column so that it can be merged with cat_df
     catalog = data_interface.data_catalog
     cat_df = _get_user_friendly_catalog(
         intake_catalog=catalog, variable_descriptions=var_df
@@ -1944,6 +1995,11 @@ def get_data(
 
     ## --------- ERROR HANDLING ----------
     # Deal with bad or missing users inputs
+
+    # If lat/lon input, change cached_area and area_subset
+    if latitude is not None and longitude is not None:
+        area_subset = "lat/lon"
+        cached_area = ["coordinate selection"]
 
     # Check warming level inputs
     try:
@@ -1998,24 +2054,52 @@ def get_data(
         print(_format_error_print_message(error_message))
         return None
 
-    # Add arguments to a dictionary
+    ## --------- ADD ARGUMENTS TO A DICTIONARY ----------
     # A dictionary is used for all the inputs in selections because it enables better error handling and cleaner code when we set selections.thing = thing
     # It also makes parsing through the arguments easier
     # The inputs here need to be a list so that they can be parsed easier by the _check_if_good_input function when comparing with the valid catalog options to confirm the user input is valid
-    cat_dict = {
-        "variable": variable if type(variable) == list else [variable],
-        "timescale": timescale if type(timescale) == list else [timescale],
-        "downscaling_method": (
-            downscaling_method
-            if type(downscaling_method) == list
-            else [downscaling_method]
-        ),
-        "scenario": scenario if type(scenario) == list else [scenario],
-        "resolution": resolution if type(resolution) == list else [resolution],
-    }
+    scenario_user_input = scenario  # What the user originally input for scenario
 
-    # Check if the user inputs make sense
-    cat_dict = _check_if_good_input(cat_dict, cat_df)
+    check_input_df = get_data_options(
+        variable=variable,
+        downscaling_method=downscaling_method,
+        resolution=resolution,
+        timescale=timescale,
+        scenario=scenario,
+        tidy=False,
+    )
+
+    if check_input_df is None:
+
+        return None
+
+    # Merge with variable dataframe to get all the info about the data in one place
+    check_input_df = check_input_df.merge(var_df, how="left")
+
+    # Convert to a dictionary so it can be easily parsed by the function
+    cat_dict = check_input_df.to_dict(orient="list")
+    for key, values in cat_dict.items():
+        # Remove non-unique values
+        # This happens because we converted a pandas dataframe to a dictionary
+        cat_dict[key] = list(np.unique(values))
+
+    # _check_if_good_input will default fill the scenario options with EVERY possible option
+    # It will in most cases give a list of all the available SSPs and the two historical data options (Historical Climate AND Historical Reconstruction)
+    # I'd like the function to just default to Historical Climate + SSPs
+    # So, if the user input None for scenario, I just remove Historical Reconstruction from the list
+    if scenario_user_input == None:
+        if "Historical Reconstruction" in cat_dict["scenario"]:
+            cat_dict["scenario"] = [
+                item
+                for item in cat_dict["scenario"]
+                if item != "Historical Reconstruction"
+            ]
+
+    # Check if it's an index
+    variable_id = (
+        var_df[var_df["display_name"] == cat_dict["variable"][0]].iloc[0].variable_id
+    )
+    variable_type = "Derived Index" if "_index" in variable_id else "Variable"
 
     # Settings for selections
     selections_dict = {
@@ -2031,7 +2115,10 @@ def get_data(
         "warming_level": warming_level,
         "warming_level_window": warming_level_window,
         "warming_level_months": warming_level_months,
+        "variable_type": variable_type,
         "time_slice": time_slice,
+        "latitude": latitude,
+        "longitude": longitude,
     }
 
     scenario_ssp, scenario_historical = _get_scenario_ssp_scenario_historical(
@@ -2063,15 +2150,17 @@ def get_data(
     selections = DataParameters()
 
     try:
+        selections.data_type = "Gridded"  # Haven't added option to get station data yet
         selections.approach = selections_dict["approach"]
         selections.scenario_ssp = selections_dict["scenario_ssp"]
         selections.scenario_historical = selections_dict["scenario_historical"]
         selections.area_subset = selections_dict["area_subset"]
         selections.cached_area = selections_dict["cached_area"]
         selections.downscaling_method = selections_dict["downscaling_method"]
-        selections.variable = selections_dict["variable"]
         selections.resolution = selections_dict["resolution"]
         selections.timescale = selections_dict["timescale"]
+        selections.variable_type = selections_dict["variable_type"]
+        selections.variable = selections_dict["variable"]
         selections.units = selections_dict["units"]
 
         # Setting the values like this enables us to take advantage of the default settings in DataParameters without having to manually set defaults in this function
@@ -2085,6 +2174,10 @@ def get_data(
             selections.time_slice = selections_dict["time_slice"]
         if selections_dict["warming_level_months"] is not None:
             selections.warming_level_months = selections_dict["warming_level_months"]
+        if selections_dict["latitude"] is not None:
+            selections.latitude = selections_dict["latitude"]
+        if selections_dict["longitude"] is not None:
+            selections.longitude = selections_dict["longitude"]
     except ValueError as error_message:
         # The error message is really long
         # And sometimes has a confusing Attribute Error: Pieces mismatch that is hard to interpret
@@ -2095,3 +2188,68 @@ def get_data(
     # Retrieve data
     data = selections.retrieve()
     return data
+
+
+def _get_and_reformat_derived_variables(variable_descriptions):
+    """(1) Get the just derived variables from the variables_descriptions csv and
+    (2) Reformat the data such that the timescales are split into separate rows
+
+    This is such that it can match the formatting in the catalog, where each independent data option is separated into a distinct row
+    i.e. if derived variable "var" has "timescale" = "hourly, monthly", it is separated into two separate rows with one row having "timescale" = "hourly" and the second row having "timescale" = "monthly"
+
+    Backend helper function for retrieving a user-friendly version of the intake catalog that contains our added climakitae derived variables
+
+    Arguments
+    ---------
+    variable_descriptions: pd.DataFrame
+        Variable descriptions, units, etc in table format
+
+    Returns
+    -------
+    derived_vars_df: pd.DataFrame
+        Subset of variable_descriptions containing only variables with variable_id containing the substring "_derived"
+        "timescale" column separated into unique timescales for each row
+
+    """
+    # Just get subset of derived variables
+    derived_variables = (
+        variable_descriptions[
+            variable_descriptions["variable_id"].str.contains("_derived")
+        ]
+        .reset_index(drop=True)
+        .rename(columns={"display_name": "variable"})
+    )
+
+    # Get the derived variables that are valid across multile timescales
+    # They will have a comma-separated timescale i.e. "daily, monthly"
+    derived_variables_multi_timescale = derived_variables[
+        derived_variables["timescale"].str.contains(", ")
+    ]
+
+    # loop through each row in the DataFrame
+    derived_variables_split = []
+    for i in range(len(derived_variables_multi_timescale)):
+
+        # Get single row, containing one variable
+        row = derived_variables_multi_timescale.iloc[i]
+
+        # Split the comma-separated timescale into a list
+        # i.e. "daily, monthly" becomes ["daily","monthly"]
+        timescale = row["timescale"].split(", ")
+
+        # Create a dataframe with one row per timescale
+        # i.e. "derived index" for a timescale of "daily, monthly" becomes a two-row dataframe...
+        # i.e. row 1 containing "derived index" and "daily" and row 2 containing "derived index" and "monthly"
+        row_split_i = pd.DataFrame([row] * len(timescale))
+        row_split_i["timescale"] = timescale
+        derived_variables_split.append(row_split_i)
+
+    # Now, append a pandas dataframe with remaining derived variables
+    # These are the ones that have a single timescale (i.e. "hourly" or "daily")
+    derived_variables_single_timescale = derived_variables[
+        ~derived_variables["timescale"].str.contains(", ")
+    ]
+    derived_variables_split.append(derived_variables_single_timescale)
+    derived_vars_df = pd.concat(derived_variables_split, ignore_index=True)
+
+    return derived_vars_df

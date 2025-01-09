@@ -1,9 +1,7 @@
 """This script tests that the functions used to compute derived variables perform as expected. """
 
-import xarray as xr
-import numpy as np
 import pytest
-import os
+import xarray as xr
 from climakitae.tools.derived_variables import (
     compute_relative_humidity,
     compute_wind_mag,
