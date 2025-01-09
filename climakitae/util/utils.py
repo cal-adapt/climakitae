@@ -12,7 +12,6 @@ import intake
 from timezonefinder import TimezoneFinder
 from climakitae.core.paths import data_catalog_url, stations_csv_path
 from climakitae.core.constants import SSPS
-from climakitae.core.boundaries import Boundaries
 
 
 def downscaling_method_as_list(downscaling_method):
