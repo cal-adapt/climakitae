@@ -166,7 +166,7 @@ def _extract_string_identifiers(da):
     tuple
         Simulation, ensemble, and scenario, as string values
     """
-    simulation = da.simulation.item()
+    simulation = da.simulation.tolist()
     scenario = scenario_to_experiment_id(da.scenario.item().split("+")[1].strip())
     downscaling_method, sim_str, ensemble = simulation.split("_")
     return (sim_str, ensemble, scenario)
