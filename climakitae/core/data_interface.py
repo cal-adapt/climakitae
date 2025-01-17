@@ -1804,6 +1804,7 @@ def get_data(
     downscaling_method,
     resolution,
     timescale,
+    data_type="Gridded",
     approach="Time",
     scenario=None,
     units=None,
@@ -1832,6 +1833,9 @@ def get_data(
         Resolution of data in kilometers
     timescale: str, one of ["hourly", "daily", "monthly"]
         Temporal frequency of dataset
+    data_type: str, one of ["Gridded", "Station"]
+        Whether to choose gridded data or weather station data
+        Default to "Gridded"
     approach: one of ["Time", "Warming Level"], optional
         Default to "Time"
     scenario: str or list of str, optional
@@ -1859,17 +1863,21 @@ def get_data(
     time_slice: tuple, optional
         Time range for retrieved data
         Only valid for approach = "Time"
+    station: list of str, optional
+        Which weather stations to retrieve data for
+        Only valid for data_type = "Station"
+
     warming_level: list of float, optional
         Must be one of the warming levels available in `clmakitae.core.constants`
-        Only valid for approach = "Warming Level"
+        Only valid for approach = "Warming Level" and data_type = "Station"
     warming_level_window: int in range (5,25), optional
         Years around Global Warming Level (+/-) \n (e.g. 15 means a 30yr window)
-        Only valid for approach = "Warming Level"
+        Only valid for approach = "Warming Level" and data_type = "Station"
     warming_level_months: list of int, optional
         Months of year for which to perform warming level computation
         Default to all months in a year: [1,2,3,4,5,6,7,8,9,10,11,12]
         For example, you may want to set warming_level_months=[12,1,2] to perform the analysis for the winter season.
-        Only valid for approach = "Warming Level"
+        Only valid for approach = "Warming Level" and data_type = "Station"
 
     Returns
     -------
@@ -2107,6 +2115,7 @@ def get_data(
         "timescale": cat_dict["timescale"][0],
         "downscaling_method": cat_dict["downscaling_method"][0],
         "resolution": cat_dict["resolution"][0],
+        "data_type": data_type,
         "scenario": cat_dict["scenario"],
         "area_average": area_average,
         "area_subset": area_subset,
@@ -2150,7 +2159,7 @@ def get_data(
     selections = DataParameters()
 
     try:
-        selections.data_type = "Gridded"  # Haven't added option to get station data yet
+        selections.data_type = selections_dict["data_type"]
         selections.approach = selections_dict["approach"]
         selections.scenario_ssp = selections_dict["scenario_ssp"]
         selections.scenario_historical = selections_dict["scenario_historical"]
