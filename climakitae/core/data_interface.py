@@ -1488,7 +1488,7 @@ def _get_var_name_from_table(variable_id, downscaling_method, timescale, var_df)
     return var_name
 
 
-def _get_closest_options(val, valid_options):
+def _get_closest_options(val, valid_options, cutoff=0.59):
     """If the user inputs a bad option, find the closest option from a list of valid options
 
     Parameters
@@ -1497,6 +1497,9 @@ def _get_closest_options(val, valid_options):
         User input
     valid_options: list
         Valid options for that key from the catalog
+    cutoff: a float in the range [0, 1]
+        See difflib.get_close_matches
+        Possibilities that don't score at least that similar to word are ignored.
 
     Returns
     -------
@@ -1516,7 +1519,7 @@ def _get_closest_options(val, valid_options):
     # For example, if they input "statistikal" instead of "Statistical", difflib will find "Statistical"
     # Change the cutoff to increase/decrease the flexibility of the function
     maybe_difflib_can_find_something = difflib.get_close_matches(
-        val, valid_options, cutoff=0.59
+        val, valid_options, cutoff=cutoff
     )
 
     if len(is_it_just_capitalized_wrong) > 0:
@@ -1597,7 +1600,8 @@ def _check_if_good_input(d, cat_df):
 
                 # Sad! No closest options found. Just set the key to all valid options
                 if closest_options is None:
-                    print("Valid options: " + ", ".join(valid_options))
+                    print("Valid options: \n- ", end="")
+                    print("\n- ".join(valid_options))
                     raise ValueError("Bad input")
 
                 # Just one option in the list
@@ -1815,6 +1819,7 @@ def get_data(
     cached_area=["entire domain"],
     area_average=None,
     time_slice=None,
+    station=None,
     warming_level_window=None,
     warming_level_months=None,
 ):
@@ -1866,7 +1871,7 @@ def get_data(
     station: list of str, optional
         Which weather stations to retrieve data for
         Only valid for data_type = "Station"
-
+        Default to all stations
     warming_level: list of float, optional
         Must be one of the warming levels available in `clmakitae.core.constants`
         Only valid for approach = "Warming Level" and data_type = "Station"
@@ -1888,6 +1893,51 @@ def get_data(
     Errors aren't raised by the function. Rather, an appropriate informative message is printed, and the function returns None. This is due to the fact that the AE Jupyter Hub raises a strange Pieces Mismatch Error for some bad inputs; instead, that error is ignored and a more informative error message is printed instead.
 
     """
+
+    def _check_valid_input_station(station, station_options_all):
+        """Check that the user input a valid value for station
+        If invalid input, the function will "guess" a close-ish station using difflib
+        See _get_closest_option function for more info
+        If invalid input and no guesses found, the function will print an informative error message and raise a ValueError
+
+        Parameters
+        ----------
+        station: list of str
+        station_options_all: list of string
+            All the possible station options
+            Can be retrieved from DataParameters()._stations_gdf.station.values
+
+        Returns
+        -------
+        station: list of str
+
+        """
+        station_options_all = sorted(
+            station_options_all
+        )  # sorted() puts the list in alphabetical order
+        for i in range(len(station)):  # Go through all the stations
+            station_i = station[i]
+            if (
+                station_i not in station_options_all
+            ):  # If the station isn't a valid option...
+                print("Input station='" + station_i + "' is not a valid option.")
+                closest_options = _get_closest_options(
+                    station_i, station_options_all
+                )  # See if theres any similar options
+                if (
+                    closest_options is None
+                ):  # If not, print all the valid options and raise a ValueError
+                    print("Valid options: \n-", end="")
+                    print("\n-".join(station_options_all))
+                    raise ValueError("Bad input")
+                else:
+                    best_option = closest_options[0]  # Pick the closest option
+                    print("Closest option: '" + best_option + "'")
+                    print("Outputting data for station='" + best_option + "'")
+                    station[i] = (
+                        best_option  # Replace that value in the list with the best option :)
+                    )
+        return station
 
     # Internal functions
     def _error_handling_warming_level_inputs(wl, argument_name):
@@ -2004,8 +2054,29 @@ def get_data(
     ## --------- ERROR HANDLING ----------
     # Deal with bad or missing users inputs
 
+    if (station is not None) and (type(station) == str):
+        # Catch easy user mistake without raising an error: Inputting a string instead of a list of list
+        # I imagine this could happen if you just wanted to retrieve data for a single station
+        station = [station]
+
+    if (data_type == "Station") and (variable != "Air Temperature at 2m"):
+        # Force set variable to air temp if the user has picked a different variable
+        variable = "Air Temperature at 2m"
+        print(
+            "WARNING: Station data can only be retrieved for the following variable: {0}\nRetrieving data for {0}".format(
+                variable
+            )
+        )
+
+    if (data_type == "Station") and (station is None):
+        # Print a warning if the user wants to retrieve station data but they don't input a value for station
+        # The function will return allllllll the stations by default!
+        print(
+            "WARNING: You haven't set a particular station/s to retrieve data for; the function will default to retrieving all available stations in the domain"
+        )
+
     # If lat/lon input, change cached_area and area_subset
-    if latitude is not None and longitude is not None:
+    if (latitude is not None) and (longitude is not None):
         area_subset = "lat/lon"
         cached_area = ["coordinate selection"]
 
@@ -2078,7 +2149,7 @@ def get_data(
     )
 
     if check_input_df is None:
-
+        # Does this print an informative error message? I think so but I'm not sure.
         return None
 
     # Merge with variable dataframe to get all the info about the data in one place
@@ -2128,6 +2199,7 @@ def get_data(
         "time_slice": time_slice,
         "latitude": latitude,
         "longitude": longitude,
+        "station": station,
     }
 
     scenario_ssp, scenario_historical = _get_scenario_ssp_scenario_historical(
@@ -2155,8 +2227,19 @@ def get_data(
         units if units is not None else var_df_query["unit"].item()
     )  # Set units if user doesn't set them manually
 
-    ## ------ CREATE SELECTIONS OBJECT AND SET EACH ATTRIBUTE -------
+    ## ------ CREATE SELECTIONS OBJECT --------
     selections = DataParameters()
+
+    # Error handling for stations
+    # If the user input a value for the station argument, check that it exists
+    # If it doesn't exist, see if you can find something close... if not, throw an error
+    # Need to do the error handling here since it requires the selections object
+    if data_type == "Station" and station is not None:
+        station = _check_valid_input_station(
+            station, selections._stations_gdf.station.values
+        )
+
+    ## ------- SET EACH ATTRIBUTE -------
 
     try:
         selections.data_type = selections_dict["data_type"]
@@ -2187,6 +2270,8 @@ def get_data(
             selections.latitude = selections_dict["latitude"]
         if selections_dict["longitude"] is not None:
             selections.longitude = selections_dict["longitude"]
+        if selections_dict["station"] is not None:
+            selections.station = selections_dict["station"]
     except ValueError as error_message:
         # The error message is really long
         # And sometimes has a confusing Attribute Error: Pieces mismatch that is hard to interpret
