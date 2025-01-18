@@ -1719,7 +1719,7 @@ def get_subsetting_options(area_subset="all"):
     Parameters
     ----------
     area_subset: str
-        One of "all", "states", "CA counties", "CA Electricity Demand Forecast Zones", "CA watersheds", "CA Electric Balancing Authority Areas", "CA Electric Load Serving Entities (IOU & POU)"
+        One of "all", "states", "CA counties", "CA Electricity Demand Forecast Zones", "CA watersheds", "CA Electric Balancing Authority Areas", "CA Electric Load Serving Entities (IOU & POU)", "Weather stations"
         Defaults to "all", which shows all the geometry options with area_subset as a multiindex
 
     Returns
@@ -1754,6 +1754,9 @@ def get_subsetting_options(area_subset="all"):
         )[
             ["NAME", "geometry"]
         ],
+        "Weather stations": data_interface._stations_gdf.sort_values("station").rename(
+            columns={"station": "NAME"}
+        )[["NAME", "geometry"]],
     }
 
     # Confirm that input for argument "area_subset" is valid
@@ -1776,8 +1779,11 @@ def get_subsetting_options(area_subset="all"):
         df["area_subset"] = [name] * len(
             df
         )  # Add area subset as a column. Used to create multiindex if area_subset = "all"
-        df = df[df["NAME"].isin(list(boundary_dict[name].keys()))]
-        df_dict[name] = df  # Replace the DataFrame with the new, reduced DataFrame
+        if name == "Weather stations":  # This logic doesn't apply to weather stations
+            pass  # do nothing
+        else:  # Limit options
+            df = df[df["NAME"].isin(list(boundary_dict[name].keys()))]
+        df_dict[name] = df  # Replace the dictionary with the new, reduced dictionary
 
     if area_subset != "all":
         # Only return the desired area subset
@@ -2054,26 +2060,25 @@ def get_data(
     ## --------- ERROR HANDLING ----------
     # Deal with bad or missing users inputs
 
-    if (station is not None) and (type(station) == str):
-        # Catch easy user mistake without raising an error: Inputting a string instead of a list of list
-        # I imagine this could happen if you just wanted to retrieve data for a single station
-        station = [station]
+    # Station data error handling
+    if data_type == "Station":
 
-    if (data_type == "Station") and (variable != "Air Temperature at 2m"):
-        # Force set variable to air temp if the user has picked a different variable
+        # Required inputs for station data
+        scenario = ["Historical Climate"]
+        downscaling_method = "Dynamical"
+        timescale = "hourly"
         variable = "Air Temperature at 2m"
-        print(
-            "WARNING: Station data can only be retrieved for the following variable: {0}\nRetrieving data for {0}".format(
-                variable
-            )
-        )
 
-    if (data_type == "Station") and (station is None):
-        # Print a warning if the user wants to retrieve station data but they don't input a value for station
-        # The function will return allllllll the stations by default!
-        print(
-            "WARNING: You haven't set a particular station/s to retrieve data for; the function will default to retrieving all available stations in the domain"
-        )
+        if station is None:
+            # Print a warning if the user wants to retrieve station data but they don't input a value for station
+            # The function will return all the stations by default
+            print(
+                "WARNING: You haven't set a particular station/s to retrieve data for; the function will default to retrieving all available stations in the domain"
+            )
+        if (station is not None) and (type(station) == str):
+            # Catch easy user mistake without raising an error: Inputting a string instead of a list of list
+            # I imagine this could happen if you just wanted to retrieve data for a single station
+            station = [station]
 
     # If lat/lon input, change cached_area and area_subset
     if (latitude is not None) and (longitude is not None):
