@@ -1811,9 +1811,9 @@ def _format_error_print_message(error_message):
 
 def get_data(
     variable,
-    downscaling_method,
     resolution,
     timescale,
+    downscaling_method="Dynamical",
     data_type="Gridded",
     approach="Time",
     scenario=None,
@@ -1837,14 +1837,15 @@ def get_data(
     ----------
     variable: str
         String name of climate variable
-    downscaling_method: str, one of ["Dynamical", "Statistical", "Dynamical+Statistical"]
-        Downscaling method of the data:
-        WRF ("Dynamical"), LOCA2 ("Statistical"), or both "Dynamical+Statistical"
     resolution: str, one of ["3 km", "9 km", "45 km"]
         Resolution of data in kilometers
     timescale: str, one of ["hourly", "daily", "monthly"]
         Temporal frequency of dataset
-    data_type: str, one of ["Gridded", "Station"]
+    downscaling_method: str, one of ["Dynamical", "Statistical", "Dynamical+Statistical"], optional
+        Downscaling method of the data:
+        WRF ("Dynamical"), LOCA2 ("Statistical"), or both "Dynamical+Statistical"
+        Default to "Dynamical"
+    data_type: str, one of ["Gridded", "Station"], optional
         Whether to choose gridded data or weather station data
         Default to "Gridded"
     approach: one of ["Time", "Warming Level"], optional
@@ -1930,19 +1931,24 @@ def get_data(
                 closest_options = _get_closest_options(
                     station_i, station_options_all
                 )  # See if theres any similar options
-                if (
-                    closest_options is None
-                ):  # If not, print all the valid options and raise a ValueError
-                    print("Valid options: \n-", end="")
-                    print("\n-".join(station_options_all))
+
+                # Sad! No closest options found. Just set the key to all valid options
+                if closest_options is None:
+                    print("Valid options: \n- ", end="")
+                    print("\n- ".join(station_options_all))
                     raise ValueError("Bad input")
-                else:
-                    best_option = closest_options[0]  # Pick the closest option
-                    print("Closest option: '" + best_option + "'")
-                    print("Outputting data for station='" + best_option + "'")
-                    station[i] = (
-                        best_option  # Replace that value in the list with the best option :)
-                    )
+
+                # Just one option in the list
+                elif len(closest_options) == 1:
+                    print("Closest option: '" + closest_options[0] + "'")
+
+                elif len(closest_options) > 1:
+                    print("Closest options: \n- " + "\n- ".join(closest_options))
+
+                print("Outputting data for station='" + closest_options[0] + "'")
+                station[i] = closest_options[
+                    0
+                ]  # Replace that value in the list with the best option :)
         return station
 
     # Internal functions
@@ -2063,7 +2069,35 @@ def get_data(
     # Station data error handling
     if data_type == "Station":
 
-        # Required inputs for station data
+        # dictionary with { argument name : [valid option, user input]}
+        d = {
+            "downscaling_method": ["Dynamical", downscaling_method],
+            "timescale": ["hourly", timescale],
+            "variable": ["Air Temperature at 2m", variable],
+            "scenario": [
+                [None, ["Historical Climate"], "Historical Climate"],
+                scenario,
+            ],  # Either input is valid for scenario since it's not a required function argument, None is a valid input
+        }
+        # Go through the users inputs
+        # See if they match the required value for that argument
+        # If not, print a warning to the user.
+        for key, vals in zip(d.keys(), d.values()):
+            if key != "scenario":
+                if vals[0] != vals[1]:
+                    print(
+                        "Weather station data can only be retrieved for {0}={1}. \nYour input: {2}. \nRetrieving data for {0}={1}".format(
+                            key, vals[0], vals[1]
+                        )
+                    )
+            if key == "scenario":
+                if vals[1] not in vals[0]:
+                    print(
+                        "Weather station data can only be retrieved for {0}={1}. \nYour input: {2}. \nRetrieving data for {0}={1}".format(
+                            key, "Historical Climate", vals[1]
+                        )
+                    )
+
         scenario = ["Historical Climate"]
         downscaling_method = "Dynamical"
         timescale = "hourly"
