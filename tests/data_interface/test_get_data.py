@@ -7,6 +7,45 @@ import sys
 from climakitae.core.data_interface import get_data
 
 
+class TestStationDataRetrievalGetData:
+    """Test that the get_data function retrieves station data without error."""
+
+    def test_sandiego_station(self):
+        """Test that station data for a single station can be retrieved"""
+        try:
+            ds = get_data(
+                variable="Air Temperature at 2m",  # required argument
+                resolution="9 km",  # required argument. Options: "9 km" or "3 km"
+                timescale="hourly",  # required argument
+                data_type="Station",  # required argument
+                station="San Diego Lindbergh Field (KSAN)",  # optional argument. If no input, all weather stations are retrieved
+            )
+        except:
+            pytest.fail(
+                "Station data for San Diego Lindbergh Field using a 9km resolution could not be retrieved"
+            )
+
+    def test_multiple_weather_stations(self):
+        """Test retrieveing more than one station and with more complex function arguments"""
+        try:
+            get_data(
+                variable="Air Temperature at 2m",
+                resolution="3 km",
+                timescale="hourly",
+                data_type="Station",
+                station=[
+                    "San Francisco International Airport (KSFO)",
+                    "Oakland Metro International Airport (KOAK)",
+                ],
+                units="degF",
+                time_slice=(2000, 2005),
+            )
+        except:
+            pytest.fail(
+                "Station data from 2000-2005 for three Bay Area weather stations using a 3km resolution and a unit conversion to degF could not be retrieved"
+            )
+
+
 class TestDerivedVariablesGetData:
     """Test that derived variables/indices can be retrieved
     Some of the use cases below used to raise an error and have since been fixed.
@@ -76,6 +115,58 @@ class TestDerivedVariablesGetData:
 
 class TestAppropriateStringErrorReturnedIfBadInputGetData:
     """Test that an appropriate error message is printed to the user describing the issue and how to resolve it."""
+
+    def test_station_data_bad_variable_input(self):
+        """Test that the function raises the appropriate error message if you input a variable that is not Air Temperature at 2m"""
+
+        # Error message we expect to be printed by the function
+        expected_print_message = "Weather station data can only be retrieved for variable=Air Temperature at 2m \nYour input: Peanut Butter and Jellyfishes in the Sky \nRetrieving data for variable=Air Temperature at 2m\n"
+
+        # NOTE: function PRINTS this message-- it does not return it as an error
+        # Because of this, we have to use sys to capture the print message
+        capture = io.StringIO()
+        save, sys.stdout = sys.stdout, capture
+        ds = get_data(
+            variable="Peanut Butter and Jellyfishes in the Sky",
+            resolution="9 km",
+            timescale="hourly",
+            data_type="Station",
+            station="San Francisco International Airport (KSFO)",
+        )
+        sys.stdout = save
+
+        assert capture.getvalue() == expected_print_message
+
+    def test_station_data_bad_station_correct_guess(self):
+        """Test that the function can correctly 'guess' an appropriate weather station if the user inputs something that is close in name to an existing weather station in our catalog"""
+
+        expected_print_message = "Input station='San Francisco Airport' is not a valid option.\nClosest option: 'San Francisco International Airport (KSFO)'\nOutputting data for station='San Francisco International Airport (KSFO)'\n"
+
+        # NOTE: function PRINTS this message-- it does not return it as an error
+        # Because of this, we have to use sys to capture the print message
+        capture = io.StringIO()
+        save, sys.stdout = sys.stdout, capture
+        ds = get_data(
+            variable="Air Temperature at 2m",
+            resolution="9 km",
+            timescale="hourly",
+            data_type="Station",
+            station="San Francisco Airport",  # not the name of the station, but its close so the function should be able to guess
+        )
+        sys.stdout = save
+
+        assert capture.getvalue() == expected_print_message
+
+    def test_error_raised_for_reallllyyyy_bad_input_station_data(self):
+        """If the function can't even make a reasonable guess as to the user's guess, it should throw a ValueError"""
+        with pytest.raises(ValueError):
+            ds = get_data(
+                variable="Air Temperature at 2m",
+                resolution="9 km",
+                timescale="hourly",
+                data_type="Station",
+                station="the US international space station",
+            )
 
     def test_error_raised_string_input_warming_level(self):
         """Warming level should be a float input! Make sure the function prints the appropriate error message"""
