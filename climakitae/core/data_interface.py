@@ -2086,14 +2086,14 @@ def get_data(
             if key != "scenario":
                 if vals[0] != vals[1]:
                     print(
-                        "Weather station data can only be retrieved for {0}={1}. \nYour input: {2}. \nRetrieving data for {0}={1}".format(
+                        "Weather station data can only be retrieved for {0}={1} \nYour input: {2} \nRetrieving data for {0}={1}".format(
                             key, vals[0], vals[1]
                         )
                     )
             if key == "scenario":
                 if vals[1] not in vals[0]:
                     print(
-                        "Weather station data can only be retrieved for {0}={1}. \nYour input: {2}. \nRetrieving data for {0}={1}".format(
+                        "Weather station data can only be retrieved for {0}={1} \nYour input: {2} \nRetrieving data for {0}={1}".format(
                             key, "Historical Climate", vals[1]
                         )
                     )
