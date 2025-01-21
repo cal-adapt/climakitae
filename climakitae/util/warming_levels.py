@@ -38,6 +38,7 @@ def _calculate_warming_level(warming_data, gwl_times, level, months, window):
     warming_data: xr.DataArray
 
     """
+    import pdb;pdb.set_trace()
     # Raise error if proper processing has not been performed on the data before calling the function
     if "all_sims" not in warming_data.dims:
         raise AttributeError(

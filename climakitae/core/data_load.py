@@ -1325,7 +1325,6 @@ def _apply_warming_levels_approach(da, selections):
 
     # Stack by simulation and scenario to combine the coordinates into a single dimension
     data_stacked = da.stack(all_sims=["simulation", "scenario"])
-    import pdb;pdb.set_trace()
     # The xarray stacking function results in some non-existant scenario/simulation combos
     # We need to drop them here such that the global warming levels table can be adequately parsed by the _calculate_warming_level function
     data_stacked = _drop_invalid_sims(data_stacked, selections)
