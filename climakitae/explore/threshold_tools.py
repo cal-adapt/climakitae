@@ -183,8 +183,15 @@ def get_block_maxima(
     # time blocks from the returned blocks below, hence dropping NaN values along the time dimension. This way, they do not break other functions
     # that rely on `get_block_maxima`, like `get_ks_stat` or `get_return_value`
     if bms.isnull().sum() > 0:
-        print(f"Dropping null counts for blocks for {bms.name}")
-        bms = bms.dropna(dim="time")
+
+        # This checks if ALL of the values from `bms` are null, or if there are 0 events that occur (i.e. no precipitation counts within the DataArray).
+        if bms.isnull().sum().item() == bms.size:
+            raise ValueError(
+                "ERROR: The given `da_series` does not include any recorded values for this variable, and we cannot create block maximums off of an empty DataArray."
+            )
+        else:
+            print(f"Dropping null counts for blocks for {bms.name}")
+            bms = bms.dropna(dim="time")
 
     return bms
 
