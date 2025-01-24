@@ -112,32 +112,9 @@ def get_block_maxima(
 
         # select the max (min) in each group
         if extremes_type == "max":
-            # note: fillna is used to replace nans in timeseries with 0s in precipitation ONLY
-            # TODO: evaluate nan in other variables, and more programmatic fix
-            if da_series.name == "Precipitation (total)":
-                da_series = (
-                    da_series.resample(time=f"{group_len}D", label="left")
-                    .max()
-                    .fillna(value=0)
-                )  # fill value of 0 will always be precip min, "safe" for max calculation if nan present
-            else:
-                da_series = da_series.resample(time=f"{group_len}D", label="left").max()
+            da_series = da_series.resample(time=f"{group_len}D", label="left").max()
         elif extremes_type == "min":
-            if da_series.name == "Precipitation (total)":
-                # "fix" in min is to set missing value to series max
-                da_series_fillmax = (
-                    da_series.resample(time=f"{group_len}D", label="left")
-                    .max()
-                    .fillna(value=0)
-                    .values.max()
-                )
-                da_series = (
-                    da_series.resample(time=f"{group_len}D", label="left")
-                    .min()
-                    .fillna(value=da_series_fillmax)
-                )  # fill value set to precip max, "patch" for min calculation if nan present
-            else:
-                da_series = da_series.resample(time=f"{group_len}D", label="left").min()
+            da_series = da_series.resample(time=f"{group_len}D", label="left").min()
 
     if grouped_duration != None:
         if groupby == None:
@@ -198,6 +175,16 @@ def get_block_maxima(
             "timeseries_type": f"block {extremes_type} series",
         }
     )
+
+    # Checking for null values within the blocks. This primarily occurs when values are filtered out before this function.
+    # A good example of this is when trying to find 1-in-X events with precipitation. Because we filter out small noise of precip events,
+    # (i.e. 10e-10), this results in a DataArray being passed into this function that has many fewer observed counts than the actual retrieve
+    # climate data has. In some cases, there can even be years where no precipitation occurs. In these cases, we want to make sure to drop those
+    # time blocks from the returned blocks below, hence dropping NaN values along the time dimension. This way, they do not break other functions
+    # that rely on `get_block_maxima`, like `get_ks_stat` or `get_return_value`
+    if bms.isnull().sum() > 0:
+        print(f"Dropping null counts for blocks for {bms.name}")
+        bms = bms.dropna(dim="time")
 
     return bms
 
