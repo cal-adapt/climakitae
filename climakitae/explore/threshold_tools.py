@@ -190,7 +190,7 @@ def get_block_maxima(
                 "ERROR: The given `da_series` does not include any recorded values for this variable, and we cannot create block maximums off of an empty DataArray."
             )
         else:
-            print(f"Dropping null counts for blocks for {bms.name}")
+            print(f"Dropping {bms.isnull().sum()} block maxima NaNs for {bms.name}")
             bms = bms.dropna(dim="time")
 
     return bms
