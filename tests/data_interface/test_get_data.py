@@ -17,8 +17,8 @@ class TestStationDataRetrievalGetData:
                 variable="Air Temperature at 2m",  # required argument
                 resolution="9 km",  # required argument. Options: "9 km" or "3 km"
                 timescale="hourly",  # required argument
-                data_type="Station",  # required argument
-                station="San Diego Lindbergh Field (KSAN)",  # optional argument. If no input, all weather stations are retrieved
+                data_type="Stations",  # required argument
+                stations="San Diego Lindbergh Field (KSAN)",  # optional argument. If no input, all weather stations are retrieved
             )
         except:
             pytest.fail(
@@ -32,8 +32,8 @@ class TestStationDataRetrievalGetData:
                 variable="Air Temperature at 2m",
                 resolution="3 km",
                 timescale="hourly",
-                data_type="Station",
-                station=[
+                data_type="Stations",
+                stations=[
                     "San Francisco International Airport (KSFO)",
                     "Oakland Metro International Airport (KOAK)",
                 ],
@@ -130,8 +130,8 @@ class TestAppropriateStringErrorReturnedIfBadInputGetData:
             variable="Peanut Butter and Jellyfishes in the Sky",
             resolution="9 km",
             timescale="hourly",
-            data_type="Station",
-            station="San Francisco International Airport (KSFO)",
+            data_type="Stations",
+            stations="San Francisco International Airport (KSFO)",
         )
         sys.stdout = save
 
@@ -150,8 +150,8 @@ class TestAppropriateStringErrorReturnedIfBadInputGetData:
             variable="Air Temperature at 2m",
             resolution="9 km",
             timescale="hourly",
-            data_type="Station",
-            station="San Francisco Airport",  # not the name of the station, but its close so the function should be able to guess
+            data_type="Stations",
+            stations="San Francisco Airport",  # not the name of the station, but its close so the function should be able to guess
         )
         sys.stdout = save
 
