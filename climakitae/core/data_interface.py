@@ -1933,7 +1933,7 @@ def get_data(
 
             if station_i not in station_options_all:
                 if printed_warning == True:
-                    print("\n")  # Add a space between stations for better readability
+                    print("\n", end="")  # Add a space between stations for better readability
 
                 # If the station isn't a valid option...
                 print("Input station='" + station_i + "' is not a valid option.")
