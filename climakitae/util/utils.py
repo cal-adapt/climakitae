@@ -1,5 +1,4 @@
-"""Miscellaneous utility functions."""
-
+stat
 import os
 import numpy as np
 import datetime
@@ -611,8 +610,8 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
         total_data = data
 
     # 3. Find the data's centerpoint through selections
-    if selections.data_type == "Station":
-        station_name = selections.station
+    if selections.data_type == "Stations":
+        station_name = selections.stations
 
         # Getting lat/lon of a specific station
         stations_df = read_csv_file(stations_csv_path)
