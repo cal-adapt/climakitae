@@ -1922,11 +1922,20 @@ def get_data(
         station_options_all = sorted(
             station_options_all
         )  # sorted() puts the list in alphabetical order
+
+        # Keep track of if error was raised and message was printed to user
+        # If more than one station prints errors to the console, print a space between each station
+        printed_warning = False
+
         for i in range(len(stations)):  # Go through all the stations
-            station_i = station[i]
-            if (
-                station_i not in station_options_all
-            ):  # If the station isn't a valid option...
+
+            station_i = stations[i]
+
+            if station_i not in station_options_all:
+                if printed_warning == True:
+                    print("\n")  # Add a space between stations for better readability
+
+                # If the station isn't a valid option...
                 print("Input station='" + station_i + "' is not a valid option.")
                 closest_options = _get_closest_options(
                     station_i, station_options_all
@@ -1949,6 +1958,9 @@ def get_data(
                 stations[i] = closest_options[
                     0
                 ]  # Replace that value in the list with the best option :)
+
+                printed_warning = True
+
         return stations
 
     # Internal functions
