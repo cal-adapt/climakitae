@@ -1755,7 +1755,7 @@ def get_subsetting_options(area_subset="all"):
             ["NAME", "geometry"]
         ],
         "Stations": data_interface._stations_gdf.sort_values("station").rename(
-            columns={"Stations": "NAME"}
+            columns={"station": "NAME"}
         )[["NAME", "geometry"]],
     }
 
@@ -1933,7 +1933,9 @@ def get_data(
 
             if station_i not in station_options_all:
                 if printed_warning == True:
-                    print("\n", end="")  # Add a space between stations for better readability
+                    print(
+                        "\n", end=""
+                    )  # Add a space between stations for better readability
 
                 # If the station isn't a valid option...
                 print("Input station='" + station_i + "' is not a valid option.")
