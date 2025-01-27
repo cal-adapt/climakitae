@@ -1,4 +1,3 @@
-stat
 import os
 import numpy as np
 import datetime
