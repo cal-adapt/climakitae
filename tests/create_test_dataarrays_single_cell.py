@@ -5,6 +5,8 @@ Create test datasets for a single cell of hourly data, for all variations betwee
     2. Time
     3. LOCA
     4. WRF
+Notes: 
+[Nicole Keeney Dec 11, 2024]: I tried to use this script to regenerate the test files for the vulnerability unit tests, but could not get the script to reproduce the files using the appropriate strings. I needed to modify the scenario strings to remove "Business as Usual" from the string IDs. I ended up just manually altering the files. 
 """
 
 import numpy as np
@@ -16,9 +18,8 @@ from climakitae.util.utils import get_closest_gridcell
 variable = "Air Temperature at 2m"
 # downscaling_method='Dynamical',
 resolution = "3 km"
-timescale = "hourly"
 # approach='Warming Level',
-scenario = ["SSP 3-7.0 -- Business as Usual"]
+scenario = ["SSP 3-7.0"]
 units = "degF"
 # warming_level=[2],
 area_subset = "none"
@@ -84,12 +85,13 @@ def _get_filename(approach, downscaling, warming_level, time_slice):
         - Time LOCA:  'test_data/test_dataarray_time_2030_2035_loca_3km_hourly'
 
     """
+    res_no_space = resolution.replace(" ", "")  # convert "3 km" --> "3km"
     return (
         f"test_data/test_dataarray_"
         f"{_get_approach_str(approach)}_"
         f"{_get_duration_str(approach, warming_level, time_slice)}_"
         f"{_get_downscaling_str(downscaling)}_"
-        f"{resolution}_{timescale}"
+        f"{res_no_space}_{timescale}.nc"
     )
 
 
@@ -128,6 +130,7 @@ def _get_data_and_export(
 # Set specific params
 downscaling_method = "Dynamical"
 approach = "Time"
+timescale = "hourly"
 time_slice = (2030, 2035)
 warming_level = None
 
@@ -136,11 +139,15 @@ da = _get_data_and_export(downscaling_method, approach, time_slice, warming_leve
 ### 2. Time, Statistical approach
 
 downscaling_method = "Statistical"
+variable = "Maximum air temperature at 2m"
+timescale = "daily"
 da = _get_data_and_export(downscaling_method, approach, time_slice, warming_level)
 
 ### 3. WL, Dynamical approach
 
 downscaling_method = "Dynamical"
+variable = "Air Temperature at 2m"
+timescale = "hourly"
 approach = "Warming Level"
 warming_level = 2.0
 
@@ -149,11 +156,16 @@ da = _get_data_and_export(downscaling_method, approach, time_slice, warming_leve
 ### 4. WL, Statistical approach
 
 downscaling_method = "Statistical"
+variable = "Maximum air temperature at 2m"
+timescale = "daily"
 warming_level_months = list(range(1, 13))
 da = _get_data_and_export(downscaling_method, approach, time_slice, warming_level)
 
 #### 5. WL, Dynamical, summer approach
 
+downscaling_method = "Dynamical"
+variable = "Air Temperature at 2m"
+timescale = "hourly"
 warming_level_months = [6, 7, 8]
 da = _get_data_and_export(
     downscaling_method, approach, time_slice, warming_level, warming_level_months

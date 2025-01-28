@@ -74,8 +74,8 @@ def retrieve_meteo_yr_data(
     ----------
     self: AverageMetYearParameters
     ssp: str
-        one of "SSP 2-4.5 -- Middle of the Road", "SSP 2-4.5 -- Middle of the Road", "SSP 3-7.0 -- Business as Usual", "SSP 5-8.5 -- Burn it All"
-        Shared Socioeconomic Pathway. Defaults to SSP 3-7.0 -- Business as Usual
+        one of "SSP 2-4.5", "SSP 3-7.0", "SSP 5-8.5"
+        Shared Socioeconomic Pathway. Defaults to SSP 3-7.0
     year_start: int, optional
         Year between 1980-2095. Default to 2015
     year_end: int, optional
@@ -101,7 +101,7 @@ def retrieve_meteo_yr_data(
     if year_end < 2015:
         self.scenario_ssp = []
     elif (year_end >= 2015) and (self.scenario_ssp) == []:
-        self.scenario_ssp = ["SSP 3-7.0 -- Business as Usual"]  # Default
+        self.scenario_ssp = ["SSP 3-7.0"]  # Default
     if year_start < 2015:  # Append historical data
         self.scenario_historical = ["Historical Climate"]
     else:

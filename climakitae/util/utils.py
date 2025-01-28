@@ -10,7 +10,8 @@ import pandas as pd
 import copy
 import intake
 from timezonefinder import TimezoneFinder
-from climakitae.core.paths import data_catalog_url
+from climakitae.core.paths import data_catalog_url, stations_csv_path
+from climakitae.core.constants import SSPS
 
 
 def downscaling_method_as_list(downscaling_method):
@@ -613,13 +614,12 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
     if selections.data_type == "Station":
         station_name = selections.station
 
-        data_catalog = DataInterface()
-
         # Getting lat/lon of a specific station
-        station_df = data_catalog.stations.drop(columns=["Unnamed: 0"])
+        stations_df = read_csv_file(stations_csv_path)
+        stations_df = stations_df.drop(columns=["Unnamed: 0"])
 
         # Getting specific station geometry
-        station_geom = station_df[station_df["station"] == station_name[0]]
+        station_geom = stations_df[stations_df["station"] == station_name[0]]
         lat = station_geom.LAT_Y.item()
         lon = station_geom.LON_X.item()
 
@@ -635,31 +635,30 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
 
     elif selections.data_type == "Gridded" and selections.area_subset != "none":
         # Find the avg. lat/lon coordinates from entire geometry within an area subset
-        from climakitae.core.data_interface import DataInterface
 
-        data_catalog = DataInterface()
+        boundaries = selections._geographies
 
         # Making mapping for different geographies to different polygons
         mapping = {
             "CA counties": (
-                data_catalog.geographies._ca_counties,
-                data_catalog.geographies._get_ca_counties(),
+                boundaries._ca_counties,
+                boundaries._get_ca_counties(),
             ),
             "CA Electric Balancing Authority Areas": (
-                data_catalog.geographies._ca_electric_balancing_areas,
-                data_catalog.geographies._get_electric_balancing_areas(),
+                boundaries._ca_electric_balancing_areas,
+                boundaries._get_electric_balancing_areas(),
             ),
             "CA Electricity Demand Forecast Zones": (
-                data_catalog.geographies._ca_forecast_zones,
-                data_catalog.geographies._get_forecast_zones(),
+                boundaries._ca_forecast_zones,
+                boundaries._get_forecast_zones(),
             ),
             "CA Electric Load Serving Entities (IOU & POU)": (
-                data_catalog.geographies._ca_utilities,
-                data_catalog.geographies._get_ious_pous(),
+                boundaries._ca_utilities,
+                boundaries._get_ious_pous(),
             ),
             "CA watersheds": (
-                data_catalog.geographies._ca_watersheds,
-                data_catalog.geographies._get_ca_watersheds(),
+                boundaries._ca_watersheds,
+                boundaries._get_ca_watersheds(),
             ),
         }
 
@@ -682,6 +681,7 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
         .tz_localize(None)
         .astype("datetime64[ns]")
     )
+    # import pdb; pdb.set_trace()
     total_data["time"] = new_time
 
     # 5. Subset the data by the initial time
@@ -693,6 +693,9 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
 
     # Reset selections object to what it was originally
     selections.time_slice = (start, end)
+
+    # Add timezone attribute to data
+    sliced_data = sliced_data.assign_attrs({"timezone": local_tz})
 
     return sliced_data
 
@@ -827,9 +830,9 @@ def scenario_to_experiment_id(scenario, reverse=False):
     scenario_dict = {
         "Historical Reconstruction": "reanalysis",
         "Historical Climate": "historical",
-        "SSP 2-4.5 -- Middle of the Road": "ssp245",
-        "SSP 5-8.5 -- Burn it All": "ssp585",
-        "SSP 3-7.0 -- Business as Usual": "ssp370",
+        "SSP 2-4.5": "ssp245",
+        "SSP 5-8.5": "ssp585",
+        "SSP 3-7.0": "ssp370",
     }
 
     if reverse == True:
@@ -927,11 +930,7 @@ def _get_scenario_from_selections(selections):
 
     elif selections.approach == "Warming Level":
         # Need all scenarios for warming level approach
-        scenario_ssp = [
-            "SSP 3-7.0 -- Business as Usual",
-            "SSP 2-4.5 -- Middle of the Road",
-            "SSP 5-8.5 -- Burn it All",
-        ]
+        scenario_ssp = SSPS
         scenario_historical = ["Historical Climate"]
 
     return scenario_ssp, scenario_historical

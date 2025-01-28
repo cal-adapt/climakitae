@@ -32,46 +32,46 @@ class TestDerivedVariablesGetData:
                 "Data for Fosberg Fire Weather Index with Warming Levels approach could not be retrieved"
             )
 
-        def test_hourly_relative_humidity_warming_levels_approach_retrieval(self):
-            """Make sure that the hourly relative humidity (a derived variable) can be retrieved!
-            Previously raised an error in Nov 2024 (has since been fixed)
-            """
-            try:
-                ds = get_data(
-                    variable="Relative humidity",
-                    timescale="hourly",
-                    resolution="9 km",
-                    downscaling_method="Dynamical",
-                    area_subset="states",
-                    cached_area="CA",
-                    approach="Warming Level",
-                    warming_level=[3.0],
-                )
-            except:
-                pytest.fail(
-                    "Data for hourly Relative Humidity with a Warming Levels approach could not be retrieved"
-                )
+    def test_hourly_relative_humidity_warming_levels_approach_retrieval(self):
+        """Make sure that the hourly relative humidity (a derived variable) can be retrieved!
+        Previously raised an error in Nov 2024 (has since been fixed)
+        """
+        try:
+            ds = get_data(
+                variable="Relative humidity",
+                timescale="hourly",
+                resolution="9 km",
+                downscaling_method="Dynamical",
+                area_subset="states",
+                cached_area="CA",
+                approach="Warming Level",
+                warming_level=[3.0],
+            )
+        except:
+            pytest.fail(
+                "Data for hourly Relative Humidity with a Warming Levels approach could not be retrieved"
+            )
 
-        def test_hourly_relative_humidity_time_based_approach_retrieval(self):
-            """Make sure that the hourly relative humidity (a derived variable) can be retrieved!
-            Previously raised an error in Nov 2024 (has since been fixed)
-            """
-            try:
-                ds = get_data(
-                    variable="Relative humidity",
-                    timescale="hourly",
-                    resolution="9 km",
-                    downscaling_method="Dynamical",
-                    area_subset="states",
-                    cached_area="CA",
-                    approach="Time",
-                    time_slice=(1990, 1991),
-                    scenario="Historical Climate",
-                )
-            except:
-                pytest.fail(
-                    "Data for hourly Relative Humidity with a Time-based approach could not be retrieved"
-                )
+    def test_hourly_relative_humidity_time_based_approach_retrieval(self):
+        """Make sure that the hourly relative humidity (a derived variable) can be retrieved!
+        Previously raised an error in Nov 2024 (has since been fixed)
+        """
+        try:
+            ds = get_data(
+                variable="Relative humidity",
+                timescale="hourly",
+                resolution="9 km",
+                downscaling_method="Dynamical",
+                area_subset="states",
+                cached_area="CA",
+                approach="Time",
+                time_slice=(1990, 1991),
+                scenario="Historical Climate",
+            )
+        except:
+            pytest.fail(
+                "Data for hourly Relative Humidity with a Time-based approach could not be retrieved"
+            )
 
 
 class TestAppropriateStringErrorReturnedIfBadInputGetData:

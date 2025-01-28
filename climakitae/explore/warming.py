@@ -17,6 +17,7 @@ from climakitae.util.utils import (
     scenario_to_experiment_id,
     _get_cat_subset,
 )
+from climakitae.core.constants import SSPS
 
 from tqdm.auto import tqdm
 
@@ -47,7 +48,7 @@ class WarmingLevels:
 
     def __init__(self, **params):
         self.wl_params = WarmingLevelChoose()
-        # self.warming_levels = ["1.5", "2.0", "3.0", "4.0"]
+        # self.warming_levels = ["0.8", "1.2", "1.5", "2.0", "3.0", "4.0"]
 
     def find_warming_slice(self, level, gwl_times):
         """
@@ -77,11 +78,8 @@ class WarmingLevels:
     def calculate(self):
         # manually reset to all SSPs, in case it was inadvertently changed by
         # temporarily have ['Dynamical','Statistical'] for downscaling_method
-        self.wl_params.scenario_ssp = [
-            "SSP 3-7.0 -- Business as Usual",
-            "SSP 2-4.5 -- Middle of the Road",
-            "SSP 5-8.5 -- Burn it All",
-        ]
+        self.wl_params.scenario_ssp = SSPS
+
         # Postage data and anomalies
         self.catalog_data = self.wl_params.retrieve()
         self.catalog_data = self.catalog_data.stack(all_sims=["simulation", "scenario"])
@@ -173,7 +171,7 @@ def clean_warm_data(warm_data):
     return warm_data
 
 
-def get_sliced_data(y, level, years, months=np.arange(1, 13), window=15, anom="Yes"):
+def get_sliced_data(y, level, years, months=np.arange(1, 13), window=15, anom="No"):
     """Calculating warming level anomalies.
 
     Parameters
@@ -291,7 +289,7 @@ class WarmingLevelChoose(DataParameters):
     anom = param.Selector(
         default="Yes",
         objects=["Yes", "No"],
-        doc="Return an anomaly \n(difference from historical reference period)?",
+        doc="Return a delta signal \n(difference from historical reference period)?",
     )
 
     def __init__(self, *args, **params):
@@ -300,17 +298,13 @@ class WarmingLevelChoose(DataParameters):
         self.scenario_historical = ["Historical Climate"]
         self.area_average = "No"
         self.resolution = "45 km"
-        self.scenario_ssp = [
-            "SSP 3-7.0 -- Business as Usual",
-            "SSP 2-4.5 -- Middle of the Road",
-            "SSP 5-8.5 -- Burn it All",
-        ]
+        self.scenario_ssp = SSPS
         self.time_slice = (1980, 2100)
         self.timescale = "monthly"
         self.variable = "Air Temperature at 2m"
 
         # Choosing specific warming levels
-        self.warming_levels = ["1.5", "2.0", "3.0", "4.0"]
+        self.warming_levels = ["0.8", "1.2", "1.5", "2.0", "3.0", "4.0"]
         self.months = np.arange(1, 13)
 
         # Location defaults
