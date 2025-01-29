@@ -53,10 +53,3 @@ def batch_select(approach, selections, points, load_data=False, progress_bar=Tru
         cells_of_interest = load(cells_of_interest, progress_bar=progress_bar)
 
     return cells_of_interest
-
-
-def batch_analysis(sims, metric):
-    """
-    Runs an analysis against a loaded set of simulations.
-    """
-    return metric(sims)
