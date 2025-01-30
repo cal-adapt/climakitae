@@ -72,3 +72,5 @@ timezonefinder==6.5.4
 dask-geopandas==0.4.2
 xclim==0.53.1
 distributed==2024.11.0
+aiobotocore==2.15.2
+dask-expr==1.1.17
