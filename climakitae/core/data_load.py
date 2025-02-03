@@ -782,7 +782,7 @@ def _get_Vearth(selections):
     # This file contains sinalpha and cosalpha for the WRF grid
     gridlabel = resolution_to_gridlabel(selections.resolution)
     wrf_angles_ds = xr.open_zarr(
-        "s3://cadcat-tmp/wrf_angles_{}.zarr/".format(gridlabel)
+        "s3://cadcat/tmp/era/wrf/wrf_angles_{}.zarr/".format(gridlabel)
     )
     wrf_angles_ds = _spatial_subset(
         wrf_angles_ds, selections
