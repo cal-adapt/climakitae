@@ -201,7 +201,7 @@ def _export_to_netcdf(data, save_name, mode):
         for data_var in data.data_vars:
             _unencode_missing_value(data[data_var])
 
-    _update_encoding(_data)
+    #_update_encoding(_data)
 
     def _fillvalue_encoding(data):
         """
