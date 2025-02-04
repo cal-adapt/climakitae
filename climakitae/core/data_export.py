@@ -297,7 +297,8 @@ def _export_to_netcdf(data, save_name, mode):
                     "or specify a new file name here."
                 )
             )
-        encoding = _fillvalue_encoding(_data) | _compression_encoding(_data)
+        #encoding = _fillvalue_encoding(_data) | _compression_encoding(_data)
+        encoding = _compression_encoding(_data)
         _data.to_netcdf(path, engine="h5netcdf", encoding=encoding)
         print(
             (
