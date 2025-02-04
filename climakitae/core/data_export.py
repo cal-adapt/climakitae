@@ -767,24 +767,24 @@ def export(data, filename="dataexport", format="NetCDF", mode="auto"):
 
     save_name = filename + extension_dict[req_format]
 
-    ds_attrs = data.attrs
+    # ds_attrs = data.attrs
 
-    ct = datetime.datetime.now()
-    ct_str = ct.strftime("%d-%b-%Y (%H:%M)")
+    # ct = datetime.datetime.now()
+    # ct_str = ct.strftime("%d-%b-%Y (%H:%M)")
 
-    ck_attrs = {
-        "Data_exported_from": "Cal-Adapt Analytics Engine",
-        "Data_export_timestamp": ct_str,
-        "Analysis_package_name": "climakitae",
-        "Version": _version("climakitae"),
-        "Author": "Cal-Adapt Analytics Engine Team",
-        "Author_email": "analytics@cal-adapt.org",
-        "Home_page": "https://github.com/cal-adapt/climakitae",
-        "License": "BSD 3-Clause License",
-    }
+    # ck_attrs = {
+    #     "Data_exported_from": "Cal-Adapt Analytics Engine",
+    #     "Data_export_timestamp": ct_str,
+    #     "Analysis_package_name": "climakitae",
+    #     "Version": _version("climakitae"),
+    #     "Author": "Cal-Adapt Analytics Engine Team",
+    #     "Author_email": "analytics@cal-adapt.org",
+    #     "Home_page": "https://github.com/cal-adapt/climakitae",
+    #     "License": "BSD 3-Clause License",
+    # }
 
-    ds_attrs.update(ck_attrs)
-    data.attrs = ds_attrs
+    # ds_attrs.update(ck_attrs)
+    # data.attrs = ds_attrs
 
     # now here is where exporting actually begins
     # we will have different functions for each file type
