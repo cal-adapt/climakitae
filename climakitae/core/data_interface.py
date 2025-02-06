@@ -2104,11 +2104,14 @@ def get_data(
         timescale = "hourly"
         variable = "Air Temperature at 2m"
 
-        # Deal with scenario argument
+        # Deal with scenario and time_slice arguments
         # Handle various use-cases of user inputs/errors
         if scenario is None:
-            # Make scenario a list so we can append to it
-            scenario = []
+            if time_slice is None:
+                # Default
+                scenario = ["Historical Climate"]
+            else:
+                scenario = []
 
         if resolution == "3 km":
             # Neither SSP 2-4.5 nor SSP 5-8.5 are valid options for scenario... need to remove
@@ -2117,18 +2120,19 @@ def get_data(
                     error_message = f"{bad_scenario_choice} is not a valid scenario input for resolution = {resolution}"
                     print(_format_error_print_message(error_message))
                     return None
-
-        if (
-            any(value < 2015 for value in time_slice)
-            and ("Historical Climate") not in scenario
-        ):
-            # Add Historical Climate to scenario if the time scale includes historical period
-            scenario.append("Historical Climate")
-        if any(value >= 2015 for value in time_slice) and not any(
-            "SSP" in item for item in scenario
-        ):
-            # If the time scale includes the future period and no SSP data is selected, add SSP 3-7.0
-            scenario.append("SSP 3-7.0")
+        if time_slice is not None:
+            # Make sure time_slice and scenario match each other
+            # If time_slice is not assigned by the user, it will be auto-set by the DataInterface object
+            if any(value < 2015 for value in time_slice) and (
+                ("Historical Climate") not in scenario
+            ):
+                # Add Historical Climate to scenario if the time scale includes historical period
+                scenario.append("Historical Climate")
+            if any(value >= 2015 for value in time_slice) and not any(
+                "SSP" in item for item in scenario
+            ):
+                # If the time scale includes the future period and no SSP data is selected, add SSP 3-7.0
+                scenario.append("SSP 3-7.0")
 
         if stations is None:
             # Print a warning if the user wants to retrieve station data but they don't input a value for station
