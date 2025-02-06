@@ -1,5 +1,4 @@
-"""Test the get_data() function 
-"""
+"""Test the get_data() function"""
 
 import pytest
 import io
@@ -159,14 +158,24 @@ class TestAppropriateStringErrorReturnedIfBadInputGetData:
 
     def test_error_raised_for_reallllyyyy_bad_input_station_data(self):
         """If the function can't even make a reasonable guess as to the user's guess, it should throw a ValueError"""
-        with pytest.raises(ValueError):
-            ds = get_data(
-                variable="Air Temperature at 2m",
-                resolution="9 km",
-                timescale="hourly",
-                data_type="Station",
-                station="the US international space station",
-            )
+        # Error message we expect to be printed by the function
+        expected_print_message = "ERROR: Station not in parameter data_type's list of possible objects, valid options include [Gridded, Stations] \nReturning None\n"
+
+        # NOTE: function PRINTS this message-- it does not return it as an error
+        # Because of this, we have to use sys to capture the print message
+        capture = io.StringIO()
+        save, sys.stdout = sys.stdout, capture
+        get_data(
+            variable="Air Temperature at 2m",
+            resolution="9 km",
+            timescale="hourly",
+            data_type="Station",
+            stations="the US international space station",  # Not a good weather station input... silly user!
+        )
+
+        sys.stdout = save
+
+        assert capture.getvalue() == expected_print_message
 
     def test_error_raised_string_input_warming_level(self):
         """Warming level should be a float input! Make sure the function prints the appropriate error message"""
