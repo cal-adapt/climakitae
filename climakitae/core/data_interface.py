@@ -662,7 +662,7 @@ class DataParameters(param.Parameterized):
     )
 
     # User warnings
-    _info_about_station_data = "When you retrieve the station data, gridded model data will be bias-corrected to that point. This process can start from any model grid-spacing."
+    _info_about_station_data = "This method retrieves gridded model data that is bias-corrected using historical weather station data at that point. This process can start from any model grid-spacing."
     _data_warning = param.String(
         default="", doc="Warning if user has made a bad selection"
     )
@@ -1851,7 +1851,7 @@ def get_data(
     approach: one of ["Time", "Warming Level"], optional
         Default to "Time"
     scenario: str or list of str, optional
-        SSP scenario and/or historical data selection ("Historical Climate", "Historical Reconstruction")
+        SSP scenario ["SSP 3-7.0", "SSP 2-4.5","SSP 5-8.5"] and/or historical data selection ["Historical Climate", "Historical Reconstruction"]
         If approach = "Time", you need to set a valid option
         If approach = "Warming Level", scenario is ignored
     units: str, optional
@@ -2088,34 +2088,47 @@ def get_data(
             "downscaling_method": ["Dynamical", downscaling_method],
             "timescale": ["hourly", timescale],
             "variable": ["Air Temperature at 2m", variable],
-            "scenario": [
-                [None, ["Historical Climate"], "Historical Climate"],
-                scenario,
-            ],  # Either input is valid for scenario since it's not a required function argument, None is a valid input
         }
         # Go through the users inputs
         # See if they match the required value for that argument
         # If not, print a warning to the user.
         for key, vals in zip(d.keys(), d.values()):
-            if key != "scenario":
-                if vals[0] != vals[1]:
-                    print(
-                        "Weather station data can only be retrieved for {0}={1} \nYour input: {2} \nRetrieving data for {0}={1}".format(
-                            key, vals[0], vals[1]
-                        )
+            if vals[0] != vals[1]:
+                print(
+                    "Weather station data can only be retrieved for {0}={1} \nYour input: {2} \nRetrieving data for {0}={1}".format(
+                        key, vals[0], vals[1]
                     )
-            if key == "scenario":
-                if vals[1] not in vals[0]:
-                    print(
-                        "Weather station data can only be retrieved for {0}={1} \nYour input: {2} \nRetrieving data for {0}={1}".format(
-                            key, "Historical Climate", vals[1]
-                        )
-                    )
+                )
 
-        scenario = ["Historical Climate"]
         downscaling_method = "Dynamical"
         timescale = "hourly"
         variable = "Air Temperature at 2m"
+
+        # Deal with scenario argument
+        # Handle various use-cases of user inputs/errors
+        if scenario is None:
+            # Make scenario a list so we can append to it
+            scenario = []
+
+        if resolution == "3 km":
+            # Neither SSP 2-4.5 nor SSP 5-8.5 are valid options for scenario... need to remove
+            for bad_scenario_choice in ["SSP 2-4.5", "SSP 5-8.5"]:
+                if bad_scenario_choice in scenario:
+                    error_message = f"{bad_scenario_choice} is not a valid scenario input for resolution = {resolution}"
+                    print(_format_error_print_message(error_message))
+                    return None
+
+        if (
+            any(value < 2015 for value in time_slice)
+            and ("Historical Climate") not in scenario
+        ):
+            # Add Historical Climate to scenario if the time scale includes historical period
+            scenario.append("Historical Climate")
+        if any(value >= 2015 for value in time_slice) and not any(
+            "SSP" in item for item in scenario
+        ):
+            # If the time scale includes the future period and no SSP data is selected, add SSP 3-7.0
+            scenario.append("SSP 3-7.0")
 
         if stations is None:
             # Print a warning if the user wants to retrieve station data but they don't input a value for station
