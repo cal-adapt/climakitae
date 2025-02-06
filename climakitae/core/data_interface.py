@@ -525,8 +525,8 @@ class DataParameters(param.Parameterized):
     downscaling_method: str
         whether to choose WRF or LOCA2 data or both ("Dynamical", "Statistical", "Dynamical+Statistical")
     data_type: str
-        whether to choose gridded or station based data ("Gridded", "Station")
-    station: list or strs
+        whether to choose gridded or station based data ("Gridded", "Stations")
+    stations: list or strs
         list of stations that can be filtered by cached_area
     _station_data_info: str
         informational statement when station data selected with data_type
@@ -623,8 +623,8 @@ class DataParameters(param.Parameterized):
         default="Dynamical",
         objects=["Dynamical", "Statistical", "Dynamical+Statistical"],
     )
-    data_type = param.Selector(default="Gridded", objects=["Gridded", "Station"])
-    station = param.ListSelector(objects=dict())
+    data_type = param.Selector(default="Gridded", objects=["Gridded", "Stations"])
+    stations = param.ListSelector(objects=dict())
     _station_data_info = param.String(
         default="", doc="Information about the bias correction process and resolution"
     )
@@ -662,7 +662,7 @@ class DataParameters(param.Parameterized):
     )
 
     # User warnings
-    _info_about_station_data = "When you retrieve the station data, gridded model data will be bias-corrected to that point. This process can start from any model grid-spacing."
+    _info_about_station_data = "This method retrieves gridded model data that is bias-corrected using historical weather station data at that point. This process can start from any model grid-spacing."
     _data_warning = param.String(
         default="", doc="Warning if user has made a bad selection"
     )
@@ -717,7 +717,7 @@ class DataParameters(param.Parameterized):
 
         # Show derived index option?
         indices = True
-        if self.data_type == "station":
+        if self.data_type == "Stations":
             indices = False
         if self.downscaling_method != "Dynamical":
             indices = False
@@ -820,7 +820,7 @@ class DataParameters(param.Parameterized):
         """Update area average selection choices based on station vs. gridded data.
         There is no area average option if station data is selected. It will be shown as n/a.
         """
-        if self.data_type == "Station":
+        if self.data_type == "Stations":
             self.param["area_average"].objects = ["n/a"]
             self.area_average = "n/a"
         elif self.data_type == "Gridded":
@@ -851,7 +851,7 @@ class DataParameters(param.Parameterized):
             self.param["data_type"].objects = ["Gridded"]
             self.data_type = "Gridded"
         else:
-            self.param["data_type"].objects = ["Gridded", "Station"]
+            self.param["data_type"].objects = ["Gridded", "Stations"]
         if self.variable_type == "Derived Index":
 
             # Haven't built into the code to retrieve derive index for statistically downscaled data yet. Derived indices at the moment only work for hourly data.
@@ -860,7 +860,7 @@ class DataParameters(param.Parameterized):
 
             self.param["approach"].objects = ["Time", "Warming Level"]
 
-        elif "Station" in self.data_type:
+        elif "Stations" in self.data_type:
             self.param["downscaling_method"].objects = ["Dynamical"]
             self.downscaling_method = "Dynamical"
 
@@ -881,7 +881,7 @@ class DataParameters(param.Parameterized):
             self.param["resolution"].objects = ["3 km"]
             self.resolution = "3 km"
         else:
-            if self.data_type == "Station":
+            if self.data_type == "Stations":
                 self.param["resolution"].objects = ["3 km", "9 km"]
                 if self.resolution == "45 km":
                     self.resolution = "3 km"
@@ -898,7 +898,7 @@ class DataParameters(param.Parameterized):
         ## Remove derived index as an option if the current selections do not have any index options.
         indices = True
         # Cases where we currently don't have derived indices
-        if self.data_type == "station":
+        if self.data_type == "Stations":
             # Only air temp available for station data
             indices = False
         if self.downscaling_method != "Dynamical":
@@ -927,7 +927,7 @@ class DataParameters(param.Parameterized):
         """Update unique variable options"""
 
         # Station data is only available hourly
-        if self.data_type == "Station":
+        if self.data_type == "Stations":
             self.param["timescale"].objects = ["hourly"]
             self.timescale = "hourly"
             self.param["variable_type"].objects = ["Variable"]
@@ -956,7 +956,7 @@ class DataParameters(param.Parameterized):
             resolution=self.resolution,
         )
 
-        if self.data_type == "Station":
+        if self.data_type == "Stations":
             # If station is selected, the only valid option is air temperature
             temp = "Air Temperature at 2m"
             self.param["variable"].objects = [temp]
@@ -1225,7 +1225,7 @@ class DataParameters(param.Parameterized):
     def _update_textual_description(self):
         if self.data_type == "Gridded":
             self._station_data_info = ""
-        elif self.data_type == "Station":
+        elif self.data_type == "Stations":
             self._station_data_info = self._info_about_station_data
 
     @param.depends(
@@ -1238,7 +1238,7 @@ class DataParameters(param.Parameterized):
     )
     def _update_station_list(self):
         """Update the list of weather station options if the area subset changes"""
-        if self.data_type == "Station":
+        if self.data_type == "Stations":
             overlapping_stations = _get_overlapping_station_names(
                 self._stations_gdf,
                 self.area_subset,
@@ -1250,15 +1250,15 @@ class DataParameters(param.Parameterized):
             )
             if len(overlapping_stations) == 0:
                 notice = "No stations available at this location"
-                self.param["station"].objects = [notice]
-                self.station = [notice]
+                self.param["stations"].objects = [notice]
+                self.stations = [notice]
             else:
-                self.param["station"].objects = overlapping_stations
-                self.station = overlapping_stations
+                self.param["stations"].objects = overlapping_stations
+                self.stations = overlapping_stations
         elif self.data_type == "Gridded":
             notice = "Set data type to 'Station' to see options"
-            self.param["station"].objects = [notice]
-            self.station = [notice]
+            self.param["stations"].objects = [notice]
+            self.stations = [notice]
 
     def retrieve(self, config=None, merge=True):
         """Retrieve data from catalog
@@ -1488,7 +1488,7 @@ def _get_var_name_from_table(variable_id, downscaling_method, timescale, var_df)
     return var_name
 
 
-def _get_closest_options(val, valid_options):
+def _get_closest_options(val, valid_options, cutoff=0.59):
     """If the user inputs a bad option, find the closest option from a list of valid options
 
     Parameters
@@ -1497,6 +1497,9 @@ def _get_closest_options(val, valid_options):
         User input
     valid_options: list
         Valid options for that key from the catalog
+    cutoff: a float in the range [0, 1]
+        See difflib.get_close_matches
+        Possibilities that don't score at least that similar to word are ignored.
 
     Returns
     -------
@@ -1516,7 +1519,7 @@ def _get_closest_options(val, valid_options):
     # For example, if they input "statistikal" instead of "Statistical", difflib will find "Statistical"
     # Change the cutoff to increase/decrease the flexibility of the function
     maybe_difflib_can_find_something = difflib.get_close_matches(
-        val, valid_options, cutoff=0.59
+        val, valid_options, cutoff=cutoff
     )
 
     if len(is_it_just_capitalized_wrong) > 0:
@@ -1597,7 +1600,8 @@ def _check_if_good_input(d, cat_df):
 
                 # Sad! No closest options found. Just set the key to all valid options
                 if closest_options is None:
-                    print("Valid options: " + ", ".join(valid_options))
+                    print("Valid options: \n- ", end="")
+                    print("\n- ".join(valid_options))
                     raise ValueError("Bad input")
 
                 # Just one option in the list
@@ -1715,7 +1719,7 @@ def get_subsetting_options(area_subset="all"):
     Parameters
     ----------
     area_subset: str
-        One of "all", "states", "CA counties", "CA Electricity Demand Forecast Zones", "CA watersheds", "CA Electric Balancing Authority Areas", "CA Electric Load Serving Entities (IOU & POU)"
+        One of "all", "states", "CA counties", "CA Electricity Demand Forecast Zones", "CA watersheds", "CA Electric Balancing Authority Areas", "CA Electric Load Serving Entities (IOU & POU)", "Stations"
         Defaults to "all", which shows all the geometry options with area_subset as a multiindex
 
     Returns
@@ -1750,6 +1754,9 @@ def get_subsetting_options(area_subset="all"):
         )[
             ["NAME", "geometry"]
         ],
+        "Stations": data_interface._stations_gdf.sort_values("station").rename(
+            columns={"station": "NAME"}
+        )[["NAME", "geometry"]],
     }
 
     # Confirm that input for argument "area_subset" is valid
@@ -1772,8 +1779,11 @@ def get_subsetting_options(area_subset="all"):
         df["area_subset"] = [name] * len(
             df
         )  # Add area subset as a column. Used to create multiindex if area_subset = "all"
-        df = df[df["NAME"].isin(list(boundary_dict[name].keys()))]
-        df_dict[name] = df  # Replace the DataFrame with the new, reduced DataFrame
+        if name == "Stations":  # This logic doesn't apply to weather stations
+            pass  # do nothing
+        else:  # Limit options
+            df = df[df["NAME"].isin(list(boundary_dict[name].keys()))]
+        df_dict[name] = df  # Replace the dictionary with the new, reduced dictionary
 
     if area_subset != "all":
         # Only return the desired area subset
@@ -1801,9 +1811,10 @@ def _format_error_print_message(error_message):
 
 def get_data(
     variable,
-    downscaling_method,
     resolution,
     timescale,
+    downscaling_method="Dynamical",
+    data_type="Gridded",
     approach="Time",
     scenario=None,
     units=None,
@@ -1814,6 +1825,7 @@ def get_data(
     cached_area=["entire domain"],
     area_average=None,
     time_slice=None,
+    stations=None,
     warming_level_window=None,
     warming_level_months=None,
 ):
@@ -1825,17 +1837,21 @@ def get_data(
     ----------
     variable: str
         String name of climate variable
-    downscaling_method: str, one of ["Dynamical", "Statistical", "Dynamical+Statistical"]
-        Downscaling method of the data:
-        WRF ("Dynamical"), LOCA2 ("Statistical"), or both "Dynamical+Statistical"
     resolution: str, one of ["3 km", "9 km", "45 km"]
         Resolution of data in kilometers
     timescale: str, one of ["hourly", "daily", "monthly"]
         Temporal frequency of dataset
+    downscaling_method: str, one of ["Dynamical", "Statistical", "Dynamical+Statistical"], optional
+        Downscaling method of the data:
+        WRF ("Dynamical"), LOCA2 ("Statistical"), or both "Dynamical+Statistical"
+        Default to "Dynamical"
+    data_type: str, one of ["Gridded", "Stations"], optional
+        Whether to choose gridded data or weather station data
+        Default to "Gridded"
     approach: one of ["Time", "Warming Level"], optional
         Default to "Time"
     scenario: str or list of str, optional
-        SSP scenario and/or historical data selection ("Historical Climate", "Historical Reconstruction")
+        SSP scenario ["SSP 3-7.0", "SSP 2-4.5","SSP 5-8.5"] and/or historical data selection ["Historical Climate", "Historical Reconstruction"]
         If approach = "Time", you need to set a valid option
         If approach = "Warming Level", scenario is ignored
     units: str, optional
@@ -1859,17 +1875,21 @@ def get_data(
     time_slice: tuple, optional
         Time range for retrieved data
         Only valid for approach = "Time"
+    stations: list of str, optional
+        Which weather stations to retrieve data for
+        Only valid for data_type = "Stations"
+        Default to all stations
     warming_level: list of float, optional
         Must be one of the warming levels available in `clmakitae.core.constants`
-        Only valid for approach = "Warming Level"
+        Only valid for approach = "Warming Level" and data_type = "Stations"
     warming_level_window: int in range (5,25), optional
         Years around Global Warming Level (+/-) \n (e.g. 15 means a 30yr window)
-        Only valid for approach = "Warming Level"
+        Only valid for approach = "Warming Level" and data_type = "Stations"
     warming_level_months: list of int, optional
         Months of year for which to perform warming level computation
         Default to all months in a year: [1,2,3,4,5,6,7,8,9,10,11,12]
         For example, you may want to set warming_level_months=[12,1,2] to perform the analysis for the winter season.
-        Only valid for approach = "Warming Level"
+        Only valid for approach = "Warming Level" and data_type = "Stations"
 
     Returns
     -------
@@ -1880,6 +1900,70 @@ def get_data(
     Errors aren't raised by the function. Rather, an appropriate informative message is printed, and the function returns None. This is due to the fact that the AE Jupyter Hub raises a strange Pieces Mismatch Error for some bad inputs; instead, that error is ignored and a more informative error message is printed instead.
 
     """
+
+    def _check_valid_input_station(stations, station_options_all):
+        """Check that the user input a valid value for station
+        If invalid input, the function will "guess" a close-ish station using difflib
+        See _get_closest_option function for more info
+        If invalid input and no guesses found, the function will print an informative error message and raise a ValueError
+
+        Parameters
+        ----------
+        stations: list of str
+        station_options_all: list of string
+            All the possible station options
+            Can be retrieved from DataParameters()._stations_gdf.station.values
+
+        Returns
+        -------
+        stations: list of str
+
+        """
+        station_options_all = sorted(
+            station_options_all
+        )  # sorted() puts the list in alphabetical order
+
+        # Keep track of if error was raised and message was printed to user
+        # If more than one station prints errors to the console, print a space between each station
+        printed_warning = False
+
+        for i in range(len(stations)):  # Go through all the stations
+
+            station_i = stations[i]
+
+            if station_i not in station_options_all:
+                if printed_warning == True:
+                    print(
+                        "\n", end=""
+                    )  # Add a space between stations for better readability
+
+                # If the station isn't a valid option...
+                print("Input station='" + station_i + "' is not a valid option.")
+                closest_options = _get_closest_options(
+                    station_i, station_options_all
+                )  # See if theres any similar options
+
+                # Sad! No closest options found. Just set the key to all valid options
+                if closest_options is None:
+                    print("Valid options: \n- ", end="")
+                    print("\n- ".join(station_options_all))
+                    raise ValueError("Bad input")
+
+                # Just one option in the list
+                elif len(closest_options) == 1:
+                    print("Closest option: '" + closest_options[0] + "'")
+
+                elif len(closest_options) > 1:
+                    print("Closest options: \n- " + "\n- ".join(closest_options))
+
+                print("Outputting data for station='" + closest_options[0] + "'")
+                stations[i] = closest_options[
+                    0
+                ]  # Replace that value in the list with the best option :)
+
+                printed_warning = True
+
+        return stations
 
     # Internal functions
     def _error_handling_warming_level_inputs(wl, argument_name):
@@ -1996,8 +2080,73 @@ def get_data(
     ## --------- ERROR HANDLING ----------
     # Deal with bad or missing users inputs
 
+    # Station data error handling
+    if data_type == "Stations":
+
+        # dictionary with { argument name : [valid option, user input]}
+        d = {
+            "downscaling_method": ["Dynamical", downscaling_method],
+            "timescale": ["hourly", timescale],
+            "variable": ["Air Temperature at 2m", variable],
+        }
+        # Go through the users inputs
+        # See if they match the required value for that argument
+        # If not, print a warning to the user.
+        for key, vals in zip(d.keys(), d.values()):
+            if vals[0] != vals[1]:
+                print(
+                    "Weather station data can only be retrieved for {0}={1} \nYour input: {2} \nRetrieving data for {0}={1}".format(
+                        key, vals[0], vals[1]
+                    )
+                )
+
+        downscaling_method = "Dynamical"
+        timescale = "hourly"
+        variable = "Air Temperature at 2m"
+
+        # Deal with scenario and time_slice arguments
+        # Handle various use-cases of user inputs/errors
+        if scenario is None:
+            if time_slice is None:
+                # Default
+                scenario = ["Historical Climate"]
+            else:
+                scenario = []
+
+        if resolution == "3 km":
+            # Neither SSP 2-4.5 nor SSP 5-8.5 are valid options for scenario... need to remove
+            for bad_scenario_choice in ["SSP 2-4.5", "SSP 5-8.5"]:
+                if bad_scenario_choice in scenario:
+                    error_message = f"{bad_scenario_choice} is not a valid scenario input for resolution = {resolution}"
+                    print(_format_error_print_message(error_message))
+                    return None
+        if time_slice is not None:
+            # Make sure time_slice and scenario match each other
+            # If time_slice is not assigned by the user, it will be auto-set by the DataInterface object
+            if any(value < 2015 for value in time_slice) and (
+                ("Historical Climate") not in scenario
+            ):
+                # Add Historical Climate to scenario if the time scale includes historical period
+                scenario.append("Historical Climate")
+            if any(value >= 2015 for value in time_slice) and not any(
+                "SSP" in item for item in scenario
+            ):
+                # If the time scale includes the future period and no SSP data is selected, add SSP 3-7.0
+                scenario.append("SSP 3-7.0")
+
+        if stations is None:
+            # Print a warning if the user wants to retrieve station data but they don't input a value for station
+            # The function will return all the stations by default
+            print(
+                "WARNING: You haven't set a particular station/s to retrieve data for; the function will default to retrieving all available stations in the domain"
+            )
+        if (stations is not None) and (type(stations) == str):
+            # Catch easy user mistake without raising an error: Inputting a string instead of a list of list
+            # I imagine this could happen if you just wanted to retrieve data for a single station
+            stations = [stations]
+
     # If lat/lon input, change cached_area and area_subset
-    if latitude is not None and longitude is not None:
+    if (latitude is not None) and (longitude is not None):
         area_subset = "lat/lon"
         cached_area = ["coordinate selection"]
 
@@ -2070,7 +2219,7 @@ def get_data(
     )
 
     if check_input_df is None:
-
+        # Does this print an informative error message? I think so but I'm not sure.
         return None
 
     # Merge with variable dataframe to get all the info about the data in one place
@@ -2107,6 +2256,7 @@ def get_data(
         "timescale": cat_dict["timescale"][0],
         "downscaling_method": cat_dict["downscaling_method"][0],
         "resolution": cat_dict["resolution"][0],
+        "data_type": data_type,
         "scenario": cat_dict["scenario"],
         "area_average": area_average,
         "area_subset": area_subset,
@@ -2119,6 +2269,7 @@ def get_data(
         "time_slice": time_slice,
         "latitude": latitude,
         "longitude": longitude,
+        "stations": stations,
     }
 
     scenario_ssp, scenario_historical = _get_scenario_ssp_scenario_historical(
@@ -2146,11 +2297,22 @@ def get_data(
         units if units is not None else var_df_query["unit"].item()
     )  # Set units if user doesn't set them manually
 
-    ## ------ CREATE SELECTIONS OBJECT AND SET EACH ATTRIBUTE -------
+    ## ------ CREATE SELECTIONS OBJECT --------
     selections = DataParameters()
 
+    # Error handling for stations
+    # If the user input a value for the station argument, check that it exists
+    # If it doesn't exist, see if you can find something close... if not, throw an error
+    # Need to do the error handling here since it requires the selections object
+    if data_type == "Stations" and stations is not None:
+        stations = _check_valid_input_station(
+            stations, selections._stations_gdf.station.values
+        )
+
+    ## ------- SET EACH ATTRIBUTE -------
+
     try:
-        selections.data_type = "Gridded"  # Haven't added option to get station data yet
+        selections.data_type = selections_dict["data_type"]
         selections.approach = selections_dict["approach"]
         selections.scenario_ssp = selections_dict["scenario_ssp"]
         selections.scenario_historical = selections_dict["scenario_historical"]
@@ -2178,6 +2340,8 @@ def get_data(
             selections.latitude = selections_dict["latitude"]
         if selections_dict["longitude"] is not None:
             selections.longitude = selections_dict["longitude"]
+        if selections_dict["stations"] is not None:
+            selections.stations = selections_dict["stations"]
     except ValueError as error_message:
         # The error message is really long
         # And sometimes has a confusing Attribute Error: Pieces mismatch that is hard to interpret

@@ -174,7 +174,7 @@ def area_subset_geometry(selections):
         area_subset: str
         cached_area: str
         """
-        if selections.data_type == "Station":
+        if selections.data_type == "Stations":
             area_subset = "none"
             cached_area = "entire domain"
         else:
@@ -1193,8 +1193,8 @@ def read_catalog_from_select(selections):
             raise ValueError("Please select as least one dataset.")
 
     # Raise error if station data selected, but no station is selected
-    if (selections.data_type == "Station") and (
-        selections.station in [[], ["No stations available at this location"]]
+    if (selections.data_type == "Stations") and (
+        selections.stations in [[], ["No stations available at this location"]]
     ):
         raise ValueError(
             "Please select at least one weather station, or retrieve gridded data."
@@ -1202,7 +1202,7 @@ def read_catalog_from_select(selections):
 
     # For station data, need to expand time slice to ensure the historical period is included
     # At the end, the data will be cut back down to the user's original selection
-    if selections.data_type == "Station":
+    if selections.data_type == "Stations":
         original_time_slice = selections.time_slice  # Preserve original user selections
         original_scenario_historical = selections.scenario_historical.copy()
         if "Historical Climate" not in selections.scenario_historical:
@@ -1277,7 +1277,7 @@ def read_catalog_from_select(selections):
     else:
         da = _get_data_one_var(selections)
 
-    if selections.data_type == "Station":
+    if selections.data_type == "Stations":
         # Bias-correct the station data
         da = _station_apply(selections, da, original_time_slice)
 
@@ -1399,7 +1399,7 @@ def _station_apply(selections, da, original_time_slice):
     """
     # Grab zarr data
     station_subset = selections._stations_gdf.loc[
-        selections._stations_gdf["station"].isin(selections.station)
+        selections._stations_gdf["station"].isin(selections.stations)
     ]
     filepaths = [
         "s3://cadcat/hadisd/HadISD_{}.zarr".format(s_id)
