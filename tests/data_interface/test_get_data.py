@@ -169,7 +169,7 @@ class TestAppropriateStringErrorReturnedIfBadInputGetData:
             variable="Air Temperature at 2m",
             resolution="9 km",
             timescale="hourly",
-            data_type="Station",
+            data_type="Stations",
             stations="the US international space station",  # Not a good weather station input... silly user!
         )
 
