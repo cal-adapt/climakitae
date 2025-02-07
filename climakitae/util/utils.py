@@ -73,7 +73,30 @@ def read_csv_file(rel_path, index_col=None, parse_dates=False):
     pd.DataFrame
     """
     return pd.read_csv(
-        _package_file_path(rel_path), index_col=index_col, parse_dates=parse_dates
+        _package_file_path(rel_path),
+        index_col=index_col,
+        parse_dates=parse_dates,
+        na_values=[
+            "",
+            "#N/A",
+            "#N/A N/A",
+            "#NA",
+            "-1.#IND",
+            "-1.#QNAN",
+            "-NaN",
+            "-nan",
+            "1.#IND",
+            "1.#QNAN",
+            "<NA>",
+            "N/A",
+            "NA",
+            "NULL",
+            "NaN",
+            "n/a",
+            "nan",
+            "null ",
+        ],
+        keep_default_na=False,
     )
 
 

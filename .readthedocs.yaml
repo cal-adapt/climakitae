@@ -6,7 +6,7 @@ build:
     - libproj-dev
     - libgeos-dev
   tools:
-    python: "3.9"
+    python: "3.12"
 
 sphinx:
   configuration: docs/conf.py

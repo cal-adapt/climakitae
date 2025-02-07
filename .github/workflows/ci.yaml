@@ -33,8 +33,6 @@ jobs:
       run: conda info
     - name: Output conda list
       run: conda list
-    - name: Install pip packages
-      run: pip install numba==0.53.1 timezonefinder==6.0.2 dask-gateway==2023.1.1 dask-geopandas==0.3.1 xclim==0.42.0
     - name: Install climakitae
       run: pip install .
     - name: Output conda list

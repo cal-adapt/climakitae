@@ -159,13 +159,13 @@ class TestAppropriateStringErrorReturnedIfBadInputGetData:
     def test_error_raised_for_reallllyyyy_bad_input_station_data(self):
         """If the function can't even make a reasonable guess as to the user's guess, it should throw a ValueError"""
         # Error message we expect to be printed by the function
-        expected_print_message = "ERROR: Station not in parameter data_type's list of possible objects, valid options include [Gridded, Stations] \nReturning None\n"
+        expected_print_message = "ERROR: Selector parameter 'DataParameters.data_type' does not accept 'Station'; valid options include: '[Gridded, Stations]' \nReturning None\n"
 
         # NOTE: function PRINTS this message-- it does not return it as an error
         # Because of this, we have to use sys to capture the print message
         capture = io.StringIO()
         save, sys.stdout = sys.stdout, capture
-        get_data(
+        ds = get_data(
             variable="Air Temperature at 2m",
             resolution="9 km",
             timescale="hourly",
@@ -187,7 +187,7 @@ class TestAppropriateStringErrorReturnedIfBadInputGetData:
         # Because of this, we have to use sys to capture the print message
         capture = io.StringIO()
         save, sys.stdout = sys.stdout, capture
-        get_data(
+        ds = get_data(
             variable="Precipitation (total)",
             downscaling_method="Dynamical",
             resolution="45 km",
