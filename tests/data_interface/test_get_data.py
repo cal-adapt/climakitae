@@ -169,13 +169,18 @@ class TestAppropriateStringErrorReturnedIfBadInputGetData:
         # Because of this, we have to use sys to capture the print message
         capture = io.StringIO()
         save, sys.stdout = sys.stdout, capture
-        ds = get_data(
-            variable="Air Temperature at 2m",
-            resolution="9 km",
-            timescale="hourly",
-            data_type="Stations",
-            stations="the US international space station",  # Not a good weather station input... silly user!
-        )
+        try:
+            ds = get_data(
+                variable="Air Temperature at 2m",
+                resolution="9 km",
+                timescale="hourly",
+                data_type="Stations",
+                stations="the US international space station",  # Not a good weather station input... silly user!
+            )
+        except Exception:
+            # This function raises a Value Error AND prints a message (before raising the error)
+            # Just ignore the error
+            pass
 
         sys.stdout = save
 
