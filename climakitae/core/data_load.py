@@ -1540,9 +1540,9 @@ def _station_apply(selections, da, original_time_slice):
             obs_da = convert_units(obs_da, gridded_da.units)
             # Rechunk data. Cannot be chunked along time dimension
             # Error raised by xclim: ValueError: Multiple chunks along the main adjustment dimension time is not supported.
-            gridded_da = gridded_da.chunk(dict(time=-1))
-            obs_da = obs_da.sel(time=slice(obs_da.time.values[0], "2014-08-31"))
-            obs_da = obs_da.chunk(dict(time=-1))
+            #gridded_da = gridded_da.chunk(dict(time=-1))
+            #obs_da = obs_da.sel(time=slice(obs_da.time.values[0], "2014-08-31"))
+            #obs_da = obs_da.chunk(dict(time=-1))
             # Convert calendar to no leap year
             obs_da = obs_da.convert_calendar("noleap")
             gridded_da = gridded_da.convert_calendar("noleap")
