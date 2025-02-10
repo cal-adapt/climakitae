@@ -49,6 +49,12 @@ class WarmingLevels:
     def __init__(self, **params):
         self.wl_params = WarmingLevelChoose()
         # self.warming_levels = ["0.8", "1.2", "1.5", "2.0", "3.0", "4.0"]
+        self.
+        
+    def _check_available_warming_levels():
+        gwl_times = read_csv_file(gwl_1850_1900_file)
+        available_warming_levels = list(gwl_times.columns.drop(['GCM','run','scenario']).values.astype('float'))
+        return available_warming_levels
 
     def find_warming_slice(self, level, gwl_times):
         """
