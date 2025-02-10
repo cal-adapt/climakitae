@@ -13,8 +13,6 @@ import numpy as np
 from climakitae.util.utils import write_csv_file
 from climakitae.core.constants import WARMING_LEVELS
 
-###TEMP###
-WARMING_LEVELS=[1.0]
 
 def main():
     """
@@ -499,8 +497,7 @@ def main():
         ).mean()  # grouping times and removing NaNs via mean()
         write_csv_file(
             wl_timeidx,
-            #TEMP
-            "data/10_gwl_{}-{}ref_timeidx.csv".format(start_year[:4], end_year[:4]),
+            "data/gwl_{}-{}ref_timeidx.csv".format(start_year[:4], end_year[:4]),
         )
 
         # Creating WL lookup table with 1850-1900 reference period
@@ -510,10 +507,8 @@ def main():
             all_gw_levels.index, names=["GCM", "run", "scenario"]
         )
         write_csv_file(
-            #TEMP
-            all_gw_levels, "data/10_gwl_{}-{}ref.csv".format(start_year[:4], end_year[:4])
+            all_gw_levels, "data/gwl_{}-{}ref.csv".format(start_year[:4], end_year[:4])
         )
-        return all_gw_levels
 
 
 def get_sims_on_aws(df):

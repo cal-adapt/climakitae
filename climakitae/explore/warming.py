@@ -17,7 +17,8 @@ from climakitae.util.utils import (
     scenario_to_experiment_id,
     _get_cat_subset,
 )
-from climakitae.core.constants import SSPS
+from climakitae.core.constants import (SSPS,
+WARMING_LEVELS)
 
 from tqdm.auto import tqdm
 
@@ -49,12 +50,8 @@ class WarmingLevels:
     def __init__(self, **params):
         self.wl_params = WarmingLevelChoose()
         # self.warming_levels = ["0.8", "1.2", "1.5", "2.0", "3.0", "4.0"]
-        self.
-        
-    def _check_available_warming_levels():
-        gwl_times = read_csv_file(gwl_1850_1900_file)
-        available_warming_levels = list(gwl_times.columns.drop(['GCM','run','scenario']).values.astype('float'))
-        return available_warming_levels
+        self.warming_levels = _check_available_warming_levels()
+
 
     def find_warming_slice(self, level, gwl_times):
         """
@@ -310,7 +307,7 @@ class WarmingLevelChoose(DataParameters):
         self.variable = "Air Temperature at 2m"
 
         # Choosing specific warming levels
-        self.warming_levels = ["0.8", "1.2", "1.5", "2.0", "3.0", "4.0"]
+        self.warming_levels = [str(x) for x in WARMING_LEVELS]
         self.months = np.arange(1, 13)
 
         # Location defaults
@@ -377,3 +374,10 @@ def _drop_invalid_sims(ds, selections):
         )
     )
     return ds.sel(all_sims=valid_sim_list)
+
+
+def _check_available_warming_levels():
+    gwl_times = read_csv_file(gwl_1850_1900_file)
+    available_warming_levels = list(gwl_times.columns.drop(['GCM','run','scenario']).values)
+    available_warming_levels = [float(w) for w in available_warming_levels]
+    return available_warming_levels
