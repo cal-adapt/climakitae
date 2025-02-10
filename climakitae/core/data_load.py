@@ -1556,7 +1556,7 @@ def _station_apply(selections, da, original_time_slice):
                     time=slice(
                         str(obs_da.time.values[0]),
                         str(obs_da.time.values[-1]),
-                    ))
+                    )))
             # Get QDS
             QDM = QuantileDeltaMapping.train(
                 obs_da,
