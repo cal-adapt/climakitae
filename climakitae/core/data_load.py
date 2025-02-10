@@ -174,7 +174,7 @@ def area_subset_geometry(selections):
         area_subset: str
         cached_area: str
         """
-        if selections.data_type == "Station":
+        if selections.data_type == "Stations":
             area_subset = "none"
             cached_area = "entire domain"
         else:
@@ -739,7 +739,8 @@ def _get_Uearth(selections):
     # This file contains sinalpha and cosalpha for the WRF grid
     gridlabel = resolution_to_gridlabel(selections.resolution)
     wrf_angles_ds = xr.open_zarr(
-        "s3://cadcat-tmp/wrf_angles_{}.zarr/".format(gridlabel)
+        "s3://cadcat/tmp/era/wrf/wrf_angles_{}.zarr/".format(gridlabel),
+        storage_options={"anon": True},
     )
     wrf_angles_ds = _spatial_subset(
         wrf_angles_ds, selections
@@ -782,7 +783,8 @@ def _get_Vearth(selections):
     # This file contains sinalpha and cosalpha for the WRF grid
     gridlabel = resolution_to_gridlabel(selections.resolution)
     wrf_angles_ds = xr.open_zarr(
-        "s3://cadcat-tmp/wrf_angles_{}.zarr/".format(gridlabel)
+        "s3://cadcat/tmp/era/wrf/wrf_angles_{}.zarr/".format(gridlabel),
+        storage_options={"anon": True},
     )
     wrf_angles_ds = _spatial_subset(
         wrf_angles_ds, selections
@@ -1191,8 +1193,8 @@ def read_catalog_from_select(selections):
             raise ValueError("Please select as least one dataset.")
 
     # Raise error if station data selected, but no station is selected
-    if (selections.data_type == "Station") and (
-        selections.station in [[], ["No stations available at this location"]]
+    if (selections.data_type == "Stations") and (
+        selections.stations in [[], ["No stations available at this location"]]
     ):
         raise ValueError(
             "Please select at least one weather station, or retrieve gridded data."
@@ -1200,7 +1202,7 @@ def read_catalog_from_select(selections):
 
     # For station data, need to expand time slice to ensure the historical period is included
     # At the end, the data will be cut back down to the user's original selection
-    if selections.data_type == "Station":
+    if selections.data_type == "Stations":
         original_time_slice = selections.time_slice  # Preserve original user selections
         original_scenario_historical = selections.scenario_historical.copy()
         if "Historical Climate" not in selections.scenario_historical:
@@ -1275,7 +1277,7 @@ def read_catalog_from_select(selections):
     else:
         da = _get_data_one_var(selections)
 
-    if selections.data_type == "Station":
+    if selections.data_type == "Stations":
         # Bias-correct the station data
         da = _station_apply(selections, da, original_time_slice)
 
@@ -1325,7 +1327,6 @@ def _apply_warming_levels_approach(da, selections):
 
     # Stack by simulation and scenario to combine the coordinates into a single dimension
     data_stacked = da.stack(all_sims=["simulation", "scenario"])
-
     # The xarray stacking function results in some non-existant scenario/simulation combos
     # We need to drop them here such that the global warming levels table can be adequately parsed by the _calculate_warming_level function
     data_stacked = _drop_invalid_sims(data_stacked, selections)
@@ -1397,7 +1398,7 @@ def _station_apply(selections, da, original_time_slice):
     """
     # Grab zarr data
     station_subset = selections._stations_gdf.loc[
-        selections._stations_gdf["station"].isin(selections.station)
+        selections._stations_gdf["station"].isin(selections.stations)
     ]
     filepaths = [
         "s3://cadcat/hadisd/HadISD_{}.zarr".format(s_id)

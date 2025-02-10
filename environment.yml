@@ -74,14 +74,10 @@ dependencies:
   - urllib3
   - zarr
   - zipp
+  - numba
+  - timezonefinder
+  - dask-gateway
+  - dask-geopandas
+  - xclim
+  - IPython
   - pip
-  - pip:
-    - numba
-    - timezonefinder
-    - dask-gateway
-    - dask-geopandas
-    - xclim
-    - boto3
-    - IPython
-    - timezonefinder
-    - h5netcdf
