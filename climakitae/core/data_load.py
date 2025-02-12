@@ -628,8 +628,10 @@ def _get_data_one_var(selections):
     # Set data attributes and name
     native_units = da.attrs["units"]
     data_attrs = _get_data_attributes(selections)
-    if "grid_mapping" in da.attrs:
-        data_attrs = data_attrs | {"grid_mapping": da.attrs["grid_mapping"]}
+    if (selections.downscaling_method == "Dynamical") and (
+        "Lambert_Conformal" in da.coords
+    ):
+        data_attrs = data_attrs | {"grid_mapping": "Lambert_Conformal"}
     data_attrs = data_attrs | {"institution": _institution}
     da.attrs = data_attrs
     da.name = selections.variable
@@ -1250,8 +1252,6 @@ def read_catalog_from_select(selections):
         # ------ Set attributes ------
         # Some of the derived variables may be constructed from data that comes from the same institution
         # The dev team hasn't looked into this yet -- opportunity for future improvement
-        if "grid_mapping" in da.attrs:
-            data_attrs = data_attrs | {"grid_mapping": da.attrs["grid_mapping"]}
         data_attrs = data_attrs | {"institution": "Multiple"}
         da.attrs = data_attrs
 
