@@ -169,10 +169,11 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
     if "x" and "y" in data.dims:
         # Make Transformer object
         lat_lon_to_model_projection = pyproj.Transformer.from_crs(
-            crs_from="EPSG:4326",  # Lat/lon
-            crs_to=data.Lambert_Conformal.attrs["crs_wkt"],  # Model projection
+            crs_from="epsg:4326",  # Lat/lon
+            crs_to=data.rio.crs,  # Model projection
             always_xy=True,
         )
+
         # Convert coordinates to x,y
         x, y = lat_lon_to_model_projection.transform(lon, lat)
 
