@@ -370,7 +370,7 @@ def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
     data = xr_da.drop_vars(coords)
 
     # Re-write crs to data using original dataset
-    data = data.rio.write_crs(xr_da.rio.crs)
+    data = data.rio.write_crs(xr_da.rio.crs, inplace=True)
 
     # Get non-spatial dimensions
     non_spatial_dims = [dim for dim in data.dims if dim not in ["x", "y"]]

@@ -310,7 +310,7 @@ def _spatial_subset(dset, selections):
             clipped area of dset
         """
         dset = dset.rename({"lon": "x", "lat": "y"})
-        dset = dset.rio.write_crs("EPSG:4326")
+        dset = dset.rio.write_crs("epsg:4326", inplace=True)
         dset = _clip_to_geometry(dset, ds_region)
         dset = dset.rename({"x": "lon", "y": "lat"}).drop("spatial_ref")
         return dset
@@ -1540,9 +1540,9 @@ def _station_apply(selections, da, original_time_slice):
             obs_da = convert_units(obs_da, gridded_da.units)
             # Rechunk data. Cannot be chunked along time dimension
             # Error raised by xclim: ValueError: Multiple chunks along the main adjustment dimension time is not supported.
-            gridded_da = gridded_da.chunk(dict(time=-1))
+            gridded_da = gridded_da.chunk(chunks=dict(time=-1))
             obs_da = obs_da.sel(time=slice(obs_da.time.values[0], "2014-08-31"))
-            obs_da = obs_da.chunk(dict(time=-1))
+            obs_da = obs_da.chunk(chunks=dict(time=-1))
             # Convert calendar to no leap year
             obs_da = obs_da.convert_calendar("noleap")
             gridded_da = gridded_da.convert_calendar("noleap")
@@ -1550,16 +1550,20 @@ def _station_apply(selections, da, original_time_slice):
             data_sliced = gridded_da.sel(
                 time=slice(str(time_slice[0]), str(time_slice[1]))
             )
+            # Input data, sliced to time period of observational data
+            gridded_da = gridded_da.sel(
+                time=slice(str(obs_da.time.values[0]), str(obs_da.time.values[-1]))
+            )
+            # Observational data sliced to time period of input data
+            obs_da = obs_da.sel(
+                time=slice(
+                    str(gridded_da.time.values[0]), str(gridded_da.time.values[-1])
+                )
+            )
             # Get QDS
             QDM = QuantileDeltaMapping.train(
                 obs_da,
-                # Input data, sliced to time period of observational data
-                gridded_da.sel(
-                    time=slice(
-                        str(obs_da.time.values[0]),
-                        str(obs_da.time.values[-1]),
-                    )
-                ),
+                gridded_da,
                 nquantiles=nquantiles,
                 group=grouper,
                 kind=kind,
