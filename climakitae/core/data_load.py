@@ -1551,9 +1551,15 @@ def _station_apply(selections, da, original_time_slice):
                 time=slice(str(time_slice[0]), str(time_slice[1]))
             )
             # Input data, sliced to time period of observational data
-            gridded_da = gridded_da.sel(time=slice(str(obs_da.time.values[0]),str(obs_da.time.values[-1])))
+            gridded_da = gridded_da.sel(
+                time=slice(str(obs_da.time.values[0]), str(obs_da.time.values[-1]))
+            )
             # Observational data sliced to time period of input data
-            obs_da = obs_da.sel(time=slice(str(gridded_da.time.values[0]),str(gridded_da.time.values[-1])))
+            obs_da = obs_da.sel(
+                time=slice(
+                    str(gridded_da.time.values[0]), str(gridded_da.time.values[-1])
+                )
+            )
             # Get QDS
             QDM = QuantileDeltaMapping.train(
                 obs_da,
