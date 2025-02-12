@@ -2,7 +2,7 @@
 """This module defines constants across the codebase"""
 
 # global warming levels available on AE
-WARMING_LEVELS = [0.8, 1.2, 1.5, 2.0, 2.5, 3.0, 4.0]
+WARMING_LEVELS = [0.8, 1.0, 1.2, 1.5, 2.0, 2.5, 3.0, 4.0]
 
 # shared socioeconomic pathways (IPCC)
 SSPS = [
