@@ -168,16 +168,13 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
 
     if "x" and "y" in data.dims:
         # Make Transformer object
-        print("reached here1")
         lat_lon_to_model_projection = pyproj.Transformer.from_crs(
             crs_from="EPSG:4326",  # Lat/lon
             crs_to=data.Lambert_Conformal.attrs["crs_wkt"],  # Model projection
             always_xy=True,
         )
-        print("reached here2")
         # Convert coordinates to x,y
         x, y = lat_lon_to_model_projection.transform(lon, lat)
-        print("reached here3")
 
     # Get closest gridcell using tolerance
     # If input point outside of dataset by greater than one
