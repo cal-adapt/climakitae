@@ -33,6 +33,8 @@ jobs:
       run: conda info
     - name: Output conda list
       run: conda list
+    - name: Install pip packages
+      run: pip install xarray==2024.11.0 xclim==0.54.0
     - name: Install climakitae
       run: pip install .
     - name: Output conda list
