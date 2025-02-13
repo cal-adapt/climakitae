@@ -282,7 +282,8 @@ def _spatial_subset(dset, selections):
             clipped area of dset
         """
         try:
-            dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
+            with xr.set_options(keep_attrs=True):
+                dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
 
         except NoDataInBounds as e:
             # Catch small geometry error
@@ -309,11 +310,12 @@ def _spatial_subset(dset, selections):
         xr.Dataset
             clipped area of dset
         """
-        dset = dset.rename({"lon": "x", "lat": "y"})
-        dset = dset.rio.write_crs("epsg:4326", inplace=True)
-        dset = _clip_to_geometry(dset, ds_region)
-        dset = dset.rename({"x": "lon", "y": "lat"}).drop("spatial_ref")
-        return dset
+        with xr.set_options(keep_attrs=True):
+            dset = dset.rename({"lon": "x", "lat": "y"})
+            dset = dset.rio.write_crs("epsg:4326", inplace=True)
+            dset = _clip_to_geometry(dset, ds_region)
+            dset = dset.rename({"x": "lon", "y": "lat"}).drop("spatial_ref")
+            return dset
 
     ds_region = area_subset_geometry(selections)
 
