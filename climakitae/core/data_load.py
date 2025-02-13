@@ -628,10 +628,6 @@ def _get_data_one_var(selections):
     # Set data attributes and name
     native_units = da.attrs["units"]
     data_attrs = _get_data_attributes(selections)
-    if (selections.downscaling_method == "Dynamical") and (
-        "Lambert_Conformal" in da.coords
-    ):
-        data_attrs = data_attrs | {"grid_mapping": "Lambert_Conformal"}
     data_attrs = data_attrs | {"institution": _institution}
     da.attrs = data_attrs
     da.name = selections.variable
@@ -1297,6 +1293,11 @@ def read_catalog_from_select(selections):
         # Reset original selections
         selections.scenario_ssp = ["n/a"]
         selections.scenario_historical = ["n/a"]
+
+    if (selections.downscaling_method == "Dynamical") and (
+        "Lambert_Conformal" in da.coords
+    ):
+        da.attrs = da.attrs | {"grid_mapping": "Lambert_Conformal"}
 
     return da
 
