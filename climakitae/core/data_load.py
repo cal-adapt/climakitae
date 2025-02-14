@@ -312,7 +312,6 @@ def _spatial_subset(dset, selections):
         dset = dset.rename({"lon": "x", "lat": "y"})
         dset = dset.rio.write_crs("epsg:4326", inplace=True)
         dset = _clip_to_geometry(dset, ds_region)
-        dset = dset.rio.write_crs("epsg:4326", inplace=True)
         dset = dset.rename({"x": "lon", "y": "lat"}).drop("spatial_ref")
         return dset
 
@@ -1295,10 +1294,13 @@ def read_catalog_from_select(selections):
         selections.scenario_ssp = ["n/a"]
         selections.scenario_historical = ["n/a"]
 
+    # Assure that CRS and grid_mapping are in place for all data returned
     if (selections.downscaling_method == "Dynamical") and (
         "Lambert_Conformal" in da.coords
     ):
         da.attrs = da.attrs | {"grid_mapping": "Lambert_Conformal"}
+    elif (selections.downscaling_method in ["Statistical", "Dynamical+Statistical"]):
+        da = da.rio.write_crs("epsg:4326", inplace=True)
 
     return da
 
