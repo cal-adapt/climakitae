@@ -282,8 +282,7 @@ def _spatial_subset(dset, selections):
             clipped area of dset
         """
         try:
-            with xr.set_options(keep_attrs=True):
-                dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
+            dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
 
         except NoDataInBounds as e:
             # Catch small geometry error
@@ -310,12 +309,11 @@ def _spatial_subset(dset, selections):
         xr.Dataset
             clipped area of dset
         """
-        with xr.set_options(keep_attrs=True):
-            dset = dset.rename({"lon": "x", "lat": "y"})
-            dset = dset.rio.write_crs("epsg:4326", inplace=True)
-            dset = _clip_to_geometry(dset, ds_region)
-            dset = dset.rename({"x": "lon", "y": "lat"}).drop("spatial_ref")
-            return dset
+        dset.rename({"lon": "x", "lat": "y"})
+        dset = _clip_to_geometry(dset, ds_region)
+        dset.rio.write_crs("epsg:4326", inplace=True)
+        dset = dset.rename({"x": "lon", "y": "lat"}).drop("spatial_ref")
+        return dset
 
     ds_region = area_subset_geometry(selections)
 
@@ -1170,139 +1168,138 @@ def read_catalog_from_select(selections):
         output data
     """
 
-    with xr.set_options(keep_attrs=True):
-        if selections.approach == "Warming Level":
-            selections.time_slice = (1980, 2100)  # Retrieve entire time period
+    if selections.approach == "Warming Level":
+        selections.time_slice = (1980, 2100)  # Retrieve entire time period
 
-        # Raise appropriate errors for time-based retrieval
-        if selections.approach == "Time":
+    # Raise appropriate errors for time-based retrieval
+    if selections.approach == "Time":
 
-            if (selections.scenario_ssp != []) and (
-                "Historical Reconstruction" in selections.scenario_historical
-            ):
-                raise ValueError(
-                    "Historical Reconstruction data is not available with SSP data. Please modify your selections and try again."
-                )
-
-            # Validate unit selection
-            # Returns None if units are valid, raises error if not
-            _check_valid_unit_selection(selections)
-
-            # Raise error if no scenarios are selected
-            scenario_selections = selections.scenario_ssp + selections.scenario_historical
-            if scenario_selections == []:
-                raise ValueError("Please select as least one dataset.")
-
-        # Raise error if station data selected, but no station is selected
-        if (selections.data_type == "Stations") and (
-            selections.stations in [[], ["No stations available at this location"]]
+        if (selections.scenario_ssp != []) and (
+            "Historical Reconstruction" in selections.scenario_historical
         ):
             raise ValueError(
-                "Please select at least one weather station, or retrieve gridded data."
+                "Historical Reconstruction data is not available with SSP data. Please modify your selections and try again."
             )
 
-        # For station data, need to expand time slice to ensure the historical period is included
-        # At the end, the data will be cut back down to the user's original selection
-        if selections.data_type == "Stations":
-            original_time_slice = selections.time_slice  # Preserve original user selections
-            original_scenario_historical = selections.scenario_historical.copy()
-            if "Historical Climate" not in selections.scenario_historical:
-                selections.scenario_historical.append("Historical Climate")
-            obs_data_bounds = (
-                1980,
-                2014,
-            )  # Bounds of the observational data used in bias-correction
-            if original_time_slice[0] > obs_data_bounds[0]:
-                selections.time_slice = (obs_data_bounds[0], original_time_slice[1])
-            if original_time_slice[1] < obs_data_bounds[1]:
-                selections.time_slice = (selections.time_slice[0], obs_data_bounds[1])
+        # Validate unit selection
+        # Returns None if units are valid, raises error if not
+        _check_valid_unit_selection(selections)
 
-        ## ------ Deal with derived variables ------
-        orig_var_id_selection = selections.variable_id[0]
-        orig_unit_selection = selections.units
-        orig_variable_selection = selections.variable
+        # Raise error if no scenarios are selected
+        scenario_selections = selections.scenario_ssp + selections.scenario_historical
+        if scenario_selections == []:
+            raise ValueError("Please select as least one dataset.")
 
-        # Get data attributes beforehand since selections is modified
-        data_attrs = _get_data_attributes(selections)
-        if "_derived" in orig_var_id_selection:
-            if orig_var_id_selection == "wind_speed_derived":  # Hourly
-                da = _get_wind_speed_derived(selections)
-            elif orig_var_id_selection == "wind_direction_derived":  # Hourly
-                da = _get_wind_dir_derived(selections)
-            elif orig_var_id_selection == "dew_point_derived":  # Monthly/daily
-                da = _get_monthly_daily_dewpoint(selections)
-            elif orig_var_id_selection == "dew_point_derived_hrly":  # Hourly
-                da = _get_hourly_dewpoint(selections)
-            elif orig_var_id_selection == "rh_derived":  # Hourly
-                da = _get_hourly_rh(selections)
-            elif orig_var_id_selection == "q2_derived":  # Hourly
-                da = _get_hourly_specific_humidity(selections)
-            elif orig_var_id_selection == "fosberg_index_derived":  # Hourly
-                da = _get_fosberg_fire_index(selections)
-            elif orig_var_id_selection == "noaa_heat_index_derived":  # Hourly
-                da = _get_noaa_heat_index(selections)
-            elif orig_var_id_selection == "effective_temp_index_derived":
-                da = _get_eff_temp(selections)
-            else:
-                raise ValueError(
-                    "You've encountered a bug. No data available for selected derived variable."
-                )
+    # Raise error if station data selected, but no station is selected
+    if (selections.data_type == "Stations") and (
+        selections.stations in [[], ["No stations available at this location"]]
+    ):
+        raise ValueError(
+            "Please select at least one weather station, or retrieve gridded data."
+        )
 
-            # ------ Set attributes ------
-            # Some of the derived variables may be constructed from data that comes from the same institution
-            # The dev team hasn't looked into this yet -- opportunity for future improvement
-            data_attrs = data_attrs | {"institution": "Multiple"}
-            da.attrs = data_attrs
+    # For station data, need to expand time slice to ensure the historical period is included
+    # At the end, the data will be cut back down to the user's original selection
+    if selections.data_type == "Stations":
+        original_time_slice = selections.time_slice  # Preserve original user selections
+        original_scenario_historical = selections.scenario_historical.copy()
+        if "Historical Climate" not in selections.scenario_historical:
+            selections.scenario_historical.append("Historical Climate")
+        obs_data_bounds = (
+            1980,
+            2014,
+        )  # Bounds of the observational data used in bias-correction
+        if original_time_slice[0] > obs_data_bounds[0]:
+            selections.time_slice = (obs_data_bounds[0], original_time_slice[1])
+        if original_time_slice[1] < obs_data_bounds[1]:
+            selections.time_slice = (selections.time_slice[0], obs_data_bounds[1])
 
-            # Convert units
-            da = convert_units(da, selected_units=orig_unit_selection)
-            da.name = orig_variable_selection  # Set name of DataArray
+    ## ------ Deal with derived variables ------
+    orig_var_id_selection = selections.variable_id[0]
+    orig_unit_selection = selections.units
+    orig_variable_selection = selections.variable
 
-            # Reset selections to user's original selections
-            selections.variable_id = [orig_var_id_selection]
-            selections.units = orig_unit_selection
-
-        # Rotate wind vectors
-        elif (
-            any(x in selections.variable_id for x in ["u10", "v10"])
-            and selections.downscaling_method == "Dynamical"
-        ):
-            if "u10" in selections.variable_id:
-                da = _get_Uearth(selections)
-            elif "v10" in selections.variable_id:
-                da = _get_Vearth(selections)
-
-        # Any other variable... i.e. not an index, derived var, or a WRF wind vector
+    # Get data attributes beforehand since selections is modified
+    data_attrs = _get_data_attributes(selections)
+    if "_derived" in orig_var_id_selection:
+        if orig_var_id_selection == "wind_speed_derived":  # Hourly
+            da = _get_wind_speed_derived(selections)
+        elif orig_var_id_selection == "wind_direction_derived":  # Hourly
+            da = _get_wind_dir_derived(selections)
+        elif orig_var_id_selection == "dew_point_derived":  # Monthly/daily
+            da = _get_monthly_daily_dewpoint(selections)
+        elif orig_var_id_selection == "dew_point_derived_hrly":  # Hourly
+            da = _get_hourly_dewpoint(selections)
+        elif orig_var_id_selection == "rh_derived":  # Hourly
+            da = _get_hourly_rh(selections)
+        elif orig_var_id_selection == "q2_derived":  # Hourly
+            da = _get_hourly_specific_humidity(selections)
+        elif orig_var_id_selection == "fosberg_index_derived":  # Hourly
+            da = _get_fosberg_fire_index(selections)
+        elif orig_var_id_selection == "noaa_heat_index_derived":  # Hourly
+            da = _get_noaa_heat_index(selections)
+        elif orig_var_id_selection == "effective_temp_index_derived":
+            da = _get_eff_temp(selections)
         else:
-            da = _get_data_one_var(selections)
+            raise ValueError(
+                "You've encountered a bug. No data available for selected derived variable."
+            )
 
-        if selections.data_type == "Stations":
-            # Bias-correct the station data
-            da = _station_apply(selections, da, original_time_slice)
+        # ------ Set attributes ------
+        # Some of the derived variables may be constructed from data that comes from the same institution
+        # The dev team hasn't looked into this yet -- opportunity for future improvement
+        data_attrs = data_attrs | {"institution": "Multiple"}
+        da.attrs = data_attrs
 
-            # Reset original selections
-            if "Historical Climate" not in original_scenario_historical:
-                selections.scenario_historical.remove("Historical Climate")
-                da["scenario"] = [x.split("Historical + ")[1] for x in da.scenario.values]
-            selections.time_slice = original_time_slice
+        # Convert units
+        da = convert_units(da, selected_units=orig_unit_selection)
+        da.name = orig_variable_selection  # Set name of DataArray
 
-        if selections.approach == "Warming Level":
+        # Reset selections to user's original selections
+        selections.variable_id = [orig_var_id_selection]
+        selections.units = orig_unit_selection
 
-            # Process data object using warming levels approach
-            # Dimensions and coordinates will change
-            # See function documentation for more information
-            da = _apply_warming_levels_approach(da, selections)
+    # Rotate wind vectors
+    elif (
+        any(x in selections.variable_id for x in ["u10", "v10"])
+        and selections.downscaling_method == "Dynamical"
+    ):
+        if "u10" in selections.variable_id:
+            da = _get_Uearth(selections)
+        elif "v10" in selections.variable_id:
+            da = _get_Vearth(selections)
 
-            # Reset original selections
-            selections.scenario_ssp = ["n/a"]
-            selections.scenario_historical = ["n/a"]
+    # Any other variable... i.e. not an index, derived var, or a WRF wind vector
+    else:
+        da = _get_data_one_var(selections)
 
-        if (selections.downscaling_method == "Dynamical") and (
-            "Lambert_Conformal" in da.coords
-        ):
-            da.attrs = da.attrs | {"grid_mapping": "Lambert_Conformal"}
+    if selections.data_type == "Stations":
+        # Bias-correct the station data
+        da = _station_apply(selections, da, original_time_slice)
 
-        return da
+        # Reset original selections
+        if "Historical Climate" not in original_scenario_historical:
+            selections.scenario_historical.remove("Historical Climate")
+            da["scenario"] = [x.split("Historical + ")[1] for x in da.scenario.values]
+        selections.time_slice = original_time_slice
+
+    if selections.approach == "Warming Level":
+
+        # Process data object using warming levels approach
+        # Dimensions and coordinates will change
+        # See function documentation for more information
+        da = _apply_warming_levels_approach(da, selections)
+
+        # Reset original selections
+        selections.scenario_ssp = ["n/a"]
+        selections.scenario_historical = ["n/a"]
+
+    if (selections.downscaling_method == "Dynamical") and (
+        "Lambert_Conformal" in da.coords
+    ):
+        da.attrs = da.attrs | {"grid_mapping": "Lambert_Conformal"}
+
+    return da
 
 
 def _apply_warming_levels_approach(da, selections):
