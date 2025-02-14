@@ -309,10 +309,10 @@ def _spatial_subset(dset, selections):
         xr.Dataset
             clipped area of dset
         """
-        dset.rename({"lon": "x", "lat": "y"})
-        dset.rio.write_crs("epsg:4326", inplace=True)
+        dset = dset.rename({"lon": "x", "lat": "y"})
+        dset = dset.rio.write_crs("epsg:4326", inplace=True)
         dset = _clip_to_geometry(dset, ds_region)
-        dset.rio.write_crs("epsg:4326", inplace=True)
+        dset = dset.rio.write_crs("epsg:4326", inplace=True)
         dset = dset.rename({"x": "lon", "y": "lat"}).drop("spatial_ref")
         return dset
 
