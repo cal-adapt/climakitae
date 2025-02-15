@@ -628,10 +628,6 @@ def _get_data_one_var(selections):
     # Set data attributes and name
     native_units = da.attrs["units"]
     data_attrs = _get_data_attributes(selections)
-    if (selections.downscaling_method == "Dynamical") and (
-        "Lambert_Conformal" in da.coords
-    ):
-        data_attrs = data_attrs | {"grid_mapping": "Lambert_Conformal"}
     data_attrs = data_attrs | {"institution": _institution}
     da.attrs = data_attrs
     da.name = selections.variable
@@ -1277,6 +1273,14 @@ def read_catalog_from_select(selections):
     else:
         da = _get_data_one_var(selections)
 
+    # Assure that CRS and grid_mapping are in place for all data returned
+    if (selections.downscaling_method == "Dynamical") and (
+        "Lambert_Conformal" in da.coords
+    ):
+        da.attrs = da.attrs | {"grid_mapping": "Lambert_Conformal"}
+    elif selections.downscaling_method in ["Statistical", "Dynamical+Statistical"]:
+        da = da.rio.write_crs("epsg:4326", inplace=True)
+
     if selections.data_type == "Stations":
         # Bias-correct the station data
         da = _station_apply(selections, da, original_time_slice)
@@ -1288,7 +1292,6 @@ def read_catalog_from_select(selections):
         selections.time_slice = original_time_slice
 
     if selections.approach == "Warming Level":
-
         # Process data object using warming levels approach
         # Dimensions and coordinates will change
         # See function documentation for more information
