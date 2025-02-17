@@ -744,7 +744,7 @@ def add_dummy_time_to_wl(wl_da):
     - The dummy time series starts from "2000-01-01".
     """
     # Creating map from frequency name to freq var needed for pandas date range
-    name_to_freq = {"hourly": "H", "daily": "D", "monthly": "M"}
+    name_to_freq = {"hourly": "h", "daily": "D", "monthly": "ME"}
 
     # Creating dummy timestamps
     timestamps = pd.date_range(
