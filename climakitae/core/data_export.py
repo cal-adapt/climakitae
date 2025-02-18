@@ -233,7 +233,8 @@ def _export_to_netcdf(data, save_name, mode):
         """
         comp = dict(zlib=True, complevel=6)
         #compdict = {var: comp for var in data.data_vars}
-        return comp
+        compdict = {data.name: comp}
+        return compdict
 
     def _create_presigned_url(bucket_name, object_name, expiration=60 * 60 * 24 * 7):
         """
