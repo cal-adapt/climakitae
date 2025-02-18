@@ -93,13 +93,8 @@ def _export_to_netcdf(data, save_name, mode):
     """
     print("Exporting specified data to NetCDF...")
 
-    # Convert xr.DataArray to xr.Dataset so that compression can be utilized
-    # data = data
-    # if isinstance(data, xr.core.dataarray.DataArray):
-    #     if not data.name:
-    #         # name it in order to call todataset on it
-    #         data.name = "data"
-    #     data = data.todataset()
+    if not isinstance(data, xr.core.dataarray.DataArray):
+        raise Exception("Data must be instance of xr.core.dataarray.DataArray")
 
     est_file_size = _estimate_file_size(data, "NetCDF")
     disk_space = shutil.disk_usage(os.path.expanduser("~"))[2] / bytes_per_gigabyte
@@ -152,9 +147,6 @@ def _export_to_netcdf(data, save_name, mode):
         if "time" in data.coords and "units" in data["time"].attrs:
             del data["time"].attrs["units"]
 
-        #for data_var in data.data_vars:
-        #    data[data_var].attrs = _list_n_none_to_string(data[data_var].attrs)
-
     _update_attributes(data)
 
     def _update_encoding(data):
@@ -198,9 +190,6 @@ def _export_to_netcdf(data, save_name, mode):
         for coord in data.coords:
             _unencode_missing_value(data[coord])
 
-        #for data_var in data.data_vars:
-        #    _unencode_missing_value(data[data_var])
-
     _update_encoding(data)
 
     def _fillvalue_encoding(data):
@@ -232,7 +221,6 @@ def _export_to_netcdf(data, save_name, mode):
         encoding: dict
         """
         comp = dict(zlib=True, complevel=6)
-        #compdict = {var: comp for var in data.data_vars}
         compdict = {data.name: comp}
         return compdict
 
