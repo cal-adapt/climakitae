@@ -94,14 +94,14 @@ def _export_to_netcdf(data, save_name, mode):
     print("Exporting specified data to NetCDF...")
 
     # Convert xr.DataArray to xr.Dataset so that compression can be utilized
-    _data = data
-    if isinstance(_data, xr.core.dataarray.DataArray):
-        if not _data.name:
-            # name it in order to call to_dataset on it
-            _data.name = "data"
-        _data = _data.to_dataset()
+    # data = data
+    # if isinstance(data, xr.core.dataarray.DataArray):
+    #     if not data.name:
+    #         # name it in order to call todataset on it
+    #         data.name = "data"
+    #     data = data.todataset()
 
-    est_file_size = _estimate_file_size(_data, "NetCDF")
+    est_file_size = _estimate_file_size(data, "NetCDF")
     disk_space = shutil.disk_usage(os.path.expanduser("~"))[2] / bytes_per_gigabyte
 
     _warn_large_export(est_file_size)
@@ -155,7 +155,7 @@ def _export_to_netcdf(data, save_name, mode):
         for data_var in data.data_vars:
             data[data_var].attrs = _list_n_none_to_string(data[data_var].attrs)
 
-    _update_attributes(_data)
+    _update_attributes(data)
 
     def _update_encoding(data):
         """
@@ -201,7 +201,7 @@ def _export_to_netcdf(data, save_name, mode):
         for data_var in data.data_vars:
             _unencode_missing_value(data[data_var])
 
-    #_update_encoding(_data)
+    _update_encoding(data)
 
     def _fillvalue_encoding(data):
         """
@@ -297,8 +297,8 @@ def _export_to_netcdf(data, save_name, mode):
                     "or specify a new file name here."
                 )
             )
-        encoding = _fillvalue_encoding(_data) | _compression_encoding(_data)
-        _data.to_netcdf(path, encoding=encoding)
+        encoding = _fillvalue_encoding(data) | _compression_encoding(data)
+        data.to_netcdf(path, encoding=encoding)
         print(
             (
                 "Saved! You can find your file in the panel to the left"
@@ -311,8 +311,8 @@ def _export_to_netcdf(data, save_name, mode):
 
         with fsspec.open(path, "wb") as fp:
             print("Saving file to S3 scratch bucket without compression...")
-            encoding = _fillvalue_encoding(_data)
-            _data.to_netcdf(fp, encoding=encoding)
+            encoding = _fillvalue_encoding(data)
+            data.to_netcdf(fp, encoding=encoding)
 
             download_url = _create_presigned_url(
                 bucket_name=export_s3_bucket,
@@ -369,7 +369,7 @@ def _ease_access_in_R(column_name):
     -----
     The input is assumed to be a column name of a pandas DataFrame converted
     from an xarray DataArray or Dataset available on the Cal-Adapt Analytics
-    Engine. The conversions are through the to_dataframe method.
+    Engine. The conversions are through the todataframe method.
 
     The function acts on one of the display names of the variables:
     https://github.com/cal-adapt/climakitae/blob/main/climakitae/data/variable_descriptions.csv
@@ -415,12 +415,12 @@ def _update_header(df, variable_unit_map):
     return df
 
 
-def _dataarray_to_dataframe(dataarray):
+def dataarray_todataframe(dataarray):
     """
     Prepare xarray DataArray for export as CSV file.
 
     Convert the xarray DataArray `dataarray` to a pandas DataFrame ready to be
-    exported to CSV format. The DataArray is converted through its to_dataframe
+    exported to CSV format. The DataArray is converted through its todataframe
     method. The DataFrame header is renamed as needed to ease the access of
     columns in R. It is also enriched with the unit associated with the data
     variable in the DataArray.
@@ -436,10 +436,10 @@ def _dataarray_to_dataframe(dataarray):
         data ready for export
     """
     if not dataarray.name:
-        # name it in order to call to_dataframe on it
+        # name it in order to call todataframe on it
         dataarray.name = "data"
 
-    df = dataarray.to_dataframe()
+    df = dataarray.todataframe()
 
     variable = dataarray.name
     unit = _get_unit(dataarray)
@@ -454,12 +454,12 @@ def _dataarray_to_dataframe(dataarray):
     return df
 
 
-def _dataset_to_dataframe(dataset):
+def dataset_todataframe(dataset):
     """
     Prepare xarray Dataset for export as CSV file.
 
     Convert the xarray Dataset `dataset` to a pandas DataFrame ready to be
-    exported to CSV format. The Dataset is converted through its to_dataframe
+    exported to CSV format. The Dataset is converted through its todataframe
     method. The DataFrame header is renamed as needed to ease the access of
     columns in R. It is also enriched with the units associated with the data
     variables and other non-index variables in the Dataset. If the Dataset
@@ -476,7 +476,7 @@ def _dataset_to_dataframe(dataset):
     pandas.DataFrame
         data ready for export
     """
-    df = dataset.to_dataframe()
+    df = dataset.todataframe()
 
     variable_unit_map = [
         (var_name, _get_unit(dataset[var_name])) for var_name in df.columns
@@ -619,10 +619,10 @@ def _export_to_csv(data, save_name):
     ftype = type(data)
 
     if ftype == xr.core.dataarray.DataArray:
-        df = _dataarray_to_dataframe(data)
+        df = dataarray_todataframe(data)
 
     elif ftype == xr.core.dataset.Dataset:
-        df = _dataset_to_dataframe(data)
+        df = dataset_todataframe(data)
 
     # Warn about exceedance of Excel row or column limit
     excel_row_limit = 1048576
@@ -824,7 +824,7 @@ def _grab_dem_elev_m(lat, lon):
     return dem_elev_short.astype("float")
 
 
-def _epw_format_data(df):
+def _epw_formatdata(df):
     """
     Constructs TMY output file in specific order and missing data codes
     Source: EnergyPlus Version 23.1.0 Documentation
@@ -1363,7 +1363,7 @@ def write_tmy_file(
                     df,
                 )
             )  # writes required header lines
-            df_string = _epw_format_data(df).to_csv(sep=",", header=False, index=False)
+            df_string = _epw_formatdata(df).to_csv(sep=",", header=False, index=False)
             f.write(df_string)  # writes data in EPW format
         print(
             "TMY data exported to .epw format with filename {}, with size {}.epw".format(
