@@ -369,6 +369,8 @@ def _export_to_zarr(data, save_name):
     def _write_zarr_to_s3(display_path, path, save_name, data):
         print("Saving file to S3 scratch bucket as Zarr...")
         encoding = _fillvalue_encoding(data)
+        chunks = {k: v[0] for k, v in _data.chunks.items()}
+        _data = _data.chunk(chunks)
         _data.to_zarr(path, encoding=encoding)
 
         print(
