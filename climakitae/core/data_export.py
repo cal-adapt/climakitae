@@ -298,7 +298,7 @@ def _export_to_netcdf(data, save_name, mode):
                 )
             )
         encoding = _fillvalue_encoding(_data) | _compression_encoding(_data)
-        _data.to_netcdf(path, format="NETCDF4" engine="netcdf4", encoding=encoding)
+        _data.to_netcdf(path, format="NETCDF4", engine="netcdf4", encoding=encoding)
         print(
             (
                 "Saved! You can find your file in the panel to the left"
