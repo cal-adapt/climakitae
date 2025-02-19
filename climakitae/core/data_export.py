@@ -312,7 +312,7 @@ def _export_to_netcdf(data, save_name, mode):
         with fsspec.open(path, "wb") as fp:
             print("Saving file to S3 scratch bucket without compression...")
             encoding = _fillvalue_encoding(_data)
-            _data.to_netcdf(fp, format="NETCDF4", engine="netcdf4", encoding=encoding)
+            _data.to_netcdf(fp, format="NETCDF3_64BIT", engine="scipy", encoding=encoding)
 
             download_url = _create_presigned_url(
                 bucket_name=export_s3_bucket,
