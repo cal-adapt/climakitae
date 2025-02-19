@@ -1,5 +1,6 @@
 import os
 import boto3
+import botocore
 import fsspec
 import shutil
 import logging
@@ -35,14 +36,14 @@ def _estimate_file_size(data, format):
     data: xarray.DataArray or xarray.Dataset
         data to export to the specified `format`
     format: str
-        file format ("NetCDF" or "CSV")
+        file format ("Zarr", "NetCDF", "CSV")
 
     Returns
     -------
     float
         estimated file size in gigabytes
     """
-    if format == "NetCDF":
+    if format == "NetCDF" or format == "Zarr":
         data_size = data.nbytes
         buffer_size = 100 * 1024 * 1024  # 100 MB for miscellaneous metadata
         est_file_size = data_size + buffer_size
@@ -66,6 +67,130 @@ def _warn_large_export(file_size, file_size_threshold=5):
             + " GB. This might take a while!"
         )
 
+def _update_attributes(data):
+    """
+    Update data attributes to prevent issues when exporting them to NetCDF.
+
+    Convert list and None attributes to strings. If `time` is a coordinate of
+    `data`, remove any of its `units` attribute. Attributes include global data
+    attributes as well as that of coordinates and data variables.
+
+    Parameters
+    ----------
+    data: xarray.Dataset
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    These attribute updates resolve errors raised when using the scipy engine
+    to write NetCDF files to S3.
+    """
+
+    def _list_n_none_to_string(dic):
+        """Convert list and None to string.
+
+        Parameters
+        ----------
+        dic: dict
+
+        Returns
+        -------
+        dict
+        """
+        for k, v in dic.items():
+            if isinstance(v, list):
+                dic[k] = str(v)
+            if v is None:
+                dic[k] = ""
+        return dic
+
+    data.attrs = _list_n_none_to_string(data.attrs)
+    for coord in data.coords:
+        data[coord].attrs = _list_n_none_to_string(data[coord].attrs)
+    if "time" in data.coords and "units" in data["time"].attrs:
+        del data["time"].attrs["units"]
+
+    for data_var in data.data_vars:
+        data[data_var].attrs = _list_n_none_to_string(data[data_var].attrs)
+
+def _update_encoding(data):
+    """
+    Update data encodings to prevent issues when exporting them to NetCDF.
+
+    Drop `missing_value` encoding, if any, on `data` as well as its coordinates
+    and data variables.
+
+    Parameters
+    ----------
+    data: xarray.Dataset
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    These encoding updates resolve errors raised when writing NetCDF files to
+    S3.
+    """
+
+    def _unencode_missing_value(d):
+        """Drop `missing_value` encoding, if any, on data object `d`.
+
+        Parameters
+        ----------
+        d: xarray.Dataset
+
+        Returns
+        -------
+        None
+        """
+        try:
+            del d.encoding["missing_value"]
+        except:
+            pass
+
+    _unencode_missing_value(data)
+    for coord in data.coords:
+        _unencode_missing_value(data[coord])
+
+    for data_var in data.data_vars:
+        _unencode_missing_value(data[data_var])
+
+def _fillvalue_encoding(data):
+    """
+    Creates FillValue encoding for each variable for export to NetCDF.
+
+    Parameters
+    ----------
+    data: xarray.Dataset
+
+    Returns
+    -------
+    encoding: dict
+    """
+    fill = dict(_FillValue=None)
+    filldict = {coord: fill for coord in data.coords}
+    return filldict
+
+def _compression_encoding(data):
+    """
+    Creates compression encoding for each variable for export to NetCDF.
+
+    Parameters
+    ----------
+    data: xarray.Dataset
+
+    Returns
+    -------
+    encoding: dict
+    """
+    comp = dict(zlib=True, complevel=6)
+    compdict = {var: comp for var in data.data_vars}
+    return compdict
 
 def _export_to_netcdf(data, save_name, mode):
     """
@@ -106,134 +231,9 @@ def _export_to_netcdf(data, save_name, mode):
 
     _warn_large_export(est_file_size)
 
-    def _update_attributes(data):
-        """
-        Update data attributes to prevent issues when exporting them to NetCDF.
-
-        Convert list and None attributes to strings. If `time` is a coordinate of
-        `data`, remove any of its `units` attribute. Attributes include global data
-        attributes as well as that of coordinates and data variables.
-
-        Parameters
-        ----------
-        data: xarray.Dataset
-
-        Returns
-        -------
-        None
-
-        Notes
-        -----
-        These attribute updates resolve errors raised when using the scipy engine
-        to write NetCDF files to S3.
-        """
-
-        def _list_n_none_to_string(dic):
-            """Convert list and None to string.
-
-            Parameters
-            ----------
-            dic: dict
-
-            Returns
-            -------
-            dict
-            """
-            for k, v in dic.items():
-                if isinstance(v, list):
-                    dic[k] = str(v)
-                if v is None:
-                    dic[k] = ""
-            return dic
-
-        data.attrs = _list_n_none_to_string(data.attrs)
-        for coord in data.coords:
-            data[coord].attrs = _list_n_none_to_string(data[coord].attrs)
-        if "time" in data.coords and "units" in data["time"].attrs:
-            del data["time"].attrs["units"]
-
-        for data_var in data.data_vars:
-            data[data_var].attrs = _list_n_none_to_string(data[data_var].attrs)
-
     _update_attributes(_data)
 
-    def _update_encoding(data):
-        """
-        Update data encodings to prevent issues when exporting them to NetCDF.
-
-        Drop `missing_value` encoding, if any, on `data` as well as its coordinates
-        and data variables.
-
-        Parameters
-        ----------
-        data: xarray.Dataset
-
-        Returns
-        -------
-        None
-
-        Notes
-        -----
-        These encoding updates resolve errors raised when writing NetCDF files to
-        S3.
-        """
-
-        def _unencode_missing_value(d):
-            """Drop `missing_value` encoding, if any, on data object `d`.
-
-            Parameters
-            ----------
-            d: xarray.Dataset
-
-            Returns
-            -------
-            None
-            """
-            try:
-                del d.encoding["missing_value"]
-            except:
-                pass
-
-        _unencode_missing_value(data)
-        for coord in data.coords:
-            _unencode_missing_value(data[coord])
-
-        for data_var in data.data_vars:
-            _unencode_missing_value(data[data_var])
-
     _update_encoding(_data)
-
-    def _fillvalue_encoding(data):
-        """
-        Creates FillValue encoding for each variable for export to NetCDF.
-
-        Parameters
-        ----------
-        data: xarray.Dataset
-
-        Returns
-        -------
-        encoding: dict
-        """
-        fill = dict(_FillValue=None)
-        filldict = {coord: fill for coord in data.coords}
-        return filldict
-
-    def _compression_encoding(data):
-        """
-        Creates compression encoding for each variable for export to NetCDF.
-
-        Parameters
-        ----------
-        data: xarray.Dataset
-
-        Returns
-        -------
-        encoding: dict
-        """
-        comp = dict(zlib=True, complevel=6)
-        compdict = {var: comp for var in data.data_vars}
-        return compdict
 
     def _create_presigned_url(bucket_name, object_name, expiration=60 * 60 * 24 * 7):
         """
@@ -329,6 +329,85 @@ def _export_to_netcdf(data, save_name, mode):
                 )
             )
 
+def _export_to_zarr(data, save_name):
+    """
+    Export user-selected data to Zarr format.
+    Export the xarray DataArray or Dataset `data` to a Zarr dataset `save_name`.
+    It is saved to the AWS S3 bucket `cadcat-tmp` and provides a URL for download.
+    Parameters
+    ----------
+    data: xarray.DataArray or xarray.Dataset
+        data to export to Zarr format
+    save_name: string
+        desired output Zarr directory name
+    Returns
+    -------
+    None
+    """
+    print("Exporting specified data to Zarr...")
+
+    # Convert xr.DataArray to xr.Dataset so that compression can be utilized
+    _data = data
+    if isinstance(_data, xr.core.dataarray.DataArray):
+        if not _data.name:
+            # name it in order to call to_dataset on it
+            _data.name = "data"
+        _data = _data.to_dataset()
+
+    est_file_size = _estimate_file_size(_data, "Zarr")
+
+    _warn_large_export(est_file_size)
+
+    _update_attributes(_data)
+
+    _update_encoding(_data)
+
+    display_path = f"{os.environ['SCRATCH_BUCKET']}/{save_name}"
+    path = "simplecache::" + display_path
+    prefix = display_path.split(export_s3_bucket + "/")[-1]
+
+    def _write_zarr_to_s3(display_path, path, save_name, data):
+        print("Saving file to S3 scratch bucket as Zarr...")
+        encoding = _fillvalue_encoding(data)
+        _data.to_zarr(path, encoding=encoding)
+
+        print(
+            (
+                "Saved! To open the file in your local machine, "
+                "open the following S3 URI using xarray:"
+                "\n\n"
+                f"{display_path}"
+                "\n\n"
+                "Example of opening and saving to netCDF:\n"
+                "ds = xr.open_zarr('"
+                + display_path
+                + "', storage_options={'anon': True})\n"
+                "comp = dict(zlib=True, complevel=6)\n"
+                "compdict = {var: comp for var in ds.data_vars}\n"
+                "ds.to_netcdf('"
+                + save_name.rstrip(".zarr")
+                + ".nc', encoding=compdict)\n"
+                "\n\n"
+                ""
+                "Note: The URL will remain valid for 1 week."
+            )
+        )
+
+    s3 = boto3.resource("s3")
+    try:
+        s3.Object(export_s3_bucket, prefix + "/.zattrs").load()
+    except botocore.exceptions.ClientError as e:
+        if e.response["Error"]["Code"] == "404":
+            # The object does not exist so go ahead and write to S3
+            _write_zarr_to_s3(display_path, path, save_name, _data)
+        else:
+            # Something else has gone wrong.
+            raise
+    else:
+        # The object does exist
+        bucket = s3.Bucket(export_s3_bucket)
+        bucket.objects.filter(Prefix=prefix + "/").delete()
+        _write_zarr_to_s3(display_path, path, save_name, _data)
 
 def _get_unit(dataarray):
     """
@@ -722,20 +801,20 @@ def _export_to_csv(data, save_name):
 
 
 def export(data, filename="dataexport", format="NetCDF", mode="auto"):
-    """Save xarray data as either a NetCDF or CSV in the current working directory,
-    or stream the export file to an AWS S3 scratch bucket and give download URL. Default
-    behavior is for the code to automatically determine the output destination based on whether
-    file is small enough to fit in HUB user partition, this can be overridden using the mode parameter.
+    """Save xarray data as NetCDF, or CSV in the current working directory, or stream the export file
+    to an AWS S3 scratch bucket and give download URL. Default behavior is for the code to automatically
+    determine the output destination based on whether file is small enough to fit in HUB user partition,
+    this can be overridden using the mode parameter. Zarr format option directly exports data to S3 partition.
 
     Parameters
     ----------
     data : xr.DataArray or xr.Dataset
-        Data to export, as output by e.g. `climakitae.Select().retrieve()`.
+        Data to export, as output by e.g. `DataParameters.retrieve()`.
     filename : str, optional
         Output file name (without file extension, i.e. "my_filename" instead
         of "my_filename.nc"). The default is "dataexport".
     format : str, optional
-        File format ("NetCDF" or "CSV"). The default is "NetCDF".
+        File format ("Zarr", "NetCDF", "CSV"). The default is "NetCDF".
     mode : str, optional
         Save location logic for NetCDF file ("auto", "local", "s3"). The default is "auto"
     """
@@ -760,10 +839,10 @@ def export(data, filename="dataexport", format="NetCDF", mode="auto"):
 
     req_format = format.lower()
 
-    if req_format not in ["netcdf", "csv"]:
-        raise Exception('Please select "NetCDF" or "CSV" as the file format.')
+    if req_format not in ["zarr", "netcdf", "csv"]:
+        raise Exception('Please select "Zarr", "NetCDF" or "CSV" as the file format.')
 
-    extension_dict = {"netcdf": ".nc", "csv": ".csv.gz"}
+    extension_dict = {"zarr": ".zarr", "netcdf": ".nc", "csv": ".csv.gz"}
 
     save_name = filename + extension_dict[req_format]
 
@@ -789,6 +868,8 @@ def export(data, filename="dataexport", format="NetCDF", mode="auto"):
     # now here is where exporting actually begins
     # we will have different functions for each file type
     # to keep things clean-ish
+    if "zarr" == req_format:
+        _export_to_zarr(data, save_name)
     if "netcdf" == req_format:
         _export_to_netcdf(data, save_name, mode)
     elif "csv" == req_format:
