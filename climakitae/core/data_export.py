@@ -316,7 +316,7 @@ def _export_to_zarr(data, save_name, mode):
 
     _warn_large_export(est_file_size)
 
-    _add_metadata(_data)
+    #_add_metadata(_data)
 
     _update_encoding(_data)
 
