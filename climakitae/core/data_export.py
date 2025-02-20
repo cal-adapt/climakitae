@@ -27,6 +27,27 @@ xr.set_options(keep_attrs=True)
 bytes_per_gigabyte = 1024 * 1024 * 1024
 
 
+def _add_metadata(data):
+    ds_attrs = data.attrs
+
+    ct = datetime.datetime.now()
+    ct_str = ct.strftime("%d-%b-%Y (%H:%M)")
+
+    ck_attrs = {
+        "Data_exported_from": "Cal-Adapt Analytics Engine",
+        "Data_export_timestamp": ct_str,
+        "Analysis_package_name": "climakitae",
+        "Version": _version("climakitae"),
+        "Author": "Cal-Adapt Analytics Engine Team",
+        "Author_email": "analytics@cal-adapt.org",
+        "Home_page": "https://github.com/cal-adapt/climakitae",
+        "License": "BSD 3-Clause License",
+    }
+
+    ds_attrs.update(ck_attrs)
+    data.attrs = ds_attrs
+
+
 def _estimate_file_size(data, format):
     """
     Estimate uncompressed file size in gigabytes when exporting `data` in `format`.
@@ -67,54 +88,56 @@ def _warn_large_export(file_size, file_size_threshold=5):
             + " GB. This might take a while!"
         )
 
-def _update_attributes(data):
-    """
-    Update data attributes to prevent issues when exporting them to NetCDF.
 
-    Convert list and None attributes to strings. If `time` is a coordinate of
-    `data`, remove any of its `units` attribute. Attributes include global data
-    attributes as well as that of coordinates and data variables.
+# def _update_attributes(data):
+#     """
+#     Update data attributes to prevent issues when exporting them to NetCDF.
 
-    Parameters
-    ----------
-    data: xarray.Dataset
+#     Convert list and None attributes to strings. If `time` is a coordinate of
+#     `data`, remove any of its `units` attribute. Attributes include global data
+#     attributes as well as that of coordinates and data variables.
 
-    Returns
-    -------
-    None
+#     Parameters
+#     ----------
+#     data: xarray.Dataset
 
-    Notes
-    -----
-    These attribute updates resolve errors raised when using the scipy engine
-    to write NetCDF files to S3.
-    """
+#     Returns
+#     -------
+#     None
 
-    def _list_n_none_to_string(dic):
-        """Convert list and None to string.
+#     Notes
+#     -----
+#     These attribute updates resolve errors raised when using the scipy engine
+#     to write NetCDF files to S3.
+#     """
 
-        Parameters
-        ----------
-        dic: dict
+#     def _list_n_none_to_string(dic):
+#         """Convert list and None to string.
 
-        Returns
-        -------
-        dict
-        """
-        for k, v in dic.items():
-            if isinstance(v, list):
-                dic[k] = str(v)
-            if v is None:
-                dic[k] = ""
-        return dic
+#         Parameters
+#         ----------
+#         dic: dict
 
-    data.attrs = _list_n_none_to_string(data.attrs)
-    for coord in data.coords:
-        data[coord].attrs = _list_n_none_to_string(data[coord].attrs)
-    if "time" in data.coords and "units" in data["time"].attrs:
-        del data["time"].attrs["units"]
+#         Returns
+#         -------
+#         dict
+#         """
+#         for k, v in dic.items():
+#             if isinstance(v, list):
+#                 dic[k] = str(v)
+#             if v is None:
+#                 dic[k] = ""
+#         return dic
 
-    for data_var in data.data_vars:
-        data[data_var].attrs = _list_n_none_to_string(data[data_var].attrs)
+#     data.attrs = _list_n_none_to_string(data.attrs)
+#     for coord in data.coords:
+#         data[coord].attrs = _list_n_none_to_string(data[coord].attrs)
+#     if "time" in data.coords and "units" in data["time"].attrs:
+#         del data["time"].attrs["units"]
+
+#     for data_var in data.data_vars:
+#         data[data_var].attrs = _list_n_none_to_string(data[data_var].attrs)
+
 
 def _update_encoding(data):
     """
@@ -160,6 +183,7 @@ def _update_encoding(data):
     for data_var in data.data_vars:
         _unencode_missing_value(data[data_var])
 
+
 def _fillvalue_encoding(data):
     """
     Creates FillValue encoding for each variable for export to NetCDF.
@@ -175,6 +199,7 @@ def _fillvalue_encoding(data):
     fill = dict(_FillValue=None)
     filldict = {coord: fill for coord in data.coords}
     return filldict
+
 
 def _compression_encoding(data):
     """
@@ -192,15 +217,14 @@ def _compression_encoding(data):
     compdict = {var: comp for var in data.data_vars}
     return compdict
 
-def _export_to_netcdf(data, save_name, mode):
+
+def _export_to_netcdf(data, save_name):
     """
     Export user-selected data to NetCDF format.
 
     Export the xarray DataArray or Dataset `data` to a NetCDF file `save_name`.
     If there is enough disk space, the function saves the file locally to the
-    jupyter hub; otherwise, it saves the file to the S3 bucket `cadcat-tmp`
-    and provides a URL for download. The optional `mode` parameters allows user
-    to override automatic behavior.
+    jupyter hub.
 
 
     Parameters
@@ -209,8 +233,6 @@ def _export_to_netcdf(data, save_name, mode):
         data to export to NetCDF format
     save_name: string
         desired output file name, including the file extension
-    mode: string
-        location logic for storing export file.
 
     Returns
     -------
@@ -231,115 +253,50 @@ def _export_to_netcdf(data, save_name, mode):
 
     _warn_large_export(est_file_size)
 
-    _update_attributes(_data)
+    _add_metadata(_data)
 
     _update_encoding(_data)
 
-    def _create_presigned_url(bucket_name, object_name, expiration=60 * 60 * 24 * 7):
-        """
-        Generate a presigned URL to share an S3 object.
-
-        Parameters
-        ----------
-        bucket_name: str
-        object_name: str
-        expiration: int, optional
-            Time in seconds for the presigned URL to remain valid. The default is
-            one week.
-
-        Returns
-        -------
-        str
-            Presigned URL. If error, returns None.
-
-        References
-        ----------
-        https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-presigned-urls.html#presigned-urls
-        """
-        s3_client = boto3.client("s3")
-        try:
-            url = s3_client.generate_presigned_url(
-                "get_object",
-                Params={"Bucket": bucket_name, "Key": object_name},
-                ExpiresIn=expiration,
-            )
-        except ClientError as e:
-            logging.error(e)
-            return None
-
-        return url
-
-    file_location = "local"
-
-    if mode == "local":
-        if disk_space <= est_file_size:
-            raise Exception("Data too large to save locally. Use the mode=s3 option.")
-        file_location = "local"
-    elif mode == "s3":
-        file_location = "s3"
-    elif mode == "auto":
-        if disk_space > est_file_size:
-            file_location = "local"
-        else:
-            file_location = "s3"
-    else:
-        raise Exception("Specified mode needs to one of (local, s3, auto)")
-
-    if file_location == "local":
-        print("Saving file locally with compression...")
-        path = os.path.join(os.getcwd(), save_name)
-
-        if os.path.exists(path):
-            raise Exception(
-                (
-                    f"File {save_name} exists. "
-                    "Please either delete that file from the work space "
-                    "or specify a new file name here."
-                )
-            )
-        encoding = _fillvalue_encoding(_data) | _compression_encoding(_data)
-        _data.to_netcdf(path, format="NETCDF4", engine="netcdf4", encoding=encoding)
-        print(
-            (
-                "Saved! You can find your file in the panel to the left"
-                " and download to your local machine from there."
-            )
+    if disk_space <= est_file_size:
+        raise Exception(
+            "Data too large to save locally. Use the format='Zarr', mode='s3' options."
         )
 
-    else:
-        path = f"simplecache::{os.environ['SCRATCH_BUCKET']}/{save_name}"
+    print("Saving file locally as NetCDF4...")
+    path = os.path.join(os.getcwd(), save_name)
 
-        with fsspec.open(path, "wb") as fp:
-            print("Saving file to S3 scratch bucket without compression...")
-            encoding = _fillvalue_encoding(_data)
-            _data.to_netcdf(fp, format="NETCDF3_64BIT", engine="scipy", encoding=encoding)
-
-            download_url = _create_presigned_url(
-                bucket_name=export_s3_bucket,
-                object_name=path.split(export_s3_bucket + "/")[-1],
+    if os.path.exists(path):
+        raise Exception(
+            (
+                f"File {save_name} exists. "
+                "Please either delete that file from the work space "
+                "or specify a new file name here."
             )
-            print(
-                (
-                    "Saved! To download the file to your local machine, "
-                    "open the following URL in a web browser:"
-                    "\n\n"
-                    f"{download_url}"
-                    "\n\n"
-                    "Note: The URL will remain valid for 1 week."
-                )
-            )
+        )
+    encoding = _fillvalue_encoding(_data) | _compression_encoding(_data)
+    _data.to_netcdf(path, format="NETCDF4", engine="netcdf4", encoding=encoding)
+    print(
+        (
+            "Saved! You can find your file in the panel to the left"
+            " and download to your local machine from there."
+        )
+    )
 
-def _export_to_zarr(data, save_name):
+
+def _export_to_zarr(data, save_name, mode):
     """
     Export user-selected data to Zarr format.
     Export the xarray DataArray or Dataset `data` to a Zarr dataset `save_name`.
-    It is saved to the AWS S3 bucket `cadcat-tmp` and provides a URL for download.
+    If `local` mode used it is saved to the HUB user partition. If `s3` mode used
+    it is saved to the AWS S3 bucket `cadcat-tmp` and provides a URL for download.
     Parameters
     ----------
     data: xarray.DataArray or xarray.Dataset
         data to export to Zarr format
     save_name: string
         desired output Zarr directory name
+    mode: string
+        location logic for storing export file (`local`, `s3`)
     Returns
     -------
     None
@@ -355,23 +312,22 @@ def _export_to_zarr(data, save_name):
         _data = _data.to_dataset()
 
     est_file_size = _estimate_file_size(_data, "Zarr")
+    disk_space = shutil.disk_usage(os.path.expanduser("~"))[2] / bytes_per_gigabyte
 
     _warn_large_export(est_file_size)
 
-    _update_attributes(_data)
+    _add_metadata(_data)
 
     _update_encoding(_data)
 
-    display_path = f"{os.environ['SCRATCH_BUCKET']}/{save_name}"
-    path = "simplecache::" + display_path
-    prefix = display_path.split(export_s3_bucket + "/")[-1]
-
-    def _write_zarr_to_s3(display_path, path, save_name, data):
-        print("Saving file to S3 scratch bucket as Zarr...")
+    def _write_zarr(path, data):
         encoding = _fillvalue_encoding(data)
         chunks = {k: v[0] for k, v in data.chunks.items()}
         data = data.chunk(chunks)
         data.to_zarr(path, encoding=encoding)
+
+    def _write_zarr_to_s3(display_path, path, save_name, data):
+        _write_zarr(path, data)
 
         print(
             (
@@ -395,21 +351,47 @@ def _export_to_zarr(data, save_name):
             )
         )
 
-    s3 = boto3.resource("s3")
-    try:
-        s3.Object(export_s3_bucket, prefix + "/.zattrs").load()
-    except botocore.exceptions.ClientError as e:
-        if e.response["Error"]["Code"] == "404":
-            # The object does not exist so go ahead and write to S3
-            _write_zarr_to_s3(display_path, path, save_name, _data)
+    if mode == "local":
+        print("Saving file locally as Zarr...")
+        if disk_space <= est_file_size:
+            raise Exception(
+                "Data too large to save locally. Use the format='Zarr', mode='s3' options."
+            )
+        path = os.path.join(os.getcwd(), save_name)
+
+        if os.path.exists(path):
+            raise Exception(
+                (
+                    f"File {save_name} exists. "
+                    "Please either delete that file from the work space "
+                    "or specify a new file name here."
+                )
+            )
+        _write_zarr(path, _data)
+    elif mode == "s3":
+        print("Saving file to S3 scratch bucket as Zarr...")
+        display_path = f"{os.environ['SCRATCH_BUCKET']}/{save_name}"
+        path = "simplecache::" + display_path
+        prefix = display_path.split(export_s3_bucket + "/")[-1]
+
+        s3 = boto3.resource("s3")
+        try:
+            s3.Object(export_s3_bucket, prefix + "/.zattrs").load()
+        except botocore.exceptions.ClientError as e:
+            if e.response["Error"]["Code"] == "404":
+                # The object does not exist so go ahead and write to S3
+                _write_zarr_to_s3(display_path, path, save_name, _data)
+            else:
+                # Something else has gone wrong.
+                raise
         else:
-            # Something else has gone wrong.
-            raise
+            # The object does exist
+            bucket = s3.Bucket(export_s3_bucket)
+            bucket.objects.filter(Prefix=prefix + "/").delete()
+            _write_zarr_to_s3(display_path, path, save_name, _data)
     else:
-        # The object does exist
-        bucket = s3.Bucket(export_s3_bucket)
-        bucket.objects.filter(Prefix=prefix + "/").delete()
-        _write_zarr_to_s3(display_path, path, save_name, _data)
+        raise Exception("Correct mode not specified. Use either 'local' or 's3'.")
+
 
 def _get_unit(dataarray):
     """
@@ -802,11 +784,11 @@ def _export_to_csv(data, save_name):
     )
 
 
-def export(data, filename="dataexport", format="NetCDF", mode="auto"):
-    """Save xarray data as NetCDF, or CSV in the current working directory, or stream the export file
-    to an AWS S3 scratch bucket and give download URL. Default behavior is for the code to automatically
-    determine the output destination based on whether file is small enough to fit in HUB user partition,
-    this can be overridden using the mode parameter. Zarr format option directly exports data to S3 partition.
+def export(data, filename="dataexport", format="NetCDF", mode="local"):
+    """Save xarray data as NetCDF, Zarr, or CSV in the current working directory, or if Zarr optionally
+    stream the export file to an AWS S3 scratch bucket and give download URL. NetCDF can only be written
+    to the HUB user partition if it will fit. Zarr can either be written to the HUB user partition or to
+    S3 scratch bucket using the mode option.
 
     Parameters
     ----------
@@ -818,7 +800,7 @@ def export(data, filename="dataexport", format="NetCDF", mode="auto"):
     format : str, optional
         File format ("Zarr", "NetCDF", "CSV"). The default is "NetCDF".
     mode : str, optional
-        Save location logic for NetCDF file ("auto", "local", "s3"). The default is "auto"
+        Save location logic for Zarr file ("local", "s3"). The default is "local"
     """
     ftype = type(data)
 
@@ -848,32 +830,13 @@ def export(data, filename="dataexport", format="NetCDF", mode="auto"):
 
     save_name = filename + extension_dict[req_format]
 
-    ds_attrs = data.attrs
-
-    ct = datetime.datetime.now()
-    ct_str = ct.strftime("%d-%b-%Y (%H:%M)")
-
-    ck_attrs = {
-        "Data_exported_from": "Cal-Adapt Analytics Engine",
-        "Data_export_timestamp": ct_str,
-        "Analysis_package_name": "climakitae",
-        "Version": _version("climakitae"),
-        "Author": "Cal-Adapt Analytics Engine Team",
-        "Author_email": "analytics@cal-adapt.org",
-        "Home_page": "https://github.com/cal-adapt/climakitae",
-        "License": "BSD 3-Clause License",
-    }
-
-    ds_attrs.update(ck_attrs)
-    data.attrs = ds_attrs
-
     # now here is where exporting actually begins
     # we will have different functions for each file type
     # to keep things clean-ish
     if "zarr" == req_format:
-        _export_to_zarr(data, save_name)
+        _export_to_zarr(data, save_name, mode)
     if "netcdf" == req_format:
-        _export_to_netcdf(data, save_name, mode)
+        _export_to_netcdf(data, save_name)
     elif "csv" == req_format:
         _export_to_csv(data, save_name)
 
