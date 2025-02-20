@@ -27,6 +27,16 @@ xr.set_options(keep_attrs=True)
 bytes_per_gigabyte = 1024 * 1024 * 1024
 
 
+def remove_zarr(dir_path):
+    try:
+        shutil.rmtree(dir_path)
+        print(f"Zarr dataset '{dir_path}' deleted successfully.")
+    except FileNotFoundError:
+        print(f"Zarr dataset '{dir_path}' not found.")
+    except OSError as e:
+        print(f"Error deleting Zarr dataset '{dir_path}': {e}")
+
+
 def _add_metadata(data):
     ds_attrs = data.attrs
 
@@ -87,56 +97,6 @@ def _warn_large_export(file_size, file_size_threshold=5):
             + str(round(file_size, 2))
             + " GB. This might take a while!"
         )
-
-
-# def _update_attributes(data):
-#     """
-#     Update data attributes to prevent issues when exporting them to NetCDF.
-
-#     Convert list and None attributes to strings. If `time` is a coordinate of
-#     `data`, remove any of its `units` attribute. Attributes include global data
-#     attributes as well as that of coordinates and data variables.
-
-#     Parameters
-#     ----------
-#     data: xarray.Dataset
-
-#     Returns
-#     -------
-#     None
-
-#     Notes
-#     -----
-#     These attribute updates resolve errors raised when using the scipy engine
-#     to write NetCDF files to S3.
-#     """
-
-#     def _list_n_none_to_string(dic):
-#         """Convert list and None to string.
-
-#         Parameters
-#         ----------
-#         dic: dict
-
-#         Returns
-#         -------
-#         dict
-#         """
-#         for k, v in dic.items():
-#             if isinstance(v, list):
-#                 dic[k] = str(v)
-#             if v is None:
-#                 dic[k] = ""
-#         return dic
-
-#     data.attrs = _list_n_none_to_string(data.attrs)
-#     for coord in data.coords:
-#         data[coord].attrs = _list_n_none_to_string(data[coord].attrs)
-#     if "time" in data.coords and "units" in data["time"].attrs:
-#         del data["time"].attrs["units"]
-
-#     for data_var in data.data_vars:
-#         data[data_var].attrs = _list_n_none_to_string(data[data_var].attrs)
 
 
 def _update_encoding(data):
@@ -316,7 +276,7 @@ def _export_to_zarr(data, save_name, mode):
 
     _warn_large_export(est_file_size)
 
-    #_add_metadata(_data)
+    _add_metadata(_data)
 
     _update_encoding(_data)
 
