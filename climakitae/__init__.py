@@ -1,5 +1,5 @@
 from climakitae.core.data_load import load
-from climakitae.core.data_export import export
+from climakitae.core.data_export import export, remove_zarr
 
 try:
     from importlib.metadata import version as _version
@@ -18,6 +18,7 @@ __all__ = (
     # Methods
     "load",
     "export",
+    "remove_zarr",
     # Constants
     "__version__",
 )
