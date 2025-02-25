@@ -200,6 +200,16 @@ def _compression_encoding(data):
     return compdict
 
 
+def _convert_da_to_ds(data):
+    if isinstance(data, xr.core.dataarray.DataArray):
+        if not data.name:
+            # name it in order to call to_dataset on it
+            data.name = "data"
+        return data.to_dataset()
+    elif isinstance(data, xr.core.dataset.DataSet):
+        return data
+
+
 def _export_to_netcdf(data, save_name):
     """
     Export user-selected data to NetCDF format.
@@ -223,12 +233,7 @@ def _export_to_netcdf(data, save_name):
     print("Exporting specified data to NetCDF...")
 
     # Convert xr.DataArray to xr.Dataset so that compression can be utilized
-    _data = data
-    if isinstance(_data, xr.core.dataarray.DataArray):
-        if not _data.name:
-            # name it in order to call to_dataset on it
-            _data.name = "data"
-        _data = _data.to_dataset()
+    _data = _convert_da_to_ds(data)
 
     est_file_size = _estimate_file_size(_data, "NetCDF")
     disk_space = shutil.disk_usage(os.path.expanduser("~"))[2] / bytes_per_gigabyte
@@ -286,12 +291,7 @@ def _export_to_zarr(data, save_name, mode):
     print("Exporting specified data to Zarr...")
 
     # Convert xr.DataArray to xr.Dataset so that compression can be utilized
-    _data = data
-    if isinstance(_data, xr.core.dataarray.DataArray):
-        if not _data.name:
-            # name it in order to call to_dataset on it
-            _data.name = "data"
-        _data = _data.to_dataset()
+    _data = _convert_da_to_ds(data)
 
     est_file_size = _estimate_file_size(_data, "Zarr")
     disk_space = shutil.disk_usage(os.path.expanduser("~"))[2] / bytes_per_gigabyte
