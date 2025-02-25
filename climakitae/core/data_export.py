@@ -346,7 +346,7 @@ def _export_to_zarr(data, save_name, mode):
                 (
                     f"File {save_name} exists. "
                     "Please either delete that file from the work space "
-                    "or specify a new file name here."
+                    "or specify a new file name."
                 )
             )
         _write_zarr(path, _data)
@@ -368,9 +368,7 @@ def _export_to_zarr(data, save_name, mode):
                 raise
         else:
             # The object does exist
-            bucket = s3.Bucket(export_s3_bucket)
-            bucket.objects.filter(Prefix=prefix + "/").delete()
-            _write_zarr_to_s3(display_path, path, save_name, _data)
+            raise Exception(f"File {save_name} exists. Specify a new file name.")
     else:
         raise Exception("Correct mode not specified. Use either 'local' or 's3'.")
 
