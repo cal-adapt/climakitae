@@ -27,7 +27,29 @@ xr.set_options(keep_attrs=True)
 bytes_per_gigabyte = 1024 * 1024 * 1024
 
 
-def remove_zarr(dir_path):
+def remove_zarr(filename):
+    """Remove Zarr directory structure helper function. As Zarr format is a directory
+    tree it is not easily removed using JupyterHUB GUI. This function simply deletes
+    an entire directory tree.
+
+    Parameters
+    ----------
+    filename : str
+        Output Zarr file name (without file extension, i.e. "my_filename" instead
+        of "my_filename.zarr").
+    """
+    if type(filename) is not str:
+        raise Exception(
+            (
+                "Please pass a string"
+                " (any characters surrounded by quotation marks)"
+                " for your file name."
+            )
+        )
+    filename = filename.split(".")[0]
+
+    dir_path = filename + ".zarr"
+
     try:
         shutil.rmtree(dir_path)
         print(f"Zarr dataset '{dir_path}' deleted successfully.")
