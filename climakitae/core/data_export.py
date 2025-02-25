@@ -812,6 +812,9 @@ def export(data, filename="dataexport", format="NetCDF", mode="local"):
 
     save_name = filename + extension_dict[req_format]
 
+    if (mode == "s3") and (req_format != "zarr"):
+        raise Exception('To export to AWS S3 you must use the format="Zarr" option.')
+
     # now here is where exporting actually begins
     # we will have different functions for each file type
     # to keep things clean-ish
