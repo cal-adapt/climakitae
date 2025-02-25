@@ -206,7 +206,7 @@ def _convert_da_to_ds(data):
             # name it in order to call to_dataset on it
             data.name = "data"
         return data.to_dataset()
-    elif isinstance(data, xr.core.dataset.DataSet):
+    elif isinstance(data, xr.core.dataset.Dataset):
         return data
 
 
