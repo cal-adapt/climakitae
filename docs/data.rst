@@ -145,12 +145,17 @@ To save data as a file, use the :py:func:`climakitae.export()` method and input 
 
 * data to export – an :py:class:`xarray.DataArray` or :py:class:`xarray.Dataset` object, as output by e.g. :py:func:`selections.retrieve()`
 * output file name (without file extension)
-* file format ("NetCDF" or "CSV")
+* file format ("NetCDF", "Zarr", or "CSV")
 
-We recommend NetCDF, which suits data and outputs from the Analytics Engine well – it efficiently stores large data containing multiple variables and dimensions. Metadata will be retained in NetCDF files.
+We recommend NetCDF or Zarr, which suits data and outputs from the Analytics Engine well – they efficiently store large data containing multiple variables and dimensions. Metadata will be retained in these files.
 
-CSV can also store Analytics Engine data with any number of variables and dimensions. It works the best for smaller data with fewer dimensions. The output file will be compressed to ensure efficient storage. Metadata will be preserved in a separate file.
+NetCDF or Zarr can be export locally (such as onto the JupyterHUB user partition). Optionally Zarr can be exported to an AWS S3 scratch bucket for storing very large exports.
+
+CSV can also store Analytics Engine data with any number of variables and dimensions. It works best for smaller data with fewer dimensions. The output file will be compressed to ensure efficient storage. Metadata will be preserved in a separate file.
 
 CSV stores data in tabular format. Rows will be indexed by the index coordinate(s) of the DataArray or Dataset (e.g. scenario, simulation, time). Columns will be formed by the data variable(s) and non-index coordinate(s). :: 
 
-   ck.export(data, "my_filename", "NetCDF")
+   ck.export(data, filename="my_filename", format="NetCDF")
+   ck.export(data, filename="my_filename2", format="Zarr")
+   ck.export(data, filename="my_filename3", format="Zarr", mode="s3")
+   ck.export(data, filename="my_filename4", format="CSV")
