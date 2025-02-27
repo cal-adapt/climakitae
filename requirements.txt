@@ -5,7 +5,7 @@ llvmlite==0.43.0
 bottleneck==1.4.2
 boto3==1.35.88
 tqdm==4.67.1
-pydantic==2.27.2
+pydantic==2.10.4
 pyarrow==18.1.0
 xarray==2025.1.1
 dask==2024.11.2
