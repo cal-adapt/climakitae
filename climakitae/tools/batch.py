@@ -1,5 +1,6 @@
 from climakitae.util.utils import get_closest_gridcell, stack_sims_across_locs
 from climakitae.core.data_load import load
+import time
 import xarray as xr
 
 
@@ -27,7 +28,6 @@ def batch_select(approach, selections, points, load_data=False, progress_bar=Tru
         for point in points:
             lat, lon = point
             closest_cell = get_closest_gridcell(data, lat, lon, print_coords=False)
-            stacked_data = stack_sims_across_locs(closest_cell)
             data_pts.append(closest_cell)
         return data_pts
 
@@ -37,7 +37,10 @@ def batch_select(approach, selections, points, load_data=False, progress_bar=Tru
     selections.area_subset = "none"
     selections.cached_area = ["entire domain"]
 
+    t1 = time.time()
     data = selections.retrieve()
+    t2 = time.time()
+    print(f"Total time: {t2 - t1} seconds to retrieve")
 
     if approach == "Time":
         # Remove leap days, if applicable
@@ -46,10 +49,13 @@ def batch_select(approach, selections, points, load_data=False, progress_bar=Tru
     data_pts = _retrieve_pts(data, points)
 
     # Combine data points into a single xr.Dataset
-    cells_of_interest = xr.concat(data_pts, dim="simulation").chunk(chunks="auto")
+    cells_of_interest = xr.concat(data_pts, dim="points")
 
     # Load in the cells of interest into memory, if desired.
     if load_data:
+        t3 = time.time()
         cells_of_interest = load(cells_of_interest, progress_bar=progress_bar)
+        t4 = time.time()
+        print(f"Total time to load: {t4 - t3} seconds")
 
     return cells_of_interest
