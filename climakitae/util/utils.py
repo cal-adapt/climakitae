@@ -702,7 +702,6 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
         .tz_localize(None)
         .astype("datetime64[ns]")
     )
-    # import pdb; pdb.set_trace()
     total_data["time"] = new_time
 
     # 5. Subset the data by the initial time
