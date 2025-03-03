@@ -427,6 +427,7 @@ def get_ks_stat(bms, distr="gev", multiple_points=True):
         bms,
         input_core_dims=[["time"]],
         exclude_dims=set(("time",)),
+        vectorize=True,
         output_core_dims=[[], []],
     )
 
@@ -679,6 +680,7 @@ def _get_return_variable(
         bms,
         input_core_dims=[["time"]],
         exclude_dims=set(("time",)),
+        vectorize=True,
         output_core_dims=[[], [], []],
     )
 
