@@ -132,7 +132,7 @@ def _package_file_path(rel_path):
     return os.path.normpath(os.path.join(os.path.dirname(__file__), "..", rel_path))
 
 
-def get_closest_gridcells(data, lat, lon, print_coords=True):
+def get_closest_gridcell(data, lat, lon, print_coords=True):
     """From input gridded data, get the closest gridcell to a lat, lon coordinate pair.
 
     This function first transforms the lat,lon coords to the gridded data’s projection.

@@ -1,4 +1,4 @@
-from climakitae.util.utils import get_closest_gridcells, stack_sims_across_locs
+from climakitae.util.utils import get_closest_gridcell, stack_sims_across_locs
 from climakitae.core.data_load import load
 import time
 import xarray as xr
@@ -31,7 +31,7 @@ def batch_select(approach, selections, points, load_data=False, progress_bar=Tru
         data = data.sel(time=~((data.time.dt.month == 2) & (data.time.dt.day == 29)))
 
     # Find the closest gridcells for each of the passed in points and concatenate them on a new 'points' dimension to go from 2D grid to 1D series of points
-    da_points = get_closest_gridcells(data, points[:, 0], points[:, 1])
+    da_points = get_closest_gridcell(data, points[:, 0], points[:, 1])
 
     # Load in the cells of interest into memory, if desired.
     if load_data:
