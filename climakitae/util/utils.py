@@ -132,7 +132,7 @@ def _package_file_path(rel_path):
     return os.path.normpath(os.path.join(os.path.dirname(__file__), "..", rel_path))
 
 
-def get_closest_gridcell(data, lat, lon, print_coords=True):
+def get_closest_gridcells(data, lat, lon, print_coords=True):
     """From input gridded data, get the closest gridcell to a lat, lon coordinate pair.
 
     This function first transforms the lat,lon coords to the gridded data’s projection.
@@ -183,12 +183,31 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
     try:
         if "x" and "y" in data.dims:
             tolerance = km_num * 1000  # Converting km to m
-            closest_gridcell = data.sel(x=x, y=y, method="nearest", tolerance=tolerance)
+            if len(lat) == 1 and len(lon) == 1:
+                closest_gridcell = data.sel(
+                    x=x, y=y, method="nearest", tolerance=tolerance
+                )
+            else:
+                closest_gridcell = data.sel(
+                    x=xr.DataArray(x, dim="points"),
+                    y=xr.DataArray(y, dim="points"),
+                    method="nearest",
+                    tolerance=tolerance,
+                )
+
         elif "lat" and "lon" in data.dims:
             tolerance = km_num / 111  # Rough translation of km to degrees
-            closest_gridcell = data.sel(
-                lat=lat, lon=lon, method="nearest", tolerance=tolerance
-            )
+            if len(lat) == 1 and len(lon) == 1:
+                closest_gridcell = data.sel(
+                    lat=lat, lon=lon, method="nearest", tolerance=tolerance
+                )
+            else:
+                closest_gridcell = data.sel(
+                    lat=xr.DataArray(lat, dim="points"),
+                    lon=xr.DataArray(lon, dim="points"),
+                    method="nearest",
+                    tolerance=tolerance,
+                )
 
     except KeyError:
         print(
