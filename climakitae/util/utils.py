@@ -189,8 +189,8 @@ def get_closest_gridcells(data, lat, lon, print_coords=True):
                 )
             else:
                 closest_gridcell = data.sel(
-                    x=xr.DataArray(x, dim="points"),
-                    y=xr.DataArray(y, dim="points"),
+                    x=xr.DataArray(x, dims="points"),
+                    y=xr.DataArray(y, dims="points"),
                     method="nearest",
                     tolerance=tolerance,
                 )
