@@ -216,7 +216,7 @@ def get_closest_gridcells(data, lat, lon, print_coords=True):
         return None
 
     # Output information
-    if print_coords:
+    if print_coords and len(lat) == 1 and len(lon) == 1:
         print(
             "Input coordinates: (%.2f, %.2f)" % (lat, lon)
             + "\nNearest grid cell coordinates: (%.2f, %.2f)"
