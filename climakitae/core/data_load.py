@@ -96,6 +96,8 @@ def load(xr_da, progress_bar=False):
             end="",
         )
         if progress_bar:
+            # from dask.distributed import performance_report
+            # with performance_report(filename="dask-report.html"):
             with ProgressBar():
                 print("\r")
                 da_computed = xr_da.compute()
