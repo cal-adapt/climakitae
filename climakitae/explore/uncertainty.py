@@ -146,7 +146,7 @@ def _clip_region(ds, area_subset, location):
     geographies = data_interface.geographies
     us_states = geographies._us_states
     us_counties = geographies._ca_counties
-    ds = ds.rio.write_crs(4326)
+    ds = ds.rio.write_crs("epsg:4326", inplace=True)
 
     if "counties" in area_subset:
         ds_region = us_counties[us_counties.NAME == location].geometry
@@ -499,7 +499,7 @@ def get_ensemble_data(variable, selections, cmip_names, warm_level=3.0):
         """Subset the dataset by an input location, convert variables, perform area averaging"""
         # Perform area subsetting
         ds_region = area_subset_geometry(selections)
-        ds = ds.rio.write_crs(4326)
+        ds = ds.rio.write_crs("epsg:4326", inplace=True)
         ds = ds.rio.clip(geometries=ds_region, crs=4326, drop=True)
 
         # Convert to mm/mon for precip data

@@ -370,7 +370,7 @@ def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
     data = xr_da.drop_vars(coords)
 
     # Re-write crs to data using original dataset
-    data = data.rio.write_crs(xr_da.rio.crs)
+    data = data.rio.write_crs(xr_da.rio.crs, inplace=True)
 
     # Get non-spatial dimensions
     non_spatial_dims = [dim for dim in data.dims if dim not in ["x", "y"]]
@@ -596,7 +596,7 @@ def add_dummy_time_to_wl(wl_da):
     - The dummy time series starts from "2000-01-01".
     """
     # Creating map from frequency name to freq var needed for pandas date range
-    name_to_freq = {"hourly": "H", "daily": "D", "monthly": "M"}
+    name_to_freq = {"hourly": "h", "daily": "D", "monthly": "ME"}
 
     # Creating dummy timestamps
     timestamps = pd.date_range(

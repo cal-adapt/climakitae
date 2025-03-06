@@ -4,6 +4,7 @@ import pytest
 import pandas as pd
 from climakitae.util.utils import read_csv_file
 from climakitae.core.paths import gwl_1850_1900_file, gwl_1981_2010_file
+from climakitae.core.constants import WARMING_LEVELS
 
 # Load the DataFrames
 gwl_times_1850_1900 = read_csv_file(gwl_1850_1900_file)
@@ -11,8 +12,6 @@ gwl_times_1981_2010 = read_csv_file(gwl_1981_2010_file)
 
 # Parameterized DataFrames for testing
 gwl_dfs = [("1850-1900", gwl_times_1850_1900), ("1981-2010", gwl_times_1981_2010)]
-
-warming_levels = [0.8, 1.2, 1.5, 2.0, 3.0, 4.0]
 
 
 @pytest.mark.parametrize("name, df", gwl_dfs)
@@ -23,7 +22,7 @@ def test_file_structure(name, df):
     - Ensures the DataFrame is not empty.
     - Validates that all required columns ('GCM', 'run', 'scenario', and `warming_levels` values) are present.
     """
-    required_columns = ["GCM", "run", "scenario"] + [str(wl) for wl in warming_levels]
+    required_columns = ["GCM", "run", "scenario"] + [str(wl) for wl in WARMING_LEVELS]
     assert not df.empty, f"{name} DataFrame is empty."
     assert all(
         col in df.columns for col in required_columns
@@ -51,7 +50,7 @@ def test_column_data_types(name, df):
     - Ensures that 'GCM', 'run', and 'scenario' columns are string types.
     """
     # Check that warming level columns are valid datetimes or NaN
-    for wl in warming_levels:
+    for wl in WARMING_LEVELS:
         datetime_check = pd.to_datetime(df[str(wl)], errors="coerce")
         is_valid_or_nan = datetime_check.notna() | df[str(wl)].isna()
         assert (
