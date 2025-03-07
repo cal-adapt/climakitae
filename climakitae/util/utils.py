@@ -183,7 +183,7 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
     try:
         if "x" and "y" in data.dims:
             tolerance = km_num * 1000  # Converting km to m
-            if len(lat) == 1 and len(lon) == 1:
+            if isinstance(lat, float) and isinstance(lon, float):
                 closest_gridcell = data.sel(
                     x=x, y=y, method="nearest", tolerance=tolerance
                 )
@@ -197,7 +197,7 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
 
         elif "lat" and "lon" in data.dims:
             tolerance = km_num / 111  # Rough translation of km to degrees
-            if len(lat) == 1 and len(lon) == 1:
+            if isinstance(lat, float) and isinstance(lon, float):
                 closest_gridcell = data.sel(
                     lat=lat, lon=lon, method="nearest", tolerance=tolerance
                 )
