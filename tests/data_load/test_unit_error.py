@@ -1,5 +1,5 @@
-"""Manually setting a bad/invalid unit in a DataParameters object should not allow you to retrieve data.
-Test that an appropriate error is raised.
+"""Manually setting a bad/invalid unit in a DataParameters object should not allow you to retrieve data. 
+Test that an appropriate error is raised. 
 """
 
 import pytest

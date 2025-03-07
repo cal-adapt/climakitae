@@ -1,12 +1,12 @@
-"""
-Util for generating warming level reference data file
+""" 
+Util for generating warming level reference data file 
 "gwl_1981-2010ref_EC-Earth3_ssp370.csv" in ../data
 
-The CSV file is generated for use in ../explore/uncertainty.py. It contains,
+The CSV file is generated for use in ../explore/uncertainty.py. It contains, 
 for each ensemble member of EC-Earth3, the times when five major warming levels
 are reached under SSP3-7.0.
 
-To run, type: <<python generate_gwl_tables_unc.py>> in the command line and wait
+To run, type: <<python generate_gwl_tables_unc.py>> in the command line and wait 
 for printed model outputs showing progress.
 """
 
