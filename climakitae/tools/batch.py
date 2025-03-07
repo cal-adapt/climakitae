@@ -38,12 +38,14 @@ def batch_select(approach, selections, points, load_data=False, progress_bar=Tru
         crs_to=data.rio.crs,  # Model projection
         always_xy=True,
     )
-    xs, ys = lat_lon_to_model_projection.transform(points[:,1], points[:,0])
-    x_idx = data.x.to_index().get_indexer(xs, method='nearest')
-    y_idx = data.x.to_index().get_indexer(ys, method='nearest')
+    xs, ys = lat_lon_to_model_projection.transform(points[:, 1], points[:, 0])
+    x_idx = data.x.to_index().get_indexer(xs, method="nearest")
+    y_idx = data.x.to_index().get_indexer(ys, method="nearest")
 
-    da_points = data.isel(x=xr.DataArray(x_idx, dims='points'), y=xr.DataArray(y_idx, dims='points'))
-    
+    da_points = data.isel(
+        x=xr.DataArray(x_idx, dims="points"), y=xr.DataArray(y_idx, dims="points")
+    )
+
     # Load in the cells of interest into memory, if desired.
     if load_data:
         t3 = time.time()
