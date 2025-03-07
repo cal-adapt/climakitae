@@ -1,4 +1,4 @@
-"""This script tests that the functions used to derive indices perform as expected. """
+"""This script tests that the functions used to derive indices perform as expected."""
 
 import pytest
 import xarray as xr

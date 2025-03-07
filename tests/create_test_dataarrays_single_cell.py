@@ -5,8 +5,8 @@ Create test datasets for a single cell of hourly data, for all variations betwee
     2. Time
     3. LOCA
     4. WRF
-Notes: 
-[Nicole Keeney Dec 11, 2024]: I tried to use this script to regenerate the test files for the vulnerability unit tests, but could not get the script to reproduce the files using the appropriate strings. I needed to modify the scenario strings to remove "Business as Usual" from the string IDs. I ended up just manually altering the files. 
+Notes:
+[Nicole Keeney Dec 11, 2024]: I tried to use this script to regenerate the test files for the vulnerability unit tests, but could not get the script to reproduce the files using the appropriate strings. I needed to modify the scenario strings to remove "Business as Usual" from the string IDs. I ended up just manually altering the files.
 """
 
 import numpy as np
