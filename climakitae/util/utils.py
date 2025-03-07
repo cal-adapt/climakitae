@@ -183,31 +183,15 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
     try:
         if "x" and "y" in data.dims:
             tolerance = km_num * 1000  # Converting km to m
-            if isinstance(lat, float) and isinstance(lon, float):
-                closest_gridcell = data.sel(
-                    x=x, y=y, method="nearest", tolerance=tolerance
-                )
-            else:
-                closest_gridcell = data.sel(
-                    x=xr.DataArray(x, dims="points"),
-                    y=xr.DataArray(y, dims="points"),
-                    method="nearest",
-                    tolerance=tolerance,
-                )
-
+            closest_gridcell = data.sel(
+                x=x, y=y, method="nearest", tolerance=tolerance
+            )
+                
         elif "lat" and "lon" in data.dims:
             tolerance = km_num / 111  # Rough translation of km to degrees
-            if isinstance(lat, float) and isinstance(lon, float):
-                closest_gridcell = data.sel(
-                    lat=lat, lon=lon, method="nearest", tolerance=tolerance
-                )
-            else:
-                closest_gridcell = data.sel(
-                    lat=xr.DataArray(lat, dim="points"),
-                    lon=xr.DataArray(lon, dim="points"),
-                    method="nearest",
-                    tolerance=tolerance,
-                )
+            closest_gridcell = data.sel(
+                lat=lat, lon=lon, method="nearest", tolerance=tolerance
+            )
 
     except KeyError:
         print(
@@ -216,13 +200,126 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
         return None
 
     # Output information
-    if print_coords and isinstance(lat, float) and isinstance(lon, float):
+    if print_coords:
         print(
             "Input coordinates: (%.2f, %.2f)" % (lat, lon)
             + "\nNearest grid cell coordinates: (%.2f, %.2f)"
             % (closest_gridcell.lat.values.item(), closest_gridcell.lon.values.item())
         )
     return closest_gridcell
+
+
+def get_closest_gridcells(data, lats, lons):
+    """
+    Find the nearest grid cell(s) for given latitude and longitude coordinates.
+
+    If the dataset uses (x, y) coordinates, lat/lon values are transformed to match its projection.
+    The function then selects the closest grid cell using `sel()` or `get_indexer()`, ensuring 
+    the selection is within an appropriate tolerance.
+
+    Parameters
+    ----------
+    data : xr.DataArray or xr.Dataset
+        Gridded dataset with (x, y) or (lat, lon) dimensions.
+    lats : float or array-like
+        Latitude coordinate(s).
+    lons : float or array-like
+        Longitude coordinate(s).
+
+    Returns
+    -------
+    xr.DataArray or None
+        Nearest grid cell(s) or `None` if no valid match is found.
+        
+    Notes
+    -----
+    - If (x, y) dimensions exist, lat/lon coordinates are projected using `pyproj.Transformer`.
+    - The search tolerance is derived from the dataset resolution.
+    - Returns `None` if no grid cells are within tolerance.
+
+    See Also
+    --------
+    xr.DataArray.sel, pyproj.Transformer
+    """
+    # Use data cellsize as tolerance for selecting nearest
+    # Using this method to guard against single row|col
+    # Assumes data is from climakitae retrieve
+    km_num = int(data.resolution.split(" km")[0])
+    # tolerance = int(data.resolution.split(" km")[0]) * 1000
+
+    if "x" and "y" in data.dims:
+        # Make Transformer object
+        lat_lon_to_model_projection = pyproj.Transformer.from_crs(
+            crs_from="epsg:4326",  # Lat/lon
+            crs_to=data.rio.crs,  # Model projection
+            always_xy=True,
+        )
+
+        # Convert coordinates to x,y
+        xs, ys = lat_lon_to_model_projection.transform(lons, lats)
+
+    # Get closest gridcell using tolerance
+    def find_closest_valid_gridcells(data, dim1_name, dim2_name, coords1, coords2, tolerance):
+        """
+        Find the nearest valid grid cells within a given tolerance.
+    
+        Uses `get_indexer()` to find the closest grid cell indices along two spatial dimensions,
+        ensuring they are within the dataset bounds and tolerance.
+    
+        Parameters
+        ----------
+        data : xr.DataArray or xr.Dataset
+            Gridded dataset with spatial dimensions.
+        dim1_name : str
+            First spatial dimension (e.g., 'x' or 'lat').
+        dim2_name : str
+            Second spatial dimension (e.g., 'y' or 'lon').
+        coords1 : float or array-like
+            Coordinates along `dim1_name`.
+        coords2 : float or array-like
+            Coordinates along `dim2_name`.
+        tolerance : float
+            Maximum allowed distance from the nearest grid cell.
+    
+        Returns
+        -------
+        xr.DataArray or None
+            Nearest grid cell(s) or `None` if out of bounds.
+    
+        See Also
+        --------
+        xr.DataArray.get_indexer, xr.DataArray.isel
+        """
+        dim1_idx = data[dim1_name].to_index().get_indexer(coords1, method="nearest")
+        dim2_idx = data[dim2_name].to_index().get_indexer(coords2, method="nearest")
+
+        dim1_valid = (dim1_idx != -1) & (np.abs(data[dim1_name][dim1_idx] - coords1) <= tolerance)
+        dim2_valid = (dim2_idx != -1) & (np.abs(data[dim2_name][dim2_idx] - coords2) <= tolerance)
+
+        if not (dim1_valid.all() and dim2_valid.all()):
+            print("One or more coordinates are OUTSIDE of data extent by more than one cell. Returning None.")
+            closest_gridcells = None
+        else:
+            closest_gridcells = data.isel({
+                dim1_name: xr.DataArray(dim1_idx, dims="points"), 
+                dim2_name: xr.DataArray(dim2_idx, dims="points")
+            })
+
+        return closest_gridcells
+
+    
+    # If input point outside of dataset by greater than one
+    # grid cell, then None is returned
+    if "x" and "y" in data.dims:
+        tolerance = km_num * 1000  # Converting km to m
+        closest_gridcells = find_closest_valid_gridcells(data, 'x', 'y', xs, ys, tolerance)
+        
+    elif "lat" and "lon" in data.dims:
+        tolerance = km_num / 111  # Rough translation of km to degrees
+        closest_gridcells = find_closest_valid_gridcells(data, 'lat', 'lon', lats, lons, tolerance)
+
+    return closest_gridcells
+    
 
 
 def julianDay_to_str_date(julday, leap_year=True, str_format="%b-%d"):
