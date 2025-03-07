@@ -1,5 +1,4 @@
-"""Test to see that variable descriptions csv is formatted appropriately 
-"""
+"""Test to see that variable descriptions csv is formatted appropriately"""
 
 import pytest
 from climakitae.core.data_interface import DataInterface

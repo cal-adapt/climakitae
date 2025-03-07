@@ -1,6 +1,6 @@
 """
-This script contains tests on various Timeseries Tools options using monthly 
-data. For now, the tests only test that the various parameter combinations can 
+This script contains tests on various Timeseries Tools options using monthly
+data. For now, the tests only test that the various parameter combinations can
 run through `transform_data` without error, and that the data has been transformed
 (not equal to original values), but does not test for exact expected values.
 """

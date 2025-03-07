@@ -1,4 +1,4 @@
-"""This script tests that the functions used to compute derived variables perform as expected. """
+"""This script tests that the functions used to compute derived variables perform as expected."""
 
 import pytest
 import xarray as xr
