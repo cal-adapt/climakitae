@@ -1,4 +1,4 @@
-"""Shared data and paths between multiple unit tests. """
+"""Shared data and paths between multiple unit tests."""
 
 import pytest
 import os

@@ -1,6 +1,6 @@
-"""create_test_dataset.py 
+"""create_test_dataset.py
 
-This script uses functions from the data_loaders, core, and selectors modules to construct small datasets for testing. 
+This script uses functions from the data_loaders, core, and selectors modules to construct small datasets for testing.
 Depending on the number of variables you use to construct your dataset and the geographic subset you want, this script can take a while to run.
 
 """
