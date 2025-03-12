@@ -473,7 +473,7 @@ def _calculate_return(fitted_distr, data_variable, arg_value, block_size=1):
         if data_variable == "return_value":
             return_event = 1.0 - (block_size / arg_value)
             return_value = fitted_distr.ppf(return_event)
-            result = round(return_value, 5)
+            result = np.round(return_value, 5)
         else:
             return_prob = 1 - (fitted_distr.cdf(arg_value)) ** (
                 1 / block_size
@@ -485,7 +485,7 @@ def _calculate_return(fitted_distr, data_variable, arg_value, block_size=1):
                     result = np.nan
                 else:
                     return_period = 1.0 / return_prob
-                    result = round(return_period, 3)
+                    result = np.round(return_period, 3)
     except (ValueError, ZeroDivisionError, AttributeError):
         result = np.nan
     return result
@@ -581,12 +581,15 @@ def _conf_int(
         result = _bootstrap(bms, distr, data_variable, arg_value, block_size)
         bootstrap_values.append(result)
 
+    bootstrap_values = np.stack(bootstrap_values, axis=0)
+
     conf_int_array = np.percentile(
-        bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound]
+        bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound], axis=0
     )
 
     conf_int_lower_limit = conf_int_array[0]
     conf_int_upper_limit = conf_int_array[1]
+
     return conf_int_lower_limit, conf_int_upper_limit
 
 
@@ -681,11 +684,14 @@ def _get_return_variable(
         input_core_dims=[["time"]],
         exclude_dims=set(("time",)),
         vectorize=True,
-        output_core_dims=[[], [], []],
+        output_core_dims=[["arg_value"], ["arg_value"], ["arg_value"]],
     )
 
     return_variable = return_variable.rename(data_variable)
     new_ds = return_variable.to_dataset()
+    new_ds = new_ds.assign_coords(
+        arg_value=arg_value
+    )  # Writing multiple 1-in-X params as different coords of `arg_value` dimension
     new_ds["conf_int_lower_limit"] = conf_int_lower_limit
     new_ds["conf_int_upper_limit"] = conf_int_upper_limit
 
