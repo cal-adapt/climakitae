@@ -675,8 +675,7 @@ def _get_return_variable(
             conf_int_upper_bound=conf_int_upper_bound,
             block_size=block_size,
         )
-
-        return return_variable, conf_int_lower_limit, conf_int_upper_limit
+        return np.array([return_variable]), np.array([conf_int_lower_limit]), np.array([conf_int_upper_limit])
 
     return_variable, conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
         _return_variable,
