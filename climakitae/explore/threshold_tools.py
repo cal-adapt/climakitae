@@ -629,6 +629,9 @@ def _get_return_variable(
     -------
     xarray.Dataset
     """
+    # If there is only one X input, then make it a list, so that this function can properly behave on a LIST of X values for 1-in-X calculations
+    if not isinstance(arg_value, np.ndarray):
+        arg_value = np.array([arg_value])
 
     data_variables = ["return_value", "return_period", "return_prob"]
     if data_variable not in data_variables:
@@ -683,17 +686,15 @@ def _get_return_variable(
         input_core_dims=[["time"]],
         exclude_dims=set(("time",)),
         vectorize=True,
-        output_core_dims=[["arg_value"], ["arg_value"], ["arg_value"]],
+        output_core_dims=[["one_in_x"], ["one_in_x"], ["one_in_x"]],
     )
-
     return_variable = return_variable.rename(data_variable)
     new_ds = return_variable.to_dataset()
     new_ds = new_ds.assign_coords(
-        arg_value=arg_value
+        one_in_x=arg_value
     )  # Writing multiple 1-in-X params as different coords of `arg_value` dimension
     new_ds["conf_int_lower_limit"] = conf_int_lower_limit
     new_ds["conf_int_upper_limit"] = conf_int_upper_limit
-
     if multiple_points:
         new_ds = new_ds.unstack("allpoints")
 
