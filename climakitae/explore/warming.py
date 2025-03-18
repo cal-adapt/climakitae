@@ -241,7 +241,7 @@ def get_sliced_data(y, level, years, months=np.arange(1, 13), window=15, anom="N
         if len(sliced["time"]) < expected_counts[sliced.frequency]:
             try:
                 print(
-                    f"\nWarming Level data for {sliced.simulation[0]} is not completely available, since the warming level slice's center year is towards the end of the century. All other valid data is returned.\n"
+                    f"\nWarming Level data for {sliced.simulation[0].item()} is not completely available, since the warming level slice's center year is towards the end of the century. All other valid data is returned.\n"
                 )
             except:
                 print(
