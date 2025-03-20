@@ -1,4 +1,4 @@
-from climakitae.util.utils import get_closest_gridcell, stack_sims_across_locs
+from climakitae.util.utils import get_closest_gridcells, stack_sims_across_locs
 from climakitae.core.data_load import load
 import xarray as xr
 
@@ -20,17 +20,6 @@ def batch_select(approach, selections, points, load_data=False, progress_bar=Tru
     -------
     cells_of_interest: xr.DataArray of the gridcells that the points lie within, aggregated together into one DataArray. It can or cannot be loaded into memory, depending on `load_data`.
     """
-
-    def _retrieve_pts(data, points):
-        """Retrieving all individual points within the entire domain of data pulled."""
-        data_pts = []
-        for point in points:
-            lat, lon = point
-            closest_cell = get_closest_gridcell(data, lat, lon, print_coords=False)
-            stacked_data = stack_sims_across_locs(closest_cell)
-            data_pts.append(closest_cell)
-        return data_pts
-
     print(f"Batch retrieving all {len(points)} points passed in...\n")
 
     # Add selections attributes to cover the entire domain since we don't know exactly where the selected points lie.
@@ -43,10 +32,8 @@ def batch_select(approach, selections, points, load_data=False, progress_bar=Tru
         # Remove leap days, if applicable
         data = data.sel(time=~((data.time.dt.month == 2) & (data.time.dt.day == 29)))
 
-    data_pts = _retrieve_pts(data, points)
-
-    # Combine data points into a single xr.Dataset
-    cells_of_interest = xr.concat(data_pts, dim="simulation").chunk(chunks="auto")
+    # Find the closest gridcells for each of the passed in points and concatenate them on a new 'points' dimension to go from 2D grid to 1D series of points
+    cells_of_interest = get_closest_gridcells(data, points[:, 0], points[:, 1])
 
     # Load in the cells of interest into memory, if desired.
     if load_data:

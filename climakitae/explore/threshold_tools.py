@@ -427,6 +427,7 @@ def get_ks_stat(bms, distr="gev", multiple_points=True):
         bms,
         input_core_dims=[["time"]],
         exclude_dims=set(("time",)),
+        vectorize=True,
         output_core_dims=[[], []],
     )
 
@@ -472,7 +473,7 @@ def _calculate_return(fitted_distr, data_variable, arg_value, block_size=1):
         if data_variable == "return_value":
             return_event = 1.0 - (block_size / arg_value)
             return_value = fitted_distr.ppf(return_event)
-            result = round(return_value, 5)
+            result = np.round(return_value, 5)
         else:
             return_prob = 1 - (fitted_distr.cdf(arg_value)) ** (
                 1 / block_size
@@ -484,7 +485,7 @@ def _calculate_return(fitted_distr, data_variable, arg_value, block_size=1):
                     result = np.nan
                 else:
                     return_period = 1.0 / return_prob
-                    result = round(return_period, 3)
+                    result = np.round(return_period, 3)
     except (ValueError, ZeroDivisionError, AttributeError):
         result = np.nan
     return result
@@ -580,12 +581,15 @@ def _conf_int(
         result = _bootstrap(bms, distr, data_variable, arg_value, block_size)
         bootstrap_values.append(result)
 
+    bootstrap_values = np.stack(bootstrap_values, axis=0)
+
     conf_int_array = np.percentile(
-        bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound]
+        bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound], axis=0
     )
 
     conf_int_lower_limit = conf_int_array[0]
     conf_int_upper_limit = conf_int_array[1]
+
     return conf_int_lower_limit, conf_int_upper_limit
 
 
@@ -625,6 +629,9 @@ def _get_return_variable(
     -------
     xarray.Dataset
     """
+    # If there is only one X input, then make it a list, so that this function can properly behave on a LIST of X values for 1-in-X calculations
+    if not isinstance(arg_value, np.ndarray):
+        arg_value = np.array([arg_value])
 
     data_variables = ["return_value", "return_period", "return_prob"]
     if data_variable not in data_variables:
@@ -671,22 +678,27 @@ def _get_return_variable(
             conf_int_upper_bound=conf_int_upper_bound,
             block_size=block_size,
         )
-
-        return return_variable, conf_int_lower_limit, conf_int_upper_limit
+        return (
+            np.array([return_variable]),
+            np.array([conf_int_lower_limit]),
+            np.array([conf_int_upper_limit]),
+        )
 
     return_variable, conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
         _return_variable,
         bms,
         input_core_dims=[["time"]],
         exclude_dims=set(("time",)),
-        output_core_dims=[[], [], []],
+        vectorize=True,
+        output_core_dims=[["one_in_x"], ["one_in_x"], ["one_in_x"]],
     )
-
     return_variable = return_variable.rename(data_variable)
     new_ds = return_variable.to_dataset()
+    new_ds = new_ds.assign_coords(
+        one_in_x=arg_value
+    )  # Writing multiple 1-in-X params as different coords of `arg_value` dimension
     new_ds["conf_int_lower_limit"] = conf_int_lower_limit
     new_ds["conf_int_upper_limit"] = conf_int_upper_limit
-
     if multiple_points:
         new_ds = new_ds.unstack("allpoints")
 
