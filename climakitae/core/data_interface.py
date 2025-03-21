@@ -2067,16 +2067,6 @@ def get_data(
             scenario_ssp, scenario_historical = None, None
         return scenario_ssp, scenario_historical
 
-    # Get intake catalog and variable descriptions from DataInterface object
-    data_interface = DataInterface()
-    var_df = data_interface.variable_descriptions.rename(
-        columns={"variable": "display_name"}
-    )  # Rename column so that it can be merged with cat_df
-    catalog = data_interface.data_catalog
-    cat_df = _get_user_friendly_catalog(
-        intake_catalog=catalog, variable_descriptions=var_df
-    )
-
     ## --------- ERROR HANDLING ----------
     # Deal with bad or missing users inputs
 
@@ -2207,6 +2197,17 @@ def get_data(
     # A dictionary is used for all the inputs in selections because it enables better error handling and cleaner code when we set selections.thing = thing
     # It also makes parsing through the arguments easier
     # The inputs here need to be a list so that they can be parsed easier by the _check_if_good_input function when comparing with the valid catalog options to confirm the user input is valid
+
+    # Get intake catalog and variable descriptions from DataInterface object
+    data_interface = DataInterface()
+    var_df = data_interface.variable_descriptions.rename(
+        columns={"variable": "display_name"}
+    )  # Rename column so that it can be merged with cat_df
+    #catalog = data_interface.data_catalog
+    #cat_df = _get_user_friendly_catalog(
+    #    intake_catalog=catalog, variable_descriptions=var_df
+    #) Not Called in this sub
+
     scenario_user_input = scenario  # What the user originally input for scenario
 
     check_input_df = get_data_options(
