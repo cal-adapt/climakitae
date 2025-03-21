@@ -1,0 +1,73 @@
+name: Code Improvement
+description: Suggest an improvement to existing code
+title: "[CODE IMPROVEMENT]: "
+labels: ["enhancement", "code quality"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to suggest a code improvement!
+        
+  - type: textarea
+    id: problem
+    attributes:
+      label: Current Code
+      description: Describe the code that needs improvement. Please include file paths and code snippets if possible.
+      placeholder: "The function in file.py has inefficient looping..."
+    validations:
+      required: true
+      
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested Improvement
+      description: How would you improve this code? Include code snippets if possible.
+      placeholder: "The function could be refactored to use list comprehension..."
+      render: python
+    validations:
+      required: true
+      
+  - type: dropdown
+    id: improvement_type
+    attributes:
+      label: Type of Improvement
+      description: What type of improvement are you suggesting?
+      multiple: true
+      options:
+        - Code organization
+        - Complexity reduction
+        - Documentation
+        - Performance optimization
+        - Readability improvement 
+        - Testing
+        - Warning mitigation
+        - Other
+    validations:
+      required: true
+      
+  - type: textarea
+    id: benefits
+    attributes:
+      label: Benefits
+      description: What benefits will this improvement bring?
+      placeholder: "This change will improve performance by..."
+    validations:
+      required: true
+      
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Any other information that might help understand the improvement better.
+      placeholder: "I noticed this while working on..."
+    validations:
+      required: false
+      
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow our contributor guidelines.
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true
