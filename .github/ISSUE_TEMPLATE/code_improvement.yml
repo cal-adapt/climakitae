@@ -27,20 +27,17 @@ body:
     validations:
       required: true
       
-  - type: dropdown
+  - type: checkboxes
     id: improvement_type
     attributes:
       label: Type of Improvement
       description: What type of improvement are you suggesting?
       multiple: true
       options:
-        - Code organization
-        - Complexity reduction
-        - Documentation
-        - Performance optimization
-        - Readability improvement 
-        - Testing
-        - Warning mitigation
+        - Complexity (code is confusing)
+        - Performance optimization (code is too slow)
+        - Documentation (code is missing documentation)
+        - Testing (fixing warnings or adding tests)
         - Other
     validations:
       required: true
