@@ -1,0 +1,62 @@
+name: 🐛 Bug Report
+description: File a bug report
+title: "[BUG]: "
+labels: ["bug", "triage", "help-wanted"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+  
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: What version of our software are you running?
+      placeholder: "e.g. v1.0.0"
+    validations:
+      required: true
+  
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      description: Where are you running our software?
+      options:
+        - Analytics Engine JupyterHub
+        - Local with conda environment (please specify version)
+        - Local with Docker image (please specify version)
+        - SageMaker
+        - GoogleCloud
+        - Other
+    validations:
+      required: true
+      
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Also tell us, what did you expect to happen?
+      placeholder: Tell us what you see!
+    validations:
+      required: true
+      
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this issue?
+      placeholder: |
+        1. Go to '...'
+        2. Click on '....'
+        3. Scroll down to '....'
+        4. See error
+    validations:
+      required: true
+  
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Please copy and paste any relevant log output. This will be automatically formatted into code.
+      render: shell
