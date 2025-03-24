@@ -32,13 +32,12 @@ body:
     attributes:
       label: Type of Improvement
       description: What type of improvement are you suggesting?
-      multiple: true
       options:
-        - Complexity (code is confusing)
-        - Performance optimization (code is too slow)
-        - Documentation (code is missing documentation)
-        - Testing (fixing warnings or adding tests)
-        - Other
+        - label: Complexity (code is confusing)
+        - label: Performance optimization (code is too slow)
+        - label: Documentation (code is missing documentation)
+        - label: Testing (fixing warnings or adding tests)
+        - label: Other
     validations:
       required: true
       
@@ -59,12 +58,3 @@ body:
       placeholder: "I noticed this while working on..."
     validations:
       required: false
-      
-  - type: checkboxes
-    id: terms
-    attributes:
-      label: Code of Conduct
-      description: By submitting this issue, you agree to follow our contributor guidelines.
-      options:
-        - label: I agree to follow this project's Code of Conduct
-          required: true

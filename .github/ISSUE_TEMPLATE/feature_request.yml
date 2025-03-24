@@ -33,12 +33,3 @@ body:
       description: Add any other context, screenshots, or mockups about the feature request here.
     validations:
       required: false
-  
-  - type: checkboxes
-    id: terms
-    attributes:
-      label: Code of Conduct
-      description: By submitting this issue, you agree to follow our contribution guidelines
-      options:
-        - label: I agree to follow this project's Code of Conduct
-          required: true
