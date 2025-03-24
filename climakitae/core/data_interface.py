@@ -2025,7 +2025,7 @@ def get_data(
         Here, we load in the geometry options to set area_subset to the correct value
         This also raises an appropriate error if the user has a bad input
         """
-        if area_subset == "none" and cached_area != ["entire domain"]:
+        if (area_subset == "none" or area_subset == None) and cached_area != ["entire domain"]:
             geom_df = get_subsetting_options(area_subset="all").reset_index()
             area_subset_vals = geom_df[geom_df["cached_area"] == cached_area[0]][
                 "area_subset"
