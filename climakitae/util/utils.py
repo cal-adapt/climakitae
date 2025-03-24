@@ -846,15 +846,15 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
     return sliced_data
 
 
-def add_dummy_time_to_wl(wl_da):
+def add_dummy_time_to_wl(wl_da, time_delta=False):
     """
-    Replace the `[hours/days/months]_from_center` dimension in a DataArray returned from WarmingLevels with a dummy time index for calculations with tools that require a `time` dimension.
+    Replace the `[hours/days/months]_from_center` or `time_delta` dimension in a DataArray returned from WarmingLevels with a dummy time index for calculations with tools that require a `time` dimension.
 
     Parameters
     ----------
     wl_da : xarray.DataArray
         The input Warming Levels DataArray. It is expected to have a time-based dimension which typically includes "from_center"
-        in its name indicating the time dimension in relation to the year that the given warming level is reached per simulation.
+        in its name or `time_delta` indicating the time dimension in relation to the year that the given warming level is reached per simulation.
 
     Returns
     -------
@@ -870,13 +870,22 @@ def add_dummy_time_to_wl(wl_da):
     """
     # Adjusting the time index into dummy time-series for counting
     # Finding time-based dimension
-    wl_time_dim = [dim for dim in wl_da.dims if "from_center" in dim][0]
+    if (time_delta):
+        wl_time_dim = "time_delta"
+    else:
+        wl_time_dim = [dim for dim in wl_da.dims if "from_center" in dim][0]
 
-    # Finding time frequency ("hours", "days", "months")
-    time_freq_name = wl_time_dim.split("_")[0]
+    # Finding time frequency
+    if (time_delta):
+        time_freq_name = wl_da.frequency
+    else:
+        time_freq_name = wl_time_dim.split("_")[0]
 
     # Creating map from frequency name to freq var needed for pandas date range
-    name_to_freq = {"hours": "H", "days": "D", "months": "ME"}
+    if (time_delta):
+        name_to_freq = {"hourly": "h", "daily": "D", "monthly": "ME"}
+    else:
+        name_to_freq = {"hours": "H", "days": "D", "months": "ME"}
 
     # Creating dummy timestamps
     timestamps = pd.date_range(
