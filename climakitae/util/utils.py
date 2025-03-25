@@ -883,17 +883,15 @@ def add_dummy_time_to_wl(wl_da):
             "DataArray does not contain necessary warming level information."
         )
 
-    # Finding time frequency
-    if wl_time_dim == "time_delta":
-        time_freq_name = wl_da.frequency
-    else:
-        time_freq_name = wl_time_dim.split("_")[0]
-
+    # Finding time frequency and
     # Creating map from frequency name to freq var needed for pandas date range
     if wl_time_dim == "time_delta":
+        time_freq_name = wl_da.frequency
         name_to_freq = {"hourly": "h", "daily": "D", "monthly": "ME"}
     else:
-        name_to_freq = {"hours": "H", "days": "D", "months": "ME"}
+        time_freq_name = wl_time_dim.split("_")[0]
+        name_to_freq = {"hours": "h", "days": "D", "months": "ME"}
+
 
     # Creating dummy timestamps
     timestamps = pd.date_range(
