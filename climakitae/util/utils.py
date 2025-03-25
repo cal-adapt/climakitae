@@ -892,7 +892,6 @@ def add_dummy_time_to_wl(wl_da):
         time_freq_name = wl_time_dim.split("_")[0]
         name_to_freq = {"hours": "h", "days": "D", "months": "ME"}
 
-
     # Creating dummy timestamps
     timestamps = pd.date_range(
         "2000-01-01",
