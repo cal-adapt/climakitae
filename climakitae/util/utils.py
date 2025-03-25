@@ -848,13 +848,13 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
 
 def add_dummy_time_to_wl(wl_da):
     """
-    Replace the `[hours/days/months]_from_center` dimension in a DataArray returned from WarmingLevels with a dummy time index for calculations with tools that require a `time` dimension.
+    Replace the `[hours/days/months]_from_center` or `time_delta` dimension in a DataArray returned from WarmingLevels with a dummy time index for calculations with tools that require a `time` dimension.
 
     Parameters
     ----------
     wl_da : xarray.DataArray
         The input Warming Levels DataArray. It is expected to have a time-based dimension which typically includes "from_center"
-        in its name indicating the time dimension in relation to the year that the given warming level is reached per simulation.
+        in its name or `time_delta` indicating the time dimension in relation to the year that the given warming level is reached per simulation.
 
     Returns
     -------
@@ -868,21 +868,40 @@ def add_dummy_time_to_wl(wl_da):
     - It supports creating dummy time series with frequencies of hours, days, or months, based on the prefix of the dimension name.
     - The dummy time series starts from "2000-01-01".
     """
+    # Adjusting the time index into dummy time-series for counting
+    # Finding time-based dimension
+    wl_time_dim = ""
+
+    for dim in wl_da.dims:
+        if dim == "time_delta":
+            wl_time_dim = "time_delta"
+        elif "from_center" in dim:
+            wl_time_dim = dim
+
+    if wl_time_dim == "":
+        raise ValueError(
+            "DataArray does not contain necessary warming level information."
+        )
+
+    # Finding time frequency and
     # Creating map from frequency name to freq var needed for pandas date range
-    name_to_freq = {"hourly": "h", "daily": "D", "monthly": "ME"}
+    if wl_time_dim == "time_delta":
+        time_freq_name = wl_da.frequency
+        name_to_freq = {"hourly": "h", "daily": "D", "monthly": "ME"}
+    else:
+        time_freq_name = wl_time_dim.split("_")[0]
+        name_to_freq = {"hours": "h", "days": "D", "months": "ME"}
 
     # Creating dummy timestamps
     timestamps = pd.date_range(
         "2000-01-01",
-        periods=len(wl_da["time_delta"]),
-        freq=name_to_freq[wl_da.frequency],
+        periods=len(wl_da[wl_time_dim]),
+        freq=name_to_freq[time_freq_name],
     )
 
     # Replacing WL timestamps with dummy timestamps so that calculations from tools like `thresholds_tools`
     # can be computed on a DataArray with a time dimension
-    wl_da = wl_da.assign_coords({"time_delta": timestamps}).rename(
-        {"time_delta": "time"}
-    )
+    wl_da = wl_da.assign_coords({wl_time_dim: timestamps}).rename({wl_time_dim: "time"})
     return wl_da
 
 
