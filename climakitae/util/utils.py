@@ -870,13 +870,16 @@ def add_dummy_time_to_wl(wl_da):
     """
     # Adjusting the time index into dummy time-series for counting
     # Finding time-based dimension
+    wl_time_dim = ""
+
     for dim in wl_da.dims:
         if dim == "time_delta":
             wl_time_dim = "time_delta"
         elif "from_center" in dim:
             wl_time_dim = dim
-        else:
-            raise ValueError("DataArray does not contain necessary warming level information.")
+
+    if wl_time_dim == "":
+        raise ValueError("DataArray does not contain necessary warming level information.")
 
     # Finding time frequency
     if wl_time_dim == "time_delta":
