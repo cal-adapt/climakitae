@@ -879,7 +879,9 @@ def add_dummy_time_to_wl(wl_da):
             wl_time_dim = dim
 
     if wl_time_dim == "":
-        raise ValueError("DataArray does not contain necessary warming level information.")
+        raise ValueError(
+            "DataArray does not contain necessary warming level information."
+        )
 
     # Finding time frequency
     if wl_time_dim == "time_delta":
