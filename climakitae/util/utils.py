@@ -846,7 +846,7 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
     return sliced_data
 
 
-def add_dummy_time_to_wl(wl_da, time_delta=False):
+def add_dummy_time_to_wl(wl_da):
     """
     Replace the `[hours/days/months]_from_center` or `time_delta` dimension in a DataArray returned from WarmingLevels with a dummy time index for calculations with tools that require a `time` dimension.
 
@@ -870,19 +870,22 @@ def add_dummy_time_to_wl(wl_da, time_delta=False):
     """
     # Adjusting the time index into dummy time-series for counting
     # Finding time-based dimension
-    if time_delta:
-        wl_time_dim = "time_delta"
-    else:
-        wl_time_dim = [dim for dim in wl_da.dims if "from_center" in dim][0]
+    for dim in wl_da.dims:
+        if dim == "time_delta":
+            wl_time_dim = "time_delta"
+        elif "from_center" in dim:
+            wl_time_dim = dim
+        else:
+            raise ValueError("DataArray does not contain necessary warming level information.")
 
     # Finding time frequency
-    if time_delta:
+    if wl_time_dim == "time_delta":
         time_freq_name = wl_da.frequency
     else:
         time_freq_name = wl_time_dim.split("_")[0]
 
     # Creating map from frequency name to freq var needed for pandas date range
-    if time_delta:
+    if wl_time_dim == "time_delta":
         name_to_freq = {"hourly": "h", "daily": "D", "monthly": "ME"}
     else:
         name_to_freq = {"hours": "H", "days": "D", "months": "ME"}
