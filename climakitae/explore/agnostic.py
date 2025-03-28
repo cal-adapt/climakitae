@@ -1,24 +1,26 @@
 """Backend for agnostic tools."""
 
+import warnings
+from typing import Tuple, Union
+
+import intake
 import numpy as np
 import pandas as pd
-from dask import compute
 import xarray as xr
-import intake
+from dask import compute
+
+from climakitae.core.constants import SSPS
 from climakitae.core.data_interface import (
     DataInterface,
     DataParameters,
-    _get_variable_options_df,
     _get_user_options,
+    _get_variable_options_df,
 )
-from climakitae.util.utils import read_csv_file, get_closest_gridcell
-from climakitae.core.paths import variable_descriptions_csv_path, data_catalog_url
-from climakitae.util.unit_conversions import get_unit_conversion_options
-from typing import Union, Tuple
 from climakitae.core.data_load import load
+from climakitae.core.paths import data_catalog_url, variable_descriptions_csv_path
 from climakitae.util.logger import logger
-from climakitae.core.constants import SSPS
-import warnings
+from climakitae.util.unit_conversions import get_unit_conversion_options
+from climakitae.util.utils import get_closest_gridcell, read_csv_file
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
@@ -44,7 +46,7 @@ def create_lookup_tables():
     return {"time lookup table": time_df, "warming level lookup table": warm_df}
 
 
-def _create_time_lut(gcms):
+def _create_time_lut(gcms: np.ndarray) -> pd.DataFrame:
     """Prepare lookup table for converting warming levels to times."""
     # Read in simulation vs warming levels table
     df = read_csv_file("data/gwl_1850-1900ref.csv")
