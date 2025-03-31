@@ -1,17 +1,17 @@
-import numpy as np
 import datetime
-import xarray as xr
-import rioxarray as rio
-import pandas as pd
-import intake
-from scipy import stats
 
+import intake
+import numpy as np
+import pandas as pd
+import rioxarray as rio
+import xarray as xr
+from scipy import stats
 from xmip.preprocessing import rename_cmip6
 
-from climakitae.util.utils import read_csv_file
 from climakitae.core.data_interface import DataInterface
 from climakitae.core.data_load import area_subset_geometry
 from climakitae.core.paths import gwl_1850_1900_file, gwl_1981_2010_file
+from climakitae.util.utils import read_csv_file
 
 
 ### Utility functions for uncertainty analyses and notebooks
@@ -39,19 +39,19 @@ class CmipOpt:
 
     def __init__(
         self,
-        variable="tas",  ## set up for temp uncertainty notebook
-        area_subset="states",
-        location="California",
-        timescale="monthly",
-        area_average=True,
-    ):
+        variable: str = "tas",  ## set up for temp uncertainty notebook
+        area_subset: str = "states",
+        location: str = "California",
+        timescale: str = "monthly",
+        area_average: bool = True,
+    ) -> None:
         self.variable = variable
         self.area_subset = area_subset
         self.location = location
-        self.area_average = area_average
         self.timescale = timescale
+        self.area_average = area_average
 
-    def _cmip_clip(self, ds):
+    def _cmip_clip(self, ds: xr.Dataset) -> xr.Dataset:
         """CMIP6 function to subset dataset based on the data selection options.
 
         Parameters
@@ -64,18 +64,12 @@ class CmipOpt:
         ds: xr.Dataset
             Subsetted data, area-weighting applied if area_average is true
         """
-        variable = self.variable
-        location = self.location
-        area_average = self.area_average
-        area_subset = self.area_subset
-        timescale = self.timescale
-
-        to_drop = [v for v in list(ds.data_vars) if v != variable]
+        to_drop = [v for v in list(ds.data_vars) if v != self.variable]
         ds = ds.drop_vars(to_drop)
-        ds = _clip_region(ds, area_subset, location)
-        if variable == "pr":
+        ds = _clip_region(ds, self.area_subset, self.location)
+        if self.variable == "pr":
             ds = _precip_flux_to_total(ds)
-        if area_average:
+        if self.area_average:
             ds = _area_wgt_average(ds)
         return ds
 
@@ -430,10 +424,10 @@ def get_ensemble_data(variable, selections, cmip_names, warm_level=3.0):
     -----------
     variable: str
         Name of variable
-    cmip_names: list of str
-        Name of CMIP6 simulations
     selections: _DataSelector
         Data and location settings
+    cmip_names: list of str
+        Name of CMIP6 simulations
     warm_level: float, optional
         Global warming level to use, default to 3.0
 
