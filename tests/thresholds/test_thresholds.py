@@ -28,8 +28,8 @@ class TestThreshold:
 
     @pytest.fixture
     def my_test_data(self, selections):
-        da = thresholds.get_threshold_data(selections)
-        return da
+        data = thresholds.get_threshold_data(selections)
+        return data
 
     def test_data_attributes(self, my_test_data):
         expected = [
