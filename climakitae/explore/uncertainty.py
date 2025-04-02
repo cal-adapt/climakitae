@@ -74,7 +74,7 @@ class CmipOpt:
         return ds
 
 
-def _cf_to_dt(ds):
+def _cf_to_dt(ds: xr.Dataset) -> xr.Dataset:
     """Converts non-standard calendars using cftime to pandas datetime
 
     Parameters
@@ -93,7 +93,7 @@ def _cf_to_dt(ds):
     return ds
 
 
-def _calendar_align(ds):
+def _calendar_align(ds: xr.Dataset) -> xr.Dataset:
     """Aligns calendars for consistent matching
 
     CMIP6 function to set the day for all monthly values to the the 1st of
@@ -117,7 +117,7 @@ def _calendar_align(ds):
     return ds
 
 
-def _clip_region(ds, area_subset, location):
+def _clip_region(ds: xr.Dataset, area_subset: list, location: str) -> xr.Dataset:
     """Clips CMIP6 dataset using a polygon.
 
     Parameters
@@ -128,8 +128,6 @@ def _clip_region(ds, area_subset, location):
         "counties"/"states" as options
     location: str
         county/state name
-    all_touched: bool, optional
-        Include all cells that intersect boundary, default is false
 
     Returns
     -------
@@ -600,36 +598,9 @@ def cmip_mmm(ds):
     return ds_mmm
 
 
-def compute_vmin_vmax(da_min, da_max):
-    """Computes min, max, and center for plotting.
-
-    Parameters
-    ----------
-    da_min: xr.Dataset
-        data input to calculate the minimum
-    da_max: xr.Dataset
-        data input to calculate the maximum
-
-    Returns
-    -------
-    vmin: int
-        minimum value
-    vmax: int
-        maximum value
-    sopt: bool
-        indicates symmetry if vmin and vmax have opposite signs
-    """
-    vmin = np.nanpercentile(da_min, 1)
-    vmax = np.nanpercentile(da_max, 99)
-    # define center for diverging symmetric data
-    if (vmin < 0) and (vmax > 0):
-        sopt = True
-    else:
-        sopt = None
-    return vmin, vmax, sopt
-
-
-def get_ks_pval_df(sample1, sample2, sig_lvl=0.05):
+def get_ks_pval_df(
+    sample1: xr.Dataset, sample2: xr.Dataset, sig_lvl: float = 0.05
+) -> pd.DataFrame:
     """Performs a Kolmogorov-Smirnov test at all lat, lon points
 
     Parameters
@@ -663,7 +634,7 @@ def get_ks_pval_df(sample1, sample2, sig_lvl=0.05):
 
         return d_statistic, p_value
 
-    d_statistic, p_value = xr.apply_ufunc(
+    _, p_value = xr.apply_ufunc(
         ks_stat_2sample,
         sample1,
         sample2,
@@ -683,7 +654,9 @@ def get_ks_pval_df(sample1, sample2, sig_lvl=0.05):
     return p_df
 
 
-def get_warm_level(warm_level, ds, multi_ens=False, ipcc=True):
+def get_warm_level(
+    warm_level: float | int, ds: xr.Dataset, multi_ens: bool = False, ipcc: bool = True
+) -> xr.Dataset:
     """Subsets projected data centered to the year
     that the selected warming level is reached
     for a particular simulation/member_id
@@ -711,7 +684,7 @@ def get_warm_level(warm_level, ds, multi_ens=False, ipcc=True):
         raise Exception("Please specify warming level as an integer or float.")
 
     if warm_level not in [1.5, 2.0, 3.0, 4.0]:
-        raise Exception(
+        raise ValueError(
             "Specified warming level is not valid. Options are: 1.5, 2.0, 3.0, 4.0"
         )
 
@@ -748,7 +721,7 @@ def get_warm_level(warm_level, ds, multi_ens=False, ipcc=True):
         sim_idx = (model, member_id, scenario)
 
         # identify the year that the selected warming level is reached for each ensemble member
-        year_warmlevel_reached = str(gwl_times[str(warm_level)].loc[sim_idx])[:4]
+        year_warmlevel_reached = str(gwl_times[str(warm_level)].loc[sim_idx][0])[:4]
         if len(year_warmlevel_reached) != 4:
             print(
                 "{}°C warming level not reached for ensemble member {} of model {}".format(
