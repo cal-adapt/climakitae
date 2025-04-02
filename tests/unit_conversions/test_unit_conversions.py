@@ -150,7 +150,7 @@ class TestWaterVaporConversions:
 
     def test_specific_humidity_conversion(self):
         """Test that the convert_units function correctly converts from g/kg to kg/kg."""
-        da = xr.DataArray(data=1000.0, attrs={"units": "g/kg"})
+        da = xr.DataArray(data=500.0, attrs={"units": "g/kg"})
         da_converted = convert_units(da, selected_units="kg/kg")
         correct_conversion = da / 1000
         assert correct_conversion.equals(da_converted)
