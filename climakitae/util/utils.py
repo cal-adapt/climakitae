@@ -52,7 +52,7 @@ def area_average(dset):
         dset = dset.weighted(weights).mean("x").mean("y")
     elif set(["lat", "lon"]).issubset(set(dset.dims)):
         # LOCA data has lat, lon
-        dset = dset.weighted(weights).mean(["lat","lon"])
+        dset = dset.weighted(weights).mean(["lat", "lon"])
     return dset
 
 
