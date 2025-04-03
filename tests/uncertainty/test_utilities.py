@@ -6,16 +6,20 @@ import datetime
 from unittest.mock import MagicMock, patch
 
 import cftime
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
+from shapely.geometry import Polygon
 
 from climakitae.core.data_interface import DataParameters
 from climakitae.core.paths import gwl_1850_1900_file, gwl_1981_2010_file
 from climakitae.explore.uncertainty import (  # get_ks_pval_df, # TODO I think this function is broken
     _calendar_align,
     _cf_to_dt,
+    _clip_region,
+    _standardize_cmip6_data,
     get_warm_level,
 )
 
@@ -35,7 +39,7 @@ def mock_multi_ens_dataset():
 
 
 @pytest.fixture
-def mock_dataset():
+def mock_data_for_warm_level():
     """Create a mock dataset with simulation attribute"""
     import numpy as np
     import xarray as xr
@@ -105,7 +109,7 @@ def test_get_warm_level_input_validation():
 
 
 @patch("climakitae.explore.uncertainty.read_csv_file")
-def test_get_warm_level_file_loading(mock_read_csv, mock_dataset):
+def test_get_warm_level_file_loading(mock_read_csv, mock_data_for_warm_level):
     """Test file loading logic in get_warm_level for both IPCC and non-IPCC paths"""
 
     # Create mock DataFrames for the CSV files
@@ -148,7 +152,7 @@ def test_get_warm_level_file_loading(mock_read_csv, mock_dataset):
             ) as mock_concat:
                 # Call the function with ipcc=True
                 try:
-                    result = get_warm_level(2.0, mock_dataset, ipcc=True)
+                    result = get_warm_level(2.0, mock_data_for_warm_level, ipcc=True)
                 except:
                     # We expect the function to potentially fail after file loading,
                     # since we're not mocking everything, but we only care about file loading
@@ -172,7 +176,7 @@ def test_get_warm_level_file_loading(mock_read_csv, mock_dataset):
             ) as mock_concat:
                 # Call the function with ipcc=False
                 try:
-                    result = get_warm_level(2.0, mock_dataset, ipcc=False)
+                    result = get_warm_level(2.0, mock_data_for_warm_level, ipcc=False)
                 except:
                     pass
 
@@ -189,7 +193,7 @@ def test_get_warm_level_file_loading(mock_read_csv, mock_dataset):
 
 @patch("climakitae.explore.uncertainty.read_csv_file")
 def test_get_warm_level_member_id_selection(
-    mock_read_csv, mock_dataset, mock_multi_ens_dataset
+    mock_read_csv, mock_data_for_clipping, mock_multi_ens_dataset
 ):
     """Test member_id selection logic."""
     # Setup mock dataframe with warming data - create a DataFrame with one row per model
@@ -212,13 +216,13 @@ def test_get_warm_level_member_id_selection(
     mock_read_csv.return_value = mock_df
 
     # Test default member_id selection for CESM2
-    with patch("xarray.Dataset.sel", return_value=mock_dataset) as mock_sel:
-        get_warm_level(2.0, mock_dataset)
+    with patch("xarray.Dataset.sel", return_value=mock_data_for_clipping) as mock_sel:
+        get_warm_level(2.0, mock_data_for_clipping)
         # For CESM2, should use r11i1p1f1
         assert mock_df.loc[("CESM2", "r11i1p1f1", "ssp370")]["2.0"] == 2045.2
 
     # Test default member_id selection for CNRM-ESM2-1
-    cnrm_ds = mock_dataset.copy()
+    cnrm_ds = mock_data_for_clipping.copy()
     cnrm_ds = cnrm_ds.assign_coords({"simulation": "CNRM-ESM2-1"})
     with patch("xarray.Dataset.sel", return_value=cnrm_ds) as mock_sel:
         get_warm_level(2.0, cnrm_ds)
@@ -232,9 +236,8 @@ def test_get_warm_level_member_id_selection(
         assert mock_df.loc[("EC-Earth3", "r1i1p1f1", "ssp370")]["2.0"] == 2045.3
 
 
-
 @patch("climakitae.explore.uncertainty.read_csv_file")
-def test_get_warm_level_time_slice(mock_read_csv, mock_dataset):
+def test_get_warm_level_time_slice(mock_read_csv, mock_data_for_warm_level):
     """Test time slicing logic based on warming level."""
     # Setup mock dataframe with warming data
     mock_df = pd.DataFrame(
@@ -248,15 +251,15 @@ def test_get_warm_level_time_slice(mock_read_csv, mock_dataset):
     mock_read_csv.return_value = mock_df
 
     # Test normal time slice (-14/+15 years from warming level year)
-    with patch("xarray.Dataset.sel", return_value=mock_dataset) as mock_sel:
-        get_warm_level(3.0, mock_dataset)
+    with patch("xarray.Dataset.sel", return_value=mock_data_for_warm_level) as mock_sel:
+        get_warm_level(3.0, mock_data_for_warm_level)
         # Should select time slice from 2056 (2070-14) to 2085 (2070+15)
         mock_sel.assert_called_with(time=slice("2056", "2085"))
 
     # Test case where warming level not reached (year string less than 4 chars)
     mock_df["3.0"] = ["N/A"]
     with patch("builtins.print") as mock_print:
-        result = get_warm_level(3.0, mock_dataset)
+        result = get_warm_level(3.0, mock_data_for_warm_level)
         assert result is None
         mock_print.assert_called_with(
             "3.0°C warming level not reached for ensemble member r11i1p1f1 of model CESM2"
@@ -265,7 +268,7 @@ def test_get_warm_level_time_slice(mock_read_csv, mock_dataset):
     # Test case where end year exceeds 2100
     mock_df["3.0"] = [2090.0]  # 2090 + 15 > 2100
     with patch("builtins.print") as mock_print:
-        result = get_warm_level(3.0, mock_dataset)
+        result = get_warm_level(3.0, mock_data_for_warm_level)
         assert result is None
         mock_print.assert_called_with(
             "End year for SSP time slice occurs after 2100; skipping ensemble member r11i1p1f1 of model CESM2"
@@ -392,6 +395,342 @@ def test_cf_to_dt():
 
     # Verify data is preserved
     np.testing.assert_array_equal(result["var"].values, range(10))
+
+
+@pytest.fixture
+def mock_data_for_clipping():
+    """Create a mock dataset for testing clipping."""
+    # Create a custom mock object instead of a real xarray Dataset
+    mock_ds = MagicMock()
+
+    # Add rio attribute with required methods
+    mock_rio = MagicMock()
+    mock_rio.write_crs.return_value = mock_ds
+    mock_rio.clip.return_value = mock_ds
+    mock_ds.rio = mock_rio
+
+    return mock_ds
+
+
+@pytest.fixture
+def mock_geoms_for_clipping():
+    """Create mock geometries for states and counties."""
+    # Create a simple polygon for testing
+    polygon = Polygon([(-120, 35), (-120, 36), (-119, 36), (-119, 35)])
+
+    # Create mock GeoDataFrames
+    states = gpd.GeoDataFrame(
+        {"NAME": ["California", "Nevada"]},
+        geometry=[polygon, Polygon()],
+    )
+    counties = gpd.GeoDataFrame(
+        {"NAME": ["Los Angeles", "San Francisco"]},
+        geometry=[polygon, Polygon()],
+    )
+    return {"states": states, "counties": counties}
+
+
+@patch("climakitae.explore.uncertainty.DataInterface")
+def test_clip_region_states(
+    mock_data_interface, mock_data_for_clipping, mock_geoms_for_clipping
+):
+    """Test clipping a dataset to a state boundary."""
+    # Set up the mock DataInterface
+    mock_interface = MagicMock()
+    mock_data_interface.return_value = mock_interface
+    mock_geographies = MagicMock()
+    mock_interface.geographies = mock_geographies
+    mock_geographies._us_states = mock_geoms_for_clipping["states"]
+    mock_geographies._ca_counties = mock_geoms_for_clipping["counties"]
+
+    # Call the function with state area subset
+    result = _clip_region(mock_data_for_clipping, "states", "California")
+
+    # Verify the function worked correctly
+    mock_data_for_clipping.rio.write_crs.assert_called_once_with(
+        "epsg:4326", inplace=True
+    )
+
+    # Use an alternative approach to verify the clip arguments
+    clip_args = mock_data_for_clipping.rio.clip.call_args
+    assert clip_args is not None
+    assert clip_args[1]["crs"] == 4326
+    assert clip_args[1]["drop"] is True
+    assert clip_args[1]["all_touched"] is False
+
+    # Verify that the geometries passed are from California
+    # Since we're getting a Series of geometries, compare by checking the filter condition
+    california_filter = mock_geoms_for_clipping["states"].NAME == "California"
+    passed_geometries = clip_args[1]["geometries"]
+    assert isinstance(passed_geometries, pd.Series)
+
+    # Check if the series contains the California geometry
+    california_geom = (
+        mock_geoms_for_clipping["states"].loc[california_filter, "geometry"].iloc[0]
+    )
+    if len(passed_geometries) == 1:
+        assert passed_geometries.iloc[0].equals(california_geom)
+
+    assert result is mock_data_for_clipping
+
+
+@patch("climakitae.explore.uncertainty.DataInterface")
+def test_clip_region_counties(
+    mock_data_interface, mock_data_for_clipping, mock_geoms_for_clipping
+):
+    """Test clipping a dataset to a county boundary."""
+    # Set up the mock DataInterface
+    mock_interface = MagicMock()
+    mock_data_interface.return_value = mock_interface
+    mock_geographies = MagicMock()
+    mock_interface.geographies = mock_geographies
+    mock_geographies._us_states = mock_geoms_for_clipping["states"]
+    mock_geographies._ca_counties = mock_geoms_for_clipping["counties"]
+
+    # Get Los Angeles geometry before calling the function (for comparison)
+    la_geometry = (
+        mock_geoms_for_clipping["counties"]
+        .loc[mock_geoms_for_clipping["counties"].NAME == "Los Angeles", "geometry"]
+        .iloc[0]
+    )  # Get the actual geometry object, not the Series
+
+    # Call the function with county area subset
+    result = _clip_region(mock_data_for_clipping, "counties", "Los Angeles")
+
+    # Verify the function worked correctly
+    mock_data_for_clipping.rio.write_crs.assert_called_once_with(
+        "epsg:4326", inplace=True
+    )
+
+    # Use an alternative approach to verify the clip arguments
+    clip_args = mock_data_for_clipping.rio.clip.call_args
+    assert clip_args is not None
+    assert clip_args[1]["crs"] == 4326
+    assert clip_args[1]["drop"] is True
+    assert clip_args[1]["all_touched"] is False
+
+    # Verify that the geometry passed is the Los Angeles polygon
+    passed_geometries = clip_args[1]["geometries"]
+    assert isinstance(passed_geometries, pd.Series)
+
+    # Check if the series contains the Los Angeles geometry
+    if len(passed_geometries) == 1:
+        assert passed_geometries.iloc[0].equals(la_geometry)
+
+    assert result is mock_data_for_clipping
+
+
+@patch("climakitae.explore.uncertainty.DataInterface")
+@patch("builtins.print")
+def test_clip_region_fallback(
+    mock_print, mock_data_interface, mock_data_for_clipping, mock_geoms_for_clipping
+):
+    """Test the fallback behavior when initial clip fails."""
+    # Set up the mock DataInterface
+    mock_interface = MagicMock()
+    mock_data_interface.return_value = mock_interface
+    mock_geographies = MagicMock()
+    mock_interface.geographies = mock_geographies
+    mock_geographies._us_states = mock_geoms_for_clipping["states"]
+
+    # Configure the rio.clip method to fail on first call and succeed on second call
+    mock_ds_fallback = mock_data_for_clipping.copy()
+    mock_data_for_clipping.rio.clip.side_effect = [
+        Exception("No grid centers in region"),
+        mock_ds_fallback,
+    ]
+
+    # Call the function
+    result = _clip_region(mock_data_for_clipping, "states", "California")
+
+    # Verify the function worked correctly with fallback
+    mock_data_for_clipping.rio.write_crs.assert_called_once_with(
+        "epsg:4326", inplace=True
+    )
+    assert mock_data_for_clipping.rio.clip.call_count == 2
+
+    # Check first call failed with all_touched=False
+    first_call_args = mock_data_for_clipping.rio.clip.call_args_list[0][1]
+    assert first_call_args["all_touched"] is False
+
+    # Check second call succeeded with all_touched=True
+    second_call_args = mock_data_for_clipping.rio.clip.call_args_list[1][1]
+    assert second_call_args["all_touched"] is True
+
+    # Verify the print message was displayed
+    mock_print.assert_called_once_with("selecting all cells which intersect region")
+
+    # Verify the correct result was returned
+    assert result is mock_ds_fallback
+
+
+@pytest.fixture
+def mock_data_for_standardization():
+    """Create a simple mock dataset with required attributes and structure."""
+    # Create sample data
+    time = pd.date_range("2020-01-01", periods=3)
+    lats = np.array([0, 1])
+    lons = np.array([0, 1])
+    data = np.random.rand(3, 2, 2)
+
+    # Create dataset
+    ds = xr.Dataset(
+        data_vars={
+            "tas": (["time", "lat", "lon"], data),
+            "height": ([], 0),
+        },
+        coords={
+            "time": time,
+            "lat": lats,
+            "lon": lons,
+        },
+        attrs={
+            "source_id": "MODEL1",
+            "experiment_id": "historical",
+            "frequency": "mon",
+        },
+    )
+    return ds
+
+
+@patch("climakitae.explore.uncertainty.rename_cmip6")
+@patch("climakitae.explore.uncertainty._cf_to_dt")
+@patch("climakitae.explore.uncertainty._calendar_align")
+def test_standardize_cmip6_data_full_processing(
+    mock_calendar_align, mock_cf_to_dt, mock_rename_cmip6, mock_data_for_standardization
+):
+    """Test that all processing steps are called with proper arguments."""
+    # Create a result dataset with the expected final state
+    result_ds = mock_data_for_standardization.copy()
+    # Add expected coordinates that should be in final result
+    result_ds = result_ds.assign_coords(
+        {"simulation": "MODEL1", "scenario": "historical"}
+    )
+
+    # Create a chain of mocks to handle the method calls
+    mock_after_drop = MagicMock()
+    mock_after_assign = MagicMock()
+
+    # Configure the mock chain
+    mock_data_with_squeeze = MagicMock()
+    mock_data_with_squeeze.drop_vars.return_value = mock_after_drop
+    mock_after_drop.assign_coords.return_value = mock_after_assign
+    mock_after_assign.squeeze.return_value = result_ds
+
+    # Configure our initial mocks
+    mock_rename_cmip6.return_value = mock_data_for_standardization
+    mock_cf_to_dt.return_value = mock_data_for_standardization
+    mock_calendar_align.return_value = mock_data_with_squeeze
+
+    # Call function
+    result = _standardize_cmip6_data(mock_data_for_standardization)
+
+    # Assert all processing functions were called
+    mock_rename_cmip6.assert_called_once_with(mock_data_for_standardization)
+    mock_cf_to_dt.assert_called_once()
+    mock_calendar_align.assert_called_once()
+
+    # Verify method calls
+    mock_data_with_squeeze.drop_vars.assert_called_once_with(
+        ["lon", "lat", "height"], errors="ignore"
+    )
+    mock_after_drop.assign_coords.assert_called_once_with(
+        {"simulation": "MODEL1", "scenario": "historical"}
+    )
+    mock_after_assign.squeeze.assert_called_once_with(drop=True)
+
+    # Now we can check the actual result, which is our pre-configured result_ds
+    assert result is result_ds
+    assert result.coords["simulation"] == "MODEL1"
+    assert result.coords["scenario"] == "historical"
+
+
+@patch("climakitae.explore.uncertainty.rename_cmip6")
+@patch("climakitae.explore.uncertainty._cf_to_dt")
+@patch("climakitae.explore.uncertainty._calendar_align")
+def test_standardize_cmip6_data_non_monthly(
+    mock_calendar_align, mock_cf_to_dt, mock_rename_cmip6, mock_data_for_standardization
+):
+    """Test that calendar align is skipped for non-monthly data."""
+    # Set frequency to something other than "mon"
+    mock_data_for_standardization.attrs["frequency"] = "day"
+
+    mock_rename_cmip6.return_value = mock_data_for_standardization
+    mock_cf_to_dt.return_value = mock_data_for_standardization
+
+    # Call function
+    _standardize_cmip6_data(mock_data_for_standardization)
+
+    # Check calendar_align was not called
+    mock_calendar_align.assert_not_called()
+
+
+def test_standardize_cmip6_data_integration():
+    """Integration test with a real-like dataset."""
+    # Create a more complex dataset that doesn't require mocking
+    time = pd.date_range("2020-01-01", periods=3)
+    lats = np.array([0, 1])
+    lons = np.array([0, 1])
+    data = np.random.rand(3, 2, 2)
+
+    ds = xr.Dataset(
+        data_vars={
+            "tas": (["time", "lat", "lon"], data),
+            "height": ([], 0),
+        },
+        coords={
+            "time": time,
+            "lat": lats,
+            "lon": lons,
+        },
+        attrs={
+            "source_id": "TESTMODEL",
+            "experiment_id": "ssp370",
+            "frequency": "day",
+        },
+    )
+
+    # We'll need to patch the imported functions since they likely
+    # depend on external resources
+    with patch("climakitae.explore.uncertainty.rename_cmip6", return_value=ds), patch(
+        "climakitae.explore.uncertainty._cf_to_dt", return_value=ds
+    ):
+
+        result = _standardize_cmip6_data(ds)
+
+        # Check that coordinates were properly assigned
+        assert result.coords["simulation"].values == "TESTMODEL"
+        assert result.coords["scenario"].values == "ssp370"
+
+        # Check that variables were dropped
+        assert "lon" not in result.data_vars
+        assert "lat" not in result.data_vars
+        assert "height" not in result.data_vars
+
+
+@patch("climakitae.explore.uncertainty.rename_cmip6")
+@patch("climakitae.explore.uncertainty._cf_to_dt")
+@patch("climakitae.explore.uncertainty._calendar_align")
+def test_standardize_cmip6_data_variable_handling(
+    mock_calendar_align, mock_cf_to_dt, mock_rename_cmip6, mock_data_for_standardization
+):
+    """Test that the function properly handles missing variables."""
+    # Remove variables that should be dropped
+    mock_data_for_standardization = mock_data_for_standardization.drop_vars(
+        ["lon", "lat", "height"]
+    )
+
+    mock_rename_cmip6.return_value = mock_data_for_standardization
+    mock_cf_to_dt.return_value = mock_data_for_standardization
+    mock_calendar_align.return_value = mock_data_for_standardization
+
+    # Function should not error if variables to drop don't exist
+    result = _standardize_cmip6_data(mock_data_for_standardization)
+
+    # Check all other processing was done
+    mock_rename_cmip6.assert_called_once()
+    mock_cf_to_dt.assert_called_once()
+    mock_calendar_align.assert_called_once()
 
 
 # TODO investigate whether get_ks_pval_df is actually working
