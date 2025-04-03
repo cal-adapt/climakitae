@@ -155,7 +155,7 @@ def _clip_region(ds: xr.Dataset, area_subset: list, location: str) -> xr.Dataset
     return ds
 
 
-def _wrapper(ds):
+def _standardize_cmip6_data(ds: xr.Dataset) -> xr.Dataset:
     """Pre-processing wrapper function.
 
     First, updates cmip6 dataset names and calendars for consistency.
@@ -283,7 +283,7 @@ def _grab_ensemble_data_by_experiment_id(variable, cmip_names, experiment_id):
     data_dict = col_subset.to_dataset_dict(
         zarr_kwargs={"consolidated": True},
         storage_options={"anon": True},
-        preprocess=_wrapper,  # Preprocess function to perform on each DataArray
+        preprocess=_standardize_cmip6_data,  # Preprocess function to perform on each DataArray
         progressbar=False,  # Don't show a progress bar in notebook
     )
     return list(data_dict.values())
@@ -330,7 +330,7 @@ def grab_multimodel_data(copt, alpha_sort=False):
     dsets = cat.to_dataset_dict(
         zarr_kwargs={"consolidated": True},
         storage_options={"anon": True},
-        preprocess=_wrapper,
+        preprocess=_standardize_cmip6_data,
     )
 
     # searches the catalog for the additional cal-adapt simulations
@@ -357,7 +357,7 @@ def grab_multimodel_data(copt, alpha_sort=False):
     cal_dsets = cat.to_dataset_dict(
         zarr_kwargs={"consolidated": True},
         storage_options={"anon": True},
-        preprocess=_wrapper,
+        preprocess=_standardize_cmip6_data,
     )
 
     # subsets the cmip6 and cal-adapt models in the historical period
