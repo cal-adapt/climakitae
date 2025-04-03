@@ -681,7 +681,7 @@ def get_warm_level(
     try:
         warm_level = float(warm_level)
     except ValueError:
-        raise Exception("Please specify warming level as an integer or float.")
+        raise ValueError("Please specify warming level as an integer or float.")
 
     if warm_level not in [1.5, 2.0, 3.0, 4.0]:
         raise ValueError(
@@ -694,7 +694,7 @@ def get_warm_level(
     else:
         gwl_file_all = gwl_1981_2010_file
         gwl_times_all = read_csv_file(gwl_file_all)
-        # Add information on a more complete list of ensemble members of
+        # TODO Add information on a more complete list of ensemble members of
         # EC-Earth3 to cover internal variability notebook needs
         gwl_file_ece3 = "data/gwl_1981-2010ref_EC-Earth3_ssp370.csv"
         gwl_times_ece3 = read_csv_file(gwl_file_ece3)
@@ -712,16 +712,17 @@ def get_warm_level(
         if multi_ens:
             member_id = str(ds["member_id"].values)
         else:
-            if model == "CESM2":
-                member_id = "r11i1p1f1"
-            elif model == "CNRM-ESM2-1":
-                member_id = "r1i1p1f2"
-            else:
-                member_id = "r1i1p1f1"
+            match model:
+                case "CESM2":
+                    member_id = "r11i1p1f1"
+                case "CNRM-ESM2-1":
+                    member_id = "r1i1p1f2"
+                case _:
+                    member_id = "r1i1p1f1"
         sim_idx = (model, member_id, scenario)
 
         # identify the year that the selected warming level is reached for each ensemble member
-        year_warmlevel_reached = str(gwl_times[str(warm_level)].loc[sim_idx][0])[:4]
+        year_warmlevel_reached = str(gwl_times[str(warm_level)].loc[sim_idx])[:4]
         if len(year_warmlevel_reached) != 4:
             print(
                 "{}°C warming level not reached for ensemble member {} of model {}".format(
