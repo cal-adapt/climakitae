@@ -221,7 +221,7 @@ def _drop_member_id(dset_dict):
     """
     for dname, dset in dset_dict.items():
         if "member_id" in dset.coords:
-            dset = dset.isel(member_id=0).drop("member_id")  # Drop coord
+            dset = dset.isel(member_id=0).drop_vars("member_id")  # Drop coord
             dset_dict.update({dname: dset})  # Update dataset in dictionary
     return dset_dict
 
@@ -598,6 +598,7 @@ def cmip_mmm(ds):
     return ds_mmm
 
 
+# TODO check whether this function actually works (it seems like it doesn't)
 def get_ks_pval_df(
     sample1: xr.Dataset, sample2: xr.Dataset, sig_lvl: float = 0.05
 ) -> pd.DataFrame:
@@ -741,3 +742,4 @@ def get_warm_level(
                 year0 = str(int(year_warmlevel_reached) - 14)
                 year1 = str(int(year_warmlevel_reached) + 15)
                 return ds.sel(time=slice(year0, year1))
+

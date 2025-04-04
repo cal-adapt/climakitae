@@ -3,6 +3,7 @@ Tests for the pure utility functions in the uncertainty module.
 """
 
 import datetime
+import re
 from unittest.mock import MagicMock, patch
 
 import cftime
@@ -16,12 +17,18 @@ from shapely.geometry import Polygon
 from climakitae.core.data_interface import DataParameters
 from climakitae.core.paths import gwl_1850_1900_file, gwl_1981_2010_file
 from climakitae.explore.uncertainty import (  # get_ks_pval_df, # TODO I think this function is broken
+    _area_wgt_average,
     _calendar_align,
     _cf_to_dt,
     _clip_region,
+    _drop_member_id,
+    _grab_ensemble_data_by_experiment_id,
+    _precip_flux_to_total,
     _standardize_cmip6_data,
     get_warm_level,
 )
+
+# TODO investigate whether get_ks_pval_df is actually working
 
 
 @pytest.fixture
@@ -733,71 +740,550 @@ def test_standardize_cmip6_data_variable_handling(
     mock_calendar_align.assert_called_once()
 
 
-# TODO investigate whether get_ks_pval_df is actually working
-# def test_get_ks_pval_df():
-#     """Test get_ks_pval_df function."""
+@pytest.fixture
+def simple_dataset():
+    """Create a simple 2x2 dataset with latitude values at 0° and 60°N."""
+    ds = xr.Dataset(
+        data_vars={"tas": (["y", "x"], np.array([[1.0, 2.0], [3.0, 4.0]]))},
+        coords={
+            "y": np.array([0.0, 60.0]),  # Equator and 60°N
+            "x": np.array([0.0, 10.0]),
+        },
+    )
+    return ds
 
-#     selections = DataParameters()
-#     selections.area_average = "No"
-#     selections.area_subset = "states"
-#     selections.cached_area = ["CA"]
-#     selections.downscaling_method = "Dynamical"
-#     selections.scenario_historical = ["Historical Climate"]
-#     selections.scenario_ssp = ["SSP 3-7.0"]
-#     selections.append_historical = True
-#     selections.variable = "Precipitation (total)"
-#     selections.time_slice = (1981, 2100)
-#     selections.resolution = "9 km"
-#     selections.timescale = "monthly"
-#     wrf_ds = selections.retrieve().squeeze()
 
-#     box_wrf_ds = selections.retrieve().squeeze()
+@pytest.fixture
+def multi_var_dataset():
+    """Create a dataset with multiple variables for testing."""
+    ds = xr.Dataset(
+        data_vars={
+            "tas": (["y", "x"], np.array([[1.0, 2.0], [3.0, 4.0]])),
+            "pr": (["y", "x"], np.array([[5.0, 6.0], [7.0, 8.0]])),
+        },
+        coords={
+            "y": np.array([0.0, 60.0]),
+            "x": np.array([0.0, 10.0]),
+        },
+    )
+    return ds
 
-#     box_wrf_ds = box_wrf_ds.sortby("simulation")  # Sort simulations alphabetically
-#     wrf_cmip_lookup_dict = {
-#         "WRF_EC-Earth3-Veg_r1i1p1f1": "EC-Earth3-Veg",
-#         "WRF_EC-Earth3_r1i1p1f1": "EC-Earth3",
-#         "WRF_CESM2_r11i1p1f1": "CESM2",
-#         "WRF_CNRM-ESM2-1_r1i1p1f2": "CNRM-ESM2-1",
-#         "WRF_FGOALS-g3_r1i1p1f1": "FGOALS-g3",
-#         "WRF_MIROC6_r1i1p1f1": "MIROC6",
-#         "WRF_TaiESM1_r1i1p1f1": "TaiESM1",
-#         "WRF_MPI-ESM1-2-HR_r3i1p1f1": "MPI-ESM1-2-HR",
-#     }
-#     box_wrf_ds["simulation"] = [
-#         wrf_cmip_lookup_dict[sim] for sim in box_wrf_ds.simulation.values
-#     ]  # Rename simulations
-#     box_wrf_ds = box_wrf_ds.clip(0.1)  # Remove values less than 0.1
 
-#     box_hist_wrf = box_wrf_ds.sel(time=slice("1981", "2010"))
+@pytest.fixture
+def global_dataset():
+    """Create a global dataset with latitudes from -90° to 90°."""
+    lats = np.array([-90.0, -45.0, 0.0, 45.0, 90.0])
+    lons = np.array([0.0, 90.0, 180.0, 270.0])
+    data = np.ones((len(lats), len(lons)))  # All values are 1.0
 
-#     sim_idx = list(wrf_ds.simulation.values)
-#     ssp_wrf_list = [
-#         get_warm_level(3.0, wrf_ds.sel(simulation=s).squeeze(), ipcc=False)
-#         for s in sim_idx
-#     ]
-#     print(ssp_wrf_list)
+    ds = xr.Dataset(
+        data_vars={"tas": (["y", "x"], data)},
+        coords={
+            "y": lats,
+            "x": lons,
+        },
+    )
+    return ds
 
-#     ssp_wrf_list = list(filter(lambda item: item is not None, ssp_wrf_list))
 
-#     box_ssp_wrf_list = list(filter(lambda item: item is not None, ssp_wrf_list))
-#     box_ssp_wrf = xr.concat(box_ssp_wrf_list, dim="simulation")
+def test_area_wgt_average_basic(simple_dataset):
+    """Test basic functionality of area_wgt_average with a simple dataset."""
+    # Weight at y=0 is cos(0°) = 1.0
+    # Weight at y=60 is cos(60°) = 0.5
+    # Weighted average = (1*1.0 + 2*1.0 + 3*0.5 + 4*0.5) / (1.0 + 1.0 + 0.5 + 0.5) = 6.5 / 3.0
+    expected_result = 6.5 / 3.0
 
-#     box_hist_wrf = box_hist_wrf.sel(simulation=box_ssp_wrf.simulation.values)
+    result = _area_wgt_average(simple_dataset)
 
-#     hist_wrf_pool = box_hist_wrf.stack(index=["simulation", "time"])
-#     ssp_wrf_pool = box_ssp_wrf.stack(index=["simulation", "time"])
+    assert isinstance(result, xr.Dataset)
+    assert "tas" in result.data_vars
+    assert np.isclose(result["tas"].values, expected_result)
 
-#     hist_wrf_pool = hist_wrf_pool.compute()
-#     ssp_wrf_pool = ssp_wrf_pool.compute()
-#     pooled_p_df = get_ks_pval_df(hist_wrf_pool, ssp_wrf_pool)
 
-# # Call the function
-# assert isinstance(result, pd.DataFrame)
-# assert "lat" in result.columns
-# assert "lon" in result.columns
-# assert "p_value" in result.columns
-# assert result.shape == (
-#     len(lats) * len(lons),
-#     3,
-# )  # Each grid point should be a row, with 3 columns (lat, lon, p_value)
+def test_area_wgt_average_multiple_vars(multi_var_dataset):
+    """Test area_wgt_average with a dataset containing multiple variables."""
+    result = _area_wgt_average(multi_var_dataset)
+
+    # Expected results for each variable
+    # tas: (1*1.0 + 2*1.0 + 3*0.5 + 4*0.5) / 3.0 = 10.0/3.0
+    # pr: (5*1.0 + 6*1.0 + 7*0.5 + 8*0.5) / 3.0 = 26.0/3.0
+
+    assert isinstance(result, xr.Dataset)
+    assert "tas" in result.data_vars and "pr" in result.data_vars
+    assert np.isclose(result["tas"].values, 6.5 / 3.0)
+    assert np.isclose(result["pr"].values, 18.5 / 3.0)
+
+
+def test_area_wgt_average_global(global_dataset):
+    """Test area_wgt_average with a global dataset spanning both hemispheres."""
+    result = _area_wgt_average(global_dataset)
+
+    # Since all values are 1.0, the weighted average should still be 1.0
+    assert isinstance(result, xr.Dataset)
+    assert np.isclose(result["tas"].values, 1.0)
+
+
+def test_area_wgt_average_poles():
+    """Test area_wgt_average handling of the poles where cos(latitude) approaches 0."""
+    # Create a dataset with points very close to the poles
+    lats = np.array([89.9, -89.9])  # Very close to poles
+    lons = np.array([0.0, 10.0])
+
+    # Values at near-poles
+    pole_values = np.array([[100.0, 200.0], [300.0, 400.0]])
+
+    ds_poles = xr.Dataset(
+        data_vars={"tas": (["y", "x"], pole_values)},
+        coords={
+            "y": lats,
+            "x": lons,
+        },
+    )
+
+    result = _area_wgt_average(ds_poles)
+
+    # With equal weights at both poles, weighted average should be regular average
+    expected_avg = np.mean(pole_values)
+    assert np.isclose(result["tas"].values, expected_avg)
+
+
+def test_area_wgt_average_no_side_effects(simple_dataset):
+    """Test that area_wgt_average does not modify the input dataset."""
+    ds_copy = simple_dataset.copy(deep=True)
+
+    _ = _area_wgt_average(simple_dataset)
+
+    # Check that the original dataset hasn't been modified
+    xr.testing.assert_identical(simple_dataset, ds_copy)
+
+
+def test_area_wgt_average_missing_coords():
+    """Test that area_wgt_average raises an error when required coordinates are missing."""
+    # Create a dataset without y coordinate
+    ds_no_y = xr.Dataset(
+        data_vars={"tas": (["lat", "x"], np.ones((2, 2)))},
+        coords={
+            "lat": np.array([0.0, 10.0]),  # Using 'lat' instead of 'y'
+            "x": np.array([0.0, 10.0]),
+        },
+    )
+
+    with pytest.raises(AttributeError):
+        _area_wgt_average(ds_no_y)
+
+
+def test_area_wgt_average_missing_dims():
+    """Test handling when required dimensions are missing."""
+    # Create a dataset with 'y' coordinate but no 'x' dimension
+    ds_no_x_dim = xr.Dataset(
+        data_vars={"tas": (["y", "lon"], np.ones((2, 2)))},
+        coords={
+            "y": np.array([0.0, 10.0]),
+            "lon": np.array([0.0, 10.0]),  # Using 'lon' instead of 'x'
+        },
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        _area_wgt_average(ds_no_x_dim)
+    assert "Dimensions ('x',) not found in DatasetWeighted dimensions" in str(
+        excinfo.value
+    )
+
+
+def test_drop_member_id_basic():
+    """Test basic functionality of _drop_member_id with a dataset containing member_id."""
+    # Create test dataset with member_id
+    ds_with_member = xr.Dataset(
+        data_vars={"tas": (["time", "member_id"], np.array([[1.0, 2.0], [3.0, 4.0]]))},
+        coords={
+            "time": np.array([0, 1]),
+            "member_id": np.array([0, 1]),
+        },
+    )
+
+    # Create dictionary with dataset
+    dset_dict = {"model1": ds_with_member}
+
+    # Apply function
+    result = _drop_member_id(dset_dict)
+
+    # Check result
+    assert "model1" in result
+    assert "member_id" not in result["model1"].coords
+    assert "member_id" not in result["model1"].dims
+    # Should keep the first member values
+    assert np.array_equal(result["model1"]["tas"].values, np.array([1.0, 3.0]))
+
+
+def test_drop_member_id_multiple_datasets():
+    """Test _drop_member_id with multiple datasets, some with member_id and some without."""
+    # Create test datasets
+    ds_with_member = xr.Dataset(
+        data_vars={"tas": (["time", "member_id"], np.array([[1.0, 2.0], [3.0, 4.0]]))},
+        coords={
+            "time": np.array([0, 1]),
+            "member_id": np.array([0, 1]),
+        },
+    )
+
+    ds_without_member = xr.Dataset(
+        data_vars={"tas": (["time"], np.array([5.0, 6.0]))},
+        coords={
+            "time": np.array([0, 1]),
+        },
+    )
+
+    # Create dictionary with datasets
+    dset_dict = {"model1": ds_with_member, "model2": ds_without_member}
+
+    # Apply function
+    result = _drop_member_id(dset_dict)
+
+    # Check results
+    assert "model1" in result and "model2" in result
+    # Dataset with member_id should have it removed
+    assert "member_id" not in result["model1"].coords
+    assert "member_id" not in result["model1"].dims
+    # Dataset without member_id should remain unchanged
+    assert np.array_equal(result["model2"]["tas"].values, np.array([5.0, 6.0]))
+    xr.testing.assert_identical(result["model2"], ds_without_member)
+
+
+def test_drop_member_id_empty_dict():
+    """Test _drop_member_id with an empty dictionary."""
+    dset_dict = {}
+    result = _drop_member_id(dset_dict)
+    assert result == {}
+
+
+def test_drop_member_id_no_modification():
+    """Test that _drop_member_id doesn't modify the original dictionary."""
+    # Create test dataset with member_id
+    ds_with_member = xr.Dataset(
+        data_vars={"tas": (["time", "member_id"], np.array([[1.0, 2.0], [3.0, 4.0]]))},
+        coords={
+            "time": np.array([0, 1]),
+            "member_id": np.array([0, 1]),
+        },
+    )
+
+    # Create a deep copy for verification
+    original_ds = ds_with_member.copy(deep=True)
+
+    # Create dictionary with dataset
+    dset_dict = {"model1": ds_with_member}
+
+    # Apply function
+    _ = _drop_member_id(dset_dict)
+
+    # Original dataset should be unchanged (not modified in-place)
+    xr.testing.assert_identical(original_ds, ds_with_member)
+
+
+def test_precip_flux_to_total():
+    """Test for _precip_flux_to_total function."""
+
+    # Create a test dataset with precipitation flux data
+    time = pd.date_range(
+        "2020-01-01", periods=3, freq="MS"
+    )  # Monthly data for 3 months
+    lats = np.array([0, 1])
+    lons = np.array([0, 1])
+    # Precipitation flux values in kg m-2 s-1
+    pr_data = np.array(
+        [
+            [[0.0001, 0.0002], [0.0003, 0.0004]],  # January data
+            [[0.0005, 0.0006], [0.0007, 0.0008]],  # February data
+            [[0.0001, 0.0001], [0.0002, 0.0002]],  # March data
+        ]
+    )
+
+    ds = xr.Dataset(
+        data_vars={"pr": (["time", "y", "x"], pr_data)},
+        coords={
+            "time": time,
+            "y": lats,
+            "x": lons,
+        },
+        attrs={"source": "test_data", "version": "1.0"},
+    )
+    ds.pr.attrs["units"] = "kg m-2 s-1"
+
+    # Test basic conversion
+    result = _precip_flux_to_total(ds)
+
+    # Check that attributes are preserved
+    assert result.attrs["source"] == "test_data"
+    assert result.attrs["version"] == "1.0"
+
+    # Check that units are correctly set
+    assert result.pr.attrs["units"] == "mm"
+
+    # Calculate expected values for each month - days in month * seconds per day * flux values
+    days_in_month = np.array([31, 29, 31])  # Jan, Feb (leap year 2020), Mar
+    expected_values = []
+
+    for i, days in enumerate(days_in_month):
+        seconds = days * 86400
+        month_values = pr_data[i] * seconds
+        # Apply 0.1 clipping
+        month_values = np.maximum(month_values, 0.1)
+        expected_values.append(month_values)
+
+    expected_values = np.array(expected_values)
+
+    # Check that values are correctly converted
+    np.testing.assert_allclose(result.pr.values, expected_values)
+
+
+def test_precip_flux_to_total_clipping():
+    """Test that values below 0.1 are clipped properly."""
+
+    # Create test data with very small precipitation values
+    time = pd.date_range("2020-01-01", periods=1, freq="MS")
+    pr_data = np.array(
+        [[[0.000001, 0.000002], [0.2, 0.3]]]
+    )  # Very small values and normal values
+
+    ds = xr.Dataset(
+        data_vars={"pr": (["time", "y", "x"], pr_data)},
+        coords={
+            "time": time,
+            "y": [0, 1],
+            "x": [0, 1],
+        },
+    )
+    ds.pr.attrs["units"] = "kg m-2 s-1"
+
+    # Convert
+    result = _precip_flux_to_total(ds)
+
+    # Check that small values are clipped to 0.1
+    # First values would be very small even after conversion and should be clipped to 0.1
+    # Last two values should be properly converted and not clipped
+    expected_values = np.array(
+        [[[2.6784e00, 5.3568e00], [31 * 86400 * 0.2, 31 * 86400 * 0.3]]]
+    )
+
+    np.testing.assert_allclose(result.pr.values, expected_values)
+
+
+def test_precip_flux_to_total_different_months():
+    """Test conversion for different months with varying days."""
+
+    # Create test data for multiple months with different numbers of days
+    time = pd.date_range("2020-01-01", periods=12, freq="MS")  # Full year
+    pr_data = np.ones((12, 1, 1)) * 0.0001  # Same flux value for all months
+
+    ds = xr.Dataset(
+        data_vars={"pr": (["time", "y", "x"], pr_data)},
+        coords={
+            "time": time,
+            "y": [0],
+            "x": [0],
+        },
+    )
+    ds.pr.attrs["units"] = "kg m-2 s-1"
+
+    # Calculate expected values - each month should have a different total based on days in month
+    result = _precip_flux_to_total(ds)
+
+    # Check that the conversion correctly accounts for different month lengths
+    days_in_month = np.array(
+        [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    )  # 2020 is leap year
+
+    for i, days in enumerate(days_in_month):
+        expected = max(0.0001 * days * 86400, 0.1)  # Apply clipping
+        assert np.isclose(result.pr.values[i][0][0], expected)
+
+
+def test_precip_flux_to_total_error_handling():
+    """Test how function handles datasets without required attributes."""
+
+    # Dataset without time dimension
+    ds_no_time = xr.Dataset(
+        data_vars={"pr": (["y", "x"], np.ones((2, 2)) * 0.0001)},
+        coords={
+            "y": [0, 1],
+            "x": [0, 1],
+        },
+    )
+
+    # Function should raise AttributeError when time dimension is missing
+    with pytest.raises(AttributeError):
+        _precip_flux_to_total(ds_no_time)
+
+    # Dataset without pr variable
+    ds_no_pr = xr.Dataset(
+        data_vars={"temperature": (["time", "y", "x"], np.ones((2, 2, 2)))},
+        coords={
+            "time": pd.date_range("2020-01-01", periods=2, freq="MS"),
+            "y": [0, 1],
+            "x": [0, 1],
+        },
+    )
+
+    # Function should raise AttributeError because pr variable is missing
+    with pytest.raises(AttributeError):
+        _precip_flux_to_total(ds_no_pr)
+
+
+@pytest.fixture
+def mock_catalog():
+    """Create a mock catalog for testing."""
+    # Create a mock catalog
+    mock_catalog = MagicMock()
+    # Mock the search method to return a mock subset catalog
+    mock_subset = MagicMock()
+    mock_catalog.search.return_value = mock_subset
+
+    # Create mock dataset dictionary with two simple datasets
+    ds1 = xr.Dataset(
+        data_vars={"tas": (["time"], [1.0, 2.0])},
+        coords={"time": [0, 1]},
+        attrs={"source_id": "MODEL1", "experiment_id": "historical"},
+    )
+    ds2 = xr.Dataset(
+        data_vars={"tas": (["time"], [3.0, 4.0])},
+        coords={"time": [0, 1]},
+        attrs={"source_id": "MODEL2", "experiment_id": "historical"},
+    )
+    mock_data_dict = {"dataset1": ds1, "dataset2": ds2}
+
+    # Mock the to_dataset_dict method to return our mock data
+    mock_subset.to_dataset_dict.return_value = mock_data_dict
+
+    return mock_catalog
+
+
+@patch("climakitae.explore.uncertainty.intake")
+def test_grab_ensemble_data_basic_functionality(mock_intake, mock_catalog):
+    """Test the basic functionality of _grab_ensemble_data_by_experiment_id."""
+    # Setup the mock to return our mock catalog
+    mock_intake.open_esm_datastore.return_value = mock_catalog
+
+    # Call the function with test parameters
+    variable = "tas"
+    cmip_names = ["MODEL1", "MODEL2"]
+    experiment_id = "historical"
+
+    # Execute the function
+    result = _grab_ensemble_data_by_experiment_id(variable, cmip_names, experiment_id)
+
+    # Verify intake.open_esm_datastore was called with the correct URL
+    mock_intake.open_esm_datastore.assert_called_once_with(
+        "https://cadcat.s3.amazonaws.com/tmp/cmip6-regrid.json"
+    )
+
+    # Verify search was called with the correct parameters
+    mock_catalog.search.assert_called_once_with(
+        table_id="Amon",
+        variable_id=variable,
+        experiment_id=experiment_id,
+        source_id=cmip_names,
+    )
+
+    # Verify to_dataset_dict was called with the correct parameters
+    mock_subset = mock_catalog.search.return_value
+    mock_subset.to_dataset_dict.assert_called_once()
+    call_kwargs = mock_subset.to_dataset_dict.call_args[1]
+    assert call_kwargs["zarr_kwargs"] == {"consolidated": True}
+    assert call_kwargs["storage_options"] == {"anon": True}
+    assert call_kwargs["progressbar"] is False
+
+    # Verify the function returns a list of datasets
+    assert isinstance(result, list)
+    assert len(result) == 2
+    for ds in result:
+        assert isinstance(ds, xr.Dataset)
+
+
+@patch("climakitae.explore.uncertainty.intake")
+def test_grab_ensemble_data_empty_result(mock_intake):
+    """Test behavior when the catalog search returns no results."""
+    # Setup mock catalog with empty result
+    mock_catalog = MagicMock()
+    mock_subset = MagicMock()
+    mock_catalog.search.return_value = mock_subset
+    mock_subset.to_dataset_dict.return_value = {}  # Empty dictionary
+
+    mock_intake.open_esm_datastore.return_value = mock_catalog
+
+    # Call the function
+    result = _grab_ensemble_data_by_experiment_id("tas", ["MODEL1"], "historical")
+
+    # Verify result is an empty list
+    assert result == []
+
+
+@patch("climakitae.explore.uncertainty.intake")
+def test_grab_ensemble_data_different_parameters(mock_intake, mock_catalog):
+    """Test the function with different parameter values."""
+    mock_intake.open_esm_datastore.return_value = mock_catalog
+
+    # Test with different variable
+    _grab_ensemble_data_by_experiment_id("pr", ["MODEL1"], "historical")
+    mock_catalog.search.assert_called_with(
+        table_id="Amon",
+        variable_id="pr",
+        experiment_id="historical",
+        source_id=["MODEL1"],
+    )
+
+    # Test with different experiment_id
+    _grab_ensemble_data_by_experiment_id("tas", ["MODEL1"], "ssp370")
+    mock_catalog.search.assert_called_with(
+        table_id="Amon",
+        variable_id="tas",
+        experiment_id="ssp370",
+        source_id=["MODEL1"],
+    )
+
+    # Test with multiple models
+    _grab_ensemble_data_by_experiment_id(
+        "tas", ["MODEL1", "MODEL2", "MODEL3"], "historical"
+    )
+    mock_catalog.search.assert_called_with(
+        table_id="Amon",
+        variable_id="tas",
+        experiment_id="historical",
+        source_id=["MODEL1", "MODEL2", "MODEL3"],
+    )
+
+
+@patch("climakitae.explore.uncertainty.intake")
+@patch("climakitae.explore.uncertainty._standardize_cmip6_data")
+def test_grab_ensemble_data_standardization(
+    mock_standardize, mock_intake, mock_catalog
+):
+    """Test that the preprocess function (_standardize_cmip6_data) is used correctly."""
+    mock_intake.open_esm_datastore.return_value = mock_catalog
+
+    # Define a standardize function that modifies datasets in a recognizable way
+    def fake_standardize(ds):
+        ds = ds.copy()
+        ds.attrs["standardized"] = True
+        return ds
+
+    mock_standardize.side_effect = fake_standardize
+
+    # Call the function
+    _grab_ensemble_data_by_experiment_id("tas", ["MODEL1"], "historical")
+
+    # Verify to_dataset_dict was called with our preprocess function
+    mock_subset = mock_catalog.search.return_value
+    assert mock_subset.to_dataset_dict.call_args[1]["preprocess"] == mock_standardize
+
+
+@patch("climakitae.explore.uncertainty.intake")
+def test_grab_ensemble_data_error_handling(mock_intake):
+    """Test error handling in _grab_ensemble_data_by_experiment_id."""
+    # Mock the intake module to raise an exception when open_esm_datastore is called
+    mock_intake.open_esm_datastore.side_effect = Exception("Connection error")
+
+    # Function should propagate exceptions
+    with pytest.raises(Exception) as excinfo:
+        _grab_ensemble_data_by_experiment_id("tas", ["MODEL1"], "historical")
+
+    assert "Connection error" in str(excinfo.value)
