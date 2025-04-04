@@ -39,7 +39,6 @@ dependencies:
   - markupsafe
   - webob
   - affine
-  - asciitree
   - attrs
   - beautifulsoup4
   - certifi
@@ -52,7 +51,6 @@ dependencies:
   - cligj
   - docopt
   - eccodes
-  - fasteners
   - findlibs
   - fsspec
   - h5netcdf
