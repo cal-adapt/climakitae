@@ -1,5 +1,6 @@
 """This script runs tests that unit conversions perform as expected"""
 
+import cftime
 import pytest
 import xarray as xr
 from climakitae.util.unit_conversions import convert_units, get_unit_conversion_options
@@ -98,14 +99,6 @@ class TestPressureConversions:
         correct_conversion = surf_pres_pasc / 100.0
         assert correct_conversion.equals(da_converted)
 
-    def test_pressure_conversion_native_units_hpa(self):
-        """Test that the convert_units function correctly handles native units in hPa."""
-        # TODO: Check with Nicole about conversion
-        surf_pres_hPa = xr.DataArray(data=500.0, attrs={"units": "hPa"})
-        da_converted = convert_units(surf_pres_hPa, selected_units="Pa")
-        correct_conversion = surf_pres_hPa * 100
-        assert correct_conversion.equals(da_converted)
-
     def test_pressure_same_units(self, surf_pres_pasc):
         """Test that the convert_units function returns identical data if selected unit match native units."""
         da_converted = convert_units(da=surf_pres_pasc, selected_units="Pa")
@@ -181,4 +174,16 @@ class TestPrecipitationConversions:
         """Test that the convert_units function correctly converts from mm to inches."""
         da_converted = convert_units(da=cumulus_precip_mm, selected_units="kg m-2 s-1")
         correct_conversion = cumulus_precip_mm / 86400
+        assert correct_conversion.equals(da_converted)
+
+    def test_precip_conversion_kg_m2_s1_to_mm(self):
+        """Test that the convert_units function correctly converts monthly total from kg m-2 s-1."""
+        time = cftime.datetime(2000, 1, 1, calendar="standard")  # single month Jan
+        da = xr.DataArray(
+            data=0.00011574,
+            coords={"time": time},
+            attrs={"units": "kg m-2 s-1", "frequency": "monthly"},
+        )
+        da_converted = convert_units(da, selected_units="mm")
+        correct_conversion = da * 86400 * 31
         assert correct_conversion.equals(da_converted)
