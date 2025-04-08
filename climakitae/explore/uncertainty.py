@@ -8,7 +8,7 @@ import xarray as xr
 from scipy import stats
 from xmip.preprocessing import rename_cmip6
 
-from climakitae.core.data_interface import DataInterface
+from climakitae.core.data_interface import DataInterface, DataParameters
 from climakitae.core.data_load import area_subset_geometry
 from climakitae.core.paths import gwl_1850_1900_file, gwl_1981_2010_file
 from climakitae.util.utils import read_csv_file
@@ -186,7 +186,7 @@ def _standardize_cmip6_data(ds: xr.Dataset) -> xr.Dataset:
     return ds
 
 
-def _area_wgt_average(ds):
+def _area_wgt_average(ds: xr.Dataset) -> xr.Dataset:
     """Calculates the weighted area average for CMIP6 model input.
 
     Parameters
@@ -206,7 +206,7 @@ def _area_wgt_average(ds):
     return ds
 
 
-def _drop_member_id(dset_dict):
+def _drop_member_id(dset_dict: dict) -> xr.Dataset:
     """Drop member_id coordinate/dimensions
 
     Parameters
@@ -226,7 +226,7 @@ def _drop_member_id(dset_dict):
     return dset_dict
 
 
-def _precip_flux_to_total(ds):
+def _precip_flux_to_total(ds: xr.Dataset) -> xr.Dataset:
     """
     converts precip flux units
     (kg m-2 s-1) to total precip
@@ -252,7 +252,9 @@ def _precip_flux_to_total(ds):
     return ds
 
 
-def _grab_ensemble_data_by_experiment_id(variable, cmip_names, experiment_id):
+def _grab_ensemble_data_by_experiment_id(
+    variable: str, cmip_names: list[str], experiment_id: str
+) -> list[xr.Dataset]:
     """Grab CMIP6 ensemble data
 
     Parameters
@@ -290,7 +292,7 @@ def _grab_ensemble_data_by_experiment_id(variable, cmip_names, experiment_id):
 
 
 ## Grab data - model uncertainty analysis
-def grab_multimodel_data(copt, alpha_sort=False):
+def grab_multimodel_data(copt: CmipOpt, alpha_sort: bool = False) -> xr.Dataset:
     """Returns processed data from multiple CMIP6 models for uncertainty analysis.
 
     Searches the CMIP6 data catalog for data from models that have specific
@@ -408,7 +410,12 @@ def grab_multimodel_data(copt, alpha_sort=False):
 
 
 ## Grab data - internal variability analysis
-def get_ensemble_data(variable, selections, cmip_names, warm_level=3.0):
+def get_ensemble_data(
+    variable: str,
+    selections: DataParameters,
+    cmip_names: list[str],
+    warm_level: float = 3.0,
+):
     """Returns processed data from multiple CMIP6 models for uncertainty analysis.
 
     Searches the CMIP6 data catalog for data from models that have specific
@@ -513,7 +520,7 @@ def get_ensemble_data(variable, selections, cmip_names, warm_level=3.0):
 ## Useful individual analysis functions
 
 
-def weighted_temporal_mean(ds):
+def weighted_temporal_mean(ds: xr.DataArray) -> xr.DataArray:
     """weight by days in each month
 
     Function for calculating annual averages pulled + adapted from NCAR
@@ -542,10 +549,10 @@ def weighted_temporal_mean(ds):
     ones = xr.where(cond, 0.0, 1.0)
 
     # Calculate the numerator
-    obs_sum = (ds * wgts).resample(time="AS").sum(dim="time")
+    obs_sum = (ds * wgts).resample(time="YS").sum(dim="time")
 
     # Calculate the denominator
-    ones_out = (ones * wgts).resample(time="AS").sum(dim="time")
+    ones_out = (ones * wgts).resample(time="YS").sum(dim="time")
 
     # Calculate weighted average
     weighted_avg = obs_sum / ones_out
@@ -556,7 +563,7 @@ def weighted_temporal_mean(ds):
     return weighted_avg
 
 
-def calc_anom(ds_yr, base_start, base_end):
+def calc_anom(ds_yr: xr.Dataset, base_start: int, base_end: int) -> xr.Dataset:
     """Calculates the difference relative to a historical baseline.
 
     First calculates a baseline per simulation using input (base_start, base_end).
@@ -581,7 +588,7 @@ def calc_anom(ds_yr, base_start, base_end):
     return mdl_temp_anom
 
 
-def cmip_mmm(ds):
+def cmip_mmm(ds: xr.Dataset) -> xr.Dataset:
     """Calculate the CMIP6 multi-model mean by collapsing across simulations.
 
     Parameters
@@ -742,4 +749,3 @@ def get_warm_level(
                 year0 = str(int(year_warmlevel_reached) - 14)
                 year1 = str(int(year_warmlevel_reached) + 15)
                 return ds.sel(time=slice(year0, year1))
-
