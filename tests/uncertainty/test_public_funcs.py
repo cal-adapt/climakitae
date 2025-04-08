@@ -1124,6 +1124,3 @@ def test_weighted_temporal_mean_basic():
     assert isinstance(result, xr.Dataset)
     assert "temperature" in result.data_vars
     assert result["temperature"].dims == ("time", "lat", "lon")
-
-
-
