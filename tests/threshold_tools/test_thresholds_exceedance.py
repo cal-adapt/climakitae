@@ -91,7 +91,7 @@ def test_hourly_ex4(T2_hourly):
 def test_duration():
     da = xr.DataArray(
         [1, 1, 1, 1, 1, 1],
-        coords={"time": pd.date_range("2000-01-01", freq="1H", periods=6)},
+        coords={"time": pd.date_range("2000-01-01", freq="1h", periods=6)},
         attrs={"frequency": "hourly", "units": "T"},
     )
     exc_counts = threshold_tools.get_exceedance_count(da, 0, duration1=(3, "hour"))
