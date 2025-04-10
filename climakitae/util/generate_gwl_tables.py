@@ -511,7 +511,7 @@ def main():
         )
 
 
-def get_sims_on_aws(df):
+def get_sims_on_aws(df: pd.DataFrame) -> pd.DataFrame:
     """
     Generates a pandas DataFrame listing all relevant CMIP6 simulations available on AWS.
 
