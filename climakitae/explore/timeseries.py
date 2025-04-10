@@ -15,7 +15,7 @@ class TimeSeriesParameters(param.Parameterized):
 
     resample_period = param.Selector(default="years", objects=dict())
     _time_scales = dict(
-        [("hours", "H"), ("days", "D"), ("months", "MS"), ("years", "AS-SEP")]
+        [("hours", "h"), ("days", "D"), ("months", "MS"), ("years", "YS-SEP")]
     )
 
     def __init__(self, dataset, **params):
@@ -23,11 +23,11 @@ class TimeSeriesParameters(param.Parameterized):
         self.data = dataset
 
         _time_resolution = dataset.attrs["frequency"]
-        _time_scales = dict([("months", "MS"), ("years", "AS-SEP")])
+        _time_scales = dict([("months", "MS"), ("years", "YS-SEP")])
         if (_time_resolution == "daily") or (_time_resolution == "hourly"):
             _time_scales["days"] = "D"
         if _time_resolution == "hourly":
-            _time_scales["hours"] = "H"
+            _time_scales["hours"] = "h"
         self._time_scales = _time_scales
         self.param["resample_period"].objects = self._time_scales
 
