@@ -1,8 +1,10 @@
 """Tests capability to read CMIP6 simulation information from aws"""
 
-import pytest
 import pandas as pd
+import pytest
+
 from climakitae.util.generate_gwl_tables import get_sims_on_aws
+
 
 def test_get_sims_on_aws():
     """Check that all expected scenarios and models are returned."""
