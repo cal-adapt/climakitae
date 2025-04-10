@@ -87,7 +87,9 @@ def main():
         timeseries = (temp * weightlat).sum(lat).mean(lon)
         return timeseries
 
-    def buildDFtimeSeries_cesm2(variable: str, model: str, ens_mem: str, scenarios: list) -> xr.Dataset:
+    def buildDFtimeSeries_cesm2(
+        variable: str, model: str, ens_mem: str, scenarios: list
+    ) -> xr.Dataset:
         """
         Builds a global temperature time series by weighting latitudes and averaging longitudes
         for the CESM2 model across specified scenarios from 1980 to 2100.
@@ -119,7 +121,9 @@ def main():
             data_one_model[scenario] = timeseries
         return data_one_model
 
-    def build_timeseries(variable: str, model: str, ens_mem: str, scenarios: list) -> xr.Dataset:
+    def build_timeseries(
+        variable: str, model: str, ens_mem: str, scenarios: list
+    ) -> xr.Dataset:
         """
         Builds an xarray Dataset with a time dimension, containing the concatenated historical
         and SSP time series for all specified scenarios of a given model and ensemble member.
@@ -221,7 +225,12 @@ def main():
         return gwl
 
     def get_table_one_cesm2(
-        variable: str, model: str, ens_mem: str, scenarios: list, start_year: str = "18500101", end_year: str = "19000101"
+        variable: str,
+        model: str,
+        ens_mem: str,
+        scenarios: list,
+        start_year: str = "18500101",
+        end_year: str = "19000101",
     ) -> tuple:
         """
         Generates a GWL lookup table for one ensemble member of CESM2.
@@ -266,7 +275,11 @@ def main():
         return gwlevels, final_model
 
     def get_table_cesm2(
-        variable: str, model: str, scenarios: list, start_year: str = "18500101", end_year: str = "19000101"
+        variable: str,
+        model: str,
+        scenarios: list,
+        start_year: str = "18500101",
+        end_year: str = "19000101",
     ) -> tuple:
         """
         Generates a GWL table for the CESM2 model.
@@ -310,7 +323,12 @@ def main():
         )
 
     def get_gwl_table_one(
-        variable: str, model: str, ens_mem: str, scenarios: list, start_year: str = "18500101", end_year: str = "19000101"
+        variable: str,
+        model: str,
+        ens_mem: str,
+        scenarios: list,
+        start_year: str = "18500101",
+        end_year: str = "19000101",
     ) -> tuple:
         """
         Generates a GWL table for a single model and ensemble member.
@@ -376,7 +394,11 @@ def main():
         return gwlevels, final_model
 
     def get_gwl_table(
-        variable: str, model: str, scenarios: list, start_year: str = "18500101", end_year: str = "19000101"
+        variable: str,
+        model: str,
+        scenarios: list,
+        start_year: str = "18500101",
+        end_year: str = "19000101",
     ) -> tuple:
         """
         Generates a GWL table for a given model and scenarios.
@@ -553,7 +575,7 @@ def get_sims_on_aws(df: pd.DataFrame) -> pd.DataFrame:
                 & (df.source_id == model)
             ]
             ensMembers = list(set(df_scenario.member_id))
-            sims_on_aws.loc[model,scenario] = ensMembers
+            sims_on_aws.loc[model, scenario] = ensMembers
 
     # cut the table to those GCMs that have a historical + at least one SSP ensemble member
     for i, item in enumerate(sims_on_aws.T.columns):
@@ -571,7 +593,7 @@ def get_sims_on_aws(df: pd.DataFrame) -> pd.DataFrame:
             for ssp in ["ssp585", "ssp370", "ssp245", "ssp126"]:
                 if str(variant) in sims_on_aws.loc[item][ssp]:
                     variants_to_keep.append(variant)
-        sims_on_aws.loc[item]["historical"] = list(set(variants_to_keep))
+        sims_on_aws.loc[item, "historical"] = list(set(variants_to_keep))
 
     return sims_on_aws
 
