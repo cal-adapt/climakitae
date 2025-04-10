@@ -215,7 +215,7 @@ def main():
                 wl_ts = scenario[scenario >= degree].index[0]
                 return wl_ts
             else:
-                return np.NaN
+                return np.nan
 
         gwl = smoothed.apply(lambda scenario: get_wl_timestamp(scenario, degree))
         return gwl
@@ -553,9 +553,7 @@ def get_sims_on_aws(df: pd.DataFrame) -> pd.DataFrame:
                 & (df.source_id == model)
             ]
             ensMembers = list(set(df_scenario.member_id))
-            # TODO: This line throws a warning ChainedAssignmentError
-            # Use `df.loc[row_indexer, "col"] = values`
-            sims_on_aws[scenario][model] = ensMembers
+            sims_on_aws.loc[model,scenario] = ensMembers
 
     # cut the table to those GCMs that have a historical + at least one SSP ensemble member
     for i, item in enumerate(sims_on_aws.T.columns):
