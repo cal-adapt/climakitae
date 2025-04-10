@@ -7,7 +7,7 @@ from climakitae.util.generate_gwl_tables import get_sims_on_aws
 
 
 def test_get_sims_on_aws():
-    """Check that all expected scenarios and models are returned."""
+    """Check that expected scenarios and models are returned."""
     df = pd.read_csv("https://cmip6-pds.s3.amazonaws.com/pangeo-cmip6.csv")
     df_subset = df[
         (df.table_id == "Amon")
