@@ -1,12 +1,12 @@
 import pytest
-import xarray
+import xarray as xr
 from climakitae.explore import thresholds
 from climakitae.core.data_interface import DataParameters
 
 
 class TestThreshold:
     @pytest.fixture
-    def selections(self):
+    def selections(self) -> DataParameters:
         # Create a DataParameters object
         test_selections = DataParameters()
         test_selections.append_historical = False
@@ -27,11 +27,11 @@ class TestThreshold:
         return test_selections
 
     @pytest.fixture
-    def my_test_data(self, selections):
+    def my_test_data(self, selections: DataParameters) -> xr.DataArray:
         data = thresholds.get_threshold_data(selections)
         return data
 
-    def test_data_attributes(self, my_test_data):
+    def test_data_attributes(self, my_test_data: xr.DataArray):
         expected = [
             "t2",
             "K",
@@ -53,5 +53,5 @@ class TestThreshold:
             my_test_data.downscaling_method,
         ]
         assert actual == expected
-        assert isinstance(my_test_data, xarray.core.dataarray.DataArray)
+        assert isinstance(my_test_data, xr.core.dataarray.DataArray)
         assert my_test_data.shape == (1, 1, 24)
