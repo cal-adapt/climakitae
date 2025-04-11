@@ -88,7 +88,7 @@ def main():
         return timeseries
 
     def buildDFtimeSeries_cesm2(
-        variable: str, model: str, ens_mem: str, scenarios: list
+        variable: str, model: str, ens_mem: str, scenarios: list[str]
     ) -> xr.Dataset:
         """
         Builds a global temperature time series by weighting latitudes and averaging longitudes
@@ -396,7 +396,7 @@ def main():
     def get_gwl_table(
         variable: str,
         model: str,
-        scenarios: list,
+        scenarios: list[str],
         start_year: str = "18500101",
         end_year: str = "19000101",
     ) -> tuple:
