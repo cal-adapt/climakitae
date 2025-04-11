@@ -3,8 +3,10 @@ Calculates alternative units for variables with multiple commonly
 used units, following NWS conversions for pressure and wind speed.
 """
 
+import xarray as xr
 
-def get_unit_conversion_options():
+
+def get_unit_conversion_options() -> dict:
     """Get dictionary of unit conversion options offered for each unit"""
     options = {
         "K": ["K", "degC", "degF"],
@@ -26,7 +28,7 @@ def get_unit_conversion_options():
     return options
 
 
-def convert_units(da, selected_units):
+def convert_units(da: xr.DataArray, selected_units: str) -> xr.DataArray:
     """Converts units for any variable
 
     Parameters
