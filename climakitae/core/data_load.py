@@ -1453,7 +1453,7 @@ def _station_apply(selections, da, original_time_slice):
             }
         )
         # Drop all coordinates except time
-        ds = ds.drop(["elevation", "latitude", "longitude"])
+        ds = ds.drop_vars(["elevation", "latitude", "longitude"])
         return ds
 
     _partial_func = partial(_preprocess_hadisd, stations_gdf=selections._stations_gdf)
@@ -1489,7 +1489,7 @@ def _station_apply(selections, da, original_time_slice):
 
         # Droop any coordinates in the output dataset that are not also dimensions
         # This makes merging all the stations together easier and drops superfluous coordinates
-        gridded_da_closest_gridcell = gridded_da_closest_gridcell.drop(
+        gridded_da_closest_gridcell = gridded_da_closest_gridcell.drop_vars(
             [
                 i
                 for i in gridded_da_closest_gridcell.coords
@@ -1593,7 +1593,7 @@ def _station_apply(selections, da, original_time_slice):
         ]  # Elevation of station
         return bias_corrected
 
-    apply_output = station_ds.apply(
+    apply_output = station_ds.map(
         _get_bias_corrected_closest_gridcell,
         keep_attrs=False,
         gridded_da=da,

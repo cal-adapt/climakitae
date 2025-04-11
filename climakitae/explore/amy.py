@@ -17,14 +17,14 @@ The AMY is comparable to a typical meteorological year, but not quite the same f
 ## 2: Future-minus-historical warming level AMY (see warming_levels)
 ## 3: Severe AMY based upon historical baseline and a designated threshold/percentile
 
-import xarray as xr
 import numpy as np
 import pandas as pd
+import xarray as xr
+from tqdm.auto import tqdm  # Progress bar
 
+from climakitae.core.data_interface import DataParameters
 from climakitae.core.data_load import read_catalog_from_select
 from climakitae.util.utils import julianDay_to_str_date
-
-from tqdm.auto import tqdm  # Progress bar
 
 xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
 
@@ -32,7 +32,7 @@ xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
 # =========================== HELPER FUNCTIONS: DATA RETRIEVAL ==============================
 
 
-def _set_amy_year_inputs(year_start, year_end):
+def _set_amy_year_inputs(year_start: int, year_end: int) -> tuple[int, int]:
     """
     Helper function for _retrieve_meteo_yr_data.
     Checks that the user has input valid values.
@@ -59,11 +59,11 @@ def _set_amy_year_inputs(year_start, year_end):
 
 
 def retrieve_meteo_yr_data(
-    self,
-    ssp=None,
-    year_start=2015,
-    year_end=None,
-):
+    data_params: DataParameters,
+    ssp: str = None,
+    year_start: int = 2015,
+    year_end: int = None,
+) -> xr.DataArray:
     """Backend function for retrieving data needed for computing a meteorological year.
 
     Reads in the hourly ensemble means instead of the hourly data.
@@ -87,37 +87,38 @@ def retrieve_meteo_yr_data(
         Hourly ensemble means from year_start-year_end for the ssp specified.
     """
     # Ensure only WRF data is being used
-    self.downscaling_method = "Dynamical"
+    data_params.downscaling_method = "Dynamical"
 
     # Save units. Sometimes they get lost.
-    units = self.units
+    units = data_params.units
 
     # Check year start and end inputs
     year_start, year_end = _set_amy_year_inputs(year_start, year_end)
 
     # Set scenario selections
     if (ssp is not None) and (year_end >= 2015):
-        self.scenario_ssp = [ssp]
+        data_params.scenario_ssp = [ssp]
     if year_end < 2015:
-        self.scenario_ssp = []
-    elif (year_end >= 2015) and (self.scenario_ssp) == []:
-        self.scenario_ssp = ["SSP 3-7.0"]  # Default
+        data_params.scenario_ssp = []
+    elif (year_end >= 2015) and (data_params.scenario_ssp) == []:
+        data_params.scenario_ssp = ["SSP 3-7.0"]  # Default
     if year_start < 2015:  # Append historical data
-        self.scenario_historical = ["Historical Climate"]
+        data_params.scenario_historical = ["Historical Climate"]
     else:
-        self.scenario_historical = []
-    if len(self.scenario_ssp) > 1:
-        self.scenario_ssp == self.scenario_ssp[0]
+        data_params.scenario_historical = []
+    if len(data_params.scenario_ssp) > 1:
+        # If multiple SSPs are selected, only use the first one
+        data_params.scenario_ssp = [data_params.scenario_ssp[0]]
 
     # Set other data parameters
-    self.simulation = ["ensmean"]
-    self.time_slice = (year_start, year_end)
-    self.area_average = "Yes"
-    self.timescale = "hourly"
-    self.units = units
+    data_params.simulation = ["ensmean"]
+    data_params.time_slice = (year_start, year_end)
+    data_params.area_average = "Yes"
+    data_params.timescale = "hourly"
+    data_params.units = units
 
     # Grab data from the catalog
-    amy_data = read_catalog_from_select(self)
+    amy_data = read_catalog_from_select(data_params)
     if amy_data is None:
         # Catch small spatial resolutions
         raise ValueError(
@@ -129,7 +130,7 @@ def retrieve_meteo_yr_data(
 # =========================== HELPER FUNCTIONS: AMY/TMY CALCULATION ==============================
 
 
-def _format_meteo_yr_df(df):
+def _format_meteo_yr_df(df: pd.DataFrame) -> pd.DataFrame:
     """Format dataframe output from compute_amy and compute_severe_yr"""
     ## Re-order columns for PST, with easy to read time labels
     cols = df.columns.tolist()
@@ -159,7 +160,7 @@ def _format_meteo_yr_df(df):
     return df
 
 
-def compute_amy(data, days_in_year=366, show_pbar=False):
+def compute_amy(data: xr.DataArray, days_in_year: int = 366) -> pd.DataFrame:
     """Calculates the average meteorological year based on a designated period of time
 
     Applicable for both the historical and future periods.
@@ -171,9 +172,6 @@ def compute_amy(data, days_in_year=366, show_pbar=False):
     days_in_year: int, optional
         Either 366 or 365, depending on whether or not the year is a leap year.
         Default to 366 days (leap year)
-    show_pbar: bool, optional
-        Show progress bar? Default to false.
-        Progress bar is nice for using this function within a notebook.
 
     Returns
     -------
@@ -182,15 +180,17 @@ def compute_amy(data, days_in_year=366, show_pbar=False):
         the index and hour of day as the columns.
     """
 
-    def closest_to_mean(dat):
+    def _closest_to_mean(dat: xr.DataArray) -> xr.DataArray:
+        """Find the value closest to the mean of the data."""
         stacked = dat.stack(allofit=list(dat.dims))
-        index = abs(stacked - stacked.mean("allofit")).argmin().values
+        index = abs(stacked - stacked.mean("allofit")).argmin(dim="allofit").values
         return xr.DataArray(stacked.isel(allofit=index).values)
 
-    def return_diurnal(y):
-        return y.groupby("time.hour").apply(closest_to_mean)
+    def _return_diurnal(y: xr.DataArray) -> xr.DataArray:
+        """Return the diurnal cycle of the data."""
+        return y.groupby("time.hour").map(_closest_to_mean)
 
-    hourly_da = data.groupby("time.dayofyear").apply(return_diurnal)
+    hourly_da = data.groupby("time.dayofyear").map(_return_diurnal)
 
     # Funnel data into pandas DataFrame object
     df_amy = pd.DataFrame(
@@ -203,7 +203,7 @@ def compute_amy(data, days_in_year=366, show_pbar=False):
     return df_amy
 
 
-def compute_severe_yr(data, days_in_year=366, show_pbar=False):
+def compute_severe_yr(data, days_in_year=366):
     """Calculate the severe meteorological year based on the 90th percentile of data.
 
     Applicable for both the historical and future periods.
@@ -228,13 +228,17 @@ def compute_severe_yr(data, days_in_year=366, show_pbar=False):
 
     def closest_to_quantile(dat):
         stacked = dat.stack(allofit=list(dat.dims))
-        index = abs(stacked - stacked.quantile(q=0.90, dim="allofit")).argmin().values
+        index = (
+            abs(stacked - stacked.quantile(q=0.90, dim="allofit"))
+            .argmin(dim="allofit")
+            .values
+        )
         return xr.DataArray(stacked.isel(allofit=index).values)
 
     def return_diurnal(y):
-        return y.groupby("time.hour").apply(closest_to_quantile)
+        return y.groupby("time.hour").map(closest_to_quantile)
 
-    hourly_da = data.groupby("time.dayofyear").apply(return_diurnal)
+    hourly_da = data.groupby("time.dayofyear").map(return_diurnal)
 
     ## Funnel data into pandas DataFrame object
     df_severe_yr = pd.DataFrame(
