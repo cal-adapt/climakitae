@@ -1,50 +1,44 @@
-import xarray as xr
-import dask
-from dask.diagnostics import ProgressBar
-import rioxarray
+import warnings
+from ast import literal_eval
 from datetime import timedelta
-from rioxarray.exceptions import NoDataInBounds
+from functools import partial
+
+import dask
 import numpy as np
 import pandas as pd
-from geopandas import GeoDataFrame
 import psutil
-import warnings
-from functools import partial
-from ast import literal_eval
+import rioxarray
+import xarray as xr
+from dask.diagnostics import ProgressBar
+from geopandas import GeoDataFrame
+from rioxarray.exceptions import NoDataInBounds
 from shapely.geometry import box
 from xclim.sdba import Grouper
 from xclim.sdba.adjustment import QuantileDeltaMapping
+
 from climakitae.core.boundaries import Boundaries
-from climakitae.util.warming_levels import (
-    _drop_invalid_sims,
-    _calculate_warming_level,
+from climakitae.tools.derived_variables import (
+    compute_dewpointtemp,
+    compute_relative_humidity,
+    compute_specific_humidity,
+    compute_wind_dir,
+    compute_wind_mag,
 )
+from climakitae.tools.indices import effective_temp, fosberg_fire_index, noaa_heat_index
 from climakitae.util.unit_conversions import convert_units, get_unit_conversion_options
 from climakitae.util.utils import (
-    readable_bytes,
-    get_closest_gridcell,
-    area_average,
-    downscaling_method_as_list,
-    scenario_to_experiment_id,
-    resolution_to_gridlabel,
-    timescale_to_table_id,
-    downscaling_method_to_activity_id,
     _get_cat_subset,
     _get_scenario_from_selections,
+    area_average,
+    downscaling_method_as_list,
+    downscaling_method_to_activity_id,
+    get_closest_gridcell,
+    readable_bytes,
+    resolution_to_gridlabel,
+    scenario_to_experiment_id,
+    timescale_to_table_id,
 )
-
-from climakitae.tools.derived_variables import (
-    compute_relative_humidity,
-    compute_wind_mag,
-    compute_wind_dir,
-    compute_dewpointtemp,
-    compute_specific_humidity,
-)
-from climakitae.tools.indices import (
-    fosberg_fire_index,
-    noaa_heat_index,
-    effective_temp,
-)
+from climakitae.util.warming_levels import _calculate_warming_level, _drop_invalid_sims
 
 # Set Xarray options
 # keep array attributes after operations
@@ -52,11 +46,10 @@ xr.set_options(keep_attrs=True)
 # slice array into smaller chunks to opitimize reading
 dask.config.set({"array.slicing.split_large_chunks": True})
 
-from dask.diagnostics import ProgressBar
-
 # Silence performance warnings
 # This warning is triggered when large chunks are created
 from dask.array.core import PerformanceWarning
+from dask.diagnostics import ProgressBar
 
 warnings.filterwarnings("ignore", category=PerformanceWarning)
 
@@ -184,7 +177,7 @@ def area_subset_geometry(selections):
         return area_subset, cached_area
 
     def _set_subarea(boundary_dataset: Boundaries, shape_indices: list) -> GeoDataFrame:
-        return boundary_dataset.loc[shape_indices].geometry.unary_union
+        return boundary_dataset.loc[shape_indices].geometry.union_all()
 
     def _get_as_shapely(selections):
         """

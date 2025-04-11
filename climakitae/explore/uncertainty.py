@@ -1,17 +1,17 @@
-import numpy as np
 import datetime
-import xarray as xr
-import rioxarray as rio
-import pandas as pd
-import intake
-from scipy import stats
 
+import intake
+import numpy as np
+import pandas as pd
+import rioxarray as rio
+import xarray as xr
+from scipy import stats
 from xmip.preprocessing import rename_cmip6
 
-from climakitae.util.utils import read_csv_file
-from climakitae.core.data_interface import DataInterface
+from climakitae.core.data_interface import DataInterface, DataParameters
 from climakitae.core.data_load import area_subset_geometry
 from climakitae.core.paths import gwl_1850_1900_file, gwl_1981_2010_file
+from climakitae.util.utils import read_csv_file
 
 
 ### Utility functions for uncertainty analyses and notebooks
@@ -39,19 +39,19 @@ class CmipOpt:
 
     def __init__(
         self,
-        variable="tas",  ## set up for temp uncertainty notebook
-        area_subset="states",
-        location="California",
-        timescale="monthly",
-        area_average=True,
-    ):
+        variable: str = "tas",  ## set up for temp uncertainty notebook
+        area_subset: str = "states",
+        location: str = "California",
+        timescale: str = "monthly",
+        area_average: bool = True,
+    ) -> None:
         self.variable = variable
         self.area_subset = area_subset
         self.location = location
-        self.area_average = area_average
         self.timescale = timescale
+        self.area_average = area_average
 
-    def _cmip_clip(self, ds):
+    def _cmip_clip(self, ds: xr.Dataset) -> xr.Dataset:
         """CMIP6 function to subset dataset based on the data selection options.
 
         Parameters
@@ -64,23 +64,17 @@ class CmipOpt:
         ds: xr.Dataset
             Subsetted data, area-weighting applied if area_average is true
         """
-        variable = self.variable
-        location = self.location
-        area_average = self.area_average
-        area_subset = self.area_subset
-        timescale = self.timescale
-
-        to_drop = [v for v in list(ds.data_vars) if v != variable]
+        to_drop = [v for v in list(ds.data_vars) if v != self.variable]
         ds = ds.drop_vars(to_drop)
-        ds = _clip_region(ds, area_subset, location)
-        if variable == "pr":
+        ds = _clip_region(ds, self.area_subset, self.location)
+        if self.variable == "pr":
             ds = _precip_flux_to_total(ds)
-        if area_average:
+        if self.area_average:
             ds = _area_wgt_average(ds)
         return ds
 
 
-def _cf_to_dt(ds):
+def _cf_to_dt(ds: xr.Dataset) -> xr.Dataset:
     """Converts non-standard calendars using cftime to pandas datetime
 
     Parameters
@@ -99,7 +93,7 @@ def _cf_to_dt(ds):
     return ds
 
 
-def _calendar_align(ds):
+def _calendar_align(ds: xr.Dataset) -> xr.Dataset:
     """Aligns calendars for consistent matching
 
     CMIP6 function to set the day for all monthly values to the the 1st of
@@ -123,7 +117,7 @@ def _calendar_align(ds):
     return ds
 
 
-def _clip_region(ds, area_subset, location):
+def _clip_region(ds: xr.Dataset, area_subset: list, location: str) -> xr.Dataset:
     """Clips CMIP6 dataset using a polygon.
 
     Parameters
@@ -134,8 +128,6 @@ def _clip_region(ds, area_subset, location):
         "counties"/"states" as options
     location: str
         county/state name
-    all_touched: bool, optional
-        Include all cells that intersect boundary, default is false
 
     Returns
     -------
@@ -163,7 +155,7 @@ def _clip_region(ds, area_subset, location):
     return ds
 
 
-def _wrapper(ds):
+def _standardize_cmip6_data(ds: xr.Dataset) -> xr.Dataset:
     """Pre-processing wrapper function.
 
     First, updates cmip6 dataset names and calendars for consistency.
@@ -194,7 +186,7 @@ def _wrapper(ds):
     return ds
 
 
-def _area_wgt_average(ds):
+def _area_wgt_average(ds: xr.Dataset) -> xr.Dataset:
     """Calculates the weighted area average for CMIP6 model input.
 
     Parameters
@@ -214,7 +206,7 @@ def _area_wgt_average(ds):
     return ds
 
 
-def _drop_member_id(dset_dict):
+def _drop_member_id(dset_dict: dict) -> xr.Dataset:
     """Drop member_id coordinate/dimensions
 
     Parameters
@@ -229,12 +221,12 @@ def _drop_member_id(dset_dict):
     """
     for dname, dset in dset_dict.items():
         if "member_id" in dset.coords:
-            dset = dset.isel(member_id=0).drop("member_id")  # Drop coord
+            dset = dset.isel(member_id=0).drop_vars("member_id")  # Drop coord
             dset_dict.update({dname: dset})  # Update dataset in dictionary
     return dset_dict
 
 
-def _precip_flux_to_total(ds):
+def _precip_flux_to_total(ds: xr.Dataset) -> xr.Dataset:
     """
     converts precip flux units
     (kg m-2 s-1) to total precip
@@ -260,7 +252,9 @@ def _precip_flux_to_total(ds):
     return ds
 
 
-def _grab_ensemble_data_by_experiment_id(variable, cmip_names, experiment_id):
+def _grab_ensemble_data_by_experiment_id(
+    variable: str, cmip_names: list[str], experiment_id: str
+) -> list[xr.Dataset]:
     """Grab CMIP6 ensemble data
 
     Parameters
@@ -291,14 +285,14 @@ def _grab_ensemble_data_by_experiment_id(variable, cmip_names, experiment_id):
     data_dict = col_subset.to_dataset_dict(
         zarr_kwargs={"consolidated": True},
         storage_options={"anon": True},
-        preprocess=_wrapper,  # Preprocess function to perform on each DataArray
+        preprocess=_standardize_cmip6_data,  # Preprocess function to perform on each DataArray
         progressbar=False,  # Don't show a progress bar in notebook
     )
     return list(data_dict.values())
 
 
 ## Grab data - model uncertainty analysis
-def grab_multimodel_data(copt, alpha_sort=False):
+def grab_multimodel_data(copt: CmipOpt, alpha_sort: bool = False) -> xr.Dataset:
     """Returns processed data from multiple CMIP6 models for uncertainty analysis.
 
     Searches the CMIP6 data catalog for data from models that have specific
@@ -338,7 +332,7 @@ def grab_multimodel_data(copt, alpha_sort=False):
     dsets = cat.to_dataset_dict(
         zarr_kwargs={"consolidated": True},
         storage_options={"anon": True},
-        preprocess=_wrapper,
+        preprocess=_standardize_cmip6_data,
     )
 
     # searches the catalog for the additional cal-adapt simulations
@@ -365,7 +359,7 @@ def grab_multimodel_data(copt, alpha_sort=False):
     cal_dsets = cat.to_dataset_dict(
         zarr_kwargs={"consolidated": True},
         storage_options={"anon": True},
-        preprocess=_wrapper,
+        preprocess=_standardize_cmip6_data,
     )
 
     # subsets the cmip6 and cal-adapt models in the historical period
@@ -416,7 +410,12 @@ def grab_multimodel_data(copt, alpha_sort=False):
 
 
 ## Grab data - internal variability analysis
-def get_ensemble_data(variable, selections, cmip_names, warm_level=3.0):
+def get_ensemble_data(
+    variable: str,
+    selections: DataParameters,
+    cmip_names: list[str],
+    warm_level: float = 3.0,
+):
     """Returns processed data from multiple CMIP6 models for uncertainty analysis.
 
     Searches the CMIP6 data catalog for data from models that have specific
@@ -430,10 +429,10 @@ def get_ensemble_data(variable, selections, cmip_names, warm_level=3.0):
     -----------
     variable: str
         Name of variable
-    cmip_names: list of str
-        Name of CMIP6 simulations
     selections: _DataSelector
         Data and location settings
+    cmip_names: list of str
+        Name of CMIP6 simulations
     warm_level: float, optional
         Global warming level to use, default to 3.0
 
@@ -521,7 +520,7 @@ def get_ensemble_data(variable, selections, cmip_names, warm_level=3.0):
 ## Useful individual analysis functions
 
 
-def weighted_temporal_mean(ds):
+def weighted_temporal_mean(ds: xr.DataArray) -> xr.DataArray:
     """weight by days in each month
 
     Function for calculating annual averages pulled + adapted from NCAR
@@ -550,10 +549,10 @@ def weighted_temporal_mean(ds):
     ones = xr.where(cond, 0.0, 1.0)
 
     # Calculate the numerator
-    obs_sum = (ds * wgts).resample(time="AS").sum(dim="time")
+    obs_sum = (ds * wgts).resample(time="YS").sum(dim="time")
 
     # Calculate the denominator
-    ones_out = (ones * wgts).resample(time="AS").sum(dim="time")
+    ones_out = (ones * wgts).resample(time="YS").sum(dim="time")
 
     # Calculate weighted average
     weighted_avg = obs_sum / ones_out
@@ -564,7 +563,7 @@ def weighted_temporal_mean(ds):
     return weighted_avg
 
 
-def calc_anom(ds_yr, base_start, base_end):
+def calc_anom(ds_yr: xr.Dataset, base_start: int, base_end: int) -> xr.Dataset:
     """Calculates the difference relative to a historical baseline.
 
     First calculates a baseline per simulation using input (base_start, base_end).
@@ -589,7 +588,7 @@ def calc_anom(ds_yr, base_start, base_end):
     return mdl_temp_anom
 
 
-def cmip_mmm(ds):
+def cmip_mmm(ds: xr.Dataset) -> xr.Dataset:
     """Calculate the CMIP6 multi-model mean by collapsing across simulations.
 
     Parameters
@@ -606,36 +605,10 @@ def cmip_mmm(ds):
     return ds_mmm
 
 
-def compute_vmin_vmax(da_min, da_max):
-    """Computes min, max, and center for plotting.
-
-    Parameters
-    ----------
-    da_min: xr.Dataset
-        data input to calculate the minimum
-    da_max: xr.Dataset
-        data input to calculate the maximum
-
-    Returns
-    -------
-    vmin: int
-        minimum value
-    vmax: int
-        maximum value
-    sopt: bool
-        indicates symmetry if vmin and vmax have opposite signs
-    """
-    vmin = np.nanpercentile(da_min, 1)
-    vmax = np.nanpercentile(da_max, 99)
-    # define center for diverging symmetric data
-    if (vmin < 0) and (vmax > 0):
-        sopt = True
-    else:
-        sopt = None
-    return vmin, vmax, sopt
-
-
-def get_ks_pval_df(sample1, sample2, sig_lvl=0.05):
+# TODO check whether this function actually works (it seems like it doesn't)
+def get_ks_pval_df(
+    sample1: xr.Dataset, sample2: xr.Dataset, sig_lvl: float = 0.05
+) -> pd.DataFrame:
     """Performs a Kolmogorov-Smirnov test at all lat, lon points
 
     Parameters
@@ -669,7 +642,7 @@ def get_ks_pval_df(sample1, sample2, sig_lvl=0.05):
 
         return d_statistic, p_value
 
-    d_statistic, p_value = xr.apply_ufunc(
+    _, p_value = xr.apply_ufunc(
         ks_stat_2sample,
         sample1,
         sample2,
@@ -689,7 +662,9 @@ def get_ks_pval_df(sample1, sample2, sig_lvl=0.05):
     return p_df
 
 
-def get_warm_level(warm_level, ds, multi_ens=False, ipcc=True):
+def get_warm_level(
+    warm_level: float | int, ds: xr.Dataset, multi_ens: bool = False, ipcc: bool = True
+) -> xr.Dataset:
     """Subsets projected data centered to the year
     that the selected warming level is reached
     for a particular simulation/member_id
@@ -714,10 +689,10 @@ def get_warm_level(warm_level, ds, multi_ens=False, ipcc=True):
     try:
         warm_level = float(warm_level)
     except ValueError:
-        raise Exception("Please specify warming level as an integer or float.")
+        raise ValueError("Please specify warming level as an integer or float.")
 
     if warm_level not in [1.5, 2.0, 3.0, 4.0]:
-        raise Exception(
+        raise ValueError(
             "Specified warming level is not valid. Options are: 1.5, 2.0, 3.0, 4.0"
         )
 
@@ -727,7 +702,7 @@ def get_warm_level(warm_level, ds, multi_ens=False, ipcc=True):
     else:
         gwl_file_all = gwl_1981_2010_file
         gwl_times_all = read_csv_file(gwl_file_all)
-        # Add information on a more complete list of ensemble members of
+        # TODO Add information on a more complete list of ensemble members of
         # EC-Earth3 to cover internal variability notebook needs
         gwl_file_ece3 = "data/gwl_1981-2010ref_EC-Earth3_ssp370.csv"
         gwl_times_ece3 = read_csv_file(gwl_file_ece3)
@@ -745,12 +720,13 @@ def get_warm_level(warm_level, ds, multi_ens=False, ipcc=True):
         if multi_ens:
             member_id = str(ds["member_id"].values)
         else:
-            if model == "CESM2":
-                member_id = "r11i1p1f1"
-            elif model == "CNRM-ESM2-1":
-                member_id = "r1i1p1f2"
-            else:
-                member_id = "r1i1p1f1"
+            match model:
+                case "CESM2":
+                    member_id = "r11i1p1f1"
+                case "CNRM-ESM2-1":
+                    member_id = "r1i1p1f2"
+                case _:
+                    member_id = "r1i1p1f1"
         sim_idx = (model, member_id, scenario)
 
         # identify the year that the selected warming level is reached for each ensemble member
