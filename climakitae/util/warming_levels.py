@@ -58,8 +58,9 @@ def _calculate_warming_level(warming_data, gwl_times, level, months, window):
         import pdb; pdb.set_trace()
         is_null_sim_mask = warming_data.centered_year.isnull()
         sims_to_drop = warming_data.all_sims.where(is_null_sim_mask, drop=True)
-        
-        print(f"These are the following simulations and their given SSPs to be dropped since they do not reach return a full set of WL data for this given WL: {sims_to_drop.all_sims.values}")
+
+        if len(sims_to_drop.all_sims.values) > 1:
+            print(f"These are the following simulations and their given SSPs to be dropped since they do not reach return a full set of WL data for this given WL: {sims_to_drop.all_sims.values}")
     
         warming_data = warming_data.sel(all_sims=warming_data.all_sims.where(~is_null_sim_mask, drop=True))
 
