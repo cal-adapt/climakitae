@@ -53,8 +53,16 @@ def _calculate_warming_level(warming_data, gwl_times, level, months, window):
 
     # Check that there exist simulations that reached this warming level before cleaning. Otherwise, don't modify anything.
     if not (warming_data.centered_year.isnull()).all():
-        # Removing simulations where this warming level is not crossed. (centered_year)
-        warming_data = warming_data.sel(all_sims=~warming_data.centered_year.isnull())
+        # Removing simulations where this warming level is not crossed (centered_year), or if the simulation would not return a full set of data for the given warming level (warming level window lower year is < 1980, or warming level window upper year > 2100)
+
+        import pdb; pdb.set_trace()
+        is_null_sim_mask = warming_data.centered_year.isnull()
+        sims_to_drop = warming_data.all_sims.where(is_null_sim_mask, drop=True)
+        
+        print(f"These are the following simulations and their given SSPs to be dropped since they do not reach return a full set of WL data for this given WL: {sims_to_drop.all_sims.values}")
+    
+        warming_data = warming_data.sel(all_sims=warming_data.all_sims.where(~is_null_sim_mask, drop=True))
+
 
     return warming_data
 
@@ -81,6 +89,8 @@ def _get_sliced_data(y, level, gwl_times, months, window):
     --------
     anomaly_da: xr.DataArray
     """
+    # if y.simulation.item() == 'LOCA2_EC-Earth3_r4i1p1f1':
+        # import pdb; pdb.set_trace()
     # Get the years when the global warming level is reached for all levels available in the gwl_times dataframe
     gwl_times_subset = gwl_times.loc[_extract_string_identifiers(y)]
 
@@ -97,56 +107,60 @@ def _get_sliced_data(y, level, gwl_times, months, window):
         start_year = centered_year - window
         end_year = centered_year + (window - 1)
 
-        sliced = y.sel(time=slice(str(start_year), str(end_year)))
+        # Create a check, that makes this simulation a dummy 
+        if start_year >= 1980 and end_year <= 2100:
+                
+            sliced = y.sel(time=slice(str(start_year), str(end_year)))
+    
+            # Creating a mask for timestamps that are within the desired months
+            valid_months_mask = sliced.time.dt.month.isin([months])
+    
+            # Resetting and renaming time index for each data array so they can overlap and save storage space.
+            expected_counts = {
+                "monthly": window * 2 * 12,
+                "daily": window * 2 * 365,
+                "hourly": window * 2 * 8760,
+            }
+            # There may be missing time for time slices that exceed the 2100 year bound. If that is the case, only return a warming slice for the amount of valid data available AND correctly center `time_from_center` values.
+            # Otherwise, if no time is missing, then the warming slice will just center the center year.
+            sliced["time"] = np.arange(
+                -expected_counts[y.frequency] / 2,
+                expected_counts[y.frequency] / 2
+                - (expected_counts[y.frequency] - len(sliced)),
+            )
+    
+            # Removing data not in the desired months (in this new time dimension)
+            sliced = sliced.sel(time=valid_months_mask)
+    
+            # Assigning `centered_year` as a coordinate to the DataArray
+            sliced = sliced.assign_coords({"centered_year": centered_year})
+    
+            return sliced
 
-        # Creating a mask for timestamps that are within the desired months
-        valid_months_mask = sliced.time.dt.month.isin([months])
+    # This clause creates an empty DataArray with similar shape to real WL slices
+    # to get dropped after the `.groupby` method is finished.
+    # This happens if the WL is never reached, or if this simulation's given WL data would not generate a complete set of data for the user
 
-        # Resetting and renaming time index for each data array so they can overlap and save storage space.
-        expected_counts = {
-            "monthly": window * 2 * 12,
-            "daily": window * 2 * 365,
-            "hourly": window * 2 * 8760,
-        }
-        # There may be missing time for time slices that exceed the 2100 year bound. If that is the case, only return a warming slice for the amount of valid data available AND correctly center `time_from_center` values.
-        # Otherwise, if no time is missing, then the warming slice will just center the center year.
-        sliced["time"] = np.arange(
-            -expected_counts[y.frequency] / 2,
-            expected_counts[y.frequency] / 2
-            - (expected_counts[y.frequency] - len(sliced)),
-        )
+    # Get number of days per month for non-leap year
+    days_per_month = {i: calendar.monthrange(2001, i)[1] for i in np.arange(1, 13)}
 
-        # Removing data not in the desired months (in this new time dimension)
-        sliced = sliced.sel(time=valid_months_mask)
+    # This creates an approximately appropriately sized DataArray to be dropped later
+    if y.frequency == "monthly":
+        time_freq = len(months)
+    elif y.frequency == "daily":
+        time_freq = sum([days_per_month[month] for month in months])
+    elif y.frequency == "hourly":
+        time_freq = sum([days_per_month[month] for month in months]) * 24
+    y = y.isel(
+        time=slice(0, window * 2 * time_freq)
+    )  # This is to create a dummy slice that conforms with other data structure. Can be re-written to something more elegant.
 
-        # Assigning `centered_year` as a coordinate to the DataArray
-        sliced = sliced.assign_coords({"centered_year": centered_year})
+    # Creating attributes
+    y["time"] = np.arange(-len(y.time) / 2, len(y.time) / 2)
+    y["centered_year"] = np.nan
 
-    else:
-
-        # This clause creates an empty DataArray with similar shape to real WL slices
-        # to get dropped after the `.groupby` method is finished.
-
-        # Get number of days per month for non-leap year
-        days_per_month = {i: calendar.monthrange(2001, i)[1] for i in np.arange(1, 13)}
-
-        # This creates an approximately appropriately sized DataArray to be dropped later
-        if y.frequency == "monthly":
-            time_freq = len(months)
-        elif y.frequency == "daily":
-            time_freq = sum([days_per_month[month] for month in months])
-        elif y.frequency == "hourly":
-            time_freq = sum([days_per_month[month] for month in months]) * 24
-        y = y.isel(
-            time=slice(0, window * 2 * time_freq)
-        )  # This is to create a dummy slice that conforms with other data structure. Can be re-written to something more elegant.
-
-        # Creating attributes
-        y["time"] = np.arange(-len(y.time) / 2, len(y.time) / 2)
-        y["centered_year"] = np.nan
-
-        # Returning DataArray of NaNs to be dropped later.
-        sliced = xr.full_like(y, np.nan)
+    # Returning DataArray of NaNs to be dropped later.
+    sliced = xr.full_like(y, np.nan)
 
     return sliced
 
