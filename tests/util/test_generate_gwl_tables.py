@@ -17,7 +17,11 @@ def test_get_sims_on_aws():
 
     # Spot checking each scenario
     assert sims_on_aws["historical"]["TaiESM1"] == ["r1i1p1f1"]
-    assert sims_on_aws["ssp585"]["MPI-ESM1-2-HR"] == ["r1i1p1f1", "r2i1p1f1"]
+    test_data = sims_on_aws["ssp585"]["MPI-ESM1-2-HR"]
+    test_data.sort()
+    assert test_data == ["r1i1p1f1", "r2i1p1f1"]
     assert sims_on_aws["ssp370"]["GFDL-CM4"] == []
     assert len(sims_on_aws["ssp245"]["ACCESS-ESM1-5"]) == 10
-    assert sims_on_aws["ssp126"]["CESM2"] == ["r11i1p1f1", "r4i1p1f1", "r10i1p1f1"]
+    test_data = sims_on_aws["ssp126"]["CESM2"]
+    test_data.sort()
+    assert  test_data == ["r10i1p1f1", "r11i1p1f1", "r4i1p1f1"]
