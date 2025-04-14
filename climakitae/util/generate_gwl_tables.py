@@ -122,7 +122,7 @@ def main():
         return data_one_model
 
     def build_timeseries(
-        variable: str, model: str, ens_mem: str, scenarios: list
+        variable: str, model: str, ens_mem: str, scenarios: list[str]
     ) -> xr.Dataset:
         """
         Builds an xarray Dataset with a time dimension, containing the concatenated historical
@@ -233,7 +233,7 @@ def main():
         scenarios: list,
         start_year: str = "18500101",
         end_year: str = "19000101",
-    ) -> tuple:
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """
         Generates a GWL lookup table for one ensemble member of CESM2.
 
@@ -282,7 +282,7 @@ def main():
         scenarios: list,
         start_year: str = "18500101",
         end_year: str = "19000101",
-    ) -> tuple:
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """
         Generates a GWL table for the CESM2 model.
 
@@ -328,10 +328,10 @@ def main():
         variable: str,
         model: str,
         ens_mem: str,
-        scenarios: list,
+        scenarios: list[str],
         start_year: str = "18500101",
         end_year: str = "19000101",
-    ) -> tuple:
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """
         Generates a GWL table for a single model and ensemble member.
 
@@ -401,7 +401,7 @@ def main():
         scenarios: list[str],
         start_year: str = "18500101",
         end_year: str = "19000101",
-    ) -> tuple:
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """
         Generates a GWL table for a given model and scenarios.
 
