@@ -15,6 +15,7 @@ def test_get_sims_on_aws():
     for scenario in ["historical", "ssp585", "ssp370", "ssp245", "ssp126"]:
         assert scenario in cols
 
+    # Spot checking each scenario
     assert sims_on_aws["historical"]["TaiESM1"] == ["r1i1p1f1"]
     assert sims_on_aws["ssp585"]["MPI-ESM1-2-HR"] == ["r1i1p1f1", "r2i1p1f1"]
     assert sims_on_aws["ssp370"]["GFDL-CM4"] == []
