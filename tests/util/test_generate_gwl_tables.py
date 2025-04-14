@@ -24,4 +24,4 @@ def test_get_sims_on_aws():
     assert len(sims_on_aws["ssp245"]["ACCESS-ESM1-5"]) == 10
     test_data = sims_on_aws["ssp126"]["CESM2"]
     test_data.sort()
-    assert  test_data == ["r10i1p1f1", "r11i1p1f1", "r4i1p1f1"]
+    assert test_data == ["r10i1p1f1", "r11i1p1f1", "r4i1p1f1"]
