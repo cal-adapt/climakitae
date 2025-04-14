@@ -210,7 +210,9 @@ def main():
             A table containing timestamps for when each scenario first crosses the specified warming level.
         """
 
-        def get_wl_timestamp(scenario, degree):
+        def get_wl_timestamp(
+            scenario: pd.Series, degree: float
+        ) -> cftime.DatetimeNoLeap | float:
             """
             Given a scenario of wl's and timestamps, find the timestamp that first crosses the degree passed in.
             Return np.NaN if none of the timestamps pass this degree level.
