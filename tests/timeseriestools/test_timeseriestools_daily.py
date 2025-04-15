@@ -47,7 +47,7 @@ def test_daily_smoothing(test_TSP: tst.TimeSeriesParameters):
 # ------------- Test anomaly and smoothing together ----------------------------
 
 
-def test_daily_anomaly_and_smoothing(test_TSP):
+def test_daily_anomaly_and_smoothing(test_TSP: tst.TimeSeriesParameters):
     # Specify Params options
     test_TSP.smoothing = "Running Mean"
     test_TSP.num_timesteps = 3
