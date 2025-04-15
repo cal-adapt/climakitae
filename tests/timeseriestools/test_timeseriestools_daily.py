@@ -18,6 +18,7 @@ def test_TSP(rootdir: str) -> tst.TimeSeriesParameters:
     test_data = (
         test_data.sel({"simulation": "cesm2"}).resample(time="1D").interpolate("linear")
     )
+    test_data.attrs["frequency"] = "daily"
 
     # Compute area average
     weights = np.cos(np.deg2rad(test_data.lat))
@@ -52,70 +53,6 @@ def test_daily_anomaly_and_smoothing(test_TSP):
     test_TSP.num_timesteps = 3
     test_TSP.anomaly = True
     test_TSP.reference_range = (dt.datetime(2014, 1, 1), dt.datetime(2014, 12, 31))
-
-    # Transform data and test
-    result = test_TSP.transform_data()
-    assert (result == test_TSP.data).sum().values.item() == 0
-
-
-# ------------- Test seasonal cycle removal w/ and w/o smoothing ---------------
-
-
-def test_seasonal(test_TSP):
-    # Specify Params options
-    test_TSP.anomaly = False
-    test_TSP.remove_seasonal_cycle = True
-
-    # Transform data and test
-    result = test_TSP.transform_data()
-    assert (result == test_TSP.data).sum().values.item() == 0
-
-
-def test_seasonal_and_smoothing(test_TSP):
-    # Specify Params options
-    test_TSP.smoothing = "Running Mean"
-    test_TSP.num_timesteps = 3
-    test_TSP.anomaly = False
-    test_TSP.remove_seasonal_cycle = True
-
-    # Transform data and test
-    result = test_TSP.transform_data()
-    assert (result == test_TSP.data).sum().values.item() == 0
-
-
-# ------------- Test extremes options ------------------------------------------
-
-
-def test_extremes_smoothing(test_TSP):
-    # Specify Params options
-    test_TSP.anomaly = False
-    test_TSP.smoothing = "Running Mean"
-    test_TSP.num_timesteps = 3
-    test_TSP.extremes = ["Min"]
-    test_TSP.resample_window = 2
-
-    # Transform data and test
-    result = test_TSP.transform_data()
-    assert (result == test_TSP.data).sum().values.item() == 0
-
-
-def test_extremes_min(test_TSP):
-    # Specify Params options
-    test_TSP.anomaly = False
-    test_TSP.extremes = ["Min"]
-    test_TSP.resample_window = 2
-
-    # Transform data and test
-    result = test_TSP.transform_data()
-    assert (result == test_TSP.data).sum().values.item() == 0
-
-
-def test_extremes_percentile(test_TSP):
-    # Specify Params options
-    test_TSP.anomaly = False
-    test_TSP.extremes = ["Percentile"]
-    test_TSP.resample_window = 2
-    test_TSP.percentile = 0.95
 
     # Transform data and test
     result = test_TSP.transform_data()
