@@ -36,7 +36,7 @@ def test_TSP(rootdir: str) -> tst.TimeSeriesParameters:
     return ts.choices  # return the underlying TimeSeriesParams object for testing
 
 
-def test_hourly_seasonal(test_TSP):
+def test_hourly_seasonal(test_TSP: tst.TimeSeriesParameters):
     # Specify Params options
     test_TSP.anomaly = False
     test_TSP.remove_seasonal_cycle = True
