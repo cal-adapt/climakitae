@@ -54,6 +54,17 @@ def test_monthly_anomaly(test_TSP):
     assert (result == test_TSP.data).sum().values.item() == 0
 
 
+def test_monthly_anomaly_separate_seasons(test_TSP):
+    # Specify Params options
+    test_TSP.anomaly = True
+    test_TSP.separate_seasons = True
+    test_TSP.reference_range = (dt.datetime(2014, 1, 1), dt.datetime(2014, 12, 31))
+
+    # Transform data and test
+    result = test_TSP.transform_data()
+    assert (result == test_TSP.data).sum().values.item() == 0
+
+
 # ------------- Test anomaly and smoothing together ----------------------------
 
 
@@ -62,6 +73,19 @@ def test_monthly_anomaly_and_smoothing(test_TSP):
     test_TSP.smoothing = "Running Mean"
     test_TSP.num_timesteps = 3
     test_TSP.anomaly = True
+    test_TSP.reference_range = (dt.datetime(2014, 1, 1), dt.datetime(2014, 12, 31))
+
+    # Transform data and test
+    result = test_TSP.transform_data()
+    assert (result == test_TSP.data).sum().values.item() == 0
+
+
+def test_monthly_anomaly_and_smoothing_separate_seasons(test_TSP):
+    # Specify Params options
+    test_TSP.smoothing = "Running Mean"
+    test_TSP.num_timesteps = 3
+    test_TSP.anomaly = True
+    test_TSP.separate_seasons = True
     test_TSP.reference_range = (dt.datetime(2014, 1, 1), dt.datetime(2014, 12, 31))
 
     # Transform data and test
@@ -121,6 +145,16 @@ def test_extremes_min(test_TSP):
     assert (result == test_TSP.data).sum().values.item() == 0
 
 
+def test_extremes_max(test_TSP):
+    # Specify Params options
+    test_TSP.extremes = ["Max"]
+    test_TSP.resample_window = 3
+
+    # Transform data and test
+    result = test_TSP.transform_data()
+    assert (result == test_TSP.data).sum().values.item() == 0
+
+
 def test_extremes_percentile(test_TSP):
     # Specify Params options
     test_TSP.anomaly = False
@@ -136,14 +170,22 @@ def test_extremes_percentile(test_TSP):
 # ------------- Test errors ------------------------------------------
 
 
+def test_timeseries_no_data_array():
+    # Provide empty dataset (not data array) to raise error
+    with pytest.raises(ValueError):
+        ts = tst.TimeSeries(xr.Dataset())
+
+
 def test_timeseries_lat_error(rootdir):
     # Provide lat/lon data to TimeSeries to raise error
+    # Also changing the scenario to test multiple error case
     test_filename = "test_data/timeseries_data_T2_2014_2016_monthly_45km.nc"
     test_filepath = os.path.join(rootdir, test_filename)
     test_data = xr.open_dataset(test_filepath).T2
+    test_data["scenario"] = np.array(["SSP 2-4.5"], dtype="<U44")
 
     with pytest.raises(ValueError):
-        ts = tst.TimeSeries(test_data)  # make Timeseries object
+        ts = tst.TimeSeries(test_data)
 
 
 def test_timeseries_scenario_error(test_TSP):
