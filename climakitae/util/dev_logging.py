@@ -25,7 +25,6 @@ Some limitations of this logger include:
 
 """
 
-import importlib
 import time
 import types
 
@@ -74,7 +73,7 @@ def _log(func: types.FunctionType) -> types.FunctionType:
     return _wrapper
 
 
-def _enable_lib_logging(obj: types.ModuleType):
+def enable_lib_logging(obj: types.ModuleType):
     """
     Adds the `log` wrapper to all functions and sub-classes within the given module or class.
 
@@ -108,12 +107,12 @@ def _enable_lib_logging(obj: types.ModuleType):
                     and res.__module__[:10] == "climakitae"
                 ):
                     # Recursively add logging wrapper to any classes within the passed in module/class.
-                    _enable_lib_logging(res)
+                    enable_lib_logging(res)
     else:
         print("Error: Current object is not a module object.")
 
 
-def _disable_lib_logging(module: types.ModuleType):
+def disable_lib_logging(module: types.ModuleType):
     """
     Removes the `log` wrapper to all functions within the given module.
 

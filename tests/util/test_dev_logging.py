@@ -67,7 +67,7 @@ class TestEnableLibLogging:
     def test_recursive_class_logging(self, mock_module_with_class: types.ModuleType):
         """Test that _enable_lib_logging recursively adds logging to class methods."""
         # Enable logging on the module
-        dev_logging._enable_lib_logging(mock_module_with_class)
+        dev_logging.enable_lib_logging(mock_module_with_class)
 
         # Check if the standalone function was wrapped
         assert hasattr(mock_module_with_class.standalone_function, "_is_logged")
@@ -84,7 +84,7 @@ class TestEnableLibLogging:
             assert result == "class method result"
 
     def test_enable_lib_logging(self, mock_module: types.ModuleType):
-        dev_logging._enable_lib_logging(mock_module)
+        dev_logging.enable_lib_logging(mock_module)
         assert hasattr(mock_module.mock_function, "_is_logged")
 
         with patch("builtins.print") as mock_print:
@@ -93,18 +93,18 @@ class TestEnableLibLogging:
 
     def test_enable_lib_logging_non_module(self):
         with patch("builtins.print") as mock_print:
-            dev_logging._enable_lib_logging("not_a_module")
+            dev_logging.enable_lib_logging("not_a_module")
             mock_print.assert_called_with(
                 "Error: Current object is not a module object."
             )
 
     def test_already_wrapped(self, mock_module: types.ModuleType):
         # Enable logging once
-        dev_logging._enable_lib_logging(mock_module)
+        dev_logging.enable_lib_logging(mock_module)
         original_function = mock_module.mock_function
 
         # Enable logging again - should not wrap again
-        dev_logging._enable_lib_logging(mock_module)
+        dev_logging.enable_lib_logging(mock_module)
         assert mock_module.mock_function == original_function
 
 
@@ -128,10 +128,10 @@ class TestDisableLibLogging:
 
     def test_disable_lib_logging(self, mock_module: types.ModuleType):
         # First, enable logging
-        dev_logging._enable_lib_logging(mock_module)
+        dev_logging.enable_lib_logging(mock_module)
         assert hasattr(mock_module.mock_function, "_is_logged")
 
         # Then, disable logging
-        dev_logging._disable_lib_logging(mock_module)
+        dev_logging.disable_lib_logging(mock_module)
         assert not hasattr(mock_module.mock_function, "_is_logged")
         assert mock_module.mock_function() == "original"
