@@ -16,7 +16,7 @@ import climakitae.explore.timeseries as tst
 
 
 @pytest.fixture
-def test_TSP(rootdir):
+def test_TSP(rootdir) -> tst.TimeSeriesParameters:
     # This data is generated in "create_timeseries_test_data.py"
     test_filename = "test_data/timeseries_data_T2_2014_2016_monthly_45km.nc"
     test_filepath = os.path.join(rootdir, test_filename)
@@ -30,7 +30,7 @@ def test_TSP(rootdir):
     return ts.choices  # return the underlying TimeSeriesParams object for testing
 
 
-def test_monthly_smoothing(test_TSP):
+def test_monthly_smoothing(test_TSP: tst.TimeSeriesParameters):
     # Specify Params options
     test_TSP.smoothing = "Running Mean"
     test_TSP.num_timesteps = 3
@@ -44,7 +44,7 @@ def test_monthly_smoothing(test_TSP):
 # ------------- Test monthly weighted anomaly ----------------------------------
 
 
-def test_monthly_anomaly(test_TSP):
+def test_monthly_anomaly(test_TSP: tst.TimeSeriesParameters):
     # Specify Params options
     test_TSP.anomaly = True
     test_TSP.reference_range = (dt.datetime(2014, 1, 1), dt.datetime(2014, 12, 31))
@@ -54,7 +54,7 @@ def test_monthly_anomaly(test_TSP):
     assert (result == test_TSP.data).sum().values.item() == 0
 
 
-def test_monthly_anomaly_separate_seasons(test_TSP):
+def test_monthly_anomaly_separate_seasons(test_TSP: tst.TimeSeriesParameters):
     # Specify Params options
     test_TSP.anomaly = True
     test_TSP.separate_seasons = True
@@ -68,7 +68,7 @@ def test_monthly_anomaly_separate_seasons(test_TSP):
 # ------------- Test anomaly and smoothing together ----------------------------
 
 
-def test_monthly_anomaly_and_smoothing(test_TSP):
+def test_monthly_anomaly_and_smoothing(test_TSP: tst.TimeSeriesParameters):
     # Specify Params options
     test_TSP.smoothing = "Running Mean"
     test_TSP.num_timesteps = 3
@@ -80,7 +80,7 @@ def test_monthly_anomaly_and_smoothing(test_TSP):
     assert (result == test_TSP.data).sum().values.item() == 0
 
 
-def test_monthly_anomaly_and_smoothing_separate_seasons(test_TSP):
+def test_monthly_anomaly_and_smoothing_separate_seasons(test_TSP: tst.TimeSeriesParameters):
     # Specify Params options
     test_TSP.smoothing = "Running Mean"
     test_TSP.num_timesteps = 3
@@ -96,7 +96,7 @@ def test_monthly_anomaly_and_smoothing_separate_seasons(test_TSP):
 # ------------- Test seasonal cycle removal w/ and w/o smoothing ---------------
 
 
-def test_seasonal(test_TSP):
+def test_seasonal(test_TSP: tst.TimeSeriesParameters):
     # Specify Params options
     test_TSP.anomaly = False
     test_TSP.remove_seasonal_cycle = True
@@ -106,7 +106,7 @@ def test_seasonal(test_TSP):
     assert (result == test_TSP.data).sum().values.item() == 0
 
 
-def test_seasonal_and_smoothing(test_TSP):
+def test_seasonal_and_smoothing(test_TSP: tst.TimeSeriesParameters):
     # Specify Params options
     test_TSP.smoothing = "Running Mean"
     test_TSP.num_timesteps = 3
@@ -121,7 +121,7 @@ def test_seasonal_and_smoothing(test_TSP):
 # ------------- Test extremes options ------------------------------------------
 
 
-def test_extremes_smoothing(test_TSP):
+def test_extremes_smoothing(test_TSP: tst.TimeSeriesParameters):
     # Specify Params options
     test_TSP.anomaly = False
     test_TSP.smoothing = "Running Mean"
@@ -134,7 +134,7 @@ def test_extremes_smoothing(test_TSP):
     assert (result == test_TSP.data).sum().values.item() == 0
 
 
-def test_extremes_min(test_TSP):
+def test_extremes_min(test_TSP: tst.TimeSeriesParameters):
     # Specify Params options
     test_TSP.anomaly = False
     test_TSP.extremes = ["Min"]
@@ -145,17 +145,17 @@ def test_extremes_min(test_TSP):
     assert (result == test_TSP.data).sum().values.item() == 0
 
 
-def test_extremes_max(test_TSP):
+def test_extremes_max(test_TSP: tst.TimeSeriesParameters):
     # Specify Params options
     test_TSP.extremes = ["Max"]
-    test_TSP.resample_window = 3
+    test_TSP.resample_window = 2
 
     # Transform data and test
     result = test_TSP.transform_data()
     assert (result == test_TSP.data).sum().values.item() == 0
 
 
-def test_extremes_percentile(test_TSP):
+def test_extremes_percentile(test_TSP: tst.TimeSeriesParameters):
     # Specify Params options
     test_TSP.anomaly = False
     test_TSP.extremes = ["Percentile"]
@@ -176,7 +176,7 @@ def test_timeseries_no_data_array():
         ts = tst.TimeSeries(xr.Dataset())
 
 
-def test_timeseries_lat_error(rootdir):
+def test_timeseries_lat_error(rootdir: str):
     # Provide lat/lon data to TimeSeries to raise error
     # Also changing the scenario to test multiple error case
     test_filename = "test_data/timeseries_data_T2_2014_2016_monthly_45km.nc"
@@ -188,7 +188,7 @@ def test_timeseries_lat_error(rootdir):
         ts = tst.TimeSeries(test_data)
 
 
-def test_timeseries_scenario_error(test_TSP):
+def test_timeseries_scenario_error(test_TSP: tst.TimeSeriesParameters):
     # Removing 'Historical' from scenario list in data to raise error
     test_data = test_TSP.data
     test_data["scenario"] = np.array(["SSP 2-4.5"], dtype="<U44")
