@@ -49,7 +49,7 @@ def _log(func: types.FunctionType) -> types.FunctionType:
         The wrapped function with logging capabilities.
     """
 
-    def _wrapper(*args, **kwargs):
+    def _wrapper(*args, **kwargs) -> types.FunctionType:
         """
         Wraps timer and print statement around functions if `lib_log_enabled` is True,
         otherwise return the function's result.
@@ -62,7 +62,7 @@ def _log(func: types.FunctionType) -> types.FunctionType:
         indentation_level -= 1
         end_time = time.time()
         print(
-            "    " * indentation_level
+            "\t" * indentation_level
             + f"Execution time for {func.__name__}: {end_time - start_time:.4g}"
         )
         return results
