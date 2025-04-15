@@ -82,7 +82,9 @@ def test_monthly_anomaly_and_smoothing(test_TSP: tst.TimeSeriesParameters):
     assert (result == test_TSP.data).sum().values.item() == 0
 
 
-def test_monthly_anomaly_and_smoothing_separate_seasons(test_TSP: tst.TimeSeriesParameters):
+def test_monthly_anomaly_and_smoothing_separate_seasons(
+    test_TSP: tst.TimeSeriesParameters,
+):
     # Specify Params options
     test_TSP.smoothing = "Running Mean"
     test_TSP.num_timesteps = 3
