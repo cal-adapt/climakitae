@@ -128,4 +128,3 @@ def _disable_lib_logging(module: types.ModuleType):
             original_func = res.__wrapped__
             setattr(module, name, original_func)
             delattr(res, "_is_logged")
-    return
