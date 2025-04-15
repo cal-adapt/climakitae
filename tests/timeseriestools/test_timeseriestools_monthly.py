@@ -131,3 +131,25 @@ def test_extremes_percentile(test_TSP):
     # Transform data and test
     result = test_TSP.transform_data()
     assert (result == test_TSP.data).sum().values.item() == 0
+
+
+# ------------- Test errors ------------------------------------------
+
+
+def test_timeseries_lat_error(rootdir):
+    # Provide lat/lon data to TimeSeries to raise error
+    test_filename = "test_data/timeseries_data_T2_2014_2016_monthly_45km.nc"
+    test_filepath = os.path.join(rootdir, test_filename)
+    test_data = xr.open_dataset(test_filepath).T2
+
+    with pytest.raises(ValueError):
+        ts = tst.TimeSeries(test_data)  # make Timeseries object
+
+
+def test_timeseries_scenario_error(test_TSP):
+    # Removing 'Historical' from scenario list in data to raise error
+    test_data = test_TSP.data
+    test_data["scenario"] = np.array(["SSP 2-4.5"], dtype="<U44")
+
+    with pytest.raises(ValueError):
+        ts = tst.TimeSeries(test_data)
