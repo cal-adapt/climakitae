@@ -5,11 +5,13 @@ run through `transform_data` without error, and that the data has been transform
 (not equal to original values), but does not test for exact expected values.
 """
 
-import pytest
-import os
 import datetime as dt
+import os
+
 import numpy as np
+import pytest
 import xarray as xr
+
 import climakitae.explore.timeseries as tst
 
 # -------- Read in the test dataset and return a TimeSeriesParams object -------

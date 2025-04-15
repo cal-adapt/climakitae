@@ -1,7 +1,9 @@
-import pytest
 import os
+
 import numpy as np
+import pytest
 import xarray as xr
+
 import climakitae.explore.timeseries as tst
 
 # -------- Read in the test dataset and return a TimeSeriesParams object -------
