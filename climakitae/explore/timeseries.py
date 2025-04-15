@@ -18,7 +18,7 @@ class TimeSeriesParameters(param.Parameterized):
         [("hours", "h"), ("days", "D"), ("months", "MS"), ("years", "YS-SEP")]
     )
 
-    def __init__(self, dataset, **params):
+    def __init__(self, dataset: xr.Dataset, **params: param.Parameterized):
         super().__init__(**params)
         self.data = dataset
 
@@ -62,7 +62,7 @@ class TimeSeriesParameters(param.Parameterized):
         if self.remove_seasonal_cycle:
             self.anomaly = True
 
-    def transform_data(self):
+    def transform_data(self) -> xr.DataArray:
         """
         Returns a dataset that has been transformed in the ways that the params
         indicate, ready to plot in the preview window ("view" method of this
@@ -75,7 +75,7 @@ class TimeSeriesParameters(param.Parameterized):
         else:
             to_plot = self.data
 
-        def _get_anom(y):
+        def _get_anom(y: xr.Dataset) -> xr.DataArray:
             """
             Returns the difference with respect to the average across a historical range.
             """
@@ -93,7 +93,7 @@ class TimeSeriesParameters(param.Parameterized):
             else:
                 return y - y.sel(time=slice(*self.reference_range)).mean("time")
 
-        def _running_mean(y):
+        def _running_mean(y: xr.Dataset) -> xr.DataArray:
             # If timescale is monthly, need to weight the rolling average by the number of days in each month
             if y.attrs["frequency"] == "1month":
                 # Access the number of days in each month corresponding to each element of y
@@ -128,7 +128,7 @@ class TimeSeriesParameters(param.Parameterized):
             else:
                 to_plot = _running_mean(to_plot)
 
-        def _extremes_da(y):
+        def _extremes_da(y: xr.Dataset) -> xr.DataArray:
             plot_multiple = xr.Dataset()
             if "Max" in self.extremes:
                 plot_multiple["max"] = to_plot.resample(
@@ -153,8 +153,10 @@ class TimeSeriesParameters(param.Parameterized):
             return to_plot
 
 
-def _update_attrs(data_to_output, attrs_to_add):
-    """
+def _update_attrs(
+    data_to_output: xr.DataArray, attrs_to_add: dict[str, str]
+) -> xr.DataArray:
+    """]
     This function updates the attributes of the DataArray being output
     so that it contains new attributes that describe the transforms
     that were performed in the timeseries toolkit.
@@ -198,7 +200,7 @@ class TimeSeries:
     2) to save the transform represented by the current state of that preview into a new variable (output_current).
     """
 
-    def __init__(self, data):
+    def __init__(self, data: xr.DataArray):
         if (
             type(data) != xr.core.dataarray.DataArray
         ):  # Data is NOT in the form of xr.DataArray
@@ -226,7 +228,7 @@ class TimeSeries:
 
         self.choices = TimeSeriesParameters(data)
 
-    def output_current(self):
+    def output_current(self) -> xr.DataArray:
         """Output the current attributes of the class to a DataArray object.
         Allows the data to be easily accessed by the user after modifying the attributes directly in the explore panel, for example.
 
