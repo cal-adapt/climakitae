@@ -230,7 +230,7 @@ def main():
         variable: str,
         model: str,
         ens_mem: str,
-        scenarios: list,
+        scenarios: list[str],
         start_year: str = "18500101",
         end_year: str = "19000101",
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -279,7 +279,7 @@ def main():
     def get_table_cesm2(
         variable: str,
         model: str,
-        scenarios: list,
+        scenarios: list[str],
         start_year: str = "18500101",
         end_year: str = "19000101",
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
