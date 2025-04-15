@@ -1,6 +1,5 @@
 import pytest
 import os
-import datetime as dt
 import numpy as np
 import xarray as xr
 import climakitae.explore.timeseries as tst
