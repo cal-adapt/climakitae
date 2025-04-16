@@ -115,6 +115,9 @@ class TestTimeseriesMonthlyTransform:
         result = test_TSP.transform_data()
         assert (result == test_TSP.data).sum().values.item() == 0
 
+
+class TestTimeseriesMonthlyExtremes:
+
     def test_extremes_smoothing(self, test_TSP: tst.TimeSeriesParameters):
         """Test extremes min with smoothing."""
         # Specify Params options
