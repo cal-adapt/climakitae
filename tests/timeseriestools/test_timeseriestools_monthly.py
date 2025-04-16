@@ -193,6 +193,7 @@ class TestTimeseriesMonthlyErrors:
         with pytest.raises(ValueError):
             ts = tst.TimeSeries(test_data)
 
+
 class TestTimeseriesObject:
 
     def test_output_current(self, rootdir: str):
@@ -206,7 +207,15 @@ class TestTimeseriesObject:
 
         ts = tst.TimeSeries(test_data)  # make Timeseries object
         current = ts.output_current()
-        
+
         assert isinstance(current, xr.core.dataarray.DataArray)
-        for item in ["anomaly","extremes","reference_range","remove_seasonal_cycle","resample_period","resample_window","smoothing"]:
+        for item in [
+            "anomaly",
+            "extremes",
+            "reference_range",
+            "remove_seasonal_cycle",
+            "resample_period",
+            "resample_window",
+            "smoothing",
+        ]:
             assert "timeseries: " + item in current.attrs
