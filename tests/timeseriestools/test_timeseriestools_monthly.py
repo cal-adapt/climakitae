@@ -164,7 +164,7 @@ class TestTimeseriesMonthlyTransform:
 # ------------- Test errors ------------------------------------------
 
 
-class TestTimeseriesErrors:
+class TestTimeseriesMonthlyErrors:
 
     def test_timeseries_no_data_array(
         self,
