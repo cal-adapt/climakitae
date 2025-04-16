@@ -42,27 +42,27 @@ def test_TSP(rootdir: str) -> tst.TimeSeriesParameters:
     return ts.choices  # return the underlying TimeSeriesParams object for testing
 
 
-def test_daily_smoothing(test_TSP: tst.TimeSeriesParameters):
-    # Specify Params options
-    test_TSP.smoothing = "Running Mean"
-    test_TSP.num_timesteps = 3
-    test_TSP.anomaly = False
+class TestTimeseriesDaily:
 
-    # Transform data and test
-    result = test_TSP.transform_data()  # transform_data calls _running_mean()
-    assert (result == test_TSP.data).sum().values.item() == 0
+    def test_daily_smoothing(self, test_TSP: tst.TimeSeriesParameters):
+        # Specify Params options
+        test_TSP.smoothing = "Running Mean"
+        test_TSP.num_timesteps = 3
+        test_TSP.anomaly = False
 
+        # Transform data and test
+        result = test_TSP.transform_data()  # transform_data calls _running_mean()
+        assert (result == test_TSP.data).sum().values.item() == 0
 
-# ------------- Test anomaly and smoothing together ----------------------------
+    # ------------- Test anomaly and smoothing together ----------------------------
 
+    def test_daily_anomaly_and_smoothing(self, test_TSP: tst.TimeSeriesParameters):
+        # Specify Params options
+        test_TSP.smoothing = "Running Mean"
+        test_TSP.num_timesteps = 3
+        test_TSP.anomaly = True
+        test_TSP.reference_range = (dt.datetime(2014, 1, 1), dt.datetime(2014, 12, 31))
 
-def test_daily_anomaly_and_smoothing(test_TSP: tst.TimeSeriesParameters):
-    # Specify Params options
-    test_TSP.smoothing = "Running Mean"
-    test_TSP.num_timesteps = 3
-    test_TSP.anomaly = True
-    test_TSP.reference_range = (dt.datetime(2014, 1, 1), dt.datetime(2014, 12, 31))
-
-    # Transform data and test
-    result = test_TSP.transform_data()
-    assert (result == test_TSP.data).sum().values.item() == 0
+        # Transform data and test
+        result = test_TSP.transform_data()
+        assert (result == test_TSP.data).sum().values.item() == 0
