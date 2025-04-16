@@ -303,6 +303,6 @@ class TimeSeries:
 
         """
         to_output = self.choices.transform_data()
-        attrs_to_add = dict(self.choices.get_param_values())
+        attrs_to_add = dict(self.choices.param.values())
         to_output = _update_attrs(to_output, attrs_to_add)
         return to_output
