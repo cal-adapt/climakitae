@@ -13,11 +13,10 @@ import xarray as xr
 
 import climakitae.explore.timeseries as tst
 
-# -------- Read in the test dataset and return a TimeSeriesParams object -------
-
 
 @pytest.fixture
 def test_TSP(rootdir: str) -> tst.TimeSeriesParameters:
+    """Read in the test dataset and return a TimeSeriesParams object."""
     # This data is generated in "create_timeseries_test_data.py"
     test_filename = "test_data/timeseries_data_T2_2014_2016_monthly_45km.nc"
     test_filepath = os.path.join(rootdir, test_filename)
@@ -47,8 +46,8 @@ def test_TSP(rootdir: str) -> tst.TimeSeriesParameters:
 class TestTimeseriesHourly:
 
     def test_hourly_seasonal(self, test_TSP: tst.TimeSeriesParameters):
+        """Testing a basic transformation with hourly data."""
         # Specify Params options
-        test_TSP.anomaly = False
         test_TSP.remove_seasonal_cycle = True
 
         # Transform data and test
