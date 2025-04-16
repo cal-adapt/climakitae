@@ -100,7 +100,7 @@ class TimeSeriesParameters(param.Parameterized):
             self.anomaly = True
 
     def transform_data(self) -> xr.DataArray:
-        """
+        """Transform timeseries based on parameters.
         Returns a dataset that has been transformed in the ways that the params
         indicate, ready to plot in the preview window ("view" method of this
         class), or be saved out.
@@ -198,7 +198,7 @@ class TimeSeriesParameters(param.Parameterized):
 def _update_attrs(
     data_to_output: xr.DataArray, attrs_to_add: dict[str, str]
 ) -> xr.DataArray:
-    """
+    """Update DataArray attributes.
     This function updates the attributes of the DataArray being output
     so that it contains new attributes that describe the transforms
     that were performed in the timeseries toolkit.
@@ -261,7 +261,7 @@ class TimeSeries:
     Attributes
     ----------
     choices: TimeSeriesParameters
-        Object containing time series data and analysis parameters.
+        Param object containing time series data and analysis parameters.
 
     """
 
