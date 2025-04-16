@@ -1,6 +1,3 @@
-import logging
-
-import pytest
 from _pytest.logging import LogCaptureFixture
 
 from climakitae.util.logger import (
