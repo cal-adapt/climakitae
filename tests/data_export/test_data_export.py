@@ -81,11 +81,11 @@ class TestHidden:
         ds = ds.assign_coords({"time": np.array([0])})
         return ds
 
-    def test_convert_da_to_ds(self, test_array):
+    def test__convert_da_to_ds(self, test_array):
         ds = export._convert_da_to_ds(test_array)
         assert isinstance(ds, xr.core.dataset.Dataset)
 
-    def test_add_metadata(self):
+    def test__add_metadata(self):
         test_data = xr.Dataset({"data": np.zeros((1))})
         export._add_metadata(test_data)
         for item in [
@@ -100,33 +100,33 @@ class TestHidden:
         ]:
             assert item in test_data.attrs
 
-    def test_dataarray_to_dataframe(self, test_array):
+    def test__dataarray_to_dataframe(self, test_array):
         df = export._dataarray_to_dataframe(test_array)
         assert isinstance(df, pd.core.frame.DataFrame)
 
-    def test_get_unit(self, test_array):
+    def test__get_unit(self, test_array):
         test_array.attrs["units"] = "mm"
         units = export._get_unit(test_array)
         assert units == "mm"
 
-    def test_get_unit_none(self, test_array):
+    def test__get_unit_none(self, test_array):
         units = export._get_unit(test_array)
         assert units == ""
 
-    def test_ease_acces_in_R(self):
+    def test__ease_acces_in_R(self):
         column_name = "_(_)_ _-_"
         result = "_______"
         test_result = export._ease_access_in_R(column_name)
         assert test_result == result
 
-    def test_update_header(self):
+    def test__update_header(self):
         p = pd.DataFrame(np.array([1, 1]))
         unit_map = [("Precipitation", "mm")]
         export._update_header(p, unit_map)
         assert isinstance(p.columns, pd.core.indexes.multi.MultiIndex)
         assert unit_map[0] in p.columns
 
-    def test_dataset_to_dataframe_stations(self):
+    def test__dataset_to_dataframe_stations(self):
         """Check that a station dataset is correctly handled."""
         station = "Fresno Yosemite International Airport (KFAT)"
         station_eased = "Fresno_Yosemite_International_Airport_KFAT"
@@ -144,7 +144,7 @@ class TestHidden:
         assert isinstance(df, pd.core.frame.DataFrame)
         assert (station_eased, varname, unit) in df.columns
 
-    def test_compression_encoding(self):
+    def test__compression_encoding(self):
         test_data = xr.Dataset(
             data_vars={"data": (["time"], np.zeros((1)))},
             coords={"time": np.array([0])},
@@ -153,7 +153,7 @@ class TestHidden:
         expected = {"data": {"zlib": True, "complevel": 6}}
         assert compdict == expected
 
-    def test_estimate_file_size(self, test_array):
+    def test__estimate_file_size(self, test_array):
         nc_size = export._estimate_file_size(test_array, "NetCDF")
         zarr_size = export._estimate_file_size(test_array, "Zarr")
         csv_size = export._estimate_file_size(test_array, "CSV")
@@ -163,11 +163,11 @@ class TestHidden:
         assert csv_size > 0
         assert nc_size == zarr_size
 
-    def test_estimate_file_size_dataset(self, test_ds):
+    def test__estimate_file_size_dataset(self, test_ds):
         csv_size = export._estimate_file_size(test_ds, "CSV")
         assert csv_size > 0
 
-    def test_warn_large_export(self, capfd):
+    def test__warn_large_export(self, capfd):
         file_size = 7
         export._warn_large_export(file_size)
         out, err = capfd.readouterr()
@@ -178,10 +178,10 @@ class TestHidden:
         )
         assert out == expected
 
-    def test_update_encoding(self, test_ds):
+    def test__update_encoding(self, test_ds):
         export._update_encoding(test_ds)
         assert "missing_value" not in test_ds.encoding
 
-    def test_fillvalue_encoding(self, test_ds):
+    def test__fillvalue_encoding(self, test_ds):
         result = export._fillvalue_encoding(test_ds)
         assert result["time"] == {"_FillValue": None}
