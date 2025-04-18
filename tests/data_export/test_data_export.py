@@ -1,10 +1,10 @@
 """Test the get_data() function"""
 
-import io
-import sys
+import os
 from unittest import mock
 from unittest.mock import mock_open, patch
 
+import datetime
 import numpy as np
 import pandas as pd
 import pytest
@@ -14,10 +14,6 @@ import climakitae.core.data_export as export
 
 
 class TestExportErrors:
-
-    @pytest.fixture()
-    def mocked_to_zarr(self):
-        pass
 
     def test_export_type(self):
         """Non xarray dataset/data array input."""
@@ -40,10 +36,10 @@ class TestExportErrors:
             test_format = "nc"
             export.export(test_data, test_filename, test_format)
 
-    @mock.patch("climakitae.core.data_export._export_to_zarr")
-    def test_export_zarr_s3(self, mocked_to_zarr):
-        """Output choice of s3 without zarr format. Mocked to avoid actually
-        writing to zarr if error not raised."""
+    @patch("climakitae.core.data_export._export_to_netcdf")
+    def test_export_zarr_s3(self, mocked_to_netcdf):
+        """Output choice of s3 without zarr format. Patched to avoid
+        writing file if error not raised."""
         with pytest.raises(Exception):
             test_data = xr.DataArray()
             test_filename = "test.nc"
@@ -54,17 +50,34 @@ class TestExportErrors:
 
 class TestExport:
 
-    @pytest.fixture()
-    def mocked_to_netcdf(self):
-        pass
-
-    @mock.patch("climakitae.core.data_export._export_to_netcdf")
-    def test_export_netcdf(self, mocked_to_netcdf):
+    @patch("xarray.core.dataset.Dataset.to_netcdf")
+    def test_export_netcdf(self, mock_to_netcdf):
         test_data = xr.DataArray()
         test_filename = "test.nc"
         test_format = "NetCDF"
+        path = os.path.join(os.getcwd(), test_filename)
         export.export(test_data, test_filename, test_format)
-        # TODO: finish test
+
+        # mock_to_netcdf.assert_called_once_with(test_data, "test.nc")
+        mock_to_netcdf.assert_called_once_with(
+            path,
+            format="NETCDF4",
+            engine="netcdf4",
+            encoding={"data": {"zlib": True, "complevel": 6}},
+        )
+
+    @patch("xarray.core.dataset.Dataset.to_zarr")
+    def test_export_zarr(self, mock_to_zarr):
+        test_data = xr.DataArray()
+        test_filename = "test.zarr"
+        test_format = "Zarr"
+        path = os.path.join(os.getcwd(), test_filename)
+        export.export(test_data, test_filename, test_format)
+
+        mock_to_zarr.assert_called_once_with(
+            path,
+            encoding={},
+        )
 
 
 class TestHidden:
@@ -185,3 +198,77 @@ class TestHidden:
     def test__fillvalue_encoding(self, test_ds):
         result = export._fillvalue_encoding(test_ds)
         assert result["time"] == {"_FillValue": None}
+
+    @patch("xarray.core.dataset.Dataset.to_netcdf")
+    def test__export_netcdf(self, mock_to_netcdf):
+        test_array = xr.DataArray(np.zeros((1)))
+        save_name = "test.nc"
+        export._export_to_netcdf(test_array, save_name)
+        path = os.path.join(os.getcwd(), save_name)
+
+        mock_to_netcdf.assert_called_once_with(
+            path,
+            format="NETCDF4",
+            engine="netcdf4",
+            encoding={"data": {"zlib": True, "complevel": 6}},
+        )
+
+    def test__find_missing_val_month(self):
+        datelist = pd.date_range(
+            datetime.datetime(2010, 1, 1, 0),
+            datetime.datetime(2010, 12, 31, 23),
+            freq="h",
+        )
+        df = pd.DataFrame(datelist, columns=["time"])
+        no_missing = export._find_missing_val_month(df)
+
+        jan_missing = export._find_missing_val_month(df.drop(index=3))
+
+        assert no_missing == None
+        assert jan_missing == 1
+
+    def test__leap_day_fix_TaiESM1(self):
+        # Pick year with leap day
+        datelist = pd.date_range(
+            datetime.datetime(2024, 1, 1, 0),
+            datetime.datetime(2024, 12, 31, 23),
+            freq="h",
+        )
+        df = pd.DataFrame(datelist, columns=["time"])
+        df["simulation"] = "WRF_TaiESM1_r1i1p1f1"
+        df_fixed = export._leap_day_fix(df)
+
+        # Feb 29 renamed to Feb 28
+        test1 = df_fixed[
+            df_fixed.time == pd.Timestamp(datetime.datetime(2024, 2, 28, 0))
+        ]
+        assert len(test1) == 2
+
+        # No Feb 29
+        test2 = df_fixed[
+            df_fixed.time == pd.Timestamp(datetime.datetime(2024, 2, 29, 0))
+        ]
+        assert len(test2) == 0
+
+    def test__leap_day_fix_other(self):
+        # Pick year with leap day
+        datelist = pd.date_range(
+            datetime.datetime(2024, 1, 1, 0),
+            datetime.datetime(2024, 12, 31, 23),
+            freq="h",
+        )
+        df = pd.DataFrame(datelist, columns=["time"])
+        df["simulation"] = "WRF_ACCESS-CM2_r1i1p1f1"
+        df_fixed = export._leap_day_fix(df)
+
+        # Feb 29 renamed to Feb 28
+        test1 = df_fixed[
+            df_fixed.time == pd.Timestamp(datetime.datetime(2024, 2, 28, 0))
+        ]
+        assert len(test1) == 1
+
+        # No Feb 29
+        test2 = df_fixed[
+            df_fixed.time == pd.Timestamp(datetime.datetime(2024, 2, 29, 0))
+        ]
+        assert len(test2) == 0
