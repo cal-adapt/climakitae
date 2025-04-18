@@ -55,15 +55,17 @@ def _calculate_warming_level(warming_data, gwl_times, level, months, window):
     if not (warming_data.centered_year.isnull()).all():
         # Removing simulations where this warming level is not crossed (centered_year), or if the simulation would not return a full set of data for the given warming level (warming level window lower year is < 1980, or warming level window upper year > 2100)
 
-        import pdb; pdb.set_trace()
         is_null_sim_mask = warming_data.centered_year.isnull()
         sims_to_drop = warming_data.all_sims.where(is_null_sim_mask, drop=True)
 
         if len(sims_to_drop.all_sims.values) > 1:
-            print(f"These are the following simulations and their given SSPs to be dropped since they do not reach return a full set of WL data for this given WL: {sims_to_drop.all_sims.values}")
-    
-        warming_data = warming_data.sel(all_sims=warming_data.all_sims.where(~is_null_sim_mask, drop=True))
+            print(
+                f"These are the following simulations and their given SSPs to be dropped since they do not reach return a full set of WL data for WL {level}: {sims_to_drop.all_sims.values}"
+            )
 
+        warming_data = warming_data.sel(
+            all_sims=warming_data.all_sims.where(~is_null_sim_mask, drop=True)
+        )
 
     return warming_data
 
@@ -90,8 +92,6 @@ def _get_sliced_data(y, level, gwl_times, months, window):
     --------
     anomaly_da: xr.DataArray
     """
-    # if y.simulation.item() == 'LOCA2_EC-Earth3_r4i1p1f1':
-        # import pdb; pdb.set_trace()
     # Get the years when the global warming level is reached for all levels available in the gwl_times dataframe
     gwl_times_subset = gwl_times.loc[_extract_string_identifiers(y)]
 
@@ -108,14 +108,14 @@ def _get_sliced_data(y, level, gwl_times, months, window):
         start_year = centered_year - window
         end_year = centered_year + (window - 1)
 
-        # Create a check, that makes this simulation a dummy 
+        # Create a check, that makes this simulation a dummy
         if start_year >= 1980 and end_year <= 2100:
-                
+
             sliced = y.sel(time=slice(str(start_year), str(end_year)))
-    
+
             # Creating a mask for timestamps that are within the desired months
             valid_months_mask = sliced.time.dt.month.isin([months])
-    
+
             # Resetting and renaming time index for each data array so they can overlap and save storage space.
             expected_counts = {
                 "monthly": window * 2 * 12,
@@ -129,13 +129,13 @@ def _get_sliced_data(y, level, gwl_times, months, window):
                 expected_counts[y.frequency] / 2
                 - (expected_counts[y.frequency] - len(sliced)),
             )
-    
+
             # Removing data not in the desired months (in this new time dimension)
             sliced = sliced.sel(time=valid_months_mask)
-    
+
             # Assigning `centered_year` as a coordinate to the DataArray
             sliced = sliced.assign_coords({"centered_year": centered_year})
-    
+
             return sliced
 
     # This clause creates an empty DataArray with similar shape to real WL slices
