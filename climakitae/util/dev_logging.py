@@ -27,20 +27,33 @@ Some limitations of this logger include:
 
 import time
 import types
-import importlib
 
 # Controls the amount of indentation for library logging
 indentation_level = 0
 
 
-def _log(func):
+def _log(func: types.FunctionType) -> types.FunctionType:
     """
-    Wraps around existing functions, adding print statements upon execution and the amount of time it takes for execution. Allows function's call-stack to be viewed for all sub-functions that also have this wrapper.
+    Wraps around existing functions, adding print statements upon execution and the
+    amount of time it takes for execution. Allows function's call-stack to be viewed
+    for all sub-functions that also have this wrapper.
+
+    Parameters
+    ----------
+    func: types.FunctionType
+        The function to be wrapped.
+
+    Returns
+    -------
+    function
+        The wrapped function with logging capabilities.
     """
 
-    def _wrapper(*args, **kwargs):
-        """Wraps timer and print statement around functions if `lib_log_enabled` is True, otherwise
-        just return the function's result."""
+    def _wrapper(*args, **kwargs) -> types.FunctionType:
+        """
+        Wraps timer and print statement around functions if `lib_log_enabled` is True,
+        otherwise return the function's result.
+        """
         global indentation_level
         start_time = time.time()
         print("    " * indentation_level + f"Executing function: {func.__name__}")
@@ -49,16 +62,20 @@ def _log(func):
         indentation_level -= 1
         end_time = time.time()
         print(
-            "    " * indentation_level
+            "\t" * indentation_level
             + f"Execution time for {func.__name__}: {end_time - start_time:.4g}"
         )
         return results
 
+    # Set the wrapper's attributes to maintain the original function's metadata
+    _wrapper.__wrapped__ = func
+    _wrapper._is_logged = True
     return _wrapper
 
 
-def _enable_lib_logging(obj):
-    """Adds the `log` wrapper to all functions and sub-classes within the given module or class.
+def enable_lib_logging(obj: types.ModuleType):
+    """
+    Adds the `log` wrapper to all functions and sub-classes within the given module or class.
 
     Parameters
     ----------
@@ -70,9 +87,8 @@ def _enable_lib_logging(obj):
             res = getattr(obj, name)
 
             # Initial logic to prevent loggers from double wrapping functions
-            if "__name__" in dir(res):
-                if res.__name__ == "wrapper":
-                    continue
+            if hasattr(res, "_is_logged"):
+                continue
 
             # Do not add loggers to any built-in functions
             if not name.startswith("__") and not name.endswith("__"):
@@ -91,16 +107,23 @@ def _enable_lib_logging(obj):
                     and res.__module__[:10] == "climakitae"
                 ):
                     # Recursively add logging wrapper to any classes within the passed in module/class.
-                    _enable_lib_logging(res)
+                    enable_lib_logging(res)
     else:
         print("Error: Current object is not a module object.")
 
 
-def _disable_lib_logging(module):
+def disable_lib_logging(module: types.ModuleType):
     """
     Removes the `log` wrapper to all functions within the given module.
+
+    Parameters
+    ----------
+    module: types.ModuleType (module)
+        The module to remove the logger from.
     """
-    # Currently, in order to remove the logger from all decorated functions, you will need to reload the module.
-    # I have tried to reference a `__wrapped__` attribute on wrapped functions, but they don't seem to exist.
-    importlib.reload(module)
-    return
+    for name in dir(module):
+        res = getattr(module, name)
+        if hasattr(res, "_is_logged"):
+            original_func = res.__wrapped__
+            setattr(module, name, original_func)
+            delattr(res, "_is_logged")
