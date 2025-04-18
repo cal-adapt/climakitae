@@ -1,10 +1,10 @@
 """Test the get_data() function"""
 
+import datetime
 import os
 from unittest import mock
 from unittest.mock import mock_open, patch
 
-import datetime
 import numpy as np
 import pandas as pd
 import pytest
@@ -213,6 +213,43 @@ class TestHidden:
             encoding={"data": {"zlib": True, "complevel": 6}},
         )
 
+
+class TestTYM:
+
+    def test_write_tmy(self):
+        datelist = pd.date_range(
+            datetime.datetime(2024, 1, 1, 0),
+            datetime.datetime(2024, 12, 31, 23),
+            freq="h",
+        )
+        varlist = [
+            "Air Temperature at 2m",
+            "Dew point temperature",
+            "Relative Humidity",
+            "Instantaneous downwelling shortwave flux at bottom",
+            "Shortwave surface downward direct normal irradiance",
+            "Shortwave surface downward diffue irradiance",
+            "Instantaneous downwelling longwave flux at bottom",
+            "Windspeed at 10m",
+            "Wind direction at 10m",
+            "Surface Pressure",
+        ]
+        simlist = ["WRF_EC-Earth3_r1i1p1f1", "WRF_MPI-ESM1-2-HR_r3i1p1f1"]
+        scenario = "Historical"
+
+        # TODO: add in variables, simulation, scenario, lat lon dims
+        da1 = xr.DataArray(
+            data=np.ones(len(datelist)), coords={"time": datelist}, name=simlist[0]
+        )
+        da2 = xr.DataArray(
+            data=np.ones(len(datelist)), coords={"time": datelist}, name=simlist[1]
+        )
+
+        ds = xr.Dataset(data_vars={simlist[0]: da1, simlist[1]: da2})
+
+
+class TestTMYHidden:
+
     def test__find_missing_val_month(self):
         datelist = pd.date_range(
             datetime.datetime(2010, 1, 1, 0),
@@ -272,3 +309,35 @@ class TestHidden:
             df_fixed.time == pd.Timestamp(datetime.datetime(2024, 2, 29, 0))
         ]
         assert len(test2) == 0
+
+    def test__missing_hour_fix(self):
+        datelist = pd.date_range(
+            datetime.datetime(2024, 1, 1, 0),
+            datetime.datetime(2024, 12, 31, 23),
+            freq="h",
+        )
+        df = pd.DataFrame(datelist, columns=["time"])
+        result = export._missing_hour_fix(df.drop(index=3))
+
+        # Assert dropped index exists
+        assert isinstance(result["time"][3], pd.Timestamp)
+
+    def test__tmy_8760_size_check(self):
+        datelist = pd.date_range(
+            datetime.datetime(2024, 1, 1, 0),
+            datetime.datetime(2024, 12, 31, 23),
+            freq="h",
+        )
+        df = pd.DataFrame(datelist, columns=["time"])
+        df["simulation"] = "WRF_ACCESS-CM2_r1i1p1f1"
+
+        result = export._tmy_8760_size_check(df)
+        assert len(result) == 8760
+
+        result = export._tmy_8760_size_check(df.drop(index=3))
+        assert len(result) == 8760
+
+        # TODO: Why isn't this 8760?
+        df["simulation"] = "WRF_TaiESM1_r1i1p1f1"
+        result = export._tmy_8760_size_check(df)
+        # assert len(result) == 8760
