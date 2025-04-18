@@ -17,6 +17,8 @@ jobs:
     if: $${{ github.event_name == 'push' }}
     runs-on: ubuntu-latest
     steps:
+      - run: echo "event name is:" ${{ github.event_name }}
+      - run: echo "event type is:" ${{ github.event.action }}
       - uses: actions/checkout@v3
       - uses: psf/black@stable
   build:
