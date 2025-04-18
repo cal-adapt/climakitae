@@ -7,9 +7,7 @@
 
 name: ci
 
-on:
-  pull_request:
-    types: [ labeled ]
+on: [push, pull_request]
 
 jobs:
   lint:
