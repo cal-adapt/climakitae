@@ -2,19 +2,29 @@
 # Conda environment is caches to avoid long wait times for CI
 # Based on code from: https://github.com/epassaro/cache-conda-envs/blob/main/.github/workflows/ci.yml
 # Based on code from: https://github.com/marketplace/actions/setup-miniconda
+# Added to Test commit workflow
+
 
 name: ci
 
-on: [push, pull_request]
+on: 
+  push:
+  pull_request:
+    types:
+      - labeled
 
 jobs:
   lint:
+    if: github.event.push
     runs-on: ubuntu-latest
     steps:
+      - run: echo "event name is:" ${{ github.event_name }}
+      - run: echo "event type is:" ${{ github.event.action }}
       - uses: actions/checkout@v3
       - uses: psf/black@stable
   build:
     name: linux-64
+    if: github.event.label.name == 'Ready to Merge'
     runs-on: ubuntu-latest
     defaults:
       run:
