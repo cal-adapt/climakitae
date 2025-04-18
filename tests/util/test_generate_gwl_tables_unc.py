@@ -402,3 +402,33 @@ class TestGWLGenerator:
             ]  # Check data variables
             xr.testing.assert_equal(result_ds["ssp370"], mock_concatenated_370)
             xr.testing.assert_equal(result_ds["ssp585"], mock_concatenated_585)
+
+    def test_get_gwl(self):
+        """
+        Test of get_gwl method.
+
+        Test that correct timestamps are returned when scenarios cross warming levels.
+        Test that np.nan is returned when a scenario doesn't cross the warming level.
+        """
+        # Create mock DataFrame with temperature scenarios
+        index = pd.date_range(start="2000-01-01", periods=5, freq="YE")
+        data = {
+            "scenario1": pd.Series([0.8, 1.2, 1.6, 1.9, 2.1], index=index),
+            "scenario2": pd.Series([0.7, 0.9, 1.1, 1.3, 1.4], index=index),
+        }
+        smoothed = pd.DataFrame(data)
+
+        # Test with warming level that both scenarios eventually cross
+        result1 = GWLGenerator.get_gwl(smoothed, 1.0)
+        assert result1["scenario1"] == pd.Timestamp("2001-12-31")
+        assert result1["scenario2"] == pd.Timestamp("2002-12-31")
+
+        # Test with warming level that only one scenario crosses
+        result2 = GWLGenerator.get_gwl(smoothed, 1.5)
+        assert result2["scenario1"] == pd.Timestamp("2002-12-31")
+        assert pd.isna(result2["scenario2"])
+
+        # Test with warming level that no scenario crosses
+        result3 = GWLGenerator.get_gwl(smoothed, 2.5)
+        assert pd.isna(result3["scenario1"])
+        assert pd.isna(result3["scenario2"])
