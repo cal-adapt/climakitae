@@ -58,7 +58,7 @@ def main():
     }
     ens_mem_cesm_rev = dict([(v, k) for k, v in ens_mems_cesm.items()])
 
-    def make_weighted_timeseries(temp):
+    def make_weighted_timeseries(temp: xr.DataArray) -> xr.DataArray:
         """
         Creates a spatially-weighted single-dimension time series of global temperature.
 
@@ -87,7 +87,9 @@ def main():
         timeseries = (temp * weightlat).sum(lat).mean(lon)
         return timeseries
 
-    def buildDFtimeSeries_cesm2(variable, model, ens_mem, scenarios):
+    def buildDFtimeSeries_cesm2(
+        variable: str, model: str, ens_mem: str, scenarios: list[str]
+    ) -> xr.Dataset:
         """
         Builds a global temperature time series by weighting latitudes and averaging longitudes
         for the CESM2 model across specified scenarios from 1980 to 2100.
@@ -119,7 +121,9 @@ def main():
             data_one_model[scenario] = timeseries
         return data_one_model
 
-    def build_timeseries(variable, model, ens_mem, scenarios):
+    def build_timeseries(
+        variable: str, model: str, ens_mem: str, scenarios: list[str]
+    ) -> xr.Dataset:
         """
         Builds an xarray Dataset with a time dimension, containing the concatenated historical
         and SSP time series for all specified scenarios of a given model and ensemble member.
@@ -187,7 +191,7 @@ def main():
                         )  # .to_pandas())
         return data_one_model
 
-    def get_gwl(smoothed, degree):
+    def get_gwl(smoothed: pd.DataFrame, degree: float) -> pd.DataFrame:
         """
         Computes the timestamp when a given GWL is first reached.
         Takes a smoothed time series of global mean temperature of different scenarios for a model
@@ -206,7 +210,9 @@ def main():
             A table containing timestamps for when each scenario first crosses the specified warming level.
         """
 
-        def get_wl_timestamp(scenario, degree):
+        def get_wl_timestamp(
+            scenario: pd.Series, degree: float
+        ) -> cftime.DatetimeNoLeap | float:
             """
             Given a scenario of wl's and timestamps, find the timestamp that first crosses the degree passed in.
             Return np.NaN if none of the timestamps pass this degree level.
@@ -215,14 +221,19 @@ def main():
                 wl_ts = scenario[scenario >= degree].index[0]
                 return wl_ts
             else:
-                return np.NaN
+                return np.nan
 
         gwl = smoothed.apply(lambda scenario: get_wl_timestamp(scenario, degree))
         return gwl
 
     def get_table_one_cesm2(
-        variable, model, ens_mem, scenarios, start_year="18500101", end_year="19000101"
-    ):
+        variable: str,
+        model: str,
+        ens_mem: str,
+        scenarios: list[str],
+        start_year: str = "18500101",
+        end_year: str = "19000101",
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """
         Generates a GWL lookup table for one ensemble member of CESM2.
 
@@ -266,8 +277,12 @@ def main():
         return gwlevels, final_model
 
     def get_table_cesm2(
-        variable, model, scenarios, start_year="18500101", end_year="19000101"
-    ):
+        variable: str,
+        model: str,
+        scenarios: list[str],
+        start_year: str = "18500101",
+        end_year: str = "19000101",
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """
         Generates a GWL table for the CESM2 model.
 
@@ -310,8 +325,13 @@ def main():
         )
 
     def get_gwl_table_one(
-        variable, model, ens_mem, scenarios, start_year="18500101", end_year="19000101"
-    ):
+        variable: str,
+        model: str,
+        ens_mem: str,
+        scenarios: list[str],
+        start_year: str = "18500101",
+        end_year: str = "19000101",
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """
         Generates a GWL table for a single model and ensemble member.
 
@@ -376,8 +396,12 @@ def main():
         return gwlevels, final_model
 
     def get_gwl_table(
-        variable, model, scenarios, start_year="18500101", end_year="19000101"
-    ):
+        variable: str,
+        model: str,
+        scenarios: list[str],
+        start_year: str = "18500101",
+        end_year: str = "19000101",
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """
         Generates a GWL table for a given model and scenarios.
 
@@ -511,7 +535,7 @@ def main():
         )
 
 
-def get_sims_on_aws(df):
+def get_sims_on_aws(df: pd.DataFrame) -> pd.DataFrame:
     """
     Generates a pandas DataFrame listing all relevant CMIP6 simulations available on AWS.
 
@@ -553,7 +577,7 @@ def get_sims_on_aws(df):
                 & (df.source_id == model)
             ]
             ensMembers = list(set(df_scenario.member_id))
-            sims_on_aws[scenario][model] = ensMembers
+            sims_on_aws.loc[model, scenario] = ensMembers
 
     # cut the table to those GCMs that have a historical + at least one SSP ensemble member
     for i, item in enumerate(sims_on_aws.T.columns):
@@ -571,7 +595,7 @@ def get_sims_on_aws(df):
             for ssp in ["ssp585", "ssp370", "ssp245", "ssp126"]:
                 if str(variant) in sims_on_aws.loc[item][ssp]:
                     variants_to_keep.append(variant)
-        sims_on_aws.loc[item]["historical"] = list(set(variants_to_keep))
+        sims_on_aws.loc[item, "historical"] = list(set(variants_to_keep))
 
     return sims_on_aws
 
