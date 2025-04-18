@@ -7,7 +7,9 @@
 
 name: ci
 
-on: [pull_request]
+on:
+  pull_request:
+    types: [ labeled ]
 
 jobs:
   lint:
@@ -17,6 +19,7 @@ jobs:
       - uses: psf/black@stable
   build:
     name: linux-64
+    if: ${{ github.event.label.name == 'Ready to Merge' }}
     runs-on: ubuntu-latest
     defaults:
       run:
