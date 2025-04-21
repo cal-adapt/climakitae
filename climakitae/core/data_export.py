@@ -18,8 +18,11 @@ import xarray as xr
 from botocore.exceptions import ClientError
 from timezonefinder import TimezoneFinder
 
-from climakitae.core.paths import (export_s3_bucket, stations_csv_path,
-                                   variable_descriptions_csv_path)
+from climakitae.core.paths import (
+    export_s3_bucket,
+    stations_csv_path,
+    variable_descriptions_csv_path,
+)
 from climakitae.util.utils import read_csv_file
 
 xr.set_options(keep_attrs=True)
@@ -118,7 +121,7 @@ def _estimate_file_size(data: xr.DataArray | xr.Dataset, format: str) -> float:
     return est_file_size / bytes_per_gigabyte
 
 
-def _warn_large_export(file_size: float, file_size_threshold: int = 5 | float):
+def _warn_large_export(file_size: float, file_size_threshold: float | int = 5):
     """Print warning message if predicted file size exceeds threshold.
 
     Parameters
@@ -325,13 +328,15 @@ def _export_to_zarr(data: xr.DataArray | xr.Dataset, save_name: str, mode: str):
 
     _update_encoding(_data)
 
-    def _write_zarr(path, data):
+    def _write_zarr(path: str, data: xr.Dataset):
         encoding = _fillvalue_encoding(data)
         chunks = {k: v[0] for k, v in data.chunks.items()}
         data = data.chunk(chunks)
         data.to_zarr(path, encoding=encoding)
 
-    def _write_zarr_to_s3(display_path, path, save_name, data):
+    def _write_zarr_to_s3(
+        display_path: str, path: str, save_name: str, data: xr.Dataset
+    ):
         _write_zarr(path, data)
 
         print(
