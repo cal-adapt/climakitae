@@ -81,6 +81,16 @@ class TestExport:
             encoding={},
         )
 
+    @patch("shutil.rmtree")
+    def test_remove_zarr(self, mock_remove):
+        fake_file = xr.Dataset()
+        with pytest.raises(Exception):
+            export.remove_zarr(fake_file)
+
+        fake_file = "test.zarr"
+        export.remove_zarr(fake_file)
+        mock_remove.assert_called()
+
 
 class TestHidden:
 
@@ -226,8 +236,7 @@ def input():
 
 
 class TestTYM:
-
-    '''@patch("builtins.open", new_callable=mock_open, read_data=input())
+    """@patch("builtins.open", new_callable=mock_open, read_data=input())
     def test_write_tmy(self, mock_file):
         datelist = pd.date_range(
             datetime.datetime(2024, 1, 1, 0),
@@ -266,7 +275,8 @@ class TestTYM:
             "test", df, stn_name, stn_code_int, df["lat"][0], df["lon"][0], "CA"
         )
         mock_file.assert_called()
-        '''
+    """
+
 
 class TestTMYHidden:
 
