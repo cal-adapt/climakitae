@@ -1,27 +1,26 @@
+import datetime
+import logging
 import os
+import shutil
+import urllib
+import warnings
+from importlib.metadata import version as _version
+from math import prod
+
 import boto3
 import botocore
 import fsspec
-import shutil
-import logging
-import warnings
-import datetime
-import xarray as xr
-import pandas as pd
 import numpy as np
-import requests
-import urllib
+import pandas as pd
 import pytz
-from timezonefinder import TimezoneFinder
-from importlib.metadata import version as _version
+import requests
+import xarray as xr
 from botocore.exceptions import ClientError
-from math import prod
+from timezonefinder import TimezoneFinder
+
+from climakitae.core.paths import (export_s3_bucket, stations_csv_path,
+                                   variable_descriptions_csv_path)
 from climakitae.util.utils import read_csv_file
-from climakitae.core.paths import (
-    variable_descriptions_csv_path,
-    stations_csv_path,
-    export_s3_bucket,
-)
 
 xr.set_options(keep_attrs=True)
 bytes_per_gigabyte = 1024 * 1024 * 1024
