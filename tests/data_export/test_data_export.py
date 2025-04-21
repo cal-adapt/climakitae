@@ -11,6 +11,8 @@ import pytest
 import xarray as xr
 
 import climakitae.core.data_export as export
+from climakitae.util.utils import read_csv_file
+from climakitae.core.paths import stations_csv_path
 
 
 class TestExportErrors:
@@ -214,9 +216,19 @@ class TestHidden:
         )
 
 
+# init method or constructor
+def input():
+    # When mocking file open we still want to be able to read the stations
+    # from the stations_csv_path, so getting that input here.
+    with open(os.path.join("climakitae", stations_csv_path), "r") as f:
+        input = f.read()
+    return input
+
+
 class TestTYM:
 
-    def test_write_tmy(self):
+    '''@patch("builtins.open", new_callable=mock_open, read_data=input())
+    def test_write_tmy(self, mock_file):
         datelist = pd.date_range(
             datetime.datetime(2024, 1, 1, 0),
             datetime.datetime(2024, 12, 31, 23),
@@ -234,19 +246,27 @@ class TestTYM:
             "Wind direction at 10m",
             "Surface Pressure",
         ]
-        simlist = ["WRF_EC-Earth3_r1i1p1f1", "WRF_MPI-ESM1-2-HR_r3i1p1f1"]
-        scenario = "Historical"
 
         # TODO: add in variables, simulation, scenario, lat lon dims
-        da1 = xr.DataArray(
-            data=np.ones(len(datelist)), coords={"time": datelist}, name=simlist[0]
-        )
-        da2 = xr.DataArray(
-            data=np.ones(len(datelist)), coords={"time": datelist}, name=simlist[1]
-        )
+        fake_data = [1 for x in range(0, len(datelist))]
+        data = {}
+        data["simulation"] = "WRF_MPI-ESM1-2-HR_r3i1p1f1"
+        data["time"] = datelist
+        data["scenario"] = "Historical + SSP 3-7.0"
+        data["lat"] = [33.93816 for x in range(0, len(datelist))]
+        data["lon"] = [118.3866 for x in range(0, len(datelist))]
+        for item in varlist:
+            data[item] = fake_data
+        df = pd.DataFrame(data)
 
-        ds = xr.Dataset(data_vars={simlist[0]: da1, simlist[1]: da2})
-
+        stn_name = "Los Angeles International Airport (KLAX)"
+        stn_code_int = 72295023174
+        stn_code_str = "KLAX"
+        export.write_tmy_file(
+            "test", df, stn_name, stn_code_int, df["lat"][0], df["lon"][0], "CA"
+        )
+        mock_file.assert_called()
+        '''
 
 class TestTMYHidden:
 
