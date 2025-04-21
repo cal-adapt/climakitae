@@ -60,6 +60,13 @@ def remove_zarr(filename: str):
 
 
 def _add_metadata(data: xr.Dataset):
+    """
+    Add attributes to xarray dataset in-place.
+
+    Parameters
+    ----------
+    data: xarray.Dataset
+    """
     ds_attrs = data.attrs
 
     ct = datetime.datetime.now()
@@ -113,6 +120,15 @@ def _estimate_file_size(data: xr.DataArray | xr.Dataset, format: str) -> float:
 
 
 def _warn_large_export(file_size: float, file_size_threshold: int = 5 | float):
+    """Print warning message if predicted file size exceeds threshold.
+
+    Parameters
+    ----------
+    file_size: float
+        Predicted file size in GB.
+    file_size_threshold: float or int
+        Threshold size in GB for warning.
+    """
     if file_size > file_size_threshold:
         print(
             "WARNING: Estimated file size is "
@@ -183,7 +199,7 @@ def _fillvalue_encoding(data: xr.Dataset) -> dict[str, int | float | None]:
     return filldict
 
 
-def _compression_encoding(data: xr.Dataset):
+def _compression_encoding(data: xr.Dataset) -> dict[str, int | float | None]:
     """
     Creates compression encoding for each variable for export to NetCDF.
 
@@ -201,6 +217,12 @@ def _compression_encoding(data: xr.Dataset):
 
 
 def _convert_da_to_ds(data: xr.DataArray | xr.Dataset) -> xr.Dataset:
+    """Convert xarray data array to dataset.
+
+    Parameters
+    ----------
+    data: xarray.DataArray or xarray.Dataset
+    """
     if isinstance(data, xr.core.dataarray.DataArray):
         if not data.name:
             # name it in order to call to_dataset on it
@@ -276,6 +298,7 @@ def _export_to_zarr(data: xr.DataArray | xr.Dataset, save_name: str, mode: str):
     Export the xarray DataArray or Dataset `data` to a Zarr dataset `save_name`.
     If `local` mode used it is saved to the HUB user partition. If `s3` mode used
     it is saved to the AWS S3 bucket `cadcat-tmp` and provides a URL for download.
+
     Parameters
     ----------
     data: xarray.DataArray or xarray.Dataset
@@ -284,6 +307,7 @@ def _export_to_zarr(data: xr.DataArray | xr.Dataset, save_name: str, mode: str):
         desired output Zarr directory name
     mode: string
         location logic for storing export file (`local`, `s3`)
+
     Returns
     -------
     None
@@ -575,7 +599,7 @@ def _dataset_to_dataframe(dataset: xr.Dataset) -> pd.DataFrame:
 
         Returns
         -------
-        str
+        var_name: str
         """
         try:
             station_da = dataset[station]  # DataArray
