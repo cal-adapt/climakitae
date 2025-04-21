@@ -1,4 +1,4 @@
-from dask.distributed import PipInstall
+from dask.distributed import Client, PipInstall
 from dask_gateway import Gateway, GatewayCluster
 
 
@@ -6,6 +6,11 @@ class Cluster(GatewayCluster):
     """A dask-gateway cluster allowing one cluster per user.
     Instead of always creating new clusters, connect to a previously running
     user cluster, and attempt to limit users to a single cluster.
+
+    Methods
+    -------
+    get_client(set_as_default=True) -> Client
+        Get a dask client connected to the cluster.
 
     Examples
     --------
@@ -19,7 +24,7 @@ class Cluster(GatewayCluster):
 
     extra_packages = ["git+https://github.com/cal-adapt/climakitae.git"]
 
-    def get_client(self, set_as_default=True):
+    def get_client(self, set_as_default: bool = True) -> Client:
         """Get client
 
         Returns
