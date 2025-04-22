@@ -2,7 +2,6 @@
 
 import datetime
 import os
-from unittest import mock
 from unittest.mock import mock_open, patch
 
 import numpy as np
@@ -14,7 +13,7 @@ import climakitae.core.data_export as export
 from climakitae.core.paths import stations_csv_path
 
 
-def input():
+def input() -> str:
     # When mocking file open we still want to be able to read the stations
     # from the stations_csv_path, so getting that input here.
     with open(os.path.join("climakitae", stations_csv_path), "r") as f:
@@ -60,12 +59,12 @@ class TestExportErrors:
 class TestExport:
 
     @pytest.fixture()
-    def test_array(self):
+    def test_array(self) -> xr.DataArray:
         test_array = xr.DataArray(np.zeros((1, 2)))
         return test_array
 
     @pytest.fixture()
-    def test_ds(self, test_array):
+    def test_ds(self, test_array: xr.DataArray) -> xr.Dataset:
         test_array.name = "data"
         ds = test_array.to_dataset()
         datelist = pd.date_range(
@@ -130,12 +129,12 @@ class TestExport:
 class TestHidden:
 
     @pytest.fixture()
-    def test_array(self):
+    def test_array(self) -> xr.DataArray:
         test_array = xr.DataArray(np.zeros((1)), coords={"time": np.array([0])})
         return test_array
 
     @pytest.fixture()
-    def test_ds(self, test_array):
+    def test_ds(self, test_array: xr.DataArray) -> xr.Dataset:
         test_array.name = "data"
         ds = test_array.to_dataset()
         return ds
@@ -456,11 +455,6 @@ class TestTMYHidden:
 
         result = export._tmy_8760_size_check(df.drop(index=3))
         assert len(result) == 8760
-
-        # TODO: Why isn't this 8760?
-        # df["simulation"] = "WRF_TaiESM1_r1i1p1f1"
-        # result = export._tmy_8760_size_check(df)
-        # assert len(result) == 8760
 
     def test__tmy_8760_size_check_8783(self):
         datelist = pd.date_range(
