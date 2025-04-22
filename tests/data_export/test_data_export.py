@@ -12,7 +12,7 @@ import xarray as xr
 
 import climakitae.core.data_export as export
 from climakitae.util.utils import read_csv_file
-from climakitae.core.paths import stations_csv_path
+from climakitae.core.paths import stations_csv_path, variable_descriptions_csv_path
 
 
 def input():
@@ -274,105 +274,38 @@ class TestHidden:
             export._export_to_netcdf(test_array, save_name)
 
     @patch("builtins.open", new_callable=mock_open, read_data=input())
-    def test__export_csv_dataarray(self, mock_open):
-        test_array = xr.DataArray(np.zeros((1)))
+    def test__export_csv_dataarray(self, mock_open, test_array):
         test_array.attrs = {"variable_id": "t2"}
+        test_array["time"].attrs = {"key": "value"}
         save_name = "test"
         export._export_to_csv(test_array, save_name)
         mock_open.assert_called()
 
     @patch("shutil.disk_usage", return_value=(1.3e-8, 1.3e-8, 1.3e-8))
-    def test__export_zarr_large(self, mock_shutil):
+    def test__export_csv_low_space(self, mock_shutil, test_array):
+        with pytest.raises(Exception):
+            export._export_to_csv(test_array, "test")
+
+    @patch("os.path.exists", return_value=True)
+    def test__export_to_csv_exists(self, mock_exists, test_array):
+        with pytest.raises(Exception):
+            export._export_to_csv(test_array, "test")
+
+    @patch("shutil.disk_usage", return_value=(1.3e-8, 1.3e-8, 1.3e-8))
+    def test__export_zarr_large(self, mock_shutil, test_array):
         """Patch shutil to return a very small available disk space value
         and force Exception."""
-        test_array = xr.DataArray(np.zeros((1)))
         save_name = "test.zarr"
         with pytest.raises(Exception):
             export._export_to_zarr(test_array, save_name, "local")
 
-
-"""# init method or constructor
-def input():
-    # When mocking file open we still want to be able to read the stations
-    # from the stations_csv_path, so getting that input here.
-    with open(os.path.join("climakitae", stations_csv_path), "r") as f:
-        input = f.read()
-    return input
-
-
-class TestTYM:
-
-    @pytest.fixture
-    def tym_df(self):
-        datelist = pd.date_range(
-            datetime.datetime(2024, 1, 1, 0),
-            datetime.datetime(2024, 12, 31, 23),
-            freq="h",
-        )
-        varlist = [
-            "Air Temperature at 2m",
-            "Dew point temperature",
-            "Relative Humidity",
-            "Instantaneous downwelling shortwave flux at bottom",
-            "Shortwave surface downward direct normal irradiance",
-            "Shortwave surface downward diffue irradiance",
-            "Instantaneous downwelling longwave flux at bottom",
-            "Windspeed at 10m",
-            "Wind direction at 10m",
-            "Surface Pressure",
-        ]
-
-        fake_data = [1 for x in range(0, len(datelist))]
-        data = {}
-        data["simulation"] = "WRF_MPI-ESM1-2-HR_r3i1p1f1"
-        data["time"] = datelist
-        data["scenario"] = "Historical + SSP 3-7.0"
-        data["lat"] = [33.93816 for x in range(0, len(datelist))]
-        data["lon"] = [118.3866 for x in range(0, len(datelist))]
-        for item in varlist:
-            data[item] = fake_data
-        df = pd.DataFrame(data)
-
-        stn_name = "Los Angeles International Airport (KLAX)"
-        stn_code_int = 72295023174
-        stn_code_str = "KLAX"
-        return (df, stn_name, stn_code_int, stn_code_str)
-
-    # @patch("builtins.open", new_callable=mock_open, read_data=input())
-    # def test_write_tmy(self, mock_file):
-    def test_write_tmy(self, tym_df):
-        df, stn_name, stn_code_int, stn_code_str = tym_df
-        # Invalid extension
-        export.write_tmy_file(
-            "test",
-            df,
-            stn_name,
-            stn_code_int,
-            df["lat"][0],
-            df["lon"][0],
-            "CA",
-            file_ext="",
-        )
-        # Default format
-        export.write_tmy_file(
-            "test", df, stn_name, stn_code_int, df["lat"][0], df["lon"][0], "CA"
-        )
-        # Station code str
-        export.write_tmy_file(
-            "test", df, stn_name, stn_code_str, df["lat"][0], df["lon"][0], "CA"
-        )
-        # EPW format
-        export.write_tmy_file(
-            "test",
-            df,
-            stn_name,
-            stn_code_int,
-            df["lat"][0],
-            df["lon"][0],
-            "CA",
-            file_ext="epw",
-        )
-        # mock_file.assert_called()"""
+    @patch("os.path.exists", return_value=True)
+    def test__export_zarr_exists(self, mock_exists, test_array):
+        """Patch shutil to return a very small available disk space value
+        and force Exception."""
+        save_name = "test.zarr"
+        with pytest.raises(Exception):
+            export._export_to_zarr(test_array, save_name, "local")
 
 
 class TestTMYHidden:
