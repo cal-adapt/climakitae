@@ -418,7 +418,7 @@ class TestTMYHidden:
 
         assert result.equals(df)
 
-    '''def test__tmy_8760_size_check_8759(self):
+    def test__tmy_8760_size_check_8759(self):
         datelist = pd.date_range(
             datetime.datetime(2023, 1, 1, 0),
             datetime.datetime(2023, 12, 31, 23),
@@ -430,9 +430,9 @@ class TestTMYHidden:
 
         # Assert dropped index exists
         assert len(result) == 8760
-        assert isinstance(result["time"][100], pd.Timestamp)'''
+        assert isinstance(result["time"][100], pd.Timestamp)
 
-    def test__tmy_8760_size_check_8758(self):
+    '''def test__tmy_8760_size_check_8758(self):
         datelist = pd.date_range(
             datetime.datetime(2023, 1, 1, 0),
             datetime.datetime(2023, 12, 31, 23),
@@ -444,7 +444,7 @@ class TestTMYHidden:
 
         # Assert dropped index exists
         assert len(result) == 8760
-        assert isinstance(result["time"][100], pd.Timestamp)
+        assert isinstance(result["time"][100], pd.Timestamp)'''
 
     def test__tmy_8760_size_check_8784(self):
         datelist = pd.date_range(
