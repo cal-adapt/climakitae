@@ -1,4 +1,8 @@
-"""Test the get_data() function"""
+"""Test the data export functions.
+Tests are not included for write_tmy_file(), which should
+be refactored to separate out some of the internally defined functions
+for testing.
+"""
 
 import datetime
 import os
@@ -14,7 +18,7 @@ from climakitae.core.paths import stations_csv_path
 
 
 def input() -> str:
-    # When mocking file open we still want to be able to read the stations
+    # When mocking open() we still want to be able to read the stations
     # from the stations_csv_path, so getting that input here.
     with open(os.path.join("climakitae", stations_csv_path), "r") as f:
         input = f.read()
@@ -56,7 +60,7 @@ class TestExportErrors:
             export.export(test_data, test_filename, test_format, test_mode)
 
 
-class TestExport:
+class TestExportFunctions:
 
     @pytest.fixture()
     def test_array(self) -> xr.DataArray:
@@ -79,25 +83,27 @@ class TestExport:
     def test_export_netcdf(self, mock_to_netcdf, test_ds):
         test_filename = "test"
         test_format = "NetCDF"
-        path = os.path.join(os.getcwd(), test_filename)
+        path = os.path.join(os.getcwd(), test_filename + ".nc")
         export.export(test_ds, test_filename, test_format)
 
-        mock_to_netcdf.assert_called_once()
-        # mock_to_netcdf.assert_called_once_with(
-        #    path,
-        #    format="NETCDF4",
-        #    engine="netcdf4",
-        #    encoding={"data": {"zlib": True, "complevel": 6}},
-        # )
+        mock_to_netcdf.assert_called_once_with(
+            path,
+            format="NETCDF4",
+            engine="netcdf4",
+            encoding={
+                "time": {"_FillValue": None},
+                "data": {"zlib": True, "complevel": 6},
+            },
+        )
 
     @patch("xarray.core.dataset.Dataset.to_zarr")
     def test_export_zarr(self, mock_to_zarr, test_array):
         test_filename = "test"
         test_format = "Zarr"
-        path = os.path.join(os.getcwd(), test_filename)
+        path = os.path.join(os.getcwd(), test_filename + ".zarr")
         export.export(test_array, test_filename, test_format)
 
-        mock_to_zarr.assert_called()
+        mock_to_zarr.assert_called_once_with(path, encoding={})
 
     @patch("builtins.open")
     def test_export_csv(self, mock_open, test_array):
@@ -116,7 +122,7 @@ class TestExport:
 
         fake_file = "test.zarr"
         export.remove_zarr(fake_file)
-        mock_remove.assert_called()
+        mock_remove.assert_called_once_with(fake_file)
 
     def test_export_wrong_type(self):
         test_data = np.zeros((1))
@@ -126,7 +132,7 @@ class TestExport:
             export.export(test_data, test_filename, test_format)
 
 
-class TestHidden:
+class TestHiddenFunctions:
 
     @pytest.fixture()
     def test_array(self) -> xr.DataArray:
@@ -143,7 +149,7 @@ class TestHidden:
         ds = export._convert_da_to_ds(test_array)
         assert isinstance(ds, xr.core.dataset.Dataset)
 
-    def test__convert_da_to_ds_ds(self, test_ds):
+    def test__convert_da_to_ds_no_change(self, test_ds):
         ds = export._convert_da_to_ds(test_ds)
         assert ds.equals(test_ds)
 
@@ -306,7 +312,7 @@ class TestHidden:
             export._export_to_zarr(test_array, save_name, "local")
 
 
-class TestTMYHidden:
+class TestTMYHiddenFunctions:
 
     def test__find_missing_val_month(self):
         datelist = pd.date_range(
@@ -316,7 +322,6 @@ class TestTMYHidden:
         )
         df = pd.DataFrame(datelist, columns=["time"])
         no_missing = export._find_missing_val_month(df)
-
         jan_missing = export._find_missing_val_month(df.drop(index=3))
 
         assert no_missing == None
