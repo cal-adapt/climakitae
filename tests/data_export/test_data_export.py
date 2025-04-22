@@ -110,6 +110,10 @@ class TestHidden:
         ds = export._convert_da_to_ds(test_array)
         assert isinstance(ds, xr.core.dataset.Dataset)
 
+    def test__convert_da_to_ds_ds(self, test_ds):
+        ds = export._convert_da_to_ds(test_ds)
+        assert ds.equals(test_ds)
+
     def test__add_metadata(self):
         test_data = xr.Dataset({"data": np.zeros((1))})
         export._add_metadata(test_data)
@@ -225,6 +229,24 @@ class TestHidden:
             encoding={"data": {"zlib": True, "complevel": 6}},
         )
 
+    @patch("shutil.disk_usage", return_value=(1.3e-8, 1.3e-8, 1.3e-8))
+    def test__export_netcdf_large(self, mock_shutil):
+        """Patch shutil to return a very small available disk space value
+        and force Exception."""
+        test_array = xr.DataArray(np.zeros((1)))
+        save_name = "test.nc"
+        with pytest.raises(Exception):
+            export._export_to_netcdf(test_array, save_name)
+
+    @patch("shutil.disk_usage", return_value=(1.3e-8, 1.3e-8, 1.3e-8))
+    def test__export_zarr_large(self, mock_shutil):
+        """Patch shutil to return a very small available disk space value
+        and force Exception."""
+        test_array = xr.DataArray(np.zeros((1)))
+        save_name = "test.zarr"
+        with pytest.raises(Exception):
+            export._export_to_zarr(test_array, save_name, "local")
+
 
 # init method or constructor
 def input():
@@ -236,8 +258,9 @@ def input():
 
 
 class TestTYM:
-    """@patch("builtins.open", new_callable=mock_open, read_data=input())
-    def test_write_tmy(self, mock_file):
+
+    @pytest.fixture
+    def tym_df(self):
         datelist = pd.date_range(
             datetime.datetime(2024, 1, 1, 0),
             datetime.datetime(2024, 12, 31, 23),
@@ -256,7 +279,6 @@ class TestTYM:
             "Surface Pressure",
         ]
 
-        # TODO: add in variables, simulation, scenario, lat lon dims
         fake_data = [1 for x in range(0, len(datelist))]
         data = {}
         data["simulation"] = "WRF_MPI-ESM1-2-HR_r3i1p1f1"
@@ -271,11 +293,43 @@ class TestTYM:
         stn_name = "Los Angeles International Airport (KLAX)"
         stn_code_int = 72295023174
         stn_code_str = "KLAX"
+        return (df, stn_name, stn_code_int, stn_code_str)
+
+    # @patch("builtins.open", new_callable=mock_open, read_data=input())
+    # def test_write_tmy(self, mock_file):
+    def test_write_tmy(self, tym_df):
+        df, stn_name, stn_code_int, stn_code_str = tym_df
+        # Invalid extension
+        export.write_tmy_file(
+            "test",
+            df,
+            stn_name,
+            stn_code_int,
+            df["lat"][0],
+            df["lon"][0],
+            "CA",
+            file_ext="",
+        )
+        # Default format
         export.write_tmy_file(
             "test", df, stn_name, stn_code_int, df["lat"][0], df["lon"][0], "CA"
         )
-        mock_file.assert_called()
-    """
+        # Station code str
+        export.write_tmy_file(
+            "test", df, stn_name, stn_code_str, df["lat"][0], df["lon"][0], "CA"
+        )
+        # EPW format
+        export.write_tmy_file(
+            "test",
+            df,
+            stn_name,
+            stn_code_int,
+            df["lat"][0],
+            df["lon"][0],
+            "CA",
+            file_ext="epw",
+        )
+        # mock_file.assert_called()
 
 
 class TestTMYHidden:
@@ -352,7 +406,47 @@ class TestTMYHidden:
         # Assert dropped index exists
         assert isinstance(result["time"][3], pd.Timestamp)
 
-    def test__tmy_8760_size_check(self):
+    def test__tmy_8760_size_check_8760(self):
+        datelist = pd.date_range(
+            datetime.datetime(2023, 1, 1, 0),
+            datetime.datetime(2023, 12, 31, 23),
+            freq="h",
+        )
+        df = pd.DataFrame(datelist, columns=["time"])
+        df["simulation"] = "WRF_ACCESS-CM2_r1i1p1f1"
+        result = export._tmy_8760_size_check(df)
+
+        assert result.equals(df)
+
+    '''def test__tmy_8760_size_check_8759(self):
+        datelist = pd.date_range(
+            datetime.datetime(2023, 1, 1, 0),
+            datetime.datetime(2023, 12, 31, 23),
+            freq="h",
+        )
+        df = pd.DataFrame(datelist, columns=["time"])
+        df["simulation"] = "WRF_ACCESS-CM2_r1i1p1f1"
+        result = export._tmy_8760_size_check(df.drop(index=100))
+
+        # Assert dropped index exists
+        assert len(result) == 8760
+        assert isinstance(result["time"][100], pd.Timestamp)'''
+
+    def test__tmy_8760_size_check_8758(self):
+        datelist = pd.date_range(
+            datetime.datetime(2023, 1, 1, 0),
+            datetime.datetime(2023, 12, 31, 23),
+            freq="h",
+        )
+        df = pd.DataFrame(datelist, columns=["time"])
+        df["simulation"] = "WRF_ACCESS-CM2_r1i1p1f1"
+        result = export._tmy_8760_size_check(df.drop([100, 200]))
+
+        # Assert dropped index exists
+        assert len(result) == 8760
+        assert isinstance(result["time"][100], pd.Timestamp)
+
+    def test__tmy_8760_size_check_8784(self):
         datelist = pd.date_range(
             datetime.datetime(2024, 1, 1, 0),
             datetime.datetime(2024, 12, 31, 23),
@@ -368,6 +462,6 @@ class TestTMYHidden:
         assert len(result) == 8760
 
         # TODO: Why isn't this 8760?
-        df["simulation"] = "WRF_TaiESM1_r1i1p1f1"
-        result = export._tmy_8760_size_check(df)
+        # df["simulation"] = "WRF_TaiESM1_r1i1p1f1"
+        # result = export._tmy_8760_size_check(df)
         # assert len(result) == 8760
