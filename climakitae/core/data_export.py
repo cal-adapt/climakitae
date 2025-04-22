@@ -1068,6 +1068,10 @@ def _missing_hour_fix(df: pd.DataFrame) -> pd.DataFrame:
     Returns
     -------
     df_fixed: pd.DataFrame
+
+    Notes
+    -----
+    Only fixes missing hour if missing hour is not the first or last hour of the month.
     """
     df_missing = df.copy(deep=True)
     df_missing["time"] = pd.to_datetime(df["time"])  # set time to datetime
