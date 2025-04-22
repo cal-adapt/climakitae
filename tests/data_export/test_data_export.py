@@ -11,8 +11,7 @@ import pytest
 import xarray as xr
 
 import climakitae.core.data_export as export
-from climakitae.util.utils import read_csv_file
-from climakitae.core.paths import stations_csv_path, variable_descriptions_csv_path
+from climakitae.core.paths import stations_csv_path
 
 
 def input():
