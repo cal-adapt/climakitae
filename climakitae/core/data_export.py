@@ -1093,7 +1093,7 @@ def _missing_hour_fix(df: pd.DataFrame) -> pd.DataFrame:
 
     # set up correct df of month with all hours
     df_full = pd.DataFrame(
-        pd.date_range(start=df_bad.index.min(), end=df_bad.index.max(), freq="H")
+        pd.date_range(start=df_bad.index.min(), end=df_bad.index.max(), freq="h")
     )
     missing_cols = [col for col in df_bad.columns]
     df_full[missing_cols] = np.nan
@@ -1105,9 +1105,7 @@ def _missing_hour_fix(df: pd.DataFrame) -> pd.DataFrame:
     df_month_fixed = df_month_fixed.drop(columns=["time", 0])
     df_month_fixed = df_month_fixed.sort_values(by="time", ascending=True)
     df_month_fixed = df_month_fixed.reset_index()
-    df_month_fixed = df_month_fixed.fillna(
-        method="ffill"
-    )  # fill from previous days values
+    df_month_fixed = df_month_fixed.ffill()  # fill from previous days values
 
     # concat dfs together
     df_fixed = pd.concat([df_prior, df_month_fixed, df_post])
