@@ -15,7 +15,7 @@ on:
 
 jobs:
   lint:
-    if: github.event.push
+    if: $${{ github.event_name == 'push' }}
     runs-on: ubuntu-latest
     steps:
       - run: echo "event name is:" ${{ github.event_name }}
