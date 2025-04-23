@@ -11,7 +11,6 @@ def var_descrip_df():
     return data_interface.variable_descriptions
 
 
-@pytest.mark.elevated
 def test_expected_column_names(var_descrip_df):
     """Ensure that the column names are as expected by the code base"""
     col_names = list(var_descrip_df.columns)

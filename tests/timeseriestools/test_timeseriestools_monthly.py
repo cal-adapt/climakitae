@@ -30,7 +30,7 @@ def test_TSP(rootdir) -> tst.TimeSeriesParameters:
     ts = tst.TimeSeries(test_data)  # make Timeseries object
     return ts.choices  # return the underlying TimeSeriesParams object for testing
 
-
+@pytest.mark.elevated
 class TestTimeseriesMonthlyTransform:
 
     def test_monthly_smoothing(self, test_TSP: tst.TimeSeriesParameters):
@@ -115,10 +115,9 @@ class TestTimeseriesMonthlyTransform:
         result = test_TSP.transform_data()
         assert (result == test_TSP.data).sum().values.item() == 0
 
-
+@pytest.mark.elevated
 class TestTimeseriesMonthlyExtremes:
 
-    @pytest.mark.elevated
     def test_extremes_smoothing(self, test_TSP: tst.TimeSeriesParameters):
         """Test extremes min with smoothing."""
         # Specify Params options
