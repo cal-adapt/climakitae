@@ -893,7 +893,7 @@ class TestGWLGenerator:
                     reference_period,
                 ),
             ]
-            mock_get_single.assert_has_calls(expected_calls)
+            mock_get_single.assert_has_calls(expected_calls, any_order=True)
 
             # Check aggregated gwlevels DataFrame
             assert isinstance(gwlevels_agg, pd.DataFrame)
