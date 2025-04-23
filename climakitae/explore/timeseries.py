@@ -11,14 +11,51 @@ param.parameterized.docstring_signature = False
 
 
 class TimeSeriesParameters(param.Parameterized):
-    """Class of python Param to hold parameters for Time Series."""
+    """Class of python Param to hold parameters for Time Series.
+
+    Parameters
+    ----------
+    dataset : xr.DataArray
+        Timeseries data
+    **params:
+        Additional arguments to initialize Param class.
+
+    Attributes
+    ----------
+    data : xr.DataArray
+        The time series data provided to the class.
+    anomaly : bool, optional
+        True to transform timeseries into anomalies (default True).
+    extremes: list[str], optional
+        List of extremes quantities to compute (options "Max", "Min", "Percentile").
+    num_timesteps: int, optional
+        Number of timesteps for rolling mean calculations (default 0).
+    percentile: int | float, optional
+        Percentile to calculate when using the "Percentile" option in extremes (range 0-1).
+    reference_range: tuple[dt.datetime,dt.datetime]
+        Reference date range (default 1981-01-01 to 2010-12-31).
+    remove_seasonal_cycle: bool, optional
+        True to remove the seasonal cycle from the timeseries (default False).
+    resample_window: int, optional
+        Size of resample window (between 1-30, inclusive).
+    separate_seasons: bool, optional
+        True to disaggregate into four seasons (default False).
+    smoothing: str, optional
+        Set to "Running Mean" for smoothing (default "None").
+
+    Methods
+    -------
+    transform_data(self)
+        Transform timeseries dataset using user parameters.
+
+    """
 
     resample_period = param.Selector(default="years", objects=dict())
     _time_scales = dict(
         [("hours", "h"), ("days", "D"), ("months", "MS"), ("years", "YS-SEP")]
     )
 
-    def __init__(self, dataset, **params):
+    def __init__(self, dataset: xr.DataArray, **params):
         super().__init__(**params)
         self.data = dataset
 
@@ -62,11 +99,16 @@ class TimeSeriesParameters(param.Parameterized):
         if self.remove_seasonal_cycle:
             self.anomaly = True
 
-    def transform_data(self):
-        """
+    def transform_data(self) -> xr.DataArray:
+        """Transform timeseries based on parameters.
         Returns a dataset that has been transformed in the ways that the params
         indicate, ready to plot in the preview window ("view" method of this
         class), or be saved out.
+
+        Returns
+        -------
+        xr.DataArray
+            Transformed result.
         """
         if self.remove_seasonal_cycle:
             to_plot = self.data.groupby("time.month") - self.data.groupby(
@@ -75,7 +117,7 @@ class TimeSeriesParameters(param.Parameterized):
         else:
             to_plot = self.data
 
-        def _get_anom(y):
+        def _get_anom(y: xr.Dataset) -> xr.DataArray:
             """
             Returns the difference with respect to the average across a historical range.
             """
@@ -93,7 +135,7 @@ class TimeSeriesParameters(param.Parameterized):
             else:
                 return y - y.sel(time=slice(*self.reference_range)).mean("time")
 
-        def _running_mean(y):
+        def _running_mean(y: xr.Dataset) -> xr.DataArray:
             # If timescale is monthly, need to weight the rolling average by the number of days in each month
             if y.attrs["frequency"] == "1month":
                 # Access the number of days in each month corresponding to each element of y
@@ -128,7 +170,7 @@ class TimeSeriesParameters(param.Parameterized):
             else:
                 to_plot = _running_mean(to_plot)
 
-        def _extremes_da(y):
+        def _extremes_da(y: xr.Dataset) -> xr.DataArray:
             plot_multiple = xr.Dataset()
             if "Max" in self.extremes:
                 plot_multiple["max"] = to_plot.resample(
@@ -153,12 +195,26 @@ class TimeSeriesParameters(param.Parameterized):
             return to_plot
 
 
-def _update_attrs(data_to_output, attrs_to_add):
-    """
+def _update_attrs(
+    data_to_output: xr.DataArray, attrs_to_add: dict[str, str]
+) -> xr.DataArray:
+    """Update DataArray attributes.
     This function updates the attributes of the DataArray being output
     so that it contains new attributes that describe the transforms
     that were performed in the timeseries toolkit.
     Called only in Timeseries.output_current
+
+    Parameters
+    ----------
+    data_to_output : xr.DataArray
+        The attributes of this data array will be modified.
+    attrs_to_add : dict[str,str]
+        Dictionary containing attributes to modify.
+
+    Returns
+    -------
+    xr.DataArray
+        Modified data array.
     """
     attributes = data_to_output.attrs
     attrs_to_add.pop("name")
@@ -196,9 +252,20 @@ class TimeSeries:
     Holds the instance of TimeSeriesParameters that is used for the following purposes:
     1) to display a panel that previews various time-series transforms (explore), and
     2) to save the transform represented by the current state of that preview into a new variable (output_current).
+
+    Parameters
+    ----------
+    data : xr.DataArray
+        Time series array with no spatial coordinates.
+
+    Attributes
+    ----------
+    choices: TimeSeriesParameters
+        Param object containing time series data and analysis parameters.
+
     """
 
-    def __init__(self, data):
+    def __init__(self, data: xr.DataArray):
         if (
             type(data) != xr.core.dataarray.DataArray
         ):  # Data is NOT in the form of xr.DataArray
@@ -226,7 +293,7 @@ class TimeSeries:
 
         self.choices = TimeSeriesParameters(data)
 
-    def output_current(self):
+    def output_current(self) -> xr.DataArray:
         """Output the current attributes of the class to a DataArray object.
         Allows the data to be easily accessed by the user after modifying the attributes directly in the explore panel, for example.
 
@@ -236,6 +303,6 @@ class TimeSeries:
 
         """
         to_output = self.choices.transform_data()
-        attrs_to_add = dict(self.choices.get_param_values())
+        attrs_to_add = dict(self.choices.param.values())
         to_output = _update_attrs(to_output, attrs_to_add)
         return to_output

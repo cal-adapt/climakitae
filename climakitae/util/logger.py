@@ -2,6 +2,8 @@ import logging
 import sys
 from functools import wraps
 
+# TODO this should be built as a singleton to avoid global variables
+
 # Define global variables to control logging
 app_log_enabled = False  # For users
 
