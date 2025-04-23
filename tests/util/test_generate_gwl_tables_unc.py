@@ -234,7 +234,7 @@ class TestGWLGenerator:
         """Test basic functionality of build_timeseries, including data loading and concatenation."""
         model_config: Dict = {
             "variable": "tas",
-            "model": self.TEST_MODEL,
+            "model": TEST_MODEL,
             "ens_mem": "r1i1p1f1",
             "scenarios": ["ssp370", "ssp585"],
         }
