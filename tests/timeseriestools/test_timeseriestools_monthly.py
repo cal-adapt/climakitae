@@ -117,7 +117,8 @@ class TestTimeseriesMonthlyTransform:
 
 
 class TestTimeseriesMonthlyExtremes:
-
+    
+    @pytest.mark.elevated
     def test_extremes_smoothing(self, test_TSP: tst.TimeSeriesParameters):
         """Test extremes min with smoothing."""
         # Specify Params options

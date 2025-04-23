@@ -40,6 +40,7 @@ def test_error2(T2_hourly):
 
 
 # example 1: count number of hours in each year exceeding the threshold
+@pytest.mark.elevated
 def test_hourly_ex1(T2_hourly):
     exc_counts = threshold_tools.get_exceedance_count(
         T2_hourly, threshold_value=305, period=(1, "year")

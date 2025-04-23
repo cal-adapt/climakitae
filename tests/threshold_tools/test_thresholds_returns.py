@@ -33,6 +33,7 @@ def T2_ams(rootdir):
 
 
 # Test Return Values
+@pytest.mark.elevated
 def test_return_value(T2_ams):
     rvs = threshold_tools.get_return_value(
         T2_ams, return_period=10, distr="gev", bootstrap_runs=1, multiple_points=False
