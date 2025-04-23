@@ -1,3 +1,10 @@
+"""
+Unit tests for the generate_gwl_tables_unc module, which calculates global warming level
+crossing times for climate models.
+
+Tests cover data loading, processing, GWL detection, and file generation functionality.
+"""
+
 from typing import Dict, List, Tuple
 from unittest.mock import MagicMock, PropertyMock, call, patch
 
@@ -12,6 +19,9 @@ from climakitae.util.generate_gwl_tables_unc import (
     main,
     make_weighted_timeseries,
 )
+
+TEST_MODEL = "EC-Earth3"
+TEST_REFERENCE_PERIOD = {"start_year": "19810101", "end_year": "20101231"}
 
 
 @pytest.fixture
@@ -96,18 +106,15 @@ class TestGWLGenerator:
     def test_init(self, mock_get_sims_on_aws: MagicMock, mock_s3fs: MagicMock):
         """
         Test the __init__ method of GWLGenerator.
-
         Verifies correct assignment of df, sims_on_aws, and fs attributes.
         """
         mock_df_data = {"GWL": [1.5, 2.0, 2.5], "Year": [2000, 2001, 2002]}
         mock_df = pd.DataFrame(mock_df_data)
         mock_sims_return = pd.DataFrame({"historical": [["r1"]]}, index=["ModelA"])
-        # mock_s3fs is the mock class provided by patch.
-        # mock_s3fs.return_value is the mock instance that __init__ will receive.
+
         mock_fs_instance = mock_s3fs.return_value
 
         mock_get_sims_on_aws.return_value = mock_sims_return
-        # No need to set mock_s3fs.return_value here, patch does it.
 
         generator = GWLGenerator(mock_df)
 
@@ -221,11 +228,13 @@ class TestGWLGenerator:
         assert result_df.loc["ModelE", "ssp245"] == []
         assert result_df.loc["ModelE", "ssp126"] == []
 
-    def test_build_timeseries_basic(self, mock_generator: GWLGenerator):
+    def test_build_timeseries_loading_and_processing(
+        self, mock_generator: GWLGenerator
+    ):
         """Test basic functionality of build_timeseries, including data loading and concatenation."""
         model_config: Dict = {
             "variable": "tas",
-            "model": "EC-Earth3",
+            "model": self.TEST_MODEL,
             "ens_mem": "r1i1p1f1",
             "scenarios": ["ssp370", "ssp585"],
         }
@@ -364,11 +373,11 @@ class TestGWLGenerator:
             xr.testing.assert_equal(result_ds["ssp370"], mock_concatenated_370)
             xr.testing.assert_equal(result_ds["ssp585"], mock_concatenated_585)
 
-    def test_build_timeseries_historical_load_error(self, mock_generator):
-        # Setup a model_config that will match a row in mock_generator.df
+    def test_build_timeseries_historical_load_error(self, mock_generator: GWLGenerator):
+        """Test error handling when loading historical data fails."""
         model_config = {
             "variable": "tas",
-            "model": "EC-Earth3",
+            "model": TEST_MODEL,
             "ens_mem": "r1i1p1f1",
             "scenarios": ["ssp370"],
         }
@@ -378,7 +387,7 @@ class TestGWLGenerator:
             assert isinstance(result, xr.Dataset)
             assert not result.data_vars  # Should be empty due to error
 
-    def test_build_timeseries_no_historical_data(self, mock_generator):
+    def test_build_timeseries_no_historical_data(self, mock_generator: GWLGenerator):
         """
         Test build_timeseries returns empty Dataset if no historical data is found.
         Tests that lines 236-237 in generate_gwl_tables_unc.py work correctly.
@@ -386,7 +395,7 @@ class TestGWLGenerator:
         # Use an existing model but with a non-existent ensemble member
         model_config = {
             "variable": "tas",
-            "model": "EC-Earth3",  # This model exists in the mock
+            "model": TEST_MODEL,  # This model exists in the mock
             "ens_mem": "non_existent_member",  # But this ensemble member doesn't
             "scenarios": ["ssp370"],
         }
@@ -404,14 +413,14 @@ class TestGWLGenerator:
             assert isinstance(result, xr.Dataset)
             assert not result.data_vars  # Should be empty due to no historical data
 
-    def test_build_timeseries_scenario_load_error(self, mock_generator):
+    def test_build_timeseries_scenario_load_error(self, mock_generator: GWLGenerator):
         """
         Test build_timeseries handles errors when loading scenario data.
         This covers lines 359-362 in generate_gwl_tables_unc.py.
         """
         model_config = {
             "variable": "tas",
-            "model": "EC-Earth3",
+            "model": TEST_MODEL,
             "ens_mem": "r1i1p1f1",
             "scenarios": ["ssp370"],
         }
@@ -450,13 +459,13 @@ class TestGWLGenerator:
             assert isinstance(result, xr.Dataset)
             assert len(result.data_vars) == 0  # No scenario data added
 
-    def test_build_timeseries_scenario_data_error(self, mock_generator):
+    def test_build_timeseries_scenario_data_error(self, mock_generator: GWLGenerator):
         """
         Test build_timeseries error handling when scenario data fails.
         """
         model_config = {
             "variable": "tas",
-            "model": "EC-Earth3",
+            "model": TEST_MODEL,
             "ens_mem": "r1i1p1f1",
             "scenarios": ["ssp370", "ssp585"],
         }
@@ -496,7 +505,7 @@ class TestGWLGenerator:
             assert isinstance(result, xr.Dataset)
             assert len(result.data_vars) == 0
 
-    def test_get_gwl(self):
+    def test_get_gwl_crossing_timestamps(self):
         """
         Test the static get_gwl method.
 
@@ -647,7 +656,7 @@ class TestGWLGenerator:
             )
 
     def test_get_gwl_table_for_single_model_and_ensemble_reference_period_error(
-        self, mock_generator
+        self, mock_generator: GWLGenerator
     ):
         """
         Test error handling when reference period selection fails with calendar issues.
@@ -655,11 +664,11 @@ class TestGWLGenerator:
         """
         model_config = {
             "variable": "tas",
-            "model": "EC-Earth3",
+            "model": TEST_MODEL,
             "ens_mem": "r1i1p1f1",
             "scenarios": ["ssp370"],
         }
-        reference_period = {"start_year": "19810101", "end_year": "20101231"}
+        reference_period = TEST_REFERENCE_PERIOD
 
         # Create mocked dataset with time coordinates that will trigger calendar adjustment
         time_range = pd.date_range(start="1850-01-01", end="2100-12-31", freq="MS")
@@ -691,12 +700,12 @@ class TestGWLGenerator:
             assert not gwlevels.empty  # Should have results since second sel worked
 
     def test_get_gwl_table_for_single_model_and_ensemble_anomaly_error(
-        self, mock_generator
+        self, mock_generator: GWLGenerator
     ):
         """Test error handling when calculating anomalies fails."""
         model_config = {
             "variable": "tas",
-            "model": "EC-Earth3",
+            "model": TEST_MODEL,
             "ens_mem": "r1i1p1f1",
             "scenarios": ["ssp370"],
         }
@@ -732,12 +741,12 @@ class TestGWLGenerator:
             assert final_model.empty
 
     def test_get_gwl_table_for_single_model_and_ensemble_gwl_error(
-        self, mock_generator
+        self, mock_generator: GWLGenerator
     ):
         """Test error handling when calculating GWL crossings fails."""
         model_config = {
             "variable": "tas",
-            "model": "EC-Earth3",
+            "model": TEST_MODEL,
             "ens_mem": "r1i1p1f1",
             "scenarios": ["ssp370"],
         }
@@ -953,16 +962,16 @@ class TestGWLGenerator:
             assert no_member_gwlevels.empty
             assert no_member_timeseries.empty
 
-    def test_get_gwl_table_concat_error(self, mock_generator):
+    def test_get_gwl_table_concat_error(self, mock_generator: GWLGenerator):
         """
         Test error handling in get_gwl_table during final concatenation.
         """
         model_config = {
             "variable": "tas",
-            "model": "EC-Earth3",
+            "model": TEST_MODEL,
             "scenarios": ["ssp370"],
         }
-        reference_period = {"start_year": "19810101", "end_year": "20101231"}
+        reference_period = TEST_REFERENCE_PERIOD
 
         # Mock sims_on_aws to list members for the model
         mock_generator.sims_on_aws = pd.DataFrame(
@@ -970,7 +979,7 @@ class TestGWLGenerator:
                 "historical": [["r1", "r2"]],
                 "ssp370": [["r1", "r2"]],
             },
-            index=pd.Index(["EC-Earth3"], name="source_id"),
+            index=pd.Index([TEST_MODEL], name="source_id"),
         )
 
         # Create mock return values
@@ -1025,11 +1034,9 @@ class TestGWLGenerator:
     def test_generate_gwl_file(self, mock_generator: GWLGenerator):
         """Test the generate_gwl_file method for orchestrating and writing results."""
         # Input configuration
-        models_list: List[str] = ["EC-Earth3"]
+        models_list: List[str] = [TEST_MODEL]
         scenarios_list: List[str] = ["ssp370"]
-        ref_periods_list: List[Dict[str, str]] = [
-            {"start_year": "19810101", "end_year": "20101231"}
-        ]
+        ref_periods_list: List[Dict[str, str]] = [TEST_REFERENCE_PERIOD]
         ref_period_str = "1981-2010"  # Expected string format
 
         # Mock return value for get_gwl_table (aggregated results)
@@ -1049,7 +1056,7 @@ class TestGWLGenerator:
 
         # Expected final DataFrame structure to be written to CSV
         expected_final_gwl_index = pd.MultiIndex.from_tuples(
-            [("EC-Earth3", "r1i1p1f1", "ssp370")],
+            [(TEST_MODEL, "r1i1p1f1", "ssp370")],
             names=["GCM", "run", "scenario"],
         )
         expected_final_gwl_df = pd.DataFrame(
@@ -1079,7 +1086,7 @@ class TestGWLGenerator:
             call_args, call_kwargs = mock_get_gwl_table.call_args
             expected_model_config_call = {
                 "variable": "tas",  # Hardcoded in generate_gwl_file
-                "model": "EC-Earth3",
+                "model": TEST_MODEL,
                 "scenarios": ["ssp370"],
             }
             assert call_args[0] == expected_model_config_call
@@ -1095,9 +1102,9 @@ class TestGWLGenerator:
 
     def test_generate_gwl_file_empty_results(self, mock_generator: GWLGenerator):
         """Test generate_gwl_file when get_gwl_table returns empty DataFrames."""
-        models_list = ["EC-Earth3"]
+        models_list = [TEST_MODEL]
         scenarios_list = ["ssp370"]
-        ref_periods_list = [{"start_year": "19810101", "end_year": "20101231"}]
+        ref_periods_list = [TEST_REFERENCE_PERIOD]
 
         # Mock get_gwl_table to return empty DataFrames
         with patch.object(
@@ -1113,9 +1120,9 @@ class TestGWLGenerator:
 
     def test_generate_gwl_file_csv_write_error(self, mock_generator: GWLGenerator):
         """Test generate_gwl_file handling CSV writing errors."""
-        models_list = ["EC-Earth3"]
+        models_list = [TEST_MODEL]
         scenarios_list = ["ssp370"]
-        ref_periods_list = [{"start_year": "19810101", "end_year": "20101231"}]
+        ref_periods_list = [TEST_REFERENCE_PERIOD]
 
         # Create valid GWL table to test CSV writing path
         mock_agg_gwlevels_index = pd.MultiIndex.from_tuples(
@@ -1145,10 +1152,10 @@ class TestGWLGenerator:
 
     def test_generate_gwl_file_multiple_periods(self, mock_generator: GWLGenerator):
         """Test generate_gwl_file with multiple reference periods."""
-        models_list = ["EC-Earth3", "CMCC-ESM2"]
+        models_list = [TEST_MODEL, "CMCC-ESM2"]
         scenarios_list = ["ssp370"]
         ref_periods_list = [
-            {"start_year": "19810101", "end_year": "20101231"},
+            TEST_REFERENCE_PERIOD,
             {"start_year": "19510101", "end_year": "19801231"},
         ]
 
@@ -1178,19 +1185,19 @@ class TestGWLGenerator:
             # Should be called for each model and reference period
             assert mock_get_gwl_table.call_count == 4  # 2 models × 2 periods
 
-    def test_generate_gwl_file_error_handling(self, mock_generator):
+    def test_generate_gwl_file_error_handling(self, mock_generator: GWLGenerator):
         """
         Test error handling in generate_gwl_file method.
         This covers line 501 in generate_gwl_tables_unc.py.
         """
-        models_list = ["EC-Earth3"]
+        models_list = [TEST_MODEL]
         scenarios_list = ["ssp370"]
-        ref_periods_list = [{"start_year": "19810101", "end_year": "20101231"}]
+        ref_periods_list = [TEST_REFERENCE_PERIOD]
 
         # Create a model_config dictionary to match what would be created in generate_gwl_file
         model_config = {
             "variable": "tas",
-            "model": "EC-Earth3",
+            "model": TEST_MODEL,
             "scenarios": ["ssp370"],
         }
 
@@ -1215,14 +1222,16 @@ class TestGWLGenerator:
             # Verify our mock was called
             mock_get_table.assert_called_once_with(model_config, ref_periods_list[0])
 
-    def test_generate_gwl_file_csv_write_specific_error(self, mock_generator):
+    def test_generate_gwl_file_csv_write_specific_error(
+        self, mock_generator: GWLGenerator
+    ):
         """
         Test specific CSV writing error in generate_gwl_file.
         This covers lines 532-534 in generate_gwl_tables_unc.py.
         """
-        models_list = ["EC-Earth3"]
+        models_list = [TEST_MODEL]
         scenarios_list = ["ssp370"]
-        ref_periods_list = [{"start_year": "19810101", "end_year": "20101231"}]
+        ref_periods_list = [TEST_REFERENCE_PERIOD]
 
         # Create valid GWL tables for concatenation
         mock_agg_gwlevels_index = pd.MultiIndex.from_tuples(
@@ -1272,13 +1281,13 @@ class TestMainGWLGenerator:
         )
         mock_gwl_generator_class.assert_called_once_with(mock_df)
         mock_gwl_instance.generate_gwl_file.assert_called_once_with(
-            ["EC-Earth3"],
+            [TEST_MODEL],
             ["ssp370"],
-            [{"start_year": "19810101", "end_year": "20101231"}],
+            [TEST_REFERENCE_PERIOD],
         )
 
     @patch("climakitae.util.generate_gwl_tables_unc.pd.read_csv")
-    def test_main_csv_error(self, mock_read_csv):
+    def test_main_csv_error(self, mock_read_csv: MagicMock):
         """Test the main function when CSV loading fails."""
         mock_read_csv.side_effect = Exception("Network error")
 
@@ -1291,7 +1300,7 @@ class TestMainGWLGenerator:
     @patch("climakitae.util.generate_gwl_tables_unc.pd.read_csv")
     @patch("climakitae.util.generate_gwl_tables_unc.GWLGenerator")
     def test_main_gwl_generator_init_error(
-        self, mock_gwl_generator_class, mock_read_csv
+        self, mock_gwl_generator_class: MagicMock, mock_read_csv: MagicMock
     ):
         """Test the main function when GWLGenerator initialization fails."""
         mock_df = MagicMock(spec=pd.DataFrame)
@@ -1308,7 +1317,7 @@ class TestMainGWLGenerator:
     @patch("climakitae.util.generate_gwl_tables_unc.pd.read_csv")
     @patch("climakitae.util.generate_gwl_tables_unc.GWLGenerator")
     def test_main_generate_gwl_file_error(
-        self, mock_gwl_generator_class, mock_read_csv
+        self, mock_gwl_generator_class: MagicMock, mock_read_csv: MagicMock
     ):
         """Test the main function when generate_gwl_file raises an exception."""
         mock_df = MagicMock(spec=pd.DataFrame)
@@ -1331,14 +1340,16 @@ class TestMainGWLGenerator:
         mock_read_csv.assert_called_once()
         mock_gwl_generator_class.assert_called_once_with(mock_df)
         mock_gwl_instance.generate_gwl_file.assert_called_once_with(
-            ["EC-Earth3"],
+            [TEST_MODEL],
             ["ssp370"],
-            [{"start_year": "19810101", "end_year": "20101231"}],
+            [TEST_REFERENCE_PERIOD],
         )
 
     @patch("climakitae.util.generate_gwl_tables_unc.pd.read_csv")
     @patch("climakitae.util.generate_gwl_tables_unc.GWLGenerator")
-    def test_main_catalog_load_error(self, mock_gwl_generator_class, mock_read_csv):
+    def test_main_catalog_load_error(
+        self, mock_gwl_generator_class: MagicMock, mock_read_csv: MagicMock
+    ):
         """
         Test edge case error in main function where the catalog fails to load.
         This covers line 673 in generate_gwl_tables_unc.py.
