@@ -47,7 +47,7 @@ jobs:
     - name: Output conda list
       run: conda list
     - name: Test with pytest
-      run: pytest --no-header -vv -m "not enhanced"
-    - name: Test with pytest (enhanced)
+      run: pytest --no-header -vv -m "not elevated"
+    - name: Test with pytest (elevated)
       if: github.event.label.name == 'Ready to Merge'
-      run: pytest --no-header -vv -m "enhanced"
+      run: pytest --no-header -vv -m "elevated"
