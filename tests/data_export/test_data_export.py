@@ -283,15 +283,19 @@ class TestHiddenFunctions:
         test_array["time"].attrs = {"key": "value"}
         save_name = "test"
         export._export_to_csv(test_array, save_name)
+        # Open gets called many times
         mock_open.assert_called()
 
     @patch("shutil.disk_usage", return_value=(1.3e-8, 1.3e-8, 1.3e-8))
     def test__export_csv_low_space(self, mock_shutil, test_array):
+        """Patch shutil to return a very small available disk space value
+        and force Exception."""
         with pytest.raises(Exception):
             export._export_to_csv(test_array, "test")
 
     @patch("os.path.exists", return_value=True)
     def test__export_to_csv_exists(self, mock_exists, test_array):
+        """Patch os.path.exists to return True and raise error."""
         with pytest.raises(Exception):
             export._export_to_csv(test_array, "test")
 
@@ -305,8 +309,7 @@ class TestHiddenFunctions:
 
     @patch("os.path.exists", return_value=True)
     def test__export_zarr_exists(self, mock_exists, test_array):
-        """Patch shutil to return a very small available disk space value
-        and force Exception."""
+        """Patch os.path.exists to return True and raise error."""
         save_name = "test.zarr"
         with pytest.raises(Exception):
             export._export_to_zarr(test_array, save_name, "local")
