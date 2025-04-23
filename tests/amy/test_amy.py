@@ -13,6 +13,7 @@ from climakitae.explore.amy import (
     retrieve_meteo_yr_data,
 )
 
+
 @pytest.mark.elevated
 def test__set_amy_year_inputs() -> None:
     """
@@ -48,6 +49,7 @@ def test__set_amy_year_inputs() -> None:
             of at least 5 years, where the end year is no later than 2100 and the start year is no later than
             2095."""
     )
+
 
 @pytest.mark.elevated
 def test_retrieve_meteo_yr_data() -> None:
@@ -89,6 +91,7 @@ def test_retrieve_meteo_yr_data() -> None:
         )
     assert str(excinfo.value) == "'invalid_ssp'"
 
+
 @pytest.mark.elevated
 def create_mock_hourly_da() -> xr.DataArray:
     # Create mock data: 365 days × 24 hours with random temperature values
@@ -108,6 +111,7 @@ def create_mock_hourly_da() -> xr.DataArray:
     )
 
     return mock_da
+
 
 @pytest.mark.elevated
 def test__format_meteo_yr_data() -> None:
@@ -141,6 +145,7 @@ def test__format_meteo_yr_data() -> None:
     formatted = _format_meteo_yr_df(df)
     assert len(formatted) == 365
     assert formatted.index.name == "Day of Year"
+
 
 @pytest.mark.elevated
 def create_mock_amy_data(days: int = 366) -> xr.DataArray:
@@ -178,6 +183,7 @@ def create_mock_amy_data(days: int = 366) -> xr.DataArray:
 
     return mock_da
 
+
 @pytest.mark.elevated
 def test_compute_amy() -> None:
     """
@@ -205,6 +211,7 @@ def test_compute_amy() -> None:
     amy = compute_amy(mock_data, days_in_year=365)
     assert isinstance(amy, pd.DataFrame)
     assert len(amy) == 365
+
 
 @pytest.mark.elevated
 def test_compute_severe_yr() -> None:
@@ -234,6 +241,7 @@ def test_compute_severe_yr() -> None:
     assert isinstance(sev_yr_data, pd.DataFrame)
     assert sev_yr_data.shape == (366, 24)
     assert sev_yr_data.index.name == "Day of Year"
+
 
 @pytest.mark.elevated
 def test_compute_mean_monthly_meteo_yr() -> None:

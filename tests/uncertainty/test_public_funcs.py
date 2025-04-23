@@ -208,6 +208,7 @@ def test_get_warm_level_time_slice(mock_read_csv, mock_data_for_warm_level):
         )
 
 
+@pytest.mark.elevated
 def test_get_warm_level_integration(wrf_dataset):
     """Test get_warm_level with a real-like dataset."""
     # Extract a single simulation to test
