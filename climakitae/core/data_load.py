@@ -1097,7 +1097,7 @@ def _get_eff_temp(selections: DataParameters) -> xr.DataArray:
     return da
 
 
-def _get_fosberg_fire_index(selections):
+def _get_fosberg_fire_index(selections: DataParameters) -> xr.DataArray:
     """Derive the fosberg fire index.
 
     Parameters
