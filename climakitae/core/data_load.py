@@ -8,8 +8,8 @@ import numpy as np
 import pandas as pd
 import psutil
 import rioxarray
-import xarray as xr
 import shapely
+import xarray as xr
 from dask.diagnostics import ProgressBar
 from geopandas import GeoDataFrame
 from rioxarray.exceptions import NoDataInBounds
@@ -17,30 +17,27 @@ from shapely.geometry import box
 from xclim.sdba import Grouper
 from xclim.sdba.adjustment import QuantileDeltaMapping
 
-from climakitae.core.data_interface import DataParameters
 from climakitae.core.boundaries import Boundaries
-from climakitae.tools.derived_variables import (
-    compute_dewpointtemp,
-    compute_relative_humidity,
-    compute_specific_humidity,
-    compute_wind_dir,
-    compute_wind_mag,
-)
-from climakitae.tools.indices import effective_temp, fosberg_fire_index, noaa_heat_index
-from climakitae.util.unit_conversions import convert_units, get_unit_conversion_options
-from climakitae.util.utils import (
-    _get_cat_subset,
-    _get_scenario_from_selections,
-    area_average,
-    downscaling_method_as_list,
-    downscaling_method_to_activity_id,
-    get_closest_gridcell,
-    readable_bytes,
-    resolution_to_gridlabel,
-    scenario_to_experiment_id,
-    timescale_to_table_id,
-)
-from climakitae.util.warming_levels import _calculate_warming_level, _drop_invalid_sims
+from climakitae.core.data_interface import DataParameters
+from climakitae.tools.derived_variables import (compute_dewpointtemp,
+                                                compute_relative_humidity,
+                                                compute_specific_humidity,
+                                                compute_wind_dir,
+                                                compute_wind_mag)
+from climakitae.tools.indices import (effective_temp, fosberg_fire_index,
+                                      noaa_heat_index)
+from climakitae.util.unit_conversions import (convert_units,
+                                              get_unit_conversion_options)
+from climakitae.util.utils import (_get_cat_subset,
+                                   _get_scenario_from_selections, area_average,
+                                   downscaling_method_as_list,
+                                   downscaling_method_to_activity_id,
+                                   get_closest_gridcell, readable_bytes,
+                                   resolution_to_gridlabel,
+                                   scenario_to_experiment_id,
+                                   timescale_to_table_id)
+from climakitae.util.warming_levels import (_calculate_warming_level,
+                                            _drop_invalid_sims)
 
 # Set Xarray options
 # keep array attributes after operations
