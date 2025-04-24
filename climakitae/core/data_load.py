@@ -56,7 +56,7 @@ from dask.diagnostics import ProgressBar
 warnings.filterwarnings("ignore", category=PerformanceWarning)
 
 
-def load(xr_da: xr.DataArray, progress_bar: bool=False) -> xr.DataArray:
+def load(xr_da: xr.DataArray, progress_bar: bool = False) -> xr.DataArray:
     """Read lazily loaded dask array into memory for faster access
 
     Parameters
@@ -154,7 +154,7 @@ def area_subset_geometry(selections: DataParameters) -> shapely.geometry:
         geometry to use for subsetting
     """
 
-    def _override_area_selections(selections: DataParameters) -> tuple[str,str]:
+    def _override_area_selections(selections: DataParameters) -> tuple[str, str]:
         """Account for 'station' special-case
         You need to retrieve the entire domain because the shapefiles will cut out
         the ocean grid cells, but the some station's closest gridcells are the ocean!
@@ -261,7 +261,9 @@ def _spatial_subset(dset: xr.Dataset, selections: DataParameters) -> xr.Dataset:
         subsetted area of dset
     """
 
-    def _clip_to_geometry(dset: xr.Dataset, ds_region: shapely.geometry.polygon.Polygon) -> xr.Dataset:
+    def _clip_to_geometry(
+        dset: xr.Dataset, ds_region: shapely.geometry.polygon.Polygon
+    ) -> xr.Dataset:
         """Clip to geometry if large enough
 
         Parameters
@@ -286,7 +288,9 @@ def _spatial_subset(dset: xr.Dataset, selections: DataParameters) -> xr.Dataset:
 
         return dset
 
-    def _clip_to_geometry_loca(dset: xr.Dataset, ds_region: shapely.geometry.polygon.Polygon) -> xr.Dataset:
+    def _clip_to_geometry_loca(
+        dset: xr.Dataset, ds_region: shapely.geometry.polygon.Polygon
+    ) -> xr.Dataset:
         """Clip to geometry, adding missing grid info
             because crs and x, y are missing from LOCA datasets
             Otherwise rioxarray will raise this error:
@@ -321,7 +325,9 @@ def _spatial_subset(dset: xr.Dataset, selections: DataParameters) -> xr.Dataset:
     return dset
 
 
-def _process_dset(ds_name: str, dset: xr.Dataset, selections: DataParameters) -> xr.Dataset:
+def _process_dset(
+    ds_name: str, dset: xr.Dataset, selections: DataParameters
+) -> xr.Dataset:
     """Subset over time and space, as described in user selections;
        renaming to facilitate concatenation.
 
@@ -394,7 +400,7 @@ def _override_unit_defaults(da: xr.DataArray, var_id: str) -> xr.DataArray:
     da: xr.DataArray
         any xarray DataArray with a units attribute
     var_id: str
-        variable id 
+        variable id
 
     Returns
     -------
@@ -412,7 +418,9 @@ def _override_unit_defaults(da: xr.DataArray, var_id: str) -> xr.DataArray:
     return da
 
 
-def _merge_all(selections: DataParameters, data_dict: dict[str,xr.core.dataset.Dataset]) -> xr.DataArray:
+def _merge_all(
+    selections: DataParameters, data_dict: dict[str, xr.core.dataset.Dataset]
+) -> xr.DataArray:
     """Merge all datasets into one, subsetting each consistently;
        clean-up format, and convert units.
 
@@ -458,7 +466,12 @@ def _merge_all(selections: DataParameters, data_dict: dict[str,xr.core.dataset.D
     else:
         all_hist = None
 
-    def _concat_sims(data_dict: dict[str,xr.core.dataset.Dataset], hist_data: xr.Dataset, selections: DataParameters, scenario: str) -> xr.Dataset:
+    def _concat_sims(
+        data_dict: dict[str, xr.core.dataset.Dataset],
+        hist_data: xr.Dataset,
+        selections: DataParameters,
+        scenario: str,
+    ) -> xr.Dataset:
         """Combine datasets along expanded 'member_id' dimension, and append
             historical if relevant.
 
@@ -639,7 +652,9 @@ def _get_data_one_var(selections: DataParameters) -> xr.DataArray:
     return da
 
 
-def _get_data_attributes(selections: DataParameters) -> dict[str,str|float|int|list[str]]:
+def _get_data_attributes(
+    selections: DataParameters,
+) -> dict[str, str | float | int | list[str]]:
     """Return dictionary of xr.DataArray attributes based on selections
 
     Parameters
@@ -1303,7 +1318,9 @@ def read_catalog_from_select(selections: DataParameters) -> xr.DataArray:
     return da
 
 
-def _apply_warming_levels_approach(da: xr.DataArray, selections: DataParameters) -> xr.DataArray:
+def _apply_warming_levels_approach(
+    da: xr.DataArray, selections: DataParameters
+) -> xr.DataArray:
     """
     Apply warming levels approach to data object.
     Internal function only-- many settings are set in the backend for this function to work appropriately.
@@ -1383,7 +1400,9 @@ def _apply_warming_levels_approach(da: xr.DataArray, selections: DataParameters)
     return warming_data
 
 
-def _station_apply(selections: DataParameters, da: xr.DataArray, original_time_slice: tuple) -> xr.DataArray:
+def _station_apply(
+    selections: DataParameters, da: xr.DataArray, original_time_slice: tuple
+) -> xr.DataArray:
     """Use xr.apply to get bias corrected data to station
 
     Parameters
