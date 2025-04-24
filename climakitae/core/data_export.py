@@ -1,33 +1,35 @@
+import datetime
+import logging
 import os
+import shutil
+import urllib
+import warnings
+from importlib.metadata import version as _version
+from math import prod
+
 import boto3
 import botocore
 import fsspec
-import shutil
-import logging
-import warnings
-import datetime
-import xarray as xr
-import pandas as pd
 import numpy as np
-import requests
-import urllib
+import pandas as pd
 import pytz
-from timezonefinder import TimezoneFinder
-from importlib.metadata import version as _version
+import requests
+import xarray as xr
 from botocore.exceptions import ClientError
-from math import prod
-from climakitae.util.utils import read_csv_file
+from timezonefinder import TimezoneFinder
+
 from climakitae.core.paths import (
-    variable_descriptions_csv_path,
-    stations_csv_path,
     export_s3_bucket,
+    stations_csv_path,
+    variable_descriptions_csv_path,
 )
+from climakitae.util.utils import read_csv_file
 
 xr.set_options(keep_attrs=True)
 bytes_per_gigabyte = 1024 * 1024 * 1024
 
 
-def remove_zarr(filename):
+def remove_zarr(filename: str):
     """Remove Zarr directory structure helper function. As Zarr format is a directory
     tree it is not easily removed using JupyterHUB GUI. This function simply deletes
     an entire directory tree.
@@ -59,7 +61,14 @@ def remove_zarr(filename):
         print(f"Error deleting Zarr dataset '{dir_path}': {e}")
 
 
-def _add_metadata(data):
+def _add_metadata(data: xr.Dataset):
+    """
+    Add attributes to xarray dataset in-place.
+
+    Parameters
+    ----------
+    data: xarray.Dataset
+    """
     ds_attrs = data.attrs
 
     ct = datetime.datetime.now()
@@ -80,7 +89,7 @@ def _add_metadata(data):
     data.attrs = ds_attrs
 
 
-def _estimate_file_size(data, format):
+def _estimate_file_size(data: xr.DataArray | xr.Dataset, format: str) -> float:
     """
     Estimate uncompressed file size in gigabytes when exporting `data` in `format`.
 
@@ -108,11 +117,20 @@ def _estimate_file_size(data, format):
         if isinstance(data, xr.core.dataarray.DataArray):
             est_file_size = data.size * chars_per_line
         elif isinstance(data, xr.core.dataset.Dataset):
-            est_file_size = prod(data.dims.values()) * chars_per_line
+            est_file_size = prod(data.sizes.values()) * chars_per_line
     return est_file_size / bytes_per_gigabyte
 
 
-def _warn_large_export(file_size, file_size_threshold=5):
+def _warn_large_export(file_size: float, file_size_threshold: float | int = 5):
+    """Print warning message if predicted file size exceeds threshold.
+
+    Parameters
+    ----------
+    file_size: float
+        Predicted file size in GB.
+    file_size_threshold: float or int
+        Threshold size in GB for warning.
+    """
     if file_size > file_size_threshold:
         print(
             "WARNING: Estimated file size is "
@@ -121,7 +139,7 @@ def _warn_large_export(file_size, file_size_threshold=5):
         )
 
 
-def _update_encoding(data):
+def _update_encoding(data: xr.Dataset):
     """
     Update data encodings to prevent issues when exporting them to NetCDF.
 
@@ -142,7 +160,7 @@ def _update_encoding(data):
     S3.
     """
 
-    def _unencode_missing_value(d):
+    def _unencode_missing_value(d: xr.Dataset):
         """Drop `missing_value` encoding, if any, on data object `d`.
 
         Parameters
@@ -166,7 +184,7 @@ def _update_encoding(data):
         _unencode_missing_value(data[data_var])
 
 
-def _fillvalue_encoding(data):
+def _fillvalue_encoding(data: xr.Dataset) -> dict[str, int | float | None]:
     """
     Creates FillValue encoding for each variable for export to NetCDF.
 
@@ -183,7 +201,7 @@ def _fillvalue_encoding(data):
     return filldict
 
 
-def _compression_encoding(data):
+def _compression_encoding(data: xr.Dataset) -> dict[str, int | float | None]:
     """
     Creates compression encoding for each variable for export to NetCDF.
 
@@ -200,7 +218,13 @@ def _compression_encoding(data):
     return compdict
 
 
-def _convert_da_to_ds(data):
+def _convert_da_to_ds(data: xr.DataArray | xr.Dataset) -> xr.Dataset:
+    """Convert xarray data array to dataset.
+
+    Parameters
+    ----------
+    data: xarray.DataArray or xarray.Dataset
+    """
     if isinstance(data, xr.core.dataarray.DataArray):
         if not data.name:
             # name it in order to call to_dataset on it
@@ -210,7 +234,7 @@ def _convert_da_to_ds(data):
         return data
 
 
-def _export_to_netcdf(data, save_name):
+def _export_to_netcdf(data: xr.DataArray | xr.Dataset, save_name: str):
     """
     Export user-selected data to NetCDF format.
 
@@ -270,12 +294,13 @@ def _export_to_netcdf(data, save_name):
     )
 
 
-def _export_to_zarr(data, save_name, mode):
+def _export_to_zarr(data: xr.DataArray | xr.Dataset, save_name: str, mode: str):
     """
     Export user-selected data to Zarr format.
     Export the xarray DataArray or Dataset `data` to a Zarr dataset `save_name`.
     If `local` mode used it is saved to the HUB user partition. If `s3` mode used
     it is saved to the AWS S3 bucket `cadcat-tmp` and provides a URL for download.
+
     Parameters
     ----------
     data: xarray.DataArray or xarray.Dataset
@@ -284,6 +309,7 @@ def _export_to_zarr(data, save_name, mode):
         desired output Zarr directory name
     mode: string
         location logic for storing export file (`local`, `s3`)
+
     Returns
     -------
     None
@@ -302,13 +328,15 @@ def _export_to_zarr(data, save_name, mode):
 
     _update_encoding(_data)
 
-    def _write_zarr(path, data):
+    def _write_zarr(path: str, data: xr.Dataset):
         encoding = _fillvalue_encoding(data)
         chunks = {k: v[0] for k, v in data.chunks.items()}
         data = data.chunk(chunks)
         data.to_zarr(path, encoding=encoding)
 
-    def _write_zarr_to_s3(display_path, path, save_name, data):
+    def _write_zarr_to_s3(
+        display_path: str, path: str, save_name: str, data: xr.Dataset
+    ):
         _write_zarr(path, data)
 
         print(
@@ -373,7 +401,7 @@ def _export_to_zarr(data, save_name, mode):
         raise Exception("Correct mode not specified. Use either 'local' or 's3'.")
 
 
-def _get_unit(dataarray):
+def _get_unit(dataarray: xr.DataArray) -> str:
     """
     Return unit of data variable in `dataarray`, if any, or an empty string.
 
@@ -392,7 +420,7 @@ def _get_unit(dataarray):
         return ""
 
 
-def _ease_access_in_R(column_name):
+def _ease_access_in_R(column_name: str) -> str:
     """
     Return a copy of the input that can be used in R easily.
 
@@ -427,7 +455,9 @@ def _ease_access_in_R(column_name):
     )
 
 
-def _update_header(df, variable_unit_map):
+def _update_header(
+    df: pd.DataFrame, variable_unit_map: list[tuple[str, str]]
+) -> pd.DataFrame:
     """
     Update data table header to match the given variable names and units.
 
@@ -458,7 +488,7 @@ def _update_header(df, variable_unit_map):
     return df
 
 
-def _dataarray_to_dataframe(dataarray):
+def _dataarray_to_dataframe(dataarray: xr.DataArray) -> pd.DataFrame:
     """
     Prepare xarray DataArray for export as CSV file.
 
@@ -497,7 +527,7 @@ def _dataarray_to_dataframe(dataarray):
     return df
 
 
-def _dataset_to_dataframe(dataset):
+def _dataset_to_dataframe(dataset: xr.Dataset) -> pd.DataFrame:
     """
     Prepare xarray Dataset for export as CSV file.
 
@@ -537,7 +567,7 @@ def _dataset_to_dataframe(dataset):
     variable_description_df = read_csv_file(variable_descriptions_csv_path)
     variable_ids = variable_description_df.variable_id.values
 
-    def _variable_id_to_name(var_id):
+    def _variable_id_to_name(var_id: str) -> str:
         """Convert variable ID to variable name.
 
         Return the "display_name" associated with the "variable_id" in
@@ -561,7 +591,7 @@ def _dataset_to_dataframe(dataset):
         else:
             return ""
 
-    def _get_station_variable_name(dataset, station):
+    def _get_station_variable_name(dataset: xr.Dataset, station: str) -> str:
         """Get name of climate variable stored in `dataset` variable `station`.
 
         Return an empty string if that is not possible.
@@ -573,7 +603,7 @@ def _dataset_to_dataframe(dataset):
 
         Returns
         -------
-        str
+        var_name: str
         """
         try:
             station_da = dataset[station]  # DataArray
@@ -608,7 +638,7 @@ def _dataset_to_dataframe(dataset):
     return df
 
 
-def _export_to_csv(data, save_name):
+def _export_to_csv(data: xr.DataArray | xr.Dataset, save_name: str):
     """
     Export user-selected data to CSV format.
 
@@ -677,14 +707,14 @@ def _export_to_csv(data, save_name):
             f"and {excel_column_limit} columns."
         )
 
-    def _metadata_to_file(ds, output_name):
+    def _metadata_to_file(ds: xr.Dataset, output_name: str):
         """
         Write NetCDF metadata to a txt file so users can still access it
         after exporting to a CSV.
 
         Parameters
         ----------
-        ds: xr.DataSet
+        ds: xr.Dataset
         output_name: str
 
         Returns
@@ -764,7 +794,12 @@ def _export_to_csv(data, save_name):
     )
 
 
-def export(data, filename="dataexport", format="NetCDF", mode="local"):
+def export(
+    data: xr.DataArray | xr.Dataset,
+    filename: str = "dataexport",
+    format: str = "NetCDF",
+    mode: str = "local",
+):
     """Save xarray data as NetCDF, Zarr, or CSV in the current working directory, or if Zarr optionally
     stream the export file to an AWS S3 scratch bucket and give download URL. NetCDF can only be written
     to the HUB user partition if it will fit. Zarr can either be written to the HUB user partition or to
@@ -781,6 +816,10 @@ def export(data, filename="dataexport", format="NetCDF", mode="local"):
         File format ("Zarr", "NetCDF", "CSV"). The default is "NetCDF".
     mode : str, optional
         Save location logic for Zarr file ("local", "s3"). The default is "local"
+
+    Returns
+    -------
+     None
     """
     ftype = type(data)
 
@@ -825,7 +864,7 @@ def export(data, filename="dataexport", format="NetCDF", mode="local"):
 
 
 ## TMY export functions
-def _grab_dem_elev_m(lat, lon):
+def _grab_dem_elev_m(lat: float, lon: float) -> float:
     """
     Pulls elevation value from the USGS Elevation Point Query Service,
     lat lon must be in decimal degrees (which it is after cleaning)
@@ -853,7 +892,7 @@ def _grab_dem_elev_m(lat, lon):
     return dem_elev_short.astype("float")
 
 
-def _epw_format_data(df):
+def _epw_format_data(df: pd.DataFrame) -> pd.DataFrame:
     """
     Constructs TMY output file in specific order and missing data codes
     Source: EnergyPlus Version 23.1.0 Documentation
@@ -954,7 +993,7 @@ def _epw_format_data(df):
     return df
 
 
-def _leap_day_fix(df):
+def _leap_day_fix(df: pd.DataFrame) -> pd.DataFrame:
     """Addresses leap day inclusion in TMY dataframe bug by removing the extra nan rows and resetting time index to Feb 28
 
     Parameters
@@ -988,7 +1027,7 @@ def _leap_day_fix(df):
     return df_leap
 
 
-def _find_missing_val_month(df):
+def _find_missing_val_month(df: pd.DataFrame) -> int:
     """Finds month that does not match expected hours
 
     Parameters
@@ -1019,7 +1058,7 @@ def _find_missing_val_month(df):
             return m
 
 
-def _missing_hour_fix(df):
+def _missing_hour_fix(df: pd.DataFrame) -> pd.DataFrame:
     """Addresses missing hour in TMY dataframe bug by adding the missing hour at the appropriate spot and duplicating the previous hour's values
 
     Parameters
@@ -1029,6 +1068,10 @@ def _missing_hour_fix(df):
     Returns
     -------
     df_fixed: pd.DataFrame
+
+    Notes
+    -----
+    Only fixes missing hour if missing hour is not the first or last hour of the month.
     """
     df_missing = df.copy(deep=True)
     df_missing["time"] = pd.to_datetime(df["time"])  # set time to datetime
@@ -1054,7 +1097,7 @@ def _missing_hour_fix(df):
 
     # set up correct df of month with all hours
     df_full = pd.DataFrame(
-        pd.date_range(start=df_bad.index.min(), end=df_bad.index.max(), freq="H")
+        pd.date_range(start=df_bad.index.min(), end=df_bad.index.max(), freq="h")
     )
     missing_cols = [col for col in df_bad.columns]
     df_full[missing_cols] = np.nan
@@ -1066,16 +1109,14 @@ def _missing_hour_fix(df):
     df_month_fixed = df_month_fixed.drop(columns=["time", 0])
     df_month_fixed = df_month_fixed.sort_values(by="time", ascending=True)
     df_month_fixed = df_month_fixed.reset_index()
-    df_month_fixed = df_month_fixed.fillna(
-        method="ffill"
-    )  # fill from previous days values
+    df_month_fixed = df_month_fixed.ffill()  # fill from previous days values
 
     # concat dfs together
     df_fixed = pd.concat([df_prior, df_month_fixed, df_post])
     return df_fixed
 
 
-def _tmy_8760_size_check(df):
+def _tmy_8760_size_check(df: pd.DataFrame) -> pd.DataFrame:
     """Checks the size of the TMY dataframe for export to ensure that it is explicitly 8760 in size.
     There are several scenarios where the input TMY dataframe would not be 8760 in size:
     (1) Size 8761, additional single hour due to time change for local time. Fix removes the duplicate row (typically in Nov.)
@@ -1145,15 +1186,15 @@ def _tmy_8760_size_check(df):
 
 
 def write_tmy_file(
-    filename_to_export,
-    df,
-    location_name,
-    station_code,
-    stn_lat,
-    stn_lon,
-    stn_state,
-    stn_elev=0.0,
-    file_ext="tmy",
+    filename_to_export: str,
+    df: pd.DataFrame,
+    location_name: str,
+    station_code: int,
+    stn_lat: float,
+    stn_lon: float,
+    stn_state: str,
+    stn_elev: float = 0.0,
+    file_ext: str = "tmy",
 ):
     """Exports TMY data either as .epw or .tmy file
 
@@ -1242,8 +1283,15 @@ def write_tmy_file(
             timezone = _utc_offset_timezone(lon=stn_lon, lat=stn_lat)
 
     def _tmy_header(
-        location_name, station_code, stn_lat, stn_lon, state, timezone, elevation, df
-    ):
+        location_name: str,
+        station_code: int,
+        stn_lat: float,
+        stn_lon: float,
+        state: str,
+        timezone: str,
+        elevation: float,
+        df: pd.DataFrame,
+    ) -> list[str]:
         """
         Constructs the header for the TMY output file in .tmy format
 
@@ -1286,8 +1334,15 @@ def write_tmy_file(
         return headers
 
     def _epw_header(
-        location_name, station_code, stn_lat, stn_lon, state, timezone, elevation, df
-    ):
+        location_name: str,
+        station_code: int,
+        stn_lat: float,
+        stn_lon: float,
+        state: str,
+        timezone: str,
+        elevation: float,
+        df: pd.DataFrame,
+    ) -> list[str]:
         """
         Constructs the header for the TMY output file in .epw format
 
