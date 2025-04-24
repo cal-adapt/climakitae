@@ -4,6 +4,7 @@ from datetime import timedelta
 from functools import partial
 
 import dask
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 import psutil
@@ -1398,7 +1399,7 @@ def _apply_warming_levels_approach(
 
 
 def _station_apply(
-    selections: DataParameters, da: xr.DataArray, original_time_slice: tuple
+    selections: DataParameters, da: xr.DataArray, original_time_slice: tuple[int, int]
 ) -> xr.DataArray:
     """Use xr.apply to get bias corrected data to station
 
@@ -1423,7 +1424,9 @@ def _station_apply(
         for s_id in station_subset["station id"]
     ]
 
-    def _preprocess_hadisd(ds, stations_gdf):
+    def _preprocess_hadisd(
+        ds: xr.Dataset, stations_gdf: gpd.GeoDataFrame
+    ) -> xr.Dataset:
         """
         Preprocess station data so that it can be more seamlessly integrated into the wrangling process
         Get name of station id and station name
@@ -1482,7 +1485,9 @@ def _station_apply(
         backend_kwargs=dict(storage_options={"anon": True}),
     )
 
-    def _get_bias_corrected_closest_gridcell(station_da, gridded_da, time_slice):
+    def _get_bias_corrected_closest_gridcell(
+        station_da: xr.DataArray, gridded_da: xr.DataArray, time_slice: tuple[int, int]
+    ) -> xr.DataArray:
         """Get the closest gridcell to a weather station.
         Bias correct the data using historical station data
 
@@ -1513,14 +1518,14 @@ def _station_apply(
         )
 
         def _bias_correct_model_data(
-            obs_da,
-            gridded_da,
-            time_slice,
-            window=90,
-            nquantiles=20,
-            group="time.dayofyear",
-            kind="+",
-        ):
+            obs_da: xr.DataArray,
+            gridded_da: xr.DataArray,
+            time_slice: tuple[int, int],
+            window: int = 90,
+            nquantiles: int = 20,
+            group: str = "time.dayofyear",
+            kind: str = "+",
+        ) -> xr.DataArray:
             """Bias correct model data using observational station data
             Converts units of the station data to whatever the input model data's units are
             Converts calendars of both datasets to a no leap calendar
@@ -1617,7 +1622,9 @@ def _station_apply(
     return apply_output
 
 
-def read_catalog_from_csv(selections, csv, merge=True):
+def read_catalog_from_csv(
+    selections: DataParameters, csv: str, merge: bool = True
+) -> xr.Dataset | xr.DataArray | list[xr.DataArray]:
     """Retrieve user data selections from csv input.
 
     Allows user to bypass ck.Select() GUI and allows developers to
