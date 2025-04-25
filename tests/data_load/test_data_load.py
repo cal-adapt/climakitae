@@ -1,9 +1,11 @@
 from unittest.mock import patch
 
 import numpy as np
+import pandas as pd
 import pytest
-from pytest import approx
+import shapely
 import xarray as xr
+from pytest import approx
 
 from climakitae.core.data_interface import DataParameters
 from climakitae.core.data_load import (
@@ -15,10 +17,12 @@ from climakitae.core.data_load import (
     _get_hourly_rh,
     _get_monthly_daily_dewpoint,
     _get_noaa_heat_index,
-    _override_unit_defaults,
     _get_Uearth,
     _get_Vearth,
     _get_wind_speed_derived,
+    _override_unit_defaults,
+    _time_slice,
+    area_subset_geometry,
 )
 
 
@@ -115,6 +119,69 @@ class TestDataLoad:
         ]
         for item in kwlist:
             assert item in result
+
+    def test__time_slice(self, selections):
+        selections.time_slice = (1990, 1991)
+        time = pd.date_range(start="1990-01-01", end="1992-12-31", freq="d")
+        ds = xr.DataArray(
+            np.ones((365 + 365 + 366)), coords={"time": time}, name="data"
+        ).to_dataset()
+        result = _time_slice(ds, selections)
+        assert len(result.time) == 365 * 2
+
+    def test_area_subset_geometry_latlon(self, selections):
+        selections.area_subset = "lat/lon"
+        result = area_subset_geometry(selections)
+        assert isinstance(result, list)
+        assert isinstance(result[0], shapely.geometry.polygon.Polygon)
+
+    def test_area_subset_geometry_latlon(self, selections):
+        selections.area_subset = "states"
+        selections.cached_area = ["CA"]
+        selections.data_type = "Gridded"
+        result = area_subset_geometry(selections)
+        assert isinstance(result, list)
+        assert isinstance(result[0], shapely.geometry.multipolygon.MultiPolygon)
+
+    def test_area_subset_geometry_counties(self, selections):
+        selections.area_subset = "CA counties"
+        selections.cached_area = ["San Bernardino County"]
+        selections.data_type = "Gridded"
+        result = area_subset_geometry(selections)
+        assert isinstance(result, list)
+        assert isinstance(result[0], shapely.geometry.polygon.Polygon)
+
+    def test_area_subset_geometry_watersheds(self, selections):
+        selections.area_subset = "CA watersheds"
+        selections.cached_area = ["Antelope-Fremont Valleys"]
+        selections.data_type = "Gridded"
+        result = area_subset_geometry(selections)
+        assert isinstance(result, list)
+        assert isinstance(result[0], shapely.geometry.polygon.Polygon)
+
+    def test_area_subset_geometry_utilities(self, selections):
+        selections.area_subset = "CA Electric Load Serving Entities (IOU & POU)"
+        selections.cached_area = ["Redding Electric Utility"]
+        selections.data_type = "Gridded"
+        result = area_subset_geometry(selections)
+        assert isinstance(result, list)
+        assert isinstance(result[0], shapely.geometry.multipolygon.MultiPolygon)
+
+    def test_area_subset_geometry_forecast_zones(self, selections):
+        selections.area_subset = "CA Electricity Demand Forecast Zones"
+        selections.cached_area = ["Central Valley"]
+        selections.data_type = "Gridded"
+        result = area_subset_geometry(selections)
+        assert isinstance(result, list)
+        assert isinstance(result[0], shapely.geometry.multipolygon.MultiPolygon)
+
+    def test_area_subset_geometry_forecast_zones(self, selections):
+        selections.area_subset = "CA Electric Balancing Authority Areas"
+        selections.cached_area = ["IID"]
+        selections.data_type = "Gridded"
+        result = area_subset_geometry(selections)
+        assert isinstance(result, list)
+        assert isinstance(result[0], shapely.geometry.polygon.Polygon)
 
 
 class TestDerivedDataLoad:
