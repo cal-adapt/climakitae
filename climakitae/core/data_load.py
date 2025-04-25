@@ -147,7 +147,9 @@ def _time_slice(dset: xr.Dataset, selections: "DataParameters") -> xr.Dataset:
     return dset.sel(time=slice(window_start, window_end))
 
 
-def area_subset_geometry(selections: "DataParameters") -> shapely.geometry:
+def area_subset_geometry(
+    selections: "DataParameters",
+) -> list[shapely.geometry.polygon.Polygon] | None:
     """Get geometry to perform area subsetting with.
 
     Parameters
@@ -185,7 +187,9 @@ def area_subset_geometry(selections: "DataParameters") -> shapely.geometry:
 
         return area_subset, cached_area
 
-    def _set_subarea(boundary_dataset: Boundaries, shape_indices: list) -> GeoDataFrame:
+    def _set_subarea(
+        boundary_dataset: Boundaries, shape_indices: list[int]
+    ) -> GeoDataFrame:
         return boundary_dataset.loc[shape_indices].geometry.union_all()
 
     def _get_as_shapely(selections: "DataParameters") -> shapely.geometry:
