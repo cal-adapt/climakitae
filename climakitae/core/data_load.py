@@ -371,7 +371,7 @@ def _process_dset(
     if selections.area_average == "Yes":
         dset = area_average(dset)
 
-    def _sim_index_item(ds_name: str, member_id: dict[str,str]) -> str:
+    def _sim_index_item(ds_name: str, member_id: dict[str, str]) -> str:
         """Identify a simulation by its downscaling type, driving GCM, and member id.
 
         Parameters

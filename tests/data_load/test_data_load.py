@@ -129,6 +129,7 @@ class TestDataLoad:
         result = _time_slice(ds, selections)
         assert len(result.time) == 365 * 2
 
+
 class TestAreaSubset:
 
     def test_area_subset_geometry_latlon(self, selections):
