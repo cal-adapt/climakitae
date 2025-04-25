@@ -10,117 +10,261 @@ To run, type: <<python generate_gwl_tables_unc.py>> in the command line and wait
 for printed model outputs showing progress.
 """
 
-import s3fs
-import intake
-import pandas as pd
-import xarray as xr
+import concurrent.futures
+
 import numpy as np
+import pandas as pd
+import s3fs
+import xarray as xr
+
 from climakitae.util.utils import write_csv_file
 
+global test
+test = False
 
-def main():
+
+def make_weighted_timeseries(temp: xr.DataArray) -> xr.DataArray:
     """
-    Generates global warming level (GWL) reference file for CMIP6 GCM EC-Earth3.
+    Creates a spatially-weighted single-dimension time series of global temperature.
 
-    This includes:
-    - Connecting to AWS S3 storage to access EC-Earth3 data.
-    - Filtering and processing data to create global temperature time series.
-    - Generating and saving warming level table in CSV format for 1981-2010 reference period.
+    The function weights the latitude grids by size and averages across all longitudes,
+    resulting in a single time series object.
+
+    Parameters:
+    ----------
+    temp : xarray.DataArray
+        An xarray DataArray of global temperature with latitude and longitude coordinates.
+
+    Returns:
+    -------
+    xarray.DataArray
+        A time series of global temperature that is spatially weighted across latitudes and averaged
+        across all longitudes.
+
+    Raises:
+    -------
+    ValueError
+        If the DataArray doesn't contain recognizable latitude/longitude coordinates.
     """
-    # Connect to AWS S3 storage
-    fs = s3fs.S3FileSystem(anon=True)
+    # Find variable names for latitude and longitude to make code more readable
+    lat_candidates = ["lat", "latitude"]
+    lon_candidates = ["lon", "longitude"]
 
-    df = pd.read_csv("https://cmip6-pds.s3.amazonaws.com/pangeo-cmip6.csv")
-    df_subset = df[
-        (df.table_id == "Amon")
-        & (df.variable_id == "tas")
-        & (df.experiment_id == "historical")
-    ]
-    sims_on_aws = get_sims_on_aws(df)
-    models = ["EC-Earth3"]
+    # Try to find latitude coordinate
+    lat = None
+    for lat_name in lat_candidates:
+        if lat_name in temp.coords:
+            lat = lat_name
+            break
 
-    def make_weighted_timeseries(temp):
+    # Try to find longitude coordinate
+    lon = None
+    for lon_name in lon_candidates:
+        if lon_name in temp.coords:
+            lon = lon_name
+            break
+
+    # Check if both coordinates were found
+    if lat is None or lon is None:
+        raise ValueError(
+            "Input DataArray must have latitude and longitude coordinates."
+        )
+
+    # Weight latitude grids by size, then average across all longitudes to create single time-series object
+    weightlat = np.sqrt(np.cos(np.deg2rad(temp[lat])))
+    weightlat = weightlat / np.sum(weightlat)
+    timeseries = (temp * weightlat).sum(lat).mean(lon)
+    return timeseries
+
+
+class GWLGenerator:
+    """
+    Class for generating Global Warming Level (GWL) reference data.
+    Encapsulates the parameters and methods needed for GWL calculations.
+
+    Attributes
+    ----------
+    df : pandas.DataFrame
+        DataFrame containing metadata for CMIP6 simulations
+    sims_on_aws : pandas.DataFrame
+        DataFrame listing available simulations on AWS
+    fs : s3fs.S3FileSystem
+        S3 file system object for accessing AWS data
+
+    Methods
+    -------
+    get_sims_on_aws() -> pandas.DataFrame
+        Generates a DataFrame listing all relevant CMIP6 simulations available on AWS.
+    build_timeseries(model_config: dict) -> xarray.Dataset
+        Builds an xarray Dataset with a time dimension, containing the concatenated historical
+        and SSP time series for all specified scenarios of a given model and ensemble member.
+    get_gwl(smoothed: pandas.DataFrame, degree: float) -> pandas.DataFrame
+        Computes the timestamp when a given GWL is first reached.
+    get_gwl_table_one(model_config: dict, reference_period: dict) -> tuple[pandas.DataFrame, pandas.DataFrame]
+        Generates a GWL table for a single model and ensemble member.
+    get_gwl_table(model_config: dict, reference_period: dict) -> tuple[pandas.DataFrame, pandas.DataFrame]
+        Generates GWL tables for a model across all its ensemble members.
+    generate_gwl_file(models: list[str], scenarios: list[str], reference_periods: list[dict])
+        Generates global warming level (GWL) reference files for specified models.
+
+    Examples
+    --------
+    >>> df = pd.read_csv("https://cmip6-pds.s3.amazonaws.com/pangeo-cmip6.csv")
+    >>> gwl_generator = GWLGenerator(df)
+    >>> models = ["EC-Earth3"]
+    >>> scenarios = ["ssp370"]
+    >>> reference_periods = [{"start_year": "19810101", "end_year": "20101231"}]
+    >>> gwl_generator.generate_gwl_file(models, scenarios, reference_periods)
+    """
+
+    def __init__(self, df, sims_on_aws=None):
         """
-        Creates a spatially-weighted single-dimension time series of global temperature.
-
-        The function weights the latitude grids by size and averages across all longitudes,
-        resulting in a single time series object.
+        Initialize the GWLGenerator with the CMIP6 data catalog.
 
         Parameters:
         ----------
-        temp : xarray.DataArray
-            An xarray DataArray of global temperature with latitude and longitude coordinates.
+        df : pandas.DataFrame
+            DataFrame containing metadata for CMIP6 simulations
+        sims_on_aws : pandas.DataFrame, optional
+            DataFrame listing available simulations on AWS. If None, it will be generated.
+        """
+        self.df = df
+        self.sims_on_aws = (
+            sims_on_aws if sims_on_aws is not None else self.get_sims_on_aws()
+        )
+        self.fs = s3fs.S3FileSystem(anon=True)
+
+    def get_sims_on_aws(self) -> pd.DataFrame:
+        """
+        Generates a pandas DataFrame listing all relevant CMIP6 simulations available on AWS.
 
         Returns:
         -------
-        xarray.DataArray
-            A time series of global temperature that is spatially weighted across latitudes and averaged
-            across all longitudes.
+        pandas.DataFrame
+            DataFrame indexed by model names with columns for different scenarios.
         """
-        # Find variable names for latitude and longitude to make code more readable
-        lat, lon = "lat", "lon"
-        if "lat" not in temp.coords and "lon" not in temp.coords:
-            lat, lon = "latitude", "longitude"
+        df_subset = self.df[
+            (self.df.table_id == "Amon")
+            & (self.df.variable_id == "tas")
+            & (self.df.experiment_id == "historical")
+        ]
+        models = list(set(df_subset.source_id))
+        models.sort()
 
-        # Weight latitude grids by size, then average across all longitudes to create single time-series object
-        weightlat = np.sqrt(np.cos(np.deg2rad(temp[lat])))
-        weightlat = weightlat / np.sum(weightlat)
-        timeseries = (temp * weightlat).sum(lat).mean(lon)
-        return timeseries
+        # First cut through the catalog
+        scenarios = ["historical", "ssp585", "ssp370", "ssp245", "ssp126"]
+        sims_on_aws = pd.DataFrame(index=models, columns=scenarios)
 
-    def build_timeseries(variable, model, ens_mem, scenarios):
+        # Fix 1: Replace chained assignment with loc indexer
+        for model in models:
+            for scenario in scenarios:
+                df_scenario = self.df[
+                    (self.df.table_id == "Amon")
+                    & (self.df.variable_id == "tas")
+                    & (self.df.experiment_id == scenario)
+                    & (self.df.source_id == model)
+                ]
+                ensMembers = list(set(df_scenario.member_id))
+                # Use .loc instead of chained indexing
+                sims_on_aws.loc[model, scenario] = ensMembers
+
+        # cut the table to those GCMs that have a historical + at least one SSP ensemble member
+        models_to_drop = []
+        for i, item in enumerate(sims_on_aws.T.columns):
+            no_ssp = True
+            for ssp in ["ssp585", "ssp370", "ssp245", "ssp126"]:
+                if len(sims_on_aws.loc[item, ssp]) > 0:
+                    no_ssp = False
+            if (len(sims_on_aws.loc[item, "historical"]) < 1) or (no_ssp):
+                models_to_drop.append(item)
+
+        sims_on_aws = sims_on_aws.drop(index=models_to_drop)
+
+        # Find the historical ensemble members for each model
+        # and remove them from the SSPs
+        for i, item in enumerate(sims_on_aws.T.columns):
+            variants_to_keep = []
+            for variant in sims_on_aws.loc[item, "historical"]:
+                for ssp in ["ssp585", "ssp370", "ssp245", "ssp126"]:
+                    if str(variant) in sims_on_aws.loc[item, ssp]:
+                        variants_to_keep.append(variant)
+            sims_on_aws.loc[item, "historical"] = list(set(variants_to_keep))
+
+        sims_on_aws.index.name = "source_id"
+
+        return sims_on_aws
+
+    def build_timeseries(self, model_config: dict) -> xr.Dataset:
         """
         Builds an xarray Dataset with a time dimension, containing the concatenated historical
         and SSP time series for all specified scenarios of a given model and ensemble member.
-        Works for all of the models(/GCMs) in the list `models`, which appear in the current
-        data catalog of WRF downscaling.
 
         Parameters:
         ----------
-        variable : str
-            The variable to process, e.g., `tas`. `tas` is the only variable used in this file currently.
-        model : str
-            The model name.
-        ens_mem : str
-            The ensemble member ID.
-        scenarios : list
-            A list of scenario names to include, e.g., ['historical', 'ssp585', 'ssp370'].
+        model_config : dict
+            Dictionary containing 'variable', 'model', 'ens_mem', and 'scenarios' keys
 
         Returns:
         -------
         xarray.Dataset
-            A dataset with time as the dimension, containing the appended historical and SSP time series.
+            Dataset with time as the dimension, containing the appended historical and SSP time series.
         """
+        variable = model_config["variable"]
+        model = model_config["model"]
+        ens_mem = model_config["ens_mem"]
+        scenarios = model_config["scenarios"]
+
+        # Get historical data first
         scenario = "historical"
         data_historical = xr.Dataset()
-        df_scenario = df_subset[
-            (df_subset.source_id == model) & (df_subset.member_id == ens_mem)
+        df_scenario = self.df[
+            (self.df.table_id == "Amon")
+            & (self.df.variable_id == variable)
+            & (self.df.experiment_id == scenario)
+            & (self.df.source_id == model)
+            & (self.df.member_id == ens_mem)
         ]
-        with xr.open_zarr(fs.get_mapper(df_scenario.zstore.values[0])) as temp:
+        if not df_scenario.empty:
+            try:
+                store_url = df_scenario.zstore.values[0]
+                temp_hist = xr.open_zarr(
+                    store_url, consolidated=True, storage_options={"anon": True}
+                )
+                # Create global weighted time-series of variable
+                data_historical = make_weighted_timeseries(temp_hist[variable])
+                data_historical = data_historical.sortby(
+                    "time"
+                )  # needed for MPI-ESM-2-HR
+            except Exception as e:
+                print(f"Error loading historical data: {e}")
+                return xr.Dataset()
 
-            # Create global weighted time-series of variable
-            data_historical = make_weighted_timeseries(temp[variable])
-            data_historical = data_historical.sortby("time")  # needed for MPI-ESM-2-HR
-
+        # Now process each scenario
         data_one_model = xr.Dataset()
         for scenario in scenarios:
-            if ens_mem in sims_on_aws.T[model][scenario]:
-                df_scenario = df[
-                    (df.table_id == "Amon")
-                    & (df.variable_id == variable)
-                    & (df.experiment_id == scenario)
-                    & (df.source_id == model)
-                    & (df.member_id == ens_mem)
+            # Check if the ensemble member exists for this scenario
+            if (
+                scenario in self.sims_on_aws.T[model]
+                and ens_mem in self.sims_on_aws.T[model][scenario]
+            ):
+                df_scenario = self.df[
+                    (self.df.table_id == "Amon")
+                    & (self.df.variable_id == variable)
+                    & (self.df.experiment_id == scenario)
+                    & (self.df.source_id == model)
+                    & (self.df.member_id == ens_mem)
                 ]
                 if not df_scenario.empty:
-                    with xr.open_zarr(
-                        fs.get_mapper(df_scenario.zstore.values[0]), decode_times=False
-                    ) as temp:  # BUG: Some scenarios not returning a full predictive period of values (i.e. not returning time period of 2015-2100 of data)
-                        temp = temp.isel(time=slice(0, 1032))
-                        temp = xr.decode_cf(temp)
+                    try:
+                        store_url = df_scenario.zstore.values[0]
+                        temp_hist = xr.open_zarr(
+                            store_url, consolidated=True, storage_options={"anon": True}
+                        )
+                        temp_hist = temp_hist.isel(time=slice(0, 1032))
+                        temp_hist = xr.decode_cf(temp_hist)
 
                         # Create global weighted time-series of variable
-                        timeseries = make_weighted_timeseries(temp[variable])
+                        timeseries = make_weighted_timeseries(temp_hist[variable])
 
                         # Clean data and append to `data_one_model`
                         timeseries = timeseries.sortby(
@@ -128,269 +272,322 @@ def main():
                         )  # needed for MPI-ESM1-2-LR
                         data_one_model[scenario] = xr.concat(
                             [data_historical, timeseries], dim="time"
-                        )  # .to_pandas())
+                        )
+                    except Exception as e:
+                        print(f"Error loading scenario {scenario} data: {e}")
         return data_one_model
 
-    def get_gwl(smoothed, degree):
+    @staticmethod
+    def get_gwl(smoothed: pd.DataFrame, degree: float) -> pd.DataFrame:
         """
         Computes the timestamp when a given GWL is first reached.
-        Takes a smoothed time series of global mean temperature of different scenarios for a model
-        and returns a table indicating the timestamp at which the specified warming level is reached.
 
         Parameters:
         ----------
         smoothed : pandas.DataFrame
-            A DataFrame containing a global mean temperature time series for a model for multiple scenarios.
+            DataFrame containing global mean temperature time series for multiple scenarios
         degree : float
-            The global warming level to detect, e.g., 1.5, 2, etc.
+            The global warming level to detect
 
         Returns:
         -------
         pandas.DataFrame
-            A table containing timestamps for when each scenario first crosses the specified warming level.
+            Table with timestamps for when each scenario first crosses the specified warming level
         """
 
-        def get_wl_timestamp(scenario, degree):
+        def get_wl_timestamp(scenario: str, degree: float) -> pd.Timestamp:
             """
-            Given a scenario of wl's and timestamps, find the timestamp that first crosses the degree passed in.
-            Return np.NaN if none of the timestamps pass this degree level.
+            Find the timestamp that first crosses the given degree.
+            Return np.nan if none of the timestamps pass this degree level.
             """
             if any(scenario >= degree):
                 wl_ts = scenario[scenario >= degree].index[0]
                 return wl_ts
             else:
-                return np.NaN
+                return np.nan
 
         gwl = smoothed.apply(lambda scenario: get_wl_timestamp(scenario, degree))
         return gwl
 
-    def get_gwl_table_one(
-        variable, model, ens_mem, scenarios, start_year="18500101", end_year="19000101"
-    ):
+    def get_gwl_table_for_single_model_and_ensemble(
+        self, model_config: dict, reference_period: dict
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """
         Generates a GWL table for a single model and ensemble member.
 
-        Loops through various global warming levels (1.5, 2, 2.5, 3, and 4 degrees)
-        for the requested model/variant and scenarios.
-
         Parameters:
         ----------
-        variable : str
-            The variable to process, e.g., 'tas'.
-        model : str
-            The model name.
-        ens_mem : str
-            The ensemble member ID.
-        scenarios : list
-            A list of scenario names to include, e.g., ['historical', 'ssp585', 'ssp370'].
-        start_year : str, optional
-            The start year for the reference period in the format 'YYYYMMDD'.
-        end_year : str, optional
-            The end year for the reference period in the format 'YYYYMMDD'.
+        model_config : dict
+            Dictionary containing 'variable', 'model', 'ens_mem', and 'scenarios' keys
+        reference_period : dict
+            Dictionary containing 'start_year' and 'end_year' keys
 
         Returns:
         -------
         tuple
-            A DataFrame containing warming levels and a DataFrame with global mean temperature time series.
+            DataFrame containing warming levels and DataFrame with global mean temperature time series
         """
-        data_one_model = build_timeseries(variable, model, ens_mem, scenarios)
-        try:
-            anom = data_one_model - data_one_model.sel(
-                time=slice(start_year, end_year)
-            ).mean("time")
-        except:
-            # some calendars won't allow a 31st of the month end date
-            end_year = str(
-                (pd.to_datetime(end_year) - pd.DateOffset(days=1)).date()
-            ).replace("-", "")
-            anom = data_one_model - data_one_model.sel(
-                time=slice(start_year, end_year)
-            ).mean("time")
+        model = model_config["model"]
+        ens_mem = model_config["ens_mem"]
+        start_year = reference_period["start_year"]
+        end_year = reference_period["end_year"]
 
-        smoothed = anom.rolling(time=20 * 12, center=True).mean("time")
+        data_one_model = self.build_timeseries(model_config)
 
-        ### one_model is a dataframe of times and warming levels by scenario (scenarios as columns) WITHIN a specific model and ensemble member
-        one_model = (
-            smoothed.to_array(dim="scenario", name=model)
-            .dropna("time", how="all")
-            .to_pandas()  # Dropping time slices that are NaN across all SSPs
-        )
-        gwlevels = pd.DataFrame()
+        # Add an outer try-except block to catch all anomaly calculation errors
         try:
-            for level in [1.5, 2, 2.5, 3, 4]:
-                gwlevels[level] = get_gwl(one_model.T, level)
+            try:
+                anom = data_one_model - data_one_model.sel(
+                    time=slice(start_year, end_year)
+                ).mean("time")
+            except:
+                # some calendars won't allow a 31st of the month end date
+                end_year = str(
+                    (pd.to_datetime(end_year) - pd.DateOffset(days=1)).date()
+                ).replace("-", "")
+                anom = data_one_model - data_one_model.sel(
+                    time=slice(start_year, end_year)
+                ).mean("time")
+
+            smoothed = anom.rolling(time=20 * 12, center=True).mean("time")
+
+            ### one_model is a dataframe of times and warming levels by scenario
+            one_model = (
+                smoothed.to_array(dim="scenario", name=model)
+                .dropna("time", how="all")
+                .to_pandas()  # Dropping time slices that are NaN across all SSPs
+            )
+            gwlevels = pd.DataFrame()
+            try:
+                for level in [1.5, 2, 2.5, 3, 4]:
+                    gwlevels[level] = self.get_gwl(one_model.T, level)
+            except Exception as e:
+                print(
+                    model, ens_mem, " problems"
+                )  # helps EC-Earth3 not be skipped altogether
+                print(e)
+
+            # Modifying and returning one_model to be seen as a WL table
+            final_model = one_model.T
+            final_model.columns = ens_mem + "_" + final_model.columns
+            return gwlevels, final_model
+
+        # Handle all anomaly calculation failures with a proper error message and return empty DataFrames
         except Exception as e:
-            print(
-                model, ens_mem, " problems"
-            )  # helps EC-Earth3 not be skipped altogether
-            print(e)
-
-        # Modifying and returning one_model to be seen as a WL table to index by timestamp to get average WL across all simulations.one_model.
-        final_model = one_model.T
-        final_model.columns = ens_mem + "_" + final_model.columns
-        return gwlevels, final_model
+            print(f"Error calculating anomalies for {model}, {ens_mem}: {e}")
+            return pd.DataFrame(), pd.DataFrame()
 
     def get_gwl_table(
-        variable, model, scenarios, start_year="18500101", end_year="19000101"
-    ):
+        self, model_config: dict, reference_period: dict
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """
-        Generates a GWL table for a given model and scenarios.
+        Generates GWL tables for a model across all its ensemble members.
 
         Parameters:
         ----------
-        variable : str
-            The variable to process, e.g., 'tas'.
-        model : str
-            The model name.
-        scenarios : list
-            A list of scenario names to include, e.g., ['ssp585', 'ssp370', 'ssp245'].
-        start_year : str, optional
-            The start year for the reference period in the format 'YYYYMMDD'.
-        end_year : str, optional
-            The end year for the reference period in the format 'YYYYMMDD'.
+        model_config : dict
+            Dictionary containing 'variable', 'model', and 'scenarios' keys
+        reference_period : dict
+            Dictionary containing 'start_year' and 'end_year' keys
 
         Returns:
         -------
         tuple
-            A DataFrame containing warming levels and a DataFrame with global mean temperature time series.
-            To be exported into `gwl_[time period]ref*.csv`.
+            DataFrame containing warming levels and DataFrame with global mean temperature time series
         """
-        ens_mem_list = sims_on_aws.T[model]["ssp370"].copy()
+        global test
+        model = model_config["model"]
+        scenarios = model_config["scenarios"]
+
+        ens_mem_list = (
+            self.sims_on_aws.T[model]["ssp370"].copy() if "ssp370" in scenarios else []
+        )
         # "historical" gives same list as "ssp370"
         print(f"Number of ensemble members: {len(ens_mem_list)}")
-        try:
-            # Combining all the ensemble members for a given model
-            gwlevels_tbl, wl_data_tbls = [], []
-            for i, ens_mem in enumerate(ens_mem_list):
-                print(f"Getting gwl table for ensemble member {ens_mem}...")
-                gwlevels, wl_data_tbl = get_gwl_table_one(
-                    variable, model, ens_mem, scenarios, start_year, end_year
+        if test:
+            ens_mem_list = ens_mem_list[:10]
+
+        # Combining all the ensemble members for a given model
+        gwlevels_tbl, wl_data_tbls = [], []
+        num_ens_mems = len(ens_mem_list)
+
+        def _process_ensemble_member(i_ens_mem: tuple[int, str]) -> tuple:
+            i, ens_mem = i_ens_mem
+            print(
+                f"Getting gwl table for ensemble member {ens_mem} ({i+1}/{num_ens_mems})..."
+            )
+            try:
+                member_config = model_config.copy()
+                member_config["ens_mem"] = ens_mem
+
+                gwlevels, wl_data_tbl = (
+                    self.get_gwl_table_for_single_model_and_ensemble(
+                        member_config, reference_period
+                    )
                 )
+                return (i, ens_mem, gwlevels, wl_data_tbl, None)
+            except Exception as e:
+                error_msg = f"Cannot get gwl table for {i}th ensemble member {ens_mem}: {str(e)}"
+                return (i, ens_mem, None, None, error_msg)
+
+        # Create enumerated list for processing
+        enum_ens_mem_list = list(enumerate(ens_mem_list))
+
+        # Use ThreadPoolExecutor to parallelize processing
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            results = list(executor.map(_process_ensemble_member, enum_ens_mem_list))
+
+        # Process results
+        for i, ens_mem, gwlevels, wl_data_tbl, error_msg in results:
+            if error_msg:
+                print(error_msg)
+            else:
                 gwlevels_tbl.append(gwlevels)
                 wl_data_tbls.append(wl_data_tbl)
 
-            # Renaming columns of all ensemble members within model
-            wl_data_tbl_sim = pd.concat(wl_data_tbls, axis=1)
-            wl_data_tbl_sim.columns = model + "_" + wl_data_tbl_sim.columns
-            return pd.concat(gwlevels_tbl, keys=ens_mem_list), wl_data_tbl_sim
-
-        except:
-            print("Cannot get gwl table")
-            print(f"{i}th ensemble member {ens_mem}")
-
-    ##### Generating and writing GWL data table EC-Earth3 #####
-
-    ### Generating WL CSV for a reference period overlapping with downscaled data availability:
-    time_periods = [{"start_year": "19810101", "end_year": "20101231"}]
-
-    for period in time_periods:
-
-        # Setting variables
-        variable = "tas"
-        start_year = period["start_year"]
-        end_year = period["end_year"]
-
-        ## Generating GWL information for rest of models
-        scenarios = ["ssp370"]
-        print("Generate all WL table {}-{}".format(start_year[:4], end_year[:4]))
-        all_wl_data_tbls = pd.DataFrame()
-        all_gw_tbls, all_gw_data_tbls = [], []
-
-        # Extracts GWL information for each model
-        for i, model in enumerate(models):
-            print(f"\n...Model {i} {model}...\n")
-            gw_tbl, wl_data_tbl_sim = get_gwl_table(
-                variable, model, scenarios, start_year, end_year
-            )
-            all_gw_tbls.append(gw_tbl)
-            all_gw_data_tbls.append(wl_data_tbl_sim)
+        if gwlevels_tbl and wl_data_tbls:
             try:
-                all_wl_data_tbls = pd.concat(
-                    [all_wl_data_tbls, wl_data_tbl_sim], axis=1
+                # Renaming columns of all ensemble members within model
+                wl_data_tbl_sim = pd.concat(wl_data_tbls, axis=1)
+                print(model, wl_data_tbl_sim.columns)
+                wl_data_tbl_sim.columns = model + "_" + wl_data_tbl_sim.columns
+
+                # Create a new list of successful ensemble members (that match the length of gwlevels_tbl)
+                successful_ens_mems = []
+                for i, ens_mem in enumerate(ens_mem_list):
+                    if i < len(gwlevels_tbl):
+                        successful_ens_mems.append(ens_mem)
+
+                # Use the filtered list for concatenation
+                return (
+                    pd.concat(gwlevels_tbl, keys=successful_ens_mems),
+                    wl_data_tbl_sim,
                 )
             except Exception as e:
-                print(
-                    f"\n Model {model} is skipped. Its table cannot be concatenated as its datetime indices are different: \n"
+                print(f"Error concatenating results for model {model}: {e}")
+                return pd.DataFrame(), pd.DataFrame()
+        else:
+            print(f"No valid ensemble members for model {model}")
+            return pd.DataFrame(), pd.DataFrame()
+
+    def generate_gwl_file(
+        self, models: list[str], scenarios: list[str], reference_periods: list[dict]
+    ):
+        """
+        Generates global warming level (GWL) reference files for specified models.
+
+        Parameters:
+        ----------
+        models : list
+            List of model names to process
+        scenarios : list
+            List of scenario names to include
+        reference_periods : list
+            List of dictionaries with 'start_year' and 'end_year' keys
+        """
+        variable = "tas"
+
+        for period in reference_periods:
+            start_year = period["start_year"]
+            end_year = period["end_year"]
+
+            print("Generate all WL table {}-{}".format(start_year[:4], end_year[:4]))
+            all_wl_data_tbls = pd.DataFrame()
+            all_gw_tbls, all_gw_data_tbls = [], []
+
+            # Extracts GWL information for each model
+            for i, model in enumerate(models):
+                print(f"\n...Model {i} {model}...\n")
+
+                model_config = {
+                    "variable": variable,
+                    "model": model,
+                    "scenarios": scenarios,
+                }
+
+                gw_tbl, wl_data_tbl_sim = self.get_gwl_table(model_config, period)
+
+                if not gw_tbl.empty:
+                    all_gw_tbls.append(gw_tbl)
+                    all_gw_data_tbls.append(wl_data_tbl_sim)
+
+                    try:
+                        all_wl_data_tbls = pd.concat(
+                            [all_wl_data_tbls, wl_data_tbl_sim], axis=1
+                        )
+                    except ValueError as e:  # Change Exception to ValueError
+                        print(
+                            f"\n Model {model} is skipped. Its table cannot be concatenated as its datetime indices are different: \n"
+                        )
+                        print(e)
+
+            # Creating WL lookup table if results were found
+            if all_gw_tbls:
+                [print(x.head()) for x in all_gw_tbls]
+                all_gw_levels = pd.concat(all_gw_tbls, keys=models)
+                all_gw_levels.index = pd.MultiIndex.from_tuples(
+                    all_gw_levels.index, names=["GCM", "run", "scenario"]
                 )
-                print(e)
+                try:
+                    print(all_gw_levels.head())
+                    success = write_csv_file(
+                        all_gw_levels,
+                        "data/gwl_{}-{}ref_EC-Earth3_ssp370.csv".format(
+                            start_year[:4], end_year[:4]
+                        ),
+                    )
+                    print(
+                        f"Successfully wrote warming level file for {start_year[:4]}-{end_year[:4]}"
+                    )
+                except Exception as e:
+                    print(
+                        f"Error writing GWL file for {start_year[:4]}-{end_year[:4]}: {e}"
+                    )
 
-        # Creating WL lookup table
-        all_gw_levels = pd.concat(all_gw_tbls, keys=models)
-        all_gw_levels.index = pd.MultiIndex.from_tuples(
-            all_gw_levels.index, names=["GCM", "run", "scenario"]
-        )
-        write_csv_file(
-            all_gw_levels,
-            "data/gwl_{}-{}ref_EC-Earth3_ssp370.csv".format(
-                start_year[:4], end_year[:4]
-            ),
-        )
+            else:
+                print(
+                    f"No warming level data was generated for {start_year[:4]}-{end_year[:4]}"
+                )
 
 
-def get_sims_on_aws(df):
+def main(_kTest=False):
     """
-    Generates a pandas DataFrame listing all relevant CMIP6 simulations available on AWS.
-
-    This function filters the input DataFrame `df` and identifies and lists CMIP6 model simulations
-    for historical and various SSP (Shared Socioeconomic Pathway) scenarios. It only includes
-    models that have both historical and at least one SSP ensemble member. Additionally, it ensures
-    that only historical ensemble members with variants in at least one SSP are kept.
-
-    Parameters:
-    ----------
-    df : pandas.DataFrame
-        A DataFrame containing metadata for CMIP6 simulations.
-
-    Returns:
-    -------
-    pandas.DataFrame
-        A DataFrame indexed by model names (source_id) and columns corresponding to scenarios
-        ('historical', 'ssp585', 'ssp370', 'ssp245', 'ssp126'). Each cell contains a list of
-        ensemble member IDs available on AWS for that model and scenario.
+    Main function to run the GWL generator for EC-Earth3 model.
     """
-    df_subset = df[
-        (df.table_id == "Amon")
-        & (df.variable_id == "tas")
-        & (df.experiment_id == "historical")
-    ]
-    models = list(set(df_subset.source_id))
-    models.sort()
+    global test
+    test = _kTest
+    try:
+        print("Loading CMIP6 catalog...")
+        df = pd.read_csv("https://cmip6-pds.s3.amazonaws.com/pangeo-cmip6.csv")
 
-    # First cut through the catalog
-    scenarios = ["historical", "ssp585", "ssp370", "ssp245", "ssp126"]
-    sims_on_aws = pd.DataFrame(index=models, columns=scenarios)
+        print("Initializing GWL generator...")
+        try:
+            gwl_generator = GWLGenerator(df)
 
-    for model in models:
-        for scenario in scenarios:
-            df_scenario = df[
-                (df.table_id == "Amon")
-                & (df.variable_id == "tas")
-                & (df.experiment_id == scenario)
-                & (df.source_id == model)
-            ]
-            ensMembers = list(set(df_scenario.member_id))
-            sims_on_aws[scenario][model] = ensMembers
+            # Pre-defined configuration
+            models = ["EC-Earth3"]  # Just one model
+            scenarios = ["ssp370"]  # Just one scenario
+            reference_periods = [{"start_year": "19810101", "end_year": "20101231"}]
 
-    # cut the table to those GCMs that have a historical + at least one SSP ensemble member
-    for i, item in enumerate(sims_on_aws.T.columns):
-        no_ssp = True
-        for ssp in ["ssp585", "ssp370", "ssp245", "ssp126"]:
-            if len(sims_on_aws.loc[item][ssp]) > 0:
-                no_ssp = False
-        if (len(sims_on_aws.loc[item]["historical"]) < 1) or (no_ssp):
-            sims_on_aws = sims_on_aws.drop(index=item)
-
-    # next also drop any historical ensemble members that don't have a variant in an SSP
-    for i, item in enumerate(sims_on_aws.T.columns):
-        variants_to_keep = []
-        for variant in sims_on_aws.loc[item]["historical"]:
-            for ssp in ["ssp585", "ssp370", "ssp245", "ssp126"]:
-                if str(variant) in sims_on_aws.loc[item][ssp]:
-                    variants_to_keep.append(variant)
-        sims_on_aws.loc[item]["historical"] = list(set(variants_to_keep))
-
-    return sims_on_aws
+            print(f"Generating GWL file for {models}, {scenarios}...")
+            try:
+                gwl_generator.generate_gwl_file(models, scenarios, reference_periods)
+                print("GWL file generation complete.")
+            except Exception as e:
+                print(f"Error generating GWL file: {e}")
+        except Exception as e:
+            print(f"Error initializing GWL generator: {e}")
+    except Exception as e:
+        print(f"Error loading CMIP6 catalog: {e}")
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+
+    # Check if --test passed
+    if "--test" in sys.argv:
+        print("Running in test mode...")
+        main(_kTest=True)
+    else:
+        main()
+#
