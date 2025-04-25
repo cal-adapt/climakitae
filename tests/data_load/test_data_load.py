@@ -2,24 +2,77 @@ from unittest.mock import patch
 
 import numpy as np
 import pytest
+from pytest import approx
 import xarray as xr
 
 from climakitae.core.data_interface import DataParameters
-from climakitae.core.data_load import (_check_valid_unit_selection,
-                                       _get_data_attributes, _get_eff_temp,
-                                       _get_fosberg_fire_index,
-                                       _get_hourly_dewpoint, _get_hourly_rh,
-                                       _get_monthly_daily_dewpoint,
-                                       _get_noaa_heat_index,
-                                       _override_unit_defaults)
+from climakitae.core.data_load import (
+    _check_valid_unit_selection,
+    _get_data_attributes,
+    _get_eff_temp,
+    _get_fosberg_fire_index,
+    _get_hourly_dewpoint,
+    _get_hourly_rh,
+    _get_monthly_daily_dewpoint,
+    _get_noaa_heat_index,
+    _override_unit_defaults,
+    _get_Uearth,
+    _get_Vearth,
+    _get_wind_speed_derived,
+)
 
 
-# Used as a return value for mocking data download
 def mock_data():
-    da = xr.DataArray(np.ones((1)),coords={"time":np.zeros((1))})
-    da.attrs = {"units":""}
+    # Used as a return value for mocking data download
+    da = xr.DataArray(np.ones((1)), coords={"time": np.zeros((1))})
+    da.attrs = {"units": ""}
     da.name = "data"
     return da
+
+
+def mock_wind_var():
+    # Simplify testing wind speed functions
+    # with single gridpoint dataset
+    lon = -123.521255
+    lat = 9.475632
+    da = xr.DataArray(
+        data=np.array([[10]]),
+        dims=["y", "x"],
+        coords={
+            "lon": (("y", "x"), np.array([[lon]])),
+            "lat": (("y", "x"), np.array([[lat]])),
+        },
+    )
+    da.name = "wind speed"
+    da.attrs = {"units": "m/s"}
+    return da
+
+
+def mock_wrf_angles_ds():
+    # Simplify testing wind speed functions with
+    # single gridpoint dataset
+    lon = -123.521255
+    lat = 9.475632
+    sinalpha = 0.6197577
+    cosalpha = 0.78479314
+    ds = xr.Dataset(
+        data_vars={
+            "COSALPHA": ((lat, lon), np.array([[cosalpha]])),
+            "SINALPHA": ((lat, lon), np.array([[sinalpha]])),
+        },
+        coords={
+            "lon": (("y", "x"), np.array([[lon]])),
+            "lat": (("y", "x"), np.array([[lat]])),
+        },
+    )
+    return ds
+
+
+@pytest.fixture
+def selections():
+    selections = DataParameters()
+    return selections
+
 
 class TestDataLoad:
 
@@ -27,90 +80,136 @@ class TestDataLoad:
         da = xr.DataArray()
         da.attrs = {}
 
-        result1 = _override_unit_defaults(da,"pr")
+        result1 = _override_unit_defaults(da, "pr")
         assert result1.attrs == da.attrs
 
-        result2 = _override_unit_defaults(da,"huss")
+        result2 = _override_unit_defaults(da, "huss")
         assert result2.attrs == {"units": "kg/kg"}
 
-        result3 = _override_unit_defaults(da,"rsds")
+        result3 = _override_unit_defaults(da, "rsds")
         assert result3.attrs == {"units": "W/m2"}
 
-    def test__check_valid_unit_selection(self):
-        selections = DataParameters()
+    def test__check_valid_unit_selection(self, selections):
         result = _check_valid_unit_selection(selections)
         assert result is None
 
         # Edit a unit to cause exception
-        selections.variable_options_df["unit"].iloc[0] = "C"
+        selections.variable_options_df.loc[29, "unit"] = "C"
         with pytest.raises(ValueError):
             result = _check_valid_unit_selection(selections)
 
-    def test__get_data_attributes(self):
-        selections = DataParameters()
+    def test__get_data_attributes(self, selections):
         result = _get_data_attributes(selections)
 
         # Check that dict with correct keys in returned.
-        kwlist = ["variable_id", "extended_description", "units", "data_type", "resolution", "frequency", "location_subset", "approach", "downscaling_method"]
+        kwlist = [
+            "variable_id",
+            "extended_description",
+            "units",
+            "data_type",
+            "resolution",
+            "frequency",
+            "location_subset",
+            "approach",
+            "downscaling_method",
+        ]
         for item in kwlist:
             assert item in result
 
 
 class TestDerivedDataLoad:
 
-    @patch("climakitae.core.data_load._get_data_one_var",return_value=mock_data())
-    def test__get_hourly_rh(self,mock_get_data_one_var):
+    @patch("climakitae.core.data_load._get_data_one_var", return_value=mock_data())
+    def test__get_hourly_rh(self, mock_get_data_one_var, selections):
         # Not testing correctness of calculation, just that function runs
         # and returns data.
-        selections = DataParameters()
         result = _get_hourly_rh(selections)
 
-        assert isinstance(result,xr.core.dataarray.DataArray)
+        assert isinstance(result, xr.core.dataarray.DataArray)
 
-    @patch("climakitae.core.data_load._get_data_one_var",return_value=mock_data())
-    def test__get_monthly_daily_dewpoint(self,mock_get_data_one_var):
+    @patch("climakitae.core.data_load._get_data_one_var", return_value=mock_data())
+    def test__get_monthly_daily_dewpoint(self, mock_get_data_one_var, selections):
         # Not testing correctness of calculation, just that function runs
         # and returns data.
-        selections = DataParameters()
         result = _get_monthly_daily_dewpoint(selections)
 
-        assert isinstance(result,xr.core.dataarray.DataArray)
+        assert isinstance(result, xr.core.dataarray.DataArray)
         assert result.name == "dew_point_derived"
 
-    @patch("climakitae.core.data_load._get_data_one_var",return_value=mock_data())
-    def test__get_hourly_dewpoint(self,mock_get_data_one_var):
+    @patch("climakitae.core.data_load._get_data_one_var", return_value=mock_data())
+    def test__get_hourly_dewpoint(self, mock_get_data_one_var, selections):
         # Not testing correctness of calculation, just that function runs
         # and returns data.
-        selections = DataParameters()
         result = _get_hourly_dewpoint(selections)
 
-        assert isinstance(result,xr.core.dataarray.DataArray)
+        assert isinstance(result, xr.core.dataarray.DataArray)
         assert result.name == "dew_point_derived"
 
-    @patch("climakitae.core.data_load._get_data_one_var",return_value=mock_data())
-    def test__get_noaa_heat_index(self,mock_get_data_one_var):
+    @patch("climakitae.core.data_load._get_data_one_var", return_value=mock_data())
+    def test__get_noaa_heat_index(self, mock_get_data_one_var, selections):
         # Not testing correctness of calculation, just that function runs
         # and returns data.
-        selections = DataParameters()
         result = _get_noaa_heat_index(selections)
 
-        assert isinstance(result,xr.core.dataarray.DataArray)
+        assert isinstance(result, xr.core.dataarray.DataArray)
 
-    @patch("climakitae.core.data_load._get_data_one_var",return_value=mock_data())
-    def test__get_eff_temp(self,mock_get_data_one_var):
+    @patch("climakitae.core.data_load._get_data_one_var", return_value=mock_data())
+    def test__get_eff_temp(self, mock_get_data_one_var, selections):
         # Not testing correctness of calculation, just that function runs
         # and returns data.
-        selections = DataParameters()
         result = _get_eff_temp(selections)
 
-        assert isinstance(result,xr.core.dataarray.DataArray)
+        assert isinstance(result, xr.core.dataarray.DataArray)
 
-    @patch("climakitae.core.data_load._get_data_one_var",return_value=mock_data())
-    def test__get_fosberg_fire_index(self,mock_get_data_one_var):
+    @patch("climakitae.core.data_load._get_data_one_var", return_value=mock_data())
+    def test__get_fosberg_fire_index(self, mock_get_data_one_var, selections):
         # Not testing correctness of calculation, just that function runs
         # and returns data.
-        selections = DataParameters()
         result = _get_fosberg_fire_index(selections)
 
-        assert isinstance(result,xr.core.dataarray.DataArray)
+        assert isinstance(result, xr.core.dataarray.DataArray)
         assert result.name == "Fosberg Fire Weather Index"
+
+    @patch("xarray.backends.zarr.open_zarr", return_value=mock_wrf_angles_ds())
+    @patch("climakitae.core.data_load._get_data_one_var", return_value=mock_wind_var())
+    @patch(
+        "climakitae.core.data_load._spatial_subset", return_value=mock_wrf_angles_ds()
+    )
+    def test__get_Uearth(
+        self, mock_open_zarr, mock_get_data_one_var, mock_spatial_subset, selections
+    ):
+        # Function is heavily patched so we aren't downloading any data
+        # Just stepping through the function with small canned datasets
+        result = _get_Uearth(selections)
+        assert isinstance(result, xr.core.dataarray.DataArray)
+        assert result.name == selections.variable
+        assert approx(result.data.item(), rel=1e-7) == 1.6503544
+
+    @patch("xarray.backends.zarr.open_zarr", return_value=mock_wrf_angles_ds())
+    @patch("climakitae.core.data_load._get_data_one_var", return_value=mock_wind_var())
+    @patch(
+        "climakitae.core.data_load._spatial_subset", return_value=mock_wrf_angles_ds()
+    )
+    def test__get_Vearth(
+        self, mock_open_zarr, mock_get_data_one_var, mock_spatial_subset, selections
+    ):
+        # Function is heavily patched so we aren't downloading any data
+        # Just stepping through the function with small canned datasets
+        result = _get_Vearth(selections)
+        assert isinstance(result, xr.core.dataarray.DataArray)
+        assert result.name == selections.variable
+        assert approx(result.data.item(), rel=1e-7) == 14.0455084
+
+    @patch("climakitae.core.data_load._get_Uearth", return_value=mock_wind_var())
+    @patch("climakitae.core.data_load._get_Vearth", return_value=mock_wind_var())
+    def test__get_wind_speed_derived(
+        self, mock_get_Uearth, mock_get_Vearth, selections
+    ):
+        # Function is heavily patched so we aren't downloading any data
+        # Just stepping through the function with small canned datasets
+        result = _get_wind_speed_derived(selections)
+        expected = np.sqrt(np.square(1.6503544) + np.square(14.0455084))
+        assert isinstance(result, xr.core.dataarray.DataArray)
+        assert approx(result.data.item(), rel=1e-7) == expected
+        assert result.name == "wind_speed_derived"
+        assert result.attrs["units"] == "m s-1"
