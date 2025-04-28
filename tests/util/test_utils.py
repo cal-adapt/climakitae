@@ -1,3 +1,4 @@
+import datetime
 import os
 import tempfile
 from unittest.mock import PropertyMock, patch
@@ -13,6 +14,7 @@ from climakitae.util.utils import (
     downscaling_method_as_list,
     get_closest_gridcell,
     get_closest_gridcells,
+    julianDay_to_date,
     read_csv_file,
     write_csv_file,
 )
@@ -210,3 +212,46 @@ class TestUtils:
 
         # Function returns a dataset with a "points" dimension
         assert closest_dss is None
+
+    def test_julianDay_to_date(self):
+        # Test default return_type (str) with default format
+        assert julianDay_to_date(1, year=2023) == "Jan-01"
+        assert julianDay_to_date(32, year=2023) == "Feb-01"
+        assert julianDay_to_date(365, year=2023) == "Dec-31"
+
+        # Test with custom str_format
+        assert julianDay_to_date(1, year=2023, str_format="%Y-%m-%d") == "2023-01-01"
+        assert (
+            julianDay_to_date(60, year=2024, str_format="%Y-%m-%d") == "2024-02-29"
+        )  # Leap year
+
+        # Test datetime return type
+        dt_result = julianDay_to_date(1, year=2023, return_type="datetime")
+        assert dt_result.year == 2023
+        assert dt_result.month == 1
+        assert dt_result.day == 1
+
+        # Test date return type
+        date_result = julianDay_to_date(32, year=2023, return_type="date")
+        assert date_result.year == 2023
+        assert date_result.month == 2
+        assert date_result.day == 1
+
+        # Test leap year handling
+        feb29 = julianDay_to_date(
+            60, year=2024, return_type="date"
+        )  # 2024 is leap year
+        assert feb29.month == 2
+        assert feb29.day == 29
+
+        # Test invalid return_type raises ValueError
+        with pytest.raises(
+            ValueError, match="return_type must be 'str', 'datetime', or 'date'"
+        ):
+            julianDay_to_date(1, return_type="invalid")
+
+        # Test automatic year determination (using mock to avoid year-dependent tests)
+        with patch("datetime.datetime") as mock_datetime:
+            mock_now = PropertyMock(return_value=datetime.datetime(2023, 5, 15))
+            mock_datetime.now.return_value = mock_now.return_value
+            assert julianDay_to_date(1, str_format="%Y-%m-%d") == "2023-01-01"
