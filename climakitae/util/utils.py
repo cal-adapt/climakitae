@@ -1,6 +1,7 @@
 import copy
 import datetime
 import os
+from typing import Iterable
 
 import intake
 import numpy as np
@@ -10,11 +11,11 @@ import rioxarray as rio
 import xarray as xr
 from timezonefinder import TimezoneFinder
 
-from climakitae.core.constants import SSPS
+from climakitae.core.constants import SSPS, UNSET
 from climakitae.core.paths import data_catalog_url, stations_csv_path
 
 
-def downscaling_method_as_list(downscaling_method):
+def downscaling_method_as_list(downscaling_method: str) -> list[str]:
     """Function to convert string based radio button values to python list.
 
     Parameters
@@ -35,7 +36,7 @@ def downscaling_method_as_list(downscaling_method):
     return method_list
 
 
-def area_average(dset):
+def area_average(dset: xr.Dataset) -> xr.Dataset:
     """Weighted area-average
 
     Parameters
@@ -58,7 +59,9 @@ def area_average(dset):
     return dset
 
 
-def read_csv_file(rel_path, index_col=None, parse_dates=False):
+def read_csv_file(
+    rel_path: str, index_col: str = UNSET, parse_dates: bool = False
+) -> pd.DataFrame:
     """Read CSV file into pandas DataFrame
 
     Parameters
@@ -76,7 +79,7 @@ def read_csv_file(rel_path, index_col=None, parse_dates=False):
     """
     return pd.read_csv(
         _package_file_path(rel_path),
-        index_col=index_col,
+        index_col=None if index_col is UNSET else index_col,
         parse_dates=parse_dates,
         na_values=[
             "",
@@ -102,7 +105,7 @@ def read_csv_file(rel_path, index_col=None, parse_dates=False):
     )
 
 
-def write_csv_file(df, rel_path):
+def write_csv_file(df: pd.DataFrame, rel_path: str) -> None:
     """Write CSV file from pandas DataFrame
 
     Parameters
@@ -114,12 +117,12 @@ def write_csv_file(df, rel_path):
 
     Returns
     -------
-    None or str
+    None
     """
     return df.to_csv(_package_file_path(rel_path))
 
 
-def _package_file_path(rel_path):
+def _package_file_path(rel_path: str) -> str:
     """Find OS full path name given relative path
 
     Parameters
@@ -134,7 +137,9 @@ def _package_file_path(rel_path):
     return os.path.normpath(os.path.join(os.path.dirname(__file__), "..", rel_path))
 
 
-def get_closest_gridcell(data, lat, lon, print_coords=True):
+def get_closest_gridcell(
+    data: xr.Dataset | xr.DataArray, lat: float, lon: float, print_coords: bool = True
+) -> xr.DataArray | None:
     """From input gridded data, get the closest gridcell to a lat, lon coordinate pair.
 
     This function first transforms the lat,lon coords to the gridded data’s projection.
@@ -208,7 +213,9 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
     return closest_gridcell
 
 
-def get_closest_gridcells(data, lats, lons):
+def get_closest_gridcells(
+    data: xr.Dataset, lats: Iterable[float] | float, lons: Iterable[float] | float
+) -> xr.Dataset | None:
     """
     Find the nearest grid cell(s) for given latitude and longitude coordinates.
 
@@ -227,7 +234,7 @@ def get_closest_gridcells(data, lats, lons):
 
     Returns
     -------
-    xr.DataArray or None
+    xr.Dataset | xr.DataArray | None
         Nearest grid cell(s) or `None` if no valid match is found.
 
     Notes
@@ -259,8 +266,13 @@ def get_closest_gridcells(data, lats, lons):
 
     # Get closest gridcell using tolerance
     def find_closest_valid_gridcells(
-        data, dim1_name, dim2_name, coords1, coords2, tolerance
-    ):
+        data: xr.DataArray | xr.Dataset,
+        dim1_name: str,
+        dim2_name: str,
+        coords1: float | Iterable[float],
+        coords2: float | Iterable[float],
+        tolerance: float,
+    ) -> xr.Dataset | xr.DataArray | None:
         """
         Find the nearest valid grid cells within a given tolerance.
 
@@ -333,32 +345,55 @@ def get_closest_gridcells(data, lats, lons):
     return closest_gridcells
 
 
-def julianDay_to_str_date(julday, leap_year=True, str_format="%b-%d"):
-    """Convert julian day of year to string format
-    i.e. if str_format = "%b-%d", the output will be Mon-Day ("Jan-01")
+def julianDay_to_date(julday, year=None, return_type="str", str_format="%b-%d"):
+    """Convert julian day of year to a date object or formatted string.
 
     Parameters
     ----------
     julday: int
-        Julian day
-    leap_year: boolean
-        leap year? (default to True)
-    str_format: str
-        string format of output date
+        Julian day (day of year)
+    year: int, optional
+        Year to use. If None, uses current year or a leap year (2024) based on needs.
+        Default is None.
+    return_type: str, optional
+        Type of return value:
+        - "str": formatted string (default)
+        - "datetime": datetime object
+        - "date": date object
+    str_format: str, optional
+        String format of output date when return_type is "str".
+        Default is "%b-%d" which outputs format like "Jan-01".
 
     Returns
     -------
-    date: str
-        Julian day in the input format month-day (i.e. "Jan-01")
+    date: str, datetime.datetime, or datetime.date
+        Julian day converted to specified format or object
+
+    Examples
+    --------
+    >>> julianDay_to_date(1)
+    'Jan-01'
+    >>> julianDay_to_date(32, year=2023, return_type="date")
+    datetime.date(2023, 2, 1)
+    >>> julianDay_to_date(60, year=2024, str_format="%Y-%m-%d")
+    '2024-02-29'
     """
-    if leap_year:
-        year = "2024"
+    # Determine which year to use
+    if year is None:
+        year = datetime.datetime.now().year
+    
+    # Create datetime object from julian day
+    date_obj = datetime.datetime.strptime(f"{year}.{julday}", "%Y.%j")
+    
+    # Return appropriate type
+    if return_type == "str":
+        return date_obj.strftime(str_format)
+    elif return_type == "datetime":
+        return date_obj
+    elif return_type == "date":
+        return date_obj.date()
     else:
-        year = "2023"
-    date = datetime.datetime.strptime(year + "." + str(julday), "%Y.%j").strftime(
-        str_format
-    )
-    return date
+        raise ValueError("return_type must be 'str', 'datetime', or 'date'")
 
 
 def readable_bytes(B):
