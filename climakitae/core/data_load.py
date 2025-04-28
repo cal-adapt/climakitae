@@ -38,7 +38,7 @@ from climakitae.util.utils import (
     scenario_to_experiment_id,
     timescale_to_table_id,
 )
-from climakitae.util.warming_levels import _calculate_warming_level, _drop_invalid_sims
+from climakitae.util.warming_levels import calculate_warming_level, drop_invalid_sims
 
 # Set Xarray options
 # keep array attributes after operations
@@ -1324,15 +1324,15 @@ def _apply_warming_levels_approach(da, selections):
     # Stack by simulation and scenario to combine the coordinates into a single dimension
     data_stacked = da.stack(all_sims=["simulation", "scenario"])
     # The xarray stacking function results in some non-existant scenario/simulation combos
-    # We need to drop them here such that the global warming levels table can be adequately parsed by the _calculate_warming_level function
-    data_stacked = _drop_invalid_sims(data_stacked, selections)
+    # We need to drop them here such that the global warming levels table can be adequately parsed by the calculate_warming_level function
+    data_stacked = drop_invalid_sims(data_stacked, selections)
 
     # Calculate warming level DataArray for each individual warming level
     # Function will be applied for each individual warming level
     # Then, the list of DataArrays (one for each warming level) will be concatenated into a single DataArray object
     da_list = []
     for level in selections.warming_level:
-        da_by_wl = _calculate_warming_level(
+        da_by_wl = calculate_warming_level(
             data_stacked,
             gwl_times=selections._warming_level_times,
             level=level,
