@@ -1,15 +1,17 @@
-import os
-import numpy as np
+import copy
 import datetime
-import xarray as xr
+import os
+
+import intake
+import numpy as np
+import pandas as pd
 import pyproj
 import rioxarray as rio
-import pandas as pd
-import copy
-import intake
+import xarray as xr
 from timezonefinder import TimezoneFinder
-from climakitae.core.paths import data_catalog_url, stations_csv_path
+
 from climakitae.core.constants import SSPS
+from climakitae.core.paths import data_catalog_url, stations_csv_path
 
 
 def downscaling_method_as_list(downscaling_method):
@@ -166,7 +168,7 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
     km_num = int(data.resolution.split(" km")[0])
     # tolerance = int(data.resolution.split(" km")[0]) * 1000
 
-    if "x" and "y" in data.dims:
+    if "x" in data.dims and "y" in data.dims:
         # Make Transformer object
         lat_lon_to_model_projection = pyproj.Transformer.from_crs(
             crs_from="epsg:4326",  # Lat/lon
@@ -181,10 +183,10 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
     # If input point outside of dataset by greater than one
     # grid cell, then None is returned
     try:
-        if "x" and "y" in data.dims:
+        if "x" in data.dims and "y" in data.dims:
             tolerance = km_num * 1000  # Converting km to m
             closest_gridcell = data.sel(x=x, y=y, method="nearest", tolerance=tolerance)
-        elif "lat" and "lon" in data.dims:
+        elif "lat" in data.dims and "lon" in data.dims:
             tolerance = km_num / 111  # Rough translation of km to degrees
             closest_gridcell = data.sel(
                 lat=lat, lon=lon, method="nearest", tolerance=tolerance

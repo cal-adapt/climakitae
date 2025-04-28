@@ -1,7 +1,8 @@
 import os
 import tempfile
-from unittest.mock import patch
+from unittest.mock import PropertyMock, patch
 
+import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
@@ -10,6 +11,7 @@ from climakitae.util.utils import (
     _package_file_path,
     area_average,
     downscaling_method_as_list,
+    get_closest_gridcell,
     read_csv_file,
     write_csv_file,
 )
@@ -135,3 +137,36 @@ class TestUtils:
         # Normalize the expected path to remove the relative path components
         expected_path = os.path.normpath(expected_path)
         assert _package_file_path(file_name) == expected_path
+
+    def test_get_closest_gridcell(self):
+        # Create a mock dataset
+        ds = xr.Dataset(
+            {
+            "var": (("lat", "lon"), np.random.rand(5, 5)),
+            },
+            coords={
+            "lat": [10, 20, 30, 40, 50],
+            "lon": [100, 110, 120, 130, 140],
+            },
+        )
+        # Add resolution attributes in km (approx. 111 km per degree)
+        ds.attrs["resolution"] = "1110 km"
+        ds.lat.attrs["resolution"] = 1110.0  # resolution in km (10 degrees ≈ 1110 km)
+        ds.lon.attrs["resolution"] = 1110.0  # resolution in km (10 degrees ≈ 1110 km)
+
+        # Test with a point inside the grid
+        lat = 25
+        lon = 115
+        closest_ds = get_closest_gridcell(ds, lat, lon)
+        assert isinstance(closest_ds, xr.Dataset)
+        assert closest_ds.coords["lat"].item() in ds.coords["lat"].values
+        assert closest_ds.coords["lon"].item() in ds.coords["lon"].values
+
+        # Test with a point outside the grid
+        lat = 60
+        lon = 150
+        closest_ds = get_closest_gridcell(ds, lat, lon)
+        assert isinstance(closest_ds, xr.Dataset)
+        assert closest_ds.coords["lat"].item() in ds.coords["lat"].values
+        assert closest_ds.coords["lon"].item() in ds.coords["lon"].values
+
