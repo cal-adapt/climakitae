@@ -285,17 +285,19 @@ class TestDataLoadDerived:
         assert result.name == "wind_speed_derived"
         assert result.attrs["units"] == "m s-1"
 
-def TestCatalogFromSelect(self):
 
-    def test_read_catalog_from_select_defaults(self,selections):
+class TestCatalogFromSelect():
+
+    def test_read_catalog_from_select_defaults(self, selections):
         result = read_catalog_from_select(selections)
-        assert isinstance(result,xr.core.dataarray.DataArray)
+        assert isinstance(result, xr.core.dataarray.DataArray)
         assert result.name == selections.variable
         assert result.attrs["variable_id"] == selections.variable_id
         # Check that there's at least one variant for each model in selections
-        for sim in selections.simulation if sim != "ERA5":
-            found = [x for x in result.simulation.data if sim in x]
-            assert len(found) > 0
+        for sim in selections.simulation:
+            if sim != "ERA5":
+                found = [x for x in result.simulation.data if sim in x]
+                assert len(found) > 0
         assert result.attrs["data_type"] == selections.data_type
         assert result.attrs["downscaling_method"] == selections.downscaling_method
         assert result.attrs["units"] == selections.units
@@ -303,8 +305,8 @@ def TestCatalogFromSelect(self):
         # Check that all requested scenarios are present
         assert result.scenario.data[0] == selections.scenario_historical
 
-    def test_read_catalog_from_select_ssp(self,selections):
-        selections.time_slice=(1990,2050)
-        selections.scenario_ssp = ['SSP 2-4.5']
+    def test_read_catalog_from_select_ssp(self, selections):
+        selections.time_slice = (1990, 2050)
+        selections.scenario_ssp = ["SSP 2-4.5"]
         result = read_catalog_from_select(selections)
-        assert result.scenario.data == 'Historical + SSP 2-4.5'
+        assert result.scenario.data == "Historical + SSP 2-4.5"
