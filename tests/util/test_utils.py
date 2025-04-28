@@ -12,6 +12,7 @@ from climakitae.util.utils import (
     area_average,
     downscaling_method_as_list,
     get_closest_gridcell,
+    get_closest_gridcells,
     read_csv_file,
     write_csv_file,
 )
@@ -142,11 +143,11 @@ class TestUtils:
         # Create a mock dataset
         ds = xr.Dataset(
             {
-            "var": (("lat", "lon"), np.random.rand(5, 5)),
+                "var": (("lat", "lon"), np.random.rand(5, 5)),
             },
             coords={
-            "lat": [10, 20, 30, 40, 50],
-            "lon": [100, 110, 120, 130, 140],
+                "lat": [10, 20, 30, 40, 50],
+                "lon": [100, 110, 120, 130, 140],
             },
         )
         # Add resolution attributes in km (approx. 111 km per degree)
@@ -170,3 +171,42 @@ class TestUtils:
         assert closest_ds.coords["lat"].item() in ds.coords["lat"].values
         assert closest_ds.coords["lon"].item() in ds.coords["lon"].values
 
+    def test_get_closest_gridcells(self):
+        # Create a mock dataset
+        ds = xr.Dataset(
+            {
+                "var": (("lat", "lon"), np.random.rand(5, 5)),
+            },
+            coords={
+                "lat": [10, 20, 30, 40, 50],
+                "lon": [100, 110, 120, 130, 140],
+            },
+        )
+        # Add resolution attributes in km (approx. 111 km per degree)
+        ds.attrs["resolution"] = "1110 km"
+        ds.lat.attrs["resolution"] = 1110.0
+        ds.lon.attrs["resolution"] = 1110.0
+
+        # Test with a list of points inside the grid
+        lats = [25, 35]
+        lons = [115, 125]
+        closest_dss = get_closest_gridcells(ds, lats, lons)
+
+        # Function returns a dataset with a "points" dimension
+        assert isinstance(closest_dss, xr.Dataset)
+        assert "points" in closest_dss.dims
+        assert closest_dss.sizes["points"] == len(lats)
+
+        # Check that each point has coordinates from the original dataset
+        for i in range(len(lats)):
+            point_ds = closest_dss.isel(points=i)
+            assert point_ds.coords["lat"].item() in ds.coords["lat"].values
+            assert point_ds.coords["lon"].item() in ds.coords["lon"].values
+
+        # Test with a list of points outside the grid
+        lats = [60, 70]
+        lons = [150, 160]
+        closest_dss = get_closest_gridcells(ds, lats, lons)
+
+        # Function returns a dataset with a "points" dimension
+        assert closest_dss is None
