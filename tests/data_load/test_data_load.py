@@ -23,6 +23,7 @@ from climakitae.core.data_load import (
     _override_unit_defaults,
     _time_slice,
     area_subset_geometry,
+    read_catalog_from_select,
 )
 
 
@@ -78,7 +79,7 @@ def selections():
     return selections
 
 
-class TestDataLoad:
+class TestDataLoadHidden:
 
     def test__override_unit_defaults(self):
         da = xr.DataArray()
@@ -187,7 +188,7 @@ class TestAreaSubset:
         assert isinstance(result[0], shapely.geometry.polygon.Polygon)
 
 
-class TestDerivedDataLoad:
+class TestDataLoadDerived:
 
     @patch("climakitae.core.data_load._get_data_one_var", return_value=mock_data())
     def test__get_hourly_rh(self, mock_get_data_one_var, selections):
@@ -283,3 +284,27 @@ class TestDerivedDataLoad:
         assert approx(result.data.item(), rel=1e-7) == expected
         assert result.name == "wind_speed_derived"
         assert result.attrs["units"] == "m s-1"
+
+def TestCatalogFromSelect(self):
+
+    def test_read_catalog_from_select_defaults(self,selections):
+        result = read_catalog_from_select(selections)
+        assert isinstance(result,xr.core.dataarray.DataArray)
+        assert result.name == selections.variable
+        assert result.attrs["variable_id"] == selections.variable_id
+        # Check that there's at least one variant for each model in selections
+        for sim in selections.simulation if sim != "ERA5":
+            found = [x for x in result.simulation.data if sim in x]
+            assert len(found) > 0
+        assert result.attrs["data_type"] == selections.data_type
+        assert result.attrs["downscaling_method"] == selections.downscaling_method
+        assert result.attrs["units"] == selections.units
+        assert result.attrs["units"] == selections.units
+        # Check that all requested scenarios are present
+        assert result.scenario.data[0] == selections.scenario_historical
+
+    def test_read_catalog_from_select_ssp(self,selections):
+        selections.time_slice=(1990,2050)
+        selections.scenario_ssp = ['SSP 2-4.5']
+        result = read_catalog_from_select(selections)
+        assert result.scenario.data == 'Historical + SSP 2-4.5'
