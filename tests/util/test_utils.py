@@ -11,6 +11,7 @@ import xarray as xr
 from climakitae.util.utils import (
     _package_file_path,
     area_average,
+    compute_annual_aggreggate,
     downscaling_method_as_list,
     get_closest_gridcell,
     get_closest_gridcells,
@@ -304,6 +305,50 @@ class TestUtils:
         # Test edge cases
         assert readable_bytes(1023) == "1023.0 bytes"
         assert readable_bytes(1024**2 - 1) == "1024.00 KB"
+
+    def test_compute_annual_aggreggate(self):
+        """Tests the compute_annual_aggreggate function with various inputs"""
+        # Create a mock dataset with time dimension spanning multiple years
+        time = pd.date_range("2020-01-01", periods=730, freq="D")  # 2 years of data
+        lat = [10, 20]
+        lon = [100, 110]
+        data = np.ones((len(time), len(lat), len(lon))) * 2  # All values are 2
+        da = xr.DataArray(
+            data,
+            dims=("time", "lat", "lon"),
+            coords={"time": time, "lat": lat, "lon": lon},
+        )
+
+        # Test with name parameter and grid cell count
+        name = "HDD"
+        num_grid_cells = 4  # 2x2 grid
+        result = compute_annual_aggreggate(da, name, num_grid_cells)
+
+        # Check the result has expected properties
+        assert isinstance(result, xr.DataArray)
+        assert "year" in result.dims
+        assert result.sizes["year"] == 2  # Should have 2 years
+        assert result.name == name
+
+        # Expected values: 365 days * 2 (value per day) / 4 (grid cells) = 182.5 for non-leap year
+        # and 366 days * 2 / 4 = 183 for leap year (2020)
+        np.testing.assert_allclose(result.sel(year=2020).values, 183, rtol=1e-2)
+        np.testing.assert_allclose(result.sel(year=2021).values, 182.5, rtol=1e-2)
+
+        # Test with different name and grid cell count
+        name2 = "CDD"
+        num_grid_cells2 = 2
+        result2 = compute_annual_aggreggate(da, name2, num_grid_cells2)
+        assert result2.name == name2
+
+        # Expected values doubled since we're dividing by half as many grid cells
+        np.testing.assert_allclose(result2.sel(year=2020).values, 366, rtol=1e-2)
+        np.testing.assert_allclose(result2.sel(year=2021).values, 365, rtol=1e-2)
+
+        # Test with extra dimensions that should be squeezed
+        da_extra_dim = da.expand_dims(dim={"model": ["A"]})
+        result3 = compute_annual_aggreggate(da_extra_dim, name, num_grid_cells)
+        assert "model" not in result3.dims
 
 
 class TestReprojectData:
