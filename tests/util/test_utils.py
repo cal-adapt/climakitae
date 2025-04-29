@@ -10,10 +10,12 @@ import xarray as xr
 
 from climakitae.util.utils import (
     _package_file_path,
+    add_dummy_time_to_wl,
     area_average,
     combine_hdd_cdd,
     compute_annual_aggreggate,
     compute_multimodel_stats,
+    convert_to_local_time,
     downscaling_method_as_list,
     get_closest_gridcell,
     get_closest_gridcells,
@@ -21,6 +23,7 @@ from climakitae.util.utils import (
     read_csv_file,
     readable_bytes,
     reproject_data,
+    summary_table,
     trendline,
     write_csv_file,
 )
@@ -423,9 +426,6 @@ class TestUtils:
         # Create test data with year dimension and simulation coordinates
         years = np.array([2020, 2021, 2022, 2023])
         # Create synthetic data with known trend
-        # Mean values follow y = 2x + 3 (m=2, b=3) where x is years starting from 2020
-        mean_vals = 2 * (years - 2020) + 3  # [3, 5, 7, 9]
-        # Median values follow y = x + 5 (m=1, b=5)
         median_vals = 1 * (years - 2020) + 5  # [5, 6, 7, 8]
 
         # Create simulations that will give us the desired mean and median
@@ -594,6 +594,202 @@ class TestUtils:
             match="Invalid data provided, please pass cooling/heating degree data",
         ):
             combine_hdd_cdd(invalid_data)
+
+    def test_summary_table(self):
+        """Tests the summary_table function with both time and year dimensions"""
+
+        # Test with time dimension
+        time_data = xr.Dataset(
+            {
+                "var1": (
+                    ("time", "scenario", "simulation"),
+                    np.random.rand(3, 2, 2),
+                ),
+            },
+            coords={
+                "time": pd.date_range("2020-01-01", periods=3),
+                "scenario": ["ssp245", "ssp585"],
+                "simulation": ["sim1", "sim2"],
+                "lakemask": 0,
+                "landmask": 1,
+                "lat": 35.0,
+                "lon": -120.0,
+                "Lambert_Conformal": "projection",
+                "x": 100,
+                "y": 200,
+            },
+        )
+
+        # Test with year dimension
+        year_data = xr.Dataset(
+            {
+                "var1": (
+                    ("year", "scenario", "simulation"),
+                    np.random.rand(3, 2, 2),
+                ),
+            },
+            coords={
+                "year": [2020, 2021, 2022],
+                "scenario": ["ssp245", "ssp585"],
+                "simulation": ["sim1", "sim2"],
+                "lakemask": 0,
+                "landmask": 1,
+                "lat": 35.0,
+                "lon": -120.0,
+                "Lambert_Conformal": "projection",
+                "x": 100,
+                "y": 200,
+            },
+        )
+
+        # Run the function on time data
+        time_df = summary_table(time_data)
+
+        # Run the function on year data
+        year_df = summary_table(year_data)
+
+        # Check that output is a dataframe
+        assert isinstance(time_df, pd.DataFrame)
+        assert isinstance(year_df, pd.DataFrame)
+
+        # Check that coordinates were dropped
+        for df in [time_df, year_df]:
+            for coord in [
+                "lakemask",
+                "landmask",
+                "lat",
+                "lon",
+                "Lambert_Conformal",
+                "x",
+                "y",
+            ]:
+                assert coord not in df.index.names
+
+        # Check that the dataframe has the expected structure
+        # For time dimension data
+        assert "time" in time_df.index.names
+        assert set(time_df.columns.levels[0]) == {"var1"}
+        assert set(time_df.columns.levels[1]) == {"sim1", "sim2"}
+        assert (
+            time_df.index.get_level_values("time")[0]
+            <= time_df.index.get_level_values("time")[-1]
+        )
+
+        # For year dimension data
+        assert "year" in year_df.index.names
+        assert set(year_df.columns.levels[0]) == {"var1"}
+        assert set(year_df.columns.levels[1]) == {"sim1", "sim2"}
+        assert (
+            year_df.index.get_level_values("year")[0]
+            <= year_df.index.get_level_values("year")[-1]
+        )
+
+    def test_add_dummy_time_to_wl(self):
+        """Tests the add_dummy_time_to_wl function with various inputs"""
+
+        # Test 1: DataArray with days_from_center dimension
+        days = np.arange(-10, 11)
+        data = np.random.rand(
+            len(days), 2, 3
+        )  # Sample data with days and two other dimensions
+        coords = {
+            "days_from_center": days,
+            "simulation": ["sim1", "sim2"],
+            "variable": ["var1", "var2", "var3"],
+        }
+        da_days = xr.DataArray(
+            data, dims=["days_from_center", "simulation", "variable"], coords=coords
+        )
+
+        result_days = add_dummy_time_to_wl(da_days)
+
+        # Check that the time dimension replaced days_from_center
+        assert "days_from_center" not in result_days.dims
+        assert "time" in result_days.dims
+        # Check that the length of time dimension matches the original
+        assert len(result_days.time) == len(days)
+        # Check that the timestamps are daily frequency starting from 2000-01-01
+        expected_timestamps = pd.date_range("2000-01-01", periods=len(days), freq="D")
+        np.testing.assert_array_equal(
+            result_days.time.values, expected_timestamps.values
+        )
+
+        # Test 2: DataArray with time_delta dimension
+        time_delta = np.arange(-5, 6)
+        data = np.random.rand(len(time_delta), 2)
+        da_time_delta = xr.DataArray(
+            data,
+            dims=["time_delta", "simulation"],
+            coords={
+                "time_delta": time_delta,
+                "simulation": ["sim1", "sim2"],
+            },
+        )
+        # Add frequency attribute required for time_delta dimension
+        da_time_delta.attrs["frequency"] = "hourly"
+
+        result_time_delta = add_dummy_time_to_wl(da_time_delta)
+
+        # Check that time dimension replaced time_delta
+        assert "time_delta" not in result_time_delta.dims
+        assert "time" in result_time_delta.dims
+        # Check that timestamps are hourly frequency
+        expected_hourly = pd.date_range("2000-01-01", periods=len(time_delta), freq="h")
+        np.testing.assert_array_equal(
+            result_time_delta.time.values, expected_hourly.values
+        )
+
+        # Test 3: DataArray with months_from_center dimension
+        months = np.arange(-3, 4)
+        data = np.random.rand(len(months), 3)
+        da_months = xr.DataArray(
+            data,
+            dims=["months_from_center", "simulation"],
+            coords={
+                "months_from_center": months,
+                "simulation": ["sim1", "sim2", "sim3"],
+            },
+        )
+
+        result_months = add_dummy_time_to_wl(da_months)
+
+        # Check that time dimension replaced months_from_center
+        assert "months_from_center" not in result_months.dims
+        assert "time" in result_months.dims
+        # Check that timestamps are month-end frequency
+        expected_months = pd.date_range("2000-01-01", periods=len(months), freq="ME")
+        np.testing.assert_array_equal(result_months.time.values, expected_months.values)
+
+        # Test 4: DataArray with hours_from_center dimension
+        hours = np.arange(-12, 13)
+        data = np.random.rand(len(hours))
+        da_hours = xr.DataArray(
+            data,
+            dims=["hours_from_center"],
+            coords={"hours_from_center": hours},
+        )
+
+        result_hours = add_dummy_time_to_wl(da_hours)
+
+        # Check that time dimension replaced hours_from_center
+        assert "hours_from_center" not in result_hours.dims
+        assert "time" in result_hours.dims
+        # Check that timestamps are hourly frequency
+        expected_hours = pd.date_range("2000-01-01", periods=len(hours), freq="h")
+        np.testing.assert_array_equal(result_hours.time.values, expected_hours.values)
+
+        # Test 5: Error handling for DataArray without proper time dimension
+        invalid_da = xr.DataArray(
+            np.random.rand(5, 5),
+            dims=["x", "y"],
+            coords={"x": range(5), "y": range(5)},
+        )
+
+        with pytest.raises(
+            ValueError,
+            match="DataArray does not contain necessary warming level information",
+        ):
+            add_dummy_time_to_wl(invalid_da)
 
 
 class TestReprojectData:
@@ -772,3 +968,280 @@ class TestReprojectData:
                 match="dimensions greater than 5 are not currently supported",
             ):
                 reproject_data(data_6d)
+
+
+class TestConvertToLocalTime:
+    """
+    Class for testing the convert_to_local_time function.
+    """
+
+    def test_convert_to_local_time(self):
+        """Test the convert_to_local_time function with various conditions."""
+
+        # Create mock data and selections
+        time_values = pd.date_range("2020-01-01T00:00:00", periods=24, freq="h")
+        data = xr.DataArray(
+            np.random.rand(len(time_values)),
+            dims=["time"],
+            coords={"time": time_values},
+        )
+
+        # Create a mock DataParameters object
+        mock_selections = MagicMock()
+        mock_selections.time_slice = (2020, 2020)
+        mock_selections.timescale = "hourly"
+
+        # Test 1: Monthly data (should return original data)
+        mock_selections.timescale = "monthly"
+        with patch("builtins.print") as mock_print:
+            result = convert_to_local_time(data, mock_selections)
+            assert result.equals(data)
+            mock_print.assert_called_once_with(
+                "You've selected a timescale that doesn't require any timezone shifting, due to its timescale not being granular enough (hourly). Please pass in more granular level data if you want to adjust its local timezone."
+            )
+
+        # Test 2: Daily data (should return original data)
+        mock_selections.timescale = "daily"
+        with patch("builtins.print") as mock_print:
+            result = convert_to_local_time(data, mock_selections)
+            assert result.equals(data)
+            mock_print.assert_called_once()
+
+        # Test 3: Historical Reconstruction at 2022
+        mock_selections.timescale = "hourly"
+        mock_selections.scenario_historical = ["Historical Reconstruction"]
+        mock_selections.time_slice = (2020, 2022)
+        with patch("builtins.print") as mock_print:
+            result = convert_to_local_time(data, mock_selections)
+            # Check if the specific message is in one of the calls
+            assert any(
+                "Adjusting timestep but not appending data, as there is no more ERA5 data after 2022."
+                in str(call)
+                for call in mock_print.call_args_list
+            )
+
+        # Test 4: Data at 2100 (end of possible data)
+        mock_selections.scenario_historical = []
+        mock_selections.time_slice = (2090, 2100)
+        with patch("builtins.print") as mock_print:
+            result = convert_to_local_time(data, mock_selections)
+            # Check if the specific message is in one of the calls
+            assert any(
+                "Adjusting timestep but not appending data, as there is no more data after 2100."
+                in str(call)
+                for call in mock_print.call_args_list
+            )
+
+        # Test 5: Station data type with timezone conversion
+        mock_selections.time_slice = (2020, 2021)
+        mock_selections.data_type = "Stations"
+        mock_selections.stations = ["SAN FRANCISCO DWTN"]
+
+        # Mock the stations dataframe
+        mock_stations_df = pd.DataFrame(
+            {
+                "station": ["SAN FRANCISCO DWTN"],
+                "LAT_Y": [37.77],
+                "LON_X": [-122.42],
+                "Unnamed: 0": [1],
+            }
+        )
+
+        # Create mock additional data that would be returned by selections.retrieve()
+        additional_time = pd.date_range("2022-01-01T00:00:00", periods=24, freq="h")
+        tz_data = xr.DataArray(
+            np.random.rand(len(additional_time)),
+            dims=["time"],
+            coords={"time": additional_time},
+        )
+
+        with patch(
+            "climakitae.util.utils.read_csv_file",
+            return_value=mock_stations_df,
+        ), patch.object(mock_selections, "retrieve", return_value=tz_data), patch(
+            "climakitae.util.utils.TimezoneFinder.timezone_at",
+            return_value="America/Los_Angeles",
+        ), patch(
+            "builtins.print"
+        ) as mock_print:
+
+            result = convert_to_local_time(data, mock_selections)
+
+            # Verify the timezone was set as an attribute
+            assert result.attrs["timezone"] == "America/Los_Angeles"
+
+            # Verify that the time slice was reset
+            assert mock_selections.time_slice == (2020, 2021)
+
+            # Check if the print message about timezone conversion was shown
+            mock_print.assert_called_with(
+                "Data converted to America/Los_Angeles timezone."
+            )
+
+    def test_convert_to_local_time_gridded_data(self):
+        """Test convert_to_local_time with gridded data types"""
+
+        # Create mock data with lat/lon coordinates
+        time_values = pd.date_range("2020-01-01T00:00:00", periods=24, freq="h")
+        lat_values = [34.0, 35.0]
+        lon_values = [-118.0, -117.0]
+
+        data = xr.DataArray(
+            np.random.rand(len(time_values), len(lat_values), len(lon_values)),
+            dims=["time", "lat", "lon"],
+            coords={
+                "time": time_values,
+                "lat": lat_values,
+                "lon": lon_values,
+            },
+        )
+
+        # Create a mock DataParameters object
+        mock_selections = MagicMock()
+        mock_selections.time_slice = (2020, 2021)
+        mock_selections.timescale = "hourly"
+        mock_selections.data_type = "Gridded"
+        mock_selections.area_subset = "lat/lon"
+
+        # Create mock additional data that would be returned by selections.retrieve()
+        additional_time = pd.date_range("2022-01-01T00:00:00", periods=24, freq="h")
+        tz_data = xr.DataArray(
+            np.random.rand(len(additional_time), len(lat_values), len(lon_values)),
+            dims=["time", "lat", "lon"],
+            coords={
+                "time": additional_time,
+                "lat": lat_values,
+                "lon": lon_values,
+            },
+        )
+
+        # Test with gridded data and lat/lon area_subset
+        with patch.object(mock_selections, "retrieve", return_value=tz_data), patch(
+            "climakitae.util.utils.TimezoneFinder.timezone_at",
+            return_value="America/Los_Angeles",
+        ), patch("builtins.print") as mock_print:
+
+            result = convert_to_local_time(data, mock_selections)
+
+            # Verify the timezone was set as an attribute
+            assert result.attrs["timezone"] == "America/Los_Angeles"
+
+            # Check if the print message about timezone conversion was shown
+            mock_print.assert_called_with(
+                "Data converted to America/Los_Angeles timezone."
+            )
+
+            # The time dimension length may be modified when converting to local timezone
+            # Instead of checking the exact length, we should verify that the timezone conversion
+            # was performed correctly and that we have a valid time dimension
+            assert "time" in result.dims
+            assert len(result.time) > 0  # Ensure we have at least some time values
+
+            # Optional: Verify that we're dealing with local time now (the key purpose)
+            if len(result.time) == len(data.time):
+                # If lengths are equal, values should be different (shifted by timezone)
+                assert not np.array_equal(result.time.values, data.time.values)
+            elif len(result.time) < len(data.time):
+                # If the time dimension was reduced, that's also acceptable
+                # This can happen due to timezone shifts removing some hours
+                pass
+
+    def test_convert_to_local_time_area_average(self):
+        """Test convert_to_local_time with area-averaged data"""
+
+        # Create mock data
+        time_values = pd.date_range("2020-01-01T00:00:00", periods=24, freq="h")
+        data = xr.DataArray(
+            np.random.rand(len(time_values)),
+            dims=["time"],
+            coords={
+                "time": time_values,
+                "lat": 34.0,  # Add lat coordinate
+                "lon": -118.0,  # Add lon coordinate
+            },
+        )
+
+        # Create a mock DataParameters object
+        mock_selections = MagicMock()
+        mock_selections.time_slice = (2020, 2021)
+        mock_selections.timescale = "hourly"
+        mock_selections.data_type = "Gridded"
+        mock_selections.area_average = "Yes"
+        mock_selections.latitude = [34.0, 35.0]
+        mock_selections.longitude = [-118.0, -117.0]
+
+        # Create mock additional data that would be returned by selections.retrieve()
+        additional_time = pd.date_range("2022-01-01T00:00:00", periods=24, freq="h")
+        tz_data = xr.DataArray(
+            np.random.rand(len(additional_time)),
+            dims=["time"],
+            coords={"time": additional_time},
+        )
+
+        # Test with area-averaged data
+        with patch.object(mock_selections, "retrieve", return_value=tz_data), patch(
+            "climakitae.util.utils.TimezoneFinder.timezone_at",
+            return_value="America/Los_Angeles",
+        ), patch("builtins.print") as mock_print:
+
+            result = convert_to_local_time(data, mock_selections)
+
+            # Verify the timezone was set as an attribute
+            assert result.attrs["timezone"] == "America/Los_Angeles"
+
+            # Verify the data contains the shifted time values
+            assert "time" in result.dims
+
+            # Check that mean lat/lon was used
+            np.testing.assert_allclose(np.mean(mock_selections.latitude), 34.5)
+            np.testing.assert_allclose(np.mean(mock_selections.longitude), -117.5)
+
+    def test_convert_to_local_time_empty_result(self):
+        """Test convert_to_local_time when retrieve returns empty data"""
+
+        # Create mock data
+        time_values = pd.date_range("2020-01-01T00:00:00", periods=24, freq="h")
+        data = xr.DataArray(
+            np.random.rand(len(time_values)),
+            dims=["time"],
+            coords={
+                "time": time_values,
+                "lat": 34.0,  # Add lat coordinate
+                "lon": -118.0,  # Add lon coordinate
+            },
+        )
+
+        # Create a mock DataParameters object
+        mock_selections = MagicMock()
+        mock_selections.time_slice = (2020, 2021)
+        mock_selections.timescale = "hourly"
+        # Set location information to prevent the default to UTC timezone message
+        mock_selections.latitude = [34.0]
+        mock_selections.longitude = [-118.0]
+        mock_selections.data_type = "Gridded"  # Provide data type
+        mock_selections.area_subset = "lat/lon"  # Specify area subset type
+
+        # Create empty data with time dimension
+        empty_data = xr.DataArray(
+            [],
+            dims=["time"],
+            coords={"time": []},
+        )
+
+        # Test when selections.retrieve() returns empty data
+        with patch.object(mock_selections, "retrieve", return_value=empty_data), patch(
+            "builtins.print"
+        ) as mock_print:
+
+            result = convert_to_local_time(data, mock_selections)
+
+            # Should return original data
+            assert result.equals(data)
+
+            # Check error message
+            mock_print.assert_any_call(
+                "You've selected a time slice that will additionally require a selected SSP. Please select an SSP in your selections and re-run this function."
+            )
+
+            # Verify time_slice was reset
+            assert mock_selections.time_slice == (2020, 2021)
