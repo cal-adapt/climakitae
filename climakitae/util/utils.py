@@ -1,7 +1,7 @@
 import copy
 import datetime
 import os
-from typing import Iterable
+from typing import Iterable, Union
 
 import intake
 import numpy as np
@@ -345,7 +345,9 @@ def get_closest_gridcells(
     return closest_gridcells
 
 
-def julianDay_to_date(julday, year=None, return_type="str", str_format="%b-%d"):
+def julianDay_to_date(
+    julday: int, year: int = None, return_type: str = "str", str_format: str = "%b-%d"
+) -> Union[str, datetime.datetime, datetime.date]:
     """Convert julian day of year to a date object or formatted string.
 
     Parameters
@@ -381,22 +383,23 @@ def julianDay_to_date(julday, year=None, return_type="str", str_format="%b-%d"):
     # Determine which year to use
     if year is None:
         year = datetime.datetime.now().year
-    
+
     # Create datetime object from julian day
     date_obj = datetime.datetime.strptime(f"{year}.{julday}", "%Y.%j")
-    
+
     # Return appropriate type
-    if return_type == "str":
-        return date_obj.strftime(str_format)
-    elif return_type == "datetime":
-        return date_obj
-    elif return_type == "date":
-        return date_obj.date()
-    else:
-        raise ValueError("return_type must be 'str', 'datetime', or 'date'")
+    match return_type:
+        case "str":
+            return date_obj.strftime(str_format)
+        case "datetime":
+            return date_obj
+        case "date":
+            return date_obj.date()
+        case _:
+            raise ValueError("return_type must be 'str', 'datetime', or 'date'")
 
 
-def readable_bytes(B):
+def readable_bytes(b: int | float) -> str:
     """Return the given bytes as a human friendly KB, MB, GB, or TB string.
 
     Parameters
@@ -409,22 +412,22 @@ def readable_bytes(B):
 
     Code from stackoverflow: https://stackoverflow.com/questions/12523586/python-format-size-application-converting-b-to-kb-mb-gb-tb
     """
-    B = float(B)
-    KB = float(1024)
-    MB = float(KB**2)  # 1,048,576
-    GB = float(KB**3)  # 1,073,741,824
-    TB = float(KB**4)  # 1,099,511,627,776
+    b = float(b)
+    kb = 1024
+    mb = kb**2  # 1,048,576
+    gb = kb**3  # 1,073,741,824
+    tb = kb**4  # 1,099,511,627,776
 
-    if B < KB:
-        return "{0} {1}".format(B, "bytes")
-    elif KB <= B < MB:
-        return "{0:.2f} KB".format(B / KB)
-    elif MB <= B < GB:
-        return "{0:.2f} MB".format(B / MB)
-    elif GB <= B < TB:
-        return "{0:.2f} GB".format(B / GB)
-    elif TB <= B:
-        return "{0:.2f} TB".format(B / TB)
+    if b < kb:
+        return f"{b} bytes"
+    elif kb <= b < mb:
+        return f"{b / kb:.2f} KB"
+    elif mb <= b < gb:
+        return f"{b / mb:.2f} MB"
+    elif gb <= b < tb:
+        return f"{b / gb:.2f} GB"
+    elif tb <= b:
+        return f"{b / tb:.2f} TB"
 
 
 def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
