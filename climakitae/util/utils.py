@@ -683,7 +683,7 @@ def trendline(data: xr.Dataset, kind: str = "mean") -> xr.Dataset:
     return ret_trendline
 
 
-def combine_hdd_cdd(data):
+def combine_hdd_cdd(data: xr.DataArray) -> xr.DataArray:
     """Drops specific unneeded coords from HDD/CDD data, independent of station or gridded data source
 
     Parameters
@@ -700,14 +700,14 @@ def combine_hdd_cdd(data):
         "Heating Degree Hours",
         "Cooling Degree Hours",
     ]:
-        raise Exception(
+        raise ValueError(
             "Invalid data provided, please pass cooling/heating degree data"
         )
 
     to_drop = ["scenario", "Lambert_Conformal", "variable"]
     for coord in to_drop:
         if coord in data.coords:
-            data = data.drop(coord)
+            data = data.drop_vars(coord)
 
     return data
 
