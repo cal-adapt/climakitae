@@ -14,20 +14,23 @@ from climakitae.core.data_load import (
     _get_eff_temp,
     _get_fosberg_fire_index,
     _get_hourly_dewpoint,
+    _get_hourly_specific_humidity,
     _get_hourly_rh,
     _get_monthly_daily_dewpoint,
     _get_noaa_heat_index,
     _get_Uearth,
     _get_Vearth,
+    _get_wind_dir_derived,
     _get_wind_speed_derived,
     _override_unit_defaults,
     _time_slice,
     area_subset_geometry,
+    load,
     read_catalog_from_select,
 )
 
 
-def mock_data():
+def mock_data() -> xr.DataArray:
     # Used as a return value for mocking data download
     da = xr.DataArray(np.ones((1)), coords={"time": np.zeros((1))})
     da.attrs = {"units": ""}
@@ -35,7 +38,7 @@ def mock_data():
     return da
 
 
-def mock_wind_var():
+def mock_wind_var() -> xr.DataArray:
     # Simplify testing wind speed functions
     # with single gridpoint dataset
     lon = -123.521255
@@ -53,7 +56,7 @@ def mock_wind_var():
     return da
 
 
-def mock_wrf_angles_ds():
+def mock_wrf_angles_ds() -> xr.DataArray:
     # Simplify testing wind speed functions with
     # single gridpoint dataset
     lon = -123.521255
@@ -74,9 +77,28 @@ def mock_wrf_angles_ds():
 
 
 @pytest.fixture
-def selections():
+def selections() -> DataParameters:
     selections = DataParameters()
     return selections
+
+
+class TestLoad:
+
+    def test_load_no_chunks(self, capsys):
+        da = xr.DataArray()
+        result = load(da)
+        captured = capsys.readouterr()
+        assert result.equals(da)
+        assert captured.out == "Your data is already loaded into memory\n"
+
+    def test_load_chunked(self):
+        da = xr.DataArray(data=np.zeros((10, 10)))
+        da = da.chunk(chunks={"dim_0": 5, "dim_1": 5})
+        result = load(da)
+        assert result.equals(da)
+        assert result.chunks is None
+        # Check that this object is numpy array, not dask
+        assert isinstance(result.variable._data, np.ndarray)
 
 
 class TestDataLoadHidden:
@@ -217,6 +239,13 @@ class TestDataLoadDerived:
         assert result.name == "dew_point_derived"
 
     @patch("climakitae.core.data_load._get_data_one_var", return_value=mock_data())
+    def test__get_hourly_specific_humidity(self, selections):
+        result = _get_hourly_specific_humidity(selections)
+
+        assert isinstance(result, xr.core.dataarray.DataArray)
+        assert result.name == "q2_derived"
+
+    @patch("climakitae.core.data_load._get_data_one_var", return_value=mock_data())
     def test__get_noaa_heat_index(self, mock_get_data_one_var, selections):
         # Not testing correctness of calculation, just that function runs
         # and returns data.
@@ -285,14 +314,27 @@ class TestDataLoadDerived:
         assert result.name == "wind_speed_derived"
         assert result.attrs["units"] == "m s-1"
 
+    @patch("climakitae.core.data_load._get_Uearth", return_value=mock_wind_var())
+    @patch("climakitae.core.data_load._get_Vearth", return_value=mock_wind_var())
+    def test__get_wind_dir_derived(self, mock_get_Uearth, mock_get_Vearth, selections):
+        # Function is heavily patched so we aren't downloading any data
+        # Just stepping through the function with small canned datasets
+        result = _get_wind_dir_derived(selections)
+        expected = 225
+        assert isinstance(result, xr.core.dataarray.DataArray)
+        assert approx(result.data.item(), rel=1e-7) == expected
+        assert result.name == "wind_direction_derived"
+        assert result.attrs["units"] == "degrees"
 
-class TestCatalogFromSelect():
+
+class TestReadCatalog:
 
     def test_read_catalog_from_select_defaults(self, selections):
+        # Test the default selection options
         result = read_catalog_from_select(selections)
         assert isinstance(result, xr.core.dataarray.DataArray)
         assert result.name == selections.variable
-        assert result.attrs["variable_id"] == selections.variable_id
+        assert result.attrs["variable_id"] == selections.variable_id[0]
         # Check that there's at least one variant for each model in selections
         for sim in selections.simulation:
             if sim != "ERA5":
@@ -301,12 +343,75 @@ class TestCatalogFromSelect():
         assert result.attrs["data_type"] == selections.data_type
         assert result.attrs["downscaling_method"] == selections.downscaling_method
         assert result.attrs["units"] == selections.units
-        assert result.attrs["units"] == selections.units
         # Check that all requested scenarios are present
-        assert result.scenario.data[0] == selections.scenario_historical
+        assert result.scenario.data[0] == selections.scenario_historical[0]
 
-    def test_read_catalog_from_select_ssp(self, selections):
-        selections.time_slice = (1990, 2050)
+    def test_read_catalog_from_select_defaults(self, selections):
+        # Test area subset selection with single simulation
+        selections.simulation = ["EC-Earth3"]
+        selections.downscaling_method = "Statistical"
+        selections.area_subset = "CA counties"
+        selections.cached_area = ["Alameda County"]
+        result = read_catalog_from_select(selections)
+        assert isinstance(result, xr.core.dataarray.DataArray)
+        assert result.attrs["downscaling_method"] == selections.downscaling_method
+        assert result.attrs["location_subset"] == ["Alameda County"]
+
+    def test_read_catalog_from_select_ssp245(self, selections):
+        # Add an SSP to the default options
         selections.scenario_ssp = ["SSP 2-4.5"]
+        selections.scenario_historical = ["Historical Climate"]
+        selections.time_slice = (1990, 2050)
         result = read_catalog_from_select(selections)
         assert result.scenario.data == "Historical + SSP 2-4.5"
+        assert len(result.time) == 732
+
+    def test_read_catalog_from_select_ensemean(self, selections):
+        # Case where only CESM2 is returned for ensmean
+        selections.scenario_ssp = ["SSP 2-4.5"]
+        selections.scenario_historical = ["Historical Climate"]
+        selections.simulation.append("ensmean")
+        result = read_catalog_from_select(selections)
+        assert result.scenario.data == "Historical + SSP 2-4.5"
+        assert result.simulation.data.item() == "WRF_CESM2_r11i1p1f1"
+
+    def test_read_catalog_from_select_derived(self, selections):
+        # Get an hourly derived variable
+        selections.time_slice = (1985, 1986)
+        selections.timescale = "hourly"
+        selections.variable = "Wind speed at 10m"
+        result = read_catalog_from_select(selections)
+        assert isinstance(result, xr.core.dataarray.DataArray)
+        assert result.name == selections.variable
+        assert result.attrs["units"] == selections.units
+        assert result.attrs["variable_id"] == "wind_speed_derived"
+        assert result.attrs["frequency"] == "hourly"
+
+    def test_read_catalog_from_select_stations(self, selections):
+        # Get a bias corrected station dataset
+        selections.data_type = "Stations"
+        selections.time_slice = (1985, 1986)
+        selections.area_subset = "CA counties"
+        selections.cached_area = ["Alameda County"]
+        station = "Oakland Metro International Airport (KOAK)"
+        result = read_catalog_from_select(selections)
+        assert isinstance(result, xr.core.dataset.Dataset)
+        assert station in result
+        assert result[station].attrs["location_subset"] == ["Alameda County"]
+        for item in ["station_coordinates", "station_elevation", "bias_adjustment"]:
+            assert item in result[station].attrs
+        # Check that there's at least one variant for each model in selections
+        for sim in selections.simulation:
+            if sim != "ERA5":
+                found = [x for x in result.simulation.data if sim in x]
+                assert len(found) > 0
+
+    def test_read_catalog_from_select_gwl(self, selections):
+        # Test two warming levels
+        selections.approach = "Warming Level"
+        selections.warming_level = [0.8, 2.0]
+        result = read_catalog_from_select(selections)
+        assert isinstance(result, xr.core.dataarray.DataArray)
+        assert result.approach == "Warming Level"
+        assert isinstance(result["time_delta"], xr.core.dataarray.DataArray)
+        assert isinstance(result["centered_year"], xr.core.dataarray.DataArray)
