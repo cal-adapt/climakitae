@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 
-class DataAccess(ABC):
+class DataAccessor(ABC):
     """Abstract base class for data access."""
 
     @abstractmethod
@@ -10,7 +10,7 @@ class DataAccess(ABC):
         pass
 
 
-class S3DataAccess(DataAccess):
+class S3DataAccessor(DataAccessor):
     """Handles access to data stored in S3."""
 
     def __init__(self, data_catalog):
@@ -37,7 +37,7 @@ class S3DataAccess(DataAccess):
         pass
 
 
-class StationDataAccess(DataAccess):
+class StationDataAccessor(DataAccessor):
     """Handles access to station data."""
 
     def __init__(self, data_catalog, stations_gdf):

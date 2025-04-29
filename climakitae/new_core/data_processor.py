@@ -6,24 +6,43 @@ class DataProcessor(ABC):
 
     @abstractmethod
     def process(self, data, parameters):
-        """Process raw data into the required format."""
-        pass
+        """
+        Process raw data into the required format.
+
+        Parameters
+        ----------
+        data :
+            Raw data to be processed.
+        parameters : dict
+            Parameters for processing the data.
+
+        Returns
+        -------
+        DataArray
+            Processed data in the form of a DataArray.
+
+        Raises
+        ------
+        ValueError
+            If the data cannot be processed.
+        """
+        return data
 
 
 class ClimateDataProcessor(DataProcessor):
     """Base processor for climate data."""
 
-    def process(self, data_dict, parameters):
+    def process(self, data, parameters):
         """Process climate data dictionary into a DataArray."""
         # Merge data along dimensions
-        da = self._merge_data(data_dict, parameters)
+        da = self._merge_data(data, parameters)
 
         # Handle unit conversions
         da = self._process_units(da, parameters)
 
         return da
 
-    def _merge_data(self, data_dict, parameters):
+    def _merge_data(self, data, parameters):
         """Merge data from multiple sources."""
         # Implementation of data merging logic
         pass
@@ -37,10 +56,10 @@ class ClimateDataProcessor(DataProcessor):
 class TimeClimateDataProcessor(ClimateDataProcessor):
     """Processor for time-based climate data."""
 
-    def process(self, data_dict, parameters):
+    def process(self, data, parameters):
         """Process time-based climate data."""
         # Get base processing
-        da = super().process(data_dict, parameters)
+        da = super().process(data, parameters)
 
         # Time-specific processing
         # ...
@@ -51,10 +70,10 @@ class TimeClimateDataProcessor(ClimateDataProcessor):
 class WarmingLevelDataProcessor(ClimateDataProcessor):
     """Processor for warming level climate data."""
 
-    def process(self, data_dict, parameters):
+    def process(self, data, parameters):
         """Process warming level climate data."""
         # Get base processing
-        da = super().process(data_dict, parameters)
+        da = super().process(data, parameters)
 
         # Apply warming levels approach
         da = self._apply_warming_levels_approach(da, parameters)
@@ -70,26 +89,26 @@ class WarmingLevelDataProcessor(ClimateDataProcessor):
 class StationDataProcessor(DataProcessor):
     """Base processor for station data."""
 
-    def process(self, data_dict, parameters):
+    def process(self, data, parameters):
         """Process station data."""
         # Base station data processing
-        da = self._process_station_data(data_dict, parameters)
+        da = self._process_station_data(data, parameters)
 
         return da
 
-    def _process_station_data(self, data_dict, parameters):
+    def _process_station_data(self, data, parameters):
         """Process station data."""
         # Implementation of station data processing
-        pass
+        return data
 
 
 class TimeStationDataProcessor(StationDataProcessor):
     """Processor for time-based station data."""
 
-    def process(self, data_dict, parameters):
+    def process(self, data, parameters):
         """Process time-based station data."""
         # Get base processing
-        da = super().process(data_dict, parameters)
+        da = super().process(data, parameters)
 
         # Time-specific station processing
         # ...
@@ -100,17 +119,19 @@ class TimeStationDataProcessor(StationDataProcessor):
 class WarmingLevelStationProcessor(StationDataProcessor):
     """Processor for warming level station data."""
 
-    def process(self, data_dict, parameters):
+    def process(self, data, parameters):
         """Process warming level station data."""
         # Get base processing
-        da = super().process(data_dict, parameters)
+        data_base_processed = super().process(data, parameters)
 
         # Apply warming levels approach to station data
-        da = self._apply_warming_levels_approach(da, parameters)
+        data_wl_processed = self._apply_warming_levels_approach(
+            data_base_processed, parameters
+        )
 
-        return da
+        return data_wl_processed
 
-    def _apply_warming_levels_approach(self, da, parameters):
+    def _apply_warming_levels_approach(self, data, parameters):
         """Apply warming levels approach to station data."""
         # Implementation of warming levels approach for stations
-        pass
+        return data

@@ -1,20 +1,20 @@
+"""
+Climate Data Interface Module for Accessing Climate Data.
+
+This module provides a high-level interface for accessing climate data through
+the ClimateData class. It implements a fluent interface pattern that allows users
+to chain method calls to configure data queries.
+
+The module facilitates retrieving climate data with various parameters such as
+variables, resolutions, timescales, and spatial boundaries. It implements a factory
+pattern for creating appropriate datasets and validators based on specified parameters.
+"""
+
 from typing import List, Tuple, Union
 
 from climakitae.core.constants import UNSET
-from climakitae.core.data_access import S3DataAccess, StationDataAccess
 from climakitae.core.data_interface import DataInterface
-from climakitae.core.data_processor import (
-    TimeClimateDataProcessor,
-    TimeStationDataProcessor,
-    WarmingLevelDataProcessor,
-    WarmingLevelStationProcessor,
-)
-from climakitae.core.dataset import ClimateDataset, StationDataset
-from climakitae.core.param_validation import (
-    StationDataValidator,
-    TimeClimateValidator,
-    WarmingLevelClimateValidator,
-)
+from climakitae.new_core.dataset_factory import DatasetFactory
 
 
 class ClimateData:
@@ -318,74 +318,3 @@ class ClimateData:
                 print(f"ERROR: {param} is a required parameter")
                 return False
         return True
-
-
-class DatasetFactory:
-    """
-    Factory for creating datasets and associated components.
-    Centralizes creation of datasets, validators, processors, and data access objects.
-    """
-
-    def __init__(self):
-        """Initialize the factory with a data interface."""
-        self._data_interface = DataInterface()
-
-    def create_validator(self, data_type, approach):
-        """Create appropriate validator based on data type and approach."""
-
-        match (data_type, approach):
-            case ("Gridded", "Time"):
-                return TimeClimateValidator()
-            case ("Gridded", "Warming Level"):
-                return WarmingLevelClimateValidator()
-            case ("Gridded", _):
-                raise ValueError(f"Unknown approach for Gridded data: {approach}")
-            case ("Stations", _):  # Station validator doesn't depend on approach
-                return StationDataValidator(self._data_interface.stations_gdf)
-            case _:
-                raise ValueError(f"Unknown data type: {data_type}")
-
-    @staticmethod
-    def create_processor(data_type, approach):
-        """Create appropriate processor based on data type and approach."""
-
-        match (data_type, approach):
-            case ("Gridded", "Time"):
-                return TimeClimateDataProcessor()
-            case ("Gridded", "Warming Level"):
-                return WarmingLevelDataProcessor()
-            case ("Stations", "Time"):
-                return TimeStationDataProcessor()
-            case ("Stations", "Warming Level"):
-                return WarmingLevelStationProcessor()
-            case _:
-                raise ValueError(
-                    f"Unknown data type or approach: {data_type}, {approach}"
-                )
-
-    def create_data_access(self, data_type):
-        """Create appropriate data access based on data type."""
-
-        match data_type:
-            case "Gridded":
-                return S3DataAccess(self._data_interface.data_catalog)
-            case "Stations":
-                return StationDataAccess(
-                    self._data_interface.data_catalog, self._data_interface.stations_gdf
-                )
-            case _:
-                raise ValueError(f"Unknown data type: {data_type}")
-
-    @staticmethod
-    def create_dataset(data_type, approach):
-        """Create a complete dataset with associated components."""
-        data_access = DatasetFactory.create_data_access(data_type)
-        validator = DatasetFactory.create_validator(data_type, approach)
-        processor = DatasetFactory.create_processor(data_type, approach)
-
-        if data_type == "Gridded":
-            return ClimateDataset(data_access, validator, processor)
-        elif data_type == "Stations":
-            return StationDataset(data_access, validator, processor)
-        else:
-            raise ValueError(f"Unknown data type: {data_type}")
