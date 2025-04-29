@@ -3,7 +3,7 @@ import datetime
 import os
 from typing import Iterable, Union
 
-import intake
+import intake_esm
 import numpy as np
 import pandas as pd
 import pyproj
@@ -970,7 +970,9 @@ def add_dummy_time_to_wl(wl_da: xr.DataArray) -> xr.DataArray:
     return wl_da
 
 
-def downscaling_method_to_activity_id(downscaling_method, reverse=False):
+def downscaling_method_to_activity_id(
+    downscaling_method: str, reverse: bool = False
+) -> str:
     """Convert downscaling method to activity id to match catalog names
 
     Parameters
@@ -986,12 +988,12 @@ def downscaling_method_to_activity_id(downscaling_method, reverse=False):
     """
     downscaling_dict = {"Dynamical": "WRF", "Statistical": "LOCA2"}
 
-    if reverse == True:
+    if reverse:
         downscaling_dict = {v: k for k, v in downscaling_dict.items()}
     return downscaling_dict[downscaling_method]
 
 
-def resolution_to_gridlabel(resolution, reverse=False):
+def resolution_to_gridlabel(resolution: str, reverse: bool = False) -> str:
     """Convert resolution format to grid_label format matching catalog names.
 
     Parameters
@@ -1008,12 +1010,12 @@ def resolution_to_gridlabel(resolution, reverse=False):
     """
     res_dict = {"45 km": "d01", "9 km": "d02", "3 km": "d03"}
 
-    if reverse == True:
+    if reverse:
         res_dict = {v: k for k, v in res_dict.items()}
     return res_dict[resolution]
 
 
-def timescale_to_table_id(timescale, reverse=False):
+def timescale_to_table_id(timescale: str, reverse: bool = False) -> str:
     """Convert resolution format to table_id format matching catalog names.
 
     Parameters
@@ -1036,12 +1038,12 @@ def timescale_to_table_id(timescale, reverse=False):
         "yearly_max": "yrmax",
     }
 
-    if reverse == True:
+    if reverse:
         timescale_dict = {v: k for k, v in timescale_dict.items()}
     return timescale_dict[timescale]
 
 
-def scenario_to_experiment_id(scenario, reverse=False):
+def scenario_to_experiment_id(scenario: str, reverse: bool = False) -> str:
     """
     Convert scenario format to experiment_id format matching catalog names.
 
@@ -1065,12 +1067,15 @@ def scenario_to_experiment_id(scenario, reverse=False):
         "SSP 3-7.0": "ssp370",
     }
 
-    if reverse == True:
+    if reverse:
         scenario_dict = {v: k for k, v in scenario_dict.items()}
     return scenario_dict[scenario]
 
 
-def _get_cat_subset(selections):
+# cannot import DataParameters due to circular import issue
+def _get_cat_subset(
+    selections,
+) -> intake_esm.source.ESMDataSource:  #! selections: DataParameters
     """For an input set of data selections, get the catalog subset.
 
     Parameters
@@ -1138,9 +1143,10 @@ def _get_cat_subset(selections):
     return cat_subset
 
 
-def _get_scenario_from_selections(selections):
+def _get_scenario_from_selections(selections) -> tuple[list[str], list[str]]:
     """Get scenario from DataParameters object
-    This needs to be handled differently due to warming levels retrieval method, which sets scenario to "n/a" for both historical and ssp.
+    This needs to be handled differently due to warming levels retrieval method,
+    which sets scenario to "n/a" for both historical and ssp.
 
     Parameters
     ----------
