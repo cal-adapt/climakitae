@@ -5,10 +5,13 @@ from unittest.mock import MagicMock, PropertyMock, patch
 
 import numpy as np
 import pandas as pd
+import pyproj
 import pytest
 import xarray as xr
 
-from climakitae.util.utils import (
+from climakitae.util.utils import (  # stack_sims_across_locs, # TODO: Uncomment when implemented
+    _get_cat_subset,
+    _get_scenario_from_selections,
     _package_file_path,
     add_dummy_time_to_wl,
     area_average,
@@ -17,13 +20,17 @@ from climakitae.util.utils import (
     compute_multimodel_stats,
     convert_to_local_time,
     downscaling_method_as_list,
+    downscaling_method_to_activity_id,
     get_closest_gridcell,
     get_closest_gridcells,
     julianDay_to_date,
     read_csv_file,
     readable_bytes,
     reproject_data,
+    resolution_to_gridlabel,
+    scenario_to_experiment_id,
     summary_table,
+    timescale_to_table_id,
     trendline,
     write_csv_file,
 )
@@ -190,6 +197,59 @@ class TestUtils:
         assert isinstance(closest_ds, xr.Dataset)
         assert closest_ds.coords["lat"].item() in ds.coords["lat"].values
         assert closest_ds.coords["lon"].item() in ds.coords["lon"].values
+
+    def test_get_closest_gridcell_with_projection(self):
+        """Tests the coordinate transformation in get_closest_gridcell function"""
+        # Create a mock dataset with x, y dimensions and lat/lon coordinates to satisfy the function
+        ds = xr.Dataset(
+            {
+                "var": (("x", "y"), np.random.rand(5, 5)),
+            },
+            coords={
+                "x": [10, 20, 30, 40, 50],
+                "y": [100, 110, 120, 130, 140],
+                # Add these coordinates to satisfy the function's attempt to access lat/lon
+                "lat": 37.5,
+                "lon": -122.5,
+            },
+        )
+        # Add resolution attributes in km
+        ds.attrs["resolution"] = "1110 km"
+        ds.x.attrs["resolution"] = 1110.0
+        ds.y.attrs["resolution"] = 1110.0
+
+        # Mock the rio accessor and its attributes/methods
+        mock_rio_accessor = MagicMock()
+        mock_rio_accessor.crs = "EPSG:3857"  # Web Mercator projection
+
+        # Mock the Transformer object
+        mock_transformer = MagicMock()
+        mock_transformer.transform.return_value = (
+            50,
+            140,
+        )  # Values in our coordinate range
+
+        # Test coordinates (these would be transformed)
+        lat, lon = 37.7749, -122.4194  # San Francisco coordinates
+
+        # Apply patches for the test
+        with patch.object(
+            xr.Dataset, "rio", new_callable=PropertyMock, return_value=mock_rio_accessor
+        ), patch("pyproj.Transformer.from_crs", return_value=mock_transformer):
+
+            result = get_closest_gridcell(ds, lat, lon)
+
+            # Check that from_crs was called with the correct parameters
+            pyproj.Transformer.from_crs.assert_called_once_with(
+                crs_from="epsg:4326", crs_to=mock_rio_accessor.crs, always_xy=True
+            )
+
+            # Check that transform was called with the correct parameters
+            mock_transformer.transform.assert_called_once_with(lon, lat)
+
+            # Check that the correct grid cell was selected
+            assert result.x.item() == 50
+            assert result.y.item() == 140
 
     def test_get_closest_gridcells(self):
         """tests the get_closest_gridcells function"""
@@ -791,6 +851,241 @@ class TestUtils:
         ):
             add_dummy_time_to_wl(invalid_da)
 
+    def test_downscaling_method_to_activity_id(self):
+        """Test downscaling_method_to_activity_id with different inputs"""
+        # Test forward mapping (default behavior)
+        assert downscaling_method_to_activity_id("Dynamical") == "WRF"
+        assert downscaling_method_to_activity_id("Statistical") == "LOCA2"
+
+        # Test reverse mapping
+        assert downscaling_method_to_activity_id("WRF", reverse=True) == "Dynamical"
+        assert downscaling_method_to_activity_id("LOCA2", reverse=True) == "Statistical"
+
+        # Test error case with invalid input
+        with pytest.raises(KeyError):
+            downscaling_method_to_activity_id("Invalid Method")
+
+        # Test error case with invalid input in reverse mode
+        with pytest.raises(KeyError):
+            downscaling_method_to_activity_id("Invalid ID", reverse=True)
+
+    def test_resolution_to_gridlabel(self):
+        """Test resolution_to_gridlabel with different inputs"""
+        # Test forward mapping (default behavior)
+        assert resolution_to_gridlabel("45 km") == "d01"
+        assert resolution_to_gridlabel("9 km") == "d02"
+        assert resolution_to_gridlabel("3 km") == "d03"
+
+        # Test reverse mapping
+        assert resolution_to_gridlabel("d01", reverse=True) == "45 km"
+        assert resolution_to_gridlabel("d02", reverse=True) == "9 km"
+        assert resolution_to_gridlabel("d03", reverse=True) == "3 km"
+
+        # Test error case with invalid input
+        with pytest.raises(KeyError):
+            resolution_to_gridlabel("invalid resolution")
+
+        # Test error case with invalid input in reverse mode
+        with pytest.raises(KeyError):
+            resolution_to_gridlabel("invalid grid label", reverse=True)
+
+    def test_timescale_to_table_id(self):
+        """Test timescale_to_table_id with different inputs and reverse parameter"""
+        # Test forward mapping (default behavior)
+        assert timescale_to_table_id("monthly") == "mon"
+        assert timescale_to_table_id("daily") == "day"
+        assert timescale_to_table_id("hourly") == "1hr"
+        assert timescale_to_table_id("yearly_max") == "yrmax"
+
+        # Test reverse mapping
+        assert timescale_to_table_id("mon", reverse=True) == "monthly"
+        assert timescale_to_table_id("day", reverse=True) == "daily"
+        assert timescale_to_table_id("1hr", reverse=True) == "hourly"
+        assert timescale_to_table_id("yrmax", reverse=True) == "yearly_max"
+
+        # Test error case with invalid input
+        with pytest.raises(KeyError):
+            timescale_to_table_id("invalid_timescale")
+
+        # Test error case with invalid input in reverse mode
+        with pytest.raises(KeyError):
+            timescale_to_table_id("invalid_table_id", reverse=True)
+
+    def test_scenario_to_experiment_id(self):
+        """Test scenario_to_experiment_id with different inputs and in reverse mode"""
+        # Test forward mapping (default behavior)
+        assert scenario_to_experiment_id("Historical Reconstruction") == "reanalysis"
+        assert scenario_to_experiment_id("Historical Climate") == "historical"
+        assert scenario_to_experiment_id("SSP 2-4.5") == "ssp245"
+        assert scenario_to_experiment_id("SSP 5-8.5") == "ssp585"
+        assert scenario_to_experiment_id("SSP 3-7.0") == "ssp370"
+
+        # Test reverse mapping
+        assert (
+            scenario_to_experiment_id("reanalysis", reverse=True)
+            == "Historical Reconstruction"
+        )
+        assert (
+            scenario_to_experiment_id("historical", reverse=True)
+            == "Historical Climate"
+        )
+        assert scenario_to_experiment_id("ssp245", reverse=True) == "SSP 2-4.5"
+        assert scenario_to_experiment_id("ssp585", reverse=True) == "SSP 5-8.5"
+        assert scenario_to_experiment_id("ssp370", reverse=True) == "SSP 3-7.0"
+
+        # Test error case with invalid input
+        with pytest.raises(KeyError):
+            scenario_to_experiment_id("Invalid Scenario")
+
+        # Test error case with invalid input in reverse mode
+        with pytest.raises(KeyError):
+            scenario_to_experiment_id("invalid_experiment_id", reverse=True)
+
+    def test_get_cat_subset(self):
+        """Tests the _get_cat_subset function with different selection cases"""
+        # Create mock DataParameters
+        mock_selections = MagicMock()
+        mock_selections.variable_id = ["tas"]  # Non-derived variable
+        mock_selections.downscaling_method = "Dynamical"
+        mock_selections.resolution = "45 km"
+        mock_selections.timescale = "monthly"
+        mock_selections.simulation = ["sim1"]
+
+        # Mock catalog and search results
+        mock_catalog = MagicMock()
+        mock_search_result = MagicMock()
+        mock_catalog.search.return_value = mock_search_result
+        mock_search_result.search.return_value = mock_search_result
+        mock_selections._data_catalog = mock_catalog
+
+        # Mock catalog df with institution IDs
+        mock_catalog.df = pd.DataFrame({"institution_id": ["UCSD", "Other1", "Other2"]})
+
+        # Mock scenario methods
+        with patch(
+            "climakitae.util.utils._get_scenario_from_selections",
+            return_value=(["SSP 2-4.5"], ["Historical Climate"]),
+        ):
+            # Test case 1: Standard non-derived variable with Dynamical downscaling
+            result = _get_cat_subset(mock_selections)
+
+            # Check that catalog.search was called with correct parameters
+            mock_catalog.search.assert_called_once_with(
+                activity_id=["WRF"],
+                table_id="mon",
+                grid_label="d01",
+                variable_id=["tas"],
+                experiment_id=["ssp245", "historical"],
+                source_id=["sim1"],
+            )
+
+            # Check that search was called to filter out UCSD institution
+            mock_search_result.search.assert_called_once_with(
+                institution_id=["Other1", "Other2"]
+            )
+
+            assert result == mock_search_result
+
+        # Reset mocks for next test
+        mock_catalog.search.reset_mock()
+        mock_search_result.search.reset_mock()
+
+        # Test case 2: Derived variable with Statistical downscaling
+        mock_selections.variable_id = ["tas_derived"]
+        mock_selections.downscaling_method = "Statistical"
+
+        # Create mock variable descriptions dataframe
+        var_desc_df = pd.DataFrame(
+            {"variable_id": ["tas_derived"], "dependencies": ["tas,pr"]}
+        )
+        mock_selections._variable_descriptions = var_desc_df
+
+        with patch(
+            "climakitae.util.utils._get_scenario_from_selections",
+            return_value=(["SSP 2-4.5"], ["Historical Climate"]),
+        ):
+            result = _get_cat_subset(mock_selections)
+
+            # Check that catalog.search was called with correct parameters (first dependency)
+            mock_catalog.search.assert_called_once_with(
+                activity_id=["LOCA2"],
+                table_id="mon",
+                grid_label="d01",
+                variable_id=["tas"],  # First dependency from "tas,pr"
+                experiment_id=["ssp245", "historical"],
+                source_id=["sim1"],
+            )
+
+            # Check that search was called to filter for UCSD institution
+            mock_search_result.search.assert_called_once_with(institution_id="UCSD")
+
+            assert result == mock_search_result
+
+        # Reset mocks for next test
+        mock_catalog.search.reset_mock()
+        mock_search_result.search.reset_mock()
+
+        # Test case 3: Combined downscaling methods
+        mock_selections.variable_id = ["tas"]  # Non-derived
+        mock_selections.downscaling_method = "Dynamical+Statistical"
+
+        with patch(
+            "climakitae.util.utils._get_scenario_from_selections",
+            return_value=(["SSP 2-4.5"], ["Historical Climate"]),
+        ), patch(
+            "climakitae.util.utils.downscaling_method_as_list",
+            return_value=["Dynamical", "Statistical"],
+        ):
+            result = _get_cat_subset(mock_selections)
+
+            # Check that catalog.search was called with correct parameters (both methods)
+            mock_catalog.search.assert_called_once_with(
+                activity_id=["WRF", "LOCA2"],
+                table_id="mon",
+                grid_label="d01",
+                variable_id=["tas"],
+                experiment_id=["ssp245", "historical"],
+                source_id=["sim1"],
+            )
+
+            # For combined methods, the UCSD filter would be applied
+            mock_search_result.search.assert_called_once_with(institution_id="UCSD")
+
+            assert result == mock_search_result
+
+    def test_get_scenario_from_selections(self):
+        """Tests the _get_scenario_from_selections function with Time and Warming Level approaches"""
+
+        # Test case 1: Time approach
+        mock_selections_time = MagicMock()
+        mock_selections_time.approach = "Time"
+        mock_selections_time.scenario_ssp = ["SSP 2-4.5"]
+        mock_selections_time.scenario_historical = ["Historical Climate"]
+
+        scenario_ssp, scenario_historical = _get_scenario_from_selections(
+            mock_selections_time
+        )
+
+        # Verify that it returns the selections directly for Time approach
+        assert scenario_ssp == ["SSP 2-4.5"]
+        assert scenario_historical == ["Historical Climate"]
+
+        # Test case 2: Warming Level approach
+        mock_selections_wl = MagicMock()
+        mock_selections_wl.approach = "Warming Level"
+
+        # Mock the SSPS constant
+        with patch(
+            "climakitae.util.utils.SSPS", ["SSP 2-4.5", "SSP 3-7.0", "SSP 5-8.5"]
+        ):
+            scenario_ssp, scenario_historical = _get_scenario_from_selections(
+                mock_selections_wl
+            )
+
+            # Verify that it returns all SSPs and Historical Climate for Warming Level approach
+            assert scenario_ssp == ["SSP 2-4.5", "SSP 3-7.0", "SSP 5-8.5"]
+            assert scenario_historical == ["Historical Climate"]
+
 
 class TestReprojectData:
     """
@@ -1245,3 +1540,67 @@ class TestConvertToLocalTime:
 
             # Verify time_slice was reset
             assert mock_selections.time_slice == (2020, 2021)
+
+    def test_convert_to_local_time_area_subset(self):
+        """Test convert_to_local_time with gridded data and area subset"""
+        
+        # Create mock data with time dimension
+        time_values = pd.date_range("2020-01-01T00:00:00", periods=24, freq="h")
+        data = xr.DataArray(
+            np.random.rand(len(time_values)),
+            dims=["time"],
+            coords={"time": time_values},
+        )
+        
+        # Create a mock DataParameters object
+        mock_selections = MagicMock()
+        mock_selections.time_slice = (2020, 2021)
+        mock_selections.timescale = "hourly"
+        mock_selections.data_type = "Gridded"
+        mock_selections.area_subset = "CA counties"  # Use area subset
+        mock_selections.cached_area = ["Alameda"]  # Example county
+        
+        # Create mock additional data that would be returned by selections.retrieve()
+        additional_time = pd.date_range("2022-01-01T00:00:00", periods=24, freq="h")
+        tz_data = xr.DataArray(
+            np.random.rand(len(additional_time)),
+            dims=["time"],
+            coords={"time": additional_time},
+        )
+        
+        # Mock the boundaries and geometry objects
+        mock_geographies = MagicMock()
+        mock_selections._geographies = mock_geographies
+        
+        # Mock county data with geometry that has a centroid
+        mock_county = MagicMock()
+        mock_county.geometry.centroid.x = -122.0  # Example longitude
+        mock_county.geometry.centroid.y = 37.5    # Example latitude
+        
+        # Mock the county dataframe with loc returning our mock county
+        mock_ca_counties = MagicMock()
+        mock_ca_counties.loc.__getitem__.return_value = mock_county
+        
+        # Set up the necessary attributes and methods on mock_geographies
+        mock_geographies._ca_counties = mock_ca_counties
+        mock_geographies._get_ca_counties.return_value = {"Alameda": 0}  # Map county name to index
+        
+        # Test with area subset data
+        with patch.object(mock_selections, "retrieve", return_value=tz_data), patch(
+            "climakitae.util.utils.TimezoneFinder.timezone_at",
+            return_value="America/Los_Angeles",
+        ), patch("builtins.print") as mock_print:
+            
+            result = convert_to_local_time(data, mock_selections)
+            
+            # Verify the timezone was set as an attribute
+            assert result.attrs["timezone"] == "America/Los_Angeles"
+            
+            # Verify that TimezoneFinder.timezone_at was called with the centroid coordinates
+            from climakitae.util.utils import TimezoneFinder
+            TimezoneFinder.timezone_at.assert_called_with(lat=37.5, lng=-122.0)
+            
+            # Check if the print message about timezone conversion was shown
+            mock_print.assert_called_with(
+                "Data converted to America/Los_Angeles timezone."
+            )
