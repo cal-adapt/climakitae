@@ -1,7 +1,7 @@
 import datetime
 import os
 import tempfile
-from unittest.mock import PropertyMock, patch
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pandas as pd
@@ -16,13 +16,18 @@ from climakitae.util.utils import (
     get_closest_gridcells,
     julianDay_to_date,
     read_csv_file,
+    readable_bytes,
     write_csv_file,
 )
 
 
 class TestUtils:
+    """
+    Class for testing functions in the utils module.
+    """
 
     def test_downscaling_method_as_list(self):
+        """tests the downscaling_method_as_list function"""
         options = {
             "Dynamical": ["Dynamical"],
             "Statistical": ["Statistical"],
@@ -34,6 +39,7 @@ class TestUtils:
             ), f"Expected {value}, but got {downscaling_method_as_list(key)}"
 
     def test_area_average(self):
+        """tests the area_average function"""
         # Mock data with x, y dimensions (needs lat for weighting)
         data_xy = xr.Dataset(
             {"var1": (("time", "x", "y"), [[[1, 2], [3, 4]], [[5, 6], [7, 8]]])},
@@ -80,8 +86,7 @@ class TestUtils:
         assert result_latlon["var2"].dtype == float
 
     def test_read_csv_file(self):
-        # Create a temporary CSV file for testing
-
+        """tests the read_csv_file function"""
         with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
             # Create test data
             data = {
@@ -108,7 +113,10 @@ class TestUtils:
 
     @patch("pandas.DataFrame.to_csv")
     @patch("climakitae.util.utils._package_file_path")
-    def test_write_csv_file(self, mock_package_file_path, mock_to_csv):
+    def test_write_csv_file(
+        self, mock_package_file_path: MagicMock, mock_to_csv: MagicMock
+    ):
+        """tests the write_csv_file function"""
         # Create a temporary CSV file for testing
         with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
             mock_package_file_path.return_value = tmp.name
@@ -131,6 +139,7 @@ class TestUtils:
         os.unlink(tmp.name)
 
     def test_package_file_path(self):
+        """tests the _package_file_path function"""
         # Test with a valid package name and file name
         package_name = "climakitae"
         file_name = "test_file.txt"
@@ -142,6 +151,7 @@ class TestUtils:
         assert _package_file_path(file_name) == expected_path
 
     def test_get_closest_gridcell(self):
+        """tests the get_closest_gridcell function"""
         # Create a mock dataset
         ds = xr.Dataset(
             {
@@ -174,6 +184,7 @@ class TestUtils:
         assert closest_ds.coords["lon"].item() in ds.coords["lon"].values
 
     def test_get_closest_gridcells(self):
+        """tests the get_closest_gridcells function"""
         # Create a mock dataset
         ds = xr.Dataset(
             {
@@ -214,6 +225,7 @@ class TestUtils:
         assert closest_dss is None
 
     def test_julianDay_to_date(self):
+        """tests the julianDay_to_date function"""
         # Test default return_type (str) with default format
         assert julianDay_to_date(1, year=2023) == "Jan-01"
         assert julianDay_to_date(32, year=2023) == "Feb-01"
@@ -251,7 +263,46 @@ class TestUtils:
             julianDay_to_date(1, return_type="invalid")
 
         # Test automatic year determination (using mock to avoid year-dependent tests)
-        with patch("datetime.datetime") as mock_datetime:
-            mock_now = PropertyMock(return_value=datetime.datetime(2023, 5, 15))
-            mock_datetime.now.return_value = mock_now.return_value
+        with patch("climakitae.util.utils.datetime.datetime", autospec=True) as mock_dt:
+            # Set up the return value for now()
+            mock_dt.now.return_value = datetime.datetime(2023, 5, 15)
+
+            # Set up the mock chain for strptime().strftime()
+            mock_date_obj = MagicMock()
+            mock_dt.strptime.return_value = mock_date_obj
+            mock_date_obj.strftime.return_value = "2023-01-01"
+
             assert julianDay_to_date(1, str_format="%Y-%m-%d") == "2023-01-01"
+
+    @staticmethod
+    def test_readable_bytes():
+        """Tests the readable_bytes function"""
+
+        # Test bytes
+        assert readable_bytes(500) == "500.0 bytes"
+        assert readable_bytes(0) == "0.0 bytes"
+
+        # Test KB
+        assert readable_bytes(1024) == "1.00 KB"
+        assert readable_bytes(1500) == "1.46 KB"
+        assert readable_bytes(10240) == "10.00 KB"
+
+        # Test MB
+        assert readable_bytes(1048576) == "1.00 MB"  # 1024^2
+        assert readable_bytes(2097152) == "2.00 MB"  # 2 * 1024^2
+        assert readable_bytes(5242880) == "5.00 MB"  # 5 * 1024^2
+
+        # Test GB
+        assert readable_bytes(1073741824) == "1.00 GB"  # 1024^3
+        assert readable_bytes(3221225472) == "3.00 GB"  # 3 * 1024^3
+
+        # Test TB
+        assert readable_bytes(1099511627776) == "1.00 TB"  # 1024^4
+        assert readable_bytes(2199023255552) == "2.00 TB"  # 2 * 1024^4
+
+        # Test edge cases
+        assert readable_bytes(1023) == "1023.0 bytes"
+        assert readable_bytes(1024**2 - 1) == "1024.00 KB"
+        assert readable_bytes(1024**3 - 1) == "1024.00 MB"
+        assert readable_bytes(1024**4 - 1) == "1024.00 GB"
+
