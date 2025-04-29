@@ -12,6 +12,7 @@ from climakitae.util.utils import (
     _package_file_path,
     area_average,
     compute_annual_aggreggate,
+    compute_multimodel_stats,
     downscaling_method_as_list,
     get_closest_gridcell,
     get_closest_gridcells,
@@ -19,6 +20,7 @@ from climakitae.util.utils import (
     read_csv_file,
     readable_bytes,
     reproject_data,
+    trendline,
     write_csv_file,
 )
 
@@ -349,6 +351,169 @@ class TestUtils:
         da_extra_dim = da.expand_dims(dim={"model": ["A"]})
         result3 = compute_annual_aggreggate(da_extra_dim, name, num_grid_cells)
         assert "model" not in result3.dims
+
+    def test_compute_multimodel_stats(self):
+        """Tests the compute_multimodel_stats function"""
+        # Create a mock dataset with simulation dimension
+        time = pd.date_range("2020-01-01", periods=30)
+        simulations = ["sim1", "sim2", "sim3"]
+
+        # Create random data with different values for each simulation
+        data = np.random.rand(len(time), len(simulations))
+        # Make sure values are distinct to test min/max properly
+        data[:, 0] *= 2  # sim1 values are doubled
+        data[:, 2] += 3  # sim3 values are shifted upward
+
+        da = xr.DataArray(
+            data,
+            dims=("time", "simulation"),
+            coords={"time": time, "simulation": simulations},
+            name="test_variable",
+        )
+
+        # Run the function
+        result = compute_multimodel_stats(da)
+
+        # Verify the result has the expected structure
+        assert isinstance(result, xr.DataArray)
+        assert "simulation" in result.dims
+        assert (
+            len(result.simulation) == len(simulations) + 4
+        )  # original + mean, min, max, median
+
+        # Check the result contains original data
+        for sim in simulations:
+            assert sim in result.simulation.values
+            np.testing.assert_array_equal(
+                result.sel(simulation=sim).values, da.sel(simulation=sim).values
+            )
+
+        # Check the computed stats
+        # Mean
+        assert "simulation mean" in result.simulation.values
+        np.testing.assert_allclose(
+            result.sel(simulation="simulation mean").values,
+            da.mean(dim="simulation").values,
+        )
+
+        # Min
+        assert "simulation min" in result.simulation.values
+        np.testing.assert_allclose(
+            result.sel(simulation="simulation min").values,
+            da.min(dim="simulation").values,
+        )
+
+        # Max
+        assert "simulation max" in result.simulation.values
+        np.testing.assert_allclose(
+            result.sel(simulation="simulation max").values,
+            da.max(dim="simulation").values,
+        )
+
+        # Median
+        assert "simulation median" in result.simulation.values
+        np.testing.assert_allclose(
+            result.sel(simulation="simulation median").values,
+            da.median(dim="simulation").values,
+        )
+
+    def test_trendline(self):
+        """Tests the trendline function with various inputs"""
+        # Create test data with year dimension and simulation coordinates
+        years = np.array([2020, 2021, 2022, 2023])
+        # Create synthetic data with known trend
+        # Mean values follow y = 2x + 3 (m=2, b=3) where x is years starting from 2020
+        mean_vals = 2 * (years - 2020) + 3  # [3, 5, 7, 9]
+        # Median values follow y = x + 5 (m=1, b=5)
+        median_vals = 1 * (years - 2020) + 5  # [5, 6, 7, 8]
+
+        # Create simulations that will give us the desired mean and median
+        sim1 = np.array([2, 3, 4, 5])  # Below median
+        sim2 = np.array([5, 6, 7, 8])  # median
+        sim3 = np.array([8, 9, 10, 11])  # Above median
+
+        # Stack into a single array
+        sim_data = np.stack([sim1, sim2, sim3])
+
+        # Verify our data has the expected mean and median
+        # The mean should be approximately [5, 6, 7, 8]
+        assert np.allclose(np.mean(sim_data, axis=0), [5, 6, 7, 8])
+        # The median should be exactly [5, 6, 7, 8]
+        assert np.all(np.median(sim_data, axis=0) == median_vals)
+
+        # Create MultiModel stats data that would be output by compute_multimodel_stats
+        sim_mean = np.mean(sim_data, axis=0)
+        sim_min = np.min(sim_data, axis=0)
+        sim_max = np.max(sim_data, axis=0)
+        sim_median = np.median(sim_data, axis=0)
+
+        # Stack into array with all simulations and stats
+        all_data = np.vstack([sim_data, sim_mean, sim_min, sim_max, sim_median])
+
+        # Create DataArray with expected structure
+        simulations = [
+            "sim1",
+            "sim2",
+            "sim3",
+            "simulation mean",
+            "simulation min",
+            "simulation max",
+            "simulation median",
+        ]
+        da = xr.DataArray(
+            all_data,
+            dims=("simulation", "year"),
+            coords={"simulation": simulations, "year": years},
+            name="test_variable",
+        )
+
+        # Test mean trendline
+        mean_trend = trendline(da, kind="mean")
+
+        # Verify basic properties
+        assert isinstance(mean_trend, xr.DataArray)
+        assert "year" in mean_trend.dims
+        assert mean_trend.name == "trendline"
+        assert len(mean_trend) == len(years)
+
+        # The mean follows y = x + 5 (close enough with our simulated data)
+        expected_mean_values = 1 * (years - 2020) + 5
+        np.testing.assert_allclose(mean_trend.values, expected_mean_values, rtol=1e-1)
+
+        # Test median trendline
+        median_trend = trendline(da, kind="median")
+
+        # Verify basic properties
+        assert isinstance(median_trend, xr.DataArray)
+        assert "year" in median_trend.dims
+        assert median_trend.name == "trendline"
+
+        # Verify values follow expected trend (m=1, b=5)
+        expected_median_values = 1 * (years - 2020) + 5
+        np.testing.assert_allclose(
+            median_trend.values, expected_median_values, rtol=1e-5
+        )
+
+        # Test error handling when simulation stats not available
+        da_no_stats = da.sel(simulation=["sim1", "sim2", "sim3"])
+
+        # Check that the function raises an exception for missing mean stats
+        with pytest.raises(
+            ValueError,
+            match="Invalid data provided, please pass the multimodel stats from compute_multimodel_stats",
+        ):
+            trendline(da_no_stats, kind="mean")
+
+        # Check that the function raises an exception for missing median stats
+        with pytest.raises(
+            ValueError,
+            match="Invalid data provided, please pass the multimodel stats from compute_multimodel_stats",
+        ):
+            trendline(da_no_stats, kind="median")
+
+        # Test with invalid kind parameter
+        with pytest.raises(ValueError):
+            trendline(da, kind="invalid_kind")
 
 
 class TestReprojectData:

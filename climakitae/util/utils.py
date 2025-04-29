@@ -637,7 +637,7 @@ def compute_multimodel_stats(data):
     return stats_concat
 
 
-def trendline(data, kind="mean"):
+def trendline(data: xr.Dataset, kind: str = "mean") -> xr.Dataset:
     """Calculates treadline of the multi-model mean or median.
 
     Parameters
@@ -655,27 +655,32 @@ def trendline(data, kind="mean"):
     1. Development note: If an additional option to trendline 'kind' is required,
     compute_multimodel_stats must be modified to update optionality.
     """
+    ret_trendline = xr.Dataset()
     if kind == "mean":
         if "simulation mean" not in data.simulation:
-            raise Exception(
-                "Invalid data provdied, please pass the multimodel stats from compute_multimodel_stats"
+            raise ValueError(
+                "Invalid data provided, please pass the multimodel stats from compute_multimodel_stats"
             )
 
         data_sim_mean = data.sel(simulation="simulation mean")
         m, b = data_sim_mean.polyfit(dim="year", deg=1).polyfit_coefficients.values
-        trendline = m * data_sim_mean.year + b  # y = mx + b
+        ret_trendline = m * data_sim_mean.year + b  # y = mx + b
 
     elif kind == "median":
         if "simulation median" not in data.simulation:
-            raise Exception(
+            raise ValueError(
                 "Invalid data provided, please pass the multimodel stats from compute_multimodel_stats"
             )
 
         data_sim_med = data.sel(simulation="simulation median")
         m, b = data_sim_med.polyfit(dim="year", deg=1).polyfit_coefficients.values
-        trendline = m * data_sim_med.year + b  # y = mx + b
-    trendline.name = "trendline"
-    return trendline
+        ret_trendline = m * data_sim_med.year + b  # y = mx + b
+    else:
+        raise ValueError(
+            "Invalid kind provided, please pass either 'mean' or 'median' as the kind"
+        )
+    ret_trendline.name = "trendline"
+    return ret_trendline
 
 
 def combine_hdd_cdd(data):
