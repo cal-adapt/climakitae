@@ -1543,7 +1543,7 @@ class TestConvertToLocalTime:
 
     def test_convert_to_local_time_area_subset(self):
         """Test convert_to_local_time with gridded data and area subset"""
-        
+
         # Create mock data with time dimension
         time_values = pd.date_range("2020-01-01T00:00:00", periods=24, freq="h")
         data = xr.DataArray(
@@ -1551,7 +1551,7 @@ class TestConvertToLocalTime:
             dims=["time"],
             coords={"time": time_values},
         )
-        
+
         # Create a mock DataParameters object
         mock_selections = MagicMock()
         mock_selections.time_slice = (2020, 2021)
@@ -1559,7 +1559,7 @@ class TestConvertToLocalTime:
         mock_selections.data_type = "Gridded"
         mock_selections.area_subset = "CA counties"  # Use area subset
         mock_selections.cached_area = ["Alameda"]  # Example county
-        
+
         # Create mock additional data that would be returned by selections.retrieve()
         additional_time = pd.date_range("2022-01-01T00:00:00", periods=24, freq="h")
         tz_data = xr.DataArray(
@@ -1567,39 +1567,42 @@ class TestConvertToLocalTime:
             dims=["time"],
             coords={"time": additional_time},
         )
-        
+
         # Mock the boundaries and geometry objects
         mock_geographies = MagicMock()
         mock_selections._geographies = mock_geographies
-        
+
         # Mock county data with geometry that has a centroid
         mock_county = MagicMock()
         mock_county.geometry.centroid.x = -122.0  # Example longitude
-        mock_county.geometry.centroid.y = 37.5    # Example latitude
-        
+        mock_county.geometry.centroid.y = 37.5  # Example latitude
+
         # Mock the county dataframe with loc returning our mock county
         mock_ca_counties = MagicMock()
         mock_ca_counties.loc.__getitem__.return_value = mock_county
-        
+
         # Set up the necessary attributes and methods on mock_geographies
         mock_geographies._ca_counties = mock_ca_counties
-        mock_geographies._get_ca_counties.return_value = {"Alameda": 0}  # Map county name to index
-        
+        mock_geographies._get_ca_counties.return_value = {
+            "Alameda": 0
+        }  # Map county name to index
+
         # Test with area subset data
         with patch.object(mock_selections, "retrieve", return_value=tz_data), patch(
             "climakitae.util.utils.TimezoneFinder.timezone_at",
             return_value="America/Los_Angeles",
         ), patch("builtins.print") as mock_print:
-            
+
             result = convert_to_local_time(data, mock_selections)
-            
+
             # Verify the timezone was set as an attribute
             assert result.attrs["timezone"] == "America/Los_Angeles"
-            
+
             # Verify that TimezoneFinder.timezone_at was called with the centroid coordinates
             from climakitae.util.utils import TimezoneFinder
+
             TimezoneFinder.timezone_at.assert_called_with(lat=37.5, lng=-122.0)
-            
+
             # Check if the print message about timezone conversion was shown
             mock_print.assert_called_with(
                 "Data converted to America/Los_Angeles timezone."
