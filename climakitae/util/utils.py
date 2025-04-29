@@ -12,6 +12,8 @@ import xarray as xr
 from timezonefinder import TimezoneFinder
 
 from climakitae.core.constants import SSPS, UNSET
+
+# from climakitae.core.data_interface import DataParameters
 from climakitae.core.paths import data_catalog_url, stations_csv_path
 
 
@@ -399,7 +401,7 @@ def julianDay_to_date(
             raise ValueError("return_type must be 'str', 'datetime', or 'date'")
 
 
-def readable_bytes(b: int | float) -> str:
+def readable_bytes(b: int) -> str:
     """Return the given bytes as a human friendly KB, MB, GB, or TB string.
 
     Parameters
@@ -432,7 +434,7 @@ def readable_bytes(b: int | float) -> str:
 
 def reproject_data(
     xr_da: xr.DataArray, proj: str = "EPSG:4326", fill_value: float = np.nan
-):
+) -> xr.DataArray:
     """Reproject xr.DataArray using rioxarray.
 
     Parameters
@@ -457,7 +459,12 @@ def reproject_data(
         if input data has more than 5 dimensions
     """
 
-    def _reproject_data_4D(data, reproject_dim, proj="EPSG:4326", fill_value=np.nan):
+    def _reproject_data_4D(
+        data: xr.DataArray,
+        reproject_dim: str,
+        proj: str = "EPSG:4326",
+        fill_value: float = np.nan,
+    ) -> xr.DataArray:
         """Reproject 4D xr.DataArray across an input dimension
 
         Parameters
@@ -487,7 +494,12 @@ def reproject_data(
         )  # Concat along reprojection dim to get entire dataset reprojected
         return data_reprojected
 
-    def _reproject_data_5D(data, reproject_dim, proj="EPSG:4326", fill_value=np.nan):
+    def _reproject_data_5D(
+        data: xr.DataArray,
+        reproject_dim: list[str],
+        proj: str = "EPSG:4326",
+        fill_value: float = np.nan,
+    ) -> xr.DataArray:
         """Reproject 5D xr.DataArray across two input dimensions
 
         Parameters
@@ -563,7 +575,7 @@ def reproject_data(
         )
     else:
         raise ValueError(
-            ("DataArrays with dimensions greater" " than 5 are not currently supported")
+            "DataArrays with dimensions greater than 5 are not currently supported"
         )
 
     # Reassign attribute to reflect reprojection
@@ -572,7 +584,9 @@ def reproject_data(
 
 
 ## DFU notebook-specific functions, flexible for all notebooks
-def compute_annual_aggreggate(data, name, num_grid_cells):
+def compute_annual_aggreggate(
+    data: xr.DataArray, name: str, num_grid_cells: int
+) -> xr.DataArray:
     """Calculates the annual sum of HDD and CDD
 
     Parameters
@@ -591,7 +605,7 @@ def compute_annual_aggreggate(data, name, num_grid_cells):
     return annual_ag
 
 
-def compute_multimodel_stats(data):
+def compute_multimodel_stats(data: xr.DataArray) -> xr.DataArray:
     """Calculates model mean, min, max, median across simulations
 
     Parameters
@@ -712,8 +726,9 @@ def combine_hdd_cdd(data: xr.DataArray) -> xr.DataArray:
     return data
 
 
-def summary_table(data):
-    """Helper function to organize dataset object into a pandas dataframe for ease.
+def summary_table(data: xr.Dataset) -> pd.DataFrame:
+    """
+    Helper function to organize dataset object into a pandas dataframe for ease.
 
     Parameters
     ----------
@@ -727,7 +742,7 @@ def summary_table(data):
 
     # Identify whether the temporal dimension is "time" or "year"
     if "time" in data.dims:
-        df = data.drop(
+        df = data.drop_vars(
             ["lakemask", "landmask", "lat", "lon", "Lambert_Conformal", "x", "y"]
         ).to_dataframe(dim_order=["time", "scenario", "simulation"])
 
@@ -735,7 +750,7 @@ def summary_table(data):
         df = df.sort_values(by=["time"])
 
     elif "year" in data.dims:
-        df = data.drop(
+        df = data.drop_vars(
             ["lakemask", "landmask", "lat", "lon", "Lambert_Conformal", "x", "y"]
         ).to_dataframe(dim_order=["year", "scenario", "simulation"])
 
@@ -745,79 +760,46 @@ def summary_table(data):
     return df
 
 
-def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
-    """Converts the inputted data to the local time of the selection.
-
-    Parameters
-    ----------
-    data: xr.DataArray
-    selections: DataParameters
-
-    Returns
-    -------
-    sliced_data: xr.DataArray
+def convert_to_local_time(data: xr.DataArray, selections) -> xr.DataArray:
     """
-    # 1. Find the other data
-    start, end = selections.time_slice
-    # tz_selections = copy.copy(selections)
+    Convert time dimension from UTC to local time for the grid or station.
 
-    # Condition if timezone adjusting is happening at the end of `Historical Reconstruction`
-    if (
-        selections.scenario_historical == ["Historical Reconstruction"] and end == 2022
-    ):  # TODO: Remove 2022 hardcoding
-        print(
-            "Adjusting timestep but not appending data, as there is no more ERA5 data after 2022."
-        )
-        total_data = data
-        pass
+    Args:
+        data (xarray.DataArray): Input data.
+        selections: DataParameters object containing selection details.
 
-    # Condition if selected data is daily/monthly, to not adjust the data at all since this would not do anything.
-    elif selections.timescale == "monthly" or selections.timescale == "daily":
+    Returns:
+        xarray.DataArray: Data with converted time coordinate.
+    """
+
+    # If timescale is not hourly, no need to convert
+    if selections.timescale in ["monthly", "daily"]:
         print(
             "You've selected a timescale that doesn't require any timezone shifting, due to its timescale not being granular enough (hourly). Please pass in more granular level data if you want to adjust its local timezone."
         )
         return data
 
-    # Determining if the selected data is at the end of possible data time interval
-    elif end < 2100:
-        # Use selections object to retrieve new data
-        selections.time_slice = (
-            end + 1,
-            end + 1,
-        )  # This is assuming selections passed with be negative UTC time. Also to get the next year of data.
-        tz_data = selections.retrieve()
+    # 1. Get the time slice from selections
+    start, end = selections.time_slice
 
-        if tz_data.time.size == 0:
-            print(
-                "You've selected a time slice that will additionally require a selected SSP. Please select an SSP in your selections and re-run this function."
-            )
-            selections.time_slice = (start, end)
-            return data
+    # Default lat/lon values in case other methods fail
+    lat = None
+    lon = None
 
-        # 2. Combine the data
-        total_data = xr.concat([data, tz_data], dim="time")
-
-    else:  # 2100 or any years greater that the user has input
-        print(
-            "Adjusting timestep but not appending data, as there is no more data after 2100."
-        )
-        total_data = data
-
-    # 3. Find the data's centerpoint through selections
+    # Get latitude/longitude information
     if selections.data_type == "Stations":
-        station_name = selections.stations
-
-        # Getting lat/lon of a specific station
+        # Read stations database
         stations_df = read_csv_file(stations_csv_path)
         stations_df = stations_df.drop(columns=["Unnamed: 0"])
 
-        # Getting specific station geometry
-        station_geom = stations_df[stations_df["station"] == station_name[0]]
-        lat = station_geom.LAT_Y.item()
-        lon = station_geom.LON_X.item()
+        # Filter by selected station(s) - assume first station if multiple
+        selected_station = selections.stations[0]
+        station_data = stations_df[stations_df["station"] == selected_station]
+        lat = station_data["LAT_Y"].values[0]
+        lon = station_data["LON_X"].values[0]
 
     elif selections.area_average == "Yes":
-        # Finding avg. lat/lon when the area is averaged because then it must come from selections.
+        # For area average, use the mean lat/lon
         lat = np.mean(selections.latitude)
         lon = np.mean(selections.longitude)
 
@@ -828,7 +810,6 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
 
     elif selections.data_type == "Gridded" and selections.area_subset != "none":
         # Find the avg. lat/lon coordinates from entire geometry within an area subset
-
         boundaries = selections._geographies
 
         # Making mapping for different geographies to different polygons
@@ -864,9 +845,46 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
         lat = center_pt.y
         lon = center_pt.x
 
-    # 4. Change datetime objects to local time
-    tf = TimezoneFinder()
-    local_tz = tf.timezone_at(lng=lon, lat=lat)
+    # Check if we were able to get valid coordinates
+    if lat is None or lon is None:
+        # Default to a reasonable timezone (UTC)
+        local_tz = "UTC"
+        print("Could not determine location coordinates, defaulting to UTC timezone.")
+    else:
+        # Find timezone for the coordinates
+        tf = TimezoneFinder()
+        local_tz = tf.timezone_at(lng=lon, lat=lat)
+
+    # Condition if timezone adjusting is happening at the end of `Historical Reconstruction`
+    if selections.scenario_historical == ["Historical Reconstruction"] and end == 2022:
+        print(
+            "Adjusting timestep but not appending data, as there is no more ERA5 data after 2022."
+        )
+        total_data = data
+
+    # Condition if selected data is at the end of possible data time interval
+    elif end < 2100:
+        # Use selections object to retrieve new data for timezone shifting
+        tz_selections = copy.copy(selections)
+        tz_selections.time_slice = (end + 1, end + 1)
+        tz_data = tz_selections.retrieve()
+
+        if tz_data.time.size == 0:
+            print(
+                "You've selected a time slice that will additionally require a selected SSP. Please select an SSP in your selections and re-run this function."
+            )
+            return data
+
+        # Combine the data
+        total_data = xr.concat([data, tz_data], dim="time")
+
+    else:  # 2100 or any years greater that the user has input
+        print(
+            "Adjusting timestep but not appending data, as there is no more data after 2100."
+        )
+        total_data = data
+
+    # Change datetime objects to local time
     new_time = (
         pd.DatetimeIndex(total_data.time)
         .tz_localize("UTC")
@@ -874,26 +892,26 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
         .tz_localize(None)
         .astype("datetime64[ns]")
     )
-    # import pdb; pdb.set_trace()
     total_data["time"] = new_time
 
-    # 5. Subset the data by the initial time
+    # Subset the data by the initial time
     start_slice = data.time[0]
     end_slice = data.time[-1]
     sliced_data = total_data.sel(time=slice(start_slice, end_slice))
 
-    print("Data converted to {} timezone.".format(local_tz))
-
-    # Reset selections object to what it was originally
-    selections.time_slice = (start, end)
+    print(f"Data converted to {local_tz} timezone.")
 
     # Add timezone attribute to data
     sliced_data = sliced_data.assign_attrs({"timezone": local_tz})
 
+    # Reset selections object to what it was originally (if we changed it)
+    if end < 2100:
+        selections.time_slice = (start, end)
+
     return sliced_data
 
 
-def add_dummy_time_to_wl(wl_da):
+def add_dummy_time_to_wl(wl_da: xr.DataArray) -> xr.DataArray:
     """
     Replace the `[hours/days/months]_from_center` or `time_delta` dimension in a DataArray returned from WarmingLevels with a dummy time index for calculations with tools that require a `time` dimension.
 
