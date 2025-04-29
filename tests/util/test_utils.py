@@ -11,6 +11,7 @@ import xarray as xr
 from climakitae.util.utils import (
     _package_file_path,
     area_average,
+    combine_hdd_cdd,
     compute_annual_aggreggate,
     compute_multimodel_stats,
     downscaling_method_as_list,
@@ -514,6 +515,85 @@ class TestUtils:
         # Test with invalid kind parameter
         with pytest.raises(ValueError):
             trendline(da, kind="invalid_kind")
+
+    def test_combine_hdd_cdd(self):
+        """Tests the combine_hdd_cdd function with various input conditions"""
+
+        # Test with valid HDD/CDD data
+        valid_names = [
+            "Annual Heating Degree Days (HDD)",
+            "Annual Cooling Degree Days (CDD)",
+            "Heating Degree Hours",
+            "Cooling Degree Hours",
+        ]
+
+        for name in valid_names:
+            # Create mock data array with the coordinates to be dropped
+            mock_data = xr.DataArray(
+                np.ones((2, 3)),
+                dims=["time", "location"],
+                coords={
+                    "time": [1, 2],
+                    "location": ["A", "B", "C"],
+                    "scenario": "test_scenario",
+                    "Lambert_Conformal": 123,
+                    "variable": "test_variable",
+                },
+                name=name,
+            )
+
+            result = combine_hdd_cdd(mock_data)
+
+            # Check correct coordinates were dropped
+            assert "scenario" not in result.coords
+            assert "Lambert_Conformal" not in result.coords
+            assert "variable" not in result.coords
+
+            # Check the data wasn't altered
+            np.testing.assert_array_equal(result.values, mock_data.values)
+
+            # Check the name was preserved
+            assert result.name == name
+
+        # Test with data missing some of the coordinates to drop
+        partial_coords_data = xr.DataArray(
+            np.ones((2, 3)),
+            dims=["time", "location"],
+            coords={
+                "time": [1, 2],
+                "location": ["A", "B", "C"],
+                "scenario": "test_scenario",  # only has one of the coordinates to drop
+            },
+            name="Annual Heating Degree Days (HDD)",
+        )
+
+        result = combine_hdd_cdd(partial_coords_data)
+        assert "scenario" not in result.coords
+        assert len(result.coords) == 2  # Only time and location remain
+
+        # Test with data having none of the coordinates to drop
+        no_coords_data = xr.DataArray(
+            np.ones((2, 3)),
+            dims=["time", "location"],
+            coords={
+                "time": [1, 2],
+                "location": ["A", "B", "C"],
+            },
+            name="Annual Cooling Degree Days (CDD)",
+        )
+
+        result = combine_hdd_cdd(no_coords_data)
+        # Function should not modify the data
+        assert result.equals(no_coords_data)
+
+        # Test with invalid data name
+        invalid_data = xr.DataArray(np.ones(3), dims=["x"], name="Temperature")
+
+        with pytest.raises(
+            ValueError,
+            match="Invalid data provided, please pass cooling/heating degree data",
+        ):
+            combine_hdd_cdd(invalid_data)
 
 
 class TestReprojectData:
