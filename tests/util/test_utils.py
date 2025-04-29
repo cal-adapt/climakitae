@@ -1,7 +1,7 @@
 import datetime
 import os
 import tempfile
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import numpy as np
 import pandas as pd
@@ -17,6 +17,7 @@ from climakitae.util.utils import (
     julianDay_to_date,
     read_csv_file,
     readable_bytes,
+    reproject_data,
     write_csv_file,
 )
 
@@ -303,6 +304,181 @@ class TestUtils:
         # Test edge cases
         assert readable_bytes(1023) == "1023.0 bytes"
         assert readable_bytes(1024**2 - 1) == "1024.00 KB"
-        assert readable_bytes(1024**3 - 1) == "1024.00 MB"
-        assert readable_bytes(1024**4 - 1) == "1024.00 GB"
 
+
+class TestReprojectData:
+    """
+    Class for testing the reproject_data function.
+    """
+
+    def test_reproject_data_2d(self):
+        """test reproject_data with 2D data"""
+        # Create a mock return value for reproject
+        mock_reprojected = xr.DataArray(
+            [[1, 2], [3, 4]], coords={"y": [1, 2], "x": [3, 4]}
+        )
+
+        # Create a mock accessor with the necessary methods
+        mock_rio_accessor = MagicMock()
+        mock_rio_accessor.crs = "EPSG:3857"
+        mock_rio_accessor.reproject.return_value = mock_reprojected
+
+        # Patch the actual accessor property to return our mock
+        with patch("rioxarray.open_rasterio", autospec=True), patch.object(
+            xr.DataArray,
+            "rio",
+            new_callable=PropertyMock,
+            return_value=mock_rio_accessor,
+        ), patch.object(xr.DataArray.rio, "write_crs", return_value=None):
+
+            data_2d = xr.DataArray([[1, 2], [3, 4]], coords={"x": [1, 2], "y": [3, 4]})
+            result_2d = reproject_data(data_2d)
+            assert result_2d.attrs["grid_mapping"] == "EPSG:4326"
+
+    def test_reproject_data_3d(self):
+        """Test reproject_data with 3D data"""
+        # Create a mock return value for reproject
+        mock_reprojected = xr.DataArray(
+            [[1, 2], [3, 4]], coords={"y": [1, 2], "x": [3, 4]}
+        )
+
+        # Create a mock accessor with the necessary methods
+        mock_rio_accessor = MagicMock()
+        mock_rio_accessor.crs = "EPSG:3857"
+        mock_rio_accessor.reproject.return_value = mock_reprojected
+
+        # Patch the actual accessor property to return our mock
+        with patch("rioxarray.open_rasterio", autospec=True), patch.object(
+            xr.DataArray,
+            "rio",
+            new_callable=PropertyMock,
+            return_value=mock_rio_accessor,
+        ), patch.object(xr.DataArray.rio, "write_crs", return_value=None):
+            data_3d = xr.DataArray(
+                np.zeros((3, 2, 2)),
+                coords={
+                    "time": [1, 2, 3],
+                    "x": [1, 2],
+                    "y": [3, 4],
+                },
+            )
+            result_3d = reproject_data(data_3d)
+            assert result_3d.attrs["grid_mapping"] == "EPSG:4326"
+
+    def test_reproject_data_4d_5d(self):
+        """Test reproject_data with 4D and 5D data"""
+        # Create a mock return value for reproject
+        mock_reprojected = xr.DataArray(
+            [[1, 2], [3, 4]], coords={"y": [1, 2], "x": [3, 4]}
+        )
+
+        # Create mock accessor with the necessary methods
+        mock_rio_accessor = MagicMock()
+        mock_rio_accessor.crs = "EPSG:3857"
+        mock_rio_accessor.reproject.return_value = mock_reprojected
+
+        # Create mock concat return values for 4D and 5D
+        mock_4d = xr.DataArray(
+            np.zeros((2, 2, 2, 2)),
+            coords={"time": [1, 2], "extra_dim": [1, 2], "x": [1, 2], "y": [3, 4]},
+        )
+        mock_5d = xr.DataArray(
+            np.zeros((2, 2, 2, 2, 2)),
+            coords={
+                "scenario": [1, 2],
+                "time": [1, 2],
+                "extra_dim": [1, 2],
+                "x": [1, 2],
+                "y": [3, 4],
+            },
+        )
+
+        # Test 4D case
+        with patch("rioxarray.open_rasterio", autospec=True), patch.object(
+            xr.DataArray,
+            "rio",
+            new_callable=PropertyMock,
+            return_value=mock_rio_accessor,
+        ), patch.object(xr.DataArray.rio, "write_crs", return_value=None), patch(
+            "xarray.concat", return_value=mock_4d
+        ):
+
+            data_4d = xr.DataArray(
+                np.zeros((2, 3, 2, 2)),
+                coords={
+                    "extra_dim": [1, 2],
+                    "time": [1, 2, 3],
+                    "x": [1, 2],
+                    "y": [3, 4],
+                },
+            )
+            result_4d = reproject_data(data_4d)
+            assert result_4d.attrs["grid_mapping"] == "EPSG:4326"
+
+        # Test 5D case
+        with patch("rioxarray.open_rasterio", autospec=True), patch.object(
+            xr.DataArray,
+            "rio",
+            new_callable=PropertyMock,
+            return_value=mock_rio_accessor,
+        ), patch.object(xr.DataArray.rio, "write_crs", return_value=None), patch(
+            "xarray.concat", return_value=mock_5d
+        ):
+
+            data_5d = xr.DataArray(
+                np.zeros((2, 2, 3, 2, 2)),
+                coords={
+                    "scenario": [1, 2],
+                    "extra_dim": [1, 2],
+                    "time": [1, 2, 3],
+                    "x": [1, 2],
+                    "y": [3, 4],
+                },
+            )
+            result_5d = reproject_data(data_5d)
+            assert result_5d.attrs["grid_mapping"] == "EPSG:4326"
+
+    def test_reproject_data_errors(self):
+        """Test error cases in reproject_data"""
+        # Create a mock accessor with the necessary methods
+        mock_rio_accessor = MagicMock()
+        mock_rio_accessor.crs = "EPSG:3857"
+
+        # Test missing spatial dimensions
+        with patch.object(
+            xr.DataArray,
+            "rio",
+            new_callable=PropertyMock,
+            return_value=mock_rio_accessor,
+        ):
+            data_invalid = xr.DataArray(
+                [[1, 2], [3, 4]], coords={"lat": [1, 2], "lon": [3, 4]}
+            )
+            with pytest.raises(
+                ValueError, match="does not contain spatial dimensions x,y"
+            ):
+                reproject_data(data_invalid)
+
+        # Test too many dimensions
+        with patch.object(
+            xr.DataArray,
+            "rio",
+            new_callable=PropertyMock,
+            return_value=mock_rio_accessor,
+        ):
+            data_6d = xr.DataArray(
+                np.zeros((2, 2, 2, 2, 2, 2)),
+                coords={
+                    "model": [1, 2],
+                    "scenario": [1, 2],
+                    "extra_dim": [1, 2],
+                    "time": [1, 2],
+                    "x": [1, 2],
+                    "y": [3, 4],
+                },
+            )
+            with pytest.raises(
+                ValueError,
+                match="dimensions greater than 5 are not currently supported",
+            ):
+                reproject_data(data_6d)

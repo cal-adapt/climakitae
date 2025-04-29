@@ -430,7 +430,9 @@ def readable_bytes(b: int | float) -> str:
         return f"{b / tb:.2f} TB"
 
 
-def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
+def reproject_data(
+    xr_da: xr.DataArray, proj: str = "EPSG:4326", fill_value: float = np.nan
+):
     """Reproject xr.DataArray using rioxarray.
 
     Parameters
@@ -535,7 +537,7 @@ def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
     data = xr_da.drop_vars(coords)
 
     # Re-write crs to data using original dataset
-    data = data.rio.write_crs(xr_da.rio.crs, inplace=True)
+    data.rio.write_crs(xr_da.rio.crs, inplace=True)
 
     # Get non-spatial dimensions
     non_spatial_dims = [dim for dim in data.dims if dim not in ["x", "y"]]
