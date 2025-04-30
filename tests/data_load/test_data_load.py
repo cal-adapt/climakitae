@@ -328,6 +328,9 @@ class TestDataLoadDerived:
 
 
 class TestReadCatalog:
+    """This class is going to actually pull data from
+    the catalog using various parameter choices.
+    """
 
     def test_read_catalog_from_select_defaults(self, selections):
         # Test the default selection options
