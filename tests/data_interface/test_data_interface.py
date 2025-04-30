@@ -1,12 +1,40 @@
 """
 Test suite for the DataInterface class
+
+need coverage for lines:
+climakitae/core/data_interface.py     782    179    77%
+170, 316, 319-325, 331-362, 727, 729, 735-736, 789-800, 808-809, 832-834, 887-888,
+893-895, 912, 943-945, 951-952, 1014-1024, 1044-1045, 1088, 1098, 1125, 1127, 1135,
+1149, 1156, 1166-1184, 1201, 1203, 1210, 1217, 1220-1226, 1233, 1258-1260, 1309, 1323,
+1327, 1332-1335, 1341-1342, 1532, 1535, 1586-1599, 1603-1622, 1674-1679, 1715,
+1739-1810, 1942, 1962-1963, 1982, 1992, 2005-2009, 2013-2016, 2018-2021, 2035-2042,
+2055-2060, 2071-2073, 2126-2128, 2141, 2146, 2156-2157, 2183-2187, 2192-2193, 2208-2210,
+2338, 2340, 2344, 2346, 2348, 2351-2356
+
+1739-1810 (72 lines)
+331-362 (32 lines)
+1603-1622 (20 lines)
+1166-1184 (19 lines)
+1586-1599 (14 lines)
+789-800 (12 lines)
+1674-1679 (6 lines)
+2035-2042 (8 lines)
+2351-2356 (6 lines)
+2183-2187 (5 lines)
+1014-1024 (11 lines)
 """
 
-from unittest.mock import Mock, PropertyMock, patch
+from typing import Union
+from unittest.mock import MagicMock, Mock, PropertyMock, patch
 
+import pandas as pd
 import pytest
 
-from climakitae.core.data_interface import DataInterface
+from climakitae.core.data_interface import (
+    DataInterface,
+    _get_user_options,
+    get_subsetting_options,
+)
 
 
 class TestDataInterface:
@@ -139,3 +167,469 @@ class TestDataInterface:
             assert data_interface.warming_level_times == "test_warming_level_times"
             assert data_interface.boundary_catalog == "test_boundary_catalog"
             assert data_interface.geographies == "test_geographies"
+
+    
+class TestGetUserOptions:
+    """
+    Tests for the _get_user_options function.
+    """
+
+    @pytest.mark.parametrize(
+        "downscaling_method, timescale, resolution, expected_activity_id, expected_table_id, expected_grid_label",
+        [
+            ("Dynamical", "daily", "3 km", ["WRF"], "day", "d03"),
+            ("Statistical", "monthly", "9 km", ["LOCA2"], "mon", "d02"),
+            (
+                "Dynamical+Statistical",
+                "hourly",
+                "45 km",
+                ["WRF", "LOCA2"],
+                "1hr",
+                "d01",
+            ),
+        ],
+    )
+    def test_get_user_options_search_parameters(
+        self,
+        downscaling_method: Union[str, None],
+        timescale: Union[str, None],
+        resolution: Union[str, None],
+        expected_activity_id: Union[str, None],
+        expected_table_id: Union[str, None],
+        expected_grid_label: Union[str, None],
+    ):
+        """
+        Test that _get_user_options correctly passes search parameters to data_catalog.search
+        """
+        # Setup mock catalog
+        mock_catalog = Mock()
+        mock_subset = Mock()
+        mock_catalog.search.return_value = mock_subset
+        mock_subset.search.return_value = mock_subset
+        mock_subset.df = MagicMock()
+
+        # Configure mock dataframe with test values
+        mock_dict = {
+            "experiment_id": Mock(unique=Mock(return_value=["ssp126", "ssp585"])),
+            "source_id": Mock(unique=Mock(return_value=["CESM2", "CNRM-CM6-1"])),
+            "variable_id": Mock(unique=Mock(return_value=["tasmax", "tasmin"])),
+        }
+        mock_subset.df.__getitem__.side_effect = mock_dict.__getitem__
+
+        # Call the function
+        scenario_options, simulation_options, unique_variable_ids = _get_user_options(
+            mock_catalog, downscaling_method, timescale, resolution
+        )
+
+        # Assert that catalog.search was called with expected parameters
+        mock_catalog.search.assert_called_once_with(
+            activity_id=expected_activity_id,
+            table_id=expected_table_id,
+            grid_label=expected_grid_label,
+        )
+
+        assert scenario_options == ["ssp126", "ssp585"]
+        assert simulation_options == ["CESM2", "CNRM-CM6-1"]
+        assert unique_variable_ids == ["tasmax", "tasmin"]
+
+    def test_get_user_options_statistical(self):
+        """
+        Test that _get_user_options correctly filters by institution_id for Statistical methods
+        """
+        # Setup mock catalog
+        mock_catalog = Mock()
+        mock_subset = Mock()
+        mock_catalog.search.return_value = mock_subset
+        mock_subset.search.return_value = mock_subset
+        mock_subset.df = MagicMock()
+
+        # Configure mock dataframe with test values
+        mock_dict = {
+            "experiment_id": Mock(unique=Mock(return_value=["ssp126", "ssp585"])),
+            "source_id": Mock(unique=Mock(return_value=["CESM2", "CNRM-CM6-1"])),
+            "variable_id": Mock(unique=Mock(return_value=["tasmax", "tasmin"])),
+        }
+        mock_subset.df.__getitem__.side_effect = mock_dict.__getitem__
+
+        # Call the function with Statistical
+        _get_user_options(mock_catalog, "Statistical", "daily", "9 km")
+
+        # Assert that institution_id was filtered for UCSD
+        mock_subset.search.assert_any_call(institution_id="UCSD")
+        mock_subset.search.assert_any_call(activity_id="LOCA2")
+
+    def test_get_user_options_dynamical_statistical(self):
+        """
+        Test that _get_user_options correctly finds overlapping scenarios for Dynamical+Statistical
+        """
+        # Setup mock catalog
+        mock_catalog = Mock()
+        mock_subset = Mock()
+        mock_loca_subset = Mock()
+        mock_wrf_subset = Mock()
+
+        # Simplify the search side effect chain
+        mock_catalog.search.return_value = mock_subset
+        mock_subset.search.side_effect = [
+            mock_subset,  # First call with institution_id="UCSD"
+            mock_loca_subset,  # Call with activity_id="LOCA2"
+            mock_wrf_subset,  # Call with activity_id="WRF"
+            mock_subset,  # Call with experiment_id=overlapping_scenarios
+        ]
+
+        # Configure mock dataframes directly with return values
+        mock_loca_subset.df = MagicMock()
+        mock_loca_subset.df.experiment_id = MagicMock()
+        mock_loca_subset.df.experiment_id.unique.return_value = [
+            "ssp126",
+            "ssp245",
+            "ssp585",
+        ]
+
+        mock_wrf_subset.df = MagicMock()
+        mock_wrf_subset.df.experiment_id = MagicMock()
+        mock_wrf_subset.df.experiment_id.unique.return_value = [
+            "ssp126",
+            "ssp370",
+            "ssp585",
+        ]
+
+        # Final subset returned
+        mock_subset.df = MagicMock()
+        mock_subset.df.experiment_id = MagicMock()
+        mock_subset.df.source_id = MagicMock()
+        mock_subset.df.variable_id = MagicMock()
+        mock_dict = {
+            "experiment_id": Mock(unique=Mock(return_value=["ssp126", "ssp585"])),
+            "source_id": Mock(unique=Mock(return_value=["CESM2", "CNRM-CM6-1"])),
+            "variable_id": Mock(unique=Mock(return_value=["tasmax", "tasmin"])),
+        }
+        mock_subset.df.__getitem__.side_effect = mock_dict.__getitem__
+
+        # Call the function
+        scenario_options, simulation_options, unique_variable_ids = _get_user_options(
+            mock_catalog, "Dynamical+Statistical", "daily", "9 km"
+        )
+
+        # Assert the correct intersection of scenarios was computed
+        assert mock_subset.search.call_count >= 4  # Check we made at least 4 calls
+
+        # Get the call arguments for the experiment_id search
+        experiment_id_calls = [
+            call
+            for call in mock_subset.search.call_args_list
+            if call.kwargs.get("experiment_id") is not None
+        ]
+        assert len(experiment_id_calls) == 1
+
+        # Check the experiment_id call has the correct values (order doesn't matter)
+        experiment_id_values = experiment_id_calls[0].kwargs["experiment_id"]
+        assert set(experiment_id_values) == {"ssp126", "ssp585"}
+
+        # Check the final results are correct
+        assert set(scenario_options) == {"ssp126", "ssp585"}
+        assert set(simulation_options) == {"CESM2", "CNRM-CM6-1"}
+        assert set(unique_variable_ids) == {"tasmax", "tasmin"}
+
+    def test_get_user_options_remove_ensemble_mean(self):
+        """
+        Test that _get_user_options correctly removes 'ensmean' from simulation options
+        """
+        # Setup mock catalog
+        mock_catalog = Mock()
+        mock_subset = Mock()
+        mock_catalog.search.return_value = mock_subset
+        mock_subset.search.return_value = mock_subset
+        mock_subset.df = MagicMock()
+
+        # Configure mock dataframe with test values including ensmean
+        mock_dict = {
+            "experiment_id": Mock(unique=Mock(return_value=["ssp126", "ssp585"])),
+            "source_id": Mock(
+                unique=Mock(return_value=["CESM2", "CNRM-CM6-1", "ensmean"])
+            ),
+            "variable_id": Mock(unique=Mock(return_value=["tasmax", "tasmin"])),
+        }
+        mock_subset.df.__getitem__.side_effect = mock_dict.__getitem__
+
+        # Call the function
+        scenario_options, simulation_options, unique_variable_ids = _get_user_options(
+            mock_catalog, "Dynamical", "daily", "3 km"
+        )
+
+        # Assert that ensmean is removed
+        assert "ensmean" not in simulation_options
+        assert set(simulation_options) == {"CESM2", "CNRM-CM6-1"}
+
+    def test_get_user_options_handle_no_simulations(self):
+        """
+        Test that _get_user_options handles the case where no simulation options are found
+        """
+        # Setup mock catalog
+        mock_catalog = Mock()
+        mock_subset = Mock()
+        mock_catalog.search.return_value = mock_subset
+        mock_subset.search.return_value = mock_subset
+        mock_subset.df = MagicMock()
+
+        # Configure mock dataframe with experiment_id and variable_id but make source_id.unique() raise an exception
+        mock_dict = {
+            "experiment_id": Mock(unique=Mock(return_value=["ssp126", "ssp585"])),
+            "source_id": Mock(
+                unique=Mock(side_effect=Exception("No source_id column"))
+            ),
+            "variable_id": Mock(unique=Mock(return_value=["tasmax", "tasmin"])),
+        }
+        mock_subset.df.__getitem__.side_effect = mock_dict.__getitem__
+
+        # Call the function
+        scenario_options, simulation_options, unique_variable_ids = _get_user_options(
+            mock_catalog, "Dynamical", "daily", "3 km"
+        )
+
+        # Assert that simulation_options is empty list when exception occurs
+        assert simulation_options == []
+        assert scenario_options == ["ssp126", "ssp585"]
+        assert unique_variable_ids == ["tasmax", "tasmin"]
+
+
+class TestGetSubsettingOptions:
+    """
+    Tests for the get_subsetting_options function.
+    """
+
+    def test_get_subsetting_options_all(self):
+        """
+        Test that get_subsetting_options returns all geometry options when area_subset='all'
+        """
+        with patch("climakitae.core.data_interface.DataInterface") as mock_di:
+            # Setup mock DataInterface and geographies
+            mock_new = mock_di.return_value
+            mock_new._geographies = Mock()
+            mock_new._stations_gdf = Mock()
+
+            # Setup mock boundary dict
+            mock_boundary_dict = {
+                "states": {"California": {}, "Oregon": {}},
+                "CA counties": {"Alameda": {}, "Orange": {}},
+                "CA Electricity Demand Forecast Zones": {
+                    "Zone 1": {},
+                    "Zone 2": {},
+                },
+                "CA watersheds": {"Watershed 1": {}, "Watershed 2": {}},
+                "CA Electric Balancing Authority Areas": {
+                    "Area 1": {},
+                    "Area 2": {},
+                },
+                "CA Electric Load Serving Entities (IOU & POU)": {
+                    "Entity 1": {},
+                    "Entity 2": {},
+                },
+            }
+            mock_new._geographies.boundary_dict.return_value = mock_boundary_dict
+
+            # Setup mock geometry dataframes
+            mock_states = pd.DataFrame(
+                {
+                    "abbrevs": ["CA", "OR", "WA"],  # WA should be filtered out
+                    "geometry": ["geom1", "geom2", "geom3"],
+                }
+            )
+            mock_counties = pd.DataFrame(
+                {
+                    "NAME": [
+                        "Alameda",
+                        "Orange",
+                        "Los Angeles",
+                    ],  # Los Angeles should be filtered out
+                    "geometry": ["geom4", "geom5", "geom6"],
+                }
+            )
+            mock_zones = pd.DataFrame(
+                {
+                    "FZ_Name": [
+                        "Zone 1",
+                        "Zone 2",
+                        "Zone 3",
+                    ],  # Zone 3 should be filtered out
+                    "geometry": ["geom7", "geom8", "geom9"],
+                }
+            )
+            mock_watersheds = pd.DataFrame(
+                {
+                    "Name": [
+                        "Watershed 1",
+                        "Watershed 2",
+                        "Watershed 3",
+                    ],  # Watershed 3 should be filtered out
+                    "geometry": ["geom10", "geom11", "geom12"],
+                }
+            )
+            mock_areas = pd.DataFrame(
+                {
+                    "NAME": [
+                        "Area 1",
+                        "Area 2",
+                        "Area 3",
+                    ],  # Area 3 should be filtered out
+                    "geometry": ["geom13", "geom14", "geom15"],
+                }
+            )
+            mock_entities = pd.DataFrame(
+                {
+                    "Utility": [
+                        "Entity 1",
+                        "Entity 2",
+                        "Entity 3",
+                    ],  # Entity 3 should be filtered out
+                    "geometry": ["geom16", "geom17", "geom18"],
+                }
+            )
+            mock_stations = pd.DataFrame(
+                {
+                    "station": [
+                        "Station 1",
+                        "Station 2",
+                        "Station 3",
+                    ],  # All stations should be included
+                    "geometry": ["geom19", "geom20", "geom21"],
+                }
+            )
+
+            # Set up the geographies attributes
+            mock_new._geographies._us_states = mock_states
+            mock_new._geographies._ca_counties = mock_counties
+            mock_new._geographies._ca_forecast_zones = mock_zones
+            mock_new._geographies._ca_watersheds = mock_watersheds
+            mock_new._geographies._ca_electric_balancing_areas = mock_areas
+            mock_new._geographies._ca_utilities = mock_entities
+            mock_new._stations_gdf = mock_stations
+
+            # Import the function directly to test
+
+            # Call the function with 'all'
+            result = get_subsetting_options("all")
+
+            # Check that the result is a DataFrame with MultiIndex
+            assert isinstance(result, pd.DataFrame)
+            assert isinstance(result.index, pd.MultiIndex)
+            assert result.index.names == ["area_subset", "cached_area"]
+
+            # Check that all area subsets are present
+            expected_area_subsets = [
+                "states",
+                "CA counties",
+                "CA Electricity Demand Forecast Zones",
+                "CA watersheds",
+                "CA Electric Balancing Authority Areas",
+                "CA Electric Load Serving Entities (IOU & POU)",
+                "Stations",
+            ]
+            assert set(result.index.get_level_values("area_subset").unique()) == set(
+                expected_area_subsets
+            )
+
+            # Check filtering worked - items not in boundary_dict should be excluded
+            states_in_result = result.loc["states"].index.tolist()
+            assert "California" in states_in_result
+            assert "Oregon" in states_in_result
+            # WA should be filtered out because it's not in boundary_dict
+
+            # Stations should not be filtered
+            stations_in_result = result.loc["Stations"].index.tolist()
+            assert len(stations_in_result) == 3
+
+    def test_get_subsetting_options_specific_area(self):
+        """
+        Test that get_subsetting_options returns only the specified area subset
+        """
+        with patch("climakitae.core.data_interface.DataInterface") as mock_di:
+            # Setup mock DataInterface and geographies
+            mock_instance = Mock()
+            mock_new = mock_di.return_value
+            mock_new._geographies = Mock()
+            mock_new._stations_gdf = Mock()
+
+            # Setup mock boundary dict
+            mock_boundary_dict = {
+                "states": {"California": {}, "Oregon": {}},
+            }
+            mock_new._geographies.boundary_dict.return_value = mock_boundary_dict
+
+            # Setup mock states dataframe
+            mock_states = pd.DataFrame(
+                {
+                    "abbrevs": ["CA", "OR", "WA"],  # WA should be filtered out
+                    "geometry": ["geom1", "geom2", "geom3"],
+                }
+            )
+
+            # Set up the geographies attribute
+            mock_new._geographies._us_states = mock_states
+
+            # Import the function directly to test
+
+            # Call the function with 'states'
+            result = get_subsetting_options("states")
+
+            # Check that the result is a DataFrame with single index
+            assert isinstance(result, pd.DataFrame)
+            assert result.index.name == "cached_area"
+
+            # Check that only states that are in boundary_dict are included
+            assert set(result.index) == {"CA", "OR"}
+            assert "WA" not in result.index
+
+            # Check it has the correct columns
+            assert "geometry" in result.columns
+
+    def test_get_subsetting_options_invalid_input(self):
+        """
+        Test that get_subsetting_options raises ValueError for invalid area_subset
+        """
+        with patch("climakitae.core.data_interface.DataInterface") as mock_di:
+            # Setup minimal mocking
+            mock_instance = Mock()
+            mock_new = mock_di.return_value
+            mock_new._geographies = Mock()
+            mock_new._geographies.boundary_dict.return_value = {}
+
+            # Import the function directly to test
+
+            # Call with invalid area_subset and expect ValueError
+            with pytest.raises(
+                ValueError, match="Bad input for argument 'area_subset'"
+            ):
+                get_subsetting_options("invalid_area")
+
+    def test_get_subsetting_options_stations(self):
+        """
+        Test that get_subsetting_options handles stations correctly (no filtering)
+        """
+        with patch("climakitae.core.data_interface.DataInterface") as mock_di:
+            # Setup mock DataInterface
+            mock_instance = Mock()
+            mock_new = mock_di.return_value
+            mock_new._geographies = Mock()
+
+            # Setup mock boundary dict (doesn't need stations)
+            mock_boundary_dict = {}
+            mock_new._geographies.boundary_dict.return_value = mock_boundary_dict
+
+            # Setup mock stations dataframe
+            mock_stations = pd.DataFrame(
+                {
+                    "station": ["Station 1", "Station 2", "Station 3"],
+                    "geometry": ["geom1", "geom2", "geom3"],
+                }
+            )
+            mock_new._stations_gdf = mock_stations
+
+            # Import the function directly to test
+
+            # Call the function with 'Stations'
+            result = get_subsetting_options("Stations")
+
+            # Check that all stations are included (no filtering)
+            assert len(result) == 3
+            assert set(result.index) == {"Station 1", "Station 2", "Station 3"}
