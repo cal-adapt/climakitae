@@ -168,7 +168,7 @@ class TestDataInterface:
             assert data_interface.boundary_catalog == "test_boundary_catalog"
             assert data_interface.geographies == "test_geographies"
 
-    
+
 class TestGetUserOptions:
     """
     Tests for the _get_user_options function.
@@ -408,9 +408,10 @@ class TestGetSubsettingOptions:
             mock_new._geographies = Mock()
             mock_new._stations_gdf = Mock()
 
-            # Setup mock boundary dict
+            # Setup mock boundary dict - IMPORTANT: Use the same keys that will
+            # appear in the NAME column after renaming
             mock_boundary_dict = {
-                "states": {"California": {}, "Oregon": {}},
+                "states": {"CA": {}, "OR": {}},  # Match abbrevs instead of full names
                 "CA counties": {"Alameda": {}, "Orange": {}},
                 "CA Electricity Demand Forecast Zones": {
                     "Zone 1": {},
@@ -428,7 +429,8 @@ class TestGetSubsettingOptions:
             }
             mock_new._geographies.boundary_dict.return_value = mock_boundary_dict
 
-            # Setup mock geometry dataframes
+            # Setup mock geometry dataframes - the key issue is in the states dataframe!
+            # In the implementation, it expects 'abbrevs' not 'NAME' for states
             mock_states = pd.DataFrame(
                 {
                     "abbrevs": ["CA", "OR", "WA"],  # WA should be filtered out
@@ -437,61 +439,37 @@ class TestGetSubsettingOptions:
             )
             mock_counties = pd.DataFrame(
                 {
-                    "NAME": [
-                        "Alameda",
-                        "Orange",
-                        "Los Angeles",
-                    ],  # Los Angeles should be filtered out
+                    "NAME": ["Alameda", "Orange", "Los Angeles"],
                     "geometry": ["geom4", "geom5", "geom6"],
                 }
             )
             mock_zones = pd.DataFrame(
                 {
-                    "FZ_Name": [
-                        "Zone 1",
-                        "Zone 2",
-                        "Zone 3",
-                    ],  # Zone 3 should be filtered out
+                    "FZ_Name": ["Zone 1", "Zone 2", "Zone 3"],
                     "geometry": ["geom7", "geom8", "geom9"],
                 }
             )
             mock_watersheds = pd.DataFrame(
                 {
-                    "Name": [
-                        "Watershed 1",
-                        "Watershed 2",
-                        "Watershed 3",
-                    ],  # Watershed 3 should be filtered out
+                    "Name": ["Watershed 1", "Watershed 2", "Watershed 3"],
                     "geometry": ["geom10", "geom11", "geom12"],
                 }
             )
             mock_areas = pd.DataFrame(
                 {
-                    "NAME": [
-                        "Area 1",
-                        "Area 2",
-                        "Area 3",
-                    ],  # Area 3 should be filtered out
+                    "NAME": ["Area 1", "Area 2", "Area 3"],
                     "geometry": ["geom13", "geom14", "geom15"],
                 }
             )
             mock_entities = pd.DataFrame(
                 {
-                    "Utility": [
-                        "Entity 1",
-                        "Entity 2",
-                        "Entity 3",
-                    ],  # Entity 3 should be filtered out
+                    "Utility": ["Entity 1", "Entity 2", "Entity 3"],
                     "geometry": ["geom16", "geom17", "geom18"],
                 }
             )
             mock_stations = pd.DataFrame(
                 {
-                    "station": [
-                        "Station 1",
-                        "Station 2",
-                        "Station 3",
-                    ],  # All stations should be included
+                    "station": ["Station 1", "Station 2", "Station 3"],
                     "geometry": ["geom19", "geom20", "geom21"],
                 }
             )
@@ -505,39 +483,61 @@ class TestGetSubsettingOptions:
             mock_new._geographies._ca_utilities = mock_entities
             mock_new._stations_gdf = mock_stations
 
-            # Import the function directly to test
+            # Critical part: Mock the function that actually gets called in the implementation
+            with patch(
+                "climakitae.core.data_interface.get_subsetting_options",
+                wraps=get_subsetting_options,
+            ):
+                # Call the function with 'all'
+                result = get_subsetting_options("all")
 
-            # Call the function with 'all'
-            result = get_subsetting_options("all")
+                # Debug information to understand failures better
+                print("Result shape:", result.shape)
+                print(
+                    "Area subsets available:",
+                    result.index.get_level_values("area_subset").unique().tolist(),
+                )
 
-            # Check that the result is a DataFrame with MultiIndex
-            assert isinstance(result, pd.DataFrame)
-            assert isinstance(result.index, pd.MultiIndex)
-            assert result.index.names == ["area_subset", "cached_area"]
+                # Check that the result is a DataFrame with MultiIndex
+                assert isinstance(result, pd.DataFrame)
+                assert isinstance(result.index, pd.MultiIndex)
+                assert result.index.names == ["area_subset", "cached_area"]
 
-            # Check that all area subsets are present
-            expected_area_subsets = [
-                "states",
-                "CA counties",
-                "CA Electricity Demand Forecast Zones",
-                "CA watersheds",
-                "CA Electric Balancing Authority Areas",
-                "CA Electric Load Serving Entities (IOU & POU)",
-                "Stations",
-            ]
-            assert set(result.index.get_level_values("area_subset").unique()) == set(
-                expected_area_subsets
-            )
+                # Check that all area subsets are present
+                expected_area_subsets = set(
+                    [
+                        "states",
+                        "CA counties",
+                        "CA Electricity Demand Forecast Zones",
+                        "CA watersheds",
+                        "CA Electric Balancing Authority Areas",
+                        "CA Electric Load Serving Entities (IOU & POU)",
+                        "Stations",
+                    ]
+                )
 
-            # Check filtering worked - items not in boundary_dict should be excluded
-            states_in_result = result.loc["states"].index.tolist()
-            assert "California" in states_in_result
-            assert "Oregon" in states_in_result
-            # WA should be filtered out because it's not in boundary_dict
+                actual_area_subsets = set(
+                    result.index.get_level_values("area_subset").unique()
+                )
 
-            # Stations should not be filtered
-            stations_in_result = result.loc["Stations"].index.tolist()
-            assert len(stations_in_result) == 3
+                # Better error message that shows what's missing and what's unexpected
+                missing = expected_area_subsets - actual_area_subsets
+                unexpected = actual_area_subsets - expected_area_subsets
+                assert (
+                    actual_area_subsets == expected_area_subsets
+                ), f"Missing area subsets: {missing}, Unexpected area subsets: {unexpected}"
+
+                # Check that states filtering worked properly
+                if "states" in actual_area_subsets:
+                    states_in_result = result.loc["states"].index.tolist()
+                    assert "CA" in states_in_result
+                    assert "OR" in states_in_result
+                    # WA should be filtered out because it's not in boundary_dict
+                    assert "WA" not in states_in_result
+
+                # Stations should not be filtered
+                stations_in_result = result.loc["Stations"].index.tolist()
+                assert len(stations_in_result) == 3
 
     def test_get_subsetting_options_specific_area(self):
         """
@@ -545,29 +545,48 @@ class TestGetSubsettingOptions:
         """
         with patch("climakitae.core.data_interface.DataInterface") as mock_di:
             # Setup mock DataInterface and geographies
-            mock_instance = Mock()
             mock_new = mock_di.return_value
             mock_new._geographies = Mock()
             mock_new._stations_gdf = Mock()
 
             # Setup mock boundary dict
             mock_boundary_dict = {
-                "states": {"California": {}, "Oregon": {}},
+                "states": {"CA": {}, "OR": {}},
+                "CA counties": {"County1": {}},
+                "CA Electricity Demand Forecast Zones": {"Zone1": {}},
+                "CA watersheds": {"Watershed1": {}},
+                "CA Electric Balancing Authority Areas": {"Area1": {}},
+                "CA Electric Load Serving Entities (IOU & POU)": {"Entity1": {}},
             }
             mock_new._geographies.boundary_dict.return_value = mock_boundary_dict
 
-            # Setup mock states dataframe
+            # Setup ALL required mock dataframes, even when only testing states
             mock_states = pd.DataFrame(
                 {
-                    "abbrevs": ["CA", "OR", "WA"],  # WA should be filtered out
+                    "abbrevs": ["CA", "OR", "WA"],
                     "geometry": ["geom1", "geom2", "geom3"],
                 }
             )
+            # Need to mock all the other dataframes too
+            mock_counties = pd.DataFrame({"NAME": ["County1"], "geometry": ["geom"]})
+            mock_zones = pd.DataFrame({"FZ_Name": ["Zone1"], "geometry": ["geom"]})
+            mock_watersheds = pd.DataFrame(
+                {"Name": ["Watershed1"], "geometry": ["geom"]}
+            )
+            mock_areas = pd.DataFrame({"NAME": ["Area1"], "geometry": ["geom"]})
+            mock_entities = pd.DataFrame({"Utility": ["Entity1"], "geometry": ["geom"]})
+            mock_stations = pd.DataFrame(
+                {"station": ["Station1"], "geometry": ["geom"]}
+            )
 
-            # Set up the geographies attribute
+            # Set up ALL the geographies attributes
             mock_new._geographies._us_states = mock_states
-
-            # Import the function directly to test
+            mock_new._geographies._ca_counties = mock_counties
+            mock_new._geographies._ca_forecast_zones = mock_zones
+            mock_new._geographies._ca_watersheds = mock_watersheds
+            mock_new._geographies._ca_electric_balancing_areas = mock_areas
+            mock_new._geographies._ca_utilities = mock_entities
+            mock_new._stations_gdf = mock_stations
 
             # Call the function with 'states'
             result = get_subsetting_options("states")
@@ -588,13 +607,36 @@ class TestGetSubsettingOptions:
         Test that get_subsetting_options raises ValueError for invalid area_subset
         """
         with patch("climakitae.core.data_interface.DataInterface") as mock_di:
-            # Setup minimal mocking
-            mock_instance = Mock()
+            # Setup mock DataInterface and geographies
             mock_new = mock_di.return_value
             mock_new._geographies = Mock()
-            mock_new._geographies.boundary_dict.return_value = {}
+            mock_new._stations_gdf = Mock()
 
-            # Import the function directly to test
+            # Setup mock boundary dict (even for invalid input test)
+            mock_boundary_dict = {}
+            mock_new._geographies.boundary_dict.return_value = mock_boundary_dict
+
+            # Mock all required dataframes with minimal data
+            mock_states = pd.DataFrame({"abbrevs": ["CA"], "geometry": ["geom1"]})
+            mock_counties = pd.DataFrame({"NAME": ["County1"], "geometry": ["geom"]})
+            mock_zones = pd.DataFrame({"FZ_Name": ["Zone1"], "geometry": ["geom"]})
+            mock_watersheds = pd.DataFrame(
+                {"Name": ["Watershed1"], "geometry": ["geom"]}
+            )
+            mock_areas = pd.DataFrame({"NAME": ["Area1"], "geometry": ["geom"]})
+            mock_entities = pd.DataFrame({"Utility": ["Entity1"], "geometry": ["geom"]})
+            mock_stations = pd.DataFrame(
+                {"station": ["Station1"], "geometry": ["geom"]}
+            )
+
+            # Set up all required attributes
+            mock_new._geographies._us_states = mock_states
+            mock_new._geographies._ca_counties = mock_counties
+            mock_new._geographies._ca_forecast_zones = mock_zones
+            mock_new._geographies._ca_watersheds = mock_watersheds
+            mock_new._geographies._ca_electric_balancing_areas = mock_areas
+            mock_new._geographies._ca_utilities = mock_entities
+            mock_new._stations_gdf = mock_stations
 
             # Call with invalid area_subset and expect ValueError
             with pytest.raises(
@@ -608,13 +650,29 @@ class TestGetSubsettingOptions:
         """
         with patch("climakitae.core.data_interface.DataInterface") as mock_di:
             # Setup mock DataInterface
-            mock_instance = Mock()
             mock_new = mock_di.return_value
             mock_new._geographies = Mock()
 
-            # Setup mock boundary dict (doesn't need stations)
-            mock_boundary_dict = {}
+            # Setup mock boundary dict (needs all keys even for stations test)
+            mock_boundary_dict = {
+                "states": {"CA": {}},
+                "CA counties": {"County1": {}},
+                "CA Electricity Demand Forecast Zones": {"Zone1": {}},
+                "CA watersheds": {"Watershed1": {}},
+                "CA Electric Balancing Authority Areas": {"Area1": {}},
+                "CA Electric Load Serving Entities (IOU & POU)": {"Entity1": {}},
+            }
             mock_new._geographies.boundary_dict.return_value = mock_boundary_dict
+
+            # Need to set up ALL required mock dataframes
+            mock_states = pd.DataFrame({"abbrevs": ["CA"], "geometry": ["geom1"]})
+            mock_counties = pd.DataFrame({"NAME": ["County1"], "geometry": ["geom"]})
+            mock_zones = pd.DataFrame({"FZ_Name": ["Zone1"], "geometry": ["geom"]})
+            mock_watersheds = pd.DataFrame(
+                {"Name": ["Watershed1"], "geometry": ["geom"]}
+            )
+            mock_areas = pd.DataFrame({"NAME": ["Area1"], "geometry": ["geom"]})
+            mock_entities = pd.DataFrame({"Utility": ["Entity1"], "geometry": ["geom"]})
 
             # Setup mock stations dataframe
             mock_stations = pd.DataFrame(
@@ -623,9 +681,15 @@ class TestGetSubsettingOptions:
                     "geometry": ["geom1", "geom2", "geom3"],
                 }
             )
-            mock_new._stations_gdf = mock_stations
 
-            # Import the function directly to test
+            # Set up ALL required attributes
+            mock_new._geographies._us_states = mock_states
+            mock_new._geographies._ca_counties = mock_counties
+            mock_new._geographies._ca_forecast_zones = mock_zones
+            mock_new._geographies._ca_watersheds = mock_watersheds
+            mock_new._geographies._ca_electric_balancing_areas = mock_areas
+            mock_new._geographies._ca_utilities = mock_entities
+            mock_new._stations_gdf = mock_stations
 
             # Call the function with 'Stations'
             result = get_subsetting_options("Stations")
