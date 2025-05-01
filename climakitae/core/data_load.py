@@ -277,6 +277,7 @@ def _spatial_subset(dset, selections):
             clipped area of dset
         """
         try:
+            print(all_touched) # DEBUG
             dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True, all_touched=all_touched)
 
         except NoDataInBounds as e:
