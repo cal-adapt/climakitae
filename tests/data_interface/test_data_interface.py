@@ -14,7 +14,7 @@ climakitae/core/data_interface.py     782    179    77%
 1739-1810 (72 lines) done
 331-362 (32 lines) done
 1603-1622 (20 lines) done
-1166-1184 (19 lines)
+1160-1178 (19 lines)
 1586-1599 (14 lines)
 789-800 (12 lines)
 1674-1679 (6 lines)
@@ -998,3 +998,5 @@ class Test_CheckIfGoodInput:
         assert (
             mock_print.call_count >= 2
         )  # Invalid option message + valid options listing
+
+        
