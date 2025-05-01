@@ -700,6 +700,8 @@ class DataParameters(param.Parameterized):
             self._geography_choose[self.area_subset].keys()
         )
 
+        self.all_touched = False
+
         # Set data params
         (
             self.scenario_options,
