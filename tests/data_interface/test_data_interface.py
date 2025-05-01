@@ -11,9 +11,9 @@ climakitae/core/data_interface.py     782    179    77%
 2055-2060, 2071-2073, 2126-2128, 2141, 2146, 2156-2157, 2183-2187, 2192-2193, 2208-2210,
 2338, 2340, 2344, 2346, 2348, 2351-2356
 
-1739-1810 (72 lines)
-331-362 (32 lines)
-1603-1622 (20 lines)
+1739-1810 (72 lines) done
+331-362 (32 lines) done
+1603-1622 (20 lines) done
 1166-1184 (19 lines)
 1586-1599 (14 lines)
 789-800 (12 lines)
@@ -25,13 +25,17 @@ climakitae/core/data_interface.py     782    179    77%
 """
 
 from typing import Union
-from unittest.mock import MagicMock, Mock, PropertyMock, patch
+from unittest.mock import MagicMock, Mock, PropertyMock, call, patch
 
+import geopandas as gpd
 import pandas as pd
 import pytest
+from shapely.geometry import box
 
 from climakitae.core.data_interface import (
     DataInterface,
+    _check_if_good_input,
+    _get_subarea,
     _get_user_options,
     get_subsetting_options,
 )
@@ -697,3 +701,300 @@ class TestGetSubsettingOptions:
             # Check that all stations are included (no filtering)
             assert len(result) == 3
             assert set(result.index) == {"Station 1", "Station 2", "Station 3"}
+
+
+class TestGetSubarea:
+    """
+    Tests for the _get_subarea function.
+    """
+
+    @pytest.fixture
+    def mock_geographies(self):
+        """Create a mock Boundaries object with the necessary boundary datasets"""
+        mock_geo = Mock()
+
+        # Sample GDF to return from any boundary dataset lookup
+        sample_gdf = gpd.GeoDataFrame({"geometry": [box(0, 0, 1, 1)]}, crs="EPSG:4326")
+
+        # Create a more sophisticated loc accessor that properly handles square bracket notation
+        class MockLocAccessor:
+            def __init__(self, return_value):
+                self.return_value = return_value
+                self.called_with = None
+
+            def __getitem__(self, indices):
+                # This is called when using square bracket notation: .loc[indices]
+                self.called_with = indices
+                return self.return_value
+
+        # For each boundary dataset, create a mock with our custom loc accessor
+        for attr in [
+            "_us_states",
+            "_ca_counties",
+            "_ca_watersheds",
+            "_ca_utilities",
+            "_ca_forecast_zones",
+            "_ca_electric_balancing_areas",
+        ]:
+            # Create the mock for each dataset
+            dataset_mock = Mock()
+
+            # Set the loc accessor to our custom class
+            dataset_mock.loc = MockLocAccessor(sample_gdf)
+
+            # Set the dataset on the main mock_geo object
+            setattr(mock_geo, attr, dataset_mock)
+
+        return mock_geo
+
+    @pytest.fixture
+    def mock_geography_choose(self):
+        """Create a mock geography_choose dictionary"""
+        return {
+            "states": {"CA": 0, "OR": 1},
+            "CA counties": {"Alameda": 0, "Orange": 1},
+            "CA watersheds": {"Watershed1": 0, "Watershed2": 1},
+            "CA Electric Load Serving Entities (IOU & POU)": {
+                "Entity1": 0,
+                "Entity2": 1,
+            },
+            "CA Electricity Demand Forecast Zones": {
+                "Zone1": 0,
+                "Zone2": 1,
+            },
+            "CA Electric Balancing Authority Areas": {
+                "Area1": 0,
+                "Area2": 1,
+            },
+            "none": {"entire domain": None},
+            "lat/lon": {"coordinate selection": None},
+        }
+
+    def test_get_subarea_lat_lon(self, mock_geographies, mock_geography_choose):
+        """Test that _get_subarea correctly handles lat/lon subsetting"""
+        # Test with lat/lon subsetting
+        latitude = (34.0, 36.0)
+        longitude = (-120.0, -118.0)
+
+        result = _get_subarea(
+            area_subset="lat/lon",
+            cached_area=["coordinate selection"],
+            latitude=latitude,
+            longitude=longitude,
+            _geographies=mock_geographies,
+            _geography_choose=mock_geography_choose,
+        )
+
+        # Verify result is a GeoDataFrame with the right geometry
+        assert isinstance(result, gpd.GeoDataFrame)
+        assert result.crs == "EPSG:4326"
+        assert len(result) == 1
+        assert result.iloc[0]["subset"] == "coords"
+        # Verify the box coordinates
+        assert result.iloc[0].geometry.bounds == (
+            longitude[0],
+            latitude[0],
+            longitude[1],
+            latitude[1],
+        )
+
+    def test_get_subarea_none(self, mock_geographies, mock_geography_choose):
+        """Test that _get_subarea correctly handles 'none' subsetting (entire domain)"""
+        latitude = (34.0, 36.0)  # Not used in this case
+        longitude = (-120.0, -118.0)  # Not used in this case
+
+        result = _get_subarea(
+            area_subset="none",
+            cached_area=["entire domain"],
+            latitude=latitude,
+            longitude=longitude,
+            _geographies=mock_geographies,
+            _geography_choose=mock_geography_choose,
+        )
+
+        # Verify result is a GeoDataFrame with a large box
+        assert isinstance(result, gpd.GeoDataFrame)
+        assert result.crs == "EPSG:4326"
+        assert len(result) == 1
+        assert result.iloc[0]["subset"] == "coords"
+        # Verify the box is the super big box
+        assert result.iloc[0].geometry.bounds == (-150, -88, 8, 66)
+
+    def test_get_subarea_with_area_subset_types(
+        self, mock_geographies, mock_geography_choose
+    ):
+        """Test that _get_subarea correctly handles different area subset types"""
+        latitude = (34.0, 36.0)  # Not used in this case
+        longitude = (-120.0, -118.0)  # Not used in this case
+
+        # Test each area subset type
+        area_subset_types = [
+            "states",
+            "CA counties",
+            "CA watersheds",
+            "CA Electric Load Serving Entities (IOU & POU)",
+            "CA Electricity Demand Forecast Zones",
+            "CA Electric Balancing Authority Areas",
+        ]
+
+        for area_type in area_subset_types:
+            # Get keys for this area_subset
+            cached_area_keys = list(mock_geography_choose[area_type].keys())
+
+            result = _get_subarea(
+                area_subset=area_type,
+                cached_area=cached_area_keys,
+                latitude=latitude,
+                longitude=longitude,
+                _geographies=mock_geographies,
+                _geography_choose=mock_geography_choose,
+            )
+
+            # Verify the correct boundary dataset method was called with right indices
+            expected_indices = [0, 1]  # Based on mock_geography_choose fixture values
+
+            if area_type == "states":
+                assert mock_geographies._us_states.loc.called_with == expected_indices
+            elif area_type == "CA counties":
+                assert mock_geographies._ca_counties.loc.called_with == expected_indices
+            elif area_type == "CA watersheds":
+                assert (
+                    mock_geographies._ca_watersheds.loc.called_with == expected_indices
+                )
+            elif area_type == "CA Electric Load Serving Entities (IOU & POU)":
+                assert (
+                    mock_geographies._ca_utilities.loc.called_with == expected_indices
+                )
+            elif area_type == "CA Electricity Demand Forecast Zones":
+                assert (
+                    mock_geographies._ca_forecast_zones.loc.called_with
+                    == expected_indices
+                )
+            elif area_type == "CA Electric Balancing Authority Areas":
+                assert (
+                    mock_geographies._ca_electric_balancing_areas.loc.called_with
+                    == expected_indices
+                )
+
+            # Verify result is a GeoDataFrame
+            assert isinstance(result, gpd.GeoDataFrame)
+
+    def test_get_subarea_with_none_cached_area(
+        self, mock_geographies, mock_geography_choose
+    ):
+        """Test that _get_subarea correctly handles None cached_area"""
+        latitude = (34.0, 36.0)  # Not used in this case
+        longitude = (-120.0, -118.0)  # Not used in this case
+
+        result = _get_subarea(
+            area_subset="states",
+            cached_area=None,  # Test with None cached_area
+            latitude=latitude,
+            longitude=longitude,
+            _geographies=mock_geographies,
+            _geography_choose=mock_geography_choose,
+        )
+
+        # Verify that shape_indices was set to [0] when cached_area is None
+        # Change from assert_called_with to checking our custom called_with attribute
+        assert mock_geographies._us_states.loc.called_with == [0]
+        assert isinstance(result, gpd.GeoDataFrame)
+
+
+class Test_CheckIfGoodInput:
+    """Tests for the _check_if_good_input function."""
+
+    @pytest.fixture
+    def sample_catalog_df(self):
+        """Create a sample catalog dataframe for testing."""
+        return pd.DataFrame(
+            {
+                "variable": ["Temperature", "Precipitation", "Wind Speed"],
+                "resolution": ["3 km", "9 km", "45 km"],
+                "scenario": ["Historical Climate", "SSP 1-2.6", "SSP 5-8.5"],
+            }
+        )
+
+    def test_check_if_good_input_valid_inputs(self, sample_catalog_df):
+        """Test that valid inputs are returned unchanged."""
+        input_dict = {
+            "variable": ["Temperature"],
+            "resolution": ["3 km"],
+            "scenario": ["Historical Climate"],
+        }
+
+        result = _check_if_good_input(input_dict, sample_catalog_df)
+
+        assert result == input_dict
+        assert result["variable"] == ["Temperature"]
+        assert result["resolution"] == ["3 km"]
+        assert result["scenario"] == ["Historical Climate"]
+
+    def test_check_if_good_input_none_values(self, sample_catalog_df):
+        """Test that None values are replaced with all valid options."""
+        input_dict = {
+            "variable": None,
+            "resolution": [None],
+            "scenario": ["Historical Climate"],
+        }
+
+        result = _check_if_good_input(input_dict, sample_catalog_df)
+
+        assert set(result["variable"]) == set(
+            ["Temperature", "Precipitation", "Wind Speed"]
+        )
+        assert set(result["resolution"]) == set(["3 km", "9 km", "45 km"])
+        assert result["scenario"] == ["Historical Climate"]
+
+    def test_check_if_good_input_resolution_formatting(self, sample_catalog_df):
+        """Test the special handling for resolution formatting."""
+        input_dict = {
+            "variable": ["Temperature"],
+            "resolution": ["3km", "9KM"],
+            "scenario": ["Historical Climate"],
+        }
+
+        with patch("builtins.print") as mock_print:
+            result = _check_if_good_input(input_dict, sample_catalog_df)
+
+        assert result["resolution"] == ["3 km", "9 km"]
+        assert mock_print.call_count == 4  # 2 for invalid options + 2 for corrections
+
+    def test_check_if_good_input_closest_options(self, sample_catalog_df):
+        """Test finding closest options when input doesn't match exactly."""
+        input_dict = {
+            "variable": ["temparature"],  # Typo
+            "resolution": ["3 km"],
+            "scenario": ["Historical Climate"],
+        }
+
+        with patch("builtins.print") as mock_print, patch(
+            "climakitae.core.data_interface._get_closest_options",
+            return_value=["Temperature"],
+        ):
+            result = _check_if_good_input(input_dict, sample_catalog_df)
+
+        assert result["variable"] == ["Temperature"]
+        assert (
+            mock_print.call_count >= 3
+        )  # Invalid option message + closest option + using option
+
+    def test_check_if_good_input_no_closest_options(self, sample_catalog_df):
+        """Test behavior when no close matches can be found."""
+        input_dict = {
+            "variable": ["xyz"],  # No close match
+            "resolution": ["3 km"],
+            "scenario": ["Historical Climate"],
+        }
+
+        with patch("builtins.print") as mock_print, patch(
+            "climakitae.core.data_interface._get_closest_options",
+            return_value=None,
+        ):
+            with pytest.raises(ValueError, match="Bad input"):
+                _check_if_good_input(input_dict, sample_catalog_df)
+
+        # Check that valid options were printed
+        assert (
+            mock_print.call_count >= 2
+        )  # Invalid option message + valid options listing
