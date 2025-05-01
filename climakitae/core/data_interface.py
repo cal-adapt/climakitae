@@ -587,6 +587,8 @@ class DataParameters(param.Parameterized):
     warming_level_months: array
         months of year to use for computing warming levels
         default to entire calendar year: 1,2,3,4,5,6,7,8,9,10,11,12
+    all_touched: boolean
+        spatial subset option for within or touching selection
     """
 
     # Unit conversion options for each unit
@@ -660,6 +662,8 @@ class DataParameters(param.Parameterized):
         default=list(np.arange(1, 13)),  # All 12 months of the year
         objects=list(np.arange(1, 13)),  # All 12 months of the year
     )
+
+    all_touched = param.Boolean(False)
 
     # User warnings
     _info_about_station_data = "This method retrieves gridded model data that is bias-corrected using historical weather station data at that point. This process can start from any model grid-spacing."
