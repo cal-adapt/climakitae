@@ -1130,14 +1130,13 @@ class DataParameters(param.Parameterized):
 
             # check if input historical scenarios match new available scenarios
             # if no reanalysis scenario then return False
-            def _check_inputs(a: Iterable, b: Iterable) -> bool:
-                chk = False
+            def _check_inputs(a: list[str], b: list[str]) -> bool:
+                """Check if any element in list a also exists in list b."""
                 if len(b) < 2:
-                    return chk
-                for i in a:
-                    if i in a:
-                        chk = True
-                return chk
+                    return False
+
+                # Use set intersection for efficient membership checking
+                return bool(set(a) & set(b))
 
             # check if new selection has the historical scenario options and if not select the first new option
             if _check_inputs(_scenario_historical, scenario_historical_options):
