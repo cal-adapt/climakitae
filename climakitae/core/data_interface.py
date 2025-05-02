@@ -2201,7 +2201,7 @@ def get_data(
     # If all_touched is None set to False
     if all_touched == None:
         all_touched = False
-    
+
     # Check if all_touched boolean
     if all_touched not in [True, False]:
         raise ValueError("all_touched must be a boolean")
