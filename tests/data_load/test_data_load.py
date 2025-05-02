@@ -349,7 +349,7 @@ class TestReadCatalog:
         # Check that all requested scenarios are present
         assert result.scenario.data[0] == selections.scenario_historical[0]
 
-    def test_read_catalog_from_select_defaults(self, selections):
+    def test_read_catalog_from_select_area_subset(self, selections):
         # Test area subset selection with single simulation
         selections.simulation = ["EC-Earth3"]
         selections.downscaling_method = "Statistical"
