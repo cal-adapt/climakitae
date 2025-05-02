@@ -1191,7 +1191,7 @@ def clip_to_shapefile(
     data: xr.Dataset | xr.DataArray,
     shapefile_path: str,
     feature: tuple[str, str | int | float | bool | list[str | int | float | bool]] = (),
-    name: str = "custom",
+    name: str = "user-defined",
     **kwargs,
 ) -> xr.Dataset | xr.DataArray:
     """Use a shapefile to select an area subset of AE data.
@@ -1249,7 +1249,7 @@ def clip_to_shapefile(
         msg = "Can't clip feature. Your grid resolution may be too low for your shapefile feature, or your shapefile's CRS may be incorrectly set."
         raise RuntimeError(msg) from err
     except Exception as err:
-        raise RuntimeError from err
+        raise err
 
     if feature:
         if isinstance(feature[1], list):
