@@ -3,10 +3,12 @@ import os
 import tempfile
 from unittest.mock import MagicMock, PropertyMock, patch
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 import pyproj
 import pytest
+from shapely.geometry import box
 import xarray as xr
 
 from climakitae.util.utils import (  # stack_sims_across_locs, # TODO: Uncomment when implemented
@@ -15,6 +17,7 @@ from climakitae.util.utils import (  # stack_sims_across_locs, # TODO: Uncomment
     _package_file_path,
     add_dummy_time_to_wl,
     area_average,
+    clip_to_shapefile,
     combine_hdd_cdd,
     compute_annual_aggreggate,
     compute_multimodel_stats,
@@ -1607,3 +1610,51 @@ class TestConvertToLocalTime:
             mock_print.assert_called_with(
                 "Data converted to America/Los_Angeles timezone."
             )
+
+    def test_clip_to_shapefile(self):
+        # Dataset to trim
+        data = xr.DataArray(
+            data = np.zeros((10,10)),
+            coords = {"lat": np.linspace(38.0,38.9,num=10),
+                      "lon": np.linspace(-121.9,-121.0,num=10)},
+        )
+        data = data.rio.set_spatial_dims(y_dim="lat",x_dim="lon")
+        data = data.rio.write_crs("EPSG:4326")
+        # Mock shapefile inputs with this:
+        df = pd.DataFrame({"Area": ["Box1"],})
+        geometry=[box(-121.6, 38.3, -121.2, 38.8)]
+        gdf = gpd.GeoDataFrame(
+            df, geometry=geometry, crs="EPSG:4326"
+        )
+        # This should clip successfully
+        with patch("geopandas.read_file",return_value=gdf):
+            result = clip_to_shapefile(data,"not_a_file.shp")
+
+        assert result["lat"].min().item() == pytest.approx(38.3,1e-6)
+        assert result["lat"].max().item() == pytest.approx(38.7,1e-6)
+        assert result["lon"].min().item() == pytest.approx(-121.6,1e-6)
+        assert result["lon"].max().item() == pytest.approx(-121.3,1e-6)
+        assert result.attrs["location_subset"] == ["user-defined"]
+        assert result.shape == (5,4)
+
+        # Input data lacks CRS
+        with pytest.raises(RuntimeError):
+            result = clip_to_shapefile(xr.Dataset(),"not_a_file.shp")
+
+        # "Shapefile" data lacks CRS
+        gdf = gpd.GeoDataFrame(
+            df, geometry=geometry, crs=None
+        )
+        with patch("geopandas.read_file",return_value=gdf):
+            with pytest.raises(RuntimeError):
+                result = clip_to_shapefile(data,"not_a_file.shp")
+
+        # "Shapefile" feature too small relative to grid
+        df = pd.DataFrame({"Area": ["Box1"],})
+        geometry=[box(-121.39, 38.52, -121.31, 38.56)]
+        gdf = gpd.GeoDataFrame(
+            df, geometry=geometry, crs="EPSG:4326"
+        )
+        with patch("geopandas.read_file",return_value=gdf):
+            with pytest.raises(RuntimeError):
+                result = clip_to_shapefile(data,"not_a_file.shp")
