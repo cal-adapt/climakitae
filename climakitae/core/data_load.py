@@ -273,7 +273,7 @@ def _spatial_subset(dset: xr.Dataset, selections: "DataParameters") -> xr.Datase
     """
 
     def _clip_to_geometry(
-        dset: xr.Dataset, ds_region: shapely.geometry.polygon.Polygon
+        dset: xr.Dataset, ds_region: shapely.geometry.polygon.Polygon, all_touched: bool
     ) -> xr.Dataset:
         """Clip to geometry if large enough
 
@@ -283,6 +283,8 @@ def _spatial_subset(dset: xr.Dataset, selections: "DataParameters") -> xr.Datase
             one dataset from the catalog
         ds_region: shapely.geometry.polygon.Polygon
             area to clip to
+        all_touched: boolean
+            select within or touching area
 
         Returns
         -------
@@ -290,7 +292,9 @@ def _spatial_subset(dset: xr.Dataset, selections: "DataParameters") -> xr.Datase
             clipped area of dset
         """
         try:
-            dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
+            dset = dset.rio.clip(
+                geometries=ds_region, crs=4326, drop=True, all_touched=all_touched
+            )
 
         except NoDataInBounds as e:
             # Catch small geometry error
@@ -300,7 +304,7 @@ def _spatial_subset(dset: xr.Dataset, selections: "DataParameters") -> xr.Datase
         return dset
 
     def _clip_to_geometry_loca(
-        dset: xr.Dataset, ds_region: shapely.geometry.polygon.Polygon
+        dset: xr.Dataset, ds_region: shapely.geometry.polygon.Polygon, all_touched: bool
     ) -> xr.Dataset:
         """Clip to geometry, adding missing grid info
             because crs and x, y are missing from LOCA datasets
@@ -313,6 +317,8 @@ def _spatial_subset(dset: xr.Dataset, selections: "DataParameters") -> xr.Datase
             one dataset from the catalog
         ds_region: shapely.geometry.polygon.Polygon
             area to clip to
+        all_touched: boolean
+            select within or touching area
 
         Returns
         -------
@@ -321,7 +327,7 @@ def _spatial_subset(dset: xr.Dataset, selections: "DataParameters") -> xr.Datase
         """
         dset = dset.rename({"lon": "x", "lat": "y"})
         dset = dset.rio.write_crs("epsg:4326", inplace=True)
-        dset = _clip_to_geometry(dset, ds_region)
+        dset = _clip_to_geometry(dset, ds_region, all_touched)
         dset = dset.rename({"x": "lon", "y": "lat"}).drop("spatial_ref")
         return dset
 
@@ -329,9 +335,9 @@ def _spatial_subset(dset: xr.Dataset, selections: "DataParameters") -> xr.Datase
 
     if ds_region is not None:  # Perform subsetting
         if selections.downscaling_method == "Dynamical":
-            dset = _clip_to_geometry(dset, ds_region)
+            dset = _clip_to_geometry(dset, ds_region, selections.all_touched)
         else:
-            dset = _clip_to_geometry_loca(dset, ds_region)
+            dset = _clip_to_geometry_loca(dset, ds_region, selections.all_touched)
 
     return dset
 
