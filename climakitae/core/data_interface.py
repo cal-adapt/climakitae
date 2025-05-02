@@ -1834,6 +1834,7 @@ def get_data(
     stations=None,
     warming_level_window=None,
     warming_level_months=None,
+    all_touched=False,
 ):
     # Need to add error handing for bad variable input
     """Retrieve formatted data from the Analytics Engine data catalog using a simple function.
@@ -1896,6 +1897,8 @@ def get_data(
         Default to all months in a year: [1,2,3,4,5,6,7,8,9,10,11,12]
         For example, you may want to set warming_level_months=[12,1,2] to perform the analysis for the winter season.
         Only valid for approach = "Warming Level" and data_type = "Stations"
+    all_touched: boolean
+        spatial subset option for within or touching selection
 
     Returns
     -------
@@ -2195,6 +2198,14 @@ def get_data(
     # Cached area should be a list even if its just a single string value (i.e. [str])
     cached_area = [cached_area] if type(cached_area) != list else cached_area
 
+    # If all_touched is None set to False
+    if all_touched == None:
+        all_touched = False
+    
+    # Check if all_touched boolean
+    if all_touched not in [True, False]:
+        raise ValueError("all_touched must be a boolean")
+
     # Make sure approach matches the scenario setting
     # See function documentation for more details
     approach, scenario, warming_level, time_slice = _error_handling_approach_inputs(
@@ -2276,6 +2287,7 @@ def get_data(
         "latitude": latitude,
         "longitude": longitude,
         "stations": stations,
+        "all_touched": all_touched,
     }
 
     scenario_ssp, scenario_historical = _get_scenario_ssp_scenario_historical(
@@ -2330,6 +2342,7 @@ def get_data(
         selections.variable_type = selections_dict["variable_type"]
         selections.variable = selections_dict["variable"]
         selections.units = selections_dict["units"]
+        selections.all_touched = selections_dict["all_touched"]
 
         # Setting the values like this enables us to take advantage of the default settings in DataParameters without having to manually set defaults in this function
         if selections_dict["warming_level"] is not None:
