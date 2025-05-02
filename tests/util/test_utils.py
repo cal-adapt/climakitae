@@ -8,8 +8,8 @@ import numpy as np
 import pandas as pd
 import pyproj
 import pytest
-from shapely.geometry import box
 import xarray as xr
+from shapely.geometry import box
 
 from climakitae.util.utils import (  # stack_sims_across_locs, # TODO: Uncomment when implemented
     _get_cat_subset,
@@ -1652,11 +1652,6 @@ class TestConvertToLocalTime:
                 result = clip_to_shapefile(data, "not_a_file.shp")
 
         # "Shapefile" feature too small relative to grid
-        df = pd.DataFrame(
-            {
-                "Area": ["Box1"],
-            }
-        )
         geometry = [box(-121.39, 38.52, -121.31, 38.56)]
         gdf = gpd.GeoDataFrame(df, geometry=geometry, crs="EPSG:4326")
         with patch("geopandas.read_file", return_value=gdf):
