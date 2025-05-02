@@ -360,6 +360,18 @@ class TestReadCatalog:
         assert result.attrs["downscaling_method"] == selections.downscaling_method
         assert result.attrs["location_subset"] == ["Alameda County"]
 
+    def test_read_catalog_from_select_all_touched(self, selections):
+        # Test area subset selection with single simulation
+        selections.simulation = ["EC-Earth3"]
+        selections.downscaling_method = "Statistical"
+        selections.area_subset = "CA counties"
+        selections.cached_area = ["Alameda County"]
+        selections.all_touched = True
+        result = read_catalog_from_select(selections)
+        assert isinstance(result, xr.core.dataarray.DataArray)
+        assert result.attrs["downscaling_method"] == selections.downscaling_method
+        assert result.attrs["location_subset"] == ["Alameda County"]
+
     def test_read_catalog_from_select_ssp245(self, selections):
         # Add an SSP to the default options
         selections.scenario_ssp = ["SSP 2-4.5"]
