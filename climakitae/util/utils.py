@@ -1115,7 +1115,14 @@ def stack_sims_across_locs(ds):
     ]
     return ds
 
-def clip_to_shapefile(data: xr.Dataset | xr.DataArray, shapefile_path: str, feature: tuple[str,str | int | float | bool | list[str | int | float | bool]]=(), name: str = "custom", **kwargs) -> xr.Dataset | xr.DataArray:
+
+def clip_to_shapefile(
+    data: xr.Dataset | xr.DataArray,
+    shapefile_path: str,
+    feature: tuple[str, str | int | float | bool | list[str | int | float | bool]] = (),
+    name: str = "custom",
+    **kwargs,
+) -> xr.Dataset | xr.DataArray:
     """Use a shapefile to select an area subset of AE data.
 
     Parameters
@@ -1137,28 +1144,36 @@ def clip_to_shapefile(data: xr.Dataset | xr.DataArray, shapefile_path: str, feat
         Returns same type as 'data', but grid is clipped to shapefile feature(s).
     """
     if data.rio.crs is None:
-        raise RuntimeError("No CRS found on input parameter 'data'. Use rioxarray write_crs() method to set CRS.")
+        raise RuntimeError(
+            "No CRS found on input parameter 'data'. Use rioxarray write_crs() method to set CRS."
+        )
 
     region = gpd.read_file(shapefile_path)
 
     if region.crs is None:
-        raise RuntimeError("No CRS found on data read from shapefile. Verify that shapefile contains valid CRS information.")
+        raise RuntimeError(
+            "No CRS found on data read from shapefile. Verify that shapefile contains valid CRS information."
+        )
 
     # Select only user provided feature
     if feature:
         try:
-            print("Selecting feature",feature)
-            if isinstance(feature[1],list):
+            print("Selecting feature", feature)
+            if isinstance(feature[1], list):
                 region = region[region[feature[0]].isin(feature[1])]
             else:
                 region = region[region[feature[0]] == feature[1]]
-            if len(region) == 0: # No features found
+            if len(region) == 0:  # No features found
                 raise Exception
         except Exception as err:
-            raise RuntimeError("Could not select feature {0} in {1} ".format(feature,shapefile_path)) from err
+            raise RuntimeError(
+                "Could not select feature {0} in {1} ".format(feature, shapefile_path)
+            ) from err
 
     try:
-        clipped = data.rio.clip(region.geometry.apply(mapping), region.crs, drop=True, **kwargs)
+        clipped = data.rio.clip(
+            region.geometry.apply(mapping), region.crs, drop=True, **kwargs
+        )
     except rio.exceptions.NoDataInBounds as err:
         msg = "Can't clip feature. Your grid resolution may be too low for your shapefile feature, or your shapefile's CRS may be incorrectly set."
         raise RuntimeError(msg) from err
@@ -1166,12 +1181,12 @@ def clip_to_shapefile(data: xr.Dataset | xr.DataArray, shapefile_path: str, feat
         raise RuntimeError from err
 
     if feature:
-        if isinstance(feature[1],list):
+        if isinstance(feature[1], list):
             location = [str(item) for item in feature[1]]
         else:
             location = [str(feature[1])]
     else:
         location = [name]
     clipped.attrs["location_subset"] = location
-        
+
     return clipped
