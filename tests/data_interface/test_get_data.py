@@ -1,8 +1,10 @@
 """Test the get_data() function"""
 
-import pytest
 import io
 import sys
+
+import pytest
+
 from climakitae.core.data_interface import get_data
 
 
@@ -190,7 +192,7 @@ class TestAppropriateStringErrorReturnedIfBadInputGetData:
         """Warming level should be a float input! Make sure the function prints the appropriate error message"""
 
         # Error message we expect to be printed by the function
-        expected_print_message = "ERROR: Function argument warming_level requires a float/int or list of floats/ints input. Your input: <class 'str'> \nReturning None\n"
+        expected_print_message = "ERROR: Function argument warming_level requires a float/int or list \n                    of floats/ints input. Your input: <class 'str'> \nReturning None\n"
 
         # NOTE: function PRINTS this message-- it does not return it as an error
         # Because of this, we have to use sys to capture the print message
