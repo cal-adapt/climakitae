@@ -159,23 +159,28 @@ class ClimateData:
         """Reset the query parameters to defaults."""
         self._query = {
             "variable": UNSET,
-            "resolution": UNSET,
-            "timescale": UNSET,
-            "downscaling_method": "Dynamical",
-            "data_type": "Gridded",
-            "approach": "Time",
+            "resolution": UNSET,  # grid label, e.g., "3 km", "9 km", "45 km"
+            "timescale": UNSET,  # table_id, e.g., "hourly", "daily", "monthly"
+            "downscaling_method": UNSET,
+            "data_type": UNSET,
+            "approach": UNSET,
             "scenario": UNSET,
             "units": UNSET,
             "warming_level": UNSET,
             "area_subset": UNSET,
-            "latitude": UNSET,
-            "longitude": UNSET,
-            "cached_area": ["entire domain"],
+            "latitude": (UNSET, UNSET),
+            "longitude": (UNSET, UNSET),
+            "cached_area": UNSET,
             "area_average": UNSET,
-            "time_slice": UNSET,
+            "time_slice": (UNSET, UNSET),
             "stations": UNSET,
-            "warming_level_window": UNSET,
+            "warming_level_window": 0,
             "warming_level_months": UNSET,
+            "installation": UNSET,
+            "activity_id": UNSET,
+            "institution_id": UNSET,
+            "source_id": UNSET,
+            "experiment_id": UNSET,
         }
         return self
 
@@ -240,7 +245,7 @@ class ClimateData:
         self._query["longitude"] = value
         return self
 
-    def cached_area(self, value: Union[str, List[str]] = ["entire domain"]):
+    def cached_area(self, value: Union[str, List[str]]):
         """Set the cached area."""
         self._query["cached_area"] = value if isinstance(value, list) else [value]
         return self
@@ -270,6 +275,31 @@ class ClimateData:
         self._query["warming_level_months"] = (
             value if isinstance(value, list) else [value]
         )
+        return self
+
+    def installation(self, value: str):
+        """Set the installation."""
+        self._query["installation"] = value
+        return self
+
+    def activity_id(self, value: str):
+        """Set the activity ID for renewables."""
+        self._query["activity_id"] = value
+        return self
+
+    def institution_id(self, value: str):
+        """Set the institution ID for renewables."""
+        self._query["institution_id"] = value
+        return self
+
+    def source_id(self, value: str):
+        """Set the source ID for renewables."""
+        self._query["source_id"] = value
+        return self
+
+    def experiment_id(self, value: str):
+        """Set the experiment ID for renewables."""
+        self._query["experiment_id"] = value
         return self
 
     def get(self):
