@@ -22,6 +22,7 @@ the interactive GUI selection interface.
 
 import difflib
 import warnings
+from typing import Iterable, List, Union
 
 import geopandas as gpd
 import intake
@@ -29,6 +30,7 @@ import intake_esm
 import numpy as np
 import pandas as pd
 import param
+import xarray as xr
 from shapely.geometry import box
 
 from climakitae.core.boundaries import Boundaries
@@ -1128,7 +1130,7 @@ class DataParameters(param.Parameterized):
 
             # check if input historical scenarios match new available scenarios
             # if no reanalysis scenario then return False
-            def _check_inputs(a, b):
+            def _check_inputs(a: Iterable, b: Iterable) -> bool:
                 chk = False
                 if len(b) < 2:
                     return chk
@@ -1312,7 +1314,9 @@ class DataParameters(param.Parameterized):
             self.param["stations"].objects = [notice]
             self.stations = [notice]
 
-    def retrieve(self, config=None, merge=True):
+    def retrieve(
+        self, config: str = None, merge: bool = True
+    ) -> Union[xr.DataArray, xr.Dataset, List[xr.DataArray]]:
         """Retrieve data from catalog
 
         By default, DataParameters determines the data retrieved.
@@ -1332,19 +1336,12 @@ class DataParameters(param.Parameterized):
 
         Returns
         -------
-        xr.DataArray
-            Lazily loaded dask array
-            Default if no config file provided
-        xr.Dataset
-            If multiple rows are in the csv, each row is a data_variable
-            Only an option if a config file is provided
-        list of xr.DataArray
-            If multiple rows are in the csv and merge=True,
-            multiple DataArrays are returned in a single list.
-            Only an option if a config file is provided.
+        data_return : xr.DataArray | xr.Dataset | list of xr.DataArray
+            DataArray or Dataset object
         """
 
-        def _warn_of_large_file_size(da):
+        def _warn_of_large_file_size(da: xr.DataArray):
+            """Warn user if the data array is large"""
             if da.nbytes >= int(1e9) and da.nbytes < int(5e9):
                 print(
                     "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
@@ -1379,7 +1376,8 @@ class DataParameters(param.Parameterized):
                 data_return = read_catalog_from_csv(self, config, merge)
             else:
                 raise ValueError(
-                    "To retrieve data specified in a configuration file, please input the path to your local configuration csv as a string"
+                    """To retrieve data specified in a configuration file, please input 
+                    the path to your local configuration csv as a string"""
                 )
         data_return = read_catalog_from_select(self)
 
@@ -1398,7 +1396,9 @@ class DataParameters(param.Parameterized):
 ## -------------- Data access without GUI -------------------
 
 
-def _get_user_friendly_catalog(intake_catalog, variable_descriptions):
+def _get_user_friendly_catalog(
+    intake_catalog: intake_esm.source.ESMDataSource, variable_descriptions: pd.DataFrame
+) -> pd.DataFrame:
     """Get a user-friendly version of the intake data catalog using climakitae naming conventions
 
     Parameters
@@ -1411,13 +1411,24 @@ def _get_user_friendly_catalog(intake_catalog, variable_descriptions):
     cat_df_cleaned: intake_esm.source.ESMDataSource
     """
 
-    def _expand(row, cat_df):
+    def _expand(row: pd.DataFrame, cat_df: pd.DataFrame) -> pd.DataFrame:
         """Used for adding climakitae derived variables into catalog options
         Expand the row for each individual derived variable to include the appropriate resolution and scenario options from it's variable dependency.
         For example, the fosberg fire index is dependent on temperature.
         We don't store info in the variable_descriptions csv on the options for scenario and resolution for derived variables
         So, we need to pull those options from the valid options from the catalog variables that the derived variables are built from
 
+        Parameters
+        ----------
+        row: pd.DataFrame
+            Row of derived variable
+        cat_df: pd.DataFrame
+            Catalog dataframe
+
+        Returns
+        -------
+        dependency_options: pd.DataFrame
+            Dataframe with the options for the derived variable
         """
         # Just get the first dependency
         # Ideally it should look at all the dependent variables but it's a lot of messy code and I'm not sure if it actually matters
@@ -1496,22 +1507,24 @@ def _get_user_friendly_catalog(intake_catalog, variable_descriptions):
     return options_all
 
 
-def _get_var_name_from_table(variable_id, downscaling_method, timescale, var_df):
+def _get_var_name_from_table(
+    variable_id: str, downscaling_method: str, timescale: str, var_df: pd.DataFrame
+) -> str:
     """Get the variable name corresponding to its ID, downscaling method, and timescale
     Enables the _get_user_friendly_catalog function to get the name of a variable corresponding to a set of user inputs
     i.e we have several different precip variables, corresponding to different downscaling methods (WRF vs. LOCA)
 
     Parameters
     ----------
-    variable_id: str
-    downscaling_method: str
-    timescale: str
-    var_df: pd.DataFrame
+    variable_id : str
+    downscaling_method : str
+    timescale : str
+    var_df : pd.DataFrame
         Variable descriptions table
 
     Returns
     -------
-    var_name: str
+    var_name : str
         Display name of variable from variable descriptions table
         Will match what the user would see in the selections GUI
     """
@@ -1540,7 +1553,9 @@ def _get_var_name_from_table(variable_id, downscaling_method, timescale, var_df)
     return var_name
 
 
-def _get_closest_options(val, valid_options, cutoff=0.59):
+def _get_closest_options(
+    val: str, valid_options: list[str], cutoff: float = 0.59
+) -> list[str] | None:
     """If the user inputs a bad option, find the closest option from a list of valid options
 
     Parameters
@@ -1589,7 +1604,7 @@ def _get_closest_options(val, valid_options, cutoff=0.59):
     return closest_options
 
 
-def _check_if_good_input(d, cat_df):
+def _check_if_good_input(d: dict, cat_df: pd.DataFrame) -> dict:
     """Check if inputs are valid and makes a "guess" using cat_df if the input is not valid
 
     Parameters
@@ -1673,13 +1688,13 @@ def _check_if_good_input(d, cat_df):
 
 
 def get_data_options(
-    variable=None,
-    downscaling_method=None,
-    resolution=None,
-    timescale=None,
-    scenario=None,
-    tidy=True,
-):
+    variable: str = None,
+    downscaling_method: str = None,
+    resolution: str = None,
+    timescale: str = None,
+    scenario: Union[str, list[str]] = None,
+    tidy: bool = True,
+) -> pd.DataFrame:
     """Get data options, in the same format as the Select GUI, given a set of possible inputs.
     Allows the user to access the data using the same language as the GUI, bypassing the sometimes unintuitive naming in the catalog.
     If no function inputs are provided, the function returns the entire AE catalog that is available via the Select GUI
@@ -1724,12 +1739,9 @@ def get_data_options(
             )
             return None
 
-    def _list(x):
+    def _list(x: Union[str, list]) -> list:
         """Convert x to a list if its not a list"""
-        if type(x) == list:
-            return x
-        elif type(x) != list:
-            return [x]
+        return x if isinstance(x, list) else [x]
 
     d = {
         "variable": _list(variable),
@@ -1764,7 +1776,7 @@ def get_data_options(
     return cat_subset
 
 
-def get_subsetting_options(area_subset="all"):
+def get_subsetting_options(area_subset: str = "all") -> pd.DataFrame:
     """Get all geometry options for spatial subsetting.
     Options match those in selections GUI
 
@@ -1856,31 +1868,31 @@ def get_subsetting_options(area_subset="all"):
     return geoms_df
 
 
-def _format_error_print_message(error_message):
+def _format_error_print_message(error_message: str) -> str:
     """Format error message using the same format"""
-    return "ERROR: {0} \nReturning None".format(error_message)
+    return f"ERROR: {error_message} \nReturning None"
 
 
 def get_data(
-    variable,
-    resolution,
-    timescale,
-    downscaling_method="Dynamical",
-    data_type="Gridded",
-    approach="Time",
-    scenario=None,
-    units=None,
-    warming_level=None,
-    area_subset="none",
-    latitude=None,
-    longitude=None,
-    cached_area=None,
-    area_average=None,
-    time_slice=None,
-    stations=None,
-    warming_level_window=None,
-    warming_level_months=None,
-):
+    variable: str,
+    resolution: str,
+    timescale: str,
+    downscaling_method: str = "Dynamical",
+    data_type: str = "Gridded",
+    approach: str = "Time",
+    scenario: str = None,
+    units: str = None,
+    warming_level: list[float] = None,
+    area_subset: str = "none",
+    latitude: tuple[float, float] = None,
+    longitude: tuple[float, float] = None,
+    cached_area: list[str] = None,
+    area_average: str = None,
+    time_slice: tuple = None,
+    stations: list[str] = None,
+    warming_level_window: int = None,
+    warming_level_months: list[int] = None,
+) -> xr.DataArray:
     # Need to add error handing for bad variable input
     """Retrieve formatted data from the Analytics Engine data catalog using a simple function.
     Contrasts with DataParameters().retrieve(), which retrieves data from the user inputs in climakitaegui's selections GUI.
@@ -1953,11 +1965,14 @@ def get_data(
 
     """
 
-    def _check_valid_input_station(stations, station_options_all):
+    def _check_valid_input_station(
+        stations: list[str], station_options_all: list[str]
+    ) -> list[str]:
         """Check that the user input a valid value for station
         If invalid input, the function will "guess" a close-ish station using difflib
         See _get_closest_option function for more info
-        If invalid input and no guesses found, the function will print an informative error message and raise a ValueError
+        If invalid input and no guesses found, the function will print an informative
+        error message and raise a ValueError
 
         Parameters
         ----------
@@ -1979,70 +1994,75 @@ def get_data(
         # If more than one station prints errors to the console, print a space between each station
         printed_warning = False
 
-        for i in range(len(stations)):  # Go through all the stations
+        for i, station_i in enumerate(stations):  # Go through all the stations
+            # If the station is a valid option, don't do anything
+            if station_i in station_options_all:
+                continue
 
-            station_i = stations[i]
+            if printed_warning:
+                print(
+                    "\n", end=""
+                )  # Add a space between stations for better readability
 
-            if station_i not in station_options_all:
-                if printed_warning == True:
-                    print(
-                        "\n", end=""
-                    )  # Add a space between stations for better readability
+            # If the station isn't a valid option...
+            print("Input station='" + station_i + "' is not a valid option.")
+            closest_options = _get_closest_options(
+                station_i, station_options_all
+            )  # See if theres any similar options
 
-                # If the station isn't a valid option...
-                print("Input station='" + station_i + "' is not a valid option.")
-                closest_options = _get_closest_options(
-                    station_i, station_options_all
-                )  # See if theres any similar options
+            # Sad! No closest options found. Just set the key to all valid options
+            if closest_options is None:
+                print("Valid options: \n- ", end="")
+                print("\n- ".join(station_options_all))
+                raise ValueError("Bad input")
 
-                # Sad! No closest options found. Just set the key to all valid options
-                if closest_options is None:
-                    print("Valid options: \n- ", end="")
-                    print("\n- ".join(station_options_all))
-                    raise ValueError("Bad input")
+            # Just one option in the list
+            elif len(closest_options) == 1:
+                print("Closest option: '" + closest_options[0] + "'")
 
-                # Just one option in the list
-                elif len(closest_options) == 1:
-                    print("Closest option: '" + closest_options[0] + "'")
+            elif len(closest_options) > 1:
+                print("Closest options: \n- " + "\n- ".join(closest_options))
 
-                elif len(closest_options) > 1:
-                    print("Closest options: \n- " + "\n- ".join(closest_options))
+            print("Outputting data for station='" + closest_options[0] + "'")
+            stations[i] = closest_options[
+                0
+            ]  # Replace that value in the list with the best option :)
 
-                print("Outputting data for station='" + closest_options[0] + "'")
-                stations[i] = closest_options[
-                    0
-                ]  # Replace that value in the list with the best option :)
-
-                printed_warning = True
+            printed_warning = True
 
         return stations
 
     # Internal functions
-    def _error_handling_warming_level_inputs(wl, argument_name):
-        """Error handling for arguments: warming_level and warming_level_month
-        Both require a list of either floats or ints
-        argument_name is either "warming_level" or "warming_level_months" and is used to print an appropriate error message for bad input
+    def _error_handling_warming_level_inputs(
+        wl: Union[list[float], list[int]], argument_name: str
+    ):
         """
-        if (wl is not None) and (type(wl) != list):
-            if type(wl) in [float, int]:  # Convert float to a singleton list
+        Error handling for arguments: warming_level and warming_level_month
+        Both require a list of either floats or ints
+        argument_name is either "warming_level" or "warming_level_months" and is used to
+        print an appropriate error message for bad input
+        """
+        if (wl is not None) and not isinstance(wl, list):
+            if isinstance(wl, (float, int)):  # Convert float to a singleton list
                 wl = [wl]
-            if type(wl) != list:
+            if not isinstance(wl, list):
                 raise ValueError(
-                    "Function argument {0} requires a float/int or list of floats/ints input. Your input: {1}".format(
-                        argument_name, type(wl)
-                    )
+                    f"""Function argument {argument_name} requires a float/int or list 
+                    of floats/ints input. Your input: {type(wl)}"""
                 )
-        if type(wl) == list:
+        if isinstance(wl, list):
             for x in wl:
-                if type(x) not in [float, int]:
-                    raise ValueError(
-                        "Function argument {0} requires a float/int or list of floats/ints input. Your input: {1}".format(
-                            argument_name, type(x)
-                        )
-                    )
+                if isinstance(x, (float, int)):
+                    continue
+                raise ValueError(
+                    f"""Function argument {argument_name} requires a float/int or list of
+                    floats/ints input. Your input: {type(x)}"""
+                )
         return wl
 
-    def _error_handling_approach_inputs(approach, scenario, warming_level, time_slice):
+    def _error_handling_approach_inputs(
+        approach: str, scenario: str, warming_level: list[float], time_slice: tuple
+    ) -> tuple[str, str, list[float], tuple]:
         """Error handling for approach and scenario inputs"""
         _valid_options_approach = ["Time", "Warming Level"]
         if approach not in _valid_options_approach:
@@ -2071,7 +2091,9 @@ def get_data(
 
         return approach, scenario, warming_level, time_slice
 
-    def _error_handling_location_settings(area_subset, cached_area):
+    def _error_handling_location_settings(
+        area_subset: list[str], cached_area: list[str]
+    ) -> list[str]:
         """Maybe the user put an input for cached area but not for area subset
         We need to have the matching/correct area subset in order for selections.retrieve() to actually subset the data
         Here, we load in the geometry options to set area_subset to the correct value
@@ -2088,7 +2110,9 @@ def get_data(
                 area_subset = area_subset_vals[0]
         return area_subset
 
-    def _get_scenario_ssp_scenario_historical(approach, scenario):
+    def _get_scenario_ssp_scenario_historical(
+        approach: str, scenario: str
+    ) -> tuple[str, str]:
         """Get scenario_ssp, scenario_historical depending on user inputs"""
         if approach == "Warming Level":
             scenario_ssp = ["n/a"]
@@ -2406,7 +2430,9 @@ def get_data(
     return data
 
 
-def _get_and_reformat_derived_variables(variable_descriptions):
+def _get_and_reformat_derived_variables(
+    variable_descriptions: pd.DataFrame,
+) -> pd.DataFrame:
     """(1) Get the just derived variables from the variables_descriptions csv and
     (2) Reformat the data such that the timescales are split into separate rows
 
