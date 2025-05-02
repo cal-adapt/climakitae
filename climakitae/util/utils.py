@@ -1,20 +1,25 @@
-import os
-import numpy as np
+import copy
 import datetime
+import os
+from typing import Iterable, Union
+
 import geopandas as gpd
-import xarray as xr
+import intake_esm
+import numpy as np
+import pandas as pd
 import pyproj
 import rioxarray as rio
 from shapely.geometry import mapping
-import pandas as pd
-import copy
-import intake
+import xarray as xr
 from timezonefinder import TimezoneFinder
+
+from climakitae.core.constants import SSPS, UNSET
+
+# from climakitae.core.data_interface import DataParameters
 from climakitae.core.paths import data_catalog_url, stations_csv_path
-from climakitae.core.constants import SSPS
 
 
-def downscaling_method_as_list(downscaling_method):
+def downscaling_method_as_list(downscaling_method: str) -> list[str]:
     """Function to convert string based radio button values to python list.
 
     Parameters
@@ -35,7 +40,7 @@ def downscaling_method_as_list(downscaling_method):
     return method_list
 
 
-def area_average(dset):
+def area_average(dset: xr.Dataset) -> xr.Dataset:
     """Weighted area-average
 
     Parameters
@@ -58,7 +63,9 @@ def area_average(dset):
     return dset
 
 
-def read_csv_file(rel_path, index_col=None, parse_dates=False):
+def read_csv_file(
+    rel_path: str, index_col: str = UNSET, parse_dates: bool = False
+) -> pd.DataFrame:
     """Read CSV file into pandas DataFrame
 
     Parameters
@@ -76,7 +83,7 @@ def read_csv_file(rel_path, index_col=None, parse_dates=False):
     """
     return pd.read_csv(
         _package_file_path(rel_path),
-        index_col=index_col,
+        index_col=None if index_col is UNSET else index_col,
         parse_dates=parse_dates,
         na_values=[
             "",
@@ -102,7 +109,7 @@ def read_csv_file(rel_path, index_col=None, parse_dates=False):
     )
 
 
-def write_csv_file(df, rel_path):
+def write_csv_file(df: pd.DataFrame, rel_path: str) -> None:
     """Write CSV file from pandas DataFrame
 
     Parameters
@@ -114,12 +121,12 @@ def write_csv_file(df, rel_path):
 
     Returns
     -------
-    None or str
+    None
     """
     return df.to_csv(_package_file_path(rel_path))
 
 
-def _package_file_path(rel_path):
+def _package_file_path(rel_path: str) -> str:
     """Find OS full path name given relative path
 
     Parameters
@@ -134,7 +141,9 @@ def _package_file_path(rel_path):
     return os.path.normpath(os.path.join(os.path.dirname(__file__), "..", rel_path))
 
 
-def get_closest_gridcell(data, lat, lon, print_coords=True):
+def get_closest_gridcell(
+    data: xr.Dataset | xr.DataArray, lat: float, lon: float, print_coords: bool = True
+) -> xr.DataArray | None:
     """From input gridded data, get the closest gridcell to a lat, lon coordinate pair.
 
     This function first transforms the lat,lon coords to the gridded data’s projection.
@@ -168,7 +177,7 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
     km_num = int(data.resolution.split(" km")[0])
     # tolerance = int(data.resolution.split(" km")[0]) * 1000
 
-    if "x" and "y" in data.dims:
+    if "x" in data.dims and "y" in data.dims:
         # Make Transformer object
         lat_lon_to_model_projection = pyproj.Transformer.from_crs(
             crs_from="epsg:4326",  # Lat/lon
@@ -183,10 +192,10 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
     # If input point outside of dataset by greater than one
     # grid cell, then None is returned
     try:
-        if "x" and "y" in data.dims:
+        if "x" in data.dims and "y" in data.dims:
             tolerance = km_num * 1000  # Converting km to m
             closest_gridcell = data.sel(x=x, y=y, method="nearest", tolerance=tolerance)
-        elif "lat" and "lon" in data.dims:
+        elif "lat" in data.dims and "lon" in data.dims:
             tolerance = km_num / 111  # Rough translation of km to degrees
             closest_gridcell = data.sel(
                 lat=lat, lon=lon, method="nearest", tolerance=tolerance
@@ -208,7 +217,9 @@ def get_closest_gridcell(data, lat, lon, print_coords=True):
     return closest_gridcell
 
 
-def get_closest_gridcells(data, lats, lons):
+def get_closest_gridcells(
+    data: xr.Dataset, lats: Iterable[float] | float, lons: Iterable[float] | float
+) -> xr.Dataset | None:
     """
     Find the nearest grid cell(s) for given latitude and longitude coordinates.
 
@@ -227,7 +238,7 @@ def get_closest_gridcells(data, lats, lons):
 
     Returns
     -------
-    xr.DataArray or None
+    xr.Dataset | xr.DataArray | None
         Nearest grid cell(s) or `None` if no valid match is found.
 
     Notes
@@ -259,8 +270,13 @@ def get_closest_gridcells(data, lats, lons):
 
     # Get closest gridcell using tolerance
     def find_closest_valid_gridcells(
-        data, dim1_name, dim2_name, coords1, coords2, tolerance
-    ):
+        data: xr.DataArray | xr.Dataset,
+        dim1_name: str,
+        dim2_name: str,
+        coords1: float | Iterable[float],
+        coords2: float | Iterable[float],
+        tolerance: float,
+    ) -> xr.Dataset | xr.DataArray | None:
         """
         Find the nearest valid grid cells within a given tolerance.
 
@@ -333,35 +349,61 @@ def get_closest_gridcells(data, lats, lons):
     return closest_gridcells
 
 
-def julianDay_to_str_date(julday, leap_year=True, str_format="%b-%d"):
-    """Convert julian day of year to string format
-    i.e. if str_format = "%b-%d", the output will be Mon-Day ("Jan-01")
+def julianDay_to_date(
+    julday: int, year: int = None, return_type: str = "str", str_format: str = "%b-%d"
+) -> Union[str, datetime.datetime, datetime.date]:
+    """Convert julian day of year to a date object or formatted string.
 
     Parameters
     ----------
     julday: int
-        Julian day
-    leap_year: boolean
-        leap year? (default to True)
-    str_format: str
-        string format of output date
+        Julian day (day of year)
+    year: int, optional
+        Year to use. If None, uses current year or a leap year (2024) based on needs.
+        Default is None.
+    return_type: str, optional
+        Type of return value:
+        - "str": formatted string (default)
+        - "datetime": datetime object
+        - "date": date object
+    str_format: str, optional
+        String format of output date when return_type is "str".
+        Default is "%b-%d" which outputs format like "Jan-01".
 
     Returns
     -------
-    date: str
-        Julian day in the input format month-day (i.e. "Jan-01")
+    date: str, datetime.datetime, or datetime.date
+        Julian day converted to specified format or object
+
+    Examples
+    --------
+    >>> julianDay_to_date(1)
+    'Jan-01'
+    >>> julianDay_to_date(32, year=2023, return_type="date")
+    datetime.date(2023, 2, 1)
+    >>> julianDay_to_date(60, year=2024, str_format="%Y-%m-%d")
+    '2024-02-29'
     """
-    if leap_year:
-        year = "2024"
-    else:
-        year = "2023"
-    date = datetime.datetime.strptime(year + "." + str(julday), "%Y.%j").strftime(
-        str_format
-    )
-    return date
+    # Determine which year to use
+    if year is None:
+        year = datetime.datetime.now().year
+
+    # Create datetime object from julian day
+    date_obj = datetime.datetime.strptime(f"{year}.{julday}", "%Y.%j")
+
+    # Return appropriate type
+    match return_type:
+        case "str":
+            return date_obj.strftime(str_format)
+        case "datetime":
+            return date_obj
+        case "date":
+            return date_obj.date()
+        case _:
+            raise ValueError("return_type must be 'str', 'datetime', or 'date'")
 
 
-def readable_bytes(B):
+def readable_bytes(b: int) -> str:
     """Return the given bytes as a human friendly KB, MB, GB, or TB string.
 
     Parameters
@@ -374,25 +416,27 @@ def readable_bytes(B):
 
     Code from stackoverflow: https://stackoverflow.com/questions/12523586/python-format-size-application-converting-b-to-kb-mb-gb-tb
     """
-    B = float(B)
-    KB = float(1024)
-    MB = float(KB**2)  # 1,048,576
-    GB = float(KB**3)  # 1,073,741,824
-    TB = float(KB**4)  # 1,099,511,627,776
+    b = float(b)
+    kb = 1024
+    mb = kb**2  # 1,048,576
+    gb = kb**3  # 1,073,741,824
+    tb = kb**4  # 1,099,511,627,776
 
-    if B < KB:
-        return "{0} {1}".format(B, "bytes")
-    elif KB <= B < MB:
-        return "{0:.2f} KB".format(B / KB)
-    elif MB <= B < GB:
-        return "{0:.2f} MB".format(B / MB)
-    elif GB <= B < TB:
-        return "{0:.2f} GB".format(B / GB)
-    elif TB <= B:
-        return "{0:.2f} TB".format(B / TB)
+    if b < kb:
+        return f"{b} bytes"
+    elif kb <= b < mb:
+        return f"{b / kb:.2f} KB"
+    elif mb <= b < gb:
+        return f"{b / mb:.2f} MB"
+    elif gb <= b < tb:
+        return f"{b / gb:.2f} GB"
+    elif tb <= b:
+        return f"{b / tb:.2f} TB"
 
 
-def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
+def reproject_data(
+    xr_da: xr.DataArray, proj: str = "EPSG:4326", fill_value: float = np.nan
+) -> xr.DataArray:
     """Reproject xr.DataArray using rioxarray.
 
     Parameters
@@ -417,7 +461,12 @@ def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
         if input data has more than 5 dimensions
     """
 
-    def _reproject_data_4D(data, reproject_dim, proj="EPSG:4326", fill_value=np.nan):
+    def _reproject_data_4D(
+        data: xr.DataArray,
+        reproject_dim: str,
+        proj: str = "EPSG:4326",
+        fill_value: float = np.nan,
+    ) -> xr.DataArray:
         """Reproject 4D xr.DataArray across an input dimension
 
         Parameters
@@ -447,7 +496,12 @@ def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
         )  # Concat along reprojection dim to get entire dataset reprojected
         return data_reprojected
 
-    def _reproject_data_5D(data, reproject_dim, proj="EPSG:4326", fill_value=np.nan):
+    def _reproject_data_5D(
+        data: xr.DataArray,
+        reproject_dim: list[str],
+        proj: str = "EPSG:4326",
+        fill_value: float = np.nan,
+    ) -> xr.DataArray:
         """Reproject 5D xr.DataArray across two input dimensions
 
         Parameters
@@ -497,7 +551,7 @@ def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
     data = xr_da.drop_vars(coords)
 
     # Re-write crs to data using original dataset
-    data = data.rio.write_crs(xr_da.rio.crs, inplace=True)
+    data.rio.write_crs(xr_da.rio.crs, inplace=True)
 
     # Get non-spatial dimensions
     non_spatial_dims = [dim for dim in data.dims if dim not in ["x", "y"]]
@@ -523,7 +577,7 @@ def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
         )
     else:
         raise ValueError(
-            ("DataArrays with dimensions greater" " than 5 are not currently supported")
+            "DataArrays with dimensions greater than 5 are not currently supported"
         )
 
     # Reassign attribute to reflect reprojection
@@ -532,7 +586,9 @@ def reproject_data(xr_da, proj="EPSG:4326", fill_value=np.nan):
 
 
 ## DFU notebook-specific functions, flexible for all notebooks
-def compute_annual_aggreggate(data, name, num_grid_cells):
+def compute_annual_aggreggate(
+    data: xr.DataArray, name: str, num_grid_cells: int
+) -> xr.DataArray:
     """Calculates the annual sum of HDD and CDD
 
     Parameters
@@ -551,7 +607,7 @@ def compute_annual_aggreggate(data, name, num_grid_cells):
     return annual_ag
 
 
-def compute_multimodel_stats(data):
+def compute_multimodel_stats(data: xr.DataArray) -> xr.DataArray:
     """Calculates model mean, min, max, median across simulations
 
     Parameters
@@ -597,7 +653,7 @@ def compute_multimodel_stats(data):
     return stats_concat
 
 
-def trendline(data, kind="mean"):
+def trendline(data: xr.Dataset, kind: str = "mean") -> xr.Dataset:
     """Calculates treadline of the multi-model mean or median.
 
     Parameters
@@ -615,30 +671,35 @@ def trendline(data, kind="mean"):
     1. Development note: If an additional option to trendline 'kind' is required,
     compute_multimodel_stats must be modified to update optionality.
     """
+    ret_trendline = xr.Dataset()
     if kind == "mean":
         if "simulation mean" not in data.simulation:
-            raise Exception(
-                "Invalid data provdied, please pass the multimodel stats from compute_multimodel_stats"
+            raise ValueError(
+                "Invalid data provided, please pass the multimodel stats from compute_multimodel_stats"
             )
 
         data_sim_mean = data.sel(simulation="simulation mean")
         m, b = data_sim_mean.polyfit(dim="year", deg=1).polyfit_coefficients.values
-        trendline = m * data_sim_mean.year + b  # y = mx + b
+        ret_trendline = m * data_sim_mean.year + b  # y = mx + b
 
     elif kind == "median":
         if "simulation median" not in data.simulation:
-            raise Exception(
+            raise ValueError(
                 "Invalid data provided, please pass the multimodel stats from compute_multimodel_stats"
             )
 
         data_sim_med = data.sel(simulation="simulation median")
         m, b = data_sim_med.polyfit(dim="year", deg=1).polyfit_coefficients.values
-        trendline = m * data_sim_med.year + b  # y = mx + b
-    trendline.name = "trendline"
-    return trendline
+        ret_trendline = m * data_sim_med.year + b  # y = mx + b
+    else:
+        raise ValueError(
+            "Invalid kind provided, please pass either 'mean' or 'median' as the kind"
+        )
+    ret_trendline.name = "trendline"
+    return ret_trendline
 
 
-def combine_hdd_cdd(data):
+def combine_hdd_cdd(data: xr.DataArray) -> xr.DataArray:
     """Drops specific unneeded coords from HDD/CDD data, independent of station or gridded data source
 
     Parameters
@@ -655,20 +716,21 @@ def combine_hdd_cdd(data):
         "Heating Degree Hours",
         "Cooling Degree Hours",
     ]:
-        raise Exception(
+        raise ValueError(
             "Invalid data provided, please pass cooling/heating degree data"
         )
 
     to_drop = ["scenario", "Lambert_Conformal", "variable"]
     for coord in to_drop:
         if coord in data.coords:
-            data = data.drop(coord)
+            data = data.drop_vars(coord)
 
     return data
 
 
-def summary_table(data):
-    """Helper function to organize dataset object into a pandas dataframe for ease.
+def summary_table(data: xr.Dataset) -> pd.DataFrame:
+    """
+    Helper function to organize dataset object into a pandas dataframe for ease.
 
     Parameters
     ----------
@@ -682,7 +744,7 @@ def summary_table(data):
 
     # Identify whether the temporal dimension is "time" or "year"
     if "time" in data.dims:
-        df = data.drop(
+        df = data.drop_vars(
             ["lakemask", "landmask", "lat", "lon", "Lambert_Conformal", "x", "y"]
         ).to_dataframe(dim_order=["time", "scenario", "simulation"])
 
@@ -690,7 +752,7 @@ def summary_table(data):
         df = df.sort_values(by=["time"])
 
     elif "year" in data.dims:
-        df = data.drop(
+        df = data.drop_vars(
             ["lakemask", "landmask", "lat", "lon", "Lambert_Conformal", "x", "y"]
         ).to_dataframe(dim_order=["year", "scenario", "simulation"])
 
@@ -700,79 +762,46 @@ def summary_table(data):
     return df
 
 
-def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
-    """Converts the inputted data to the local time of the selection.
-
-    Parameters
-    ----------
-    data: xr.DataArray
-    selections: DataParameters
-
-    Returns
-    -------
-    sliced_data: xr.DataArray
+def convert_to_local_time(data: xr.DataArray, selections) -> xr.DataArray:
     """
-    # 1. Find the other data
-    start, end = selections.time_slice
-    # tz_selections = copy.copy(selections)
+    Convert time dimension from UTC to local time for the grid or station.
 
-    # Condition if timezone adjusting is happening at the end of `Historical Reconstruction`
-    if (
-        selections.scenario_historical == ["Historical Reconstruction"] and end == 2022
-    ):  # TODO: Remove 2022 hardcoding
-        print(
-            "Adjusting timestep but not appending data, as there is no more ERA5 data after 2022."
-        )
-        total_data = data
-        pass
+    Args:
+        data (xarray.DataArray): Input data.
+        selections: DataParameters object containing selection details.
 
-    # Condition if selected data is daily/monthly, to not adjust the data at all since this would not do anything.
-    elif selections.timescale == "monthly" or selections.timescale == "daily":
+    Returns:
+        xarray.DataArray: Data with converted time coordinate.
+    """
+
+    # If timescale is not hourly, no need to convert
+    if selections.timescale in ["monthly", "daily"]:
         print(
             "You've selected a timescale that doesn't require any timezone shifting, due to its timescale not being granular enough (hourly). Please pass in more granular level data if you want to adjust its local timezone."
         )
         return data
 
-    # Determining if the selected data is at the end of possible data time interval
-    elif end < 2100:
-        # Use selections object to retrieve new data
-        selections.time_slice = (
-            end + 1,
-            end + 1,
-        )  # This is assuming selections passed with be negative UTC time. Also to get the next year of data.
-        tz_data = selections.retrieve()
+    # 1. Get the time slice from selections
+    start, end = selections.time_slice
 
-        if tz_data.time.size == 0:
-            print(
-                "You've selected a time slice that will additionally require a selected SSP. Please select an SSP in your selections and re-run this function."
-            )
-            selections.time_slice = (start, end)
-            return data
+    # Default lat/lon values in case other methods fail
+    lat = None
+    lon = None
 
-        # 2. Combine the data
-        total_data = xr.concat([data, tz_data], dim="time")
-
-    else:  # 2100 or any years greater that the user has input
-        print(
-            "Adjusting timestep but not appending data, as there is no more data after 2100."
-        )
-        total_data = data
-
-    # 3. Find the data's centerpoint through selections
+    # Get latitude/longitude information
     if selections.data_type == "Stations":
-        station_name = selections.stations
-
-        # Getting lat/lon of a specific station
+        # Read stations database
         stations_df = read_csv_file(stations_csv_path)
         stations_df = stations_df.drop(columns=["Unnamed: 0"])
 
-        # Getting specific station geometry
-        station_geom = stations_df[stations_df["station"] == station_name[0]]
-        lat = station_geom.LAT_Y.item()
-        lon = station_geom.LON_X.item()
+        # Filter by selected station(s) - assume first station if multiple
+        selected_station = selections.stations[0]
+        station_data = stations_df[stations_df["station"] == selected_station]
+        lat = station_data["LAT_Y"].values[0]
+        lon = station_data["LON_X"].values[0]
 
     elif selections.area_average == "Yes":
-        # Finding avg. lat/lon when the area is averaged because then it must come from selections.
+        # For area average, use the mean lat/lon
         lat = np.mean(selections.latitude)
         lon = np.mean(selections.longitude)
 
@@ -783,7 +812,6 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
 
     elif selections.data_type == "Gridded" and selections.area_subset != "none":
         # Find the avg. lat/lon coordinates from entire geometry within an area subset
-
         boundaries = selections._geographies
 
         # Making mapping for different geographies to different polygons
@@ -819,9 +847,46 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
         lat = center_pt.y
         lon = center_pt.x
 
-    # 4. Change datetime objects to local time
-    tf = TimezoneFinder()
-    local_tz = tf.timezone_at(lng=lon, lat=lat)
+    # Check if we were able to get valid coordinates
+    if lat is None or lon is None:
+        # Default to a reasonable timezone (UTC)
+        local_tz = "UTC"
+        print("Could not determine location coordinates, defaulting to UTC timezone.")
+    else:
+        # Find timezone for the coordinates
+        tf = TimezoneFinder()
+        local_tz = tf.timezone_at(lng=lon, lat=lat)
+
+    # Condition if timezone adjusting is happening at the end of `Historical Reconstruction`
+    if selections.scenario_historical == ["Historical Reconstruction"] and end == 2022:
+        print(
+            "Adjusting timestep but not appending data, as there is no more ERA5 data after 2022."
+        )
+        total_data = data
+
+    # Condition if selected data is at the end of possible data time interval
+    elif end < 2100:
+        # Use selections object to retrieve new data for timezone shifting
+        tz_selections = copy.copy(selections)
+        tz_selections.time_slice = (end + 1, end + 1)
+        tz_data = tz_selections.retrieve()
+
+        if tz_data.time.size == 0:
+            print(
+                "You've selected a time slice that will additionally require a selected SSP. Please select an SSP in your selections and re-run this function."
+            )
+            return data
+
+        # Combine the data
+        total_data = xr.concat([data, tz_data], dim="time")
+
+    else:  # 2100 or any years greater that the user has input
+        print(
+            "Adjusting timestep but not appending data, as there is no more data after 2100."
+        )
+        total_data = data
+
+    # Change datetime objects to local time
     new_time = (
         pd.DatetimeIndex(total_data.time)
         .tz_localize("UTC")
@@ -829,26 +894,26 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
         .tz_localize(None)
         .astype("datetime64[ns]")
     )
-    # import pdb; pdb.set_trace()
     total_data["time"] = new_time
 
-    # 5. Subset the data by the initial time
+    # Subset the data by the initial time
     start_slice = data.time[0]
     end_slice = data.time[-1]
     sliced_data = total_data.sel(time=slice(start_slice, end_slice))
 
-    print("Data converted to {} timezone.".format(local_tz))
-
-    # Reset selections object to what it was originally
-    selections.time_slice = (start, end)
+    print(f"Data converted to {local_tz} timezone.")
 
     # Add timezone attribute to data
     sliced_data = sliced_data.assign_attrs({"timezone": local_tz})
 
+    # Reset selections object to what it was originally (if we changed it)
+    if end < 2100:
+        selections.time_slice = (start, end)
+
     return sliced_data
 
 
-def add_dummy_time_to_wl(wl_da):
+def add_dummy_time_to_wl(wl_da: xr.DataArray) -> xr.DataArray:
     """
     Replace the `[hours/days/months]_from_center` or `time_delta` dimension in a DataArray returned from WarmingLevels with a dummy time index for calculations with tools that require a `time` dimension.
 
@@ -907,7 +972,9 @@ def add_dummy_time_to_wl(wl_da):
     return wl_da
 
 
-def downscaling_method_to_activity_id(downscaling_method, reverse=False):
+def downscaling_method_to_activity_id(
+    downscaling_method: str, reverse: bool = False
+) -> str:
     """Convert downscaling method to activity id to match catalog names
 
     Parameters
@@ -923,12 +990,12 @@ def downscaling_method_to_activity_id(downscaling_method, reverse=False):
     """
     downscaling_dict = {"Dynamical": "WRF", "Statistical": "LOCA2"}
 
-    if reverse == True:
+    if reverse:
         downscaling_dict = {v: k for k, v in downscaling_dict.items()}
     return downscaling_dict[downscaling_method]
 
 
-def resolution_to_gridlabel(resolution, reverse=False):
+def resolution_to_gridlabel(resolution: str, reverse: bool = False) -> str:
     """Convert resolution format to grid_label format matching catalog names.
 
     Parameters
@@ -945,12 +1012,12 @@ def resolution_to_gridlabel(resolution, reverse=False):
     """
     res_dict = {"45 km": "d01", "9 km": "d02", "3 km": "d03"}
 
-    if reverse == True:
+    if reverse:
         res_dict = {v: k for k, v in res_dict.items()}
     return res_dict[resolution]
 
 
-def timescale_to_table_id(timescale, reverse=False):
+def timescale_to_table_id(timescale: str, reverse: bool = False) -> str:
     """Convert resolution format to table_id format matching catalog names.
 
     Parameters
@@ -973,12 +1040,12 @@ def timescale_to_table_id(timescale, reverse=False):
         "yearly_max": "yrmax",
     }
 
-    if reverse == True:
+    if reverse:
         timescale_dict = {v: k for k, v in timescale_dict.items()}
     return timescale_dict[timescale]
 
 
-def scenario_to_experiment_id(scenario, reverse=False):
+def scenario_to_experiment_id(scenario: str, reverse: bool = False) -> str:
     """
     Convert scenario format to experiment_id format matching catalog names.
 
@@ -1002,12 +1069,15 @@ def scenario_to_experiment_id(scenario, reverse=False):
         "SSP 3-7.0": "ssp370",
     }
 
-    if reverse == True:
+    if reverse:
         scenario_dict = {v: k for k, v in scenario_dict.items()}
     return scenario_dict[scenario]
 
 
-def _get_cat_subset(selections):
+# cannot import DataParameters due to circular import issue
+def _get_cat_subset(
+    selections,
+) -> intake_esm.source.ESMDataSource:  #! selections: DataParameters
     """For an input set of data selections, get the catalog subset.
 
     Parameters
@@ -1075,9 +1145,10 @@ def _get_cat_subset(selections):
     return cat_subset
 
 
-def _get_scenario_from_selections(selections):
+def _get_scenario_from_selections(selections) -> tuple[list[str], list[str]]:
     """Get scenario from DataParameters object
-    This needs to be handled differently due to warming levels retrieval method, which sets scenario to "n/a" for both historical and ssp.
+    This needs to be handled differently due to warming levels retrieval method,
+    which sets scenario to "n/a" for both historical and ssp.
 
     Parameters
     ----------
