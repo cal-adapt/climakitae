@@ -6,6 +6,36 @@ import pandas as pd
 from climakitae.core.constants import UNSET
 
 
+class DataCatalog(dict):
+    """
+    Singleton class for managing catalog connections.
+    
+    This class is a singleton and inhertis from dict.
+    """
+
+    _instance = UNSET
+
+    def __new__(cls):
+        if cls._instance is UNSET:
+            cls._instance = super(DataCatalog, cls).__new__(cls)
+            cls._instance.catalog = UNSET
+        return cls._instance
+
+    def __init__(self):
+        if self.catalog is UNSET:
+            self.catalog = None
+
+    def set_catalog(self, catalog: intake.Catalog):
+        """Set the catalog."""
+        self.catalog = catalog
+
+    def get_catalog(self) -> intake.Catalog:
+        """Get the catalog."""
+        if self.catalog is None:
+            raise ValueError("Catalog not set.")
+        return self.catalog
+
+
 class DataAccessor(ABC):
     """Abstract base class for data access."""
 
