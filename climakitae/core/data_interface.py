@@ -1,34 +1,33 @@
-import pandas as pd
-import geopandas as gpd
-from shapely.geometry import box
-import intake
-import param
-import numpy as np
-import warnings
 import difflib
+import warnings
+
 import cartopy.crs as ccrs
-from climakitae.core.paths import (
-    variable_descriptions_csv_path,
-    stations_csv_path,
-    data_catalog_url,
-    boundary_catalog_url,
-    gwl_1850_1900_file,
-)
+import geopandas as gpd
+import intake
+import numpy as np
+import pandas as pd
+import param
+from shapely.geometry import box
+
 from climakitae.core.boundaries import Boundaries
-from climakitae.util.unit_conversions import get_unit_conversion_options
-from climakitae.core.data_load import (
-    read_catalog_from_csv,
-    read_catalog_from_select,
+from climakitae.core.constants import SSPS, WARMING_LEVELS
+from climakitae.core.data_load import read_catalog_from_csv, read_catalog_from_select
+from climakitae.core.paths import (
+    BOUNDARY_CATALOG_URL,
+    DATA_CATALOG_URL,
+    GWL_1850_1900_FILE,
+    STATIONS_CSV_PATH,
+    VARIABLE_DESCRIPTIONS_CSV_PATH,
 )
+from climakitae.util.unit_conversions import get_unit_conversion_options
 from climakitae.util.utils import (
     downscaling_method_as_list,
-    read_csv_file,
-    scenario_to_experiment_id,
-    resolution_to_gridlabel,
-    timescale_to_table_id,
     downscaling_method_to_activity_id,
+    read_csv_file,
+    resolution_to_gridlabel,
+    scenario_to_experiment_id,
+    timescale_to_table_id,
 )
-from climakitae.core.constants import WARMING_LEVELS, SSPS
 
 # Warnings raised by function get_subsetting_options, not sure why but they are silenced here
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -404,7 +403,7 @@ class VariableDescriptions:
     def load(self):
         """Read the variable descriptions csv into class variable."""
         if self.variable_descriptions.empty:
-            self.variable_descriptions = read_csv_file(variable_descriptions_csv_path)
+            self.variable_descriptions = read_csv_file(VARIABLE_DESCRIPTIONS_CSV_PATH)
 
 
 class DataInterface:
@@ -441,19 +440,19 @@ class DataInterface:
         var_desc = VariableDescriptions()
         var_desc.load()
         self._variable_descriptions = var_desc.variable_descriptions
-        self._stations = read_csv_file(stations_csv_path)
+        self._stations = read_csv_file(STATIONS_CSV_PATH)
         self._stations_gdf = gpd.GeoDataFrame(
             self.stations,
             crs="EPSG:4326",
             geometry=gpd.points_from_xy(self.stations.LON_X, self.stations.LAT_Y),
         )
-        self._data_catalog = intake.open_esm_datastore(data_catalog_url)
+        self._data_catalog = intake.open_esm_datastore(DATA_CATALOG_URL)
         self._warming_level_times = read_csv_file(
-            gwl_1850_1900_file, index_col=[0, 1, 2]
+            GWL_1850_1900_FILE, index_col=[0, 1, 2]
         )
 
         # Get geography boundaries
-        self._boundary_catalog = intake.open_catalog(boundary_catalog_url)
+        self._boundary_catalog = intake.open_catalog(BOUNDARY_CATALOG_URL)
         self._geographies = Boundaries(self.boundary_catalog)
 
         self._geographies.load()

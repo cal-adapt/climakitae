@@ -1,15 +1,17 @@
-import os
-import numpy as np
+import copy
 import datetime
-import xarray as xr
+import os
+
+import intake
+import numpy as np
+import pandas as pd
 import pyproj
 import rioxarray as rio
-import pandas as pd
-import copy
-import intake
+import xarray as xr
 from timezonefinder import TimezoneFinder
-from climakitae.core.paths import data_catalog_url, stations_csv_path
+
 from climakitae.core.constants import SSPS
+from climakitae.core.paths import DATA_CATALOG_URL, STATIONS_CSV_PATH
 
 
 def downscaling_method_as_list(downscaling_method):
@@ -761,7 +763,7 @@ def convert_to_local_time(data, selections):  # , lat, lon) -> xr.Dataset:
         station_name = selections.stations
 
         # Getting lat/lon of a specific station
-        stations_df = read_csv_file(stations_csv_path)
+        stations_df = read_csv_file(STATIONS_CSV_PATH)
         stations_df = stations_df.drop(columns=["Unnamed: 0"])
 
         # Getting specific station geometry

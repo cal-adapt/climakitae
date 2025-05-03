@@ -1,16 +1,14 @@
 ### Test Module for `warming_levels.py`
 
-import xarray as xr
 import pytest
+import xarray as xr
+
+from climakitae.core.paths import GWL_1850_1900_FILE
 from climakitae.util.utils import read_csv_file
-from climakitae.core.paths import gwl_1850_1900_file
-from climakitae.util.warming_levels import (
-    _calculate_warming_level,
-    _get_sliced_data,
-)
+from climakitae.util.warming_levels import _calculate_warming_level, _get_sliced_data
 
 # Load warming level times from CSV
-gwl_times = read_csv_file(gwl_1850_1900_file, index_col=[0, 1, 2])
+gwl_times = read_csv_file(GWL_1850_1900_FILE, index_col=[0, 1, 2])
 
 
 def test_missing_all_sims_attribute(

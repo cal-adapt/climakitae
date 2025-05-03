@@ -1,28 +1,29 @@
 """Helper functions for performing analyses related to global warming levels, along with backend code for building the warming levels GUI"""
 
-import xarray as xr
-import numpy as np
-import pandas as pd
-import param
 import calendar
 import warnings
 
+import numpy as np
+import pandas as pd
+import param
+import xarray as xr
+
 warnings.simplefilter(action="ignore", category=FutureWarning)
-
-from climakitae.core.data_interface import DataParameters
-from climakitae.core.data_load import load
-from climakitae.core.paths import gwl_1981_2010_file, gwl_1850_1900_file
-from climakitae.util.utils import (
-    read_csv_file,
-    scenario_to_experiment_id,
-    _get_cat_subset,
-)
-from climakitae.core.constants import SSPS, WARMING_LEVELS
-
-from tqdm.auto import tqdm
 
 # Silence warnings
 import logging
+
+from tqdm.auto import tqdm
+
+from climakitae.core.constants import SSPS, WARMING_LEVELS
+from climakitae.core.data_interface import DataParameters
+from climakitae.core.data_load import load
+from climakitae.core.paths import GWL_1850_1900_FILE, GWL_1981_2010_FILE
+from climakitae.util.utils import (
+    _get_cat_subset,
+    read_csv_file,
+    scenario_to_experiment_id,
+)
 
 logging.getLogger("param").setLevel(logging.CRITICAL)
 xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
@@ -89,9 +90,9 @@ class WarmingLevels:
         self.catalog_data = _drop_invalid_sims(self.catalog_data, self.wl_params)
 
         if self.wl_params.anom == "Yes":
-            self.gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
+            self.gwl_times = read_csv_file(GWL_1981_2010_FILE, index_col=[0, 1, 2])
         else:
-            self.gwl_times = read_csv_file(gwl_1850_1900_file, index_col=[0, 1, 2])
+            self.gwl_times = read_csv_file(GWL_1850_1900_FILE, index_col=[0, 1, 2])
         self.gwl_times = self.gwl_times.dropna(how="all")
         self.catalog_data = clean_list(self.catalog_data, self.gwl_times)
 
@@ -375,7 +376,7 @@ def _drop_invalid_sims(ds, selections):
 
 
 def _check_available_warming_levels():
-    gwl_times = read_csv_file(gwl_1850_1900_file)
+    gwl_times = read_csv_file(GWL_1850_1900_FILE)
     available_warming_levels = list(
         gwl_times.columns.drop(["GCM", "run", "scenario"]).values
     )

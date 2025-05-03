@@ -6,6 +6,8 @@ import pytest
 import xarray as xr
 
 from climakitae.explore.uncertainty import (
+    GWL_1850_1900_FILE,
+    GWL_1981_2010_FILE,
     CmipOpt,
     calc_anom,
     cmip_mmm,
@@ -13,8 +15,6 @@ from climakitae.explore.uncertainty import (
     get_ks_pval_df,
     get_warm_level,
     grab_multimodel_data,
-    gwl_1850_1900_file,
-    gwl_1981_2010_file,
     weighted_temporal_mean,
 )
 from tests.uncertainty.fixtures import (
@@ -63,9 +63,9 @@ def test_get_warm_level_file_loading(mock_read_csv, mock_data_for_warm_level):
 
     # Set up the mock to return different DataFrames based on input file path
     def side_effect(file_path, **kwargs):
-        if file_path == gwl_1850_1900_file:
+        if file_path == GWL_1850_1900_FILE:
             return mock_ipcc_df
-        elif file_path == gwl_1981_2010_file:
+        elif file_path == GWL_1981_2010_FILE:
             return mock_non_ipcc_df
         elif file_path == "data/gwl_1981-2010ref_EC-Earth3_ssp370.csv":
             return mock_ece3_df
@@ -75,9 +75,9 @@ def test_get_warm_level_file_loading(mock_read_csv, mock_data_for_warm_level):
     mock_read_csv.side_effect = side_effect
 
     # Test IPCC path (ipcc=True)
-    with patch("climakitae.explore.uncertainty.gwl_1850_1900_file", gwl_1850_1900_file):
+    with patch("climakitae.explore.uncertainty.gwl_1850_1900_file", GWL_1850_1900_FILE):
         with patch(
-            "climakitae.explore.uncertainty.gwl_1981_2010_file", gwl_1981_2010_file
+            "climakitae.explore.uncertainty.gwl_1981_2010_file", GWL_1981_2010_FILE
         ):
             # Mock just enough of the function to test file loading
             with patch.object(
@@ -93,16 +93,16 @@ def test_get_warm_level_file_loading(mock_read_csv, mock_data_for_warm_level):
 
                 # Verify read_csv_file was called with the correct file
                 mock_read_csv.assert_called_with(
-                    gwl_1850_1900_file, index_col=[0, 1, 2]
+                    GWL_1850_1900_FILE, index_col=[0, 1, 2]
                 )
                 # Verify concat was not called
                 mock_concat.assert_not_called()
 
     # Test non-IPCC path (ipcc=False)
     mock_read_csv.reset_mock()
-    with patch("climakitae.explore.uncertainty.gwl_1850_1900_file", gwl_1850_1900_file):
+    with patch("climakitae.explore.uncertainty.gwl_1850_1900_file", GWL_1850_1900_FILE):
         with patch(
-            "climakitae.explore.uncertainty.gwl_1981_2010_file", gwl_1981_2010_file
+            "climakitae.explore.uncertainty.gwl_1981_2010_file", GWL_1981_2010_FILE
         ):
             with patch.object(
                 pd, "concat", return_value=pd.concat([mock_non_ipcc_df, mock_ece3_df])
@@ -115,7 +115,7 @@ def test_get_warm_level_file_loading(mock_read_csv, mock_data_for_warm_level):
 
                 # Verify read_csv_file was called with both files
                 assert mock_read_csv.call_count == 2
-                mock_read_csv.assert_any_call(gwl_1981_2010_file)
+                mock_read_csv.assert_any_call(GWL_1981_2010_FILE)
                 mock_read_csv.assert_any_call(
                     "data/gwl_1981-2010ref_EC-Earth3_ssp370.csv"
                 )
