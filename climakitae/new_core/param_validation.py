@@ -11,12 +11,14 @@ implement the `is_valid` method, which takes a dictionary of parameters
 and returns a boolean indicating whether the parameters are valid.
 """
 
+import warnings
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 import intake
 
 from climakitae.core.constants import UNSET
+from climakitae.new_core.param_validation_tools import _get_closest_options
 
 
 class ParameterValidator(ABC):
@@ -62,9 +64,9 @@ class ParameterValidator(ABC):
             "daily": "1day",
             "monthly": "1mon",
             "yearly": "1yr",
-        } # TODO this goes in a constants file
+        }  # TODO this goes in a constants file
         return frequency_mapping.get(frequency, UNSET)
-    
+
     def _convert_resolution(self, resolution: str) -> str:
         """
         Convert resolution to grid_label.
@@ -85,7 +87,6 @@ class ParameterValidator(ABC):
             "45 km": "d01",
         }
         return resolution_mapping.get(resolution, UNSET)
-
 
 
 class RenewablesValidator(ParameterValidator):
@@ -117,7 +118,7 @@ class RenewablesValidator(ParameterValidator):
             "source_id": UNSET,
             "experiment_id": UNSET,
             "table_id": UNSET,
-            "grid_label": UNSET
+            "grid_label": UNSET,
         }
         self.catalog = intake.open_esm_datastore(catalog)
 
@@ -135,10 +136,14 @@ class RenewablesValidator(ParameterValidator):
         None
         """
         self.all_catalog_keys.update(query)
-        self.all_catalog_keys['table_id'] = self._convert_frequency(query['frequency'])
-        self.all_catalog_keys['grid_label'] = self._convert_resolution(query['resolution'])
+        self.all_catalog_keys["table_id"] = self._convert_frequency(query["frequency"])
+        self.all_catalog_keys["grid_label"] = self._convert_resolution(
+            query["resolution"]
+        )
         # remove any unset values
-        self.all_catalog_keys = {k: v for k, v in self.all_catalog_keys.items() if v != UNSET}
+        self.all_catalog_keys = {
+            k: v for k, v in self.all_catalog_keys.items() if v is not UNSET
+        }
 
     def is_valid_query(self, query: Dict[str, Any]) -> bool:
         """
@@ -159,9 +164,34 @@ class RenewablesValidator(ParameterValidator):
         ValueError
             If parameters are invalid
         """
+        # convert user input to Renewables keys
         self.populate_catalog_keys(query)
 
-        # check that the query has the required keys
+        # check if the catalog keys can be found
+        subset = self.catalog.search(**self.all_catalog_keys)
+        if len(subset) != 0:
+            print(
+                f"Found {len(subset)} datasets matching the query: {self.all_catalog_keys}"
+            )
+            return True
 
+        # dataset not found
+        # find closest match to each provided key
+        for key, value in self.all_catalog_keys.items():
+            if value != UNSET:
+                # check if the key is in the catalog
+                if key not in self.catalog.df.columns:
+                    raise ValueError(f"Key {key} not found in catalog")
 
-        if 
+                # check if the value is in the catalog
+                valid_options = self.catalog.df[key].unique()
+                closest_options = _get_closest_options(value, valid_options)
+                if closest_options:
+                    print(
+                        f"Did you mean {closest_options} for {key}? "
+                        f"Please check your input."
+                    )
+                else:
+                    warnings.warn(f"Invalid value {value} for key {key}", UserWarning)
+
+        return False
