@@ -4,13 +4,19 @@ import intake
 import pandas as pd
 
 from climakitae.core.constants import UNSET
+from climakitae.core.paths import (
+    BOUNDARY_CATALOG_URL,
+    DATA_CATALOG_URL,
+    RENEWABLES_CATALOG_URL,
+)
 
 
 class DataCatalog(dict):
     """
     Singleton class for managing catalog connections.
-    
-    This class is a singleton and inhertis from dict.
+
+    This class is a singleton that inherits from dict, allowing direct
+    dictionary-style access to catalogs.
     """
 
     _instance = UNSET
@@ -18,22 +24,35 @@ class DataCatalog(dict):
     def __new__(cls):
         if cls._instance is UNSET:
             cls._instance = super(DataCatalog, cls).__new__(cls)
-            cls._instance.catalog = UNSET
+            cls._instance._initialized = False
         return cls._instance
 
     def __init__(self):
-        if self.catalog is UNSET:
-            self.catalog = None
+        if not getattr(self, "_initialized", False):
+            super().__init__()
+            self["data"] = intake.open_catalog(DATA_CATALOG_URL)
+            self["boundary"] = intake.open_catalog(BOUNDARY_CATALOG_URL)
+            self["renewables"] = intake.open_esm_datastore(RENEWABLES_CATALOG_URL)
+            self._initialized = True
 
-    def set_catalog(self, catalog: intake.Catalog):
-        """Set the catalog."""
-        self.catalog = catalog
+    @property
+    def data(self):
+        """Access data catalog."""
+        return self["data"]
 
-    def get_catalog(self) -> intake.Catalog:
-        """Get the catalog."""
-        if self.catalog is None:
-            raise ValueError("Catalog not set.")
-        return self.catalog
+    @property
+    def boundary(self):
+        """Access boundary catalog."""
+        return self["boundary"]
+
+    @property
+    def renewables(self):
+        """Access renewables catalog."""
+        return self["renewables"]
+
+    def set_catalog(self, name, catalog):
+        """Set a named catalog."""
+        self[name] = catalog
 
 
 class DataAccessor(ABC):
