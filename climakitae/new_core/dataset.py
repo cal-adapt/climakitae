@@ -1,51 +1,120 @@
 from abc import ABC, abstractmethod
+from typing import Any, Dict
+
+import xarray as xr
 
 from climakitae.core.constants import UNSET
+from climakitae.new_core.data_access import DataCatalog
+from climakitae.new_core.param_validation import ParameterValidator
 
 
-class Dataset(ABC):
+class Dataset:
     """Base class for all dataset types providing a common interface."""
 
-    def __init__(self, data_access, parameter_validator, data_processor):
-        self.data_access = data_access
+    def __init__(self):
+        self.data_access = UNSET
+        self.parameter_validator = UNSET
+        self.processing_pipeline = UNSET  # list of processing steps
+
+    def execute(self, parameters: Dict[str, Any] = UNSET) -> xr.Dataset:
+        """
+        Execute the dataset processing pipeline.
+
+        Parameters
+        ----------
+        parameters : Dict[str, Any], optional
+            Parameters to pass to the processing pipeline
+
+        Returns
+        -------
+        xr.Dataset
+            Result of the processing pipeline
+        """
+        # Initialize context with parameters
+        context = parameters.copy() if parameters is not UNSET else {}
+
+        # Validate parameters if validator is set
+        if self.parameter_validator is not UNSET:
+            if not isinstance(self.parameter_validator, ParameterValidator):
+                raise TypeError(
+                    "Parameter validator must be an instance of ParameterValidator."
+                )
+            if not self.parameter_validator.is_valid(parameters):
+                return xr.Dataset()  # return empty dataset if validation fails
+
+        # Check if data access is properly configured
+        if self.data_access is UNSET:
+            raise ValueError("Data accessor is not configured.")
+
+        # Initialize the processing result - will be updated through pipeline steps
+        current_result = None
+
+        # Check if we have a processing pipeline
+        if self.processing_pipeline is UNSET or not self.processing_pipeline:
+            # If no pipeline is defined, just return the raw data from data_access
+            return self.data_access.get_data(context)
+
+        # Execute each step in the pipeline in sequence
+        try:
+            for step in self.processing_pipeline:
+                # Some steps might need access to the data_access component
+                if hasattr(step, "set_data_accessor") and callable(
+                    getattr(step, "set_data_accessor")
+                ):
+                    step.set_data_accessor(self.data_access)
+
+                # Execute the current step
+                current_result = step.execute(current_result, context)
+
+                # Allow the step to update the context for subsequent steps
+                if hasattr(step, "update_context") and callable(
+                    getattr(step, "update_context")
+                ):
+                    step.update_context(context, current_result)
+
+            # Ensure the final result is an xarray Dataset
+            if not isinstance(current_result, xr.Dataset):
+                raise TypeError(
+                    f"Pipeline result must be an xr.Dataset, got {type(current_result)}"
+                )
+
+            return current_result
+
+        except Exception as e:
+            # Consider implementing proper error handling/logging here
+            raise RuntimeError(f"Error in processing pipeline: {str(e)}") from e
+
+    def with_param_validator(self, parameter_validator: ParameterValidator):
+        """Set a new parameter validator."""
         self.parameter_validator = parameter_validator
-        self.data_processor = data_processor
+        return self
 
-    def retrieve(self, parameters):
-        """Retrieve data based on parameters."""
-        # Validate parameters
-        if self.parameter_validator:
-            parameters = self.parameter_validator.validate(parameters)
+    def with_catalog(self, catalog: DataCatalog):
+        """Set a new data catalog."""
+        if not isinstance(self.data_access, DataCatalog):
+            raise TypeError("Data catalog must be an instance of DataCatalog.")
+        if not hasattr(self.data_access, "get_data"):
+            raise AttributeError(
+                "Data catalog must have a 'get_data' method to retrieve data."
+            )
+        if not callable(getattr(self.data_access, "get_data")):
+            raise TypeError("'get_data' method in data catalog must be callable.")
+        self.data_access = catalog
+        return self
 
-        # Retrieve raw data
-        raw_data = self.data_access.get_data(parameters)
-
-        # Process the raw data
-        if self.data_processor:
-            return self.data_processor.process(raw_data, parameters)
-
-        return raw_data
-
-
-class ClimateDataset(Dataset):
-    """Dataset specifically for climate data."""
-
-    def __init__(self, data_access, parameter_validator, data_processor):
-        super().__init__(data_access, parameter_validator, data_processor)
-
-    def get_variable_info(self, variable_id):
-        """Get information about a specific variable."""
-        # Implementation specific to climate data
-        pass
-
-
-class StationDataset(Dataset):
-    """Dataset specifically for station data."""
-
-    def __init__(self, data_access, parameter_validator, data_processor):
-        super().__init__(data_access, parameter_validator, data_processor)
-
-    def get_nearby_stations(self, lat, lon, radius=50):
-        """Find stations within a radius of a point."""
-        # Implementation specific to station data
-        pass
+    def with_processing_step(self, step):
+        """Add a new processing step to the pipeline."""
+        if not hasattr(step, "execute") or not callable(getattr(step, "execute")):
+            raise TypeError("Processing step must have an 'execute' method.")
+        if not hasattr(step, "update_context") or not callable(
+            getattr(step, "update_context")
+        ):
+            raise TypeError("Processing step must have an 'update_context' method.")
+        if not hasattr(step, "set_data_accessor") or not callable(
+            getattr(step, "set_data_accessor")
+        ):
+            raise TypeError("Processing step must have a 'set_data_accessor' method.")
+        if self.processing_pipeline is UNSET:
+            self.processing_pipeline = []
+        self.processing_pipeline.append(step)
+        return self

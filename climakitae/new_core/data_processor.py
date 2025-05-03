@@ -1,19 +1,39 @@
+"""Data processing module for climakitae.""" ""
 from abc import ABC, abstractmethod
+from typing import Any, Dict, Iterable, Union
+
+import xarray as xr
+
+from climakitae.core.constants import UNSET
+from climakitae.new_core.data_access import DataCatalog
 
 
 class DataProcessor(ABC):
-    """Abstract base class for data processing."""
+    """
+    Abstract base class for data processing.
+
+    Each subclass must have an the following methods:
+    - `execute`: Process the data.
+    - `update_context`: Update the context with additional parameters.
+    - `set_data_accessor`: Set the data accessor for the processor.
+    """
 
     @abstractmethod
-    def process(self, data, parameters):
+    def execute(
+        self,
+        result: Union[
+            xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
+        ],
+        context: Dict[str, Any],
+    ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
         """
         Process raw data into the required format.
 
         Parameters
         ----------
-        data :
-            Raw data to be processed.
-        parameters : dict
+        result : object
+            data to be processed.
+        context : dict
             Parameters for processing the data.
 
         Returns
@@ -26,112 +46,213 @@ class DataProcessor(ABC):
         ValueError
             If the data cannot be processed.
         """
-        return data
+
+    @abstractmethod
+    def update_context(self, context: Dict[str, Any]):
+        """
+        Update the context with additional parameters.
+
+        Parameters
+        ----------
+        context : dict
+            Parameters for processing the data.
+
+        Returns
+        -------
+        None
+            Updates the context in place.
+        """
+
+    @abstractmethod
+    def set_data_accessor(self, catalog: DataCatalog):
+        """
+        Set the data accessor for the processor.
+
+        Parameters
+        ----------
+        catalog : DataCatalog
+            Data catalog for accessing datasets.
+
+        Returns
+        -------
+        None
+            Sets the data accessor in place.
+        """
 
 
-class ClimateDataProcessor(DataProcessor):
-    """Base processor for climate data."""
+class ConvertUnits(DataProcessor):
+    """
+    Convert units of the data.
 
-    def process(self, data, parameters):
-        """Process climate data dictionary into a DataArray."""
-        # Merge data along dimensions
-        da = self._merge_data(data, parameters)
+    This class is a placeholder for unit conversion logic.
+    """
 
-        # Handle unit conversions
-        da = self._process_units(da, parameters)
+    def execute(
+        self,
+        result: Union[
+            xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
+        ],
+        context: Dict[str, Any],
+    ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
+        # Placeholder for unit conversion logic
+        return result
 
-        return da
-
-    def _merge_data(self, data, parameters):
-        """Merge data from multiple sources."""
-        # Implementation of data merging logic
+    def update_context(self, context: Dict[str, Any]):
+        # Placeholder for updating context
         pass
 
-    def _process_units(self, da, parameters):
-        """Process units for the DataArray."""
-        # Implementation of unit conversion logic
+    def set_data_accessor(self, catalog: DataCatalog):
+        # Placeholder for setting data accessor
         pass
 
+class RenameVariables(DataProcessor):
+    """
+    Rename variables in the data to user-friendly names.
 
-class TimeClimateDataProcessor(ClimateDataProcessor):
-    """Processor for time-based climate data."""
+    This class is a placeholder for variable renaming logic.
+    """
 
-    def process(self, data, parameters):
-        """Process time-based climate data."""
-        # Get base processing
-        da = super().process(data, parameters)
+    def execute(
+        self,
+        result: Union[
+            xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
+        ],
+        context: Dict[str, Any],
+    ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
+        # Placeholder for variable renaming logic
+        return result
 
-        # Time-specific processing
-        # ...
-
-        return da
-
-
-class WarmingLevelDataProcessor(ClimateDataProcessor):
-    """Processor for warming level climate data."""
-
-    def process(self, data, parameters):
-        """Process warming level climate data."""
-        # Get base processing
-        da = super().process(data, parameters)
-
-        # Apply warming levels approach
-        da = self._apply_warming_levels_approach(da, parameters)
-
-        return da
-
-    def _apply_warming_levels_approach(self, da, parameters):
-        """Apply warming levels approach to data."""
-        # Implementation of warming levels approach
+    def update_context(self, context: Dict[str, Any]):
+        # Placeholder for updating context
         pass
 
+    def set_data_accessor(self, catalog: DataCatalog):
+        # Placeholder for setting data accessor
+        pass
 
-class StationDataProcessor(DataProcessor):
-    """Base processor for station data."""
+class ApplyBiasCorrection(DataProcessor):
+    """
+    Apply bias correction to the data.
 
-    def process(self, data, parameters):
-        """Process station data."""
-        # Base station data processing
-        da = self._process_station_data(data, parameters)
+    This class is a placeholder for bias correction logic.
+    """
 
-        return da
+    def execute(
+        self,
+        result: Union[
+            xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
+        ],
+        context: Dict[str, Any],
+    ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
+        # Placeholder for bias correction logic
+        return result
 
-    def _process_station_data(self, data, parameters):
-        """Process station data."""
-        # Implementation of station data processing
-        return data
+    def update_context(self, context: Dict[str, Any]):
+        # Placeholder for updating context
+        pass
 
+    def set_data_accessor(self, catalog: DataCatalog):
+        # Placeholder for setting data accessor
+        pass
 
-class TimeStationDataProcessor(StationDataProcessor):
-    """Processor for time-based station data."""
+class FilterData(DataProcessor):
+    """
+    Filter data based on certain criteria.
 
-    def process(self, data, parameters):
-        """Process time-based station data."""
-        # Get base processing
-        da = super().process(data, parameters)
+    This class is a placeholder for data filtering logic.
+    """
 
-        # Time-specific station processing
-        # ...
+    def execute(
+        self,
+        result: Union[
+            xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
+        ],
+        context: Dict[str, Any],
+    ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
+        # Placeholder for data filtering logic
+        return result
 
-        return da
+    def update_context(self, context: Dict[str, Any]):
+        # Placeholder for updating context
+        pass
 
+    def set_data_accessor(self, catalog: DataCatalog):
+        # Placeholder for setting data accessor
+        pass
 
-class WarmingLevelStationProcessor(StationDataProcessor):
-    """Processor for warming level station data."""
+class ApplyShapeFile(DataProcessor):
+    """
+    Apply shapefile to the data.
 
-    def process(self, data, parameters):
-        """Process warming level station data."""
-        # Get base processing
-        data_base_processed = super().process(data, parameters)
+    This class is a placeholder for shapefile application logic.
+    """
 
-        # Apply warming levels approach to station data
-        data_wl_processed = self._apply_warming_levels_approach(
-            data_base_processed, parameters
-        )
+    def execute(
+        self,
+        result: Union[
+            xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
+        ],
+        context: Dict[str, Any],
+    ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
+        # Placeholder for shapefile application logic
+        return result
 
-        return data_wl_processed
+    def update_context(self, context: Dict[str, Any]):
+        # Placeholder for updating context
+        pass
 
-    def _apply_warming_levels_approach(self, data, parameters):
-        """Apply warming levels approach to station data."""
-        # Implementation of warming levels approach for stations
-        return data
+    def set_data_accessor(self, catalog: DataCatalog):
+        # Placeholder for setting data accessor
+        pass
+
+class SubsetData(DataProcessor):
+    """
+    Subset data based on certain criteria.
+
+    This class is a placeholder for data subsetting logic.
+    """
+
+    def execute(
+        self,
+        result: Union[
+            xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
+        ],
+        context: Dict[str, Any],
+    ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
+        # Placeholder for data subsetting logic
+        return result
+
+    def update_context(self, context: Dict[str, Any]):
+        # Placeholder for updating context
+        pass
+
+    def set_data_accessor(self, catalog: DataCatalog):
+        # Placeholder for setting data accessor
+        pass
+
+class GlobalWarmingLevel(DataProcessor):
+    """
+    Apply global warming level method to the data.
+
+    This class is a placeholder for global warming level application logic.
+    """
+
+    def execute(
+        self,
+        result: Union[
+            xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
+        ],
+        context: Dict[str, Any],
+    ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
+        # Placeholder for global warming level application logic
+        return result
+
+    def update_context(self, context: Dict[str, Any]):
+        # Placeholder for updating context
+        pass
+
+    def set_data_accessor(self, catalog: DataCatalog):
+        # Placeholder for setting data accessor
+        pass
+
+class 

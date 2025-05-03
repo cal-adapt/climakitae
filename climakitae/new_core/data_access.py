@@ -30,8 +30,8 @@ class DataCatalog(dict):
     def __init__(self):
         if not getattr(self, "_initialized", False):
             super().__init__()
-            self["data"] = intake.open_catalog(DATA_CATALOG_URL)
-            self["boundary"] = intake.open_catalog(BOUNDARY_CATALOG_URL)
+            self["data"] = intake.open_esm_datastore(DATA_CATALOG_URL)
+            self["boundary"] = intake.open_esm_datastore(BOUNDARY_CATALOG_URL)
             self["renewables"] = intake.open_esm_datastore(RENEWABLES_CATALOG_URL)
             self._initialized = True
 
@@ -50,50 +50,26 @@ class DataCatalog(dict):
         """Access renewables catalog."""
         return self["renewables"]
 
-    def set_catalog(self, name, catalog):
+    def set_catalog(self, name: str, catalog: str):
         """Set a named catalog."""
-        self[name] = catalog
+        self[name] = intake.open_esm_datastore(catalog)
 
-
-class DataAccessor(ABC):
-    """Abstract base class for data access."""
-
-    @abstractmethod
-    def get_data(self, parameters):
-        """Get data from the source."""
-        pass
-
-
-class IntakeAccessor(DataAccessor):
-    """Data accessor using Intake."""
-
-    def __init__(self, catalog_df: pd.DataFrame):
+    def get_dataset_dict(self, name: str, query: dict = UNSET):
         """
-        Initialize with a catalog of datasets.
+        Get data from the catalog.
 
         Parameters
         ----------
-        catalog : pd.DataFrame
-            Catalog of datasets
-        """
-        self.catalog = catalog_df
-
-    def get_data(self, query: dict) -> dict:
-        """
-        Get data from the source.
-
-        Parameters
-        ----------
-        parameters : dict
-            Parameters for data access
+        name : str
+            Name of the catalog to access.
+        query : dict, optional
+            Query parameters for filtering data.
 
         Returns
         -------
-
-            Data object
+        intake.catalog.local.Catalog
+            The requested catalog.
         """
-        # Implement the logic to access data using the catalog and parameters
-        datasets = self.catalog.search(**query).to_dataset_dict(
-            xarray_open_kwargs={"consolidated": True},
-            storage_options={"anon": True},
-        )
+        if name not in self:
+            raise ValueError(f"Catalog '{name}' not found.")
+        return self[name].search(query) if query else self[name]

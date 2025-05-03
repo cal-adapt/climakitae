@@ -18,6 +18,7 @@ from typing import Any, Dict
 import intake
 
 from climakitae.core.constants import UNSET
+from climakitae.new_core.data_access import DataCatalog
 from climakitae.new_core.param_validation_tools import _get_closest_options
 
 
@@ -102,14 +103,14 @@ class RenewablesValidator(ParameterValidator):
     ----------
     """
 
-    def __init__(self, catalog: str):
+    def __init__(self, catalog: DataCatalog):
         """
         Initialize with  catalog of renewable energy datasets.
 
         Parameters
         ----------
-        catalog : str
-            Catalog of renewable energy datasets
+        catalog : DataCatalog
+            Catalog of datasets
         """
         self.all_catalog_keys = {
             "installation": UNSET,
@@ -120,7 +121,7 @@ class RenewablesValidator(ParameterValidator):
             "table_id": UNSET,
             "grid_label": UNSET,
         }
-        self.catalog = intake.open_esm_datastore(catalog)
+        self.catalog = catalog.renewables
 
     def populate_catalog_keys(self, query: Dict[str, Any]) -> None:
         """
