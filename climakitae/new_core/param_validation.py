@@ -21,12 +21,36 @@ from climakitae.core.constants import UNSET
 from climakitae.new_core.data_access import DataCatalog
 from climakitae.new_core.param_validation_tools import _get_closest_options
 
+_VALIDATOR_REGISTRY = {}
+
+
+def register_validator(name: str):
+    """
+    Decorator to register a validator class.
+
+    Parameters
+    ----------
+    name : str
+        Name of the validator
+
+    Returns
+    -------
+    function
+        Decorated class
+    """
+
+    def decorator(cls):
+        _VALIDATOR_REGISTRY[name] = cls
+        return cls
+
+    return decorator
+
 
 class ParameterValidator(ABC):
     """Abstract base class for parameter validation."""
 
     @abstractmethod
-    def is_valid(self, parameters: Dict[str, Any]) -> bool:
+    def is_valid_query(self, query: Dict[str, Any]) -> bool:
         """
         Validate parameters and return processed parameters.
 
@@ -62,7 +86,8 @@ class ParameterValidator(ABC):
         """
         frequency_mapping = {
             "hourly": "1hr",
-            "daily": "1day",
+            "daily": "day",
+            "day": "day",
             "monthly": "1mon",
             "yearly": "1yr",
         }  # TODO this goes in a constants file
@@ -90,6 +115,7 @@ class ParameterValidator(ABC):
         return resolution_mapping.get(resolution, UNSET)
 
 
+@register_validator("renewables")
 class RenewablesValidator(ParameterValidator):
     """
     Validator for renewable energy dataset parameters.
@@ -112,6 +138,7 @@ class RenewablesValidator(ParameterValidator):
         catalog : DataCatalog
             Catalog of datasets
         """
+        super().__init__()
         self.all_catalog_keys = {
             "installation": UNSET,
             "activity_id": UNSET,
@@ -136,8 +163,10 @@ class RenewablesValidator(ParameterValidator):
         -------
         None
         """
-        self.all_catalog_keys.update(query)
-        self.all_catalog_keys["table_id"] = self._convert_frequency(query["frequency"])
+        # populate catalog keys with the values from the query
+        for key in self.all_catalog_keys.keys():
+            self.all_catalog_keys[key] = query.get(key, UNSET)
+        self.all_catalog_keys["table_id"] = self._convert_frequency(query["timescale"])
         self.all_catalog_keys["grid_label"] = self._convert_resolution(
             query["resolution"]
         )
@@ -166,10 +195,19 @@ class RenewablesValidator(ParameterValidator):
             If parameters are invalid
         """
         # convert user input to Renewables keys
+        print("populating catalog keys")
         self.populate_catalog_keys(query)
-
+        print(self.all_catalog_keys)
         # check if the catalog keys can be found
-        subset = self.catalog.search(**self.all_catalog_keys)
+
+        try:
+            subset = self.catalog.search(**self.all_catalog_keys)
+        except ValueError as e:
+            # no datasets found or invalid query
+            warnings.warn(
+                f"Query did not match any datasets: {e}\n\nSearching for close matches...",
+                UserWarning,
+            )
         if len(subset) != 0:
             print(
                 f"Found {len(subset)} datasets matching the query: {self.all_catalog_keys}"

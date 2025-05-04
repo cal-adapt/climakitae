@@ -39,7 +39,7 @@ class Dataset:
                 raise TypeError(
                     "Parameter validator must be an instance of ParameterValidator."
                 )
-            if not self.parameter_validator.is_valid(parameters):
+            if not self.parameter_validator.is_valid_query(parameters):
                 return xr.Dataset()  # return empty dataset if validation fails
 
         # Check if data access is properly configured
@@ -91,13 +91,13 @@ class Dataset:
 
     def with_catalog(self, catalog: DataCatalog):
         """Set a new data catalog."""
-        if not isinstance(self.data_access, DataCatalog):
+        if not isinstance(catalog, DataCatalog):
             raise TypeError("Data catalog must be an instance of DataCatalog.")
-        if not hasattr(self.data_access, "get_data"):
+        if not hasattr(catalog, "get_data"):
             raise AttributeError(
                 "Data catalog must have a 'get_data' method to retrieve data."
             )
-        if not callable(getattr(self.data_access, "get_data")):
+        if not callable(getattr(catalog, "get_data")):
             raise TypeError("'get_data' method in data catalog must be callable.")
         self.data_access = catalog
         return self

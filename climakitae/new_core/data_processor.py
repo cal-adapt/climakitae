@@ -7,6 +7,23 @@ import xarray as xr
 from climakitae.core.constants import UNSET
 from climakitae.new_core.data_access import DataCatalog
 
+# Registry to hold all registered processors
+_PROCESSOR_REGISTRY = {}
+
+
+def register_processor(key=None):
+    """Decorator to register a processor class."""
+
+    def decorator(cls):
+        # If no key is provided, generate one from the class name
+        processor_key = key or "".join(
+            ["_" + c.lower() if c.isupper() else c for c in cls.__name__]
+        ).lstrip("_")
+        _PROCESSOR_REGISTRY[processor_key] = cls
+        return cls
+
+    return decorator
+
 
 class DataProcessor(ABC):
     """
@@ -80,6 +97,7 @@ class DataProcessor(ABC):
         """
 
 
+@register_processor("convert_units")
 class ConvertUnits(DataProcessor):
     """
     Convert units of the data.
@@ -105,6 +123,8 @@ class ConvertUnits(DataProcessor):
         # Placeholder for setting data accessor
         pass
 
+
+@register_processor("rename_variables")
 class RenameVariables(DataProcessor):
     """
     Rename variables in the data to user-friendly names.
@@ -130,6 +150,8 @@ class RenameVariables(DataProcessor):
         # Placeholder for setting data accessor
         pass
 
+
+@register_processor("apply_bias_correction")
 class ApplyBiasCorrection(DataProcessor):
     """
     Apply bias correction to the data.
@@ -155,6 +177,8 @@ class ApplyBiasCorrection(DataProcessor):
         # Placeholder for setting data accessor
         pass
 
+
+@register_processor("filter_data")
 class FilterData(DataProcessor):
     """
     Filter data based on certain criteria.
@@ -180,6 +204,8 @@ class FilterData(DataProcessor):
         # Placeholder for setting data accessor
         pass
 
+
+@register_processor("apply_shape_file")
 class ApplyShapeFile(DataProcessor):
     """
     Apply shapefile to the data.
@@ -205,6 +231,8 @@ class ApplyShapeFile(DataProcessor):
         # Placeholder for setting data accessor
         pass
 
+
+@register_processor("subset_data")
 class SubsetData(DataProcessor):
     """
     Subset data based on certain criteria.
@@ -230,6 +258,8 @@ class SubsetData(DataProcessor):
         # Placeholder for setting data accessor
         pass
 
+
+@register_processor("global_warming_level")
 class GlobalWarmingLevel(DataProcessor):
     """
     Apply global warming level method to the data.
@@ -254,5 +284,3 @@ class GlobalWarmingLevel(DataProcessor):
     def set_data_accessor(self, catalog: DataCatalog):
         # Placeholder for setting data accessor
         pass
-
-class 

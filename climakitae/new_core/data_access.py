@@ -31,9 +31,10 @@ class DataCatalog(dict):
         if not getattr(self, "_initialized", False):
             super().__init__()
             self["data"] = intake.open_esm_datastore(DATA_CATALOG_URL)
-            self["boundary"] = intake.open_esm_datastore(BOUNDARY_CATALOG_URL)
+            self["boundary"] = intake.open_catalog(BOUNDARY_CATALOG_URL)
             self["renewables"] = intake.open_esm_datastore(RENEWABLES_CATALOG_URL)
             self._initialized = True
+            self.catalog_key = UNSET
 
     @property
     def data(self):
@@ -50,11 +51,18 @@ class DataCatalog(dict):
         """Access renewables catalog."""
         return self["renewables"]
 
+    def set_catalog_key(self, key: str):
+        """Set the catalog key for accessing a specific catalog."""
+        if key not in self:
+            raise ValueError(f"Catalog '{key}' not found.")
+        self.catalog_key = key
+        return self
+
     def set_catalog(self, name: str, catalog: str):
         """Set a named catalog."""
         self[name] = intake.open_esm_datastore(catalog)
 
-    def get_dataset_dict(self, name: str, query: dict = UNSET):
+    def get_data(self, query: dict = UNSET):
         """
         Get data from the catalog.
 
@@ -70,6 +78,4 @@ class DataCatalog(dict):
         intake.catalog.local.Catalog
             The requested catalog.
         """
-        if name not in self:
-            raise ValueError(f"Catalog '{name}' not found.")
-        return self[name].search(query) if query else self[name]
+        return self[self.catalog_key].search(query)

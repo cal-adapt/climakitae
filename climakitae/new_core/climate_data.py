@@ -174,13 +174,13 @@ class ClimateData:
             "area_average": UNSET,
             "time_slice": (UNSET, UNSET),
             "stations": UNSET,
-            "warming_level_window": 0,
+            "warming_level_window": UNSET,
             "warming_level_months": UNSET,
-            "installation": UNSET,
-            "activity_id": UNSET,
-            "institution_id": UNSET,
-            "source_id": UNSET,
-            "experiment_id": UNSET,
+            "installation": UNSET,  # renewables only
+            "activity_id": UNSET,  # renewables only
+            "institution_id": UNSET,  # renewables only
+            "source_id": UNSET,  # renewables only
+            "experiment_id": UNSET,  # renewables only 
         }
         return self
 
@@ -317,21 +317,11 @@ class ClimateData:
             return None
 
         try:
-            # Create appropriate validator
-            validator = self._factory.create_validator(
-                self._query["data_type"], self._query["approach"]
-            )
+            # Create dataset directly from the query
+            dataset = self._factory.create_dataset(self._query)
 
-            # Validate parameters
-            validated_params = validator.validate(self._query)
-
-            # Create dataset
-            dataset = self._factory.create_dataset(
-                validated_params["data_type"], validated_params["approach"]
-            )
-
-            # Retrieve data
-            data = dataset.retrieve(validated_params)
+            # Execute dataset with query parameters
+            data = dataset.execute(self._query)
             self._reset_query()
             return data
 
