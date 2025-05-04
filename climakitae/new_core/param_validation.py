@@ -50,7 +50,7 @@ class ParameterValidator(ABC):
     """Abstract base class for parameter validation."""
 
     @abstractmethod
-    def is_valid_query(self, query: Dict[str, Any]) -> bool:
+    def is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any]:
         """
         Validate parameters and return processed parameters.
 
@@ -62,7 +62,7 @@ class ParameterValidator(ABC):
         Returns
         -------
         Dict[str, Any]
-            Processed parameters
+            Processed parameters if valid, otherwise None and print warning messages
 
         Raises
         ------
@@ -175,7 +175,7 @@ class RenewablesValidator(ParameterValidator):
             k: v for k, v in self.all_catalog_keys.items() if v is not UNSET
         }
 
-    def is_valid_query(self, query: Dict[str, Any]) -> bool:
+    def is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any]:
         """
         Validate renewable energy dataset query.
 
@@ -186,8 +186,8 @@ class RenewablesValidator(ParameterValidator):
 
         Returns
         -------
-        bool
-            True if the query is valid, False otherwise
+        Dict[str, Any]
+            Processed parameters if valid, otherwise None and print warning messages
 
         Raises
         ------
@@ -212,7 +212,7 @@ class RenewablesValidator(ParameterValidator):
             print(
                 f"Found {len(subset)} datasets matching the query: {self.all_catalog_keys}"
             )
-            return True
+            return self.all_catalog_keys
 
         # dataset not found
         # find closest match to each provided key
@@ -233,4 +233,4 @@ class RenewablesValidator(ParameterValidator):
                 else:
                     warnings.warn(f"Invalid value {value} for key {key}", UserWarning)
 
-        return False
+        return None

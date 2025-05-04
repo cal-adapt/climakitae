@@ -78,4 +78,5 @@ class DataCatalog(dict):
         intake.catalog.local.Catalog
             The requested catalog.
         """
-        return self[self.catalog_key].search(query)
+        print(f"Querying {self.catalog_key} catalog with query: {query}")
+        return self[self.catalog_key].search(**query)

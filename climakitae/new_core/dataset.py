@@ -34,12 +34,14 @@ class Dataset:
         context = parameters.copy() if parameters is not UNSET else {}
 
         # Validate parameters if validator is set
+        valid_query = UNSET
         if self.parameter_validator is not UNSET:
             if not isinstance(self.parameter_validator, ParameterValidator):
                 raise TypeError(
                     "Parameter validator must be an instance of ParameterValidator."
                 )
-            if not self.parameter_validator.is_valid_query(parameters):
+            valid_query = self.parameter_validator.is_valid_query(context)
+            if valid_query is None:
                 return xr.Dataset()  # return empty dataset if validation fails
 
         # Check if data access is properly configured
@@ -52,7 +54,7 @@ class Dataset:
         # Check if we have a processing pipeline
         if self.processing_pipeline is UNSET or not self.processing_pipeline:
             # If no pipeline is defined, just return the raw data from data_access
-            return self.data_access.get_data(context)
+            return self.data_access.get_data(valid_query)
 
         # Execute each step in the pipeline in sequence
         try:
