@@ -68,12 +68,10 @@ class DatasetFactory:
         # Register default validators
         for key, validator_class in _VALIDATOR_REGISTRY.items():
             self.register_validator(key, validator_class)
-            print(f"Registered validator: {key} -> {validator_class.__name__}")
 
         # Register default processors
         for key, processor_class in _PROCESSOR_REGISTRY.items():
             self.register_processing_step(key, processor_class)
-            print(f"Registered processor: {key} -> {processor_class.__name__}")
 
     def register_catalog(self, key: str, catalog: DataCatalog):
         """
