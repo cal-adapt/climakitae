@@ -1196,6 +1196,9 @@ def clip_to_shapefile(
 ) -> xr.Dataset | xr.DataArray:
     """Use a shapefile to select an area subset of AE data.
 
+    By default, this function will clip the data to the area covered by all features in
+    the shapefile. To clip to specific features, use the `feature` keyword.
+
     Parameters
     ----------
     data : xr.Dataset | xr.DataArray
