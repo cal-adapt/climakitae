@@ -1,10 +1,10 @@
 """Helper functions for performing analyses related to thresholds"""
 
 import numpy as np
-import xarray as xr
 import scipy
-from scipy import stats
 import statsmodels as sm
+import xarray as xr
+from scipy import stats
 
 
 def calculate_ess(data: xr.DataArray, nlags: int = None) -> xr.DataArray:
