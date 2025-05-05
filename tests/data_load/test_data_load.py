@@ -366,11 +366,14 @@ class TestReadCatalog:
         selections.downscaling_method = "Statistical"
         selections.area_subset = "CA counties"
         selections.cached_area = ["Alameda County"]
+        selections.all_touched = False
+        result_false = read_catalog_from_select(selections)
         selections.all_touched = True
-        result = read_catalog_from_select(selections)
-        assert isinstance(result, xr.core.dataarray.DataArray)
-        assert result.attrs["downscaling_method"] == selections.downscaling_method
-        assert result.attrs["location_subset"] == ["Alameda County"]
+        result_true = read_catalog_from_select(selections)
+        assert isinstance(result_true, xr.core.dataarray.DataArray)
+        assert result_true.attrs["downscaling_method"] == selections.downscaling_method
+        assert result_true.attrs["location_subset"] == ["Alameda County"]
+        assert not result_true.equals(result_false)
 
     def test_read_catalog_from_select_ssp245(self, selections):
         # Add an SSP to the default options
