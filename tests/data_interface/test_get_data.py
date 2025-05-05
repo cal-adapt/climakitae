@@ -6,7 +6,7 @@ import sys
 from climakitae.core.data_interface import get_data
 
 
-@pytest.mark.elevated
+@pytest.mark.advanced
 class TestStationDataRetrievalGetData:
     """Test that the get_data function retrieves station data without error."""
 
@@ -46,7 +46,7 @@ class TestStationDataRetrievalGetData:
             )
 
 
-@pytest.mark.elevated
+@pytest.mark.advanced
 class TestDerivedVariablesGetData:
     """Test that derived variables/indices can be retrieved
     Some of the use cases below used to raise an error and have since been fixed.
@@ -114,7 +114,7 @@ class TestDerivedVariablesGetData:
             )
 
 
-@pytest.mark.elevated
+@pytest.mark.advanced
 class TestAppropriateStringErrorReturnedIfBadInputGetData:
     """Test that an appropriate error message is printed to the user describing the issue and how to resolve it."""
 
