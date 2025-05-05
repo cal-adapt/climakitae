@@ -97,6 +97,33 @@ class DataProcessor(ABC):
         """
 
 
+@register_processor("get_variable")
+class GetVariable(DataProcessor):
+    """
+    Get a specific variable from the data.
+
+    This class is a placeholder for variable extraction logic.
+    """
+
+    def execute(
+        self,
+        result: Union[
+            xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
+        ],
+        context: Dict[str, Any],
+    ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
+        # Placeholder for variable extraction logic
+        return result
+
+    def update_context(self, context: Dict[str, Any]):
+        # Placeholder for updating context
+        pass
+
+    def set_data_accessor(self, catalog: DataCatalog):
+        # Placeholder for setting data accessor
+        pass
+
+
 @register_processor("convert_units")
 class ConvertUnits(DataProcessor):
     """
@@ -232,8 +259,35 @@ class ApplyShapeFile(DataProcessor):
         pass
 
 
-@register_processor("subset_data")
-class SubsetData(DataProcessor):
+@register_processor("subset_data_space")
+class SubsetDataSpace(DataProcessor):
+    """
+    Subset data based on certain criteria.
+
+    This class is a placeholder for data subsetting logic.
+    """
+
+    def execute(
+        self,
+        result: Union[
+            xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
+        ],
+        context: Dict[str, Any],
+    ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
+        # Placeholder for data subsetting logic
+        return result
+
+    def update_context(self, context: Dict[str, Any]):
+        # Placeholder for updating context
+        pass
+
+    def set_data_accessor(self, catalog: DataCatalog):
+        # Placeholder for setting data accessor
+        pass
+
+
+@register_processor("subset_data_time")
+class SubsetDataTime(DataProcessor):
     """
     Subset data based on certain criteria.
 
