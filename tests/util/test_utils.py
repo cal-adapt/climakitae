@@ -1641,6 +1641,10 @@ class TestConvertToLocalTime:
         assert result.attrs["location_subset"] == ["user-defined"]
         assert result.shape == (5, 4)
 
+        with patch("geopandas.read_file", return_value=gdf):
+            result = clip_to_shapefile(data, "not_a_file.shp", ("Area", "Box1"))
+        assert result.attrs["location_subset"] == ["Box1"]
+
         # Input data lacks CRS
         with pytest.raises(RuntimeError):
             result = clip_to_shapefile(xr.Dataset(), "not_a_file.shp")
