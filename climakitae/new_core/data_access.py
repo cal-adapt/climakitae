@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 
 import intake
-import pandas as pd
+import intake_esm
+import xarray as xr
 
 from climakitae.core.constants import UNSET
 from climakitae.core.paths import (
@@ -37,32 +38,58 @@ class DataCatalog(dict):
             self.catalog_key = UNSET
 
     @property
-    def data(self):
+    def data(self) -> intake_esm.core.esm_datastore:
         """Access data catalog."""
         return self["data"]
 
     @property
-    def boundary(self):
+    def boundary(self) -> intake.catalog.Catalog:
         """Access boundary catalog."""
         return self["boundary"]
 
     @property
-    def renewables(self):
+    def renewables(self) -> intake_esm.core.esm_datastore:
         """Access renewables catalog."""
         return self["renewables"]
 
-    def set_catalog_key(self, key: str):
-        """Set the catalog key for accessing a specific catalog."""
+    def set_catalog_key(self, key: str) -> "DataCatalog":
+        """
+        Set the catalog key for accessing a specific catalog.
+
+        Parameters
+        ----------
+        key : str
+            Key of the catalog to set.
+
+        Returns
+        -------
+        DataCatalog
+            The current instance of DataCatalog allowing method chaining.
+
+        Raises
+        ------
+        ValueError
+            If the catalog key is not found in the available catalogs.
+        """
         if key not in self:
             raise ValueError(f"Catalog '{key}' not found.")
         self.catalog_key = key
         return self
 
     def set_catalog(self, name: str, catalog: str):
-        """Set a named catalog."""
+        """
+        Set a named catalog.
+
+        Parameters
+        ----------
+        name : str
+            Name of the catalog to set.
+        catalog : str
+            URL or path to the catalog file.
+        """
         self[name] = intake.open_esm_datastore(catalog)
 
-    def get_data(self, query: dict = UNSET):
+    def get_data(self, query: dict = UNSET) -> dict[str, xr.Dataset]:
         """
         Get data from the catalog.
 
@@ -75,8 +102,8 @@ class DataCatalog(dict):
 
         Returns
         -------
-        intake.catalog.local.Catalog
-            The requested catalog.
+        dict[str, xr.Dataset]
+            The requested dataset(s) from the catalog.
         """
         print(f"Querying {self.catalog_key} catalog with query: {query}")
-        return self[self.catalog_key].search(**query)
+        return self[self.catalog_key].search(**query).to_dataset_dict()
