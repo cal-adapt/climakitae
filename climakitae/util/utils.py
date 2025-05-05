@@ -1239,10 +1239,14 @@ def clip_to_shapefile(
             else:
                 region = region[region[feature[0]] == feature[1]]
             if len(region) == 0:  # No features found
-                raise Exception
+                raise ValueError("None of the requested features were found.")
+        except ValueError as err:
+            raise err
         except Exception as err:
             raise RuntimeError(
-                "Could not select feature {0} in {1} ".format(feature, shapefile_path)
+                "Could not select one or more feature(s) {0} in {1} ".format(
+                    feature, shapefile_path
+                )
             ) from err
 
     try:
