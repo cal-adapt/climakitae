@@ -10,6 +10,7 @@ import pandas as pd
 import pyproj
 import rioxarray as rio
 from shapely.geometry import mapping
+from typing import Any
 import xarray as xr
 from timezonefinder import TimezoneFinder
 
@@ -1190,7 +1191,7 @@ def stack_sims_across_locs(ds):
 def clip_to_shapefile(
     data: xr.Dataset | xr.DataArray,
     shapefile_path: str,
-    feature: tuple[str, str | int | float | bool | list[str | int | float | bool]] = (),
+    feature: tuple[str, Any] = (),
     name: str = "user-defined",
     **kwargs,
 ) -> xr.Dataset | xr.DataArray:
