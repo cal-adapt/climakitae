@@ -154,7 +154,7 @@ print("COMPLETE.")
 
 # Area average?
 if area_average == "Yes":
-    test_dataset = test_dataset.mean("x").mean("y")
+    test_dataset = test_dataset.mean(["x", "y"])
 
 # Load lazy dask data
 print("Loading data...", end="")
