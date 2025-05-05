@@ -151,6 +151,7 @@ class ClimateData:
         Initialize the ClimateData facade.
         Data sources are managed internally by the DataSourceManager.
         """
+        print("Initializing ClimateData...")
         self._factory = DatasetFactory()
         self._data_interface = DataInterface()
         self._reset_query()
@@ -168,11 +169,11 @@ class ClimateData:
             "units": UNSET,
             "warming_level": UNSET,
             "area_subset": UNSET,
-            "latitude": (UNSET, UNSET),
-            "longitude": (UNSET, UNSET),
+            "latitude": UNSET,
+            "longitude": UNSET,
             "cached_area": UNSET,
             "area_average": UNSET,
-            "time_slice": (UNSET, UNSET),
+            "time_slice": UNSET,
             "stations": UNSET,
             "warming_level_window": UNSET,
             "warming_level_months": UNSET,
@@ -180,7 +181,7 @@ class ClimateData:
             "activity_id": UNSET,  # renewables only
             "institution_id": UNSET,  # renewables only
             "source_id": UNSET,  # renewables only
-            "experiment_id": UNSET,  # renewables only 
+            "experiment_id": UNSET,  # renewables only
         }
         return self
 
