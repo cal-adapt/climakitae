@@ -259,7 +259,7 @@ def _spatial_subset(dset, selections):
         subsetted area of dset
     """
 
-    def _clip_to_geometry(dset, ds_region):
+    def _clip_to_geometry(dset, ds_region, all_touched):
         """Clip to geometry if large enough
 
         Parameters
@@ -268,6 +268,8 @@ def _spatial_subset(dset, selections):
             one dataset from the catalog
         ds_region: shapely.geometry.polygon.Polygon
             area to clip to
+        all_touched: boolean
+            select within or touching area
 
         Returns
         -------
@@ -275,7 +277,9 @@ def _spatial_subset(dset, selections):
             clipped area of dset
         """
         try:
-            dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
+            dset = dset.rio.clip(
+                geometries=ds_region, crs=4326, drop=True, all_touched=all_touched
+            )
 
         except NoDataInBounds as e:
             # Catch small geometry error
@@ -284,7 +288,7 @@ def _spatial_subset(dset, selections):
 
         return dset
 
-    def _clip_to_geometry_loca(dset, ds_region):
+    def _clip_to_geometry_loca(dset, ds_region, all_touched):
         """Clip to geometry, adding missing grid info
             because crs and x, y are missing from LOCA datasets
             Otherwise rioxarray will raise this error:
@@ -296,6 +300,8 @@ def _spatial_subset(dset, selections):
             one dataset from the catalog
         ds_region: shapely.geometry.polygon.Polygon
             area to clip to
+        all_touched: boolean
+            select within or touching area
 
         Returns
         -------
@@ -304,7 +310,7 @@ def _spatial_subset(dset, selections):
         """
         dset = dset.rename({"lon": "x", "lat": "y"})
         dset = dset.rio.write_crs("epsg:4326", inplace=True)
-        dset = _clip_to_geometry(dset, ds_region)
+        dset = _clip_to_geometry(dset, ds_region, all_touched)
         dset = dset.rename({"x": "lon", "y": "lat"}).drop("spatial_ref")
         return dset
 
@@ -312,9 +318,9 @@ def _spatial_subset(dset, selections):
 
     if ds_region is not None:  # Perform subsetting
         if selections.downscaling_method == "Dynamical":
-            dset = _clip_to_geometry(dset, ds_region)
+            dset = _clip_to_geometry(dset, ds_region, selections.all_touched)
         else:
-            dset = _clip_to_geometry_loca(dset, ds_region)
+            dset = _clip_to_geometry_loca(dset, ds_region, selections.all_touched)
 
     return dset
 
