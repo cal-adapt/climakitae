@@ -11,7 +11,7 @@ import rioxarray as rio
 import xarray as xr
 from timezonefinder import TimezoneFinder
 
-from climakitae.core.constants import SSPS, UNSET
+from climakitae.core.constants import SSPS, UNSET, WARMING_LEVELS
 
 # from climakitae.core.data_interface import DataParameters
 from climakitae.core.paths import data_catalog_url, stations_csv_path
@@ -1183,3 +1183,33 @@ def stack_sims_across_locs(ds):
         for sim_name in ds["simulation"]
     ]
     return ds
+
+def read_warming_level_csvs():
+    df = read_csv_file("data/gwl_1850-1900ref_timeidx.csv", index_col="time", parse_dates=True)
+    other_df = read_csv_file("data/gwl_1850-1900ref.csv")
+    return df, other_df
+
+def get_wl_timestamp(series: pd.Series, degree: float) -> str:
+    """
+    Find the first timestamp where the warming level crosses the specified degree.
+    Return timestamp as string; return np.nan if never crosses.
+    """
+    if any(series >= degree):
+        return series[series >= degree].index[0].strftime('%Y-%m-%d %H:%M')
+    return np.nan
+
+def create_new_warming_level_table(warming_level: float) -> pd.DataFrame:
+    df, other_df = read_warming_level_csvs()
+
+    # Map each simulation to its crossing timestamp for the given warming level
+    wl_timestamps = {
+        col: get_wl_timestamp(df[col], warming_level)
+        for col in df.columns
+    }
+
+    result = other_df.copy(deep=True)
+    result['sim'] = result['GCM'] + '_' + result['run'] + '_' + result['scenario']
+    timestamp_series = pd.Series(wl_timestamps)
+
+    result[str(warming_level)] = result['sim'].map(timestamp_series)
+    return result.drop(columns='sim')

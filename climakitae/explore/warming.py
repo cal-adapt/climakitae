@@ -88,6 +88,10 @@ class WarmingLevels:
         # Dropping invalid simulations that come up from stacking scenarios and simulations together
         self.catalog_data = _drop_invalid_sims(self.catalog_data, self.wl_params)
 
+        # if you have a warming level passed in that doesn't exist in the tables, but is still valid (0.8<x<4.0), then:
+        #     generate that new table
+        # self.gwl_times = new table
+
         if self.wl_params.anom == "Yes":
             self.gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
         else:

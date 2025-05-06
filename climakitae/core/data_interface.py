@@ -650,7 +650,8 @@ class DataParameters(param.Parameterized):
     # Warming level options
     wl_options = WARMING_LEVELS
     wl_time_option = ["n/a"]
-    warming_level = param.ListSelector(default=["n/a"], objects=["n/a"])
+    # warming_level = param.ListSelector(default=["n/a"], objects=["n/a"])
+    warming_level = param.List(default=[1.0], item_type=float)
     warming_level_window = param.Integer(
         default=15,
         bounds=(5, 25),
@@ -771,7 +772,8 @@ class DataParameters(param.Parameterized):
         If time-based is selected, there should be no warming levels options shown.
         """
         if self.approach == "Warming Level":
-            self.param["warming_level"].objects = self.wl_options
+            # Remove WL constraint
+            # self.param["warming_level"].objects = self.wl_options
             self.warming_level = [2.0]
 
             self.param["scenario_ssp"].objects = ["n/a"]
