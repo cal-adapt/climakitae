@@ -1333,6 +1333,8 @@ def _apply_warming_levels_approach(da, selections):
     for level in selections.warming_level:
         gwl_table = selections._warming_level_times
 
+        import pdb; pdb.set_trace()
+
         if level not in WARMING_LEVELS:
             gwl_table = create_new_warming_level_table(warming_level=level)
     
