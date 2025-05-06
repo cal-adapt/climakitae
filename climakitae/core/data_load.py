@@ -272,6 +272,7 @@ def _spatial_subset(dset: xr.Dataset, selections: "DataParameters") -> xr.Datase
         subsetted area of dset
     """
 
+
     def _clip_to_geometry(
         dset: xr.Dataset, ds_region: shapely.geometry.polygon.Polygon, all_touched: bool
     ) -> xr.Dataset:
