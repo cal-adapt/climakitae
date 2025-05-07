@@ -4,6 +4,8 @@ This module contains unit tests for the DataParameters class, which is part of t
 These tests cover the initialization, default values, update methods, and retrieval of data parameters.
 """
 
+import os
+from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
 import geopandas as gpd
@@ -11,7 +13,16 @@ import pandas as pd
 import pytest
 from shapely.geometry import box
 
+import climakitae
 from climakitae.core.data_interface import DataParameters
+
+# Get the path to the climakitae package
+CLIMAKITAE_PATH = Path(os.path.dirname(climakitae.__file__))
+
+# Load the variable description file
+VARIABLE_DESCRIPTION = pd.read_csv(
+    CLIMAKITAE_PATH / "data" / "variable_descriptions.csv"
+)
 
 
 def mock_scenario_to_experiment_id(scenario, reverse=False):
@@ -22,7 +33,6 @@ def mock_scenario_to_experiment_id(scenario, reverse=False):
         "SSP 2-4.5": "ssp245",
         "SSP 5-8.5": "ssp585",
         "SSP 3-7.0": "ssp370",
-        "SSP 1-2.6": "ssp126",  # Add the missing scenario
     }
 
     if reverse:
@@ -49,45 +59,12 @@ class TestDataParameters:
             # Create mock instance with required properties
             mock_instance = Mock()
 
-            # Mock variable descriptions
-            var_desc = pd.DataFrame(
-                {
-                    "variable_id": [
-                        "tas",
-                        "pr",
-                        "tas_derived_index",
-                        "pr_derived_index",
-                    ],
-                    "display_name": [
-                        "Air Temperature at 2m",
-                        "Precipitation",
-                        "Heat Index",
-                        "Heavy Precipitation Index",
-                    ],
-                    "downscaling_method": [
-                        "Dynamical",
-                        "Dynamical",
-                        "Dynamical",
-                        "Dynamical",
-                    ],
-                    "timescale": [
-                        "hourly, daily, monthly",
-                        "daily, monthly",
-                        "hourly",
-                        "hourly",
-                    ],
-                    "unit": ["°C", "mm day⁻¹", "°C", "mm day⁻¹"],
-                    "colormap": ["viridis", "Blues", "hot", "Blues"],
-                    "extended_description": [
-                        "Temperature",
-                        "Rain",
-                        "Heat Index",
-                        "Heavy rain",
-                    ],
-                    "show": [True, True, True, True],
-                }
-            )
-            mock_instance.variable_descriptions = var_desc
+            # Create a proper copy of the DataFrame and convert all columns to Python lists
+            mock_instance.variable_descriptions = VARIABLE_DESCRIPTION.copy()
+            for col in mock_instance.variable_descriptions.columns:
+                mock_instance.variable_descriptions[col] = (
+                    mock_instance.variable_descriptions[col].tolist()
+                )
 
             # Mock data catalog
             mock_catalog = Mock()
@@ -99,7 +76,7 @@ class TestDataParameters:
 
             # Configure mock dataframe columns with test values
             experiment_id_mock = MagicMock()
-            experiment_id_mock.unique.return_value = ["historical", "ssp126", "ssp585"]
+            experiment_id_mock.unique.return_value = ["historical", "ssp585"]
 
             source_id_mock = MagicMock()
             source_id_mock.unique.return_value = ["CESM2", "CNRM-CM6-1"]
@@ -152,7 +129,9 @@ class TestDataParameters:
             "climakitae.core.data_interface._get_user_options"
         ) as mock_get_options:
             mock_get_options.return_value = (
-                ["historical", "ssp126"],  # scenario_options
+                [
+                    "historical",
+                ],  # scenario_options
                 ["CESM2", "CNRM-CM6-1"],  # simulation_options
                 ["tas", "pr"],  # unique_variable_ids
             )
@@ -161,16 +140,20 @@ class TestDataParameters:
                 "climakitae.core.data_interface._get_variable_options_df"
             ) as mock_get_vars:
                 # Add the 'variable_id' column to the DataFrame
-                mock_var_df = pd.DataFrame(
-                    {
-                        "display_name": ["Air Temperature at 2m"],
-                        "unit": ["°C"],
-                        "colormap": ["viridis"],
-                        "extended_description": ["Temperature"],
-                        "variable_id": ["tas"],  # Add this column
-                    }
-                )
-                mock_get_vars.return_value = mock_var_df
+                df_subset = VARIABLE_DESCRIPTION[
+                    VARIABLE_DESCRIPTION["variable_id"] == "tas"
+                ].reset_index(drop=True)
+
+                data_dict = {}
+                for col in df_subset.columns:
+                    # Ensure each value is a proper Python type, not numpy type
+                    if col == "display_name":
+                        data_dict[col] = [str(val) for val in df_subset[col].tolist()]
+                    else:
+                        data_dict[col] = [val for val in df_subset[col].tolist()]
+
+                # Create a new DataFrame with pure Python types
+                mock_get_vars.return_value = pd.DataFrame(data_dict)
 
                 with patch(
                     "climakitae.core.data_interface._get_var_ids"
@@ -189,7 +172,7 @@ class TestDataParameters:
                         assert params.data_interface == mock_data_interface
                         assert params._data_catalog == mock_data_interface.data_catalog
                         assert params.variable == "Air Temperature at 2m"
-                        assert params.units == "°C"
+                        assert params.units == "K"
                         assert params.colormap == "viridis"
 
                         # Check default parameter values
@@ -211,7 +194,7 @@ class TestDataParameters:
             "climakitae.core.data_interface._get_user_options"
         ) as mock_get_options:
             mock_get_options.return_value = (
-                ["historical", "ssp126"],  # scenario_options
+                ["historical"],  # scenario_options
                 ["CESM2", "CNRM-CM6-1"],  # simulation_options
                 ["tas", "pr"],  # unique_variable_ids
             )
@@ -219,19 +202,14 @@ class TestDataParameters:
             with patch(
                 "climakitae.core.data_interface._get_variable_options_df"
             ) as mock_get_vars:
-                mock_var_df = pd.DataFrame(
-                    {
-                        "display_name": [
-                            "Air Temperature at 2m",
-                            "Precipitation",
-                        ],
-                        "unit": ["°C", "mm day⁻¹"],
-                        "colormap": ["viridis", "Blues"],
-                        "extended_description": ["Temperature", "Rain"],
-                        "variable_id": ["tas", "pr"],
-                    }
-                )
-                mock_get_vars.return_value = mock_var_df
+                mock_get_vars.return_value = VARIABLE_DESCRIPTION[
+                    VARIABLE_DESCRIPTION["variable_id"].isin(["tas", "pr"])
+                ].reset_index(drop=True)
+
+                for col in mock_get_vars.return_value.columns:
+                    mock_get_vars.return_value[col] = mock_get_vars.return_value[
+                        col
+                    ].tolist()
 
                 with patch(
                     "climakitae.core.data_interface._get_var_ids"
@@ -290,7 +268,7 @@ class TestDataParameters:
             "climakitae.core.data_interface._get_user_options"
         ) as mock_get_options:
             mock_get_options.return_value = (
-                ["historical", "ssp126", "reanalysis"],  # scenario_options
+                ["historical", "reanalysis"],  # scenario_options
                 ["CESM2", "CNRM-CM6-1"],  # simulation_options
                 ["tas", "pr"],  # unique_variable_ids
             )
@@ -298,16 +276,14 @@ class TestDataParameters:
             with patch(
                 "climakitae.core.data_interface._get_variable_options_df"
             ) as mock_get_vars:
-                mock_var_df = pd.DataFrame(
-                    {
-                        "display_name": ["Air Temperature at 2m"],
-                        "unit": ["°C"],
-                        "colormap": ["viridis"],
-                        "extended_description": ["Temperature"],
-                        "variable_id": ["tas"],
-                    }
-                )
-                mock_get_vars.return_value = mock_var_df
+                mock_get_vars.return_value = VARIABLE_DESCRIPTION[
+                    VARIABLE_DESCRIPTION["variable_id"] == "tas"
+                ].reset_index(drop=True)
+
+                for col in mock_get_vars.return_value.columns:
+                    mock_get_vars.return_value[col] = mock_get_vars.return_value[
+                        col
+                    ].tolist()
 
                 with patch(
                     "climakitae.core.data_interface._get_var_ids"
@@ -324,7 +300,7 @@ class TestDataParameters:
 
                         # Test unit conversion options update
                         with patch.dict(
-                            params.unit_options_dict, {"°C": ["°C", "°F", "K"]}
+                            params.unit_options_dict, {"K": ["°C", "°F", "K"]}
                         ):
                             params._update_unit_options()
                             assert params.param["units"].objects == [
@@ -332,7 +308,7 @@ class TestDataParameters:
                                 "°F",
                                 "K",
                             ]
-                            assert params.units == "°C"
+                            assert params.units == "K"
 
                         # Test scenario update based on downscaling method
                         params.downscaling_method = "Statistical"
@@ -366,7 +342,7 @@ class TestDataParameters:
             "climakitae.core.data_interface._get_user_options"
         ) as mock_get_options:
             mock_get_options.return_value = (
-                ["historical", "ssp126"],  # scenario_options
+                ["historical"],  # scenario_options
                 ["CESM2", "CNRM-CM6-1"],  # simulation_options
                 ["tas", "pr"],  # unique_variable_ids
             )
@@ -374,16 +350,14 @@ class TestDataParameters:
             with patch(
                 "climakitae.core.data_interface._get_variable_options_df"
             ) as mock_get_vars:
-                mock_var_df = pd.DataFrame(
-                    {
-                        "display_name": ["Air Temperature at 2m"],
-                        "unit": ["°C"],
-                        "colormap": ["viridis"],
-                        "extended_description": ["Temperature"],
-                        "variable_id": ["tas"],
-                    }
-                )
-                mock_get_vars.return_value = mock_var_df
+                mock_get_vars.return_value = VARIABLE_DESCRIPTION[
+                    VARIABLE_DESCRIPTION["variable_id"] == "tas"
+                ].reset_index(drop=True)
+
+                for col in mock_get_vars.return_value.columns:
+                    mock_get_vars.return_value[col] = mock_get_vars.return_value[
+                        col
+                    ].tolist()
 
                 with patch(
                     "climakitae.core.data_interface._get_var_ids"
@@ -422,7 +396,7 @@ class TestDataParameters:
                             mock_read.return_value = mock_data
 
                             with patch("builtins.print") as mock_print:
-                                result = params.retrieve()
+                                _ = params.retrieve()
                                 # Check warning for large data was printed
                                 mock_print.assert_called()
                                 any_size_warning = any(
@@ -436,7 +410,7 @@ class TestDataParameters:
                                 "climakitae.core.data_interface.read_catalog_from_csv"
                             ) as mock_read_csv:
                                 mock_read_csv.return_value = mock_data
-                                result = params.retrieve(config="test.csv")
+                                _ = params.retrieve(config="test.csv")
                                 mock_read_csv.assert_called_with(
                                     params, "test.csv", True
                                 )
@@ -457,16 +431,14 @@ class TestDataParameters:
             with patch(
                 "climakitae.core.data_interface._get_variable_options_df"
             ) as mock_get_vars:
-                mock_var_df = pd.DataFrame(
-                    {
-                        "display_name": ["Air Temperature at 2m"],
-                        "unit": ["°C"],
-                        "colormap": ["viridis"],
-                        "extended_description": ["Temperature"],
-                        "variable_id": ["tas"],
-                    }
-                )
-                mock_get_vars.return_value = mock_var_df
+                mock_get_vars.return_value = VARIABLE_DESCRIPTION[
+                    VARIABLE_DESCRIPTION["variable_id"] == "tas"
+                ].reset_index(drop=True)
+
+                for col in mock_get_vars.return_value.columns:
+                    mock_get_vars.return_value[col] = mock_get_vars.return_value[
+                        col
+                    ].tolist()
 
                 with patch(
                     "climakitae.core.data_interface._get_var_ids"
