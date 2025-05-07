@@ -153,7 +153,6 @@ class ClimateData:
         """
         print("Initializing ClimateData...")
         self._factory = DatasetFactory()
-        self._data_interface = DataInterface()
         self._reset_query()
 
     def _reset_query(self):
