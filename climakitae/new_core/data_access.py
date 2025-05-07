@@ -107,3 +107,5 @@ class DataCatalog(dict):
         """
         print(f"Querying {self.catalog_key} catalog with query: {query}")
         return self[self.catalog_key].search(**query).to_dataset_dict()
+
+    # TODO : implement _get_user_friendly_catalog here???

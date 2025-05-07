@@ -47,7 +47,21 @@ def register_validator(name: str):
 
 
 class ParameterValidator(ABC):
-    """Abstract base class for parameter validation."""
+    """
+    Abstract base class for parameter validation.
+    
+    The user query contains the parameters to be validated.
+    These parameters fall under the following categories:
+    - catalog variables: variables that are used to identify the dataset in the catalog
+        - The logic for this is implemented in `get_data_options` I think
+        - The motivation is to make the interface match the GUI
+        - !!! IS THIS NECESSARY? !!!
+            - the GUI is for folks not technically inclined
+            - we don't need this logic in the dev/scientist interface
+            - 
+    - processing variables: variables that are used to process the dataset
+        - the logic for this is rag tag at best
+    """
 
     @abstractmethod
     def is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any]:
