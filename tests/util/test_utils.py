@@ -415,7 +415,7 @@ class TestUtils:
         da_extra_dim = da.expand_dims(dim={"model": ["A"]})
         result3 = compute_annual_aggreggate(da_extra_dim, name, num_grid_cells)
         assert "model" not in result3.dims
-    
+
     @pytest.mark.advanced
     def test_compute_multimodel_stats(self):
         """Tests the compute_multimodel_stats function"""
