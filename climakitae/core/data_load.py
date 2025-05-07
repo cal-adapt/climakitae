@@ -4,10 +4,12 @@ from datetime import timedelta
 from functools import partial
 
 import dask
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 import psutil
 import rioxarray
+import shapely
 import xarray as xr
 from dask.diagnostics import ProgressBar
 from geopandas import GeoDataFrame
@@ -40,6 +42,13 @@ from climakitae.util.utils import (
 )
 from climakitae.util.warming_levels import _calculate_warming_level, _drop_invalid_sims
 
+# Importing DataParameters causes ImportError due to circular import
+# so only import for type checking and reference as str 'DataParameters'
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from climakitae.core.data_interface import DataParameters
+
 # Set Xarray options
 # keep array attributes after operations
 xr.set_options(keep_attrs=True)
@@ -54,7 +63,7 @@ from dask.diagnostics import ProgressBar
 warnings.filterwarnings("ignore", category=PerformanceWarning)
 
 
-def load(xr_da, progress_bar=False):
+def load(xr_da: xr.DataArray, progress_bar: bool = False) -> xr.DataArray:
     """Read lazily loaded dask array into memory for faster access
 
     Parameters
@@ -98,7 +107,7 @@ def load(xr_da, progress_bar=False):
         return da_computed
 
 
-def _scenarios_in_data_dict(keys):
+def _scenarios_in_data_dict(keys: list[str]) -> list[str]:
     """Return unique list of ssp scenarios in dataset dictionary.
 
     Parameters
@@ -116,7 +125,7 @@ def _scenarios_in_data_dict(keys):
     return list(scenarios)
 
 
-def _time_slice(dset, selections):
+def _time_slice(dset: xr.Dataset, selections: "DataParameters") -> xr.Dataset:
     """Subset over time
 
     Parameters
@@ -138,7 +147,9 @@ def _time_slice(dset, selections):
     return dset.sel(time=slice(window_start, window_end))
 
 
-def area_subset_geometry(selections):
+def area_subset_geometry(
+    selections: "DataParameters",
+) -> list[shapely.geometry.polygon.Polygon] | None:
     """Get geometry to perform area subsetting with.
 
     Parameters
@@ -152,7 +163,7 @@ def area_subset_geometry(selections):
         geometry to use for subsetting
     """
 
-    def _override_area_selections(selections):
+    def _override_area_selections(selections: "DataParameters") -> tuple[str, str]:
         """Account for 'station' special-case
         You need to retrieve the entire domain because the shapefiles will cut out
         the ocean grid cells, but the some station's closest gridcells are the ocean!
@@ -176,10 +187,12 @@ def area_subset_geometry(selections):
 
         return area_subset, cached_area
 
-    def _set_subarea(boundary_dataset: Boundaries, shape_indices: list) -> GeoDataFrame:
+    def _set_subarea(
+        boundary_dataset: Boundaries, shape_indices: list[int]
+    ) -> GeoDataFrame:
         return boundary_dataset.loc[shape_indices].geometry.union_all()
 
-    def _get_as_shapely(selections):
+    def _get_as_shapely(selections: "DataParameters") -> shapely.geometry:
         """
         Takes the location data, and turns it into a
         shapely box object. Just doing polygons for now. Later other point/station data
@@ -243,7 +256,7 @@ def area_subset_geometry(selections):
     return ds_region
 
 
-def _spatial_subset(dset, selections):
+def _spatial_subset(dset: xr.Dataset, selections: "DataParameters") -> xr.Dataset:
     """Subset over spatial area
 
     Parameters
@@ -259,7 +272,9 @@ def _spatial_subset(dset, selections):
         subsetted area of dset
     """
 
-    def _clip_to_geometry(dset, ds_region):
+    def _clip_to_geometry(
+        dset: xr.Dataset, ds_region: shapely.geometry.polygon.Polygon, all_touched: bool
+    ) -> xr.Dataset:
         """Clip to geometry if large enough
 
         Parameters
@@ -268,6 +283,8 @@ def _spatial_subset(dset, selections):
             one dataset from the catalog
         ds_region: shapely.geometry.polygon.Polygon
             area to clip to
+        all_touched: boolean
+            select within or touching area
 
         Returns
         -------
@@ -275,7 +292,9 @@ def _spatial_subset(dset, selections):
             clipped area of dset
         """
         try:
-            dset = dset.rio.clip(geometries=ds_region, crs=4326, drop=True)
+            dset = dset.rio.clip(
+                geometries=ds_region, crs=4326, drop=True, all_touched=all_touched
+            )
 
         except NoDataInBounds as e:
             # Catch small geometry error
@@ -284,7 +303,9 @@ def _spatial_subset(dset, selections):
 
         return dset
 
-    def _clip_to_geometry_loca(dset, ds_region):
+    def _clip_to_geometry_loca(
+        dset: xr.Dataset, ds_region: shapely.geometry.polygon.Polygon, all_touched: bool
+    ) -> xr.Dataset:
         """Clip to geometry, adding missing grid info
             because crs and x, y are missing from LOCA datasets
             Otherwise rioxarray will raise this error:
@@ -296,6 +317,8 @@ def _spatial_subset(dset, selections):
             one dataset from the catalog
         ds_region: shapely.geometry.polygon.Polygon
             area to clip to
+        all_touched: boolean
+            select within or touching area
 
         Returns
         -------
@@ -304,7 +327,7 @@ def _spatial_subset(dset, selections):
         """
         dset = dset.rename({"lon": "x", "lat": "y"})
         dset = dset.rio.write_crs("epsg:4326", inplace=True)
-        dset = _clip_to_geometry(dset, ds_region)
+        dset = _clip_to_geometry(dset, ds_region, all_touched)
         dset = dset.rename({"x": "lon", "y": "lat"}).drop("spatial_ref")
         return dset
 
@@ -312,19 +335,23 @@ def _spatial_subset(dset, selections):
 
     if ds_region is not None:  # Perform subsetting
         if selections.downscaling_method == "Dynamical":
-            dset = _clip_to_geometry(dset, ds_region)
+            dset = _clip_to_geometry(dset, ds_region, selections.all_touched)
         else:
-            dset = _clip_to_geometry_loca(dset, ds_region)
+            dset = _clip_to_geometry_loca(dset, ds_region, selections.all_touched)
 
     return dset
 
 
-def _process_dset(ds_name, dset, selections):
+def _process_dset(
+    ds_name: str, dset: xr.Dataset, selections: "DataParameters"
+) -> xr.Dataset:
     """Subset over time and space, as described in user selections;
        renaming to facilitate concatenation.
 
     Parameters
     ----------
+    ds_name: str
+        dataset name from catalog
     dset: xr.Dataset
         one dataset from the catalog
     selections: DataParameters
@@ -350,7 +377,7 @@ def _process_dset(ds_name, dset, selections):
     if selections.area_average == "Yes":
         dset = area_average(dset)
 
-    def _sim_index_item(ds_name, member_id):
+    def _sim_index_item(ds_name: str, member_id: dict[str, str]) -> str:
         """Identify a simulation by its downscaling type, driving GCM, and member id.
 
         Parameters
@@ -382,13 +409,15 @@ def _process_dset(ds_name, dset, selections):
     return dset
 
 
-def _override_unit_defaults(da, var_id):
+def _override_unit_defaults(da: xr.DataArray, var_id: str) -> xr.DataArray:
     """Override non-standard unit specifications in some dataset attributes
 
     Parameters
     ----------
     da: xr.DataArray
         any xarray DataArray with a units attribute
+    var_id: str
+        variable id
 
     Returns
     -------
@@ -406,7 +435,9 @@ def _override_unit_defaults(da, var_id):
     return da
 
 
-def _merge_all(selections, data_dict):
+def _merge_all(
+    selections: "DataParameters", data_dict: dict[str, xr.core.dataset.Dataset]
+) -> xr.DataArray:
     """Merge all datasets into one, subsetting each consistently;
        clean-up format, and convert units.
 
@@ -452,7 +483,12 @@ def _merge_all(selections, data_dict):
     else:
         all_hist = None
 
-    def _concat_sims(data_dict, hist_data, selections, scenario):
+    def _concat_sims(
+        data_dict: dict[str, xr.core.dataset.Dataset],
+        hist_data: xr.Dataset,
+        selections: "DataParameters",
+        scenario: str,
+    ) -> xr.Dataset:
         """Combine datasets along expanded 'member_id' dimension, and append
             historical if relevant.
 
@@ -496,7 +532,7 @@ def _merge_all(selections, data_dict):
 
         return one_scenario
 
-    def _add_scenario_dim(da, scen_name):
+    def _add_scenario_dim(da: xr.DataArray, scen_name: str) -> xr.DataArray:
         """Add a singleton dimension for 'scenario' to the DataArray.
 
         Parameters
@@ -555,7 +591,7 @@ def _merge_all(selections, data_dict):
     return all_ssps
 
 
-def _get_data_one_var(selections):
+def _get_data_one_var(selections: "DataParameters") -> xr.DataArray:
     """Get data for one variable
     Retrieves dataset dictionary from AWS, handles some special cases, merges
     datasets along new dimensions into one xr.DataArray, and adds metadata.
@@ -633,7 +669,9 @@ def _get_data_one_var(selections):
     return da
 
 
-def _get_data_attributes(selections):
+def _get_data_attributes(
+    selections: "DataParameters",
+) -> dict[str, str | float | int | list[str]]:
     """Return dictionary of xr.DataArray attributes based on selections
 
     Parameters
@@ -673,7 +711,7 @@ def _get_data_attributes(selections):
     return new_attrs
 
 
-def _check_valid_unit_selection(selections):
+def _check_valid_unit_selection(selections: "DataParameters") -> None:
     """Check that units weren't manually set in DataParameters to an invalid option.
     Raises ValueError if units are not set to a valid option.
 
@@ -704,7 +742,7 @@ def _check_valid_unit_selection(selections):
     return None
 
 
-def _get_Uearth(selections):
+def _get_Uearth(selections: "DataParameters") -> xr.DataArray:
     """Rotate winds from WRF grid --> spherical earth
     We need to rotate U and V to Earth-relative coordinates in order to properly derive wind direction and generally make comparisons against observations.
     Reference: https://www-k12.atmos.washington.edu/~ovens/wrfwinds.html
@@ -748,7 +786,7 @@ def _get_Uearth(selections):
     return Uearth
 
 
-def _get_Vearth(selections):
+def _get_Vearth(selections: "DataParameters") -> xr.DataArray:
     """Rotate winds from WRF grid --> spherical earth
     We need to rotate U and V to Earth-relative coordinates in order to properly derive wind direction and generally make comparisons against observations.
     Reference: https://www-k12.atmos.washington.edu/~ovens/wrfwinds.html
@@ -792,7 +830,7 @@ def _get_Vearth(selections):
     return Vearth
 
 
-def _get_wind_speed_derived(selections):
+def _get_wind_speed_derived(selections: "DataParameters") -> xr.DataArray:
     """Get input data and derive wind speed for hourly data
 
     Parameters
@@ -822,7 +860,7 @@ def _get_wind_speed_derived(selections):
     return da
 
 
-def _get_wind_dir_derived(selections):
+def _get_wind_dir_derived(selections: "DataParameters") -> xr.DataArray:
     """Get input data and derive wind direction for hourly data
 
     Parameters
@@ -852,7 +890,7 @@ def _get_wind_dir_derived(selections):
     return da
 
 
-def _get_monthly_daily_dewpoint(selections):
+def _get_monthly_daily_dewpoint(selections: "DataParameters") -> xr.DataArray:
     """Derive dew point temp for monthly/daily data.
 
     Parameters
@@ -881,7 +919,7 @@ def _get_monthly_daily_dewpoint(selections):
     return da
 
 
-def _get_hourly_dewpoint(selections):
+def _get_hourly_dewpoint(selections: "DataParameters") -> xr.DataArray:
     """Derive dew point temp for hourly data.
     Requires first deriving relative humidity.
 
@@ -925,7 +963,7 @@ def _get_hourly_dewpoint(selections):
     return da
 
 
-def _get_hourly_rh(selections):
+def _get_hourly_rh(selections: "DataParameters") -> xr.DataArray:
     """Derive hourly relative humidity.
 
     Parameters
@@ -961,7 +999,7 @@ def _get_hourly_rh(selections):
     return da
 
 
-def _get_hourly_specific_humidity(selections):
+def _get_hourly_specific_humidity(selections: "DataParameters") -> xr.DataArray:
     """Derive hourly specific humidity.
     Requires first deriving relative humidity, then dew point temp.
 
@@ -1013,7 +1051,7 @@ def _get_hourly_specific_humidity(selections):
     return da
 
 
-def _get_noaa_heat_index(selections):
+def _get_noaa_heat_index(selections: "DataParameters") -> xr.DataArray:
     """Derive NOAA heat index
 
     Parameters
@@ -1057,7 +1095,7 @@ def _get_noaa_heat_index(selections):
     return da
 
 
-def _get_eff_temp(selections):
+def _get_eff_temp(selections: "DataParameters") -> xr.DataArray:
     """Derive the effective temperature
 
     Parameters
@@ -1078,7 +1116,7 @@ def _get_eff_temp(selections):
     return da
 
 
-def _get_fosberg_fire_index(selections):
+def _get_fosberg_fire_index(selections: "DataParameters") -> xr.DataArray:
     """Derive the fosberg fire index.
 
     Parameters
@@ -1145,7 +1183,7 @@ def _get_fosberg_fire_index(selections):
     return da
 
 
-def read_catalog_from_select(selections):
+def read_catalog_from_select(selections: "DataParameters") -> xr.DataArray:
     """The primary and first data loading method, called by
     DataParameters.retrieve, it returns a DataArray (which can be quite large)
     containing everything requested by the user (which is stored in 'selections').
@@ -1297,7 +1335,9 @@ def read_catalog_from_select(selections):
     return da
 
 
-def _apply_warming_levels_approach(da, selections):
+def _apply_warming_levels_approach(
+    da: xr.DataArray, selections: "DataParameters"
+) -> xr.DataArray:
     """
     Apply warming levels approach to data object.
     Internal function only-- many settings are set in the backend for this function to work appropriately.
@@ -1377,7 +1417,9 @@ def _apply_warming_levels_approach(da, selections):
     return warming_data
 
 
-def _station_apply(selections, da, original_time_slice):
+def _station_apply(
+    selections: "DataParameters", da: xr.DataArray, original_time_slice: tuple[int, int]
+) -> xr.DataArray:
     """Use xr.apply to get bias corrected data to station
 
     Parameters
@@ -1401,7 +1443,9 @@ def _station_apply(selections, da, original_time_slice):
         for s_id in station_subset["station id"]
     ]
 
-    def _preprocess_hadisd(ds, stations_gdf):
+    def _preprocess_hadisd(
+        ds: xr.Dataset, stations_gdf: gpd.GeoDataFrame
+    ) -> xr.Dataset:
         """
         Preprocess station data so that it can be more seamlessly integrated into the wrangling process
         Get name of station id and station name
@@ -1460,7 +1504,9 @@ def _station_apply(selections, da, original_time_slice):
         backend_kwargs=dict(storage_options={"anon": True}),
     )
 
-    def _get_bias_corrected_closest_gridcell(station_da, gridded_da, time_slice):
+    def _get_bias_corrected_closest_gridcell(
+        station_da: xr.DataArray, gridded_da: xr.DataArray, time_slice: tuple[int, int]
+    ) -> xr.DataArray:
         """Get the closest gridcell to a weather station.
         Bias correct the data using historical station data
 
@@ -1491,14 +1537,14 @@ def _station_apply(selections, da, original_time_slice):
         )
 
         def _bias_correct_model_data(
-            obs_da,
-            gridded_da,
-            time_slice,
-            window=90,
-            nquantiles=20,
-            group="time.dayofyear",
-            kind="+",
-        ):
+            obs_da: xr.DataArray,
+            gridded_da: xr.DataArray,
+            time_slice: tuple[int, int],
+            window: int = 90,
+            nquantiles: int = 20,
+            group: str = "time.dayofyear",
+            kind: str = "+",
+        ) -> xr.DataArray:
             """Bias correct model data using observational station data
             Converts units of the station data to whatever the input model data's units are
             Converts calendars of both datasets to a no leap calendar
@@ -1595,7 +1641,9 @@ def _station_apply(selections, da, original_time_slice):
     return apply_output
 
 
-def read_catalog_from_csv(selections, csv, merge=True):
+def read_catalog_from_csv(
+    selections: "DataParameters", csv: str, merge: bool = True
+) -> xr.Dataset | xr.DataArray | list[xr.DataArray]:
     """Retrieve user data selections from csv input.
 
     Allows user to bypass ck.Select() GUI and allows developers to
