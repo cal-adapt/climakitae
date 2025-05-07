@@ -1207,8 +1207,6 @@ def create_new_warming_level_table(warming_level: float) -> pd.DataFrame:
         for col in df.columns
     }
 
-    import pdb; pdb.set_trace()
-
     result = other_df.copy(deep=True)
     result['sim'] = result['GCM'] + '_' + result['run'] + '_' + result['scenario']
     timestamp_series = pd.Series(wl_timestamps)
