@@ -4,6 +4,7 @@ from climakitae.explore import thresholds
 from climakitae.core.data_interface import DataParameters
 
 
+@pytest.mark.advanced
 class TestThreshold:
     @pytest.fixture
     def selections(self) -> DataParameters:

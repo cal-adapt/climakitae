@@ -43,6 +43,7 @@ def test_TSP(rootdir: str) -> tst.TimeSeriesParameters:
     return ts.choices  # return the underlying TimeSeriesParams object for testing
 
 
+@pytest.mark.advanced
 class TestTimeseriesHourly:
 
     def test_hourly_seasonal(self, test_TSP: tst.TimeSeriesParameters):
