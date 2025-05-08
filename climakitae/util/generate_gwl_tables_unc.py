@@ -433,13 +433,14 @@ class GWLGenerator:
         # Create enumerated list for processing
         enum_ens_mem_list = list(enumerate(ens_mem_list))
 
-        # Use ThreadPoolExecutor to parallelize processing
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            results = list(executor.map(_process_ensemble_member, enum_ens_mem_list))
+        results = [
+            _process_ensemble_member(i_ens_mem) for i_ens_mem in enum_ens_mem_list
+        ]
 
         # Process results
         successful_ens_mems = []  # Track successful ensemble members
         for i, ens_mem, gwlevels, wl_data_tbl, error_msg in results:
+            print(i, ens_mem, gwlevels, wl_data_tbl)
             if error_msg:
                 print(error_msg)
             else:
