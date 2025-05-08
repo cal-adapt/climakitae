@@ -438,32 +438,32 @@ class GWLGenerator:
             results = list(executor.map(_process_ensemble_member, enum_ens_mem_list))
 
         # Process results
+        successful_ens_mems = []  # Track successful ensemble members
         for i, ens_mem, gwlevels, wl_data_tbl, error_msg in results:
             if error_msg:
                 print(error_msg)
             else:
                 gwlevels_tbl.append(gwlevels)
                 wl_data_tbls.append(wl_data_tbl)
+                successful_ens_mems.append(ens_mem)  # Append only if successful
 
         if gwlevels_tbl and wl_data_tbls:
+            # Renaming columns of all ensemble members within model
             try:
-                # Renaming columns of all ensemble members within model
                 wl_data_tbl_sim = pd.concat(wl_data_tbls, axis=1)
-                print(model, wl_data_tbl_sim.columns)
-                wl_data_tbl_sim.columns = model + "_" + wl_data_tbl_sim.columns
+            except ValueError as e:
+                print(f"Error concatenating results for model {model}: {e}")
+                return pd.DataFrame(), pd.DataFrame()
+            print(model, wl_data_tbl_sim.columns)
+            wl_data_tbl_sim.columns = model + "_" + wl_data_tbl_sim.columns
 
-                # Create a new list of successful ensemble members (that match the length of gwlevels_tbl)
-                successful_ens_mems = []
-                for i, ens_mem in enumerate(ens_mem_list):
-                    if i < len(gwlevels_tbl):
-                        successful_ens_mems.append(ens_mem)
-
-                # Use the filtered list for concatenation
+            # Use the filtered list for concatenation
+            try:
                 return (
                     pd.concat(gwlevels_tbl, keys=successful_ens_mems),
                     wl_data_tbl_sim,
                 )
-            except Exception as e:
+            except ValueError as e:
                 print(f"Error concatenating results for model {model}: {e}")
                 return pd.DataFrame(), pd.DataFrame()
         else:
