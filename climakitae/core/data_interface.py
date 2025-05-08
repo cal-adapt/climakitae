@@ -16,10 +16,7 @@ from climakitae.core.paths import (
 )
 from climakitae.core.boundaries import Boundaries
 from climakitae.util.unit_conversions import get_unit_conversion_options
-from climakitae.core.data_load import (
-    read_catalog_from_csv,
-    read_catalog_from_select,
-)
+from climakitae.core.data_load import read_catalog_from_select
 from climakitae.util.utils import (
     downscaling_method_as_list,
     read_csv_file,
@@ -1260,36 +1257,17 @@ class DataParameters(param.Parameterized):
             self.param["stations"].objects = [notice]
             self.stations = [notice]
 
-    def retrieve(self, config=None, merge=True):
+    def retrieve(self):
         """Retrieve data from catalog
 
         By default, DataParameters determines the data retrieved.
-        To retrieve data using the settings in a configuration csv file, set config to the local
-        filepath of the csv.
         Grabs the data from the AWS S3 bucket, returns lazily loaded dask array.
-        User-facing function that provides a wrapper for read_catalog_from_csv and read_catalog_from_select.
-
-        Parameters
-        ----------
-        config: str, optional
-            Local filepath to configuration csv file
-            Default to None-- retrieve settings in selections
-        merge: bool, optional
-            If config is TRUE and multiple datasets desired, merge to form a single object?
-            Defaults to True.
+        User-facing function that provides a wrapper for read_catalog_from_select.
 
         Returns
         -------
         xr.DataArray
             Lazily loaded dask array
-            Default if no config file provided
-        xr.Dataset
-            If multiple rows are in the csv, each row is a data_variable
-            Only an option if a config file is provided
-        list of xr.DataArray
-            If multiple rows are in the csv and merge=True,
-            multiple DataArrays are returned in a single list.
-            Only an option if a config file is provided.
         """
 
         def _warn_of_large_file_size(da):
@@ -1322,13 +1300,6 @@ class DataParameters(param.Parameterized):
                     "WARNING\n-------\nYou have retrieved data for more than one SSP, but not all ensemble members for each GCM are available for all SSPs.\n\nAs a result, some scenario and simulation combinations may contain NaN values.\n\nIf you want to remove these empty simulations, it is recommended to first subset the data object by each individual scenario and then dropping NaN values."
                 )
 
-        if config is not None:
-            if type(config) == str:
-                data_return = read_catalog_from_csv(self, config, merge)
-            else:
-                raise ValueError(
-                    "To retrieve data specified in a configuration file, please input the path to your local configuration csv as a string"
-                )
         data_return = read_catalog_from_select(self)
 
         if isinstance(data_return, list):
