@@ -18,6 +18,7 @@
 - [ ] Unit tests
   - [ ] Existing unit tests are passing
   - [ ] If relevant, new unit tests are written (required 80% unit test coverage)
+  - [ ] Advanced Testing passing (select Advanced Testing label)
 - [ ] Documentation
   - [ ] Intent of all functions included
   - [ ] Complex code commented

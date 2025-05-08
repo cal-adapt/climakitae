@@ -25,12 +25,13 @@ def test_TSP(rootdir) -> tst.TimeSeriesParameters:
 
     # Compute area average
     weights = np.cos(np.deg2rad(test_data.lat))
-    test_data = test_data.weighted(weights).mean("x").mean("y")
+    test_data = test_data.weighted(weights).mean(["x", "y"])
 
     ts = tst.TimeSeries(test_data)  # make Timeseries object
     return ts.choices  # return the underlying TimeSeriesParams object for testing
 
 
+@pytest.mark.advanced
 class TestTimeseriesMonthlyTransform:
 
     def test_monthly_smoothing(self, test_TSP: tst.TimeSeriesParameters):
@@ -116,6 +117,7 @@ class TestTimeseriesMonthlyTransform:
         assert (result == test_TSP.data).sum().values.item() == 0
 
 
+@pytest.mark.advanced
 class TestTimeseriesMonthlyExtremes:
 
     def test_extremes_smoothing(self, test_TSP: tst.TimeSeriesParameters):
