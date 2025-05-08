@@ -49,7 +49,7 @@ def register_validator(name: str):
 class ParameterValidator(ABC):
     """
     Abstract base class for parameter validation.
-    
+
     The user query contains the parameters to be validated.
     These parameters fall under the following categories:
     - catalog variables: variables that are used to identify the dataset in the catalog
@@ -58,10 +58,15 @@ class ParameterValidator(ABC):
         - !!! IS THIS NECESSARY? !!!
             - the GUI is for folks not technically inclined
             - we don't need this logic in the dev/scientist interface
-            - 
+            -
     - processing variables: variables that are used to process the dataset
         - the logic for this is rag tag at best
     """
+
+    def __init__(self):
+        self.CATALOG_PATH = "climakitae/data/catalogs.csv"
+        self.catalog = None
+        self.load_catalog_df()
 
     @abstractmethod
     def is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any]:
@@ -83,6 +88,12 @@ class ParameterValidator(ABC):
         ValueError
             If parameters are invalid
         """
+
+    def load_catalog_df(self):
+        """
+        load the catalog dataframe and assign to self.catalog_df
+        """
+        self.catalog_df = intake.open_esm_datastore(self.CATALOG_PATH).df
 
     def _convert_frequency(self, frequency: str) -> str:
         """
@@ -180,10 +191,7 @@ class RenewablesValidator(ParameterValidator):
         # populate catalog keys with the values from the query
         for key in self.all_catalog_keys.keys():
             self.all_catalog_keys[key] = query.get(key, UNSET)
-        self.all_catalog_keys["table_id"] = self._convert_frequency(query["timescale"])
-        self.all_catalog_keys["grid_label"] = self._convert_resolution(
-            query["resolution"]
-        )
+
         # remove any unset values
         self.all_catalog_keys = {
             k: v for k, v in self.all_catalog_keys.items() if v is not UNSET

@@ -88,6 +88,10 @@ class Dataset:
 
     def with_param_validator(self, parameter_validator: ParameterValidator):
         """Set a new parameter validator."""
+        if not isinstance(parameter_validator, ParameterValidator):
+            raise TypeError(
+                "Parameter validator must be an instance of ParameterValidator."
+            )
         self.parameter_validator = parameter_validator
         return self
 

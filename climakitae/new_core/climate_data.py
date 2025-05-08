@@ -158,10 +158,14 @@ class ClimateData:
     def _reset_query(self):
         """Reset the query parameters to defaults."""
         self._query = {
+            "installation": UNSET,  # renewables only
+            "activity_id": UNSET,  # downscaling method
+            "institution_id": UNSET,  # renewables only
+            "source_id": UNSET,  # renewables only
+            "experiment_id": UNSET,  # renewables only
+            "table_id": UNSET,  # timescale, e.g., "hourly", "daily", "monthly"
+            "grid_label": UNSET,  # resolution, e.g., "3 km", "9 km", "45 km"
             "variable": UNSET,
-            "resolution": UNSET,  # grid label, e.g., "3 km", "9 km", "45 km"
-            "timescale": UNSET,  # table_id, e.g., "hourly", "daily", "monthly"
-            "downscaling_method": UNSET,
             "data_type": UNSET,
             "approach": UNSET,
             "scenario": UNSET,
@@ -176,11 +180,6 @@ class ClimateData:
             "stations": UNSET,
             "warming_level_window": UNSET,
             "warming_level_months": UNSET,
-            "installation": UNSET,  # renewables only
-            "activity_id": UNSET,  # renewables only
-            "institution_id": UNSET,  # renewables only
-            "source_id": UNSET,  # renewables only
-            "experiment_id": UNSET,  # renewables only
         }
         return self
 

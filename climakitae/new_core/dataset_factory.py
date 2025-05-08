@@ -27,6 +27,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Type
 
+import pandas as pd
 import xarray as xr
 
 from climakitae.core.constants import UNSET
@@ -46,7 +47,9 @@ class DatasetFactory:
 
     def __init__(self):
         """Initialize the factory with registries for catalogs, validators and processing steps."""
-        self._catalog = DataCatalog()
+        self._catalog = None
+        self.catalog_path = "climakitae/data/catalogs.csv"
+        self._catalog_df = pd.read_csv(self.catalog_path)
         self._validator_registry = {}
         self._processing_step_registry = {}
 
@@ -112,16 +115,14 @@ class DatasetFactory:
         """
         self._processing_step_registry[step_type] = step_class
 
-    def create_validator(self, data_type: str, approach: str) -> ParameterValidator:
+    def create_validator(self, val_reg_key: str) -> ParameterValidator:
         """
         Create a parameter validator based on data_type and approach.
 
         Parameters
         ----------
-        data_type : str
-            Type of data (e.g., "Gridded", "Stations")
-        approach : str
-            Approach to use (e.g., "Time", "Warming Level")
+        val_reg_key : str
+            Key for the validator (data_type_approach)
 
         Returns
         -------
@@ -133,13 +134,10 @@ class DatasetFactory:
         ValueError
             If no validator is registered for the given combination
         """
-        key = f"{data_type}_{approach}"
-        if key in self._validator_registry:
-            return self._validator_registry[key]()
+        if val_reg_key in self._validator_registry:
+            return self._validator_registry[val_reg_key]()
 
-        raise ValueError(
-            f"No validator registered for {data_type} data with {approach} approach"
-        )
+        raise ValueError(f"No validator registered for {val_reg_key}")
 
     def create_dataset(self, ui_query: Dict[str, Any]) -> Dataset:
         """
@@ -162,19 +160,44 @@ class DatasetFactory:
         """
         dataset = Dataset()
 
-        # Configure the appropriate catalog based on query parameters
-        dataset.with_catalog(self._get_catalog_for_query(ui_query))
-
         # Create and configure parameter validator
-        validator = self._create_validator_for_query(ui_query)
+        catalog_key = self._get_catalog_key_
         dataset.with_param_validator(validator)
 
+        # Configure the appropriate catalog based on query parameters
+        dataset.with_catalog(DataCatalog().set_catalog_key(catalog_key))
+
         # Add processing steps based on query parameters
-        self._add_processing_steps(dataset, ui_query)
+        for step in self._get_list_of_processing_steps(ui_query):
+            dataset.with_processing_step(step)
 
         return dataset
 
-    def _get_catalog_for_query(self, query: Dict[str, Any]) -> DataCatalog:
+    def _get_list_of_processing_steps(
+        self, query: Dict[str, Any]
+    ) -> List[DataProcessor]:
+        """
+        Get a list of processing steps based on query parameters.
+
+        Parameters
+        ----------
+        query : Dict[str, Any]
+            Query dictionary from ClimateData UI
+
+        Returns
+        -------
+        List[DataProcessor]
+            List of processing steps to apply to the dataset
+        """
+        processing_steps = []
+        # TODO: Implement logic to create processing steps based on query
+        # for step_type, step_class in self._processing_step_registry.items():
+        #     if step_type in query:
+        #         processing_steps.append(step_class(query[step_type]))
+
+        return processing_steps
+
+    def _get_catalog_key_from_query(self, query: Dict[str, Any]) -> str:
         """
         Get the appropriate catalog for the query.
 
@@ -185,36 +208,22 @@ class DatasetFactory:
 
         Returns
         -------
-        DataCatalog
-            Selected catalog for the query
+        str
+            Key for the catalog to use (e.g., "data", "renewables")
 
         Raises
         ------
         ValueError
             If no catalog matches the query parameters
         """
-        # Select catalog based on data_type, installation, etc.
-        if any(
-            value is not UNSET
-            for key, value in query.items()
-            if key
-            in [
-                "installation",
-                "activity_id",
-                "institution_id",
-                "source_id",
-                "experiment_id",
-            ]
-        ):
-            catalog_key = "renewables"
-        else:
-            catalog_key = "data"
+        # search catalog for matching datasets
+        valid_keys = []
 
-        return self._catalog.set_catalog_key(catalog_key)
-
-    def _create_validator_for_query(self, query: Dict[str, Any]) -> ParameterValidator:
+    def _create_validator_for_query(
+        self, query: Dict[str, Any]
+    ) -> tuple[ParameterValidator, str]:
         """
-        Create parameter validator based on query parameters.
+        Create parameter validator and catalog based on query parameters.
 
         Parameters
         ----------
@@ -226,30 +235,21 @@ class DatasetFactory:
         ParameterValidator
             Configured parameter validator
         """
-        if any(
-            value is not UNSET
-            for key, value in query.items()
-            if key
-            in [
-                "installation",
-                "activity_id",
-                "institution_id",
-                "source_id",
-                "experiment_id",
-            ]
-        ):
-            validator_key = "renewables"
-        else:
-            validator_key = "default"
+        # the logic goes like this:
+        # 1. Check query against the local catalog
+        # 2. Fail if:
+        #    - too much data is requested
+        #    - no data is available
+        #    - the query is invalid
+        # 3. Create a validator based on the query
+        # 4. Return the validator
 
-        if validator_key in self._validator_registry:
-            validator_class = self._validator_registry[validator_key]
-            validator = validator_class(self._catalog)
-            # Configure validator with additional settings if needed
-            return validator
-
-        # Fallback to a default validator
-        return None
+        # check query against the catalog
+        validator, selected_catalog = None, None
+        selected_catalog = self._get_catalog_for_query(query)
+        if selected_catalog is not None:
+            validator = self.create_validator(selected_catalog)
+        return validator, selected_catalog
 
     def _add_processing_steps(self, dataset: Dataset, query: Dict[str, Any]):
         # TODO: use query and single/multiple dispatch to create processing steps
