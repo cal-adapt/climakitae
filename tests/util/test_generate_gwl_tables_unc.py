@@ -901,8 +901,8 @@ class TestGWLGenerator:
                 [
                     ("r1", "ssp370"),
                     ("r1", "ssp585"),
-                    ("r2", "ssp370"),
-                    ("r2", "ssp585"),
+                    ("r3", "ssp370"),
+                    ("r3", "ssp585"),
                 ],
                 names=[None, "scenario"],
             )
