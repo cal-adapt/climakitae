@@ -450,21 +450,31 @@ class GWLGenerator:
         if gwlevels_tbl and wl_data_tbls:
             # Renaming columns of all ensemble members within model
             try:
+                # Align indexes before concatenation
+                wl_data_tbls = [
+                    df.reindex(wl_data_tbls[0].index) for df in wl_data_tbls
+                ]
                 wl_data_tbl_sim = pd.concat(wl_data_tbls, axis=1)
-            except ValueError as e:
-                print(f"Error concatenating results for model {model}: {e}")
+            except Exception as e:
+                print(f"Error concatenating timeseries results for model {model}: {e}")
                 return pd.DataFrame(), pd.DataFrame()
+
             print(model, wl_data_tbl_sim.columns)
             wl_data_tbl_sim.columns = model + "_" + wl_data_tbl_sim.columns
 
             # Use the filtered list for concatenation
             try:
+                gwlevels_tbl = [
+                    df.reindex(gwlevels_tbl[0].index) for df in gwlevels_tbl
+                ]
                 return (
                     pd.concat(gwlevels_tbl, keys=successful_ens_mems),
                     wl_data_tbl_sim,
                 )
-            except ValueError as e:
-                print(f"Error concatenating results for model {model}: {e}")
+            except Exception as e:
+                print(
+                    f"Error concatenating warming level results for model {model}: {e}"
+                )
                 return pd.DataFrame(), pd.DataFrame()
         else:
             print(f"No valid ensemble members for model {model}")
