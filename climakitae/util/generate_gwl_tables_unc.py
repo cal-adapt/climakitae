@@ -448,7 +448,6 @@ class GWLGenerator:
                 wl_data_tbls.append(wl_data_tbl)
                 successful_ens_mems.append(ens_mem)  # Append only if successful
 
-        gwlevels_tbl = [df for df in gwlevels_tbl if df is not None and not df.empty]
         if gwlevels_tbl and wl_data_tbls:
             # Renaming columns of all ensemble members within model
             try:
