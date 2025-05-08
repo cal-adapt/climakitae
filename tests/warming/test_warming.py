@@ -5,7 +5,7 @@ import pytest
 from climakitae.util.utils import read_csv_file
 from climakitae.core.paths import gwl_1850_1900_file
 from climakitae.util.warming_levels import (
-    _calculate_warming_level,
+    calculate_warming_level,
     _get_sliced_data,
 )
 
@@ -21,7 +21,7 @@ def test_missing_all_sims_attribute(
         {"simulation": "totally_wrong"}
     )
     with pytest.raises(AttributeError):
-        _calculate_warming_level(da_wrong, gwl_times, 2, range(1, 13), 15)
+        calculate_warming_level(da_wrong, gwl_times, 2, range(1, 13), 15)
 
 
 def test_get_sliced_data_empty_output(

@@ -40,7 +40,7 @@ from climakitae.util.utils import (
     scenario_to_experiment_id,
     timescale_to_table_id,
 )
-from climakitae.util.warming_levels import _calculate_warming_level, _drop_invalid_sims
+from climakitae.util.warming_levels import calculate_warming_level, drop_invalid_sims
 
 # Importing DataParameters causes ImportError due to circular import
 # so only import for type checking and reference as str 'DataParameters'
@@ -1364,15 +1364,15 @@ def _apply_warming_levels_approach(
     # Stack by simulation and scenario to combine the coordinates into a single dimension
     data_stacked = da.stack(all_sims=["simulation", "scenario"])
     # The xarray stacking function results in some non-existant scenario/simulation combos
-    # We need to drop them here such that the global warming levels table can be adequately parsed by the _calculate_warming_level function
-    data_stacked = _drop_invalid_sims(data_stacked, selections)
+    # We need to drop them here such that the global warming levels table can be adequately parsed by the calculate_warming_level function
+    data_stacked = drop_invalid_sims(data_stacked, selections)
 
     # Calculate warming level DataArray for each individual warming level
     # Function will be applied for each individual warming level
     # Then, the list of DataArrays (one for each warming level) will be concatenated into a single DataArray object
     da_list = []
     for level in selections.warming_level:
-        da_by_wl = _calculate_warming_level(
+        da_by_wl = calculate_warming_level(
             data_stacked,
             gwl_times=selections._warming_level_times,
             level=level,
@@ -1639,88 +1639,3 @@ def _station_apply(
         time_slice=original_time_slice,
     )
     return apply_output
-
-
-def read_catalog_from_csv(
-    selections: "DataParameters", csv: str, merge: bool = True
-) -> xr.Dataset | xr.DataArray | list[xr.DataArray]:
-    """Retrieve user data selections from csv input.
-
-    Allows user to bypass ck.Select() GUI and allows developers to
-    pre-set inputs in a csv file for ease of use in a notebook.
-
-    Parameters
-    ----------
-    selections: DataParameters
-        Data settings (variable, unit, timescale, etc).
-    csv: str
-        Filepath to local csv file.
-    merge: bool, optional
-        If multiple datasets desired, merge to form a single object?
-        Default to True.
-
-    Returns
-    -------
-    one of the following, depending on csv input and merge:
-
-    xr_ds: xr.Dataset
-        if multiple rows are in the csv, each row is a data_variable
-    xr_da: xr.DataArray
-        if csv only has one row
-    xr_list: list of xr.DataArrays
-        if multiple rows are in the csv and merge=True,
-        multiple DataArrays are returned in a single list.
-    """
-
-    df = pd.read_csv(csv)
-    df = df.fillna("")  # Replace empty cells (set to NaN by read_csv) with empty string
-    df = df.apply(
-        lambda x: x.str.strip()
-    )  # Strip any accidental white space before or after each input
-    xr_list = []
-    for index, row in df.iterrows():
-        selections.variable = row.variable
-        selections.scenario_historical = (
-            []
-            if (row.scenario_historical == "")
-            else [
-                # This fancy list comprehension deals with the fact that scenario_historical
-                # can be set to an empty list, which would coded as an empty string in the csv
-                item.strip()
-                for item in row.scenario_historical.split(",")
-            ]
-        )
-        selections.scenario_ssp = (
-            []
-            if (row.scenario_ssp == "")
-            else [item.strip() for item in row.scenario_ssp.split(",")]
-        )
-        selections.area_average = row.area_average
-        selections.timescale = row.timescale
-        selections.resolution = row.resolution
-        # Evaluate string time slice as tuple... i.e "(1980,2000)" --> (1980,2000)
-        selections.time_slice = literal_eval(row.time_slice)
-        selections.units = row.units
-        selections.area_subset = row.area_subset
-        selections.cached_area = row.cached_area
-
-        # Retrieve data
-        xr_da = read_catalog_from_select(selections)
-        xr_list.append(xr_da)
-
-    if len(xr_list) > 1:  # If there's more than one element in the list
-        if merge:  # Should we merge each element in the list?
-            try:  # Try to merge
-                xr_ds = xr.merge(
-                    xr_list, combine_attrs="drop_conflicts"
-                )  # Merge to form one Dataset object
-                return xr_ds
-            except:  # If data is incompatable with merging
-                print(
-                    "Unable to merge datasets. Function returning a list of each item"
-                )
-                pass
-        else:  # If user does not want to merge elements, return a list of DataArrays
-            return xr_list
-    else:  # If only one DataArray is in the list, just return the single DataArray
-        return xr_da

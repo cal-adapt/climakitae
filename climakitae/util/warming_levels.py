@@ -4,16 +4,11 @@ import xarray as xr
 import numpy as np
 import pandas as pd
 import calendar
-from climakitae.util.utils import (
-    scenario_to_experiment_id,
-    timescale_to_table_id,
-    resolution_to_gridlabel,
-    downscaling_method_to_activity_id,
-)
+from climakitae.util.utils import scenario_to_experiment_id
 from climakitae.util.utils import _get_cat_subset
 
 
-def _calculate_warming_level(warming_data, gwl_times, level, months, window):
+def calculate_warming_level(warming_data, gwl_times, level, months, window):
     """Perform warming level computation for a single warming level.
     Assumes the data has already been stacked by simulation and scenario to create a MultiIndex dimension "all_sims" and that the invalid simulations have been removed such that the gwl_times table can be adequately parsed.
     Internal function only; see the function _apply_warming_levels_approach for more documentation on how this function is applied internally.
@@ -172,7 +167,7 @@ def _extract_string_identifiers(da):
     return (sim_str, ensemble, scenario)
 
 
-def _drop_invalid_sims(ds, selections):
+def drop_invalid_sims(ds, selections):
     """
     As part of the warming levels calculation, the data is stacked by simulation and scenario, creating some empty values for that coordinate.
     Here, we remove those empty coordinate values.
