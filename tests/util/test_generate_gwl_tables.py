@@ -6,6 +6,7 @@ import pytest
 from climakitae.util.generate_gwl_tables import get_sims_on_aws
 
 
+@pytest.mark.advanced
 def test_get_sims_on_aws():
     """Check that expected scenarios and models are returned."""
     df = pd.read_csv("https://cmip6-pds.s3.amazonaws.com/pangeo-cmip6.csv")
