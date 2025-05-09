@@ -1,13 +1,23 @@
-### Test Module for `warming_levels.py`
+"""
+Unit tests for the warming module in climakitae.explore.warming.
+"""
 
-import xarray as xr
+from unittest.mock import patch
+
+import numpy as np
+import pandas as pd
 import pytest
-from climakitae.util.utils import read_csv_file
+import xarray as xr
+
 from climakitae.core.paths import gwl_1850_1900_file
-from climakitae.util.warming_levels import (
-    _calculate_warming_level,
-    _get_sliced_data,
+from climakitae.explore.warming import (
+    WarmingLevels,
+    _check_available_warming_levels,
+    clean_warm_data,
+    relabel_axis,
 )
+from climakitae.util.utils import read_csv_file
+from climakitae.util.warming_levels import _calculate_warming_level, _get_sliced_data
 
 # Load warming level times from CSV
 gwl_times = read_csv_file(gwl_1850_1900_file, index_col=[0, 1, 2])
@@ -30,9 +40,11 @@ def test_get_sliced_data_empty_output(
     """
     Verify that `_get_sliced_data` returns an empty DataArray when no `center_time` is found.
 
-    `WRF_FGOALS-g3_r1i1p1f1` for `SSP 3-7.0` does not reach 4.0 warming, so we will use it to see if `_get_sliced_data` will just generate an empty DataArray for it.
-        Context for this behavior in `_get_sliced_data`: an empty DataArray is generated for this simulation in `_get_sliced_data` because `_get_sliced_data`
-        is called in a groupby call, requiring all objects it is called upon to return the same shape.
+    `WRF_FGOALS-g3_r1i1p1f1` for `SSP 3-7.0` does not reach 4.0 warming, so we will use
+    it to see if `_get_sliced_data` will just generate an empty DataArray for it.
+    Context for this behavior in `_get_sliced_data`: an empty DataArray is generated
+    for this simulation in `_get_sliced_data` because `_get_sliced_data` is called in a
+    groupby call, requiring all objects it is called upon to return the same shape.
     """
     da = test_dataarray_time_2030_2035_wrf_3km_hourly_temp
 
@@ -45,3 +57,197 @@ def test_get_sliced_data_empty_output(
     # Call function and assert empty DataArray
     res = _get_sliced_data(one_sim, 4, gwl_times, range(1, 13), 15)
     assert res.isnull().all()
+
+
+class TestWarmingLevels:
+    """
+    Test class for WarmingLevels class
+    """
+
+    @staticmethod
+    def test_warming_levels_init():
+        """Test that WarmingLevels initializes correctly with default values."""
+
+        # Mock the _check_available_warming_levels function
+
+        with patch(
+            "climakitae.explore.warming._check_available_warming_levels"
+        ) as mock_check:
+            mock_check.return_value = [0.8, 1.5, 2.0, 3.0, 4.0]
+
+            # Initialize WarmingLevels
+            wl = WarmingLevels()
+
+            # Check that it has the expected attributes
+            assert hasattr(wl, "wl_params")
+            assert hasattr(wl, "warming_levels")
+            assert wl.warming_levels == [0.8, 1.5, 2.0, 3.0, 4.0]
+            mock_check.assert_called_once()
+
+    @staticmethod
+    def test_find_warming_slice_with_mocked_data():
+        """
+        Test the `find_warming_slice` method to ensure it correctly processes
+        warming slice data for a given level and gwl_times.
+        """
+
+        # Mock catalog_data
+        catalog_data = xr.DataArray(
+            np.random.rand(3, 10, 10),
+            dims=["all_sims", "time", "lat"],
+            coords={
+                "all_sims": ["sim1", "sim2", "sim3"],
+                "time": pd.date_range("2000-01-01", periods=10, freq="Y"),
+                "lat": np.arange(10),
+            },
+        )
+
+        # Mock gwl_times
+        mock_gwl_times = pd.DataFrame(
+            {
+                "0.8": ["2005-01-01", "2006-01-01", "2007-01-01"],
+                "1.5": ["2010-01-01", "2011-01-01", "2012-01-01"],
+            },
+            index=[
+                ("sim1", "ens1", "ssp1"),
+                ("sim2", "ens2", "ssp2"),
+                ("sim3", "ens3", "ssp3"),
+            ],
+        )
+
+        # Mock WarmingLevels object
+        wl = WarmingLevels()
+        wl.catalog_data = catalog_data
+        wl.wl_params.months = [1, 2, 3]
+        wl.wl_params.window = 15
+        wl.wl_params.anom = "No"
+
+        # Mock helper functions
+        with patch(
+            "climakitae.explore.warming.get_sliced_data"
+        ) as mock_get_sliced_data, patch(
+            "climakitae.explore.warming.clean_warm_data"
+        ) as mock_clean_warm_data, patch(
+            "climakitae.explore.warming.relabel_axis"
+        ) as mock_relabel_axis:
+
+            # Mock return values
+            mock_get_sliced_data.side_effect = (
+                lambda y, level, years, months, window, anom: xr.DataArray(
+                    np.random.rand(10, 10),
+                    dims=["time", "lat"],
+                    coords={
+                        "time": pd.date_range("2000-01-01", periods=10, freq="Y"),
+                        "lat": np.arange(10),
+                    },
+                )
+            )
+            mock_clean_warm_data.side_effect = lambda x: x
+            mock_relabel_axis.side_effect = lambda x: [
+                "relabeled_sim1",
+                "relabeled_sim2",
+                "relabeled_sim3",
+            ]
+
+            # Call the method
+            result = wl.find_warming_slice(level="1.5", gwl_times=mock_gwl_times)
+
+            # Assertions
+            assert isinstance(result, xr.DataArray)
+            assert "warming_level" in result.coords
+            assert result.coords["warming_level"].values[0] == "1.5"
+            assert mock_get_sliced_data.call_count == 3  # Called for each simulation
+            assert mock_clean_warm_data.called
+            assert mock_relabel_axis.called
+
+    @staticmethod
+    def test_calculate_with_mocked_dependencies():
+        """
+        Test the `calculate` method of the `WarmingLevels` class to ensure it processes
+        data correctly and updates `sliced_data` and `gwl_snapshots` attributes.
+        """
+
+        # Mock WarmingLevels object
+        wl = WarmingLevels()
+
+        # Mock wl_params
+        wl.wl_params.retrieve = lambda: xr.DataArray(
+            np.random.rand(3, 3, 10),
+            dims=["simulation", "scenario", "time"],
+            coords={
+                "simulation": ["sim1", "sim2", "sim3"],
+                "scenario": ["ssp1", "ssp2", "ssp3"],
+                "time": pd.date_range("2000-01-01", periods=10, freq="YE"),
+            },
+        )
+        wl.wl_params.warming_levels = ["0.8", "1.5"]
+        wl.wl_params.load_data = False
+        wl.wl_params.anom = "No"
+
+        # Mock gwl_times
+        mock_gwl_times = pd.DataFrame(
+            {
+                "0.8": ["2005-01-01", "2006-01-01", "2007-01-01"],
+                "1.5": ["2010-01-01", "2011-01-01", "2012-01-01"],
+            },
+            index=[
+                ("sim1", "ens1", "ssp1"),
+                ("sim2", "ens2", "ssp2"),
+                ("sim3", "ens3", "ssp3"),
+            ],
+        )
+
+        # Mock helper functions
+        with patch(
+            "climakitae.explore.warming._drop_invalid_sims"
+        ) as mock_drop_invalid_sims, patch(
+            "climakitae.explore.warming.read_csv_file"
+        ) as mock_read_csv_file, patch(
+            "climakitae.explore.warming.clean_list"
+        ) as mock_clean_list, patch(
+            "climakitae.explore.warming.WarmingLevels.find_warming_slice"
+        ) as mock_find_warming_slice, patch(
+            "climakitae.explore.warming.xr.concat"
+        ) as mock_xr_concat:
+
+            # Mock return values
+            mock_drop_invalid_sims.side_effect = lambda x, y: x
+            mock_read_csv_file.return_value = mock_gwl_times
+            mock_clean_list.side_effect = lambda x, y: x
+            mock_find_warming_slice.side_effect = lambda level, gwl_times: xr.DataArray(
+                np.random.rand(10, 10),
+                dims=["time", "lat"],
+                coords={
+                    "time": pd.date_range("2000-01-01", periods=10, freq="YE"),
+                    "lat": np.arange(10),
+                },
+                attrs={
+                    "frequency": "daily",
+                },
+            )
+            mock_xr_concat.side_effect = lambda values, dim: xr.DataArray(
+                np.random.rand(len(values), 10, 10),
+                dims=["warming_level", "time", "lat"],
+                coords={
+                    "warming_level": ["0.8", "1.5"],
+                    "time": pd.date_range("2000-01-01", periods=10, freq="YE"),
+                    "lat": np.arange(10),
+                },
+            )
+
+            # Call the method
+            wl.calculate()
+
+            # Assertions
+            assert isinstance(wl.sliced_data, dict)
+            assert isinstance(wl.gwl_snapshots, xr.DataArray)
+            assert len(wl.sliced_data) == 2  # Two warming levels
+            assert "0.8" in wl.sliced_data
+            assert "1.5" in wl.sliced_data
+            assert mock_drop_invalid_sims.called
+            assert mock_read_csv_file.called
+            assert mock_clean_list.called
+            assert (
+                mock_find_warming_slice.call_count == 2
+            )  # Called for each warming level
+            assert mock_xr_concat.called
