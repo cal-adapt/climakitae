@@ -901,8 +901,8 @@ class TestGWLGenerator:
                 [
                     ("r1", "ssp370"),
                     ("r1", "ssp585"),
-                    ("r2", "ssp370"),
-                    ("r2", "ssp585"),
+                    ("r3", "ssp370"),
+                    ("r3", "ssp585"),
                 ],
                 names=[None, "scenario"],
             )
@@ -912,7 +912,7 @@ class TestGWLGenerator:
                 gwlevels_agg.columns, pd.Index(expected_gwl_cols, dtype=float)
             )
             assert gwlevels_agg.loc[("r1", "ssp370"), 1.5] == pd.Timestamp("2030-01-01")
-            assert gwlevels_agg.loc[("r2", "ssp585"), 2.0] == pd.Timestamp("2042-01-01")
+            assert gwlevels_agg.loc[("r3", "ssp585"), 2.0] == pd.Timestamp("2042-01-01")
             # Check aggregated timeseries DataFrame
             assert isinstance(timeseries_agg, pd.DataFrame)
             # Check that column prefixes are properly added
