@@ -34,6 +34,7 @@ def T2_ams(rootdir: str) -> xr.DataArray:
 
 
 # Test Return Values
+@pytest.mark.advanced
 def test_return_value(T2_ams: xr.DataArray):
     rvs = threshold_tools.get_return_value(
         T2_ams, return_period=10, distr="gev", bootstrap_runs=1, multiple_points=False
@@ -42,6 +43,7 @@ def test_return_value(T2_ams: xr.DataArray):
 
 
 # Test invalid distribution argument for Return Values
+@pytest.mark.advanced
 def test_return_value_invalid_distr(T2_ams: xr.DataArray):
     with pytest.raises(ValueError, match="invalid distribution type"):
         rvs = threshold_tools.get_return_value(
@@ -54,6 +56,7 @@ def test_return_value_invalid_distr(T2_ams: xr.DataArray):
 
 
 # Test Return Periods
+@pytest.mark.advanced
 def test_return_period(T2_ams: xr.DataArray):
     rvs = threshold_tools.get_return_period(
         T2_ams,
@@ -66,6 +69,7 @@ def test_return_period(T2_ams: xr.DataArray):
 
 
 # Test invalid distribution argument for Return Periods
+@pytest.mark.advanced
 def test_return_period_invalid_distr(T2_ams: xr.DataArray):
     with pytest.raises(ValueError, match="invalid distribution type"):
         rvs = threshold_tools.get_return_period(
@@ -78,6 +82,7 @@ def test_return_period_invalid_distr(T2_ams: xr.DataArray):
 
 
 # Test return values for different block sizes
+@pytest.mark.advanced
 def test_return_values_block_size(T2_ams: xr.DataArray):
     rvs1 = threshold_tools.get_return_value(
         T2_ams, return_period=10, distr="gev", bootstrap_runs=1, multiple_points=False
@@ -92,6 +97,7 @@ def test_return_values_block_size(T2_ams: xr.DataArray):
 
 
 # Test return periods for different block sizes
+@pytest.mark.advanced
 def test_return_periods_block_size(T2_ams: xr.DataArray):
     rps1 = threshold_tools.get_return_period(
         T2_ams, return_value=290, distr="gev", bootstrap_runs=1, multiple_points=False
@@ -106,6 +112,7 @@ def test_return_periods_block_size(T2_ams: xr.DataArray):
 
 
 # Test return probabilities for different block sizes
+@pytest.mark.advanced
 def test_return_probs_block_size(T2_ams: xr.DataArray):
     rps1 = threshold_tools.get_return_prob(
         T2_ams, threshold=290, distr="gev", bootstrap_runs=1, multiple_points=False
@@ -124,6 +131,7 @@ def test_return_probs_block_size(T2_ams: xr.DataArray):
 
 # Test that the AMS (block maxima) for a 3-day grouped event are lower than
 # the simple AMS (single hottest value in each year)
+@pytest.mark.advanced
 def test_ams_ex1(T2_hourly: xr.DataArray):
     T2_hourly = T2_hourly.isel(scenario=0, simulation=0)
     ams = threshold_tools.get_block_maxima(T2_hourly, check_ess=False)
@@ -135,6 +143,7 @@ def test_ams_ex1(T2_hourly: xr.DataArray):
 
 # Test that the AMS (block maxima) for a 3-day continous event are lower than
 # the AMS for a grouped 3-day event
+@pytest.mark.advanced
 def test_ams_ex2(T2_hourly: xr.DataArray):
     T2_hourly = T2_hourly.isel(scenario=0, simulation=0)
     ams_3d = threshold_tools.get_block_maxima(
@@ -148,6 +157,7 @@ def test_ams_ex2(T2_hourly: xr.DataArray):
 
 # Test that the AMS (block maxima) for a 4-hour per day for 3 days are lower
 # than the AMS for a grouped 3-day event
+@pytest.mark.advanced
 def test_ams_ex3(T2_hourly: xr.DataArray):
     T2_hourly = T2_hourly.isel(scenario=0, simulation=0)
     ams_3d = threshold_tools.get_block_maxima(

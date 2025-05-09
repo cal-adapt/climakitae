@@ -31,6 +31,7 @@ def test_error2(T2_hourly: xr.DataArray):
 
 
 # example 1: count number of hours in each year exceeding the threshold
+@pytest.mark.advanced
 def test_hourly_ex1(T2_hourly: xr.DataArray):
     exc_counts = threshold_tools.get_exceedance_count(
         T2_hourly, threshold_value=305, period=(1, "year")
@@ -42,6 +43,7 @@ def test_hourly_ex1(T2_hourly: xr.DataArray):
 
 
 # exmample 2: count number of days in each year that have at least one hour exceeding the threshold
+@pytest.mark.advanced
 def test_hourly_ex2(T2_hourly: xr.DataArray):
     exc_counts = threshold_tools.get_exceedance_count(
         T2_hourly, threshold_value=305, period=(1, "year"), groupby=(1, "day")
@@ -53,6 +55,7 @@ def test_hourly_ex2(T2_hourly: xr.DataArray):
 
 
 # exmample 3: count number of 3-day events in each year that continously exceed the threshold
+@pytest.mark.advanced
 def test_hourly_ex3(T2_hourly: xr.DataArray):
     exc_counts = threshold_tools.get_exceedance_count(
         T2_hourly, threshold_value=305, period=(1, "year"), duration1=(72, "hour")
@@ -64,6 +67,7 @@ def test_hourly_ex3(T2_hourly: xr.DataArray):
 
 
 # exmample 4: count number of 3-day events in each year that exceed the threshold once each day
+@pytest.mark.advanced
 def test_hourly_ex4(T2_hourly: xr.DataArray):
     exc_counts = threshold_tools.get_exceedance_count(
         T2_hourly,
@@ -79,6 +83,7 @@ def test_hourly_ex4(T2_hourly: xr.DataArray):
 
 
 # test current behavior of `duration` options: a six events in a row is counted as 4 3-hour events
+@pytest.mark.advanced
 def test_duration():
     da = xr.DataArray(
         [1, 1, 1, 1, 1, 1],

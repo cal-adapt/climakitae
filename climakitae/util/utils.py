@@ -3,11 +3,14 @@ import datetime
 import os
 from typing import Iterable, Union
 
+import geopandas as gpd
 import intake_esm
 import numpy as np
 import pandas as pd
 import pyproj
 import rioxarray as rio
+from shapely.geometry import mapping
+from typing import Any
 import xarray as xr
 from timezonefinder import TimezoneFinder
 
@@ -1183,3 +1186,86 @@ def stack_sims_across_locs(ds):
         for sim_name in ds["simulation"]
     ]
     return ds
+
+
+def clip_to_shapefile(
+    data: xr.Dataset | xr.DataArray,
+    shapefile_path: str,
+    feature: tuple[str, Any] = (),
+    name: str = "user-defined",
+    **kwargs,
+) -> xr.Dataset | xr.DataArray:
+    """Use a shapefile to select an area subset of AE data.
+
+    By default, this function will clip the data to the area covered by all features in
+    the shapefile. To clip to specific features, use the `feature` keyword.
+
+    Parameters
+    ----------
+    data : xr.Dataset | xr.DataArray
+        Data to be clipped.
+    shapefile_path: str
+        Filepath to shapefile. Shapefile must include valid CRS.
+    feature: tuple(str, str | int | float | list)
+        Tuple containing attribute name and value(s) for target feature(s) (optional).
+    name: str
+        Location name to record in data attributes if 'feature' parameter is not set (optional).
+    **kwargs
+        Additional arguments to pass to the rioxarray clip function
+
+    Returns
+    -------
+    clipped : xr.Dataset | xr.DataArray
+        Returns same type as 'data', but grid is clipped to shapefile feature(s).
+    """
+    if data.rio.crs is None:
+        raise RuntimeError(
+            "No CRS found on input parameter 'data'. Use rioxarray write_crs() method to set CRS."
+        )
+
+    region = gpd.read_file(shapefile_path)
+
+    if region.crs is None:
+        raise RuntimeError(
+            "No CRS found on data read from shapefile. Verify that shapefile contains valid CRS information."
+        )
+
+    # Select only user provided feature
+    if feature:
+        try:
+            print("Selecting feature", feature)
+            if isinstance(feature[1], list):
+                region = region[region[feature[0]].isin(feature[1])]
+            else:
+                region = region[region[feature[0]] == feature[1]]
+            if len(region) == 0:  # No features found
+                raise ValueError("None of the requested features were found.")
+        except ValueError as err:
+            raise err
+        except Exception as err:
+            raise RuntimeError(
+                "Could not select one or more feature(s) {0} in {1} ".format(
+                    feature, shapefile_path
+                )
+            ) from err
+
+    try:
+        clipped = data.rio.clip(
+            region.geometry.apply(mapping), region.crs, drop=True, **kwargs
+        )
+    except rio.exceptions.NoDataInBounds as err:
+        msg = "Can't clip feature. Your grid resolution may be too low for your shapefile feature, or your shapefile's CRS may be incorrectly set."
+        raise RuntimeError(msg) from err
+    except Exception as err:
+        raise err
+
+    if feature:
+        if isinstance(feature[1], list):
+            location = [str(item) for item in feature[1]]
+        else:
+            location = [str(feature[1])]
+    else:
+        location = [name]
+    clipped.attrs["location_subset"] = location
+
+    return clipped
