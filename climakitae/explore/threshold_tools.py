@@ -304,7 +304,7 @@ def _get_distr_func(distr: str) -> scipy.stats:
 
 def _get_fitted_distr(
     bms: xr.DataArray, distr: str, distr_func: scipy.stats
-) -> dict[str, float] | scipy.rv_frozen:
+) -> dict[str, float] | scipy.stats._distn_infrastructure.rv_continuous_frozen:
     """Function for fitting data to distribution function
 
     Takes data array and fits it to distribution function.
@@ -320,7 +320,7 @@ def _get_fitted_distr(
     -------
     parameters: dict
         dictionary of distribution function parameters
-    fitted_distr: scipy.rv_frozen
+    fitted_distr: scipy.stats._distn_infrastructure.rv_continuous_frozen
         frozen fitted distribution
     """
 
@@ -453,7 +453,7 @@ def get_ks_stat(
 
 
 def _calculate_return(
-    fitted_distr: scipy.rv_frozen,
+    fitted_distr: scipy.stats._distn_infrastructure.rv_continuous_frozen,
     data_variable: str,
     arg_value: float,
     block_size: int = 1,
@@ -465,7 +465,7 @@ def _calculate_return(
 
     Parameters
     ----------
-    fitted_distr: scipy.rv_frozen
+    fitted_distr: scipy.stats._distn_infrastructure.rv_continuous_frozen
         frozen fitted distribution
     data_variable: str
         can be return_value, return_prob, return_period
