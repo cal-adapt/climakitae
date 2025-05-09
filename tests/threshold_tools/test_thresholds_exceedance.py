@@ -4,21 +4,12 @@ import xarray as xr
 
 from climakitae.explore import threshold_tools
 
-# ------------- Data for testing -----------------------------------------------
-
-
-@pytest.fixture
-def T2_monthly(test_data):
-    """Monthly RAINC data for one scenario and one simulation
-    (pulled from the general test data set)"""
-    return test_data["RAINC"].isel(scenario=0, simulation=0)
-
 
 # ------------- Test kwarg compatibility and Exceptions ------------------------
 
 
 # incompatible: cannot specify a 1-day groupy for monthly data
-def test_error1(test_data_2022_monthly_45km):
+def test_error1(test_data_2022_monthly_45km: xr.Dataset):
     with pytest.raises(ValueError, match="Incompatible `group` specification"):
         threshold_tools.get_exceedance_count(
             test_data_2022_monthly_45km, threshold_value=305, groupby=(1, "day")
@@ -27,7 +18,7 @@ def test_error1(test_data_2022_monthly_45km):
 
 # incompatible: cannot specify a 3-day duration if grouped by month
 # But for now, `duration` not yet implemented
-def test_error2(T2_hourly):
+def test_error2(T2_hourly: xr.DataArray):
     with pytest.raises(
         ValueError, match="Incompatible `group` and `duration2` specification"
     ):
@@ -40,7 +31,7 @@ def test_error2(T2_hourly):
 
 
 # example 1: count number of hours in each year exceeding the threshold
-def test_hourly_ex1(T2_hourly):
+def test_hourly_ex1(T2_hourly: xr.DataArray):
     exc_counts = threshold_tools.get_exceedance_count(
         T2_hourly, threshold_value=305, period=(1, "year")
     )
@@ -51,7 +42,7 @@ def test_hourly_ex1(T2_hourly):
 
 
 # exmample 2: count number of days in each year that have at least one hour exceeding the threshold
-def test_hourly_ex2(T2_hourly):
+def test_hourly_ex2(T2_hourly: xr.DataArray):
     exc_counts = threshold_tools.get_exceedance_count(
         T2_hourly, threshold_value=305, period=(1, "year"), groupby=(1, "day")
     )
@@ -62,7 +53,7 @@ def test_hourly_ex2(T2_hourly):
 
 
 # exmample 3: count number of 3-day events in each year that continously exceed the threshold
-def test_hourly_ex3(T2_hourly):
+def test_hourly_ex3(T2_hourly: xr.DataArray):
     exc_counts = threshold_tools.get_exceedance_count(
         T2_hourly, threshold_value=305, period=(1, "year"), duration1=(72, "hour")
     )
@@ -73,7 +64,7 @@ def test_hourly_ex3(T2_hourly):
 
 
 # exmample 4: count number of 3-day events in each year that exceed the threshold once each day
-def test_hourly_ex4(T2_hourly):
+def test_hourly_ex4(T2_hourly: xr.DataArray):
     exc_counts = threshold_tools.get_exceedance_count(
         T2_hourly,
         threshold_value=305,
