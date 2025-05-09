@@ -1,3 +1,8 @@
+"""
+Add test coverage for code that is not already tested in 
+test_thresholds_returns.py or test_threshold_exceedence.py.
+"""
+
 import os
 
 import numpy as np
@@ -20,7 +25,7 @@ from climakitae.explore.threshold_tools import (
 class TestThresholdTools:
 
     def test_calculate_ess(self):
-        # Not validating the result, just checking this runs
+        # Not validating the result values, just checking this runs
         test = xr.DataArray(data=np.arange(0, 100, 1))
         result = threshold_tools.calculate_ess(test)
         assert isinstance(result, xr.DataArray)
@@ -33,6 +38,7 @@ class TestThresholdTools:
         assert result.name == "ess"
 
     def test__calc_average_ess_gridded_data(self):
+        # Not validating the result values, just checking this runs
         test_data = test_data = np.random.rand(10, 10, 365 * 3) * 100
         test = xr.DataArray(
             data=test_data,
@@ -47,6 +53,7 @@ class TestThresholdTools:
         assert isinstance(result, float)
 
     def test__calc_average_ess_timeseries_data(self):
+        # Not validating the result values, just checking this runs
         test_data = test_data = np.random.rand(365 * 3) * 100
         test = xr.DataArray(
             data=test_data,
@@ -119,7 +126,7 @@ class TestThresholdTools:
 
     def test__get_exceedance_events(self):
         test_data = test_data = np.random.rand(10, 10, 365 * 3) * 100
-        test_data[0, 0, 0] = 1  # making sure something is <10
+        test_data[0, 0, 0] = 1  # make sure at least one instance is <10
         test = xr.DataArray(
             data=test_data,
             coords={
@@ -141,7 +148,8 @@ class TestThresholdTools:
 @pytest.mark.advanced
 class TestKsStat:
     def test_ks_stat(self):
-        # Not verifying results, just checking that it runs
+        # Not validating the result values, just checking this runs
+        # for multiple distribution options.
         test_data = test_data = np.random.rand(10, 10, 365 * 3) * 100
         test = xr.DataArray(
             data=test_data,
