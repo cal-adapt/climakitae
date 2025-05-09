@@ -11,14 +11,31 @@ from climakitae.new_core.data_access import DataCatalog
 _PROCESSOR_REGISTRY = {}
 
 
-def register_processor(key=None):
-    """Decorator to register a processor class."""
+def register_processor(key: str = UNSET) -> callable:
+    """
+    Decorator to register a processor class.
+
+    Parameters
+    ----------
+    key : str, optional
+        The key to register the processor under. If not provided, a key
+        will be generated from the class name.
+
+    Returns
+    -------
+    callable
+        The decorator function that registers the processor class.
+    """
 
     def decorator(cls):
         # If no key is provided, generate one from the class name
-        processor_key = key or "".join(
-            ["_" + c.lower() if c.isupper() else c for c in cls.__name__]
-        ).lstrip("_")
+        processor_key = (
+            key
+            if key is not UNSET
+            else "".join(
+                ["_" + c.lower() if c.isupper() else c for c in cls.__name__]
+            ).lstrip("_")
+        )
         _PROCESSOR_REGISTRY[processor_key] = cls
         return cls
 
