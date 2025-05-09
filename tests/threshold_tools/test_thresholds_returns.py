@@ -184,9 +184,8 @@ def test_ams_ex4(T2_hourly):
     assert (ams_3d <= ams_3d_4h).all()
 
 
-# Test that the AMS (block maxima) for a 3-day grouped event are lower than
-# the simple AMS (single hottest value in each year)
-def test_block_maxima_error(T2_hourly):
+# Test the configurations that should raise ValueError
+def test_block_maxima_value_error(T2_hourly):
     T2_hourly = T2_hourly.isel(scenario=0, simulation=0)
     with pytest.raises(ValueError):
         ams = threshold_tools.get_block_maxima(
@@ -196,4 +195,14 @@ def test_block_maxima_error(T2_hourly):
     with pytest.raises(ValueError):
         ams = threshold_tools.get_block_maxima(
             T2_hourly, duration=(4, "day"), check_ess=False
+        )
+
+    with pytest.raises(ValueError):
+        ams = threshold_tools.get_block_maxima(
+            T2_hourly, groupby=(4, "hr"), check_ess=False
+        )
+
+    with pytest.raises(ValueError):
+        ams = threshold_tools.get_block_maxima(
+            T2_hourly, grouped_duration=(3, "day"), check_ess=False
         )
