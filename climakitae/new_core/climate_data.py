@@ -67,44 +67,7 @@ class ClimateData:
 
     Methods
     -------
-    variable(value: str)
-        Set the climate variable.
-    resolution(value: str)
-        Set the resolution (e.g., "3 km", "9 km", "45 km").
-    timescale(value: str)
-        Set the timescale (e.g., "hourly", "daily", "monthly").
-    downscaling_method(value: str)
-        Set the downscaling method.
-    data_type(value: str)
-        Set the data type (e.g., "Gridded", "Stations").
-    approach(value: str)
-        Set the approach (e.g., "Time", "Warming Level").
-    scenario(value: Union[str, List[str]])
-        Set the scenario(s).
-    units(value: str)
-        Set the units for the variable.
-    warming_level(value: Union[float, List[float]])
-        Set the warming level(s).
-    area_subset(value: str)
-        Set the area subset category.
-    latitude(value: Tuple[float, float])
-        Set the latitude bounds.
-    longitude(value: Tuple[float, float])
-        Set the longitude bounds.
-    cached_area(value: Union[str, List[str]])
-        Set the cached area.
-    area_average(value: str)
-        Set whether to average over spatial domain.
-    time_slice(value: Tuple[int, int])
-        Set the time range.
-    stations(value: Union[str, List[str]])
-        Set the station(s) to retrieve data for.
-    warming_level_window(value: int)
-        Set the warming level window.
-    warming_level_months(value: Union[int, List[int]])
-        Set the warming level months.
-    get()
-        Retrieve climate data based on the configured parameters.
+
 
     Returns
     -------
@@ -117,33 +80,6 @@ class ClimateData:
         If any required parameters are missing or invalid.
     Exception
         If there is an error during data retrieval or processing.
-
-
-    Example
-    -------
-    >>> climate_data = ClimateData()
-    >>> data = (
-    ...     climate_data
-    ...     .variable("Air Temperature at 2m")
-    ...     .resolution("3 km")
-    ...     .timescale("hourly")
-    ...     .downscaling_method("Dynamical")
-    ...     .data_type("Gridded")
-    ...     .approach("Time")
-    ...     .scenario("SSP 2-4.5")
-    ...     .units("Celsius")
-    ...     .warming_level(1.0)
-    ...     .area_subset("region")
-    ...     .latitude((30.0, 50.0))
-    ...     .longitude((-120.0, -80.0))
-    ...     .cached_area("entire domain")
-    ...     .area_average("yes")
-    ...     .time_slice((2020, 2050))
-    ...     .stations(["station1", "station2"])
-    ...     .warming_level_window(10)
-    ...     .warming_level_months([1, 2, 3])
-    ...     .get()
-    ... )
     """
 
     def __init__(self):
@@ -158,6 +94,7 @@ class ClimateData:
     def _reset_query(self):
         """Reset the query parameters to defaults."""
         self._query = {
+            "catalog": UNSET,  # catalog name, e.g. "renewables"
             "installation": UNSET,  # renewables only
             "activity_id": UNSET,  # downscaling method
             "institution_id": UNSET,  # renewables only
@@ -165,140 +102,161 @@ class ClimateData:
             "experiment_id": UNSET,  # renewables only
             "table_id": UNSET,  # timescale, e.g., "hourly", "daily", "monthly"
             "grid_label": UNSET,  # resolution, e.g., "3 km", "9 km", "45 km"
-            "variable": UNSET,
-            "data_type": UNSET,
-            "approach": UNSET,
-            "scenario": UNSET,
-            "units": UNSET,
-            "warming_level": UNSET,
-            "area_subset": UNSET,
-            "latitude": UNSET,
-            "longitude": UNSET,
-            "cached_area": UNSET,
-            "area_average": UNSET,
-            "time_slice": UNSET,
-            "stations": UNSET,
-            "warming_level_window": UNSET,
-            "warming_level_months": UNSET,
+            "processes": UNSET,  # dictionary of processes to apply
         }
         return self
 
-    # Parameter setter methods (chainable)
-    def variable(self, value: str):
-        """Set the climate variable."""
-        self._query["variable"] = value
+    def catalog(self, catalog: str) -> "ClimateData":
+        """
+        Set the catalog for the data source.
+
+        Parameters
+        ----------
+        catalog : str
+            The name of the catalog to use.
+
+        Returns
+        -------
+        ClimateData
+            The current instance of ClimateData allowing method chaining.
+        """
+        self._query["catalog"] = catalog
         return self
 
-    def resolution(self, value: str):
-        """Set the resolution (e.g., "3 km", "9 km", "45 km")."""
-        self._query["resolution"] = value
+    def installation(self, installation: str) -> "ClimateData":
+        """
+        Set the installation for the data source.
+
+        Parameters
+        ----------
+        installation : str
+            The name of the installation to use.
+
+        Returns
+        -------
+        ClimateData
+            The current instance of ClimateData allowing method chaining.
+        """
+        self._query["installation"] = installation
         return self
 
-    def timescale(self, value: str):
-        """Set the timescale (e.g., "hourly", "daily", "monthly")."""
-        self._query["timescale"] = value
+    def activity_id(self, activity_id: str) -> "ClimateData":
+        """
+        Set the activity ID for the data source.
+
+        Parameters
+        ----------
+        activity_id : str
+            The activity ID to use.
+
+        Returns
+        -------
+        ClimateData
+            The current instance of ClimateData allowing method chaining.
+        """
+        self._query["activity_id"] = activity_id
         return self
 
-    def downscaling_method(self, value: str = "Dynamical"):
-        """Set the downscaling method."""
-        self._query["downscaling_method"] = value
+    def institution_id(self, institution_id: str) -> "ClimateData":
+        """
+        Set the institution ID for the data source.
+
+        Parameters
+        ----------
+        institution_id : str
+            The institution ID to use.
+
+        Returns
+        -------
+        ClimateData
+            The current instance of ClimateData allowing method chaining.
+        """
+        self._query["institution_id"] = institution_id
         return self
 
-    def data_type(self, value: str = "Gridded"):
-        """Set the data type (e.g., "Gridded", "Stations")."""
-        self._query["data_type"] = value
+    def source_id(self, source_id: str) -> "ClimateData":
+        """
+        Set the source ID for the data source.
+
+        Parameters
+        ----------
+        source_id : str
+            The source ID to use.
+
+        Returns
+        -------
+        ClimateData
+            The current instance of ClimateData allowing method chaining.
+        """
+        self._query["source_id"] = source_id
         return self
 
-    def approach(self, value: str = "Time"):
-        """Set the approach (e.g., "Time", "Warming Level")."""
-        self._query["approach"] = value
+    def experiment_id(self, experiment_id: str) -> "ClimateData":
+        """
+        Set the experiment ID for the data source.
+
+        Parameters
+        ----------
+        experiment_id : str
+            The experiment ID to use.
+
+        Returns
+        -------
+        ClimateData
+            The current instance of ClimateData allowing method chaining.
+        """
+        self._query["experiment_id"] = experiment_id
         return self
 
-    def scenario(self, value: Union[str, List[str]]):
-        """Set the scenario(s)."""
-        self._query["scenario"] = value if isinstance(value, list) else [value]
+    def table_id(self, table_id: str) -> "ClimateData":
+        """
+        Set the table ID for the data source.
+
+        Parameters
+        ----------
+        table_id : str
+            The table ID to use.
+
+        Returns
+        -------
+        ClimateData
+            The current instance of ClimateData allowing method chaining.
+        """
+        self._query["table_id"] = table_id
         return self
 
-    def units(self, value: str):
-        """Set the units for the variable."""
-        self._query["units"] = value
+    def grid_label(self, grid_label: str) -> "ClimateData":
+        """
+        Set the grid label for the data source.
+
+        Parameters
+        ----------
+        grid_label : str
+            The grid label to use.
+
+        Returns
+        -------
+        ClimateData
+            The current instance of ClimateData allowing method chaining.
+        """
+        self._query["grid_label"] = grid_label
         return self
 
-    def warming_level(self, value: Union[float, List[float]]):
-        """Set the warming level(s)."""
-        self._query["warming_level"] = value if isinstance(value, list) else [value]
-        return self
+    def processes(self, processes: dict[str, str]) -> "ClimateData":
+        """
+        Set the processes to apply to the data.
 
-    def area_subset(self, value: str = "none"):
-        """Set the area subset category."""
-        self._query["area_subset"] = value
-        return self
+        Parameters
+        ----------
+        processes : dict
+            A dictionary of processes to apply.
 
-    def latitude(self, value: Tuple[float, float]):
-        """Set the latitude bounds."""
-        self._query["latitude"] = value
-        return self
-
-    def longitude(self, value: Tuple[float, float]):
-        """Set the longitude bounds."""
-        self._query["longitude"] = value
-        return self
-
-    def cached_area(self, value: Union[str, List[str]]):
-        """Set the cached area."""
-        self._query["cached_area"] = value if isinstance(value, list) else [value]
-        return self
-
-    def area_average(self, value: str):
-        """Set whether to average over spatial domain."""
-        self._query["area_average"] = value
-        return self
-
-    def time_slice(self, value: Tuple[int, int]):
-        """Set the time range."""
-        self._query["time_slice"] = value
-        return self
-
-    def stations(self, value: Union[str, List[str]]):
-        """Set the station(s) to retrieve data for."""
-        self._query["stations"] = value if isinstance(value, list) else [value]
-        return self
-
-    def warming_level_window(self, value: int):
-        """Set the warming level window."""
-        self._query["warming_level_window"] = value
-        return self
-
-    def warming_level_months(self, value: Union[int, List[int]]):
-        """Set the warming level months."""
-        self._query["warming_level_months"] = (
-            value if isinstance(value, list) else [value]
-        )
-        return self
-
-    def installation(self, value: str):
-        """Set the installation."""
-        self._query["installation"] = value
-        return self
-
-    def activity_id(self, value: str):
-        """Set the activity ID for renewables."""
-        self._query["activity_id"] = value
-        return self
-
-    def institution_id(self, value: str):
-        """Set the institution ID for renewables."""
-        self._query["institution_id"] = value
-        return self
-
-    def source_id(self, value: str):
-        """Set the source ID for renewables."""
-        self._query["source_id"] = value
-        return self
-
-    def experiment_id(self, value: str):
-        """Set the experiment ID for renewables."""
-        self._query["experiment_id"] = value
+        Returns
+        -------
+        ClimateData
+            The current instance of ClimateData allowing method chaining.
+        """
+        self._query["processes"] = processes
         return self
 
     def get(self):
@@ -337,3 +295,86 @@ class ClimateData:
                 print(f"ERROR: {param} is a required parameter")
                 return False
         return True
+
+    def show_query(self):
+        """Print the current query parameters."""
+        print("Current query parameters:")
+        for key, value in self._query.items():
+            print(f"{key}: {value if value is not UNSET else 'UNSET'}")
+
+    def show_catalog_options(self):
+        """Print the available catalogs."""
+        print("Available catalog keys:")
+        for x in self._factory.get_catalog_options("catalog"):
+            print(f"{x}")
+
+    def show_installation_options(self):
+        """Print the available installations."""
+        print("Available installation keys:")
+        for x in self._factory.get_catalog_options("installation"):
+            print(f"{x}")
+
+    def show_activity_id_options(self):
+        """Print the available activity IDs."""
+        print("Available activity IDs:")
+        for x in self._factory.get_catalog_options("activity_id"):
+            print(f"{x}")
+
+    def show_institution_id_options(self):
+        """Print the available institution IDs."""
+        print("Available institution IDs:")
+        for x in self._factory.get_catalog_options("institution_id"):
+            print(f"{x}")
+
+    def show_source_id_options(self):
+        """Print the available source IDs."""
+        print("Available source IDs:")
+        for x in self._factory.get_catalog_options("source_id"):
+            print(f"{x}")
+
+    def show_experiment_id_options(self):
+        """Print the available experiment IDs."""
+        print("Available experiment IDs:")
+        for x in self._factory.get_catalog_options("experiment_id"):
+            print(f"{x}")
+
+    def show_table_id_options(self):
+        """Print the available table IDs."""
+        print("Available table IDs:")
+        for x in self._factory.get_catalog_options("table_id"):
+            print(f"{x}")
+
+    def show_grid_label_options(self):
+        """Print the available grid labels."""
+        print("Available grid labels:")
+        for x in self._factory.get_catalog_options("grid_label"):
+            print(f"{x}")
+
+    # def show_variable_options(self):
+    #     """Print the available variables."""
+    #     print("WARNING: not all variables are available in all datasets")
+    #     print("Available variables:")
+
+    #     for x in self._factory.get_catalog_options("variable"):
+    #         print(f"{x}")
+
+    def show_validators(self):
+        """Print the available validators."""
+        print("Available validators:")
+        for key in self._factory.get_validators():
+            print(f"{key}")
+
+    def show_processors(self):
+        """Print the available processors."""
+        print("Available processors:")
+        for key in self._factory.get_processors():
+            print(f"{key}")
+
+    def show_all_options(self):
+        """Print all available options."""
+        # loop over methods starting with "show_" and call them
+        for m in self.__class__.__dict__:
+            # don't call this method
+            if m.startswith("show_") and m != "show_all_options":
+                getattr(self, m)()
+                print("=" * 40)

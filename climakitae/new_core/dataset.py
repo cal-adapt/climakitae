@@ -86,8 +86,27 @@ class Dataset:
             # Consider implementing proper error handling/logging here
             raise RuntimeError(f"Error in processing pipeline: {str(e)}") from e
 
-    def with_param_validator(self, parameter_validator: ParameterValidator):
-        """Set a new parameter validator."""
+    def with_param_validator(
+        self, parameter_validator: ParameterValidator
+    ) -> "Dataset":
+        """
+        Set a new parameter validator.
+
+        Parameters
+        ----------
+        parameter_validator : ParameterValidator
+            Parameter validator to set for the dataset.
+
+        Returns
+        -------
+        Dataset
+            The current instance of Dataset allowing method chaining.
+
+        Raises
+        ------
+        TypeError
+            If the parameter validator is not an instance of ParameterValidator.
+        """
         if not isinstance(parameter_validator, ParameterValidator):
             raise TypeError(
                 "Parameter validator must be an instance of ParameterValidator."
@@ -95,8 +114,29 @@ class Dataset:
         self.parameter_validator = parameter_validator
         return self
 
-    def with_catalog(self, catalog: DataCatalog):
-        """Set a new data catalog."""
+    def with_catalog(self, catalog: DataCatalog) -> "Dataset":
+        """
+        Set a new data catalog.
+
+        Parameters
+        ----------
+        catalog : DataCatalog
+            Data catalog to set for the dataset.
+
+        Returns
+        -------
+        Dataset
+            The current instance of Dataset allowing method chaining.
+
+        Raises
+        ------
+        TypeError
+            If the catalog is not an instance of DataCatalog.
+        AttributeError
+            If the catalog does not have a 'get_data' method.
+        TypeError
+            If the 'get_data' method is not callable.
+        """
         if not isinstance(catalog, DataCatalog):
             raise TypeError("Data catalog must be an instance of DataCatalog.")
         if not hasattr(catalog, "get_data"):
@@ -108,8 +148,15 @@ class Dataset:
         self.data_access = catalog
         return self
 
-    def with_processing_step(self, step):
-        """Add a new processing step to the pipeline."""
+    def with_processing_step(self, step) -> "Dataset":
+        """
+        Add a new processing step to the pipeline.
+
+        Parameters
+        ----------
+        step : DataProcessor
+            Processing step to add to the pipeline. Must have 'execute' and 'update_context' methods.
+        """
         if not hasattr(step, "execute") or not callable(getattr(step, "execute")):
             raise TypeError("Processing step must have an 'execute' method.")
         if not hasattr(step, "update_context") or not callable(

@@ -1,3 +1,5 @@
+import warnings
+
 import intake
 import intake_esm
 import pandas as pd
@@ -71,11 +73,16 @@ class DataCatalog(dict):
             If the catalog key is not found in the available catalogs.
         """
         if key not in self:
-            raise ValueError(f"Catalog '{key}' not found.")
+            warnings.warn(
+                f"Catalog key '{key}' not found. Available keys are: {list(self.keys())}",
+                UserWarning,
+            )
+            warnings.warn("Defaulting to 'data' catalog.", UserWarning)
+            key = "data"
         self.catalog_key = key
         return self
 
-    def set_catalog(self, name: str, catalog: str):
+    def set_catalog(self, name: str, catalog: str) -> "DataCatalog":
         """
         Set a named catalog.
 
@@ -85,8 +92,14 @@ class DataCatalog(dict):
             Name of the catalog to set.
         catalog : str
             URL or path to the catalog file.
+
+        Returns
+        -------
+        DataCatalog
+            The current instance of DataCatalog allowing method chaining.
         """
         self[name] = intake.open_esm_datastore(catalog)
+        return self
 
     def get_data(self, query: dict = UNSET) -> dict[str, xr.Dataset]:
         """
@@ -107,4 +120,3 @@ class DataCatalog(dict):
         print(f"Querying {self.catalog_key} catalog with query: {query}")
         return self[self.catalog_key].search(**query).to_dataset_dict()
 
-    # TODO : implement _get_user_friendly_catalog here???

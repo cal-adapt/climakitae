@@ -25,6 +25,7 @@ Dependencies:
 
 from __future__ import annotations
 
+import warnings
 from typing import Any, Dict, List, Optional, Type
 
 import pandas as pd
@@ -48,7 +49,7 @@ class DatasetFactory:
     def __init__(self):
         """Initialize the factory with registries for catalogs, validators and processing steps."""
         self._catalog = None
-        self.catalog_path = "climakitae/data/catalogs.csv"
+        self.catalog_path = "climakitae/data/catalogs.csv"  # ! Move to paths
         self._catalog_df = pd.read_csv(self.catalog_path)
         self._validator_registry = {}
         self._processing_step_registry = {}
@@ -161,11 +162,11 @@ class DatasetFactory:
         dataset = Dataset()
 
         # Create and configure parameter validator
-        catalog_key = self._get_catalog_key_
-        dataset.with_param_validator(validator)
+        catalog_key = self._get_catalog_key_from_query(ui_query)
+        dataset.with_param_validator(self.create_validator(catalog_key))
 
         # Configure the appropriate catalog based on query parameters
-        dataset.with_catalog(DataCatalog().set_catalog_key(catalog_key))
+        dataset.with_catalog(DataCatalog().set_catalog_key(catalog_key).set_catalog())
 
         # Add processing steps based on query parameters
         for step in self._get_list_of_processing_steps(ui_query):
@@ -211,13 +212,37 @@ class DatasetFactory:
         str
             Key for the catalog to use (e.g., "data", "renewables")
 
-        Raises
-        ------
-        ValueError
-            If no catalog matches the query parameters
         """
         # search catalog for matching datasets
-        valid_keys = []
+        catalog_key = None
+        if catalog_key := query["catalog"] is not UNSET:
+            return catalog_key
+
+        # otherwise, do a quick lookup in the dataframe
+        # to find the catalog key
+        valid_keys = [
+            query[key]
+            for key in self._catalog_df.columns
+            if key in query and query[key] != UNSET
+        ]
+        subset = self._catalog_df[
+            self._catalog_df.isin(valid_keys).any(axis=1)
+        ]  # filter rows with matching keys
+        match len(subset):
+            case 0:
+                warnings.warn(
+                    "No matching catalogs found initially.",
+                    UserWarning,
+                )
+            case 1:
+                return subset.iloc[0]["catalog"]
+            case _:
+                warnings.warn(
+                    "Multiple matching datasets found. Please refine your query.",
+                    UserWarning,
+                )
+
+        return None
 
     def _create_validator_for_query(
         self, query: Dict[str, Any]
@@ -263,6 +288,7 @@ class DatasetFactory:
         query : Dict[str, Any]
             Query dictionary from ClimateData UI
         """
+        pass
         # Add spatial subsetting if area_subset is specified
         # if (
         #     query.get("area_subset") == "region"
@@ -290,3 +316,43 @@ class DatasetFactory:
         # if query.get("area_average") == "yes":
         #     avg_step = self._create_spatial_average_step()
         #     dataset.with_processing_step(avg_step)
+
+    def get_catalog_options(self, key: str) -> List[str]:
+        """
+        Get available options for a specific catalog.
+
+        Parameters
+        ----------
+        key : str
+            Key of the catalog to query.
+
+        Returns
+        -------
+        List[str]
+            List of available options for the specified catalog.
+        """
+        if key not in self._catalog_df.columns:
+            raise ValueError(f"Catalog key '{key}' not found.")
+        return sorted(list(self._catalog_df[key].dropna().unique()))
+
+    def get_validators(self) -> List[str]:
+        """
+        Get a list of available validators.
+
+        Returns
+        -------
+        List[str]
+            List of available validators.
+        """
+        return sorted(list(self._validator_registry.keys()))
+
+    def get_processors(self) -> List[str]:
+        """
+        Get a list of available processors.
+
+        Returns
+        -------
+        List[str]
+            List of available processors.
+        """
+        return sorted(list(self._processing_step_registry.keys()))

@@ -67,6 +67,7 @@ class ParameterValidator(ABC):
         self.CATALOG_PATH = "climakitae/data/catalogs.csv"
         self.catalog = None
         self.load_catalog_df()
+        # TODO add variable descriptions for UI access
 
     @abstractmethod
     def is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any]:
