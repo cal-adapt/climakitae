@@ -207,3 +207,11 @@ def test_block_maxima_value_error(T2_hourly):
         ams = threshold_tools.get_block_maxima(
             T2_hourly, grouped_duration=(3, "day"), check_ess=False
         )
+
+    with pytest.raises(ValueError):
+        ams = threshold_tools.get_block_maxima(
+            T2_hourly,
+            duration=(4, "month"),
+            grouped_duration=(3, "day"),
+            check_ess=False,
+        )
