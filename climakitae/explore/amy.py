@@ -24,7 +24,7 @@ from tqdm.auto import tqdm  # Progress bar
 
 from climakitae.core.data_interface import DataParameters
 from climakitae.core.data_load import read_catalog_from_select
-from climakitae.util.utils import julianDay_to_str_date
+from climakitae.util.utils import julianDay_to_date
 
 xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
 
@@ -148,13 +148,10 @@ def _format_meteo_yr_df(df: pd.DataFrame) -> pd.DataFrame:
     df.columns.name = "Hour"
 
     # Convert Julian date index to Month-Day format
-    if len(df) == 366:
-        leap_year = True
-    else:
-        leap_year = False
+    # Use 2024 as year if we have 366 days (leap year), otherwise use 2023
+    year = 2024 if len(df) == 366 else 2023
     new_index = [
-        julianDay_to_str_date(julday, leap_year=leap_year, str_format="%b-%d")
-        for julday in df.index
+        julianDay_to_date(julday, year=year, str_format="%b-%d") for julday in df.index
     ]
     df.index = pd.Index(new_index, name="Day of Year")
     return df
