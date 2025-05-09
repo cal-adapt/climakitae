@@ -101,6 +101,7 @@ class TestLoad:
         assert isinstance(result.variable._data, np.ndarray)
 
 
+@pytest.mark.advanced
 class TestDataLoadHidden:
 
     def test__override_unit_defaults(self):
@@ -153,6 +154,7 @@ class TestDataLoadHidden:
         assert len(result.time) == 365 * 2
 
 
+@pytest.mark.advanced
 class TestAreaSubset:
 
     def test_area_subset_geometry_latlon(self, selections):
@@ -210,6 +212,7 @@ class TestAreaSubset:
         assert isinstance(result[0], shapely.geometry.polygon.Polygon)
 
 
+@pytest.mark.advanced
 class TestDataLoadDerived:
 
     @patch("climakitae.core.data_load._get_data_one_var", return_value=mock_data())
@@ -327,6 +330,7 @@ class TestDataLoadDerived:
         assert result.attrs["units"] == "degrees"
 
 
+@pytest.mark.advanced
 class TestReadCatalog:
     """This class is going to actually pull data from
     the catalog using various parameter choices.
