@@ -1,5 +1,5 @@
 """
-Add test coverage for code that is not already tested in 
+Add test coverage for code that is not already tested in
 test_thresholds_returns.py or test_threshold_exceedence.py.
 """
 
