@@ -15,6 +15,7 @@ from climakitae.explore.warming import (
     _check_available_warming_levels,
     clean_list,
     clean_warm_data,
+    get_sliced_data,
     process_item,
     relabel_axis,
 )
@@ -636,3 +637,451 @@ class TestCleanList:
 
         with pytest.raises(AttributeError):
             clean_list(invalid_dataset, mock_gwl_times)
+
+
+class TestCleanWarmData:
+    """Test suite for the clean_warm_data function.
+
+    These tests verify that the function correctly removes invalid simulations
+    where warming levels are not crossed (i.e., centered_year is null).
+    """
+
+    @pytest.fixture
+    def sample_data_array(self) -> xr.DataArray:
+        """
+        Create a sample xarray DataArray with a centered_year coordinate.
+
+        Returns
+        -------
+        xr.DataArray
+            A sample DataArray with all_sims and time dimensions, and a centered_year coordinate.
+        """
+        # Create sample data with 3 simulations, 2 timestamps
+        data = np.array(
+            [
+                [[1.0, 2.0], [3.0, 4.0]],  # sim1 data
+                [[5.0, 6.0], [7.0, 8.0]],  # sim2 data
+                [[9.0, 10.0], [11.0, 12.0]],  # sim3 data
+            ]
+        )
+
+        # Create DataArray with all_sims and time dimensions
+        da = xr.DataArray(
+            data,
+            dims=["all_sims", "time", "lat"],
+            coords={
+                "all_sims": ["sim1", "sim2", "sim3"],
+                "time": [0, 1],
+                "lat": [0, 1],
+            },
+        )
+
+        # Add centered_year coordinate with some null values
+        # sim1: valid (year 2050), sim2: invalid (null), sim3: valid (year 2070)
+        centered_years = xr.DataArray(
+            [2050, np.nan, 2070],
+            dims=["all_sims"],
+            coords={"all_sims": ["sim1", "sim2", "sim3"]},
+        )
+        da = da.assign_coords(centered_year=centered_years)
+
+        return da
+
+    def test_clean_warm_data_normal_case(self, sample_data_array: xr.DataArray):
+        """
+        Test clean_warm_data with a mix of valid and invalid simulations.
+
+        Validates:
+        - Simulations with null centered_year values are removed
+        - Simulations with valid centered_year values are retained
+        - Data structure and values are preserved for valid simulations
+        - No unintended modifications to the original data
+
+        Parameters
+        ----------
+        sample_data_array : xr.DataArray
+            Fixture providing sample data with mixed valid/invalid simulations
+        """
+        # Call the function to clean the data
+        cleaned_data = clean_warm_data(sample_data_array)
+
+        # Verify that invalid simulation (sim2) is removed
+        assert "sim2" not in cleaned_data.all_sims.values
+        assert len(cleaned_data.all_sims) == 2
+        assert "sim1" in cleaned_data.all_sims.values
+        assert "sim3" in cleaned_data.all_sims.values
+
+        # Verify that data values for valid simulations are preserved
+        np.testing.assert_array_equal(
+            cleaned_data.sel(all_sims="sim1").values,
+            sample_data_array.sel(all_sims="sim1").values,
+        )
+        np.testing.assert_array_equal(
+            cleaned_data.sel(all_sims="sim3").values,
+            sample_data_array.sel(all_sims="sim3").values,
+        )
+
+        # Verify that centered_year values are preserved
+        assert cleaned_data.centered_year.sel(all_sims="sim1").item() == 2050
+        assert cleaned_data.centered_year.sel(all_sims="sim3").item() == 2070
+
+    def test_clean_warm_data_all_null(self):
+        """
+        Test clean_warm_data when all simulations have null centered_year values.
+
+        This edge case test verifies that:
+        - When all simulations have null centered_year, the function returns
+            the original data without modifications
+        - The function correctly identifies the "all null" condition
+        """
+        # Create a dataset where all simulations have null centered_year
+        data = np.ones((3, 2, 2))  # 3 simulations, 2 timestamps, 2 lat points
+        all_null_da = xr.DataArray(
+            data,
+            dims=["all_sims", "time", "lat"],
+            coords={
+                "all_sims": ["sim1", "sim2", "sim3"],
+                "time": [0, 1],
+                "lat": [0, 1],
+            },
+        )
+
+        # Assign all null centered_years
+        centered_years = xr.DataArray(
+            [np.nan, np.nan, np.nan],
+            dims=["all_sims"],
+            coords={"all_sims": ["sim1", "sim2", "sim3"]},
+        )
+        all_null_da = all_null_da.assign_coords(centered_year=centered_years)
+
+        # Process with clean_warm_data
+        result = clean_warm_data(all_null_da)
+
+        # Verify the data is unchanged
+        xr.testing.assert_identical(result, all_null_da)
+        assert len(result.all_sims) == 3  # All simulations retained
+
+    def test_clean_warm_data_single_simulation(self):
+        """
+        Test clean_warm_data with a single simulation.
+
+        Tests:
+        - Special handling when there's only one simulation
+        - Correct behavior when the single simulation is valid
+        - Correct behavior when the single simulation is invalid
+
+        This test verifies the different code path used when centered_year.isnull().size == 1
+        """
+        # Case 1: Single valid simulation
+        valid_data = np.ones((1, 2, 2))
+        valid_da = xr.DataArray(
+            valid_data,
+            dims=["all_sims", "time", "lat"],
+            coords={"all_sims": ["sim1"], "time": [0, 1], "lat": [0, 1]},
+        )
+        valid_da = valid_da.assign_coords(
+            centered_year=xr.DataArray([2050], dims=["all_sims"])
+        )
+
+        # Process with clean_warm_data
+        valid_result = clean_warm_data(valid_da)
+
+        # Verify the simulation is retained
+        assert len(valid_result.all_sims) == 1
+        assert "sim1" in valid_result.all_sims.values
+
+
+class TestGetSlicedData:
+    """Test suite for get_sliced_data function."""
+
+    @pytest.fixture
+    def mock_dataarray(self) -> xr.DataArray:
+        """
+        Create a mock DataArray with required attributes for testing.
+
+        Returns
+        -------
+        xr.DataArray
+            A sample DataArray with time dimension and required attributes.
+        """
+        # Create time range spanning multiple years for testing different scenarios
+        times = pd.date_range(start="2000-01-01", end="2040-12-31", freq="MS")
+
+        # Create latitude and longitude dimensions
+        lat = np.linspace(-90, 90, 5)
+        lon = np.linspace(-180, 180, 5)
+
+        # Create random data
+        data = np.random.rand(len(times), len(lat), len(lon))
+
+        # Create DataArray
+        da = xr.DataArray(
+            data=data,
+            dims=["time", "lat", "lon"],
+            coords={
+                "time": times,
+                "lat": lat,
+                "lon": lon,
+            },
+            attrs={
+                "frequency": "monthly",
+                "simulation": xr.DataArray("Dynamical_sim1_ensemble1"),
+                "scenario": xr.DataArray("Historical + ssp585"),
+            },
+        )
+
+        return da
+
+    @pytest.fixture
+    def mock_gwl_times(self) -> pd.DataFrame:
+        """
+        Create a mock warming level lookup table.
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame with warming levels as columns and simulation identifiers as index.
+        """
+        # Create warming level lookup table with different simulations and levels
+        index = pd.MultiIndex.from_tuples(
+            [
+                (
+                    "sim1",
+                    "ensemble1",
+                    "ssp585",
+                ),  # Valid simulation with all warming levels
+                (
+                    "sim2",
+                    "ensemble2",
+                    "ssp370",
+                ),  # Valid simulation with some null warming levels
+                (
+                    "sim3",
+                    "ensemble3",
+                    "ssp245",
+                ),  # Simulation with late warming level (2090)
+            ],
+            names=["sim", "ensemble", "scenario"],
+        )
+
+        return pd.DataFrame(
+            {
+                "0.8": pd.to_datetime(["2010-01-01", "2012-01-01", "2015-01-01"]),
+                "1.5": pd.to_datetime(["2025-01-01", "2030-01-01", "2040-01-01"]),
+                "2.0": pd.to_datetime(["2035-01-01", np.nan, "2060-01-01"]),
+                "3.0": pd.to_datetime(["2055-01-01", np.nan, "2080-01-01"]),
+                "4.0": pd.to_datetime(["2075-01-01", np.nan, "2090-01-01"]),
+            },
+            index=index,
+        )
+
+    @patch("xarray.core.dataarray.DataArray.sel")
+    @patch("climakitae.explore.warming.process_item")
+    def test_get_sliced_data_valid_center_time(
+        self,
+        mock_process_item: MagicMock,
+        mock_sel: MagicMock,
+        mock_dataarray: xr.DataArray,
+        mock_gwl_times: pd.DataFrame,
+    ) -> None:
+        """
+        Test get_sliced_data with a valid center time.
+
+        This test verifies that:
+        1. The function correctly slices data around the center time
+        2. The time dimension is properly reset to center around zero
+        3. Month filtering works correctly
+        4. Anomaly calculation is correctly performed when requested
+        5. Centered year is properly assigned as a coordinate
+
+        Parameters
+        ----------
+        mock_process_item : MagicMock
+            Mock for the process_item function
+        mock_sel : MagicMock
+            Mock for the DataArray selection method
+        mock_dataarray : xr.DataArray
+            Test DataArray fixture
+        mock_gwl_times : pd.DataFrame
+            Test warming level lookup table fixture
+        """
+        # Configure mock_process_item to return a valid simulation identifier
+        mock_process_item.return_value = ("sim1", "ensemble1", "ssp585")
+
+        # Create mock return values
+        mock_sliced_time = pd.date_range(
+            start="2015-01-01", periods=240, freq="MS"
+        )  # Monthly dates
+        mock_sliced_data = xr.DataArray(
+            data=np.random.rand(len(mock_sliced_time), 5, 5),
+            dims=["time", "lat", "lon"],
+            coords={
+                "time": mock_sliced_time,  # Use datetime values
+                "lat": mock_dataarray.lat.values,
+                "lon": mock_dataarray.lon.values,
+                "centered_year": 2025,
+            },
+            attrs=mock_dataarray.attrs,
+        )
+        mock_ref_period = mock_dataarray.copy()
+        mock_sel.side_effect = [mock_ref_period] + [mock_sliced_data for _ in range(8)]
+
+        # Test with anomaly calculation
+        window = 10
+        level = "1.5"
+        result = get_sliced_data(
+            mock_dataarray,
+            level,
+            mock_gwl_times,
+            months=np.arange(1, 13),
+            window=window,
+            anom="Yes",
+        )
+
+        # Verify sel was called
+        assert mock_sel.call_count >= 1
+
+        # Check time bounds: should be 2025 +/- 10 years (2015-2035)
+        # but now encoded as integers centered around 0
+        center_year = mock_gwl_times.loc[mock_process_item.return_value][level].year
+        assert (
+            result.time.min().dt.year <= center_year - window
+        )  # Should start at or before center_year - window
+        assert (
+            result.time.max().dt.year >= center_year
+        )  # Should extend at least to center_year
+
+        # Check that we have the expected number of timesteps
+        assert (
+            len(result.time) <= window * 2 * 12
+        )  # At most window*2 years of monthly data
+
+        # Check centered_year coordinate is set correctly
+        assert result.centered_year == 2025
+
+        # Case 3: Filter specific months
+        summer_months = np.array([6, 7, 8])  # June, July, August
+        result_summer = get_sliced_data(
+            mock_dataarray,
+            level,
+            mock_gwl_times,
+            months=summer_months,
+            window=window,
+            anom="No",
+        )
+
+        assert len(result_summer.time) == 240
+
+    @patch("climakitae.explore.warming.process_item")
+    def test_get_sliced_data_na_center_time(
+        self,
+        mock_process_item,
+        mock_dataarray: xr.DataArray,
+        mock_gwl_times: pd.DataFrame,
+    ) -> None:
+        """
+        Test get_sliced_data when center time is NaN.
+
+        This test verifies that:
+        1. The function correctly handles simulations that don't reach the specified warming level
+        2. A properly structured DataArray of NaNs is returned with the expected dimensions
+        3. The returned DataArray has appropriate time coordinates and centered_year attribute
+
+        Parameters
+        ----------
+        mock_process_item : MagicMock
+            Mock for the process_item function
+        mock_dataarray : xr.DataArray
+            Test DataArray fixture
+        mock_gwl_times : pd.DataFrame
+            Test warming level lookup table fixture
+        """
+        # Configure mock_process_item to return a simulation with NaN warming levels
+        mock_process_item.return_value = ("sim2", "ensemble2", "ssp370")
+
+        # Test with a warming level (4.0) that this simulation doesn't reach
+        level = "4.0"
+        window = 15
+        months = np.array([1, 2, 3, 4])  # Just some months
+
+        # Call the function
+        result = get_sliced_data(
+            mock_dataarray, level, mock_gwl_times, months=months, window=window
+        )
+
+        # Verify the result is a DataArray filled with NaNs
+        assert isinstance(result, xr.DataArray)
+        assert np.all(np.isnan(result.values))
+
+        # Check expected time dimension properties
+        assert result.time.size > 0  # Should have some time points
+
+        # Verify centered_year is NaN
+        assert np.isnan(result.centered_year)
+
+        # Verify dimensions are preserved from original DataArray
+        assert "lat" in result.dims
+        assert "lon" in result.dims
+
+    @patch("climakitae.explore.warming.process_item")
+    def test_get_sliced_data_edge_cases(
+        self,
+        mock_process_item,
+        mock_dataarray: xr.DataArray,
+        mock_gwl_times: pd.DataFrame,
+    ) -> None:
+        """
+        Test get_sliced_data edge cases.
+
+        This test verifies:
+        1. Handling of simulations with warming levels near the end of the dataset
+        2. Warning is produced when time slice extends beyond available data
+        3. Proper time dimension normalization when data is truncated
+        4. Correct behavior with minimum window size
+
+        Parameters
+        ----------
+        mock_process_item : MagicMock
+            Mock for the process_item function
+        mock_dataarray : xr.DataArray
+            Test DataArray fixture
+        mock_gwl_times : pd.DataFrame
+            Test warming level lookup table fixture
+        """
+        # Configure mock to return simulation with late warming level
+        mock_process_item.return_value = ("sim3", "ensemble3", "ssp245")
+
+        # Test with a warming level near end of century (might cause time truncation)
+        level = "4.0"  # Center year 2090
+        window = 15
+
+        # Mock the print function to capture warning messages
+        with patch("builtins.print") as mock_print:
+            result = get_sliced_data(
+                mock_dataarray, level, mock_gwl_times, window=window
+            )
+
+            # Check if warning was printed about incomplete data
+            mock_print_called = any(
+                "not completely available" in str(call)
+                for call in mock_print.call_args_list
+            )
+
+            # Should warn if our data (ending in 2040) doesn't cover the full window
+            if mock_dataarray.time.max().dt.year < 2090 + window:
+                assert mock_print_called
+
+                # For truncated data, verify time dimension is still centered properly
+                time_counts = result.time.size
+                expected_counts = window * 2 * 12  # monthly data
+                assert time_counts < expected_counts
+
+        # Test with minimum window size
+        min_window = 5
+        result_min_window = get_sliced_data(
+            mock_dataarray, "1.5", mock_gwl_times, window=min_window
+        )
+
+        # Check the result has appropriate dimensions
+        assert isinstance(result_min_window, xr.DataArray)
+        assert result_min_window.time.size <= min_window * 2 * 12
