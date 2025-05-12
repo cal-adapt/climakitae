@@ -56,7 +56,7 @@ class WarmingLevels:
         self.gwl_times = None  # Placeholder for the warming level times
         self.catalog_data = None  # Placeholder for the catalog data
 
-    def find_warming_slice(self, level: str, gwl_times: pd.DataFrame):
+    def find_warming_slice(self, level: str, gwl_times: pd.DataFrame) -> xr.DataArray:
         """
         Find the warming slice data for the current level from the catalog data.
 
@@ -89,7 +89,7 @@ class WarmingLevels:
         warming_data = clean_warm_data(warming_data)
 
         # Relabeling `all_sims` dimension
-        new_warm_data = warming_data.drop("all_sims")
+        new_warm_data = warming_data.drop_vars("all_sims")
         new_warm_data["all_sims"] = relabel_axis(warming_data["all_sims"])
         return new_warm_data
 
@@ -273,25 +273,6 @@ def clean_list(data: xr.Dataset, gwl_times: pd.DataFrame) -> xr.Dataset:
         If `data` does not have a dimension named `all_sims`.
     KeyError
         If `process_item` fails to find a simulation in the `gwl_times` index.
-
-    Examples
-    --------
-    >>> data = xr.Dataset(
-    ...     {"temperature": (["all_sims", "time"], [[1, 2, 3], [4, 5, 6]])},
-    ...     coords={"all_sims": ["sim1", "sim2"]}
-    ... )
-    >>> gwl_times = pd.DataFrame(
-    ...     index=[("sim1", "ensemble1", "scenario1")],
-    ...     columns=["warming_level"]
-    ... )
-    >>> clean_list(data, gwl_times)
-    <xarray.Dataset>
-    Dimensions:      (all_sims: 1, time: 3)
-    Coordinates:
-      * all_sims     (all_sims) <U4 'sim1'
-      * time         (time) int64 0 1 2
-    Data variables:
-        temperature  (all_sims, time) int64 1 2 3
     """
     # Create a list of all simulation identifiers
     keep_list = list(data.all_sims.values)
@@ -347,7 +328,14 @@ def clean_warm_data(warm_data: xr.DataArray) -> xr.DataArray:
     return warm_data
 
 
-def get_sliced_data(y, level, years, months=np.arange(1, 13), window=15, anom="No"):
+def get_sliced_data(
+    y: xr.DataArray,
+    level: str,
+    years: pd.DataFrame,
+    months: Iterable = np.arange(1, 13),
+    window: int = 15,
+    anom: str = "No",
+) -> xr.DataArray:
     """Calculating warming level anomalies.
 
     Parameters
@@ -461,9 +449,8 @@ def get_sliced_data(y, level, years, months=np.arange(1, 13), window=15, anom="N
 
 
 class WarmingLevelChoose(DataParameters):
-    """
-    
-    """
+    """ """
+
     window = param.Integer(
         default=15,
         bounds=(5, 25),
@@ -512,7 +499,7 @@ class WarmingLevelChoose(DataParameters):
             self.anom = "Yes"
 
 
-def _drop_invalid_sims(ds, selections):
+def _drop_invalid_sims(ds: xr.Dataset, selections: DataParameters) -> xr.Dataset:
     """
     As part of the warming levels calculation, the data is stacked by simulation and scenario, creating some empty values for that coordinate.
     Here, we remove those empty coordinate values.
@@ -523,8 +510,9 @@ def _drop_invalid_sims(ds, selections):
         The dataset must have a
         dimension `all_sims` that results from stacking `simulation` and
         `scenario`.
-    data_catalog: pd.DataFrame
-        intake catalog, loaded as a pandas dataframe
+    selections: DataParameters
+        The selections made in the GUI, which are used to filter the
+        dataset.
 
     Returns
     -------
@@ -557,7 +545,7 @@ def _drop_invalid_sims(ds, selections):
     return ds.sel(all_sims=valid_sim_list)
 
 
-def _check_available_warming_levels():
+def _check_available_warming_levels() -> List[float]:
     gwl_times = read_csv_file(gwl_1850_1900_file)
     available_warming_levels = list(
         gwl_times.columns.drop(["GCM", "run", "scenario"]).values
