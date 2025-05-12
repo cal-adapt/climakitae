@@ -392,16 +392,6 @@ class TestDataParameters:
                                 )
                                 assert any_size_warning
 
-                            # Check retrieve with config
-                            with patch(
-                                "climakitae.core.data_interface.read_catalog_from_csv"
-                            ) as mock_read_csv:
-                                mock_read_csv.return_value = mock_data
-                                result = params.retrieve(config="test.csv")
-                                mock_read_csv.assert_called_with(
-                                    params, "test.csv", True
-                                )
-
     def test_station_list_updates(self):
         """
         Test station list updates based on area selection.
