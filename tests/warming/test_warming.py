@@ -2,7 +2,7 @@
 Unit tests for the warming module in climakitae.explore.warming.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import numpy as np
 import pandas as pd
@@ -12,7 +12,7 @@ import xarray as xr
 from climakitae.core.paths import gwl_1850_1900_file
 from climakitae.explore.warming import (
     WarmingLevels,
-    _check_available_warming_levels,
+    _drop_invalid_sims,
     clean_list,
     clean_warm_data,
     get_sliced_data,
@@ -100,7 +100,7 @@ class TestWarmingLevels:
             dims=["all_sims", "time", "lat"],
             coords={
                 "all_sims": ["sim1", "sim2", "sim3"],
-                "time": pd.date_range("2000-01-01", periods=10, freq="Y"),
+                "time": pd.date_range("2000-01-01", periods=10, freq="YE"),
                 "lat": np.arange(10),
             },
         )
@@ -140,7 +140,7 @@ class TestWarmingLevels:
                     np.random.rand(10, 10),
                     dims=["time", "lat"],
                     coords={
-                        "time": pd.date_range("2000-01-01", periods=10, freq="Y"),
+                        "time": pd.date_range("2000-01-01", periods=10, freq="YE"),
                         "lat": np.arange(10),
                     },
                 )
@@ -1085,3 +1085,185 @@ class TestGetSlicedData:
         # Check the result has appropriate dimensions
         assert isinstance(result_min_window, xr.DataArray)
         assert result_min_window.time.size <= min_window * 2 * 12
+
+
+class TestDropInvalidSims:
+    """Test suite for _drop_invalid_sims function."""
+
+    @pytest.fixture
+    def mock_dataset(self) -> xr.Dataset:
+        """
+        Create a mock xarray Dataset with an 'all_sims' dimension.
+
+        Returns
+        -------
+        xr.Dataset
+            A mock dataset with temperature data across multiple simulations and scenarios.
+        """
+        # Create temperature data first
+        data = np.random.rand(3, 5)  # 4 simulations, 5 time points
+
+        # Create all_sims values as a MultiIndex
+        model_ids = [
+            "Dynamical_CMIP6-1_r1i1p1f1",
+            "Dynamical_CMIP6-2_r1i1p1f1",
+            "Dynamical_CMIP6-3_r2i1p1f1",
+        ]
+        scenarios = [
+            "Historical + SSP 2-4.5",
+            "Historical + SSP 5-8.5",
+            "Historical + SSP 3-7.0",
+        ]
+
+        # Create a pandas MultiIndex
+        multi_index = pd.MultiIndex.from_tuples(
+            list(zip(model_ids, scenarios)), names=["model", "scenario"]
+        )
+
+        # Convert MultiIndex to xarray coordinates using the recommended method
+        multi_index_coords = xr.Coordinates.from_pandas_multiindex(
+            multi_index, "all_sims"
+        )
+
+        # Create the dataset with string identifiers first
+        ds = xr.Dataset(
+            data_vars={"temperature": (["all_sims", "time"], data)},
+            coords={
+                "all_sims": ["sim1", "sim2", "sim3"],
+                "time": pd.date_range("2020-01-01", periods=5),
+            },
+        )
+        # Assign these coordinates to the dataset
+        ds = ds.assign_coords(multi_index_coords)
+
+        return ds
+
+    @pytest.fixture
+    def mock_catalog_subset(self) -> Mock:
+        """
+        Create a mock for _get_cat_subset function.
+
+        Returns
+        -------
+        Mock
+            A mock object simulating the catalog subset returned by _get_cat_subset.
+        """
+        mock_subset = Mock()
+        # Create a DataFrame that mimics the catalog data structure
+        mock_subset.df = pd.DataFrame(
+            {
+                "activity_id": ["Dynamical", "Dynamical", "Dynamical"],
+                "source_id": ["CMIP6-1", "CMIP6-2", "CMIP6-3"],
+                "member_id": ["r1i1p1f1", "r1i1p1f1", "r2i1p1f1"],
+                "experiment_id": [
+                    "ssp245",
+                    "ssp585",
+                    "ssp370",
+                ],  # Note: no 'historical' entries here
+            }
+        )
+        return mock_subset
+
+    @patch("climakitae.explore.warming._get_cat_subset")
+    def test_drop_invalid_sims_normal_case(
+        self,
+        mock_get_cat_subset: Mock,
+        mock_dataset: xr.Dataset,
+        mock_catalog_subset: Mock,
+    ):
+        """
+        Test the function with standard input where some simulations are valid.
+
+        This test verifies that:
+        1. The function correctly filters the dataset based on valid simulation-scenario pairs
+        2. The resulting dataset contains only the valid simulations
+        3. The function properly handles the catalog data to create valid_sim_list
+
+        Parameters
+        ----------
+        mock_get_cat_subset : Mock
+            Mocked _get_cat_subset function
+        mock_dataset : xr.Dataset
+            Mock dataset with all_sims dimension
+        mock_catalog_subset : Mock
+            Mock catalog subset with DataFrame structure
+        """
+        # Setup the mock to return our fixture
+        mock_get_cat_subset.return_value = mock_catalog_subset
+
+        # Create a mock selections object
+        mock_selections = Mock()
+
+        # Call the function
+        result = _drop_invalid_sims(mock_dataset, mock_selections)
+
+        # Verify _get_cat_subset was called with correct parameters
+        mock_get_cat_subset.assert_called_once_with(mock_selections)
+
+        # Check that the result is an xarray Dataset
+        assert isinstance(result, xr.Dataset)
+
+        # Expected valid sim list based on our mock catalog
+        expected_valid_sims = [
+            ("Dynamical_CMIP6-1_r1i1p1f1", "Historical + SSP 2-4.5"),
+            ("Dynamical_CMIP6-2_r1i1p1f1", "Historical + SSP 5-8.5"),
+            ("Dynamical_CMIP6-3_r2i1p1f1", "Historical + SSP 3-7.0"),
+        ]
+
+        # Verify that only valid simulations are in the result
+        assert set(result.all_sims.values) == set(expected_valid_sims)
+
+        # Verify data integrity - check that temperature data is preserved
+        for sim in expected_valid_sims:
+            assert not np.isnan(result.sel(all_sims=sim)["temperature"].values).any()
+
+    @patch("climakitae.explore.warming._get_cat_subset")
+    def test_drop_invalid_sims_with_historical(
+        self, mock_get_cat_subset: Mock, mock_dataset: xr.Dataset
+    ):
+        """
+        Test the function when catalog includes historical experiments.
+
+        This test verifies that:
+        1. The function correctly excludes entries with experiment_id='historical'
+        2. Only the non-historical entries are used to create the valid_sim_list
+
+        Parameters
+        ----------
+        mock_get_cat_subset : Mock
+            Mocked _get_cat_subset function
+        mock_dataset : xr.Dataset
+            Mock dataset with all_sims dimension
+        """
+        # Create a mock subset with both historical and non-historical entries
+        mixed_subset = Mock()
+        mixed_subset.df = pd.DataFrame(
+            {
+                "activity_id": ["Dynamical", "Dynamical", "Dynamical", "Dynamical"],
+                "source_id": ["CMIP6-1", "CMIP6-1", "CMIP6-2", "CMIP6-3"],
+                "member_id": ["r1i1p1f1", "r1i1p1f1", "r1i1p1f1", "r2i1p1f1"],
+                "experiment_id": ["historical", "ssp245", "ssp585", "ssp370"],
+            }
+        )
+
+        # Setup the mock to return our mixed subset
+        mock_get_cat_subset.return_value = mixed_subset
+
+        # Create a mock selections object
+        mock_selections = Mock()
+
+        # Call the function
+        result = _drop_invalid_sims(mock_dataset, mock_selections)
+
+        # Expected valid sim list from mock
+        expected_valid_sims = [
+            ("Dynamical_CMIP6-1_r1i1p1f1", "Historical + SSP 2-4.5"),
+            ("Dynamical_CMIP6-2_r1i1p1f1", "Historical + SSP 5-8.5"),
+            ("Dynamical_CMIP6-3_r2i1p1f1", "Historical + SSP 3-7.0"),
+        ]
+
+        # Verify that only non-historical simulations are in the result
+        assert set(result.all_sims.values) == set(expected_valid_sims)
+
+        # Verify _get_cat_subset was called with correct parameters
+        mock_get_cat_subset.assert_called_once_with(mock_selections)
