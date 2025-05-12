@@ -48,5 +48,8 @@ jobs:
     - name: Echo
       run: echo ${{ github.ref }}
     - name: Test with pytest (Advanced)
-      if: github.event.label.name == 'Advanced Testing' || github.ref == 'refs/heads/main'
+      if: github.event.label.name == 'Advanced Testing'
+      run: pytest --no-header -vv -m "advanced"
+    - name: Test with pytest (Advanced) - main
+      if: github.ref == 'refs/heads/main_testing_logic_fix2'
       run: pytest --no-header -vv -m "advanced"
