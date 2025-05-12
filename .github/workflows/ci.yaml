@@ -45,6 +45,8 @@ jobs:
       run: conda list
     - name: Test with pytest
       run: pytest --no-header -vv -m "not advanced"
+    - name: Echo
+      run: echo ${{ github.ref }}
     - name: Test with pytest (Advanced)
       if: github.event.label.name == 'Advanced Testing' || github.ref == 'refs/heads/main'
       run: pytest --no-header -vv -m "advanced"
