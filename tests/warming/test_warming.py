@@ -15,6 +15,7 @@ from climakitae.explore.warming import (
     WarmingLevels,
     _check_available_warming_levels,
     clean_warm_data,
+    process_item,
     relabel_axis,
 )
 from climakitae.util.utils import read_csv_file
@@ -318,3 +319,141 @@ class TestRelabelAxis:
         expected_output = ["CanESM5_SSP1-1.9"]
         result = relabel_axis(all_sims_coordinate)
         assert result == expected_output
+
+
+class TestProcessItem:
+    """Test suite for the process_item function.
+
+    This test class verifies that the process_item function correctly extracts
+    and processes simulation metadata from an xarray DataArray.
+    """
+
+    @pytest.fixture
+    def sample_dataarray(self) -> xr.DataArray:
+        """Create a sample xarray DataArray with required attributes for testing."""
+        return xr.DataArray(
+            data=[1],
+            attrs={
+                "simulation": xr.DataArray("Dynamical_sim1_ensemble1"),
+                "scenario": xr.DataArray("Historical + SSP 5-8.5"),
+            },
+        )
+
+    def test_process_item_standard_case(self, sample_dataarray: xr.DataArray):
+        """
+        Test process_item with standard input format.
+
+        Validates:
+        - Correct extraction of simulation string parts
+        - Proper scenario string processing
+        - Expected return tuple format
+        """
+        result = process_item(sample_dataarray)
+
+        # Verify return value is the expected tuple
+        assert isinstance(result, tuple)
+        assert len(result) == 3
+
+        # Verify each component is extracted correctly
+        assert result[0] == "sim1"  # sim_str
+        assert result[1] == "ensemble1"  # ensemble
+        assert result[2] == "ssp585"  # scenario
+
+    @pytest.mark.parametrize(
+        "simulation,scenario,expected",
+        [
+            (
+                "Dynamical_MPI_r1i1p1",
+                "Historical + SSP 3-7.0",
+                ("MPI", "r1i1p1", "ssp370"),
+            ),
+            (
+                "Statistical_CMIP6_ens4",
+                "Historical + SSP 2-4.5",
+                ("CMIP6", "ens4", "ssp245"),
+            ),
+            (
+                "Dynamical_NorESM_r1",
+                "Historical + SSP 5-8.5",
+                ("NorESM", "r1", "ssp585"),
+            ),
+            ("Statistical_NASA_e5", "Historical + SSP 3-7.0", ("NASA", "e5", "ssp370")),
+        ],
+    )
+    def test_process_item_variations(
+        self, simulation: str, scenario: str, expected: tuple
+    ) -> None:
+        """
+        Test process_item with various input formats.
+
+        Tests:
+        - Different simulation naming conventions
+        - Different scenario formats including dash notation
+        - Consistent processing across variations
+
+        Parameters
+        ----------
+        simulation : str
+            The simulation attribute value to test
+        scenario : str
+            The scenario attribute value to test
+        expected : tuple
+            The expected output tuple (sim_str, ensemble, scenario)
+        """
+        # Create a test DataArray with the parameterized values
+        test_da = xr.DataArray(
+            data=[1],
+            attrs={
+                "simulation": xr.DataArray(simulation),
+                "scenario": xr.DataArray(scenario),
+            },
+        )
+
+        # Test the function with these inputs
+        result = process_item(test_da)
+        assert result == expected
+
+    def test_process_item_error_handling(self) -> None:
+        """
+        Verify proper error handling for invalid inputs.
+
+        Tests:
+        - Missing required attributes
+        - Incorrectly formatted simulation string
+        - Invalid scenario format
+        """
+        # Test case 1: Missing simulation attribute
+        da_missing_sim = xr.DataArray(
+            data=[1], attrs={"scenario": xr.DataArray("Historical + SSP 5-8.5")}
+        )
+        with pytest.raises(AttributeError):
+            process_item(da_missing_sim)
+
+        # Test case 2: Missing scenario attribute
+        da_missing_scenario = xr.DataArray(
+            data=[1], attrs={"simulation": xr.DataArray("Dynamical_sim1_ensemble1")}
+        )
+        with pytest.raises(AttributeError):
+            process_item(da_missing_scenario)
+
+        # Test case 3: Incorrectly formatted simulation string (not enough parts)
+        da_invalid_sim = xr.DataArray(
+            data=[1],
+            attrs={
+                "simulation": xr.DataArray("Dynamical-invalid"),
+                "scenario": xr.DataArray("Historical + SSP 5-8.5"),
+            },
+        )
+        with pytest.raises(ValueError):
+            process_item(da_invalid_sim)
+
+        # Test case 4: Scenario string with no "+" separator
+        da_invalid_scenario = xr.DataArray(
+            data=[1],
+            attrs={
+                "simulation": xr.DataArray("Dynamical_sim1_ensemble1"),
+                "scenario": xr.DataArray("SSP 5-8.5"),  # No "+" separator
+            },
+        )
+        with pytest.raises(IndexError):
+            process_item(da_invalid_scenario)
