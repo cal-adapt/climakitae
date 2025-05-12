@@ -1,4 +1,7 @@
-"""Helper functions for performing analyses related to global warming levels, along with backend code for building the warming levels GUI"""
+"""
+Helper functions for performing analyses related to global warming levels, along with
+backend code for building the warming levels GUI
+"""
 
 import calendar
 
@@ -449,7 +452,24 @@ def get_sliced_data(
 
 
 class WarmingLevelChoose(DataParameters):
-    """ """
+    """
+    Class for selecting data at specific warming levels in climate datasets.
+    This class extends DataParameters to provide functionality for choosing and analyzing
+    data around specific global warming levels (GWLs). It allows users to specify a time window
+    around the warming level and whether to return anomalies relative to a historical reference period.
+    Attributes:
+        window (param.Integer): Size of the time window (in years) around the global warming level.
+                                The default is 15 years (i.e., a 30-year window centered on the GWL).
+        anom (param.Selector): Whether to return data as anomalies (difference from historical
+                                reference period). Options are "Yes" or "No".
+        warming_levels (list): Available warming levels for selection.
+        months (numpy.ndarray): Available months (1-12) for selection.
+        load_data (bool): Whether to load data as it's being computed. Setting to False allows
+                         for batch processing or working with smaller chunks of data.
+    Methods:
+        _anom_allowed(): Controls whether the anomaly option is required based on the
+                        downscaling method.
+    """
 
     window = param.Integer(
         default=15,
@@ -483,7 +503,10 @@ class WarmingLevelChoose(DataParameters):
         self.cached_area = ["CA"]
 
         # Toggle whether or not data is loaded in as it is being computed
-        # This may be set to False if you are interested in loading smaller chunks of warming level data at a time, or in batch computing a series of warming level data points by creating all the xarray DataArrays first before loading them all in.
+        # This may be set to False if you are interested in loading smaller chunks of
+        # warming level data at a time, or in batch computing a series of warming level
+        # data points by creating all the xarray DataArrays first before loading them
+        # all in.
         self.load_data = True
 
     @param.depends("downscaling_method", watch=True)
@@ -501,7 +524,8 @@ class WarmingLevelChoose(DataParameters):
 
 def _drop_invalid_sims(ds: xr.Dataset, selections: DataParameters) -> xr.Dataset:
     """
-    As part of the warming levels calculation, the data is stacked by simulation and scenario, creating some empty values for that coordinate.
+    As part of the warming levels calculation, the data is stacked by simulation and
+    scenario, creating some empty values for that coordinate.
     Here, we remove those empty coordinate values.
 
     Parameters
