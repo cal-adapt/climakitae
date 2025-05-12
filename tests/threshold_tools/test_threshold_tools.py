@@ -23,9 +23,12 @@ from climakitae.explore.threshold_tools import (
 
 
 class TestThresholdTools:
+    """Test effective sample size and hidden functions in
+    threshold_tools.
+    """
 
     def test_calculate_ess(self):
-        # Not validating the result values, just checking this runs
+        """Test that effective sample size runs without validating returned values."""
         test = xr.DataArray(data=np.arange(0, 100, 1))
         result = threshold_tools.calculate_ess(test)
         assert isinstance(result, xr.DataArray)
@@ -38,7 +41,7 @@ class TestThresholdTools:
         assert result.name == "ess"
 
     def test__calc_average_ess_gridded_data(self):
-        # Not validating the result values, just checking this runs
+        """Test that effective sample size runs without validating returned values."""
         test_data = test_data = np.random.rand(10, 10, 365 * 3) * 100
         test = xr.DataArray(
             data=test_data,
@@ -53,7 +56,7 @@ class TestThresholdTools:
         assert isinstance(result, float)
 
     def test__calc_average_ess_timeseries_data(self):
-        # Not validating the result values, just checking this runs
+        """Test that effective sample size runs without validating returned values."""
         test_data = test_data = np.random.rand(365 * 3) * 100
         test = xr.DataArray(
             data=test_data,
@@ -66,6 +69,7 @@ class TestThresholdTools:
         assert isinstance(result, float)
 
     def test__get_fitted_distr(self):
+        """Check that fitted distr returns correct parameter set for gev."""
         test_data = test_data = np.random.rand(10, 10, 365 * 3) * 100
         test = xr.DataArray(
             data=test_data,
@@ -86,6 +90,7 @@ class TestThresholdTools:
             assert isinstance(result[0][param], float)
 
     def test__get_distr_func(self):
+        """Check that get_distr_func returns correct distribution for input value."""
         diststr = ["gev", "gumbel", "weibull", "pearson3", "genpareto", "gamma"]
         diststat = [
             scipy.stats.genextreme,
@@ -95,25 +100,27 @@ class TestThresholdTools:
             scipy.stats.genpareto,
             scipy.stats.gamma,
         ]
-        for ind in range(0, len(diststr)):
-            assert _get_distr_func(diststr[ind]) == diststat[ind]
+
+        for dstr, dstat in zip(diststr, diststat):
+            assert _get_distr_func(dstr) == dstat
 
         with pytest.raises(ValueError):
             _get_distr_func("")
 
     def test__exceedance_count_name(self):
+        """Test that correct string is returned for various parameter values."""
         item1 = 4
         item2 = "day"
         test = xr.DataArray()
         test.attrs["duration2"] = (item1, item2)
         result = _exceedance_count_name(test)
-        assert result == "Number of {0}-{1} events".format(item1, item2)
+        assert result == (f"Number of {item1}-{item2} events")
 
         test = xr.DataArray()
         test.attrs["duration2"] = None
         test.attrs["group"] = (item1, item2)
         result = _exceedance_count_name(test)
-        assert result == "Number of {0}-{1} events".format(item1, item2)
+        assert result == (f"Number of {item1}-{item2} events")
 
         test = xr.DataArray()
         test.attrs["duration2"] = None
@@ -122,9 +129,10 @@ class TestThresholdTools:
         for item in tscales:
             test.attrs["frequency"] = item
             result = _exceedance_count_name(test)
-            assert result == "Number of {0}".format(tscales[item])
+            assert result == (f"Number of {item}")
 
     def test__get_exceedance_events(self):
+        """Check exceedence for minimum case and for error cases."""
         test_data = test_data = np.random.rand(10, 10, 365 * 3) * 100
         test_data[0, 0, 0] = 1  # make sure at least one instance is <10
         test = xr.DataArray(
@@ -147,9 +155,12 @@ class TestThresholdTools:
 
 @pytest.mark.advanced
 class TestKsStat:
+    """Test the ks_stat function. These are longer running tests
+    which have been separated to run in the advanced tier.
+    """
+
     def test_ks_stat(self):
-        # Not validating the result values, just checking this runs
-        # for multiple distribution options.
+        """Verify that ks_stat runs for various distribution cases."""
         test_data = test_data = np.random.rand(10, 10, 365 * 3) * 100
         test = xr.DataArray(
             data=test_data,
