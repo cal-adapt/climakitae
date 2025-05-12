@@ -43,13 +43,11 @@ jobs:
       run: pip install .
     - name: Output conda list
       run: conda list
-    - name: Test with pytest
+    - name: Test with pytest (Basic)
       run: pytest --no-header -vv -m "not advanced"
-    - name: Echo
-      run: echo ${{ github.ref }}
-    - name: Test with pytest (Advanced)
+    - name: Test with pytest (Advanced) - pr labeled
       if: github.event.label.name == 'Advanced Testing'
       run: pytest --no-header -vv -m "advanced"
-    - name: Test with pytest (Advanced) - main
-      if: github.ref == 'refs/heads/main_testing_logic_fix2'
+    - name: Test with pytest (Advanced) - main branch
+      if: github.ref == 'refs/heads/main'
       run: pytest --no-header -vv -m "advanced"
