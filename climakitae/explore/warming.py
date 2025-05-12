@@ -170,9 +170,29 @@ def relabel_axis(all_sims_dim: Iterable) -> List[str]:
 
     Examples
     --------
-    >>> all_sims_dim = [xr.DataArray([("sim1", "scenario1")]), xr.DataArray([("sim2", "scenario2")])]
-    >>> relabel_axis(all_sims_dim)
-    ['sim1_scenario1', 'sim2_scenario2']
+    >>> import xarray as xr
+    >>> # The input `all_sims_dim` is typically an xarray.DataArray
+    >>> # representing a coordinate, often created by stacking dimensions.
+    >>> # For example, if `ds` is a Dataset with 'simulation' and 'scenario'
+    >>> # coordinates, then `ds.stack(all_sims=('simulation', 'scenario'))['all_sims']`
+    >>> # would be such an input.
+    >>>
+    >>> # Create an example of such an xarray.DataArray:
+    >>> simulation_scenario_pairs = [
+    ...     ('ModelA_run1', 'SSP1-2.6'),
+    ...     ('ModelB_run2', 'SSP5-8.5')
+    ... ]
+    >>> # This DataArray holds the coordinate values (the tuples).
+    >>> all_sims_coordinate = xr.DataArray(
+    ...     data=simulation_scenario_pairs,
+    ...     dims=['all_sims'],
+    ...     name='all_sims_stacked_coordinate'
+    ... )
+    >>> # The function iterates over `all_sims_coordinate`. Each element `one`
+    >>> # (as in the function's loop) is a 0-D xarray.DataArray containing one tuple.
+    >>> # For the first pair, `one.values.item()` would yield ('ModelA_run1', 'SSP1-2.6').
+    >>> relabel_axis(all_sims_coordinate)
+    ['ModelA_run1_SSP1-2.6', 'ModelB_run2_SSP5-8.5']
     """
     new_arr = []
     for one in all_sims_dim:
