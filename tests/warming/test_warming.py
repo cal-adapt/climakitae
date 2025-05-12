@@ -2,7 +2,8 @@
 Unit tests for the warming module in climakitae.explore.warming.
 """
 
-from unittest.mock import patch
+from typing import Any, Iterable, List, Tuple
+from unittest.mock import Mock, patch
 
 import numpy as np
 import pandas as pd
@@ -251,3 +252,69 @@ class TestWarmingLevels:
                 mock_find_warming_slice.call_count == 2
             )  # Called for each warming level
             assert mock_xr_concat.called
+
+
+class TestRelabelAxis:
+    """Test suite for relabel_axis function."""
+
+    @staticmethod
+    def test_relabel_axis_basic():
+        """Test relabel_axis with typical input."""
+        # Create a proper DataArray with dimensions that can be stacked
+        ds = xr.Dataset(
+            data_vars={"data": (["simulation", "scenario"], np.random.rand(3, 2))},
+            coords={
+                "simulation": ["CESM2", "ACCESS-CM2", "MIROC6"],
+                "scenario": ["SSP3-7.0", "SSP5-8.5"],
+            },
+        )
+
+        # Stack dimensions to create the multi-index coordinate
+        stacked = ds.stack(all_sims=["simulation", "scenario"])
+        all_sims_coordinate = stacked.all_sims
+
+        # Expected output after relabeling
+        expected_pairs = [
+            "CESM2_SSP3-7.0",
+            "CESM2_SSP5-8.5",
+            "ACCESS-CM2_SSP3-7.0",
+            "ACCESS-CM2_SSP5-8.5",
+            "MIROC6_SSP3-7.0",
+            "MIROC6_SSP5-8.5",
+        ]
+
+        # Call relabel_axis and compare with expected output
+        result = relabel_axis(all_sims_coordinate)
+        assert set(result) == set(expected_pairs)
+
+    @staticmethod
+    def test_relabel_axis_empty():
+        """Test relabel_axis with empty input."""
+        # Create empty dataset with required dimensions
+        _ = xr.Dataset(
+            data_vars={"data": (["simulation", "scenario"], np.empty((0, 0)))},
+            coords={"simulation": [], "scenario": []},
+        )
+
+        mock_empty_coord = xr.DataArray([], dims=["all_sims"])
+        mock_empty_coord.values = np.array([], dtype=object)
+
+        expected_output = []
+        assert relabel_axis(mock_empty_coord) == expected_output
+
+    @staticmethod
+    def test_relabel_axis_single_element():
+        """Test relabel_axis with a single element."""
+        # Create a DataArray with a single element in each dimension
+        ds = xr.Dataset(
+            data_vars={"data": (["simulation", "scenario"], [[1.0]])},
+            coords={"simulation": ["CanESM5"], "scenario": ["SSP1-1.9"]},
+        )
+
+        # Stack dimensions to create the multi-index coordinate
+        stacked = ds.stack(all_sims=["simulation", "scenario"])
+        all_sims_coordinate = stacked.all_sims
+
+        expected_output = ["CanESM5_SSP1-1.9"]
+        result = relabel_axis(all_sims_coordinate)
+        assert result == expected_output
