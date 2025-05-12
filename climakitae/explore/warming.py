@@ -332,10 +332,9 @@ def clean_warm_data(warm_data: xr.DataArray) -> xr.DataArray:
     if not (warm_data.centered_year.isnull()).all():
 
         # Cleaning #1
-        if warm_data.centered_year.isnull().size == 1:
-            warm_data = warm_data.sel(all_sims=[~warm_data.centered_year.isnull()])
-        else:
-            warm_data = warm_data.sel(all_sims=~warm_data.centered_year.isnull())
+        if not (warm_data.centered_year.isnull()).all():
+            # Use .values to get numpy array of booleans instead of DataArray
+            warm_data = warm_data.sel(all_sims=~warm_data.centered_year.isnull().values)
 
         # Cleaning #2
         # warm_data = warm_data.isel(
@@ -438,12 +437,17 @@ def get_sliced_data(y, level, years, months=np.arange(1, 13), window=15, anom="N
         days_per_month = {i: calendar.monthrange(2001, i)[1] for i in np.arange(1, 13)}
 
         # This creates an approximately appropriately sized DataArray to be dropped later
-        if y.frequency == "monthly":
-            time_freq = len(months)
-        elif y.frequency == "daily":
-            time_freq = sum([days_per_month[month] for month in months])
-        elif y.frequency == "hourly":
-            time_freq = sum([days_per_month[month] for month in months]) * 24
+        match y.frequency:
+            case "monthly":
+                time_freq = len(months)
+            case "daily":
+                time_freq = sum([days_per_month[month] for month in months])
+            case "hourly":
+                time_freq = sum([days_per_month[month] for month in months]) * 24
+            case _:
+                raise ValueError(
+                    f"Invalid frequency '{y.frequency}'. Expected 'monthly', 'daily', or 'hourly'."
+                )
         y = y.isel(
             time=slice(0, window * 2 * time_freq)
         )  # This is to create a dummy slice that conforms with other data structure. Can be re-written to something more elegant.
@@ -457,6 +461,9 @@ def get_sliced_data(y, level, years, months=np.arange(1, 13), window=15, anom="N
 
 
 class WarmingLevelChoose(DataParameters):
+    """
+    
+    """
     window = param.Integer(
         default=15,
         bounds=(5, 25),
