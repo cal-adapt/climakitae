@@ -129,7 +129,7 @@ class TestThresholdTools:
         for item in tscales:
             test.attrs["frequency"] = item
             result = _exceedance_count_name(test)
-            assert result == (f"Number of {item}")
+            assert result == (f"Number of {tscales[item]}")
 
     def test__get_exceedance_events(self):
         """Check exceedence for minimum case and for error cases."""
