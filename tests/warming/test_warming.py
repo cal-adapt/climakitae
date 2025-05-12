@@ -2,8 +2,7 @@
 Unit tests for the warming module in climakitae.explore.warming.
 """
 
-from typing import Any, Iterable, List, Tuple
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pandas as pd
@@ -14,6 +13,7 @@ from climakitae.core.paths import gwl_1850_1900_file
 from climakitae.explore.warming import (
     WarmingLevels,
     _check_available_warming_levels,
+    clean_list,
     clean_warm_data,
     process_item,
     relabel_axis,
@@ -457,3 +457,182 @@ class TestProcessItem:
         )
         with pytest.raises(IndexError):
             process_item(da_invalid_scenario)
+
+
+class TestCleanList:
+    """
+    Test suite for the clean_list function which filters xarray datasets
+    to retain only simulations with valid warming level data.
+    """
+
+    @pytest.fixture
+    def mock_dataset(self) -> xr.Dataset:
+        """
+        Create a mock xarray Dataset with simulation data.
+
+        Returns:
+            xr.Dataset: A dataset with temperature data for multiple simulations.
+        """
+        # Create test data with multiple simulations
+        data = xr.Dataset(
+            data_vars={
+                "temperature": (["all_sims", "time"], [[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+            },
+            coords={"all_sims": ["sim1", "sim2", "sim3"], "time": [0, 1, 2]},
+            attrs={"description": "Test dataset"},
+        )
+
+        # Add attributes to each simulation
+        data["all_sims"].attrs = {
+            "simulation": "test_simulation",
+            "scenario": "test_scenario",
+        }
+
+        return data
+
+    @pytest.fixture
+    def mock_gwl_times(self) -> pd.DataFrame:
+        """
+        Create a mock pandas DataFrame representing the warming level lookup table.
+
+        Returns:
+            _ : pd.DataFrame
+                A DataFrame with warming level data for specific simulations.
+        """
+        # Create index tuples representing (simulation, ensemble, scenario)
+        index = pd.MultiIndex.from_tuples(
+            [("model1", "ensemble1", "ssp585"), ("model2", "ensemble1", "ssp245")],
+            names=["sim", "ensemble", "scenario"],
+        )
+
+        # Create DataFrame with warming level data
+        return pd.DataFrame({"warming_level": [1.5, 2.0]}, index=index)
+
+    @patch("climakitae.explore.warming.process_item")
+    def test_clean_list_normal_case(
+        self,
+        mock_process_item: MagicMock,
+        mock_dataset: xr.Dataset,
+        mock_gwl_times: pd.DataFrame,
+    ) -> None:
+        """
+        Test clean_list with valid inputs under normal conditions.
+
+        This test verifies that:
+        1. The function correctly filters simulations based on the lookup table
+        2. Only simulations with matching entries in gwl_times are retained
+        3. The function preserves dataset attributes and structure
+
+        Parameters
+        ----------
+        mock_process_item : MagicMock
+            Mocked process_item function
+        mock_dataset : xr.Dataset
+            Test xarray Dataset
+        mock_gwl_times : pd.DataFrame
+            Test warming level lookup table
+        """
+        # Configure mock_process_item to return different values for each simulation
+        mock_process_item.side_effect = [
+            ("model1", "ensemble1", "ssp585"),  # sim1 -> valid
+            ("model3", "ensemble2", "ssp370"),  # sim2 -> invalid
+            ("model2", "ensemble1", "ssp245"),  # sim3 -> valid
+        ]
+
+        # Run the function
+        result = clean_list(mock_dataset, mock_gwl_times)
+
+        # Verify process_item was called for each simulation
+        assert mock_process_item.call_count == 3
+
+        # Check that only valid simulations are retained
+        assert len(result.all_sims) == 2
+        assert "sim1" in result.all_sims.values
+        assert "sim3" in result.all_sims.values
+        assert "sim2" not in result.all_sims.values
+
+        # Check that the data structure is preserved
+        assert "temperature" in result.data_vars
+        assert result.attrs == mock_dataset.attrs
+
+    @patch("climakitae.explore.warming.process_item")
+    def test_clean_list_empty_result(
+        self,
+        mock_process_item: MagicMock,
+        mock_dataset: xr.Dataset,
+        mock_gwl_times: pd.DataFrame,
+    ) -> None:
+        """
+        Test clean_list when no simulations match the lookup table.
+
+        This edge case test verifies that:
+        1. The function handles the case where no simulations match
+        2. An empty dataset with the correct structure is returned
+
+        Parameters
+        ----------
+        mock_process_item : MagicMock
+            Mocked process_item function
+        mock_dataset : xr.Dataset
+            Test xarray Dataset
+        mock_gwl_times : pd.DataFrame
+            Test warming level lookup table
+        """
+        # Configure mock to return values not in the lookup table
+        mock_process_item.side_effect = [
+            ("invalid1", "ensemble3", "ssp119"),
+            ("invalid2", "ensemble3", "ssp119"),
+            ("invalid3", "ensemble3", "ssp119"),
+        ]
+
+        # Run the function
+        result = clean_list(mock_dataset, mock_gwl_times)
+
+        # Verify all simulations were checked
+        assert mock_process_item.call_count == 3
+
+        # Check that no simulations are retained
+        assert len(result.all_sims) == 0
+
+        # Check that the data structure is preserved
+        assert "temperature" in result.data_vars
+        assert result.attrs == mock_dataset.attrs
+
+    @patch("climakitae.explore.warming.process_item")
+    def test_clean_list_error_handling(
+        self,
+        mock_process_item: MagicMock,
+        mock_dataset: xr.Dataset,
+        mock_gwl_times: pd.DataFrame,
+    ) -> None:
+        """
+        Test clean_list's error handling when process_item raises exceptions.
+
+        This test verifies that:
+        1. Errors in process_item are properly propagated
+        2. The function correctly handles attribute access errors
+
+        Args:
+            mock_process_item: Mocked process_item function
+            mock_dataset: Test xarray Dataset
+            mock_gwl_times: Test warming level lookup table
+        """
+        # Configure mock to raise an exception for the second simulation
+        mock_process_item.side_effect = [
+            ("model1", "ensemble1", "ssp585"),  # sim1 -> valid
+            KeyError("Missing attribute"),  # sim2 -> error
+            ("model2", "ensemble1", "ssp245"),  # sim3 -> valid
+        ]
+
+        # Test that the exception is propagated
+        with pytest.raises(KeyError, match="Missing attribute"):
+            clean_list(mock_dataset, mock_gwl_times)
+
+        # Test with missing all_sims dimension
+        invalid_dataset = xr.Dataset(
+            data_vars={"temperature": (["wrong_dim"], [1, 2, 3])},
+            coords={"wrong_dim": [0, 1, 2]},
+        )
+
+        with pytest.raises(AttributeError):
+            clean_list(invalid_dataset, mock_gwl_times)
