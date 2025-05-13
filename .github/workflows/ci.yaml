@@ -10,7 +10,7 @@ name: ci
 on: 
   push:
     branches:
-      - !main
+      - '!main'
   pull_request:
     types:
       - labeled
