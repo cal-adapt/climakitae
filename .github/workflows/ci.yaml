@@ -10,6 +10,7 @@ name: ci
 on: 
   push:
     branches:
+      - '*'
       - '!main'
   pull_request:
     types:
