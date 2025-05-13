@@ -7,7 +7,6 @@ import calendar
 
 # Silence warnings
 import logging
-import warnings
 from typing import Iterable, List
 
 import numpy as np
