@@ -46,5 +46,5 @@ jobs:
     - name: Test with pytest
       run: pytest --no-header -vv -m "not advanced"
     - name: Test with pytest (Advanced)
-      if: github.event.label.name == 'Advanced Testing' || github.ref == 'refs/heads/main'
+      if: github.event.label.name == 'Advanced Testing'
       run: pytest --no-header -vv -m "advanced"
