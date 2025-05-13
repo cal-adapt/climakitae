@@ -1,0 +1,44 @@
+# Workflow file for continuous integration
+# Conda environment is caches to avoid long wait times for CI
+# Based on code from: https://github.com/epassaro/cache-conda-envs/blob/main/.github/workflows/ci.yml
+# Based on code from: https://github.com/marketplace/actions/setup-miniconda
+# Added to Test commit workflow
+
+
+name: ci-main
+
+on: 
+  push:
+    branches:
+      - main
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: psf/black@stable
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+    - name: Checkout project
+      uses: actions/checkout@v2
+    - name: Setup miniconda
+      uses: conda-incubator/setup-miniconda@v2
+      with:
+          auto-activate-base: false
+          activate-environment: climakitae-tests
+          environment-file: conda-linux-64.lock
+          use-only-tar-bz2: true
+    - name: Install climakitae
+      run: pip install .
+    - name: Output conda info
+      run: conda info
+    - name: Output conda list
+      run: conda list
+    - name: Test with pytest
+      run: pytest --no-header -vv
