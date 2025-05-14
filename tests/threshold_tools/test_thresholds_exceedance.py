@@ -1,33 +1,29 @@
-import pytest
+"""
+Test exceedence event identification in threshold_tools functions.
+Also test the plotting helper functions.
+"""
+
 import pandas as pd
+import pytest
 import xarray as xr
 
 from climakitae.explore import threshold_tools
 
-# ------------- Data for testing -----------------------------------------------
-
-
-@pytest.fixture
-def T2_monthly(test_data):
-    """Monthly RAINC data for one scenario and one simulation
-    (pulled from the general test data set)"""
-    return test_data["RAINC"].isel(scenario=0, simulation=0)
-
-
 # ------------- Test kwarg compatibility and Exceptions ------------------------
 
 
-# incompatible: cannot specify a 1-day groupy for monthly data
-def test_error1(test_data_2022_monthly_45km):
+def test_error1(test_data_2022_monthly_45km: xr.Dataset):
+    """Test incompatible case: cannot specify a 1-day groupy for monthly data."""
     with pytest.raises(ValueError, match="Incompatible `group` specification"):
         threshold_tools.get_exceedance_count(
             test_data_2022_monthly_45km, threshold_value=305, groupby=(1, "day")
         )
 
 
-# incompatible: cannot specify a 3-day duration if grouped by month
-# But for now, `duration` not yet implemented
-def test_error2(T2_hourly):
+def test_error2(T2_hourly: xr.DataArray):
+    """Test incompatible case: incompatible: cannot specify a 3-day duration
+    if grouped by month. But for now, `duration` not yet implemented.
+    """
     with pytest.raises(
         ValueError, match="Incompatible `group` and `duration2` specification"
     ):
@@ -39,9 +35,9 @@ def test_error2(T2_hourly):
 # ------------- Tests with hourly data -----------------------------------------
 
 
-# example 1: count number of hours in each year exceeding the threshold
 @pytest.mark.advanced
-def test_hourly_ex1(T2_hourly):
+def test_hourly_ex1(T2_hourly: xr.DataArray):
+    """Example 1: count number of hours in each year exceeding the threshold."""
     exc_counts = threshold_tools.get_exceedance_count(
         T2_hourly, threshold_value=305, period=(1, "year")
     )
@@ -51,9 +47,10 @@ def test_hourly_ex1(T2_hourly):
     )  # test correct time transformation occured (collapsed to only 2 values, one for each year)
 
 
-# exmample 2: count number of days in each year that have at least one hour exceeding the threshold
 @pytest.mark.advanced
-def test_hourly_ex2(T2_hourly):
+def test_hourly_ex2(T2_hourly: xr.DataArray):
+    """Example 2: count number of days in each year that have at least one hour
+    exceeding the threshold."""
     exc_counts = threshold_tools.get_exceedance_count(
         T2_hourly, threshold_value=305, period=(1, "year"), groupby=(1, "day")
     )
@@ -63,9 +60,9 @@ def test_hourly_ex2(T2_hourly):
     )  # test correct time transformation occured (collapsed to only 2 values, one for each year)
 
 
-# exmample 3: count number of 3-day events in each year that continously exceed the threshold
 @pytest.mark.advanced
-def test_hourly_ex3(T2_hourly):
+def test_hourly_ex3(T2_hourly: xr.DataArray):
+    """Example 3: count number of 3-day events in each year that continously exceed the threshold."""
     exc_counts = threshold_tools.get_exceedance_count(
         T2_hourly, threshold_value=305, period=(1, "year"), duration1=(72, "hour")
     )
@@ -75,9 +72,9 @@ def test_hourly_ex3(T2_hourly):
     )  # test correct time transformation occured (collapsed to only 2 values, one for each year)
 
 
-# exmample 4: count number of 3-day events in each year that exceed the threshold once each day
 @pytest.mark.advanced
-def test_hourly_ex4(T2_hourly):
+def test_hourly_ex4(T2_hourly: xr.DataArray):
+    """Example 4: count number of 3-day events in each year that exceed the threshold once each day."""
     exc_counts = threshold_tools.get_exceedance_count(
         T2_hourly,
         threshold_value=305,
@@ -91,9 +88,11 @@ def test_hourly_ex4(T2_hourly):
     )  # test correct time transformation occured (collapsed to only 2 values, one for each year)
 
 
-# test current behavior of `duration` options: a six events in a row is counted as 4 3-hour events
 @pytest.mark.advanced
 def test_duration():
+    """Test current behavior of `duration` options: a six events in a row is
+    counted as 4 3-hour events.
+    """
     da = xr.DataArray(
         [1, 1, 1, 1, 1, 1],
         coords={"time": pd.date_range("2000-01-01", freq="1h", periods=6)},
@@ -106,8 +105,8 @@ def test_duration():
 # ------------- Test helper functions for plotting -----------------------------
 
 
-# example name 1: Number of hours each year
 def test_name1():
+    """Example name 1: Number of hours each year."""
     ex1 = xr.DataArray(
         attrs={
             "frequency": "hourly",
@@ -127,8 +126,8 @@ def test_name1():
     assert subtitle1 == "Number of hours each year"
 
 
-# example name 2: Number of days each year with conditions lasting at least 1 hour
 def test_name2():
+    """Example name 2: Number of days each year with conditions lasting at least 1 hour."""
     ex2 = xr.DataArray(
         attrs={
             "frequency": "hourly",
@@ -150,8 +149,8 @@ def test_name2():
     )
 
 
-# example name 3: Number of 3-day events per 1 year
 def test_name3():
+    """Example name 3: Number of 3-day events per 1 year."""
     ex3 = xr.DataArray(
         attrs={
             "frequency": "hourly",
