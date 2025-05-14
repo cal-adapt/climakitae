@@ -3,14 +3,15 @@
 import pandas as pd
 import pytest
 
-from climakitae.util.generate_gwl_tables import get_sims_on_aws
+from climakitae.util.generate_gwl_tables import GWLGenerator
 
 
 @pytest.mark.advanced
 def test_get_sims_on_aws():
     """Check that expected scenarios and models are returned."""
     df = pd.read_csv("https://cmip6-pds.s3.amazonaws.com/pangeo-cmip6.csv")
-    sims_on_aws = get_sims_on_aws(df)
+    gwl_generator = GWLGenerator(df)
+    sims_on_aws = gwl_generator.get_sims_on_aws()
     cols = sims_on_aws.columns.tolist()
 
     for scenario in ["historical", "ssp585", "ssp370", "ssp245", "ssp126"]:
