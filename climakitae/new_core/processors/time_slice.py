@@ -2,6 +2,7 @@
 Subset data on time
 """
 
+import datetime
 import os
 import warnings
 from typing import Any, Dict, Iterable, Union
@@ -9,10 +10,11 @@ from typing import Any, Dict, Iterable, Union
 import pandas as pd
 import xarray as xr
 
-from climakitae.core.constants import UNSET
 from climakitae.new_core.data_access import DataCatalog
 from climakitae.new_core.processors.data_processor import (
-    _PROCESSOR_REGISTRY,
+    _PROCESSOR_REGISTRY,  # looks unused but is used in the decorator
+)
+from climakitae.new_core.processors.data_processor import (
     DataProcessor,
     register_processor,
 )
