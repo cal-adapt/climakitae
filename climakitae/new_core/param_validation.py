@@ -64,7 +64,8 @@ class ParameterValidator(ABC):
     """
 
     def __init__(self):
-        self.CATALOG_PATH = "climakitae/data/catalogs.csv"
+        print("Initializing ParameterValidator")
+        self.catalog_path = "climakitae/data/catalogs.csv"
         self.catalog = None
         self.load_catalog_df()
         # TODO add variable descriptions for UI access
@@ -94,7 +95,7 @@ class ParameterValidator(ABC):
         """
         load the catalog dataframe and assign to self.catalog_df
         """
-        self.catalog_df = intake.open_esm_datastore(self.CATALOG_PATH).df
+        self.catalog_df = intake.open_csv(self.catalog_path).read()
 
     def _convert_frequency(self, frequency: str) -> str:
         """
@@ -173,6 +174,7 @@ class RenewablesValidator(ParameterValidator):
             "experiment_id": UNSET,
             "table_id": UNSET,
             "grid_label": UNSET,
+            "variable_id": UNSET,
         }
         self.catalog = catalog.renewables
 
@@ -255,5 +257,8 @@ class RenewablesValidator(ParameterValidator):
                     )
                 else:
                     warnings.warn(f"Invalid value {value} for key {key}", UserWarning)
-
+                    print(
+                        f"Valid options for {key} are: {valid_options}. "
+                        f"Please check your input."
+                    )
         return None
