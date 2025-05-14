@@ -4,7 +4,7 @@ import xarray as xr
 
 from climakitae.core.constants import UNSET
 from climakitae.new_core.data_access import DataCatalog
-from climakitae.new_core.data_processor import _PROCESSOR_REGISTRY
+from climakitae.new_core.processors.data_processor import _PROCESSOR_REGISTRY
 from climakitae.new_core.param_validation import ParameterValidator
 
 
