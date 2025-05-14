@@ -1,8 +1,15 @@
 """Data processing module for climakitae.""" ""
+import datetime
+import os
+import warnings
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Iterable, Union
 
+import geopandas as gpd
+import pandas as pd
+import pyproj
 import xarray as xr
+from shapely.geometry import mapping
 
 from climakitae.core.constants import UNSET
 from climakitae.new_core.data_access import DataCatalog
@@ -50,6 +57,12 @@ class DataProcessor(ABC):
     - `execute`: Process the data.
     - `update_context`: Update the context with additional parameters.
     - `set_data_accessor`: Set the data accessor for the processor.
+
+    Notes on building a processor:
+    - The processor should only store the parameters needed for processing.
+    - The processor should not store the data itself.
+    - The processor should not throw exceptions. Instead, it should return the data
+    passed to it and a warning message
     """
 
     @abstractmethod
@@ -276,13 +289,28 @@ class ApplyShapeFile(DataProcessor):
         pass
 
 
-@register_processor("subset_data_space")
-class SubsetDataSpace(DataProcessor):
+@register_processor("time_slice")
+class TimeSlice(DataProcessor):
     """
     Subset data based on certain criteria.
 
     This class is a placeholder for data subsetting logic.
     """
+
+    def __init__(self, value):
+        """
+        Initialize the TimeSlice processor.
+
+        Parameters
+        ----------
+        value : tuple(date-like, date-like)
+            The value to subset the data by.
+        """
+        if not isinstance(value, tuple) or len(value) != 2:
+            raise ValueError(
+                "Value must be a tuple of two date-like values."
+            )  # TODO warning not error
+        self.value = self._coerce_to_dates(value)
 
     def execute(
         self,
@@ -291,8 +319,40 @@ class SubsetDataSpace(DataProcessor):
         ],
         context: Dict[str, Any],
     ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
-        # Placeholder for data subsetting logic
-        return result
+        match result:
+            case xr.DataArray() | xr.Dataset():
+                # Subset the data using the date range
+                return result.sel(time=slice(self.value[0], self.value[1]))
+            case dict():
+                # Subset the data using the date range
+                subset_data = {}
+                for key, value in result.items():
+                    subset_data[key] = value.sel(
+                        time=slice(self.value[0], self.value[1])
+                    )
+                return subset_data
+            case list():
+                # Subset the data using the date range
+                subset_data = []
+                for value in result:
+                    subset_data.append(
+                        value.sel(time=slice(self.value[0], self.value[1]))
+                    )
+                return subset_data
+            case tuple():
+                # Subset the data using the date range
+                subset_data = []
+                for value in result:
+                    subset_data.append(
+                        value.sel(time=slice(self.value[0], self.value[1]))
+                    )
+                # convert to tuple
+                return tuple(subset_data)
+            case _:
+                raise ValueError(  # TODO warning not error
+                    f"""Invalid data type for subsetting. 
+                    Expected xr.Dataset, dict, list, or tuple but got {type(result)}."""
+                )
 
     def update_context(self, context: Dict[str, Any]):
         # Placeholder for updating context
@@ -302,32 +362,35 @@ class SubsetDataSpace(DataProcessor):
         # Placeholder for setting data accessor
         pass
 
+    @staticmethod
+    def _coerce_to_dates(value: tuple) -> tuple[pd.Timestamp, pd.Timestamp]:
+        """
+        Coerce the values to date-like objects.
 
-@register_processor("subset_data_time")
-class SubsetDataTime(DataProcessor):
-    """
-    Subset data based on certain criteria.
+        Parameters
+        ----------
+        value : tuple
+            The value to coerce.
 
-    This class is a placeholder for data subsetting logic.
-    """
-
-    def execute(
-        self,
-        result: Union[
-            xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
-        ],
-        context: Dict[str, Any],
-    ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
-        # Placeholder for data subsetting logic
-        return result
-
-    def update_context(self, context: Dict[str, Any]):
-        # Placeholder for updating context
-        pass
-
-    def set_data_accessor(self, catalog: DataCatalog):
-        # Placeholder for setting data accessor
-        pass
+        Returns
+        -------
+        tuple
+            The coerced values.
+        """
+        ret = []
+        for x in value:
+            match x:
+                case str() | int() | float() | datetime.date() | datetime.datetime():
+                    ret.append(pd.to_datetime(x))
+                case pd.Timestamp():
+                    ret.append(x)
+                case pd.DatetimeIndex():
+                    ret.append(x[0])
+                case _:
+                    raise ValueError(  # TODO warning not error
+                        f"Invalid type {type(x)} for date coercion. Expected str, pd.Timestamp, pd.DatetimeIndex, datetime.date, or datetime.datetime."
+                    )
+        return tuple(ret)
 
 
 @register_processor("global_warming_level")
