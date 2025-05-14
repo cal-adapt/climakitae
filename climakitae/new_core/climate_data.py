@@ -102,6 +102,7 @@ class ClimateData:
             "experiment_id": UNSET,  # renewables only
             "table_id": UNSET,  # timescale, e.g., "hourly", "daily", "monthly"
             "grid_label": UNSET,  # resolution, e.g., "3 km", "9 km", "45 km"
+            "variable_id": UNSET,  # variable name, e.g., "Air Temperature at 2m"
             "processes": UNSET,  # dictionary of processes to apply
         }
         return self
@@ -242,6 +243,23 @@ class ClimateData:
         self._query["grid_label"] = grid_label
         return self
 
+    def variable(self, variable: str) -> "ClimateData":
+        """
+        Set the variable for the data source.
+
+        Parameters
+        ----------
+        variable : str
+            The variable to retrieve.
+
+        Returns
+        -------
+        ClimateData
+            The current instance of ClimateData allowing method chaining.
+        """
+        self._query["variable_id"] = variable
+        return self
+
     def processes(self, processes: dict[str, str]) -> "ClimateData":
         """
         Set the processes to apply to the data.
@@ -289,7 +307,7 @@ class ClimateData:
 
     def _validate_required_parameters(self) -> bool:
         """Check if all required parameters are set."""
-        required_params = ["variable", "resolution", "timescale"]
+        required_params = ["variable_id", "grid_label", "table_id", "catalog"]
         for param in required_params:
             if self._query[param] is None:
                 print(f"ERROR: {param} is a required parameter")
@@ -350,13 +368,13 @@ class ClimateData:
         for x in self._factory.get_catalog_options("grid_label"):
             print(f"{x}")
 
-    # def show_variable_options(self):
-    #     """Print the available variables."""
-    #     print("WARNING: not all variables are available in all datasets")
-    #     print("Available variables:")
+    def show_variable_options(self):
+        """Print the available variables."""
+        print("WARNING: not all variables are available in all datasets")
+        print("Available variables:")
 
-    #     for x in self._factory.get_catalog_options("variable"):
-    #         print(f"{x}")
+        for x in self._factory.get_catalog_options("variable_id"):
+            print(f"{x}")
 
     def show_validators(self):
         """Print the available validators."""
