@@ -12,9 +12,6 @@ import xarray as xr
 
 from climakitae.new_core.data_access import DataCatalog
 from climakitae.new_core.processors.data_processor import (
-    _PROCESSOR_REGISTRY,  # looks unused but is used in the decorator
-)
-from climakitae.new_core.processors.data_processor import (
     DataProcessor,
     register_processor,
 )

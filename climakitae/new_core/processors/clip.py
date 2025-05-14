@@ -14,7 +14,6 @@ from shapely.geometry import box, mapping
 from climakitae.core.constants import UNSET
 from climakitae.new_core.data_access import DataCatalog
 from climakitae.new_core.processors.data_processor import (
-    _PROCESSOR_REGISTRY,
     DataProcessor,
     register_processor,
 )
@@ -62,6 +61,8 @@ class Clip(DataProcessor):
         geom = UNSET
         match self.value:
             case str():
+                if not os.path.exists(self.value):
+                    raise FileNotFoundError(f"File {self.value} does not exist.")
                 geom = gpd.read_file(self.value)
             case tuple():
                 geom = gpd.GeoDataFrame(
