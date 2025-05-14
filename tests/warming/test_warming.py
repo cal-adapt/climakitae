@@ -20,7 +20,7 @@ from climakitae.explore.warming import (
     relabel_axis,
 )
 from climakitae.util.utils import read_csv_file
-from climakitae.util.warming_levels import _calculate_warming_level, _get_sliced_data
+from climakitae.util.warming_levels import _get_sliced_data, calculate_warming_level
 
 # Load warming level times from CSV
 gwl_times = read_csv_file(gwl_1850_1900_file, index_col=[0, 1, 2])
