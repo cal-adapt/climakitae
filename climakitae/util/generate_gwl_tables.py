@@ -70,23 +70,23 @@ class GWLGenerator:
     build_timeseries(model_config: dict) -> xarray.Dataset
         Builds an xarray Dataset with a time dimension, containing the concatenated historical
         and SSP time series for all specified scenarios of a given model and ensemble member.
+    buildDFtimeSeries_cesm2(model_config: dict) -> xarray.Dataset
     get_gwl(smoothed: pandas.DataFrame, degree: float) -> pandas.DataFrame
         Computes the timestamp when a given GWL is first reached.
     get_gwl_table_one(model_config: dict, reference_period: dict) -> tuple[pandas.DataFrame, pandas.DataFrame]
         Generates a GWL table for a single model and ensemble member.
     get_gwl_table(model_config: dict, reference_period: dict) -> tuple[pandas.DataFrame, pandas.DataFrame]
         Generates GWL tables for a model across all its ensemble members.
-    generate_gwl_file(models: list[str], scenarios: list[str], reference_periods: list[dict])
-        Generates global warming level (GWL) reference files for specified models.
+    get_table_one_cesm2(model_config: dict, reference_period: dict) : Generates a GWL table for one member of CESM2.
+    get_table_cesm2(model_config: dict, reference_period: dict) : Generates a GWL table for the CESM2 model.
 
     Examples
     --------
     >>> df = pd.read_csv("https://cmip6-pds.s3.amazonaws.com/pangeo-cmip6.csv")
     >>> gwl_generator = GWLGenerator(df)
     >>> models = ["EC-Earth3"]
-    >>> scenarios = ["ssp370"]
     >>> reference_periods = [{"start_year": "19810101", "end_year": "20101231"}]
-    >>> gwl_generator.generate_gwl_file(models, scenarios, reference_periods)
+    >>> gwl_generator.generate_gwl_file(models, reference_periods)
     """
 
     def __init__(self, df, sims_on_aws=None):
@@ -171,9 +171,7 @@ class GWLGenerator:
 
         return sims_on_aws
 
-    def build_timeseries(
-        self, variable: str, model: str, ens_mem: str, scenarios: list[str]
-    ) -> xr.Dataset:
+    def build_timeseries(self, model_config: dict) -> xr.Dataset:
         """
         Builds an xarray Dataset with a time dimension, containing the concatenated historical
         and SSP time series for all specified scenarios of a given model and ensemble member.
@@ -182,20 +180,19 @@ class GWLGenerator:
 
         Parameters:
         ----------
-        variable : str
-            The variable to process, e.g., `tas`. `tas` is the only variable used in this file currently.
-        model : str
-            The model name.
-        ens_mem : str
-            The ensemble member ID.
-        scenarios : list
-            A list of scenario names to include, e.g., ['historical', 'ssp585', 'ssp370'].
+        model_config : dict
+            Dictionary containing 'variable', 'model', 'ens_mem', and 'scenarios' keys
 
         Returns:
         -------
         xarray.Dataset
             A dataset with time as the dimension, containing the appended historical and SSP time series.
         """
+        variable = model_config["variable"]
+        model = model_config["model"]
+        ens_mem = model_config["ens_mem"]
+        scenarios = model_config["scenarios"]
+
         df_subset = self.df[
             (self.df.table_id == "Amon")
             & (self.df.variable_id == "tas")
@@ -247,27 +244,24 @@ class GWLGenerator:
                         )  # .to_pandas())
         return data_one_model
 
-    def buildDFtimeSeries_cesm2(self, ens_mem: str, scenarios: list[str]) -> xr.Dataset:
+    def buildDFtimeSeries_cesm2(self, model_config: dict) -> xr.Dataset:
         """
         Builds a global temperature time series by weighting latitudes and averaging longitudes
         for the CESM2 model across specified scenarios from 1980 to 2100.
 
         Parameters:
         ----------
-        variable : str
-            The variable to process, hardcoded to 'tas' (Air Temperature at 2m).
-        model : str
-            The model name, e.g., 'CESM2'.
-        ens_mem : str
-            The ensemble member ID.
-        scenarios : list
-            A list of scenario names to include in the time series, e.g., ['historical', 'ssp370'].
+        model_config : dict
+            Dictionary containing 'variable', 'model', 'ens_mem', and 'scenarios' keys
 
         Returns:
         -------
         xarray.Dataset
             A dataset containing the global temperature time series for each scenario.
         """
+        ens_mem = model_config["ens_mem"]
+        scenarios = model_config["scenarios"]
+
         # CESM2-LENS is in a separate catalog:
         catalog_cesm = intake.open_esm_datastore(
             "https://raw.githubusercontent.com/NCAR/cesm2-le-aws/main/intake-catalogs/aws-cesm2-le.json"
@@ -313,7 +307,8 @@ class GWLGenerator:
             data_one_model[scenario] = timeseries
         return data_one_model
 
-    def get_gwl(self, smoothed: pd.DataFrame, degree: float) -> pd.DataFrame:
+    @staticmethod
+    def get_gwl(smoothed: pd.DataFrame, degree: float) -> pd.DataFrame:
         """
         Computes the timestamp when a given GWL is first reached.
         Takes a smoothed time series of global mean temperature of different scenarios for a model
@@ -349,37 +344,30 @@ class GWLGenerator:
         return gwl
 
     def get_table_one_cesm2(
-        self,
-        variable: str,
-        model: str,
-        ens_mem: str,
-        scenarios: list[str],
-        start_year: str = "18500101",
-        end_year: str = "19000101",
+        self, model_config: dict, reference_period: dict
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """
         Generates a GWL lookup table for one ensemble member of CESM2.
 
         Parameters:
         ----------
-        variable : str
-            The variable to process, e.g., 'tas'.
-        model : str
-            The model name, e.g., 'CESM2'.
-        ens_mem : str
-            The ensemble member ID.
-        scenarios : list
-            A list of scenario names, e.g., ['historical', 'ssp370'].
-        start_year : str, optional
-            The start year for the reference period in the format 'YYYYMMDD'.
-        end_year : str, optional
-            The end year for the reference period in the format 'YYYYMMDD'.
+        model_config : dict
+            Dictionary containing 'variable', 'model', 'ens_mem', and 'scenarios' keys
+        reference_period : dict
+            Dictionary containing 'start_year' and 'end_year' keys
 
         Returns:
         -------
         tuple
             A DataFrame of warming levels and a DataFrame of global mean temperature time series.
         """
+        variable = model_config["variable"]
+        model = model_config["model"]
+        ens_mem = model_config["ens_mem"]
+        scenarios = model_config["scenarios"]
+        start_year = reference_period["start_year"]
+        end_year = reference_period["end_year"]
+
         data_one_model = self.buildDFtimeSeries_cesm2(
             variable, model, ens_mem, scenarios
         )
@@ -402,34 +390,30 @@ class GWLGenerator:
         return gwlevels, final_model
 
     def get_table_cesm2(
-        self,
-        variable: str,
-        model: str,
-        scenarios: list[str],
-        start_year: str = "18500101",
-        end_year: str = "19000101",
+        self, model_config: dict, reference_period: dict
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """
         Generates a GWL table for the CESM2 model.
 
         Parameters:
         ----------
-        variable : str
-            The variable to process, e.g., 'tas'.
-        model : str
-            The model name, e.g., 'CESM2'.
-        scenarios : list
-            A list of scenario names to include, e.g., ['ssp370'].
-        start_year : str, optional
-            The start year for the reference period in the format 'YYYYMMDD'.
-        end_year : str, optional
-            The end year for the reference period in the format 'YYYYMMDD'.
+        model_config : dict
+            Dictionary containing 'variable', 'model', 'ens_mem', and 'scenarios' keys
+        reference_period : dict
+            Dictionary containing 'start_year' and 'end_year' keys
 
         Returns:
         -------
         tuple
             A DataFrame of warming levels and a DataFrame of global mean temperature time series for the CESM2 model.
         """
+        variable = model_config["variable"]
+        model = model_config["model"]
+        ens_mem = model_config["ens_mem"]
+        scenarios = model_config["scenarios"]
+        start_year = reference_period["start_year"]
+        end_year = reference_period["end_year"]
+
         # the LOCA-downscaled ensemble members are these, naming as described
         # in https://ncar.github.io/cesm2-le-aws/model_documentation.html) :
         ens_mems_cesm = {
@@ -466,13 +450,7 @@ class GWLGenerator:
         )
 
     def get_gwl_table_one(
-        self,
-        variable: str,
-        model: str,
-        ens_mem: str,
-        scenarios: list[str],
-        start_year: str = "18500101",
-        end_year: str = "19000101",
+        self, model_config: dict, reference_period: dict
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """
         Generates a GWL table for a single model and ensemble member.
@@ -482,24 +460,23 @@ class GWLGenerator:
 
         Parameters:
         ----------
-        variable : str
-            The variable to process, e.g., 'tas'.
-        model : str
-            The model name.
-        ens_mem : str
-            The ensemble member ID.
-        scenarios : list
-            A list of scenario names to include, e.g., ['historical', 'ssp585', 'ssp370'].
-        start_year : str, optional
-            The start year for the reference period in the format 'YYYYMMDD'.
-        end_year : str, optional
-            The end year for the reference period in the format 'YYYYMMDD'.
+        model_config : dict
+            Dictionary containing 'variable', 'model', 'ens_mem', and 'scenarios' keys
+        reference_period : dict
+            Dictionary containing 'start_year' and 'end_year' keys
 
         Returns:
         -------
         tuple
             A DataFrame containing warming levels and a DataFrame with global mean temperature time series.
         """
+        variable = model_config["variable"]
+        model = model_config["model"]
+        ens_mem = model_config["ens_mem"]
+        scenarios = model_config["scenarios"]
+        start_year = reference_period["start_year"]
+        end_year = reference_period["end_year"]
+
         data_one_model = self.build_timeseries(variable, model, ens_mem, scenarios)
         try:
             anom = data_one_model - data_one_model.sel(
@@ -538,28 +515,17 @@ class GWLGenerator:
         return gwlevels, final_model
 
     def get_gwl_table(
-        self,
-        variable: str,
-        model: str,
-        scenarios: list[str],
-        start_year: str = "18500101",
-        end_year: str = "19000101",
+        self, model_config: dict, reference_period: dict
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """
         Generates a GWL table for a given model and scenarios.
 
         Parameters:
         ----------
-        variable : str
-            The variable to process, e.g., 'tas'.
-        model : str
-            The model name.
-        scenarios : list
-            A list of scenario names to include, e.g., ['ssp585', 'ssp370', 'ssp245'].
-        start_year : str, optional
-            The start year for the reference period in the format 'YYYYMMDD'.
-        end_year : str, optional
-            The end year for the reference period in the format 'YYYYMMDD'.
+        model_config : dict
+            Dictionary containing 'variable', 'model', 'ens_mem', and 'scenarios' keys
+        reference_period : dict
+            Dictionary containing 'start_year' and 'end_year' keys
 
         Returns:
         -------
@@ -567,7 +533,13 @@ class GWLGenerator:
             A DataFrame containing warming levels and a DataFrame with global mean temperature time series.
             To be exported into `gwl_[time period]ref.csv` and `gwl_[time period]ref_timeidx.csv`.
         """
+        global test
+        model = model_config["model"]
+        ens_mem = model_config["ens_mem"]
+
         ens_mem_list = self.sims_on_aws.T[model]["historical"].copy()
+        if test:
+            ens_mem_list = ens_mem_list[:10]
         if (model == "EC-Earth3") or (model == "EC-Earth3-Veg"):
             for ens_mem in ens_mem_list[:]:
                 if int(ens_mem.split("r")[1].split("i")[0]) > 100:
@@ -577,8 +549,10 @@ class GWLGenerator:
             # Combining all the ensemble members for a given model
             gwlevels_tbl, wl_data_tbls = [], []
             for ens_mem in ens_mem_list:
+                member_config = model_config.copy()
+                member_config["ens_mem"] = ens_mem
                 gwlevels, wl_data_tbl = self.get_gwl_table_one(
-                    variable, model, ens_mem, scenarios, start_year, end_year
+                    member_config, reference_period
                 )
                 gwlevels_tbl.append(gwlevels)
                 wl_data_tbls.append(wl_data_tbl)
@@ -589,14 +563,95 @@ class GWLGenerator:
             return pd.concat(gwlevels_tbl, keys=ens_mem_list), wl_data_tbl_sim
 
         except:
-            print(
-                self.get_gwl_table_one(
-                    variable, model, ens_mem, scenarios, start_year, end_year
-                )
+            print(self.get_gwl_table_one(member_config, reference_period))
+
+    def generate_gwl_file(
+        self, models: list[str], scenarios: list[str], reference_periods: list[dict]
+    ):
+        """
+        Generates global warming level (GWL) reference files for specified models.
+
+        Parameters:
+        ----------
+        models : list
+            List of model names to process
+        scenarios : list
+            List of scenario names to include
+        reference_periods : list
+            List of dictionaries with 'start_year' and 'end_year' keys
+        """
+
+        for period in reference_periods:
+
+            # Setting variables
+            variable = "tas"
+            start_year = period["start_year"]
+            end_year = period["end_year"]
+
+            # Writing out CESM2-LENS data
+            model_config = {
+                "variable": variable,
+                "model": "CESM2-LENS",
+                "scenarios": ["ssp370"],
+            }
+            print("Generate cesm2 table {}-{}".format(start_year[:4], end_year[:4]))
+            cesm2_table, wl_data_tbl_cesm2 = self.get_table_cesm2(model_config, period)
+
+            ## Generating GWL information for rest of models
+            scenarios = ["ssp585", "ssp370", "ssp245"]
+            print("Generate all WL table {}-{}".format(start_year[:4], end_year[:4]))
+            all_wl_data_tbls = pd.DataFrame()
+            all_gw_tbls, all_gw_data_tbls = [], []
+            model_config = {
+                "variable": variable,
+                "model": "",
+                "scenarios": scenarios,
+            }
+
+            # Extracts GWL information for each model
+            for i, model in enumerate(models):
+
+                print(f"\n...Model {i} {model}...\n")
+                model_config["model"] = model
+                gw_tbl, wl_data_tbl_sim = self.get_gwl_table(model_config, period)
+                all_gw_tbls.append(gw_tbl)
+                all_gw_data_tbls.append(wl_data_tbl_sim)
+                try:
+                    all_wl_data_tbls = pd.concat(
+                        [all_wl_data_tbls, wl_data_tbl_sim], axis=1
+                    )
+                except Exception as e:
+                    print(
+                        f"\n Model {model} is skipped. Its table cannot be concatenated as its datetime indices are different: \n"
+                    )
+                    print(e)
+
+            # Combining dataframes and resetting time index due to conflicting datetime object types
+            wl_timeidx = pd.concat([all_wl_data_tbls, wl_data_tbl_cesm2], axis=1)
+            wl_timeidx.index = wl_timeidx.index.map(
+                lambda time: "-".join(map(str, [time.year, time.month]))
+            )  # resetting index
+            wl_timeidx = wl_timeidx.groupby(
+                level=0
+            ).mean()  # grouping times and removing NaNs via mean()
+            write_csv_file(
+                wl_timeidx,
+                "data/gwl_{}-{}ref_timeidx.csv".format(start_year[:4], end_year[:4]),
+            )
+
+            # Creating WL lookup table with 1850-1900 reference period
+            all_gw_levels = pd.concat(all_gw_tbls, keys=models)
+            all_gw_levels = pd.concat([all_gw_levels, cesm2_table])
+            all_gw_levels.index = pd.MultiIndex.from_tuples(
+                all_gw_levels.index, names=["GCM", "run", "scenario"]
+            )
+            write_csv_file(
+                all_gw_levels,
+                "data/gwl_{}-{}ref.csv".format(start_year[:4], end_year[:4]),
             )
 
 
-def main():
+def main(_kTest=False):
     """
     Generates global warming level (GWL) reference files for all available CMIP6 GCMs and CESM2-LENS.
 
@@ -606,83 +661,34 @@ def main():
     - Generating and saving warming level tables in CSV format for different reference periods.
     """
     # Connect to AWS S3 storage
-    fs = s3fs.S3FileSystem(anon=True)
 
-    df = pd.read_csv("https://cmip6-pds.s3.amazonaws.com/pangeo-cmip6.csv")
+    global test
+    test = _kTest
+    try:
+        print("Loading CMIP6 catalog...")
+        df = pd.read_csv("https://cmip6-pds.s3.amazonaws.com/pangeo-cmip6.csv")
 
-    gwl_generator = GWLGenerator(df)
-    sims_on_aws = gwl_generator.sims_on_aws
-    models = gwl_generator.models
+        print("Initializing GWL generator...")
+        try:
+            gwl_generator = GWLGenerator(df)
+            models = gwl_generator.models
 
-    ##### Generating and writing GWL data tables for all GCMS #####
+            # Pre-defined configuration
+            reference_periods = [
+                {"start_year": "18500101", "end_year": "19000101"},
+                {"start_year": "19810101", "end_year": "20101231"},
+            ]
 
-    ### Generating WL CSVs for two reference periods: pre-industrial and secondary reference period overlapping with downscaled data availability:
-    time_periods = [
-        {"start_year": "18500101", "end_year": "19000101"},
-        {"start_year": "19810101", "end_year": "20101231"},
-    ]
-
-    for period in time_periods:
-
-        # Setting variables
-        variable = "tas"
-        start_year = period["start_year"]
-        end_year = period["end_year"]
-
-        # Writing out CESM2-LENS data
-        model = "CESM2-LENS"
-        scenarios = ["ssp370"]
-        print("Generate cesm2 table {}-{}".format(start_year[:4], end_year[:4]))
-        cesm2_table, wl_data_tbl_cesm2 = gwl_generator.get_table_cesm2(
-            variable, model, scenarios, start_year, end_year
-        )
-
-        ## Generating GWL information for rest of models
-        scenarios = ["ssp585", "ssp370", "ssp245"]
-        print("Generate all WL table {}-{}".format(start_year[:4], end_year[:4]))
-        all_wl_data_tbls = pd.DataFrame()
-        all_gw_tbls, all_gw_data_tbls = [], []
-
-        # Extracts GWL information for each model
-        for i, model in enumerate(models):
-            print(f"\n...Model {i} {model}...\n")
-            gw_tbl, wl_data_tbl_sim = gwl_generator.get_gwl_table(
-                variable, model, scenarios, start_year, end_year
-            )
-            all_gw_tbls.append(gw_tbl)
-            all_gw_data_tbls.append(wl_data_tbl_sim)
+            print(f"Generating GWL file for {models}...")
             try:
-                all_wl_data_tbls = pd.concat(
-                    [all_wl_data_tbls, wl_data_tbl_sim], axis=1
-                )
+                gwl_generator.generate_gwl_file(models, reference_periods)
+                print("GWL file generation complete.")
             except Exception as e:
-                print(
-                    f"\n Model {model} is skipped. Its table cannot be concatenated as its datetime indices are different: \n"
-                )
-                print(e)
-
-        # Combining dataframes and resetting time index due to conflicting datetime object types
-        wl_timeidx = pd.concat([all_wl_data_tbls, wl_data_tbl_cesm2], axis=1)
-        wl_timeidx.index = wl_timeidx.index.map(
-            lambda time: "-".join(map(str, [time.year, time.month]))
-        )  # resetting index
-        wl_timeidx = wl_timeidx.groupby(
-            level=0
-        ).mean()  # grouping times and removing NaNs via mean()
-        write_csv_file(
-            wl_timeidx,
-            "data/gwl_{}-{}ref_timeidx.csv".format(start_year[:4], end_year[:4]),
-        )
-
-        # Creating WL lookup table with 1850-1900 reference period
-        all_gw_levels = pd.concat(all_gw_tbls, keys=models)
-        all_gw_levels = pd.concat([all_gw_levels, cesm2_table])
-        all_gw_levels.index = pd.MultiIndex.from_tuples(
-            all_gw_levels.index, names=["GCM", "run", "scenario"]
-        )
-        write_csv_file(
-            all_gw_levels, "data/gwl_{}-{}ref.csv".format(start_year[:4], end_year[:4])
-        )
+                print(f"Error generating GWL file: {e}")
+        except Exception as e:
+            print(f"Error initializing GWL generator: {e}")
+    except Exception as e:
+        print(f"Error loading CMIP6 catalog: {e}")
 
 
 if __name__ == "__main__":
