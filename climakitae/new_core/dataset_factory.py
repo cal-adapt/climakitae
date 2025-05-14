@@ -33,7 +33,7 @@ import xarray as xr
 
 from climakitae.core.constants import UNSET
 from climakitae.new_core.data_access import DataCatalog
-from climakitae.new_core.data_processor import _PROCESSOR_REGISTRY, DataProcessor
+from climakitae.new_core.processors.data_processor import _PROCESSOR_REGISTRY, DataProcessor
 from climakitae.new_core.dataset import Dataset
 from climakitae.new_core.param_validation import _VALIDATOR_REGISTRY, ParameterValidator
 
@@ -136,7 +136,7 @@ class DatasetFactory:
             If no validator is registered for the given combination
         """
         if val_reg_key in self._validator_registry:
-            return self._validator_registry[val_reg_key]()
+            return self._validator_registry[val_reg_key](self._catalog)
 
         raise ValueError(f"No validator registered for {val_reg_key}")
 
@@ -163,13 +163,14 @@ class DatasetFactory:
 
         # Create and configure parameter validator
         catalog_key = self._get_catalog_key_from_query(ui_query)
+        self._catalog = DataCatalog()
+        self._catalog.set_catalog_key(catalog_key)
         dataset.with_param_validator(self.create_validator(catalog_key))
 
         # Configure the appropriate catalog based on query parameters
-        dataset.with_catalog(DataCatalog().set_catalog_key(catalog_key).set_catalog())
-
+        dataset.with_catalog(self._catalog)
         # Add processing steps based on query parameters
-        for step in self._get_list_of_processing_steps(ui_query):
+        for step in self._get_list_of_processing_steps(ui_query["processes"]):
             dataset.with_processing_step(step)
 
         return dataset
@@ -191,10 +192,13 @@ class DatasetFactory:
             List of processing steps to apply to the dataset
         """
         processing_steps = []
-        # TODO: Implement logic to create processing steps based on query
-        # for step_type, step_class in self._processing_step_registry.items():
-        #     if step_type in query:
-        #         processing_steps.append(step_class(query[step_type]))
+        if query is UNSET:
+            return processing_steps
+
+        for key, value in query.items():
+            if key in self._processing_step_registry:
+                processor_class = self._processing_step_registry[key]
+                processing_steps.append(processor_class(value))
 
         return processing_steps
 
@@ -215,7 +219,7 @@ class DatasetFactory:
         """
         # search catalog for matching datasets
         catalog_key = None
-        if catalog_key := query["catalog"] is not UNSET:
+        if (catalog_key := query["catalog"]) is not UNSET:
             return catalog_key
 
         # otherwise, do a quick lookup in the dataframe
