@@ -5,16 +5,12 @@
 # Added to Test commit workflow
 
 
-name: ci
+name: ci-main
 
 on: 
   push:
     branches:
-      - '*'
-      - '!main'
-  pull_request:
-    types:
-      - labeled
+      - main
 
 jobs:
   lint:
@@ -44,8 +40,5 @@ jobs:
       run: conda info
     - name: Output conda list
       run: conda list
-    - name: Test with pytest (Basic)
-      run: pytest --no-header -vv -m "not advanced"
-    - name: Test with pytest (Advanced)
-      if: github.event.label.name == 'Advanced Testing'
-      run: pytest --no-header -vv -m "advanced"
+    - name: Test with pytest
+      run: pytest --no-header -vv
