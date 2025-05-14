@@ -67,6 +67,7 @@ class TestWarmingLevels:
     Test class for WarmingLevels class
     """
 
+    @pytest.mark.advanced
     @staticmethod
     def test_warming_levels_init():
         """Test that WarmingLevels initializes correctly with default values."""
@@ -87,6 +88,7 @@ class TestWarmingLevels:
             assert wl.warming_levels == [0.8, 1.5, 2.0, 3.0, 4.0]
             mock_check.assert_called_once()
 
+    @pytest.mark.advanced
     @staticmethod
     def test_find_warming_slice_with_mocked_data():
         """
@@ -163,6 +165,7 @@ class TestWarmingLevels:
             assert mock_clean_warm_data.called
             assert mock_relabel_axis.called
 
+    @pytest.mark.advanced
     @staticmethod
     def test_calculate_with_mocked_dependencies():
         """
