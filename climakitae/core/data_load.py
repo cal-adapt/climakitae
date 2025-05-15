@@ -234,22 +234,29 @@ def area_subset_geometry(
                 for key in cached_area
             }.values()
         )
-        if area_subset == "states":
-            shape = _set_subarea(selections._geographies._us_states, shape_indices)
-        elif area_subset == "CA counties":
-            shape = _set_subarea(selections._geographies._ca_counties, shape_indices)
-        elif area_subset == "CA watersheds":
-            shape = _set_subarea(selections._geographies._ca_watersheds, shape_indices)
-        elif area_subset == "CA Electric Load Serving Entities (IOU & POU)":
-            shape = _set_subarea(selections._geographies._ca_utilities, shape_indices)
-        elif area_subset == "CA Electricity Demand Forecast Zones":
-            shape = _set_subarea(
-                selections._geographies._ca_forecast_zones, shape_indices
-            )
-        elif area_subset == "CA Electric Balancing Authority Areas":
-            shape = _set_subarea(
-                selections._geographies._ca_electric_balancing_areas, shape_indices
-            )
+        match area_subset:
+            case "states":
+                shape = _set_subarea(selections._geographies._us_states, shape_indices)
+            case "CA counties":
+                shape = _set_subarea(
+                    selections._geographies._ca_counties, shape_indices
+                )
+            case "CA watersheds":
+                shape = _set_subarea(
+                    selections._geographies._ca_watersheds, shape_indices
+                )
+            case "CA Electric Load Serving Entities (IOU & POU)":
+                shape = _set_subarea(
+                    selections._geographies._ca_utilities, shape_indices
+                )
+            case "CA Electricity Demand Forecast Zones":
+                shape = _set_subarea(
+                    selections._geographies._ca_forecast_zones, shape_indices
+                )
+            case "CA Electric Balancing Authority Areas":
+                shape = _set_subarea(
+                    selections._geographies._ca_electric_balancing_areas, shape_indices
+                )
         ds_region = [shape]
     else:
         ds_region = None
