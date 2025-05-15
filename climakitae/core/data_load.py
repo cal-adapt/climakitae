@@ -1260,28 +1260,29 @@ def read_catalog_from_select(selections: "DataParameters") -> xr.DataArray:
     # Get data attributes beforehand since selections is modified
     data_attrs = _get_data_attributes(selections)
     if "_derived" in orig_var_id_selection:
-        if orig_var_id_selection == "wind_speed_derived":  # Hourly
-            da = _get_wind_speed_derived(selections)
-        elif orig_var_id_selection == "wind_direction_derived":  # Hourly
-            da = _get_wind_dir_derived(selections)
-        elif orig_var_id_selection == "dew_point_derived":  # Monthly/daily
-            da = _get_monthly_daily_dewpoint(selections)
-        elif orig_var_id_selection == "dew_point_derived_hrly":  # Hourly
-            da = _get_hourly_dewpoint(selections)
-        elif orig_var_id_selection == "rh_derived":  # Hourly
-            da = _get_hourly_rh(selections)
-        elif orig_var_id_selection == "q2_derived":  # Hourly
-            da = _get_hourly_specific_humidity(selections)
-        elif orig_var_id_selection == "fosberg_index_derived":  # Hourly
-            da = _get_fosberg_fire_index(selections)
-        elif orig_var_id_selection == "noaa_heat_index_derived":  # Hourly
-            da = _get_noaa_heat_index(selections)
-        elif orig_var_id_selection == "effective_temp_index_derived":
-            da = _get_eff_temp(selections)
-        else:
-            raise ValueError(
-                "You've encountered a bug. No data available for selected derived variable."
-            )
+        match orig_var_id_selection:
+            case "wind_speed_derived":  # Hourly
+                da = _get_wind_speed_derived(selections)
+            case "wind_direction_derived":  # Hourly
+                da = _get_wind_dir_derived(selections)
+            case "dew_point_derived":  # Monthly/daily
+                da = _get_monthly_daily_dewpoint(selections)
+            case "dew_point_derived_hrly":  # Hourly
+                da = _get_hourly_dewpoint(selections)
+            case "rh_derived":  # Hourly
+                da = _get_hourly_rh(selections)
+            case "q2_derived":  # Hourly
+                da = _get_hourly_specific_humidity(selections)
+            case "fosberg_index_derived":  # Hourly
+                da = _get_fosberg_fire_index(selections)
+            case "noaa_heat_index_derived":  # Hourly
+                da = _get_noaa_heat_index(selections)
+            case "effective_temp_index_derived":
+                da = _get_eff_temp(selections)
+            case _:  # none of the above
+                raise ValueError(
+                    "You've encountered a bug. No data available for selected derived variable."
+                )
 
         # ------ Set attributes ------
         # Some of the derived variables may be constructed from data that comes from the same institution
