@@ -1101,14 +1101,15 @@ def _get_exceedance_events(
     """
 
     # Identify occurances (and preserve NaNs)
-    if threshold_direction == "above":
-        events_da = (da > threshold_value).where(da.isnull() == False)
-    elif threshold_direction == "below":
-        events_da = (da < threshold_value).where(da.isnull() == False)
-    else:
-        raise ValueError(
-            f"Unknown value for `threshold_direction` parameter: {threshold_direction}. Available options are 'above' or 'below'."
-        )
+    match threshold_direction:
+        case "above":
+            events_da = (da > threshold_value).where(da.isnull() == False)
+        case "below":
+            events_da = (da < threshold_value).where(da.isnull() == False)
+        case _:
+            raise ValueError(
+                f"Unknown value for `threshold_direction` parameter: {threshold_direction}. Available options are 'above' or 'below'."
+            )
 
     if duration1 is not None:
         dur_len, dur_type = duration1
