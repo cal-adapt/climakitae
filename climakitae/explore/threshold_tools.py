@@ -133,10 +133,11 @@ def get_block_maxima(
             )
 
         # Now select the min (max) from the duration period
-        if extremes_type == "max":
-            da_series = da_series.rolling(time=dur2_len, center=False).min("time")
-        elif extremes_type == "min":
-            da_series = da_series.rolling(time=dur2_len, center=False).max("time")
+        match extremes_type:
+            case "max":
+                da_series = da_series.rolling(time=dur2_len, center=False).min("time")
+            case "min":
+                da_series = da_series.rolling(time=dur2_len, center=False).max("time")
 
     # Now select the most extreme value for each block in the series
     if extremes_type == "max":
