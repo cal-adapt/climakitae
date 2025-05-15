@@ -1,15 +1,8 @@
 """Data processing module for climakitae.""" ""
-import datetime
-import os
-import warnings
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Iterable, Union
 
-import geopandas as gpd
-import pandas as pd
-import pyproj
 import xarray as xr
-from shapely.geometry import mapping
 
 from climakitae.core.constants import UNSET
 from climakitae.new_core.data_access import DataCatalog
@@ -127,12 +120,12 @@ class DataProcessor(ABC):
         """
 
 
-@register_processor("get_variable")
-class GetVariable(DataProcessor):
+@register_processor("update_attributes")
+class UpdateAttributes(DataProcessor):
     """
-    Get a specific variable from the data.
+    Update attributes of the data.
 
-    This class is a placeholder for variable extraction logic.
+    This class is a placeholder for attribute update logic.
     """
 
     def execute(
@@ -142,7 +135,7 @@ class GetVariable(DataProcessor):
         ],
         context: Dict[str, Any],
     ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
-        # Placeholder for variable extraction logic
+        # Placeholder for attribute update logic
         return result
 
     def update_context(self, context: Dict[str, Any]):
@@ -287,9 +280,6 @@ class ApplyShapeFile(DataProcessor):
     def set_data_accessor(self, catalog: DataCatalog):
         # Placeholder for setting data accessor
         pass
-
-
-
 
 
 @register_processor("global_warming_level")
