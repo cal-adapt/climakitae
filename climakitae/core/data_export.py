@@ -1262,25 +1262,26 @@ def write_tmy_file(
         return diff
 
     # custom location input handling
-    if type(station_code) == str:  # custom code passed
-        station_code = station_code
-        state = stn_state
-        timezone = _utc_offset_timezone(lon=stn_lon, lat=stn_lat)
-        elevation = (
-            stn_elev  # default of 0.0 on custom inputs if elevation is not provided
-        )
-
-    elif type(station_code) == int:  # hadisd statio code passed
-        # look up info
-        if station_code in station_df["station id"].values:
-            state = station_df.loc[station_df["station id"] == station_code][
-                "state"
-            ].values[0]
-            elevation = station_df.loc[station_df["station id"] == station_code][
-                "elevation"
-            ].values[0]
-            station_code = str(station_code)[:6]
+    match station_code:
+        case str():  # custom code passed
+            station_code = station_code
+            state = stn_state
             timezone = _utc_offset_timezone(lon=stn_lon, lat=stn_lat)
+            elevation = (
+                stn_elev  # default of 0.0 on custom inputs if elevation is not provided
+            )
+
+        case int():  # hadisd statio code passed
+            # look up info
+            if station_code in station_df["station id"].values:
+                state = station_df.loc[station_df["station id"] == station_code][
+                    "state"
+                ].values[0]
+                elevation = station_df.loc[station_df["station id"] == station_code][
+                    "elevation"
+                ].values[0]
+                station_code = str(station_code)[:6]
+                timezone = _utc_offset_timezone(lon=stn_lon, lat=stn_lat)
 
     def _tmy_header(
         location_name: str,
