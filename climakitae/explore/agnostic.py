@@ -152,15 +152,16 @@ def _create_lat_lon_select(
     # Creates a selection object
     selections = DataParameters()
     selections.area_subset = "lat/lon"
-    if (
-        type(lat) == float or type(lat) == int
-    ):  # Creating a box around which to find the nearest gridcell for compute
-        selections.latitude = (lat - 0.05, lat + 0.05)
-        selections.longitude = (lon - 0.05, lon + 0.05)
-    elif type(lat) == tuple:
-        selections.latitude = lat
-        selections.longitude = lon
-        selections.area_average = "Yes"
+    match lat:
+        case (
+            float() | int()
+        ):  # Creating a box around which to find the nearest gridcell for compute
+            selections.latitude = (lat - 0.05, lat + 0.05)
+            selections.longitude = (lon - 0.05, lon + 0.05)
+        case tuple():
+            selections.latitude = lat
+            selections.longitude = lon
+            selections.area_average = "Yes"
     selections.downscaling_method = downscaling_method
 
     # Add attributes for the rest of the selections object
