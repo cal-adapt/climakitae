@@ -1294,10 +1294,11 @@ class DataParameters(param.Parameterized):
 
     @param.depends("data_type", watch=True)
     def _update_textual_description(self):
-        if self.data_type == "Gridded":
-            self._station_data_info = ""
-        elif self.data_type == "Stations":
-            self._station_data_info = self._info_about_station_data
+        match self.data_type:
+            case "Gridded":
+                self._station_data_info = ""
+            case "Stations":
+                self._station_data_info = self._info_about_station_data
 
     @param.depends(
         "data_type",
