@@ -991,23 +991,25 @@ class DataParameters(param.Parameterized):
         """Update unique variable options"""
 
         # Station data is only available hourly
-        if self.data_type == "Stations":
-            self.param["timescale"].objects = ["hourly"]
-            self.timescale = "hourly"
-            self.param["variable_type"].objects = ["Variable"]
-            self.variable_type = "Variable"
-        elif self.data_type == "Gridded":
-            if self.downscaling_method == "Statistical":
-                self.param["timescale"].objects = ["daily", "monthly"]
-                if self.timescale == "hourly":
-                    self.timescale = "daily"
-            elif self.downscaling_method == "Dynamical":
-                self.param["timescale"].objects = ["daily", "monthly", "hourly"]
-            else:  # "Dynamical+Statistical"
-                # If both are selected, only show daily data
-                # We do not have WRF on LOCA grid resampled to monthly
-                self.param["timescale"].objects = ["daily"]
-                self.timescale = "daily"
+        match self.data_type:
+            case "Stations":
+                self.param["timescale"].objects = ["hourly"]
+                self.timescale = "hourly"
+                self.param["variable_type"].objects = ["Variable"]
+                self.variable_type = "Variable"
+            case "Gridded":
+                match self.downscaling_method:
+                    case "Statistical":
+                        self.param["timescale"].objects = ["daily", "monthly"]
+                        if self.timescale == "hourly":
+                            self.timescale = "daily"
+                    case "Dynamical":
+                        self.param["timescale"].objects = ["daily", "monthly", "hourly"]
+                    case "Dynamical+Statistical":
+                        # If both are selected, only show daily data
+                        # We do not have WRF on LOCA grid resampled to monthly
+                        self.param["timescale"].objects = ["daily"]
+                        self.timescale = "daily"
 
         (
             self.scenario_options,
