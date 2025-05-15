@@ -365,44 +365,45 @@ def _export_to_zarr(data: xr.DataArray | xr.Dataset, save_name: str, mode: str):
             )
         )
 
-    if mode == "local":
-        print("Saving file locally as Zarr...")
-        if disk_space <= est_file_size:
-            raise Exception(
-                "Data too large to save locally. Use the format='Zarr', mode='s3' options."
-            )
-        path = os.path.join(os.getcwd(), save_name)
-
-        if os.path.exists(path):
-            raise Exception(
-                (
-                    f"File {save_name} exists. "
-                    "Please either delete that file from the work space "
-                    "or specify a new file name."
+    match mode:
+        case "local":
+            print("Saving file locally as Zarr...")
+            if disk_space <= est_file_size:
+                raise Exception(
+                    "Data too large to save locally. Use the format='Zarr', mode='s3' options."
                 )
-            )
-        _write_zarr(path, _data)
-    elif mode == "s3":
-        print("Saving file to S3 scratch bucket as Zarr...")
-        display_path = f"{os.environ['SCRATCH_BUCKET']}/{save_name}"
-        path = "simplecache::" + display_path
-        prefix = display_path.split(export_s3_bucket + "/")[-1]
+            path = os.path.join(os.getcwd(), save_name)
 
-        s3 = boto3.resource("s3")
-        try:
-            s3.Object(export_s3_bucket, prefix + "/.zattrs").load()
-        except botocore.exceptions.ClientError as e:
-            if e.response["Error"]["Code"] == "404":
-                # The object does not exist so go ahead and write to S3
-                _write_zarr_to_s3(display_path, path, save_name, _data)
+            if os.path.exists(path):
+                raise Exception(
+                    (
+                        f"File {save_name} exists. "
+                        "Please either delete that file from the work space "
+                        "or specify a new file name."
+                    )
+                )
+            _write_zarr(path, _data)
+        case "s3":
+            print("Saving file to S3 scratch bucket as Zarr...")
+            display_path = f"{os.environ['SCRATCH_BUCKET']}/{save_name}"
+            path = "simplecache::" + display_path
+            prefix = display_path.split(export_s3_bucket + "/")[-1]
+
+            s3 = boto3.resource("s3")
+            try:
+                s3.Object(export_s3_bucket, prefix + "/.zattrs").load()
+            except botocore.exceptions.ClientError as e:
+                if e.response["Error"]["Code"] == "404":
+                    # The object does not exist so go ahead and write to S3
+                    _write_zarr_to_s3(display_path, path, save_name, _data)
+                else:
+                    # Something else has gone wrong.
+                    raise
             else:
-                # Something else has gone wrong.
-                raise
-        else:
-            # The object does exist
-            raise Exception(f"File {save_name} exists. Specify a new file name.")
-    else:
-        raise Exception("Correct mode not specified. Use either 'local' or 's3'.")
+                # The object does exist
+                raise Exception(f"File {save_name} exists. Specify a new file name.")
+        case _:
+            raise Exception("Correct mode not specified. Use either 'local' or 's3'.")
 
 
 def _get_unit(dataarray: xr.DataArray) -> str:
