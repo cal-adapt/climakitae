@@ -2121,33 +2121,32 @@ def get_data(
         approach: str, scenario: str
     ) -> tuple[str, str]:
         """Get scenario_ssp, scenario_historical depending on user inputs"""
-        if approach == "Warming Level":
-            scenario_ssp = ["n/a"]
-            scenario_historical = ["n/a"]
-        elif approach == "Time":
-
-            if (
-                "Historical Reconstruction" in scenario
-            ):  # Handling for Historical Reconstruction option
-                scenario_historical = [x for x in scenario if "Historical" in x]
-                scenario_ssp = []
+        match approach:
+            case "Warming Level":
+                scenario_ssp = ["n/a"]
+                scenario_historical = ["n/a"]
+            case "Time":
                 if (
-                    len(scenario) != 1
-                ):  # No SSP options for Historical Reconstruction data
-                    print(
-                        "WARNING: Historical Reconstruction data cannot be retrieved in the same data object as SSP scenario options. SSP data will not be retrieved."
-                    )
-
-            else:
-                scenario_ssp = [
-                    x for x in scenario if "Historical" not in x
-                ]  # Add non-historical SSPs to scenario_ssp key
-                if "Historical Climate" in scenario:
-                    scenario_historical = ["Historical Climate"]
+                    "Historical Reconstruction" in scenario
+                ):  # Handling for Historical Reconstruction option
+                    scenario_historical = [x for x in scenario if "Historical" in x]
+                    scenario_ssp = []
+                    if (
+                        len(scenario) != 1
+                    ):  # No SSP options for Historical Reconstruction data
+                        print(
+                            "WARNING: Historical Reconstruction data cannot be retrieved in the same data object as SSP scenario options. SSP data will not be retrieved."
+                        )
                 else:
-                    scenario_historical = []
-        else:
-            scenario_ssp, scenario_historical = None, None
+                    scenario_ssp = [
+                        x for x in scenario if "Historical" not in x
+                    ]  # Add non-historical SSPs to scenario_ssp key
+                    if "Historical Climate" in scenario:
+                        scenario_historical = ["Historical Climate"]
+                    else:
+                        scenario_historical = []
+            case _:
+                scenario_ssp, scenario_historical = None, None
         return scenario_ssp, scenario_historical
 
     # default values set as lists are dangerous, so set them to None and then set to
