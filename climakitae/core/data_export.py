@@ -1406,54 +1406,57 @@ def write_tmy_file(
         return headers
 
     # typical meteorological year format
-    if file_ext == "tmy":
-        path_to_file = filename_to_export + ".tmy"
+    match file_ext:
+        case "tmy":
+            path_to_file = filename_to_export + ".tmy"
 
-        with open(path_to_file, "w") as f:
-            f.writelines(
-                _tmy_header(
-                    location_name,
-                    station_code,
-                    stn_lat,
-                    stn_lon,
-                    state,
-                    timezone,
-                    elevation,
-                    df,
+            with open(path_to_file, "w") as f:
+                f.writelines(
+                    _tmy_header(
+                        location_name,
+                        station_code,
+                        stn_lat,
+                        stn_lon,
+                        state,
+                        timezone,
+                        elevation,
+                        df,
+                    )
+                )  # writes required header lines
+                df = df.drop(
+                    columns=["simulation", "lat", "lon", "scenario"]
+                )  # drops header columns from df
+                dfAsString = df.to_csv(sep=",", header=False, index=False)
+                f.write(dfAsString)  # writes data in TMY format
+            print(
+                "TMY data exported to .tmy format with filename {}.tmy, with size {}".format(
+                    filename_to_export, len(df)
                 )
-            )  # writes required header lines
-            df = df.drop(
-                columns=["simulation", "lat", "lon", "scenario"]
-            )  # drops header columns from df
-            dfAsString = df.to_csv(sep=",", header=False, index=False)
-            f.write(dfAsString)  # writes data in TMY format
-        print(
-            "TMY data exported to .tmy format with filename {}.tmy, with size {}".format(
-                filename_to_export, len(df)
             )
-        )
-    # energy plus weather format
-    elif file_ext == "epw":
-        path_to_file = filename_to_export + ".epw"
-        with open(path_to_file, "w") as f:
-            f.writelines(
-                _epw_header(
-                    location_name,
-                    station_code,
-                    stn_lat,
-                    stn_lon,
-                    state,
-                    timezone,
-                    elevation,
-                    df,
+        # energy plus weather format
+        case "epw":
+            path_to_file = filename_to_export + ".epw"
+            with open(path_to_file, "w") as f:
+                f.writelines(
+                    _epw_header(
+                        location_name,
+                        station_code,
+                        stn_lat,
+                        stn_lon,
+                        state,
+                        timezone,
+                        elevation,
+                        df,
+                    )
+                )  # writes required header lines
+                df_string = _epw_format_data(df).to_csv(
+                    sep=",", header=False, index=False
                 )
-            )  # writes required header lines
-            df_string = _epw_format_data(df).to_csv(sep=",", header=False, index=False)
-            f.write(df_string)  # writes data in EPW format
-        print(
-            "TMY data exported to .epw format with filename {}, with size {}.epw".format(
-                filename_to_export, len(df)
+                f.write(df_string)  # writes data in EPW format
+            print(
+                "TMY data exported to .epw format with filename {}, with size {}.epw".format(
+                    filename_to_export, len(df)
+                )
             )
-        )
-    else:
-        print('Please pass either "tmy" or "epw" as a file format for export.')
+        case _:
+            print('Please pass either "tmy" or "epw" as a file format for export.')
