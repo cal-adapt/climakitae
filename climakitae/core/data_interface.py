@@ -1040,16 +1040,17 @@ class DataParameters(param.Parameterized):
 
             # Filter for derived indices
             # Depends on user selection for variable_type
-            if self.variable_type == "Variable":
-                # Remove indices
-                self.variable_options_df = self.variable_options_df[
-                    ~self.variable_options_df["variable_id"].str.contains("index")
-                ]
-            elif self.variable_type == "Derived Index":
-                # Show only indices
-                self.variable_options_df = self.variable_options_df[
-                    self.variable_options_df["variable_id"].str.contains("index")
-                ]
+            match self.variable_type:
+                case "Variable":
+                    # Remove indices
+                    self.variable_options_df = self.variable_options_df[
+                        ~self.variable_options_df["variable_id"].str.contains("index")
+                    ]
+                case "Derived Index":
+                    # Show only indices
+                    self.variable_options_df = self.variable_options_df[
+                        self.variable_options_df["variable_id"].str.contains("index")
+                    ]
             var_options = self.variable_options_df.display_name.values
             self.param["variable"].objects = var_options
             if self.variable not in var_options:
