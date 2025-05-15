@@ -1668,17 +1668,18 @@ def _check_if_good_input(d: dict, cat_df: pd.DataFrame) -> dict:
                 closest_options = _get_closest_options(val_i, valid_options)
 
                 # Sad! No closest options found. Just set the key to all valid options
-                if closest_options is None:
-                    print("Valid options: \n- ", end="")
-                    print("\n- ".join(valid_options))
-                    raise ValueError("Bad input")
+                match closest_options:
+                    case None:
+                        print("Valid options: \n- ", end="")
+                        print("\n- ".join(valid_options))
+                        raise ValueError("Bad input")
 
-                # Just one option in the list
-                elif len(closest_options) == 1:
-                    print("Closest option: '" + closest_options[0] + "'")
+                    # Just one option in the list
+                    case closest_options if len(closest_options) == 1:
+                        print("Closest option: '" + closest_options[0] + "'")
 
-                elif len(closest_options) > 1:
-                    print("Closest options: \n- " + "\n- ".join(closest_options))
+                    case closest_options if len(closest_options) > 1:
+                        print("Closest options: \n- " + "\n- ".join(closest_options))
 
                 # Set key to closest option
                 print("Outputting data for " + key + "='" + closest_options[0] + "'\n")
