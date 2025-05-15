@@ -135,10 +135,11 @@ def _complete_selections(selections, variable, units, years, wrf_timescale="mont
 
     # If we want to allow users to select on criteria beyond just the metric and downscaling (i.e. also timescale and resolution), then the following line will be useful to present users
     # print(variable_description_df[['display_name', 'downscaling_method', 'timescale']].to_string())
-    if selections.downscaling_method == "Statistical":
-        selections.timescale = "monthly"
-    elif selections.downscaling_method == "Dynamical":
-        selections.timescale = wrf_timescale
+    match selections.downscaling_method:
+        case "Statistical":
+            selections.timescale = "monthly"
+        case "Dynamical":
+            selections.timescale = wrf_timescale
     selections.resolution = "3 km"
     selections.units = units
     selections.time_slice = years
