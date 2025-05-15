@@ -113,10 +113,11 @@ def get_block_maxima(
             )
 
         # select the max (min) in each group
-        if extremes_type == "max":
-            da_series = da_series.resample(time=f"{group_len}D", label="left").max()
-        elif extremes_type == "min":
-            da_series = da_series.resample(time=f"{group_len}D", label="left").min()
+        match extremes_type:
+            case "max":
+                da_series = da_series.resample(time=f"{group_len}D", label="left").max()
+            case "min":
+                da_series = da_series.resample(time=f"{group_len}D", label="left").min()
 
     if grouped_duration != None:
         if groupby == None:
