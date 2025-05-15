@@ -435,14 +435,15 @@ def _override_unit_defaults(da: xr.DataArray, var_id: str) -> xr.DataArray:
     xr.DataArray
         output data
     """
-    if var_id == "huss":
-        # Units for LOCA specific humidity are set to 1
-        # Reset to kg/kg so they can be converted if neccessary to g/kg
-        da.attrs["units"] = "kg/kg"
-    elif var_id == "rsds":
-        # rsds units are "W m-2"
-        # rename them to W/m2 to match the lookup catalog, and the units for WRF radiation variables
-        da.attrs["units"] = "W/m2"
+    match var_id:
+        case "huss":
+            # Units for LOCA specific humidity are set to 1
+            # Reset to kg/kg so they can be converted if neccessary to g/kg
+            da.attrs["units"] = "kg/kg"
+        case "rsds":
+            # rsds units are "W m-2"
+            # rename them to W/m2 to match the lookup catalog, and the units for WRF radiation variables
+            da.attrs["units"] = "W/m2"
     return da
 
 
