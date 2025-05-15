@@ -879,12 +879,13 @@ class DataParameters(param.Parameterized):
         """Update area average selection choices based on station vs. gridded data.
         There is no area average option if station data is selected. It will be shown as n/a.
         """
-        if self.data_type == "Stations":
-            self.param["area_average"].objects = ["n/a"]
-            self.area_average = "n/a"
-        elif self.data_type == "Gridded":
-            self.param["area_average"].objects = ["Yes", "No"]
-            self.area_average = "No"
+        match self.data_type:
+            case "Stations":
+                self.param["area_average"].objects = ["n/a"]
+                self.area_average = "n/a"
+            case "Gridded":
+                self.param["area_average"].objects = ["Yes", "No"]
+                self.area_average = "No"
 
     @param.depends(
         "downscaling_method",
