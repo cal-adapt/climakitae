@@ -114,18 +114,18 @@ def _get_user_options(
 
     # Limit scenarios if both LOCA and WRF are selected
     # We just want the scenarios that are present in both datasets
-    if downscaling_method == "Dynamical+Statistical":  # If both are selected
-        loca_scenarios = cat_subset.search(
-            activity_id="LOCA2"
-        ).df.experiment_id.unique()  # LOCA unique member_ids
-        wrf_scenarios = cat_subset.search(
-            activity_id="WRF"
-        ).df.experiment_id.unique()  # WRF unique member_ids
-        overlapping_scenarios = list(set(loca_scenarios) & set(wrf_scenarios))
-        cat_subset = cat_subset.search(experiment_id=overlapping_scenarios)
-
-    elif downscaling_method == "Statistical":
-        cat_subset = cat_subset.search(activity_id="LOCA2")
+    match downscaling_method:
+        case "Dynamical+Statistical":  # If both are selected
+            loca_scenarios = cat_subset.search(
+                activity_id="LOCA2"
+            ).df.experiment_id.unique()  # LOCA unique member_ids
+            wrf_scenarios = cat_subset.search(
+                activity_id="WRF"
+            ).df.experiment_id.unique()  # WRF unique member_ids
+            overlapping_scenarios = list(set(loca_scenarios) & set(wrf_scenarios))
+            cat_subset = cat_subset.search(experiment_id=overlapping_scenarios)
+        case "Statistical":
+            cat_subset = cat_subset.search(activity_id="LOCA2")
 
     # Get scenario options
     scenario_options = list(cat_subset.df["experiment_id"].unique())
