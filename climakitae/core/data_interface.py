@@ -358,64 +358,65 @@ def _get_subarea(
     ) -> gpd.GeoDataFrame:
         return boundary_dataset.loc[shape_indices]
 
-    if area_subset == "lat/lon":
-        geometry = box(
-            longitude[0],
-            latitude[0],
-            longitude[1],
-            latitude[1],
-        )
-        df_ae = gpd.GeoDataFrame(
-            pd.DataFrame({"subset": ["coords"], "geometry": [geometry]}),
-            crs="EPSG:4326",
-        )
-    elif area_subset != "none":
-        # `if-condition` added for catching errors with delays in rendering cached area.
-        if cached_area is None:
-            shape_indices = [0]
-        else:
-            # Filter for indices that are selected in `Location selection` dropdown
-            shape_indices = list(
-                {
-                    key: _geography_choose[area_subset][key] for key in cached_area
-                }.values()
+    match area_subset:
+        case "lat/lon":
+            geometry = box(
+                longitude[0],
+                latitude[0],
+                longitude[1],
+                latitude[1],
             )
+            df_ae = gpd.GeoDataFrame(
+                pd.DataFrame({"subset": ["coords"], "geometry": [geometry]}),
+                crs="EPSG:4326",
+            )
+        case area_subset if area_subset != "none":
+            # `if-condition` added for catching errors with delays in rendering cached area.
+            if cached_area is None:
+                shape_indices = [0]
+            else:
+                # Filter for indices that are selected in `Location selection` dropdown
+                shape_indices = list(
+                    {
+                        key: _geography_choose[area_subset][key] for key in cached_area
+                    }.values()
+                )
 
-        match area_subset:
-            case "states":
-                df_ae = _get_subarea_from_shape_index(
-                    _geographies._us_states, shape_indices
-                )
-            case "CA counties":
-                df_ae = _get_subarea_from_shape_index(
-                    _geographies._ca_counties, shape_indices
-                )
-            case "CA watersheds":
-                df_ae = _get_subarea_from_shape_index(
-                    _geographies._ca_watersheds, shape_indices
-                )
-            case "CA Electric Load Serving Entities (IOU & POU)":
-                df_ae = _get_subarea_from_shape_index(
-                    _geographies._ca_utilities, shape_indices
-                )
-            case "CA Electricity Demand Forecast Zones":
-                df_ae = _get_subarea_from_shape_index(
-                    _geographies._ca_forecast_zones, shape_indices
-                )
-            case "CA Electric Balancing Authority Areas":
-                df_ae = _get_subarea_from_shape_index(
-                    _geographies._ca_electric_balancing_areas, shape_indices
-                )
-    else:  # If no subsetting, make the geometry a big box so all stations are included
-        df_ae = gpd.GeoDataFrame(
-            pd.DataFrame(
-                {
-                    "subset": ["coords"],
-                    "geometry": [box(-150, -88, 8, 66)],  # Super big box
-                }
-            ),
-            crs="EPSG:4326",
-        )
+            match area_subset:
+                case "states":
+                    df_ae = _get_subarea_from_shape_index(
+                        _geographies._us_states, shape_indices
+                    )
+                case "CA counties":
+                    df_ae = _get_subarea_from_shape_index(
+                        _geographies._ca_counties, shape_indices
+                    )
+                case "CA watersheds":
+                    df_ae = _get_subarea_from_shape_index(
+                        _geographies._ca_watersheds, shape_indices
+                    )
+                case "CA Electric Load Serving Entities (IOU & POU)":
+                    df_ae = _get_subarea_from_shape_index(
+                        _geographies._ca_utilities, shape_indices
+                    )
+                case "CA Electricity Demand Forecast Zones":
+                    df_ae = _get_subarea_from_shape_index(
+                        _geographies._ca_forecast_zones, shape_indices
+                    )
+                case "CA Electric Balancing Authority Areas":
+                    df_ae = _get_subarea_from_shape_index(
+                        _geographies._ca_electric_balancing_areas, shape_indices
+                    )
+        case _:  # If no subsetting, make the geometry a big box to include all stations
+            df_ae = gpd.GeoDataFrame(
+                pd.DataFrame(
+                    {
+                        "subset": ["coords"],
+                        "geometry": [box(-150, -88, 8, 66)],  # Super big box
+                    }
+                ),
+                crs="EPSG:4326",
+            )
 
     return df_ae
 
