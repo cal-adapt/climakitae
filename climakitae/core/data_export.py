@@ -115,10 +115,12 @@ def _estimate_file_size(data: xr.DataArray | xr.Dataset, format: str) -> float:
             # Will overestimate uncompressed size by 10-20%
             chars_per_line = 150
 
-            if isinstance(data, xr.core.dataarray.DataArray):
-                est_file_size = data.size * chars_per_line
-            elif isinstance(data, xr.core.dataset.Dataset):
-                est_file_size = prod(data.sizes.values()) * chars_per_line
+            match data:
+                case data if isinstance(data, xr.core.dataarray.DataArray):
+                    est_file_size = data.size * chars_per_line
+                case data if isinstance(data, xr.core.dataset.Dataset):
+                    est_file_size = prod(data.sizes.values()) * chars_per_line
+            
     return est_file_size / bytes_per_gigabyte
 
 
