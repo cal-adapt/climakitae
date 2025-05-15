@@ -1261,12 +1261,13 @@ class DataParameters(param.Parameterized):
         low_bound, upper_bound = self.time_slice
 
         # Set time range of historical data
-        if self.downscaling_method == "Statistical":
-            historical_climate_range = self.historical_climate_range_loca
-        elif self.downscaling_method == "Dynamical+Statistical":
-            historical_climate_range = self.historical_climate_range_wrf_and_loca
-        else:
-            historical_climate_range = self.historical_climate_range_wrf
+        match self.downscaling_method:
+            case "Dynamical":
+                historical_climate_range = self.historical_climate_range_wrf
+            case "Statistical":
+                historical_climate_range = self.historical_climate_range_loca
+            case "Dynamical+Statistical":
+                historical_climate_range = self.historical_climate_range_wrf_and_loca
 
         if self.scenario_historical == ["Historical Climate"]:
             low_bound, upper_bound = historical_climate_range
