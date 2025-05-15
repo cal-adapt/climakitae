@@ -369,10 +369,11 @@ def show_available_vars(downscaling_method, wrf_timescale="monthly"):
     var_desc = read_csv_file(variable_descriptions_csv_path)
 
     # Get available variable IDs
-    if downscaling_method == "Statistical":
-        timescale = "monthly"
-    elif downscaling_method == "Dynamical":
-        timescale = wrf_timescale
+    match downscaling_method:
+        case "Statistical":
+            timescale = "monthly"
+        case "Dynamical":
+            timescale = wrf_timescale
     available_vars = _get_user_options(
         data_catalog,
         downscaling_method,
