@@ -694,13 +694,11 @@ def _export_to_csv(data: xr.DataArray | xr.Dataset, save_name: str):
     print("Exporting specified data to CSV...")
     _warn_large_export(est_file_size, 1.0)
 
-    ftype = type(data)
-
-    if ftype == xr.core.dataarray.DataArray:
-        df = _dataarray_to_dataframe(data)
-
-    elif ftype == xr.core.dataset.Dataset:
-        df = _dataset_to_dataframe(data)
+    match type(data):
+        case xr.core.dataarray.DataArray:
+            df = _dataarray_to_dataframe(data)
+        case xr.core.dataset.Dataset:
+            df = _dataset_to_dataframe(data)
 
     # Warn about exceedance of Excel row or column limit
     excel_row_limit = 1048576
