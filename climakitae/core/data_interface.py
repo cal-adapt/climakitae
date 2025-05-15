@@ -381,31 +381,31 @@ def _get_subarea(
                 }.values()
             )
 
-        if area_subset == "states":
-            df_ae = _get_subarea_from_shape_index(
-                _geographies._us_states, shape_indices
-            )
-        elif area_subset == "CA counties":
-            df_ae = _get_subarea_from_shape_index(
-                _geographies._ca_counties, shape_indices
-            )
-        elif area_subset == "CA watersheds":
-            df_ae = _get_subarea_from_shape_index(
-                _geographies._ca_watersheds, shape_indices
-            )
-        elif area_subset == "CA Electric Load Serving Entities (IOU & POU)":
-            df_ae = _get_subarea_from_shape_index(
-                _geographies._ca_utilities, shape_indices
-            )
-        elif area_subset == "CA Electricity Demand Forecast Zones":
-            df_ae = _get_subarea_from_shape_index(
-                _geographies._ca_forecast_zones, shape_indices
-            )
-        elif area_subset == "CA Electric Balancing Authority Areas":
-            df_ae = _get_subarea_from_shape_index(
-                _geographies._ca_electric_balancing_areas, shape_indices
-            )
-
+        match area_subset:
+            case "states":
+                df_ae = _get_subarea_from_shape_index(
+                    _geographies._us_states, shape_indices
+                )
+            case "CA counties":
+                df_ae = _get_subarea_from_shape_index(
+                    _geographies._ca_counties, shape_indices
+                )
+            case "CA watersheds":
+                df_ae = _get_subarea_from_shape_index(
+                    _geographies._ca_watersheds, shape_indices
+                )
+            case "CA Electric Load Serving Entities (IOU & POU)":
+                df_ae = _get_subarea_from_shape_index(
+                    _geographies._ca_utilities, shape_indices
+                )
+            case "CA Electricity Demand Forecast Zones":
+                df_ae = _get_subarea_from_shape_index(
+                    _geographies._ca_forecast_zones, shape_indices
+                )
+            case "CA Electric Balancing Authority Areas":
+                df_ae = _get_subarea_from_shape_index(
+                    _geographies._ca_electric_balancing_areas, shape_indices
+                )
     else:  # If no subsetting, make the geometry a big box so all stations are included
         df_ae = gpd.GeoDataFrame(
             pd.DataFrame(
