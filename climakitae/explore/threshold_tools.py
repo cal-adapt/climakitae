@@ -140,12 +140,13 @@ def get_block_maxima(
                 da_series = da_series.rolling(time=dur2_len, center=False).max("time")
 
     # Now select the most extreme value for each block in the series
-    if extremes_type == "max":
-        bms = da_series.resample(time=f"{block_size}A").max(keep_attrs=True)
-        bms.attrs["extremes type"] = "maxima"
-    elif extremes_type == "min":
-        bms = da_series.resample(time=f"{block_size}A").min(keep_attrs=True)
-        bms.attrs["extremes type"] = "minima"
+    match extremes_type:
+        case "max":
+            bms = da_series.resample(time=f"{block_size}A").max(keep_attrs=True)
+            bms.attrs["extremes type"] = "maxima"
+        case "min":
+            bms = da_series.resample(time=f"{block_size}A").min(keep_attrs=True)
+            bms.attrs["extremes type"] = "minima"
 
     # Calculate the effective sample size of the computed event type in all blocks
     # Check the average value to ensure that it's above threshold ESS
