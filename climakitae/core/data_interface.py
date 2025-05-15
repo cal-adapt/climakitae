@@ -828,28 +828,29 @@ class DataParameters(param.Parameterized):
         If warming level is selected, there should be no scenario options shown.
         If time-based is selected, there should be no warming levels options shown.
         """
-        if self.approach == "Warming Level":
-            self.param["warming_level"].objects = self.wl_options
-            self.warming_level = [2.0]
+        match self.approach:
+            case "Warming Level":
+                self.param["warming_level"].objects = self.wl_options
+                self.warming_level = [2.0]
 
-            self.param["scenario_ssp"].objects = ["n/a"]
-            self.scenario_ssp = ["n/a"]
+                self.param["scenario_ssp"].objects = ["n/a"]
+                self.scenario_ssp = ["n/a"]
 
-            self.param["scenario_historical"].objects = ["n/a"]
-            self.scenario_historical = ["n/a"]
+                self.param["scenario_historical"].objects = ["n/a"]
+                self.scenario_historical = ["n/a"]
 
-        elif self.approach == "Time":
-            self.param["warming_level"].objects = ["n/a"]
-            self.warming_level = ["n/a"]
+            case "Time":
+                self.param["warming_level"].objects = ["n/a"]
+                self.warming_level = ["n/a"]
 
-            self.param["scenario_ssp"].objects = SSPS
-            self.scenario_ssp = []
+                self.param["scenario_ssp"].objects = SSPS
+                self.scenario_ssp = []
 
-            self.param["scenario_historical"].objects = [
-                "Historical Climate",
-                "Historical Reconstruction",
-            ]
-            self.scenario_historical = ["Historical Climate"]
+                self.param["scenario_historical"].objects = [
+                    "Historical Climate",
+                    "Historical Reconstruction",
+                ]
+                self.scenario_historical = ["Historical Climate"]
 
     @param.depends("latitude", "longitude", watch=True)
     def _update_area_subset_to_lat_lon(self):
