@@ -1072,16 +1072,17 @@ class DataParameters(param.Parameterized):
     def _update_states_3km(self):
         if self.area_subset == "states":
             if self.resolution == "3 km":
-                if "Statistical" in self.downscaling_method:
-                    self.param["cached_area"].objects = ["CA"]
-                elif self.downscaling_method == "Dynamical":
-                    self.param["cached_area"].objects = [
-                        "CA",
-                        "NV",
-                        "OR",
-                        "UT",
-                        "AZ",
-                    ]
+                match self.downscaling_method:
+                    case "Statistical" | "Dynamical+Statistical":
+                        self.param["cached_area"].objects = ["CA"]
+                    case "Dynamical":
+                        self.param["cached_area"].objects = [
+                            "CA",
+                            "NV",
+                            "OR",
+                            "UT",
+                            "AZ",
+                        ]
                 self.cached_area = ["CA"]
             else:
                 self.param["cached_area"].objects = self._geography_choose[
