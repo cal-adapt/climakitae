@@ -1145,38 +1145,31 @@ def _tmy_8760_size_check(df: pd.DataFrame) -> pd.DataFrame:
     df_to_check = df_to_check.drop_duplicates(subset=["time"], keep="first")
 
     # fix cases
-    if len(df_to_check) == 8760:
-        return df_to_check
-    elif len(df_to_check) != 8760:
-        if len(df_to_check) == 8759:  # Missing hour, add missing row
+    match len(df_to_check):
+        case 8759:  # Missing hour, add missing row
             df_to_check = _missing_hour_fix(df_to_check)
             return df_to_check
-
-        elif len(df_to_check) == 8784:  # Leap day added, remove Feb 29
+        case 8784:  # Leap day added, remove Feb 29
             df_to_check = _leap_day_fix(df_to_check)
             return df_to_check
-
-        elif len(df_to_check) == 8783:  # Leap day added and missing hour
+        case 8783:  # Leap day added and missing hour
             # remove leap day
             df_to_check = _leap_day_fix(df_to_check)
             # add missing hour
             df_to_check = _missing_hour_fix(df_to_check)
             return df_to_check
-
-        elif len(df_to_check) == 8758:  # double missing hour
+        case 8758:  # double missing hour
             df_to_check = _missing_hour_fix(df_to_check)  # march fix
             df_to_check = _missing_hour_fix(df_to_check)  # april fix
             return df_to_check
-
-        elif len(df_to_check) == 8782:  # Leap day and double missing hour
+        case 8782:  # Leap day and double missing hour
             # remove leap day
             df_to_check = _leap_day_fix(df_to_check)
             # add missing hours
             df_to_check = _missing_hour_fix(df_to_check)  # march fix
             df_to_check = _missing_hour_fix(df_to_check)  # april fix
             return df_to_check
-
-        else:
+        case _:  # none of the above
             print(
                 "Error: The size of the input dataframe ({}) does not comform to standard 8760 size. Please confirm.".format(
                     len(df)
