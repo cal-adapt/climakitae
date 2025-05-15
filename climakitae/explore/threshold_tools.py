@@ -334,32 +334,33 @@ def _get_fitted_distr(
 
     p_values = distr_func.fit(bms)
 
-    if distr == "gev":
-        p_names = ("c", "loc", "scale")
-        parameters = get_param_dict(p_names, p_values)
-        fitted_distr = stats.genextreme(**parameters)
-    elif distr == "gumbel":
-        p_names = ("loc", "scale")
-        parameters = get_param_dict(p_names, p_values)
-        fitted_distr = stats.gumbel_r(**parameters)
-    elif distr == "weibull":
-        p_names = ("c", "loc", "scale")
-        parameters = get_param_dict(p_names, p_values)
-        fitted_distr = stats.weibull_min(**parameters)
-    elif distr == "pearson3":
-        p_names = ("skew", "loc", "scale")
-        parameters = get_param_dict(p_names, p_values)
-        fitted_distr = stats.pearson3(**parameters)
-    elif distr == "genpareto":
-        p_names = ("c", "loc", "scale")
-        parameters = get_param_dict(p_names, p_values)
-        fitted_distr = stats.genpareto(**parameters)
-    elif distr == "gamma":
-        p_names = ("a", "loc", "scale")
-        parameters = get_param_dict(p_names, p_values)
-        fitted_distr = stats.gamma(**parameters)
-    else:
-        raise ValueError("invalid distribution type.")
+    match distr:
+        case "gev":
+            p_names = ("c", "loc", "scale")
+            parameters = get_param_dict(p_names, p_values)
+            fitted_distr = stats.genextreme(**parameters)
+        case "gumbel":
+            p_names = ("loc", "scale")
+            parameters = get_param_dict(p_names, p_values)
+            fitted_distr = stats.gumbel_r(**parameters)
+        case "weibull":
+            p_names = ("c", "loc", "scale")
+            parameters = get_param_dict(p_names, p_values)
+            fitted_distr = stats.weibull_min(**parameters)
+        case "pearson3":
+            p_names = ("skew", "loc", "scale")
+            parameters = get_param_dict(p_names, p_values)
+            fitted_distr = stats.pearson3(**parameters)
+        case "genpareto":
+            p_names = ("c", "loc", "scale")
+            parameters = get_param_dict(p_names, p_values)
+            fitted_distr = stats.genpareto(**parameters)
+        case "gamma":
+            p_names = ("a", "loc", "scale")
+            parameters = get_param_dict(p_names, p_values)
+            fitted_distr = stats.gamma(**parameters)
+        case _:
+            raise ValueError("invalid distribution type.")
     return parameters, fitted_distr
 
 
