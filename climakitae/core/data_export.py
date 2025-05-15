@@ -120,7 +120,7 @@ def _estimate_file_size(data: xr.DataArray | xr.Dataset, format: str) -> float:
                     est_file_size = data.size * chars_per_line
                 case data if isinstance(data, xr.core.dataset.Dataset):
                     est_file_size = prod(data.sizes.values()) * chars_per_line
-            
+
     return est_file_size / bytes_per_gigabyte
 
 
@@ -228,13 +228,14 @@ def _convert_da_to_ds(data: xr.DataArray | xr.Dataset) -> xr.Dataset:
     ----------
     data: xarray.DataArray or xarray.Dataset
     """
-    if isinstance(data, xr.core.dataarray.DataArray):
-        if not data.name:
-            # name it in order to call to_dataset on it
-            data.name = "data"
-        return data.to_dataset()
-    elif isinstance(data, xr.core.dataset.Dataset):
-        return data
+    match data:
+        case data if isinstance(data, xr.core.dataarray.DataArray):
+            if not data.name:
+                # name it in order to call to_dataset on it
+                data.name = "data"
+            return data.to_dataset()
+        case data if isinstance(data, xr.core.dataset.Dataset):
+            return data
 
 
 def _export_to_netcdf(data: xr.DataArray | xr.Dataset, save_name: str):
