@@ -2017,17 +2017,18 @@ def get_data(
             )  # See if theres any similar options
 
             # Sad! No closest options found. Just set the key to all valid options
-            if closest_options is None:
-                print("Valid options: \n- ", end="")
-                print("\n- ".join(station_options_all))
-                raise ValueError("Bad input")
+            match closest_options:
+                case None:
+                    print("Valid options: \n- ", end="")
+                    print("\n- ".join(station_options_all))
+                    raise ValueError("Bad input")
 
-            # Just one option in the list
-            elif len(closest_options) == 1:
-                print("Closest option: '" + closest_options[0] + "'")
+                # Just one option in the list
+                case closest_options if len(closest_options) == 1:
+                    print("Closest option: '" + closest_options[0] + "'")
 
-            elif len(closest_options) > 1:
-                print("Closest options: \n- " + "\n- ".join(closest_options))
+                case closest_options if len(closest_options) > 1:
+                    print("Closest options: \n- " + "\n- ".join(closest_options))
 
             print("Outputting data for station='" + closest_options[0] + "'")
             stations[i] = closest_options[
