@@ -33,9 +33,15 @@ import xarray as xr
 
 from climakitae.core.constants import UNSET
 from climakitae.new_core.data_access import DataCatalog
-from climakitae.new_core.processors.data_processor import _PROCESSOR_REGISTRY, DataProcessor
 from climakitae.new_core.dataset import Dataset
 from climakitae.new_core.param_validation import _VALIDATOR_REGISTRY, ParameterValidator
+from climakitae.new_core.processors.data_processor import (
+    _PROCESSOR_REGISTRY,
+    DataProcessor,
+)
+
+NEW_ATTRS_KEY = "new_attributes"
+NEW_ATTRS = {}
 
 
 class DatasetFactory:
@@ -170,16 +176,22 @@ class DatasetFactory:
         # Configure the appropriate catalog based on query parameters
         dataset.with_catalog(self._catalog)
         # Add processing steps based on query parameters
-        for step in self._get_list_of_processing_steps(ui_query["processes"]):
-            dataset.with_processing_step(step)
+        for key, value in self._get_list_of_processing_steps(ui_query["processes"]):
+            dataset.with_processing_step(key, value)
 
         return dataset
 
     def _get_list_of_processing_steps(
         self, query: Dict[str, Any]
-    ) -> List[DataProcessor]:
+    ) -> List[tuple[str, Any]]:
         """
         Get a list of processing steps based on query parameters.
+
+        This method checks the query for explicitly defined processing steps requested
+        by the user, checks the query for keys that implicitly require processing steps,
+        like station data, wind data, etc., adds processing steps that the user has no
+        control over like adding new attributes, and finally returns a list of tuples
+        containing the processing step key and value in order of priority.
 
         Parameters
         ----------
@@ -188,8 +200,15 @@ class DatasetFactory:
 
         Returns
         -------
-        List[DataProcessor]
-            List of processing steps to apply to the dataset
+        List[tuple[str, Any]]
+            List of tuples containing processing step key and value
+
+        Notes
+        -----
+        - The order of processing steps CAN be important. For example, adding new
+        attributes always happens last, and pre-processing steps like global warming
+        levels and bias corrections always happen first. This is implemented via the 
+        priority key in the processing step registry.
         """
         processing_steps = []
         if query is UNSET:
