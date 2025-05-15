@@ -720,20 +720,23 @@ def _get_return_variable(
 
     new_ds.attrs = bms_attributes
 
-    if data_variable == "return_value":
-        new_ds["return_value"].attrs["return period"] = f"1-in-{arg_value}-year event"
-    elif data_variable == "return_prob":
-        threshold_unit = bms_attributes["units"]
-        new_ds["return_prob"].attrs[
-            "threshold"
-        ] = f"exceedance of {arg_value} {threshold_unit} event"
-        new_ds["return_prob"].attrs["units"] = None
-    elif data_variable == "return_period":
-        return_value_unit = bms_attributes["units"]
-        new_ds["return_period"].attrs[
-            "return value"
-        ] = f"{arg_value} {return_value_unit} event"
-        new_ds["return_period"].attrs["units"] = "years"
+    match data_variable:
+        case "return_value":
+            new_ds["return_value"].attrs[
+                "return period"
+            ] = f"1-in-{arg_value}-year event"
+        case "return_prob":
+            threshold_unit = bms_attributes["units"]
+            new_ds["return_prob"].attrs[
+                "threshold"
+            ] = f"exceedance of {arg_value} {threshold_unit} event"
+            new_ds["return_prob"].attrs["units"] = None
+        case "return_period":
+            return_value_unit = bms_attributes["units"]
+            new_ds["return_period"].attrs[
+                "return value"
+            ] = f"{arg_value} {return_value_unit} event"
+            new_ds["return_period"].attrs["units"] = "years"
 
     new_ds["conf_int_lower_limit"].attrs["confidence interval lower bound"] = (
         "{}th percentile".format(str(conf_int_lower_bound))
