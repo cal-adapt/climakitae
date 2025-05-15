@@ -944,12 +944,13 @@ class DataParameters(param.Parameterized):
             self.param["resolution"].objects = ["3 km"]
             self.resolution = "3 km"
         else:
-            if self.data_type == "Stations":
-                self.param["resolution"].objects = ["3 km", "9 km"]
-                if self.resolution == "45 km":
-                    self.resolution = "3 km"
-            elif self.data_type == "Gridded":
-                self.param["resolution"].objects = ["3 km", "9 km", "45 km"]
+            match self.data_type:
+                case "Stations":
+                    self.param["resolution"].objects = ["3 km", "9 km"]
+                    if self.resolution == "45 km":
+                        self.resolution = "3 km"
+                case "Gridded":
+                    self.param["resolution"].objects = ["3 km", "9 km", "45 km"]
 
     @param.depends(
         "data_type", "timescale", "downscaling_method", "variable_type", watch=True
