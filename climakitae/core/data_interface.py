@@ -1182,12 +1182,15 @@ class DataParameters(param.Parameterized):
 
         else:
             # Set time range of historical data
-            if self.downscaling_method == "Statistical":
-                historical_climate_range = self.historical_climate_range_loca
-            elif self.downscaling_method == "Dynamical+Statistical":
-                historical_climate_range = self.historical_climate_range_wrf_and_loca
-            else:
-                historical_climate_range = self.historical_climate_range_wrf
+            match self.downscaling_method:
+                case "Dynamical":
+                    historical_climate_range = self.historical_climate_range_wrf
+                case "Statistical":
+                    historical_climate_range = self.historical_climate_range_loca
+                case "Dynamical+Statistical":
+                    historical_climate_range = (
+                        self.historical_climate_range_wrf_and_loca
+                    )
 
             # Warning based on data scenario selections
             if (  # Warn user that they cannot have SSP data and ERA5-WRF data
