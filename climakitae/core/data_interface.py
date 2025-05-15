@@ -1310,27 +1310,28 @@ class DataParameters(param.Parameterized):
     )
     def _update_station_list(self):
         """Update the list of weather station options if the area subset changes"""
-        if self.data_type == "Stations":
-            overlapping_stations = _get_overlapping_station_names(
-                self._stations_gdf,
-                self.area_subset,
-                self.cached_area,
-                self.latitude,
-                self.longitude,
-                self._geographies,
-                self._geography_choose,
-            )
-            if len(overlapping_stations) == 0:
-                notice = "No stations available at this location"
+        match self.data_type:
+            case "Stations":
+                overlapping_stations = _get_overlapping_station_names(
+                    self._stations_gdf,
+                    self.area_subset,
+                    self.cached_area,
+                    self.latitude,
+                    self.longitude,
+                    self._geographies,
+                    self._geography_choose,
+                )
+                if len(overlapping_stations) == 0:
+                    notice = "No stations available at this location"
+                    self.param["stations"].objects = [notice]
+                    self.stations = [notice]
+                else:
+                    self.param["stations"].objects = overlapping_stations
+                    self.stations = overlapping_stations
+            case "Gridded":
+                notice = "Set data type to 'Station' to see options"
                 self.param["stations"].objects = [notice]
                 self.stations = [notice]
-            else:
-                self.param["stations"].objects = overlapping_stations
-                self.stations = overlapping_stations
-        elif self.data_type == "Gridded":
-            notice = "Set data type to 'Station' to see options"
-            self.param["stations"].objects = [notice]
-            self.stations = [notice]
 
     def retrieve(
         self, config: str = None, merge: bool = True
