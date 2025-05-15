@@ -493,14 +493,15 @@ def _calculate_return(
             return_prob = 1 - (fitted_distr.cdf(arg_value)) ** (
                 1 / block_size
             )  # adjust the return probability depending on the block size
-            if data_variable == "return_prob":
-                result = return_prob
-            elif data_variable == "return_period":
-                if return_prob == 0.0:
-                    result = np.nan
-                else:
-                    return_period = 1.0 / return_prob
-                    result = np.round(return_period, 3)
+            match data_variable:
+                case "return_prob":
+                    result = return_prob
+                case "return_period":
+                    if return_prob == 0.0:
+                        result = np.nan
+                    else:
+                        return_period = 1.0 / return_prob
+                        result = np.round(return_period, 3)
     except (ValueError, ZeroDivisionError, AttributeError):
         result = np.nan
     return result
