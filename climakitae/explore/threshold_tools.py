@@ -280,24 +280,23 @@ def _get_distr_func(distr: str) -> scipy.stats:
     scipy.stats
     """
 
-    distrs = ["gev", "gumbel", "weibull", "pearson3", "genpareto", "gamma"]
-
-    if distr == "gev":
-        distr_func = stats.genextreme
-    elif distr == "gumbel":
-        distr_func = stats.gumbel_r
-    elif distr == "weibull":
-        distr_func = stats.weibull_min
-    elif distr == "pearson3":
-        distr_func = stats.pearson3
-    elif distr == "genpareto":
-        distr_func = stats.genpareto
-    elif distr == "gamma":
-        distr_func = stats.gamma
-    else:
-        raise ValueError(
-            "invalid distribution type. expected one of the following: %s" % distrs
-        )
+    match distr:
+        case "gev":
+            distr_func = stats.genextreme
+        case "gumbel":
+            distr_func = stats.gumbel_r
+        case "weibull":
+            distr_func = stats.weibull_min
+        case "pearson3":
+            distr_func = stats.pearson3
+        case "genpareto":
+            distr_func = stats.genpareto
+        case "gamma":
+            distr_func = stats.gamma
+        case _:
+            raise ValueError(
+                'invalid distribution type. expected one of the following: ["gev", "gumbel", "weibull", "pearson3", "genpareto", "gamma"]'
+            )
 
     return distr_func
 
