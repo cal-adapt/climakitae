@@ -1184,12 +1184,13 @@ def _exceedance_count_name(exceedance_count: xr.DataArray) -> str:
                 event = f"{g_type}s"  # ex: day --> days
         else:
             # otherwise use data frequency info as the default event type
-            if exceedance_count.frequency == "hourly":
-                event = "hours"
-            elif exceedance_count.frequency == "daily":
-                event = "days"
-            elif exceedance_count.frequency == "monthly":
-                event = "months"
+            match exceedance_count.frequency:
+                case "hourly":
+                    event = "hours"
+                case "daily":
+                    event = "days"
+                case "monthly":
+                    event = "months"
     return f"Number of {event}"
 
 
