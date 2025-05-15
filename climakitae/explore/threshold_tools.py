@@ -398,24 +398,25 @@ def get_ks_stat(
     def ks_stat(bms):
         parameters, fitted_distr = _get_fitted_distr(bms, distr, distr_func)
 
-        if distr == "gev":
-            cdf = "genextreme"
-            args = (parameters["c"], parameters["loc"], parameters["scale"])
-        elif distr == "gumbel":
-            cdf = "gumbel_r"
-            args = (parameters["loc"], parameters["scale"])
-        elif distr == "weibull":
-            cdf = "weibull_min"
-            args = (parameters["c"], parameters["loc"], parameters["scale"])
-        elif distr == "pearson3":
-            cdf = "pearson3"
-            args = (parameters["skew"], parameters["loc"], parameters["scale"])
-        elif distr == "genpareto":
-            cdf = "genpareto"
-            args = (parameters["c"], parameters["loc"], parameters["scale"])
-        elif distr == "gamma":
-            cdf = "gamma"
-            args = (parameters["a"], parameters["loc"], parameters["scale"])
+        match distr:
+            case "gev":
+                cdf = "genextreme"
+                args = (parameters["c"], parameters["loc"], parameters["scale"])
+            case "gumbel":
+                cdf = "gumbel_r"
+                args = (parameters["loc"], parameters["scale"])
+            case "weibull":
+                cdf = "weibull_min"
+                args = (parameters["c"], parameters["loc"], parameters["scale"])
+            case "pearson3":
+                cdf = "pearson3"
+                args = (parameters["skew"], parameters["loc"], parameters["scale"])
+            case "genpareto":
+                cdf = "genpareto"
+                args = (parameters["c"], parameters["loc"], parameters["scale"])
+            case "gamma":
+                cdf = "gamma"
+                args = (parameters["a"], parameters["loc"], parameters["scale"])
 
         try:
             ks = stats.kstest(bms, cdf, args=args)
