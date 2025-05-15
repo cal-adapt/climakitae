@@ -95,12 +95,13 @@ def get_block_maxima(
             )
 
         # First identify the min (max) value for each window of length `duration`
-        if extremes_type == "max":
-            # In the case of "max" events, need to first identify the minimum value
-            # in each window of the specified duration
-            da_series = da_series.rolling(time=dur_len, center=False).min("time")
-        elif extremes_type == "min":
-            da_series = da_series.rolling(time=dur_len, center=False).max("time")
+        match extremes_type:
+            case "max":
+                # In the case of "max" events, need to first identify the minimum value
+                # in each window of the specified duration
+                da_series = da_series.rolling(time=dur_len, center=False).min("time")
+            case "min":
+                da_series = da_series.rolling(time=dur_len, center=False).max("time")
 
     if groupby != None:
         # In this case, select the max (min) in each group. (This option is
