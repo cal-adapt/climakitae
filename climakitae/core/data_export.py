@@ -1146,6 +1146,8 @@ def _tmy_8760_size_check(df: pd.DataFrame) -> pd.DataFrame:
 
     # fix cases
     match len(df_to_check):
+        case 8760:
+            return df_to_check
         case 8759:  # Missing hour, add missing row
             df_to_check = _missing_hour_fix(df_to_check)
             return df_to_check
