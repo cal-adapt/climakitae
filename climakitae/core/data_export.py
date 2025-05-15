@@ -105,19 +105,20 @@ def _estimate_file_size(data: xr.DataArray | xr.Dataset, format: str) -> float:
     float
         estimated file size in gigabytes
     """
-    if format == "NetCDF" or format == "Zarr":
-        data_size = data.nbytes
-        buffer_size = 100 * 1024 * 1024  # 100 MB for miscellaneous metadata
-        est_file_size = data_size + buffer_size
-    elif format == "CSV":
-        # Rough estimate of the number of chars per CSV line
-        # Will overestimate uncompressed size by 10-20%
-        chars_per_line = 150
+    match format:
+        case "NetCDF" | "Zarr":
+            data_size = data.nbytes
+            buffer_size = 100 * 1024 * 1024  # 100 MB for miscellaneous metadata
+            est_file_size = data_size + buffer_size
+        case "CSV":
+            # Rough estimate of the number of chars per CSV line
+            # Will overestimate uncompressed size by 10-20%
+            chars_per_line = 150
 
-        if isinstance(data, xr.core.dataarray.DataArray):
-            est_file_size = data.size * chars_per_line
-        elif isinstance(data, xr.core.dataset.Dataset):
-            est_file_size = prod(data.sizes.values()) * chars_per_line
+            if isinstance(data, xr.core.dataarray.DataArray):
+                est_file_size = data.size * chars_per_line
+            elif isinstance(data, xr.core.dataset.Dataset):
+                est_file_size = prod(data.sizes.values()) * chars_per_line
     return est_file_size / bytes_per_gigabyte
 
 
