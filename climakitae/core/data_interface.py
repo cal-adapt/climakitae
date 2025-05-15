@@ -1336,24 +1336,26 @@ class DataParameters(param.Parameterized):
 
         def _warn_of_large_file_size(da: xr.DataArray):
             """Warn user if the data array is large"""
-            if da.nbytes >= int(1e9) and da.nbytes < int(5e9):
-                print(
-                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
-                    "! Returned data array is large. Operations could take up to 5x longer than 1GB of data!\n"
-                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
-                )
-            elif da.nbytes >= int(5e9) and da.nbytes < int(1e10):
-                print(
-                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
-                    "!! Returned data array is very large. Operations could take up to 8x longer than 1GB of data !!\n"
-                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
-                )
-            elif da.nbytes >= int(1e10):
-                print(
-                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
-                    "!!! Returned data array is huge. Operations could take 10x to infinity longer than 1GB of data !!!\n"
-                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
-                )
+            nbytes = da.nbytes
+            match nbytes:
+                case nbytes if nbytes >= int(1e9) and nbytes < int(5e9):
+                    print(
+                        "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+                        "! Returned data array is large. Operations could take up to 5x longer than 1GB of data!\n"
+                        "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+                    )
+                case nbytes if nbytes >= int(5e9) and nbytes < int(1e10):
+                    print(
+                        "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+                        "!! Returned data array is very large. Operations could take up to 8x longer than 1GB of data !!\n"
+                        "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+                    )
+                case nbytes if nbytes >= int(1e10):
+                    print(
+                        "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+                        "!!! Returned data array is huge. Operations could take 10x to infinity longer than 1GB of data !!!\n"
+                        "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+                    )
 
         def _warn_of_empty_data(self):
             if self.approach == "Warming Level" and (len(self.warming_level) > 1):
