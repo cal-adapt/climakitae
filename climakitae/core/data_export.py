@@ -1014,19 +1014,20 @@ def _leap_day_fix(df: pd.DataFrame) -> pd.DataFrame:
 
     # 3 models have leap days, 1 model does not -- handling for both
     # handling for TaiESM1 (no leap day natively)
-    if df_leap.simulation.unique()[0] == "WRF_TaiESM1_r1i1p1f1":
-        df_leap["time"] = np.where(
-            (df_leap.time.dt.month == 2) & (df_leap.time.dt.day == 29),
-            df_leap.time - pd.DateOffset(days=1),
-            df_leap.time,
-        )  # reset remaining feb 29 hours to feb 28
+    match df_leap.simulation.unique()[0]:
+        case "WRF_TaiESM1_r1i1p1f1":
+            df_leap["time"] = np.where(
+                (df_leap.time.dt.month == 2) & (df_leap.time.dt.day == 29),
+                df_leap.time - pd.DateOffset(days=1),
+                df_leap.time,
+            )  # reset remaining feb 29 hours to feb 28
 
-    # handling for 3 models with native leap days
-    elif df_leap.simulation.unique()[0] != "WRF_TaiESM1_r1i1p1f1":
-        df_leap["time"] = pd.to_datetime(df["time"])  # set time to datetime
-        df_leap = df_leap.loc[
-            ~((df_leap.time.dt.month == 2) & (df_leap.time.dt.day == 29))
-        ]
+        # handling for 3 models with native leap days
+        case _:
+            df_leap["time"] = pd.to_datetime(df["time"])  # set time to datetime
+            df_leap = df_leap.loc[
+                ~((df_leap.time.dt.month == 2) & (df_leap.time.dt.day == 29))
+            ]
 
     return df_leap
 
