@@ -858,12 +858,13 @@ def export(
     # now here is where exporting actually begins
     # we will have different functions for each file type
     # to keep things clean-ish
-    if "zarr" == req_format:
-        _export_to_zarr(data, save_name, mode)
-    if "netcdf" == req_format:
-        _export_to_netcdf(data, save_name)
-    elif "csv" == req_format:
-        _export_to_csv(data, save_name)
+    match req_format:
+        case "zarr":
+            _export_to_zarr(data, save_name, mode)
+        case "netcdf":
+            _export_to_netcdf(data, save_name)
+        case "csv":
+            _export_to_csv(data, save_name)
 
 
 ## TMY export functions
