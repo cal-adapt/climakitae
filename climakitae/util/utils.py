@@ -1168,14 +1168,14 @@ def _get_scenario_from_selections(selections) -> tuple[list[str], list[str]]:
 
     """
 
-    if selections.approach == "Time":
-        scenario_ssp = selections.scenario_ssp
-        scenario_historical = selections.scenario_historical
-
-    elif selections.approach == "Warming Level":
-        # Need all scenarios for warming level approach
-        scenario_ssp = SSPS
-        scenario_historical = ["Historical Climate"]
+    match selections.approach:
+        case "Time":
+            scenario_ssp = selections.scenario_ssp
+            scenario_historical = selections.scenario_historical
+        case "Warming Level":
+            # Need all scenarios for warming level approach
+            scenario_ssp = SSPS
+            scenario_historical = ["Historical Climate"]
 
     return scenario_ssp, scenario_historical
 
