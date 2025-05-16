@@ -10,14 +10,15 @@ from typing import Any, Dict, Iterable, Union
 import pandas as pd
 import xarray as xr
 
+from climakitae.core.constants import _NEW_ATTRS_KEY
 from climakitae.new_core.data_access import DataCatalog
-from climakitae.new_core.processors.data_processor import (
+from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
     register_processor,
 )
 
 
-@register_processor("time_slice")
+@register_processor("time_slice", priority=50)
 class TimeSlice(DataProcessor):
     """
     Slice data based on time.
@@ -44,11 +45,12 @@ class TimeSlice(DataProcessor):
         value : tuple(date-like, date-like)
             The value to subset the data by.
         """
-        if not isinstance(value, tuple) or len(value) != 2:
+        if not isinstance(value, Iterable) or len(value) != 2:
             raise ValueError(
-                "Value must be a tuple of two date-like values."
+                "Value must be an iterable of two date-like values."
             )  # TODO warning not error
         self.value = self._coerce_to_dates(value)
+        self.name = "time_slice"
 
     def execute(
         self,
@@ -104,8 +106,27 @@ class TimeSlice(DataProcessor):
                 )
 
     def update_context(self, context: Dict[str, Any]):
-        # Placeholder for updating context
-        pass
+        """
+        Update the context with information about the clipping operation, to be stored
+                in the "new_attrs" attribute.
+
+        Parameters
+        ----------
+        context : dict[str, Any]
+            Parameters for processing the data.
+
+        Note
+        ----
+        The context is updated in place. This method does not return anything.
+        """
+
+        if _NEW_ATTRS_KEY not in context:
+            context[_NEW_ATTRS_KEY] = {}
+
+        context[_NEW_ATTRS_KEY][
+            self.name
+        ] = f"""Process '{self.name}' applied to the data.
+        Slicing was done using the following value: {self.value}."""
 
     def set_data_accessor(self, catalog: DataCatalog):
         # Placeholder for setting data accessor
