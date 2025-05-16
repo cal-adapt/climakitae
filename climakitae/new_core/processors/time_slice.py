@@ -5,6 +5,7 @@ Subset data on time
 import datetime
 import os
 import warnings
+from collections.abc import Sized
 from typing import Any, Dict, Iterable, Union
 
 import pandas as pd
@@ -36,19 +37,21 @@ class TimeSlice(DataProcessor):
 
     """
 
-    def __init__(self, value):
+    def __init__(self, value: Iterable[Any]):
         """
         Initialize the TimeSlice processor.
 
         Parameters
         ----------
-        value : tuple(date-like, date-like)
+        value : Iterable(date-like, date-like)
             The value to subset the data by.
         """
-        if not isinstance(value, Iterable) or len(value) != 2:
-            raise ValueError(
-                "Value must be an iterable of two date-like values."
-            )  # TODO warning not error
+        if (
+            not isinstance(value, Iterable)
+            or not isinstance(value, Sized)
+            or len(value) != 2
+        ):
+            raise ValueError("Value must be an iterable of two date-like values.")
         self.value = self._coerce_to_dates(value)
         self.name = "time_slice"
 
@@ -100,7 +103,7 @@ class TimeSlice(DataProcessor):
                 # return as the same type as the input
                 return type(result)(subset_data)
             case _:
-                raise ValueError(  # TODO warning not error
+                warnings.warn(  # TODO warning not error
                     f"""Invalid data type for subsetting. 
                     Expected xr.Dataset, dict, list, or tuple but got {type(result)}."""
                 )
@@ -133,7 +136,7 @@ class TimeSlice(DataProcessor):
         pass
 
     @staticmethod
-    def _coerce_to_dates(value: tuple) -> tuple[pd.Timestamp, pd.Timestamp]:
+    def _coerce_to_dates(value: Iterable[Any]) -> tuple[pd.Timestamp, pd.Timestamp]:
         """
         Coerce the values to date-like objects.
 
@@ -157,7 +160,7 @@ class TimeSlice(DataProcessor):
                 case pd.DatetimeIndex():
                     ret.append(x[0])
                 case _:
-                    raise ValueError(  # TODO warning not error
-                        f"Invalid type {type(x)} for date coercion. Expected str, pd.Timestamp, pd.DatetimeIndex, datetime.date, or datetime.datetime."
+                    raise ValueError(
+                        f"Could not coerce type {type(x)} to pd.Timestamp."
                     )
         return tuple(ret)
