@@ -5,7 +5,7 @@ import xarray as xr
 from climakitae.core.constants import UNSET
 from climakitae.new_core.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import _PROCESSOR_REGISTRY
-from climakitae.new_core.param_validation import ParameterValidator
+from climakitae.new_core.param_validation.abc_param_validation import ParameterValidator
 
 
 class Dataset:
@@ -157,7 +157,7 @@ class Dataset:
         step : DataProcessor
             Processing step to add to the pipeline. Must have 'execute' and 'update_context' methods.
         """
-        step = _PROCESSOR_REGISTRY.get(step_key)[0](value)
+        step = _PROCESSOR_REGISTRY.get(step_key, (object, object))[0](value) 
         if not hasattr(step, "execute") or not callable(getattr(step, "execute")):
             raise TypeError("Processing step must have an 'execute' method.")
         if not hasattr(step, "update_context") or not callable(
