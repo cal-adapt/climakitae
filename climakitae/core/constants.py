@@ -43,3 +43,8 @@ LOCA_NO_0PT8_GWL_MODELS = [
     "LOCA2_EC-Earth3-Veg_r3i1p1f1_historical+ssp585",
     "LOCA2_EC-Earth3-Veg_r5i1p1f1_historical+ssp245",
 ]
+
+# Constant Keys for User Interface
+_NEW_ATTRS_KEY = "new_attrs"
+
+# Constants for Unit Conversion
