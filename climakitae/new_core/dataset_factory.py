@@ -31,17 +31,11 @@ from typing import Any, Dict, List, Optional, Type
 import pandas as pd
 import xarray as xr
 
-from climakitae.core.constants import UNSET
+from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
 from climakitae.new_core.data_access import DataCatalog
 from climakitae.new_core.dataset import Dataset
 from climakitae.new_core.param_validation import _VALIDATOR_REGISTRY, ParameterValidator
-from climakitae.new_core.processors.data_processor import (
-    _PROCESSOR_REGISTRY,
-    DataProcessor,
-)
-
-NEW_ATTRS_KEY = "new_attributes"
-NEW_ATTRS = {}
+from climakitae.new_core.processors.abc_data_processor import _PROCESSOR_REGISTRY
 
 
 class DatasetFactory:
@@ -80,7 +74,7 @@ class DatasetFactory:
             self.register_validator(key, validator_class)
 
         # Register default processors
-        for key, processor_class in _PROCESSOR_REGISTRY.items():
+        for key, (processor_class, _) in _PROCESSOR_REGISTRY.items():
             self.register_processing_step(key, processor_class)
 
     def register_catalog(self, key: str, catalog: DataCatalog):
@@ -176,7 +170,10 @@ class DatasetFactory:
         # Configure the appropriate catalog based on query parameters
         dataset.with_catalog(self._catalog)
         # Add processing steps based on query parameters
+        if _NEW_ATTRS_KEY not in ui_query:
+            ui_query[_NEW_ATTRS_KEY] = {}
         for key, value in self._get_list_of_processing_steps(ui_query["processes"]):
+            ui_query[_NEW_ATTRS_KEY][key] = value
             dataset.with_processing_step(key, value)
 
         return dataset
@@ -207,7 +204,7 @@ class DatasetFactory:
         -----
         - The order of processing steps CAN be important. For example, adding new
         attributes always happens last, and pre-processing steps like global warming
-        levels and bias corrections always happen first. This is implemented via the 
+        levels and bias corrections always happen first. This is implemented via the
         priority key in the processing step registry.
         """
         processing_steps = []
@@ -215,9 +212,15 @@ class DatasetFactory:
             return processing_steps
 
         for key, value in query.items():
-            if key in self._processing_step_registry:
-                processor_class = self._processing_step_registry[key]
-                processing_steps.append(processor_class(value))
+            if key not in self._processing_step_registry:
+                warnings.warn(
+                    f"Processing step '{key}' not found in registry. Skipping.",
+                    UserWarning,
+                )
+                continue
+
+            processor_class, priority = self._processing_step_registry[key]
+            processing_steps.append(processor_class(value))
 
         return processing_steps
 
@@ -266,79 +269,6 @@ class DatasetFactory:
                 )
 
         return None
-
-    def _create_validator_for_query(
-        self, query: Dict[str, Any]
-    ) -> tuple[ParameterValidator, str]:
-        """
-        Create parameter validator and catalog based on query parameters.
-
-        Parameters
-        ----------
-        query : Dict[str, Any]
-            Query dictionary from ClimateData UI
-
-        Returns
-        -------
-        ParameterValidator
-            Configured parameter validator
-        """
-        # the logic goes like this:
-        # 1. Check query against the local catalog
-        # 2. Fail if:
-        #    - too much data is requested
-        #    - no data is available
-        #    - the query is invalid
-        # 3. Create a validator based on the query
-        # 4. Return the validator
-
-        # check query against the catalog
-        validator, selected_catalog = None, None
-        selected_catalog = self._get_catalog_for_query(query)
-        if selected_catalog is not None:
-            validator = self.create_validator(selected_catalog)
-        return validator, selected_catalog
-
-    def _add_processing_steps(self, dataset: Dataset, query: Dict[str, Any]):
-        # TODO: use query and single/multiple dispatch to create processing steps
-        """
-        Add processing steps to dataset based on query parameters.
-
-        Parameters
-        ----------
-        dataset : Dataset
-            Dataset to configure with processing steps
-        query : Dict[str, Any]
-            Query dictionary from ClimateData UI
-        """
-        pass
-        # Add spatial subsetting if area_subset is specified
-        # if (
-        #     query.get("area_subset") == "region"
-        #     and query.get("latitude", (UNSET, UNSET))[0] is not UNSET
-        # ):
-        #     spatial_step = self._create_spatial_subset_step(query)
-        #     dataset.with_processing_step(spatial_step)
-
-        # # Add time slicing if time_slice is specified
-        # if query.get("time_slice", (UNSET, UNSET))[0] is not UNSET:
-        #     time_step = self._create_time_subset_step(query)
-        #     dataset.with_processing_step(time_step)
-
-        # # Add variable selection
-        # if query.get("variable") is not UNSET:
-        #     variable_step = self._create_variable_selection_step(query)
-        #     dataset.with_processing_step(variable_step)
-
-        # # Add unit conversion if units are specified
-        # if query.get("units") is not UNSET:
-        #     unit_step = self._create_unit_conversion_step(query)
-        #     dataset.with_processing_step(unit_step)
-
-        # # Add spatial averaging if requested
-        # if query.get("area_average") == "yes":
-        #     avg_step = self._create_spatial_average_step()
-        #     dataset.with_processing_step(avg_step)
 
     def get_catalog_options(self, key: str) -> List[str]:
         """
