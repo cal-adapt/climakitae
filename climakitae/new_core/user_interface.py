@@ -10,6 +10,8 @@ variables, resolutions, timescales, and spatial boundaries. It implements a fact
 pattern for creating appropriate datasets and validators based on specified parameters.
 """
 
+from typing import Iterable
+
 from climakitae.core.constants import UNSET
 from climakitae.new_core.dataset_factory import DatasetFactory
 
@@ -292,13 +294,14 @@ class ClimateData:
         try:
             # Create dataset directly from the query
             dataset = self._factory.create_dataset(self._query)
-        except Exception as e:
-            print(f"Error during dataset creation: {str(e)}")
+        except (ValueError, KeyError, TypeError) as e:
+            print(f"Error during dataset creation:\n{str(e)}")
+            return None
 
         try:
             # Execute dataset with query parameters
             data = dataset.execute(self._query)
-        except Exception as e:
+        except (ValueError, KeyError, IOError, RuntimeError) as e:
             print(f"Error: {str(e)}")
 
         # Reset the query after retrieval
