@@ -847,28 +847,36 @@ class TestGetSubarea:
             # Verify the correct boundary dataset method was called with right indices
             expected_indices = [0, 1]  # Based on mock_geography_choose fixture values
 
-            if area_type == "states":
-                assert mock_geographies._us_states.loc.called_with == expected_indices
-            elif area_type == "CA counties":
-                assert mock_geographies._ca_counties.loc.called_with == expected_indices
-            elif area_type == "CA watersheds":
-                assert (
-                    mock_geographies._ca_watersheds.loc.called_with == expected_indices
-                )
-            elif area_type == "CA Electric Load Serving Entities (IOU & POU)":
-                assert (
-                    mock_geographies._ca_utilities.loc.called_with == expected_indices
-                )
-            elif area_type == "CA Electricity Demand Forecast Zones":
-                assert (
-                    mock_geographies._ca_forecast_zones.loc.called_with
-                    == expected_indices
-                )
-            elif area_type == "CA Electric Balancing Authority Areas":
-                assert (
-                    mock_geographies._ca_electric_balancing_areas.loc.called_with
-                    == expected_indices
-                )
+            match area_type:
+                case "states":
+                    assert (
+                        mock_geographies._us_states.loc.called_with == expected_indices
+                    )
+                case "CA counties":
+                    assert (
+                        mock_geographies._ca_counties.loc.called_with
+                        == expected_indices
+                    )
+                case "CA watersheds":
+                    assert (
+                        mock_geographies._ca_watersheds.loc.called_with
+                        == expected_indices
+                    )
+                case "CA Electric Load Serving Entities (IOU & POU)":
+                    assert (
+                        mock_geographies._ca_utilities.loc.called_with
+                        == expected_indices
+                    )
+                case "CA Electricity Demand Forecast Zones":
+                    assert (
+                        mock_geographies._ca_forecast_zones.loc.called_with
+                        == expected_indices
+                    )
+                case "CA Electric Balancing Authority Areas":
+                    assert (
+                        mock_geographies._ca_electric_balancing_areas.loc.called_with
+                        == expected_indices
+                    )
 
             # Verify result is a GeoDataFrame
             assert isinstance(result, gpd.GeoDataFrame)
