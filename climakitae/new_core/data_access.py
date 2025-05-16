@@ -74,10 +74,9 @@ class DataCatalog(dict):
         """
         if key not in self:
             warnings.warn(
-                f"Catalog key '{key}' not found. Available keys are: {list(self.keys())}",
-                UserWarning,
+                f"Catalog key '{key}' not found. Available keys are: {list(self.keys())}"
             )
-            warnings.warn("Defaulting to 'data' catalog.", UserWarning)
+            warnings.warn("Defaulting to 'data' catalog.")
             key = "data"
         self.catalog_key = key
         return self
@@ -119,4 +118,3 @@ class DataCatalog(dict):
         """
         print(f"Querying {self.catalog_key} catalog with query: {query}")
         return self[self.catalog_key].search(**query).to_dataset_dict()
-
