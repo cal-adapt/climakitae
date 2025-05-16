@@ -558,29 +558,32 @@ def reproject_data(
     # Get non-spatial dimensions
     non_spatial_dims = [dim for dim in data.dims if dim not in ["x", "y"]]
 
+    # test for different dims
+    numofdims = len(data.dims)
     # 2 or 3D DataArray
-    if len(data.dims) <= 3:
-        data_reprojected = data.rio.reproject(proj, nodata=fill_value)
-    # 4D DataArray
-    elif len(data.dims) == 4:
-        data_reprojected = _reproject_data_4D(
-            data=data,
-            reproject_dim=non_spatial_dims[0],
-            proj=proj,
-            fill_value=fill_value,
-        )
-    # 5D DataArray
-    elif len(data.dims) == 5:
-        data_reprojected = _reproject_data_5D(
-            data=data,
-            reproject_dim=non_spatial_dims[:-1],
-            proj=proj,
-            fill_value=fill_value,
-        )
-    else:
-        raise ValueError(
-            "DataArrays with dimensions greater than 5 are not currently supported"
-        )
+    match numofdims:
+        case numofdims if numofdims <= 3:
+            data_reprojected = data.rio.reproject(proj, nodata=fill_value)
+        # 4D DataArray
+        case 4:
+            data_reprojected = _reproject_data_4D(
+                data=data,
+                reproject_dim=non_spatial_dims[0],
+                proj=proj,
+                fill_value=fill_value,
+            )
+        # 5D DataArray
+        case 5:
+            data_reprojected = _reproject_data_5D(
+                data=data,
+                reproject_dim=non_spatial_dims[:-1],
+                proj=proj,
+                fill_value=fill_value,
+            )
+        case _:
+            raise ValueError(
+                "DataArrays with dimensions greater than 5 are not currently supported"
+            )
 
     # Reassign attribute to reflect reprojection
     data_reprojected.attrs["grid_mapping"] = proj
