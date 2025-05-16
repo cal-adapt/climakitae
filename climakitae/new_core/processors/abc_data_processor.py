@@ -11,7 +11,7 @@ from climakitae.new_core.data_access import DataCatalog
 _PROCESSOR_REGISTRY = {}
 
 
-def register_processor(key: str = UNSET) -> callable:
+def register_processor(key: str = UNSET, priority: int = UNSET) -> callable:
     """
     Decorator to register a processor class.
 
@@ -36,7 +36,7 @@ def register_processor(key: str = UNSET) -> callable:
                 ["_" + c.lower() if c.isupper() else c for c in cls.__name__]
             ).lstrip("_")
         )
-        _PROCESSOR_REGISTRY[processor_key] = cls
+        _PROCESSOR_REGISTRY[processor_key] = (cls, priority)
         return cls
 
     return decorator
@@ -56,6 +56,9 @@ class DataProcessor(ABC):
     - The processor should not store the data itself.
     - The processor should not throw exceptions. Instead, it should return the data
     passed to it and a warning message
+    - All data processors should update the context with some information about how they
+    modified the data in order to keep track of the processing history and append to the
+    metadata of the data at the end of the chain.
     """
 
     @abstractmethod
@@ -118,33 +121,6 @@ class DataProcessor(ABC):
         None
             Sets the data accessor in place.
         """
-
-
-@register_processor("update_attributes")
-class UpdateAttributes(DataProcessor):
-    """
-    Update attributes of the data.
-
-    This class is a placeholder for attribute update logic.
-    """
-
-    def execute(
-        self,
-        result: Union[
-            xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
-        ],
-        context: Dict[str, Any],
-    ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
-        # Placeholder for attribute update logic
-        return result
-
-    def update_context(self, context: Dict[str, Any]):
-        # Placeholder for updating context
-        pass
-
-    def set_data_accessor(self, catalog: DataCatalog):
-        # Placeholder for setting data accessor
-        pass
 
 
 @register_processor("convert_units")
