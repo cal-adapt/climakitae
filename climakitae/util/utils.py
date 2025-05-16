@@ -677,29 +677,30 @@ def trendline(data: xr.Dataset, kind: str = "mean") -> xr.Dataset:
     compute_multimodel_stats must be modified to update optionality.
     """
     ret_trendline = xr.Dataset()
-    if kind == "mean":
-        if "simulation mean" not in data.simulation:
+    match kind:
+        case "mean":
+            if "simulation mean" not in data.simulation:
+                raise ValueError(
+                    "Invalid data provided, please pass the multimodel stats from compute_multimodel_stats"
+                )
+
+            data_sim_mean = data.sel(simulation="simulation mean")
+            m, b = data_sim_mean.polyfit(dim="year", deg=1).polyfit_coefficients.values
+            ret_trendline = m * data_sim_mean.year + b  # y = mx + b
+
+        case "median":
+            if "simulation median" not in data.simulation:
+                raise ValueError(
+                    "Invalid data provided, please pass the multimodel stats from compute_multimodel_stats"
+                )
+
+            data_sim_med = data.sel(simulation="simulation median")
+            m, b = data_sim_med.polyfit(dim="year", deg=1).polyfit_coefficients.values
+            ret_trendline = m * data_sim_med.year + b  # y = mx + b
+        case _:
             raise ValueError(
-                "Invalid data provided, please pass the multimodel stats from compute_multimodel_stats"
+                "Invalid kind provided, please pass either 'mean' or 'median' as the kind"
             )
-
-        data_sim_mean = data.sel(simulation="simulation mean")
-        m, b = data_sim_mean.polyfit(dim="year", deg=1).polyfit_coefficients.values
-        ret_trendline = m * data_sim_mean.year + b  # y = mx + b
-
-    elif kind == "median":
-        if "simulation median" not in data.simulation:
-            raise ValueError(
-                "Invalid data provided, please pass the multimodel stats from compute_multimodel_stats"
-            )
-
-        data_sim_med = data.sel(simulation="simulation median")
-        m, b = data_sim_med.polyfit(dim="year", deg=1).polyfit_coefficients.values
-        ret_trendline = m * data_sim_med.year + b  # y = mx + b
-    else:
-        raise ValueError(
-            "Invalid kind provided, please pass either 'mean' or 'median' as the kind"
-        )
     ret_trendline.name = "trendline"
     return ret_trendline
 
