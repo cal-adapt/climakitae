@@ -423,16 +423,17 @@ def readable_bytes(b: int) -> str:
     gb = kb**3  # 1,073,741,824
     tb = kb**4  # 1,099,511,627,776
 
-    if b < kb:
-        return f"{b} bytes"
-    elif kb <= b < mb:
-        return f"{b / kb:.2f} KB"
-    elif mb <= b < gb:
-        return f"{b / mb:.2f} MB"
-    elif gb <= b < tb:
-        return f"{b / gb:.2f} GB"
-    elif tb <= b:
-        return f"{b / tb:.2f} TB"
+    match b:
+        case b if b < kb:
+            return f"{b} bytes"
+        case b if kb <= b < mb:
+            return f"{b / kb:.2f} KB"
+        case b if mb <= b < gb:
+            return f"{b / mb:.2f} MB"
+        case b if gb <= b < tb:
+            return f"{b / gb:.2f} GB"
+        case b if tb <= b:
+            return f"{b / tb:.2f} TB"
 
 
 def reproject_data(
