@@ -71,7 +71,7 @@ def convert_units(da: xr.DataArray, selected_units: str) -> xr.DataArray:
 
     # Pass if chosen units is the same as native units
     match native_units:
-        case selected_units:
+        case native_units if native_units == selected_units:
             return da
 
         # Precipitation units
