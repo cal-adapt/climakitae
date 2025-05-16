@@ -11,15 +11,15 @@ import pyproj
 import xarray as xr
 from shapely.geometry import box, mapping
 
-from climakitae.core.constants import UNSET
+from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
 from climakitae.new_core.data_access import DataCatalog
-from climakitae.new_core.processors.data_processor import (
+from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
     register_processor,
 )
 
 
-@register_processor("clip")
+@register_processor("clip", priority=50)
 class Clip(DataProcessor):
     """
     Clip data based on spatial boundaries.
@@ -49,6 +49,7 @@ class Clip(DataProcessor):
             The value to clip the data by.
         """
         self.value = value
+        self.name = "clip"
 
     def execute(
         self,
@@ -102,8 +103,27 @@ class Clip(DataProcessor):
                 )
 
     def update_context(self, context: Dict[str, Any]):
-        # Placeholder for updating context
-        pass
+        """
+        Update the context with information about the clipping operation, to be stored
+        in the "new_attrs" attribute.
+
+        Parameters
+        ----------
+        context : dict[str, Any]
+            Parameters for processing the data.
+
+        Note
+        ----
+        The context is updated in place. This method does not return anything.
+        """
+        if _NEW_ATTRS_KEY not in context:
+            context[_NEW_ATTRS_KEY] = {}
+
+        # Add clipping information to the context
+        context[_NEW_ATTRS_KEY][
+            self.name
+        ] = f"""Process '{self.name}' applied to the data.
+        Clipping was done using the following value: {self.value}."""
 
     def set_data_accessor(self, catalog: DataCatalog):
         # Placeholder for setting data accessor
