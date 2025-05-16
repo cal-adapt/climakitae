@@ -146,10 +146,11 @@ def convert_units(da: xr.DataArray, selected_units: str) -> xr.DataArray:
         case "degF":
             # Convert to C
             match selected_units:
-                case "degC" | "K":
+                case "degC":
                     da = (da - 32) / 1.8
                 # Then, if K is selected, convert to K
                 case "K":
+                    da = (da - 32) / 1.8
                     da = da + 273.15
 
         # Fraction/percentage units (relative humidity)
