@@ -1,11 +1,17 @@
+""" """
+
+import warnings
 from typing import Any, Dict
 
 import xarray as xr
 
 from climakitae.core.constants import UNSET
 from climakitae.new_core.data_access import DataCatalog
-from climakitae.new_core.processors.abc_data_processor import _PROCESSOR_REGISTRY
 from climakitae.new_core.param_validation.abc_param_validation import ParameterValidator
+from climakitae.new_core.processors.abc_data_processor import (
+    _PROCESSOR_REGISTRY,
+    DataProcessor,
+)
 
 
 class Dataset:
@@ -49,12 +55,12 @@ class Dataset:
             raise ValueError("Data accessor is not configured.")
 
         # Initialize the processing result - will be updated through pipeline steps
-        current_result = None
+        current_result = self.data_access.get_data(valid_query)
 
         # Check if we have a processing pipeline
         if self.processing_pipeline is UNSET or not self.processing_pipeline:
             # If no pipeline is defined, just return the raw data from data_access
-            return self.data_access.get_data(valid_query)
+            return current_result
 
         # Execute each step in the pipeline in sequence
         try:
@@ -66,19 +72,13 @@ class Dataset:
                     step.set_data_accessor(self.data_access)
 
                 # Execute the current step
+                # context is updated in place by the step
                 current_result = step.execute(current_result, context)
-
-                # Allow the step to update the context for subsequent steps
-                if hasattr(step, "update_context") and callable(
-                    getattr(step, "update_context")
-                ):
-                    step.update_context(context, current_result)
-
-            # Ensure the final result is an xarray Dataset
-            if not isinstance(current_result, xr.Dataset):
-                raise TypeError(
-                    f"Pipeline result must be an xr.Dataset, got {type(current_result)}"
-                )
+                if current_result is None:
+                    warnings.warn(
+                        f"Processing step {step.name} returned None. "
+                        "Ensure that the step is implemented correctly."
+                    )
 
             return current_result
 
@@ -148,16 +148,14 @@ class Dataset:
         self.data_access = catalog
         return self
 
-    def with_processing_step(self, step_key: str, value: Any) -> "Dataset":
+    def with_processing_step(self, step: DataProcessor) -> "Dataset":
         """
         Add a new processing step to the pipeline.
 
         Parameters
         ----------
-        step : DataProcessor
             Processing step to add to the pipeline. Must have 'execute' and 'update_context' methods.
         """
-        step = _PROCESSOR_REGISTRY.get(step_key, (object, object))[0](value) 
         if not hasattr(step, "execute") or not callable(getattr(step, "execute")):
             raise TypeError("Processing step must have an 'execute' method.")
         if not hasattr(step, "update_context") or not callable(

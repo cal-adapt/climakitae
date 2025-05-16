@@ -3,7 +3,6 @@ Subset data on time
 """
 
 import datetime
-import os
 import warnings
 from collections.abc import Sized
 from typing import Any, Dict, Iterable, Union
@@ -81,7 +80,6 @@ class TimeSlice(DataProcessor):
             The sliced data. This can be a single Dataset/DataArray or
             an iterable of them.
         """
-
         match result:
             case dict():  # most likely case at top
                 subset_data = {}
@@ -89,18 +87,21 @@ class TimeSlice(DataProcessor):
                     subset_data[key] = value.sel(
                         time=slice(self.value[0], self.value[1])
                     )
+                self.update_context(context)
                 return subset_data
 
             case xr.DataArray() | xr.Dataset():
+                self.update_context(context)
                 return result.sel(time=slice(self.value[0], self.value[1]))
 
-            case Iterable():
+            case list() | tuple():
                 subset_data = []
                 for value in result:
                     subset_data.append(
                         value.sel(time=slice(self.value[0], self.value[1]))
                     )
                 # return as the same type as the input
+                self.update_context(context)
                 return type(result)(subset_data)
             case _:
                 warnings.warn(  # TODO warning not error

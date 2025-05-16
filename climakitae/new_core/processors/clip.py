@@ -83,24 +83,29 @@ class Clip(DataProcessor):
                     f"Invalid value type for clipping. Expected str or tuple but got {type(self.value)}."
                 )
 
+        ret = None
         match result:
             case dict():
                 # Clip each dataset in the dictionary
-                return {
+                ret = {
                     key: self._clip_data_with_geom(value, geom)
                     for key, value in result.items()
                 }
             case xr.Dataset() | xr.DataArray():
                 # Clip the single dataset
-                return self._clip_data_with_geom(result, geom)
-            case Iterable():
+                ret = self._clip_data_with_geom(result, geom)
+            case list() | tuple():
                 # return as passed type
-                ret = [self._clip_data_with_geom(data, geom) for data in result]
-                return type(result)(ret)
+                ret = type(result)(
+                    [self._clip_data_with_geom(data, geom) for data in result]
+                )
+
             case _:
                 raise ValueError(
                     f"Invalid result type for clipping. Expected dict, xr.Dataset, xr.DataArray, or Iterable but got {type(result)}."
                 )
+        self.update_context(context)
+        return ret
 
     def update_context(self, context: Dict[str, Any]):
         """

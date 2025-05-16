@@ -157,13 +157,14 @@ class ConvertUnits(DataProcessor):
         if self.value is UNSET:
             return result
 
+        ret = result
         match result:
             case dict():
                 # If result is a dictionary, convert each item
                 ret = {k: self._convert_units(v, self.value) for k, v in result.items()}
             case xr.Dataset() | xr.DataArray():
                 ret = self._convert_units(result, self.value)
-            case Iterable():
+            case list() | tuple():
                 # If result is an iterable, convert each item
                 ret = type(result)(
                     [self._convert_units(item, self.value) for item in result]
@@ -261,7 +262,7 @@ class ConvertUnits(DataProcessor):
                     self.success = False
                     return data
 
-            case Iterable():
+            case list() | tuple():
                 # look through the list of valid units
                 # if any of the units conversions are valid, convert them
                 # if not, raise a warning

@@ -43,6 +43,8 @@ from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
 )
 
+PROC_KEY = "processes"
+
 
 class DatasetFactory:
     """
@@ -157,9 +159,8 @@ class DatasetFactory:
         # Add processing steps based on query parameters
         if _NEW_ATTRS_KEY not in ui_query:
             ui_query[_NEW_ATTRS_KEY] = {}
-        for key, value in self._get_list_of_processing_steps(ui_query["processes"]):
-            ui_query[_NEW_ATTRS_KEY][key] = value
-            dataset.with_processing_step(key, value)
+        for proc in self._get_list_of_processing_steps(ui_query):
+            dataset.with_processing_step(proc)
 
         return dataset
 
@@ -193,19 +194,28 @@ class DatasetFactory:
         priority key in the processing step registry.
         """
         processing_steps = []
-        if query is UNSET:
+
+        if query[PROC_KEY] is UNSET:
             return processing_steps
 
-        for key, value in query.items():
+        for key, value in query[PROC_KEY].items():
             if key not in self._processing_step_registry:
                 warnings.warn(
                     f"Processing step '{key}' not found in registry. Skipping."
                 )
                 continue
 
-            processor_class, priority = self._processing_step_registry[key]
+            processor_class, _ = self._processing_step_registry[
+                key
+            ]  # get the class and priority
             processing_steps.append(processor_class(value))
 
+            # modify query in place
+            query[_NEW_ATTRS_KEY][key] = value
+
+        processing_steps.append(
+            self._processing_step_registry["update_attributes"][0]()
+        )
         return processing_steps
 
     def _get_catalog_key_from_query(self, query: Dict[str, Any]) -> str:

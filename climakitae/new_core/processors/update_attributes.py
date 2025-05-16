@@ -19,7 +19,7 @@ class UpdateAttributes(DataProcessor):
     """
     Update attributes of the data.
 
-    Adds new attributes to the data that describe the processing steps 
+    Adds new attributes to the data that describe the processing steps
     """
 
     def __init__(self, value: Any = UNSET):
@@ -55,7 +55,7 @@ class UpdateAttributes(DataProcessor):
                     result[key].attrs = item.attrs | context[_NEW_ATTRS_KEY]
             case xr.Dataset() | xr.DataArray():
                 result.attrs = result.attrs | context[_NEW_ATTRS_KEY]
-            case Iterable():
+            case list() | tuple():
                 for i, item in enumerate(result):
                     result[i].attrs = item.attrs | context[_NEW_ATTRS_KEY]
             case _:
