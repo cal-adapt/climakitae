@@ -154,6 +154,8 @@ class ConvertUnits(DataProcessor):
         context: Dict[str, Any],
     ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
         # Placeholder for unit conversion logic
+        if self.value is UNSET:
+            return result
 
         match result:
             case dict():
