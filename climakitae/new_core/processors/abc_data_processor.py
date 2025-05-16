@@ -1,6 +1,6 @@
 """Data processing module for climakitae.""" ""
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Iterable, Union
+from typing import Any, Callable, Dict, Iterable, Union
 
 import xarray as xr
 
@@ -11,7 +11,9 @@ from climakitae.new_core.data_access import DataCatalog
 _PROCESSOR_REGISTRY = {}
 
 
-def register_processor(key: str = UNSET, priority: int = UNSET) -> callable:
+def register_processor(
+    key: str | object = UNSET, priority: int | object = UNSET
+) -> Callable:
     """
     Decorator to register a processor class.
 
