@@ -34,8 +34,14 @@ import xarray as xr
 from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
 from climakitae.new_core.data_access import DataCatalog
 from climakitae.new_core.dataset import Dataset
-from climakitae.new_core.param_validation import _VALIDATOR_REGISTRY, ParameterValidator
-from climakitae.new_core.processors.abc_data_processor import _PROCESSOR_REGISTRY
+from climakitae.new_core.param_validation.abc_param_validation import (
+    _VALIDATOR_REGISTRY,
+    ParameterValidator,
+)
+from climakitae.new_core.processors.abc_data_processor import (
+    _PROCESSOR_REGISTRY,
+    DataProcessor,
+)
 
 
 class DatasetFactory:
@@ -49,33 +55,12 @@ class DatasetFactory:
     def __init__(self):
         """Initialize the factory with registries for catalogs, validators and processing steps."""
         self._catalog = None
-        self.catalog_path = "climakitae/data/catalogs.csv"  # ! Move to paths
+        self.catalog_path = (
+            "climakitae/data/catalogs.csv"  # ! Move to paths or constants
+        )
         self._catalog_df = pd.read_csv(self.catalog_path)
-        self._validator_registry = {}
-        self._processing_step_registry = {}
-
-        # Register default components
-        self._register_defaults()
-
-    def _register_defaults(self):
-        """
-        Register default components for the factory.
-        This includes default validators and processing steps.
-
-        Note
-        ----
-        The default catalogs are already registered in the DataCatalog class.
-        The specific catalog to use will be determined by the query
-        and registered in the _catalog_registry.
-        """
-
-        # Register default validators
-        for key, validator_class in _VALIDATOR_REGISTRY.items():
-            self.register_validator(key, validator_class)
-
-        # Register default processors
-        for key, (processor_class, _) in _PROCESSOR_REGISTRY.items():
-            self.register_processing_step(key, processor_class)
+        self._validator_registry = _VALIDATOR_REGISTRY
+        self._processing_step_registry = _PROCESSOR_REGISTRY
 
     def register_catalog(self, key: str, catalog: DataCatalog):
         """
@@ -214,8 +199,7 @@ class DatasetFactory:
         for key, value in query.items():
             if key not in self._processing_step_registry:
                 warnings.warn(
-                    f"Processing step '{key}' not found in registry. Skipping.",
-                    UserWarning,
+                    f"Processing step '{key}' not found in registry. Skipping."
                 )
                 continue
 
@@ -256,16 +240,12 @@ class DatasetFactory:
         ]  # filter rows with matching keys
         match len(subset):
             case 0:
-                warnings.warn(
-                    "No matching catalogs found initially.",
-                    UserWarning,
-                )
+                warnings.warn("No matching catalogs found initially.")
             case 1:
                 return subset.iloc[0]["catalog"]
             case _:
                 warnings.warn(
-                    "Multiple matching datasets found. Please refine your query.",
-                    UserWarning,
+                    "Multiple matching datasets found. Please refine your query."
                 )
 
         return None
