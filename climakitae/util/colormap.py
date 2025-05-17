@@ -33,16 +33,17 @@ def read_ae_colormap(cmap="ae_orange", cmap_hex=False):
 
     """
 
-    if cmap == "ae_orange":
-        cmap_data = ae_orange
-    elif cmap == "ae_diverging":
-        cmap_data = ae_diverging
-    elif cmap == "ae_blue":
-        cmap_data = ae_blue
-    elif cmap == "ae_diverging_r":
-        cmap_data = ae_diverging_r
-    elif cmap == "categorical_cb":
-        cmap_data = categorical_cb
+    match cmap:
+        case "ae_orange":
+            cmap_data = ae_orange
+        case "ae_diverging":
+            cmap_data = ae_diverging
+        case "ae_blue":
+            cmap_data = ae_blue
+        case "ae_diverging_r":
+            cmap_data = ae_diverging_r
+        case "categorical_cb":
+            cmap_data = categorical_cb
 
     # Load text file
     cmap_np = np.loadtxt(_package_file_path(cmap_data), dtype=float)

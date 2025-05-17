@@ -126,12 +126,13 @@ def _get_sliced_data(y, level, gwl_times, months, window):
         days_per_month = {i: calendar.monthrange(2001, i)[1] for i in np.arange(1, 13)}
 
         # This creates an approximately appropriately sized DataArray to be dropped later
-        if y.frequency == "monthly":
-            time_freq = len(months)
-        elif y.frequency == "daily":
-            time_freq = sum([days_per_month[month] for month in months])
-        elif y.frequency == "hourly":
-            time_freq = sum([days_per_month[month] for month in months]) * 24
+        match y.frequency:
+            case "monthly":
+                time_freq = len(months)
+            case "daily":
+                time_freq = sum([days_per_month[month] for month in months])
+            case "hourly":
+                time_freq = sum([days_per_month[month] for month in months]) * 24
         y = y.isel(
             time=slice(0, window * 2 * time_freq)
         )  # This is to create a dummy slice that conforms with other data structure. Can be re-written to something more elegant.

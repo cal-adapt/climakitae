@@ -135,10 +135,11 @@ def _complete_selections(selections, variable, units, years, wrf_timescale="mont
 
     # If we want to allow users to select on criteria beyond just the metric and downscaling (i.e. also timescale and resolution), then the following line will be useful to present users
     # print(variable_description_df[['display_name', 'downscaling_method', 'timescale']].to_string())
-    if selections.downscaling_method == "Statistical":
-        selections.timescale = "monthly"
-    elif selections.downscaling_method == "Dynamical":
-        selections.timescale = wrf_timescale
+    match selections.downscaling_method:
+        case "Statistical":
+            selections.timescale = "monthly"
+        case "Dynamical":
+            selections.timescale = wrf_timescale
     selections.resolution = "3 km"
     selections.units = units
     selections.time_slice = years
@@ -152,15 +153,16 @@ def _create_lat_lon_select(
     # Creates a selection object
     selections = DataParameters()
     selections.area_subset = "lat/lon"
-    if (
-        type(lat) == float or type(lat) == int
-    ):  # Creating a box around which to find the nearest gridcell for compute
-        selections.latitude = (lat - 0.05, lat + 0.05)
-        selections.longitude = (lon - 0.05, lon + 0.05)
-    elif type(lat) == tuple:
-        selections.latitude = lat
-        selections.longitude = lon
-        selections.area_average = "Yes"
+    match lat:
+        case (
+            float() | int()
+        ):  # Creating a box around which to find the nearest gridcell for compute
+            selections.latitude = (lat - 0.05, lat + 0.05)
+            selections.longitude = (lon - 0.05, lon + 0.05)
+        case tuple():
+            selections.latitude = lat
+            selections.longitude = lon
+            selections.area_average = "Yes"
     selections.downscaling_method = downscaling_method
 
     # Add attributes for the rest of the selections object
@@ -367,10 +369,11 @@ def show_available_vars(downscaling_method, wrf_timescale="monthly"):
     var_desc = read_csv_file(variable_descriptions_csv_path)
 
     # Get available variable IDs
-    if downscaling_method == "Statistical":
-        timescale = "monthly"
-    elif downscaling_method == "Dynamical":
-        timescale = wrf_timescale
+    match downscaling_method:
+        case "Statistical":
+            timescale = "monthly"
+        case "Dynamical":
+            timescale = wrf_timescale
     available_vars = _get_user_options(
         data_catalog,
         downscaling_method,
