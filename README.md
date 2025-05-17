@@ -47,6 +47,31 @@ get_data(
 
 If you want to use graphic user interfaces to retrieve and view data visualization options (among other features), you'll need to import our sister package `climakitaegui`, which works in tandem with climakitae to produce interactive GUIs. See [climakitaegui](https://github.com/cal-adapt/climakitaegui) for more information on how to use this library. 
 
+Local Setup
+-----------
+
+This project uses `conda` or `uv` for local and remote setup.
+
+For demonstration purposes, here are the instructions to follow for setting up a local
+environment using `uv`:
+
+install `uv`:
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+install the dependencies for `climakitae`
+```bash
+uv sync
+```
+
+activate your environment:
+```bash
+source .venv/bin/activate
+```
+
+You can test your environment works by opening `examples/example_plot_pajaro.ipynb`, setting your kernel to `.venv/bin/python` and running all cells.
+
 Links
 -----
 * PyPI releases: https://pypi.org/project/climakitae/
