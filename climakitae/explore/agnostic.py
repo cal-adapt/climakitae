@@ -102,6 +102,10 @@ def year_to_warm_levels(warm_df, scenario, year):
 ##### TASK 2 #####
 
 
+def _round_to_nearest_half(number):
+    return round(number * 2) / 2
+
+
 def _get_var_info(variable, downscaling_method, wrf_timescale="monthly"):
     """Gets the variable info for the specific variable name and downscaling method"""
     var_desc_df = read_csv_file(variable_descriptions_csv_path)
