@@ -236,6 +236,8 @@ def _convert_da_to_ds(data: xr.DataArray | xr.Dataset) -> xr.Dataset:
             return data.to_dataset()
         case xr.Dataset():
             return data
+        case _:
+            raise Exception("Input must be either an Xarray DataArray or Dataset")
 
 
 def _export_to_netcdf(data: xr.DataArray | xr.Dataset, save_name: str):
