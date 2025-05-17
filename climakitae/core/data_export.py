@@ -869,6 +869,10 @@ def export(
             _export_to_netcdf(data, save_name)
         case "csv":
             _export_to_csv(data, save_name)
+        case _:
+            raise Exception(
+                'Please select "Zarr", "NetCDF" or "CSV" as the file format.'
+            )
 
 
 ## TMY export functions
