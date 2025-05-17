@@ -229,12 +229,12 @@ def _convert_da_to_ds(data: xr.DataArray | xr.Dataset) -> xr.Dataset:
     data: xarray.DataArray or xarray.Dataset
     """
     match data:
-        case data if isinstance(data, xr.core.dataarray.DataArray):
+        case xr.DataArray():
             if not data.name:
                 # name it in order to call to_dataset on it
                 data.name = "data"
             return data.to_dataset()
-        case data if isinstance(data, xr.core.dataset.Dataset):
+        case xr.Dataset():
             return data
 
 
