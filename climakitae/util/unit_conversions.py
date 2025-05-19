@@ -105,11 +105,6 @@ def convert_units(da: xr.DataArray, selected_units: str) -> xr.DataArray:
         case "g/kg":
             if selected_units == "kg/kg":
                 da = da / 1000
-
-        # Specific humidity
-        case "g/kg":
-            if selected_units == "kg/kg":
-                da = da / 1000
                 da.attrs["units"] = selected_units
 
         # Pressure units
@@ -157,6 +152,11 @@ def convert_units(da: xr.DataArray, selected_units: str) -> xr.DataArray:
         case "[0 to 100]":
             if selected_units == "fraction":
                 da = da / 100.0
+
+        case _:
+            raise ValueError(
+                "DataArray's native units do not match our unit conversion catalog"
+            )
 
     # Update unit attribute to reflect converted unit
     da.attrs["units"] = selected_units
