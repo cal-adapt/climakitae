@@ -18,7 +18,7 @@ def read_ae_colormap(cmap="ae_orange", cmap_hex=False):
     Parameters
     ----------
     cmap: str
-        one of ["ae_orange","ae_blue","ae_diverging"]
+        one of ["ae_orange", "ae_diverging", "ae_blue", "ae_diverging_r", "categorical_cb"]
     cmap_hex: boolean
         return RGB or hex colors?
 
@@ -44,6 +44,10 @@ def read_ae_colormap(cmap="ae_orange", cmap_hex=False):
             cmap_data = ae_diverging_r
         case "categorical_cb":
             cmap_data = categorical_cb
+        case _:
+            raise ValueError(
+                'cmap needs to be one of ["ae_orange", "ae_diverging", "ae_blue", "ae_diverging_r", "categorical_cb"]'
+            )
 
     # Load text file
     cmap_np = np.loadtxt(_package_file_path(cmap_data), dtype=float)
