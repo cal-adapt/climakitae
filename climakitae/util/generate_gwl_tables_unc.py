@@ -433,38 +433,49 @@ class GWLGenerator:
         # Create enumerated list for processing
         enum_ens_mem_list = list(enumerate(ens_mem_list))
 
-        # Use ThreadPoolExecutor to parallelize processing
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            results = list(executor.map(_process_ensemble_member, enum_ens_mem_list))
+        results = [
+            _process_ensemble_member(i_ens_mem) for i_ens_mem in enum_ens_mem_list
+        ]
 
         # Process results
+        successful_ens_mems = []  # Track successful ensemble members
         for i, ens_mem, gwlevels, wl_data_tbl, error_msg in results:
+            print(i, ens_mem, gwlevels, wl_data_tbl)
             if error_msg:
                 print(error_msg)
             else:
                 gwlevels_tbl.append(gwlevels)
                 wl_data_tbls.append(wl_data_tbl)
+                successful_ens_mems.append(ens_mem)  # Append only if successful
 
         if gwlevels_tbl and wl_data_tbls:
+            # Renaming columns of all ensemble members within model
             try:
-                # Renaming columns of all ensemble members within model
+                # Align indexes before concatenation
+                wl_data_tbls = [
+                    df.reindex(wl_data_tbls[0].index) for df in wl_data_tbls
+                ]
                 wl_data_tbl_sim = pd.concat(wl_data_tbls, axis=1)
-                print(model, wl_data_tbl_sim.columns)
-                wl_data_tbl_sim.columns = model + "_" + wl_data_tbl_sim.columns
+            except Exception as e:
+                print(f"Error concatenating timeseries results for model {model}: {e}")
+                return pd.DataFrame(), pd.DataFrame()
 
-                # Create a new list of successful ensemble members (that match the length of gwlevels_tbl)
-                successful_ens_mems = []
-                for i, ens_mem in enumerate(ens_mem_list):
-                    if i < len(gwlevels_tbl):
-                        successful_ens_mems.append(ens_mem)
+            print(model, wl_data_tbl_sim.columns)
+            wl_data_tbl_sim.columns = model + "_" + wl_data_tbl_sim.columns
 
-                # Use the filtered list for concatenation
+            # Use the filtered list for concatenation
+            try:
+                gwlevels_tbl = [
+                    df.reindex(gwlevels_tbl[0].index) for df in gwlevels_tbl
+                ]
                 return (
                     pd.concat(gwlevels_tbl, keys=successful_ens_mems),
                     wl_data_tbl_sim,
                 )
             except Exception as e:
-                print(f"Error concatenating results for model {model}: {e}")
+                print(
+                    f"Error concatenating warming level results for model {model}: {e}"
+                )
                 return pd.DataFrame(), pd.DataFrame()
         else:
             print(f"No valid ensemble members for model {model}")
