@@ -133,6 +133,10 @@ def _get_sliced_data(y, level, gwl_times, months, window):
                 time_freq = sum([days_per_month[month] for month in months])
             case "hourly":
                 time_freq = sum([days_per_month[month] for month in months]) * 24
+            case _:
+                raise ValueError(
+                    'frequency needs to be either "hourly", "daily", or "monthly"'
+                )
         y = y.isel(
             time=slice(0, window * 2 * time_freq)
         )  # This is to create a dummy slice that conforms with other data structure. Can be re-written to something more elegant.
