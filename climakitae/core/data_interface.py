@@ -650,7 +650,6 @@ class DataParameters(param.Parameterized):
     # Warming level options
     wl_options = WARMING_LEVELS
     wl_time_option = ["n/a"]
-    # warming_level = param.ListSelector(default=["n/a"], objects=["n/a"])
     warming_level = param.List(default=[1.0], item_type=float)
     warming_level_window = param.Integer(
         default=15,
@@ -772,8 +771,6 @@ class DataParameters(param.Parameterized):
         If time-based is selected, there should be no warming levels options shown.
         """
         if self.approach == "Warming Level":
-            # Remove WL constraint
-            # self.param["warming_level"].objects = self.wl_options
             self.warming_level = [2.0]
 
             self.param["scenario_ssp"].objects = ["n/a"]
@@ -855,7 +852,6 @@ class DataParameters(param.Parameterized):
         else:
             self.param["data_type"].objects = ["Gridded", "Stations"]
         if self.variable_type == "Derived Index":
-
             # Haven't built into the code to retrieve derive index for statistically downscaled data yet. Derived indices at the moment only work for hourly data.
             self.param["downscaling_method"].objects = ["Dynamical"]
             self.downscaling_method = "Dynamical"
@@ -1049,7 +1045,6 @@ class DataParameters(param.Parameterized):
         """
 
         if self.approach == "Time":
-
             # Set incoming scenario_historical
             _scenario_historical = self.scenario_historical
 
@@ -1573,7 +1568,6 @@ def _check_if_good_input(d, cat_df):
         # If the input value is not in the valid options, see if you can help the user out
         key_updated = []
         for val_i in val:
-
             # This catches any common bad inputs for resolution: i.e. "3KM" or "3km" instead of "3 km"
             if key == "resolution":
                 try:
@@ -1595,7 +1589,6 @@ def _check_if_good_input(d, cat_df):
                     pass
 
             if val_i not in valid_options:
-
                 print("Input " + key + "='" + val_i + "' is not a valid option.")
 
                 closest_options = _get_closest_options(val_i, valid_options)
@@ -1930,7 +1923,6 @@ def get_data(
         printed_warning = False
 
         for i in range(len(stations)):  # Go through all the stations
-
             station_i = stations[i]
 
             if station_i not in station_options_all:
@@ -2044,7 +2036,6 @@ def get_data(
             scenario_ssp = ["n/a"]
             scenario_historical = ["n/a"]
         elif approach == "Time":
-
             if (
                 "Historical Reconstruction" in scenario
             ):  # Handling for Historical Reconstruction option
@@ -2084,7 +2075,6 @@ def get_data(
 
     # Station data error handling
     if data_type == "Stations":
-
         # dictionary with { argument name : [valid option, user input]}
         d = {
             "downscaling_method": ["Dynamical", downscaling_method],
@@ -2395,7 +2385,6 @@ def _get_and_reformat_derived_variables(variable_descriptions):
     # loop through each row in the DataFrame
     derived_variables_split = []
     for i in range(len(derived_variables_multi_timescale)):
-
         # Get single row, containing one variable
         row = derived_variables_multi_timescale.iloc[i]
 

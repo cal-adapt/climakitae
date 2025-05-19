@@ -38,7 +38,7 @@ from climakitae.util.utils import (
     resolution_to_gridlabel,
     scenario_to_experiment_id,
     timescale_to_table_id,
-    create_new_warming_level_table
+    create_new_warming_level_table,
 )
 from climakitae.util.warming_levels import _calculate_warming_level, _drop_invalid_sims
 
@@ -1168,7 +1168,6 @@ def read_catalog_from_select(selections):
 
     # Raise appropriate errors for time-based retrieval
     if selections.approach == "Time":
-
         if (selections.scenario_ssp != []) and (
             "Historical Reconstruction" in selections.scenario_historical
         ):
@@ -1333,14 +1332,11 @@ def _apply_warming_levels_approach(da, selections):
     for level in selections.warming_level:
         gwl_table = selections._warming_level_times
 
-        import pdb; pdb.set_trace()
-
         if level not in WARMING_LEVELS:
             gwl_table = create_new_warming_level_table(warming_level=level)
-    
+
         da_by_wl = _calculate_warming_level(
             data_stacked,
-            # gwl_times=selections._warming_level_times,
             gwl_times=gwl_table,
             level=level,
             months=selections.warming_level_months,

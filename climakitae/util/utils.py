@@ -1184,10 +1184,25 @@ def stack_sims_across_locs(ds):
     ]
     return ds
 
-def read_warming_level_csvs():
-    df = read_csv_file("data/gwl_1850-1900ref_timeidx.csv", index_col="time", parse_dates=True)
+
+def read_warming_level_csvs() -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Reads two CSV files containing global warming level (GWL) data.
+
+    Returns:
+        tuple:
+            - df (pd.DataFrame): Time-indexed DataFrame with simulations as columns, filled with WL values at each simulation x time combination.
+              Loaded from 'data/gwl_1850-1900ref_timeidx.csv' with 'time' as the parsed datetime index.
+
+            - other_df (pd.DataFrame): DataFrame containing WL information with warming levels as the columns, and simulations as the index.
+              Loaded from 'data/gwl_1850-1900ref.csv' without a datetime index.
+    """
+    df = read_csv_file(
+        "data/gwl_1850-1900ref_timeidx.csv", index_col="time", parse_dates=True
+    )
     other_df = read_csv_file("data/gwl_1850-1900ref.csv")
     return df, other_df
+
 
 def get_wl_timestamp(series: pd.Series, degree: float) -> str:
     """
@@ -1195,24 +1210,33 @@ def get_wl_timestamp(series: pd.Series, degree: float) -> str:
     Return timestamp as string; return np.nan if never crosses.
     """
     if any(series >= degree):
-        return series[series >= degree].index[0].strftime('%Y-%m-%d %H:%M')
+        return series[series >= degree].index[0].strftime("%Y-%m-%d %H:%M")
     return np.nan
 
+
 def create_new_warming_level_table(warming_level: float) -> pd.DataFrame:
+    """
+    Returns a table of timestamps when each simulation reaches the given warming level.
+
+    Parameters:
+        warming_level (float): New WL to retrieve WL timing for.
+
+    Returns:
+        pd.DataFrame: Same DataFrame as `data/gwl_1850-1900ref.csv`, just with a new WL columns with the `warming_level` arg passed.
+    """
     df, other_df = read_warming_level_csvs()
 
     # Map each simulation to its crossing timestamp for the given warming level
     wl_timestamps = {
-        col: get_wl_timestamp(df[col], warming_level)
-        for col in df.columns
+        col: get_wl_timestamp(df[col], warming_level) for col in df.columns
     }
 
     result = other_df.copy(deep=True)
-    result['sim'] = result['GCM'] + '_' + result['run'] + '_' + result['scenario']
+    result["sim"] = result["GCM"] + "_" + result["run"] + "_" + result["scenario"]
     timestamp_series = pd.Series(wl_timestamps)
 
-    result[str(warming_level)] = result['sim'].map(timestamp_series)
-    result = result.drop(columns='sim')
-    result = result.set_index(['GCM', 'run', 'scenario'])
+    result[str(warming_level)] = result["sim"].map(timestamp_series)
+    result = result.drop(columns="sim")
+    result = result.set_index(["GCM", "run", "scenario"])
 
     return result
