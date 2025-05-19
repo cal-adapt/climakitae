@@ -75,6 +75,8 @@ def _get_duration_str(approach, warming_level, time_slice):
             return f"{time_slice[0]}_{time_slice[1]}"
         case "Warming Level":
             return str(warming_level).replace(".", "")
+        case _:
+            raise ValueError('approach needs to be either "Time" or "Warming Level"')
 
 
 def _get_filename(approach, downscaling, warming_level, time_slice):
