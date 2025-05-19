@@ -126,6 +126,10 @@ def _get_user_options(
             cat_subset = cat_subset.search(experiment_id=overlapping_scenarios)
         case "Statistical":
             cat_subset = cat_subset.search(activity_id="LOCA2")
+        case _:
+            raise ValueError(
+                'downscaling_method needs to either "Statistical" or "Dynamical+Statistical'
+            )
 
     # Get scenario options
     scenario_options = list(cat_subset.df["experiment_id"].unique())
@@ -407,6 +411,8 @@ def _get_subarea(
                     df_ae = _get_subarea_from_shape_index(
                         _geographies._ca_electric_balancing_areas, shape_indices
                     )
+                case _:
+                    raise ValueError("area_subset not set correctly")
         case _:  # If no subsetting, make the geometry a big box to include all stations
             df_ae = gpd.GeoDataFrame(
                 pd.DataFrame(
@@ -851,6 +857,10 @@ class DataParameters(param.Parameterized):
                     "Historical Reconstruction",
                 ]
                 self.scenario_historical = ["Historical Climate"]
+            case _:
+                raise ValueError(
+                    'approach needs to be either "Warming Level" or "Time"'
+                )
 
     @param.depends("latitude", "longitude", watch=True)
     def _update_area_subset_to_lat_lon(self):
@@ -886,6 +896,8 @@ class DataParameters(param.Parameterized):
             case "Gridded":
                 self.param["area_average"].objects = ["Yes", "No"]
                 self.area_average = "No"
+            case _:
+                raise ValueError('data_type needs to either "Stations" or "Gridded"')
 
     @param.depends(
         "downscaling_method",
@@ -1010,7 +1022,12 @@ class DataParameters(param.Parameterized):
                         # We do not have WRF on LOCA grid resampled to monthly
                         self.param["timescale"].objects = ["daily"]
                         self.timescale = "daily"
-
+                    case _:
+                        raise ValueError(
+                            'downscaling_method needs to be "Statistical", "Dynamical", or "Dynamical+Statistical"'
+                        )
+            case _:
+                raise ValueError('data_type needs to be either "Stations" or "Gridded"')
         (
             self.scenario_options,
             self.simulation,
@@ -1051,6 +1068,10 @@ class DataParameters(param.Parameterized):
                     self.variable_options_df = self.variable_options_df[
                         self.variable_options_df["variable_id"].str.contains("index")
                     ]
+                case _:
+                    raise ValueError(
+                        'variable_type needs to be either "Variable" or "Derived Index"'
+                    )
             var_options = self.variable_options_df.display_name.values
             self.param["variable"].objects = var_options
             if self.variable not in var_options:
@@ -1083,6 +1104,10 @@ class DataParameters(param.Parameterized):
                             "UT",
                             "AZ",
                         ]
+                    case _:
+                        raise ValueError(
+                            'downscaling_method needs to be "Statistical", "Dynamical", or "Dynamical+Statistical"'
+                        )
                 self.cached_area = ["CA"]
             else:
                 self.param["cached_area"].objects = self._geography_choose[
@@ -1191,6 +1216,10 @@ class DataParameters(param.Parameterized):
                     historical_climate_range = (
                         self.historical_climate_range_wrf_and_loca
                     )
+                case _:
+                    raise ValueError(
+                        'downscaling_method needs to be "Statistical", "Dynamical", or "Dynamical+Statistical"'
+                    )
 
             # Warning based on data scenario selections
             if (  # Warn user that they cannot have SSP data and ERA5-WRF data
@@ -1268,7 +1297,10 @@ class DataParameters(param.Parameterized):
                 historical_climate_range = self.historical_climate_range_loca
             case "Dynamical+Statistical":
                 historical_climate_range = self.historical_climate_range_wrf_and_loca
-
+            case _:
+                raise ValueError(
+                    'downscaling_method needs to be "Statistical", "Dynamical", or "Dynamical+Statistical"'
+                )
         if self.scenario_historical == ["Historical Climate"]:
             low_bound, upper_bound = historical_climate_range
         elif self.scenario_historical == ["Historical Reconstruction"]:
@@ -1299,6 +1331,8 @@ class DataParameters(param.Parameterized):
                 self._station_data_info = ""
             case "Stations":
                 self._station_data_info = self._info_about_station_data
+            case _:
+                raise ValueError('data_type needs to either "Stations" or "Gridded"')
 
     @param.depends(
         "data_type",
@@ -1332,6 +1366,8 @@ class DataParameters(param.Parameterized):
                 notice = "Set data type to 'Station' to see options"
                 self.param["stations"].objects = [notice]
                 self.stations = [notice]
+            case _:
+                raise ValueError('data_type needs to either "Stations" or "Gridded"')
 
     def retrieve(
         self, config: str = None, merge: bool = True

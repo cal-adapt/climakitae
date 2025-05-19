@@ -1291,7 +1291,7 @@ def write_tmy_file(
                 station_code = str(station_code)[:6]
                 timezone = _utc_offset_timezone(lon=stn_lon, lat=stn_lat)
         case _:
-            raise ValueError ("station_code needs to be either str or int")
+            raise ValueError("station_code needs to be either str or int")
 
     def _tmy_header(
         location_name: str,
