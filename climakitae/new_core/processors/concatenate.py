@@ -103,7 +103,9 @@ class Concat(DataProcessor):
         self.update_context(context, source_ids)
         return concatenated
 
-    def update_context(self, context: Dict[str, Any], source_ids: List[str] = UNSET):
+    def update_context(
+        self, context: Dict[str, Any], source_ids: List[str] | object = UNSET
+    ):
         """
         Update the context with information about the concatenation transformation.
 
