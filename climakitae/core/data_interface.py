@@ -126,10 +126,6 @@ def _get_user_options(
             cat_subset = cat_subset.search(experiment_id=overlapping_scenarios)
         case "Statistical":
             cat_subset = cat_subset.search(activity_id="LOCA2")
-        case _:
-            raise ValueError(
-                'downscaling_method needs to either "Statistical" or "Dynamical+Statistical'
-            )
 
     # Get scenario options
     scenario_options = list(cat_subset.df["experiment_id"].unique())
