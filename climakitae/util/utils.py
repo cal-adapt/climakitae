@@ -1176,7 +1176,8 @@ def _get_scenario_from_selections(selections) -> tuple[list[str], list[str]]:
             # Need all scenarios for warming level approach
             scenario_ssp = SSPS
             scenario_historical = ["Historical Climate"]
-
+        case _:
+            raise ValueError('approach needs to be either "Time" or "Warming Level"')
     return scenario_ssp, scenario_historical
 
 
