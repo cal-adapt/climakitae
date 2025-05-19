@@ -153,11 +153,6 @@ def convert_units(da: xr.DataArray, selected_units: str) -> xr.DataArray:
             if selected_units == "fraction":
                 da = da / 100.0
 
-        case _:
-            raise ValueError(
-                "DataArray's native units do not match our unit conversion catalog"
-            )
-
     # Update unit attribute to reflect converted unit
     da.attrs["units"] = selected_units
     return da
