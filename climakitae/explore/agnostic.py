@@ -140,6 +140,10 @@ def _complete_selections(selections, variable, units, years, wrf_timescale="mont
             selections.timescale = "monthly"
         case "Dynamical":
             selections.timescale = wrf_timescale
+        case _:
+            raise ValueError(
+                'downscaling_method needs to be either "Statistical" or "Dynamical"'
+            )
     selections.resolution = "3 km"
     selections.units = units
     selections.time_slice = years
@@ -163,6 +167,10 @@ def _create_lat_lon_select(
             selections.latitude = lat
             selections.longitude = lon
             selections.area_average = "Yes"
+        case _:
+            raise Exception(
+                "lat coordinate not of the correct type of float, int, or tuple"
+            )
     selections.downscaling_method = downscaling_method
 
     # Add attributes for the rest of the selections object
@@ -374,6 +382,10 @@ def show_available_vars(downscaling_method, wrf_timescale="monthly"):
             timescale = "monthly"
         case "Dynamical":
             timescale = wrf_timescale
+        case _:
+            raise ValueError(
+                'downscaling_method needs to be either "Statistical" or "Dynamical"'
+            )
     available_vars = _get_user_options(
         data_catalog,
         downscaling_method,
