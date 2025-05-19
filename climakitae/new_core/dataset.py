@@ -66,9 +66,7 @@ class Dataset:
         try:
             for step in self.processing_pipeline:
                 # Some steps might need access to the data_access component
-                if hasattr(step, "set_data_accessor") and callable(
-                    getattr(step, "set_data_accessor")
-                ):
+                if getattr(step, "needs_data", False):
                     step.set_data_accessor(self.data_access)
 
                 # Execute the current step
