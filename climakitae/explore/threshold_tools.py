@@ -102,6 +102,8 @@ def get_block_maxima(
                 da_series = da_series.rolling(time=dur_len, center=False).min("time")
             case "min":
                 da_series = da_series.rolling(time=dur_len, center=False).max("time")
+            case _:
+                raise ValueError('extremes_type needs to be either "max" or "min"')
 
     if groupby != None:
         # In this case, select the max (min) in each group. (This option is
@@ -118,6 +120,8 @@ def get_block_maxima(
                 da_series = da_series.resample(time=f"{group_len}D", label="left").max()
             case "min":
                 da_series = da_series.resample(time=f"{group_len}D", label="left").min()
+            case _:
+                raise ValueError('extremes_type needs to be either "max" or "min"')
 
     if grouped_duration != None:
         if groupby == None:
@@ -138,6 +142,8 @@ def get_block_maxima(
                 da_series = da_series.rolling(time=dur2_len, center=False).min("time")
             case "min":
                 da_series = da_series.rolling(time=dur2_len, center=False).max("time")
+            case _:
+                raise ValueError('extremes_type needs to be either "max" or "min"')
 
     # Now select the most extreme value for each block in the series
     match extremes_type:
@@ -147,6 +153,8 @@ def get_block_maxima(
         case "min":
             bms = da_series.resample(time=f"{block_size}A").min(keep_attrs=True)
             bms.attrs["extremes type"] = "minima"
+        case _:
+            raise ValueError('extremes_type needs to be either "max" or "min"')
 
     # Calculate the effective sample size of the computed event type in all blocks
     # Check the average value to ensure that it's above threshold ESS
@@ -421,6 +429,10 @@ def get_ks_stat(
             case "gamma":
                 cdf = "gamma"
                 args = (parameters["a"], parameters["loc"], parameters["scale"])
+            case _:
+                raise ValueError(
+                    'invalid distribution type. expected one of the following: ["gev", "gumbel", "weibull", "pearson3", "genpareto", "gamma"]'
+                )
 
         try:
             ks = stats.kstest(bms, cdf, args=args)
@@ -502,6 +514,10 @@ def _calculate_return(
                     else:
                         return_period = 1.0 / return_prob
                         result = np.round(return_period, 3)
+                case _:
+                    raise ValueError(
+                        'data_variable needs to be either "return_prob" or "return_period"'
+                    )
     except (ValueError, ZeroDivisionError, AttributeError):
         result = np.nan
     return result
@@ -742,6 +758,10 @@ def _get_return_variable(
                 "return value"
             ] = f"{arg_value} {return_value_unit} event"
             new_ds["return_period"].attrs["units"] = "years"
+        case _:
+            raise ValueError(
+                'data_variable needs to be either "return_value", "return_prob", or "return_period"'
+            )
 
     new_ds["conf_int_lower_limit"].attrs["confidence interval lower bound"] = (
         "{}th percentile".format(str(conf_int_lower_bound))
@@ -1191,6 +1211,10 @@ def _exceedance_count_name(exceedance_count: xr.DataArray) -> str:
                     event = "days"
                 case "monthly":
                     event = "months"
+                case _:
+                    raise ValueError(
+                        'frequency needs to be either "hourly", "daily", or "monthly"'
+                    )
     return f"Number of {event}"
 
 
