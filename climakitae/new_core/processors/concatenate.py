@@ -14,7 +14,7 @@ from climakitae.new_core.processors.abc_data_processor import (
 )
 
 
-@register_processor("concat", priority=65)
+@register_processor("concat", priority=900)
 class Concat(DataProcessor):
     """
     DataProcessor that concatenates multiple datasets along a new "sim" dimension.
