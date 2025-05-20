@@ -9,7 +9,11 @@ import pytest
 import s3fs  # Import needed for type hinting
 import xarray as xr
 
-from climakitae.util.generate_gwl_tables import GWLGenerator, main
+from climakitae.util.generate_gwl_tables import (
+    GWLGenerator,
+    main,
+    make_weighted_timeseries,
+)
 from climakitae.core.constants import WARMING_LEVELS
 
 TEST_MODEL = "EC-Earth3"
@@ -1042,3 +1046,335 @@ class TestGWLGenerator:
                 models_list, scenarios_list, ref_periods_list
             )
             mock_get_gwl_table.assert_called_once()
+
+    def test_generate_gwl_file_csv_write_error(self, mock_generator: GWLGenerator):
+        """Test generate_gwl_file handling CSV writing errors."""
+        models_list = [TEST_MODEL]
+        scenarios_list = ["ssp370"]
+        ref_periods_list = [TEST_REFERENCE_PERIOD]
+
+        # Create valid GWL table to test CSV writing path
+        mock_agg_gwlevels_index = pd.MultiIndex.from_tuples(
+            [("r1i1p1f1", "ssp370")], names=["ensemble_member", "scenario"]
+        )
+        mock_agg_gwlevels = pd.DataFrame(
+            {1.5: [pd.Timestamp("2030-01-01")]},
+            index=mock_agg_gwlevels_index,
+        )
+
+        with (
+            patch.object(
+                mock_generator,
+                "get_gwl_table",
+                return_value=(mock_agg_gwlevels, pd.DataFrame()),
+            ),
+            patch.object(
+                mock_generator,
+                "get_table_cesm2",
+                return_value=(pd.DataFrame(), pd.DataFrame()),
+            ),
+            patch(
+                "climakitae.util.generate_gwl_tables.write_csv_file",
+                side_effect=Exception("CSV write error"),
+            ) as mock_write_csv,
+        ):
+            # Should catch the exception and print error message
+            mock_generator.generate_gwl_file(
+                models_list, scenarios_list, ref_periods_list
+            )
+            assert mock_write_csv.call_count == 2
+
+    def test_generate_gwl_file_multiple_periods(self, mock_generator: GWLGenerator):
+        """Test generate_gwl_file with multiple reference periods."""
+        models_list = [TEST_MODEL, "CMCC-ESM2"]
+        scenarios_list = ["ssp370"]
+        ref_periods_list = [
+            TEST_REFERENCE_PERIOD,
+            {"start_year": "19510101", "end_year": "19801231"},
+        ]
+
+        # Create valid GWL table to test the processing path
+        mock_agg_gwlevels_index = pd.MultiIndex.from_tuples(
+            [("r1i1p1f1", "ssp370")], names=["ensemble_member", "scenario"]
+        )
+        mock_agg_gwlevels = pd.DataFrame(
+            {1.5: [pd.Timestamp("2030-01-01")]},
+            index=mock_agg_gwlevels_index,
+        )
+
+        with (
+            patch.object(
+                mock_generator,
+                "get_gwl_table",
+                return_value=(mock_agg_gwlevels, pd.DataFrame()),
+            ) as mock_get_gwl_table,
+            patch.object(
+                mock_generator,
+                "get_table_cesm2",
+                return_value=(pd.DataFrame(), pd.DataFrame()),
+            ),
+            patch(
+                "climakitae.util.generate_gwl_tables.write_csv_file"
+            ) as mock_write_csv,
+        ):
+            mock_generator.generate_gwl_file(
+                models_list, scenarios_list, ref_periods_list
+            )
+
+            # Should be called for each model and reference period
+            assert mock_get_gwl_table.call_count == 4  # 2 models × 2 periods
+
+    def test_generate_gwl_file_error_handling(self, mock_generator: GWLGenerator):
+        """
+        Test error handling in generate_gwl_file method.
+        This covers line 501 in generate_gwl_tables_unc.py.
+        """
+        models_list = [TEST_MODEL]
+        scenarios_list = ["ssp370"]
+        ref_periods_list = [TEST_REFERENCE_PERIOD]
+
+        # Create a model_config dictionary to match what would be created in generate_gwl_file
+        model_config = {
+            "variable": "tas",
+            "model": TEST_MODEL,
+            "scenarios": ["ssp585", "ssp370", "ssp245"],
+        }
+
+        # Mock get_gwl_table to throw an exception on call
+        with (
+            patch.object(
+                mock_generator,
+                "get_gwl_table",
+            ) as mock_get_table,
+            patch.object(
+                mock_generator,
+                "get_table_cesm2",
+                return_value=(pd.DataFrame(), pd.DataFrame()),
+            ),
+        ):
+            # Configure the mock to raise an exception
+            mock_get_table.side_effect = Exception("Error in get_gwl_table")
+
+            # Since the method doesn't catch this exception (which is what we're trying to test)
+            # we need to catch it in the test to verify it's thrown
+            try:
+                mock_generator.generate_gwl_file(
+                    models_list, scenarios_list, ref_periods_list
+                )
+            except Exception as e:
+                # Verify that the exception came from our mocked method
+                assert str(e) == "Error in get_gwl_table"
+
+            # Verify our mock was called
+            mock_get_table.assert_called_once_with(model_config, ref_periods_list[0])
+
+    def test_generate_gwl_file_csv_write_specific_error(
+        self, mock_generator: GWLGenerator
+    ):
+        """
+        Test specific CSV writing error in generate_gwl_file.
+        This covers lines 532-534 in generate_gwl_tables_unc.py.
+        """
+        models_list = [TEST_MODEL]
+        scenarios_list = ["ssp370"]
+        ref_periods_list = [TEST_REFERENCE_PERIOD]
+
+        # Create valid GWL tables for concatenation
+        mock_agg_gwlevels_index = pd.MultiIndex.from_tuples(
+            [("r1i1p1f1", "ssp370")], names=["ensemble_member", "scenario"]
+        )
+        mock_agg_gwlevels = pd.DataFrame(
+            {1.5: [pd.Timestamp("2030-01-01")]},
+            index=mock_agg_gwlevels_index,
+        )
+
+        with (
+            # Return valid data from get_gwl_table
+            patch.object(
+                mock_generator,
+                "get_gwl_table",
+                return_value=(mock_agg_gwlevels, pd.DataFrame()),
+            ),
+            patch.object(
+                mock_generator,
+                "get_table_cesm2",
+                return_value=(pd.DataFrame(), pd.DataFrame()),
+            ),
+            # But make write_csv_file fail with a specific error
+            patch(
+                "climakitae.util.generate_gwl_tables.write_csv_file",
+                side_effect=IOError("Permission denied"),
+            ),
+        ):
+            # Should catch the IOError and print an error message
+            mock_generator.generate_gwl_file(
+                models_list, scenarios_list, ref_periods_list
+            )
+
+
+class TestMainGWLGenerator:
+    """Test the main function of the GWLGenerator module."""
+
+    @patch("climakitae.util.generate_gwl_tables.pd.read_csv")
+    @patch("climakitae.util.generate_gwl_tables.GWLGenerator")
+    def test_main(self, mock_gwl_generator_class: MagicMock, mock_read_csv: MagicMock):
+        """Test the main execution function."""
+        actual_reference_period = [
+            {"start_year": "18500101", "end_year": "19000101"},
+            {"start_year": "19810101", "end_year": "20101231"},
+        ]
+
+        mock_df = MagicMock(spec=pd.DataFrame)
+        mock_read_csv.return_value = mock_df
+
+        mock_gwl_instance = MagicMock(spec=GWLGenerator)
+        mock_gwl_generator_class.return_value = mock_gwl_instance
+
+        main()
+
+        mock_read_csv.assert_called_once_with(
+            "https://cmip6-pds.s3.amazonaws.com/pangeo-cmip6.csv"
+        )
+        mock_gwl_generator_class.assert_called_once_with(mock_df)
+        mock_gwl_instance.generate_gwl_file.assert_called_once_with(
+            [],
+            actual_reference_period,
+        )
+
+    @patch("climakitae.util.generate_gwl_tables.pd.read_csv")
+    def test_main_csv_error(self, mock_read_csv: MagicMock):
+        """Test the main function when CSV loading fails."""
+        mock_read_csv.side_effect = Exception("Network error")
+
+        # The main function should catch the exception and return early
+        main()
+        mock_read_csv.assert_called_once_with(
+            "https://cmip6-pds.s3.amazonaws.com/pangeo-cmip6.csv"
+        )
+
+    @patch("climakitae.util.generate_gwl_tables.pd.read_csv")
+    @patch("climakitae.util.generate_gwl_tables.GWLGenerator")
+    def test_main_gwl_generator_init_error(
+        self, mock_gwl_generator_class: MagicMock, mock_read_csv: MagicMock
+    ):
+        """Test the main function when GWLGenerator initialization fails."""
+        mock_df = MagicMock(spec=pd.DataFrame)
+        mock_read_csv.return_value = mock_df
+
+        # Simulate an error initializing the GWLGenerator
+        mock_gwl_generator_class.side_effect = Exception("Initialization error")
+
+        # The main function should catch the exception and return early
+        main()
+        mock_read_csv.assert_called_once()
+        mock_gwl_generator_class.assert_called_once_with(mock_df)
+
+    @patch("climakitae.util.generate_gwl_tables.pd.read_csv")
+    @patch("climakitae.util.generate_gwl_tables.GWLGenerator")
+    def test_main_generate_gwl_file_error(
+        self, mock_gwl_generator_class: MagicMock, mock_read_csv: MagicMock
+    ):
+        """Test the main function when generate_gwl_file raises an exception."""
+        actual_reference_period = [
+            {"start_year": "18500101", "end_year": "19000101"},
+            {"start_year": "19810101", "end_year": "20101231"},
+        ]
+
+        mock_df = MagicMock(spec=pd.DataFrame)
+        mock_read_csv.return_value = mock_df
+
+        mock_gwl_instance = MagicMock(spec=GWLGenerator)
+        mock_gwl_instance.generate_gwl_file.side_effect = Exception(
+            "GWL generation error"
+        )
+        mock_gwl_generator_class.return_value = mock_gwl_instance
+
+        # The main function should handle this exception internally (no exception raised)
+        # Wrap in try/except to catch any unhandled exceptions
+        try:
+            main()
+        except Exception as e:
+            pytest.fail(f"main() raised {type(e).__name__} unexpectedly: {e}")
+
+        # Verify the mocks were called correctly
+        mock_read_csv.assert_called_once()
+        mock_gwl_generator_class.assert_called_once_with(mock_df)
+        mock_gwl_instance.generate_gwl_file.assert_called_once_with(
+            [],
+            actual_reference_period,
+        )
+
+    @patch("climakitae.util.generate_gwl_tables.pd.read_csv")
+    @patch("climakitae.util.generate_gwl_tables.GWLGenerator")
+    def test_main_catalog_load_error(
+        self, mock_gwl_generator_class: MagicMock, mock_read_csv: MagicMock
+    ):
+        """
+        Test edge case error in main function where the catalog fails to load.
+        This covers line 673 in generate_gwl_tables_unc.py.
+        """
+        # When the CSV load raises a specific exception (IOError)
+        mock_read_csv.side_effect = IOError("Failed to connect to S3")
+
+        # The function should handle this gracefully
+        main()  # No exception should propagate out
+
+        # Verify that GWLGenerator was never constructed since the load failed
+        mock_gwl_generator_class.assert_not_called()
+
+
+# Test for make_weighted_timeseries utility function
+def test_make_weighted_timeseries():
+    """Test the make_weighted_timeseries utility function."""
+    # Create a sample DataArray
+    times = pd.date_range("2000-01-01", periods=3)
+    lats = np.arange(0, 90, 30)
+    lons = np.arange(0, 120, 60)
+    data = np.random.rand(len(times), len(lats), len(lons))
+    temp_da = xr.DataArray(
+        data, coords=[times, lats, lons], dims=["time", "lat", "lon"], name="tas"
+    )
+
+    # Expected weights (sqrt(cos(lat))) - unnormalized
+    # cos(0)=1, cos(30)=sqrt(3)/2, cos(60)=1/2
+    # sqrt(1)=1, sqrt(sqrt(3)/2)~0.93, sqrt(1/2)~0.707
+    # Sum ~ 2.637
+    # Normalized weights ~ [0.379, 0.353, 0.268]
+
+    result_ts = make_weighted_timeseries(temp_da)
+
+    # Check output type and shape
+    assert isinstance(result_ts, xr.DataArray)
+    assert result_ts.dims == ("time",)
+    assert len(result_ts["time"]) == len(times)
+
+    # Check calculation for the first time step (manual verification)
+    expected_t0 = (
+        (data[0, 0, :] * np.sqrt(np.cos(np.deg2rad(lats[0])))).mean()
+        + (data[0, 1, :] * np.sqrt(np.cos(np.deg2rad(lats[1])))).mean()
+        + (data[0, 2, :] * np.sqrt(np.cos(np.deg2rad(lats[2])))).mean()
+    )
+    # Need to apply normalization from the function
+    weights = np.sqrt(np.cos(np.deg2rad(lats)))
+    normalized_weights = weights / np.sum(weights)
+    expected_t0_normalized = (
+        (data[0, 0, :].mean() * normalized_weights[0])
+        + (data[0, 1, :].mean() * normalized_weights[1])
+        + (data[0, 2, :].mean() * normalized_weights[2])
+    )
+
+    np.testing.assert_allclose(result_ts[0].item(), expected_t0_normalized)
+
+    # Test with 'latitude' and 'longitude' coordinate names
+    temp_da_renamed = temp_da.rename({"lat": "latitude", "lon": "longitude"})
+    result_ts_renamed = make_weighted_timeseries(temp_da_renamed)
+    assert result_ts_renamed.dims == ("time",)
+    np.testing.assert_allclose(result_ts_renamed[0].item(), expected_t0_normalized)
+
+    # Test raises ValueError if coords are missing
+    temp_da_no_coords = xr.DataArray(data, dims=["time", "y", "x"])
+    with pytest.raises(
+        ValueError,
+        match="Input DataArray must have latitude and longitude coordinates.",
+    ):
+        make_weighted_timeseries(temp_da_no_coords)
