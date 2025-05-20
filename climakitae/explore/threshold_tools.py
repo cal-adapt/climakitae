@@ -578,6 +578,7 @@ def _conf_int(
     conf_int_lower_bound: float,
     conf_int_upper_bound: float,
     block_size: int = 1,
+    extremes_type: str = "max",
 ) -> float:
     """Function for genearating lower and upper limits of confidence interval
 
@@ -606,7 +607,9 @@ def _conf_int(
     bootstrap_values = []
 
     for _ in range(bootstrap_runs):
-        result = _bootstrap(bms, distr, data_variable, arg_value, block_size)
+        result = _bootstrap(
+            bms, distr, data_variable, arg_value, block_size, extremes_type
+        )
         bootstrap_values.append(result)
 
     bootstrap_values = np.stack(bootstrap_values, axis=0)
@@ -707,6 +710,7 @@ def _get_return_variable(
             conf_int_lower_bound=conf_int_lower_bound,
             conf_int_upper_bound=conf_int_upper_bound,
             block_size=block_size,
+            extremes_type=extremes_type,
         )
         return (
             np.array([return_variable]),
