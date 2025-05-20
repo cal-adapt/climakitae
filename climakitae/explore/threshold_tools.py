@@ -1,12 +1,13 @@
 """Helper functions for performing analyses related to thresholds"""
 
 import numpy as np
+import scipy
+import statsmodels as sm
 import xarray as xr
 from scipy import stats
-import statsmodels as sm
 
 
-def calculate_ess(data, nlags=None):
+def calculate_ess(data: xr.DataArray, nlags: int = None) -> xr.DataArray:
     """
     Function for calculating the effective sample size (ESS) of the provided data.
 
@@ -36,14 +37,14 @@ def calculate_ess(data, nlags=None):
 
 
 def get_block_maxima(
-    da_series,
-    extremes_type="max",
-    duration=None,
-    groupby=None,
-    grouped_duration=None,
-    check_ess=True,
-    block_size=1,
-):
+    da_series: xr.DataArray,
+    extremes_type: str = "max",
+    duration: tuple[int, str] = None,
+    groupby: tuple[int, str] = None,
+    grouped_duration: tuple[int, str] = None,
+    check_ess: bool = True,
+    block_size: int = 1,
+) -> xr.DataArray:
     """
     Function that converts data into block maximums, defaulting to annual maximums (default block size = 1 year).
 
@@ -198,7 +199,7 @@ def get_block_maxima(
     return bms
 
 
-def _calc_average_ess_gridded_data(data, block_size):
+def _calc_average_ess_gridded_data(data: xr.DataArray, block_size: int) -> float:
     """Calculate the mean effective sample size for gridded data
 
     Parameters
@@ -237,7 +238,7 @@ def _calc_average_ess_gridded_data(data, block_size):
     return average_ess
 
 
-def _calc_average_ess_timeseries_data(data, block_size):
+def _calc_average_ess_timeseries_data(data: xr.DataArray, block_size: int) -> float:
     """Calculate the mean effective sample size for timeseries data
 
     Parameters
@@ -263,7 +264,7 @@ def _calc_average_ess_timeseries_data(data, block_size):
     return mean_ess
 
 
-def _get_distr_func(distr):
+def _get_distr_func(distr: str) -> scipy.stats:
     """Function that sets the scipy distribution object
 
     Sets corresponding distribution function from selected
@@ -301,7 +302,9 @@ def _get_distr_func(distr):
     return distr_func
 
 
-def _get_fitted_distr(bms, distr, distr_func):
+def _get_fitted_distr(
+    bms: xr.DataArray, distr: str, distr_func: scipy.stats
+) -> dict[str, float] | scipy.stats._distn_infrastructure.rv_continuous_frozen:
     """Function for fitting data to distribution function
 
     Takes data array and fits it to distribution function.
@@ -317,7 +320,7 @@ def _get_fitted_distr(bms, distr, distr_func):
     -------
     parameters: dict
         dictionary of distribution function parameters
-    fitted_distr: scipy.rv_frozen
+    fitted_distr: scipy.stats._distn_infrastructure.rv_continuous_frozen
         frozen fitted distribution
     """
 
@@ -361,7 +364,9 @@ def _get_fitted_distr(bms, distr, distr_func):
     return parameters, fitted_distr
 
 
-def get_ks_stat(bms, distr="gev", multiple_points=True):
+def get_ks_stat(
+    bms: xr.DataArray, distr: str = "gev", multiple_points: bool = True
+) -> xr.Dataset:
     """Function to perform kstest on input DataArray
 
     Creates a dataset of ks test d-statistics and p-values from an inputed
@@ -447,7 +452,12 @@ def get_ks_stat(bms, distr="gev", multiple_points=True):
     return new_ds
 
 
-def _calculate_return(fitted_distr, data_variable, arg_value, block_size=1):
+def _calculate_return(
+    fitted_distr: scipy.stats._distn_infrastructure.rv_continuous_frozen,
+    data_variable: str,
+    arg_value: float,
+    block_size: int = 1,
+) -> float:
     """Function to perform extreme value calculation on fitted distribution
 
     Runs corresponding extreme value calculation for selected data variable.
@@ -455,7 +465,7 @@ def _calculate_return(fitted_distr, data_variable, arg_value, block_size=1):
 
     Parameters
     ----------
-    fitted_distr: scipy.rv_frozen
+    fitted_distr: scipy.stats._distn_infrastructure.rv_continuous_frozen
         frozen fitted distribution
     data_variable: str
         can be return_value, return_prob, return_period
@@ -492,8 +502,12 @@ def _calculate_return(fitted_distr, data_variable, arg_value, block_size=1):
 
 
 def _bootstrap(
-    bms, distr="gev", data_variable="return_value", arg_value=10, block_size=1
-):
+    bms: xr.DataArray,
+    distr: str = "gev",
+    data_variable: str = "return_value",
+    arg_value: float = 10,
+    block_size: int = 1,
+) -> float:
     """Function for making a bootstrap-calculated value from input array
 
     Determines a bootstrap-calculated value for relevant parameters from an
@@ -543,15 +557,15 @@ def _bootstrap(
 
 
 def _conf_int(
-    bms,
-    distr,
-    data_variable,
-    arg_value,
-    bootstrap_runs,
-    conf_int_lower_bound,
-    conf_int_upper_bound,
-    block_size=1,
-):
+    bms: xr.DataArray,
+    distr: str,
+    data_variable: str,
+    arg_value: float,
+    bootstrap_runs: int,
+    conf_int_lower_bound: float,
+    conf_int_upper_bound: float,
+    block_size: int = 1,
+) -> float:
     """Function for genearating lower and upper limits of confidence interval
 
     Returns lower and upper limits of confidence interval given selected parameters.
@@ -565,6 +579,7 @@ def _conf_int(
         can be return_value, return_prob, return_period
     arg_value: float
         value to do the calucation to
+    bootstrap_runs: int
     conf_int_lower_bound: float
     conf_int_upper_bound: float
     block_size: int
@@ -594,15 +609,15 @@ def _conf_int(
 
 
 def _get_return_variable(
-    bms,
-    data_variable,
-    arg_value,
-    distr="gev",
-    bootstrap_runs=100,
-    conf_int_lower_bound=2.5,
-    conf_int_upper_bound=97.5,
-    multiple_points=True,
-):
+    bms: xr.DataArray,
+    data_variable: str,
+    arg_value: float,
+    distr: str = "gev",
+    bootstrap_runs: int = 100,
+    conf_int_lower_bound: float = 2.5,
+    conf_int_upper_bound: float = 97.5,
+    multiple_points: bool = True,
+) -> xr.Dataset:
     """Generic function used by `get_return_value`, `get_return_period`, and
     `get_return_prob`.
 
@@ -731,14 +746,14 @@ def _get_return_variable(
 
 
 def get_return_value(
-    bms,
-    return_period=10,
-    distr="gev",
-    bootstrap_runs=100,
-    conf_int_lower_bound=2.5,
-    conf_int_upper_bound=97.5,
-    multiple_points=True,
-):
+    bms: xr.DataArray,
+    return_period: float = 10,
+    distr: str = "gev",
+    bootstrap_runs: int = 100,
+    conf_int_lower_bound: float = 2.5,
+    conf_int_upper_bound: float = 97.5,
+    multiple_points: bool = True,
+) -> xr.Dataset:
     """Creates xarray Dataset with return values and confidence intervals from maximum series.
 
     Parameters
@@ -777,14 +792,14 @@ def get_return_value(
 
 
 def get_return_prob(
-    bms,
-    threshold,
-    distr="gev",
-    bootstrap_runs=100,
-    conf_int_lower_bound=2.5,
-    conf_int_upper_bound=97.5,
-    multiple_points=True,
-):
+    bms: xr.DataArray,
+    threshold: float,
+    distr: str = "gev",
+    bootstrap_runs: int = 100,
+    conf_int_lower_bound: float = 2.5,
+    conf_int_upper_bound: float = 97.5,
+    multiple_points: bool = True,
+) -> xr.Dataset:
     """Creates xarray Dataset with return probabilities and confidence intervals from maximum series.
 
     Parameters
@@ -823,14 +838,14 @@ def get_return_prob(
 
 
 def get_return_period(
-    bms,
-    return_value,
-    distr="gev",
-    bootstrap_runs=100,
-    conf_int_lower_bound=2.5,
-    conf_int_upper_bound=97.5,
-    multiple_points=True,
-):
+    bms: xr.DataArray,
+    return_value: float,
+    distr: str = "gev",
+    bootstrap_runs: int = 100,
+    conf_int_lower_bound: float = 2.5,
+    conf_int_upper_bound: float = 97.5,
+    multiple_points: bool = True,
+) -> xr.Dataset:
     """Creates xarray Dataset with return periods and confidence intervals from maximum series.
 
     Parameters
@@ -872,15 +887,15 @@ def get_return_period(
 
 
 def get_exceedance_count(
-    da,
-    threshold_value,
-    duration1=None,
-    period=(1, "year"),
+    da: xr.DataArray,
+    threshold_value: float,
+    duration1: tuple[int, str] = None,
+    period: tuple[int, str] = (1, "year"),
     threshold_direction="above",
-    duration2=None,
-    groupby=None,
-    smoothing=None,
-):
+    duration2: tuple[int, str] = None,
+    groupby: tuple[int, str] = None,
+    smoothing: int = None,
+) -> xr.DataArray:
     """Calculate the number of occurances of exceeding the specified threshold
     within each period.
 
@@ -895,7 +910,7 @@ def get_exceedance_count(
         scenarios, simulations, or x and y coordinates.
     threshold_value: float
         value against which to test exceedance
-    period: int
+    period: tuple[int,str]
         amount of time across which to sum the number of occurances,
         default is (1, "year"). Specified as a tuple: (x, time) where x is an
         integer, and time is one of: ["day", "month", "year"]
@@ -903,9 +918,9 @@ def get_exceedance_count(
         either "above" or "below", default is above.
     duration1: tuple
         length of exceedance in order to qualify as an event (before grouping)
-    groupby: tuple
+    groupby: tuple[int,str]
         see examples for explanation. Typical grouping could be (1, "day")
-    duration2: tuple
+    duration2: tuple[int,str]
         length of exceedance in order to qualify as an event (after grouping)
     smoothing: int
         option to average the result across multiple periods with a
@@ -1017,7 +1032,7 @@ def get_exceedance_count(
     return exceedance_count
 
 
-def _is_greater(time1, time2):
+def _is_greater(time1: tuple[int, str], time2: tuple[int, str]) -> bool:
     """Function that compares period, duration.
 
     Helper function for comparing user specifications of period, duration.
@@ -1048,8 +1063,12 @@ def _is_greater(time1, time2):
 
 
 def _get_exceedance_events(
-    da, threshold_value, threshold_direction="above", duration1=None, groupby=None
-):
+    da: xr.DataArray,
+    threshold_value: float,
+    threshold_direction: str = "above",
+    duration1: tuple[int, str] = None,
+    groupby: tuple[int, str] = None,
+) -> xr.DataArray:
     """Function for generating logical array of threshold event occurance
 
     Returns an xarray that specifies whether each entry of `da` is a qualifying
@@ -1117,7 +1136,7 @@ def _get_exceedance_events(
     return events_da
 
 
-def _exceedance_count_name(exceedance_count):
+def _exceedance_count_name(exceedance_count: xr.DataArray) -> str:
     """Function to generate exceedance count name
 
     Helper function to build the appropriate name for the queried exceedance count.
@@ -1164,7 +1183,7 @@ def _exceedance_count_name(exceedance_count):
     return f"Number of {event}"
 
 
-def exceedance_plot_title(exceedance_count):
+def exceedance_plot_title(exceedance_count: xr.DataArray) -> str:
     """Function to build title for exceedance plots
 
     Helper function for making the title for exceedance plots.
@@ -1185,7 +1204,7 @@ def exceedance_plot_title(exceedance_count):
     return f"{exceedance_count.variable_name}: events {exceedance_count.threshold_direction} {exceedance_count.threshold_value}{exceedance_count.variable_units}"
 
 
-def exceedance_plot_subtitle(exceedance_count):
+def exceedance_plot_subtitle(exceedance_count: xr.DataArray) -> str:
     """Function of build exceedance plot subtitle
 
     Helper function for making the subtile for exceedance plots.

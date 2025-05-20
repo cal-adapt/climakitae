@@ -35,7 +35,7 @@ from shapely.geometry import box
 
 from climakitae.core.boundaries import Boundaries
 from climakitae.core.constants import SSPS, WARMING_LEVELS
-from climakitae.core.data_load import read_catalog_from_csv, read_catalog_from_select
+from climakitae.core.data_load import read_catalog_from_select
 from climakitae.core.paths import (
     boundary_catalog_url,
     data_catalog_url,
@@ -1325,19 +1325,8 @@ class DataParameters(param.Parameterized):
         """Retrieve data from catalog
 
         By default, DataParameters determines the data retrieved.
-        To retrieve data using the settings in a configuration csv file, set config to the local
-        filepath of the csv.
         Grabs the data from the AWS S3 bucket, returns lazily loaded dask array.
-        User-facing function that provides a wrapper for read_catalog_from_csv and read_catalog_from_select.
-
-        Parameters
-        ----------
-        config: str, optional
-            Local filepath to configuration csv file
-            Default to None-- retrieve settings in selections
-        merge: bool, optional
-            If config is TRUE and multiple datasets desired, merge to form a single object?
-            Defaults to True.
+        User-facing function that provides a wrapper for read_catalog_from_select.
 
         Returns
         -------
@@ -1376,14 +1365,6 @@ class DataParameters(param.Parameterized):
                     "WARNING\n-------\nYou have retrieved data for more than one SSP, but not all ensemble members for each GCM are available for all SSPs.\n\nAs a result, some scenario and simulation combinations may contain NaN values.\n\nIf you want to remove these empty simulations, it is recommended to first subset the data object by each individual scenario and then dropping NaN values."
                 )
 
-        if config is not None:
-            if isinstance(config, str):
-                data_return = read_catalog_from_csv(self, config, merge)
-            else:
-                raise ValueError(
-                    """To retrieve data specified in a configuration file, please input 
-                    the path to your local configuration csv as a string"""
-                )
         data_return = read_catalog_from_select(self)
 
         if isinstance(data_return, list):
