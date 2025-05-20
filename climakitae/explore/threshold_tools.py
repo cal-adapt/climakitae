@@ -138,10 +138,10 @@ def get_block_maxima(
 
     # Now select the most extreme value for each block in the series
     if extremes_type == "max":
-        bms = da_series.resample(time=f"{block_size}A").max(keep_attrs=True)
+        bms = da_series.resample(time=f"{block_size}YE").max(keep_attrs=True)
         bms.attrs["extremes type"] = "maxima"
     elif extremes_type == "min":
-        bms = da_series.resample(time=f"{block_size}A").min(keep_attrs=True)
+        bms = da_series.resample(time=f"{block_size}YE").min(keep_attrs=True)
         bms.attrs["extremes type"] = "minima"
 
     # Calculate the effective sample size of the computed event type in all blocks
