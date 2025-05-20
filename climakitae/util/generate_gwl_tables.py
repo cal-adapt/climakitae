@@ -396,10 +396,8 @@ class GWLGenerator:
         tuple
             A DataFrame of warming levels and a DataFrame of global mean temperature time series.
         """
-        variable = model_config["variable"]
         model = model_config["model"]
         ens_mem = model_config["ens_mem"]
-        scenarios = model_config["scenarios"]
         start_year = reference_period["start_year"]
         end_year = reference_period["end_year"]
 
@@ -440,11 +438,7 @@ class GWLGenerator:
         tuple
             A DataFrame of warming levels and a DataFrame of global mean temperature time series for the CESM2 model.
         """
-        variable = model_config["variable"]
         model = model_config["model"]
-        scenarios = model_config["scenarios"]
-        start_year = reference_period["start_year"]
-        end_year = reference_period["end_year"]
 
         # the LOCA-downscaled ensemble members are these, naming as described
         # in https://ncar.github.io/cesm2-le-aws/model_documentation.html) :
@@ -587,6 +581,7 @@ class GWLGenerator:
                 if int(ens_mem.split("r")[1].split("i")[0]) > 100:
                     # These ones were branched off another at 1970
                     ens_mem_list.remove(ens_mem)
+        print(ens_mem_list)
 
         # Combining all the ensemble members for a given model
         gwlevels_tbl, wl_data_tbls = [], []
@@ -627,6 +622,8 @@ class GWLGenerator:
                 gwlevels_tbl.append(gwlevels)
                 wl_data_tbls.append(wl_data_tbl)
                 successful_ens_mems.append(ens_mem)  # Append only if successful
+        print(gwlevels_tbl)
+        print(wl_data_tbls)
 
         if gwlevels_tbl and wl_data_tbls:
             # Renaming columns of all ensemble members within model
@@ -661,9 +658,7 @@ class GWLGenerator:
             print(f"No valid ensemble members for model {model}")
             return pd.DataFrame(), pd.DataFrame()
 
-    def generate_gwl_file(
-        self, models: list[str], reference_periods: list[dict]
-    ):
+    def generate_gwl_file(self, models: list[str], reference_periods: list[dict]):
         """
         Generates global warming level (GWL) reference files for specified models.
 
