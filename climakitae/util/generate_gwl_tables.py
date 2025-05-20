@@ -662,7 +662,7 @@ class GWLGenerator:
             return pd.DataFrame(), pd.DataFrame()
 
     def generate_gwl_file(
-        self, models: list[str], scenarios: list[str], reference_periods: list[dict]
+        self, models: list[str], reference_periods: list[dict]
     ):
         """
         Generates global warming level (GWL) reference files for specified models.
@@ -670,9 +670,7 @@ class GWLGenerator:
         Parameters:
         ----------
         models : list
-            List of model names to process
-        scenarios : list
-            List of scenario names to include
+            List of model names to processThe keys in the returned dictionary
         reference_periods : list
             List of dictionaries with 'start_year' and 'end_year' keys
         """
