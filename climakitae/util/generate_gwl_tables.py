@@ -36,11 +36,35 @@ def make_weighted_timeseries(temp: xr.DataArray) -> xr.DataArray:
     xarray.DataArray
         A time series of global temperature that is spatially weighted across latitudes and averaged
         across all longitudes.
+
+    Raises:
+    -------
+    ValueError
+        If the DataArray doesn't contain recognizable latitude/longitude coordinates.
     """
     # Find variable names for latitude and longitude to make code more readable
-    lat, lon = "lat", "lon"
-    if "lat" not in temp.coords and "lon" not in temp.coords:
-        lat, lon = "latitude", "longitude"
+    lat_candidates = ["lat", "latitude"]
+    lon_candidates = ["lon", "longitude"]
+
+    # Try to find latitude coordinate
+    lat = None
+    for lat_name in lat_candidates:
+        if lat_name in temp.coords:
+            lat = lat_name
+            break
+
+    # Try to find longitude coordinate
+    lon = None
+    for lon_name in lon_candidates:
+        if lon_name in temp.coords:
+            lon = lon_name
+            break
+
+    # Check if both coordinates were found
+    if lat is None or lon is None:
+        raise ValueError(
+            "Input DataArray must have latitude and longitude coordinates."
+        )
 
     # Weight latitude grids by size, then average across all longitudes to create single time-series object
     weightlat = np.sqrt(np.cos(np.deg2rad(temp[lat])))
@@ -479,10 +503,8 @@ class GWLGenerator:
         tuple
             A DataFrame containing warming levels and a DataFrame with global mean temperature time series.
         """
-        variable = model_config["variable"]
         model = model_config["model"]
         ens_mem = model_config["ens_mem"]
-        scenarios = model_config["scenarios"]
         start_year = reference_period["start_year"]
         end_year = reference_period["end_year"]
 
@@ -701,28 +723,50 @@ class GWLGenerator:
                     print(e)
 
             # Combining dataframes and resetting time index due to conflicting datetime object types
-            wl_timeidx = pd.concat([all_wl_data_tbls, wl_data_tbl_cesm2], axis=1)
-            wl_timeidx.index = wl_timeidx.index.map(
-                lambda time: "-".join(map(str, [time.year, time.month]))
-            )  # resetting index
-            wl_timeidx = wl_timeidx.groupby(
-                level=0
-            ).mean()  # grouping times and removing NaNs via mean()
-            write_csv_file(
-                wl_timeidx,
-                "data/gwl_{}-{}ref_timeidx.csv".format(start_year[:4], end_year[:4]),
-            )
+            try:
+                wl_timeidx = pd.concat([all_wl_data_tbls, wl_data_tbl_cesm2], axis=1)
+                wl_timeidx.index = wl_timeidx.index.map(
+                    lambda time: "-".join(map(str, [time.year, time.month]))
+                )  # resetting index
+                wl_timeidx = wl_timeidx.groupby(
+                    level=0
+                ).mean()  # grouping times and removing NaNs via mean()
+                write_csv_file(
+                    wl_timeidx,
+                    "data/gwl_{}-{}ref_timeidx.csv".format(
+                        start_year[:4], end_year[:4]
+                    ),
+                )
+            except Exception as e:
+                print(
+                    f"Error writing GWL index file for {start_year[:4]}-{end_year[:4]}: {e}"
+                )
 
             # Creating WL lookup table with 1850-1900 reference period
-            all_gw_levels = pd.concat(all_gw_tbls, keys=models)
-            all_gw_levels = pd.concat([all_gw_levels, cesm2_table])
-            all_gw_levels.index = pd.MultiIndex.from_tuples(
-                all_gw_levels.index, names=["GCM", "run", "scenario"]
-            )
-            write_csv_file(
-                all_gw_levels,
-                "data/gwl_{}-{}ref.csv".format(start_year[:4], end_year[:4]),
-            )
+            if all_gw_data_tbls:
+                [print(x.head()) for x in all_gw_tbls]
+                all_gw_levels = pd.concat(all_gw_tbls, keys=models)
+                all_gw_levels = pd.concat([all_gw_levels, cesm2_table])
+                all_gw_levels.index = pd.MultiIndex.from_tuples(
+                    all_gw_levels.index, names=["GCM", "run", "scenario"]
+                )
+                try:
+                    print(all_gw_levels.head())
+                    success = write_csv_file(
+                        all_gw_levels,
+                        "data/gwl_{}-{}ref.csv".format(start_year[:4], end_year[:4]),
+                    )
+                    print(
+                        f"Successfully wrote warming level file for {start_year[:4]}-{end_year[:4]}"
+                    )
+                except Exception as e:
+                    print(
+                        f"Error writing GWL file for {start_year[:4]}-{end_year[:4]}: {e}"
+                    )
+            else:
+                print(
+                    f"No warming level data was generated for {start_year[:4]}-{end_year[:4]}"
+                )
 
 
 def main(_kTest=False):
