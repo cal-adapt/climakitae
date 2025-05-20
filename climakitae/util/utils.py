@@ -1326,3 +1326,51 @@ def clip_to_shapefile(
     clipped.attrs["location_subset"] = location
 
     return clipped
+
+
+def filter_warming_trajectories(simulations_df, warming_trajectories, activity):
+    columns_to_keep = []
+
+    # Filter simulations_df for the specific activity
+    activity_simulations = simulations_df[simulations_df["activity_id"] == activity]
+
+    # Iterate through each row in the filtered simulations_df
+    for _, row in activity_simulations.iterrows():
+        # Construct the column name pattern
+        column_pattern = f"{row['source_id']}_{row['member_id']}_{row['experiment_id']}"
+
+        # Find matching columns in warming_trajectories
+        matching_columns = [
+            col for col in warming_trajectories.columns if column_pattern in col
+        ]
+
+        # Add matching columns to our list
+        columns_to_keep.extend(matching_columns)
+
+    # Create a new DataFrame with only the relevant columns
+    filtered_trajectories = warming_trajectories[columns_to_keep]
+
+    return filtered_trajectories
+
+
+def create_ae_warming_trajectories():
+    df = intake.open_esm_datastore(data_catalog_url).df
+
+    columns_of_interest = ["activity_id", "source_id", "experiment_id", "member_id"]
+    unique_combinations = df[columns_of_interest].drop_duplicates()
+    simulations_df = unique_combinations.reset_index(drop=True)
+
+    ## 1.2 Load the warming trajectories dataframe, columns for each simulation like "ACCESS-CM2_r3i1p1f1_ssp585"
+    warming_trajectories, _ = read_warming_level_csvs()
+
+    # Filter for LOCA2 simulations
+    loca2_warming_trajectories = filter_warming_trajectories(
+        simulations_df, warming_trajectories, "LOCA2"
+    )
+
+    # Filter for WRF simulations
+    wrf_warming_trajectories = filter_warming_trajectories(
+        simulations_df, warming_trajectories, "WRF"
+    )
+
+    return loca2_warming_trajectories, wrf_warming_trajectories
