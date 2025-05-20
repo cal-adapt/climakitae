@@ -9,12 +9,12 @@ import pytest
 import s3fs  # Import needed for type hinting
 import xarray as xr
 
+from climakitae.core.constants import WARMING_LEVELS
 from climakitae.util.generate_gwl_tables import (
     GWLGenerator,
     main,
     make_weighted_timeseries,
 )
-from climakitae.core.constants import WARMING_LEVELS
 
 TEST_MODEL = "EC-Earth3"
 TEST_REFERENCE_PERIOD = {"start_year": "19810101", "end_year": "20101231"}
@@ -949,7 +949,6 @@ class TestGWLGenerator:
             assert isinstance(timeseries_agg, pd.DataFrame)
             assert timeseries_agg.empty
 
-    # TODO: mock out CESM2 function result
     def test_generate_gwl_file(self, mock_generator: GWLGenerator):
         """Test the generate_gwl_file method for orchestrating and writing results."""
         # Input configuration
@@ -1040,6 +1039,9 @@ class TestGWLGenerator:
                 "get_table_cesm2",
                 return_value=(pd.DataFrame(), pd.DataFrame()),
             ) as mock_get_table_cesm2,
+            patch(
+                "climakitae.util.generate_gwl_tables.write_csv_file"
+            ) as mock_write_csv,
         ):
             # Should not raise any exceptions, just print message about no data
             mock_generator.generate_gwl_file(
