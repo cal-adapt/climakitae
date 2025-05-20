@@ -1375,7 +1375,7 @@ def _apply_warming_levels_approach(
         if level not in WARMING_LEVELS:
             gwl_table = create_new_warming_level_table(warming_level=level)
 
-        da_by_wl = _calculate_warming_level(
+        da_by_wl = calculate_warming_level(
             data_stacked,
             gwl_times=gwl_table,
             level=level,
