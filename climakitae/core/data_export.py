@@ -1281,7 +1281,7 @@ def write_tmy_file(
                 stn_elev  # default of 0.0 on custom inputs if elevation is not provided
             )
 
-        case int():  # hadisd statio code passed
+        case int():  # hadisd station code passed
             # look up info
             if station_code in station_df["station id"].values:
                 state = station_df.loc[station_df["station id"] == station_code][
