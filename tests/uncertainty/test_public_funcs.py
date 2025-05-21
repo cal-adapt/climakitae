@@ -64,9 +64,9 @@ def test_get_warm_level_file_loading(mock_read_csv, mock_data_for_warm_level):
     # Set up the mock to return different DataFrames based on input file path
     def side_effect(file_path, **kwargs):
         match file_path:
-            case file_path if file_path == gwl_1850_1900_file:
+            case _ if file_path == gwl_1850_1900_file:
                 return mock_ipcc_df
-            case file_path if file_path == gwl_1981_2010_file:
+            case _ if file_path == gwl_1981_2010_file:
                 return mock_non_ipcc_df
             case "data/gwl_1981-2010ref_EC-Earth3_ssp370.csv":
                 return mock_ece3_df
