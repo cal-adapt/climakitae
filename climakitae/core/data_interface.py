@@ -370,7 +370,7 @@ def _get_subarea(
                 pd.DataFrame({"subset": ["coords"], "geometry": [geometry]}),
                 crs="EPSG:4326",
             )
-        case area_subset if area_subset != "none":
+        case _ if area_subset != "none":
             # `if-condition` added for catching errors with delays in rendering cached area.
             if cached_area is None:
                 shape_indices = [0]
