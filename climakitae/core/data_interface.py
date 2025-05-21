@@ -999,31 +999,27 @@ class DataParameters(param.Parameterized):
         """Update unique variable options"""
 
         # Station data is only available hourly
-        match self.data_type:
-            case "Stations":
+        match (self.data_type, self.downscaling_method):
+            case ("Stations", _):
                 self.param["timescale"].objects = ["hourly"]
                 self.timescale = "hourly"
                 self.param["variable_type"].objects = ["Variable"]
                 self.variable_type = "Variable"
-            case "Gridded":
-                match self.downscaling_method:
-                    case "Statistical":
-                        self.param["timescale"].objects = ["daily", "monthly"]
-                        if self.timescale == "hourly":
-                            self.timescale = "daily"
-                    case "Dynamical":
-                        self.param["timescale"].objects = ["daily", "monthly", "hourly"]
-                    case "Dynamical+Statistical":
-                        # If both are selected, only show daily data
-                        # We do not have WRF on LOCA grid resampled to monthly
-                        self.param["timescale"].objects = ["daily"]
-                        self.timescale = "daily"
-                    case _:
-                        raise ValueError(
-                            'downscaling_method needs to be "Statistical", "Dynamical", or "Dynamical+Statistical"'
-                        )
+            case ("Gridded", "Statistical"):
+                self.param["timescale"].objects = ["daily", "monthly"]
+                if self.timescale == "hourly":
+                    self.timescale = "daily"
+            case ("Gridded", "Dynamical"):
+                self.param["timescale"].objects = ["daily", "monthly", "hourly"]
+            case ("Gridded", "Dynamical+Statistical"):
+                # If both are selected, only show daily data
+                # We do not have WRF on LOCA grid resampled to monthly
+                self.param["timescale"].objects = ["daily"]
+                self.timescale = "daily"
             case _:
-                raise ValueError('data_type needs to be either "Stations" or "Gridded"')
+                raise ValueError(
+                    "data_type and downscaling_method combination not correct"
+                )
         (
             self.scenario_options,
             self.simulation,
