@@ -113,7 +113,7 @@ class GWLGenerator:
     >>> gwl_generator.generate_gwl_file(models, reference_periods)
     """
 
-    def __init__(self, df, sims_on_aws=None):
+    def __init__(self, df, catalog_cesm, sims_on_aws=None):
         """
         Initialize the GWLGenerator with the CMIP6 data catalog.
 
@@ -129,6 +129,38 @@ class GWLGenerator:
             sims_on_aws if sims_on_aws is not None else self.get_sims_on_aws()
         )
         self.fs = s3fs.S3FileSystem(anon=True)
+
+        # Settings specific to CESM2 LENS model
+        # the LOCA-downscaled ensemble members are these, naming as described
+        # in https://ncar.github.io/cesm2-le-aws/model_documentation.html) :
+        self.ens_mems_cesm = {
+            "r10i1p1f1": "r10i1181p1f1",
+            "r1i1p1f1": "r1i1001p1f1",
+            "r2i1p1f1": "r2i1021p1f1",
+            "r3i1p1f1": "r3i1041p1f1",
+            "r4i1p1f1": "r4i1061p1f1",
+            "r5i1p1f1": "r5i1081p1f1",
+            "r6i1p1f1": "r6i1101p1f1",
+            "r7i1p1f1": "r7i1121p1f1",
+            "r8i1p1f1": "r8i1141p1f1",
+            "r9i1p1f1": "r9i1161p1f1",
+        }
+
+        catalog_cesm_subset = catalog_cesm.search(
+            variable="TREFHT", frequency="monthly", forcing_variant="cmip6"
+        )
+
+        dsets_cesm = catalog_cesm_subset.to_dataset_dict(storage_options={"anon": True})
+        for ds in dsets_cesm:
+            dsets_cesm[ds] = dsets_cesm[ds].sel(
+                member_id=[v for k, v in self.ens_mems_cesm.items()]
+            )
+        historical_cmip6 = dsets_cesm["atm.historical.monthly.cmip6"]
+        future_cmip6 = dsets_cesm["atm.ssp370.monthly.cmip6"]
+        cesm2_lens = xr.concat(
+            [historical_cmip6["TREFHT"], future_cmip6["TREFHT"]], dim="time"
+        )
+        self.cesm2_lens = cesm2_lens
 
     def get_sims_on_aws(self) -> pd.DataFrame:
         """
@@ -297,44 +329,9 @@ class GWLGenerator:
         ens_mem = model_config["ens_mem"]
         scenarios = model_config["scenarios"]
 
-        # CESM2-LENS is in a separate catalog:
-        catalog_cesm = intake.open_esm_datastore(
-            "https://raw.githubusercontent.com/NCAR/cesm2-le-aws/main/intake-catalogs/aws-cesm2-le.json"
-        )
-        catalog_cesm_subset = catalog_cesm.search(
-            variable="TREFHT", frequency="monthly", forcing_variant="cmip6"
-        )
-        # the LOCA-downscaled ensemble members are these, naming as described
-        # in https://ncar.github.io/cesm2-le-aws/model_documentation.html) :
-        ens_mems_cesm = {
-            "r10i1p1f1": "r10i1181p1f1",
-            "r1i1p1f1": "r1i1001p1f1",
-            "r2i1p1f1": "r2i1021p1f1",
-            "r3i1p1f1": "r3i1041p1f1",
-            "r4i1p1f1": "r4i1061p1f1",
-            "r5i1p1f1": "r5i1081p1f1",
-            "r6i1p1f1": "r6i1101p1f1",
-            "r7i1p1f1": "r7i1121p1f1",
-            "r8i1p1f1": "r8i1141p1f1",
-            "r9i1p1f1": "r9i1161p1f1",
-        }
-        ens_mem_cesm_rev = dict([(v, k) for k, v in ens_mems_cesm.items()])
-
-        # CESM2-LENS handled differently:
-        dsets_cesm = catalog_cesm_subset.to_dataset_dict(storage_options={"anon": True})
-        for ds in dsets_cesm:
-            dsets_cesm[ds] = dsets_cesm[ds].sel(
-                member_id=[v for k, v in ens_mems_cesm.items()]
-            )
-        historical_cmip6 = dsets_cesm["atm.historical.monthly.cmip6"]
-        future_cmip6 = dsets_cesm["atm.ssp370.monthly.cmip6"]
-        cesm2_lens = xr.concat(
-            [historical_cmip6["TREFHT"], future_cmip6["TREFHT"]], dim="time"
-        )
-        temp = cesm2_lens.sel(member_id=ens_mem)
+        temp = self.cesm2_lens.sel(member_id=ens_mem)
         data_one_model = xr.Dataset()
         for scenario in scenarios:
-
             # Create global weighted time-series of variable
             timeseries = make_weighted_timeseries(temp)
             timeseries = timeseries.sortby("time")
@@ -440,22 +437,8 @@ class GWLGenerator:
         """
         model = model_config["model"]
 
-        # the LOCA-downscaled ensemble members are these, naming as described
-        # in https://ncar.github.io/cesm2-le-aws/model_documentation.html) :
-        ens_mems_cesm = {
-            "r10i1p1f1": "r10i1181p1f1",
-            "r1i1p1f1": "r1i1001p1f1",
-            "r2i1p1f1": "r2i1021p1f1",
-            "r3i1p1f1": "r3i1041p1f1",
-            "r4i1p1f1": "r4i1061p1f1",
-            "r5i1p1f1": "r5i1081p1f1",
-            "r6i1p1f1": "r6i1101p1f1",
-            "r7i1p1f1": "r7i1121p1f1",
-            "r8i1p1f1": "r8i1141p1f1",
-            "r9i1p1f1": "r9i1161p1f1",
-        }
-        ens_mem_cesm_rev = dict([(v, k) for k, v in ens_mems_cesm.items()])
-        ens_mem_list = [v for k, v in ens_mems_cesm.items()]
+        ens_mem_cesm_rev = dict([(v, k) for k, v in self.ens_mems_cesm.items()])
+        ens_mem_list = [v for k, v in self.ens_mems_cesm.items()]
         gwlevels_tbl, wl_data_tbls = [], []
         for ens_mem in ens_mem_list:
             model_config["ens_mem"] = ens_mem
@@ -569,11 +552,7 @@ class GWLGenerator:
         model = model_config["model"]
         scenarios = model_config["scenarios"]
 
-        ens_mem_list = (
-            self.sims_on_aws.T[model]["historical"].copy()
-            if "historical" in scenarios
-            else []
-        )
+        ens_mem_list = self.sims_on_aws.T[model]["historical"].copy()
         if test:
             ens_mem_list = ens_mem_list[:10]
         if (model == "EC-Earth3") or (model == "EC-Earth3-Veg"):
@@ -581,7 +560,6 @@ class GWLGenerator:
                 if int(ens_mem.split("r")[1].split("i")[0]) > 100:
                     # These ones were branched off another at 1970
                     ens_mem_list.remove(ens_mem)
-        print(ens_mem_list)
 
         # Combining all the ensemble members for a given model
         gwlevels_tbl, wl_data_tbls = [], []
@@ -622,8 +600,6 @@ class GWLGenerator:
                 gwlevels_tbl.append(gwlevels)
                 wl_data_tbls.append(wl_data_tbl)
                 successful_ens_mems.append(ens_mem)  # Append only if successful
-        print(gwlevels_tbl)
-        print(wl_data_tbls)
 
         if gwlevels_tbl and wl_data_tbls:
             # Renaming columns of all ensemble members within model
@@ -744,7 +720,6 @@ class GWLGenerator:
                     all_gw_levels.index, names=["GCM", "run", "scenario"]
                 )
                 try:
-                    print(all_gw_levels.head())
                     success = write_csv_file(
                         all_gw_levels,
                         "data/gwl_{}-{}ref.csv".format(start_year[:4], end_year[:4]),
@@ -779,9 +754,15 @@ def main(_kTest=False):
         print("Loading CMIP6 catalog...")
         df = pd.read_csv("https://cmip6-pds.s3.amazonaws.com/pangeo-cmip6.csv")
 
+        # CESM2-LENS is in a separate catalog:
+        print("Loading CESM catalog...")
+        catalog_cesm = intake.open_esm_datastore(
+            "https://raw.githubusercontent.com/NCAR/cesm2-le-aws/main/intake-catalogs/aws-cesm2-le.json"
+        )
+
         print("Initializing GWL generator...")
         try:
-            gwl_generator = GWLGenerator(df)
+            gwl_generator = GWLGenerator(df, catalog_cesm)
             sims_on_aws = gwl_generator.get_sims_on_aws()
             models = list(sims_on_aws.T.columns)
 
