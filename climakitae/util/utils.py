@@ -424,15 +424,15 @@ def readable_bytes(b: int) -> str:
     tb = kb**4  # 1,099,511,627,776
 
     match b:
-        case b if b < kb:
+        case _ if b < kb:
             return f"{b} bytes"
-        case b if kb <= b < mb:
+        case _ if kb <= b < mb:
             return f"{b / kb:.2f} KB"
-        case b if mb <= b < gb:
+        case _ if mb <= b < gb:
             return f"{b / mb:.2f} MB"
-        case b if gb <= b < tb:
+        case _ if gb <= b < tb:
             return f"{b / gb:.2f} GB"
-        case b if tb <= b:
+        case _ if tb <= b:
             return f"{b / tb:.2f} TB"
 
 
