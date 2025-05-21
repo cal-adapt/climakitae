@@ -121,7 +121,7 @@ def _estimate_file_size(data: xr.DataArray | xr.Dataset, format: str) -> float:
                 case xr.Dataset():
                     est_file_size = prod(data.sizes.values()) * chars_per_line
         case _:
-            raise Exception ('format needs to be "NetCDF", "Zarr", "CSV"')
+            raise Exception('format needs to be "NetCDF", "Zarr", "CSV"')
 
     return est_file_size / bytes_per_gigabyte
 
