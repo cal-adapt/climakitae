@@ -158,9 +158,8 @@ def _create_lat_lon_select(
     selections = DataParameters()
     selections.area_subset = "lat/lon"
     match lat:
-        case (
-            float() | int()
-        ):  # Creating a box around which to find the nearest gridcell for compute
+        case float() | int():
+            # Creating a box around which to find the nearest gridcell for compute
             selections.latitude = (lat - 0.05, lat + 0.05)
             selections.longitude = (lon - 0.05, lon + 0.05)
         case tuple():
