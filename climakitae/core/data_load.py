@@ -228,7 +228,7 @@ def area_subset_geometry(
                     "Please go back to 'select' and choose" + " a valid lat/lon range."
                 )
             ds_region = [geom]
-        case area_subset if area_subset != "none":
+        case _ if area_subset != "none":
             shape_indices = list(
                 {
                     key: selections._geography_choose[area_subset][key]
