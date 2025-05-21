@@ -43,7 +43,7 @@ def _set_amy_year_inputs(year_start: int, year_end: int) -> tuple[int, int]:
             year_end = (
                 year_start + 30 if (year_start + 30 < 2100) else 2100
             )  # Default is +30 years
-        case year_end if year_end > 2100:
+        case _ if year_end > 2100:
             print("Your end year cannot exceed 2100. Resetting end year to 2100.")
             year_end = 2100
     if year_end - year_start < 5:
