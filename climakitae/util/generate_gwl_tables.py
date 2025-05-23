@@ -7,6 +7,7 @@ Generation takes ~1.5 hours for generating all 4 csv's.
 
 import cftime
 import intake
+import intake_esm
 import numpy as np
 import pandas as pd
 import s3fs
@@ -113,7 +114,12 @@ class GWLGenerator:
     >>> gwl_generator.generate_gwl_file(models, reference_periods)
     """
 
-    def __init__(self, df, catalog_cesm, sims_on_aws=None):
+    def __init__(
+        self,
+        df: pd.DataFrame,
+        catalog_cesm: intake_esm.core.esm_datastore,
+        sims_on_aws: dict = None,
+    ):
         """
         Initialize the GWLGenerator with the CMIP6 data catalog.
 
@@ -145,7 +151,9 @@ class GWLGenerator:
             "r8i1p1f1": "r8i1141p1f1",
             "r9i1p1f1": "r9i1161p1f1",
         }
+        self.cesm2_lens = self.set_cesm2_lens(catalog_cesm)
 
+    def set_cesm2_lens(self, catalog_cesm: intake_esm.core.esm_datastore) -> xr.Dataset:
         catalog_cesm_subset = catalog_cesm.search(
             variable="TREFHT", frequency="monthly", forcing_variant="cmip6"
         )
@@ -160,7 +168,7 @@ class GWLGenerator:
         cesm2_lens = xr.concat(
             [historical_cmip6["TREFHT"], future_cmip6["TREFHT"]], dim="time"
         )
-        self.cesm2_lens = cesm2_lens
+        return cesm2_lens
 
     def get_sims_on_aws(self) -> pd.DataFrame:
         """

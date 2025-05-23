@@ -9,6 +9,8 @@ import pytest
 import s3fs  # Import needed for type hinting
 import xarray as xr
 
+import intake_esm
+
 from climakitae.core.constants import WARMING_LEVELS
 from climakitae.util.generate_gwl_tables import (
     GWLGenerator,
@@ -62,14 +64,18 @@ def mock_cmip6_df() -> pd.DataFrame:
 
 
 @pytest.fixture
+@patch("GWLGenerator.set_cesm2_lens")
 def mock_generator(mock_cmip6_df: pd.DataFrame) -> GWLGenerator:
     """Creates a GWLGenerator instance with mocked S3FileSystem and get_sims_on_aws."""
     with patch("s3fs.S3FileSystem") as mock_s3fs:
         mock_fs_instance = mock_s3fs.return_value
 
-        with patch.object(
-            GWLGenerator, "get_sims_on_aws", autospec=True
-        ) as mock_get_sims:
+        with (
+            patch.object(
+                GWLGenerator, "get_sims_on_aws", autospec=True
+            ) as mock_get_sims,
+            patch("intake_esm.core.esm_datastore"),
+        ):
             # Define a mock sims_on_aws DataFrame structure
             sims_data = {
                 "historical": [["r1i1p1f1", "r2i1p1f1"]],
@@ -82,7 +88,7 @@ def mock_generator(mock_cmip6_df: pd.DataFrame) -> GWLGenerator:
             mock_get_sims.return_value = mock_sims_on_aws
 
             # Instantiate GWLGenerator; __init__ uses the mocks
-            generator = GWLGenerator(mock_cmip6_df)
+            generator = GWLGenerator(mock_cmip6_df, intake_esm.core.esm_datastore())
 
             # Verify mocks are assigned correctly within the instance
             assert generator.fs is mock_fs_instance
@@ -99,7 +105,13 @@ class TestGWLGenerator:
 
     @patch("s3fs.S3FileSystem")
     @patch("climakitae.util.generate_gwl_tables.GWLGenerator.get_sims_on_aws")
-    def test_init(self, mock_get_sims_on_aws: MagicMock, mock_s3fs: MagicMock):
+    @patch("climakitae.util.generate_gwl_tables.GWLGenerator.set_cesm2_lens")
+    def test_init(
+        self,
+        mock_get_sims_on_aws: MagicMock,
+        mock_s3fs: MagicMock,
+        mock_cesm2_lens: MagicMock,
+    ):
         """
         Test the __init__ method of GWLGenerator.
         Verifies correct assignment of df, sims_on_aws, and fs attributes.
@@ -112,7 +124,7 @@ class TestGWLGenerator:
 
         mock_get_sims_on_aws.return_value = mock_sims_return
 
-        generator = GWLGenerator(mock_df)
+        generator = GWLGenerator(mock_df, intake_esm.core.esm_datastore())
 
         pd.testing.assert_frame_equal(generator.df, mock_df)
         pd.testing.assert_frame_equal(generator.sims_on_aws, mock_sims_return)
@@ -124,6 +136,8 @@ class TestGWLGenerator:
             anon=True
         )  # Check S3FileSystem was instantiated
 
+    @patch("climakitae.util.generate_gwl_tables.GWLGenerator.set_cesm2_lens")
+    @patch("intake_esm.core.esm_datastore")
     def test_get_sims_on_aws(self):
         """Test the get_sims_on_aws method for filtering and structuring simulation data."""
         # More complex df to test filtering logic
