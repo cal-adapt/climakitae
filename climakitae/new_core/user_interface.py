@@ -6,12 +6,23 @@ the ClimateData class. It implements a fluent interface pattern that allows user
 to chain method calls to configure data queries.
 
 The module facilitates retrieving climate data with various parameters such as
-variables, resolutions, timescales, and spatial boundaries. It implements a factory
-pattern for creating appropriate datasets and validators based on specified parameters.
+catalogs, installations, activities, institutions, sources, experiments, variables,
+and processing options. It implements a factory pattern for creating appropriate
+datasets and validators based on specified parameters.
+
+Example Usage:
+    >>> data = ClimateData()
+    >>> result = (data.catalog("renewables")
+    ...               .installation("pv_utility")
+    ...               .activity_id("CMIP6")
+    ...               .variable("tasmax")
+    ...               .table_id("day")
+    ...               .grid_label("d03")
+    ...               .get())
 """
 
 import traceback
-from typing import Iterable
+from typing import Any, Dict, Iterable, Optional, Union
 
 from climakitae.core.constants import UNSET
 from climakitae.new_core.dataset_factory import DatasetFactory
@@ -19,386 +30,576 @@ from climakitae.new_core.dataset_factory import DatasetFactory
 
 class ClimateData:
     """
-    An interface for accessing climate data.
+    A fluent interface for accessing climate data.
 
-    This class provides a fluent interface for setting parameters and retrieving
+    This class provides a chainable interface for setting parameters and retrieving
     climate data. It uses a factory pattern to create datasets and validators
     based on the specified parameters. The class is designed to be chainable,
-    allowing users to set multiple parameters in a single line of code.
+    allowing users to set multiple parameters in a single expression.
 
-    Parameters
-    ----------
-    variable : str
-        The climate variable to retrieve (e.g., "Air Temperature at 2m", "Precipitation").
-    resolution : str
-        The resolution of the data (e.g., "3 km", "9 km", "45 km").
-    timescale : str
-        The timescale of the data (e.g., "hourly", "daily", "monthly").
-    downscaling_method : str
-        The downscaling method to use (e.g., "Dynamical", "Statistical").
-    data_type : str
-        The type of data to retrieve (e.g., "Gridded", "Stations").
-    approach : str
-        The approach to use for data retrieval (e.g., "Time", "Warming Level").
-    scenario : str or list of str
-        The scenario(s) to retrieve data for (e.g., "SSP 2-4.5", "SSP 3-7.0").
-    units : str
-        The units for the variable (e.g., "Celsius", "Fahrenheit").
-    warming_level : float or list of float
-        The warming level(s) to retrieve data for (e.g., 0.8, 1.0, 1.5).
-    area_subset : str
-        The area subset to retrieve data for (e.g., "none", "region").
-    latitude : tuple of float
-        The latitude bounds for the data (e.g., (min_lat, max_lat)).
-    longitude : tuple of float
-        The longitude bounds for the data (e.g., (min_lon, max_lon)).
-    cached_area : str or list of str
-        The cached area to retrieve data for (e.g., "entire domain", "region").
-    area_average : str
-        Whether to average over the spatial domain (e.g., "yes", "no").
-    time_slice : tuple of int
-        The time range for the data (e.g., (start_year, end_year)).
-    stations : str or list of str
-        The station(s) to retrieve data for (e.g., "station1", "station2").
-    warming_level_window : int
-        The warming level window for the data (e.g., 10).
-    warming_level_months : int or list of int
-        The warming level months for the data (e.g., 1, 2, 3).
+    The interface supports various climate data sources and allows for flexible
+    querying with different combinations of parameters. All methods return the
+    instance itself to enable method chaining.
+
+    Parameters supported in queries:
+    - catalog: The data catalog to use (e.g., "renewables", "climate")
+    - installation: The installation type (e.g., "pv_utility", "wind_offshore")
+    - activity_id: The activity identifier (e.g., "CMIP6", "CORDEX")
+    - institution_id: The institution identifier (e.g., "CNRM", "DWD")
+    - source_id: The source identifier (e.g., "GCM", "RCM", "Station")
+    - experiment_id: The experiment identifier (e.g., "historical", "ssp245")
+    - table_id: The temporal resolution (e.g., "1hr", "day", "mon")
+    - grid_label: The spatial resolution (e.g., "d01", "d02", "d03")
+    - variable_id: The climate variable (e.g., "tasmax", "pr", "cf")
+    - processes: Dictionary of data processing operations to apply
 
     Methods
     -------
+    catalog(catalog: str) -> ClimateData
+        Set the data catalog to use.
+    installation(installation: str) -> ClimateData
+        Set the installation type.
+    activity_id(activity_id: str) -> ClimateData
+        Set the activity identifier.
+    institution_id(institution_id: str) -> ClimateData
+        Set the institution identifier.
+    source_id(source_id: str) -> ClimateData
+        Set the source identifier.
+    experiment_id(experiment_id: str) -> ClimateData
+        Set the experiment identifier.
+    table_id(table_id: str) -> ClimateData
+        Set the temporal resolution.
+    grid_label(grid_label: str) -> ClimateData
+        Set the spatial resolution.
+    variable(variable: str) -> ClimateData
+        Set the climate variable to retrieve.
+    processes(processes: Dict[str, Union[str, Iterable]]) -> ClimateData
+        Set processing operations to apply to the data.
+    get() -> Optional[xr.DataArray]
+        Execute the query and retrieve the climate data.
 
+    Utility methods for exploring available options:
+    show_*_options() methods display available values for each parameter.
+    show_query() displays the current query configuration.
+    show_all_options() displays all available options for exploration.
 
     Returns
     -------
-    xr.DataArray
-        The retrieved lazy-loaded climate data.
+    xr.DataArray or None
+        The retrieved climate data as a lazy-loaded xarray DataArray,
+        or None if the query fails or required parameters are missing.
 
     Raises
     ------
     ValueError
-        If any required parameters are missing or invalid.
+        If required parameters are missing or invalid during validation.
     Exception
         If there is an error during data retrieval or processing.
+
+    Examples
+    --------
+    Basic usage with method chaining:
+
+    >>> cd = ClimateData()
+    >>> data = (cd
+    ...     .catalog("data")
+    ...     .activity_id("WRF")
+    ...     .experiment_id("historical")
+    ...     .table_id("1hr")
+    ...     .grid_label("d02")
+    ...     .variable("prec")
+    ...     .get()
+    ...    ) # get historical precipitation data
+
+    Exploring available options:
+
+    >>> cd = ClimateData()
+    >>> cd.show_catalog_options()
+    >>> cd.catalog("data").show_variable_options()
+
+    Using with processing:
+
+    >>> processes = {"spatial_avg": "region", "temporal_avg": "monthly"}
+    >>> data = (ClimateData()
+    ...         .catalog("climate")
+    ...         .variable("pr")
+    ...         .processes(processes)
+    ...         .get())
     """
 
     def __init__(self):
         """
-        Initialize the ClimateData facade.
-        Data sources are managed internally by the DataSourceManager.
+        Initialize the ClimateData interface.
+
+        Sets up the factory for dataset creation and initializes
+        query parameters to their default (UNSET) state.
         """
         print("Initializing ClimateData...")
         self._factory = DatasetFactory()
         self._reset_query()
 
-    def _reset_query(self):
-        """Reset the query parameters to defaults."""
+    def _reset_query(self) -> "ClimateData":
+        """
+        Reset all query parameters to their default UNSET state.
+
+        Returns
+        -------
+        ClimateData
+            The current instance for method chaining.
+        """
         self._query = {
-            "catalog": UNSET,  # catalog name, e.g. "renewables"
-            "installation": UNSET,  # renewables only
-            "activity_id": UNSET,  # downscaling method
-            "institution_id": UNSET,  # renewables only
-            "source_id": UNSET,  # renewables only
-            "experiment_id": UNSET,  # renewables only
-            "table_id": UNSET,  # timescale, e.g., "hourly", "daily", "monthly"
-            "grid_label": UNSET,  # resolution, e.g., "3 km", "9 km", "45 km"
-            "variable_id": UNSET,  # variable name, e.g., "Air Temperature at 2m"
-            "processes": UNSET,  # dictionary of processes to apply
+            "catalog": UNSET,
+            "installation": UNSET,
+            "activity_id": UNSET,
+            "institution_id": UNSET,
+            "source_id": UNSET,
+            "experiment_id": UNSET,
+            "table_id": UNSET,
+            "grid_label": UNSET,
+            "variable_id": UNSET,
+            "processes": UNSET,
         }
         return self
 
+    # Core parameter setting methods
     def catalog(self, catalog: str) -> "ClimateData":
         """
-        Set the catalog for the data source.
+        Set the data catalog to use for the query.
 
         Parameters
         ----------
         catalog : str
-            The name of the catalog to use.
+            The name of the catalog (e.g., "renewables", "climate").
 
         Returns
         -------
         ClimateData
-            The current instance of ClimateData allowing method chaining.
+            The current instance for method chaining.
         """
-        self._query["catalog"] = catalog
+        if not isinstance(catalog, str) or not catalog.strip():
+            raise ValueError("Catalog must be a non-empty string")
+        self._query["catalog"] = catalog.strip()
         return self
 
     def installation(self, installation: str) -> "ClimateData":
         """
-        Set the installation for the data source.
+        Set the installation type for the query.
 
         Parameters
         ----------
         installation : str
-            The name of the installation to use.
+            The installation type (e.g., "pv_utility", "wind_offshore").
 
         Returns
         -------
         ClimateData
-            The current instance of ClimateData allowing method chaining.
+            The current instance for method chaining.
         """
-        self._query["installation"] = installation
+        if not isinstance(installation, str) or not installation.strip():
+            raise ValueError("Installation must be a non-empty string")
+        self._query["installation"] = installation.strip()
         return self
 
     def activity_id(self, activity_id: str) -> "ClimateData":
         """
-        Set the activity ID for the data source.
+        Set the activity identifier for the query.
 
         Parameters
         ----------
         activity_id : str
-            The activity ID to use.
+            The activity ID (e.g., "CMIP6", "CORDEX").
 
         Returns
         -------
         ClimateData
-            The current instance of ClimateData allowing method chaining.
+            The current instance for method chaining.
         """
-        self._query["activity_id"] = activity_id
+        if not isinstance(activity_id, str) or not activity_id.strip():
+            raise ValueError("Activity ID must be a non-empty string")
+        self._query["activity_id"] = activity_id.strip()
         return self
 
     def institution_id(self, institution_id: str) -> "ClimateData":
         """
-        Set the institution ID for the data source.
+        Set the institution identifier for the query.
 
         Parameters
         ----------
         institution_id : str
-            The institution ID to use.
+            The institution ID (e.g., "CNRM", "DWD").
 
         Returns
         -------
         ClimateData
-            The current instance of ClimateData allowing method chaining.
+            The current instance for method chaining.
         """
-        self._query["institution_id"] = institution_id
+        if not isinstance(institution_id, str) or not institution_id.strip():
+            raise ValueError("Institution ID must be a non-empty string")
+        self._query["institution_id"] = institution_id.strip()
         return self
 
     def source_id(self, source_id: str) -> "ClimateData":
         """
-        Set the source ID for the data source.
+        Set the source identifier for the query.
 
         Parameters
         ----------
         source_id : str
-            The source ID to use.
+            The source ID (e.g., "GCM", "RCM", "Station").
 
         Returns
         -------
         ClimateData
-            The current instance of ClimateData allowing method chaining.
+            The current instance for method chaining.
         """
-        self._query["source_id"] = source_id
+        if not isinstance(source_id, str) or not source_id.strip():
+            raise ValueError("Source ID must be a non-empty string")
+        self._query["source_id"] = source_id.strip()
         return self
 
     def experiment_id(self, experiment_id: str) -> "ClimateData":
         """
-        Set the experiment ID for the data source.
+        Set the experiment identifier for the query.
 
         Parameters
         ----------
         experiment_id : str
-            The experiment ID to use.
+            The experiment ID (e.g., "historical", "ssp245").
 
         Returns
         -------
         ClimateData
-            The current instance of ClimateData allowing method chaining.
+            The current instance for method chaining.
         """
-        self._query["experiment_id"] = experiment_id
+        if not isinstance(experiment_id, str) or not experiment_id.strip():
+            raise ValueError("Experiment ID must be a non-empty string")
+        self._query["experiment_id"] = experiment_id.strip()
         return self
 
     def table_id(self, table_id: str) -> "ClimateData":
         """
-        Set the table ID for the data source.
+        Set the temporal resolution identifier for the query.
 
         Parameters
         ----------
         table_id : str
-            The table ID to use.
+            The temporal resolution (e.g., "1hr", "day", "mon").
 
         Returns
         -------
         ClimateData
-            The current instance of ClimateData allowing method chaining.
+            The current instance for method chaining.
         """
-        self._query["table_id"] = table_id
+        if not isinstance(table_id, str) or not table_id.strip():
+            raise ValueError("Table ID must be a non-empty string")
+        self._query["table_id"] = table_id.strip()
         return self
 
     def grid_label(self, grid_label: str) -> "ClimateData":
         """
-        Set the grid label for the data source.
+        Set the spatial resolution identifier for the query.
 
         Parameters
         ----------
         grid_label : str
-            The grid label to use.
+            The spatial resolution (e.g., "d01", "d02", "d03").
 
         Returns
         -------
         ClimateData
-            The current instance of ClimateData allowing method chaining.
+            The current instance for method chaining.
         """
-        self._query["grid_label"] = grid_label
+        if not isinstance(grid_label, str) or not grid_label.strip():
+            raise ValueError("Grid label must be a non-empty string")
+        self._query["grid_label"] = grid_label.strip()
         return self
 
     def variable(self, variable: str) -> "ClimateData":
         """
-        Set the variable for the data source.
+        Set the climate variable to retrieve.
 
         Parameters
         ----------
         variable : str
-            The variable to retrieve.
+            The variable identifier (e.g., "tasmax", "pr", "cf").
 
         Returns
         -------
         ClimateData
-            The current instance of ClimateData allowing method chaining.
+            The current instance for method chaining.
         """
-        self._query["variable_id"] = variable
+        if not isinstance(variable, str) or not variable.strip():
+            raise ValueError("Variable must be a non-empty string")
+        self._query["variable_id"] = variable.strip()
         return self
 
-    def processes(self, processes: dict[str, str | Iterable]) -> "ClimateData":
+    def processes(self, processes: Dict[str, Union[str, Iterable]]) -> "ClimateData":
         """
-        Set the processes to apply to the data.
+        Set processing operations to apply to the retrieved data.
 
         Parameters
         ----------
-        processes : dict
-            A dictionary of processes to apply.
+        processes : Dict[str, Union[str, Iterable]]
+            A dictionary of processing operations and their parameters.
 
         Returns
         -------
         ClimateData
-            The current instance of ClimateData allowing method chaining.
+            The current instance for method chaining.
         """
-        self._query["processes"] = processes
+        if not isinstance(processes, dict):
+            raise ValueError("Processes must be a dictionary")
+        self._query["processes"] = processes.copy()
         return self
 
-    def get(self):
+    # Main execution method
+    def get(self) -> Optional[Any]:
         """
-        Retrieve climate data based on the configured parameters.
+        Execute the configured query and retrieve climate data.
+
+        Validates required parameters, creates the appropriate dataset using
+        the factory pattern, executes the query, and resets the query state
+        for the next use.
 
         Returns
         -------
-        xr.DataArray
-            The retrieved climate data
+        Optional[xr.DataArray]
+            The retrieved climate data as a lazy-loaded xarray DataArray,
+            or None if the query fails or validation errors occur.
+
+        Raises
+        ------
+        ValueError
+            If required parameters are missing during validation.
+        Exception
+            If there are errors during dataset creation or execution.
         """
-        # Check required parameters
         data = None
+
+        # Validate required parameters
         if not self._validate_required_parameters():
             self._reset_query()
             return data
 
         try:
-            # Create dataset directly from the query
+            # Create dataset using factory
             dataset = self._factory.create_dataset(self._query)
+            print("Dataset created successfully")
         except (ValueError, KeyError, TypeError) as e:
-            print(f"Error during dataset creation:\n{str(e)}")
+            print(f"Error during dataset creation: {str(e)}")
             print(f"Traceback:\n{traceback.format_exc()}")
+            self._reset_query()
             return None
 
         try:
-            # Execute dataset with query parameters
+            # Execute the query
             data = dataset.execute(self._query)
+            print("Data retrieved successfully")
         except (ValueError, KeyError, IOError, RuntimeError) as e:
-            print(f"Error: {str(e)}")
+            print(f"Error during data retrieval: {str(e)}")
             print(f"Traceback:\n{traceback.format_exc()}")
 
-        # Reset the query after retrieval
+        # Always reset query after execution
         self._reset_query()
         return data
 
     def _validate_required_parameters(self) -> bool:
-        """Check if all required parameters are set."""
+        """
+        Validate that all required parameters are set.
+
+        Returns
+        -------
+        bool
+            True if all required parameters are present, False otherwise.
+        """
         required_params = ["variable_id", "grid_label", "table_id", "catalog"]
+        missing_params = []
+
         for param in required_params:
-            if self._query[param] is None:
-                print(f"ERROR: {param} is a required parameter")
-                return False
+            if self._query[param] is UNSET:
+                missing_params.append(param)
+
+        if missing_params:
+            print(f"ERROR: Missing required parameters: {', '.join(missing_params)}")
+            print("Use the show_*_options() methods to see available values")
+            return False
+
         return True
 
-    def show_query(self):
-        """Print the current query parameters."""
+    # Query inspection methods
+    def show_query(self) -> None:
+        """Display the current query configuration."""
         print("Current query parameters:")
+        print("-" * 40)
         for key, value in self._query.items():
-            print(f"{key}: {value if value is not UNSET else 'UNSET'}")
+            display_value = value if value is not UNSET else "UNSET"
+            print(f"  {key}: {display_value}")
+        print("-" * 40)
 
-    def show_catalog_options(self):
-        """Print the available catalogs."""
-        print("Available catalog keys:")
-        for x in self._factory.get_catalog_options("catalog"):
-            print(f"{x}")
+    # Option exploration methods
+    def show_catalog_options(self) -> None:
+        """Display available catalog options."""
+        self._show_options("catalog", "Available catalog options")
 
-    def show_installation_options(self):
-        """Print the available installations."""
-        print("Available installation keys:")
-        for x in self._factory.get_catalog_options("installation"):
-            print(f"{x}")
+    def show_installation_options(self) -> None:
+        """Display available installation options."""
+        self._show_options("installation", "Available installation options")
 
-    def show_activity_id_options(self):
-        """Print the available activity IDs."""
-        print("Available activity IDs:")
-        for x in self._factory.get_catalog_options("activity_id"):
-            print(f"{x}")
+    def show_activity_id_options(self) -> None:
+        """Display available activity ID options."""
+        self._show_options("activity_id", "Available activity ID options")
 
-    def show_institution_id_options(self):
-        """Print the available institution IDs."""
-        print("Available institution IDs:")
-        for x in self._factory.get_catalog_options("institution_id"):
-            print(f"{x}")
+    def show_institution_id_options(self) -> None:
+        """Display available institution ID options."""
+        self._show_options("institution_id", "Available institution ID options")
 
-    def show_source_id_options(self):
-        """Print the available source IDs."""
-        print("Available source IDs:")
-        for x in self._factory.get_catalog_options("source_id"):
-            print(f"{x}")
+    def show_source_id_options(self) -> None:
+        """Display available source ID options."""
+        self._show_options("source_id", "Available source ID options")
 
-    def show_experiment_id_options(self):
-        """Print the available experiment IDs."""
-        print("Available experiment IDs:")
-        for x in self._factory.get_catalog_options("experiment_id"):
-            print(f"{x}")
+    def show_experiment_id_options(self) -> None:
+        """Display available experiment ID options."""
+        self._show_options("experiment_id", "Available experiment ID options")
 
-    def show_table_id_options(self):
-        """Print the available table IDs."""
-        print("Available table IDs:")
-        for x in self._factory.get_catalog_options("table_id"):
-            print(f"{x}")
+    def show_table_id_options(self) -> None:
+        """Display available table ID options (temporal resolutions)."""
+        self._show_options(
+            "table_id", "Available table ID options (temporal resolutions)"
+        )
 
-    def show_grid_label_options(self):
-        """Print the available grid labels."""
-        print("Available grid labels:")
-        for x in self._factory.get_catalog_options("grid_label"):
-            print(f"{x}")
+    def show_grid_label_options(self) -> None:
+        """Display available grid label options (spatial resolutions)."""
+        self._show_options(
+            "grid_label", "Available grid label options (spatial resolutions)"
+        )
 
-    def show_variable_options(self):
-        """Print the available variables."""
-        print("WARNING: not all variables are available in all datasets")
-        print("Available variables:")
+    def show_variable_options(self) -> None:
+        """Display available variable options."""
+        current_query = {k: v for k, v in self._query.items() if v is not UNSET}
+        if current_query:
+            print("Available variables for current query parameters:")
+            print(f"Context: {current_query}")
+        else:
+            print("Available variables (showing all - set other parameters to filter):")
 
-        for x in self._factory.get_catalog_options("variable_id"):
-            print(f"{x}")
+        self._show_options("variable_id", "Variables")
 
-    def show_validators(self):
-        """Print the available validators."""
+    def show_validators(self) -> None:
+        """Display available data validators."""
         print("Available validators:")
-        for key in self._factory.get_validators():
-            print(f"{key}")
+        print("-" * 30)
+        try:
+            for validator in self._factory.get_validators():
+                print(f"  {validator}")
+        except Exception as e:
+            print(f"Error retrieving validators: {e}")
 
-    def show_processors(self):
-        """Print the available processors."""
+    def show_processors(self) -> None:
+        """Display available data processors."""
         print("Available processors:")
-        for key in self._factory.get_processors():
-            print(f"{key}")
+        print("-" * 30)
+        try:
+            for processor in self._factory.get_processors():
+                print(f"  {processor}")
+        except Exception as e:
+            print(f"Error retrieving processors: {e}")
 
-    def show_all_options(self):
-        """Print all available options."""
-        # loop over methods starting with "show_" and call them
-        for m in self.__class__.__dict__:
-            # don't call this method
-            if m.startswith("show_") and m != "show_all_options":
-                getattr(self, m)()
-                print("=" * 40)
+    def show_all_options(self) -> None:
+        """Display all available options for exploration."""
+        print("=" * 60)
+        print("CLIMATE DATA INTERFACE - ALL AVAILABLE OPTIONS")
+        print("=" * 60)
+
+        option_methods = [
+            ("show_catalog_options", "Catalogs"),
+            ("show_installation_options", "Installations"),
+            ("show_activity_id_options", "Activity IDs"),
+            ("show_institution_id_options", "Institution IDs"),
+            ("show_source_id_options", "Source IDs"),
+            ("show_experiment_id_options", "Experiment IDs"),
+            ("show_table_id_options", "Table IDs (Temporal Resolution)"),
+            ("show_grid_label_options", "Grid Labels (Spatial Resolution)"),
+            ("show_variable_options", "Variables"),
+            ("show_validators", "Validators"),
+            ("show_processors", "Processors"),
+        ]
+
+        for method_name, section_title in option_methods:
+            print(f"\n{section_title}:")
+            print("-" * len(section_title))
+            try:
+                getattr(self, method_name)()
+            except Exception as e:
+                print(f"Error displaying {section_title.lower()}: {e}")
+
+        print("\n" + "=" * 60)
+        print("Current Query Status:")
+        print("=" * 60)
+        self.show_query()
+
+    def _show_options(self, option_type: str, title: str) -> None:
+        """
+        Helper method to display options with consistent formatting.
+
+        Parameters
+        ----------
+        option_type : str
+            The type of option to display.
+        title : str
+            The title for the options display.
+        """
+        print(f"{title}:")
+        print("-" * len(title))
+        try:
+            current_query = {k: v for k, v in self._query.items() if v is not UNSET}
+            options = self._factory.get_catalog_options(option_type, current_query)
+
+            if not options:
+                print("  No options available with current parameters")
+            else:
+                for option in sorted(options):
+                    print(f"  {option}")
+        except Exception as e:
+            print(f"  Error retrieving options: {e}")
+
+    # Convenience methods for common workflows
+    def reset(self) -> "ClimateData":
+        """
+        Manually reset the query parameters.
+
+        Returns
+        -------
+        ClimateData
+            The current instance with reset parameters.
+        """
+        return self._reset_query()
+
+    def copy_query(self) -> Dict[str, Any]:
+        """
+        Get a copy of the current query parameters.
+
+        Returns
+        -------
+        Dict[str, Any]
+            A copy of the current query parameters.
+        """
+        return {k: v for k, v in self._query.items() if v is not UNSET}
+
+    def load_query(self, query_params: Dict[str, Any]) -> "ClimateData":
+        """
+        Load query parameters from a dictionary.
+
+        Parameters
+        ----------
+        query_params : Dict[str, Any]
+            Dictionary of query parameters to load.
+
+        Returns
+        -------
+        ClimateData
+            The current instance with loaded parameters.
+        """
+        for key, value in query_params.items():
+            if key in self._query:
+                self._query[key] = value
+        return self

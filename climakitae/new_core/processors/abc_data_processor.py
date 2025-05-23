@@ -125,34 +125,7 @@ class DataProcessor(ABC):
         """
 
 
-@register_processor("convert_units")
-class ConvertUnits(DataProcessor):
-    """
-    Convert units of the data.
-
-    This class is a placeholder for unit conversion logic.
-    """
-
-    def execute(
-        self,
-        result: Union[
-            xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
-        ],
-        context: Dict[str, Any],
-    ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
-        # Placeholder for unit conversion logic
-        return result
-
-    def update_context(self, context: Dict[str, Any]):
-        # Placeholder for updating context
-        pass
-
-    def set_data_accessor(self, catalog: DataCatalog):
-        # Placeholder for setting data accessor
-        pass
-
-
-@register_processor("rename_variables")
+# @register_processor("rename_variables")
 class RenameVariables(DataProcessor):
     """
     Rename variables in the data to user-friendly names.
@@ -179,7 +152,7 @@ class RenameVariables(DataProcessor):
         pass
 
 
-@register_processor("apply_bias_correction")
+# @register_processor("apply_bias_correction")
 class ApplyBiasCorrection(DataProcessor):
     """
     Apply bias correction to the data.
@@ -206,7 +179,7 @@ class ApplyBiasCorrection(DataProcessor):
         pass
 
 
-@register_processor("filter_data")
+# @register_processor("filter_data")
 class FilterData(DataProcessor):
     """
     Filter data based on certain criteria.
@@ -222,60 +195,6 @@ class FilterData(DataProcessor):
         context: Dict[str, Any],
     ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
         # Placeholder for data filtering logic
-        return result
-
-    def update_context(self, context: Dict[str, Any]):
-        # Placeholder for updating context
-        pass
-
-    def set_data_accessor(self, catalog: DataCatalog):
-        # Placeholder for setting data accessor
-        pass
-
-
-@register_processor("apply_shape_file")
-class ApplyShapeFile(DataProcessor):
-    """
-    Apply shapefile to the data.
-
-    This class is a placeholder for shapefile application logic.
-    """
-
-    def execute(
-        self,
-        result: Union[
-            xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
-        ],
-        context: Dict[str, Any],
-    ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
-        # Placeholder for shapefile application logic
-        return result
-
-    def update_context(self, context: Dict[str, Any]):
-        # Placeholder for updating context
-        pass
-
-    def set_data_accessor(self, catalog: DataCatalog):
-        # Placeholder for setting data accessor
-        pass
-
-
-@register_processor("global_warming_level")
-class GlobalWarmingLevel(DataProcessor):
-    """
-    Apply global warming level method to the data.
-
-    This class is a placeholder for global warming level application logic.
-    """
-
-    def execute(
-        self,
-        result: Union[
-            xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
-        ],
-        context: Dict[str, Any],
-    ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
-        # Placeholder for global warming level application logic
         return result
 
     def update_context(self, context: Dict[str, Any]):

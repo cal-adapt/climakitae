@@ -1,5 +1,5 @@
 """
-Validator for renewable energy dataset parameters.
+Validator for data catalog parameters.
 """
 
 from __future__ import annotations
@@ -18,15 +18,15 @@ from climakitae.new_core.param_validation.param_validation_tools import (
 )
 
 
-@register_validator("renewables")
-class RenewablesValidator(ParameterValidator):
+@register_validator("data")
+class DataValidator(ParameterValidator):
     """
-    Validator for renewable energy dataset parameters.
+    Validator for data catalog parameters.
 
     Parameters
     ----------
-    catalog : str
-        path to the renewables dataset catalog
+    catalog : DataCatalog
+        the DataCatalog object to validate against
 
     Attributes
     ----------
@@ -43,7 +43,6 @@ class RenewablesValidator(ParameterValidator):
         """
         super().__init__()
         self.all_catalog_keys = {
-            "installation": UNSET,
             "activity_id": UNSET,
             "institution_id": UNSET,
             "source_id": UNSET,
@@ -52,7 +51,7 @@ class RenewablesValidator(ParameterValidator):
             "grid_label": UNSET,
             "variable_id": UNSET,
         }
-        self.catalog = catalog.renewables
+        self.catalog = catalog.data
 
     def populate_catalog_keys(self, query: Dict[str, Any]) -> None:
         """
@@ -78,7 +77,7 @@ class RenewablesValidator(ParameterValidator):
 
     def is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
         """
-        Validate renewable energy dataset query.
+        Validate data catalog query.
 
         Parameters
         ----------
@@ -95,7 +94,7 @@ class RenewablesValidator(ParameterValidator):
         ValueError
             If parameters are invalid
         """
-        # convert user input to Renewables keys
+        # convert user input to keys
         self.populate_catalog_keys(query)
         # check if the catalog keys can be found
 

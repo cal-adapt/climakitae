@@ -80,27 +80,64 @@ class Concat(DataProcessor):
             return result
 
         datasets_to_concat = []
-        source_ids = []
+        concat_attr = ["source_id", "experiment_id"]
 
-        for dataset in result:
-            if not isinstance(dataset, (xr.Dataset, xr.DataArray)):
-                continue
+        unknown_attr = "unknown"
+        attr_ids = []
 
-            # Extract source_id from attributes
-            source_id = dataset.attrs.get("source_id", "unknown")
-            source_ids.append(source_id)
+        match result:
+            case dict():
+                for _, dataset in result.items():
+                    if not isinstance(dataset, (xr.Dataset, xr.DataArray)):
+                        continue
 
-            # Add sim dimension to the dataset
-            dataset = dataset.expand_dims({self.dim_name: [source_id]})
-            datasets_to_concat.append(dataset)
+                    # Extract source_id from attributes
+                    attr_id = "_".join(
+                        [
+                            dataset.attrs.get(concat_attr, unknown_attr)
+                            for concat_attr in concat_attr
+                        ]
+                    )
+                    attr_id = attr_id.replace(
+                        " ", ""
+                    )  # Replace spaces with empty string
+                    attr_id = attr_id.lower()
+                    attr_ids.append(attr_id)
+
+                    # Add sim dimension to the dataset
+                    dataset = dataset.expand_dims({self.dim_name: [attr_id]})
+                    datasets_to_concat.append(dataset)
+            case _:
+                for dataset in result:
+                    if not isinstance(dataset, (xr.Dataset, xr.DataArray)):
+                        print(f"Skipping non-xarray object: {dataset}")
+                        continue
+
+                    # Extract source_id from attributes
+                    attr_id = "_".join(
+                        [
+                            dataset.attrs.get(concat_attr, unknown_attr)
+                            for concat_attr in concat_attr
+                        ]
+                    )
+                    attr_id = attr_id.replace(
+                        " ", ""
+                    )  # Replace spaces with empty string
+                    attr_id = attr_id.lower()
+                    attr_ids.append(attr_id)
+
+                    # Add sim dimension to the dataset
+                    dataset = dataset.expand_dims({self.dim_name: [attr_id]})
+                    datasets_to_concat.append(dataset)
 
         if not datasets_to_concat:
             return result  # Return original if no valid datasets
 
         # Concatenate all datasets along the sim dimension
         concatenated = xr.concat(datasets_to_concat, dim=self.dim_name)
+        print(f"Concatenated datasets along '{self.dim_name}' dimension.")
 
-        self.update_context(context, source_ids)
+        self.update_context(context, attr_ids)
         return concatenated
 
     def update_context(
