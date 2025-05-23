@@ -1,7 +1,9 @@
 # constants.py
 """This module defines constants across the codebase"""
 
-# sentinel values
+# Sentinel for unset values
+# This is used to differentiate between a value that is set to None
+# and a value that is not set at all.
 UNSET = object()
 
 # global warming levels available on AE

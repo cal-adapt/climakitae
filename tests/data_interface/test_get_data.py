@@ -1,11 +1,14 @@
 """Test the get_data() function"""
 
-import pytest
 import io
 import sys
+
+import pytest
+
 from climakitae.core.data_interface import get_data
 
 
+@pytest.mark.advanced
 class TestStationDataRetrievalGetData:
     """Test that the get_data function retrieves station data without error."""
 
@@ -45,6 +48,7 @@ class TestStationDataRetrievalGetData:
             )
 
 
+@pytest.mark.advanced
 class TestDerivedVariablesGetData:
     """Test that derived variables/indices can be retrieved
     Some of the use cases below used to raise an error and have since been fixed.
@@ -112,6 +116,7 @@ class TestDerivedVariablesGetData:
             )
 
 
+@pytest.mark.advanced
 class TestAppropriateStringErrorReturnedIfBadInputGetData:
     """Test that an appropriate error message is printed to the user describing the issue and how to resolve it."""
 
@@ -190,7 +195,7 @@ class TestAppropriateStringErrorReturnedIfBadInputGetData:
         """Warming level should be a float input! Make sure the function prints the appropriate error message"""
 
         # Error message we expect to be printed by the function
-        expected_print_message = "ERROR: Function argument warming_level requires a float/int or list of floats/ints input. Your input: <class 'str'> \nReturning None\n"
+        expected_print_message = "ERROR: Function argument warming_level requires a float/int or list \n                    of floats/ints input. Your input: <class 'str'> \nReturning None\n"
 
         # NOTE: function PRINTS this message-- it does not return it as an error
         # Because of this, we have to use sys to capture the print message

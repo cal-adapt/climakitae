@@ -101,11 +101,11 @@ def year_to_warm_levels(warm_df, scenario, year):
     return warm_levels, med_level
 
 
+##### TASK 2 #####
+
+
 def _round_to_nearest_half(number):
     return round(number * 2) / 2
-
-
-##### TASK 2 #####
 
 
 def _get_var_info(variable, downscaling_method, wrf_timescale="monthly"):

@@ -6,10 +6,10 @@ Climakitae Documentation
 
 .. note::
 
-   This project is actively in development working towards an alpha release.
+   This project is actively in development, so the functionality documented here may evolve over time. We strive to keep our documentation up to date and appreciate your patience as we continue improving and streamlining the codebase.
 
 Climakitae provides a python toolkit for retrieving and performing 
-scientific analyses with data from the Cal-Adapt Analytics Engine. 
+scientific analyses with climate data from the Cal-Adapt Analytics Engine. 
 
 .. grid:: 1 1 2 2
     :gutter: 2
