@@ -1,13 +1,13 @@
-import matplotlib.colors as mcolors
 import matplotlib
+import matplotlib.colors as mcolors
 import numpy as np
 
 from climakitae.core.paths import (
-    ae_orange,
-    ae_diverging,
-    ae_blue,
-    ae_diverging_r,
-    categorical_cb,
+    AE_BLUE,
+    AE_DIVERGING,
+    AE_DIVERGING_R,
+    AE_ORANGE,
+    CATEGORICAL_CB,
 )
 from climakitae.util.utils import _package_file_path
 
@@ -34,15 +34,15 @@ def read_ae_colormap(cmap="ae_orange", cmap_hex=False):
     """
 
     if cmap == "ae_orange":
-        cmap_data = ae_orange
+        cmap_data = AE_ORANGE
     elif cmap == "ae_diverging":
-        cmap_data = ae_diverging
+        cmap_data = AE_DIVERGING
     elif cmap == "ae_blue":
-        cmap_data = ae_blue
+        cmap_data = AE_BLUE
     elif cmap == "ae_diverging_r":
-        cmap_data = ae_diverging_r
+        cmap_data = AE_DIVERGING_R
     elif cmap == "categorical_cb":
-        cmap_data = categorical_cb
+        cmap_data = CATEGORICAL_CB
 
     # Load text file
     cmap_np = np.loadtxt(_package_file_path(cmap_data), dtype=float)
