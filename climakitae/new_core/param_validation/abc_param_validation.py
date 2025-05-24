@@ -11,12 +11,16 @@ implement the `is_valid` method, which takes a dictionary of parameters
 and returns a boolean indicating whether the parameters are valid.
 """
 
+import warnings
 from abc import ABC, abstractmethod
 from typing import Any, Dict
 
 import intake
 
 from climakitae.core.constants import UNSET
+from climakitae.new_core.param_validation.param_validation_tools import (
+    _get_closest_options,
+)
 
 _VALIDATOR_REGISTRY = {}
 
@@ -55,17 +59,16 @@ class ParameterValidator(ABC):
         - !!! IS THIS NECESSARY? !!!
             - the GUI is for folks not technically inclined
             - we don't need this logic in the dev/scientist interface
-            -
     - processing variables: variables that are used to process the dataset
         - the logic for this is rag tag at best
     """
 
     def __init__(self):
         self.catalog_path = "climakitae/data/catalogs.csv"
-        self.catalog = None
+        self.catalog = UNSET
+        self.all_catalog_keys = UNSET
         self.load_catalog_df()
 
-    @abstractmethod
     def is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
         """
         Validate parameters and return processed parameters.
@@ -85,6 +88,102 @@ class ParameterValidator(ABC):
         ValueError
             If parameters are invalid
         """
+        # convert user input to keys
+        self.populate_catalog_keys(query)
+        # check if the catalog keys can be found
+
+        try:
+            subset = self.catalog.search(**self.all_catalog_keys)
+        except ValueError as e:
+            # no datasets found or invalid query
+            warnings.warn(
+                f"Query did not match any datasets: {e}\n\nSearching for close matches...",
+                UserWarning,
+            )
+        if len(subset) != 0:
+            print(f"Found {len(subset)} datasets matching your query.")
+            return self.all_catalog_keys
+
+        # dataset not found
+        # find closest match to each provided key
+        print("No datasets found matching your query. Checking for valid options...")
+        df = self.catalog.df.copy()
+        last_key = None
+        for key, value in self.all_catalog_keys.items():
+            # don't check unset values
+            if value is UNSET:
+                continue
+
+            # check if the key is in the catalog
+            if key not in df.columns:
+                warnings.warn(
+                    f"Key {key} not found in catalog. Did you specify the correct catalog?"
+                )
+                continue  # skip to the next key
+            # subset the dataframe to the key
+            df = df[df[key] == value]
+            if df.empty:
+                # this means no datasets were found for this key.
+                # this can happen for two reasons:
+                # 1. the user made a typo in the key or value
+                # 2. the requested dataset does not exist in the catalog
+
+                # start by checking if the value is in the catalog
+                if value not in self.catalog.df[key].unique():
+                    # the value is not in the catalog, check for closest options
+                    print(f"Could not find any datasets with {key} = {value}.")
+                    closest_options = _get_closest_options(
+                        value, self.catalog.df[key].unique()
+                    )
+                    if closest_options is not None:
+                        warnings.warn(
+                            f"\n\nDid you mean one of these options for {key}: {closest_options}?"
+                        )
+                    else:
+                        warnings.warn(
+                            f"\n\nNo close matches found for {key} = {value}. "
+                            "\nPlease check your input."
+                        )
+                else:
+                    # the value is in the catalog, but no datasets were found
+                    warnings.warn(
+                        f"\n\nNo datasets found for {key} = {value}. "
+                        f"\nMost likely, this is because the dataset you requested "
+                        f"\ndoes not exist in the catalog. "
+                        f"\nThis most often happens when searching for specific time or spatial resolutions"
+                        f"\n that are not available for a given variable. "
+                        f"\n in this case, it appears that there is a conflict between {key} and {last_key}. "
+                        f"\n\nTo explore available options, "
+                        f"\n please use the `show_*_options()` methods."
+                    )
+                break
+            else:
+                print(f"Found {len(df)} datasets with {key} = {value}.")
+            last_key = key
+            # check if the value is in the catalog
+        return None
+
+    def populate_catalog_keys(self, query: Dict[str, Any]) -> None:
+        """
+        Populate the catalog keys with the values from the query.
+
+        Parameters
+        ----------
+        query : Dict[str, Any]
+            query to populate
+
+        Returns
+        -------
+        None
+        """
+        # populate catalog keys with the values from the query
+        for key in self.all_catalog_keys.keys():
+            self.all_catalog_keys[key] = query.get(key, UNSET)
+
+        # remove any unset values
+        self.all_catalog_keys = {
+            k: v for k, v in self.all_catalog_keys.items() if v is not UNSET
+        }
 
     def load_catalog_df(self):
         """
