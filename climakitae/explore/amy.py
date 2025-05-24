@@ -38,13 +38,14 @@ def _set_amy_year_inputs(year_start: int, year_end: int) -> tuple[int, int]:
     Checks that the user has input valid values.
     Sets year end if it hasn't been set; default is 30 year range (year_start + 30). Minimum is 5 year range.
     """
-    if year_end is None:
-        year_end = (
-            year_start + 30 if (year_start + 30 < 2100) else 2100
-        )  # Default is +30 years
-    elif year_end > 2100:
-        print("Your end year cannot exceed 2100. Resetting end year to 2100.")
-        year_end = 2100
+    match year_end:
+        case None:
+            year_end = (
+                year_start + 30 if (year_start + 30 < 2100) else 2100
+            )  # Default is +30 years
+        case _ if year_end > 2100:
+            print("Your end year cannot exceed 2100. Resetting end year to 2100.")
+            year_end = 2100
     if year_end - year_start < 5:
         raise ValueError(
             """To compute an Average Meteorological Year, you must input a date range with a difference

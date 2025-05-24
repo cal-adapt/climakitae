@@ -63,14 +63,15 @@ def test_get_warm_level_file_loading(mock_read_csv, mock_data_for_warm_level):
 
     # Set up the mock to return different DataFrames based on input file path
     def side_effect(file_path, **kwargs):
-        if file_path == gwl_1850_1900_file:
-            return mock_ipcc_df
-        elif file_path == gwl_1981_2010_file:
-            return mock_non_ipcc_df
-        elif file_path == "data/gwl_1981-2010ref_EC-Earth3_ssp370.csv":
-            return mock_ece3_df
-        else:
-            return pd.DataFrame()
+        match file_path:
+            case _ if file_path == gwl_1850_1900_file:
+                return mock_ipcc_df
+            case _ if file_path == gwl_1981_2010_file:
+                return mock_non_ipcc_df
+            case "data/gwl_1981-2010ref_EC-Earth3_ssp370.csv":
+                return mock_ece3_df
+            case _:
+                return pd.DataFrame()
 
     mock_read_csv.side_effect = side_effect
 
@@ -436,8 +437,9 @@ def test_grab_multimodel_data_precipitation(mock_drop_member, mock_intake):
     copt._cmip_clip.side_effect = lambda ds: ds
 
     # Mock concat operations to return empty datasets
-    with patch("xarray.concat", return_value=xr.Dataset()), patch(
-        "xarray.Dataset.sel", return_value=xr.Dataset()
+    with (
+        patch("xarray.concat", return_value=xr.Dataset()),
+        patch("xarray.Dataset.sel", return_value=xr.Dataset()),
     ):
 
         # Call the function
@@ -487,8 +489,9 @@ def test_grab_multimodel_data_temperature(mock_drop_member, mock_intake):
     copt._cmip_clip.side_effect = lambda ds: ds
 
     # Mock concat operations to return empty datasets
-    with patch("xarray.concat", return_value=xr.Dataset()), patch(
-        "xarray.Dataset.sel", return_value=xr.Dataset()
+    with (
+        patch("xarray.concat", return_value=xr.Dataset()),
+        patch("xarray.Dataset.sel", return_value=xr.Dataset()),
     ):
 
         # Call the function
@@ -560,9 +563,11 @@ def test_grab_multimodel_data_alpha_sort(
     copt._cmip_clip = MagicMock(side_effect=lambda ds: ds)
 
     # Mock the sorting operation to verify it's called
-    with patch("builtins.sorted") as mock_sorted, patch(
-        "xarray.concat", return_value=xr.Dataset()
-    ), patch("xarray.Dataset.sel", return_value=xr.Dataset()):
+    with (
+        patch("builtins.sorted") as mock_sorted,
+        patch("xarray.concat", return_value=xr.Dataset()),
+        patch("xarray.Dataset.sel", return_value=xr.Dataset()),
+    ):
 
         # Call function with alpha_sort=True
         grab_multimodel_data(copt, alpha_sort=True)
