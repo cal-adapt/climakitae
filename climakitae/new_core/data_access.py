@@ -19,7 +19,6 @@ import warnings
 
 import intake
 import intake_esm
-import pandas as pd
 import xarray as xr
 
 from climakitae.core.constants import UNSET

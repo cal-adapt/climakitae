@@ -384,7 +384,6 @@ class ClimateData:
         try:
             # Create dataset using factory
             dataset = self._factory.create_dataset(self._query)
-            print("Dataset created successfully")
         except (ValueError, KeyError, TypeError) as e:
             print(f"Error during dataset creation: {str(e)}")
             print(f"Traceback:\n{traceback.format_exc()}")
@@ -394,7 +393,6 @@ class ClimateData:
         try:
             # Execute the query
             data = dataset.execute(self._query)
-            print("Data retrieved successfully")
         except (ValueError, KeyError, IOError, RuntimeError) as e:
             print(f"Error during data retrieval: {str(e)}")
             print(f"Traceback:\n{traceback.format_exc()}")
