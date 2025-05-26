@@ -152,11 +152,11 @@ class ParameterValidator(ABC):
                     # the value is in the catalog, but no datasets were found
                     warnings.warn(
                         f"\n\nNo datasets found for {key} = {value}. "
-                        f"\nMost likely, this is because the dataset you requested "
-                        f"\ndoes not exist in the catalog. "
-                        f"\nThis most often happens when searching for specific time or spatial resolutions"
-                        f"\n that are not available for a given variable. "
-                        f"\n in this case, it appears that there is a conflict between {key} and {last_key}. "
+                        f"\n\nMost likely, this is because the dataset you requested "
+                        f"\n    does not exist in the catalog. "
+                        f"\nThis most often happens when searching for conflicting time"
+                        f"\n    or spatial resolutions"
+                        f"\n\nIn this case, it appears that there is a conflict between {key} and {last_key}. "
                         f"\nYour options for {key} are: {remaining_key_values}. "
                         f"\nThis is constrained by the earlier key {last_key} = {self.all_catalog_keys[last_key]}. "
                         f"\nPlease check your query and try again. "
