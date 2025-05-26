@@ -238,7 +238,7 @@ class DatasetFactory:
         Returns
         -------
         list of tuple
-            List of tuples containing (processing_step_key, parameters) 
+            List of tuples containing (processing_step_key, parameters)
             ordered by processing priority.
 
         Warnings
@@ -282,9 +282,17 @@ class DatasetFactory:
             query[_NEW_ATTRS_KEY][key] = value
 
         # Mandatory processing steps
+        if "filter_unbiased_models" not in query[PROC_KEY]:
+            # remove unbiased models 
+            processing_steps.append(
+                self._processing_step_registry["filter_unbiased_models"][0]()
+            )
+            query[_NEW_ATTRS_KEY]["filter_unbiased_models"] = "yes"
+
         if "concat" not in query[PROC_KEY]:
             processing_steps.append(self._processing_step_registry["concat"][0]())
             query[_NEW_ATTRS_KEY]["concat"] = "sim"
+
         processing_steps.append(
             self._processing_step_registry["update_attributes"][0]()
         )
