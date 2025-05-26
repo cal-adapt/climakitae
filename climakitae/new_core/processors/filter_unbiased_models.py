@@ -102,6 +102,9 @@ class FilterUnbiasedModels(DataProcessor):
                         f"\nClimateData().processes('{self.name}': 'no')\n\n",
                     )
                     return self._remove_unbiased_models(result)
+
+                # If no unbiased models are found, return the result as is
+                return result
             case "no":
                 # check if there are any biased models in the dataset
                 if self._contains_unbiased_models(result):
@@ -110,7 +113,8 @@ class FilterUnbiasedModels(DataProcessor):
                         f"\nThese models HAVE NOT been removed from the returned query."
                         f"\nProceed with caution as these models may not be suitable for your analysis.\n\n"
                     )
-                    return result
+
+                return result
             case _:
                 raise ValueError(
                     f"Invalid value for {self.name} processor: {self.value}. "

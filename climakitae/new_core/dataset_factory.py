@@ -283,7 +283,7 @@ class DatasetFactory:
 
         # Mandatory processing steps
         if "filter_unbiased_models" not in query[PROC_KEY]:
-            # remove unbiased models 
+            # remove unbiased models
             processing_steps.append(
                 self._processing_step_registry["filter_unbiased_models"][0]()
             )

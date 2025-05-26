@@ -76,7 +76,7 @@ class GlobalWarmingLevel(DataProcessor):
         self.name: str = "warming_level"
         self.warming_level_times: pd.DataFrame | object = UNSET
         self.catalog: DataCatalog | object = UNSET
-        self.needs_data: bool = True
+        self.needs_catalog: bool = True
 
     def execute(
         self,

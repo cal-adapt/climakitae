@@ -42,7 +42,7 @@ class ClimateData:
     instance itself to enable method chaining.
 
     Parameters supported in queries:
-    - catalog: The data catalog to use (e.g., "renewables", "climate")
+    - catalog: The data catalog to use (e.g., "renewables", "data")
     - installation: The installation type (e.g., "pv_utility", "wind_offshore")
     - activity_id: The activity identifier (e.g., "CMIP6", "CORDEX")
     - institution_id: The institution identifier (e.g., "CNRM", "DWD")

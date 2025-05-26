@@ -53,6 +53,8 @@ class Concat(DataProcessor):
         """
         self.dim_name = value if isinstance(value, str) else "sim"
         self.name = "concat"
+        self.catalog = None
+        self.needs_catalog = True
 
     def execute(
         self,
@@ -80,8 +82,23 @@ class Concat(DataProcessor):
             return result
 
         datasets_to_concat = []
-        concat_attr = ["source_id", "experiment_id"]
-
+        concat_attr = (
+            [
+                "installation",
+                "institution_id",
+                "source_id",
+                "experiment_id",
+                "member_id",
+            ]
+            if self.catalog.catalog_key == "renewables"
+            else [
+                "intake_esm_attrs:activity_id",
+                "intake_esm_attrs:institution_id",
+                "intake_esm_attrs:source_id",
+                "intake_esm_attrs:experiment_id",
+                "intake_esm_attrs:member_id",
+            ]
+        )
         unknown_attr = "unknown"
         attr_ids = []
 
@@ -96,6 +113,8 @@ class Concat(DataProcessor):
                         [
                             dataset.attrs.get(concat_attr, unknown_attr)
                             for concat_attr in concat_attr
+                            if dataset.attrs.get(concat_attr, unknown_attr)
+                            != unknown_attr
                         ]
                     )
                     attr_id = attr_id.replace(
@@ -137,6 +156,12 @@ class Concat(DataProcessor):
         concatenated = xr.concat(datasets_to_concat, dim=self.dim_name)
         print(f"Concatenated datasets along '{self.dim_name}' dimension.")
 
+        # check if the concatenated object has a `member_id` dimension
+        if "member_id" in concatenated.dims:
+            # If it does, get rid of it
+            # sim dimension captures this information
+            concatenated = concatenated.drop_dims("member_id")
+
         self.update_context(context, attr_ids)
         return concatenated
 
@@ -175,5 +200,12 @@ class Concat(DataProcessor):
         {source_info}"""
 
     def set_data_accessor(self, catalog: DataCatalog):
-        # Placeholder for setting data accessor
-        pass
+        """
+        Set the data catalog for this processor.
+
+        Parameters
+        ----------
+        catalog : DataCatalog
+            The data catalog to be used by this processor.
+        """
+        self.catalog = catalog

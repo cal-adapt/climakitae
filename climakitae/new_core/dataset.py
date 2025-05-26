@@ -68,6 +68,7 @@ Notes
 - Validation failures return an empty xarray.Dataset rather than raising exceptions
 """
 
+import traceback
 import warnings
 from typing import Any, Dict
 
@@ -199,7 +200,9 @@ class Dataset:
         try:
             for step in self.processing_pipeline:
                 # Some steps might need access to the data_access component
-                if getattr(step, "needs_data", False):
+                # steps that need it should define and set `needs_catalog = True`
+                # in their __init__ method
+                if getattr(step, "needs_catalog", False):
                     step.set_data_accessor(self.data_access)
 
                 # Execute the current step
@@ -207,14 +210,18 @@ class Dataset:
                 current_result = step.execute(current_result, context)
                 if current_result is None:
                     warnings.warn(
-                        f"Processing step {step.name} returned None. "
-                        "Ensure that the step is implemented correctly."
+                        f"\n\nProcessing step {step.name} returned None. "
+                        "\nEnsure that the step is implemented correctly."
                     )
 
             return current_result
 
         except Exception as e:
             # Consider implementing proper error handling/logging here
+            # Get detailed traceback information
+            tb_info = traceback.format_exc()
+            # Log the traceback for debugging
+            print(f"Exception traceback:\n{tb_info}")
             raise RuntimeError(f"Error in processing pipeline: {str(e)}") from e
 
     def with_param_validator(
