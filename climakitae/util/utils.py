@@ -5,6 +5,7 @@ from typing import Iterable, Union
 
 import geopandas as gpd
 import intake_esm
+import intake
 import numpy as np
 import pandas as pd
 import pyproj
@@ -18,7 +19,7 @@ from climakitae.core.constants import SSPS, UNSET
 from climakitae.core.boundaries import Boundaries
 
 # from climakitae.core.data_interface import DataParameters
-from climakitae.core.paths import data_catalog_url, stations_csv_path
+from climakitae.core.paths import data_catalog_url, stations_csv_path, boundary_catalog_url
 
 
 def downscaling_method_as_list(downscaling_method: str) -> list[str]:
@@ -840,7 +841,7 @@ def convert_to_local_time(
         data, "location_subset", "entire domain"
     ):
         # Find the avg. lat/lon coordinates from entire geometry within an area subset
-        boundaries = Boundaries()
+        boundaries = Boundaries(intake.open_catalog(boundary_catalog_url))
 
         # Making mapping for different geographies to different polygons
         mapping = {
@@ -869,7 +870,7 @@ def convert_to_local_time(
         # Finding the center point of the gridded WRF area
         center_pt = (
             mapping[selections.area_subset][0]
-            .loc[mapping[data.attrs["area_subset"]][1][data.attrs["cached_area"][0]]]
+            .loc[mapping[data.attrs["area_subset"]][1][data.attrs["location_subset"][0]]]
             .geometry.centroid
         )
         lat = center_pt.y
