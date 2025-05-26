@@ -121,6 +121,7 @@ class ParameterValidator(ABC):
                 )
                 continue  # skip to the next key
             # subset the dataframe to the key
+            remaining_key_values = df[key].unique()
             df = df[df[key] == value]
             if df.empty:
                 # this means no datasets were found for this key.
@@ -136,13 +137,16 @@ class ParameterValidator(ABC):
                         value, self.catalog.df[key].unique()
                     )
                     if closest_options is not None:
+                        # probably a typo in the value
                         warnings.warn(
                             f"\n\nDid you mean one of these options for {key}: {closest_options}?"
                         )
                     else:
+                        # no close matches found
                         warnings.warn(
                             f"\n\nNo close matches found for {key} = {value}. "
-                            "\nPlease check your input."
+                            "\nBased on your query, the available options for this key are: "
+                            f"{remaining_key_values}."
                         )
                 else:
                     # the value is in the catalog, but no datasets were found
@@ -153,6 +157,9 @@ class ParameterValidator(ABC):
                         f"\nThis most often happens when searching for specific time or spatial resolutions"
                         f"\n that are not available for a given variable. "
                         f"\n in this case, it appears that there is a conflict between {key} and {last_key}. "
+                        f"\nYour options for {key} are: {remaining_key_values}. "
+                        f"\nThis is constrained by the earlier key {last_key} = {self.all_catalog_keys[last_key]}. "
+                        f"\nPlease check your query and try again. "
                         f"\n\nTo explore available options, "
                         f"\n please use the `show_*_options()` methods."
                     )
