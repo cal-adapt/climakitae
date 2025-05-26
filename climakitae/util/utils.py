@@ -772,7 +772,7 @@ def match_attr(data: xr.DataArray, key, value):
 
 
 def convert_to_local_time(
-    data: xr.DataArray, time_slice: tuple(int, int)
+    data: xr.DataArray, time_slice: tuple[int, int]
 ) -> xr.DataArray:
     """
     Convert time dimension from UTC to local time for the grid or station.
