@@ -132,9 +132,10 @@ class DataCatalog(dict):
         """
         if key not in self:
             warnings.warn(
-                f"Catalog key '{key}' not found. Available keys are: {list(self.keys())}"
+                f"\n\nCatalog key '{key}' not found."
+                f"\nAvailable catalogs keys are: {list(self.keys())}"
+                f"\nDefulting to 'data' catalog.\n\n"
             )
-            warnings.warn("Defaulting to 'data' catalog.")
             key = "data"
         self.catalog_key = key
         return self

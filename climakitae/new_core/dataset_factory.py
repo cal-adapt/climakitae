@@ -377,7 +377,10 @@ class DatasetFactory:
         if val_reg_key in self._validator_registry:
             return self._validator_registry[val_reg_key](self._catalog)
 
-        raise ValueError(f"No validator registered for {val_reg_key}")
+        raise ValueError(
+            f"\n\nNo validator registered for catalog = '{val_reg_key}'"
+            f"\nPlease check the input query or register a new validator.\n\n"
+        )
 
     def _get_catalog_key_from_query(self, query: Dict[str, Any]) -> str:
         """
