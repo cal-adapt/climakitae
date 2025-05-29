@@ -22,3 +22,8 @@ jobs:
           export LLVM_CONFIG="/opt/homebrew/opt/llvm@14/bin/llvm-config"
           pip install -U pip uv
           uv sync
+          source .venv/bin/activate
+
+      - name: Run tests
+        run: |
+          uv run pytest --cov --cov-report=xml -m "not advanced"

@@ -94,7 +94,8 @@ dependencies = [
     "cf_xarray==0.10.0",
     "filelock==3.16.1",
     "yamale==5.3.0",
-    "distributed==2024.11.2"
+    "distributed==2024.11.2",
+    "xmip==0.7.2"
 ]
 urls = {Homepage = "https://github.com/cal-adapt/climakitae"}
 
@@ -107,7 +108,7 @@ docs = [
 ]
 tests = [
     "pytest",
-    "pytest-cov",
+    "pytest-cov==6.1.1",
 ]
 
 [tool.setuptools]
@@ -115,3 +116,13 @@ packages = {find = {}}
 
 [tool.setuptools.package-data]
 "*" = ["data/*.csv", "data/cmaps/*.txt"]
+
+[tool.pytest.ini_options]
+markers = [
+    "advanced: marks tests as advanced (deselect with '-m \"not advanced\"')",
+]
+testpaths = ["tests"]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::UserWarning",
+]
