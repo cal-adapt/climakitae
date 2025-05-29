@@ -82,7 +82,6 @@ class GWLGenerator:
     ----------
     df : pandas.DataFrame
         DataFrame containing metadata for CMIP6 simulations
-
     sims_on_aws : pandas.DataFrame
         DataFrame listing available simulations on AWS
     fs : s3fs.S3FileSystem
@@ -94,6 +93,8 @@ class GWLGenerator:
 
     Methods
     -------
+    set_cesm2_lens() -> xr.Dataset()
+        Pull subset of CESM2 model data.
     get_sims_on_aws() -> pandas.DataFrame
         Generates a DataFrame listing all relevant CMIP6 simulations available on AWS.
     build_timeseries(model_config: dict) -> xarray.Dataset
@@ -112,7 +113,10 @@ class GWLGenerator:
     Examples
     --------
     >>> df = pd.read_csv("https://cmip6-pds.s3.amazonaws.com/pangeo-cmip6.csv")
-    >>> gwl_generator = GWLGenerator(df)
+    >>> catalog_cesm = intake.open_esm_datastore(
+            "https://raw.githubusercontent.com/NCAR/cesm2-le-aws/main/intake-catalogs/aws-cesm2-le.json"
+        )
+    >>> gwl_generator = GWLGenerator(df, catalog_cesm)
     >>> models = ["EC-Earth3"]
     >>> reference_periods = [{"start_year": "19810101", "end_year": "20101231"}]
     >>> gwl_generator.generate_gwl_file(models, reference_periods)
