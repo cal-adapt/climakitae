@@ -159,7 +159,7 @@ class DataCatalog(dict):
         self[name] = intake.open_esm_datastore(catalog)
         return self
 
-    def get_data(self, query: dict | object = UNSET) -> dict[str, xr.Dataset]:
+    def get_data(self, query: dict) -> dict[str, xr.Dataset]:
         """
         Get data from the catalog.
 

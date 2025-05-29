@@ -49,3 +49,63 @@ class DataValidator(ParameterValidator):
             "variable_id": UNSET,
         }
         self.catalog = catalog.data
+
+    def is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
+        return super()._is_valid_query(query)
+
+    def _check_user_input(self, query: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        This is where the a lot of validation logic goes for user inputs like:
+        - Station Data
+
+        Parameters
+        ----------
+        user_input : Dict[str, Any]
+            User input to validate.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Validated user input.
+        """
+
+        checks = [
+            (self._contains_station_data(), self._check_valid_station),
+        ]
+
+    def _contains_station_data(self) -> bool:
+        """
+        Check if the query contains station data.
+
+        Returns
+        -------
+        bool
+            True if station data is present, False otherwise.
+        """
+        return "localize" in self.query
+
+    def _check_valid_station(self, query: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Validate the station data in the query.
+
+        Parameters
+        ----------
+        query : Dict[str, Any]
+            Query to validate.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Validated query.
+        """
+        if "station_data" not in query:
+            warnings.warn("No station data provided in the query.")
+            return query
+
+        station_data = query["station_data"]
+        if not isinstance(station_data, dict):
+            raise ValueError("Station data must be a dictionary.")
+
+        # Additional validation logic can be added here
+
+        return query

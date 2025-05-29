@@ -53,3 +53,6 @@ class RenewablesValidator(ParameterValidator):
             "variable_id": UNSET,
         }
         self.catalog = catalog.renewables
+
+    def is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
+        return super()._is_valid_query(query)

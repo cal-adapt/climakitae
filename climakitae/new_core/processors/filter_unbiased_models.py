@@ -109,9 +109,9 @@ class FilterUnbiasedModels(DataProcessor):
                 # check if there are any biased models in the dataset
                 if self._contains_unbiased_models(result):
                     warnings.warn(
-                        f"\n\nYour query selected models that do not have a-priori bias adjustment. "
-                        f"\nThese models HAVE NOT been removed from the returned query."
-                        f"\nProceed with caution as these models may not be suitable for your analysis.\n\n"
+                        "\n\nYour query selected models that do not have a-priori bias adjustment. "
+                        "\nThese models HAVE NOT been removed from the returned query."
+                        "\nProceed with caution as these models may not be suitable for your analysis.\n\n"
                     )
 
                 return result

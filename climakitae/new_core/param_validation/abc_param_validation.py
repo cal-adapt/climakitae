@@ -69,7 +69,24 @@ class ParameterValidator(ABC):
         self.all_catalog_keys = UNSET
         self.load_catalog_df()
 
+    @abstractmethod
     def is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
+        """
+        Validate the query parameters.
+
+        Parameters
+        ----------
+        query : Dict[str, Any]
+            Query parameters to validate
+
+        Returns
+        -------
+        Dict[str, Any] | None
+            Validated query parameters or None if invalid
+        """
+        pass
+
+    def _is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
         """
         Validate parameters and return processed parameters.
 
