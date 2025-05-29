@@ -16,5 +16,6 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install uv
+      - run: uv pip install --only-binary=llvmlite llvmlite
       - run: uv sync
       - run: source .venv/bin/activate
