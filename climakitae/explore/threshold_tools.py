@@ -482,23 +482,24 @@ def _calculate_return(
     try:
         if data_variable == "return_value":
             event_prob = block_size / arg_value
-            if extremes_type == "max":
-                return_event = 1.0 - event_prob
-            elif extremes_type == "min":
-                return_event = event_prob
-            else:
-                raise ValueError("extremes_type must be 'max' or 'min'")
+            match extremes_type:
+                case "max":
+                    return_event = 1.0 - event_prob
+                case "min":
+                    return_event = event_prob
+                case _:
+                    raise ValueError("extremes_type must be 'max' or 'min'")
             return_value = fitted_distr.ppf(return_event)
             result = np.round(return_value, 5)
         else:
             cdf_val = fitted_distr.cdf(arg_value) ** (1 / block_size)
-            if extremes_type == "max":
-                return_prob = 1 - cdf_val
-            elif extremes_type == "min":
-                return_prob = cdf_val
-            else:
-                raise ValueError("extremes_type must be 'max' or 'min'")
-
+            match extremes_type:
+                case "max":
+                    return_prob = 1.0 - cdf_val
+                case "min":
+                    return_prob = cdf_val
+                case _:
+                    raise ValueError("extremes_type must be 'max' or 'min'")
             if data_variable == "return_prob":
                 result = return_prob
             elif data_variable == "return_period":
