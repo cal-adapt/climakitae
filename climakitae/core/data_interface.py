@@ -2029,7 +2029,8 @@ def get_data(
         """
         # Find the WL bounds for LOCA and WRF
         loca, wrf = create_ae_warming_trajectories()
-        loca_max, wrf_max = loca.max().max(), wrf.max().max()
+        loca_max = round(loca.max().max(), 2)
+        wrf_max = round(wrf.max().max(), 2)
 
         match downscaling_method:
             case "Statistical":
