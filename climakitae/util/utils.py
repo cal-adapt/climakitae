@@ -12,6 +12,7 @@ import rioxarray as rio
 from shapely.geometry import mapping
 from typing import Any
 import xarray as xr
+import intake
 from timezonefinder import TimezoneFinder
 
 from climakitae.core.constants import SSPS, UNSET, WARMING_LEVELS

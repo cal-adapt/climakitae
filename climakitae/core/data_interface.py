@@ -51,6 +51,7 @@ from climakitae.util.utils import (
     resolution_to_gridlabel,
     scenario_to_experiment_id,
     timescale_to_table_id,
+    create_ae_warming_trajectories,
 )
 
 # Warnings raised by function get_subsetting_options, not sure why but they are silenced here
@@ -848,6 +849,24 @@ class DataParameters(param.Parameterized):
                 "Historical Reconstruction",
             ]
             self.scenario_historical = ["Historical Climate"]
+
+    @param.depends("downscaling_method", "approach", watch=True)
+    def _validate_warming_levels(self):
+        loca, wrf = create_ae_warming_trajectories()
+        loca_max, wrf_max = loca.max().max(), wrf.max().max()
+        method = self.downscaling_method
+        if method == "Statistical":
+            max_val = loca_max
+        elif method == "Dynamical":
+            max_val = wrf_max
+        elif method == "Dynamical+Statistical":
+            max_val = min(loca_max, wrf_max)
+
+        if any((v < 0 or v > max_val) for v in self.warming_level):
+            raise ValueError(
+                f"All warming_level values must be between 0 and {max_val} "
+                f"for {self.downscaling_method}."
+            )
 
     @param.depends("latitude", "longitude", watch=True)
     def _update_area_subset_to_lat_lon(self):
