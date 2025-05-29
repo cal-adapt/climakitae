@@ -17,5 +17,8 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: | 
+          brew tap homebrew/versions
+          brew install llvm37
+          export LLVM_CONFIG=/usr/local/Cellar/llvm37/3.7.1/bin/llvm-config-3.7
           pip install -U pip uv
           uv sync
