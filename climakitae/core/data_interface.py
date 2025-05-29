@@ -850,24 +850,6 @@ class DataParameters(param.Parameterized):
             ]
             self.scenario_historical = ["Historical Climate"]
 
-    @param.depends("downscaling_method", "approach", watch=True)
-    def _validate_warming_levels(self):
-        loca, wrf = create_ae_warming_trajectories()
-        loca_max, wrf_max = loca.max().max(), wrf.max().max()
-        method = self.downscaling_method
-        if method == "Statistical":
-            max_val = loca_max
-        elif method == "Dynamical":
-            max_val = wrf_max
-        elif method == "Dynamical+Statistical":
-            max_val = min(loca_max, wrf_max)
-
-        if any((v < 0 or v > max_val) for v in self.warming_level):
-            raise ValueError(
-                f"All warming_level values must be between 0 and {max_val} "
-                f"for {self.downscaling_method}."
-            )
-
     @param.depends("latitude", "longitude", watch=True)
     def _update_area_subset_to_lat_lon(self):
         """
@@ -2037,7 +2019,7 @@ def get_data(
 
     # Internal functions
     def _error_handling_warming_level_inputs(
-        wl: Union[list[float], list[int]], argument_name: str
+        wl: Union[list[float], list[int]], argument_name: str, downscaling_method: str
     ):
         """
         Error handling for arguments: warming_level and warming_level_month
@@ -2045,6 +2027,18 @@ def get_data(
         argument_name is either "warming_level" or "warming_level_months" and is used to
         print an appropriate error message for bad input
         """
+        # Find the WL bounds for LOCA and WRF
+        loca, wrf = create_ae_warming_trajectories()
+        loca_max, wrf_max = loca.max().max(), wrf.max().max()
+
+        match downscaling_method:
+            case "Statistical":
+                max_val = loca_max
+            case "Dynamical":
+                max_val = wrf_max
+            case "Dynamical+Statistical":
+                max_val = min(loca_max, wrf_max)
+
         if (wl is not None) and not isinstance(wl, list):
             if isinstance(wl, (float, int)):  # Convert float to a singleton list
                 wl = [wl]
@@ -2055,12 +2049,15 @@ def get_data(
                 )
         if isinstance(wl, list):
             for x in wl:
-                if isinstance(x, (float, int)):
-                    continue
-                raise ValueError(
-                    f"""Function argument {argument_name} requires a float/int or list of
-                    floats/ints input. Your input: {type(x)}"""
-                )
+                if not isinstance(x, (float, int)):
+                    raise ValueError(
+                        f"Each item in '{argument_name}' must be a float or int. Got: {type(x)}"
+                    )
+                if x < 0 or x > max_val:
+                    raise ValueError(
+                        f"{argument_name} value {x} is out of bounds for {downscaling_method}. "
+                        f"Allowed range is 0 to {max_val:.2f}."
+                    )
         return wl
 
     def _error_handling_approach_inputs(
@@ -2230,7 +2227,7 @@ def get_data(
     # Check warming level inputs
     try:
         warming_level = _error_handling_warming_level_inputs(
-            warming_level, "warming_level"
+            warming_level, "warming_level", downscaling_method
         )
         warming_level_months = _error_handling_warming_level_inputs(
             warming_level_months, "warming_level_months"
