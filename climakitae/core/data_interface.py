@@ -2019,7 +2019,10 @@ def get_data(
 
     # Internal functions
     def _error_handling_warming_level_inputs(
-        wl: Union[list[float], list[int]], argument_name: str, downscaling_method: str
+        wl: Union[list[float], list[int]],
+        argument_name: str,
+        downscaling_method: str,
+        resolution: str,
     ):
         """
         Error handling for arguments: warming_level and warming_level_month
@@ -2028,7 +2031,7 @@ def get_data(
         print an appropriate error message for bad input
         """
         # Find the WL bounds for LOCA and WRF
-        loca, wrf = create_ae_warming_trajectories()
+        loca, wrf = create_ae_warming_trajectories(resolution)
         loca_max = round(loca.max().max(), 2)
         wrf_max = round(wrf.max().max(), 2)
 
@@ -2054,11 +2057,12 @@ def get_data(
                     raise ValueError(
                         f"Each item in '{argument_name}' must be a float or int. Got: {type(x)}"
                     )
-                if x < 0 or x > max_val:
-                    raise ValueError(
-                        f"{argument_name} value {x} is out of bounds for {downscaling_method}. "
-                        f"Allowed range is 0 to {max_val:.2f}."
-                    )
+                if argument_name == "warming_level":
+                    if x < 0 or x > max_val:
+                        raise ValueError(
+                            f"{argument_name} value {x}. "
+                            f"Allowed range for {downscaling_method}-downscaled data at {resolution} resolution is 0 to {max_val:.2f}."
+                        )
         return wl
 
     def _error_handling_approach_inputs(
@@ -2228,10 +2232,10 @@ def get_data(
     # Check warming level inputs
     try:
         warming_level = _error_handling_warming_level_inputs(
-            warming_level, "warming_level", downscaling_method
+            warming_level, "warming_level", downscaling_method, resolution
         )
         warming_level_months = _error_handling_warming_level_inputs(
-            warming_level_months, "warming_level_months"
+            warming_level_months, "warming_level_months", downscaling_method, resolution
         )
     except ValueError as error_message:
         print(_format_error_print_message(error_message))

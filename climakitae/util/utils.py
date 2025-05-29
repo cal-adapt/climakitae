@@ -1354,11 +1354,15 @@ def filter_warming_trajectories(simulations_df, warming_trajectories, activity):
     return filtered_trajectories
 
 
-def create_ae_warming_trajectories():
+def create_ae_warming_trajectories(resolution):
     df = intake.open_esm_datastore(data_catalog_url).df
+    grid_label = resolution_to_gridlabel(resolution)
 
+    # Only select simulations with the given grid label, since WRF has a different number of simulations depending on the spatial resolution
+    select_sims = df[df["grid_label"] == grid_label]
     columns_of_interest = ["activity_id", "source_id", "experiment_id", "member_id"]
-    unique_combinations = df[columns_of_interest].drop_duplicates()
+    unique_combinations = select_sims[columns_of_interest].drop_duplicates()
+
     simulations_df = unique_combinations.reset_index(drop=True)
 
     ## 1.2 Load the warming trajectories dataframe, columns for each simulation like "ACCESS-CM2_r3i1p1f1_ssp585"
