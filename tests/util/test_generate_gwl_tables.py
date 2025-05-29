@@ -10,6 +10,7 @@ import s3fs  # Import needed for type hinting
 import xarray as xr
 
 import intake_esm
+import intake
 
 from climakitae.core.constants import WARMING_LEVELS
 from climakitae.util.generate_gwl_tables import (
@@ -64,18 +65,27 @@ def mock_cmip6_df() -> pd.DataFrame:
 
 
 @pytest.fixture
-@patch("GWLGenerator.set_cesm2_lens")
+def cesm_catalog() -> intake_esm.core.esm_datastore:
+    catalog_cesm = intake.open_esm_datastore(
+        "https://raw.githubusercontent.com/NCAR/cesm2-le-aws/main/intake-catalogs/aws-cesm2-le.json"
+    )
+    return catalog_cesm
+
+
+@pytest.fixture
+def mock_cesm2_lens() -> xr.Dataset:
+    return xr.Dataset()
+
+
+@pytest.fixture
 def mock_generator(mock_cmip6_df: pd.DataFrame) -> GWLGenerator:
     """Creates a GWLGenerator instance with mocked S3FileSystem and get_sims_on_aws."""
     with patch("s3fs.S3FileSystem") as mock_s3fs:
         mock_fs_instance = mock_s3fs.return_value
 
-        with (
-            patch.object(
-                GWLGenerator, "get_sims_on_aws", autospec=True
-            ) as mock_get_sims,
-            patch("intake_esm.core.esm_datastore"),
-        ):
+        with patch.object(
+            GWLGenerator, "get_sims_on_aws", autospec=True
+        ) as mock_get_sims:
             # Define a mock sims_on_aws DataFrame structure
             sims_data = {
                 "historical": [["r1i1p1f1", "r2i1p1f1"]],
@@ -87,15 +97,18 @@ def mock_generator(mock_cmip6_df: pd.DataFrame) -> GWLGenerator:
             mock_sims_on_aws = pd.DataFrame(sims_data, index=["EC-Earth3"])
             mock_get_sims.return_value = mock_sims_on_aws
 
-            # Instantiate GWLGenerator; __init__ uses the mocks
-            generator = GWLGenerator(mock_cmip6_df, intake_esm.core.esm_datastore())
+            with patch(
+                "climakitae.util.generate_gwl_tables.GWLGenerator.set_cesm2_lens"
+            ):
+                # Instantiate GWLGenerator; __init__ uses the mocks
+                generator = GWLGenerator(mock_cmip6_df, {})
 
-            # Verify mocks are assigned correctly within the instance
-            assert generator.fs is mock_fs_instance
-            assert generator.sims_on_aws is mock_sims_on_aws
+                # Verify mocks are assigned correctly within the instance
+                assert generator.fs is mock_fs_instance
+                assert generator.sims_on_aws is mock_sims_on_aws
 
-            # Mock the get_mapper method
-            mock_fs_instance.get_mapper = MagicMock(return_value="mock_mapper_path")
+                # Mock the get_mapper method
+                mock_fs_instance.get_mapper = MagicMock(return_value="mock_mapper_path")
 
             return generator
 
@@ -108,9 +121,9 @@ class TestGWLGenerator:
     @patch("climakitae.util.generate_gwl_tables.GWLGenerator.set_cesm2_lens")
     def test_init(
         self,
+        mock_cesm2_lens: MagicMock,
         mock_get_sims_on_aws: MagicMock,
         mock_s3fs: MagicMock,
-        mock_cesm2_lens: MagicMock,
     ):
         """
         Test the __init__ method of GWLGenerator.
@@ -124,7 +137,7 @@ class TestGWLGenerator:
 
         mock_get_sims_on_aws.return_value = mock_sims_return
 
-        generator = GWLGenerator(mock_df, intake_esm.core.esm_datastore())
+        generator = GWLGenerator(mock_df, {})
 
         pd.testing.assert_frame_equal(generator.df, mock_df)
         pd.testing.assert_frame_equal(generator.sims_on_aws, mock_sims_return)
@@ -137,8 +150,7 @@ class TestGWLGenerator:
         )  # Check S3FileSystem was instantiated
 
     @patch("climakitae.util.generate_gwl_tables.GWLGenerator.set_cesm2_lens")
-    @patch("intake_esm.core.esm_datastore")
-    def test_get_sims_on_aws(self):
+    def test_get_sims_on_aws(self, mock_cesm2_lens: MagicMock):
         """Test the get_sims_on_aws method for filtering and structuring simulation data."""
         # More complex df to test filtering logic
         data = {
@@ -198,9 +210,12 @@ class TestGWLGenerator:
             ],
         }
         mock_df = pd.DataFrame(data)
+        mock_cesm_catalog = MagicMock()
 
         # Instantiate Generator, bypassing __init__'s call to the method
-        generator = GWLGenerator(mock_df, sims_on_aws=True)  # Pass dummy value
+        generator = GWLGenerator(
+            mock_df, mock_cesm_catalog, sims_on_aws=True
+        )  # Pass dummy value
         generator.sims_on_aws = None  # Reset so the actual method runs
 
         result_df = generator.get_sims_on_aws()
@@ -1012,9 +1027,7 @@ class TestGWLGenerator:
                 "climakitae.util.generate_gwl_tables.write_csv_file"
             ) as mock_write_csv,
         ):
-            mock_generator.generate_gwl_file(
-                models_list, scenarios_list, ref_periods_list
-            )
+            mock_generator.generate_gwl_file(models_list, ref_periods_list)
 
             # Assert get_gwl_table was called correctly
             mock_get_gwl_table.assert_called_once()
@@ -1058,9 +1071,7 @@ class TestGWLGenerator:
             ) as mock_write_csv,
         ):
             # Should not raise any exceptions, just print message about no data
-            mock_generator.generate_gwl_file(
-                models_list, scenarios_list, ref_periods_list
-            )
+            mock_generator.generate_gwl_file(models_list, ref_periods_list)
             mock_get_gwl_table.assert_called_once()
 
     def test_generate_gwl_file_csv_write_error(self, mock_generator: GWLGenerator):
@@ -1095,9 +1106,7 @@ class TestGWLGenerator:
             ) as mock_write_csv,
         ):
             # Should catch the exception and print error message
-            mock_generator.generate_gwl_file(
-                models_list, scenarios_list, ref_periods_list
-            )
+            mock_generator.generate_gwl_file(models_list, ref_periods_list)
             assert mock_write_csv.call_count == 2
 
     def test_generate_gwl_file_multiple_periods(self, mock_generator: GWLGenerator):
@@ -1133,9 +1142,7 @@ class TestGWLGenerator:
                 "climakitae.util.generate_gwl_tables.write_csv_file"
             ) as mock_write_csv,
         ):
-            mock_generator.generate_gwl_file(
-                models_list, scenarios_list, ref_periods_list
-            )
+            mock_generator.generate_gwl_file(models_list, ref_periods_list)
 
             # Should be called for each model and reference period
             assert mock_get_gwl_table.call_count == 4  # 2 models × 2 periods
@@ -1174,9 +1181,7 @@ class TestGWLGenerator:
             # Since the method doesn't catch this exception (which is what we're trying to test)
             # we need to catch it in the test to verify it's thrown
             try:
-                mock_generator.generate_gwl_file(
-                    models_list, scenarios_list, ref_periods_list
-                )
+                mock_generator.generate_gwl_file(models_list, ref_periods_list)
             except Exception as e:
                 # Verify that the exception came from our mocked method
                 assert str(e) == "Error in get_gwl_table"
@@ -1223,17 +1228,21 @@ class TestGWLGenerator:
             ),
         ):
             # Should catch the IOError and print an error message
-            mock_generator.generate_gwl_file(
-                models_list, scenarios_list, ref_periods_list
-            )
+            mock_generator.generate_gwl_file(models_list, ref_periods_list)
 
 
 class TestMainGWLGenerator:
     """Test the main function of the GWLGenerator module."""
 
     @patch("climakitae.util.generate_gwl_tables.pd.read_csv")
+    @patch("intake_esm.core.esm_datastore")
     @patch("climakitae.util.generate_gwl_tables.GWLGenerator")
-    def test_main(self, mock_gwl_generator_class: MagicMock, mock_read_csv: MagicMock):
+    def test_main(
+        self,
+        mock_gwl_generator_class: MagicMock,
+        mock_esm_datastore: MagicMock,
+        mock_read_csv: MagicMock,
+    ):
         """Test the main execution function."""
         actual_reference_period = [
             {"start_year": "18500101", "end_year": "19000101"},
@@ -1242,6 +1251,7 @@ class TestMainGWLGenerator:
 
         mock_df = MagicMock(spec=pd.DataFrame)
         mock_read_csv.return_value = mock_df
+        mock_esm_datastore.return_value = {}
 
         mock_gwl_instance = MagicMock(spec=GWLGenerator)
         mock_gwl_generator_class.return_value = mock_gwl_instance
@@ -1250,8 +1260,13 @@ class TestMainGWLGenerator:
 
         mock_read_csv.assert_called_once_with(
             "https://cmip6-pds.s3.amazonaws.com/pangeo-cmip6.csv"
+        ),
+        mock_esm_datastore.assert_called_once_with(
+            "https://raw.githubusercontent.com/NCAR/cesm2-le-aws/main/intake-catalogs/aws-cesm2-le.json"
         )
-        mock_gwl_generator_class.assert_called_once_with(mock_df)
+        mock_gwl_generator_class.assert_called_once_with(
+            mock_df, mock_esm_datastore.return_value
+        )
         mock_gwl_instance.generate_gwl_file.assert_called_once_with(
             [],
             actual_reference_period,
@@ -1269,26 +1284,42 @@ class TestMainGWLGenerator:
         )
 
     @patch("climakitae.util.generate_gwl_tables.pd.read_csv")
+    @patch("intake_esm.core.esm_datastore")
     @patch("climakitae.util.generate_gwl_tables.GWLGenerator")
     def test_main_gwl_generator_init_error(
-        self, mock_gwl_generator_class: MagicMock, mock_read_csv: MagicMock
+        self,
+        mock_gwl_generator_class: MagicMock,
+        mock_esm_datastore: MagicMock,
+        mock_read_csv: MagicMock,
     ):
         """Test the main function when GWLGenerator initialization fails."""
         mock_df = MagicMock(spec=pd.DataFrame)
         mock_read_csv.return_value = mock_df
+        mock_esm_datastore.return_value = {}
 
         # Simulate an error initializing the GWLGenerator
         mock_gwl_generator_class.side_effect = Exception("Initialization error")
 
         # The main function should catch the exception and return early
         main()
-        mock_read_csv.assert_called_once()
-        mock_gwl_generator_class.assert_called_once_with(mock_df)
+        mock_read_csv.assert_called_once_with(
+            "https://cmip6-pds.s3.amazonaws.com/pangeo-cmip6.csv"
+        ),
+        mock_esm_datastore.assert_called_once_with(
+            "https://raw.githubusercontent.com/NCAR/cesm2-le-aws/main/intake-catalogs/aws-cesm2-le.json"
+        )
+        mock_gwl_generator_class.assert_called_once_with(
+            mock_df, mock_esm_datastore.return_value
+        )
 
     @patch("climakitae.util.generate_gwl_tables.pd.read_csv")
+    @patch("intake_esm.core.esm_datastore")
     @patch("climakitae.util.generate_gwl_tables.GWLGenerator")
     def test_main_generate_gwl_file_error(
-        self, mock_gwl_generator_class: MagicMock, mock_read_csv: MagicMock
+        self,
+        mock_gwl_generator_class: MagicMock,
+        mock_esm_datastore: MagicMock,
+        mock_read_csv: MagicMock,
     ):
         """Test the main function when generate_gwl_file raises an exception."""
         actual_reference_period = [
@@ -1298,6 +1329,7 @@ class TestMainGWLGenerator:
 
         mock_df = MagicMock(spec=pd.DataFrame)
         mock_read_csv.return_value = mock_df
+        mock_esm_datastore.return_value = {}
 
         mock_gwl_instance = MagicMock(spec=GWLGenerator)
         mock_gwl_instance.generate_gwl_file.side_effect = Exception(
@@ -1313,8 +1345,15 @@ class TestMainGWLGenerator:
             pytest.fail(f"main() raised {type(e).__name__} unexpectedly: {e}")
 
         # Verify the mocks were called correctly
-        mock_read_csv.assert_called_once()
-        mock_gwl_generator_class.assert_called_once_with(mock_df)
+        mock_read_csv.assert_called_once_with(
+            "https://cmip6-pds.s3.amazonaws.com/pangeo-cmip6.csv"
+        ),
+        mock_esm_datastore.assert_called_once_with(
+            "https://raw.githubusercontent.com/NCAR/cesm2-le-aws/main/intake-catalogs/aws-cesm2-le.json"
+        )
+        mock_gwl_generator_class.assert_called_once_with(
+            mock_df, mock_esm_datastore.return_value
+        )
         mock_gwl_instance.generate_gwl_file.assert_called_once_with(
             [],
             actual_reference_period,
