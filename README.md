@@ -72,14 +72,31 @@ source .venv/bin/activate
 ```
 
 ### MacOS
-The instructions for MacOS are a little more involved 
+The instructions for MacOS are a little more involved due to some library management.
 
+set up dependencies for llvm:
+```zsh
 brew install llvm@14
 export PATH="/opt/homebrew/opt/llvm@14/bin:$PATH"
 export LLVM_CONFIG="/opt/homebrew/opt/llvm@14/bin/llvm-config"
-pip install -U pip uv
-source .venv/bin/activate
+```
+
+install `uv`
+```zsh
+pip install uv
+```
+
+install dependencies for `climakitae`:
+```zsh
 uv sync
+```
+
+activate your virtual environment:
+```zsh
+source .venv/bin/activate
+```
+
+### Testing install environment
 
 You can test your environment works by opening `examples/example_plot_pajaro.ipynb`, setting your kernel to `.venv/bin/python` and running all cells.
 

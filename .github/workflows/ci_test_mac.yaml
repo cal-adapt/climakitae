@@ -21,5 +21,4 @@ jobs:
           export PATH="/opt/homebrew/opt/llvm@14/bin:$PATH"
           export LLVM_CONFIG="/opt/homebrew/opt/llvm@14/bin/llvm-config"
           pip install -U pip uv
-          source .venv/bin/activate
           uv sync
