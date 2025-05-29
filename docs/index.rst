@@ -16,7 +16,7 @@ scientific analyses with climate data from the Cal-Adapt Analytics Engine.
 
     .. grid-item-card:: Getting Started
         :img-top: _static/runner.svg
-        :link: https://github.com/cal-adapt/cae-notebooks/blob/main/data-access/interactive_data_access_and_viz.ipynb
+        :link: https://github.com/cal-adapt/cae-notebooks/blob/main/data-access/basic_data_access.ipynb
         :columns: 3
 
         An introductory notebook demonstrating how to get started with *climakitae* and 
