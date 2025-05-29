@@ -23,7 +23,6 @@ dependencies = [
     "pip==24.3.1",
     "boltons==24.0.0",
     "jsonpickle==4.0.0",
-    "llvmlite==0.43.0",
     "bottleneck==1.4.2",
     "boto3==1.35.88",
     "tqdm==4.67.1",
@@ -108,6 +107,7 @@ docs = [
 ]
 tests = [
     "pytest",
+    "pytest-cov",
 ]
 
 [tool.setuptools]
