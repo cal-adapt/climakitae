@@ -1,0 +1,20 @@
+# Workflow file for continuous integration
+# Conda environment is caches to avoid long wait times for CI
+# Based on code from: https://github.com/epassaro/cache-conda-envs/blob/main/.github/workflows/ci.yml
+# Based on code from: https://github.com/marketplace/actions/setup-miniconda
+# Added to Test commit workflow
+
+
+name: Test macOS
+on: [push]
+jobs:
+  test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - run: pip install uv
+      - run: uv sync
+      - run: source .venv/bin/activate
