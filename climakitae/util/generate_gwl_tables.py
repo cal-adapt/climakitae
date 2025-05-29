@@ -2,7 +2,6 @@
 Util for generating warming level reference data in ../data/ ###
 
 To run, type: <<python generate_gwl_tables.py>> in the command line and wait for printed model outputs showing progress.
-Generation takes ~1.5 hours for generating all 4 csv's.
 """
 
 import cftime
@@ -83,10 +82,15 @@ class GWLGenerator:
     ----------
     df : pandas.DataFrame
         DataFrame containing metadata for CMIP6 simulations
+
     sims_on_aws : pandas.DataFrame
         DataFrame listing available simulations on AWS
     fs : s3fs.S3FileSystem
         S3 file system object for accessing AWS data
+    ens_mem_cesm: dict
+        List of realizations for CESM2
+    cesm2_lens: xr.Dataset
+        CESM2 LENS data loaded from catalog
 
     Methods
     -------
@@ -127,6 +131,8 @@ class GWLGenerator:
         ----------
         df : pandas.DataFrame
             DataFrame containing metadata for CMIP6 simulations
+        catalog_cesm: intake_esm.esm_datastore
+            Intake ESM catalog pointing to CESM2 data
         sims_on_aws : pandas.DataFrame, optional
             DataFrame listing available simulations on AWS. If None, it will be generated.
         """
@@ -154,6 +160,19 @@ class GWLGenerator:
         self.cesm2_lens = self.set_cesm2_lens(catalog_cesm)
 
     def set_cesm2_lens(self, catalog_cesm: intake_esm.core.esm_datastore) -> xr.Dataset:
+        """
+        Pull CESM2 LENS dataset subset from Intake catalog and reformat datasets.
+
+        Parameters:
+        -----------
+        catalog_cesm: intake_esm.esm_datastore
+            Intake ESM catalog pointing to CESM2 data
+
+        Returns:
+        --------
+        xr.Dataset
+            CESM2 data for historical and ssp370
+        """
         catalog_cesm_subset = catalog_cesm.search(
             variable="TREFHT", frequency="monthly", forcing_variant="cmip6"
         )
@@ -541,7 +560,7 @@ class GWLGenerator:
         self, model_config: dict, reference_period: dict
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """
-        Generates a GWL table for a given model and scenarios.
+        Generates a GWL table for a given model.
 
         Parameters:
         ----------
@@ -558,7 +577,6 @@ class GWLGenerator:
         """
         global test
         model = model_config["model"]
-        scenarios = model_config["scenarios"]
 
         ens_mem_list = self.sims_on_aws.T[model]["historical"].copy()
         if test:
