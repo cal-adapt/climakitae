@@ -18,7 +18,12 @@ from timezonefinder import TimezoneFinder
 from climakitae.core.constants import SSPS, UNSET, WARMING_LEVELS
 
 # from climakitae.core.data_interface import DataParameters
-from climakitae.core.paths import data_catalog_url, stations_csv_path
+from climakitae.core.paths import (
+    data_catalog_url,
+    stations_csv_path,
+    gwl_1850_1900_file,
+    gwl_1850_1900_timeidx_file,
+)
 
 
 def downscaling_method_as_list(downscaling_method: str) -> list[str]:
@@ -1189,63 +1194,6 @@ def stack_sims_across_locs(ds):
     return ds
 
 
-def read_warming_level_csvs() -> tuple[pd.DataFrame, pd.DataFrame]:
-    """
-    Reads two CSV files containing global warming level (GWL) data.
-
-    Returns:
-        tuple:
-            - df (pd.DataFrame): Time-indexed DataFrame with simulations as columns, filled with WL values at each simulation x time combination.
-              Loaded from 'data/gwl_1850-1900ref_timeidx.csv' with 'time' as the parsed datetime index.
-
-            - other_df (pd.DataFrame): DataFrame containing WL information with warming levels as the columns, and simulations as the index.
-              Loaded from 'data/gwl_1850-1900ref.csv' without a datetime index.
-    """
-    df = read_csv_file(
-        "data/gwl_1850-1900ref_timeidx.csv", index_col="time", parse_dates=True
-    )
-    other_df = read_csv_file("data/gwl_1850-1900ref.csv")
-    return df, other_df
-
-
-def get_wl_timestamp(series: pd.Series, degree: float) -> str:
-    """
-    Find the first timestamp where the warming level crosses the specified degree.
-    Return timestamp as string; return np.nan if never crosses.
-    """
-    if any(series >= degree):
-        return series[series >= degree].index[0].strftime("%Y-%m-%d %H:%M")
-    return np.nan
-
-
-def create_new_warming_level_table(warming_level: float) -> pd.DataFrame:
-    """
-    Returns a table of timestamps when each simulation reaches the given warming level.
-
-    Parameters:
-        warming_level (float): New WL to retrieve WL timing for.
-
-    Returns:
-        pd.DataFrame: Same DataFrame as `data/gwl_1850-1900ref.csv`, just with a new WL columns with the `warming_level` arg passed.
-    """
-    df, other_df = read_warming_level_csvs()
-
-    # Map each simulation to its crossing timestamp for the given warming level
-    wl_timestamps = {
-        col: get_wl_timestamp(df[col], warming_level) for col in df.columns
-    }
-
-    result = other_df.copy(deep=True)
-    result["sim"] = result["GCM"] + "_" + result["run"] + "_" + result["scenario"]
-    timestamp_series = pd.Series(wl_timestamps)
-
-    result[str(warming_level)] = result["sim"].map(timestamp_series)
-    result = result.drop(columns="sim")
-    result = result.set_index(["GCM", "run", "scenario"])
-
-    return result
-
-
 def clip_to_shapefile(
     data: xr.Dataset | xr.DataArray,
     shapefile_path: str,
@@ -1329,53 +1277,125 @@ def clip_to_shapefile(
     return clipped
 
 
-def filter_warming_trajectories(simulations_df, warming_trajectories, activity):
+def read_warming_level_csvs() -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Reads two CSV files containing global warming level (GWL) data.
+
+    Returns:
+        tuple:
+            - df (pd.DataFrame): Time-indexed DataFrame (time as index, simulations as columns).
+            - other_df (pd.DataFrame): DataFrame with warming levels per simulation (no datetime index).
+    """
+    df = read_csv_file(gwl_1850_1900_timeidx_file, index_col="time", parse_dates=True)
+    other_df = read_csv_file(gwl_1850_1900_file)
+    return df, other_df
+
+
+def get_wl_timestamp(series: pd.Series, degree: float) -> Union[str, float]:
+    """
+    Finds the first timestamp when the series crosses the specified warming level.
+
+    Parameters:
+        series (pd.Series): A time-indexed warming level series.
+        degree (float): Target warming level.
+
+    Returns:
+        str or float: Timestamp as string if crossed, else np.nan.
+    """
+    if any(series >= degree):
+        return series[series >= degree].index[0].strftime("%Y-%m-%d %H:%M")
+    return np.nan
+
+
+def create_new_warming_level_table(warming_level: float) -> pd.DataFrame:
+    """
+    Returns a table of timestamps when each simulation reaches the given warming level.
+
+    Parameters:
+        warming_level (float): New WL to retrieve WL timing for.
+
+    Returns:
+        pd.DataFrame: Same DataFrame as `data/gwl_1850-1900ref.csv`, just with a new WL columns with the `warming_level` arg passed.
+    """
+    df, other_df = read_warming_level_csvs()
+
+    # Map each simulation to its crossing timestamp for the given warming level
+    wl_timestamps = {
+        col: get_wl_timestamp(df[col], warming_level) for col in df.columns
+    }
+
+    result = other_df.copy(deep=True)
+    result["sim"] = result["GCM"] + "_" + result["run"] + "_" + result["scenario"]
+    timestamp_series = pd.Series(wl_timestamps)
+
+    result[str(warming_level)] = result["sim"].map(timestamp_series)
+    result = result.drop(columns="sim")
+    result = result.set_index(["GCM", "run", "scenario"])
+
+    return result
+
+
+def filter_warming_trajectories_to_ae(
+    simulations_df: pd.DataFrame,
+    warming_trajectories: pd.DataFrame,
+    downscaling_method: str,
+) -> pd.DataFrame:
+    """
+    Filters all simulations in `warming_trajectories` to only the ones we have on AE (`simulations_df`).
+    Does this filtering by `downscaling_method` as well.
+
+    Parameters:
+        simulations_df (pd.DataFrame): Complete simulation dataframe of all simulations in GWL tables.
+        warming_trajectories (pd.DataFrame): Full warming trajectory DataFrame, computed from `read_warming_level_csvs`.
+        downscaling_method (str): Downscaling method to filter DataFrame by ('LOCA' or 'WRF').
+
+    Returns:
+        pd.DataFrame: Filtered `simulations_df` to only simulations accessible on AE.
+    """
     columns_to_keep = []
+    activity_simulations = simulations_df[
+        simulations_df["activity_id"] == downscaling_method
+    ]
 
-    # Filter simulations_df for the specific activity
-    activity_simulations = simulations_df[simulations_df["activity_id"] == activity]
-
-    # Iterate through each row in the filtered simulations_df
     for _, row in activity_simulations.iterrows():
-        # Construct the column name pattern
-        column_pattern = f"{row['source_id']}_{row['member_id']}_{row['experiment_id']}"
+        pattern = f"{row['source_id']}_{row['member_id']}_{row['experiment_id']}"
+        matches = [col for col in warming_trajectories.columns if pattern in col]
+        columns_to_keep.extend(matches)
 
-        # Find matching columns in warming_trajectories
-        matching_columns = [
-            col for col in warming_trajectories.columns if column_pattern in col
-        ]
-
-        # Add matching columns to our list
-        columns_to_keep.extend(matching_columns)
-
-    # Create a new DataFrame with only the relevant columns
-    filtered_trajectories = warming_trajectories[columns_to_keep]
-
-    return filtered_trajectories
+    return warming_trajectories[columns_to_keep]
 
 
-def create_ae_warming_trajectories(resolution):
+def create_ae_warming_trajectories(
+    resolution: str,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Creates warming trajectories for all AE simulations based on a given resolution.
+    This resolution is an important parameter because not all resolutions have the same number of WRF simulations (i.e. 3km has 8 but 9km has 10).
+
+    Parameters:
+        resolution (str): Grid resolution (e.g., "6km", "12km").
+
+    Returns:
+        tuple:
+            - LOCA2 warming trajectories (pd.DataFrame)
+            - WRF warming trajectories (pd.DataFrame)
+    """
     df = intake.open_esm_datastore(data_catalog_url).df
     grid_label = resolution_to_gridlabel(resolution)
 
     # Only select simulations with the given grid label, since WRF has a different number of simulations depending on the spatial resolution
     select_sims = df[df["grid_label"] == grid_label]
-    columns_of_interest = ["activity_id", "source_id", "experiment_id", "member_id"]
-    unique_combinations = select_sims[columns_of_interest].drop_duplicates()
 
-    simulations_df = unique_combinations.reset_index(drop=True)
-
-    ## 1.2 Load the warming trajectories dataframe, columns for each simulation like "ACCESS-CM2_r3i1p1f1_ssp585"
+    simulations_df = (
+        select_sims[["activity_id", "source_id", "experiment_id", "member_id"]]
+        .drop_duplicates()
+        .reset_index(drop=True)
+    )
     warming_trajectories, _ = read_warming_level_csvs()
 
-    # Filter for LOCA2 simulations
-    loca2_warming_trajectories = filter_warming_trajectories(
+    loca2 = filter_warming_trajectories_to_ae(
         simulations_df, warming_trajectories, "LOCA2"
     )
+    wrf = filter_warming_trajectories_to_ae(simulations_df, warming_trajectories, "WRF")
 
-    # Filter for WRF simulations
-    wrf_warming_trajectories = filter_warming_trajectories(
-        simulations_df, warming_trajectories, "WRF"
-    )
-
-    return loca2_warming_trajectories, wrf_warming_trajectories
+    return loca2, wrf
