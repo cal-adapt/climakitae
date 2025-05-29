@@ -17,7 +17,7 @@ classifiers = [
     "Operating System :: OS Independent",
     "Development Status :: 1 - Planning",
 ]
-requires-python = ">=3.12"
+requires-python = "==3.11.*"
 dependencies = [
     "setuptools==75.8.2",
     "pip==24.3.1",
