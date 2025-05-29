@@ -17,7 +17,6 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: | 
-          brew install llvm
-          brew install llvmlite
           pip install -U pip uv
+          pip install llvmlite
           uv sync
