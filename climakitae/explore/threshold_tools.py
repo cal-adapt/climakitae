@@ -193,7 +193,7 @@ def get_block_maxima(
         else:
             dropped_bms = bms.dropna(dim="time")
             print(
-                f"Dropping {bms.size - dropped_bms.size} block maxima NaNs for across entire{f' {bms.name}' if bms.name else ''} DataArray. Please guidance for more information. "
+                f"Dropping {bms.size - dropped_bms.size} block maxima NaNs across entire{f' {bms.name}' if bms.name else ''} DataArray. Please guidance for more information. "
             )
             bms = dropped_bms
 
