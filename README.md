@@ -14,7 +14,7 @@ Climakitae provides intuitive tools for accessing, analyzing, and visualizing do
 > [!WARNING]
 > This package is under active development. APIs may change between versions.
 
-## ✨ Key Features
+## Key Features
 
 - 🌡️ **Comprehensive Climate Data Access**: Retrieve temperature, precipitation, and derived climate variables
 - 📊 **Downscaled Climate Models**: Access both dynamical (WRF) and statistical (LOCA) downscaling methods  
@@ -23,7 +23,7 @@ Climakitae provides intuitive tools for accessing, analyzing, and visualizing do
 - 🔧 **Flexible Data Export**: Export to NetCDF, CSV, and specialized formats
 - 📱 **GUI Integration**: Works seamlessly with [climakitaegui](https://github.com/cal-adapt/climakitaegui) for interactive analysis
 
-## 🚀 Quick Start 
+## Quick Start 
 
 ### Installation
 
@@ -78,7 +78,7 @@ results = cava_data(
 )
 ```
 
-## 📚 Documentation
+## Documentation
 
 | Resource | Description |
 |----------|-------------|
@@ -87,7 +87,7 @@ results = cava_data(
 | [**Examples**](examples/) | Sample notebooks and scripts |
 | [**Contributing**](https://climakitae.readthedocs.io/en/latest/contribute.html) | Development guidelines |
 
-## 🛠️ Development Setup
+## Development Setup
 
 ### Prerequisites
 
@@ -148,11 +148,11 @@ pytest
 pytest --cov=climakitae --cov-report=html
 ```
 
-## 🌍 About Cal-Adapt
+## About Cal-Adapt
 
 Climakitae is developed as part of the [Cal-Adapt Analytics Engine](https://analytics.cal-adapt.org), California's premier platform for climate data and tools. Cal-Adapt provides access to cutting-edge climate science to support adaptation planning and decision-making.
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Please see our [contributing guidelines](https://climakitae.readthedocs.io/en/latest/contribute.html) for details on:
 
@@ -178,16 +178,16 @@ isort climakitae/
 # Submit a pull request
 ```
 
-## 📄 License
+## License
 
 This project is licensed under the BSD 3-Clause License - see the [LICENSE](LICENSE) file for details.
 
-## 🔗 Related Projects
+## Related Projects
 
 - [**climakitaegui**](https://github.com/cal-adapt/climakitaegui) - Interactive GUI tools for climakitae
 - [**cae-notebooks**](https://github.com/cal-adapt/cae-notebooks) - Example notebooks and tutorials
 
-## 📞 Support
+## Support
 
 - 📧 **Email**: [analytics@cal-adapt.org](mailto:analytics@cal-adapt.org)
 - 🐛 **Issues**: [GitHub Issues](https://github.com/cal-adapt/climakitae/issues)
@@ -195,8 +195,6 @@ This project is licensed under the BSD 3-Clause License - see the [LICENSE](LICE
 
 ---
 
-## 👥 Contributors
+## Contributors
 
 [![Contributors](https://contrib.rocks/image?repo=cal-adapt/climakitae)](https://github.com/cal-adapt/climakitae/graphs/contributors)
-
-*Made with [contrib.rocks](https://contrib.rocks).*
