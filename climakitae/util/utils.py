@@ -14,10 +14,10 @@ from typing import Any
 import xarray as xr
 from timezonefinder import TimezoneFinder
 
-from climakitae.core.constants import SSPS, UNSET
+from climakitae.core.constants import SSPS
+from climakitae.core.paths import DATA_CATALOG_URL, STATIONS_CSV_PATH
 
-# from climakitae.core.data_interface import DataParameters
-from climakitae.core.paths import data_catalog_url, stations_csv_path
+from climakitae.core.constants import SSPS, UNSET
 
 
 def downscaling_method_as_list(downscaling_method: str) -> list[str]:
@@ -792,7 +792,7 @@ def convert_to_local_time(data: xr.DataArray, selections) -> xr.DataArray:
     # Get latitude/longitude information
     if selections.data_type == "Stations":
         # Read stations database
-        stations_df = read_csv_file(stations_csv_path)
+        stations_df = read_csv_file(STATIONS_CSV_PATH)
         stations_df = stations_df.drop(columns=["Unnamed: 0"])
 
         # Filter by selected station(s) - assume first station if multiple

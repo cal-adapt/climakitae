@@ -1,0 +1,206 @@
+"""Data processing module for climakitae.""" ""
+from abc import ABC, abstractmethod
+from typing import Any, Callable, Dict, Iterable, Union
+
+import xarray as xr
+
+from climakitae.core.constants import UNSET
+from climakitae.new_core.data_access import DataCatalog
+
+# Registry to hold all registered processors
+_PROCESSOR_REGISTRY = {}
+
+
+def register_processor(
+    key: str | object = UNSET, priority: int | object = UNSET
+) -> Callable:
+    """
+    Decorator to register a processor class.
+
+    Parameters
+    ----------
+    key : str, optional
+        The key to register the processor under. If not provided, a key
+        will be generated from the class name.
+
+    Returns
+    -------
+    callable
+        The decorator function that registers the processor class.
+    """
+
+    def decorator(cls):
+        # If no key is provided, generate one from the class name
+        processor_key = (
+            key
+            if key is not UNSET
+            else "".join(
+                ["_" + c.lower() if c.isupper() else c for c in cls.__name__]
+            ).lstrip("_")
+        )
+        _PROCESSOR_REGISTRY[processor_key] = (cls, priority)
+        return cls
+
+    return decorator
+
+
+class DataProcessor(ABC):
+    """
+    Abstract base class for data processing.
+
+    Each subclass must have an the following methods:
+    - `execute`: Process the data.
+    - `update_context`: Update the context with additional parameters.
+    - `set_data_accessor`: Set the data accessor for the processor.
+
+    Notes on building a processor:
+    - The processor should only store the parameters needed for processing.
+    - The processor should not store the data itself.
+    - The processor should not throw exceptions. Instead, it should return the data
+    passed to it and a warning message
+    - All data processors should update the context with some information about how they
+    modified the data in order to keep track of the processing history and append to the
+    metadata of the data at the end of the chain.
+    """
+
+    @abstractmethod
+    def execute(
+        self,
+        result: Union[
+            xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
+        ],
+        context: Dict[str, Any],
+    ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
+        """
+        Process raw data into the required format.
+
+        Parameters
+        ----------
+        result : object
+            data to be processed.
+        context : dict
+            Parameters for processing the data.
+
+        Returns
+        -------
+        DataArray
+            Processed data in the form of a DataArray.
+
+        Raises
+        ------
+        ValueError
+            If the data cannot be processed.
+        """
+
+    @abstractmethod
+    def update_context(self, context: Dict[str, Any]):
+        """
+        Update the context with additional parameters.
+
+        Parameters
+        ----------
+        context : dict
+            Parameters for processing the data.
+
+        Returns
+        -------
+        None
+            Updates the context in place.
+        """
+
+    @abstractmethod
+    def set_data_accessor(self, catalog: DataCatalog):
+        """
+        Set the data accessor for the processor.
+
+        Parameters
+        ----------
+        catalog : DataCatalog
+            Data catalog for accessing datasets.
+
+        Returns
+        -------
+        None
+            Sets the data accessor in place.
+        """
+
+
+# @register_processor("rename_variables")
+class RenameVariables(DataProcessor):
+    """
+    Rename variables in the data to user-friendly names.
+
+    This class is a placeholder for variable renaming logic.
+    """
+
+    def execute(
+        self,
+        result: Union[
+            xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
+        ],
+        context: Dict[str, Any],
+    ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
+        # Placeholder for variable renaming logic
+        return result
+
+    def update_context(self, context: Dict[str, Any]):
+        # Placeholder for updating context
+        pass
+
+    def set_data_accessor(self, catalog: DataCatalog):
+        # Placeholder for setting data accessor
+        pass
+
+
+# @register_processor("apply_bias_correction")
+class ApplyBiasCorrection(DataProcessor):
+    """
+    Apply bias correction to the data.
+
+    This class is a placeholder for bias correction logic.
+    """
+
+    def execute(
+        self,
+        result: Union[
+            xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
+        ],
+        context: Dict[str, Any],
+    ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
+        # Placeholder for bias correction logic
+        return result
+
+    def update_context(self, context: Dict[str, Any]):
+        # Placeholder for updating context
+        pass
+
+    def set_data_accessor(self, catalog: DataCatalog):
+        # Placeholder for setting data accessor
+        pass
+
+
+# @register_processor("filter_data")
+class FilterData(DataProcessor):
+    """
+    Filter data based on certain criteria.
+
+    This class is a placeholder for data filtering logic.
+    """
+
+    def execute(
+        self,
+        result: Union[
+            xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
+        ],
+        context: Dict[str, Any],
+    ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
+        # Placeholder for data filtering logic
+        return result
+
+    def update_context(self, context: Dict[str, Any]):
+        # Placeholder for updating context
+        pass
+
+    def set_data_accessor(self, catalog: DataCatalog):
+        # Placeholder for setting data accessor
+        pass

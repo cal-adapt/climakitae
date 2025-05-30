@@ -6,16 +6,17 @@ Outputs a csv file for reference in ../data/ ###
 To run, type: <<python generate_gwl_timing_table.py>> in the command line. Runs in about 20 seconds and returns no output.
 """
 
-from climakitae.util.utils import read_csv_file, write_csv_file
 import numpy as np
 import pandas as pd
+
 from climakitae.core.paths import (
-    ssp119_file,
-    ssp126_file,
-    ssp245_file,
-    ssp370_file,
-    ssp585_file,
+    SSP119_FILE,
+    SSP126_FILE,
+    SSP245_FILE,
+    SSP370_FILE,
+    SSP585_FILE,
 )
+from climakitae.util.utils import read_csv_file, write_csv_file
 
 
 def main():
@@ -29,11 +30,11 @@ def main():
     """
 
     # load IPCC scenaario trajectories
-    ssp119_data = read_csv_file(ssp119_file, index_col="Year")
-    ssp126_data = read_csv_file(ssp126_file, index_col="Year")
-    ssp245_data = read_csv_file(ssp245_file, index_col="Year")
-    ssp370_data = read_csv_file(ssp370_file, index_col="Year")
-    ssp585_data = read_csv_file(ssp585_file, index_col="Year")
+    ssp119_data = read_csv_file(SSP119_FILE, index_col="Year")
+    ssp126_data = read_csv_file(SSP126_FILE, index_col="Year")
+    ssp245_data = read_csv_file(SSP245_FILE, index_col="Year")
+    ssp370_data = read_csv_file(SSP370_FILE, index_col="Year")
+    ssp585_data = read_csv_file(SSP585_FILE, index_col="Year")
 
     ssp_dict = {
         "SSP_1-1.9": ssp119_data,

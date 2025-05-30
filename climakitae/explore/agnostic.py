@@ -1,24 +1,26 @@
 """Backend for agnostic tools."""
 
+import warnings
+from typing import Tuple, Union
+
+import intake
 import numpy as np
 import pandas as pd
-from dask import compute
 import xarray as xr
-import intake
+from dask import compute
+
+from climakitae.core.constants import SSPS
 from climakitae.core.data_interface import (
     DataInterface,
     DataParameters,
-    _get_variable_options_df,
     _get_user_options,
+    _get_variable_options_df,
 )
-from climakitae.util.utils import read_csv_file, get_closest_gridcell
-from climakitae.core.paths import variable_descriptions_csv_path, data_catalog_url
-from climakitae.util.unit_conversions import get_unit_conversion_options
-from typing import Union, Tuple
 from climakitae.core.data_load import load
+from climakitae.core.paths import DATA_CATALOG_URL, VARIABLE_DESCRIPTIONS_CSV_PATH
 from climakitae.util.logger import logger
-from climakitae.core.constants import SSPS
-import warnings
+from climakitae.util.unit_conversions import get_unit_conversion_options
+from climakitae.util.utils import get_closest_gridcell, read_csv_file
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
@@ -108,7 +110,7 @@ def _round_to_nearest_half(number):
 
 def _get_var_info(variable, downscaling_method, wrf_timescale="monthly"):
     """Gets the variable info for the specific variable name and downscaling method"""
-    var_desc_df = read_csv_file(variable_descriptions_csv_path)
+    var_desc_df = read_csv_file(VARIABLE_DESCRIPTIONS_CSV_PATH)
     _validate_timescale(wrf_timescale)
     timescale = wrf_timescale if downscaling_method == "Dynamical" else "monthly"
     return var_desc_df[
@@ -367,8 +369,8 @@ def show_available_vars(downscaling_method, wrf_timescale="monthly"):
     _validate_timescale(wrf_timescale)
 
     # Read in catalogs
-    data_catalog = intake.open_esm_datastore(data_catalog_url)
-    var_desc = read_csv_file(variable_descriptions_csv_path)
+    data_catalog = intake.open_esm_datastore(DATA_CATALOG_URL)
+    var_desc = read_csv_file(VARIABLE_DESCRIPTIONS_CSV_PATH)
 
     # Get available variable IDs
     if downscaling_method == "Statistical":
