@@ -8,6 +8,7 @@ Climakitae
 [![Python](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)  
+[![Development Status](https://img.shields.io/badge/Development%20Status-1%20--%20Planning-red)](https://pypi.org/classifiers/)
 
 A python toolkit for retrieving and performing scientific analyses with climate data from the [Cal-Adapt Analytics Engine](https://analytics.cal-adapt.org).
 
