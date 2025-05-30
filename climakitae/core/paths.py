@@ -23,6 +23,8 @@ categorical_cb = "data/cmaps/categorical_cb.txt"
 # Global warming levels files
 gwl_1850_1900_file = "data/gwl_1850-1900ref.csv"
 gwl_1981_2010_file = "data/gwl_1981-2010ref.csv"
+GWL_1850_1900_TIMEIDX_FILE = "data/gwl_1850-1900ref_timeidx.csv"
+GWL_1981_2010_TIMEIDX_FILE = "data/gwl_1981-2010ref_timeidx.csv"
 
 # GMT context plot files
 ssp119_file = "data/tas_global_SSP1_1_9.csv"
