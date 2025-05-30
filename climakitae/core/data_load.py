@@ -19,6 +19,7 @@ from xclim.sdba import Grouper
 from xclim.sdba.adjustment import QuantileDeltaMapping
 
 from climakitae.core.boundaries import Boundaries
+from climakitae.core.constants import WARMING_LEVELS
 from climakitae.tools.derived_variables import (
     compute_dewpointtemp,
     compute_relative_humidity,
@@ -39,6 +40,7 @@ from climakitae.util.utils import (
     resolution_to_gridlabel,
     scenario_to_experiment_id,
     timescale_to_table_id,
+    create_new_warming_level_table,
 )
 from climakitae.util.warming_levels import calculate_warming_level, drop_invalid_sims
 
@@ -1204,7 +1206,6 @@ def read_catalog_from_select(selections: "DataParameters") -> xr.DataArray:
 
     # Raise appropriate errors for time-based retrieval
     if selections.approach == "Time":
-
         if (selections.scenario_ssp != []) and (
             "Historical Reconstruction" in selections.scenario_historical
         ):
@@ -1367,14 +1368,16 @@ def _apply_warming_levels_approach(
     # We need to drop them here such that the global warming levels table can be adequately parsed by the calculate_warming_level function
     data_stacked = drop_invalid_sims(data_stacked, selections)
 
-    # Calculate warming level DataArray for each individual warming level
-    # Function will be applied for each individual warming level
-    # Then, the list of DataArrays (one for each warming level) will be concatenated into a single DataArray object
     da_list = []
     for level in selections.warming_level:
+        gwl_table = selections._warming_level_times
+
+        if level not in WARMING_LEVELS:
+            gwl_table = create_new_warming_level_table(warming_level=level)
+
         da_by_wl = calculate_warming_level(
             data_stacked,
-            gwl_times=selections._warming_level_times,
+            gwl_times=gwl_table,
             level=level,
             months=selections.warming_level_months,
             window=selections.warming_level_window,

@@ -12,9 +12,10 @@ import rioxarray as rio
 from shapely.geometry import mapping
 from typing import Any
 import xarray as xr
+import intake
 from timezonefinder import TimezoneFinder
 
-from climakitae.core.constants import SSPS, UNSET
+from climakitae.core.constants import SSPS, UNSET, WARMING_LEVELS
 
 # from climakitae.core.data_interface import DataParameters
 from climakitae.core.paths import data_catalog_url, stations_csv_path
@@ -1188,6 +1189,63 @@ def stack_sims_across_locs(ds):
     return ds
 
 
+def read_warming_level_csvs() -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Reads two CSV files containing global warming level (GWL) data.
+
+    Returns:
+        tuple:
+            - df (pd.DataFrame): Time-indexed DataFrame with simulations as columns, filled with WL values at each simulation x time combination.
+              Loaded from 'data/gwl_1850-1900ref_timeidx.csv' with 'time' as the parsed datetime index.
+
+            - other_df (pd.DataFrame): DataFrame containing WL information with warming levels as the columns, and simulations as the index.
+              Loaded from 'data/gwl_1850-1900ref.csv' without a datetime index.
+    """
+    df = read_csv_file(
+        "data/gwl_1850-1900ref_timeidx.csv", index_col="time", parse_dates=True
+    )
+    other_df = read_csv_file("data/gwl_1850-1900ref.csv")
+    return df, other_df
+
+
+def get_wl_timestamp(series: pd.Series, degree: float) -> str:
+    """
+    Find the first timestamp where the warming level crosses the specified degree.
+    Return timestamp as string; return np.nan if never crosses.
+    """
+    if any(series >= degree):
+        return series[series >= degree].index[0].strftime("%Y-%m-%d %H:%M")
+    return np.nan
+
+
+def create_new_warming_level_table(warming_level: float) -> pd.DataFrame:
+    """
+    Returns a table of timestamps when each simulation reaches the given warming level.
+
+    Parameters:
+        warming_level (float): New WL to retrieve WL timing for.
+
+    Returns:
+        pd.DataFrame: Same DataFrame as `data/gwl_1850-1900ref.csv`, just with a new WL columns with the `warming_level` arg passed.
+    """
+    df, other_df = read_warming_level_csvs()
+
+    # Map each simulation to its crossing timestamp for the given warming level
+    wl_timestamps = {
+        col: get_wl_timestamp(df[col], warming_level) for col in df.columns
+    }
+
+    result = other_df.copy(deep=True)
+    result["sim"] = result["GCM"] + "_" + result["run"] + "_" + result["scenario"]
+    timestamp_series = pd.Series(wl_timestamps)
+
+    result[str(warming_level)] = result["sim"].map(timestamp_series)
+    result = result.drop(columns="sim")
+    result = result.set_index(["GCM", "run", "scenario"])
+
+    return result
+
+
 def clip_to_shapefile(
     data: xr.Dataset | xr.DataArray,
     shapefile_path: str,
@@ -1269,3 +1327,55 @@ def clip_to_shapefile(
     clipped.attrs["location_subset"] = location
 
     return clipped
+
+
+def filter_warming_trajectories(simulations_df, warming_trajectories, activity):
+    columns_to_keep = []
+
+    # Filter simulations_df for the specific activity
+    activity_simulations = simulations_df[simulations_df["activity_id"] == activity]
+
+    # Iterate through each row in the filtered simulations_df
+    for _, row in activity_simulations.iterrows():
+        # Construct the column name pattern
+        column_pattern = f"{row['source_id']}_{row['member_id']}_{row['experiment_id']}"
+
+        # Find matching columns in warming_trajectories
+        matching_columns = [
+            col for col in warming_trajectories.columns if column_pattern in col
+        ]
+
+        # Add matching columns to our list
+        columns_to_keep.extend(matching_columns)
+
+    # Create a new DataFrame with only the relevant columns
+    filtered_trajectories = warming_trajectories[columns_to_keep]
+
+    return filtered_trajectories
+
+
+def create_ae_warming_trajectories(resolution):
+    df = intake.open_esm_datastore(data_catalog_url).df
+    grid_label = resolution_to_gridlabel(resolution)
+
+    # Only select simulations with the given grid label, since WRF has a different number of simulations depending on the spatial resolution
+    select_sims = df[df["grid_label"] == grid_label]
+    columns_of_interest = ["activity_id", "source_id", "experiment_id", "member_id"]
+    unique_combinations = select_sims[columns_of_interest].drop_duplicates()
+
+    simulations_df = unique_combinations.reset_index(drop=True)
+
+    ## 1.2 Load the warming trajectories dataframe, columns for each simulation like "ACCESS-CM2_r3i1p1f1_ssp585"
+    warming_trajectories, _ = read_warming_level_csvs()
+
+    # Filter for LOCA2 simulations
+    loca2_warming_trajectories = filter_warming_trajectories(
+        simulations_df, warming_trajectories, "LOCA2"
+    )
+
+    # Filter for WRF simulations
+    wrf_warming_trajectories = filter_warming_trajectories(
+        simulations_df, warming_trajectories, "WRF"
+    )
+
+    return loca2_warming_trajectories, wrf_warming_trajectories
