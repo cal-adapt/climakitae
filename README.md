@@ -1,5 +1,13 @@
+
+
 Climakitae
 ==========
+[![CI](https://github.com/cal-adapt/climakitae/workflows/ci/badge.svg)](https://github.com/cal-adapt/climakitae/actions/workflows/ci.yaml)
+[![Documentation Status](https://readthedocs.org/projects/climakitae/badge/?version=latest)](https://climakitae.readthedocs.io/en/latest/?badge=latest)
+[![PyPI version](https://badge.fury.io/py/climakitae.svg)](https://badge.fury.io/py/climakitae)
+[![Python](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 A python toolkit for retrieving and performing scientific analyses with climate data from the [Cal-Adapt Analytics Engine](https://analytics.cal-adapt.org).
 
 **Note:** This package is in active development and should be considered a work in progress. 
@@ -11,10 +19,10 @@ Check out the official documentation on ReadTheDocs: https://climakitae.readthed
 Installation
 ------------
 
-Install the latest version in development directly with pip.
+Install the latest release with pip.
 
 ```
-pip install https://github.com/cal-adapt/climakitae/archive/main.zip
+pip install climakitae
 ```
 
 Basic Usage
@@ -47,8 +55,20 @@ get_data(
 
 If you want to use graphic user interfaces to retrieve and view data visualization options (among other features), you'll need to import our sister package `climakitaegui`, which works in tandem with climakitae to produce interactive GUIs. See [climakitaegui](https://github.com/cal-adapt/climakitaegui) for more information on how to use this library. 
 
-Local Setup
+Developer Information
 -----------
+
+It is strongly recommended that developers use `uv` to manage their packages:
+```bash
+pip install uv
+```
+
+To install a specific branch as a package:
+```bash
+uv pip install git+https://github.com/cal-adapt/climakitae.git@<BRANCH>
+```
+
+## Local Setup
 
 This project uses `conda` or `uv` for local and remote setup.
 
