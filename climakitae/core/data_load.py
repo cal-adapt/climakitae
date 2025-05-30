@@ -3,6 +3,10 @@ from ast import literal_eval
 from datetime import timedelta
 from functools import partial
 
+# Importing DataParameters causes ImportError due to circular import
+# so only import for type checking and reference as str 'DataParameters'
+from typing import TYPE_CHECKING
+
 import dask
 import geopandas as gpd
 import numpy as np
@@ -15,8 +19,7 @@ from dask.diagnostics import ProgressBar
 from geopandas import GeoDataFrame
 from rioxarray.exceptions import NoDataInBounds
 from shapely.geometry import box
-from xclim.sdba import Grouper
-from xclim.sdba.adjustment import QuantileDeltaMapping
+from xclim.sdba import Grouper, QuantileDeltaMapping
 
 from climakitae.core.boundaries import Boundaries
 from climakitae.core.constants import WARMING_LEVELS
@@ -43,10 +46,6 @@ from climakitae.util.utils import (
     create_new_warming_level_table,
 )
 from climakitae.util.warming_levels import calculate_warming_level, drop_invalid_sims
-
-# Importing DataParameters causes ImportError due to circular import
-# so only import for type checking and reference as str 'DataParameters'
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from climakitae.core.data_interface import DataParameters
