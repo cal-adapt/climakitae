@@ -2042,6 +2042,10 @@ def get_data(
                 max_val = wrf_max
             case "Dynamical+Statistical":
                 max_val = min(loca_max, wrf_max)
+            case _:
+                raise ValueError(
+                    "Downscaling method be 'Statistical', 'Dynamical', or 'Dynamical+Statistical'"
+                )
 
         if (wl is not None) and not isinstance(wl, list):
             if isinstance(wl, (float, int)):  # Convert float to a singleton list
