@@ -232,22 +232,18 @@ def generate_ssp_dict() -> dict[str, pd.DataFrame]:
         Dict[str, pd.DataFrame]: A dictionary mapping scenario names to their
         pandas DataFrames, indexed by year.
     """
-    ssp119_data = read_csv_file(ssp119_file, index_col="Year")
-    ssp126_data = read_csv_file(ssp126_file, index_col="Year")
-    ssp245_data = read_csv_file(ssp245_file, index_col="Year")
-    ssp370_data = read_csv_file(ssp370_file, index_col="Year")
-    ssp585_data = read_csv_file(ssp585_file, index_col="Year")
-    hist_data = read_csv_file(hist_file, index_col="Year")
-
-    ssp_dict = {
-        "Historical": hist_data,
-        "SSP 1-1.9": ssp119_data,
-        "SSP 1-2.6": ssp126_data,
-        "SSP 2-4.5": ssp245_data,
-        "SSP 3-7.0": ssp370_data,
-        "SSP 5-8.5": ssp585_data,
+    files_dict = {
+        "Historical": hist_file,
+        "SSP 1-1.9": ssp119_file,
+        "SSP 1-2.6": ssp126_file,
+        "SSP 2-4.5": ssp245_file,
+        "SSP 3-7.0": ssp370_file,
+        "SSP 5-8.5": ssp585_file,
     }
-    return ssp_dict
+    return {
+        ssp_str: read_csv_file(filename, index_col="Year")
+        for ssp_str, filename in files_dict.items()
+    }
 
 
 def get_gwl_at_year(year: int, ssp: str = "all") -> pd.DataFrame:
