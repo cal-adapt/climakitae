@@ -16,7 +16,7 @@ from climakitae.util.utils import (
 )
 from climakitae.core.paths import (
     data_catalog_url,
-    gwl_1850_1900_timeidx_file,
+    GWL_1850_1900_TIMEIDX_FILE,
     gwl_1850_1900_file,
 )
 
@@ -234,7 +234,7 @@ def read_warming_level_csvs() -> tuple[pd.DataFrame, pd.DataFrame]:
             - df (pd.DataFrame): Time-indexed DataFrame (time as index, simulations as columns).
             - other_df (pd.DataFrame): DataFrame with warming levels per simulation (no datetime index).
     """
-    df = read_csv_file(gwl_1850_1900_timeidx_file, index_col="time", parse_dates=True)
+    df = read_csv_file(GWL_1850_1900_TIMEIDX_FILE, index_col="time", parse_dates=True)
     other_df = read_csv_file(gwl_1850_1900_file)
     return df, other_df
 
