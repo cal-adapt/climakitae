@@ -5,6 +5,7 @@ from typing import Iterable, Union
 
 import geopandas as gpd
 import intake_esm
+import intake
 import numpy as np
 import pandas as pd
 import pyproj
@@ -767,7 +768,16 @@ def summary_table(data: xr.Dataset) -> pd.DataFrame:
     return df
 
 
-def convert_to_local_time(data: xr.DataArray, selections) -> xr.DataArray:
+def match_attr(data: xr.DataArray, key, value):
+    if key in data.attrs:
+        if data.attrs[key] == value:
+            return True
+    return False
+
+
+def convert_to_local_time(
+    data: xr.DataArray, time_slice: tuple[int, int]
+) -> xr.DataArray:
     """
     Convert time dimension from UTC to local time for the grid or station.
 
@@ -777,24 +787,35 @@ def convert_to_local_time(data: xr.DataArray, selections) -> xr.DataArray:
 
     Returns:
         xarray.DataArray: Data with converted time coordinate.
+    {'variable_id': 'noaa_heat_index_derived',
+     'extended_description': 'Operational measure of what the the temperature "feels like" to the human body.',
+     'units': 'degF',
+     'data_type': 'Gridded',
+     'resolution': np.str_('9 km'),
+     'frequency': np.str_('hourly'),
+     'location_subset': ['Pacific Gas & Electric Company'],
+     'approach': 'Time',
+     'downscaling_method': 'Dynamical',
+     'institution': 'Multiple',
+     'grid_mapping': 'Lambert_Conformal'}
     """
 
     # If timescale is not hourly, no need to convert
-    if selections.timescale in ["monthly", "daily"]:
+    if str(data.attrs["frequency"]) in ["monthly", "daily"]:
         print(
             "You've selected a timescale that doesn't require any timezone shifting, due to its timescale not being granular enough (hourly). Please pass in more granular level data if you want to adjust its local timezone."
         )
         return data
 
     # 1. Get the time slice from selections
-    start, end = selections.time_slice
+    start, end = time_slice
 
     # Default lat/lon values in case other methods fail
     lat = None
     lon = None
 
     # Get latitude/longitude information
-    if selections.data_type == "Stations":
+    if match_attr(data, "data_type", "Stations"):
         # Read stations database
         stations_df = read_csv_file(stations_csv_path)
         stations_df = stations_df.drop(columns=["Unnamed: 0"])
@@ -805,19 +826,25 @@ def convert_to_local_time(data: xr.DataArray, selections) -> xr.DataArray:
         lat = station_data["LAT_Y"].values[0]
         lon = station_data["LON_X"].values[0]
 
-    elif selections.area_average == "Yes":
+    elif match_attr(
+        data, "area_average", "Yes"
+    ):  # TODO: area average data doesn't have lat/lon
         # For area average, use the mean lat/lon
         lat = np.mean(selections.latitude)
         lon = np.mean(selections.longitude)
 
-    elif selections.data_type == "Gridded" and selections.area_subset == "lat/lon":
+    elif match_attr(data, "data_type", "Gridded") and match_attr(
+        data, "location_subset", "coordinate selection"
+    ):
         # Finding avg. lat/lon coordinates from all grid-cells
         lat = data.lat.mean().item()
         lon = data.lon.mean().item()
 
-    elif selections.data_type == "Gridded" and selections.area_subset != "none":
+    elif match_attr(data, "data_type", "Gridded") and not match_attr(
+        data, "location_subset", "entire domain"
+    ):
         # Find the avg. lat/lon coordinates from entire geometry within an area subset
-        boundaries = selections._geographies
+        boundaries = Boundaries(intake.open_catalog(boundary_catalog_url))
 
         # Making mapping for different geographies to different polygons
         mapping = {
@@ -846,7 +873,7 @@ def convert_to_local_time(data: xr.DataArray, selections) -> xr.DataArray:
         # Finding the center point of the gridded WRF area
         center_pt = (
             mapping[selections.area_subset][0]
-            .loc[mapping[selections.area_subset][1][selections.cached_area[0]]]
+            .loc[mapping[data.attrs["area_subset"]][1][data.attrs["location_subset"][0]]]
             .geometry.centroid
         )
         lat = center_pt.y
@@ -862,58 +889,25 @@ def convert_to_local_time(data: xr.DataArray, selections) -> xr.DataArray:
         tf = TimezoneFinder()
         local_tz = tf.timezone_at(lng=lon, lat=lat)
 
-    # Condition if timezone adjusting is happening at the end of `Historical Reconstruction`
-    if selections.scenario_historical == ["Historical Reconstruction"] and end == 2022:
-        print(
-            "Adjusting timestep but not appending data, as there is no more ERA5 data after 2022."
-        )
-        total_data = data
-
-    # Condition if selected data is at the end of possible data time interval
-    elif end < 2100:
-        # Use selections object to retrieve new data for timezone shifting
-        tz_selections = copy.copy(selections)
-        tz_selections.time_slice = (end + 1, end + 1)
-        tz_data = tz_selections.retrieve()
-
-        if tz_data.time.size == 0:
-            print(
-                "You've selected a time slice that will additionally require a selected SSP. Please select an SSP in your selections and re-run this function."
-            )
-            return data
-
-        # Combine the data
-        total_data = xr.concat([data, tz_data], dim="time")
-
-    else:  # 2100 or any years greater that the user has input
-        print(
-            "Adjusting timestep but not appending data, as there is no more data after 2100."
-        )
-        total_data = data
-
     # Change datetime objects to local time
     new_time = (
-        pd.DatetimeIndex(total_data.time)
+        pd.DatetimeIndex(data.time)
         .tz_localize("UTC")
         .tz_convert(local_tz)
         .tz_localize(None)
         .astype("datetime64[ns]")
     )
-    total_data["time"] = new_time
+    data["time"] = new_time
 
     # Subset the data by the initial time
     start_slice = data.time[0]
     end_slice = data.time[-1]
-    sliced_data = total_data.sel(time=slice(start_slice, end_slice))
+    sliced_data = data.sel(time=slice(start_slice, end_slice))
 
     print(f"Data converted to {local_tz} timezone.")
 
     # Add timezone attribute to data
     sliced_data = sliced_data.assign_attrs({"timezone": local_tz})
-
-    # Reset selections object to what it was originally (if we changed it)
-    if end < 2100:
-        selections.time_slice = (start, end)
 
     return sliced_data
 
