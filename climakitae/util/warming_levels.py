@@ -4,8 +4,20 @@ import xarray as xr
 import numpy as np
 import pandas as pd
 import calendar
-from climakitae.util.utils import scenario_to_experiment_id
-from climakitae.util.utils import _get_cat_subset
+from typing import Union
+from climakitae.util.utils import (
+    scenario_to_experiment_id,
+    _get_cat_subset,
+    read_csv_file,
+)
+from climakitae.core.paths import (
+    ssp119_file,
+    ssp126_file,
+    ssp245_file,
+    ssp370_file,
+    ssp585_file,
+    hist_file,
+)
 
 
 def calculate_warming_level(warming_data, gwl_times, level, months, window):
@@ -210,3 +222,127 @@ def drop_invalid_sims(ds, selections):
         )
     )
     return ds.sel(all_sims=valid_sim_list)
+
+
+def generate_ssp_dict() -> dict[str, pd.DataFrame]:
+    """
+    Loads historical and SSP scenario CSVs into one dictionary.
+
+    Returns:
+        Dict[str, pd.DataFrame]: A dictionary mapping scenario names to their
+        pandas DataFrames, indexed by year.
+    """
+    files_dict = {
+        "Historical": hist_file,
+        "SSP 1-1.9": ssp119_file,
+        "SSP 1-2.6": ssp126_file,
+        "SSP 2-4.5": ssp245_file,
+        "SSP 3-7.0": ssp370_file,
+        "SSP 5-8.5": ssp585_file,
+    }
+    return {
+        ssp_str: read_csv_file(filename, index_col="Year")
+        for ssp_str, filename in files_dict.items()
+    }
+
+
+def get_gwl_at_year(year: int, ssp: str = "all") -> pd.DataFrame:
+    """
+    Retrieve estimated Global Warming Level (GWL) statistics for a given year.
+
+    Parameters
+    ----------
+    year : int
+        The year for which to retrieve GWL estimates.
+    ssp : str, default='all'
+        The SSP scenario to use. Use 'all' to retrieve results for all SSPs.
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame with SSPs as rows and '5%', 'Mean', and '95%' as columns,
+        containing the warming level estimates for the specified year.
+    """
+    ssp_dict = generate_ssp_dict()
+    wl_timing_df = pd.DataFrame(columns=["5%", "Mean", "95%"])
+
+    if year >= 2015:
+        ssp_list = (
+            ["SSP 1-1.9", "SSP 1-2.6", "SSP 2-4.5", "SSP 3-7.0", "SSP 5-8.5"]
+            if ssp == "all"
+            else [ssp]
+        )
+        # Find the data for the given year and different scenarios
+        for scenario in ssp_list:
+            data = ssp_dict.get(scenario)
+            if year not in data.index:
+                print(f"Year {year} not found in {scenario}")
+                wl_timing_df.loc[scenario] = [np.nan, np.nan, np.nan]
+            else:
+                wl_timing_df.loc[scenario] = data.loc[year]
+
+    else:
+        # Finding the data from the historical period
+        if ssp != "all":
+            print(f"Year {year} before 2015, using Historical data")
+        hist_data = ssp_dict["Historical"]
+
+        if year not in hist_data.index:
+            print(f"Year {year} not found in Historical")
+            wl_timing_df.loc["Historical"] = [np.nan, np.nan, np.nan]
+        else:
+            wl_timing_df.loc["Historical"] = hist_data.loc[year]
+
+    return wl_timing_df
+
+
+def get_year_at_gwl(gwl: Union[float, int], ssp: str = "all") -> pd.DataFrame:
+    """
+    Retrieve the year when a given Global Warming Level (GWL) is reached for each SSP scenario.
+
+    Parameters
+    ----------
+    gwl : float or int
+        The Global Warming Level to check (e.g., 1.5, 2.0).
+    ssp : str, default='all'
+        The SSP scenario to evaluate. Use 'all' to check across all SSPs and the Historical period.
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame with SSPs as rows and columns ['5%', 'Mean', '95%'] indicating the years
+        when each warming level threshold is crossed for the respective uncertainty bounds.
+        NaN indicates the level was not reached by 2100.
+    """
+    ssp_dict = generate_ssp_dict()
+    wl_timing_df = pd.DataFrame(columns=["5%", "Mean", "95%"])
+
+    ssp_list = (
+        ["Historical", "SSP 1-1.9", "SSP 1-2.6", "SSP 2-4.5", "SSP 3-7.0", "SSP 5-8.5"]
+        if ssp == "all"
+        else [ssp]
+    )
+
+    for ssp in ssp_list:
+        ssp_selected = ssp_dict[ssp]
+
+        mean_mask = ssp_selected["Mean"] > gwl
+        upper_mask = ssp_selected["95%"] > gwl
+        lower_mask = ssp_selected["5%"] > gwl
+
+        def first_wl_year(one_ssp: pd.Series, mask: pd.Series) -> Union[int, float]:
+            """Return the first year where the pd.Series mask is True, or NaN if none."""
+            return one_ssp.index[mask][0] if mask.any() else np.nan
+
+        # Only add data for a scenario if the mean and upper bound of uncertainty reach the gwl
+        if mean_mask.any() and upper_mask.any():
+            x_5 = first_wl_year(ssp_selected, upper_mask)
+            x_95 = first_wl_year(ssp_selected, lower_mask)
+            year_gwl_reached = first_wl_year(ssp_selected, mean_mask)
+
+        else:
+            x_5 = x_95 = year_gwl_reached = np.nan
+
+        wl_timing_df.loc[ssp] = [x_5, year_gwl_reached, x_95]
+
+    return wl_timing_df
