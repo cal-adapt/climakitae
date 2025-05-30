@@ -43,9 +43,12 @@ from climakitae.util.utils import (
     resolution_to_gridlabel,
     scenario_to_experiment_id,
     timescale_to_table_id,
+)
+from climakitae.util.warming_levels import (
+    calculate_warming_level,
+    drop_invalid_sims,
     create_new_warming_level_table,
 )
-from climakitae.util.warming_levels import calculate_warming_level, drop_invalid_sims
 
 if TYPE_CHECKING:
     from climakitae.core.data_interface import DataParameters

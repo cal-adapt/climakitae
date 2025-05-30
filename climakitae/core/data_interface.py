@@ -51,8 +51,8 @@ from climakitae.util.utils import (
     resolution_to_gridlabel,
     scenario_to_experiment_id,
     timescale_to_table_id,
-    create_ae_warming_trajectories,
 )
+from climakitae.util.warming_levels import create_ae_warming_trajectories
 
 # Warnings raised by function get_subsetting_options, not sure why but they are silenced here
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -704,7 +704,7 @@ class DataParameters(param.Parameterized):
     # Warming level options
     wl_options = WARMING_LEVELS
     wl_time_option = ["n/a"]
-    warming_level = param.List(default=[1.0], item_type=float)
+    warming_level = param.List(default=[1.0], item_type=Union[float, str])
     warming_level_window = param.Integer(
         default=15,
         bounds=(5, 25),
@@ -838,7 +838,6 @@ class DataParameters(param.Parameterized):
             self.scenario_historical = ["n/a"]
 
         elif self.approach == "Time":
-            self.param["warming_level"].objects = ["n/a"]
             self.warming_level = ["n/a"]
 
             self.param["scenario_ssp"].objects = SSPS

@@ -21,8 +21,6 @@ from climakitae.core.constants import SSPS, UNSET, WARMING_LEVELS
 from climakitae.core.paths import (
     data_catalog_url,
     stations_csv_path,
-    gwl_1850_1900_file,
-    gwl_1850_1900_timeidx_file,
 )
 
 
