@@ -224,7 +224,28 @@ def area_subset_geometry(
 
     area_subset, cached_area = _override_area_selections(selections)
 
-    def _get_shape_indices(selections: "DataParameters", area_subset: str) -> list:
+    def _get_shape_indices(
+        selections: "DataParameters", area_subset: str, cached_area: str
+    ) -> list:
+        """
+        Gets the indices of the Boundary parquet file that match the area_subet and cached_area.
+
+        Parameters
+        ----------
+        selections: DataParameters
+            Data settings (variable, unit, timescale, etc)
+
+        area_subset: str
+            dataset to use from Boundaries for sub area selection
+
+        cached_area: list of strs
+            one or more features from area_subset datasets to use for selection
+
+        Returns
+        -------
+        list
+
+        """
         shape_indices = list(
             {
                 key: selections._geography_choose[area_subset][key]
@@ -245,42 +266,42 @@ def area_subset_geometry(
             ds_region = list(
                 _set_subarea(
                     selections._geographies._us_states,
-                    _get_shape_indices(selections, area_subset),
+                    _get_shape_indices(selections, area_subset, cached_area),
                 )
             )
         case "CA counties":
             ds_region = list(
                 _set_subarea(
                     selections._geographies._ca_counties,
-                    _get_shape_indices(selections, area_subset),
+                    _get_shape_indices(selections, area_subset, cached_area),
                 )
             )
         case "CA watersheds":
             ds_region = list(
                 _set_subarea(
                     selections._geographies._ca_watersheds,
-                    _get_shape_indices(selections, area_subset),
+                    _get_shape_indices(selections, area_subset, cached_area),
                 )
             )
         case "CA Electric Load Serving Entities (IOU & POU)":
             ds_region = list(
                 _set_subarea(
                     selections._geographies._ca_utilities,
-                    _get_shape_indices(selections, area_subset),
+                    _get_shape_indices(selections, area_subset, cached_area),
                 )
             )
         case "CA Electricity Demand Forecast Zones":
             ds_region = list(
                 _set_subarea(
                     selections._geographies._ca_forecast_zones,
-                    _get_shape_indices(selections, area_subset),
+                    _get_shape_indices(selections, area_subset, cached_area),
                 )
             )
         case "CA Electric Balancing Authority Areas":
             ds_region = list(
                 _set_subarea(
                     selections._geographies._ca_electric_balancing_areas,
-                    _get_shape_indices(selections, area_subset),
+                    _get_shape_indices(selections, area_subset, cached_area),
                 )
             )
         case _:
