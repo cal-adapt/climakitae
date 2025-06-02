@@ -433,12 +433,12 @@ class ClimateData:
     # Query inspection methods
     def show_query(self) -> None:
         """Display the current query configuration."""
-        print("Current query parameters:")
-        print("-" * 40)
+        msg = "Current Query:"
+        print(msg)
+        print("-" * len(msg))
         for key, value in self._query.items():
             display_value = value if value is not UNSET else "UNSET"
-            print(f"  {key}: {display_value}")
-        print("-" * 40)
+            print(f"{key}: {display_value}")
 
     # Option exploration methods
     def show_catalog_options(self) -> None:
@@ -497,7 +497,7 @@ class ClimateData:
         print("-" * len(msg))
         try:
             for processor in self._factory.get_processors():
-                print(f"  {processor}")
+                print(f"{processor}")
         except Exception as e:
             print(f"Error retrieving processors: {e}")
 
