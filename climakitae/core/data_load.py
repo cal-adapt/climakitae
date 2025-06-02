@@ -263,47 +263,47 @@ def area_subset_geometry(
                 )
             ds_region = [geom]
         case "states":
-            ds_region = list(
+            ds_region = [
                 _set_subarea(
                     selections._geographies._us_states,
                     _get_shape_indices(selections, area_subset, cached_area),
                 )
-            )
+            ]
         case "CA counties":
-            ds_region = list(
+            ds_region = [
                 _set_subarea(
                     selections._geographies._ca_counties,
                     _get_shape_indices(selections, area_subset, cached_area),
                 )
-            )
+            ]
         case "CA watersheds":
-            ds_region = list(
+            ds_region = [
                 _set_subarea(
                     selections._geographies._ca_watersheds,
                     _get_shape_indices(selections, area_subset, cached_area),
                 )
-            )
+            ]
         case "CA Electric Load Serving Entities (IOU & POU)":
-            ds_region = list(
+            ds_region = [
                 _set_subarea(
                     selections._geographies._ca_utilities,
                     _get_shape_indices(selections, area_subset, cached_area),
                 )
-            )
+            ]
         case "CA Electricity Demand Forecast Zones":
-            ds_region = list(
+            ds_region = [
                 _set_subarea(
                     selections._geographies._ca_forecast_zones,
                     _get_shape_indices(selections, area_subset, cached_area),
                 )
-            )
+            ]
         case "CA Electric Balancing Authority Areas":
-            ds_region = list(
+            ds_region = [
                 _set_subarea(
                     selections._geographies._ca_electric_balancing_areas,
                     _get_shape_indices(selections, area_subset, cached_area),
                 )
-            )
+            ]
         case _:
             ds_region = None
     return ds_region
