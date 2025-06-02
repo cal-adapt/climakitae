@@ -12,12 +12,16 @@ import rioxarray as rio
 from shapely.geometry import mapping
 from typing import Any
 import xarray as xr
+import intake
 from timezonefinder import TimezoneFinder
 
-from climakitae.core.constants import SSPS, UNSET
+from climakitae.core.constants import SSPS, UNSET, WARMING_LEVELS
 
 # from climakitae.core.data_interface import DataParameters
-from climakitae.core.paths import data_catalog_url, stations_csv_path
+from climakitae.core.paths import (
+    data_catalog_url,
+    stations_csv_path,
+)
 
 
 def downscaling_method_as_list(downscaling_method: str) -> list[str]:

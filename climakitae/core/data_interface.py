@@ -52,6 +52,7 @@ from climakitae.util.utils import (
     scenario_to_experiment_id,
     timescale_to_table_id,
 )
+from climakitae.util.warming_levels import create_ae_warming_trajectories
 
 # Warnings raised by function get_subsetting_options, not sure why but they are silenced here
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -706,7 +707,7 @@ class DataParameters(param.Parameterized):
     # Warming level options
     wl_options = WARMING_LEVELS
     wl_time_option = ["n/a"]
-    warming_level = param.ListSelector(default=["n/a"], objects=["n/a"])
+    warming_level = param.List(default=[1.0], item_type=Union[float, str])
     warming_level_window = param.Integer(
         default=15,
         bounds=(5, 25),
@@ -832,7 +833,6 @@ class DataParameters(param.Parameterized):
         """
         match self.approach:
             case "Warming Level":
-                self.param["warming_level"].objects = self.wl_options
                 self.warming_level = [2.0]
 
                 self.param["scenario_ssp"].objects = ["n/a"]
@@ -842,7 +842,6 @@ class DataParameters(param.Parameterized):
                 self.scenario_historical = ["n/a"]
 
             case "Time":
-                self.param["warming_level"].objects = ["n/a"]
                 self.warming_level = ["n/a"]
 
                 self.param["scenario_ssp"].objects = SSPS
@@ -924,7 +923,6 @@ class DataParameters(param.Parameterized):
         else:
             self.param["data_type"].objects = ["Gridded", "Stations"]
         if self.variable_type == "Derived Index":
-
             # Haven't built into the code to retrieve derive index for statistically downscaled data yet. Derived indices at the moment only work for hourly data.
             self.param["downscaling_method"].objects = ["Dynamical"]
             self.downscaling_method = "Dynamical"
@@ -1132,7 +1130,6 @@ class DataParameters(param.Parameterized):
         """
 
         if self.approach == "Time":
-
             # Set incoming scenario_historical
             _scenario_historical = self.scenario_historical
 
@@ -1668,7 +1665,6 @@ def _check_if_good_input(d: dict, cat_df: pd.DataFrame) -> dict:
         # If the input value is not in the valid options, see if you can help the user out
         key_updated = []
         for val_i in val:
-
             # This catches any common bad inputs for resolution: i.e. "3KM" or "3km" instead of "3 km"
             if key == "resolution":
                 try:
@@ -1690,7 +1686,6 @@ def _check_if_good_input(d: dict, cat_df: pd.DataFrame) -> dict:
                     pass
 
             if val_i not in valid_options:
-
                 print("Input " + key + "='" + val_i + "' is not a valid option.")
 
                 closest_options = _get_closest_options(val_i, valid_options)
@@ -2069,7 +2064,10 @@ def get_data(
 
     # Internal functions
     def _error_handling_warming_level_inputs(
-        wl: Union[list[float], list[int]], argument_name: str
+        wl: Union[list[float], list[int]],
+        argument_name: str,
+        downscaling_method: str,
+        resolution: str,
     ):
         """
         Error handling for arguments: warming_level and warming_level_month
@@ -2077,6 +2075,23 @@ def get_data(
         argument_name is either "warming_level" or "warming_level_months" and is used to
         print an appropriate error message for bad input
         """
+        # Find the WL bounds for LOCA and WRF
+        loca, wrf = create_ae_warming_trajectories(resolution)
+        loca_max = round(loca.max().max(), 2)
+        wrf_max = round(wrf.max().max(), 2)
+
+        match downscaling_method:
+            case "Statistical":
+                max_val = loca_max
+            case "Dynamical":
+                max_val = wrf_max
+            case "Dynamical+Statistical":
+                max_val = min(loca_max, wrf_max)
+            case _:
+                raise ValueError(
+                    "Downscaling method be 'Statistical', 'Dynamical', or 'Dynamical+Statistical'"
+                )
+
         if (wl is not None) and not isinstance(wl, list):
             if isinstance(wl, (float, int)):  # Convert float to a singleton list
                 wl = [wl]
@@ -2087,12 +2102,16 @@ def get_data(
                 )
         if isinstance(wl, list):
             for x in wl:
-                if isinstance(x, (float, int)):
-                    continue
-                raise ValueError(
-                    f"""Function argument {argument_name} requires a float/int or list of
-                    floats/ints input. Your input: {type(x)}"""
-                )
+                if not isinstance(x, (float, int)):
+                    raise ValueError(
+                        f"Each item in '{argument_name}' must be a float or int. Got: {type(x)}"
+                    )
+                if argument_name == "warming_level":
+                    if x < 0 or x > max_val:
+                        raise ValueError(
+                            f"{argument_name} value {x}. "
+                            f"Allowed range for {downscaling_method}-downscaled data at {resolution} resolution is 0 to {max_val:.2f}."
+                        )
         return wl
 
     def _error_handling_approach_inputs(
@@ -2192,7 +2211,6 @@ def get_data(
 
     # Station data error handling
     if data_type == "Stations":
-
         # dictionary with { argument name : [valid option, user input]}
         d = {
             "downscaling_method": ["Dynamical", downscaling_method],
@@ -2263,10 +2281,10 @@ def get_data(
     # Check warming level inputs
     try:
         warming_level = _error_handling_warming_level_inputs(
-            warming_level, "warming_level"
+            warming_level, "warming_level", downscaling_method, resolution
         )
         warming_level_months = _error_handling_warming_level_inputs(
-            warming_level_months, "warming_level_months"
+            warming_level_months, "warming_level_months", downscaling_method, resolution
         )
     except ValueError as error_message:
         print(_format_error_print_message(error_message))
@@ -2515,7 +2533,6 @@ def _get_and_reformat_derived_variables(
     # loop through each row in the DataFrame
     derived_variables_split = []
     for i in range(len(derived_variables_multi_timescale)):
-
         # Get single row, containing one variable
         row = derived_variables_multi_timescale.iloc[i]
 

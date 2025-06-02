@@ -148,10 +148,10 @@ def get_block_maxima(
     # Now select the most extreme value for each block in the series
     match extremes_type:
         case "max":
-            bms = da_series.resample(time=f"{block_size}A").max(keep_attrs=True)
+            bms = da_series.resample(time=f"{block_size}YE").max(keep_attrs=True)
             bms.attrs["extremes type"] = "maxima"
         case "min":
-            bms = da_series.resample(time=f"{block_size}A").min(keep_attrs=True)
+            bms = da_series.resample(time=f"{block_size}YE").min(keep_attrs=True)
             bms.attrs["extremes type"] = "minima"
         case _:
             raise ValueError('extremes_type needs to be either "max" or "min"')
@@ -203,10 +203,11 @@ def get_block_maxima(
                 "ERROR: The given `da_series` does not include any recorded values for this variable, and we cannot create block maximums off of an empty DataArray."
             )
         else:
+            dropped_bms = bms.dropna(dim="time")
             print(
-                f"Dropping {bms.isnull().sum()} block maxima NaNs for {bms.name}. Please guidance for more information. "
+                f"Dropping {bms.size - dropped_bms.size} block maxima NaNs across entire{f' {bms.name}' if bms.name else ''} DataArray. Please guidance for more information. "
             )
-            bms = bms.dropna(dim="time")
+            bms = dropped_bms
 
     return bms
 
@@ -474,37 +475,49 @@ def _calculate_return(
     data_variable: str,
     arg_value: float,
     block_size: int = 1,
+    extremes_type: str = "max",
 ) -> float:
-    """Function to perform extreme value calculation on fitted distribution
-
-    Runs corresponding extreme value calculation for selected data variable.
-    Can be the return value, probability, or period.
+    """Function to perform extreme value calculation on fitted distribution.
 
     Parameters
     ----------
-    fitted_distr: scipy.stats._distn_infrastructure.rv_continuous_frozen
-        frozen fitted distribution
-    data_variable: str
-        can be return_value, return_prob, return_period
-    arg_value: float
-        value to do the calucation to
-    block_size: int
-        block size, in years, of the block maximum series data that was used to fit the provided distribution.
+    fitted_distr : frozen scipy.stats distribution
+        Fitted distribution from block maxima/minima.
+    data_variable : str
+        One of 'return_value', 'return_prob', or 'return_period'.
+    arg_value : float
+        Input value for the calculation.
+    block_size : int, optional
+        Block size (in years) used to construct the dataset, by default 1.
+    extremes_type : str, optional
+        Whether to compute max ('max') or min ('min') extremes, by default 'max'.
 
     Returns
     -------
     float
+        Computed extreme value metric.
     """
-
     try:
         if data_variable == "return_value":
-            return_event = 1.0 - (block_size / arg_value)
+            event_prob = block_size / arg_value
+            match extremes_type:
+                case "max":
+                    return_event = 1.0 - event_prob
+                case "min":
+                    return_event = event_prob
+                case _:
+                    raise ValueError("extremes_type must be 'max' or 'min'")
             return_value = fitted_distr.ppf(return_event)
             result = np.round(return_value, 5)
         else:
-            return_prob = 1 - (fitted_distr.cdf(arg_value)) ** (
-                1 / block_size
-            )  # adjust the return probability depending on the block size
+            cdf_val = fitted_distr.cdf(arg_value) ** (1 / block_size)
+            match extremes_type:
+                case "max":
+                    return_prob = 1.0 - cdf_val
+                case "min":
+                    return_prob = cdf_val
+                case _:
+                    raise ValueError("extremes_type must be 'max' or 'min'")
             match data_variable:
                 case "return_prob":
                     result = return_prob
@@ -529,6 +542,7 @@ def _bootstrap(
     data_variable: str = "return_value",
     arg_value: float = 10,
     block_size: int = 1,
+    extremes_type: str = "max",
 ) -> float:
     """Function for making a bootstrap-calculated value from input array
 
@@ -571,6 +585,7 @@ def _bootstrap(
             data_variable=data_variable,
             arg_value=arg_value,
             block_size=block_size,
+            extremes_type=extremes_type,
         )
     except (ValueError, ZeroDivisionError):
         result = np.nan
@@ -587,6 +602,7 @@ def _conf_int(
     conf_int_lower_bound: float,
     conf_int_upper_bound: float,
     block_size: int = 1,
+    extremes_type: str = "max",
 ) -> float:
     """Function for genearating lower and upper limits of confidence interval
 
@@ -615,7 +631,9 @@ def _conf_int(
     bootstrap_values = []
 
     for _ in range(bootstrap_runs):
-        result = _bootstrap(bms, distr, data_variable, arg_value, block_size)
+        result = _bootstrap(
+            bms, distr, data_variable, arg_value, block_size, extremes_type
+        )
         bootstrap_values.append(result)
 
     bootstrap_values = np.stack(bootstrap_values, axis=0)
@@ -639,6 +657,7 @@ def _get_return_variable(
     conf_int_lower_bound: float = 2.5,
     conf_int_upper_bound: float = 97.5,
     multiple_points: bool = True,
+    extremes_type: str = "max",
 ) -> xr.Dataset:
     """Generic function used by `get_return_value`, `get_return_period`, and
     `get_return_prob`.
@@ -701,6 +720,7 @@ def _get_return_variable(
                 data_variable=data_variable,
                 arg_value=arg_value,
                 block_size=block_size,
+                extremes_type=extremes_type,
             )
         except (ValueError, ZeroDivisionError):
             return_variable = np.nan
@@ -714,6 +734,7 @@ def _get_return_variable(
             conf_int_lower_bound=conf_int_lower_bound,
             conf_int_upper_bound=conf_int_upper_bound,
             block_size=block_size,
+            extremes_type=extremes_type,
         )
         return (
             np.array([return_variable]),
@@ -782,6 +803,7 @@ def get_return_value(
     conf_int_lower_bound: float = 2.5,
     conf_int_upper_bound: float = 97.5,
     multiple_points: bool = True,
+    extremes_type: str = "max",
 ) -> xr.Dataset:
     """Creates xarray Dataset with return values and confidence intervals from maximum series.
 
@@ -817,6 +839,7 @@ def get_return_value(
         conf_int_lower_bound,
         conf_int_upper_bound,
         multiple_points,
+        extremes_type,
     )
 
 
@@ -828,6 +851,7 @@ def get_return_prob(
     conf_int_lower_bound: float = 2.5,
     conf_int_upper_bound: float = 97.5,
     multiple_points: bool = True,
+    extremes_type: str = "max",
 ) -> xr.Dataset:
     """Creates xarray Dataset with return probabilities and confidence intervals from maximum series.
 
@@ -863,6 +887,7 @@ def get_return_prob(
         conf_int_lower_bound,
         conf_int_upper_bound,
         multiple_points,
+        extremes_type,
     )
 
 
