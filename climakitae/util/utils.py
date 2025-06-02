@@ -1,7 +1,7 @@
 import copy
 import datetime
 import os
-from typing import Iterable, Union
+from typing import Any, Iterable, Union
 
 import geopandas as gpd
 import intake_esm
@@ -9,15 +9,14 @@ import numpy as np
 import pandas as pd
 import pyproj
 import rioxarray as rio
-from shapely.geometry import mapping
-from typing import Any
 import xarray as xr
+from shapely.geometry import mapping
 from timezonefinder import TimezoneFinder
 
-from climakitae.core.constants import SSPS
-from climakitae.core.paths import DATA_CATALOG_URL, STATIONS_CSV_PATH
-
 from climakitae.core.constants import SSPS, UNSET
+
+# from climakitae.core.data_interface import DataParameters
+from climakitae.core.paths import STATIONS_CSV_PATH
 
 
 def downscaling_method_as_list(downscaling_method: str) -> list[str]:
