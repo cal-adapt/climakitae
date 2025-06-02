@@ -4,21 +4,17 @@ Validator for renewable energy dataset parameters.
 
 from __future__ import annotations
 
-import warnings
 from typing import Any, Dict
 
-from climakitae.core.constants import UNSET
+from climakitae.core.constants import CATALOG_RENEWABLES, UNSET
 from climakitae.new_core.data_access import DataCatalog
 from climakitae.new_core.param_validation.abc_param_validation import (
     ParameterValidator,
     register_validator,
 )
-from climakitae.new_core.param_validation.param_validation_tools import (
-    _get_closest_options,
-)
 
 
-@register_validator("renewables")
+@register_validator(CATALOG_RENEWABLES)
 class RenewablesValidator(ParameterValidator):
     """
     Validator for renewable energy dataset parameters.

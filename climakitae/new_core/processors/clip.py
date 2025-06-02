@@ -127,8 +127,7 @@ class Clip(DataProcessor):
         # Add clipping information to the context
         context[_NEW_ATTRS_KEY][
             self.name
-        ] = f"""Process '{self.name}' applied to the data.
-        Clipping was done using the following value: {self.value}."""
+        ] = f"""Process '{self.name}' applied to the data. Clipping was done using the following value: {self.value}."""
 
     def set_data_accessor(self, catalog: DataCatalog):
         # Placeholder for setting data accessor

@@ -195,8 +195,7 @@ class Concat(DataProcessor):
 
         context[_NEW_ATTRS_KEY][
             self.name
-        ] = f"""Process '{self.name}' applied to the data.
-        Multiple datasets were concatenated along a new '{self.dim_name}' dimension.
+        ] = f"""Process '{self.name}' applied to the data. Multiple datasets were concatenated along a new '{self.dim_name}' dimension.
         {source_info}"""
 
     def set_data_accessor(self, catalog: DataCatalog):

@@ -134,9 +134,14 @@ class ClimateData:
         Sets up the factory for dataset creation and initializes
         query parameters to their default (UNSET) state.
         """
-        print("Initializing ClimateData...")
-        self._factory = DatasetFactory()
-        self._reset_query()
+        try:
+            self._factory = DatasetFactory()
+            self._reset_query()
+            print("✅ Ready to query! ")
+        except Exception as e:
+            print(f"❌ Setup failed: {str(e)}")
+            print(f"Error details: {traceback.format_exc()}")
+            return
 
     def _reset_query(self) -> "ClimateData":
         """
@@ -379,7 +384,6 @@ class ClimateData:
         # Validate required parameters
         if not self._validate_required_parameters():
             self._reset_query()
-            return data
 
         try:
             # Create dataset using factory
@@ -393,9 +397,11 @@ class ClimateData:
         try:
             # Execute the query
             data = dataset.execute(self._query)
+            print("✅ Data retrieval successful!")
         except (ValueError, KeyError, IOError, RuntimeError) as e:
             print(f"Error during data retrieval: {str(e)}")
             print(f"Traceback:\n{traceback.format_exc()}")
+            print("❌ Data retrieval failed. Please check your query parameters.")
 
         # Always reset query after execution
         self._reset_query()
@@ -437,27 +443,29 @@ class ClimateData:
     # Option exploration methods
     def show_catalog_options(self) -> None:
         """Display available catalog options."""
-        self._show_options("catalog", "Available catalog options")
+        self._show_options("catalog", "Catalogs (Cloud data collections)")
 
     def show_installation_options(self) -> None:
         """Display available installation options."""
-        self._show_options("installation", "Available installation options")
+        self._show_options(
+            "installation", "Installations (Renewable energy technology types)"
+        )
 
     def show_activity_id_options(self) -> None:
         """Display available activity ID options."""
-        self._show_options("activity_id", "Available activity ID options")
+        self._show_options("activity_id", "Activity IDs (Downscaling methods)")
 
     def show_institution_id_options(self) -> None:
         """Display available institution ID options."""
-        self._show_options("institution_id", "Available institution ID options")
+        self._show_options("institution_id", "Institution IDs (Data producers)")
 
     def show_source_id_options(self) -> None:
         """Display available source ID options."""
-        self._show_options("source_id", "Available source ID options")
+        self._show_options("source_id", "Source IDs (Climate model simulations)")
 
     def show_experiment_id_options(self) -> None:
         """Display available experiment ID options."""
-        self._show_options("experiment_id", "Available experiment ID options")
+        self._show_options("experiment_id", "Experiment IDs (Simulation runs)")
 
     def show_table_id_options(self) -> None:
         """Display available table ID options (temporal resolutions)."""
@@ -474,28 +482,19 @@ class ClimateData:
     def show_variable_options(self) -> None:
         """Display available variable options."""
         current_query = {k: v for k, v in self._query.items() if v is not UNSET}
+        msg = ""
         if current_query:
-            print("Available variables for current query parameters:")
-            print(f"Context: {current_query}")
+            msg = "Variables (constrained by current query):"
         else:
-            print("Available variables (showing all - set other parameters to filter):")
+            msg = "Variables"
 
-        self._show_options("variable_id", "Variables")
-
-    def show_validators(self) -> None:
-        """Display available data validators."""
-        print("Available validators:")
-        print("-" * 30)
-        try:
-            for validator in self._factory.get_validators():
-                print(f"  {validator}")
-        except Exception as e:
-            print(f"Error retrieving validators: {e}")
+        self._show_options("variable_id", msg)
 
     def show_processors(self) -> None:
         """Display available data processors."""
-        print("Available processors:")
-        print("-" * 30)
+        msg = "Processors (Methods for transforming raw catalog data):"
+        print(msg)
+        print("-" * len(msg))
         try:
             for processor in self._factory.get_processors():
                 print(f"  {processor}")
@@ -504,9 +503,10 @@ class ClimateData:
 
     def show_all_options(self) -> None:
         """Display all available options for exploration."""
-        print("=" * 60)
-        print("CLIMATE DATA INTERFACE - ALL AVAILABLE OPTIONS")
-        print("=" * 60)
+        data_title = "CAL ADAPT DATA -- ALL AVAILABLE OPTIONS USING CLIMAKITAE"
+        print("=" * len(data_title))
+        print(data_title)
+        print("=" * len(data_title))
 
         option_methods = [
             ("show_catalog_options", "Catalogs"),
@@ -518,13 +518,10 @@ class ClimateData:
             ("show_table_id_options", "Table IDs (Temporal Resolution)"),
             ("show_grid_label_options", "Grid Labels (Spatial Resolution)"),
             ("show_variable_options", "Variables"),
-            ("show_validators", "Validators"),
             ("show_processors", "Processors"),
         ]
 
         for method_name, section_title in option_methods:
-            print(f"\n{section_title}:")
-            print("-" * len(section_title))
             try:
                 getattr(self, method_name)()
             except Exception as e:
@@ -547,18 +544,18 @@ class ClimateData:
             The title for the options display.
         """
         print(f"{title}:")
-        print("-" * len(title))
+        print("-" * (len(title) + 1))
         try:
             current_query = {k: v for k, v in self._query.items() if v is not UNSET}
             options = self._factory.get_catalog_options(option_type, current_query)
-
             if not options:
-                print("  No options available with current parameters")
+                print("No options available with current parameters")
             else:
                 for option in sorted(options):
-                    print(f"  {option}")
+                    print(f"{option}")
+                print("\n")
         except Exception as e:
-            print(f"  Error retrieving options: {e}")
+            print(f"Error retrieving options: {e}")
 
     # Convenience methods for common workflows
     def reset(self) -> "ClimateData":

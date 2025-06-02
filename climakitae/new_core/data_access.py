@@ -21,12 +21,14 @@ import intake
 import intake_esm
 import xarray as xr
 
-from climakitae.core.constants import UNSET
+from climakitae.core.constants import CATALOG_DATA, CATALOG_RENEWABLES, UNSET
 from climakitae.core.paths import (
     BOUNDARY_CATALOG_URL,
     DATA_CATALOG_URL,
     RENEWABLES_CATALOG_URL,
 )
+
+CATALOG_BOUNDARY = "boundary"
 
 
 class DataCatalog(dict):
@@ -90,26 +92,26 @@ class DataCatalog(dict):
         """Initialize the DataCatalog instance."""
         if not getattr(self, "_initialized", False):
             super().__init__()
-            self["data"] = intake.open_esm_datastore(DATA_CATALOG_URL)
-            self["boundary"] = intake.open_catalog(BOUNDARY_CATALOG_URL)
-            self["renewables"] = intake.open_esm_datastore(RENEWABLES_CATALOG_URL)
+            self[CATALOG_DATA] = intake.open_esm_datastore(DATA_CATALOG_URL)
+            self[CATALOG_BOUNDARY] = intake.open_catalog(BOUNDARY_CATALOG_URL)
+            self[CATALOG_RENEWABLES] = intake.open_esm_datastore(RENEWABLES_CATALOG_URL)
             self._initialized = True
             self.catalog_key = UNSET
 
     @property
     def data(self) -> intake_esm.core.esm_datastore:
         """Access data catalog."""
-        return self["data"]
+        return self[CATALOG_DATA]
 
     @property
     def boundary(self) -> intake.catalog.Catalog:
         """Access boundary catalog."""
-        return self["boundary"]
+        return self[CATALOG_BOUNDARY]
 
     @property
     def renewables(self) -> intake_esm.core.esm_datastore:
         """Access renewables catalog."""
-        return self["renewables"]
+        return self[CATALOG_RENEWABLES]
 
     def set_catalog_key(self, key: str) -> "DataCatalog":
         """

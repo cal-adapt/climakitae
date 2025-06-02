@@ -48,3 +48,7 @@ LOCA_NO_0PT8_GWL_MODELS = [
 
 # Constant Keys for User Interface
 _NEW_ATTRS_KEY = "new_attrs"
+
+# Constant Keys for Data Catalog
+CATALOG_DATA = "data"
+CATALOG_RENEWABLES = "renewables"

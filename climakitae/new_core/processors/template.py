@@ -92,8 +92,7 @@ class Template(DataProcessor):
 
         context[_NEW_ATTRS_KEY][
             self.name
-        ] = f"""Process '{self.name}' applied to the data.
-        Transformation was done using the following value: {self.value}."""
+        ] = f"""Process '{self.name}' applied to the data. Transformation was done using the following value: {self.value}."""
 
     def set_data_accessor(self, catalog: DataCatalog):
         # Placeholder for setting data accessor

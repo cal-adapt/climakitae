@@ -197,8 +197,7 @@ class ConvertUnits(DataProcessor):
 
         context[_NEW_ATTRS_KEY][
             self.name
-        ] = f"""Process '{self.name}' applied to the data.
-        Units were converted to the following: {self.value}."""
+        ] = f"""Process '{self.name}' applied to the data. Units were converted to the following: {self.value}."""
 
     def set_data_accessor(self, catalog: DataCatalog):
         # Placeholder for setting data accessor
