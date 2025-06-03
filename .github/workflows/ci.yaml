@@ -31,12 +31,16 @@ jobs:
     steps:
     - name: Checkout project
       uses: actions/checkout@v2
+    - name: Curl Lockfile
+      uses: sozo-design/curl@v1.0.2
+      with:
+        args: --upload-file .github/workflows/conda-linux-64.lock https://github.com/pangeo-data/pangeo-docker-images/blob/2025.01.10/pangeo-notebook/conda-linux-64.lock
     - name: Setup miniconda
       uses: conda-incubator/setup-miniconda@v2
       with:
           auto-activate-base: false
           activate-environment: climakitae-tests
-          environment-file: conda-linux-64.lock
+          environment-file: .github/workflows/conda-linux-64.lock
           use-only-tar-bz2: true
     - name: Install climakitae
       run: pip install .
