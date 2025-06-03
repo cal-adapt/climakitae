@@ -25,11 +25,11 @@ jobs:
   curl:
     runs-on: ubuntu-latest
     steps:
-      uses: actions/checkout@v2
-      name: curl
-      uses: sozo-design/curl@v1.0.2
-      with:
-        args: --upload-file .github/workflows/conda-linux-64.lock https://github.com/pangeo-data/pangeo-docker-images/blob/2025.01.10/pangeo-notebook/conda-linux-64.lock
+      - uses: actions/checkout@v2
+      - name: curl
+        uses: sozo-design/curl@v1.0.2
+        with:
+          args: --upload-file .github/workflows/conda-linux-64.lock https://github.com/pangeo-data/pangeo-docker-images/blob/2025.01.10/pangeo-notebook/conda-linux-64.lock
   test:
     name: test
     runs-on: ubuntu-latest
