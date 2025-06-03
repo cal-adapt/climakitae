@@ -5,7 +5,7 @@ from typing import Any, Callable, Dict, Iterable, Union
 import xarray as xr
 
 from climakitae.core.constants import UNSET
-from climakitae.new_core.data_access import DataCatalog
+from climakitae.new_core.data_access.data_access import DataCatalog
 
 # Registry to hold all registered processors
 _PROCESSOR_REGISTRY = {}

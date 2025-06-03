@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import Any, Dict
 
 from climakitae.core.constants import CATALOG_RENEWABLES, UNSET
-from climakitae.new_core.data_access import DataCatalog
+from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.param_validation.abc_param_validation import (
     ParameterValidator,
     register_validator,

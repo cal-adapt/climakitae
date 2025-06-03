@@ -11,7 +11,7 @@ import xarray as xr
 
 from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
 from climakitae.core.paths import GWL_1850_1900_FILE
-from climakitae.new_core.data_access import DataCatalog
+from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
     register_processor,

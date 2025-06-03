@@ -8,7 +8,7 @@ import warnings
 from typing import Any, Dict
 
 from climakitae.core.constants import CATALOG_DATA, UNSET
-from climakitae.new_core.data_access import DataCatalog
+from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.param_validation.abc_param_validation import (
     ParameterValidator,
     register_validator,

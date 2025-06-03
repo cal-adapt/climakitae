@@ -41,7 +41,7 @@ import pandas as pd
 import xarray as xr
 
 from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
-from climakitae.new_core.data_access import DataCatalog
+from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.dataset import Dataset
 from climakitae.new_core.param_validation.abc_param_validation import (
     _VALIDATOR_REGISTRY,

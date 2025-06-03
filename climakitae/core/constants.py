@@ -52,3 +52,17 @@ _NEW_ATTRS_KEY = "new_attrs"
 # Constant Keys for Data Catalog
 CATALOG_DATA = "data"
 CATALOG_RENEWABLES = "renewables"
+CATALOG_BOUNDARY = "boundary"
+
+# Boundary Data Constants
+WESTERN_STATES_LIST = ["CA", "NV", "OR", "WA", "UT", "MT", "ID", "AZ", "CO", "NM", "WY"]
+
+PRIORITY_UTILITIES = [
+    "Pacific Gas & Electric Company",
+    "San Diego Gas & Electric",
+    "Southern California Edison",
+    "Los Angeles Department of Water & Power",
+    "Sacramento Municipal Utility District",
+]
+
+CALISO_AREA_THRESHOLD = 100
