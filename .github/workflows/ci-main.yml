@@ -1,9 +1,7 @@
 # Workflow file for continuous integration
-# Conda environment is caches to avoid long wait times for CI
 # Based on code from: https://github.com/epassaro/cache-conda-envs/blob/main/.github/workflows/ci.yml
 # Based on code from: https://github.com/marketplace/actions/setup-miniconda
-# Added to Test commit workflow
-
+# Runs only on main branch and runs all tests on push event (see ci.yaml for all other branches)
 
 name: ci-main
 
