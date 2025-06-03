@@ -22,6 +22,14 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: psf/black@stable
+  curl:
+    runs-on: ubuntu-latest
+    steps:
+      uses: actions/checkout@v2
+      name: curl
+      uses: sozo-design/curl@v1.0.2
+      with:
+        args: --upload-file .github/workflows/conda-linux-64.lock https://github.com/pangeo-data/pangeo-docker-images/blob/2025.01.10/pangeo-notebook/conda-linux-64.lock
   test:
     name: test
     runs-on: ubuntu-latest
@@ -31,10 +39,6 @@ jobs:
     steps:
     - name: Checkout project
       uses: actions/checkout@v2
-    - name: Curl Lockfile
-      uses: sozo-design/curl@v1.0.2
-      with:
-        args: --upload-file .github/workflows/conda-linux-64.lock https://github.com/pangeo-data/pangeo-docker-images/blob/2025.01.10/pangeo-notebook/conda-linux-64.lock
     - name: Setup miniconda
       uses: conda-incubator/setup-miniconda@v2
       with:
