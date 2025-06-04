@@ -115,18 +115,18 @@ def _get_user_options(
 
     # Limit scenarios if both LOCA and WRF are selected
     # We just want the scenarios that are present in both datasets
-    if downscaling_method == "Dynamical+Statistical":  # If both are selected
-        loca_scenarios = cat_subset.search(
-            activity_id="LOCA2"
-        ).df.experiment_id.unique()  # LOCA unique member_ids
-        wrf_scenarios = cat_subset.search(
-            activity_id="WRF"
-        ).df.experiment_id.unique()  # WRF unique member_ids
-        overlapping_scenarios = list(set(loca_scenarios) & set(wrf_scenarios))
-        cat_subset = cat_subset.search(experiment_id=overlapping_scenarios)
-
-    elif downscaling_method == "Statistical":
-        cat_subset = cat_subset.search(activity_id="LOCA2")
+    match downscaling_method:
+        case "Dynamical+Statistical":  # If both are selected
+            loca_scenarios = cat_subset.search(
+                activity_id="LOCA2"
+            ).df.experiment_id.unique()  # LOCA unique member_ids
+            wrf_scenarios = cat_subset.search(
+                activity_id="WRF"
+            ).df.experiment_id.unique()  # WRF unique member_ids
+            overlapping_scenarios = list(set(loca_scenarios) & set(wrf_scenarios))
+            cat_subset = cat_subset.search(experiment_id=overlapping_scenarios)
+        case "Statistical":
+            cat_subset = cat_subset.search(activity_id="LOCA2")
 
     # Get scenario options
     scenario_options = list(cat_subset.df["experiment_id"].unique())
@@ -359,64 +359,67 @@ def _get_subarea(
     ) -> gpd.GeoDataFrame:
         return boundary_dataset.loc[shape_indices]
 
-    if area_subset == "lat/lon":
-        geometry = box(
-            longitude[0],
-            latitude[0],
-            longitude[1],
-            latitude[1],
-        )
-        df_ae = gpd.GeoDataFrame(
-            pd.DataFrame({"subset": ["coords"], "geometry": [geometry]}),
-            crs="EPSG:4326",
-        )
-    elif area_subset != "none":
-        # `if-condition` added for catching errors with delays in rendering cached area.
-        if cached_area is None:
-            shape_indices = [0]
-        else:
-            # Filter for indices that are selected in `Location selection` dropdown
-            shape_indices = list(
-                {
-                    key: _geography_choose[area_subset][key] for key in cached_area
-                }.values()
+    match area_subset:
+        case "lat/lon":
+            geometry = box(
+                longitude[0],
+                latitude[0],
+                longitude[1],
+                latitude[1],
             )
+            df_ae = gpd.GeoDataFrame(
+                pd.DataFrame({"subset": ["coords"], "geometry": [geometry]}),
+                crs="EPSG:4326",
+            )
+        case _ if area_subset != "none":
+            # `if-condition` added for catching errors with delays in rendering cached area.
+            if cached_area is None:
+                shape_indices = [0]
+            else:
+                # Filter for indices that are selected in `Location selection` dropdown
+                shape_indices = list(
+                    {
+                        key: _geography_choose[area_subset][key] for key in cached_area
+                    }.values()
+                )
 
-        if area_subset == "states":
-            df_ae = _get_subarea_from_shape_index(
-                _geographies._us_states, shape_indices
+            match area_subset:
+                case "states":
+                    df_ae = _get_subarea_from_shape_index(
+                        _geographies._us_states, shape_indices
+                    )
+                case "CA counties":
+                    df_ae = _get_subarea_from_shape_index(
+                        _geographies._ca_counties, shape_indices
+                    )
+                case "CA watersheds":
+                    df_ae = _get_subarea_from_shape_index(
+                        _geographies._ca_watersheds, shape_indices
+                    )
+                case "CA Electric Load Serving Entities (IOU & POU)":
+                    df_ae = _get_subarea_from_shape_index(
+                        _geographies._ca_utilities, shape_indices
+                    )
+                case "CA Electricity Demand Forecast Zones":
+                    df_ae = _get_subarea_from_shape_index(
+                        _geographies._ca_forecast_zones, shape_indices
+                    )
+                case "CA Electric Balancing Authority Areas":
+                    df_ae = _get_subarea_from_shape_index(
+                        _geographies._ca_electric_balancing_areas, shape_indices
+                    )
+                case _:
+                    raise ValueError("area_subset not set correctly")
+        case _:  # If no subsetting, make the geometry a big box to include all stations
+            df_ae = gpd.GeoDataFrame(
+                pd.DataFrame(
+                    {
+                        "subset": ["coords"],
+                        "geometry": [box(-150, -88, 8, 66)],  # Super big box
+                    }
+                ),
+                crs="EPSG:4326",
             )
-        elif area_subset == "CA counties":
-            df_ae = _get_subarea_from_shape_index(
-                _geographies._ca_counties, shape_indices
-            )
-        elif area_subset == "CA watersheds":
-            df_ae = _get_subarea_from_shape_index(
-                _geographies._ca_watersheds, shape_indices
-            )
-        elif area_subset == "CA Electric Load Serving Entities (IOU & POU)":
-            df_ae = _get_subarea_from_shape_index(
-                _geographies._ca_utilities, shape_indices
-            )
-        elif area_subset == "CA Electricity Demand Forecast Zones":
-            df_ae = _get_subarea_from_shape_index(
-                _geographies._ca_forecast_zones, shape_indices
-            )
-        elif area_subset == "CA Electric Balancing Authority Areas":
-            df_ae = _get_subarea_from_shape_index(
-                _geographies._ca_electric_balancing_areas, shape_indices
-            )
-
-    else:  # If no subsetting, make the geometry a big box so all stations are included
-        df_ae = gpd.GeoDataFrame(
-            pd.DataFrame(
-                {
-                    "subset": ["coords"],
-                    "geometry": [box(-150, -88, 8, 66)],  # Super big box
-                }
-            ),
-            crs="EPSG:4326",
-        )
 
     return df_ae
 
@@ -828,26 +831,31 @@ class DataParameters(param.Parameterized):
         If warming level is selected, there should be no scenario options shown.
         If time-based is selected, there should be no warming levels options shown.
         """
-        if self.approach == "Warming Level":
-            self.warming_level = [2.0]
+        match self.approach:
+            case "Warming Level":
+                self.warming_level = [2.0]
 
-            self.param["scenario_ssp"].objects = ["n/a"]
-            self.scenario_ssp = ["n/a"]
+                self.param["scenario_ssp"].objects = ["n/a"]
+                self.scenario_ssp = ["n/a"]
 
-            self.param["scenario_historical"].objects = ["n/a"]
-            self.scenario_historical = ["n/a"]
+                self.param["scenario_historical"].objects = ["n/a"]
+                self.scenario_historical = ["n/a"]
 
-        elif self.approach == "Time":
-            self.warming_level = ["n/a"]
+            case "Time":
+                self.warming_level = ["n/a"]
 
-            self.param["scenario_ssp"].objects = SSPS
-            self.scenario_ssp = []
+                self.param["scenario_ssp"].objects = SSPS
+                self.scenario_ssp = []
 
-            self.param["scenario_historical"].objects = [
-                "Historical Climate",
-                "Historical Reconstruction",
-            ]
-            self.scenario_historical = ["Historical Climate"]
+                self.param["scenario_historical"].objects = [
+                    "Historical Climate",
+                    "Historical Reconstruction",
+                ]
+                self.scenario_historical = ["Historical Climate"]
+            case _:
+                raise ValueError(
+                    'approach needs to be either "Warming Level" or "Time"'
+                )
 
     @param.depends("latitude", "longitude", watch=True)
     def _update_area_subset_to_lat_lon(self):
@@ -876,12 +884,15 @@ class DataParameters(param.Parameterized):
         """Update area average selection choices based on station vs. gridded data.
         There is no area average option if station data is selected. It will be shown as n/a.
         """
-        if self.data_type == "Stations":
-            self.param["area_average"].objects = ["n/a"]
-            self.area_average = "n/a"
-        elif self.data_type == "Gridded":
-            self.param["area_average"].objects = ["Yes", "No"]
-            self.area_average = "No"
+        match self.data_type:
+            case "Stations":
+                self.param["area_average"].objects = ["n/a"]
+                self.area_average = "n/a"
+            case "Gridded":
+                self.param["area_average"].objects = ["Yes", "No"]
+                self.area_average = "No"
+            case _:
+                raise ValueError('data_type needs to either "Stations" or "Gridded"')
 
     @param.depends(
         "downscaling_method",
@@ -939,12 +950,13 @@ class DataParameters(param.Parameterized):
             self.param["resolution"].objects = ["3 km"]
             self.resolution = "3 km"
         else:
-            if self.data_type == "Stations":
-                self.param["resolution"].objects = ["3 km", "9 km"]
-                if self.resolution == "45 km":
-                    self.resolution = "3 km"
-            elif self.data_type == "Gridded":
-                self.param["resolution"].objects = ["3 km", "9 km", "45 km"]
+            match self.data_type:
+                case "Stations":
+                    self.param["resolution"].objects = ["3 km", "9 km"]
+                    if self.resolution == "45 km":
+                        self.resolution = "3 km"
+                case "Gridded":
+                    self.param["resolution"].objects = ["3 km", "9 km", "45 km"]
 
     @param.depends(
         "data_type", "timescale", "downscaling_method", "variable_type", watch=True
@@ -985,24 +997,27 @@ class DataParameters(param.Parameterized):
         """Update unique variable options"""
 
         # Station data is only available hourly
-        if self.data_type == "Stations":
-            self.param["timescale"].objects = ["hourly"]
-            self.timescale = "hourly"
-            self.param["variable_type"].objects = ["Variable"]
-            self.variable_type = "Variable"
-        elif self.data_type == "Gridded":
-            if self.downscaling_method == "Statistical":
+        match (self.data_type, self.downscaling_method):
+            case ("Stations", _):
+                self.param["timescale"].objects = ["hourly"]
+                self.timescale = "hourly"
+                self.param["variable_type"].objects = ["Variable"]
+                self.variable_type = "Variable"
+            case ("Gridded", "Statistical"):
                 self.param["timescale"].objects = ["daily", "monthly"]
                 if self.timescale == "hourly":
                     self.timescale = "daily"
-            elif self.downscaling_method == "Dynamical":
+            case ("Gridded", "Dynamical"):
                 self.param["timescale"].objects = ["daily", "monthly", "hourly"]
-            else:  # "Dynamical+Statistical"
+            case ("Gridded", "Dynamical+Statistical"):
                 # If both are selected, only show daily data
                 # We do not have WRF on LOCA grid resampled to monthly
                 self.param["timescale"].objects = ["daily"]
                 self.timescale = "daily"
-
+            case _:
+                raise ValueError(
+                    "data_type and downscaling_method combination not correct"
+                )
         (
             self.scenario_options,
             self.simulation,
@@ -1032,16 +1047,21 @@ class DataParameters(param.Parameterized):
 
             # Filter for derived indices
             # Depends on user selection for variable_type
-            if self.variable_type == "Variable":
-                # Remove indices
-                self.variable_options_df = self.variable_options_df[
-                    ~self.variable_options_df["variable_id"].str.contains("index")
-                ]
-            elif self.variable_type == "Derived Index":
-                # Show only indices
-                self.variable_options_df = self.variable_options_df[
-                    self.variable_options_df["variable_id"].str.contains("index")
-                ]
+            match self.variable_type:
+                case "Variable":
+                    # Remove indices
+                    self.variable_options_df = self.variable_options_df[
+                        ~self.variable_options_df["variable_id"].str.contains("index")
+                    ]
+                case "Derived Index":
+                    # Show only indices
+                    self.variable_options_df = self.variable_options_df[
+                        self.variable_options_df["variable_id"].str.contains("index")
+                    ]
+                case _:
+                    raise ValueError(
+                        'variable_type needs to be either "Variable" or "Derived Index"'
+                    )
             var_options = self.variable_options_df.display_name.values
             self.param["variable"].objects = var_options
             if self.variable not in var_options:
@@ -1063,16 +1083,21 @@ class DataParameters(param.Parameterized):
     def _update_states_3km(self):
         if self.area_subset == "states":
             if self.resolution == "3 km":
-                if "Statistical" in self.downscaling_method:
-                    self.param["cached_area"].objects = ["CA"]
-                elif self.downscaling_method == "Dynamical":
-                    self.param["cached_area"].objects = [
-                        "CA",
-                        "NV",
-                        "OR",
-                        "UT",
-                        "AZ",
-                    ]
+                match self.downscaling_method:
+                    case "Statistical" | "Dynamical+Statistical":
+                        self.param["cached_area"].objects = ["CA"]
+                    case "Dynamical":
+                        self.param["cached_area"].objects = [
+                            "CA",
+                            "NV",
+                            "OR",
+                            "UT",
+                            "AZ",
+                        ]
+                    case _:
+                        raise ValueError(
+                            'downscaling_method needs to be "Statistical", "Dynamical", or "Dynamical+Statistical"'
+                        )
                 self.cached_area = ["CA"]
             else:
                 self.param["cached_area"].objects = self._geography_choose[
@@ -1171,12 +1196,19 @@ class DataParameters(param.Parameterized):
 
         else:
             # Set time range of historical data
-            if self.downscaling_method == "Statistical":
-                historical_climate_range = self.historical_climate_range_loca
-            elif self.downscaling_method == "Dynamical+Statistical":
-                historical_climate_range = self.historical_climate_range_wrf_and_loca
-            else:
-                historical_climate_range = self.historical_climate_range_wrf
+            match self.downscaling_method:
+                case "Dynamical":
+                    historical_climate_range = self.historical_climate_range_wrf
+                case "Statistical":
+                    historical_climate_range = self.historical_climate_range_loca
+                case "Dynamical+Statistical":
+                    historical_climate_range = (
+                        self.historical_climate_range_wrf_and_loca
+                    )
+                case _:
+                    raise ValueError(
+                        'downscaling_method needs to be "Statistical", "Dynamical", or "Dynamical+Statistical"'
+                    )
 
             # Warning based on data scenario selections
             if (  # Warn user that they cannot have SSP data and ERA5-WRF data
@@ -1247,13 +1279,17 @@ class DataParameters(param.Parameterized):
         low_bound, upper_bound = self.time_slice
 
         # Set time range of historical data
-        if self.downscaling_method == "Statistical":
-            historical_climate_range = self.historical_climate_range_loca
-        elif self.downscaling_method == "Dynamical+Statistical":
-            historical_climate_range = self.historical_climate_range_wrf_and_loca
-        else:
-            historical_climate_range = self.historical_climate_range_wrf
-
+        match self.downscaling_method:
+            case "Dynamical":
+                historical_climate_range = self.historical_climate_range_wrf
+            case "Statistical":
+                historical_climate_range = self.historical_climate_range_loca
+            case "Dynamical+Statistical":
+                historical_climate_range = self.historical_climate_range_wrf_and_loca
+            case _:
+                raise ValueError(
+                    'downscaling_method needs to be "Statistical", "Dynamical", or "Dynamical+Statistical"'
+                )
         if self.scenario_historical == ["Historical Climate"]:
             low_bound, upper_bound = historical_climate_range
         elif self.scenario_historical == ["Historical Reconstruction"]:
@@ -1279,10 +1315,13 @@ class DataParameters(param.Parameterized):
 
     @param.depends("data_type", watch=True)
     def _update_textual_description(self):
-        if self.data_type == "Gridded":
-            self._station_data_info = ""
-        elif self.data_type == "Stations":
-            self._station_data_info = self._info_about_station_data
+        match self.data_type:
+            case "Gridded":
+                self._station_data_info = ""
+            case "Stations":
+                self._station_data_info = self._info_about_station_data
+            case _:
+                raise ValueError('data_type needs to either "Stations" or "Gridded"')
 
     @param.depends(
         "data_type",
@@ -1294,27 +1333,30 @@ class DataParameters(param.Parameterized):
     )
     def _update_station_list(self):
         """Update the list of weather station options if the area subset changes"""
-        if self.data_type == "Stations":
-            overlapping_stations = _get_overlapping_station_names(
-                self._stations_gdf,
-                self.area_subset,
-                self.cached_area,
-                self.latitude,
-                self.longitude,
-                self._geographies,
-                self._geography_choose,
-            )
-            if len(overlapping_stations) == 0:
-                notice = "No stations available at this location"
+        match self.data_type:
+            case "Stations":
+                overlapping_stations = _get_overlapping_station_names(
+                    self._stations_gdf,
+                    self.area_subset,
+                    self.cached_area,
+                    self.latitude,
+                    self.longitude,
+                    self._geographies,
+                    self._geography_choose,
+                )
+                if len(overlapping_stations) == 0:
+                    notice = "No stations available at this location"
+                    self.param["stations"].objects = [notice]
+                    self.stations = [notice]
+                else:
+                    self.param["stations"].objects = overlapping_stations
+                    self.stations = overlapping_stations
+            case "Gridded":
+                notice = "Set data type to 'Station' to see options"
                 self.param["stations"].objects = [notice]
                 self.stations = [notice]
-            else:
-                self.param["stations"].objects = overlapping_stations
-                self.stations = overlapping_stations
-        elif self.data_type == "Gridded":
-            notice = "Set data type to 'Station' to see options"
-            self.param["stations"].objects = [notice]
-            self.stations = [notice]
+            case _:
+                raise ValueError('data_type needs to either "Stations" or "Gridded"')
 
     def retrieve(
         self, config: str = None, merge: bool = True
@@ -1333,24 +1375,26 @@ class DataParameters(param.Parameterized):
 
         def _warn_of_large_file_size(da: xr.DataArray):
             """Warn user if the data array is large"""
-            if da.nbytes >= int(1e9) and da.nbytes < int(5e9):
-                print(
-                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
-                    "! Returned data array is large. Operations could take up to 5x longer than 1GB of data!\n"
-                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
-                )
-            elif da.nbytes >= int(5e9) and da.nbytes < int(1e10):
-                print(
-                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
-                    "!! Returned data array is very large. Operations could take up to 8x longer than 1GB of data !!\n"
-                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
-                )
-            elif da.nbytes >= int(1e10):
-                print(
-                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
-                    "!!! Returned data array is huge. Operations could take 10x to infinity longer than 1GB of data !!!\n"
-                    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
-                )
+            nbytes = da.nbytes
+            match nbytes:
+                case nbytes if nbytes >= int(1e9) and nbytes < int(5e9):
+                    print(
+                        "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+                        "! Returned data array is large. Operations could take up to 5x longer than 1GB of data!\n"
+                        "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+                    )
+                case nbytes if nbytes >= int(5e9) and nbytes < int(1e10):
+                    print(
+                        "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+                        "!! Returned data array is very large. Operations could take up to 8x longer than 1GB of data !!\n"
+                        "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+                    )
+                case nbytes if nbytes >= int(1e10):
+                    print(
+                        "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+                        "!!! Returned data array is huge. Operations could take 10x to infinity longer than 1GB of data !!!\n"
+                        "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+                    )
 
         def _warn_of_empty_data(self):
             if self.approach == "Warming Level" and (len(self.warming_level) > 1):
@@ -1647,17 +1691,18 @@ def _check_if_good_input(d: dict, cat_df: pd.DataFrame) -> dict:
                 closest_options = _get_closest_options(val_i, valid_options)
 
                 # Sad! No closest options found. Just set the key to all valid options
-                if closest_options is None:
-                    print("Valid options: \n- ", end="")
-                    print("\n- ".join(valid_options))
-                    raise ValueError("Bad input")
+                match closest_options:
+                    case None:
+                        print("Valid options: \n- ", end="")
+                        print("\n- ".join(valid_options))
+                        raise ValueError("Bad input")
 
-                # Just one option in the list
-                elif len(closest_options) == 1:
-                    print("Closest option: '" + closest_options[0] + "'")
+                    # Just one option in the list
+                    case closest_options if len(closest_options) == 1:
+                        print("Closest option: '" + closest_options[0] + "'")
 
-                elif len(closest_options) > 1:
-                    print("Closest options: \n- " + "\n- ".join(closest_options))
+                    case closest_options if len(closest_options) > 1:
+                        print("Closest options: \n- " + "\n- ".join(closest_options))
 
                 # Set key to closest option
                 print("Outputting data for " + key + "='" + closest_options[0] + "'\n")
@@ -1995,17 +2040,18 @@ def get_data(
             )  # See if theres any similar options
 
             # Sad! No closest options found. Just set the key to all valid options
-            if closest_options is None:
-                print("Valid options: \n- ", end="")
-                print("\n- ".join(station_options_all))
-                raise ValueError("Bad input")
+            match closest_options:
+                case None:
+                    print("Valid options: \n- ", end="")
+                    print("\n- ".join(station_options_all))
+                    raise ValueError("Bad input")
 
-            # Just one option in the list
-            elif len(closest_options) == 1:
-                print("Closest option: '" + closest_options[0] + "'")
+                # Just one option in the list
+                case closest_options if len(closest_options) == 1:
+                    print("Closest option: '" + closest_options[0] + "'")
 
-            elif len(closest_options) > 1:
-                print("Closest options: \n- " + "\n- ".join(closest_options))
+                case closest_options if len(closest_options) > 1:
+                    print("Closest options: \n- " + "\n- ".join(closest_options))
 
             print("Outputting data for station='" + closest_options[0] + "'")
             stations[i] = closest_options[
@@ -2122,32 +2168,32 @@ def get_data(
         approach: str, scenario: str
     ) -> tuple[str, str]:
         """Get scenario_ssp, scenario_historical depending on user inputs"""
-        if approach == "Warming Level":
-            scenario_ssp = ["n/a"]
-            scenario_historical = ["n/a"]
-        elif approach == "Time":
-            if (
-                "Historical Reconstruction" in scenario
-            ):  # Handling for Historical Reconstruction option
-                scenario_historical = [x for x in scenario if "Historical" in x]
-                scenario_ssp = []
+        match approach:
+            case "Warming Level":
+                scenario_ssp = ["n/a"]
+                scenario_historical = ["n/a"]
+            case "Time":
                 if (
-                    len(scenario) != 1
-                ):  # No SSP options for Historical Reconstruction data
-                    print(
-                        "WARNING: Historical Reconstruction data cannot be retrieved in the same data object as SSP scenario options. SSP data will not be retrieved."
-                    )
-
-            else:
-                scenario_ssp = [
-                    x for x in scenario if "Historical" not in x
-                ]  # Add non-historical SSPs to scenario_ssp key
-                if "Historical Climate" in scenario:
-                    scenario_historical = ["Historical Climate"]
+                    "Historical Reconstruction" in scenario
+                ):  # Handling for Historical Reconstruction option
+                    scenario_historical = [x for x in scenario if "Historical" in x]
+                    scenario_ssp = []
+                    if (
+                        len(scenario) != 1
+                    ):  # No SSP options for Historical Reconstruction data
+                        print(
+                            "WARNING: Historical Reconstruction data cannot be retrieved in the same data object as SSP scenario options. SSP data will not be retrieved."
+                        )
                 else:
-                    scenario_historical = []
-        else:
-            scenario_ssp, scenario_historical = None, None
+                    scenario_ssp = [
+                        x for x in scenario if "Historical" not in x
+                    ]  # Add non-historical SSPs to scenario_ssp key
+                    if "Historical Climate" in scenario:
+                        scenario_historical = ["Historical Climate"]
+                    else:
+                        scenario_historical = []
+            case _:
+                scenario_ssp, scenario_historical = None, None
         return scenario_ssp, scenario_historical
 
     # default values set as lists are dangerous, so set them to None and then set to
