@@ -10,11 +10,11 @@ from climakitae.core.constants import CATALOG_RENEWABLES, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.param_validation.abc_param_validation import (
     ParameterValidator,
-    register_validator,
+    register_catalog_validator,
 )
 
 
-@register_validator(CATALOG_RENEWABLES)
+@register_catalog_validator(CATALOG_RENEWABLES)
 class RenewablesValidator(ParameterValidator):
     """
     Validator for renewable energy dataset parameters.

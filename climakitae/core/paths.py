@@ -11,6 +11,7 @@ BOUNDARY_CATALOG_URL = "https://cadcat.s3.amazonaws.com/parquet/catalog.yaml"
 RENEWABLES_CATALOG_URL = (
     "https://wfclimres.s3.amazonaws.com/era/era-ren-collection.json"
 )
+CACHED_CATALOG_CSV_PATH = "climakitae/data/catalogs.csv"
 
 # S3 scratch bucket for exporting
 EXPORT_S3_BUCKET = "cadcat-tmp"

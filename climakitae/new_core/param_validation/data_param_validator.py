@@ -11,11 +11,11 @@ from climakitae.core.constants import CATALOG_DATA, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.param_validation.abc_param_validation import (
     ParameterValidator,
-    register_validator,
+    register_catalog_validator,
 )
 
 
-@register_validator(CATALOG_DATA)
+@register_catalog_validator(CATALOG_DATA)
 class DataValidator(ParameterValidator):
     """
     Validator for data catalog parameters.

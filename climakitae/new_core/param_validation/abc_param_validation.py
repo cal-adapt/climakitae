@@ -17,15 +17,16 @@ from typing import Any, Dict
 
 import intake
 
-from climakitae.core.constants import UNSET
+from climakitae.core.constants import PROC_KEY, UNSET
 from climakitae.new_core.param_validation.param_validation_tools import (
     _get_closest_options,
 )
 
-_VALIDATOR_REGISTRY = {}
+_CATALOG_VALIDATOR_REGISTRY = {}
+_PROCESSOR_VALIDATOR_REGISTRY = {}
 
 
-def register_validator(name: str):
+def register_catalog_validator(name: str):
     """
     Decorator to register a validator class.
 
@@ -41,7 +42,29 @@ def register_validator(name: str):
     """
 
     def decorator(cls):
-        _VALIDATOR_REGISTRY[name] = cls
+        _CATALOG_VALIDATOR_REGISTRY[name] = cls
+        return cls
+
+    return decorator
+
+
+def register_processor_validator(name: str):
+    """
+    Decorator to register a processor validator class.
+
+    Parameters
+    ----------
+    name : str
+        Name of the processor validator
+
+    Returns
+    -------
+    function
+        Decorated class
+    """
+
+    def decorator(cls):
+        _PROCESSOR_VALIDATOR_REGISTRY[name] = cls
         return cls
 
     return decorator
@@ -53,12 +76,6 @@ class ParameterValidator(ABC):
 
     The user query contains the parameters to be validated.
     These parameters fall under the following categories:
-    - catalog variables: variables that are used to identify the dataset in the catalog
-        - The logic for this is implemented in `get_data_options` I think
-        - The motivation is to make the interface match the GUI
-        - !!! IS THIS NECESSARY? !!!
-            - the GUI is for folks not technically inclined
-            - we don't need this logic in the dev/scientist interface
     - processing variables: variables that are used to process the dataset
         - the logic for this is rag tag at best
     """
@@ -186,6 +203,46 @@ class ParameterValidator(ABC):
             last_key = key
             # check if the value is in the catalog
         return None
+
+    def _is_valid_processor(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
+        """
+        Validate the processor parameters.
+
+        Loop through keys in query['processes'] and check if they are in the processor
+        validator registry. If they are, call the processor validator and provide the
+        value. Otherwise, warn the user that the processor input has not been validated.
+
+        Parameters
+        ----------
+        query : Dict[str, Any]
+            Query parameters to validate
+
+        Returns
+        -------
+        Dict[str, Any] | None
+            Processed parameters if valid, otherwise None and print warning messages
+        """
+
+        # loop through keys in query['processes']
+        # and check if they are in the processor validator registry
+        # if they are, call the processor validator
+        # otherwise warn the user that the processor input has not been validated
+        for key, value in query.get(PROC_KEY, {}).items():
+            if key in _PROCESSOR_VALIDATOR_REGISTRY:
+                validator = _PROCESSOR_VALIDATOR_REGISTRY[key]()
+                if not validator(value):
+                    warnings.warn(
+                        f"\n\nProcessor {key} with value {value} is not valid. "
+                        "\nPlease check the processor documentation for valid options."
+                    )
+                    return False
+            else:
+                warnings.warn(
+                    f"\n\nProcessor {key} is not registered. "
+                    "\nThis processor input has not been validated."
+                )
+
+        return True
 
     def populate_catalog_keys(self, query: Dict[str, Any]) -> None:
         """

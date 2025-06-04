@@ -35,24 +35,19 @@ components based on user queries from the ClimateData UI.
 from __future__ import annotations
 
 import warnings
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Type
 
 import pandas as pd
-import xarray as xr
 
-from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
+from climakitae.core.constants import _NEW_ATTRS_KEY, PROC_KEY, UNSET
+from climakitae.core.paths import CACHED_CATALOG_CSV_PATH
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.dataset import Dataset
 from climakitae.new_core.param_validation.abc_param_validation import (
-    _VALIDATOR_REGISTRY,
+    _CATALOG_VALIDATOR_REGISTRY,
     ParameterValidator,
 )
-from climakitae.new_core.processors.abc_data_processor import (
-    _PROCESSOR_REGISTRY,
-    DataProcessor,
-)
-
-PROC_KEY = "processes"
+from climakitae.new_core.processors.abc_data_processor import _PROCESSOR_REGISTRY
 
 
 class DatasetFactory:
@@ -151,11 +146,8 @@ class DatasetFactory:
             If the catalog file cannot be loaded or parsed.
         """
         self._catalog = None
-        self.catalog_path = (
-            "climakitae/data/catalogs.csv"  # ! Move to paths or constants
-        )
-        self._catalog_df = pd.read_csv(self.catalog_path)
-        self._validator_registry = _VALIDATOR_REGISTRY
+        self._catalog_df = pd.read_csv(CACHED_CATALOG_CSV_PATH)
+        self._validator_registry = _CATALOG_VALIDATOR_REGISTRY
         self._processing_step_registry = _PROCESSOR_REGISTRY
 
     def create_dataset(self, ui_query: Dict[str, Any]) -> Dataset:
