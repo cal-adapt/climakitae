@@ -25,7 +25,7 @@ Climakitae provides intuitive tools for accessing, analyzing, and visualizing do
 
 ## About Cal-Adapt
 
-Climakitae is developed as part of the [Cal-Adapt Analytics Engine](https://analytics.cal-adapt.org), California's premier platform for climate data and tools. Cal-Adapt provides access to cutting-edge climate science to support adaptation planning and decision-making.
+Climakitae is developed as part of the [Cal-Adapt Analytics Engine](https://analytics.cal-adapt.org), a platform for California climate data and tools. Cal-Adapt provides access to cutting-edge climate science to support adaptation planning and decision-making.
 
 ## Getting Started
 
