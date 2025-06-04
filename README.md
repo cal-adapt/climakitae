@@ -75,9 +75,9 @@ print(data)
 
 | Resource | Description |
 |----------|-------------|
-| [**Getting Started**](https://github.com/cal-adapt/cae-notebooks/blob/main/getting_started.ipynb) | Interactive notebook tutorial |
+| [**Getting Started**](https://github.com/cal-adapt/cae-notebooks/blob/main/AE_navigation_guide.ipynb) | Interactive notebook tutorial |
 | [**API Reference**](https://climakitae.readthedocs.io/en/latest/) | Complete API documentation |
-| [**Examples**](examples/) | Sample notebooks and scripts |
+| [**Examples**](https://github.com/cal-adapt/cae-notebooks) | Sample notebooks and scripts |
 | [**Contributing**](https://climakitae.readthedocs.io/en/latest/contribute.html) | Development guidelines |
 
 ## Development Setup
