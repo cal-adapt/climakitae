@@ -23,6 +23,10 @@ Climakitae provides intuitive tools for accessing, analyzing, and visualizing do
 - 🔧 **Flexible Data Export**: Export to NetCDF, CSV, and specialized formats
 - 📱 **GUI Integration**: Works seamlessly with [climakitaegui](https://github.com/cal-adapt/climakitaegui) for interactive analysis
 
+## About Cal-Adapt
+
+Climakitae is developed as part of the [Cal-Adapt Analytics Engine](https://analytics.cal-adapt.org), California's premier platform for climate data and tools. Cal-Adapt provides access to cutting-edge climate science to support adaptation planning and decision-making.
+
 ## Getting Started
 
 ### Installation
@@ -105,10 +109,6 @@ pytest
 pip install pytest-cov
 pytest --cov=climakitae --cov-report=html
 ```
-
-## About Cal-Adapt
-
-Climakitae is developed as part of the [Cal-Adapt Analytics Engine](https://analytics.cal-adapt.org), California's premier platform for climate data and tools. Cal-Adapt provides access to cutting-edge climate science to support adaptation planning and decision-making.
 
 ## Contributing
 
