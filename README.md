@@ -121,8 +121,9 @@ We welcome contributions! Please see our [contributing guidelines](https://clima
 
 ### Quick Development Workflow
 
+Open a ⚙️ [code improvement issue](https://github.com/cal-adapt/climakitae/issues/new/choose) describing the feature you'd like to develop.
 
-
+Then, checkout and setup your branch:
 ```bash
 # Fork the repo and create a feature branch
 git checkout -b feature/your-feature-name
@@ -137,6 +138,8 @@ isort climakitae/
 
 # Submit a pull request
 ```
+
+When submitting a pull request, please tag at least two project maintainers/developers for review.
 
 ## License
 
