@@ -9,9 +9,8 @@ name: ci-not-main
 
 on: 
   push:
-    branches:
-      - '*'
-      - '!main'
+    branches-ignore:
+      - main
   pull_request:
     types:
       - labeled
