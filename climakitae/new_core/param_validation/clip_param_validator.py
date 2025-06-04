@@ -5,12 +5,17 @@ Validator for parameters provided to Clip Processor.
 from __future__ import annotations
 
 import os
+import pprint
 import warnings
 from typing import Any, List, Tuple, Union
 
 from climakitae.core.constants import UNSET
+from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.param_validation.abc_param_validation import (
     register_processor_validator,
+)
+from climakitae.new_core.param_validation.param_validation_tools import (
+    _get_closest_options,
 )
 
 
@@ -364,37 +369,30 @@ def _warn_about_case_sensitivity(value: str) -> bool:
         true if the value is valid, otherwise raises a warning
     """
     # Common case variations that users might try
-    case_suggestions = {
-        "ca": "CA",
-        "Ca": "CA",
-        "cA": "CA",
-        "or": "OR",
-        "Or": "OR",
-        "wa": "WA",
-        "Wa": "WA",
-        "wA": "WA",
-        "nv": "NV",
-        "Nv": "NV",
-        "nV": "NV",
-        "pge": "PG&E",
-        "pGe": "PG&E",
-        "PGE": "PG&E",
-        "ScE": "SCE",
-        "sce": "SCE",
-        "SCe": "SCE",
-        "scE": "SCE",
-        "sdge": "SDG&E",
-        "caliso": "CALISO",
-        "Caliso": "CALISO",
-        "CalISO": "CALISO",
-    }
+    boundary_dict = DataCatalog().list_clip_boundaries()
+    boundary_list = []
+    for _, v in boundary_dict.items():
+        boundary_list.extend(v)
+    suggestions = _get_closest_options(value, boundary_list)
 
-    if value in case_suggestions:
-        correct_case = case_suggestions[value]
+    if value in suggestions:
+        # If the value is already in the suggestions, it is valid
+        return True
+
+    if not suggestions:
         warnings.warn(
-            f"Boundary key '{value}' may have case sensitivity issues. "
-            f"Did you mean '{correct_case}'? "
-            f"Boundary keys are typically case-sensitive.",
+            f"\n\nBoundary key '{value}' does not match any known boundary keys. "
+            f"\nPlease check the spelling or case of the boundary key. "
+            f"\nBoundary keys are typically case-sensitive."
+            f"\n\n{pprint.pformat(boundary_list, indent=4, width=80)}",
+        )
+
+    if suggestions:
+        warnings.warn(
+            f"\n\nBoundary key '{value}' may have case sensitivity issues. "
+            f"\nDid you mean any of the following options: "
+            f"\n{suggestions}"
+            f"\nBoundary keys are typically case-sensitive.",
             UserWarning,
         )
 
@@ -413,3 +411,5 @@ def _warn_about_case_sensitivity(value: str) -> bool:
             f"\nBoundary keys are typically case-sensitive.",
             UserWarning,
         )
+
+    return False

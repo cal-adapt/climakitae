@@ -136,7 +136,8 @@ class ParameterValidator(ABC):
             )
         if len(subset) != 0:
             print(f"Found {len(subset)} datasets matching your query.")
-            return self.all_catalog_keys
+            print(f"Checking processes ...")
+            return self.all_catalog_keys if self._has_valid_processes(query) else None
 
         # dataset not found
         # find closest match to each provided key
@@ -204,7 +205,7 @@ class ParameterValidator(ABC):
             # check if the value is in the catalog
         return None
 
-    def _is_valid_processor(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
+    def _has_valid_processes(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
         """
         Validate the processor parameters.
 
@@ -229,8 +230,8 @@ class ParameterValidator(ABC):
         # otherwise warn the user that the processor input has not been validated
         for key, value in query.get(PROC_KEY, {}).items():
             if key in _PROCESSOR_VALIDATOR_REGISTRY:
-                validator = _PROCESSOR_VALIDATOR_REGISTRY[key]()
-                if not validator(value):
+                valid_value_for_processor = _PROCESSOR_VALIDATOR_REGISTRY[key](value)
+                if not valid_value_for_processor:
                     warnings.warn(
                         f"\n\nProcessor {key} with value {value} is not valid. "
                         "\nPlease check the processor documentation for valid options."
