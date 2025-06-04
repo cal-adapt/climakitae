@@ -5,7 +5,7 @@
 # Runs basic tests on push event and advanced tests on label assignment
 
 
-name: ci
+name: ci-not-main
 
 on: 
   push:
