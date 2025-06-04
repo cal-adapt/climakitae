@@ -1,6 +1,6 @@
 # Climakitae
 
-[![CI](https://github.com/cal-adapt/climakitae/workflows/ci/badge.svg)](https://github.com/cal-adapt/climakitae/actions/workflows/ci-main.yml)
+[![CI](https://github.com/cal-adapt/climakitae/workflows/ci-main/badge.svg)](https://github.com/cal-adapt/climakitae/actions/workflows/ci-main.yml)
 [![Documentation Status](https://readthedocs.org/projects/climakitae/badge/?version=latest)](https://climakitae.readthedocs.io/en/latest/?badge=latest)
 [![PyPI version](https://badge.fury.io/py/climakitae.svg)](https://badge.fury.io/py/climakitae)
 [![Python](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
@@ -42,7 +42,7 @@ curl https://github.com/cal-adapt/cae-environments/blob/main/conda-lock/climakit
 
 # create and activate your environment
 conda create -n climakitae --file conda-linux-64.lock
-conda activate activate climakitae
+conda activate climakitae
 
 # install climakitae
 pip install https://github.com/cal-adapt/climakitae/archive/refs/tags/1.2.3.zip
@@ -89,7 +89,7 @@ print(data)
 git clone https://github.com/cal-adapt/climakitae.git
 cd climakitae
 conda create -n climakitae --file conda-linux-64.lock
-conda activate activate climakitae
+conda activate climakitae
 ```
 
 ### Running Tests
