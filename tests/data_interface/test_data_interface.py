@@ -38,28 +38,30 @@ class TestDataInterface:
         Test that all data sources are loaded correctly during initialization.
         """
 
-        with patch(
-            "climakitae.core.data_interface.read_csv_file"
-        ) as mock_read_csv, patch(
-            "climakitae.core.data_interface.gpd"
-        ) as mock_gpd, patch(
-            "climakitae.core.data_interface.intake"
-        ) as mock_intake, patch(
-            "climakitae.core.data_interface.Boundaries"
-        ) as mock_boundaries, patch(
-            "climakitae.core.data_interface.VariableDescriptions"
-        ) as mock_var_desc, patch(
-            "climakitae.core.data_interface.stations_csv_path",
-            "data/hadisd_stations.csv",
-        ), patch(
-            "climakitae.core.data_interface.gwl_1850_1900_file",
-            "data/gwl_1850-1900ref.csv",
-        ), patch(
-            "climakitae.core.data_interface.data_catalog_url",
-            "https://cadcat.s3.amazonaws.com/cae-collection.json",
-        ), patch(
-            "climakitae.core.data_interface.boundary_catalog_url",
-            "boundary_catalog_url_value",
+        with (
+            patch("climakitae.core.data_interface.read_csv_file") as mock_read_csv,
+            patch("climakitae.core.data_interface.gpd") as mock_gpd,
+            patch("climakitae.core.data_interface.intake") as mock_intake,
+            patch("climakitae.core.data_interface.Boundaries") as mock_boundaries,
+            patch(
+                "climakitae.core.data_interface.VariableDescriptions"
+            ) as mock_var_desc,
+            patch(
+                "climakitae.core.data_interface.stations_csv_path",
+                "data/hadisd_stations.csv",
+            ),
+            patch(
+                "climakitae.core.data_interface.gwl_1850_1900_file",
+                "data/gwl_1850-1900ref.csv",
+            ),
+            patch(
+                "climakitae.core.data_interface.data_catalog_url",
+                "https://cadcat.s3.amazonaws.com/cae-collection.json",
+            ),
+            patch(
+                "climakitae.core.data_interface.boundary_catalog_url",
+                "boundary_catalog_url_value",
+            ),
         ):
 
             # Configure mocks
@@ -357,12 +359,13 @@ class TestGetUserOptions:
         # Instead of raising an exception on unique(), let's make the source_id key not exist
         # This is closer to the real scenario of a missing column
         def getitem_side_effect(key):
-            if key == "source_id":
-                raise KeyError("No source_id column")
-            elif key == "experiment_id":
-                return Mock(unique=Mock(return_value=["ssp126", "ssp585"]))
-            elif key == "variable_id":
-                return Mock(unique=Mock(return_value=["tasmax", "tasmin"]))
+            match key:
+                case "source_id":
+                    raise KeyError("No source_id column")
+                case "experiment_id":
+                    return Mock(unique=Mock(return_value=["ssp126", "ssp585"]))
+                case "variable_id":
+                    return Mock(unique=Mock(return_value=["tasmax", "tasmin"]))
             raise KeyError(f"Unexpected key: {key}")
 
         mock_subset.df.__getitem__.side_effect = getitem_side_effect
@@ -844,28 +847,36 @@ class TestGetSubarea:
             # Verify the correct boundary dataset method was called with right indices
             expected_indices = [0, 1]  # Based on mock_geography_choose fixture values
 
-            if area_type == "states":
-                assert mock_geographies._us_states.loc.called_with == expected_indices
-            elif area_type == "CA counties":
-                assert mock_geographies._ca_counties.loc.called_with == expected_indices
-            elif area_type == "CA watersheds":
-                assert (
-                    mock_geographies._ca_watersheds.loc.called_with == expected_indices
-                )
-            elif area_type == "CA Electric Load Serving Entities (IOU & POU)":
-                assert (
-                    mock_geographies._ca_utilities.loc.called_with == expected_indices
-                )
-            elif area_type == "CA Electricity Demand Forecast Zones":
-                assert (
-                    mock_geographies._ca_forecast_zones.loc.called_with
-                    == expected_indices
-                )
-            elif area_type == "CA Electric Balancing Authority Areas":
-                assert (
-                    mock_geographies._ca_electric_balancing_areas.loc.called_with
-                    == expected_indices
-                )
+            match area_type:
+                case "states":
+                    assert (
+                        mock_geographies._us_states.loc.called_with == expected_indices
+                    )
+                case "CA counties":
+                    assert (
+                        mock_geographies._ca_counties.loc.called_with
+                        == expected_indices
+                    )
+                case "CA watersheds":
+                    assert (
+                        mock_geographies._ca_watersheds.loc.called_with
+                        == expected_indices
+                    )
+                case "CA Electric Load Serving Entities (IOU & POU)":
+                    assert (
+                        mock_geographies._ca_utilities.loc.called_with
+                        == expected_indices
+                    )
+                case "CA Electricity Demand Forecast Zones":
+                    assert (
+                        mock_geographies._ca_forecast_zones.loc.called_with
+                        == expected_indices
+                    )
+                case "CA Electric Balancing Authority Areas":
+                    assert (
+                        mock_geographies._ca_electric_balancing_areas.loc.called_with
+                        == expected_indices
+                    )
 
             # Verify result is a GeoDataFrame
             assert isinstance(result, gpd.GeoDataFrame)
@@ -959,9 +970,12 @@ class Test_CheckIfGoodInput:
             "scenario": ["Historical Climate"],
         }
 
-        with patch("builtins.print") as mock_print, patch(
-            "climakitae.core.data_interface._get_closest_options",
-            return_value=["Temperature"],
+        with (
+            patch("builtins.print") as mock_print,
+            patch(
+                "climakitae.core.data_interface._get_closest_options",
+                return_value=["Temperature"],
+            ),
         ):
             result = _check_if_good_input(input_dict, sample_catalog_df)
 
@@ -978,9 +992,12 @@ class Test_CheckIfGoodInput:
             "scenario": ["Historical Climate"],
         }
 
-        with patch("builtins.print") as mock_print, patch(
-            "climakitae.core.data_interface._get_closest_options",
-            return_value=None,
+        with (
+            patch("builtins.print") as mock_print,
+            patch(
+                "climakitae.core.data_interface._get_closest_options",
+                return_value=None,
+            ),
         ):
             with pytest.raises(ValueError, match="Bad input"):
                 _check_if_good_input(input_dict, sample_catalog_df)
