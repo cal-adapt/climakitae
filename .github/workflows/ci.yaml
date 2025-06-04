@@ -36,7 +36,7 @@ jobs:
       with:
           auto-activate-base: false
           activate-environment: climakitae-tests
-          environment-file: conda-linux-64.lock
+          environment-file: .github/workflows/conda-linux-64.lock
           use-only-tar-bz2: true
     - name: Install climakitae
       run: pip install .
