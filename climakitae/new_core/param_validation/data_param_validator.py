@@ -51,61 +51,53 @@ class DataValidator(ParameterValidator):
         self.catalog = catalog.data
 
     def is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
-        return super()._is_valid_query(query)
-
-    def _check_user_input(self, query: Dict[str, Any]) -> Dict[str, Any]:
         """
-        This is where the a lot of validation logic goes for user inputs like:
-        - Station Data
-
-        Parameters
-        ----------
-        user_input : Dict[str, Any]
-            User input to validate.
-
-        Returns
-        -------
-        Dict[str, Any]
-            Validated user input.
-        """
-
-        checks = [
-            (self._contains_station_data(), self._check_valid_station),
-        ]
-
-    def _contains_station_data(self) -> bool:
-        """
-        Check if the query contains station data.
-
-        Returns
-        -------
-        bool
-            True if station data is present, False otherwise.
-        """
-        return "localize" in self.query
-
-    def _check_valid_station(self, query: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Validate the station data in the query.
+        Catalog specific validation for the query.
 
         Parameters
         ----------
         query : Dict[str, Any]
-            Query to validate.
+            The query to validate.
 
         Returns
         -------
-        Dict[str, Any]
-            Validated query.
+        Dict[str, Any] | None
+            The validated query if valid, None otherwise.
+
+        Notes
+        -----
+        A list of checks that are performed on the query:
+
+        1. Check if the query contains the localize processor.
+            Localize is not supported for LOCA2 datasets.
         """
-        if "station_data" not in query:
-            warnings.warn("No station data provided in the query.")
-            return query
+        initial_checks = [self._check_query_for_wrf_and_localize(query)]
+        if not all(initial_checks):
+            return None
+        return super()._is_valid_query(query)
 
-        station_data = query["station_data"]
-        if not isinstance(station_data, dict):
-            raise ValueError("Station data must be a dictionary.")
+    def _check_query_for_wrf_and_localize(self, query: Dict[str, Any]) -> bool:
+        """
+        Check if the query contains the localize processor.
 
-        # Additional validation logic can be added here
+        Localize is not supported for LOCA2 datasets.
 
-        return query
+        Parameters
+        ----------
+        query : Dict[str, Any]
+            The query to check.
+
+        Returns
+        -------
+        bool
+            True if the query does not contain localize processor, False otherwise.
+        """
+        if "localize" in query.get("processes", {}).keys():
+            if "WRF" not in query.get("source_id", ""):
+                warnings.warn(
+                    "\n\nLocalize processor is not supported for LOCA2 datasets.",
+                    "\nPlease specify '.source_id(WRF)' in your query.",
+                    UserWarning,
+                )
+                return False
+        return True
