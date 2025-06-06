@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-**A powerful Python toolkit for climate data analysis and retrieval from the Cal-Adapt Analytics Engine.**
+**A powerful Python toolkit for climate data analysis and retrieval from the Cal-Adapt Analytics Engine (AE).**
 
 Climakitae provides intuitive tools for accessing, analyzing, and visualizing downscaled climate model data, enabling researchers and practitioners to perform comprehensive climate impact assessments for California.
 
@@ -75,9 +75,9 @@ print(data)
 
 | Resource | Description |
 |----------|-------------|
-| [**Getting Started**](https://github.com/cal-adapt/cae-notebooks/blob/main/AE_navigation_guide.ipynb) | Interactive notebook tutorial |
+| [**AE Navigation Guide**](https://github.com/cal-adapt/cae-notebooks/blob/main/AE_navigation_guide.ipynb) | Interactive notebook tutorial |
 | [**API Reference**](https://climakitae.readthedocs.io/en/latest/) | Complete API documentation |
-| [**Examples**](https://github.com/cal-adapt/cae-notebooks) | Sample notebooks and scripts |
+| [**AE Notebooks**](https://github.com/cal-adapt/cae-notebooks) | Sample notebooks and scripts |
 | [**Contributing**](https://climakitae.readthedocs.io/en/latest/contribute.html) | Development guidelines |
 
 ## Development Setup
