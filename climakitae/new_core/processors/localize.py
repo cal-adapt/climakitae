@@ -46,7 +46,7 @@ from climakitae.util.unit_conversions import convert_units
 from climakitae.util.utils import get_closest_gridcell, read_csv_file
 
 
-@register_processor("localize", priority=0)
+@register_processor("localize", priority=1)
 class Localize(DataProcessor):
     """
     Localize gridded climate data to historical station data.

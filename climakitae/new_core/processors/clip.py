@@ -32,7 +32,7 @@ from climakitae.new_core.processors.abc_data_processor import (
 )
 
 
-@register_processor("clip", priority=50)
+@register_processor("clip", priority=500)
 class Clip(DataProcessor):
     """
     Clip data based on spatial boundaries.

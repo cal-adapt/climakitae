@@ -15,7 +15,7 @@ from climakitae.new_core.processors.abc_data_processor import (
 )
 
 
-@register_processor("filter_unbiased_models", priority=50)
+@register_processor("filter_unbiased_models", priority=0)
 class FilterUnbiasedModels(DataProcessor):
     """
     Processor to filter out models that do not have a-priori bias adjustment.

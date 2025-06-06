@@ -18,7 +18,7 @@ from climakitae.new_core.processors.abc_data_processor import (
 )
 
 
-@register_processor("time_slice", priority=50)
+@register_processor("time_slice", priority=500)
 class TimeSlice(DataProcessor):
     """
     Slice data based on time.
