@@ -38,7 +38,7 @@ jobs:
           environment-file: .github/workflows/conda-linux-64.lock
           use-only-tar-bz2: true
     - name: Install climakitae
-      run: pip install .
+      run: pip install . --no-deps
     - name: Output conda info
       run: conda info
     - name: Output conda list
