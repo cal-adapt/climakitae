@@ -40,7 +40,7 @@ jobs:
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         pip install pytest cftime
     - name: Install climakitae
-      run: pip install .
+      run: pip install . --no-deps
     - name: Test with pytest (Basic)
       run: pytest --no-header -vv -m "not advanced"
     - name: Test with pytest (Advanced)
