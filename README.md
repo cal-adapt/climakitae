@@ -9,7 +9,7 @@
 
 **A powerful Python toolkit for climate data analysis and retrieval from the Cal-Adapt Analytics Engine (AE).**
 
-Climakitae provides intuitive tools for accessing, analyzing, and visualizing downscaled climate model data, enabling researchers and practitioners to perform comprehensive climate impact assessments for California.
+Climakitae provides intuitive tools for accessing, analyzing, and visualizing downscaled CMIP6 data, enabling researchers and practitioners to perform comprehensive climate impact assessments for California.
 
 > [!WARNING]
 > This package is under active development. APIs may change between versions.
@@ -17,10 +17,10 @@ Climakitae provides intuitive tools for accessing, analyzing, and visualizing do
 ## Key Features
 
 - 🌡️ **Comprehensive Climate Data Access**: Retrieve climate variables from hosted climate models
-- 📊 **Downscaled Climate Models**: Access dynamical (WRF) and statistical (LOCA) downscaling methods  
+- 📊 **Downscaled Climate Models**: Access dynamical (WRF) and statistical (LOCA2) downscaling methods  
 - 🗺️ **Spatial Analysis Tools**: Built-in support for geographic subsetting and spatial aggregation
 - 📈 **Climate Indices**: Calculate heat indices, warming levels, and extreme event metrics
-- 🔧 **Flexible Data Export**: Export to NetCDF, CSV, and specialized formats
+- 🔧 **Flexible Data Export**: Export to NetCDF, CSV, and Zarr
 - 📱 **GUI Integration**: Works seamlessly with [climakitaegui](https://github.com/cal-adapt/climakitaegui) for interactive analysis
 
 ## About Cal-Adapt
@@ -36,7 +36,7 @@ Climakitae is developed as part of the [Cal-Adapt Analytics Engine](https://anal
 - Python 3.12
 - [conda / miniconda](https://www.anaconda.com/docs/getting-started/miniconda/install#quickstart-install-instructions)
 
-#### Install with `conda`
+#### Install with `conda` on Linux
 
 For additional details on the latest version and step-by-step installation instructions please visit [the wiki]()
 
@@ -87,7 +87,7 @@ print(data)
 - Python 3.12
 - [conda / miniconda](https://www.anaconda.com/docs/getting-started/miniconda/install#quickstart-install-instructions)
 
-### Dev Environment Setup
+### Dev Environment Setup (Linux)
 
 ```bash
 git clone https://github.com/cal-adapt/climakitae.git
