@@ -37,14 +37,13 @@ import xarray as xr
 from xclim.sdba import Grouper, QuantileDeltaMapping
 
 from climakitae.core.constants import _NEW_ATTRS_KEY
-from climakitae.core.paths import STATIONS_CSV_PATH
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
     register_processor,
 )
 from climakitae.util.unit_conversions import convert_units
-from climakitae.util.utils import get_closest_gridcell, read_csv_file
+from climakitae.util.utils import get_closest_gridcell
 
 
 @register_processor("localize", priority=1)
@@ -168,12 +167,7 @@ class Localize(DataProcessor):
         Reads station metadata from the CSV file specified in STATIONS_CSV_PATH
         and creates Point geometries from LON_X and LAT_Y columns.
         """
-        stations_df = read_csv_file(STATIONS_CSV_PATH)
-        return gpd.GeoDataFrame(
-            stations_df,
-            crs="EPSG:4326",
-            geometry=gpd.points_from_xy(stations_df.LON_X, stations_df.LAT_Y),
-        )
+        return DataCatalog()["stations"]
 
     def execute(
         self,

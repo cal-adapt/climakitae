@@ -463,3 +463,14 @@ class DatasetFactory:
             List of available processors.
         """
         return sorted(list(self._processing_step_registry.keys()))
+
+    def get_stations(self) -> List[str]:
+        """
+        Get a list of available station datasets.
+
+        Returns
+        -------
+        List[str]
+            List of available station datasets.
+        """
+        return DataCatalog()["stations"]["station"].unique().tolist()

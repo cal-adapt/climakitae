@@ -522,6 +522,22 @@ class ClimateData:
         except Exception as e:
             print(f"Error retrieving processors: {e}")
 
+    def show_stations(self) -> None:
+        """Display available station options for data retrieval."""
+        msg = "Stations (Available weather stations for localization):"
+        print(msg)
+        print("-" * len(msg))
+        try:
+            stations = self._factory.get_stations()
+            if not stations:
+                print("No stations available with current parameters")
+            else:
+                for station in sorted(stations):
+                    print(f"{station}")
+                print("\n")
+        except Exception as e:
+            print(f"Error retrieving stations: {e}")
+
     def show_all_options(self) -> None:
         """Display all available options for exploration."""
         data_title = "CAL ADAPT DATA -- ALL AVAILABLE OPTIONS USING CLIMAKITAE"
@@ -540,6 +556,7 @@ class ClimateData:
             ("show_grid_label_options", "Grid Labels (Spatial Resolution)"),
             ("show_variable_options", "Variables"),
             ("show_processors", "Processors"),
+            ("show_stations", "Stations"),
         ]
 
         for method_name, section_title in option_methods:

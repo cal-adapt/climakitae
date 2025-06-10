@@ -48,12 +48,11 @@ def validate_localize_param(
             stations = [s.strip() for s in stations]
 
             # check if all values are valid station names or IDs
-            available_stations = STATIONS_DF["station"].tolist()
             for s in stations:
                 if len(s) == 4:
                     # this is a 4 letter airport code, find the station name
-                    # and tell the user to replace it with the station name
-                    mask = STATIONS_DF["station"].contains(s)
+                    # replace it with the station name
+                    mask = STATIONS_DF["ID"].contains(s)
                     if not mask.any():
                         warnings.warn(
                             f"\n\nStation ID '{s}' not found in list of stations."
@@ -69,6 +68,7 @@ def validate_localize_param(
                         )
 
                 else:
+                    available_stations = STATIONS_DF["station"].tolist()
                     if s not in available_stations:
                         closest = _get_closest_options(s, available_stations)
                         if closest:

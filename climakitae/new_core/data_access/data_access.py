@@ -17,6 +17,7 @@ DataCatalog
 
 import warnings
 
+import geopandas as gpd
 import intake
 import intake_esm
 import xarray as xr
@@ -31,7 +32,9 @@ from climakitae.core.paths import (
     BOUNDARY_CATALOG_URL,
     DATA_CATALOG_URL,
     RENEWABLES_CATALOG_URL,
+    STATIONS_CSV_PATH,
 )
+from climakitae.util.utils import read_csv_file
 
 from .boundaries import Boundaries
 
@@ -102,6 +105,13 @@ class DataCatalog(dict):
             self[CATALOG_DATA] = intake.open_esm_datastore(DATA_CATALOG_URL)
             self[CATALOG_BOUNDARY] = intake.open_catalog(BOUNDARY_CATALOG_URL)
             self[CATALOG_RENEWABLES] = intake.open_esm_datastore(RENEWABLES_CATALOG_URL)
+            stations_df = read_csv_file(STATIONS_CSV_PATH)
+            self["stations"] = gpd.GeoDataFrame(
+                stations_df,
+                crs="EPSG:4326",
+                geometry=gpd.points_from_xy(stations_df.LON_X, stations_df.LAT_Y),
+            )
+
             self._initialized = True
             self.catalog_key = UNSET
             # Initialize boundaries with lazy loading
