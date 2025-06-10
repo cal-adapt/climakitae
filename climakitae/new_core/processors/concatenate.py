@@ -129,7 +129,7 @@ class Concat(DataProcessor):
             case _:
                 for dataset in result:
                     if not isinstance(dataset, (xr.Dataset, xr.DataArray)):
-                        print(f"Skipping non-xarray object: {dataset}")
+                        # skip items that are not xarray datasets or data arrays
                         continue
 
                     # Extract source_id from attributes
@@ -158,9 +158,13 @@ class Concat(DataProcessor):
 
         # check if the concatenated object has a `member_id` dimension
         if "member_id" in concatenated.dims:
-            # If it does, get rid of it
-            # sim dimension captures this information
-            concatenated = concatenated.drop_dims("member_id")
+            # squeeze the member_id dimension
+            try:
+                concatenated = concatenated.squeeze("member_id", drop=True)
+            except ValueError:
+                # if squeezing fails here its because the member_id dimension has more
+                # than one value, so we are going to focibly drop `member_id` dimension
+                concatenated = concatenated.drop_vars("member_id", errors="ignore")
 
         self.update_context(context, attr_ids)
         return concatenated

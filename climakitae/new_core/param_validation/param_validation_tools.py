@@ -3,6 +3,7 @@ Tools for validating user input
 """
 
 import difflib
+import warnings
 
 
 def _get_closest_options(val, valid_options, cutoff=0.59):
@@ -46,3 +47,89 @@ def _get_closest_options(val, valid_options, cutoff=0.59):
         return maybe_difflib_can_find_something
 
     return None
+
+
+def validate_experimental_id_param(
+    value: list[str] | None,
+    valid_experiment_ids: list[str],
+) -> bool:
+    """
+    Validate the experiment_id parameter.
+
+    This function checks if the provided value is valid for the experiment_id parameter.
+    It performs a greedy match against a predefined list of valid experiment IDs,
+    replacing partial matches with the full valid ID.
+
+    Parameters
+    ----------
+    value : str | list[str] | None
+        The experiment_id parameter to validate.
+
+    Returns
+    -------
+    bool
+        True if valid, False otherwise.
+
+    Notes
+    -----
+    Modifies input value in place if it contains a single string that matches
+    multiple valid experiment IDs. If the value is a single string that does not
+    match any valid experiment ID, it will attempt to find the closest match
+    from the valid_experiment_ids list and issue a warning.
+    """
+
+    if value is None:
+        return False  # No value provided
+
+    if isinstance(value, str):
+        # If a single string is provided, convert it to a list
+        value = [value]
+
+    match len(value):
+        case 0:
+            return False  # Empty list is not valid
+
+        case 1:
+            # Single value, check if it matches a valid experiment ID
+            # If not, check if multiple experimental IDs match, in which case we re-set
+            # value to the whole list of matching IDs
+            # Otherwise, check for closest match, and issue a warning
+            v = value[0]
+            if v in valid_experiment_ids:
+                return True  # Valid single experiment ID
+
+            if any(v in valid for valid in valid_experiment_ids):
+                # If any part of the value matches a valid experiment ID
+                # We assume the user meant to greedy match multiple IDs
+                # i.e. "hist" or "ssp" could match "historical" or all "ssp" experiments
+                value.extend([valid for valid in valid_experiment_ids if v in valid])
+                value.pop(0)  # Remove the original value
+                return True
+
+            # If no match, try to find the closest valid experiment ID
+            closest = _get_closest_options(v, valid_experiment_ids)
+            if closest:
+                warnings.warn(
+                    f"\n\nExperiment ID '{v}' not found."
+                    f"\nDid you mean any of the following '{closest[0]}'?"
+                )
+            else:
+                warnings.warn(
+                    f"\n\nExperiment ID '{v}' not found."
+                    "\nPlease check the available experiment IDs."
+                )
+            return False
+
+        case _:
+            # Multiple values, check each one
+            ret = True
+            for v in value:
+                if v not in valid_experiment_ids:
+                    closest = _get_closest_options(v, valid_experiment_ids)
+                    if closest:
+                        warnings.warn(
+                            f"Experiment ID '{v}' not found. Did you mean '{closest[0]}'?"
+                        )
+
+                    ret = False
+            return ret  # All values are valid

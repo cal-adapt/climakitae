@@ -28,6 +28,7 @@ observational data for bias correction functionality. The bias correction
 implementation uses the xclim library for quantile delta mapping.
 """
 
+import re
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import geopandas as gpd
@@ -176,7 +177,9 @@ class Localize(DataProcessor):
 
     def execute(
         self,
-        result: Union[xr.DataArray, xr.Dataset],
+        result: Union[
+            xr.DataArray, xr.Dataset, Dict[str, Union[xr.DataArray, xr.Dataset]]
+        ],
         context: Dict[str, Any],
     ) -> Union[xr.DataArray, xr.Dataset]:
         """
@@ -216,35 +219,48 @@ class Localize(DataProcessor):
         unified Dataset structure.
         """
         # Validate inputs
-        self._validate_inputs(result)
 
-        # Get station subset
-        station_subset = self._get_station_subset()
+        ret = {}
 
-        # Store original time slice for bias correction if needed
-        if hasattr(result, "time") and len(result.time) > 0:
-            time_values = result.time.values
-            original_time_slice = (
-                int(str(time_values[0])[:4]),  # First year
-                int(str(time_values[-1])[:4]),  # Last year
-            )
-            context["original_time_slice"] = original_time_slice
+        match result:
+            case xr.DataArray() | xr.Dataset():
+                # Get station subset
+                station_subset = self._get_station_subset()
 
-        # Process each station
-        station_results = []
-        for _, station_row in station_subset.iterrows():
-            station_data = self._process_single_station(result, station_row, context)
-            if station_data is not None:
-                station_results.append(station_data)
+                # Store original time slice for bias correction if needed
+                if hasattr(result, "time") and len(result.time) > 0:
+                    time_values = result.time.values
+                    original_time_slice = (
+                        int(str(time_values[0])[:4]),  # First year
+                        int(str(time_values[-1])[:4]),  # Last year
+                    )
+                    context["original_time_slice"] = original_time_slice
 
-        # Combine station results
-        if station_results:
-            combined = self._combine_station_results(station_results)
-            self.update_context(context)
-        else:
-            raise ValueError("No valid station data could be processed")
+                # Process each station
+                station_results = []
+                for _, station_row in station_subset.iterrows():
+                    station_data = self._process_single_station(
+                        result, station_row, context
+                    )
+                    if station_data is not None:
+                        station_results.append(station_data)
 
-        return combined
+                # Combine station results
+                if station_results:
+                    combined = self._combine_station_results(station_results)
+                else:
+                    raise ValueError("No valid station data could be processed")
+
+                return combined
+
+            case dict():
+                self._validate_inputs(result)
+                for key, item in result.items():
+                    ret[key] = self.execute(item, context)
+                    ret[key].attrs = item.attrs
+
+        self.update_context(context)
+        return ret
 
     def _validate_inputs(self, data: Union[xr.DataArray, xr.Dataset]):
         """
@@ -366,7 +382,7 @@ class Localize(DataProcessor):
         gridded_data: Union[xr.DataArray, xr.Dataset],
         station_row: pd.Series,
         context: Dict[str, Any],
-    ) -> Optional[xr.DataArray]:
+    ) -> Optional[Union[xr.DataArray, xr.Dataset]]:
         """
         Process gridded data for a single weather station.
 
@@ -385,9 +401,10 @@ class Localize(DataProcessor):
 
         Returns
         -------
-        xr.DataArray or None
+        xr.DataArray or xr.Dataset or None
             Extracted and processed data for the station, or None if processing
             failed. Contains station coordinates and elevation as attributes.
+            Returns DataArray for single-variable input, Dataset for multi-variable input.
 
         Notes
         -----
@@ -436,7 +453,7 @@ class Localize(DataProcessor):
             )
 
             # Rename to station name for easy identification
-            closest_data.name = station_name
+            closest_data.attrs["name"] = station_name
 
             return closest_data
 
@@ -814,43 +831,99 @@ class Localize(DataProcessor):
             },
         )
 
+    def _extract_station_id(self, station_name: str) -> str:
+        """
+        Extract 4-letter station ID from station name string.
+
+        Station names typically end with the format "(KXXX)" where KXXX is the 4-letter ID.
+
+        Parameters
+        ----------
+        station_name : str
+            Full station name like "Oxnard Ventura County Airport (KOXR)"
+
+        Returns
+        -------
+        str
+            4-letter station ID like "KOXR", or empty string if not found
+        """
+
+        # Look for pattern like "(KXXX)" at the end of the string
+        match = re.search(r"\(([A-Z]{4})\)$", station_name)
+        if match:
+            return match.group(1)
+        return ""
+
     def _combine_station_results(
-        self, station_results: List[xr.DataArray]
+        self, station_results: List[Union[xr.DataArray, xr.Dataset]]
     ) -> xr.Dataset:
         """
         Combine individual station results into a unified Dataset.
 
-        Takes a list of DataArrays representing processed data for individual
+        Takes a list of DataArrays or Datasets representing processed data for individual
         stations and combines them into a single Dataset with each station
-        as a separate data variable.
+        as a separate data variable. Variable names preserve the original variable name
+        and append the station ID (e.g., "t2@KOXR").
 
         Parameters
         ----------
-        station_results : list of xr.DataArray
-            List of processed DataArrays, one for each station. Each DataArray
-            should have a name attribute corresponding to the station name.
+        station_results : list of xr.DataArray or xr.Dataset
+            List of processed DataArrays or Datasets, one for each station. Each should
+            have a name attribute corresponding to the station name.
 
         Returns
         -------
         xr.Dataset
             Dataset containing all station data as separate variables, with
-            station names as variable names (cleaned for compatibility)
+            variable names in format "original_variable@STATION_ID"
 
         Notes
         -----
-        Station names are cleaned by replacing spaces with underscores and
-        removing parentheses to ensure they are valid variable names in
-        the resulting Dataset.
+        The station ID is extracted from the station name (text in parentheses).
+        If no station ID is found, falls back to using cleaned station name.
         """
 
         # Create dataset with each station as a data variable
         station_dict = {}
         for station_data in station_results:
-            # Clean station name for use as variable name
-            clean_name = (
-                station_data.name.replace(" ", "_").replace("(", "").replace(")", "")
-            )
-            station_dict[clean_name] = station_data
+            station_name = station_data.attrs.get("name", "unknown_station")
+            station_id = self._extract_station_id(station_name)
+
+            # Handle both DataArray and Dataset cases
+            if isinstance(station_data, xr.DataArray):
+                # Single variable case - use original variable name with station ID
+                original_var_name = getattr(station_data, "name", "data")
+                if station_id:
+                    var_key = f"{original_var_name}@{station_id}"
+                else:
+                    # Fallback to cleaned station name if no ID found
+                    clean_name = (
+                        station_name.replace(" ", "_").replace("(", "").replace(")", "")
+                    )
+                    var_key = clean_name
+
+                station_dict[var_key] = station_data
+
+            elif isinstance(station_data, xr.Dataset):
+                # Multiple variables case - append station ID to each variable
+                for var_name in station_data.data_vars:
+                    if station_id:
+                        var_key = f"{var_name}@{station_id}"
+                    else:
+                        # Fallback to station name prefix
+                        clean_name = (
+                            station_name.replace(" ", "_")
+                            .replace("(", "")
+                            .replace(")", "")
+                        )
+                        var_key = f"{clean_name}_{var_name}"
+
+                    data_array = station_data[var_name]
+                    # Preserve station attributes
+                    data_array.attrs.update(station_data.attrs)
+                    data_array.attrs["name"] = station_name
+                    data_array = data_array.squeeze("member_id", drop=True)
+                    station_dict[var_key] = data_array
 
         combined = xr.Dataset(station_dict)
         return combined

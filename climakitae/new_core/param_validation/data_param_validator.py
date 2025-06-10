@@ -93,10 +93,10 @@ class DataValidator(ParameterValidator):
             True if the query does not contain localize processor, False otherwise.
         """
         if "localize" in query.get("processes", {}).keys():
-            if "WRF" not in query.get("source_id", ""):
+            if "WRF" not in query.get("activity_id", ""):
                 warnings.warn(
                     "\n\nLocalize processor is not supported for LOCA2 datasets.",
-                    "\nPlease specify '.source_id(WRF)' in your query.",
+                    "\nPlease specify '.activity_id(WRF)' in your query.",
                     UserWarning,
                 )
                 return False

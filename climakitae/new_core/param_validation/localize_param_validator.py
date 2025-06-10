@@ -40,8 +40,12 @@ def validate_localize_param(
     match value:
         case str() | list():
             # convert to list
-            stations = value[:] if isinstance(value, list) else [value]
-            stations = [v.strip() for v in value]
+            stations = []
+            if isinstance(value, list):
+                stations = value
+            else:
+                stations.append(value)
+            stations = [s.strip() for s in stations]
 
             # check if all values are valid station names or IDs
             available_stations = STATIONS_DF["station"].tolist()

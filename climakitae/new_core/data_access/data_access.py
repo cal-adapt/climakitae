@@ -194,6 +194,12 @@ class DataCatalog(dict):
             The requested dataset(s) from the catalog.
         """
         print(f"Querying {self.catalog_key} catalog with query: {query}")
+        # if any(isinstance(v, list) for v in query.values()):
+        #     # query contains a list, which is not supported by intake
+        #     for key, value in query.items():
+        #         if isinstance(value, list):
+        #             # Convert list to a comma-separated string
+        #             query[key] = ",".join(value)
         return (
             self[self.catalog_key]
             .search(**query)

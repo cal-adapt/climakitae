@@ -65,7 +65,7 @@ class ClimateData:
         Set the institution identifier.
     source_id(source_id: str) -> ClimateData
         Set the source identifier.
-    experiment_id(experiment_id: str) -> ClimateData
+    experiment_id(experiment_id: str | list[str]) -> ClimateData
         Set the experiment identifier.
     table_id(table_id: str) -> ClimateData
         Set the temporal resolution.
@@ -262,7 +262,7 @@ class ClimateData:
         self._query["source_id"] = source_id.strip()
         return self
 
-    def experiment_id(self, experiment_id: str) -> "ClimateData":
+    def experiment_id(self, experiment_id: str | list[str]) -> "ClimateData":
         """
         Set the experiment identifier for the query.
 
@@ -276,9 +276,21 @@ class ClimateData:
         ClimateData
             The current instance for method chaining.
         """
-        if not isinstance(experiment_id, str) or not experiment_id.strip():
-            raise ValueError("Experiment ID must be a non-empty string")
-        self._query["experiment_id"] = experiment_id.strip()
+        exp = []
+        if not isinstance(experiment_id, (str, list)):
+            raise ValueError(
+                "Experiment ID must be a non-empty string or list of strings"
+            )
+        if isinstance(experiment_id, str):
+            if not experiment_id.strip():
+                raise ValueError("Experiment ID must be a non-empty string")
+            exp.append(experiment_id.strip())
+        else:
+            for exp_id in experiment_id:
+                if not isinstance(exp_id, str) or not exp_id.strip():
+                    raise ValueError("Each experiment ID must be a non-empty string")
+                exp.append(exp_id.strip())
+        self._query["experiment_id"] = exp
         return self
 
     def table_id(self, table_id: str) -> "ClimateData":
@@ -397,7 +409,16 @@ class ClimateData:
         try:
             # Execute the query
             data = dataset.execute(self._query)
-            print("✅ Data retrieval successful!")
+            # check if empty dataset
+            # Check if data is empty/null
+            if (
+                data is None
+                or (hasattr(data, "nbytes") and data.nbytes == 0)
+                or (isinstance(data, dict) and not data)
+            ):
+                print("⚠️ Warning: Retrieved dataset is empty.")
+            else:
+                print("✅ Data retrieval successful!")
         except (ValueError, KeyError, IOError, RuntimeError) as e:
             print(f"Error during data retrieval: {str(e)}")
             print(f"Traceback:\n{traceback.format_exc()}")

@@ -20,6 +20,7 @@ import intake
 from climakitae.core.constants import PROC_KEY, UNSET
 from climakitae.new_core.param_validation.param_validation_tools import (
     _get_closest_options,
+    validate_experimental_id_param,
 )
 
 _CATALOG_VALIDATOR_REGISTRY = {}
@@ -101,7 +102,6 @@ class ParameterValidator(ABC):
         Dict[str, Any] | None
             Validated query parameters or None if invalid
         """
-        pass
 
     def _is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
         """
@@ -141,7 +141,7 @@ class ParameterValidator(ABC):
 
         # dataset not found
         # find closest match to each provided key
-        print("No datasets found matching your query. Checking for valid options...")
+        print("Checking for valid options...")
         df = self.catalog.df.copy()
         last_key = None
         for key, value in self.all_catalog_keys.items():
@@ -155,6 +155,18 @@ class ParameterValidator(ABC):
                     f"Key {key} not found in catalog. Did you specify the correct catalog?"
                 )
                 continue  # skip to the next key
+
+            if key == "experiment_id":
+                # special case for experiment_id, since it can be a list of values
+                if not validate_experimental_id_param(value, df[key].unique().tolist()):
+                    warnings.warn(
+                        f"Experiment ID {value} is not valid. "
+                        "Please check the available options using `show_experiment_id_options()`."
+                    )
+                else:
+                    self.all_catalog_keys[key] = value
+                continue  # skip to the next key
+
             # subset the dataframe to the key
             remaining_key_values = df[key].unique()
             df = df[df[key] == value]
@@ -199,10 +211,14 @@ class ParameterValidator(ABC):
                         f"\n please use the `show_*_options()` methods."
                     )
                 break
-            else:
-                print(f"Found {len(df)} datasets with {key} = {value}.")
+            # else:
+            # print(f"Found {len(df)} datasets with {key} = {value}.")
             last_key = key
             # check if the value is in the catalog
+        if not df.empty:
+            print(f"Found up to {len(df)} datasets matching your query.")
+            print(f"Checking processes ...")
+            return self.all_catalog_keys if self._has_valid_processes(query) else None
         return None
 
     def _has_valid_processes(self, query: Dict[str, Any]) -> Dict[str, Any] | None:

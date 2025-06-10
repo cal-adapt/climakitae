@@ -174,7 +174,26 @@ def get_closest_gridcell(
     # Use data cellsize as tolerance for selecting nearest
     # Using this method to guard against single row|col
     # Assumes data is from climakitae retrieve
-    km_num = int(data.resolution.split(" km")[0])
+    # for k, v in data.attrs.items():
+    #     print(f"\t{k}: {v}")  # Debugging print to show attributes
+    try:
+        km_num = data.resolution
+    except AttributeError:
+        km_num = data.attrs.get("intake_esm_attrs:grid_label", None)
+        if km_num is None:
+            raise ValueError(
+                "Input data does not have 'resolution' or 'grid_label' attribute. "
+                "Please provide a valid dataset with these attributes."
+            )
+        grid_cell_to_km = {"d01": 3, "d02": 9, "d03": 45}
+        if km_num not in grid_cell_to_km:
+            raise ValueError(
+                f"Invalid grid cell size '{km_num}'. Expected one of {list(grid_cell_to_km.keys())}."
+            )
+        km_num = grid_cell_to_km[km_num]  # Convert grid cell to km
+    if isinstance(km_num, str) and " km" in km_num:
+        km_num = int(km_num.split(" km")[0])
+
     # tolerance = int(data.resolution.split(" km")[0]) * 1000
 
     if "x" in data.dims and "y" in data.dims:
