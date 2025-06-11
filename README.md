@@ -29,27 +29,49 @@ Climakitae is developed as part of the [Cal-Adapt Analytics Engine](https://anal
 
 ## Getting Started
 
-### Installation
+### Installation via Conda
 
 #### Prerequisites
 
 - Python 3.12
 - [conda / miniconda](https://www.anaconda.com/docs/getting-started/miniconda/install#quickstart-install-instructions)
 
-#### Install with `conda` on Linux
+#### Install 1.3.0 with `conda` on Linux
 
 For additional details on the latest version and step-by-step installation instructions please visit [the wiki]()
 
 ```bash
 # get the conda lock file from github
-curl https://github.com/cal-adapt/cae-environments/blob/main/conda-lock/climakitae/1.2.3/conda-linux-64.lock -o conda-linux-64.lock
+curl https://raw.githubusercontent.com/cal-adapt/cae-environments/refs/heads/main/conda-lock/climakitae/1.3.0/conda-linux-64.lock -o conda-linux-64.lock
 
 # create and activate your environment
 conda create -n climakitae --file conda-linux-64.lock
 conda activate climakitae
 
 # install climakitae
-pip install https://github.com/cal-adapt/climakitae/archive/refs/tags/1.2.3.zip
+pip install https://github.com/cal-adapt/climakitae/archive/refs/tags/1.3.0.zip
+```
+
+### Installation via Pip
+
+#### Prerequisites
+
+- Python 3.12
+- pip
+
+#### Install 1.3.0 with `pip` on Linux
+
+For additional details on the latest version and step-by-step installation instructions please visit [the wiki]()
+
+```bash
+# get the requirements.txt file from github
+curl https://raw.githubusercontent.com/cal-adapt/climakitae/refs/heads/release-1.3.0/requirements.txt -o requirements.txt
+
+# load packages from requirements.txt
+pip install -r requirements.txt
+
+# install climakitae
+pip install https://github.com/cal-adapt/climakitae/archive/refs/tags/1.3.0.zip
 ```
 
 ### Basic Usage
