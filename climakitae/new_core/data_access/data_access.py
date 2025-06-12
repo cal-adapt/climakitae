@@ -20,6 +20,7 @@ import warnings
 import geopandas as gpd
 import intake
 import intake_esm
+import pandas as pd
 import xarray as xr
 
 from climakitae.core.constants import (
@@ -105,6 +106,7 @@ class DataCatalog(dict):
             self[CATALOG_DATA] = intake.open_esm_datastore(DATA_CATALOG_URL)
             self[CATALOG_BOUNDARY] = intake.open_catalog(BOUNDARY_CATALOG_URL)
             self[CATALOG_RENEWABLES] = intake.open_esm_datastore(RENEWABLES_CATALOG_URL)
+            self.catalog_df = self.merge_catalogs()
             stations_df = read_csv_file(STATIONS_CSV_PATH)
             self["stations"] = gpd.GeoDataFrame(
                 stations_df,
@@ -138,6 +140,22 @@ class DataCatalog(dict):
         if self._boundaries is UNSET:
             self._boundaries = Boundaries(self.boundary)
         return self._boundaries
+
+    def merge_catalogs(self) -> pd.DataFrame:
+        """
+        Merge the intake catalogs for data and renewables into a single DataFrame.
+
+        Returns
+        -------
+        pd.DataFrame
+            A DataFrame containing the merged data from both catalogs.
+        """
+        ren_df = self.renewables.df
+        data_df = self.data.df
+        ren_df["catalog"] = CATALOG_RENEWABLES
+        data_df["catalog"] = CATALOG_DATA
+        ret = pd.concat([ren_df, data_df], ignore_index=True)
+        return ret
 
     def set_catalog_key(self, key: str) -> "DataCatalog":
         """

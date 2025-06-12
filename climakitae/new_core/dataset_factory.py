@@ -40,7 +40,6 @@ from typing import Any, Dict, List, Type
 import pandas as pd
 
 from climakitae.core.constants import _NEW_ATTRS_KEY, PROC_KEY, UNSET
-from climakitae.core.paths import CACHED_CATALOG_CSV_PATH
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.dataset import Dataset
 from climakitae.new_core.param_validation.abc_param_validation import (
@@ -146,7 +145,7 @@ class DatasetFactory:
             If the catalog file cannot be loaded or parsed.
         """
         self._catalog = None
-        self._catalog_df = pd.read_csv(CACHED_CATALOG_CSV_PATH)
+        self._catalog_df = DataCatalog().catalog_df
         self._validator_registry = _CATALOG_VALIDATOR_REGISTRY
         self._processing_step_registry = _PROCESSOR_REGISTRY
 

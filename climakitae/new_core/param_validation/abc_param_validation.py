@@ -15,9 +15,8 @@ import warnings
 from abc import ABC, abstractmethod
 from typing import Any, Dict
 
-import intake
-
 from climakitae.core.constants import PROC_KEY, UNSET
+from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.param_validation.param_validation_tools import (
     _get_closest_options,
     validate_experimental_id_param,
@@ -287,7 +286,7 @@ class ParameterValidator(ABC):
         """
         load the catalog dataframe and assign to self.catalog_df
         """
-        self.catalog_df = intake.open_csv(self.catalog_path).read()
+        self.catalog_df = DataCatalog().catalog_df
 
     def _convert_frequency(self, frequency: str) -> str:
         """
