@@ -164,6 +164,7 @@ class ClimateData:
             "variable_id": UNSET,
             "processes": UNSET,
         }
+        self._factory.reset()
         return self
 
     # Core parameter setting methods

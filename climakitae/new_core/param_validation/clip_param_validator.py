@@ -247,22 +247,45 @@ def _validate_tuple_param(
 
     # Validate that each bound is a tuple/list with 2 numeric values
     for bounds, name in [(lat_bounds, "latitude"), (lon_bounds, "longitude")]:
-        if not isinstance(bounds, (tuple, list)) or len(bounds) != 2:
-            warnings.warn(
-                f"\n\nEach coordinate bound must be a tuple/list with 2 values (min, max). "
-                f"\nInvalid {name} bounds: {bounds}. "
-                f"\nExample: ((32.0, 42.0), (-125.0, -114.0))"
-            )
+        if not isinstance(bounds, (tuple, list, float, int)):
+            if isinstance(bounds, (tuple, list)) and len(bounds) != 2:
+                # user tried to pass a tuple/list with 2 numeric values
+                warnings.warn(
+                    f"\n\nLat/Lon clipping must either be a tuple of two numeric values"
+                    f"\nor a tuple of tuples/lists with two numeric values each. "
+                    f"\nPoint Example: (35.0, -120.0) "
+                    f"\nBounds Example: ((32.0, 42.0), (-125.0, -114.0))"
+                    f"\nGot {name} bounds: {bounds} (type: {type(bounds).__name__})"
+                )
+            else:
+                warnings.warn(
+                    f"\n\nLat/Lon clipping must be a tuple of two numeric values "
+                    f"or a tuple of tuples/lists with two numeric values each. "
+                    f"\nPoint Example: (35.0, -120.0) "
+                    f"\nBounds Example: ((32.0, 42.0), (-125.0, -114.0))"
+                    f"\nGot {name} bounds: {bounds} (type: {type(bounds).__name__})"
+                )
             return False
 
         try:
-            min_val, max_val = float(bounds[0]), float(bounds[1])
+            min_val, max_val = None, None
+            if isinstance(bounds, (tuple, list)):
+                min_val, max_val = float(bounds[0]), float(bounds[1])
+            elif isinstance(bounds, (float, int)):
+                min_val, max_val = float(bounds), float(bounds)
         except (ValueError, TypeError):
             warnings.warn(
                 f"\n\nCoordinate bounds must be numeric. Invalid {name} bounds: {bounds}. "
                 f"\nBoth values must be convertible to float."
             )
             return False
+        finally:
+            if min_val is None or max_val is None:
+                warnings.warn(
+                    f"\n\nCoordinate bounds must be numeric. Invalid {name} bounds: {bounds}. "
+                    f"\nBoth values must be provided."
+                )
+                return False
 
         # Validate coordinate ranges
         if name == "latitude":
@@ -281,9 +304,9 @@ def _validate_tuple_param(
                 return False
 
         # Validate that min < max
-        if min_val >= max_val:
+        if min_val > max_val:
             warnings.warn(
-                f"\n\nMinimum {name} must be less than maximum {name}. "
+                f"\n\nMinimum {name} must be less than or equal to maximum {name}. "
                 f"\nGot {name} bounds: ({min_val}, {max_val})"
             )
             return False

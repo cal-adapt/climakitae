@@ -299,3 +299,12 @@ class DataCatalog(dict):
                 if remaining > 0:
                     print(f"    ... and {remaining} more options")
             print()
+
+    def reset(self):
+        """
+        Reset the DataCatalog instance to its initial state.
+
+        This method clears all catalogs and reinitializes the DataCatalog
+        instance, effectively resetting it to its original state.
+        """
+        self.catalog_key = UNSET

@@ -203,10 +203,13 @@ class DatasetFactory:
 
         # Configure the appropriate catalog based on query parameters
         dataset.with_catalog(self._catalog)
+
         # Add processing steps based on query parameters
         if _NEW_ATTRS_KEY not in ui_query:
             ui_query[_NEW_ATTRS_KEY] = {}
-        for proc in self._get_list_of_processing_steps(ui_query):
+
+        proc_steps = self._get_list_of_processing_steps(ui_query)
+        for proc in proc_steps:
             dataset.with_processing_step(proc)
 
         return dataset
@@ -253,6 +256,7 @@ class DatasetFactory:
         _PROCESSOR_REGISTRY : Global registry of available processors
         """
         processing_steps = []
+        priorities = []
 
         if query[PROC_KEY] is UNSET:
             # create empty processing step key
@@ -265,10 +269,26 @@ class DatasetFactory:
                 )
                 continue
 
-            processor_class, _ = self._processing_step_registry[
+            processor_class, priority = self._processing_step_registry[
                 key
             ]  # get the class and priority
-            processing_steps.append(processor_class(value))
+            index = len(processing_steps)
+            if not priorities:
+                priorities.append(priority)
+                index = 0
+            elif priority not in priorities:
+                # insert the new step in the correct order
+                # lowest priority first
+                for i, p in enumerate(priorities):
+                    if priority < p:
+                        index = i
+                        break
+                priorities.insert(index, priority)
+            else:
+                # if the priority already exists, we append after the last occurrence
+                indices = [i for i, p in enumerate(priorities) if p == priority]
+                index = indices[-1] + 1
+            processing_steps.insert(index, processor_class(value))
 
             # modify query in place
             query[_NEW_ATTRS_KEY][key] = value
@@ -276,8 +296,8 @@ class DatasetFactory:
         # Mandatory processing steps
         if "filter_unbiased_models" not in query[PROC_KEY]:
             # remove unbiased models
-            processing_steps.append(
-                self._processing_step_registry["filter_unbiased_models"][0]()
+            processing_steps.insert(
+                0, self._processing_step_registry["filter_unbiased_models"][0]()
             )
             query[_NEW_ATTRS_KEY]["filter_unbiased_models"] = "yes"
 
@@ -474,3 +494,13 @@ class DatasetFactory:
             List of available station datasets.
         """
         return DataCatalog()["stations"]["station"].unique().tolist()
+
+    def reset(self):
+        """
+        Reset the factory state, clearing all registered catalogs, validators, and processors.
+
+        This method is useful for reinitializing the factory without creating a new instance.
+        """
+        self._validator_registry = _CATALOG_VALIDATOR_REGISTRY
+        self._processing_step_registry = _PROCESSOR_REGISTRY
+        DataCatalog().reset()

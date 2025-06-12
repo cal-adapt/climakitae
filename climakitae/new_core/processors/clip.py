@@ -19,9 +19,11 @@ import warnings
 from typing import Any, Dict, Iterable, Union
 
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 import pyproj
 import xarray as xr
+from geopy.distance import geodesic
 from shapely.geometry import box, mapping
 
 from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
@@ -30,6 +32,7 @@ from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
     register_processor,
 )
+from climakitae.util.utils import get_closest_gridcell
 
 
 @register_processor("clip", priority=500)
@@ -47,7 +50,8 @@ class Clip(DataProcessor):
         The value(s) to clip the data by. Can be:
         - str: Single boundary key, file path, or coordinate specification
         - list: Multiple boundary keys of the same category (Phase 1)
-        - tuple: Coordinate bounds ((lat_min, lat_max), (lon_min, lon_max))
+        - tuple: Coordinate bounds ((lat_min, lat_max), (lon_min, lon_max)) or a single (lat, lon) point
+
 
     Examples
     --------
@@ -61,6 +65,9 @@ class Clip(DataProcessor):
 
     Coordinate bounds:
     >>> clip = Clip(((32.0, 42.0), (-125.0, -114.0)))  # lat/lon bounds
+
+    Single point (closest gridcell):
+    >>> clip = Clip((37.7749, -122.4194))  # Single lat, lon point
     """
 
     def __init__(self, value):
@@ -73,7 +80,7 @@ class Clip(DataProcessor):
             The value(s) to clip the data by. Can be:
             - str: Single boundary key, file path, or coordinate specification
             - list: Multiple boundary keys of the same category (Phase 1)
-            - tuple: Coordinate bounds ((lat_min, lat_max), (lon_min, lon_max))
+            - tuple: Coordinate bounds ((lat_min, lat_max), (lon_min, lon_max)) or single (lat, lon) point
         """
         self.value = value
         self.name = "clip"
@@ -83,6 +90,15 @@ class Clip(DataProcessor):
         # Determine if this is a multi-boundary operation
         self.multi_mode = isinstance(value, list) and len(value) > 1
         self.operation = "union" if self.multi_mode else None
+
+        # Check if this is a single point operation and store coordinates
+        self.is_single_point = (
+            isinstance(value, tuple)
+            and len(value) == 2
+            and all(isinstance(coord, (int, float)) for coord in value)
+        )
+        if self.is_single_point:
+            self.lat, self.lon = float(value[0]), float(value[1])
 
     def execute(
         self,
@@ -105,44 +121,78 @@ class Clip(DataProcessor):
                 # Handle multiple boundary keys (Phase 1)
                 geom = self._get_multi_boundary_geometry(self.value)
             case tuple():
-                geom = gpd.GeoDataFrame(
-                    geometry=[
-                        box(
-                            minx=self.value[1][0],
-                            miny=self.value[0][0],
-                            maxx=self.value[1][1],
-                            maxy=self.value[0][1],
-                        )
-                    ],
-                    crs=pyproj.CRS.from_epsg(4326),
-                    # 4326 is WGS84 i.e. lat/lon
-                )
+                # Check if this is a single (lat, lon) point or bounds ((lat_min, lat_max), (lon_min, lon_max))
+                if len(self.value) == 2 and all(
+                    isinstance(coord, (int, float)) for coord in self.value
+                ):
+                    # Single (lat, lon) point - use closest gridcell approach
+                    geom = None  # Will be handled differently in clipping
+                else:
+                    # Coordinate bounds ((lat_min, lat_max), (lon_min, lon_max))
+                    geom = gpd.GeoDataFrame(
+                        geometry=[
+                            box(
+                                minx=self.value[1][0],
+                                miny=self.value[0][0],
+                                maxx=self.value[1][1],
+                                maxy=self.value[0][1],
+                            )
+                        ],
+                        crs=pyproj.CRS.from_epsg(4326),
+                        # 4326 is WGS84 i.e. lat/lon
+                    )
             case _:
                 raise ValueError(
                     f"Invalid value type for clipping. Expected str, list, or tuple but got {type(self.value)}."
                 )
 
+        if geom is None and not self.is_single_point:
+            raise ValueError("Failed to create geometry for clipping operation.")
+
         ret = None
         match result:
             case dict():
                 # Clip each dataset in the dictionary
-                ret = {
-                    key: self._clip_data_with_geom(value, geom)
-                    for key, value in result.items()
-                }
+                if self.is_single_point:
+                    ret = {
+                        key: self._clip_data_to_point(value, self.lat, self.lon)
+                        for key, value in result.items()
+                    }
+                else:
+                    ret = {
+                        key: self._clip_data_with_geom(value, geom)
+                        for key, value in result.items()
+                        if geom is not None
+                    }
             case xr.Dataset() | xr.DataArray():
                 # Clip the single dataset
-                ret = self._clip_data_with_geom(result, geom)
+                if self.is_single_point:
+                    ret = self._clip_data_to_point(result, self.lat, self.lon)
+                elif geom is not None:
+                    ret = self._clip_data_with_geom(result, geom)
             case list() | tuple():
                 # return as passed type
-                ret = type(result)(
-                    [self._clip_data_with_geom(data, geom) for data in result]
-                )
+                if self.is_single_point:
+                    clipped_data = [
+                        self._clip_data_to_point(data, self.lat, self.lon)
+                        for data in result
+                    ]
+                    # Filter out None results
+                    valid_data = [data for data in clipped_data if data is not None]
+                    ret = type(result)(valid_data) if valid_data else None
+                elif geom is not None:
+                    ret = type(result)(
+                        [self._clip_data_with_geom(data, geom) for data in result]
+                    )
 
             case _:
                 raise ValueError(
                     f"Invalid result type for clipping. Expected dict, xr.Dataset, xr.DataArray, or Iterable but got {type(result)}."
                 )
+
+        if ret is None:
+            raise ValueError("Clipping operation failed to produce valid results.")
+
         self.update_context(context)
         return ret
 
@@ -164,7 +214,11 @@ class Clip(DataProcessor):
             context[_NEW_ATTRS_KEY] = {}
 
         # Add clipping information to the context
-        if self.multi_mode:
+        if self.is_single_point:
+            context[_NEW_ATTRS_KEY][
+                self.name
+            ] = f"""Process '{self.name}' applied to the data. Single point clipping was done using closest gridcell to coordinates: ({self.lat}, {self.lon})."""
+        elif self.multi_mode:
             context[_NEW_ATTRS_KEY][
                 self.name
             ] = f"""Process '{self.name}' applied to the data. Multi-boundary clipping was done using {len(self.value)} boundaries with {self.operation} operation: {self.value}."""
@@ -207,6 +261,135 @@ class Clip(DataProcessor):
             drop=True,
             all_touched=True,
         )
+
+    @staticmethod
+    def _clip_data_to_point(dataset: xr.DataArray | xr.Dataset, lat: float, lon: float):
+        """
+        Clip data to the closest gridcell with valid data for a single point.
+
+        This method will search for the nearest gridcell that contains
+        non-NaN values rather than just the geographically closest point.
+
+        Parameters
+        ----------
+        dataset : xr.Dataset or xr.DataArray
+            The dataset to clip
+        lat : float
+            Target latitude
+        lon : float
+            Target longitude
+
+        Returns
+        -------
+        xr.Dataset or xr.DataArray or None
+            Clipped dataset containing only the closest valid gridcell,
+            or None if no valid gridcell found within search radius
+        """
+
+        # First try the original method
+        closest_gridcell = get_closest_gridcell(dataset, lat, lon, print_coords=False)
+
+        if closest_gridcell is not None:
+            # Check if this gridcell has valid data (check first variable, first time step)
+            first_var = next(iter(closest_gridcell.data_vars))
+            test_data = closest_gridcell[first_var]
+
+            # Get a sample data point (first time step, first sim if available)
+            for dim in test_data.dims:
+                if dim not in ["x", "y"]:
+                    test_data = test_data.isel({dim: 0})
+
+            if not test_data.isnull().all():
+                print(
+                    f"Found valid data at closest gridcell: lat={closest_gridcell.lat.values:.4f}, lon={closest_gridcell.lon.values:.4f}"
+                )
+                return closest_gridcell
+
+        # If no valid data found at closest point, search in expanding radius
+        print(
+            f"Closest gridcell contains NaN values, searching for nearest valid gridcell..."
+        )
+
+        # Define search radii (in degrees)
+        search_radii = [0.01, 0.05, 0.1, 0.2, 0.5]
+
+        for radius in search_radii:
+            print(f"Searching within {radius}° radius...")
+
+            # Create a larger bounding box
+            lat_min, lat_max = lat - radius, lat + radius
+            lon_min, lon_max = lon - radius, lon + radius
+
+            # Clip to bounding box
+            try:
+                larger_region = dataset.sel(
+                    lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max)
+                )
+
+                if (
+                    larger_region.sizes.get("x", 0) == 0
+                    or larger_region.sizes.get("y", 0) == 0
+                ):
+                    continue
+
+                # Find valid gridcells in this region
+                first_var = next(iter(larger_region.data_vars))
+                test_data = larger_region[first_var]
+
+                # Reduce to 2D by taking first element of other dimensions
+                for dim in test_data.dims:
+                    if dim not in ["x", "y"]:
+                        test_data = test_data.isel({dim: 0})
+
+                # Find coordinates of valid (non-NaN) points
+                valid_mask = ~test_data.isnull()
+
+                if valid_mask.any():
+                    # Get lat/lon coordinates of valid points
+                    valid_lats = larger_region.lat.where(valid_mask)
+                    valid_lons = larger_region.lon.where(valid_mask)
+
+                    # Calculate distances to all valid points using geodesic
+                    distances = []
+                    valid_coords = []
+
+                    for i in range(valid_lats.sizes["x"]):
+                        for j in range(valid_lats.sizes["y"]):
+                            if valid_mask.isel(x=i, y=j):
+                                point_lat = valid_lats.isel(x=i, y=j).values
+                                point_lon = valid_lons.isel(x=i, y=j).values
+
+                                if not (np.isnan(point_lat) or np.isnan(point_lon)):
+                                    dist = geodesic(
+                                        (lat, lon), (point_lat, point_lon)
+                                    ).kilometers
+
+                                    distances.append(dist)
+                                    valid_coords.append((i, j, point_lat, point_lon))
+
+                    if valid_coords:
+                        # Find closest valid point
+                        min_idx = np.argmin(distances)
+                        closest_i, closest_j, closest_lat, closest_lon = valid_coords[
+                            min_idx
+                        ]
+
+                        print(
+                            f"Found valid gridcell at distance {distances[min_idx]:.2f} km"
+                        )
+                        print(
+                            f"Valid gridcell coordinates: lat={closest_lat:.4f}, lon={closest_lon:.4f}"
+                        )
+
+                        # Return the closest valid gridcell from the larger region
+                        return larger_region.isel(x=closest_i, y=closest_j)
+
+            except Exception as e:
+                print(f"Error searching radius {radius}: {e}")
+                continue
+
+        print("No valid gridcells found within search radius")
+        return None
 
     def _get_boundary_geometry(self, boundary_key: str) -> gpd.GeoDataFrame:
         """
@@ -376,189 +559,6 @@ class Clip(DataProcessor):
             "error": f"Boundary key '{boundary_key}' not found",
             "suggestions": suggestions[:10],  # Limit to top 10 suggestions
         }
-
-    def list_available_boundaries(self) -> Dict[str, list]:
-        """
-        List all available boundary options that can be used for clipping.
-
-        Returns
-        -------
-        Dict[str, list]
-            Dictionary with boundary categories as keys and lists of available
-            boundary names as values
-
-        Raises
-        ------
-        RuntimeError
-            If the catalog is not set or boundaries are not available
-
-        Examples
-        --------
-        >>> clip_processor = Clip("some_value")
-        >>> clip_processor.catalog = DataCatalog()
-        >>> boundaries = clip_processor.list_available_boundaries()
-        >>> print(boundaries["states"])
-        ['CA', 'OR', 'WA', 'NV', 'AZ', 'UT', 'ID', 'MT', 'WY', 'CO', 'NM']
-        """
-        if self.catalog is UNSET or not isinstance(self.catalog, DataCatalog):
-            raise RuntimeError(
-                "DataCatalog is not set. Cannot access boundary data. "
-                "Please ensure the catalog is properly initialized."
-            )
-
-        try:
-            boundary_dict = self.catalog.boundaries.boundary_dict()  # type: ignore
-        except Exception as e:
-            raise RuntimeError(f"Failed to access boundary data: {e}") from e
-
-        # Create a clean dictionary with boundary categories and their available options
-        available_boundaries = {}
-
-        for category, lookups in boundary_dict.items():
-            # Skip special categories that don't represent actual boundary data
-            if category in ["none", "lat/lon"]:
-                continue
-
-            # Convert keys to a sorted list for better presentation
-            boundary_keys = sorted(list(lookups.keys()))
-            available_boundaries[category] = boundary_keys
-
-        return available_boundaries
-
-    def print_available_boundaries(self) -> None:
-        """
-        Print all available boundary options in a user-friendly format.
-
-        This method provides a nicely formatted output showing all boundary
-        categories and their available options for clipping operations.
-
-        Raises
-        ------
-        RuntimeError
-            If the catalog is not set or boundaries are not available
-
-        Examples
-        --------
-        >>> clip_processor = Clip("some_value")
-        >>> clip_processor.catalog = DataCatalog()
-        >>> clip_processor.print_available_boundaries()
-        Available Boundary Options for Clipping:
-        ========================================
-
-        states:
-          - CA, OR, WA, NV, AZ, UT, ID, MT, WY, CO, NM
-
-        CA counties:
-          - Alameda County, Alpine County, Amador County, ...
-        """
-        try:
-            boundaries = self.list_available_boundaries()
-        except RuntimeError as e:
-            print(f"Error: {e}")
-            return
-
-        print("Available Boundary Options for Clipping:")
-        print("=" * 40)
-        print()
-
-        for category, boundary_list in boundaries.items():
-            print(f"{category}:")
-
-            # Format the list nicely - wrap long lists
-            if len(boundary_list) <= 5:
-                # For short lists, show all on one line
-                print(f"  - {', '.join(boundary_list)}")
-            else:
-                # For longer lists, show first few and count
-                displayed = boundary_list[:5]
-                remaining = len(boundary_list) - 5
-                print(f"  - {', '.join(displayed)}")
-                if remaining > 0:
-                    print(f"    ... and {remaining} more options")
-            print()
-
-    @classmethod
-    def get_boundary_examples(cls) -> Dict[str, str]:
-        """
-        Get example boundary keys for each category.
-
-        Returns
-        -------
-        Dict[str, str]
-            Dictionary with boundary categories as keys and example boundary
-            names as values
-
-        Examples
-        --------
-        >>> examples = Clip.get_boundary_examples()
-        >>> print(examples["states"])
-        'CA'
-        >>> print(examples["CA counties"])
-        'Los Angeles County'
-        """
-        return {
-            "states": "CA",
-            "CA counties": "Los Angeles County",
-            "CA watersheds": "Russian River",
-            "CA Electric Load Serving Entities (IOU & POU)": "PG&E",
-            "CA Electricity Demand Forecast Zones": "PG&E Bay Area",
-            "CA Electric Balancing Authority Areas": "CALISO",
-        }
-
-    @staticmethod
-    def get_supported_boundary_categories() -> Dict[str, str]:
-        """
-        Get information about supported boundary categories.
-
-        Returns
-        -------
-        Dict[str, str]
-            Dictionary with boundary categories as keys and descriptions as values
-
-        Examples
-        --------
-        >>> categories = Clip.get_supported_boundary_categories()
-        >>> for category, description in categories.items():
-        ...     print(f"{category}: {description}")
-        states: Western US states (CA, OR, WA, etc.)
-        CA counties: California counties
-        """
-        return {
-            "states": "Western US states (CA, OR, WA, NV, AZ, UT, ID, MT, WY, CO, NM)",
-            "CA counties": "California counties (e.g., Los Angeles County, San Francisco County)",
-            "CA watersheds": "California HUC-8 watersheds (e.g., Russian River, Sacramento River)",
-            "CA Electric Load Serving Entities (IOU & POU)": "California electric utilities (e.g., PG&E, SCE, SDG&E)",
-            "CA Electricity Demand Forecast Zones": "California electricity demand forecast zones",
-            "CA Electric Balancing Authority Areas": "California electric balancing authority areas (e.g., CALISO)",
-        }
-
-    @staticmethod
-    def print_boundary_usage_examples() -> None:
-        """
-        Print usage examples for boundary clipping.
-
-        This provides users with concrete examples of how to use different
-        boundary types for clipping operations.
-        """
-        print("Boundary Clipping Usage Examples:")
-        print("=" * 35)
-        print()
-
-        examples = [
-            ("File path", 'Clip("/path/to/shapefile.shp")'),
-            ("State", 'Clip("CA")'),
-            ("County", 'Clip("Los Angeles County")'),
-            ("Watershed", 'Clip("Russian River")'),
-            ("Utility", 'Clip("PG&E")'),
-            ("Forecast Zone", 'Clip("PG&E Bay Area")'),
-            ("Balancing Area", 'Clip("CALISO")'),
-            ("Lat/Lon box", "Clip(((lat_min, lat_max), (lon_min, lon_max)))"),
-        ]
-
-        for description, example in examples:
-            print(f"{description}:")
-            print(f"  {example}")
-            print()
 
     def _get_multi_boundary_geometry(self, boundary_keys: list) -> gpd.GeoDataFrame:
         """

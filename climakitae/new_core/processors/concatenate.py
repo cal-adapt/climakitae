@@ -124,6 +124,15 @@ class Concat(DataProcessor):
                     attr_ids.append(attr_id)
 
                     # Add sim dimension to the dataset
+                    if "member_id" in dataset.dims:
+                        # If member_id is present, we need to drop it
+                        dataset = dataset.isel(member_id=0).drop_dims(
+                            "member_id", errors="ignore"
+                        )
+                        if "member_id" in dataset.coords:
+                            dataset = dataset.drop_vars("member_id")
+
+                    # Add sim dimension to the dataset
                     dataset = dataset.expand_dims({self.dim_name: [attr_id]})
                     datasets_to_concat.append(dataset)
             case _:
@@ -146,6 +155,13 @@ class Concat(DataProcessor):
                     attr_ids.append(attr_id)
 
                     # Add sim dimension to the dataset
+                    if "member_id" in dataset.dims:
+                        # If member_id is present, we need to drop it
+                        dataset = dataset.isel(member_id=0).drop_dims(
+                            "member_id", errors="ignore"
+                        )
+                        if "member_id" in dataset.coords:
+                            dataset = dataset.drop_vars("member_id")
                     dataset = dataset.expand_dims({self.dim_name: [attr_id]})
                     datasets_to_concat.append(dataset)
 
@@ -155,16 +171,6 @@ class Concat(DataProcessor):
         # Concatenate all datasets along the sim dimension
         concatenated = xr.concat(datasets_to_concat, dim=self.dim_name)
         print(f"Concatenated datasets along '{self.dim_name}' dimension.")
-
-        # check if the concatenated object has a `member_id` dimension
-        if "member_id" in concatenated.dims:
-            # squeeze the member_id dimension
-            try:
-                concatenated = concatenated.squeeze("member_id", drop=True)
-            except ValueError:
-                # if squeezing fails here its because the member_id dimension has more
-                # than one value, so we are going to focibly drop `member_id` dimension
-                concatenated = concatenated.drop_vars("member_id", errors="ignore")
 
         self.update_context(context, attr_ids)
         return concatenated
