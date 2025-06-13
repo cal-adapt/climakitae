@@ -875,7 +875,7 @@ def convert_to_local_time(
 
         # Finding the center point of the gridded WRF area
         center_pt = (
-            mapping[selections.area_subset][0]
+            mapping[area_subset][0]
             .loc[mapping[area_subset][1][data.attrs["location_subset"][0]]]
             .geometry.centroid
         )
