@@ -5,7 +5,6 @@ from typing import Iterable, Union
 
 import geopandas as gpd
 import intake_esm
-import intake
 import numpy as np
 import pandas as pd
 import pyproj
@@ -915,6 +914,7 @@ def convert_to_local_time(
     sliced_data = sliced_data.assign_attrs({"timezone": local_tz})
 
     return sliced_data
+
 
 
 def add_dummy_time_to_wl(wl_da: xr.DataArray) -> xr.DataArray:
