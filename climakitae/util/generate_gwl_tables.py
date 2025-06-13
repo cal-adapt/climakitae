@@ -796,6 +796,9 @@ def main(_kTest=False):
             sims_on_aws = gwl_generator.get_sims_on_aws()
             models = list(sims_on_aws.T.columns)
 
+            if test:
+                models = models[0:1]
+
             # Pre-defined configuration
             reference_periods = [
                 {"start_year": "18500101", "end_year": "19000101"},
