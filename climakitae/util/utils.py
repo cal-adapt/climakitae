@@ -780,7 +780,7 @@ def match_attr(data: xr.DataArray, key, value):
 
 
 def convert_to_local_time(
-    data: xr.DataArray, time_slice: tuple[int, int]
+    data: xr.DataArray, time_slice: tuple[int, int], geographies, area_subset 
 ) -> xr.DataArray:
     """
     Convert time dimension from UTC to local time for the grid or station.
@@ -848,36 +848,35 @@ def convert_to_local_time(
         data, "location_subset", "entire domain"
     ):
         # Find the avg. lat/lon coordinates from entire geometry within an area subset
-        boundaries = Boundaries(intake.open_catalog(boundary_catalog_url))
 
         # Making mapping for different geographies to different polygons
         mapping = {
             "CA counties": (
-                boundaries._ca_counties,
-                boundaries._get_ca_counties(),
+                geographies._ca_counties,
+                geographies._get_ca_counties(),
             ),
             "CA Electric Balancing Authority Areas": (
-                boundaries._ca_electric_balancing_areas,
-                boundaries._get_electric_balancing_areas(),
+                geographies._ca_electric_balancing_areas,
+                geographies._get_electric_balancing_areas(),
             ),
             "CA Electricity Demand Forecast Zones": (
-                boundaries._ca_forecast_zones,
-                boundaries._get_forecast_zones(),
+                geographies._ca_forecast_zones,
+                geographies._get_forecast_zones(),
             ),
             "CA Electric Load Serving Entities (IOU & POU)": (
-                boundaries._ca_utilities,
-                boundaries._get_ious_pous(),
+                geographies._ca_utilities,
+                geographies._get_ious_pous(),
             ),
             "CA watersheds": (
-                boundaries._ca_watersheds,
-                boundaries._get_ca_watersheds(),
+                geographies._ca_watersheds,
+                geographies._get_ca_watersheds(),
             ),
         }
 
         # Finding the center point of the gridded WRF area
         center_pt = (
             mapping[selections.area_subset][0]
-            .loc[mapping[data.attrs["area_subset"]][1][data.attrs["location_subset"][0]]]
+            .loc[mapping[area_subset][1][data.attrs["location_subset"][0]]]
             .geometry.centroid
         )
         lat = center_pt.y
@@ -914,7 +913,6 @@ def convert_to_local_time(
     sliced_data = sliced_data.assign_attrs({"timezone": local_tz})
 
     return sliced_data
-
 
 
 def add_dummy_time_to_wl(wl_da: xr.DataArray) -> xr.DataArray:
