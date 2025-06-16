@@ -105,19 +105,24 @@ def _estimate_file_size(data: xr.DataArray | xr.Dataset, format: str) -> float:
     float
         estimated file size in gigabytes
     """
-    if format == "NetCDF" or format == "Zarr":
-        data_size = data.nbytes
-        buffer_size = 100 * 1024 * 1024  # 100 MB for miscellaneous metadata
-        est_file_size = data_size + buffer_size
-    elif format == "CSV":
-        # Rough estimate of the number of chars per CSV line
-        # Will overestimate uncompressed size by 10-20%
-        chars_per_line = 150
+    match format:
+        case "NetCDF" | "Zarr":
+            data_size = data.nbytes
+            buffer_size = 100 * 1024 * 1024  # 100 MB for miscellaneous metadata
+            est_file_size = data_size + buffer_size
+        case "CSV":
+            # Rough estimate of the number of chars per CSV line
+            # Will overestimate uncompressed size by 10-20%
+            chars_per_line = 150
 
-        if isinstance(data, xr.core.dataarray.DataArray):
-            est_file_size = data.size * chars_per_line
-        elif isinstance(data, xr.core.dataset.Dataset):
-            est_file_size = prod(data.sizes.values()) * chars_per_line
+            match data:
+                case xr.DataArray():
+                    est_file_size = data.size * chars_per_line
+                case xr.Dataset():
+                    est_file_size = prod(data.sizes.values()) * chars_per_line
+        case _:
+            raise Exception('format needs to be "NetCDF", "Zarr", "CSV"')
+
     return est_file_size / bytes_per_gigabyte
 
 
@@ -225,13 +230,16 @@ def _convert_da_to_ds(data: xr.DataArray | xr.Dataset) -> xr.Dataset:
     ----------
     data: xarray.DataArray or xarray.Dataset
     """
-    if isinstance(data, xr.core.dataarray.DataArray):
-        if not data.name:
-            # name it in order to call to_dataset on it
-            data.name = "data"
-        return data.to_dataset()
-    elif isinstance(data, xr.core.dataset.Dataset):
-        return data
+    match data:
+        case xr.DataArray():
+            if not data.name:
+                # name it in order to call to_dataset on it
+                data.name = "data"
+            return data.to_dataset()
+        case xr.Dataset():
+            return data
+        case _:
+            raise Exception("Input must be either an Xarray DataArray or Dataset")
 
 
 def _export_to_netcdf(data: xr.DataArray | xr.Dataset, save_name: str):
@@ -361,44 +369,45 @@ def _export_to_zarr(data: xr.DataArray | xr.Dataset, save_name: str, mode: str):
             )
         )
 
-    if mode == "local":
-        print("Saving file locally as Zarr...")
-        if disk_space <= est_file_size:
-            raise Exception(
-                "Data too large to save locally. Use the format='Zarr', mode='s3' options."
-            )
-        path = os.path.join(os.getcwd(), save_name)
-
-        if os.path.exists(path):
-            raise Exception(
-                (
-                    f"File {save_name} exists. "
-                    "Please either delete that file from the work space "
-                    "or specify a new file name."
+    match mode:
+        case "local":
+            print("Saving file locally as Zarr...")
+            if disk_space <= est_file_size:
+                raise Exception(
+                    "Data too large to save locally. Use the format='Zarr', mode='s3' options."
                 )
-            )
-        _write_zarr(path, _data)
-    elif mode == "s3":
-        print("Saving file to S3 scratch bucket as Zarr...")
-        display_path = f"{os.environ['SCRATCH_BUCKET']}/{save_name}"
-        path = "simplecache::" + display_path
-        prefix = display_path.split(EXPORT_S3_BUCKET + "/")[-1]
+            path = os.path.join(os.getcwd(), save_name)
 
-        s3 = boto3.resource("s3")
-        try:
-            s3.Object(EXPORT_S3_BUCKET, prefix + "/.zattrs").load()
-        except botocore.exceptions.ClientError as e:
-            if e.response["Error"]["Code"] == "404":
-                # The object does not exist so go ahead and write to S3
-                _write_zarr_to_s3(display_path, path, save_name, _data)
+            if os.path.exists(path):
+                raise Exception(
+                    (
+                        f"File {save_name} exists. "
+                        "Please either delete that file from the work space "
+                        "or specify a new file name."
+                    )
+                )
+            _write_zarr(path, _data)
+        case "s3":
+            print("Saving file to S3 scratch bucket as Zarr...")
+            display_path = f"{os.environ['SCRATCH_BUCKET']}/{save_name}"
+            path = "simplecache::" + display_path
+            prefix = display_path.split(EXPORT_S3_BUCKET + "/")[-1]
+
+            s3 = boto3.resource("s3")
+            try:
+                s3.Object(EXPORT_S3_BUCKET, prefix + "/.zattrs").load()
+            except botocore.exceptions.ClientError as e:
+                if e.response["Error"]["Code"] == "404":
+                    # The object does not exist so go ahead and write to S3
+                    _write_zarr_to_s3(display_path, path, save_name, _data)
+                else:
+                    # Something else has gone wrong.
+                    raise
             else:
-                # Something else has gone wrong.
-                raise
-        else:
-            # The object does exist
-            raise Exception(f"File {save_name} exists. Specify a new file name.")
-    else:
-        raise Exception("Correct mode not specified. Use either 'local' or 's3'.")
+                # The object does exist
+                raise Exception(f"File {save_name} exists. Specify a new file name.")
+        case _:
+            raise Exception("Correct mode not specified. Use either 'local' or 's3'.")
 
 
 def _get_unit(dataarray: xr.DataArray) -> str:
@@ -689,13 +698,13 @@ def _export_to_csv(data: xr.DataArray | xr.Dataset, save_name: str):
     print("Exporting specified data to CSV...")
     _warn_large_export(est_file_size, 1.0)
 
-    ftype = type(data)
-
-    if ftype == xr.core.dataarray.DataArray:
-        df = _dataarray_to_dataframe(data)
-
-    elif ftype == xr.core.dataset.Dataset:
-        df = _dataset_to_dataframe(data)
+    match data:
+        case xr.DataArray():
+            df = _dataarray_to_dataframe(data)
+        case xr.Dataset():
+            df = _dataset_to_dataframe(data)
+        case _:
+            raise Exception("Input data needs to be an Xarray DataArray or Dataset")
 
     # Warn about exceedance of Excel row or column limit
     excel_row_limit = 1048576
@@ -855,12 +864,17 @@ def export(
     # now here is where exporting actually begins
     # we will have different functions for each file type
     # to keep things clean-ish
-    if "zarr" == req_format:
-        _export_to_zarr(data, save_name, mode)
-    if "netcdf" == req_format:
-        _export_to_netcdf(data, save_name)
-    elif "csv" == req_format:
-        _export_to_csv(data, save_name)
+    match req_format:
+        case "zarr":
+            _export_to_zarr(data, save_name, mode)
+        case "netcdf":
+            _export_to_netcdf(data, save_name)
+        case "csv":
+            _export_to_csv(data, save_name)
+        case _:
+            raise Exception(
+                'Please select "Zarr", "NetCDF" or "CSV" as the file format.'
+            )
 
 
 ## TMY export functions
@@ -1010,19 +1024,20 @@ def _leap_day_fix(df: pd.DataFrame) -> pd.DataFrame:
 
     # 3 models have leap days, 1 model does not -- handling for both
     # handling for TaiESM1 (no leap day natively)
-    if df_leap.simulation.unique()[0] == "WRF_TaiESM1_r1i1p1f1":
-        df_leap["time"] = np.where(
-            (df_leap.time.dt.month == 2) & (df_leap.time.dt.day == 29),
-            df_leap.time - pd.DateOffset(days=1),
-            df_leap.time,
-        )  # reset remaining feb 29 hours to feb 28
+    match df_leap.simulation.unique()[0]:
+        case "WRF_TaiESM1_r1i1p1f1":
+            df_leap["time"] = np.where(
+                (df_leap.time.dt.month == 2) & (df_leap.time.dt.day == 29),
+                df_leap.time - pd.DateOffset(days=1),
+                df_leap.time,
+            )  # reset remaining feb 29 hours to feb 28
 
-    # handling for 3 models with native leap days
-    elif df_leap.simulation.unique()[0] != "WRF_TaiESM1_r1i1p1f1":
-        df_leap["time"] = pd.to_datetime(df["time"])  # set time to datetime
-        df_leap = df_leap.loc[
-            ~((df_leap.time.dt.month == 2) & (df_leap.time.dt.day == 29))
-        ]
+        # handling for 3 models with native leap days
+        case _:
+            df_leap["time"] = pd.to_datetime(df["time"])  # set time to datetime
+            df_leap = df_leap.loc[
+                ~((df_leap.time.dt.month == 2) & (df_leap.time.dt.day == 29))
+            ]
 
     return df_leap
 
@@ -1145,38 +1160,33 @@ def _tmy_8760_size_check(df: pd.DataFrame) -> pd.DataFrame:
     df_to_check = df_to_check.drop_duplicates(subset=["time"], keep="first")
 
     # fix cases
-    if len(df_to_check) == 8760:
-        return df_to_check
-    elif len(df_to_check) != 8760:
-        if len(df_to_check) == 8759:  # Missing hour, add missing row
+    match len(df_to_check):
+        case 8760:
+            return df_to_check
+        case 8759:  # Missing hour, add missing row
             df_to_check = _missing_hour_fix(df_to_check)
             return df_to_check
-
-        elif len(df_to_check) == 8784:  # Leap day added, remove Feb 29
+        case 8784:  # Leap day added, remove Feb 29
             df_to_check = _leap_day_fix(df_to_check)
             return df_to_check
-
-        elif len(df_to_check) == 8783:  # Leap day added and missing hour
+        case 8783:  # Leap day added and missing hour
             # remove leap day
             df_to_check = _leap_day_fix(df_to_check)
             # add missing hour
             df_to_check = _missing_hour_fix(df_to_check)
             return df_to_check
-
-        elif len(df_to_check) == 8758:  # double missing hour
+        case 8758:  # double missing hour
             df_to_check = _missing_hour_fix(df_to_check)  # march fix
             df_to_check = _missing_hour_fix(df_to_check)  # april fix
             return df_to_check
-
-        elif len(df_to_check) == 8782:  # Leap day and double missing hour
+        case 8782:  # Leap day and double missing hour
             # remove leap day
             df_to_check = _leap_day_fix(df_to_check)
             # add missing hours
             df_to_check = _missing_hour_fix(df_to_check)  # march fix
             df_to_check = _missing_hour_fix(df_to_check)  # april fix
             return df_to_check
-
-        else:
+        case _:  # none of the above
             print(
                 "Error: The size of the input dataframe ({}) does not comform to standard 8760 size. Please confirm.".format(
                     len(df)
@@ -1262,25 +1272,28 @@ def write_tmy_file(
         return diff
 
     # custom location input handling
-    if type(station_code) == str:  # custom code passed
-        station_code = station_code
-        state = stn_state
-        timezone = _utc_offset_timezone(lon=stn_lon, lat=stn_lat)
-        elevation = (
-            stn_elev  # default of 0.0 on custom inputs if elevation is not provided
-        )
-
-    elif type(station_code) == int:  # hadisd statio code passed
-        # look up info
-        if station_code in station_df["station id"].values:
-            state = station_df.loc[station_df["station id"] == station_code][
-                "state"
-            ].values[0]
-            elevation = station_df.loc[station_df["station id"] == station_code][
-                "elevation"
-            ].values[0]
-            station_code = str(station_code)[:6]
+    match station_code:
+        case str():  # custom code passed
+            station_code = station_code
+            state = stn_state
             timezone = _utc_offset_timezone(lon=stn_lon, lat=stn_lat)
+            elevation = (
+                stn_elev  # default of 0.0 on custom inputs if elevation is not provided
+            )
+
+        case int():  # hadisd station code passed
+            # look up info
+            if station_code in station_df["station id"].values:
+                state = station_df.loc[station_df["station id"] == station_code][
+                    "state"
+                ].values[0]
+                elevation = station_df.loc[station_df["station id"] == station_code][
+                    "elevation"
+                ].values[0]
+                station_code = str(station_code)[:6]
+                timezone = _utc_offset_timezone(lon=stn_lon, lat=stn_lat)
+        case _:
+            raise ValueError("station_code needs to be either str or int")
 
     def _tmy_header(
         location_name: str,
@@ -1405,54 +1418,57 @@ def write_tmy_file(
         return headers
 
     # typical meteorological year format
-    if file_ext == "tmy":
-        path_to_file = filename_to_export + ".tmy"
+    match file_ext:
+        case "tmy":
+            path_to_file = filename_to_export + ".tmy"
 
-        with open(path_to_file, "w") as f:
-            f.writelines(
-                _tmy_header(
-                    location_name,
-                    station_code,
-                    stn_lat,
-                    stn_lon,
-                    state,
-                    timezone,
-                    elevation,
-                    df,
+            with open(path_to_file, "w") as f:
+                f.writelines(
+                    _tmy_header(
+                        location_name,
+                        station_code,
+                        stn_lat,
+                        stn_lon,
+                        state,
+                        timezone,
+                        elevation,
+                        df,
+                    )
+                )  # writes required header lines
+                df = df.drop(
+                    columns=["simulation", "lat", "lon", "scenario"]
+                )  # drops header columns from df
+                dfAsString = df.to_csv(sep=",", header=False, index=False)
+                f.write(dfAsString)  # writes data in TMY format
+            print(
+                "TMY data exported to .tmy format with filename {}.tmy, with size {}".format(
+                    filename_to_export, len(df)
                 )
-            )  # writes required header lines
-            df = df.drop(
-                columns=["simulation", "lat", "lon", "scenario"]
-            )  # drops header columns from df
-            dfAsString = df.to_csv(sep=",", header=False, index=False)
-            f.write(dfAsString)  # writes data in TMY format
-        print(
-            "TMY data exported to .tmy format with filename {}.tmy, with size {}".format(
-                filename_to_export, len(df)
             )
-        )
-    # energy plus weather format
-    elif file_ext == "epw":
-        path_to_file = filename_to_export + ".epw"
-        with open(path_to_file, "w") as f:
-            f.writelines(
-                _epw_header(
-                    location_name,
-                    station_code,
-                    stn_lat,
-                    stn_lon,
-                    state,
-                    timezone,
-                    elevation,
-                    df,
+        # energy plus weather format
+        case "epw":
+            path_to_file = filename_to_export + ".epw"
+            with open(path_to_file, "w") as f:
+                f.writelines(
+                    _epw_header(
+                        location_name,
+                        station_code,
+                        stn_lat,
+                        stn_lon,
+                        state,
+                        timezone,
+                        elevation,
+                        df,
+                    )
+                )  # writes required header lines
+                df_string = _epw_format_data(df).to_csv(
+                    sep=",", header=False, index=False
                 )
-            )  # writes required header lines
-            df_string = _epw_format_data(df).to_csv(sep=",", header=False, index=False)
-            f.write(df_string)  # writes data in EPW format
-        print(
-            "TMY data exported to .epw format with filename {}, with size {}.epw".format(
-                filename_to_export, len(df)
+                f.write(df_string)  # writes data in EPW format
+            print(
+                "TMY data exported to .epw format with filename {}, with size {}.epw".format(
+                    filename_to_export, len(df)
+                )
             )
-        )
-    else:
-        print('Please pass either "tmy" or "epw" as a file format for export.')
+        case _:
+            print('Please pass either "tmy" or "epw" as a file format for export.')
