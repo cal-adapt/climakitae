@@ -19,7 +19,7 @@ from climakitae.core.constants import PROC_KEY, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.param_validation.param_validation_tools import (
     _get_closest_options,
-    validate_experimental_id_param,
+    _validate_experimental_id_param,
 )
 
 _CATALOG_VALIDATOR_REGISTRY = {}
@@ -157,7 +157,9 @@ class ParameterValidator(ABC):
 
             if key == "experiment_id":
                 # special case for experiment_id, since it can be a list of values
-                if not validate_experimental_id_param(value, df[key].unique().tolist()):
+                if not _validate_experimental_id_param(
+                    value, df[key].unique().tolist()
+                ):
                     warnings.warn(
                         f"Experiment ID {value} is not valid. "
                         "Please check the available options using `show_experiment_id_options()`."
@@ -245,7 +247,9 @@ class ParameterValidator(ABC):
         # otherwise warn the user that the processor input has not been validated
         for key, value in query.get(PROC_KEY, {}).items():
             if key in _PROCESSOR_VALIDATOR_REGISTRY:
-                valid_value_for_processor = _PROCESSOR_VALIDATOR_REGISTRY[key](value)
+                valid_value_for_processor = _PROCESSOR_VALIDATOR_REGISTRY[key](
+                    value, query=query
+                )  #! this call is allowed to modify the query in place
                 if not valid_value_for_processor:
                     warnings.warn(
                         f"\n\nProcessor {key} with value {value} is not valid. "

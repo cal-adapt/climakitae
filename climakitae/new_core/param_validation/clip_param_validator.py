@@ -22,6 +22,7 @@ from climakitae.new_core.param_validation.param_validation_tools import (
 @register_processor_validator("clip")
 def validate_clip_param(
     value,
+    **kwargs: Any,
 ) -> bool:
     """
     Validate parameter passed to Clip Processor.

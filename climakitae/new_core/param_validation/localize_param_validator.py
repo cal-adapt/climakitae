@@ -23,6 +23,7 @@ STATIONS_DF = read_csv_file(STATIONS_CSV_PATH)
 @register_processor_validator("localize")
 def validate_localize_param(
     value: str | list[str] | dict[str, Any],
+    **kwargs: Any,
 ) -> bool:
     """
     Validate the parameters provided to the Localize Processor.

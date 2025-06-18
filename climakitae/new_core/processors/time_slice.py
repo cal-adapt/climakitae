@@ -12,6 +12,7 @@ import xarray as xr
 
 from climakitae.core.constants import _NEW_ATTRS_KEY
 from climakitae.new_core.data_access.data_access import DataCatalog
+from climakitae.new_core.param_validation.param_validation_tools import _coerce_to_dates
 from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
     register_processor,
@@ -45,13 +46,7 @@ class TimeSlice(DataProcessor):
         value : Iterable(date-like, date-like)
             The value to subset the data by.
         """
-        if (
-            not isinstance(value, Iterable)
-            or not isinstance(value, Sized)
-            or len(value) != 2
-        ):
-            raise ValueError("Value must be an iterable of two date-like values.")
-        self.value = self._coerce_to_dates(value)
+        self.value = _coerce_to_dates(value)
         self.name = "time_slice"
 
     def execute(
@@ -134,33 +129,3 @@ class TimeSlice(DataProcessor):
     def set_data_accessor(self, catalog: DataCatalog):
         # Placeholder for setting data accessor
         pass
-
-    @staticmethod
-    def _coerce_to_dates(value: Iterable[Any]) -> tuple[pd.Timestamp, pd.Timestamp]:
-        """
-        Coerce the values to date-like objects.
-
-        Parameters
-        ----------
-        value : tuple
-            The value to coerce.
-
-        Returns
-        -------
-        tuple
-            The coerced values.
-        """
-        ret = []
-        for x in value:
-            match x:
-                case str() | int() | float() | datetime.date() | datetime.datetime():
-                    ret.append(pd.to_datetime(x))
-                case pd.Timestamp():
-                    ret.append(x)
-                case pd.DatetimeIndex():
-                    ret.append(x[0])
-                case _:
-                    raise ValueError(
-                        f"Could not coerce type {type(x)} to pd.Timestamp."
-                    )
-        return tuple(ret)

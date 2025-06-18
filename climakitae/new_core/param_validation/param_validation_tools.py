@@ -2,8 +2,13 @@
 Tools for validating user input
 """
 
+import datetime
 import difflib
 import warnings
+from collections.abc import Iterable
+from typing import Any
+
+import pandas as pd
 
 
 def _get_closest_options(val, valid_options, cutoff=0.59):
@@ -49,7 +54,7 @@ def _get_closest_options(val, valid_options, cutoff=0.59):
     return None
 
 
-def validate_experimental_id_param(
+def _validate_experimental_id_param(
     value: list[str] | None,
     valid_experiment_ids: list[str],
 ) -> bool:
@@ -133,3 +138,35 @@ def validate_experimental_id_param(
 
                     ret = False
             return ret  # All values are valid
+
+
+def _coerce_to_dates(value: Iterable[Any]) -> tuple[pd.Timestamp, pd.Timestamp]:
+    """
+    Coerce the values to date-like objects.
+
+    Parameters
+    ----------
+    value : tuple
+        The value to coerce.
+
+    Returns
+    -------
+    tuple
+        The coerced values.
+    """
+    ret = []
+    for x in value:
+        match x:
+            case str() | int() | float() | datetime.date() | datetime.datetime():
+                ret.append(pd.to_datetime(x))
+            case pd.Timestamp():
+                ret.append(x)
+            case pd.DatetimeIndex():
+                ret.append(x[0])
+            case _:
+                warnings.warn(
+                    f"\n\nValue '{x}' is not a date-like object. "
+                    "\nExpected a string, int, float, datetime.date, datetime.datetime, or pd.Timestamp."
+                )
+                return None
+    return tuple(ret)
