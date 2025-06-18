@@ -102,7 +102,7 @@ tornado==6.5.1
 tqdm==4.67.1
 typing-inspection==0.4.1
 typing_extensions==4.13.2
-tzdata==2025b
+tzdata==2025.2
 urllib3==1.26.19
 wrapt==1.17.2
 xarray==2025.4.0
