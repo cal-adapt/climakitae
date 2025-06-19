@@ -108,7 +108,7 @@ wrapt==1.17.2
 xarray==2025.4.0
 xarrayutils==2.0.1
 xclim==0.57.0
-xgcm==0.8.1
+xgcm==0.6.1 # changed from pangeo image 0.8.1 due to xmip requirement
 xmip==0.7.2
 xsdba==0.4.0 # Added for sdba functionality after xclim 0.57.0 code split
 xyzservices==2025.4.0
