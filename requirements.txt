@@ -83,7 +83,7 @@ python-dateutil==2.9.0
 pytz==2025.2
 PyYAML==6.0.2
 rasterio==1.4.3
-requests==2.32.3
+requests==2.32.4 # changed from pangeo image 2.32.3 due to security patch
 rioxarray==0.19.0
 s3fs==2025.5.1
 s3transfer==0.11.3
@@ -103,7 +103,7 @@ tqdm==4.67.1
 typing-inspection==0.4.1
 typing_extensions==4.13.2
 tzdata==2025.2
-urllib3==1.26.19
+urllib3==2.5.0 # change from pangeo image 1.26.19 due to security patch
 wrapt==1.17.2
 xarray==2025.4.0
 xarrayutils==2.0.1
