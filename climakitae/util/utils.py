@@ -780,7 +780,7 @@ def match_attr(data: xr.DataArray, key, value):
 
 
 def convert_to_local_time(
-    data: xr.DataArray, time_slice: tuple[int, int], geographies, area_subset 
+    data: xr.DataArray, local_time_slice: tuple[int, int]
 ) -> xr.DataArray:
     """
     Convert time dimension from UTC to local time for the grid or station.
@@ -812,7 +812,9 @@ def convert_to_local_time(
         return data
 
     # 1. Get the time slice from selections
-    start, end = time_slice
+    start, end = local_time_slice
+    # TODO: Add warning that final hours might be left out if end is the same as
+    # data end
 
     # Default lat/lon values in case other methods fail
     lat = None
@@ -847,40 +849,21 @@ def convert_to_local_time(
     elif match_attr(data, "data_type", "Gridded") and not match_attr(
         data, "location_subset", "entire domain"
     ):
-        # Find the avg. lat/lon coordinates from entire geometry within an area subset
-
-        # Making mapping for different geographies to different polygons
-        mapping = {
-            "CA counties": (
-                geographies._ca_counties,
-                geographies._get_ca_counties(),
-            ),
-            "CA Electric Balancing Authority Areas": (
-                geographies._ca_electric_balancing_areas,
-                geographies._get_electric_balancing_areas(),
-            ),
-            "CA Electricity Demand Forecast Zones": (
-                geographies._ca_forecast_zones,
-                geographies._get_forecast_zones(),
-            ),
-            "CA Electric Load Serving Entities (IOU & POU)": (
-                geographies._ca_utilities,
-                geographies._get_ious_pous(),
-            ),
-            "CA watersheds": (
-                geographies._ca_watersheds,
-                geographies._get_ca_watersheds(),
-            ),
-        }
-
-        # Finding the center point of the gridded WRF area
-        center_pt = (
-            mapping[area_subset][0]
-            .loc[mapping[area_subset][1][data.attrs["location_subset"][0]]]
-            .geometry.centroid
-        )
-        lat = center_pt.y
-        lon = center_pt.x
+        name = data.name
+        mask = data.notnull().any(dim=["time", "scenario", "simulation"])
+        match mask.size:
+            case 1:
+                lat = mask.lat.item()
+                lon = mask.lon.item()
+            case _ if mask.size > 1:
+                df = mask.to_dataframe().reset_index()
+                df = df[df[name] == 1]
+                gdf = gpd.GeoDataFrame(
+                    df[name], geometry=gpd.points_from_xy(df.lon, df.lat)
+                )
+                center_pt = gdf.dissolve().centroid
+                lat = center_pt.y
+                lon = center_pt.x
 
     # Check if we were able to get valid coordinates
     if lat is None or lon is None:
