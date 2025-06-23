@@ -6,7 +6,6 @@ from .clip import Clip
 from .concatenate import Concat
 from .convert_units import ConvertUnits
 from .filter_unbiased_models import FilterUnbiasedModels
-from .global_warming_level import GlobalWarmingLevel
 from .localize import Localize
 from .time_slice import TimeSlice
 from .update_attributes import UpdateAttributes
@@ -17,7 +16,6 @@ __all__ = [
     "Concat",
     "ConvertUnits",
     "FilterUnbiasedModels",
-    "GlobalWarmingLevel",
     "Localize",
     "TimeSlice",
     "UpdateAttributes",

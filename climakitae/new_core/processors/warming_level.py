@@ -250,6 +250,7 @@ class WarmingLevel(DataProcessor):
                 [result[hist_key], data],
                 dim="time",
             )
+            ret[key].attrs.update(data.attrs)  # Preserve attributes
 
         return ret
 
