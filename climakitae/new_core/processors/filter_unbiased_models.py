@@ -99,7 +99,7 @@ class FilterUnbiasedModels(DataProcessor):
                         f"\n\nYour query selected models that do not have a-priori bias adjustment. "
                         f"\nThese models have been removed from the returned query."
                         f"\nTo include them, please add the following processor to your query: "
-                        f"\nClimateData().processes('{self.name}': 'no')\n\n",
+                        f"\nClimateData().processes('{self.name}': 'no')\n\n"
                     )
                     return self._remove_unbiased_models(result)
 

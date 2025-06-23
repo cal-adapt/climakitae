@@ -8,9 +8,12 @@ import warnings
 from typing import Any
 
 from climakitae.core.constants import UNSET
+from climakitae.core.paths import GWL_1850_1900_TIMEIDX_FILE
+from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.param_validation.abc_param_validation import (
     register_processor_validator,
 )
+from climakitae.util.utils import read_csv_file
 
 
 @register_processor_validator("warming_level")
@@ -43,7 +46,7 @@ def validate_warming_level_param(
     """
     if not _check_input_types(value):
         return False
-    
+
     # now we have to check some more serious stuff
     query = kwargs.get("query", UNSET)
     if query is UNSET:
@@ -52,7 +55,21 @@ def validate_warming_level_param(
             "\nPlease check the configuration."
         )
         return False
-    trajectories = get_trajectories(
+    # validate query
+    if not _check_query(kwargs["query"]):
+        warnings.warn(
+            "\n\nInvalid 'query' parameter. " "\nPlease check the configuration."
+        )
+        return False
+
+    if not _check_wl_values(query):
+        warnings.warn(
+            "\n\nInvalid 'warming_levels' parameter. "
+            "\nPlease check the configuration."
+        )
+        return False
+
+    return True
 
 
 def _check_input_types(
@@ -94,6 +111,105 @@ def _check_input_types(
             warnings.warn(
                 "\n\nInvalid 'warming_level_window' parameter. "
                 "\nExpected a non-negative integer (default: 15)."
+            )
+            return False
+
+    return True
+
+
+def _check_query(query: Any) -> bool:
+    """
+    Warming level approach requires we check activity_id and experiment_id
+
+    Activity_id needs to be "WRF" or "LOCA2" or UNSET
+
+    experiment_id needs to be "UNSET".
+
+    """
+    if not isinstance(query, dict):
+        return False
+
+    activity_id = query.get("activity_id", UNSET)
+    experiment_id = query.get("experiment_id", UNSET)
+
+    if activity_id not in ["WRF", "LOCA2", UNSET]:
+        warnings.warn(
+            "\n\nInvalid 'activity_id' parameter. "
+            "\nExpected 'WRF', 'LOCA2', or not passed (UNSET)."
+        )
+        # force the user to fix this. Cannot assume intention here
+        return False
+
+    if experiment_id is not UNSET:
+        warnings.warn(
+            "\n\nWarming level approach requires 'experiment_id' to be UNSET. "
+            "\nModify the query accordingly."
+        )
+        return False
+
+    time_slice = query.get("processes", {}).get("time_slice", UNSET)
+    if time_slice is not UNSET:
+        warnings.warn(
+            "\n\nWarming level approach does not support 'time_slice' in the query. "
+            "\nIt will be ignored."
+        )
+        del query["processes"]["time_slice"]
+
+    return True
+
+
+def _check_wl_values(query: dict[str, Any]) -> bool:
+    """
+    Validates that requested warming levels are within the available ranges in climate model trajectories.
+    This function checks if the warming levels specified in the query are within the
+    minimum and maximum values of the available climate model trajectories, after filtering
+    based on activity_id if provided.
+    Parameters
+    ----------
+    query : dict[str, Any]
+        A dictionary containing query parameters. Expected keys include:
+        - 'warming_levels': list of warming level values to check
+        - 'activity_id': (optional) activity ID to filter the climate model catalog
+    Returns
+    -------
+    bool
+        True if all requested warming levels are within the range of available trajectories,
+        False otherwise. Issues a warning if any warming level is outside the valid range.
+    Notes
+    -----
+    The function reads trajectory data from a global warming level file and the model
+    catalog from DataCatalog. It filters trajectories based on the query parameters
+    before checking the warming level values.
+    """
+
+    catalog_df = DataCatalog().catalog_df.copy()
+    trajectories = read_csv_file(
+        GWL_1850_1900_TIMEIDX_FILE, index_col="time", parse_dates=True
+    )
+
+    # Filter catalog based on activity_id if provided
+    columns_to_keep = []
+    activity_id = query.get("activity_id", UNSET)
+    if activity_id is not UNSET:
+        catalog_df = catalog_df[catalog_df["activity_id"] == activity_id]
+
+    # Filter catalog based on experiment_id if provided
+    for _, row in catalog_df.iterrows():
+        pattern = f"{row['source_id']}_{row['member_id']}_{row['experiment_id']}"
+        matches = [col for col in trajectories.columns if pattern in col]
+        columns_to_keep.extend(matches)
+
+    trajectories = trajectories[columns_to_keep]
+
+    max_trajectory = round(trajectories.max().max(), 2)
+    min_trajectory = round(trajectories.min().min(), 2)
+
+    for wl in query.get("warming_levels", []):
+        if not (min_trajectory <= wl <= max_trajectory):
+            warnings.warn(
+                f"\n\nWarming level {wl} is outside the range of available trajectories "
+                f"({min_trajectory} to {max_trajectory}). "
+                "\nPlease check the configuration."
             )
             return False
 
