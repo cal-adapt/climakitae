@@ -813,8 +813,10 @@ def convert_to_local_time(
 
     # 1. Get the time slice from selections
     start, end = local_time_slice
-    # TODO: Add warning that final hours might be left out if end is the same as
-    # data end
+
+    if data.time.dt.year[-1].item() == end:
+        print("Warning: Requested end year identical to last year in data.")
+        print("Final day may be incomplete after conversion to local time.")
 
     # Default lat/lon values in case other methods fail
     lat = None
@@ -832,38 +834,35 @@ def convert_to_local_time(
         lat = station_data["LAT_Y"].values[0]
         lon = station_data["LON_X"].values[0]
 
-    elif match_attr(
-        data, "area_average", "Yes"
-    ):  # TODO: area average data doesn't have lat/lon
-        # For area average, use the mean lat/lon
-        lat = np.mean(selections.latitude)
-        lon = np.mean(selections.longitude)
+    elif match_attr(data, "area_average", "Yes"):
+        print(
+            "Area averaged data does not have lat/lon coordinates. Please pass in non-averaged data."
+        )
+        return data
 
-    elif match_attr(data, "data_type", "Gridded") and match_attr(
-        data, "location_subset", "coordinate selection"
-    ):
+    elif match_attr(data, "data_type", "Gridded"):
         # Finding avg. lat/lon coordinates from all grid-cells
         lat = data.lat.mean().item()
         lon = data.lon.mean().item()
 
-    elif match_attr(data, "data_type", "Gridded") and not match_attr(
-        data, "location_subset", "entire domain"
-    ):
-        name = data.name
-        mask = data.notnull().any(dim=["time", "scenario", "simulation"])
-        match mask.size:
-            case 1:
-                lat = mask.lat.item()
-                lon = mask.lon.item()
-            case _ if mask.size > 1:
-                df = mask.to_dataframe().reset_index()
-                df = df[df[name] == 1]
-                gdf = gpd.GeoDataFrame(
-                    df[name], geometry=gpd.points_from_xy(df.lon, df.lat)
-                )
-                center_pt = gdf.dissolve().centroid
-                lat = center_pt.y
-                lon = center_pt.x
+    # elif match_attr(data, "data_type", "Gridded") and not match_attr(
+    #    data, "location_subset", "entire domain"
+    # ):
+    #    name = data.name
+    #    mask = data.notnull().any(dim=["time", "scenario", "simulation"])
+    #    match mask.size:
+    #        case 1:
+    #            lat = mask.lat.item()
+    #            lon = mask.lon.item()
+    #        case _ if mask.size > 1:
+    #            df = mask.to_dataframe().reset_index()
+    #            df = df[df[name] == 1]
+    #            gdf = gpd.GeoDataFrame(
+    #                df[name], geometry=gpd.points_from_xy(df.lon, df.lat)
+    #            )
+    #            center_pt = gdf.dissolve().centroid
+    #            lat = center_pt.y
+    #            lon = center_pt.x
 
     # Check if we were able to get valid coordinates
     if lat is None or lon is None:
