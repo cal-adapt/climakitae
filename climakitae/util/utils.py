@@ -787,21 +787,10 @@ def convert_to_local_time(
 
     Args:
         data (xarray.DataArray): Input data.
-        selections: DataParameters object containing selection details.
+        local_time_slice (tuple[int, int]): Start and end years of returned data.
 
     Returns:
         xarray.DataArray: Data with converted time coordinate.
-    {'variable_id': 'noaa_heat_index_derived',
-     'extended_description': 'Operational measure of what the the temperature "feels like" to the human body.',
-     'units': 'degF',
-     'data_type': 'Gridded',
-     'resolution': np.str_('9 km'),
-     'frequency': np.str_('hourly'),
-     'location_subset': ['Pacific Gas & Electric Company'],
-     'approach': 'Time',
-     'downscaling_method': 'Dynamical',
-     'institution': 'Multiple',
-     'grid_mapping': 'Lambert_Conformal'}
     """
 
     # If timescale is not hourly, no need to convert
@@ -823,46 +812,33 @@ def convert_to_local_time(
     lon = None
 
     # Get latitude/longitude information
-    if match_attr(data, "data_type", "Stations"):
-        # Read stations database
-        stations_df = read_csv_file(stations_csv_path)
-        stations_df = stations_df.drop(columns=["Unnamed: 0"])
+    match data.attrs["data_type"]:
+        case "Stations":
+            # Read stations database
+            stations_df = read_csv_file(stations_csv_path)
+            stations_df = stations_df.drop(columns=["Unnamed: 0"])
 
-        # Filter by selected station(s) - assume first station if multiple
-        selected_station = selections.stations[0]
-        station_data = stations_df[stations_df["station"] == selected_station]
-        lat = station_data["LAT_Y"].values[0]
-        lon = station_data["LON_X"].values[0]
+            # Filter by selected station(s) - assume first station if multiple
+            selected_station = selections.stations[0]
+            station_data = stations_df[stations_df["station"] == selected_station]
+            lat = station_data["LAT_Y"].values[0]
+            lon = station_data["LON_X"].values[0]
 
-    elif match_attr(data, "area_average", "Yes"):
-        print(
-            "Area averaged data does not have lat/lon coordinates. Please pass in non-averaged data."
-        )
-        return data
+        case "Gridded":
+            if ~all(val in data.coords for val in ["lat", "lon"]):
+                print(
+                    "lat/lon coordinates not found in data. Please pass in data with 'lat' and 'lon' coordinates."
+                )
+                return data
 
-    elif match_attr(data, "data_type", "Gridded"):
-        # Finding avg. lat/lon coordinates from all grid-cells
-        lat = data.lat.mean().item()
-        lon = data.lon.mean().item()
-
-    # elif match_attr(data, "data_type", "Gridded") and not match_attr(
-    #    data, "location_subset", "entire domain"
-    # ):
-    #    name = data.name
-    #    mask = data.notnull().any(dim=["time", "scenario", "simulation"])
-    #    match mask.size:
-    #        case 1:
-    #            lat = mask.lat.item()
-    #            lon = mask.lon.item()
-    #        case _ if mask.size > 1:
-    #            df = mask.to_dataframe().reset_index()
-    #            df = df[df[name] == 1]
-    #            gdf = gpd.GeoDataFrame(
-    #                df[name], geometry=gpd.points_from_xy(df.lon, df.lat)
-    #            )
-    #            center_pt = gdf.dissolve().centroid
-    #            lat = center_pt.y
-    #            lon = center_pt.x
+            # Finding avg. lat/lon coordinates from all grid-cells
+            lat = data.lat.mean().item()
+            lon = data.lon.mean().item()
+        case _:
+            print(
+                "Invalid data type attribute. `data.attrs['data_type']` should be 'Station' or 'Gridded'."
+            )
+            return data
 
     # Check if we were able to get valid coordinates
     if lat is None or lon is None:
