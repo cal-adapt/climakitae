@@ -12,12 +12,16 @@ import rioxarray as rio
 from shapely.geometry import mapping
 from typing import Any
 import xarray as xr
+import intake
 from timezonefinder import TimezoneFinder
 
-from climakitae.core.constants import SSPS, UNSET
+from climakitae.core.constants import SSPS, UNSET, WARMING_LEVELS
 
 # from climakitae.core.data_interface import DataParameters
-from climakitae.core.paths import data_catalog_url, stations_csv_path
+from climakitae.core.paths import (
+    data_catalog_url,
+    stations_csv_path,
+)
 
 
 def downscaling_method_as_list(downscaling_method: str) -> list[str]:
@@ -423,16 +427,17 @@ def readable_bytes(b: int) -> str:
     gb = kb**3  # 1,073,741,824
     tb = kb**4  # 1,099,511,627,776
 
-    if b < kb:
-        return f"{b} bytes"
-    elif kb <= b < mb:
-        return f"{b / kb:.2f} KB"
-    elif mb <= b < gb:
-        return f"{b / mb:.2f} MB"
-    elif gb <= b < tb:
-        return f"{b / gb:.2f} GB"
-    elif tb <= b:
-        return f"{b / tb:.2f} TB"
+    match b:
+        case _ if b < kb:
+            return f"{b} bytes"
+        case _ if kb <= b < mb:
+            return f"{b / kb:.2f} KB"
+        case _ if mb <= b < gb:
+            return f"{b / mb:.2f} MB"
+        case _ if gb <= b < tb:
+            return f"{b / gb:.2f} GB"
+        case _ if tb <= b:
+            return f"{b / tb:.2f} TB"
 
 
 def reproject_data(
@@ -557,29 +562,32 @@ def reproject_data(
     # Get non-spatial dimensions
     non_spatial_dims = [dim for dim in data.dims if dim not in ["x", "y"]]
 
+    # test for different dims
+    numofdims = len(data.dims)
     # 2 or 3D DataArray
-    if len(data.dims) <= 3:
-        data_reprojected = data.rio.reproject(proj, nodata=fill_value)
-    # 4D DataArray
-    elif len(data.dims) == 4:
-        data_reprojected = _reproject_data_4D(
-            data=data,
-            reproject_dim=non_spatial_dims[0],
-            proj=proj,
-            fill_value=fill_value,
-        )
-    # 5D DataArray
-    elif len(data.dims) == 5:
-        data_reprojected = _reproject_data_5D(
-            data=data,
-            reproject_dim=non_spatial_dims[:-1],
-            proj=proj,
-            fill_value=fill_value,
-        )
-    else:
-        raise ValueError(
-            "DataArrays with dimensions greater than 5 are not currently supported"
-        )
+    match numofdims:
+        case numofdims if numofdims <= 3:
+            data_reprojected = data.rio.reproject(proj, nodata=fill_value)
+        # 4D DataArray
+        case 4:
+            data_reprojected = _reproject_data_4D(
+                data=data,
+                reproject_dim=non_spatial_dims[0],
+                proj=proj,
+                fill_value=fill_value,
+            )
+        # 5D DataArray
+        case 5:
+            data_reprojected = _reproject_data_5D(
+                data=data,
+                reproject_dim=non_spatial_dims[:-1],
+                proj=proj,
+                fill_value=fill_value,
+            )
+        case _:
+            raise ValueError(
+                "DataArrays with dimensions greater than 5 are not currently supported"
+            )
 
     # Reassign attribute to reflect reprojection
     data_reprojected.attrs["grid_mapping"] = proj
@@ -673,29 +681,30 @@ def trendline(data: xr.Dataset, kind: str = "mean") -> xr.Dataset:
     compute_multimodel_stats must be modified to update optionality.
     """
     ret_trendline = xr.Dataset()
-    if kind == "mean":
-        if "simulation mean" not in data.simulation:
+    match kind:
+        case "mean":
+            if "simulation mean" not in data.simulation:
+                raise ValueError(
+                    "Invalid data provided, please pass the multimodel stats from compute_multimodel_stats"
+                )
+
+            data_sim_mean = data.sel(simulation="simulation mean")
+            m, b = data_sim_mean.polyfit(dim="year", deg=1).polyfit_coefficients.values
+            ret_trendline = m * data_sim_mean.year + b  # y = mx + b
+
+        case "median":
+            if "simulation median" not in data.simulation:
+                raise ValueError(
+                    "Invalid data provided, please pass the multimodel stats from compute_multimodel_stats"
+                )
+
+            data_sim_med = data.sel(simulation="simulation median")
+            m, b = data_sim_med.polyfit(dim="year", deg=1).polyfit_coefficients.values
+            ret_trendline = m * data_sim_med.year + b  # y = mx + b
+        case _:
             raise ValueError(
-                "Invalid data provided, please pass the multimodel stats from compute_multimodel_stats"
+                "Invalid kind provided, please pass either 'mean' or 'median' as the kind"
             )
-
-        data_sim_mean = data.sel(simulation="simulation mean")
-        m, b = data_sim_mean.polyfit(dim="year", deg=1).polyfit_coefficients.values
-        ret_trendline = m * data_sim_mean.year + b  # y = mx + b
-
-    elif kind == "median":
-        if "simulation median" not in data.simulation:
-            raise ValueError(
-                "Invalid data provided, please pass the multimodel stats from compute_multimodel_stats"
-            )
-
-        data_sim_med = data.sel(simulation="simulation median")
-        m, b = data_sim_med.polyfit(dim="year", deg=1).polyfit_coefficients.values
-        ret_trendline = m * data_sim_med.year + b  # y = mx + b
-    else:
-        raise ValueError(
-            "Invalid kind provided, please pass either 'mean' or 'median' as the kind"
-        )
     ret_trendline.name = "trendline"
     return ret_trendline
 
@@ -1163,15 +1172,16 @@ def _get_scenario_from_selections(selections) -> tuple[list[str], list[str]]:
 
     """
 
-    if selections.approach == "Time":
-        scenario_ssp = selections.scenario_ssp
-        scenario_historical = selections.scenario_historical
-
-    elif selections.approach == "Warming Level":
-        # Need all scenarios for warming level approach
-        scenario_ssp = SSPS
-        scenario_historical = ["Historical Climate"]
-
+    match selections.approach:
+        case "Time":
+            scenario_ssp = selections.scenario_ssp
+            scenario_historical = selections.scenario_historical
+        case "Warming Level":
+            # Need all scenarios for warming level approach
+            scenario_ssp = SSPS
+            scenario_historical = ["Historical Climate"]
+        case _:
+            raise ValueError('approach needs to be either "Time" or "Warming Level"')
     return scenario_ssp, scenario_historical
 
 

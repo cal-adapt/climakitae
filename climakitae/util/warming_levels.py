@@ -1,11 +1,29 @@
 """Helper functions related to applying a warming levels approach to a data object"""
 
-import xarray as xr
+import calendar
 import numpy as np
 import pandas as pd
-import calendar
-from climakitae.util.utils import scenario_to_experiment_id
-from climakitae.util.utils import _get_cat_subset
+import xarray as xr
+import intake
+
+from typing import Union
+from climakitae.util.utils import (
+    scenario_to_experiment_id,
+    _get_cat_subset,
+    resolution_to_gridlabel,
+    read_csv_file,
+)
+from climakitae.core.paths import (
+    ssp119_file,
+    ssp126_file,
+    ssp245_file,
+    ssp370_file,
+    ssp585_file,
+    hist_file,
+    data_catalog_url,
+    GWL_1850_1900_TIMEIDX_FILE,
+    gwl_1850_1900_file,
+)
 
 
 def calculate_warming_level(warming_data, gwl_times, level, months, window):
@@ -126,12 +144,17 @@ def _get_sliced_data(y, level, gwl_times, months, window):
         days_per_month = {i: calendar.monthrange(2001, i)[1] for i in np.arange(1, 13)}
 
         # This creates an approximately appropriately sized DataArray to be dropped later
-        if y.frequency == "monthly":
-            time_freq = len(months)
-        elif y.frequency == "daily":
-            time_freq = sum([days_per_month[month] for month in months])
-        elif y.frequency == "hourly":
-            time_freq = sum([days_per_month[month] for month in months]) * 24
+        match y.frequency:
+            case "monthly":
+                time_freq = len(months)
+            case "daily":
+                time_freq = sum([days_per_month[month] for month in months])
+            case "hourly":
+                time_freq = sum([days_per_month[month] for month in months]) * 24
+            case _:
+                raise ValueError(
+                    'frequency needs to be either "hourly", "daily", or "monthly"'
+                )
         y = y.isel(
             time=slice(0, window * 2 * time_freq)
         )  # This is to create a dummy slice that conforms with other data structure. Can be re-written to something more elegant.
@@ -210,3 +233,251 @@ def drop_invalid_sims(ds, selections):
         )
     )
     return ds.sel(all_sims=valid_sim_list)
+
+
+def read_warming_level_csvs() -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Reads two CSV files containing global warming level (GWL) data.
+
+    Returns:
+        tuple:
+            - df (pd.DataFrame): Time-indexed DataFrame (time as index, simulations as columns).
+            - other_df (pd.DataFrame): DataFrame with warming levels per simulation (no datetime index).
+    """
+    df = read_csv_file(GWL_1850_1900_TIMEIDX_FILE, index_col="time", parse_dates=True)
+    other_df = read_csv_file(gwl_1850_1900_file)
+    return df, other_df
+
+
+def get_wl_timestamp(series: pd.Series, degree: float) -> Union[str, float]:
+    """
+    Finds the first timestamp when the series crosses the specified warming level.
+
+    Parameters:
+        series (pd.Series): A time-indexed warming level series.
+        degree (float): Target warming level.
+
+    Returns:
+        str or float: Timestamp as string if crossed, else np.nan.
+    """
+    if any(series >= degree):
+        return series[series >= degree].index[0].strftime("%Y-%m-%d %H:%M")
+    return np.nan
+
+
+def create_new_warming_level_table(warming_level: float) -> pd.DataFrame:
+    """
+    Returns a table of timestamps when each simulation reaches the given warming level.
+
+    Parameters:
+        warming_level (float): New WL to retrieve WL timing for.
+
+    Returns:
+        pd.DataFrame: Same DataFrame as `data/gwl_1850-1900ref.csv`, just with a new WL columns with the `warming_level` arg passed.
+    """
+    df, other_df = read_warming_level_csvs()
+
+    # Map each simulation to its crossing timestamp for the given warming level
+    wl_timestamps = {
+        col: get_wl_timestamp(df[col], warming_level) for col in df.columns
+    }
+
+    result = other_df.copy(deep=True)
+    result["sim"] = result["GCM"] + "_" + result["run"] + "_" + result["scenario"]
+    timestamp_series = pd.Series(wl_timestamps)
+
+    result[str(warming_level)] = result["sim"].map(timestamp_series)
+    result = result.drop(columns="sim")
+    result = result.set_index(["GCM", "run", "scenario"])
+
+    return result
+
+
+def filter_warming_trajectories_to_ae(
+    simulations_df: pd.DataFrame,
+    warming_trajectories: pd.DataFrame,
+    downscaling_method: str,
+) -> pd.DataFrame:
+    """
+    Filters all simulations in `warming_trajectories` to only the ones we have on AE (`simulations_df`).
+    Does this filtering by `downscaling_method` as well.
+
+    Parameters:
+        simulations_df (pd.DataFrame): Complete simulation dataframe of all simulations in GWL tables.
+        warming_trajectories (pd.DataFrame): Full warming trajectory DataFrame, computed from `read_warming_level_csvs`.
+        downscaling_method (str): Downscaling method to filter DataFrame by ('LOCA' or 'WRF').
+
+    Returns:
+        pd.DataFrame: Filtered `simulations_df` to only simulations accessible on AE.
+    """
+    columns_to_keep = []
+    activity_simulations = simulations_df[
+        simulations_df["activity_id"] == downscaling_method
+    ]
+
+    for _, row in activity_simulations.iterrows():
+        pattern = f"{row['source_id']}_{row['member_id']}_{row['experiment_id']}"
+        matches = [col for col in warming_trajectories.columns if pattern in col]
+        columns_to_keep.extend(matches)
+
+    return warming_trajectories[columns_to_keep]
+
+
+def create_ae_warming_trajectories(
+    resolution: str,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Creates warming trajectories for all AE simulations based on a given resolution.
+    This resolution is an important parameter because not all resolutions have the same number of WRF simulations (i.e. 3km has 8 but 9km has 10).
+
+    Parameters:
+        resolution (str): Grid resolution (e.g., "6km", "12km").
+
+    Returns:
+        tuple:
+            - LOCA2 warming trajectories (pd.DataFrame)
+            - WRF warming trajectories (pd.DataFrame)
+    """
+    df = intake.open_esm_datastore(data_catalog_url).df
+    grid_label = resolution_to_gridlabel(resolution)
+
+    # Only select simulations with the given grid label, since WRF has a different number of simulations depending on the spatial resolution
+    select_sims = df[df["grid_label"] == grid_label]
+
+    simulations_df = (
+        select_sims[["activity_id", "source_id", "experiment_id", "member_id"]]
+        .drop_duplicates()
+        .reset_index(drop=True)
+    )
+    warming_trajectories, _ = read_warming_level_csvs()
+
+    loca2 = filter_warming_trajectories_to_ae(
+        simulations_df, warming_trajectories, "LOCA2"
+    )
+    wrf = filter_warming_trajectories_to_ae(simulations_df, warming_trajectories, "WRF")
+
+    return loca2, wrf
+
+
+def generate_ssp_dict() -> dict[str, pd.DataFrame]:
+    """
+    Loads historical and SSP scenario CSVs into one dictionary.
+
+    Returns:
+        Dict[str, pd.DataFrame]: A dictionary mapping scenario names to their
+        pandas DataFrames, indexed by year.
+    """
+    files_dict = {
+        "Historical": hist_file,
+        "SSP 1-1.9": ssp119_file,
+        "SSP 1-2.6": ssp126_file,
+        "SSP 2-4.5": ssp245_file,
+        "SSP 3-7.0": ssp370_file,
+        "SSP 5-8.5": ssp585_file,
+    }
+    return {
+        ssp_str: read_csv_file(filename, index_col="Year")
+        for ssp_str, filename in files_dict.items()
+    }
+
+
+def get_gwl_at_year(year: int, ssp: str = "all") -> pd.DataFrame:
+    """
+    Retrieve estimated Global Warming Level (GWL) statistics for a given year.
+
+    Parameters
+    ----------
+    year : int
+        The year for which to retrieve GWL estimates.
+    ssp : str, default='all'
+        The SSP scenario to use. Use 'all' to retrieve results for all SSPs.
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame with SSPs as rows and '5%', 'Mean', and '95%' as columns,
+        containing the warming level estimates for the specified year.
+    """
+    ssp_dict = generate_ssp_dict()
+    wl_timing_df = pd.DataFrame(columns=["5%", "Mean", "95%"])
+
+    if year >= 2015:
+        ssp_list = (
+            ["SSP 1-1.9", "SSP 1-2.6", "SSP 2-4.5", "SSP 3-7.0", "SSP 5-8.5"]
+            if ssp == "all"
+            else [ssp]
+        )
+        # Find the data for the given year and different scenarios
+        for scenario in ssp_list:
+            data = ssp_dict.get(scenario)
+            if year not in data.index:
+                print(f"Year {year} not found in {scenario}")
+                wl_timing_df.loc[scenario] = [np.nan, np.nan, np.nan]
+            else:
+                wl_timing_df.loc[scenario] = data.loc[year]
+
+    else:
+        # Finding the data from the historical period
+        if ssp != "all":
+            print(f"Year {year} before 2015, using Historical data")
+        hist_data = ssp_dict["Historical"]
+
+        if year not in hist_data.index:
+            print(f"Year {year} not found in Historical")
+            wl_timing_df.loc["Historical"] = [np.nan, np.nan, np.nan]
+        else:
+            wl_timing_df.loc["Historical"] = hist_data.loc[year]
+
+    return wl_timing_df
+
+
+def get_year_at_gwl(gwl: Union[float, int], ssp: str = "all") -> pd.DataFrame:
+    """
+    Retrieve the year when a given Global Warming Level (GWL) is reached for each SSP scenario.
+
+    Parameters
+    ----------
+    gwl : float or int
+        The Global Warming Level to check (e.g., 1.5, 2.0).
+    ssp : str, default='all'
+        The SSP scenario to evaluate. Use 'all' to check across all SSPs and the Historical period.
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame with SSPs as rows and columns ['5%', 'Mean', '95%'] indicating the years
+        when each warming level threshold is crossed for the respective uncertainty bounds.
+        NaN indicates the level was not reached by 2100.
+    """
+    ssp_dict = generate_ssp_dict()
+    wl_timing_df = pd.DataFrame(columns=["5%", "Mean", "95%"])
+
+    ssp_list = (
+        ["Historical", "SSP 1-1.9", "SSP 1-2.6", "SSP 2-4.5", "SSP 3-7.0", "SSP 5-8.5"]
+        if ssp == "all"
+        else [ssp]
+    )
+
+    for ssp in ssp_list:
+        ssp_selected = ssp_dict[ssp]
+
+        mean_mask = ssp_selected["Mean"] > gwl
+        upper_mask = ssp_selected["95%"] > gwl
+        lower_mask = ssp_selected["5%"] > gwl
+
+        def first_wl_year(one_ssp: pd.Series, mask: pd.Series) -> Union[int, float]:
+            """Return the first year where the pd.Series mask is True, or NaN if none."""
+            return one_ssp.index[mask][0] if mask.any() else np.nan
+
+        # Only add data for a scenario if the mean and upper bound of uncertainty reach the gwl
+        if mean_mask.any() and upper_mask.any():
+            x_5 = first_wl_year(ssp_selected, upper_mask)
+            x_95 = first_wl_year(ssp_selected, lower_mask)
+            year_gwl_reached = first_wl_year(ssp_selected, mean_mask)
+
+        else:
+            x_5 = x_95 = year_gwl_reached = np.nan
+
+        wl_timing_df.loc[ssp] = [x_5, year_gwl_reached, x_95]
+
+    return wl_timing_df
