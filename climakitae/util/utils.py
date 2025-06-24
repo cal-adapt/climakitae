@@ -801,6 +801,12 @@ def convert_to_local_time(data: xr.DataArray) -> xr.DataArray:
     lat = None
     lon = None
 
+    if "data_type" not in data.attrs:
+        print(
+            "Data Array attribute 'data_type' not found. Please set 'data_type' to 'Stations' or 'Gridded'."
+        )
+        return data
+
     # Get latitude/longitude information
     match data.attrs["data_type"]:
         case "Stations":
@@ -809,8 +815,17 @@ def convert_to_local_time(data: xr.DataArray) -> xr.DataArray:
             stations_df = stations_df.drop(columns=["Unnamed: 0"])
 
             # Filter by selected station(s) - assume first station if multiple
-            selected_station = selections.stations[0]
-            station_data = stations_df[stations_df["station"] == selected_station]
+            if data.name is None:
+                print(
+                    "Station name not found. Please set Data Array name to station name."
+                )
+                return data
+            station_data = stations_df[stations_df["station"] == data.name]
+            if len(station_data) == 0:
+                print(
+                    f"Station {data.name} not found in Stations CSV. Please set Data Array name to valid station name."
+                )
+                return data
             lat = station_data["LAT_Y"].values[0]
             lon = station_data["LON_X"].values[0]
 
