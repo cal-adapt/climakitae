@@ -183,6 +183,7 @@ class WarmingLevel(DataProcessor):
             ret[key] = xr.concat(
                 slices, dim="warming_level", join="outer", fill_value=np.nan
             )
+        self.update_context(context)
         return ret
 
     def update_context(self, context: Dict[str, Any]) -> Dict[str, Any]:
@@ -201,7 +202,7 @@ class WarmingLevel(DataProcessor):
         """
         context[_NEW_ATTRS_KEY][
             self.name
-        ] = f"""Process '{self.name}' applied to the data. Transformation was done using the following value: {self.value}."""
+        ] = f"""Process '{self.name}' applied to the data. Transformation was done using the following settings: {self.value}."""
 
         return context
 
@@ -223,10 +224,17 @@ class WarmingLevel(DataProcessor):
         """
         Extend the time domain of the input data to cover 1980-2100.
 
+        This method ensures that all SSP scenarios have historical data
+        included in the time series, allowing for proper warming level calculations.
+        This is handled by concatenating historical data with SSP data and updating
+        the attributes to that of the SSP data. Historical data is expected to be
+        available in the input dictionary with keys formatted the same as SSP keys
+        but with "historical" instead of r"ssp.{3}" (e.g., "ssp245" becomes "historical").
+
         Parameters
         ----------
-        result : xr.Dataset | xr.DataArray
-            The input time-series data to extend.
+        result : Dict[str, Union[xr.Dataset | xr.DataArray]]
+            A dictionary containing time-series data with keys representing different scenarios.
 
         Returns
         -------
@@ -258,8 +266,30 @@ class WarmingLevel(DataProcessor):
         self, member_ids: Iterable[str], keys: Iterable[str]
     ) -> Dict[str, list]:
         """
-        Get the center year for each warming level based on keys.
+        Determine the year around which to center the warming level window for each
+        simulation for each warming level.
 
+        Parameters
+        ----------
+        member_ids : Iterable[str]
+            List of member IDs corresponding to the keys.
+        keys : Iterable[str]
+            List of keys representing different simulations or scenarios.
+
+        Returns
+        -------
+        Dict[str, list]
+            A dictionary mapping each key to a list of center years for each warming level.
+
+        Notes
+        -----
+        The center year is determined by finding the first occurrence of each
+        warming level in the precomputed warming level times table.
+        If no warming level data is found for a key, a warning is issued.
+        If the warming level table does not contain data for a key, a warning is issued.
+        The method assumes that the warming level times table is indexed by time
+        and contains columns formatted as "key.join('_')", where the values are the
+        warming levels and the index is the time dimension.
         """
         center_years = {}
 

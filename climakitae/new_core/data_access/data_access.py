@@ -238,7 +238,7 @@ class DataCatalog(dict):
             )
         )
 
-    def list_clip_boundaries(self) -> dict[str, list]:
+    def list_clip_boundaries(self):
         """
         List all available boundary options for clipping operations.
 
@@ -247,15 +247,13 @@ class DataCatalog(dict):
 
         Returns
         -------
-        Dict[str, list]
-            Dictionary with boundary categories as keys and lists of available
-            boundary names as values
+        None
 
         Examples
         --------
         >>> catalog = DataCatalog()
-        >>> boundaries = catalog.list_clip_boundaries()
-        >>> print(boundaries["states"])
+        >>> catalog.list_clip_boundaries()
+        >>> print(catalog.available_boundaries["states"])
         ['AZ', 'CA', 'CO', 'ID', 'MT', 'NV', 'NM', 'OR', 'UT', 'WA', 'WY']
         """
         boundary_dict = self.boundaries.boundary_dict()
@@ -272,7 +270,7 @@ class DataCatalog(dict):
             boundary_keys = sorted(list(lookups.keys()))
             available_boundaries[category] = boundary_keys
 
-        return available_boundaries
+        self.available_boundaries = available_boundaries
 
     def print_clip_boundaries(self) -> None:
         """
@@ -293,7 +291,7 @@ class DataCatalog(dict):
             ... and 6 more options
         """
         try:
-            boundaries = self.list_clip_boundaries()
+            self.list_clip_boundaries()
         except Exception as e:
             print(f"Error accessing boundary data: {e}")
             return
@@ -302,7 +300,7 @@ class DataCatalog(dict):
         print("=" * 40)
         print()
 
-        for category, boundary_list in boundaries.items():
+        for category, boundary_list in self.available_boundaries.items():
             print(f"{category}:")
 
             # Format the list nicely - wrap long lists

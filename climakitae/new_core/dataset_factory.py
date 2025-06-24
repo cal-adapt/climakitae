@@ -494,6 +494,20 @@ class DatasetFactory:
         """
         return DataCatalog()["stations"]["station"].unique().tolist()
 
+    def get_boundaries(self, type) -> List[str]:
+        """
+        Get a list of available boundary datasets.
+
+        Returns
+        -------
+        List[str]
+            List of available boundary datasets.
+        """
+        if type not in DataCatalog().boundaries._lookup_cache:
+            return list(DataCatalog().boundaries._lookup_cache.keys())
+        else:
+            return list(DataCatalog().boundaries._lookup_cache[type].keys())
+
     def reset(self):
         """
         Reset the factory state, clearing all registered catalogs, validators, and processors.

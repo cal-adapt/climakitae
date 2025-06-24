@@ -539,6 +539,25 @@ class ClimateData:
         except Exception as e:
             print(f"Error retrieving stations: {e}")
 
+    def show_boundary_options(self, type=UNSET) -> None:
+        """Display available boundaries for spatial queries."""
+        if type is UNSET:
+            msg = "Boundary Types (call again with option type='...' to see options for any type):"
+        else:
+            msg = f"Avaliable '{" ".join([x.capitalize() for x in type.split("_")])}' Boundaries:"
+        print(msg)
+        print("-" * len(msg))
+        try:
+            boundaries = self._factory.get_boundaries(type)
+            if not boundaries:
+                print("No boundaries available with current parameters")
+            else:
+                for boundary in sorted(boundaries):
+                    print(f"{boundary}")
+                print("\n")
+        except Exception as e:
+            print(f"Error retrieving boundaries: {e}")
+
     def show_all_options(self) -> None:
         """Display all available options for exploration."""
         data_title = "CAL ADAPT DATA -- ALL AVAILABLE OPTIONS USING CLIMAKITAE"
