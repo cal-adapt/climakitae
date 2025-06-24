@@ -804,8 +804,9 @@ def convert_to_local_time(
     start, end = local_time_slice
 
     if data.time.dt.year[-1].item() == end:
-        print("Warning: Requested end year identical to last year in data.")
-        print("Final day may be incomplete after conversion to local time.")
+        print(
+            "Warning: Requested end year identical to last year in data. Final day may be incomplete after conversion to local time."
+        )
 
     # Default lat/lon values in case other methods fail
     lat = None
@@ -825,7 +826,7 @@ def convert_to_local_time(
             lon = station_data["LON_X"].values[0]
 
         case "Gridded":
-            if ~all(val in data.coords for val in ["lat", "lon"]):
+            if not all(val in data.coords for val in ["lat", "lon"]):
                 print(
                     "lat/lon coordinates not found in data. Please pass in data with 'lat' and 'lon' coordinates."
                 )
@@ -860,10 +861,8 @@ def convert_to_local_time(
     )
     data["time"] = new_time
 
-    # Subset the data by the initial time
-    start_slice = data.time[0]
-    end_slice = data.time[-1]
-    sliced_data = data.sel(time=slice(start_slice, end_slice))
+    # Subset the data by the requested time slice
+    sliced_data = data.sel(time=slice(f"{start}-01-01", f"{end}-12-31"))
 
     print(f"Data converted to {local_tz} timezone.")
 
