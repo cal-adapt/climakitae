@@ -779,9 +779,7 @@ def match_attr(data: xr.DataArray, key, value):
     return False
 
 
-def convert_to_local_time(
-    data: xr.DataArray, local_time_slice: tuple[int, int]
-) -> xr.DataArray:
+def convert_to_local_time(data: xr.DataArray) -> xr.DataArray:
     """
     Convert time dimension from UTC to local time for the grid or station.
 
@@ -799,14 +797,6 @@ def convert_to_local_time(
             "You've selected a timescale that doesn't require any timezone shifting, due to its timescale not being granular enough (hourly). Please pass in more granular level data if you want to adjust its local timezone."
         )
         return data
-
-    # 1. Get the time slice from selections
-    start, end = local_time_slice
-
-    if data.time.dt.year[-1].item() == end:
-        print(
-            "Warning: Requested end year identical to last year in data. Final day may be incomplete after conversion to local time."
-        )
 
     # Default lat/lon values in case other methods fail
     lat = None
@@ -861,15 +851,12 @@ def convert_to_local_time(
     )
     data["time"] = new_time
 
-    # Subset the data by the requested time slice
-    sliced_data = data.sel(time=slice(f"{start}-01-01", f"{end}-12-31"))
-
     print(f"Data converted to {local_tz} timezone.")
 
     # Add timezone attribute to data
-    sliced_data = sliced_data.assign_attrs({"timezone": local_tz})
+    data = data.assign_attrs({"timezone": local_tz})
 
-    return sliced_data
+    return data
 
 
 def add_dummy_time_to_wl(wl_da: xr.DataArray) -> xr.DataArray:
