@@ -785,7 +785,6 @@ def convert_to_local_time(data: xr.DataArray) -> xr.DataArray:
 
     Args:
         data (xarray.DataArray): Input data.
-        local_time_slice (tuple[int, int]): Start and end years of returned data.
 
     Returns:
         xarray.DataArray: Data with converted time coordinate.
