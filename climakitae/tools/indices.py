@@ -47,9 +47,8 @@ def effective_temp(T):
 
 def noaa_heat_index(T, RH):
     """Compute the NOAA Heat Index.
-    The Heat Index is a metric designed to quantify how hot air feels to the human body,
-    accounting for air temperature and humidity. See references for more information on
-    the derivation on this index.
+    Heat Index quantifies the perceived "real feel" of air temperature on the human body, 
+    including the impact of humidity. See references for more information on this derived variable.
 
     Parameters
     ----------
