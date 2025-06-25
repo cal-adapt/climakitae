@@ -772,55 +772,79 @@ def summary_table(data: xr.Dataset) -> pd.DataFrame:
     return df
 
 
-def match_attr(data: xr.DataArray, key, value):
-    if key in data.attrs:
-        if data.attrs[key] == value:
-            return True
-    return False
-
-
-def convert_to_local_time(data: xr.DataArray) -> xr.DataArray:
+def convert_to_local_time(data: xr.DataArray | xr.Dataset) -> xr.DataArray:
     """
     Convert time dimension from UTC to local time for the grid or station.
 
     Args:
-        data (xarray.DataArray): Input data.
+        data (xarray.DataArray | xr.Dataset): Input data.
 
     Returns:
         xarray.DataArray: Data with converted time coordinate.
     """
 
+    # Only converting hourly data
+    if "frequency" not in data.attrs:
+        # Make a guess at frequency
+        timestep = pd.Timedelta(
+            data.time[1].item() - data.time[0].item()
+        ).total_seconds()
+        match timestep:
+            case 3600:
+                frequency = "hourly"
+            case 86400:
+                frequency = "daily"
+            case _ if timestep > 86400:
+                frequency = "monthly"
+    else:
+        frequency = str(data.attrs["frequency"])
+
     # If timescale is not hourly, no need to convert
-    if str(data.attrs["frequency"]) in ["monthly", "daily"]:
+    if frequency != "hourly":
         print(
             "You've selected a timescale that doesn't require any timezone shifting, due to its timescale not being granular enough (hourly). Please pass in more granular level data if you want to adjust its local timezone."
         )
         return data
 
+    # Find out if Stations or Gridded type
+    if "data_type" not in data.attrs:
+        if isinstance(data, xr.core.dataarray.DataArray):
+            print(
+                "Data Array attribute 'data_type' not found. Please set 'data_type' to 'Stations' or 'Gridded'."
+            )
+            return data
+        else:
+            try:
+                # Grab from one of data arrays in dataset
+                variable = list(data.keys())[0]
+                data_type = data[variable].attrs["data_type"]
+            except KeyError:
+                print(
+                    f"Could not find attribute 'data_type' attribute set in {variable} attributes. Please set `data_type` attribute."
+                )
+                return data
+    else:
+        data_type = data.attrs["data_type"]
+
     # Default lat/lon values in case other methods fail
     lat = None
     lon = None
 
-    if "data_type" not in data.attrs:
-        print(
-            "Data Array attribute 'data_type' not found. Please set 'data_type' to 'Stations' or 'Gridded'."
-        )
-        return data
-
     # Get latitude/longitude information
-    match data.attrs["data_type"]:
+    match data_type:
         case "Stations":
             # Read stations database
             stations_df = read_csv_file(stations_csv_path)
             stations_df = stations_df.drop(columns=["Unnamed: 0"])
 
             # Filter by selected station(s) - assume first station if multiple
-            if data.name is None:
-                print(
-                    "Station name not found. Please set Data Array name to station name."
-                )
-                return data
-            station_data = stations_df[stations_df["station"] == data.name]
+            match type(data):
+                case xr.core.dataarray.DataArray:
+                    station_name = data.name
+                case xr.core.dataset.Dataset:
+                    # Grab first one
+                    station_name = list(data.keys())[0]
+            station_data = stations_df[stations_df["station"] == station_name]
             if len(station_data) == 0:
                 print(
                     f"Station {data.name} not found in Stations CSV. Please set Data Array name to valid station name."
@@ -841,7 +865,7 @@ def convert_to_local_time(data: xr.DataArray) -> xr.DataArray:
             lon = data.lon.mean().item()
         case _:
             print(
-                "Invalid data type attribute. `data.attrs['data_type']` should be 'Station' or 'Gridded'."
+                "Invalid data type attribute. Data type should be 'Stations' or 'Gridded'."
             )
             return data
 
@@ -868,7 +892,13 @@ def convert_to_local_time(data: xr.DataArray) -> xr.DataArray:
     print(f"Data converted to {local_tz} timezone.")
 
     # Add timezone attribute to data
-    data = data.assign_attrs({"timezone": local_tz})
+    match type(data):
+        case xr.core.dataarray.DataArray:
+            data = data.assign_attrs({"timezone": local_tz})
+        case xr.core.dataset.Dataset:
+            variables = list(data.keys())
+            for variable in variables:
+                data[variable] = data[variable].assign_attrs({"timezone": local_tz})
 
     return data
 
