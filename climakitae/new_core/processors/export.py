@@ -112,7 +112,7 @@ class Export(DataProcessor):
             If invalid file_format or mode values are provided
         """
         self.value = value
-        self.name = "export"
+        self.name = "_export"
         self.filename = value.get("filename", "dataexport")
         self.file_format = value.get("file_format", "NetCDF")
         self.mode = value.get("mode", "local")
@@ -253,9 +253,10 @@ class Export(DataProcessor):
         if _NEW_ATTRS_KEY not in context:
             context[_NEW_ATTRS_KEY] = {}
 
+        value_str = str(self.value)
         context[_NEW_ATTRS_KEY][
             self.name
-        ] = f"""Process '{self.name}' applied to the data. Transformation was done using the following value: {self.value}."""
+        ] = f"""Process '{self.name}' applied to the data. Transformation was done using the following value: {value_str}."""
 
     def set_data_accessor(self, catalog: DataCatalog):
         # Placeholder for setting data accessor
@@ -366,6 +367,10 @@ class Export(DataProcessor):
             return
 
         # Export using the appropriate function from data_export.py
+        for k, v in data.attrs.items():
+            if isinstance(v, dict):
+                # Convert dictionary attributes to string to avoid serialization issues
+                data.attrs[k] = str(v)
         try:
             match req_format:
                 case "zarr":
