@@ -118,6 +118,7 @@ class DataCatalog(dict):
             self.catalog_key = UNSET
             # Initialize boundaries with lazy loading
             self._boundaries = UNSET
+            self.available_boundaries = UNSET
 
     @property
     def data(self) -> intake_esm.core.esm_datastore:
@@ -259,7 +260,7 @@ class DataCatalog(dict):
         boundary_dict = self.boundaries.boundary_dict()
 
         # Create a clean dictionary with boundary categories and their available options
-        available_boundaries = {}
+        self.available_boundaries = {}
 
         for category, lookups in boundary_dict.items():
             # Skip special categories that don't represent actual boundary data
@@ -268,9 +269,7 @@ class DataCatalog(dict):
 
             # Convert keys to a sorted list for better presentation
             boundary_keys = sorted(list(lookups.keys()))
-            available_boundaries[category] = boundary_keys
-
-        self.available_boundaries = available_boundaries
+            self.available_boundaries[category] = boundary_keys
 
     def print_clip_boundaries(self) -> None:
         """

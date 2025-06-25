@@ -14,7 +14,8 @@ from climakitae.new_core.processors.abc_data_processor import (
 )
 
 
-@register_processor("update_attributes", priority=999)
+# second to last processor in the whole chain
+@register_processor("update_attributes", priority=9998)
 class UpdateAttributes(DataProcessor):
     """
     Update attributes of the data.

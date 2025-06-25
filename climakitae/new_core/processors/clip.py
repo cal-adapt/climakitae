@@ -49,7 +49,7 @@ class Clip(DataProcessor):
     value : str | list | tuple
         The value(s) to clip the data by. Can be:
         - str: Single boundary key, file path, or coordinate specification
-        - list: Multiple boundary keys of the same category (Phase 1)
+        - list: Multiple boundary keys of the same category (Phase 1) OR list of (lat, lon) tuples for multiple points
         - tuple: Coordinate bounds ((lat_min, lat_max), (lon_min, lon_max)) or a single (lat, lon) point
 
 
@@ -68,6 +68,9 @@ class Clip(DataProcessor):
 
     Single point (closest gridcell):
     >>> clip = Clip((37.7749, -122.4194))  # Single lat, lon point
+
+    Multiple points (closest gridcells):
+    >>> clip = Clip([(37.7749, -122.4194), (34.0522, -118.2437)])  # Multiple lat, lon points
     """
 
     def __init__(self, value):
@@ -79,7 +82,7 @@ class Clip(DataProcessor):
         value : str | list | tuple
             The value(s) to clip the data by. Can be:
             - str: Single boundary key, file path, or coordinate specification
-            - list: Multiple boundary keys of the same category (Phase 1)
+            - list: Multiple boundary keys of the same category (Phase 1) OR list of (lat, lon) tuples for multiple points
             - tuple: Coordinate bounds ((lat_min, lat_max), (lon_min, lon_max)) or single (lat, lon) point
         """
         self.value = value
@@ -87,9 +90,26 @@ class Clip(DataProcessor):
         self.catalog: Union[DataCatalog, object] = UNSET
         self.needs_catalog = True
 
-        # Determine if this is a multi-boundary operation
-        self.multi_mode = isinstance(value, list) and len(value) > 1
-        self.operation = "union" if self.multi_mode else None
+        # Check if this is a list of lat/lon tuples
+        self.is_multi_point = (
+            isinstance(value, list)
+            and len(value) > 0
+            and all(
+                isinstance(item, tuple)
+                and len(item) == 2
+                and all(isinstance(coord, (int, float)) for coord in item)
+                for item in value
+            )
+        )
+
+        if self.is_multi_point:
+            self.point_list = [(float(lat), float(lon)) for lat, lon in value]
+            self.multi_mode = False
+            self.operation = None
+        else:
+            # Determine if this is a multi-boundary operation
+            self.multi_mode = isinstance(value, list) and len(value) > 1
+            self.operation = "union" if self.multi_mode else None
 
         # Check if this is a single point operation and store coordinates
         self.is_single_point = (
@@ -118,8 +138,11 @@ class Clip(DataProcessor):
                     # try to find corresponding boundary key
                     geom = self._get_boundary_geometry(self.value)
             case list():
-                # Handle multiple boundary keys (Phase 1)
-                geom = self._get_multi_boundary_geometry(self.value)
+                # Handle multiple boundary keys (Phase 1) OR multiple lat/lon points
+                if self.is_multi_point:
+                    geom = None  # Will be handled differently for multi-point
+                else:
+                    geom = self._get_multi_boundary_geometry(self.value)
             case tuple():
                 # Check if this is a single (lat, lon) point or bounds ((lat_min, lat_max), (lon_min, lon_max))
                 if len(self.value) == 2 and all(
@@ -146,7 +169,7 @@ class Clip(DataProcessor):
                     f"Invalid value type for clipping. Expected str, list, or tuple but got {type(self.value)}."
                 )
 
-        if geom is None and not self.is_single_point:
+        if geom is None and not self.is_single_point and not self.is_multi_point:
             raise ValueError("Failed to create geometry for clipping operation.")
 
         ret = None
@@ -156,6 +179,11 @@ class Clip(DataProcessor):
                 if self.is_single_point:
                     ret = {
                         key: self._clip_data_to_point(value, self.lat, self.lon)
+                        for key, value in result.items()
+                    }
+                elif self.is_multi_point:
+                    ret = {
+                        key: self._clip_data_to_multiple_points(value, self.point_list)
                         for key, value in result.items()
                     }
                 else:
@@ -168,6 +196,8 @@ class Clip(DataProcessor):
                 # Clip the single dataset
                 if self.is_single_point:
                     ret = self._clip_data_to_point(result, self.lat, self.lon)
+                elif self.is_multi_point:
+                    ret = self._clip_data_to_multiple_points(result, self.point_list)
                 elif geom is not None:
                     ret = self._clip_data_with_geom(result, geom)
             case list() | tuple():
@@ -175,6 +205,14 @@ class Clip(DataProcessor):
                 if self.is_single_point:
                     clipped_data = [
                         self._clip_data_to_point(data, self.lat, self.lon)
+                        for data in result
+                    ]
+                    # Filter out None results
+                    valid_data = [data for data in clipped_data if data is not None]
+                    ret = type(result)(valid_data) if valid_data else None
+                elif self.is_multi_point:
+                    clipped_data = [
+                        self._clip_data_to_multiple_points(data, self.point_list)
                         for data in result
                     ]
                     # Filter out None results
@@ -218,6 +256,10 @@ class Clip(DataProcessor):
             context[_NEW_ATTRS_KEY][
                 self.name
             ] = f"""Process '{self.name}' applied to the data. Single point clipping was done using closest gridcell to coordinates: ({self.lat}, {self.lon})."""
+        elif self.is_multi_point:
+            context[_NEW_ATTRS_KEY][
+                self.name
+            ] = f"""Process '{self.name}' applied to the data. Multi-point clipping was done using closest gridcells to {len(self.point_list)} coordinate pairs, filtered for unique grid cells, and concatenated along 'closest_cell' dimension: {self.point_list}."""
         elif self.multi_mode:
             context[_NEW_ATTRS_KEY][
                 self.name
@@ -391,6 +433,112 @@ class Clip(DataProcessor):
         print("No valid gridcells found within search radius")
         return None
 
+    @staticmethod
+    def _clip_data_to_multiple_points(
+        dataset: xr.DataArray | xr.Dataset, point_list: list[tuple[float, float]]
+    ):
+        """
+        Clip data to multiple closest gridcells and concatenate along a new dimension.
+
+        This method clips data to the closest valid gridcell for each (lat, lon) pair,
+        filters out duplicate grid cells (keeping only unique ones), and concatenates
+        the results along a new dimension called 'closest_cell'.
+
+        Parameters
+        ----------
+        dataset : xr.Dataset or xr.DataArray
+            The dataset to clip
+        point_list : list[tuple[float, float]]
+            List of (lat, lon) tuples to clip to
+
+        Returns
+        -------
+        xr.Dataset or xr.DataArray or None
+            Concatenated dataset with a new 'closest_cell' dimension containing only
+            unique grid cells, or None if no valid gridcells found for any points
+        """
+        clipped_results = []
+        valid_indices = []
+
+        for i, (lat, lon) in enumerate(point_list):
+            print(f"Processing point {i+1}/{len(point_list)}: ({lat:.4f}, {lon:.4f})")
+
+            # Clip to single point
+            clipped_data = Clip._clip_data_to_point(dataset, lat, lon)
+
+            if clipped_data is not None:
+                # Add point information as coordinates
+                clipped_data = clipped_data.assign_coords(
+                    target_lat=lat, target_lon=lon, point_index=i
+                )
+                clipped_results.append(clipped_data)
+                valid_indices.append(i)
+            else:
+                print(f"Warning: No valid data found for point ({lat:.4f}, {lon:.4f})")
+
+        if not clipped_results:
+            print("No valid gridcells found for any of the provided points")
+            return None
+
+        # Filter by unique grid cells before concatenating
+        unique_results = []
+        unique_indices = []
+        seen_gridcells = set()
+
+        for i, (clipped_data, orig_idx) in enumerate(
+            zip(clipped_results, valid_indices)
+        ):
+            # Get the actual grid cell coordinates (rounded to avoid floating point precision issues)
+            actual_lat = float(clipped_data.lat.values)
+            actual_lon = float(clipped_data.lon.values)
+            gridcell_key = (round(actual_lat, 6), round(actual_lon, 6))
+
+            if gridcell_key not in seen_gridcells:
+                seen_gridcells.add(gridcell_key)
+                unique_results.append(clipped_data)
+                unique_indices.append(orig_idx)
+            else:
+                target_lat = point_list[orig_idx][0]
+                target_lon = point_list[orig_idx][1]
+                print(
+                    f"Skipping duplicate grid cell at ({actual_lat:.4f}, {actual_lon:.4f}) "
+                    f"for target point ({target_lat:.4f}, {target_lon:.4f})"
+                )
+
+        if not unique_results:
+            print("No unique gridcells found after filtering")
+            return None
+
+        print(
+            f"Filtered from {len(clipped_results)} to {len(unique_results)} unique gridcells"
+        )
+
+        try:
+            # Concatenate all unique results along a new dimension
+            concatenated = xr.concat(unique_results, dim="closest_cell")
+
+            # Add coordinate information
+            concatenated = concatenated.assign_coords(
+                closest_cell=unique_indices,
+                target_lats=(
+                    "closest_cell",
+                    [point_list[i][0] for i in unique_indices],
+                ),
+                target_lons=(
+                    "closest_cell",
+                    [point_list[i][1] for i in unique_indices],
+                ),
+            )
+
+            print(
+                f"Successfully concatenated {len(unique_results)} unique closest gridcells"
+            )
+            return concatenated
+
+        except Exception as e:
+            print(f"Error concatenating results: {e}")
+            return None
+
     def _get_boundary_geometry(self, boundary_key: str) -> gpd.GeoDataFrame:
         """
         Get geometry data for a boundary key from the boundaries catalog.
@@ -562,7 +710,7 @@ class Clip(DataProcessor):
 
     def _get_multi_boundary_geometry(self, boundary_keys: list) -> gpd.GeoDataFrame:
         """
-        Get combined geometry for multiple boundary keys (Phase 1 implementation).
+        Get combined geometry for multiple boundary keys.
 
         This method handles multiple boundaries of the same category by:
         1. Validating each boundary key exists

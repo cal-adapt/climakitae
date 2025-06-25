@@ -4,6 +4,7 @@ Import param validation classes ensuring they are registered.
 
 from .clip_param_validator import validate_clip_param
 from .data_param_validator import DataValidator
+from .export_param_validator import validate_export_param
 from .localize_param_validator import validate_localize_param
 from .renewables_param_validator import RenewablesValidator
 from .warming_param_validator import validate_warming_level_param

@@ -151,54 +151,70 @@ def _validate_list_param(value: List[Any]) -> Union[List[str], None]:
         )
         return False
 
-    # Check for mixed types (should all be strings)
-    non_string_items = [item for item in value if not isinstance(item, str)]
-    if non_string_items:
-        non_string_types = [type(item).__name__ for item in non_string_items]
+    # Check for mixed types (should all be the same type)
+    mixed_types = [item for item in value if not isinstance(item, type(value[0]))]
+    if mixed_types:
+        unique_types = set([type(item).__name__ for item in mixed_types])
         warnings.warn(
-            f"\n\nAll items in clip parameter list must be strings. "
-            f"\nFound {len(non_string_items)} non-string items with types: {', '.join(set(non_string_types))}. "
-            f"\nExample of valid list: ['CA', 'OR', 'WA']"
+            f"\n\nAll items in clip parameter list must be the same type. "
+            f"\nFound {len(unique_types)} different types: {', '.join(set(unique_types))}. "
+            f"\nExample of valid list: ['CA', 'OR', 'WA'] or [(32.0, 42.0), (-125.0, -114.0)]"
         )
         return False
 
     # Filter out empty/whitespace strings and validate each item
     valid_items = []
     invalid_items = []
+    match value[0]:
+        case str():
+            for item in value:
+                try:
+                    cleaned_item = item.strip()
+                    if not cleaned_item:
+                        invalid_items.append(f"'{item}' (empty/whitespace)")
+                        continue
 
-    for item in value:
-        try:
-            cleaned_item = item.strip()
-            if not cleaned_item:
-                invalid_items.append(f"'{item}' (empty/whitespace)")
-                continue
+                    # For boundary keys, provide basic validation
+                    validated_item = _validate_boundary_key_string(
+                        cleaned_item, raise_on_invalid=True
+                    )
+                    if validated_item is not None:
+                        valid_items.append(validated_item)
+                    else:
+                        invalid_items.append(f"'{item}'")
 
-            # For boundary keys, provide basic validation
-            validated_item = _validate_boundary_key_string(
-                cleaned_item, raise_on_invalid=True
-            )
-            if validated_item is not None:
-                valid_items.append(validated_item)
-            else:
-                invalid_items.append(f"'{item}'")
+                except Exception:
+                    invalid_items.append(f"'{item}'")
 
-        except Exception:
-            invalid_items.append(f"'{item}'")
+            # Report invalid items as warnings rather than errors
+            if invalid_items:
+                warnings.warn(
+                    f"\n\nFound {len(invalid_items)} invalid items in clip parameter list: {', '.join(invalid_items)}. "
+                )
+                return False
 
-    # Report invalid items as warnings rather than errors
-    if invalid_items:
-        warnings.warn(
-            f"\n\nFound {len(invalid_items)} invalid items in clip parameter list: {', '.join(invalid_items)}. "
-        )
-        return False
+            if not valid_items:
+                warnings.warn(
+                    "\n\nNo valid boundary keys found in the provided list. "
+                    "\nPlease provide valid boundary keys such as ['CA', 'OR', 'WA'] or "
+                    "\n['Los Angeles County', 'Orange County']."
+                )
+                return False
+        case tuple():
+            for item in value:
+                if isinstance(item, (tuple, list)):
+                    if _validate_tuple_param(item):
+                        valid_items.append(item)
+                    else:
+                        invalid_items.append(f"{item} (invalid tuple)")
+                else:
+                    invalid_items.append(f"{item} (not a tuple/list)")
 
-    if not valid_items:
-        warnings.warn(
-            "\n\nNo valid boundary keys found in the provided list. "
-            "\nPlease provide valid boundary keys such as ['CA', 'OR', 'WA'] or "
-            "\n['Los Angeles County', 'Orange County']."
-        )
-        return False
+            if invalid_items:
+                warnings.warn(
+                    f"\n\nFound {len(invalid_items)} invalid items in clip parameter list: {', '.join(invalid_items)}. "
+                )
+                return False
 
     # Check for duplicates
     unique = set(value)

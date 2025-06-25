@@ -261,6 +261,18 @@ class DatasetFactory:
             # create empty processing step key
             query[PROC_KEY] = {}
 
+        if "filter_unbiased_models" not in query[PROC_KEY]:
+            # add default filtering step if not present
+            query[PROC_KEY]["filter_unbiased_models"] = "yes"
+
+        if "concat" not in query[PROC_KEY]:
+            # add default concatenation step if not present
+            query[PROC_KEY]["concat"] = "sim"
+
+        if "update_attributes" not in query[PROC_KEY]:
+            # add default attribute update step if not present
+            query[PROC_KEY]["update_attributes"] = UNSET
+
         for key, value in query[PROC_KEY].items():
             if key not in self._processing_step_registry:
                 warnings.warn(
@@ -292,21 +304,7 @@ class DatasetFactory:
             # modify query in place
             query[_NEW_ATTRS_KEY][key] = value
 
-        # Mandatory processing steps
-        if "filter_unbiased_models" not in query[PROC_KEY]:
-            # remove unbiased models
-            processing_steps.insert(
-                0, self._processing_step_registry["filter_unbiased_models"][0]()
-            )
-            query[_NEW_ATTRS_KEY]["filter_unbiased_models"] = "yes"
-
-        if "concat" not in query[PROC_KEY]:
-            processing_steps.append(self._processing_step_registry["concat"][0]())
-            query[_NEW_ATTRS_KEY]["concat"] = "sim"
-
-        processing_steps.append(
-            self._processing_step_registry["update_attributes"][0]()
-        )
+        print(f"Processing steps determined: {processing_steps}")
         return processing_steps
 
     def register_catalog(self, key: str, catalog: DataCatalog):

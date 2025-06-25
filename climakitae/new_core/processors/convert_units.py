@@ -222,8 +222,9 @@ class ConvertUnits(DataProcessor):
             The converted data.
         """
         try:
-            units_from = data.attrs["units"]
-        except KeyError:
+            var = list(data.data_vars.keys())[0]
+            units_from = data.data_vars[var].attrs.get("units", None)
+        except (KeyError, IndexError):
             warnings.warn(
                 (
                     "WARNING ::: You've encountered a bug in the code. "
@@ -261,6 +262,15 @@ class ConvertUnits(DataProcessor):
                     self.success = False
                     return data
 
+                # Perform the actual conversion - Fix: assign to the dataset directly
+                converted_var = UNIT_CONVERSIONS.get(
+                    (units_from, value), lambda da: da
+                )(data.data_vars[var])
+                # Update the units attribute
+                converted_var.attrs["units"] = value
+                # Assign back to the dataset
+                data = data.assign({var: converted_var})
+
             case list() | tuple():
                 # look through the list of valid units
                 # if any of the units conversions are valid, convert them
@@ -279,11 +289,13 @@ class ConvertUnits(DataProcessor):
                     if not valid_mask[i]:
                         continue
                     # convert the data
-                    data = UNIT_CONVERSIONS.get((units_from, val), lambda da: da)(data)
+                    converted_var = UNIT_CONVERSIONS.get(
+                        (units_from, val), lambda da: da
+                    )(data.data_vars[var])
                     # update the units attribute
-                    data.attrs["units"] = val
-                    # update the name of the variable
-                    data.name = f"{data.name}_{val}"
+                    converted_var.attrs["units"] = val
+                    # Assign back to the dataset
+                    data = data.assign({var: converted_var})
                     break  # exit the loop after the first valid conversion
             case _:
                 warnings.warn(
@@ -292,5 +304,7 @@ class ConvertUnits(DataProcessor):
                         f"Expected str or Iterable[str], but got {type(value)}."
                     )
                 )
+                self.success = False
+                return data
 
         return data
