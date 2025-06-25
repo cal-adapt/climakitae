@@ -1329,7 +1329,7 @@ class TestConvertToLocalTime:
             result = convert_to_local_time(data)
             assert result.equals(data)
             mock_print.assert_called_once_with(
-                "Station name not found. Please set Data Array name to station name."
+                "Station None not found in Stations CSV. Please set Data Array name to valid station name."
             )
 
         # Test 3: Hourly data with mismatched name
@@ -1367,6 +1367,38 @@ class TestConvertToLocalTime:
 
             # Verify the timezone was set as an attribute
             assert result.attrs["timezone"] == "America/Los_Angeles"
+
+            # Check if the print message about timezone conversion was shown
+            mock_print.assert_called_with(
+                "Data converted to America/Los_Angeles timezone."
+            )
+
+        # Test 4: Station data type with timezone conversion
+        # where dataset is passed
+        data = xr.DataArray(
+            np.random.rand(len(time_values)),
+            dims=["time"],
+            coords={"time": time_values},
+        )
+        data.attrs = {"data_type": "Stations", "frequency": "hourly"}
+        data.name = "SAN FRANCISCO DWTN"
+        data = data.to_dataset()
+        with patch(
+            "climakitae.util.utils.read_csv_file",
+            return_value=mock_stations_df,
+        ), patch(
+            "climakitae.util.utils.TimezoneFinder.timezone_at",
+            return_value="America/Los_Angeles",
+        ), patch(
+            "builtins.print"
+        ) as mock_print:
+
+            result = convert_to_local_time(data)
+
+            # Verify the timezone was set as an attribute
+            assert (
+                result["SAN FRANCISCO DWTN"].attrs["timezone"] == "America/Los_Angeles"
+            )
 
             # Check if the print message about timezone conversion was shown
             mock_print.assert_called_with(
@@ -1446,6 +1478,35 @@ class TestConvertToLocalTime:
             # 8 hour offset between LA and UTC times
             new_times = time_values - pd.Timedelta(hours=8)
             assert (data.time == new_times).all()
+
+        # Test with missing frequency and daily times
+        time_values = pd.date_range(
+            start="2020-01-01T00:00:00", end="2020-02-01T00:00:00", freq="D"
+        )
+        lat_values = [34.0, 35.0]
+        lon_values = [-118.0, -117.0]
+        data = xr.DataArray(
+            np.random.rand(len(time_values), len(lat_values), len(lon_values)),
+            dims=["time", "lat", "lon"],
+            coords={
+                "time": time_values,
+                "lat": lat_values,
+                "lon": lon_values,
+            },
+        )
+        data.attrs = {"data_type": "Gridded"}
+
+        with patch(
+            "climakitae.util.utils.TimezoneFinder.timezone_at",
+            return_value="America/Los_Angeles",
+        ), patch("builtins.print") as mock_print:
+
+            result = convert_to_local_time(data)
+
+            # Check if the print message about timezone conversion was shown
+            mock_print.assert_called_with(
+                "You've selected a timescale that doesn't require any timezone shifting, due to its timescale not being granular enough (hourly). Please pass in more granular level data if you want to adjust its local timezone."
+            )
 
     def test_clip_to_shapefile(self):
         # Dataset to trim
