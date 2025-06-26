@@ -42,8 +42,13 @@ class Export(DataProcessor):
           multiple datasets. If True, each dataset will use its name as part of the filename.
           Default: False
         - export_method (str, optional): What type of data to export. Supported values:
-          "data" (export all data), "skip_existing" (skip if file exists), "None" (no export).
+          "data" (export all data), "raw" (export raw data only), "calculate" (export calculated data only),
+          "both" (export both raw and calculated data), "skip_existing" (skip if file exists), "None" (no export).
           Default: "data"
+        - raw_filename (str, optional): Filename for raw data when using "raw" or "both" export methods.
+          If not provided, defaults to "{filename}_raw". Default: None
+        - calc_filename (str, optional): Filename for calculated data when using "calculate" or "both" export methods.
+          If not provided, defaults to "{filename}_calc". Default: None
         - location_based_naming (bool, optional): Whether to include lat/lon coordinates
           in filenames for spatial data. Default: False
         - filename_template (str, optional): Template for generating filenames. Can include
@@ -77,10 +82,24 @@ class Export(DataProcessor):
     ...     "file_format": "NetCDF"
     ... })
 
-    Skip export if files already exist:
+    Export with data type separation:
     >>> export_proc = Export({
     ...     "filename": "climate_data",
-    ...     "export_method": "skip_existing"
+    ...     "export_method": "both",
+    ...     "raw_filename": "raw_climate_data",
+    ...     "calc_filename": "processed_climate_data"
+    ... })
+
+    Export only calculated data:
+    >>> export_proc = Export({
+    ...     "filename": "temperature",
+    ...     "export_method": "calculate"
+    ... })
+
+    Export only raw data:
+    >>> export_proc = Export({
+    ...     "filename": "temperature",
+    ...     "export_method": "raw"
     ... })
 
     Notes
@@ -91,6 +110,9 @@ class Export(DataProcessor):
     - When location_based_naming is True, coordinates are formatted as {lat}N_{lon}W
     - Custom filename templates support placeholders: {filename}, {lat}, {lon}, {name}
     - export_method="skip_existing" allows graceful handling of existing files
+    - For "raw", "calculate", and "both" export methods, the processor looks for context indicators
+      to distinguish data types. Raw data is exported with "_raw" suffix, calculated with "_calc" suffix
+    - When using "both", two separate files are created for raw and calculated data
     """
 
     def __init__(self, value: Dict[str, Any]):
@@ -105,6 +127,9 @@ class Export(DataProcessor):
             - file_format (str, optional): File format ("NetCDF", "Zarr", "CSV"). Default: "NetCDF"
             - mode (str, optional): Save location for Zarr files ("local", "s3"). Default: "local"
             - separated (bool, optional): Whether to create separate files when exporting multiple datasets. Default: False
+            - export_method (str, optional): What type of data to export. Default: "data"
+            - raw_filename (str, optional): Filename for raw data exports. Default: None
+            - calc_filename (str, optional): Filename for calculated data exports. Default: None
 
         Raises
         ------
@@ -121,6 +146,8 @@ class Export(DataProcessor):
         self.location_based_naming = value.get("location_based_naming", False)
         self.filename_template = value.get("filename_template", None)
         self.fail_on_error = value.get("fail_on_error", True)
+        self.raw_filename = value.get("raw_filename", None)
+        self.calc_filename = value.get("calc_filename", None)
 
         # Validate inputs during initialization
         self._validate_parameters()
@@ -159,7 +186,14 @@ class Export(DataProcessor):
             raise ValueError(f"separated must be a boolean, got {type(self.separated)}")
 
         # Validate export_method
-        valid_export_methods = ["data", "skip_existing", "none"]
+        valid_export_methods = [
+            "data",
+            "raw",
+            "calculate",
+            "both",
+            "skip_existing",
+            "none",
+        ]
         if self.export_method.lower() not in valid_export_methods:
             raise ValueError(
                 f'export_method must be one of {valid_export_methods}, got "{self.export_method}"'
@@ -183,6 +217,17 @@ class Export(DataProcessor):
         if not isinstance(self.fail_on_error, bool):
             raise ValueError(
                 f"fail_on_error must be a boolean, got {type(self.fail_on_error)}"
+            )
+
+        # Validate filename types
+        if self.raw_filename is not None and not isinstance(self.raw_filename, str):
+            raise ValueError(
+                f"raw_filename must be a string or None, got {type(self.raw_filename)}"
+            )
+
+        if self.calc_filename is not None and not isinstance(self.calc_filename, str):
+            raise ValueError(
+                f"calc_filename must be a string or None, got {type(self.calc_filename)}"
             )
 
     def execute(
@@ -215,26 +260,159 @@ class Export(DataProcessor):
             print("Export method set to 'none'; no data is exported!")
             return result
 
-        match result:
-            case xr.Dataset() | xr.DataArray():
-                self.export_single(result)
-            case dict():
-                for _, value in result.items():
-                    self.export_single(value)
-            case list() | tuple():
-                for item in result:
-                    if isinstance(item, (xr.Dataset, xr.DataArray)):
-                        self.export_single(item)
-                    else:
-                        raise TypeError(
-                            f"Expected xr.Dataset or xr.DataArray, got {type(item)}"
-                        )
-            case _:
-                raise TypeError(
-                    f"Expected xr.Dataset, xr.DataArray, dict, list, or tuple, got {type(result)}"
-                )
+        # Handle different export methods
+        export_method_lower = self.export_method.lower()
+
+        if export_method_lower in ["raw", "calculate", "both"]:
+            # For these methods, we need to handle data based on context or data structure
+            # Note: We check if result is actually a dict (for cases like cava_data output)
+            # even though type annotation doesn't include Dict to maintain base class compatibility
+            if isinstance(result, dict):
+                self._handle_dict_result(result, export_method_lower)
+            else:
+                self._handle_selective_export(result, context, export_method_lower)
+        else:
+            # Standard export for "data" and "skip_existing" methods
+            match result:
+                case xr.Dataset() | xr.DataArray():
+                    self.export_single(result)
+                case dict():
+                    for _, value in result.items():
+                        self.export_single(value)
+                case list() | tuple():
+                    for item in result:
+                        if isinstance(item, (xr.Dataset, xr.DataArray)):
+                            self.export_single(item)
+                        else:
+                            raise TypeError(
+                                f"Expected xr.Dataset or xr.DataArray, got {type(item)}"
+                            )
+                case _:
+                    raise TypeError(
+                        f"Expected xr.Dataset, xr.DataArray, dict, list, or tuple, got {type(result)}"
+                    )
 
         return result
+
+    def _handle_dict_result(self, result: dict, export_method: str):
+        """
+        Handle dictionary results (like those from cava_data function).
+        """
+        raw_data = result.get("raw_data")
+        calc_data = result.get("calc_data")
+
+        if export_method == "raw" and raw_data is not None:
+            self._export_with_suffix(raw_data, "raw")
+        elif export_method == "calculate" and calc_data is not None:
+            self._export_with_suffix(calc_data, "calc")
+        elif export_method == "both":
+            if raw_data is not None:
+                self._export_with_suffix(raw_data, "raw")
+            if calc_data is not None:
+                self._export_with_suffix(calc_data, "calc")
+
+    def _handle_selective_export(
+        self,
+        result: Union[
+            xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
+        ],
+        context: Dict[str, Any],
+        export_method: str,
+    ):
+        """
+        Handle selective export methods (raw, calculate, both).
+
+        This method looks for indicators in the data or context to determine
+        whether data should be treated as raw or calculated.
+        """
+        # For other data structures, check context for data type indicators
+        data_type = self._determine_data_type(result, context)
+
+        if export_method == "raw" and data_type == "raw":
+            self._export_with_suffix(result, "raw")
+        elif export_method == "calculate" and data_type == "calc":
+            self._export_with_suffix(result, "calc")
+        elif export_method == "both":
+            # If we can't determine type, export as both with different suffixes
+            self._export_with_suffix(result, "raw")
+            self._export_with_suffix(result, "calc")
+        else:
+            # Default behavior - export with appropriate suffix
+            suffix = "raw" if export_method == "raw" else "calc"
+            self._export_with_suffix(result, suffix)
+
+    def _determine_data_type(self, result, context: Dict[str, Any]) -> str:
+        """
+        Determine if data should be treated as raw or calculated based on context clues.
+
+        Returns "raw" or "calc" based on available information.
+        """
+        # Check context for processing history
+        if _NEW_ATTRS_KEY in context:
+            processing_steps = context[_NEW_ATTRS_KEY]
+            # If there are processing steps beyond data loading, treat as calculated
+            if any(
+                step for step in processing_steps.keys() if not step.startswith("_load")
+            ):
+                return "calc"
+
+        # Check data attributes for processing indicators
+        if hasattr(result, "attrs"):
+            attrs = result.attrs if hasattr(result, "attrs") else {}
+            # Look for indicators of processed data
+            if any(
+                key in attrs
+                for key in ["processed_by", "calculation_method", "derived_from"]
+            ):
+                return "calc"
+
+        # Default to raw if no processing indicators found
+        return "raw"
+
+    def _export_with_suffix(
+        self,
+        data: Union[
+            xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
+        ],
+        suffix: str,
+    ):
+        """
+        Export data with appropriate filename suffix.
+        """
+        # Temporarily modify filename for this export
+        original_filename = self.filename
+
+        # Use custom filename if provided, otherwise add suffix
+        if suffix == "raw" and self.raw_filename:
+            self.filename = self.raw_filename
+        elif suffix == "calc" and self.calc_filename:
+            self.filename = self.calc_filename
+        else:
+            self.filename = f"{original_filename}_{suffix}"
+
+        try:
+            # Export the data using standard export logic
+            match data:
+                case xr.Dataset() | xr.DataArray():
+                    self.export_single(data)
+                case dict():
+                    for _, value in data.items():
+                        self.export_single(value)
+                case list() | tuple():
+                    for item in data:
+                        if isinstance(item, (xr.Dataset, xr.DataArray)):
+                            self.export_single(item)
+                        else:
+                            raise TypeError(
+                                f"Expected xr.Dataset or xr.DataArray, got {type(item)}"
+                            )
+                case _:
+                    raise TypeError(
+                        f"Expected xr.Dataset, xr.DataArray, dict, list, or tuple, got {type(data)}"
+                    )
+        finally:
+            # Restore original filename
+            self.filename = original_filename
 
     def update_context(self, context: Dict[str, Any]):
         """
@@ -425,4 +603,51 @@ class Export(DataProcessor):
 
         exporter = cls(export_config)
         exporter.export_single(data)
-        exporter.export_single(data)
+
+    @classmethod
+    def export_raw_calc_data(
+        cls,
+        raw_data: Union[xr.Dataset, xr.DataArray, None] = None,
+        calc_data: Union[xr.Dataset, xr.DataArray, None] = None,
+        filename: str = "dataexport",
+        file_format: str = "NetCDF",
+        export_method: str = "both",
+        **kwargs,
+    ) -> None:
+        """
+        Export raw and/or calculated data similar to cava_data behavior.
+
+        Parameters
+        ----------
+        raw_data : xr.Dataset | xr.DataArray, optional
+            The raw data to export. Only exported if export_method includes "raw".
+        calc_data : xr.Dataset | xr.DataArray, optional
+            The calculated data to export. Only exported if export_method includes "calculate".
+        filename : str, optional
+            Base filename without extension. Default: "dataexport"
+        file_format : str, optional
+            File format ("NetCDF", "Zarr", "CSV"). Default: "NetCDF"
+        export_method : str, optional
+            What to export: "raw", "calculate", or "both". Default: "both"
+        **kwargs
+            Additional parameters passed to the Export processor.
+        """
+        export_config = {
+            "filename": filename,
+            "file_format": file_format,
+            "export_method": export_method,
+            "fail_on_error": False,
+            **kwargs,
+        }
+
+        exporter = cls(export_config)
+
+        # Create a dict similar to cava_data output
+        data_dict = {}
+        if raw_data is not None:
+            data_dict["raw_data"] = raw_data
+        if calc_data is not None:
+            data_dict["calc_data"] = calc_data
+
+        if data_dict:
+            exporter._handle_dict_result(data_dict, export_method)
