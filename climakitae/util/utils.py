@@ -774,8 +774,8 @@ def summary_table(data: xr.Dataset) -> pd.DataFrame:
 
 def convert_to_local_time(
     data: xr.DataArray | xr.Dataset,
-    grid_lon: float = UNSET,
-    grid_lat: float = UNSET,
+    lon: float = UNSET,
+    lat: float = UNSET,
 ) -> xr.DataArray | xr.Dataset:
     """
     Convert time dimension from UTC to local time for the grid or station.
@@ -828,10 +828,6 @@ def convert_to_local_time(
                 )
                 return data
 
-    # Default lat/lon values in case other methods fail
-    lat = None
-    lon = None
-
     # Get latitude/longitude information
     match data_type:
         case "Stations":
@@ -861,39 +857,27 @@ def convert_to_local_time(
             lon = station_data["LON_X"].values[0]
 
         case "Gridded":
-            match (grid_lon, grid_lat):
-                case (float(), float()):
-                    lon = grid_lon
-                    lat = grid_lat
-                case (object(), object()):  # UNSET
-                    if not all(val in data.coords for val in ["lat", "lon"]):
-                        print(
-                            "lat/lon coordinates not found in data. Please pass in data with 'lat' and 'lon' coordinates."
-                        )
-                        return data
-
+            # if both lat and lon are set, can move on to timezone finding.
+            if (lat is UNSET) or (lon is UNSET):
+                try:
                     # Finding avg. lat/lon coordinates from all grid-cells
                     lat = data.lat.mean().item()
                     lon = data.lon.mean().item()
-                case _:
+                except AttributeError:
                     print(
-                        "Invalid lat and lon variable values. Please provide numeric values for lat and lon or set lat/lon coords on data."
+                        "lat/lon coordinates not found in data. Please pass in data with 'lon' and 'lat' coordinates or set both 'lon' and 'lat' arguments."
                     )
+                    return data
+
         case _:
             print(
                 "Invalid data type attribute. Data type should be 'Stations' or 'Gridded'."
             )
             return data
 
-    # Check if we were able to get valid coordinates
-    if lat is None or lon is None:
-        # Default to a reasonable timezone (UTC)
-        local_tz = "UTC"
-        print("Could not determine location coordinates, defaulting to UTC timezone.")
-    else:
-        # Find timezone for the coordinates
-        tf = TimezoneFinder()
-        local_tz = tf.timezone_at(lng=lon, lat=lat)
+    # Find timezone for the coordinates
+    tf = TimezoneFinder()
+    local_tz = tf.timezone_at(lng=lon, lat=lat)
 
     # Change datetime objects to local time
     new_time = (
