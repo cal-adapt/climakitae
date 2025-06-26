@@ -784,7 +784,7 @@ def convert_to_local_time(data: xr.DataArray | xr.Dataset) -> xr.DataArray | xr.
     """
 
     # Only converting hourly data
-    if "frequency" not in data.attrs:
+    if not (frequency := data.attrs.get("frequency", None)):
         # Make a guess at frequency
         timestep = pd.Timedelta(
             data.time[1].item() - data.time[0].item()
