@@ -304,8 +304,6 @@ class DatasetFactory:
             # modify query in place
             query[_NEW_ATTRS_KEY][key] = value
 
-        msg = "\n".join(f" - {step.__class__.__name__}" for step in processing_steps)
-        print(f"Processing steps determined: {msg}")
         return processing_steps
 
     def register_catalog(self, key: str, catalog: DataCatalog):
