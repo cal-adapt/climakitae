@@ -1310,7 +1310,7 @@ class TestConvertToLocalTime:
             result = convert_to_local_time(data)
             assert result.equals(data)
             mock_print.assert_called_once_with(
-                "You've selected a timescale that doesn't require any timezone shifting, due to its timescale not being granular enough (hourly). Please pass in more granular level data if you want to adjust its local timezone."
+                "This dataset's timescale is not granular enough to covert to local time. Local timezone conversion requires hourly data."
             )
 
         # Test 2: Hourly data with no name
@@ -1505,7 +1505,7 @@ class TestConvertToLocalTime:
 
             # Check if the print message about timezone conversion was shown
             mock_print.assert_called_with(
-                "You've selected a timescale that doesn't require any timezone shifting, due to its timescale not being granular enough (hourly). Please pass in more granular level data if you want to adjust its local timezone."
+                "This dataset's timescale is not granular enough to covert to local time. Local timezone conversion requires hourly data."
             )
 
     def test_clip_to_shapefile(self):
