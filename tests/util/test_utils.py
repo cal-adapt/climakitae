@@ -1508,6 +1508,32 @@ class TestConvertToLocalTime:
                 "This dataset's timescale is not granular enough to covert to local time. Local timezone conversion requires hourly data."
             )
 
+        # Test with lat/lon provided for area averaged data
+        time_values = pd.date_range("2020-01-01T00:00:00", periods=24, freq="h")
+        data = xr.DataArray(
+            np.random.rand(len(time_values)),
+            dims=["time"],
+            coords={
+                "time": time_values,
+            },
+        )
+        data.attrs = {"data_type": "Gridded", "frequency": "hourly"}
+
+        with patch(
+            "climakitae.util.utils.TimezoneFinder.timezone_at",
+            return_value="America/Los_Angeles",
+        ), patch("builtins.print") as mock_print:
+
+            result = convert_to_local_time(data, -118.0, 34.0)
+
+            # Verify the timezone was set as an attribute
+            assert result.attrs["timezone"] == "America/Los_Angeles"
+
+            # Check if the print message about timezone conversion was shown
+            mock_print.assert_called_with(
+                "Data converted to America/Los_Angeles timezone."
+            )
+
     def test_clip_to_shapefile(self):
         # Dataset to trim
         data = xr.DataArray(
