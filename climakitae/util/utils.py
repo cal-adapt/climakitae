@@ -772,7 +772,7 @@ def summary_table(data: xr.Dataset) -> pd.DataFrame:
     return df
 
 
-def convert_to_local_time(data: xr.DataArray | xr.Dataset) -> xr.DataArray:
+def convert_to_local_time(data: xr.DataArray | xr.Dataset) -> xr.DataArray | xr.Dataset:
     """
     Convert time dimension from UTC to local time for the grid or station.
 
@@ -903,7 +903,7 @@ def convert_to_local_time(data: xr.DataArray | xr.Dataset) -> xr.DataArray:
             for variable in variables:
                 data[variable] = data[variable].assign_attrs({"timezone": local_tz})
         case _:
-            print("Invalid data type {type(data)}. Could not set timezone attribute.")
+            print(f"Invalid data type {type(data)}. Could not set timezone attribute.")
 
     return data
 
