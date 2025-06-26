@@ -807,7 +807,7 @@ def convert_to_local_time(data: xr.DataArray | xr.Dataset) -> xr.DataArray:
         return data
 
     # Find out if Stations or Gridded type
-    if "data_type" not in data.attrs:
+    if not (data_type := data.attrs.get("data_type", None)):
         if isinstance(data, xr.core.dataarray.DataArray):
             print(
                 "Data Array attribute 'data_type' not found. Please set 'data_type' to 'Stations' or 'Gridded'."
