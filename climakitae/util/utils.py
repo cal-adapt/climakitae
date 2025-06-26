@@ -802,7 +802,7 @@ def convert_to_local_time(data: xr.DataArray | xr.Dataset) -> xr.DataArray:
     # If timescale is not hourly, no need to convert
     if frequency != "hourly":
         print(
-            "You've selected a timescale that doesn't require any timezone shifting, due to its timescale not being granular enough (hourly). Please pass in more granular level data if you want to adjust its local timezone."
+            "This dataset's timescale is not granular enough to covert to local time. Local timezone conversion requires hourly data."
         )
         return data
 
@@ -823,8 +823,6 @@ def convert_to_local_time(data: xr.DataArray | xr.Dataset) -> xr.DataArray:
                     f"Could not find attribute 'data_type' attribute set in {variable} attributes. Please set `data_type` attribute."
                 )
                 return data
-    else:
-        data_type = data.attrs["data_type"]
 
     # Default lat/lon values in case other methods fail
     lat = None
@@ -838,12 +836,17 @@ def convert_to_local_time(data: xr.DataArray | xr.Dataset) -> xr.DataArray:
             stations_df = stations_df.drop(columns=["Unnamed: 0"])
 
             # Filter by selected station(s) - assume first station if multiple
-            match type(data):
-                case xr.core.dataarray.DataArray:
+            match data:
+                case xr.DataArray():
                     station_name = data.name
-                case xr.core.dataset.Dataset:
+                case xr.Dataset():
                     # Grab first one
                     station_name = list(data.keys())[0]
+                case _:
+                    print(
+                        f"Invalid data type {type(data)}. Please provide xarray DataArray or Dataset."
+                    )
+                    return data
             station_data = stations_df[stations_df["station"] == station_name]
             if len(station_data) == 0:
                 print(
@@ -892,13 +895,15 @@ def convert_to_local_time(data: xr.DataArray | xr.Dataset) -> xr.DataArray:
     print(f"Data converted to {local_tz} timezone.")
 
     # Add timezone attribute to data
-    match type(data):
-        case xr.core.dataarray.DataArray:
+    match data:
+        case xr.DataArray():
             data = data.assign_attrs({"timezone": local_tz})
-        case xr.core.dataset.Dataset:
+        case xr.Dataset():
             variables = list(data.keys())
             for variable in variables:
                 data[variable] = data[variable].assign_attrs({"timezone": local_tz})
+        case _:
+            print("Invalid data type {type(data)}. Could not set timezone attribute.")
 
     return data
 
