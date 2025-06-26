@@ -14,7 +14,7 @@ from climakitae.new_core.param_validation.param_validation_tools import _coerce_
 
 
 @register_processor_validator("time_slice")
-def validate_warming_level_param(value: tuple[Any, Any], **kwargs) -> bool:
+def validate_time_slice_param(value: tuple[Any, Any], **kwargs) -> bool:
     """
     Validate the parameters provided to the time slice Processor.
 
