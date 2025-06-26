@@ -796,8 +796,6 @@ def convert_to_local_time(data: xr.DataArray | xr.Dataset) -> xr.DataArray | xr.
                 frequency = "daily"
             case _ if timestep > 86400:
                 frequency = "monthly"
-    else:
-        frequency = str(data.attrs["frequency"])
 
     # If timescale is not hourly, no need to convert
     if frequency != "hourly":
