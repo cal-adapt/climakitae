@@ -772,12 +772,18 @@ def summary_table(data: xr.Dataset) -> pd.DataFrame:
     return df
 
 
-def convert_to_local_time(data: xr.DataArray | xr.Dataset) -> xr.DataArray | xr.Dataset:
+def convert_to_local_time(
+    data: xr.DataArray | xr.Dataset,
+    grid_lon: float | None = None,
+    grid_lat: float | None = None,
+) -> xr.DataArray | xr.Dataset:
     """
     Convert time dimension from UTC to local time for the grid or station.
 
     Args:
         data (xarray.DataArray | xr.Dataset): Input data.
+        grid_lon (float): Mean longitude of dataset if no lat/lon coordinates
+        grid_lat (float): Mean latitude of dataset if no lat/lon coordinates
 
     Returns:
         xarray.DataArray: Data with converted time coordinate.
@@ -855,15 +861,24 @@ def convert_to_local_time(data: xr.DataArray | xr.Dataset) -> xr.DataArray | xr.
             lon = station_data["LON_X"].values[0]
 
         case "Gridded":
-            if not all(val in data.coords for val in ["lat", "lon"]):
-                print(
-                    "lat/lon coordinates not found in data. Please pass in data with 'lat' and 'lon' coordinates."
-                )
-                return data
+            match (grid_lon, grid_lat):
+                case (None, None):
+                    if not all(val in data.coords for val in ["lat", "lon"]):
+                        print(
+                            "lat/lon coordinates not found in data. Please pass in data with 'lat' and 'lon' coordinates."
+                        )
+                        return data
 
-            # Finding avg. lat/lon coordinates from all grid-cells
-            lat = data.lat.mean().item()
-            lon = data.lon.mean().item()
+                    # Finding avg. lat/lon coordinates from all grid-cells
+                    lat = data.lat.mean().item()
+                    lon = data.lon.mean().item()
+                case (float(), float()):
+                    lon = grid_lon
+                    lat = grid_lat
+                case _:
+                    print(
+                        "Invalid lat and lon variable values. Please provide numeric values for lat and lon or set lat/lon coords on data."
+                    )
         case _:
             print(
                 "Invalid data type attribute. Data type should be 'Stations' or 'Gridded'."
