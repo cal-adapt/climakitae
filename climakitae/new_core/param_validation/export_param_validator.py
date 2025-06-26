@@ -75,7 +75,19 @@ def validate_export_param(
         _validate_boolean_params(value)
         _validate_filename_template_param(value)
         _validate_format_mode_compatibility(value)
-        _check_file_conflicts(value)
+
+        # File conflict checking with special handling
+        try:
+            _check_file_conflicts(value)
+        except ValueError as file_error:
+            # Check if user wants to fail on errors (default behavior)
+            fail_on_error = value.get("fail_on_error", True)
+            if fail_on_error:
+                # Re-raise the error to prevent execution
+                raise file_error
+            else:
+                # Convert to warning and continue
+                warnings.warn(f"File conflict warning: {str(file_error)}")
 
     except (ValueError, TypeError) as e:
         warnings.warn(f"Export parameter validation failed: {str(e)}")
@@ -202,7 +214,7 @@ def _validate_export_method_param(params: Dict[str, Any]) -> None:
         If export_method is invalid
     """
     export_method = params.get("export_method", "data")
-    valid_methods = ["data", "skip_existing", "none"]
+    valid_methods = ["data", "raw", "calculate", "both", "skip_existing", "none"]
 
     if not isinstance(export_method, str):
         raise ValueError(
@@ -319,28 +331,70 @@ def _check_file_conflicts(params: Dict[str, Any]) -> None:
     ----------
     params : Dict[str, Any]
         Export parameters dictionary
+
+    Raises
+    ------
+    ValueError
+        If files exist and export_method doesn't allow overwriting
     """
-    filename = params.get("filename", "dataexport")
-    file_format = params.get("file_format", "NetCDF").lower()
     export_method = params.get("export_method", "data").lower()
 
     # Skip checks for certain export methods
     if export_method in ["none", "skip_existing"]:
         return
 
-    # Determine file extension
+    # Get predicted filenames
+    predicted_files = _predict_export_filenames(params)
+
+    # Check each predicted file
+    existing_files = []
+    pattern_matches = []
+
+    for file_path in predicted_files:
+        if "*" in file_path:
+            # Handle wildcard patterns (from templates, location naming, etc.)
+            matches = _check_wildcard_files(file_path)
+            if matches:
+                pattern_matches.extend(matches)
+        else:
+            # Handle exact filenames
+            if os.path.exists(file_path):
+                existing_files.append(file_path)
+
+    # Combine all conflicts
+    all_conflicts = existing_files + pattern_matches
+
+    # Handle existing files based on configuration
+    if all_conflicts:
+        file_list = ", ".join(all_conflicts[:5])  # Limit display to avoid spam
+        if len(all_conflicts) > 5:
+            file_list += f" (and {len(all_conflicts) - 5} more)"
+
+        if export_method == "data":
+            # For regular data export, raise an error to prevent overwriting
+            suggestions = suggest_export_alternatives(params)
+
+            raise ValueError(
+                f"Output file(s) already exist: {file_list}.\n\n"
+                f"Suggested solutions:\n"
+                f"  1. Use a different filename: '{suggestions['alternative_filename']}'\n"
+                f"  2. Delete the existing file(s)\n"
+                f"  3. {suggestions['skip_existing_method']}\n"
+                f"  4. {suggestions['allow_overwrite']}\n"
+                f"  5. {suggestions.get('alternative_format', 'Try a different format')}"
+            )
+        else:
+            # For other methods, provide detailed warnings
+            warnings.warn(
+                f"Output file(s) already exist and will be overwritten: {file_list}. "
+                f"Consider using export_method='skip_existing' to avoid overwriting."
+            )
+
+    # Additional check for similar files that might cause confusion
+    filename = params.get("filename", "dataexport")
+    file_format = params.get("file_format", "NetCDF").lower()
     extension_map = {"zarr": ".zarr", "netcdf": ".nc", "csv": ".csv.gz"}
     extension = extension_map.get(file_format, ".nc")
-
-    # Check if exact file exists
-    full_filename = f"{filename}{extension}"
-    if os.path.exists(full_filename):
-        warnings.warn(
-            f"File '{full_filename}' already exists and will be overwritten. "
-            f'Use export_method="skip_existing" to avoid overwriting existing files.'
-        )
-
-    # Check for similar files that might be confused
     _warn_about_similar_files(filename, extension)
 
 
@@ -456,3 +510,187 @@ def validate_export_output_path(
         results["is_valid"] = False
 
     return results
+
+
+def _predict_export_filenames(params: Dict[str, Any]) -> list[str]:
+    """
+    Predict the actual filenames that will be generated during export.
+
+    This function replicates the filename generation logic from the Export processor
+    to predict what files will be created before the export actually runs.
+
+    Parameters
+    ----------
+    params : Dict[str, Any]
+        Export parameters dictionary
+
+    Returns
+    -------
+    list[str]
+        List of predicted filenames that will be created
+    """
+    filename = params.get("filename", "dataexport")
+    file_format = params.get("file_format", "NetCDF").lower()
+    export_method = params.get("export_method", "data").lower()
+    raw_filename = params.get("raw_filename")
+    calc_filename = params.get("calc_filename")
+    separated = params.get("separated", False)
+    location_based_naming = params.get("location_based_naming", False)
+    filename_template = params.get("filename_template")
+
+    # Determine file extension
+    extension_map = {"zarr": ".zarr", "netcdf": ".nc", "csv": ".csv.gz"}
+    extension = extension_map.get(file_format, ".nc")
+
+    predicted_files = []
+
+    # Generate base filename variations
+    base_filenames = [filename]
+
+    # Add template-based variations if template is provided
+    if filename_template:
+        # For template prediction, we can't know exact lat/lon values,
+        # but we can warn about potential conflicts with template patterns
+        template_base = filename_template.replace("{filename}", filename)
+        # Replace other placeholders with wildcards for pattern matching
+        template_base = template_base.replace("{name}", "*")
+        template_base = template_base.replace("{lat}", "*")
+        template_base = template_base.replace("{lon}", "*")
+        base_filenames.append(template_base)
+
+    # Add separated naming variations (dataset name prefixes)
+    if separated:
+        # We can't predict exact dataset names, but common patterns include:
+        common_prefixes = ["temperature", "precipitation", "data", "climate"]
+        for prefix in common_prefixes:
+            base_filenames.append(f"{prefix}_{filename}")
+
+    # Add location-based naming variations
+    if location_based_naming:
+        # Add common location patterns (we can't predict exact coordinates)
+        base_filenames.extend(
+            [
+                f"{filename}_*N_*W",  # Pattern for location-based naming
+                f"{filename}_*_*",  # More general pattern
+            ]
+        )
+
+    # Generate final filenames based on export method
+    for base in base_filenames:
+        if export_method == "raw":
+            target_filename = raw_filename if raw_filename else f"{base}_raw"
+            predicted_files.append(f"{target_filename}{extension}")
+        elif export_method == "calculate":
+            target_filename = calc_filename if calc_filename else f"{base}_calc"
+            predicted_files.append(f"{target_filename}{extension}")
+        elif export_method == "both":
+            raw_target = raw_filename if raw_filename else f"{base}_raw"
+            calc_target = calc_filename if calc_filename else f"{base}_calc"
+            predicted_files.extend(
+                [f"{raw_target}{extension}", f"{calc_target}{extension}"]
+            )
+        else:  # "data"
+            predicted_files.append(f"{base}{extension}")
+
+    return predicted_files
+
+
+def _check_wildcard_files(pattern: str) -> list[str]:
+    """
+    Check for files matching a wildcard pattern.
+
+    Parameters
+    ----------
+    pattern : str
+        Glob pattern to search for
+
+    Returns
+    -------
+    list[str]
+        List of matching files
+    """
+    try:
+        return glob.glob(pattern)
+    except (OSError, ValueError):
+        return []
+
+
+def _suggest_alternative_filename(base_filename: str, extension: str) -> str:
+    """
+    Suggest an alternative filename when the original already exists.
+
+    Parameters
+    ----------
+    base_filename : str
+        The base filename without extension
+    extension : str
+        The file extension
+
+    Returns
+    -------
+    str
+        Suggested alternative filename
+    """
+    import datetime
+
+    # Try numbered versions first
+    for i in range(1, 100):
+        candidate = f"{base_filename}_{i:02d}{extension}"
+        if not os.path.exists(candidate):
+            return candidate
+
+    # If numbered versions don't work, try timestamp
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    candidate = f"{base_filename}_{timestamp}{extension}"
+    if not os.path.exists(candidate):
+        return candidate
+
+    # Fallback
+    return f"{base_filename}_new{extension}"
+
+
+def suggest_export_alternatives(params: Dict[str, Any]) -> Dict[str, str]:
+    """
+    Suggest alternative export configurations when file conflicts are detected.
+
+    Parameters
+    ----------
+    params : Dict[str, Any]
+        Original export parameters
+
+    Returns
+    -------
+    Dict[str, str]
+        Dictionary of suggested alternatives
+    """
+    suggestions = {}
+
+    filename = params.get("filename", "dataexport")
+    file_format = params.get("file_format", "NetCDF").lower()
+    extension_map = {"zarr": ".zarr", "netcdf": ".nc", "csv": ".csv.gz"}
+    extension = extension_map.get(file_format, ".nc")
+
+    # Suggest alternative filename
+    alt_filename = _suggest_alternative_filename(filename, extension)
+    suggestions["alternative_filename"] = alt_filename.replace(extension, "")
+
+    # Suggest using skip_existing
+    suggestions["skip_existing_method"] = (
+        "Use export_method='skip_existing' to skip if files exist"
+    )
+
+    # Suggest fail_on_error=False
+    suggestions["allow_overwrite"] = (
+        "Use fail_on_error=False to allow overwriting with warnings"
+    )
+
+    # Suggest different format
+    other_formats = [
+        fmt for fmt in ["NetCDF", "Zarr", "CSV"] if fmt.lower() != file_format
+    ]
+    if other_formats:
+        suggestions["alternative_format"] = (
+            f"Try a different format like {other_formats[0]}"
+        )
+
+    return suggestions
