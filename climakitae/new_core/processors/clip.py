@@ -35,7 +35,7 @@ from climakitae.new_core.processors.abc_data_processor import (
 from climakitae.util.utils import get_closest_gridcell
 
 
-@register_processor("clip", priority=500)
+@register_processor("clip", priority=200)
 class Clip(DataProcessor):
     """
     Clip data based on spatial boundaries.
