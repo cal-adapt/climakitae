@@ -774,8 +774,8 @@ def summary_table(data: xr.Dataset) -> pd.DataFrame:
 
 def convert_to_local_time(
     data: xr.DataArray | xr.Dataset,
-    grid_lon: float | None = None,
-    grid_lat: float | None = None,
+    grid_lon: float = UNSET,
+    grid_lat: float = UNSET,
 ) -> xr.DataArray | xr.Dataset:
     """
     Convert time dimension from UTC to local time for the grid or station.
@@ -862,7 +862,10 @@ def convert_to_local_time(
 
         case "Gridded":
             match (grid_lon, grid_lat):
-                case (None, None):
+                case (float(), float()):
+                    lon = grid_lon
+                    lat = grid_lat
+                case (object(), object()):  # UNSET
                     if not all(val in data.coords for val in ["lat", "lon"]):
                         print(
                             "lat/lon coordinates not found in data. Please pass in data with 'lat' and 'lon' coordinates."
@@ -872,9 +875,6 @@ def convert_to_local_time(
                     # Finding avg. lat/lon coordinates from all grid-cells
                     lat = data.lat.mean().item()
                     lon = data.lon.mean().item()
-                case (float(), float()):
-                    lon = grid_lon
-                    lat = grid_lat
                 case _:
                     print(
                         "Invalid lat and lon variable values. Please provide numeric values for lat and lon or set lat/lon coords on data."
