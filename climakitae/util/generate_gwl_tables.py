@@ -440,8 +440,14 @@ class GWLGenerator:
             smoothed.to_array(dim="scenario", name=model).dropna("time").to_pandas()
         )
         gwlevels = pd.DataFrame()
-        for level in WARMING_LEVELS:
-            gwlevels[level] = self.get_gwl(oneModel.T, level)
+        try:
+            for level in WARMING_LEVELS:
+                gwlevels[level] = self.get_gwl(oneModel.T, level)
+        except Exception as e:
+            print(
+                model, ens_mem, " problems"
+            )  # helps EC-Earth3 not be skipped altogether
+            print(e)
 
         # Modifying and returning oneModel to be seen as a WL lookup table with timestamp as index, to get the average WL across all simulations.
         final_model = oneModel.T
@@ -466,10 +472,13 @@ class GWLGenerator:
         tuple
             A DataFrame of warming levels and a DataFrame of global mean temperature time series for the CESM2 model.
         """
+        global test
         model = model_config["model"]
 
         ens_mem_cesm_rev = dict([(v, k) for k, v in self.ens_mems_cesm.items()])
         ens_mem_list = [v for k, v in self.ens_mems_cesm.items()]
+        if test:
+            ens_mem_list = ens_mem_list[:2]
         gwlevels_tbl, wl_data_tbls = [], []
         for ens_mem in ens_mem_list:
             model_config["ens_mem"] = ens_mem
@@ -584,7 +593,7 @@ class GWLGenerator:
 
         ens_mem_list = self.sims_on_aws.T[model]["historical"].copy()
         if test:
-            ens_mem_list = ens_mem_list[:10]
+            ens_mem_list = ens_mem_list[:2]
         if (model == "EC-Earth3") or (model == "EC-Earth3-Veg"):
             for ens_mem in ens_mem_list[:]:
                 if int(ens_mem.split("r")[1].split("i")[0]) > 100:
@@ -687,7 +696,7 @@ class GWLGenerator:
             model_config = {
                 "variable": variable,
                 "model": "CESM2-LENS",
-                "scenarios": ["ssp370"],
+                "scenarios": ["ssp585", "ssp370", "ssp245"],
             }
             print("Generate cesm2 table {}-{}".format(start_year[:4], end_year[:4]))
             cesm2_table, wl_data_tbl_cesm2 = self.get_table_cesm2(model_config, period)
