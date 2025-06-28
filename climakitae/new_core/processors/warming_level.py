@@ -132,6 +132,11 @@ class WarmingLevel(DataProcessor):
 
         # first, extract the member IDs from the data
         member_ids = [v.attrs.get("variant_label", None) for k, v in ret.items()]
+        if not all(member_ids):
+            for i, (_, v) in enumerate(ret.items()):
+                for k2, v2 in v.attrs.items():
+                    if any(x in k2 for x in ["variant", "member_id"]) and v2[0] == "r":
+                        member_ids[i] = v2
 
         # get center years for each key for each warming level
         center_years = self.get_center_years(member_ids, ret.keys())
@@ -148,6 +153,12 @@ class WarmingLevel(DataProcessor):
 
             common_time_delta = None
             for year, wl in zip(years, self.warming_levels):
+                if year is None or pd.isna(year):
+                    warnings.warn(
+                        f"\n\nNo warming level data found for {key} at {wl}C. "
+                        "\nSkipping this warming level."
+                    )
+                    continue
                 start_year = pd.to_datetime(year).year - self.warming_level_window
                 start_year = max(start_year, 1981)
                 end_year = pd.to_datetime(year).year + self.warming_level_window
@@ -180,6 +191,13 @@ class WarmingLevel(DataProcessor):
 
                 slices.append(da_slice)
 
+            if not slices:
+                warnings.warn(
+                    f"\n\nNo valid slices found for {key}. "
+                    "Ensure the warming level times table is correctly configured."
+                )
+                del ret[key]  # Remove key if no valid slices found
+                continue
             ret[key] = xr.concat(
                 slices, dim="warming_level", join="outer", fill_value=np.nan
             )
@@ -290,6 +308,8 @@ class WarmingLevel(DataProcessor):
         The method assumes that the warming level times table is indexed by time
         and contains columns formatted as "key.join('_')", where the values are the
         warming levels and the index is the time dimension.
+
+        Center year can be np.nan if no warming level data is found.
         """
         center_years = {}
 
@@ -301,8 +321,8 @@ class WarmingLevel(DataProcessor):
             wl_table_key = f"{key_list[2]}_{member_id}_{key_list[3]}"
             if wl_table_key not in self.warming_level_times.columns:
                 warnings.warn(
-                    f"Warming level table does not contain data for {wl_table_key}. "
-                    "Ensure the warming level times table is correctly configured."
+                    f"\n\nWarming level table does not contain data for {wl_table_key}. "
+                    "\nEnsure the warming level times table is correctly configured."
                 )
                 continue
             if key not in center_years:
@@ -319,5 +339,6 @@ class WarmingLevel(DataProcessor):
                         f"\n\nNo warming level data found for {wl_table_key} at {wl}C. "
                         f"\nPlease pick a warming level less than {self.warming_level_times[wl_table_key].max()}C."
                     )
+                    center_years[key].append(np.nan)
 
         return center_years

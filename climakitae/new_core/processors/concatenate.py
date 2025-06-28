@@ -2,6 +2,7 @@
 Concat DataProcessor
 """
 
+import warnings
 from typing import Any, Dict, Iterable, List, Union
 
 import xarray as xr
@@ -124,7 +125,6 @@ class Concat(DataProcessor):
                     attr_id = attr_id.lower()
                     attr_ids.append(attr_id)
 
-                    # Add sim dimension to the dataset
                     if "member_id" in dataset.dims:
                         # If member_id is present, we need to drop it
                         dataset = dataset.isel(member_id=0).drop_dims(
@@ -170,7 +170,17 @@ class Concat(DataProcessor):
             return result  # Return original if no valid datasets
 
         # Concatenate all datasets along the sim dimension
-        concatenated = xr.concat(datasets_to_concat, dim=self.dim_name)
+        try:
+            concatenated = xr.concat(datasets_to_concat, dim=self.dim_name)
+        except ValueError as e:
+            warnings.warn(
+                f"Failed to concatenate datasets along '{self.dim_name}' dimension: {e}",
+            )
+            # Print dimensions of each dataset for debugging
+            for i, dataset in enumerate(datasets_to_concat):
+                print(f"Dataset {i} dimensions: {list(dataset.dims.keys())}")
+            return result
+
         print(f"Concatenated datasets along '{self.dim_name}' dimension.")
 
         self.update_context(context, attr_ids)

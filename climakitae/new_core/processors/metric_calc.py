@@ -2,7 +2,8 @@
 DataProcessor MetricCalc
 """
 
-from typing import Any, Dict, Iterable, List, Union
+import warnings
+from typing import Any, Dict, Iterable, Union
 
 import numpy as np
 import xarray as xr
@@ -14,21 +15,38 @@ from climakitae.new_core.processors.abc_data_processor import (
     register_processor,
 )
 
+# Import functions for 1-in-X calculations
+try:
+    # Note: These will be imported locally within methods to avoid redefinition warnings
+    import climakitae.explore.threshold_tools
+    import climakitae.util.utils
+
+    EXTREME_VALUE_ANALYSIS_AVAILABLE = True
+except ImportError as e:
+    EXTREME_VALUE_ANALYSIS_AVAILABLE = False
+    warnings.warn(f"Extreme value analysis functions not available: {e}")
+
+# Ignore specific warnings for cleaner output
+warnings.filterwarnings("ignore", message="invalid value encountered in sqrt")
+warnings.filterwarnings("ignore", message="divide by zero encountered in divide")
+
 
 @register_processor("metric_calc", priority=7500)
 class MetricCalc(DataProcessor):
     """
-    Calculate metrics (min, max, mean, median) and percentiles on data.
+    Calculate metrics (min, max, mean, median), percentiles, and 1-in-X return values on data.
 
     This processor applies statistical operations to xarray datasets and data arrays,
-    including percentile calculations and basic metrics like min, max, mean, and median.
-    Both percentiles and metrics can be calculated simultaneously.
+    including percentile calculations, basic metrics like min, max, mean, and median,
+    and extreme value analysis for 1-in-X return period calculations.
+    Multiple calculation types can be performed simultaneously.
 
     Parameters
     ----------
     value : dict[str, Any]
         Configuration dictionary with the following supported keys:
 
+        Basic Metrics:
         - metric (str, optional): Metric to calculate. Supported values:
           "min", "max", "mean", "median". Default: "mean"
         - percentiles (list, optional): List of percentiles to calculate (0-100).
@@ -40,6 +58,18 @@ class MetricCalc(DataProcessor):
         - keepdims (bool, optional): Whether to keep the dimensions being reduced. Default: False
         - skipna (bool, optional): Whether to skip NaN values in calculations. Default: True
 
+        1-in-X Return Value Analysis:
+        - one_in_x (dict, optional): Configuration for 1-in-X extreme value analysis.
+          If provided, performs extreme value analysis instead of basic metrics. Keys:
+          - return_periods (list): List of return periods (e.g., [10, 25, 50, 100])
+          - distribution (str, optional): Distribution for fitting ("gev", "genpareto", "gamma"). Default: "gev"
+          - extremes_type (str, optional): "max" or "min". Default: "max"
+          - event_duration (tuple, optional): Event duration as (int, str). Default: (1, "day")
+          - block_size (int, optional): Block size in years. Default: 1
+          - goodness_of_fit_test (bool, optional): Perform KS test. Default: True
+          - print_goodness_of_fit (bool, optional): Print p-value results. Default: True
+          - variable_preprocessing (dict, optional): Variable-specific preprocessing options
+
     Examples
     --------
     Calculate mean over time:
@@ -47,6 +77,15 @@ class MetricCalc(DataProcessor):
 
     Calculate 25th, 50th, 75th percentiles:
     >>> metric_proc = MetricCalc({"percentiles": [25, 50, 75]})
+
+    Calculate 1-in-X return values:
+    >>> metric_proc = MetricCalc({
+    ...     "one_in_x": {
+    ...         "return_periods": [10, 25, 50, 100],
+    ...         "distribution": "gev",
+    ...         "extremes_type": "max"
+    ...     }
+    ... })
 
     Calculate both percentiles and mean:
     >>> metric_proc = MetricCalc({"metric": "mean", "percentiles": [25, 50, 75]})
@@ -85,6 +124,7 @@ class MetricCalc(DataProcessor):
             - dim (str or list, optional): Dimension(s) to reduce. Default: "time"
             - keepdims (bool, optional): Keep dimensions. Default: False
             - skipna (bool, optional): Skip NaN values. Default: True
+            - one_in_x (dict, optional): 1-in-X extreme value analysis configuration
 
         Raises
         ------
@@ -93,6 +133,9 @@ class MetricCalc(DataProcessor):
         """
         self.value = value
         self.name = "metric_calc"
+        self._catalog = None  # Initialize catalog attribute
+
+        # Basic metric parameters
         self.metric = value.get("metric", "mean")
         self.percentiles = value.get("percentiles", None)
         self.percentiles_only = value.get("percentiles_only", False)
@@ -100,8 +143,52 @@ class MetricCalc(DataProcessor):
         self.keepdims = value.get("keepdims", False)
         self.skipna = value.get("skipna", True)
 
+        # 1-in-X parameters
+        self.one_in_x_config = value.get("one_in_x", None)
+        if self.one_in_x_config is not None:
+            self._setup_one_in_x_parameters()
+
         # Validate inputs during initialization
         self._validate_parameters()
+
+    def _setup_one_in_x_parameters(self):
+        """Setup parameters for 1-in-X calculations."""
+        if not EXTREME_VALUE_ANALYSIS_AVAILABLE:
+            raise ValueError(
+                "Extreme value analysis functions are not available. Please check climakitae installation."
+            )
+
+        # Type guard to ensure one_in_x_config is not None
+        if self.one_in_x_config is None:
+            raise ValueError(
+                "one_in_x_config cannot be None when calling _setup_one_in_x_parameters"
+            )
+
+        # Required parameter
+        self.return_periods = self.one_in_x_config.get("return_periods")
+        if self.return_periods is None:
+            raise ValueError("return_periods is required for 1-in-X calculations")
+
+        # Convert to numpy array for consistency
+        if not isinstance(self.return_periods, (list, np.ndarray)):
+            self.return_periods = np.array([self.return_periods])
+        elif isinstance(self.return_periods, list):
+            self.return_periods = np.array(self.return_periods)
+
+        # Optional parameters with defaults
+        self.distribution = self.one_in_x_config.get("distribution", "gev")
+        self.extremes_type = self.one_in_x_config.get("extremes_type", "max")
+        self.event_duration = self.one_in_x_config.get("event_duration", (1, "day"))
+        self.block_size = self.one_in_x_config.get("block_size", 1)
+        self.goodness_of_fit_test = self.one_in_x_config.get(
+            "goodness_of_fit_test", True
+        )
+        self.print_goodness_of_fit = self.one_in_x_config.get(
+            "print_goodness_of_fit", True
+        )
+        self.variable_preprocessing = self.one_in_x_config.get(
+            "variable_preprocessing", {}
+        )
 
     def _validate_parameters(self):
         """
@@ -112,6 +199,32 @@ class MetricCalc(DataProcessor):
         ValueError
             If invalid parameter values are provided
         """
+        # Check that only one calculation type is specified
+        # Only consider basic metrics specified if they were explicitly set (not defaults)
+        explicit_metric_specified = (
+            "metric" in self.value and self.value["metric"] != "mean"
+        )
+        percentiles_specified = self.percentiles is not None
+        basic_metrics_specified = explicit_metric_specified or percentiles_specified
+        one_in_x_specified = self.one_in_x_config is not None
+
+        if basic_metrics_specified and one_in_x_specified:
+            raise ValueError(
+                "Cannot specify both basic metrics/percentiles and one_in_x calculations simultaneously"
+            )
+
+        if not basic_metrics_specified and not one_in_x_specified:
+            # Default to basic mean calculation
+            pass
+
+        # Validate basic metric parameters
+        if not one_in_x_specified:
+            self._validate_basic_metric_parameters()
+        else:
+            self._validate_one_in_x_parameters()
+
+    def _validate_basic_metric_parameters(self):
+        """Validate parameters for basic metric calculations."""
         # Validate metric
         valid_metrics = ["min", "max", "mean", "median"]
         if self.metric not in valid_metrics:
@@ -156,6 +269,61 @@ class MetricCalc(DataProcessor):
                 "percentiles_only=True requires percentiles to be specified"
             )
 
+    def _validate_one_in_x_parameters(self):
+        """Validate parameters for 1-in-X calculations."""
+        if not EXTREME_VALUE_ANALYSIS_AVAILABLE:
+            raise ValueError("Extreme value analysis functions are not available")
+
+        # Validate return_periods
+        if not isinstance(self.return_periods, np.ndarray):
+            raise ValueError("return_periods must be convertible to numpy array")
+
+        for rp in self.return_periods:
+            if not isinstance(rp, (int, float, np.integer, np.floating)) or rp < 1:
+                raise ValueError(
+                    f"All return periods must be numbers >= 1, got {rp} (type: {type(rp)})"
+                )
+
+        # Validate distribution
+        valid_distributions = ["gev", "genpareto", "gamma"]
+        if self.distribution not in valid_distributions:
+            raise ValueError(
+                f"distribution must be one of {valid_distributions}, got '{self.distribution}'"
+            )
+
+        # Validate extremes_type
+        valid_extremes = ["max", "min"]
+        if self.extremes_type not in valid_extremes:
+            raise ValueError(
+                f"extremes_type must be one of {valid_extremes}, got '{self.extremes_type}'"
+            )
+
+        # Validate event_duration
+        if not isinstance(self.event_duration, tuple) or len(self.event_duration) != 2:
+            raise ValueError("event_duration must be a tuple of (int, str)")
+
+        duration_num, duration_unit = self.event_duration
+        if not isinstance(duration_num, int) or duration_num <= 0:
+            raise ValueError("event_duration number must be a positive integer")
+
+        if duration_unit not in ["hour", "day"]:
+            raise ValueError("event_duration unit must be 'hour' or 'day'")
+
+        # Validate block_size
+        if not isinstance(self.block_size, int) or self.block_size <= 0:
+            raise ValueError("block_size must be a positive integer")
+
+        # Validate boolean parameters
+        if not isinstance(self.goodness_of_fit_test, bool):
+            raise ValueError("goodness_of_fit_test must be a boolean")
+
+        if not isinstance(self.print_goodness_of_fit, bool):
+            raise ValueError("print_goodness_of_fit must be a boolean")
+
+        # Validate variable_preprocessing
+        if not isinstance(self.variable_preprocessing, dict):
+            raise ValueError("variable_preprocessing must be a dictionary")
+
     def execute(
         self,
         result: Union[
@@ -186,18 +354,34 @@ class MetricCalc(DataProcessor):
 
         match result:
             case xr.Dataset() | xr.DataArray():
-                ret = self._calculate_metrics_single(result)
+                if self.one_in_x_config is not None:
+                    ret = self._calculate_one_in_x_single(result)
+                else:
+                    ret = self._calculate_metrics_single(result)
             case dict():
-                ret = {
-                    key: self._calculate_metrics_single(value)
-                    for key, value in result.items()
-                }
+                if self.one_in_x_config is not None:
+                    ret = {
+                        key: self._calculate_one_in_x_single(value)
+                        for key, value in result.items()
+                    }
+                else:
+                    ret = {
+                        key: self._calculate_metrics_single(value)
+                        for key, value in result.items()
+                    }
             case list() | tuple():
-                processed_data = [
-                    self._calculate_metrics_single(item)
-                    for item in result
-                    if isinstance(item, (xr.Dataset, xr.DataArray))
-                ]
+                if self.one_in_x_config is not None:
+                    processed_data = [
+                        self._calculate_one_in_x_single(item)
+                        for item in result
+                        if isinstance(item, (xr.Dataset, xr.DataArray))
+                    ]
+                else:
+                    processed_data = [
+                        self._calculate_metrics_single(item)
+                        for item in result
+                        if isinstance(item, (xr.Dataset, xr.DataArray))
+                    ]
                 ret = type(result)(processed_data) if processed_data else None
             case _:
                 raise TypeError(
@@ -343,6 +527,243 @@ class MetricCalc(DataProcessor):
             # Should not reach here, but return the first result as fallback
             return results[0] if results else data
 
+    def _calculate_one_in_x_single(
+        self, data: Union[xr.Dataset, xr.DataArray]
+    ) -> xr.Dataset:
+        """
+        Calculate 1-in-X return values on a single Dataset or DataArray.
+
+        Parameters
+        ----------
+        data : xr.Dataset | xr.DataArray
+            The data on which to calculate 1-in-X return values.
+
+        Returns
+        -------
+        xr.Dataset
+            Dataset with return_value and p_values DataArrays.
+        """
+        if not EXTREME_VALUE_ANALYSIS_AVAILABLE:
+            raise ValueError("Extreme value analysis functions are not available")
+
+        # Handle Dataset vs DataArray
+        if isinstance(data, xr.Dataset):
+            # For datasets, process the first data variable
+            var_name = list(data.data_vars)[0]
+            data_array = data[var_name]
+        else:
+            data_array = data
+            var_name = str(data_array.name) if data_array.name else "data"
+
+        # Check if we have a simulation dimension
+        if "sim" not in data_array.dims:
+            raise ValueError("Data must have a 'sim' dimension for 1-in-X calculations")
+
+        # Check if we have a time dimension, and add dummy time if needed
+        if "time" not in data_array.dims:
+            data_array = self._add_dummy_time_if_needed(data_array)
+
+        # Apply variable-specific preprocessing
+        data_array = self._preprocess_variable_for_one_in_x(data_array, var_name)
+
+        # Calculate 1-in-X return values for each simulation
+        return_vals = []
+        p_vals = []
+
+        print(
+            f"Calculating 1-in-{self.return_periods} year return values using {self.distribution} distribution..."
+        )
+
+        for s in data_array.sim.values:
+            sim_data = data_array.sel(sim=s)
+            print(f"Processing simulation: {s}")
+
+            try:
+                # Extract block maxima
+                block_maxima = self._extract_block_maxima(sim_data)
+
+                # Calculate return values
+                if EXTREME_VALUE_ANALYSIS_AVAILABLE:
+                    # Local import to avoid redefinition warnings
+                    from climakitae.explore.threshold_tools import (  # noqa: F401
+                        get_return_value,
+                    )
+
+                    return_values = get_return_value(
+                        block_maxima,
+                        return_period=self.return_periods.tolist(),  # Convert to list for compatibility
+                        multiple_points=False,
+                        distr=self.distribution,
+                    )[
+                        "return_value"
+                    ]  # Extract only return_value, not confidence intervals
+                else:
+                    raise ValueError("Extreme value analysis functions not available")
+                return_vals.append(return_values)
+
+                # Perform goodness-of-fit test if requested
+                if self.goodness_of_fit_test:
+                    if EXTREME_VALUE_ANALYSIS_AVAILABLE:
+                        # Local import to avoid redefinition warnings
+                        from climakitae.explore.threshold_tools import (  # noqa: F401
+                            get_ks_stat,
+                        )
+
+                        _, p_value = get_ks_stat(
+                            block_maxima, distr=self.distribution, multiple_points=False
+                        ).data_vars.values()
+                    else:
+                        raise ValueError(
+                            "Extreme value analysis functions not available"
+                        )
+                    p_vals.append(p_value)
+
+                    # Print goodness-of-fit results if requested
+                    if self.print_goodness_of_fit:
+                        self._print_goodness_of_fit_result(s, p_value)
+                else:
+                    # Create dummy p-value if not testing
+                    p_vals.append(xr.DataArray(np.nan, name="p_value"))
+
+            except (ValueError, RuntimeError, ImportError) as e:
+                print(f"Warning: Failed to process simulation {s}: {e}")
+                # Create NaN results for failed simulations
+                nan_return_values = xr.DataArray(
+                    np.full(len(self.return_periods), np.nan),
+                    dims=["one_in_x"],
+                    coords={"one_in_x": self.return_periods},
+                    name="return_value",
+                )
+                return_vals.append(nan_return_values)
+                p_vals.append(xr.DataArray(np.nan, name="p_value"))
+
+        # Combine results
+        ret_vals = xr.concat(return_vals, dim="sim")
+        p_vals = xr.concat(p_vals, dim="sim")
+
+        # Create result dataset matching existing _metric_agg structure
+        result = xr.Dataset({"return_value": ret_vals, "p_values": p_vals})
+
+        # Add attributes matching existing structure
+        result.attrs.update(
+            {
+                "groupby": f"{self.event_duration[0]} {self.event_duration[1]}",
+                "fitted_distr": self.distribution,
+                "sample_size": len(data_array.time),  # This is approximate
+            }
+        )
+
+        return result
+
+    def _preprocess_variable_for_one_in_x(
+        self, data: xr.DataArray, var_name: str
+    ) -> xr.DataArray:
+        """
+        Apply variable-specific preprocessing for 1-in-X calculations.
+
+        Parameters
+        ----------
+        data : xr.DataArray
+            Input data array
+        var_name : str
+            Variable name for preprocessing logic
+
+        Returns
+        -------
+        xr.DataArray
+            Preprocessed data array
+        """
+        # Apply precipitation-specific preprocessing
+        if (
+            "precipitation" in var_name.lower()
+            or "pr" in var_name.lower()
+            or var_name.lower() in ["precipitation (total)", "precipitation"]
+        ):
+
+            preprocessing = self.variable_preprocessing.get("precipitation", {})
+
+            # Aggregate to daily if needed and requested
+            if (
+                preprocessing.get("daily_aggregation", True)
+                and "1hr" in str(data.attrs.get("frequency", "")).lower()
+                or "hourly" in str(data.attrs.get("frequency", "")).lower()
+            ):
+                data = data.resample(time="1D").sum()
+
+            # Remove trace precipitation
+            if preprocessing.get("remove_trace", True):
+                threshold = preprocessing.get("trace_threshold", 1e-10)
+                data = data.where(data > threshold, drop=True)
+
+        return data
+
+    def _extract_block_maxima(self, data: xr.DataArray) -> xr.DataArray:
+        """
+        Extract block maxima from data array.
+
+        Parameters
+        ----------
+        data : xr.DataArray
+            Input data array
+
+        Returns
+        -------
+        xr.DataArray
+            Block maxima
+        """
+        if not EXTREME_VALUE_ANALYSIS_AVAILABLE:
+            raise ValueError(
+                "Block maxima extraction requires extreme value analysis functions"
+            )
+
+        # Import check - this should be guaranteed by the above check, but helps with type checking
+        from climakitae.explore.threshold_tools import get_block_maxima  # noqa: F401
+
+        # Configure block maxima extraction based on event duration
+        duration = None
+        groupby = None
+
+        if self.event_duration == (1, "day"):
+            groupby = self.event_duration
+        elif self.event_duration[1] == "hour":
+            duration = self.event_duration
+
+        # Call get_block_maxima with appropriate parameters
+        kwargs = {
+            "extremes_type": self.extremes_type,
+            "check_ess": False,  # Disable ESS check for now
+            "block_size": self.block_size,
+        }
+
+        if duration is not None:
+            kwargs["duration"] = duration
+        if groupby is not None:
+            kwargs["groupby"] = groupby
+
+        return get_block_maxima(data, **kwargs).squeeze()
+
+    def _print_goodness_of_fit_result(self, simulation: str, p_value: xr.DataArray):
+        """
+        Print goodness-of-fit test results.
+
+        Parameters
+        ----------
+        simulation : str
+            Simulation name
+        p_value : xr.DataArray
+            P-value from KS test
+        """
+        p_val_print = (
+            format(p_value.item(), ".3e")
+            if p_value.item() < 0.05
+            else round(p_value.item(), 4)
+        )
+        to_print = f"The simulation {simulation} fitted with a {self.distribution} distribution has a p-value of {p_val_print}.\n"
+
+        if p_value.item() < 0.05:
+            to_print += " Since the p-value is <0.05, the selected distribution does not fit the data well and therefore is not a good fit (see guidance)."
+        print(to_print)
+
     def update_context(self, context: Dict[str, Any]):
         """
         Update the context with information about the transformation.
@@ -362,18 +783,96 @@ class MetricCalc(DataProcessor):
         # Build description based on what was calculated
         description_parts = []
 
-        if self.percentiles is not None:
-            description_parts.append(f"Percentiles {self.percentiles} were calculated")
+        if self.one_in_x_config is not None:
+            # 1-in-X calculations
+            return_periods_str = ", ".join(map(str, self.return_periods))
+            description_parts.append(
+                f"1-in-X return values for periods [{return_periods_str}] were "
+                f"calculated using {self.distribution} distribution with "
+                f"{self.extremes_type} extremes over {self.event_duration[0]} {self.event_duration[1]} events"
+            )
+        else:
+            # Regular metric calculations
+            if self.percentiles is not None:
+                description_parts.append(
+                    f"Percentiles {self.percentiles} were calculated"
+                )
 
-        if not self.percentiles_only:
-            description_parts.append(f"Metric '{self.metric}' was calculated")
+            if not self.percentiles_only:
+                description_parts.append(f"Metric '{self.metric}' was calculated")
 
-        transformation_description = (
-            f"Process '{self.name}' applied to the data. "
-            f"{' and '.join(description_parts)} along dimension(s): {self.dim}."
-        )
+        if self.one_in_x_config is not None:
+            transformation_description = (
+                f"Process '{self.name}' applied to the data. "
+                f"{' and '.join(description_parts)}."
+            )
+        else:
+            transformation_description = (
+                f"Process '{self.name}' applied to the data. "
+                f"{' and '.join(description_parts)} along dimension(s): {self.dim}."
+            )
 
         context[_NEW_ATTRS_KEY][self.name] = transformation_description
+
+    def _add_dummy_time_if_needed(self, data_array: xr.DataArray) -> xr.DataArray:
+        """
+        Add dummy time dimension if data has time_delta or similar warming level dimensions.
+
+        This mimics the behavior of add_dummy_time_to_wl from the legacy code.
+
+        Parameters
+        ----------
+        data_array : xr.DataArray
+            Input data array that may have time_delta or *_from_center dimensions
+
+        Returns
+        -------
+        xr.DataArray
+            Data array with proper time dimension
+        """
+        import pandas as pd
+
+        # Find the warming level time dimension
+        wl_time_dim = ""
+
+        for dim in data_array.dims:
+            dim_str = str(dim)
+            if dim_str == "time_delta":
+                wl_time_dim = "time_delta"
+                break
+            elif "from_center" in dim_str:
+                wl_time_dim = dim_str
+                break
+
+        if wl_time_dim == "":
+            raise ValueError(
+                "Data must have a 'time', 'time_delta', or '*_from_center' dimension for 1-in-X calculations"
+            )
+
+        # Determine frequency and create dummy timestamps
+        if wl_time_dim == "time_delta":
+            # Get frequency from data array attributes
+            time_freq_name = getattr(data_array, "frequency", "daily")
+            name_to_freq = {"hourly": "h", "daily": "D", "monthly": "ME"}
+        else:
+            # Extract frequency from dimension name (e.g., 'hours_from_center' -> 'hours')
+            time_freq_name = wl_time_dim.split("_")[0]
+            name_to_freq = {"hours": "h", "days": "D", "months": "ME"}
+
+        # Create dummy timestamps starting from 2000-01-01
+        freq = name_to_freq.get(time_freq_name, "D")  # Default to daily
+        timestamps = pd.date_range(
+            "2000-01-01",
+            periods=len(data_array[wl_time_dim]),
+            freq=freq,
+        )
+
+        # Replace the warming level dimension with dummy timestamps and rename to 'time'
+        data_array = data_array.assign_coords({wl_time_dim: timestamps}).rename(
+            {wl_time_dim: "time"}
+        )
+
+        return data_array
 
     def set_data_accessor(self, catalog: DataCatalog):
         """
