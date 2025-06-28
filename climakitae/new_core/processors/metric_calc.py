@@ -559,6 +559,13 @@ class MetricCalc(DataProcessor):
         if "sim" not in data_array.dims:
             raise ValueError("Data must have a 'sim' dimension for 1-in-X calculations")
 
+        # Handle Dask arrays by loading into memory for extreme value analysis
+        if hasattr(data_array, "chunks") and data_array.chunks is not None:
+            print(
+                "Detected Dask array - loading into memory for extreme value analysis..."
+            )
+            data_array = data_array.compute()
+
         # Check if we have a time dimension, and add dummy time if needed
         if "time" not in data_array.dims:
             data_array = self._add_dummy_time_if_needed(data_array)
