@@ -32,7 +32,7 @@ from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
     register_processor,
 )
-from climakitae.util.utils import get_closest_gridcell
+from climakitae.util.utils import get_closest_gridcell, get_closest_gridcells
 
 
 @register_processor("clip", priority=200)
@@ -438,11 +438,11 @@ class Clip(DataProcessor):
         dataset: xr.DataArray | xr.Dataset, point_list: list[tuple[float, float]]
     ):
         """
-        Clip data to multiple closest gridcells and concatenate along a new dimension.
+        Clip data to multiple closest gridcells using efficient vectorized operations.
 
-        This method clips data to the closest valid gridcell for each (lat, lon) pair,
-        filters out duplicate grid cells (keeping only unique ones), and concatenates
-        the results along a new dimension called 'closest_cell'.
+        This method uses the efficient `get_closest_gridcells` function to find all
+        closest gridcells at once, then renames the dimension to 'closest_cell' for
+        consistency with the previous API.
 
         Parameters
         ----------
@@ -454,8 +454,70 @@ class Clip(DataProcessor):
         Returns
         -------
         xr.Dataset or xr.DataArray or None
-            Concatenated dataset with a new 'closest_cell' dimension containing only
-            unique grid cells, or None if no valid gridcells found for any points
+            Dataset with a 'closest_cell' dimension containing closest gridcells for all points,
+            or None if no valid gridcells found for any points
+        """
+        print(
+            f"Processing {len(point_list)} points using efficient vectorized approach..."
+        )
+
+        # Extract lat/lon arrays from point_list
+        lats = [lat for lat, lon in point_list]
+        lons = [lon for lat, lon in point_list]
+
+        # Use the efficient vectorized approach
+        try:
+            # Convert DataArray to Dataset if needed since get_closest_gridcells expects Dataset
+            if isinstance(dataset, xr.DataArray):
+                dataset_for_clipping = dataset.to_dataset()
+            else:
+                dataset_for_clipping = dataset
+
+            closest_gridcells = get_closest_gridcells(dataset_for_clipping, lats, lons)
+
+            if closest_gridcells is None:
+                print("No valid gridcells found for any of the provided points")
+                return None
+
+            # Rename the 'points' dimension to 'closest_cell' for API consistency
+            closest_gridcells = closest_gridcells.rename({"points": "closest_cell"})
+
+            # Add coordinate information for the target points
+            closest_gridcells = closest_gridcells.assign_coords(
+                target_lats=("closest_cell", lats),
+                target_lons=("closest_cell", lons),
+                point_index=("closest_cell", list(range(len(point_list)))),
+            )
+
+            # Convert back to DataArray if original input was DataArray
+            if isinstance(dataset, xr.DataArray):
+                # Get the original variable name
+                if hasattr(dataset, "name") and dataset.name:
+                    closest_gridcells = closest_gridcells[dataset.name]
+                else:
+                    # If no name, take the first data variable
+                    var_name = list(closest_gridcells.data_vars)[0]
+                    closest_gridcells = closest_gridcells[var_name]
+
+            print(f"Successfully found closest gridcells for {len(point_list)} points")
+            return closest_gridcells
+
+        except Exception as e:
+            print(f"Error in vectorized multi-point clipping: {e}")
+            print("Falling back to individual point processing...")
+
+            # Fallback to the original approach if vectorized fails
+            return Clip._clip_data_to_multiple_points_fallback(dataset, point_list)
+
+    @staticmethod
+    def _clip_data_to_multiple_points_fallback(
+        dataset: xr.DataArray | xr.Dataset, point_list: list[tuple[float, float]]
+    ):
+        """
+        Fallback method for multiple point clipping using individual point processing.
+
+        This is the original implementation kept as a fallback in case the vectorized
+        approach fails for any reason.
         """
         clipped_results = []
         valid_indices = []
