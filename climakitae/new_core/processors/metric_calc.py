@@ -587,11 +587,7 @@ class MetricCalc(DataProcessor):
 
             try:
                 # Extract block maxima
-                print(f"DEBUG: sim_data shape: {sim_data.shape}, dims: {sim_data.dims}")
                 block_maxima = self._extract_block_maxima(sim_data)
-                print(
-                    f"DEBUG: block_maxima after extraction: shape={block_maxima.shape}, dims={block_maxima.dims}"
-                )
 
                 # Calculate return values
                 if EXTREME_VALUE_ANALYSIS_AVAILABLE:
@@ -600,98 +596,39 @@ class MetricCalc(DataProcessor):
                         get_return_value,
                     )
 
-                    print(
-                        f"DEBUG: block_maxima shape: {block_maxima.shape}, dims: {block_maxima.dims}"
-                    )
-                    print(f"DEBUG: return_periods: {self.return_periods}")
-
-                    try:
-                        result_dataset = get_return_value(
+                    # Calculate return values for each return period individually
+                    # This avoids the coordinate assignment issue in the threshold_tools
+                    single_results = []
+                    for rp in self.return_periods:
+                        single_result = get_return_value(
                             block_maxima,
-                            return_period=self.return_periods.tolist(),  # Convert to list for compatibility
+                            return_period=float(rp),  # Single return period
                             multiple_points=False,
                             distr=self.distribution,
                         )
-                    except ValueError as e:
-                        if (
-                            "cannot set variable 'one_in_x' with 2-dimensional data"
-                            in str(e)
-                        ):
-                            print(
-                                f"DEBUG: Caught coordinate assignment error, trying alternative approach"
-                            )
-                            # Try with a single return period first to see if that works
-                            single_results = []
-                            for rp in self.return_periods:
-                                single_result = get_return_value(
-                                    block_maxima,
-                                    return_period=float(rp),  # Single return period
-                                    multiple_points=False,
-                                    distr=self.distribution,
-                                )
-                                single_results.append(
-                                    single_result["return_value"].values.item()
-                                )
-
-                            # Create our own DataArray with proper structure
-                            return_values = xr.DataArray(
-                                single_results,
-                                dims=["one_in_x"],
-                                coords={"one_in_x": self.return_periods},
-                                name="return_value",
-                                attrs=block_maxima.attrs,
-                            )
-                            print(
-                                f"DEBUG: Created manual return_values: shape={return_values.shape}, dims={return_values.dims}"
-                            )
-                        else:
-                            raise  # Re-raise if it's a different ValueError
-                    else:
-                        # Normal path - extract return values from result dataset
-                        print(
-                            f"DEBUG: result_dataset variables: {list(result_dataset.data_vars.keys())}"
+                        single_results.append(
+                            single_result["return_value"].values.item()
                         )
-                        print(
-                            f"DEBUG: result_dataset coords: {list(result_dataset.coords.keys())}"
-                        )
-                        print(f"DEBUG: result_dataset dims: {result_dataset.dims}")
 
-                        return_values = result_dataset["return_value"]
-                        print(
-                            f"DEBUG: return_values shape: {return_values.shape}, dims: {return_values.dims}"
-                        )
-                        print(
-                            f"DEBUG: return_values coords: {list(return_values.coords.keys())}"
-                        )
-                        print(f"DEBUG: return_values data:\n{return_values}")
+                    # Create properly structured DataArray
+                    # Clean up attributes to avoid NetCDF serialization issues
+                    clean_attrs = {}
+                    if hasattr(block_maxima, "attrs"):
+                        for k, v in block_maxima.attrs.items():
+                            # Only include attributes that can be serialized to NetCDF
+                            if v is not None and not callable(v):
+                                if isinstance(
+                                    v, (str, int, float, list, tuple, bytes)
+                                ) or hasattr(v, "tolist"):
+                                    clean_attrs[k] = v
 
-                        # Ensure the return_values has the correct dimensions and coordinates
-                        if "one_in_x" not in return_values.coords:
-                            print("DEBUG: one_in_x not in coords, adding it")
-                            # Create proper coordinates if missing
-                            return_values = return_values.assign_coords(
-                                one_in_x=self.return_periods
-                            )
-                            print(
-                                f"DEBUG: after assign_coords - dims: {return_values.dims}, coords: {list(return_values.coords.keys())}"
-                            )
-
-                        # Ensure proper dimension naming
-                        if return_values.dims != ("one_in_x",):
-                            print(
-                                f"DEBUG: dims not as expected ({return_values.dims} != ('one_in_x',)), reconstructing"
-                            )
-                            # If dimensions are not as expected, reconstruct with proper dimensions
-                            return_values = xr.DataArray(
-                                return_values.values,
-                                dims=["one_in_x"],
-                                coords={"one_in_x": self.return_periods},
-                                name="return_value",
-                                attrs=return_values.attrs,
-                            )
-                            print(
-                                f"DEBUG: after reconstruction - dims: {return_values.dims}, coords: {list(return_values.coords.keys())}"
-                            )
+                    return_values = xr.DataArray(
+                        single_results,
+                        dims=["one_in_x"],
+                        coords={"one_in_x": self.return_periods},
+                        name="return_value",
+                        attrs=clean_attrs,
+                    )
                 else:
                     raise ValueError("Extreme value analysis functions not available")
                 return_vals.append(return_values)
@@ -718,7 +655,7 @@ class MetricCalc(DataProcessor):
                         self._print_goodness_of_fit_result(s, p_value)
                 else:
                     # Create dummy p-value if not testing
-                    p_vals.append(xr.DataArray(np.nan, name="p_value"))
+                    p_vals.append(xr.DataArray(np.nan, name="p_value", attrs={}))
 
             except (ValueError, RuntimeError, ImportError) as e:
                 print(f"Warning: Failed to process simulation {s}: {e}")
@@ -728,9 +665,10 @@ class MetricCalc(DataProcessor):
                     dims=["one_in_x"],
                     coords={"one_in_x": self.return_periods},
                     name="return_value",
+                    attrs={},  # Use empty attrs to avoid serialization issues
                 )
                 return_vals.append(nan_return_values)
-                p_vals.append(xr.DataArray(np.nan, name="p_value"))
+                p_vals.append(xr.DataArray(np.nan, name="p_value", attrs={}))
 
         # Combine results
         ret_vals = xr.concat(return_vals, dim="sim")
