@@ -587,7 +587,11 @@ class MetricCalc(DataProcessor):
 
             try:
                 # Extract block maxima
+                print(f"DEBUG: sim_data shape: {sim_data.shape}, dims: {sim_data.dims}")
                 block_maxima = self._extract_block_maxima(sim_data)
+                print(
+                    f"DEBUG: block_maxima after extraction: shape={block_maxima.shape}, dims={block_maxima.dims}"
+                )
 
                 # Calculate return values
                 if EXTREME_VALUE_ANALYSIS_AVAILABLE:
@@ -596,6 +600,11 @@ class MetricCalc(DataProcessor):
                         get_return_value,
                     )
 
+                    print(
+                        f"DEBUG: block_maxima shape: {block_maxima.shape}, dims: {block_maxima.dims}"
+                    )
+                    print(f"DEBUG: return_periods: {self.return_periods}")
+
                     result_dataset = get_return_value(
                         block_maxima,
                         return_period=self.return_periods.tolist(),  # Convert to list for compatibility
@@ -603,17 +612,39 @@ class MetricCalc(DataProcessor):
                         distr=self.distribution,
                     )
 
+                    print(
+                        f"DEBUG: result_dataset variables: {list(result_dataset.data_vars.keys())}"
+                    )
+                    print(
+                        f"DEBUG: result_dataset coords: {list(result_dataset.coords.keys())}"
+                    )
+                    print(f"DEBUG: result_dataset dims: {result_dataset.dims}")
+
                     return_values = result_dataset["return_value"]
+                    print(
+                        f"DEBUG: return_values shape: {return_values.shape}, dims: {return_values.dims}"
+                    )
+                    print(
+                        f"DEBUG: return_values coords: {list(return_values.coords.keys())}"
+                    )
+                    print(f"DEBUG: return_values data:\n{return_values}")
 
                     # Ensure the return_values has the correct dimensions and coordinates
                     if "one_in_x" not in return_values.coords:
+                        print("DEBUG: one_in_x not in coords, adding it")
                         # Create proper coordinates if missing
                         return_values = return_values.assign_coords(
                             one_in_x=self.return_periods
                         )
+                        print(
+                            f"DEBUG: after assign_coords - dims: {return_values.dims}, coords: {list(return_values.coords.keys())}"
+                        )
 
                     # Ensure proper dimension naming
                     if return_values.dims != ("one_in_x",):
+                        print(
+                            f"DEBUG: dims not as expected ({return_values.dims} != ('one_in_x',)), reconstructing"
+                        )
                         # If dimensions are not as expected, reconstruct with proper dimensions
                         return_values = xr.DataArray(
                             return_values.values,
@@ -621,6 +652,9 @@ class MetricCalc(DataProcessor):
                             coords={"one_in_x": self.return_periods},
                             name="return_value",
                             attrs=return_values.attrs,
+                        )
+                        print(
+                            f"DEBUG: after reconstruction - dims: {return_values.dims}, coords: {list(return_values.coords.keys())}"
                         )
                 else:
                     raise ValueError("Extreme value analysis functions not available")
