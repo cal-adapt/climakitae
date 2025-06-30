@@ -156,9 +156,6 @@ class Concat(DataProcessor):
                         dataset = dataset.expand_dims({self.dim_name: [attr_id]})
                         datasets_to_concat.append(dataset)
 
-                    # Add sim dimension to the dataset
-                    dataset = dataset.expand_dims({self.dim_name: [attr_id]})
-                    datasets_to_concat.append(dataset)
             case _:
                 for dataset in result:
                     if not isinstance(dataset, (xr.Dataset, xr.DataArray)):
