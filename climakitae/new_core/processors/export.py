@@ -440,6 +440,67 @@ class Export(DataProcessor):
         # Placeholder for setting data accessor
         pass
 
+    def _clean_attrs_for_netcdf(
+        self, data: Union[xr.Dataset, xr.DataArray]
+    ) -> Union[xr.Dataset, xr.DataArray]:
+        """
+        Clean attributes to ensure they can be serialized to NetCDF.
+
+        Parameters
+        ----------
+        data : xr.Dataset | xr.DataArray
+            The data with potentially problematic attributes.
+
+        Returns
+        -------
+        xr.Dataset | xr.DataArray
+            The data with cleaned attributes.
+        """
+        # Make a copy to avoid modifying the original
+        data = data.copy()
+
+        def clean_attrs_dict(attrs_dict):
+            """Clean a dictionary of attributes."""
+            cleaned = {}
+            for k, v in attrs_dict.items():
+                if v is None:
+                    # Skip None values
+                    continue
+                elif isinstance(v, dict):
+                    # Convert dictionary attributes to string
+                    cleaned[k] = str(v)
+                elif callable(v):
+                    # Skip callable objects
+                    continue
+                elif isinstance(v, (str, int, float, list, tuple, bytes)):
+                    # Keep basic types
+                    cleaned[k] = v
+                elif hasattr(v, "tolist"):
+                    # Convert numpy arrays to lists
+                    try:
+                        cleaned[k] = v.tolist()
+                    except:
+                        # If conversion fails, convert to string
+                        cleaned[k] = str(v)
+                else:
+                    # Convert other types to string
+                    cleaned[k] = str(v)
+            return cleaned
+
+        # Clean top-level attributes
+        data.attrs = clean_attrs_dict(data.attrs)
+
+        # Clean variable attributes for datasets
+        if isinstance(data, xr.Dataset):
+            for var_name in data.data_vars:
+                data[var_name].attrs = clean_attrs_dict(data[var_name].attrs)
+
+            # Clean coordinate attributes
+            for coord_name in data.coords:
+                data[coord_name].attrs = clean_attrs_dict(data[coord_name].attrs)
+
+        return data
+
     def _generate_filename(self, data: Union[xr.Dataset, xr.DataArray]) -> str:
         """
         Generate a filename for the data based on configuration options.
@@ -545,10 +606,9 @@ class Export(DataProcessor):
             return
 
         # Export using the appropriate function from data_export.py
-        for k, v in data.attrs.items():
-            if isinstance(v, dict):
-                # Convert dictionary attributes to string to avoid serialization issues
-                data.attrs[k] = str(v)
+        # Clean up attributes to avoid NetCDF serialization issues
+        data = self._clean_attrs_for_netcdf(data)
+
         try:
             match req_format:
                 case "zarr":

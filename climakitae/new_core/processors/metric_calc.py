@@ -610,24 +610,11 @@ class MetricCalc(DataProcessor):
                             single_result["return_value"].values.item()
                         )
 
-                    # Create properly structured DataArray
-                    # Clean up attributes to avoid NetCDF serialization issues
-                    clean_attrs = {}
-                    if hasattr(block_maxima, "attrs"):
-                        for k, v in block_maxima.attrs.items():
-                            # Only include attributes that can be serialized to NetCDF
-                            if v is not None and not callable(v):
-                                if isinstance(
-                                    v, (str, int, float, list, tuple, bytes)
-                                ) or hasattr(v, "tolist"):
-                                    clean_attrs[k] = v
-
                     return_values = xr.DataArray(
                         single_results,
                         dims=["one_in_x"],
                         coords={"one_in_x": self.return_periods},
                         name="return_value",
-                        attrs=clean_attrs,
                     )
                 else:
                     raise ValueError("Extreme value analysis functions not available")
