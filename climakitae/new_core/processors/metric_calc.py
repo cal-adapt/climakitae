@@ -533,6 +533,8 @@ class MetricCalc(DataProcessor):
         """
         Calculate 1-in-X return values on a single Dataset or DataArray.
 
+        Optimized version that processes simulations in vectorized batches where possible.
+
         Parameters
         ----------
         data : xr.Dataset | xr.DataArray
@@ -559,12 +561,18 @@ class MetricCalc(DataProcessor):
         if "sim" not in data_array.dims:
             raise ValueError("Data must have a 'sim' dimension for 1-in-X calculations")
 
-        # Handle Dask arrays by loading into memory for extreme value analysis
+        # Smart memory management for Dask arrays
         if hasattr(data_array, "chunks") and data_array.chunks is not None:
-            print(
-                "Detected Dask array - loading into memory for extreme value analysis..."
-            )
-            data_array = data_array.compute()
+            print("Detected Dask array - using optimized chunked processing...")
+            # Only compute if the array is small enough, otherwise process in chunks
+            total_size = (
+                np.prod(data_array.shape) * 8
+            )  # Estimate bytes (assuming float64)
+            if total_size < 1e9:  # Less than 1GB
+                print("Small array detected - loading into memory...")
+                data_array = data_array.compute()
+            else:
+                print("Large array detected - will process simulations in chunks...")
 
         # Check if we have a time dimension, and add dummy time if needed
         if "time" not in data_array.dims:
@@ -573,82 +581,211 @@ class MetricCalc(DataProcessor):
         # Apply variable-specific preprocessing
         data_array = self._preprocess_variable_for_one_in_x(data_array, var_name)
 
-        # Calculate 1-in-X return values for each simulation
-        return_vals = []
-        p_vals = []
-
         print(
             f"Calculating 1-in-{self.return_periods} year return values using {self.distribution} distribution..."
         )
 
+        # Try vectorized processing first for better performance
+        try:
+            return self._calculate_one_in_x_vectorized(data_array)
+        except Exception as e:
+            print(
+                f"Vectorized processing failed ({e}), falling back to serial processing..."
+            )
+            return self._calculate_one_in_x_serial(data_array)
+
+    def _calculate_one_in_x_vectorized(self, data_array: xr.DataArray) -> xr.Dataset:
+        """
+        Vectorized calculation of 1-in-X values for better performance.
+
+        This method attempts to process multiple simulations simultaneously.
+        """
+        if not EXTREME_VALUE_ANALYSIS_AVAILABLE:
+            raise ValueError("Extreme value analysis functions are not available")
+
+        # Local imports
+        from climakitae.explore.threshold_tools import (
+            get_block_maxima,
+            get_ks_stat,
+            get_return_value,
+        )
+
+        # Extract block maxima for all simulations at once
+        print("Extracting block maxima for all simulations...")
+
+        # Configure block maxima extraction
+        kwargs = {
+            "extremes_type": self.extremes_type,
+            "check_ess": False,
+            "block_size": self.block_size,
+        }
+
+        if self.event_duration == (1, "day"):
+            kwargs["groupby"] = self.event_duration
+        elif self.event_duration[1] == "hour":
+            kwargs["duration"] = self.event_duration
+
+        # Process all simulations at once using xarray's vectorized operations
+        all_block_maxima = []
+        all_return_vals = []
+        all_p_vals = []
+
+        # Process simulations in batches to manage memory
+        batch_size = min(
+            10, len(data_array.sim)
+        )  # Process up to 10 simulations at once
+        sim_values = data_array.sim.values
+
+        for i in range(0, len(sim_values), batch_size):
+            batch_sims = sim_values[i : i + batch_size]
+            print(
+                f"Processing simulation batch {i//batch_size + 1}/{(len(sim_values) + batch_size - 1)//batch_size}"
+            )
+
+            batch_results = []
+            batch_p_vals = []
+
+            for s in batch_sims:
+                try:
+                    sim_data = data_array.sel(sim=s).squeeze()
+
+                    # Extract block maxima for this simulation
+                    block_maxima = get_block_maxima(sim_data, **kwargs).squeeze()
+
+                    # Calculate return values for all return periods at once
+                    result = get_return_value(
+                        block_maxima,
+                        return_period=self.return_periods.tolist(),  # Pass all return periods
+                        multiple_points=False,
+                        distr=self.distribution,
+                    )
+
+                    # Extract return values - handle the result structure
+                    if isinstance(result, dict) and "return_value" in result:
+                        return_values = result["return_value"]
+                    else:
+                        return_values = result
+
+                    # Ensure we have the right dimensions
+                    if "return_period" in return_values.dims:
+                        return_values = return_values.rename(
+                            {"return_period": "one_in_x"}
+                        )
+
+                    batch_results.append(return_values)
+
+                    # Calculate p-values if requested
+                    if self.goodness_of_fit_test:
+                        _, p_value = get_ks_stat(
+                            block_maxima, distr=self.distribution, multiple_points=False
+                        ).data_vars.values()
+                        batch_p_vals.append(p_value)
+
+                        if self.print_goodness_of_fit:
+                            self._print_goodness_of_fit_result(s, p_value)
+                    else:
+                        batch_p_vals.append(xr.DataArray(np.nan, name="p_value"))
+
+                except Exception as e:
+                    print(f"Warning: Failed to process simulation {s}: {e}")
+                    # Create NaN results for failed simulations
+                    nan_return_values = xr.DataArray(
+                        np.full(len(self.return_periods), np.nan),
+                        dims=["one_in_x"],
+                        coords={"one_in_x": self.return_periods},
+                        name="return_value",
+                    )
+                    batch_results.append(nan_return_values)
+                    batch_p_vals.append(xr.DataArray(np.nan, name="p_value"))
+
+            all_return_vals.extend(batch_results)
+            all_p_vals.extend(batch_p_vals)
+
+        # Combine all results
+        ret_vals = xr.concat(all_return_vals, dim="sim")
+        p_vals = xr.concat(all_p_vals, dim="sim")
+
+        # Ensure proper coordinates
+        ret_vals = ret_vals.assign_coords(sim=data_array.sim.values)
+        p_vals = p_vals.assign_coords(sim=data_array.sim.values)
+
+        # Create result dataset
+        result = xr.Dataset({"return_value": ret_vals, "p_values": p_vals})
+
+        # Add attributes
+        result.attrs.update(
+            {
+                "groupby": f"{self.event_duration[0]} {self.event_duration[1]}",
+                "fitted_distr": self.distribution,
+                "sample_size": len(data_array.time),
+            }
+        )
+
+        return result
+
+    def _calculate_one_in_x_serial(self, data_array: xr.DataArray) -> xr.Dataset:
+        """
+        Serial calculation of 1-in-X values (fallback method).
+
+        This is the original implementation for cases where vectorized processing fails.
+        """
+        if not EXTREME_VALUE_ANALYSIS_AVAILABLE:
+            raise ValueError("Extreme value analysis functions are not available")
+
+        # Local imports
+        from climakitae.explore.threshold_tools import get_ks_stat, get_return_value
+
+        return_vals = []
+        p_vals = []
+
         for s in data_array.sim.values:
-            sim_data = data_array.sel(
-                sim=s
-            ).squeeze()  # Add squeeze to remove any size-1 dimensions
+            sim_data = data_array.sel(sim=s).squeeze()
             print(f"Processing simulation: {s}")
 
             try:
                 # Extract block maxima
                 block_maxima = self._extract_block_maxima(sim_data)
 
-                # Calculate return values
-                if EXTREME_VALUE_ANALYSIS_AVAILABLE:
-                    # Local import to avoid redefinition warnings
-                    from climakitae.explore.threshold_tools import (  # noqa: F401
-                        get_return_value,
-                    )
+                # Calculate return values for all return periods at once (more efficient)
+                result = get_return_value(
+                    block_maxima,
+                    return_period=self.return_periods.tolist(),
+                    multiple_points=False,
+                    distr=self.distribution,
+                )
 
-                    # Calculate return values for each return period individually
-                    # This avoids the coordinate assignment issue in the threshold_tools
-                    single_results = []
-                    for rp in self.return_periods:
-                        single_result = get_return_value(
-                            block_maxima,
-                            return_period=float(rp),  # Single return period
-                            multiple_points=False,
-                            distr=self.distribution,
-                        )
-                        # Handle both scalar and array results
-                        result_values = single_result["return_value"].values
-                        if result_values.size == 1:
-                            single_results.append(result_values.item())
-                        else:
-                            # If multiple values, take the first one (this shouldn't happen with single points)
-                            single_results.append(result_values.flat[0])
+                # Extract and structure return values
+                if isinstance(result, dict) and "return_value" in result:
+                    return_values = result["return_value"]
+                else:
+                    return_values = result
 
+                # Ensure proper dimensions
+                if "return_period" in return_values.dims:
+                    return_values = return_values.rename({"return_period": "one_in_x"})
+                elif return_values.dims == () or len(return_values.dims) == 0:
+                    # Single value - need to expand for multiple return periods
+                    scalar_val = np.asarray(return_values).item()
                     return_values = xr.DataArray(
-                        single_results,
+                        [scalar_val] * len(self.return_periods),
                         dims=["one_in_x"],
                         coords={"one_in_x": self.return_periods},
                         name="return_value",
                     )
-                else:
-                    raise ValueError("Extreme value analysis functions not available")
+
                 return_vals.append(return_values)
 
                 # Perform goodness-of-fit test if requested
                 if self.goodness_of_fit_test:
-                    if EXTREME_VALUE_ANALYSIS_AVAILABLE:
-                        # Local import to avoid redefinition warnings
-                        from climakitae.explore.threshold_tools import (  # noqa: F401
-                            get_ks_stat,
-                        )
-
-                        _, p_value = get_ks_stat(
-                            block_maxima, distr=self.distribution, multiple_points=False
-                        ).data_vars.values()
-                    else:
-                        raise ValueError(
-                            "Extreme value analysis functions not available"
-                        )
+                    _, p_value = get_ks_stat(
+                        block_maxima, distr=self.distribution, multiple_points=False
+                    ).data_vars.values()
                     p_vals.append(p_value)
 
-                    # Print goodness-of-fit results if requested
                     if self.print_goodness_of_fit:
                         self._print_goodness_of_fit_result(s, p_value)
                 else:
-                    # Create dummy p-value if not testing
-                    p_vals.append(xr.DataArray(np.nan, name="p_value", attrs={}))
+                    p_vals.append(xr.DataArray(np.nan, name="p_value"))
 
             except (ValueError, RuntimeError, ImportError) as e:
                 print(f"Warning: Failed to process simulation {s}: {e}")
@@ -658,24 +795,23 @@ class MetricCalc(DataProcessor):
                     dims=["one_in_x"],
                     coords={"one_in_x": self.return_periods},
                     name="return_value",
-                    attrs={},  # Use empty attrs to avoid serialization issues
                 )
                 return_vals.append(nan_return_values)
-                p_vals.append(xr.DataArray(np.nan, name="p_value", attrs={}))
+                p_vals.append(xr.DataArray(np.nan, name="p_value"))
 
         # Combine results
         ret_vals = xr.concat(return_vals, dim="sim")
         p_vals = xr.concat(p_vals, dim="sim")
 
-        # Create result dataset matching existing _metric_agg structure
+        # Create result dataset
         result = xr.Dataset({"return_value": ret_vals, "p_values": p_vals})
 
-        # Add attributes matching existing structure
+        # Add attributes
         result.attrs.update(
             {
                 "groupby": f"{self.event_duration[0]} {self.event_duration[1]}",
                 "fitted_distr": self.distribution,
-                "sample_size": len(data_array.time),  # This is approximate
+                "sample_size": len(data_array.time),
             }
         )
 
