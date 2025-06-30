@@ -582,7 +582,9 @@ class MetricCalc(DataProcessor):
         )
 
         for s in data_array.sim.values:
-            sim_data = data_array.sel(sim=s)
+            sim_data = data_array.sel(
+                sim=s
+            ).squeeze()  # Add squeeze to remove any size-1 dimensions
             print(f"Processing simulation: {s}")
 
             try:
@@ -606,9 +608,13 @@ class MetricCalc(DataProcessor):
                             multiple_points=False,
                             distr=self.distribution,
                         )
-                        single_results.append(
-                            single_result["return_value"].values.item()
-                        )
+                        # Handle both scalar and array results
+                        result_values = single_result["return_value"].values
+                        if result_values.size == 1:
+                            single_results.append(result_values.item())
+                        else:
+                            # If multiple values, take the first one (this shouldn't happen with single points)
+                            single_results.append(result_values.flat[0])
 
                     return_values = xr.DataArray(
                         single_results,
@@ -773,14 +779,21 @@ class MetricCalc(DataProcessor):
         p_value : xr.DataArray
             P-value from KS test
         """
+        # Handle both scalar and array p-values
+        p_val_scalar = (
+            p_value.values.item()
+            if p_value.values.size == 1
+            else p_value.values.flat[0]
+        )
+
         p_val_print = (
-            format(p_value.item(), ".3e")
-            if p_value.item() < 0.05
-            else round(p_value.item(), 4)
+            format(p_val_scalar, ".3e")
+            if p_val_scalar < 0.05
+            else round(p_val_scalar, 4)
         )
         to_print = f"The simulation {simulation} fitted with a {self.distribution} distribution has a p-value of {p_val_print}.\n"
 
-        if p_value.item() < 0.05:
+        if p_val_scalar < 0.05:
             to_print += " Since the p-value is <0.05, the selected distribution does not fit the data well and therefore is not a good fit (see guidance)."
         print(to_print)
 
