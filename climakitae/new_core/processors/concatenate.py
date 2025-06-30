@@ -92,7 +92,8 @@ class Concat(DataProcessor):
                 "experiment_id",
                 "member_id",
             ]
-            if self.catalog.catalog_key == "renewables"
+            if self.catalog
+            and getattr(self.catalog, "catalog_key", None) == "renewables"
             else [
                 "intake_esm_attrs:activity_id",
                 "intake_esm_attrs:institution_id",
@@ -123,15 +124,37 @@ class Concat(DataProcessor):
                         " ", ""
                     )  # Replace spaces with empty string
                     attr_id = attr_id.lower()
-                    attr_ids.append(attr_id)
 
                     if "member_id" in dataset.dims:
-                        # If member_id is present, we need to drop it
-                        dataset = dataset.isel(member_id=0).drop_dims(
-                            "member_id", errors="ignore"
-                        )
-                        if "member_id" in dataset.coords:
-                            dataset = dataset.drop_vars("member_id")
+                        # If member_id is present, append it to simulation name if not already there
+                        member_ids = dataset.member_id.values
+                        datasets_for_member = []
+
+                        for member_id in member_ids:
+                            member_str = str(member_id)
+                            # Check if member_id is already in the attr_id
+                            if member_str not in attr_id:
+                                current_attr_id = f"{attr_id}_{member_str}"
+                            else:
+                                current_attr_id = attr_id
+
+                            # Select this specific member
+                            member_dataset = dataset.sel(member_id=member_id).drop_vars(
+                                "member_id"
+                            )
+                            member_dataset = member_dataset.expand_dims(
+                                {self.dim_name: [current_attr_id]}
+                            )
+                            datasets_for_member.append(member_dataset)
+                            attr_ids.append(current_attr_id)
+
+                        # Add all member datasets to the list
+                        datasets_to_concat.extend(datasets_for_member)
+                    else:
+                        attr_ids.append(attr_id)
+                        # Add sim dimension to the dataset
+                        dataset = dataset.expand_dims({self.dim_name: [attr_id]})
+                        datasets_to_concat.append(dataset)
 
                     # Add sim dimension to the dataset
                     dataset = dataset.expand_dims({self.dim_name: [attr_id]})
@@ -153,18 +176,33 @@ class Concat(DataProcessor):
                         " ", ""
                     )  # Replace spaces with empty string
                     attr_id = attr_id.lower()
-                    attr_ids.append(attr_id)
 
-                    # Add sim dimension to the dataset
                     if "member_id" in dataset.dims:
-                        # If member_id is present, we need to drop it
-                        dataset = dataset.isel(member_id=0).drop_dims(
-                            "member_id", errors="ignore"
-                        )
-                        if "member_id" in dataset.coords:
-                            dataset = dataset.drop_vars("member_id")
-                    dataset = dataset.expand_dims({self.dim_name: [attr_id]})
-                    datasets_to_concat.append(dataset)
+                        # If member_id is present, append it to simulation name if not already there
+                        member_ids = dataset.member_id.values
+
+                        for member_id in member_ids:
+                            member_str = str(member_id)
+                            # Check if member_id is already in the attr_id
+                            if member_str not in attr_id:
+                                current_attr_id = f"{attr_id}_{member_str}"
+                            else:
+                                current_attr_id = attr_id
+
+                            # Select this specific member
+                            member_dataset = dataset.sel(member_id=member_id).drop_vars(
+                                "member_id"
+                            )
+                            member_dataset = member_dataset.expand_dims(
+                                {self.dim_name: [current_attr_id]}
+                            )
+                            datasets_to_concat.append(member_dataset)
+                            attr_ids.append(current_attr_id)
+                    else:
+                        attr_ids.append(attr_id)
+                        # Add sim dimension to the dataset
+                        dataset = dataset.expand_dims({self.dim_name: [attr_id]})
+                        datasets_to_concat.append(dataset)
 
         if not datasets_to_concat:
             return result  # Return original if no valid datasets
@@ -212,7 +250,11 @@ class Concat(DataProcessor):
         elif not isinstance(source_ids, list):
             source_ids = [source_ids]
 
-        source_info = f"source_ids: {', '.join(source_ids)}" if source_ids else ""
+        source_info = (
+            f"source_ids: {', '.join(str(sid) for sid in source_ids)}"
+            if source_ids
+            else ""
+        )
 
         context[_NEW_ATTRS_KEY][
             self.name
