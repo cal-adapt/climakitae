@@ -696,7 +696,7 @@ class GWLGenerator:
             model_config = {
                 "variable": variable,
                 "model": "CESM2-LENS",
-                "scenarios": ["ssp585", "ssp370", "ssp245"],
+                "scenarios": ["ssp370"],
             }
             print("Generate cesm2 table {}-{}".format(start_year[:4], end_year[:4]))
             cesm2_table, wl_data_tbl_cesm2 = self.get_table_cesm2(model_config, period)
