@@ -14,8 +14,11 @@ import pandas as pd
 import xarray as xr
 
 from climakitae.core.constants import _NEW_ATTRS_KEY
-from climakitae.core.paths import GWL_1981_2010_TIMEIDX_FILE
+from climakitae.core.paths import GWL_1850_1900_FILE, GWL_1981_2010_TIMEIDX_FILE
 from climakitae.new_core.data_access.data_access import DataCatalog
+from climakitae.new_core.param_validation.param_validation_tools import (
+    _get_closest_options,
+)
 from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
     register_processor,
@@ -75,6 +78,9 @@ class WarmingLevel(DataProcessor):
         # Initialize instance variables
         self.name = "warming_level_simple"
         self.warming_level_times = read_csv_file(
+            GWL_1850_1900_FILE, index_col=[0, 1, 2], parse_dates=True
+        )
+        self.warming_level_times_idx = read_csv_file(
             GWL_1981_2010_TIMEIDX_FILE, index_col="time", parse_dates=True
         )
         self.catalog = None
@@ -127,16 +133,23 @@ class WarmingLevel(DataProcessor):
                     f"Failed to load warming level times table: {e}"
                 ) from e
 
+        # add member id as a suffix to the keys
+        # and split the data by member_id
+        ret = self.reformat_member_ids(result)
+
         # extend the time domain of all ssp scenarios to 1980-2100
-        ret = self.extend_time_domain(result)
+        ret = self.extend_time_domain(ret)
 
         # first, extract the member IDs from the data
-        member_ids = [v.attrs.get("variant_label", None) for k, v in ret.items()]
-        if not all(member_ids):
-            for i, (_, v) in enumerate(ret.items()):
-                for k2, v2 in v.attrs.items():
-                    if any(x in k2 for x in ["variant", "member_id"]) and v2[0] == "r":
-                        member_ids[i] = v2
+        member_ids = []
+        for k in ret.keys():
+            mem_id = k.split(".")[-1]  # Get the last part as member_id
+            if mem_id[0] == "r":
+                # If it starts with 'r', it's a member_id
+                member_ids.append(mem_id)
+            else:
+                # If not, assume no member_id is present
+                member_ids.append(None)
 
         # get center years for each key for each warming level
         center_years = self.get_center_years(member_ids, ret.keys())
@@ -236,6 +249,37 @@ class WarmingLevel(DataProcessor):
         # Store catalog reference for potential future use
         self.catalog = catalog
 
+    def reformat_member_ids(
+        self, result: Dict[str, Union[xr.Dataset, xr.DataArray]]
+    ) -> Dict[str, Union[xr.Dataset, xr.DataArray]]:
+        """
+        Reformat member IDs in the input data.
+
+        Parameters
+        ----------
+        result : Dict[str, Union[xr.Dataset, xr.DataArray]]
+            A dictionary containing time-series data with keys representing different scenarios.
+
+        Returns
+        -------
+        Dict[str, Union[xr.Dataset, xr.DataArray]]
+            The reformatted time-series data.
+        """
+        ret = {}
+        for key, data in result.items():
+            if "member_id" in data.dims:
+                # If member_id is present, reformat it
+                member_ids = data.member_id.values
+                for mem_id in member_ids:
+                    # Create a new key with the member_id included
+                    new_key = f"{key}.{mem_id}"
+                    ret[new_key] = data.sel(member_id=mem_id).drop_vars("member_id")
+                    ret[new_key].attrs.update(data.attrs)
+            else:
+                # If no member_id, keep the original key
+                ret[key] = data
+        return ret
+
     def extend_time_domain(
         self, result: Dict[str, Union[xr.Dataset, xr.DataArray]]
     ) -> Union[xr.Dataset, xr.DataArray]:
@@ -313,34 +357,47 @@ class WarmingLevel(DataProcessor):
         """
         center_years = {}
 
-        # load idx table
         # cols are key.join("_"), values are warming levels, index is time
         for key, member_id in zip(keys, member_ids):
             if member_id is None:
                 continue  # Skip if member_id is None
 
+            # build the key for the warming level table
             key_list = key.split(".")
-            wl_table_key = f"{key_list[2]}_{member_id}_{key_list[3]}"
-            if wl_table_key not in self.warming_level_times.columns:
-                warnings.warn(
-                    f"\n\nWarming level table does not contain data for {wl_table_key}. "
-                    "\nEnsure the warming level times table is correctly configured."
-                )
-                continue
+
             if key not in center_years:
                 center_years[key] = []
-            # get the FIRST index value for this key
+
             for wl in self.warming_levels:
-                mask = (self.warming_level_times[wl_table_key] >= wl).dropna()
-                if mask.any():
-                    center_years[key].append(
-                        mask.idxmax()  # Get the first occurrence of the warming level
-                    )
+                if str(wl) not in self.warming_level_times.columns:
+                    # warming level is not an integer value, so we need to try to find
+                    # the first year that the simulation crosses the given warming level
+                    wl_table_key = f"{key_list[2]}_{member_id}_{key_list[3]}"
+                    if wl_table_key not in self.warming_level_times_idx.columns:
+                        warnings.warn(
+                            f"\n\nWarming level table does not contain data for {wl_table_key}. "
+                            "\nEnsure the warming level times table is correctly configured."
+                        )
+                        center_years[key].append(np.nan)
+                        continue  # exit warming levels loop
+
+                    # get the FIRST index value for this key
+                    mask = (self.warming_level_times_idx[wl_table_key] >= wl).dropna()
+                    if mask.any():
+                        center_years[key].append(
+                            mask.idxmax()  # Get the first occurrence of the warming level
+                        )
+                    else:
+                        warnings.warn(
+                            f"\n\nNo warming level data found for {wl_table_key} at {wl}C. "
+                            f"\nPlease pick a warming level less than {self.warming_level_times[wl_table_key].max()}C."
+                        )
+                        center_years[key].append(np.nan)
                 else:
-                    warnings.warn(
-                        f"\n\nNo warming level data found for {wl_table_key} at {wl}C. "
-                        f"\nPlease pick a warming level less than {self.warming_level_times[wl_table_key].max()}C."
+                    # this is a common warming level, so we can just get the year
+                    tuple_key = (key_list[2], member_id, key_list[3])
+                    center_years[key].append(
+                        self.warming_level_times.loc[tuple_key, str(wl)]
                     )
-                    center_years[key].append(np.nan)
 
         return center_years
