@@ -596,14 +596,32 @@ class MetricCalc(DataProcessor):
                         get_return_value,
                     )
 
-                    return_values = get_return_value(
+                    result_dataset = get_return_value(
                         block_maxima,
                         return_period=self.return_periods.tolist(),  # Convert to list for compatibility
                         multiple_points=False,
                         distr=self.distribution,
-                    )[
-                        "return_value"
-                    ]  # Extract only return_value, not confidence intervals
+                    )
+
+                    return_values = result_dataset["return_value"]
+
+                    # Ensure the return_values has the correct dimensions and coordinates
+                    if "one_in_x" not in return_values.coords:
+                        # Create proper coordinates if missing
+                        return_values = return_values.assign_coords(
+                            one_in_x=self.return_periods
+                        )
+
+                    # Ensure proper dimension naming
+                    if return_values.dims != ("one_in_x",):
+                        # If dimensions are not as expected, reconstruct with proper dimensions
+                        return_values = xr.DataArray(
+                            return_values.values,
+                            dims=["one_in_x"],
+                            coords={"one_in_x": self.return_periods},
+                            name="return_value",
+                            attrs=return_values.attrs,
+                        )
                 else:
                     raise ValueError("Extreme value analysis functions not available")
                 return_vals.append(return_values)

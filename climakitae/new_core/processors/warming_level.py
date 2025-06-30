@@ -316,6 +316,8 @@ class WarmingLevel(DataProcessor):
         # load idx table
         # cols are key.join("_"), values are warming levels, index is time
         for key, member_id in zip(keys, member_ids):
+            if member_id is None:
+                continue  # Skip if member_id is None
 
             key_list = key.split(".")
             wl_table_key = f"{key_list[2]}_{member_id}_{key_list[3]}"
