@@ -666,6 +666,7 @@ class MetricCalc(DataProcessor):
                         sim_data = sim_data.squeeze("sim", drop=True)
 
                     # Extract block maxima for this simulation
+                    print(sim_data)
                     block_maxima = get_block_maxima(sim_data, **kwargs).squeeze()
 
                     # Force drop the sim dimension if it still exists in block_maxima
@@ -1287,6 +1288,7 @@ class MetricCalc(DataProcessor):
         if groupby is not None:
             kwargs["groupby"] = groupby
 
+        print(data)
         return get_block_maxima(data, **kwargs).squeeze()
 
     def _print_goodness_of_fit_result(self, simulation: str, p_value: xr.DataArray):
