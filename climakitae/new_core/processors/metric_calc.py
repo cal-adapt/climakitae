@@ -776,6 +776,9 @@ class MetricCalc(DataProcessor):
 
                 except Exception as e:
                     print(f"Warning: Failed to process simulation {s}: {e}")
+                    print(sim_data)
+                    print(block_maxima)
+                    print(result)
                     # Create NaN results for failed simulations
                     nan_return_values = xr.DataArray(
                         np.full(len(self.return_periods), np.nan),
