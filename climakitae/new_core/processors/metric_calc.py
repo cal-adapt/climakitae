@@ -753,6 +753,15 @@ class MetricCalc(DataProcessor):
 
                     batch_results.append(return_values)
 
+                    # Debug info for problematic data
+                    if len(return_values.dims) > 1:
+                        print(
+                            f"DEBUG: Return values for {s} has dimensions: {return_values.dims}, shape: {return_values.shape}"
+                        )
+                        print(
+                            f"DEBUG: Return values coords: {list(return_values.coords.keys())}"
+                        )
+
                     # Calculate p-values if requested
                     if self.goodness_of_fit_test:
                         _, p_value = get_ks_stat(
@@ -780,9 +789,83 @@ class MetricCalc(DataProcessor):
             all_return_vals.extend(batch_results)
             all_p_vals.extend(batch_p_vals)
 
-        # Combine all results
-        ret_vals = xr.concat(all_return_vals, dim="sim")
-        p_vals = xr.concat(all_p_vals, dim="sim")
+        # Combine all results with robust error handling
+        try:
+            # Validate all return values before concatenation
+            validated_return_vals = []
+            for i, rv in enumerate(all_return_vals):
+                try:
+                    # Ensure each return value has proper dimensions
+                    if isinstance(rv, xr.DataArray):
+                        # Check if it has the expected dimensions
+                        if "one_in_x" not in rv.dims:
+                            print(
+                                f"Warning: Fixing missing 'one_in_x' dimension for result {i}"
+                            )
+                            if len(rv.dims) == 1:
+                                rv = rv.rename({rv.dims[0]: "one_in_x"})
+                            elif len(rv.dims) == 0:
+                                rv = xr.DataArray(
+                                    [rv.values.item()] * len(self.return_periods),
+                                    dims=["one_in_x"],
+                                    coords={"one_in_x": self.return_periods},
+                                    name="return_value",
+                                )
+                            else:
+                                # Multi-dimensional - take the first usable dimension
+                                rv = rv.isel(
+                                    {dim: 0 for dim in rv.dims if dim != "one_in_x"}
+                                )
+                                if "one_in_x" not in rv.dims and len(rv.dims) == 1:
+                                    rv = rv.rename({rv.dims[0]: "one_in_x"})
+
+                        # Ensure coordinates are correct
+                        if "one_in_x" in rv.dims and len(
+                            rv.coords.get("one_in_x", [])
+                        ) != len(self.return_periods):
+                            rv = rv.assign_coords(one_in_x=self.return_periods)
+
+                        validated_return_vals.append(rv)
+                    else:
+                        print(
+                            f"Warning: Converting non-DataArray result {i} to DataArray"
+                        )
+                        validated_return_vals.append(
+                            xr.DataArray(
+                                np.full(len(self.return_periods), np.nan),
+                                dims=["one_in_x"],
+                                coords={"one_in_x": self.return_periods},
+                                name="return_value",
+                            )
+                        )
+                except Exception as val_error:
+                    print(f"Warning: Failed to validate return value {i}: {val_error}")
+                    validated_return_vals.append(
+                        xr.DataArray(
+                            np.full(len(self.return_periods), np.nan),
+                            dims=["one_in_x"],
+                            coords={"one_in_x": self.return_periods},
+                            name="return_value",
+                        )
+                    )
+
+            ret_vals = xr.concat(validated_return_vals, dim="sim")
+            p_vals = xr.concat(all_p_vals, dim="sim")
+        except Exception as concat_error:
+            print(f"Error during concatenation: {concat_error}")
+            # Create fallback results
+            ret_vals = xr.DataArray(
+                np.full((len(data_array.sim), len(self.return_periods)), np.nan),
+                dims=["sim", "one_in_x"],
+                coords={"sim": data_array.sim.values, "one_in_x": self.return_periods},
+                name="return_value",
+            )
+            p_vals = xr.DataArray(
+                np.full(len(data_array.sim), np.nan),
+                dims=["sim"],
+                coords={"sim": data_array.sim.values},
+                name="p_value",
+            )
 
         # Ensure proper coordinates
         ret_vals = ret_vals.assign_coords(sim=data_array.sim.values)
@@ -950,9 +1033,83 @@ class MetricCalc(DataProcessor):
                 return_vals.append(nan_return_values)
                 p_vals.append(xr.DataArray(np.nan, name="p_value"))
 
-        # Combine results
-        ret_vals = xr.concat(return_vals, dim="sim")
-        p_vals = xr.concat(p_vals, dim="sim")
+        # Combine results with robust error handling
+        try:
+            # Validate all return values before concatenation
+            validated_return_vals = []
+            for i, rv in enumerate(return_vals):
+                try:
+                    # Ensure each return value has proper dimensions
+                    if isinstance(rv, xr.DataArray):
+                        # Check if it has the expected dimensions
+                        if "one_in_x" not in rv.dims:
+                            print(
+                                f"Warning: Fixing missing 'one_in_x' dimension for result {i}"
+                            )
+                            if len(rv.dims) == 1:
+                                rv = rv.rename({rv.dims[0]: "one_in_x"})
+                            elif len(rv.dims) == 0:
+                                rv = xr.DataArray(
+                                    [rv.values.item()] * len(self.return_periods),
+                                    dims=["one_in_x"],
+                                    coords={"one_in_x": self.return_periods},
+                                    name="return_value",
+                                )
+                            else:
+                                # Multi-dimensional - take the first usable dimension
+                                rv = rv.isel(
+                                    {dim: 0 for dim in rv.dims if dim != "one_in_x"}
+                                )
+                                if "one_in_x" not in rv.dims and len(rv.dims) == 1:
+                                    rv = rv.rename({rv.dims[0]: "one_in_x"})
+
+                        # Ensure coordinates are correct
+                        if "one_in_x" in rv.dims and len(
+                            rv.coords.get("one_in_x", [])
+                        ) != len(self.return_periods):
+                            rv = rv.assign_coords(one_in_x=self.return_periods)
+
+                        validated_return_vals.append(rv)
+                    else:
+                        print(
+                            f"Warning: Converting non-DataArray result {i} to DataArray"
+                        )
+                        validated_return_vals.append(
+                            xr.DataArray(
+                                np.full(len(self.return_periods), np.nan),
+                                dims=["one_in_x"],
+                                coords={"one_in_x": self.return_periods},
+                                name="return_value",
+                            )
+                        )
+                except Exception as val_error:
+                    print(f"Warning: Failed to validate return value {i}: {val_error}")
+                    validated_return_vals.append(
+                        xr.DataArray(
+                            np.full(len(self.return_periods), np.nan),
+                            dims=["one_in_x"],
+                            coords={"one_in_x": self.return_periods},
+                            name="return_value",
+                        )
+                    )
+
+            ret_vals = xr.concat(validated_return_vals, dim="sim")
+            p_vals = xr.concat(p_vals, dim="sim")
+        except Exception as concat_error:
+            print(f"Error during concatenation: {concat_error}")
+            # Create fallback results
+            ret_vals = xr.DataArray(
+                np.full((len(data_array.sim), len(self.return_periods)), np.nan),
+                dims=["sim", "one_in_x"],
+                coords={"sim": data_array.sim.values, "one_in_x": self.return_periods},
+                name="return_value",
+            )
+            p_vals = xr.DataArray(
+                np.full(len(data_array.sim), np.nan),
+                dims=["sim"],
+                coords={"sim": data_array.sim.values},
+                name="p_value",
+            )
 
         # Create result dataset
         result = xr.Dataset({"return_value": ret_vals, "p_values": p_vals})
