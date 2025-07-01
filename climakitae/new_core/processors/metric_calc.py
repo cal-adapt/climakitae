@@ -210,113 +210,6 @@ class MetricCalc(DataProcessor):
                 "Cannot specify both basic metrics/percentiles and one_in_x calculations simultaneously"
             )
 
-        # Validate basic metric parameters
-        if not one_in_x_specified:
-            self._validate_basic_metric_parameters()
-        else:
-            self._validate_one_in_x_parameters()
-
-    def _validate_basic_metric_parameters(self):
-        """Validate parameters for basic metric calculations."""
-        # Validate metric
-        valid_metrics = ["min", "max", "mean", "median"]
-        if self.metric not in valid_metrics:
-            raise ValueError(
-                f'metric must be one of {valid_metrics}, got "{self.metric}"'
-            )
-
-        # Validate percentiles
-        if self.percentiles is not None:
-            if not isinstance(self.percentiles, list):
-                raise ValueError(
-                    f"percentiles must be a list, got {type(self.percentiles)}"
-                )
-
-            for p in self.percentiles:
-                if not isinstance(p, (int, float)) or not (0 <= p <= 100):
-                    raise ValueError(
-                        f"All percentiles must be numbers between 0 and 100, got {p}"
-                    )
-
-        # Validate dim type
-        if not isinstance(self.dim, (str, list)):
-            raise ValueError(f"dim must be a string or list, got {type(self.dim)}")
-
-        # Validate keepdims type
-        if not isinstance(self.keepdims, bool):
-            raise ValueError(f"keepdims must be a boolean, got {type(self.keepdims)}")
-
-        # Validate skipna type
-        if not isinstance(self.skipna, bool):
-            raise ValueError(f"skipna must be a boolean, got {type(self.skipna)}")
-
-        # Validate percentiles_only type
-        if not isinstance(self.percentiles_only, bool):
-            raise ValueError(
-                f"percentiles_only must be a boolean, got {type(self.percentiles_only)}"
-            )
-
-        # Validate percentiles_only logic
-        if self.percentiles_only and self.percentiles is None:
-            raise ValueError(
-                "percentiles_only=True requires percentiles to be specified"
-            )
-
-    def _validate_one_in_x_parameters(self):
-        """Validate parameters for 1-in-X calculations."""
-        if not EXTREME_VALUE_ANALYSIS_AVAILABLE:
-            raise ValueError("Extreme value analysis functions are not available")
-
-        # Validate return_periods
-        if not isinstance(self.return_periods, np.ndarray):
-            raise ValueError("return_periods must be convertible to numpy array")
-
-        for rp in self.return_periods:
-            if not isinstance(rp, (int, float, np.integer, np.floating)) or rp < 1:
-                raise ValueError(
-                    f"All return periods must be numbers >= 1, got {rp} (type: {type(rp)})"
-                )
-
-        # Validate distribution
-        valid_distributions = ["gev", "genpareto", "gamma"]
-        if self.distribution not in valid_distributions:
-            raise ValueError(
-                f"distribution must be one of {valid_distributions}, got '{self.distribution}'"
-            )
-
-        # Validate extremes_type
-        valid_extremes = ["max", "min"]
-        if self.extremes_type not in valid_extremes:
-            raise ValueError(
-                f"extremes_type must be one of {valid_extremes}, got '{self.extremes_type}'"
-            )
-
-        # Validate event_duration
-        if not isinstance(self.event_duration, tuple) or len(self.event_duration) != 2:
-            raise ValueError("event_duration must be a tuple of (int, str)")
-
-        duration_num, duration_unit = self.event_duration
-        if not isinstance(duration_num, int) or duration_num <= 0:
-            raise ValueError("event_duration number must be a positive integer")
-
-        if duration_unit not in ["hour", "day"]:
-            raise ValueError("event_duration unit must be 'hour' or 'day'")
-
-        # Validate block_size
-        if not isinstance(self.block_size, int) or self.block_size <= 0:
-            raise ValueError("block_size must be a positive integer")
-
-        # Validate boolean parameters
-        if not isinstance(self.goodness_of_fit_test, bool):
-            raise ValueError("goodness_of_fit_test must be a boolean")
-
-        if not isinstance(self.print_goodness_of_fit, bool):
-            raise ValueError("print_goodness_of_fit must be a boolean")
-
-        # Validate variable_preprocessing
-        if not isinstance(self.variable_preprocessing, dict):
-            raise ValueError("variable_preprocessing must be a dictionary")
-
     def execute(
         self,
         result: Union[
@@ -344,7 +237,6 @@ class MetricCalc(DataProcessor):
             an iterable of them.
         """
         ret = None
-        print(result)
 
         match result:
             case xr.Dataset() | xr.DataArray():
@@ -667,7 +559,6 @@ class MetricCalc(DataProcessor):
                         sim_data = sim_data.squeeze("sim", drop=True)
 
                     # Extract block maxima for this simulation
-                    print(sim_data)
                     block_maxima = get_block_maxima(sim_data, **kwargs).squeeze()
 
                     # Force drop the sim dimension if it still exists in block_maxima
@@ -683,9 +574,6 @@ class MetricCalc(DataProcessor):
                             if dim not in ["time", "year"]
                         ]
                         if spatial_dims:
-                            print(
-                                f"Filtering locations with insufficient valid data..."
-                            )
                             # Count valid data points for each location
                             count_dim = (
                                 "year"
@@ -718,10 +606,6 @@ class MetricCalc(DataProcessor):
 
                     if spatial_dims:
                         # We have spatial dimensions - need to process each location separately
-                        print(
-                            f"Processing {len(spatial_dims)} spatial dimension(s): {spatial_dims}"
-                        )
-
                         # Get the first spatial dimension to iterate over
                         spatial_dim = spatial_dims[0]
                         spatial_coords = block_maxima.coords[spatial_dim]
@@ -1398,7 +1282,6 @@ class MetricCalc(DataProcessor):
         if groupby is not None:
             kwargs["groupby"] = groupby
 
-        print(data)
         return get_block_maxima(data, **kwargs).squeeze()
 
     def _print_goodness_of_fit_result(self, simulation: str, p_value: xr.DataArray):
