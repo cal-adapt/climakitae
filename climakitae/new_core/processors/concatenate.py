@@ -227,6 +227,17 @@ class Concat(DataProcessor):
         print(f"Concatenated datasets along '{self.dim_name}' dimension.")
 
         self.update_context(context, attr_ids)
+        resolutions = {
+            "d01": "3 km",
+            "d02": "9 km",
+            "d03": "45 km",
+        }
+        key = next(list(result.keys()))
+        key = key.split(".")
+        for k in key:
+            if k in resolutions:
+                concatenated.attrs["resolution"] = resolutions[k]
+                break
         return concatenated
 
     def update_context(
