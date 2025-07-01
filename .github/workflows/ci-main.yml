@@ -1,9 +1,7 @@
 # Workflow file for continuous integration
-# Conda environment is caches to avoid long wait times for CI
 # Based on code from: https://github.com/epassaro/cache-conda-envs/blob/main/.github/workflows/ci.yml
 # Based on code from: https://github.com/marketplace/actions/setup-miniconda
-# Added to Test commit workflow
-
+# Runs only on main branch and runs all tests on push event (see ci-not-main.yaml for all other branches)
 
 name: ci-main
 
@@ -26,19 +24,17 @@ jobs:
         shell: bash -l {0}
     steps:
     - name: Checkout project
-      uses: actions/checkout@v2
-    - name: Setup miniconda
-      uses: conda-incubator/setup-miniconda@v2
+      uses: actions/checkout@v4
+    - name: Setup Python 3.12
+      uses: actions/setup-python@v5
       with:
-          auto-activate-base: false
-          activate-environment: climakitae-tests
-          environment-file: conda-linux-64.lock
-          use-only-tar-bz2: true
+        python-version: '3.12'
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest cftime
     - name: Install climakitae
-      run: pip install .
-    - name: Output conda info
-      run: conda info
-    - name: Output conda list
-      run: conda list
+      run: pip install . --no-deps
     - name: Test with pytest
       run: pytest --no-header -vv

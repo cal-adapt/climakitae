@@ -3,6 +3,10 @@ from ast import literal_eval
 from datetime import timedelta
 from functools import partial
 
+# Importing DataParameters causes ImportError due to circular import
+# so only import for type checking and reference as str 'DataParameters'
+from typing import TYPE_CHECKING
+
 import dask
 import geopandas as gpd
 import numpy as np
@@ -19,6 +23,7 @@ from xclim.sdba import Grouper
 from xclim.sdba.adjustment import QuantileDeltaMapping
 
 from climakitae.core.boundaries import Boundaries
+from climakitae.core.constants import WARMING_LEVELS
 from climakitae.tools.derived_variables import (
     compute_dewpointtemp,
     compute_relative_humidity,
@@ -40,11 +45,11 @@ from climakitae.util.utils import (
     scenario_to_experiment_id,
     timescale_to_table_id,
 )
-from climakitae.util.warming_levels import calculate_warming_level, drop_invalid_sims
-
-# Importing DataParameters causes ImportError due to circular import
-# so only import for type checking and reference as str 'DataParameters'
-from typing import TYPE_CHECKING
+from climakitae.util.warming_levels import (
+    calculate_warming_level,
+    drop_invalid_sims,
+    create_new_warming_level_table,
+)
 
 if TYPE_CHECKING:
     from climakitae.core.data_interface import DataParameters
@@ -220,39 +225,88 @@ def area_subset_geometry(
 
     area_subset, cached_area = _override_area_selections(selections)
 
-    if area_subset == "lat/lon":
-        geom = _get_as_shapely(selections)
-        if not geom.is_valid:
-            raise ValueError(
-                "Please go back to 'select' and choose" + " a valid lat/lon range."
-            )
-        ds_region = [geom]
-    elif area_subset != "none":
+    def _get_shape_indices(
+        selections: "DataParameters", area_subset: str, cached_area: str
+    ) -> list:
+        """
+        Gets the indices of the Boundary parquet file that match the area_subet and cached_area.
+
+        Parameters
+        ----------
+        selections: DataParameters
+            Data settings (variable, unit, timescale, etc)
+
+        area_subset: str
+            dataset to use from Boundaries for sub area selection
+
+        cached_area: list of strs
+            one or more features from area_subset datasets to use for selection
+
+        Returns
+        -------
+        list
+
+        """
         shape_indices = list(
             {
                 key: selections._geography_choose[area_subset][key]
                 for key in cached_area
             }.values()
         )
-        if area_subset == "states":
-            shape = _set_subarea(selections._geographies._us_states, shape_indices)
-        elif area_subset == "CA counties":
-            shape = _set_subarea(selections._geographies._ca_counties, shape_indices)
-        elif area_subset == "CA watersheds":
-            shape = _set_subarea(selections._geographies._ca_watersheds, shape_indices)
-        elif area_subset == "CA Electric Load Serving Entities (IOU & POU)":
-            shape = _set_subarea(selections._geographies._ca_utilities, shape_indices)
-        elif area_subset == "CA Electricity Demand Forecast Zones":
-            shape = _set_subarea(
-                selections._geographies._ca_forecast_zones, shape_indices
-            )
-        elif area_subset == "CA Electric Balancing Authority Areas":
-            shape = _set_subarea(
-                selections._geographies._ca_electric_balancing_areas, shape_indices
-            )
-        ds_region = [shape]
-    else:
-        ds_region = None
+        return shape_indices
+
+    match area_subset:
+        case "lat/lon":
+            geom = _get_as_shapely(selections)
+            if not geom.is_valid:
+                raise ValueError(
+                    "Please go back to 'select' and choose" + " a valid lat/lon range."
+                )
+            ds_region = [geom]
+        case "states":
+            ds_region = [
+                _set_subarea(
+                    selections._geographies._us_states,
+                    _get_shape_indices(selections, area_subset, cached_area),
+                )
+            ]
+        case "CA counties":
+            ds_region = [
+                _set_subarea(
+                    selections._geographies._ca_counties,
+                    _get_shape_indices(selections, area_subset, cached_area),
+                )
+            ]
+        case "CA watersheds":
+            ds_region = [
+                _set_subarea(
+                    selections._geographies._ca_watersheds,
+                    _get_shape_indices(selections, area_subset, cached_area),
+                )
+            ]
+        case "CA Electric Load Serving Entities (IOU & POU)":
+            ds_region = [
+                _set_subarea(
+                    selections._geographies._ca_utilities,
+                    _get_shape_indices(selections, area_subset, cached_area),
+                )
+            ]
+        case "CA Electricity Demand Forecast Zones":
+            ds_region = [
+                _set_subarea(
+                    selections._geographies._ca_forecast_zones,
+                    _get_shape_indices(selections, area_subset, cached_area),
+                )
+            ]
+        case "CA Electric Balancing Authority Areas":
+            ds_region = [
+                _set_subarea(
+                    selections._geographies._ca_electric_balancing_areas,
+                    _get_shape_indices(selections, area_subset, cached_area),
+                )
+            ]
+        case _:
+            ds_region = None
     return ds_region
 
 
@@ -424,14 +478,15 @@ def _override_unit_defaults(da: xr.DataArray, var_id: str) -> xr.DataArray:
     xr.DataArray
         output data
     """
-    if var_id == "huss":
-        # Units for LOCA specific humidity are set to 1
-        # Reset to kg/kg so they can be converted if neccessary to g/kg
-        da.attrs["units"] = "kg/kg"
-    elif var_id == "rsds":
-        # rsds units are "W m-2"
-        # rename them to W/m2 to match the lookup catalog, and the units for WRF radiation variables
-        da.attrs["units"] = "W/m2"
+    match var_id:
+        case "huss":
+            # Units for LOCA specific humidity are set to 1
+            # Reset to kg/kg so they can be converted if neccessary to g/kg
+            da.attrs["units"] = "kg/kg"
+        case "rsds":
+            # rsds units are "W m-2"
+            # rename them to W/m2 to match the lookup catalog, and the units for WRF radiation variables
+            da.attrs["units"] = "W/m2"
     return da
 
 
@@ -1204,7 +1259,6 @@ def read_catalog_from_select(selections: "DataParameters") -> xr.DataArray:
 
     # Raise appropriate errors for time-based retrieval
     if selections.approach == "Time":
-
         if (selections.scenario_ssp != []) and (
             "Historical Reconstruction" in selections.scenario_historical
         ):
@@ -1253,28 +1307,29 @@ def read_catalog_from_select(selections: "DataParameters") -> xr.DataArray:
     # Get data attributes beforehand since selections is modified
     data_attrs = _get_data_attributes(selections)
     if "_derived" in orig_var_id_selection:
-        if orig_var_id_selection == "wind_speed_derived":  # Hourly
-            da = _get_wind_speed_derived(selections)
-        elif orig_var_id_selection == "wind_direction_derived":  # Hourly
-            da = _get_wind_dir_derived(selections)
-        elif orig_var_id_selection == "dew_point_derived":  # Monthly/daily
-            da = _get_monthly_daily_dewpoint(selections)
-        elif orig_var_id_selection == "dew_point_derived_hrly":  # Hourly
-            da = _get_hourly_dewpoint(selections)
-        elif orig_var_id_selection == "rh_derived":  # Hourly
-            da = _get_hourly_rh(selections)
-        elif orig_var_id_selection == "q2_derived":  # Hourly
-            da = _get_hourly_specific_humidity(selections)
-        elif orig_var_id_selection == "fosberg_index_derived":  # Hourly
-            da = _get_fosberg_fire_index(selections)
-        elif orig_var_id_selection == "noaa_heat_index_derived":  # Hourly
-            da = _get_noaa_heat_index(selections)
-        elif orig_var_id_selection == "effective_temp_index_derived":
-            da = _get_eff_temp(selections)
-        else:
-            raise ValueError(
-                "You've encountered a bug. No data available for selected derived variable."
-            )
+        match orig_var_id_selection:
+            case "wind_speed_derived":  # Hourly
+                da = _get_wind_speed_derived(selections)
+            case "wind_direction_derived":  # Hourly
+                da = _get_wind_dir_derived(selections)
+            case "dew_point_derived":  # Monthly/daily
+                da = _get_monthly_daily_dewpoint(selections)
+            case "dew_point_derived_hrly":  # Hourly
+                da = _get_hourly_dewpoint(selections)
+            case "rh_derived":  # Hourly
+                da = _get_hourly_rh(selections)
+            case "q2_derived":  # Hourly
+                da = _get_hourly_specific_humidity(selections)
+            case "fosberg_index_derived":  # Hourly
+                da = _get_fosberg_fire_index(selections)
+            case "noaa_heat_index_derived":  # Hourly
+                da = _get_noaa_heat_index(selections)
+            case "effective_temp_index_derived":
+                da = _get_eff_temp(selections)
+            case _:  # none of the above
+                raise ValueError(
+                    "You've encountered a bug. No data available for selected derived variable."
+                )
 
         # ------ Set attributes ------
         # Some of the derived variables may be constructed from data that comes from the same institution
@@ -1367,14 +1422,16 @@ def _apply_warming_levels_approach(
     # We need to drop them here such that the global warming levels table can be adequately parsed by the calculate_warming_level function
     data_stacked = drop_invalid_sims(data_stacked, selections)
 
-    # Calculate warming level DataArray for each individual warming level
-    # Function will be applied for each individual warming level
-    # Then, the list of DataArrays (one for each warming level) will be concatenated into a single DataArray object
     da_list = []
     for level in selections.warming_level:
+        gwl_table = selections._warming_level_times
+
+        if level not in WARMING_LEVELS:
+            gwl_table = create_new_warming_level_table(warming_level=level)
+
         da_by_wl = calculate_warming_level(
             data_stacked,
-            gwl_times=selections._warming_level_times,
+            gwl_times=gwl_table,
             level=level,
             months=selections.warming_level_months,
             window=selections.warming_level_window,

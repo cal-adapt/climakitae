@@ -95,12 +95,15 @@ def get_block_maxima(
             )
 
         # First identify the min (max) value for each window of length `duration`
-        if extremes_type == "max":
-            # In the case of "max" events, need to first identify the minimum value
-            # in each window of the specified duration
-            da_series = da_series.rolling(time=dur_len, center=False).min("time")
-        elif extremes_type == "min":
-            da_series = da_series.rolling(time=dur_len, center=False).max("time")
+        match extremes_type:
+            case "max":
+                # In the case of "max" events, need to first identify the minimum value
+                # in each window of the specified duration
+                da_series = da_series.rolling(time=dur_len, center=False).min("time")
+            case "min":
+                da_series = da_series.rolling(time=dur_len, center=False).max("time")
+            case _:
+                raise ValueError('extremes_type needs to be either "max" or "min"')
 
     if groupby != None:
         # In this case, select the max (min) in each group. (This option is
@@ -112,10 +115,13 @@ def get_block_maxima(
             )
 
         # select the max (min) in each group
-        if extremes_type == "max":
-            da_series = da_series.resample(time=f"{group_len}D", label="left").max()
-        elif extremes_type == "min":
-            da_series = da_series.resample(time=f"{group_len}D", label="left").min()
+        match extremes_type:
+            case "max":
+                da_series = da_series.resample(time=f"{group_len}D", label="left").max()
+            case "min":
+                da_series = da_series.resample(time=f"{group_len}D", label="left").min()
+            case _:
+                raise ValueError('extremes_type needs to be either "max" or "min"')
 
     if grouped_duration != None:
         if groupby == None:
@@ -131,18 +137,24 @@ def get_block_maxima(
             )
 
         # Now select the min (max) from the duration period
-        if extremes_type == "max":
-            da_series = da_series.rolling(time=dur2_len, center=False).min("time")
-        elif extremes_type == "min":
-            da_series = da_series.rolling(time=dur2_len, center=False).max("time")
+        match extremes_type:
+            case "max":
+                da_series = da_series.rolling(time=dur2_len, center=False).min("time")
+            case "min":
+                da_series = da_series.rolling(time=dur2_len, center=False).max("time")
+            case _:
+                raise ValueError('extremes_type needs to be either "max" or "min"')
 
     # Now select the most extreme value for each block in the series
-    if extremes_type == "max":
-        bms = da_series.resample(time=f"{block_size}A").max(keep_attrs=True)
-        bms.attrs["extremes type"] = "maxima"
-    elif extremes_type == "min":
-        bms = da_series.resample(time=f"{block_size}A").min(keep_attrs=True)
-        bms.attrs["extremes type"] = "minima"
+    match extremes_type:
+        case "max":
+            bms = da_series.resample(time=f"{block_size}YE").max(keep_attrs=True)
+            bms.attrs["extremes type"] = "maxima"
+        case "min":
+            bms = da_series.resample(time=f"{block_size}YE").min(keep_attrs=True)
+            bms.attrs["extremes type"] = "minima"
+        case _:
+            raise ValueError('extremes_type needs to be either "max" or "min"')
 
     # Calculate the effective sample size of the computed event type in all blocks
     # Check the average value to ensure that it's above threshold ESS
@@ -191,10 +203,11 @@ def get_block_maxima(
                 "ERROR: The given `da_series` does not include any recorded values for this variable, and we cannot create block maximums off of an empty DataArray."
             )
         else:
+            dropped_bms = bms.dropna(dim="time")
             print(
-                f"Dropping {bms.isnull().sum()} block maxima NaNs for {bms.name}. Please guidance for more information. "
+                f"Dropping {bms.size - dropped_bms.size} block maxima NaNs across entire{f' {bms.name}' if bms.name else ''} DataArray. Please guidance for more information. "
             )
-            bms = bms.dropna(dim="time")
+            bms = dropped_bms
 
     return bms
 
@@ -280,24 +293,23 @@ def _get_distr_func(distr: str) -> scipy.stats:
     scipy.stats
     """
 
-    distrs = ["gev", "gumbel", "weibull", "pearson3", "genpareto", "gamma"]
-
-    if distr == "gev":
-        distr_func = stats.genextreme
-    elif distr == "gumbel":
-        distr_func = stats.gumbel_r
-    elif distr == "weibull":
-        distr_func = stats.weibull_min
-    elif distr == "pearson3":
-        distr_func = stats.pearson3
-    elif distr == "genpareto":
-        distr_func = stats.genpareto
-    elif distr == "gamma":
-        distr_func = stats.gamma
-    else:
-        raise ValueError(
-            "invalid distribution type. expected one of the following: %s" % distrs
-        )
+    match distr:
+        case "gev":
+            distr_func = stats.genextreme
+        case "gumbel":
+            distr_func = stats.gumbel_r
+        case "weibull":
+            distr_func = stats.weibull_min
+        case "pearson3":
+            distr_func = stats.pearson3
+        case "genpareto":
+            distr_func = stats.genpareto
+        case "gamma":
+            distr_func = stats.gamma
+        case _:
+            raise ValueError(
+                'invalid distribution type. expected one of the following: ["gev", "gumbel", "weibull", "pearson3", "genpareto", "gamma"]'
+            )
 
     return distr_func
 
@@ -335,32 +347,33 @@ def _get_fitted_distr(
 
     p_values = distr_func.fit(bms)
 
-    if distr == "gev":
-        p_names = ("c", "loc", "scale")
-        parameters = get_param_dict(p_names, p_values)
-        fitted_distr = stats.genextreme(**parameters)
-    elif distr == "gumbel":
-        p_names = ("loc", "scale")
-        parameters = get_param_dict(p_names, p_values)
-        fitted_distr = stats.gumbel_r(**parameters)
-    elif distr == "weibull":
-        p_names = ("c", "loc", "scale")
-        parameters = get_param_dict(p_names, p_values)
-        fitted_distr = stats.weibull_min(**parameters)
-    elif distr == "pearson3":
-        p_names = ("skew", "loc", "scale")
-        parameters = get_param_dict(p_names, p_values)
-        fitted_distr = stats.pearson3(**parameters)
-    elif distr == "genpareto":
-        p_names = ("c", "loc", "scale")
-        parameters = get_param_dict(p_names, p_values)
-        fitted_distr = stats.genpareto(**parameters)
-    elif distr == "gamma":
-        p_names = ("a", "loc", "scale")
-        parameters = get_param_dict(p_names, p_values)
-        fitted_distr = stats.gamma(**parameters)
-    else:
-        raise ValueError("invalid distribution type.")
+    match distr:
+        case "gev":
+            p_names = ("c", "loc", "scale")
+            parameters = get_param_dict(p_names, p_values)
+            fitted_distr = stats.genextreme(**parameters)
+        case "gumbel":
+            p_names = ("loc", "scale")
+            parameters = get_param_dict(p_names, p_values)
+            fitted_distr = stats.gumbel_r(**parameters)
+        case "weibull":
+            p_names = ("c", "loc", "scale")
+            parameters = get_param_dict(p_names, p_values)
+            fitted_distr = stats.weibull_min(**parameters)
+        case "pearson3":
+            p_names = ("skew", "loc", "scale")
+            parameters = get_param_dict(p_names, p_values)
+            fitted_distr = stats.pearson3(**parameters)
+        case "genpareto":
+            p_names = ("c", "loc", "scale")
+            parameters = get_param_dict(p_names, p_values)
+            fitted_distr = stats.genpareto(**parameters)
+        case "gamma":
+            p_names = ("a", "loc", "scale")
+            parameters = get_param_dict(p_names, p_values)
+            fitted_distr = stats.gamma(**parameters)
+        case _:
+            raise ValueError("invalid distribution type.")
     return parameters, fitted_distr
 
 
@@ -398,24 +411,29 @@ def get_ks_stat(
     def ks_stat(bms):
         parameters, fitted_distr = _get_fitted_distr(bms, distr, distr_func)
 
-        if distr == "gev":
-            cdf = "genextreme"
-            args = (parameters["c"], parameters["loc"], parameters["scale"])
-        elif distr == "gumbel":
-            cdf = "gumbel_r"
-            args = (parameters["loc"], parameters["scale"])
-        elif distr == "weibull":
-            cdf = "weibull_min"
-            args = (parameters["c"], parameters["loc"], parameters["scale"])
-        elif distr == "pearson3":
-            cdf = "pearson3"
-            args = (parameters["skew"], parameters["loc"], parameters["scale"])
-        elif distr == "genpareto":
-            cdf = "genpareto"
-            args = (parameters["c"], parameters["loc"], parameters["scale"])
-        elif distr == "gamma":
-            cdf = "gamma"
-            args = (parameters["a"], parameters["loc"], parameters["scale"])
+        match distr:
+            case "gev":
+                cdf = "genextreme"
+                args = (parameters["c"], parameters["loc"], parameters["scale"])
+            case "gumbel":
+                cdf = "gumbel_r"
+                args = (parameters["loc"], parameters["scale"])
+            case "weibull":
+                cdf = "weibull_min"
+                args = (parameters["c"], parameters["loc"], parameters["scale"])
+            case "pearson3":
+                cdf = "pearson3"
+                args = (parameters["skew"], parameters["loc"], parameters["scale"])
+            case "genpareto":
+                cdf = "genpareto"
+                args = (parameters["c"], parameters["loc"], parameters["scale"])
+            case "gamma":
+                cdf = "gamma"
+                args = (parameters["a"], parameters["loc"], parameters["scale"])
+            case _:
+                raise ValueError(
+                    'invalid distribution type. expected one of the following: ["gev", "gumbel", "weibull", "pearson3", "genpareto", "gamma"]'
+                )
 
         try:
             ks = stats.kstest(bms, cdf, args=args)
@@ -457,45 +475,62 @@ def _calculate_return(
     data_variable: str,
     arg_value: float,
     block_size: int = 1,
+    extremes_type: str = "max",
 ) -> float:
-    """Function to perform extreme value calculation on fitted distribution
-
-    Runs corresponding extreme value calculation for selected data variable.
-    Can be the return value, probability, or period.
+    """Function to perform extreme value calculation on fitted distribution.
 
     Parameters
     ----------
-    fitted_distr: scipy.stats._distn_infrastructure.rv_continuous_frozen
-        frozen fitted distribution
-    data_variable: str
-        can be return_value, return_prob, return_period
-    arg_value: float
-        value to do the calucation to
-    block_size: int
-        block size, in years, of the block maximum series data that was used to fit the provided distribution.
+    fitted_distr : frozen scipy.stats distribution
+        Fitted distribution from block maxima/minima.
+    data_variable : str
+        One of 'return_value', 'return_prob', or 'return_period'.
+    arg_value : float
+        Input value for the calculation.
+    block_size : int, optional
+        Block size (in years) used to construct the dataset, by default 1.
+    extremes_type : str, optional
+        Whether to compute max ('max') or min ('min') extremes, by default 'max'.
 
     Returns
     -------
     float
+        Computed extreme value metric.
     """
-
     try:
         if data_variable == "return_value":
-            return_event = 1.0 - (block_size / arg_value)
+            event_prob = block_size / arg_value
+            match extremes_type:
+                case "max":
+                    return_event = 1.0 - event_prob
+                case "min":
+                    return_event = event_prob
+                case _:
+                    raise ValueError("extremes_type must be 'max' or 'min'")
             return_value = fitted_distr.ppf(return_event)
             result = np.round(return_value, 5)
         else:
-            return_prob = 1 - (fitted_distr.cdf(arg_value)) ** (
-                1 / block_size
-            )  # adjust the return probability depending on the block size
-            if data_variable == "return_prob":
-                result = return_prob
-            elif data_variable == "return_period":
-                if return_prob == 0.0:
-                    result = np.nan
-                else:
-                    return_period = 1.0 / return_prob
-                    result = np.round(return_period, 3)
+            cdf_val = fitted_distr.cdf(arg_value) ** (1 / block_size)
+            match extremes_type:
+                case "max":
+                    return_prob = 1.0 - cdf_val
+                case "min":
+                    return_prob = cdf_val
+                case _:
+                    raise ValueError("extremes_type must be 'max' or 'min'")
+            match data_variable:
+                case "return_prob":
+                    result = return_prob
+                case "return_period":
+                    if return_prob == 0.0:
+                        result = np.nan
+                    else:
+                        return_period = 1.0 / return_prob
+                        result = np.round(return_period, 3)
+                case _:
+                    raise ValueError(
+                        'data_variable needs to be either "return_prob" or "return_period"'
+                    )
     except (ValueError, ZeroDivisionError, AttributeError):
         result = np.nan
     return result
@@ -507,6 +542,7 @@ def _bootstrap(
     data_variable: str = "return_value",
     arg_value: float = 10,
     block_size: int = 1,
+    extremes_type: str = "max",
 ) -> float:
     """Function for making a bootstrap-calculated value from input array
 
@@ -549,6 +585,7 @@ def _bootstrap(
             data_variable=data_variable,
             arg_value=arg_value,
             block_size=block_size,
+            extremes_type=extremes_type,
         )
     except (ValueError, ZeroDivisionError):
         result = np.nan
@@ -565,6 +602,7 @@ def _conf_int(
     conf_int_lower_bound: float,
     conf_int_upper_bound: float,
     block_size: int = 1,
+    extremes_type: str = "max",
 ) -> float:
     """Function for genearating lower and upper limits of confidence interval
 
@@ -593,7 +631,9 @@ def _conf_int(
     bootstrap_values = []
 
     for _ in range(bootstrap_runs):
-        result = _bootstrap(bms, distr, data_variable, arg_value, block_size)
+        result = _bootstrap(
+            bms, distr, data_variable, arg_value, block_size, extremes_type
+        )
         bootstrap_values.append(result)
 
     bootstrap_values = np.stack(bootstrap_values, axis=0)
@@ -617,6 +657,7 @@ def _get_return_variable(
     conf_int_lower_bound: float = 2.5,
     conf_int_upper_bound: float = 97.5,
     multiple_points: bool = True,
+    extremes_type: str = "max",
 ) -> xr.Dataset:
     """Generic function used by `get_return_value`, `get_return_period`, and
     `get_return_prob`.
@@ -679,6 +720,7 @@ def _get_return_variable(
                 data_variable=data_variable,
                 arg_value=arg_value,
                 block_size=block_size,
+                extremes_type=extremes_type,
             )
         except (ValueError, ZeroDivisionError):
             return_variable = np.nan
@@ -692,6 +734,7 @@ def _get_return_variable(
             conf_int_lower_bound=conf_int_lower_bound,
             conf_int_upper_bound=conf_int_upper_bound,
             block_size=block_size,
+            extremes_type=extremes_type,
         )
         return (
             np.array([return_variable]),
@@ -719,20 +762,27 @@ def _get_return_variable(
 
     new_ds.attrs = bms_attributes
 
-    if data_variable == "return_value":
-        new_ds["return_value"].attrs["return period"] = f"1-in-{arg_value}-year event"
-    elif data_variable == "return_prob":
-        threshold_unit = bms_attributes["units"]
-        new_ds["return_prob"].attrs[
-            "threshold"
-        ] = f"exceedance of {arg_value} {threshold_unit} event"
-        new_ds["return_prob"].attrs["units"] = None
-    elif data_variable == "return_period":
-        return_value_unit = bms_attributes["units"]
-        new_ds["return_period"].attrs[
-            "return value"
-        ] = f"{arg_value} {return_value_unit} event"
-        new_ds["return_period"].attrs["units"] = "years"
+    match data_variable:
+        case "return_value":
+            new_ds["return_value"].attrs[
+                "return period"
+            ] = f"1-in-{arg_value}-year event"
+        case "return_prob":
+            threshold_unit = bms_attributes["units"]
+            new_ds["return_prob"].attrs[
+                "threshold"
+            ] = f"exceedance of {arg_value} {threshold_unit} event"
+            new_ds["return_prob"].attrs["units"] = None
+        case "return_period":
+            return_value_unit = bms_attributes["units"]
+            new_ds["return_period"].attrs[
+                "return value"
+            ] = f"{arg_value} {return_value_unit} event"
+            new_ds["return_period"].attrs["units"] = "years"
+        case _:
+            raise ValueError(
+                'data_variable needs to be either "return_value", "return_prob", or "return_period"'
+            )
 
     new_ds["conf_int_lower_limit"].attrs["confidence interval lower bound"] = (
         "{}th percentile".format(str(conf_int_lower_bound))
@@ -753,6 +803,7 @@ def get_return_value(
     conf_int_lower_bound: float = 2.5,
     conf_int_upper_bound: float = 97.5,
     multiple_points: bool = True,
+    extremes_type: str = "max",
 ) -> xr.Dataset:
     """Creates xarray Dataset with return values and confidence intervals from maximum series.
 
@@ -788,6 +839,7 @@ def get_return_value(
         conf_int_lower_bound,
         conf_int_upper_bound,
         multiple_points,
+        extremes_type,
     )
 
 
@@ -799,6 +851,7 @@ def get_return_prob(
     conf_int_lower_bound: float = 2.5,
     conf_int_upper_bound: float = 97.5,
     multiple_points: bool = True,
+    extremes_type: str = "max",
 ) -> xr.Dataset:
     """Creates xarray Dataset with return probabilities and confidence intervals from maximum series.
 
@@ -834,6 +887,7 @@ def get_return_prob(
         conf_int_lower_bound,
         conf_int_upper_bound,
         multiple_points,
+        extremes_type,
     )
 
 
@@ -1092,14 +1146,15 @@ def _get_exceedance_events(
     """
 
     # Identify occurances (and preserve NaNs)
-    if threshold_direction == "above":
-        events_da = (da > threshold_value).where(da.isnull() == False)
-    elif threshold_direction == "below":
-        events_da = (da < threshold_value).where(da.isnull() == False)
-    else:
-        raise ValueError(
-            f"Unknown value for `threshold_direction` parameter: {threshold_direction}. Available options are 'above' or 'below'."
-        )
+    match threshold_direction:
+        case "above":
+            events_da = (da > threshold_value).where(da.isnull() == False)
+        case "below":
+            events_da = (da < threshold_value).where(da.isnull() == False)
+        case _:
+            raise ValueError(
+                f"Unknown value for `threshold_direction` parameter: {threshold_direction}. Available options are 'above' or 'below'."
+            )
 
     if duration1 is not None:
         dur_len, dur_type = duration1
@@ -1174,12 +1229,17 @@ def _exceedance_count_name(exceedance_count: xr.DataArray) -> str:
                 event = f"{g_type}s"  # ex: day --> days
         else:
             # otherwise use data frequency info as the default event type
-            if exceedance_count.frequency == "hourly":
-                event = "hours"
-            elif exceedance_count.frequency == "daily":
-                event = "days"
-            elif exceedance_count.frequency == "monthly":
-                event = "months"
+            match exceedance_count.frequency:
+                case "hourly":
+                    event = "hours"
+                case "daily":
+                    event = "days"
+                case "monthly":
+                    event = "months"
+                case _:
+                    raise ValueError(
+                        'frequency needs to be either "hourly", "daily", or "monthly"'
+                    )
     return f"Number of {event}"
 
 

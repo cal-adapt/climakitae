@@ -124,7 +124,7 @@ def _clip_region(ds: xr.Dataset, area_subset: list, location: str) -> xr.Dataset
     ----------
     ds: xr.Dataset
         Input data
-    area_subset: LocSelectorArea
+    area_subset: DataParameters.area_subset
         "counties"/"states" as options
     location: str
         county/state name
@@ -140,10 +140,13 @@ def _clip_region(ds: xr.Dataset, area_subset: list, location: str) -> xr.Dataset
     us_counties = geographies._ca_counties
     ds = ds.rio.write_crs("epsg:4326", inplace=True)
 
-    if "counties" in area_subset:
-        ds_region = us_counties[us_counties.NAME == location].geometry
-    elif "states" in area_subset:
-        ds_region = us_states[us_states.NAME == location].geometry
+    match area_subset:
+        case area_subset if "counties" in area_subset:
+            ds_region = us_counties[us_counties.NAME == location].geometry
+        case area_subset if "states" in area_subset:
+            ds_region = us_states[us_states.NAME == location].geometry
+        case _:
+            raise ValueError('area_subset needs to be either "counties" or "states"')
 
     try:
         ds = ds.rio.clip(geometries=ds_region, crs=4326, drop=True, all_touched=False)
