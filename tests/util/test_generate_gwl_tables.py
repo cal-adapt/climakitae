@@ -98,7 +98,7 @@ def mock_generator(mock_cmip6_df: pd.DataFrame) -> GWLGenerator:
             mock_get_sims.return_value = mock_sims_on_aws
 
             with patch(
-                "climakitae.util.generate_gwl_tables.GWLGenerator.set_cesm2_lens"
+                "climakitae.util.generate_gwl_tables.GWLGenerator._set_cesm2_lens"
             ):
                 # Instantiate GWLGenerator; __init__ uses the mocks
                 generator = GWLGenerator(mock_cmip6_df, {})
@@ -118,7 +118,7 @@ class TestGWLGenerator:
 
     @patch("s3fs.S3FileSystem")
     @patch("climakitae.util.generate_gwl_tables.GWLGenerator.get_sims_on_aws")
-    @patch("climakitae.util.generate_gwl_tables.GWLGenerator.set_cesm2_lens")
+    @patch("climakitae.util.generate_gwl_tables.GWLGenerator._set_cesm2_lens")
     def test_init(
         self,
         mock_cesm2_lens: MagicMock,
@@ -149,7 +149,7 @@ class TestGWLGenerator:
             anon=True
         )  # Check S3FileSystem was instantiated
 
-    @patch("climakitae.util.generate_gwl_tables.GWLGenerator.set_cesm2_lens")
+    @patch("climakitae.util.generate_gwl_tables.GWLGenerator._set_cesm2_lens")
     def test_get_sims_on_aws(self, mock_cesm2_lens: MagicMock):
         """Test the get_sims_on_aws method for filtering and structuring simulation data."""
         # More complex df to test filtering logic
