@@ -657,25 +657,41 @@ class MetricCalc(DataProcessor):
                     print(f"DEBUG: Sim coordinate dtype: {data_array.sim.dtype}")
                     print(f"DEBUG: Is s in sim values? {s in data_array.sim.values}")
 
-                    # Try the selection
-                    try:
-                        sim_data = data_array.sel(sim=s)
+                    # Check for duplicate simulations
+                    sim_matches = data_array.sim.values == s
+                    num_matches = sim_matches.sum()
+                    print(f"DEBUG: Number of matches for {s}: {num_matches}")
+
+                    # Handle duplicate simulations by selecting the first occurrence
+                    if num_matches > 1:
                         print(
-                            f"DEBUG: After .sel(sim={s}), shape: {sim_data.shape}, dims: {sim_data.dims}"
+                            f"DEBUG: Found {num_matches} duplicates for {s}, selecting first occurrence"
                         )
-                    except Exception as sel_error:
-                        print(f"DEBUG: Selection failed: {sel_error}")
-                        # Try alternative selection methods
+                        first_idx = np.where(sim_matches)[0][0]
+                        sim_data = data_array.isel(sim=first_idx)
+                        print(
+                            f"DEBUG: After isel({first_idx}) for duplicate, shape: {sim_data.shape}, dims: {sim_data.dims}"
+                        )
+                    else:
+                        # Try the selection
                         try:
-                            # Try using isel if sel fails
-                            sim_idx = list(data_array.sim.values).index(s)
-                            sim_data = data_array.isel(sim=sim_idx)
+                            sim_data = data_array.sel(sim=s)
                             print(
-                                f"DEBUG: Using isel({sim_idx}) instead, shape: {sim_data.shape}, dims: {sim_data.dims}"
+                                f"DEBUG: After .sel(sim={s}), shape: {sim_data.shape}, dims: {sim_data.dims}"
                             )
-                        except Exception as isel_error:
-                            print(f"DEBUG: isel also failed: {isel_error}")
-                            raise sel_error
+                        except Exception as sel_error:
+                            print(f"DEBUG: Selection failed: {sel_error}")
+                            # Try alternative selection methods
+                            try:
+                                # Try using isel if sel fails
+                                sim_idx = list(data_array.sim.values).index(s)
+                                sim_data = data_array.isel(sim=sim_idx)
+                                print(
+                                    f"DEBUG: Using isel({sim_idx}) instead, shape: {sim_data.shape}, dims: {sim_data.dims}"
+                                )
+                            except Exception as isel_error:
+                                print(f"DEBUG: isel also failed: {isel_error}")
+                                raise sel_error
 
                     # Now squeeze
                     sim_data = sim_data.squeeze()
@@ -731,24 +747,30 @@ class MetricCalc(DataProcessor):
                         distr=self.distribution,
                     )
                     print(f"DEBUG: get_return_value result type: {type(result)}")
+                    print(f"DEBUG: get_return_value result: {result}")
                     if isinstance(result, dict):
                         print(f"DEBUG: result keys: {result.keys()}")
-                        if "return_value" in result:
-                            print(
-                                f"DEBUG: result['return_value'] type: {type(result['return_value'])}"
-                            )
-                            print(
-                                f"DEBUG: result['return_value'] shape: {result['return_value'].shape if hasattr(result['return_value'], 'shape') else 'no shape'}"
-                            )
-                            print(
-                                f"DEBUG: result['return_value'] dims: {result['return_value'].dims if hasattr(result['return_value'], 'dims') else 'no dims'}"
-                            )
+                        for key, value in result.items():
+                            print(f"DEBUG: result['{key}'] type: {type(value)}")
+                            if hasattr(value, "shape"):
+                                print(f"DEBUG: result['{key}'] shape: {value.shape}")
+                            if hasattr(value, "dims"):
+                                print(f"DEBUG: result['{key}'] dims: {value.dims}")
+                            if hasattr(value, "coords"):
+                                print(
+                                    f"DEBUG: result['{key}'] coords: {list(value.coords.keys())}"
+                                )
                     else:
                         print(
                             f"DEBUG: result shape: {result.shape if hasattr(result, 'shape') else 'no shape'}"
                         )
                         print(
                             f"DEBUG: result dims: {result.dims if hasattr(result, 'dims') else 'no dims'}"
+                        )
+                        if hasattr(result, "coords"):
+                            print(f"DEBUG: result coords: {list(result.coords.keys())}")
+                        print(
+                            f"DEBUG: result values: {result.values if hasattr(result, 'values') else result}"
                         )
 
                     # Extract return values - handle the result structure robustly
