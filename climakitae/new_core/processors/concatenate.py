@@ -232,7 +232,7 @@ class Concat(DataProcessor):
             "d02": "9 km",
             "d03": "45 km",
         }
-        key = next(result.keys())
+        key = list(result.keys())[0]
         key = key.split(".")
         for k in key:
             if k in resolutions:
