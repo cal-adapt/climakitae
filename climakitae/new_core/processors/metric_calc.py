@@ -660,17 +660,96 @@ class MetricCalc(DataProcessor):
                         distr=self.distribution,
                     )
 
-                    # Extract return values - handle the result structure
+                    # Extract return values - handle the result structure robustly
                     if isinstance(result, dict) and "return_value" in result:
                         return_values = result["return_value"]
                     else:
                         return_values = result
 
-                    # Ensure we have the right dimensions
-                    if "return_period" in return_values.dims:
-                        return_values = return_values.rename(
-                            {"return_period": "one_in_x"}
-                        )
+                    # Handle dimension issues - ensure proper coordinate assignment
+                    if isinstance(return_values, xr.DataArray):
+                        # Check if we need to rename dimensions
+                        if "return_period" in return_values.dims:
+                            return_values = return_values.rename(
+                                {"return_period": "one_in_x"}
+                            )
+                        elif (
+                            len(return_values.dims) == 1
+                            and return_values.dims[0] != "one_in_x"
+                        ):
+                            # If it has one dimension but not named correctly
+                            return_values = return_values.rename(
+                                {return_values.dims[0]: "one_in_x"}
+                            )
+                        elif len(return_values.dims) == 0:
+                            # Scalar case - expand to match return periods
+                            scalar_val = np.asarray(return_values).item()
+                            return_values = xr.DataArray(
+                                [scalar_val] * len(self.return_periods),
+                                dims=["one_in_x"],
+                                coords={"one_in_x": self.return_periods},
+                                name="return_value",
+                            )
+                        elif len(return_values.dims) > 1:
+                            # Multi-dimensional case - need to handle carefully
+                            print(
+                                f"Warning: Multi-dimensional return values for simulation {s}: {return_values.dims}"
+                            )
+                            # Try to squeeze out size-1 dimensions
+                            return_values = return_values.squeeze()
+                            # If still multi-dimensional, take the first slice of extra dimensions
+                            while len(return_values.dims) > 1:
+                                extra_dim = [
+                                    d
+                                    for d in return_values.dims
+                                    if d not in ["one_in_x", "return_period"]
+                                ][0]
+                                return_values = return_values.isel({extra_dim: 0})
+                            # Now handle the remaining dimension
+                            if (
+                                len(return_values.dims) == 1
+                                and return_values.dims[0] != "one_in_x"
+                            ):
+                                return_values = return_values.rename(
+                                    {return_values.dims[0]: "one_in_x"}
+                                )
+
+                        # Ensure coordinates match our return periods
+                        if "one_in_x" in return_values.dims:
+                            if len(return_values.coords.get("one_in_x", [])) != len(
+                                self.return_periods
+                            ):
+                                return_values = return_values.assign_coords(
+                                    one_in_x=self.return_periods
+                                )
+                    else:
+                        # Not a DataArray - convert to one
+                        try:
+                            if np.isscalar(return_values):
+                                return_values = xr.DataArray(
+                                    [return_values] * len(self.return_periods),
+                                    dims=["one_in_x"],
+                                    coords={"one_in_x": self.return_periods},
+                                    name="return_value",
+                                )
+                            else:
+                                return_values = xr.DataArray(
+                                    return_values,
+                                    dims=["one_in_x"],
+                                    coords={"one_in_x": self.return_periods},
+                                    name="return_value",
+                                )
+                        except Exception as conv_error:
+                            print(
+                                f"Failed to convert return values for simulation {s}: {conv_error}"
+                            )
+                            # Create NaN array as fallback
+                            return_values = xr.DataArray(
+                                np.full(len(self.return_periods), np.nan),
+                                dims=["one_in_x"],
+                                coords={"one_in_x": self.return_periods},
+                                name="return_value",
+                            )
 
                     batch_results.append(return_values)
 
@@ -754,24 +833,96 @@ class MetricCalc(DataProcessor):
                     distr=self.distribution,
                 )
 
-                # Extract and structure return values
+                # Extract and structure return values with robust dimension handling
                 if isinstance(result, dict) and "return_value" in result:
                     return_values = result["return_value"]
                 else:
                     return_values = result
 
-                # Ensure proper dimensions
-                if "return_period" in return_values.dims:
-                    return_values = return_values.rename({"return_period": "one_in_x"})
-                elif return_values.dims == () or len(return_values.dims) == 0:
-                    # Single value - need to expand for multiple return periods
-                    scalar_val = np.asarray(return_values).item()
-                    return_values = xr.DataArray(
-                        [scalar_val] * len(self.return_periods),
-                        dims=["one_in_x"],
-                        coords={"one_in_x": self.return_periods},
-                        name="return_value",
-                    )
+                # Apply the same robust dimension handling as in vectorized method
+                if isinstance(return_values, xr.DataArray):
+                    # Check if we need to rename dimensions
+                    if "return_period" in return_values.dims:
+                        return_values = return_values.rename(
+                            {"return_period": "one_in_x"}
+                        )
+                    elif (
+                        len(return_values.dims) == 1
+                        and return_values.dims[0] != "one_in_x"
+                    ):
+                        # If it has one dimension but not named correctly
+                        return_values = return_values.rename(
+                            {return_values.dims[0]: "one_in_x"}
+                        )
+                    elif len(return_values.dims) == 0:
+                        # Scalar case - expand to match return periods
+                        scalar_val = np.asarray(return_values).item()
+                        return_values = xr.DataArray(
+                            [scalar_val] * len(self.return_periods),
+                            dims=["one_in_x"],
+                            coords={"one_in_x": self.return_periods},
+                            name="return_value",
+                        )
+                    elif len(return_values.dims) > 1:
+                        # Multi-dimensional case - need to handle carefully
+                        print(
+                            f"Warning: Multi-dimensional return values for simulation {s}: {return_values.dims}"
+                        )
+                        # Try to squeeze out size-1 dimensions
+                        return_values = return_values.squeeze()
+                        # If still multi-dimensional, take the first slice of extra dimensions
+                        while len(return_values.dims) > 1:
+                            extra_dim = [
+                                d
+                                for d in return_values.dims
+                                if d not in ["one_in_x", "return_period"]
+                            ][0]
+                            return_values = return_values.isel({extra_dim: 0})
+                        # Now handle the remaining dimension
+                        if (
+                            len(return_values.dims) == 1
+                            and return_values.dims[0] != "one_in_x"
+                        ):
+                            return_values = return_values.rename(
+                                {return_values.dims[0]: "one_in_x"}
+                            )
+
+                    # Ensure coordinates match our return periods
+                    if "one_in_x" in return_values.dims:
+                        if len(return_values.coords.get("one_in_x", [])) != len(
+                            self.return_periods
+                        ):
+                            return_values = return_values.assign_coords(
+                                one_in_x=self.return_periods
+                            )
+                else:
+                    # Not a DataArray - convert to one
+                    try:
+                        if np.isscalar(return_values):
+                            return_values = xr.DataArray(
+                                [return_values] * len(self.return_periods),
+                                dims=["one_in_x"],
+                                coords={"one_in_x": self.return_periods},
+                                name="return_value",
+                            )
+                        else:
+                            return_values = xr.DataArray(
+                                return_values,
+                                dims=["one_in_x"],
+                                coords={"one_in_x": self.return_periods},
+                                name="return_value",
+                            )
+                    except Exception as conv_error:
+                        print(
+                            f"Failed to convert return values for simulation {s}: {conv_error}"
+                        )
+                        # Create NaN array as fallback
+                        return_values = xr.DataArray(
+                            np.full(len(self.return_periods), np.nan),
+                            dims=["one_in_x"],
+                            coords={"one_in_x": self.return_periods},
+                            name="return_value",
+                        )
 
                 return_vals.append(return_values)
 
