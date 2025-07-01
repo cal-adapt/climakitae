@@ -351,6 +351,7 @@ class MetricCalc(DataProcessor):
             an iterable of them.
         """
         ret = None
+        print(result)
 
         match result:
             case xr.Dataset() | xr.DataArray():
