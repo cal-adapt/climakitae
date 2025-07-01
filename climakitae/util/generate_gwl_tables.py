@@ -161,9 +161,11 @@ class GWLGenerator:
             "r8i1p1f1": "r8i1141p1f1",
             "r9i1p1f1": "r9i1161p1f1",
         }
-        self.cesm2_lens = self.set_cesm2_lens(catalog_cesm)
+        self.cesm2_lens = self._set_cesm2_lens(catalog_cesm)
 
-    def set_cesm2_lens(self, catalog_cesm: intake_esm.core.esm_datastore) -> xr.Dataset:
+    def _set_cesm2_lens(
+        self, catalog_cesm: intake_esm.core.esm_datastore
+    ) -> xr.Dataset:
         """
         Pull CESM2 LENS dataset subset from Intake catalog and reformat datasets.
 
