@@ -105,9 +105,11 @@ class Concat(DataProcessor):
         unknown_attr = "unknown"
         attr_ids = []
 
+        print(len(result), "datasets to concatenate")
+
         match result:
             case dict():
-                for _, dataset in result.items():
+                for key, dataset in result.items():
                     if not isinstance(dataset, (xr.Dataset, xr.DataArray)):
                         continue
 
@@ -150,6 +152,14 @@ class Concat(DataProcessor):
 
                         # Add all member datasets to the list
                         datasets_to_concat.extend(datasets_for_member)
+                    elif key.split(".")[-1][0] == "r":
+                        # the key comes with a member_id, so we need to handle it
+                        attr_ids.append(key.replace(".", "_"))
+                        dataset = dataset.expand_dims(
+                            {self.dim_name: [key.replace(".", "_")]}
+                        )
+                        datasets_to_concat.append(dataset)
+
                     else:
                         attr_ids.append(attr_id)
                         # Add sim dimension to the dataset
@@ -219,6 +229,7 @@ class Concat(DataProcessor):
         print(f"Concatenated datasets along '{self.dim_name}' dimension.")
 
         self.update_context(context, attr_ids)
+        print(concatenated)
         return concatenated
 
     def update_context(
