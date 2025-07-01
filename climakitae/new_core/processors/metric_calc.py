@@ -9,6 +9,11 @@ import numpy as np
 import xarray as xr
 
 from climakitae.core.constants import _NEW_ATTRS_KEY
+from climakitae.explore.threshold_tools import (
+    get_block_maxima,
+    get_ks_stat,
+    get_return_value,
+)
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
@@ -17,18 +22,10 @@ from climakitae.new_core.processors.abc_data_processor import (
 
 # Import functions for 1-in-X calculations
 try:
-    # Note: These will be imported locally within methods to avoid redefinition warnings
-    import climakitae.explore.threshold_tools
-    import climakitae.util.utils
-
     EXTREME_VALUE_ANALYSIS_AVAILABLE = True
 except ImportError as e:
     EXTREME_VALUE_ANALYSIS_AVAILABLE = False
     warnings.warn(f"Extreme value analysis functions not available: {e}")
-
-# Ignore specific warnings for cleaner output
-warnings.filterwarnings("ignore", message="invalid value encountered in sqrt")
-warnings.filterwarnings("ignore", message="divide by zero encountered in divide")
 
 
 @register_processor("metric_calc", priority=7500)
@@ -212,10 +209,6 @@ class MetricCalc(DataProcessor):
             raise ValueError(
                 "Cannot specify both basic metrics/percentiles and one_in_x calculations simultaneously"
             )
-
-        if not basic_metrics_specified and not one_in_x_specified:
-            # Default to basic mean calculation
-            pass
 
         # Validate basic metric parameters
         if not one_in_x_specified:
@@ -604,13 +597,6 @@ class MetricCalc(DataProcessor):
         if not EXTREME_VALUE_ANALYSIS_AVAILABLE:
             raise ValueError("Extreme value analysis functions are not available")
 
-        # Local imports
-        from climakitae.explore.threshold_tools import (
-            get_block_maxima,
-            get_ks_stat,
-            get_return_value,
-        )
-
         # Extract block maxima for all simulations at once
         print("Extracting block maxima for all simulations...")
 
@@ -669,7 +655,7 @@ class MetricCalc(DataProcessor):
                                 # Try using isel if sel fails
                                 sim_idx = list(data_array.sim.values).index(s)
                                 sim_data = data_array.isel(sim=sim_idx)
-                            except Exception as isel_error:
+                            except Exception:
                                 raise sel_error
 
                     # Now squeeze to remove size-1 dimensions
@@ -686,87 +672,150 @@ class MetricCalc(DataProcessor):
                     if "sim" in block_maxima.dims:
                         block_maxima = block_maxima.squeeze("sim", drop=True)
 
-                    # Calculate return values for all return periods at once using our vectorized implementation
-                    try:
+                    # Handle spatial dimensions (e.g., closest_cell, lat, lon)
+                    spatial_dims = [
+                        dim for dim in block_maxima.dims if dim not in ["time", "year"]
+                    ]
+
+                    if spatial_dims:
+                        # We have spatial dimensions - need to process each location separately
+                        print(
+                            f"Processing {len(spatial_dims)} spatial dimension(s): {spatial_dims}"
+                        )
+
+                        # Get the first spatial dimension to iterate over
+                        spatial_dim = spatial_dims[0]
+                        spatial_coords = block_maxima.coords[spatial_dim]
+
+                        location_results = []
+                        for loc_idx in range(len(spatial_coords)):
+                            try:
+                                # Extract data for this specific location
+                                loc_block_maxima = block_maxima.isel(
+                                    {spatial_dim: loc_idx}
+                                )
+
+                                # Calculate return values for this location
+                                loc_result = self._get_return_values_vectorized(
+                                    loc_block_maxima,
+                                    return_periods=self.return_periods,
+                                    distr=self.distribution,
+                                )
+
+                                # Add the spatial coordinate back to the result
+                                loc_result = loc_result.assign_coords(
+                                    {spatial_dim: spatial_coords[loc_idx]}
+                                )
+                                loc_result = loc_result.expand_dims(spatial_dim)
+                                location_results.append(loc_result)
+
+                            except Exception as loc_error:
+                                print(
+                                    f"Warning: Failed to process location {loc_idx} in {spatial_dim}: {loc_error}"
+                                )
+                                # Create NaN result for this location
+                                nan_result = xr.DataArray(
+                                    np.full(len(self.return_periods), np.nan),
+                                    dims=["one_in_x"],
+                                    coords={
+                                        "one_in_x": self.return_periods,
+                                        spatial_dim: spatial_coords[loc_idx],
+                                    },
+                                    name="return_value",
+                                )
+                                nan_result = nan_result.expand_dims(spatial_dim)
+                                location_results.append(nan_result)
+
+                        # Combine results across all locations
+                        if location_results:
+                            result = xr.concat(location_results, dim=spatial_dim)
+                        else:
+                            # All locations failed - create NaN result
+                            result = xr.DataArray(
+                                np.full(
+                                    (len(spatial_coords), len(self.return_periods)),
+                                    np.nan,
+                                ),
+                                dims=[spatial_dim, "one_in_x"],
+                                coords={
+                                    spatial_dim: spatial_coords,
+                                    "one_in_x": self.return_periods,
+                                },
+                                name="return_value",
+                            )
+                    else:
+                        # No spatial dimensions - process as before
                         result = self._get_return_values_vectorized(
                             block_maxima,
                             return_periods=self.return_periods,
                             distr=self.distribution,
                         )
-                    except Exception as rv_error:
-                        # Fallback to individual calculation
-                        print(
-                            f"Warning: Vectorized return value calculation failed for simulation {s}, using fallback method"
-                        )
-                        individual_return_values = []
-                        for rp in self.return_periods.tolist():
-                            try:
-                                single_result = get_return_value(
-                                    block_maxima,
-                                    return_period=rp,  # Pass single return period
-                                    multiple_points=False,
-                                    distr=self.distribution,
+
+                    # Set success flag for this simulation
+                    vectorized_success = True
+
+                except Exception as rv_error:
+                    # Fallback to individual calculation
+                    print(
+                        f"Warning: Vectorized return value calculation failed for simulation {s}, using fallback method"
+                    )
+                    individual_return_values = []
+                    for rp in self.return_periods.tolist():
+                        try:
+                            single_result = get_return_value(
+                                block_maxima,
+                                return_period=rp,  # Pass single return period
+                                multiple_points=False,
+                                distr=self.distribution,
+                            )
+
+                            # Extract the return value from the result
+                            if (
+                                isinstance(single_result, dict)
+                                and "return_value" in single_result
+                            ):
+                                rv = single_result["return_value"]
+                            else:
+                                rv = single_result
+
+                            # Convert to scalar if it's a DataArray
+                            if isinstance(rv, xr.DataArray):
+                                rv = (
+                                    rv.values.item()
+                                    if rv.values.size == 1
+                                    else rv.values.flat[0]
                                 )
 
-                                # Extract the return value from the result
-                                if (
-                                    isinstance(single_result, dict)
-                                    and "return_value" in single_result
-                                ):
-                                    rv = single_result["return_value"]
-                                else:
-                                    rv = single_result
+                            individual_return_values.append(rv)
 
-                                # Convert to scalar if it's a DataArray
-                                if isinstance(rv, xr.DataArray):
-                                    rv = (
-                                        rv.values.item()
-                                        if rv.values.size == 1
-                                        else rv.values.flat[0]
-                                    )
+                        except Exception as single_rv_error:
+                            print(
+                                f"Warning: Return value calculation failed for return period {rp}: {single_rv_error}"
+                            )
+                            individual_return_values.append(np.nan)
 
-                                individual_return_values.append(rv)
-
-                            except Exception as single_rv_error:
-                                print(
-                                    f"Warning: Return value calculation failed for return period {rp}: {single_rv_error}"
-                                )
-                                individual_return_values.append(np.nan)
-
-                        # Create a DataArray with the individual return values
-                        result = xr.DataArray(
-                            individual_return_values,
-                            dims=["one_in_x"],
-                            coords={"one_in_x": self.return_periods},
-                            name="return_value",
-                        )
-
-                    # The result is now already properly formatted as a DataArray with the correct coordinates
-                    return_values = result
-                    batch_results.append(return_values)
-
-                    # Calculate p-values if requested
-                    if self.goodness_of_fit_test:
-                        _, p_value = get_ks_stat(
-                            block_maxima, distr=self.distribution, multiple_points=False
-                        ).data_vars.values()
-                        batch_p_vals.append(p_value)
-
-                        if self.print_goodness_of_fit:
-                            self._print_goodness_of_fit_result(s, p_value)
-                    else:
-                        batch_p_vals.append(xr.DataArray(np.nan, name="p_value"))
-
-                except Exception as e:
-                    print(f"Warning: Failed to process simulation {s}: {e}")
-                    # Create NaN results for failed simulations
-                    nan_return_values = xr.DataArray(
-                        np.full(len(self.return_periods), np.nan),
+                    # Create a DataArray with the individual return values
+                    result = xr.DataArray(
+                        individual_return_values,
                         dims=["one_in_x"],
                         coords={"one_in_x": self.return_periods},
                         name="return_value",
                     )
-                    batch_results.append(nan_return_values)
+
+                # The result is now already properly formatted as a DataArray with the correct coordinates
+                return_values = result
+                batch_results.append(return_values)
+
+                # Calculate p-values if requested
+                if self.goodness_of_fit_test:
+                    _, p_value = get_ks_stat(
+                        block_maxima, distr=self.distribution, multiple_points=False
+                    ).data_vars.values()
+                    batch_p_vals.append(p_value)
+
+                    if self.print_goodness_of_fit:
+                        self._print_goodness_of_fit_result(s, p_value)
+                else:
                     batch_p_vals.append(xr.DataArray(np.nan, name="p_value"))
 
             all_return_vals.extend(batch_results)
@@ -1091,8 +1140,6 @@ class MetricCalc(DataProcessor):
         xr.DataArray
             DataArray with return values for each return period
         """
-        import scipy.stats
-
         # Import the helper functions we need
         from climakitae.explore.threshold_tools import (
             _get_distr_func,
@@ -1104,9 +1151,7 @@ class MetricCalc(DataProcessor):
 
         try:
             # Fit the distribution to the block maxima (pass the DataArray directly)
-            parameters, fitted_distr = _get_fitted_distr(
-                block_maxima, distr, distr_func
-            )
+            _, fitted_distr = _get_fitted_distr(block_maxima, distr, distr_func)
 
             # Calculate return values for all return periods at once
             return_values = []
