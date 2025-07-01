@@ -647,107 +647,67 @@ class MetricCalc(DataProcessor):
 
             for s in batch_sims:
                 try:
-                    # Debug: Check what we're trying to select
-                    print(
-                        f"DEBUG: Attempting to select simulation: {s} (type: {type(s)})"
-                    )
-                    print(
-                        f"DEBUG: Available sim values: {data_array.sim.values[:3]}... (showing first 3)"
-                    )
-                    print(f"DEBUG: Sim coordinate dtype: {data_array.sim.dtype}")
-                    print(f"DEBUG: Is s in sim values? {s in data_array.sim.values}")
-
-                    # Check for duplicate simulations
+                    # Check for duplicate simulations and handle appropriately
                     sim_matches = data_array.sim.values == s
                     num_matches = sim_matches.sum()
-                    print(f"DEBUG: Number of matches for {s}: {num_matches}")
+
+                    print(f"DEBUG: Simulation '{s}' has {num_matches} matches")
+                    print(f"DEBUG: sim_matches indices: {np.where(sim_matches)[0]}")
+                    print(
+                        f"DEBUG: Original data_array shape: {data_array.shape}, dims: {data_array.dims}"
+                    )
 
                     # Handle duplicate simulations by selecting the first occurrence
                     if num_matches > 1:
-                        print(
-                            f"DEBUG: Found {num_matches} duplicates for {s}, selecting first occurrence"
-                        )
                         first_idx = np.where(sim_matches)[0][0]
+                        print(f"DEBUG: Selecting first occurrence at index {first_idx}")
                         sim_data = data_array.isel(sim=first_idx)
                         print(
-                            f"DEBUG: After isel({first_idx}) for duplicate, shape: {sim_data.shape}, dims: {sim_data.dims}"
+                            f"DEBUG: After isel(sim={first_idx}), shape: {sim_data.shape}, dims: {sim_data.dims}"
+                        )
+                        print(
+                            f"DEBUG: sim_data.sim values after isel: {getattr(sim_data, 'sim', 'No sim coord')}"
                         )
                     else:
                         # Try the selection
                         try:
                             sim_data = data_array.sel(sim=s)
                             print(
-                                f"DEBUG: After .sel(sim={s}), shape: {sim_data.shape}, dims: {sim_data.dims}"
+                                f"DEBUG: After sel(sim={s}), shape: {sim_data.shape}, dims: {sim_data.dims}"
                             )
                         except Exception as sel_error:
-                            print(f"DEBUG: Selection failed: {sel_error}")
                             # Try alternative selection methods
                             try:
                                 # Try using isel if sel fails
                                 sim_idx = list(data_array.sim.values).index(s)
                                 sim_data = data_array.isel(sim=sim_idx)
                                 print(
-                                    f"DEBUG: Using isel({sim_idx}) instead, shape: {sim_data.shape}, dims: {sim_data.dims}"
+                                    f"DEBUG: After isel(sim={sim_idx}), shape: {sim_data.shape}, dims: {sim_data.dims}"
                                 )
                             except Exception as isel_error:
-                                print(f"DEBUG: isel also failed: {isel_error}")
                                 raise sel_error
 
-                    # Now squeeze
+                    # Now squeeze to remove size-1 dimensions
                     sim_data = sim_data.squeeze()
-                    print(
-                        f"DEBUG: After squeeze(), shape: {sim_data.shape}, dims: {sim_data.dims}"
-                    )
 
-                    # Debug: Check if sim_data still has sim dimension
+                    # Force drop the sim dimension if it still exists
                     if "sim" in sim_data.dims:
-                        print(
-                            f"Warning: sim_data still has 'sim' dimension after selection: {sim_data.dims}"
-                        )
-                        print(f"DEBUG: sim_data.sim values: {sim_data.sim.values}")
-                        # Force drop the sim dimension if it still exists
                         sim_data = sim_data.squeeze("sim", drop=True)
-                        print(
-                            f"DEBUG: After force squeeze('sim'), dims: {sim_data.dims}"
-                        )
 
                     # Extract block maxima for this simulation
-                    print(f"DEBUG: About to extract block maxima for sim {s}")
-                    print(
-                        f"DEBUG: sim_data before block maxima: shape={sim_data.shape}, dims={sim_data.dims}"
-                    )
                     block_maxima = get_block_maxima(sim_data, **kwargs).squeeze()
-                    print(
-                        f"DEBUG: block_maxima after extraction: shape={block_maxima.shape}, dims={block_maxima.dims}"
-                    )
 
-                    # Debug: Check block_maxima dimensions
+                    # Force drop the sim dimension if it still exists in block_maxima
                     if "sim" in block_maxima.dims:
-                        print(
-                            f"Warning: block_maxima still has 'sim' dimension: {block_maxima.dims}"
-                        )
-                        print(
-                            f"DEBUG: block_maxima.sim values: {block_maxima.sim.values}"
-                        )
                         block_maxima = block_maxima.squeeze("sim", drop=True)
-                        print(
-                            f"DEBUG: After force squeeze block_maxima('sim'), dims: {block_maxima.dims}"
-                        )
 
                     # Calculate return values for all return periods at once using our vectorized implementation
-                    print(f"DEBUG: About to calculate return values for sim {s}")
-                    print(
-                        f"DEBUG: block_maxima before return value calc: shape={block_maxima.shape}, dims={block_maxima.dims}"
-                    )
-                    print(f"DEBUG: return_periods: {self.return_periods.tolist()}")
-
                     try:
                         result = self._get_return_values_vectorized(
                             block_maxima,
                             return_periods=self.return_periods,
                             distr=self.distribution,
                         )
-                        print(f"DEBUG: Vectorized get_return_values succeeded")
                     except Exception as rv_error:
                         print(
                             f"ERROR: Vectorized get_return_values failed with: {rv_error}"
@@ -804,46 +764,10 @@ class MetricCalc(DataProcessor):
                             coords={"one_in_x": self.return_periods},
                             name="return_value",
                         )
-                    print(f"DEBUG: get_return_value workaround succeeded")
-                    print(f"DEBUG: get_return_value result type: {type(result)}")
-                    print(f"DEBUG: get_return_value result: {result}")
-                    if isinstance(result, dict):
-                        print(f"DEBUG: result keys: {result.keys()}")
-                        for key, value in result.items():
-                            print(f"DEBUG: result['{key}'] type: {type(value)}")
-                            if hasattr(value, "shape"):
-                                print(f"DEBUG: result['{key}'] shape: {value.shape}")
-                            if hasattr(value, "dims"):
-                                print(f"DEBUG: result['{key}'] dims: {value.dims}")
-                            if hasattr(value, "coords"):
-                                print(
-                                    f"DEBUG: result['{key}'] coords: {list(value.coords.keys())}"
-                                )
-                    else:
-                        print(
-                            f"DEBUG: result shape: {result.shape if hasattr(result, 'shape') else 'no shape'}"
-                        )
-                        print(
-                            f"DEBUG: result dims: {result.dims if hasattr(result, 'dims') else 'no dims'}"
-                        )
-                        if hasattr(result, "coords"):
-                            print(f"DEBUG: result coords: {list(result.coords.keys())}")
-                        print(
-                            f"DEBUG: result values: {result.values if hasattr(result, 'values') else result}"
-                        )
 
                     # The result is now already properly formatted as a DataArray with the correct coordinates
                     return_values = result
                     batch_results.append(return_values)
-
-                    # Debug info for problematic data
-                    if len(return_values.dims) > 1:
-                        print(
-                            f"DEBUG: Return values for {s} has dimensions: {return_values.dims}, shape: {return_values.shape}"
-                        )
-                        print(
-                            f"DEBUG: Return values coords: {list(return_values.coords.keys())}"
-                        )
 
                     # Calculate p-values if requested
                     if self.goodness_of_fit_test:
