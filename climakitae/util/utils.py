@@ -772,155 +772,137 @@ def summary_table(data: xr.Dataset) -> pd.DataFrame:
     return df
 
 
-def convert_to_local_time(data: xr.DataArray, selections) -> xr.DataArray:
+def convert_to_local_time(
+    data: xr.DataArray | xr.Dataset,
+    lon: float = UNSET,
+    lat: float = UNSET,
+) -> xr.DataArray | xr.Dataset:
     """
     Convert time dimension from UTC to local time for the grid or station.
 
     Args:
-        data (xarray.DataArray): Input data.
-        selections: DataParameters object containing selection details.
+        data (xarray.DataArray | xr.Dataset): Input data.
+        grid_lon (float): Mean longitude of dataset if no lat/lon coordinates
+        grid_lat (float): Mean latitude of dataset if no lat/lon coordinates
 
     Returns:
         xarray.DataArray: Data with converted time coordinate.
     """
 
+    # Only converting hourly data
+    if not (frequency := data.attrs.get("frequency", None)):
+        # Make a guess at frequency
+        timestep = pd.Timedelta(
+            data.time[1].item() - data.time[0].item()
+        ).total_seconds()
+        match timestep:
+            case 3600:
+                frequency = "hourly"
+            case 86400:
+                frequency = "daily"
+            case _ if timestep > 86400:
+                frequency = "monthly"
+
     # If timescale is not hourly, no need to convert
-    if selections.timescale in ["monthly", "daily"]:
+    if frequency != "hourly":
         print(
-            "You've selected a timescale that doesn't require any timezone shifting, due to its timescale not being granular enough (hourly). Please pass in more granular level data if you want to adjust its local timezone."
+            "This dataset's timescale is not granular enough to covert to local time. Local timezone conversion requires hourly data."
         )
         return data
 
-    # 1. Get the time slice from selections
-    start, end = selections.time_slice
-
-    # Default lat/lon values in case other methods fail
-    lat = None
-    lon = None
+    # Find out if Stations or Gridded type
+    if not (data_type := data.attrs.get("data_type", None)):
+        if isinstance(data, xr.core.dataarray.DataArray):
+            print(
+                "Data Array attribute 'data_type' not found. Please set 'data_type' to 'Stations' or 'Gridded'."
+            )
+            return data
+        else:
+            try:
+                # Grab from one of data arrays in dataset
+                variable = list(data.keys())[0]
+                data_type = data[variable].attrs["data_type"]
+            except KeyError:
+                print(
+                    f"Could not find attribute 'data_type' attribute set in {variable} attributes. Please set `data_type` attribute."
+                )
+                return data
 
     # Get latitude/longitude information
-    if selections.data_type == "Stations":
-        # Read stations database
-        stations_df = read_csv_file(stations_csv_path)
-        stations_df = stations_df.drop(columns=["Unnamed: 0"])
+    match data_type:
+        case "Stations":
+            # Read stations database
+            stations_df = read_csv_file(stations_csv_path)
+            stations_df = stations_df.drop(columns=["Unnamed: 0"])
 
-        # Filter by selected station(s) - assume first station if multiple
-        selected_station = selections.stations[0]
-        station_data = stations_df[stations_df["station"] == selected_station]
-        lat = station_data["LAT_Y"].values[0]
-        lon = station_data["LON_X"].values[0]
+            # Filter by selected station(s) - assume first station if multiple
+            match data:
+                case xr.DataArray():
+                    station_name = data.name
+                case xr.Dataset():
+                    # Grab first one
+                    station_name = list(data.keys())[0]
+                case _:
+                    print(
+                        f"Invalid data type {type(data)}. Please provide xarray DataArray or Dataset."
+                    )
+                    return data
+            station_data = stations_df[stations_df["station"] == station_name]
+            if len(station_data) == 0:
+                print(
+                    f"Station {data.name} not found in Stations CSV. Please set Data Array name to valid station name."
+                )
+                return data
+            lat = station_data["LAT_Y"].values[0]
+            lon = station_data["LON_X"].values[0]
 
-    elif selections.area_average == "Yes":
-        # For area average, use the mean lat/lon
-        lat = np.mean(selections.latitude)
-        lon = np.mean(selections.longitude)
+        case "Gridded":
+            # if both lat and lon are set, can move on to timezone finding.
+            if (lat is UNSET) or (lon is UNSET):
+                try:
+                    # Finding avg. lat/lon coordinates from all grid-cells
+                    lat = data.lat.mean().item()
+                    lon = data.lon.mean().item()
+                except AttributeError:
+                    print(
+                        "lat/lon coordinates not found in data. Please pass in data with 'lon' and 'lat' coordinates or set both 'lon' and 'lat' arguments."
+                    )
+                    return data
 
-    elif selections.data_type == "Gridded" and selections.area_subset == "lat/lon":
-        # Finding avg. lat/lon coordinates from all grid-cells
-        lat = data.lat.mean().item()
-        lon = data.lon.mean().item()
-
-    elif selections.data_type == "Gridded" and selections.area_subset != "none":
-        # Find the avg. lat/lon coordinates from entire geometry within an area subset
-        boundaries = selections._geographies
-
-        # Making mapping for different geographies to different polygons
-        mapping = {
-            "CA counties": (
-                boundaries._ca_counties,
-                boundaries._get_ca_counties(),
-            ),
-            "CA Electric Balancing Authority Areas": (
-                boundaries._ca_electric_balancing_areas,
-                boundaries._get_electric_balancing_areas(),
-            ),
-            "CA Electricity Demand Forecast Zones": (
-                boundaries._ca_forecast_zones,
-                boundaries._get_forecast_zones(),
-            ),
-            "CA Electric Load Serving Entities (IOU & POU)": (
-                boundaries._ca_utilities,
-                boundaries._get_ious_pous(),
-            ),
-            "CA watersheds": (
-                boundaries._ca_watersheds,
-                boundaries._get_ca_watersheds(),
-            ),
-        }
-
-        # Finding the center point of the gridded WRF area
-        center_pt = (
-            mapping[selections.area_subset][0]
-            .loc[mapping[selections.area_subset][1][selections.cached_area[0]]]
-            .geometry.centroid
-        )
-        lat = center_pt.y
-        lon = center_pt.x
-
-    # Check if we were able to get valid coordinates
-    if lat is None or lon is None:
-        # Default to a reasonable timezone (UTC)
-        local_tz = "UTC"
-        print("Could not determine location coordinates, defaulting to UTC timezone.")
-    else:
-        # Find timezone for the coordinates
-        tf = TimezoneFinder()
-        local_tz = tf.timezone_at(lng=lon, lat=lat)
-
-    # Condition if timezone adjusting is happening at the end of `Historical Reconstruction`
-    if selections.scenario_historical == ["Historical Reconstruction"] and end == 2022:
-        print(
-            "Adjusting timestep but not appending data, as there is no more ERA5 data after 2022."
-        )
-        total_data = data
-
-    # Condition if selected data is at the end of possible data time interval
-    elif end < 2100:
-        # Use selections object to retrieve new data for timezone shifting
-        tz_selections = copy.copy(selections)
-        tz_selections.time_slice = (end + 1, end + 1)
-        tz_data = tz_selections.retrieve()
-
-        if tz_data.time.size == 0:
+        case _:
             print(
-                "You've selected a time slice that will additionally require a selected SSP. Please select an SSP in your selections and re-run this function."
+                "Invalid data type attribute. Data type should be 'Stations' or 'Gridded'."
             )
             return data
 
-        # Combine the data
-        total_data = xr.concat([data, tz_data], dim="time")
-
-    else:  # 2100 or any years greater that the user has input
-        print(
-            "Adjusting timestep but not appending data, as there is no more data after 2100."
-        )
-        total_data = data
+    # Find timezone for the coordinates
+    tf = TimezoneFinder()
+    local_tz = tf.timezone_at(lng=lon, lat=lat)
 
     # Change datetime objects to local time
     new_time = (
-        pd.DatetimeIndex(total_data.time)
+        pd.DatetimeIndex(data.time)
         .tz_localize("UTC")
         .tz_convert(local_tz)
         .tz_localize(None)
         .astype("datetime64[ns]")
     )
-    total_data["time"] = new_time
-
-    # Subset the data by the initial time
-    start_slice = data.time[0]
-    end_slice = data.time[-1]
-    sliced_data = total_data.sel(time=slice(start_slice, end_slice))
+    data["time"] = new_time
 
     print(f"Data converted to {local_tz} timezone.")
 
     # Add timezone attribute to data
-    sliced_data = sliced_data.assign_attrs({"timezone": local_tz})
+    match data:
+        case xr.DataArray():
+            data = data.assign_attrs({"timezone": local_tz})
+        case xr.Dataset():
+            variables = list(data.keys())
+            for variable in variables:
+                data[variable] = data[variable].assign_attrs({"timezone": local_tz})
+        case _:
+            print(f"Invalid data type {type(data)}. Could not set timezone attribute.")
 
-    # Reset selections object to what it was originally (if we changed it)
-    if end < 2100:
-        selections.time_slice = (start, end)
-
-    return sliced_data
+    return data
 
 
 def add_dummy_time_to_wl(wl_da: xr.DataArray) -> xr.DataArray:
