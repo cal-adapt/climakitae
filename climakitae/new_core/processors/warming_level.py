@@ -164,7 +164,6 @@ class WarmingLevel(DataProcessor):
 
             slices = []
 
-            common_time_delta = None
             for year, wl in zip(years, self.warming_levels):
                 if year is None or pd.isna(year):
                     warnings.warn(
@@ -182,16 +181,16 @@ class WarmingLevel(DataProcessor):
                 # Drop February 29th if it exists
                 is_feb29 = (da_slice.time.dt.month == 2) & (da_slice.time.dt.day == 29)
                 da_slice = da_slice.where(~is_feb29, drop=True)
-                if common_time_delta is None:
-                    # initialize by length starting at - len/2
-                    # get length of the time dimension
-                    length = da_slice.sizes["time"]
-                    common_time_delta = range(-length // 2, length // 2)
+
+                # Create time_delta specific to this slice's length
+                # This ensures each warming level has the correct time_delta length
+                length = da_slice.sizes["time"]
+                time_delta = range(-length // 2, length // 2)
 
                 # Replace time dimension with time_delta
                 da_slice = da_slice.swap_dims({"time": "time_delta"})
                 da_slice = da_slice.drop_vars("time")
-                da_slice = da_slice.assign_coords(time_delta=common_time_delta)
+                da_slice = da_slice.assign_coords(time_delta=time_delta)
 
                 # Expand dimensions to include warming_level as a new dimension
                 da_slice = da_slice.expand_dims({"warming_level": [wl]})
