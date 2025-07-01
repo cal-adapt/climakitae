@@ -633,6 +633,7 @@ class MetricCalc(DataProcessor):
             batch_p_vals = []
 
             for s in batch_sims:
+                block_maxima = None  # Initialize to avoid scoping issues
                 try:
                     # Check for duplicate simulations and handle appropriately
                     sim_matches = data_array.sim.values == s
@@ -673,6 +674,43 @@ class MetricCalc(DataProcessor):
                     if "sim" in block_maxima.dims:
                         block_maxima = block_maxima.squeeze("sim", drop=True)
 
+                    # Check data quality and filter out locations with insufficient data
+                    if hasattr(block_maxima, "dims") and len(block_maxima.dims) > 1:
+                        # For multi-dimensional block maxima, we need to check each location
+                        spatial_dims = [
+                            dim
+                            for dim in block_maxima.dims
+                            if dim not in ["time", "year"]
+                        ]
+                        if spatial_dims:
+                            print(
+                                f"Filtering locations with insufficient valid data..."
+                            )
+                            # Count valid data points for each location
+                            count_dim = (
+                                "year"
+                                if "year" in block_maxima.dims
+                                else str(block_maxima.dims[0])
+                            )
+                            valid_counts = block_maxima.count(dim=count_dim)
+                            # Filter out locations with fewer than 3 valid years
+                            valid_locations = valid_counts >= 3
+                            if valid_locations.sum() == 0:
+                                print(
+                                    f"Warning: No locations have sufficient valid data for simulation {s}"
+                                )
+                                raise ValueError("No valid locations found")
+                            elif valid_locations.sum() < len(valid_locations):
+                                n_valid = int(valid_locations.sum())
+                                n_total = len(valid_locations)
+                                print(
+                                    f"Filtering to {n_valid} valid locations out of {n_total} total locations"
+                                )
+                                # Filter the block maxima to only include valid locations
+                                block_maxima = block_maxima.where(
+                                    valid_locations, drop=True
+                                )
+
                     # Handle spatial dimensions (e.g., closest_cell, lat, lon)
                     spatial_dims = [
                         dim for dim in block_maxima.dims if dim not in ["time", "year"]
@@ -696,9 +734,23 @@ class MetricCalc(DataProcessor):
                                     {spatial_dim: loc_idx}
                                 )
 
+                                # Check if this location has enough valid data
+                                valid_data = loc_block_maxima.dropna(
+                                    dim="year", how="all"
+                                )
+                                if (
+                                    len(valid_data.year) < 3
+                                ):  # Need at least 3 years for distribution fitting
+                                    print(
+                                        f"Warning: Location {loc_idx} has insufficient valid data ({len(valid_data.year)} years), skipping..."
+                                    )
+                                    raise ValueError(
+                                        f"Insufficient valid data for location {loc_idx}"
+                                    )
+
                                 # Calculate return values for this location
                                 loc_result = self._get_return_values_vectorized(
-                                    loc_block_maxima,
+                                    valid_data,  # Use the filtered data
                                     return_periods=self.return_periods,
                                     distr=self.distribution,
                                 )
@@ -752,48 +804,56 @@ class MetricCalc(DataProcessor):
                             distr=self.distribution,
                         )
 
-                    # Set success flag for this simulation
-                    vectorized_success = True
+                    # Store success flag for this simulation
+                    pass
 
-                except Exception as rv_error:
+                except Exception:
                     # Fallback to individual calculation
                     print(
                         f"Warning: Vectorized return value calculation failed for simulation {s}, using fallback method"
                     )
                     individual_return_values = []
-                    for rp in self.return_periods.tolist():
-                        try:
-                            single_result = get_return_value(
-                                block_maxima,
-                                return_period=rp,  # Pass single return period
-                                multiple_points=False,
-                                distr=self.distribution,
-                            )
 
-                            # Extract the return value from the result
-                            if (
-                                isinstance(single_result, dict)
-                                and "return_value" in single_result
-                            ):
-                                rv = single_result["return_value"]
-                            else:
-                                rv = single_result
-
-                            # Convert to scalar if it's a DataArray
-                            if isinstance(rv, xr.DataArray):
-                                rv = (
-                                    rv.values.item()
-                                    if rv.values.size == 1
-                                    else rv.values.flat[0]
+                    # Check if block_maxima was successfully extracted
+                    if block_maxima is None:
+                        print(
+                            f"Warning: Block maxima extraction failed for simulation {s}, returning NaN values"
+                        )
+                        individual_return_values = [np.nan] * len(self.return_periods)
+                    else:
+                        for rp in self.return_periods.tolist():
+                            try:
+                                single_result = get_return_value(
+                                    block_maxima,
+                                    return_period=rp,  # Pass single return period
+                                    multiple_points=False,
+                                    distr=self.distribution,
                                 )
 
-                            individual_return_values.append(rv)
+                                # Extract the return value from the result
+                                if (
+                                    isinstance(single_result, dict)
+                                    and "return_value" in single_result
+                                ):
+                                    rv = single_result["return_value"]
+                                else:
+                                    rv = single_result
 
-                        except Exception as single_rv_error:
-                            print(
-                                f"Warning: Return value calculation failed for return period {rp}: {single_rv_error}"
-                            )
-                            individual_return_values.append(np.nan)
+                                # Convert to scalar if it's a DataArray
+                                if isinstance(rv, xr.DataArray):
+                                    rv = (
+                                        rv.values.item()
+                                        if rv.values.size == 1
+                                        else rv.values.flat[0]
+                                    )
+
+                                individual_return_values.append(rv)
+
+                            except Exception as single_rv_error:
+                                print(
+                                    f"Warning: Return value calculation failed for return period {rp}: {single_rv_error}"
+                                )
+                                individual_return_values.append(np.nan)
 
                     # Create a DataArray with the individual return values
                     result = xr.DataArray(
@@ -808,7 +868,7 @@ class MetricCalc(DataProcessor):
                 batch_results.append(return_values)
 
                 # Calculate p-values if requested
-                if self.goodness_of_fit_test:
+                if self.goodness_of_fit_test and block_maxima is not None:
                     _, p_value = get_ks_stat(
                         block_maxima, distr=self.distribution, multiple_points=False
                     ).data_vars.values()
@@ -1141,6 +1201,52 @@ class MetricCalc(DataProcessor):
         xr.DataArray
             DataArray with return values for each return period
         """
+        # Check for sufficient valid data before proceeding
+        if "year" in block_maxima.dims:
+            valid_data = block_maxima.dropna(dim="year", how="all")
+        else:
+            # Find the primary dimension (likely 'time' or similar)
+            primary_dim = (
+                [
+                    dim
+                    for dim in block_maxima.dims
+                    if dim not in ["lat", "lon", "x", "y"]
+                ][0]
+                if block_maxima.dims
+                else None
+            )
+            if primary_dim:
+                valid_data = block_maxima.dropna(dim=primary_dim)
+            else:
+                valid_data = block_maxima
+        if valid_data.size == 0:
+            print(
+                "Warning: No valid data found for distribution fitting - returning NaN values"
+            )
+            return xr.DataArray(
+                np.full(len(return_periods), np.nan),
+                dims=["one_in_x"],
+                coords={"one_in_x": return_periods},
+                name="return_value",
+            )
+
+        # Count valid values - need at least 3 for meaningful fitting
+        n_valid = (
+            valid_data.count().values.item()
+            if hasattr(valid_data.count().values, "item")
+            else int(valid_data.count())
+        )
+        if n_valid < 3:
+            print(
+                f"Warning: Insufficient valid data points ({n_valid}) for distribution fitting - returning NaN values"
+            )
+            return xr.DataArray(
+                np.full(len(return_periods), np.nan),
+                dims=["one_in_x"],
+                coords={"one_in_x": return_periods},
+                name="return_value",
+            )
+
         # Import the helper functions we need
         from climakitae.explore.threshold_tools import (
             _get_distr_func,
@@ -1151,8 +1257,8 @@ class MetricCalc(DataProcessor):
         distr_func = _get_distr_func(distr)
 
         try:
-            # Fit the distribution to the block maxima (pass the DataArray directly)
-            _, fitted_distr = _get_fitted_distr(block_maxima, distr, distr_func)
+            # Fit the distribution to the valid block maxima data
+            _, fitted_distr = _get_fitted_distr(valid_data, distr, distr_func)
 
             # Calculate return values for all return periods at once
             return_values = []
@@ -1187,7 +1293,7 @@ class MetricCalc(DataProcessor):
                     "fitted_distribution": distr,
                     "extremes_type": self.extremes_type,
                     "block_size": "1 year",
-                    "units": getattr(block_maxima, "units", ""),
+                    "units": getattr(valid_data, "units", ""),
                 },
             )
 
