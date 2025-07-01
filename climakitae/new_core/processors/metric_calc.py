@@ -693,7 +693,7 @@ class MetricCalc(DataProcessor):
                                 else str(block_maxima.dims[0])
                             )
                             valid_counts = block_maxima.count(dim=count_dim)
-                            # Filter out locations with fewer than 3 valid years
+                            # Filter out locations with fewer than 3 valid time periods
                             valid_locations = valid_counts >= 3
                             if valid_locations.sum() == 0:
                                 print(
@@ -727,7 +727,7 @@ class MetricCalc(DataProcessor):
                         spatial_coords = block_maxima.coords[spatial_dim]
 
                         location_results = []
-                        for loc_idx in range(len(spatial_coords)):
+                        for loc_idx, spatial_coord in enumerate(spatial_coords):
                             try:
                                 # Extract data for this specific location
                                 loc_block_maxima = block_maxima.isel(
@@ -735,14 +735,21 @@ class MetricCalc(DataProcessor):
                                 )
 
                                 # Check if this location has enough valid data
-                                valid_data = loc_block_maxima.dropna(
-                                    dim="year", how="all"
+                                # Determine which time dimension to use
+                                time_dim = (
+                                    "year"
+                                    if "year" in loc_block_maxima.dims
+                                    else "time"
                                 )
+                                valid_data = loc_block_maxima.dropna(
+                                    dim=time_dim, how="all"
+                                )
+                                n_valid_periods = len(valid_data[time_dim])
                                 if (
-                                    len(valid_data.year) < 3
-                                ):  # Need at least 3 years for distribution fitting
+                                    n_valid_periods < 3
+                                ):  # Need at least 3 periods for distribution fitting
                                     print(
-                                        f"Warning: Location {loc_idx} has insufficient valid data ({len(valid_data.year)} years), skipping..."
+                                        f"Warning: Location {loc_idx} has insufficient valid data ({n_valid_periods} {time_dim} periods), skipping..."
                                     )
                                     raise ValueError(
                                         f"Insufficient valid data for location {loc_idx}"
@@ -803,9 +810,6 @@ class MetricCalc(DataProcessor):
                             return_periods=self.return_periods,
                             distr=self.distribution,
                         )
-
-                    # Store success flag for this simulation
-                    pass
 
                 except Exception:
                     # Fallback to individual calculation
