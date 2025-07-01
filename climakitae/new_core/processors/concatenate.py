@@ -105,8 +105,6 @@ class Concat(DataProcessor):
         unknown_attr = "unknown"
         attr_ids = []
 
-        print(len(result), "datasets to concatenate")
-
         match result:
             case dict():
                 for key, dataset in result.items():
@@ -229,7 +227,6 @@ class Concat(DataProcessor):
         print(f"Concatenated datasets along '{self.dim_name}' dimension.")
 
         self.update_context(context, attr_ids)
-        print(concatenated)
         return concatenated
 
     def update_context(
