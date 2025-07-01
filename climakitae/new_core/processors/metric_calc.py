@@ -740,7 +740,7 @@ class MetricCalc(DataProcessor):
                         f"DEBUG: block_maxima before return value calc: shape={block_maxima.shape}, dims={block_maxima.dims}"
                     )
                     print(f"DEBUG: return_periods: {self.return_periods.tolist()}")
-                    
+
                     try:
                         result = get_return_value(
                             block_maxima,
@@ -753,6 +753,7 @@ class MetricCalc(DataProcessor):
                         print(f"ERROR: get_return_value failed with: {rv_error}")
                         print(f"ERROR: Exception type: {type(rv_error)}")
                         import traceback
+
                         print(f"ERROR: Full traceback:")
                         traceback.print_exc()
                         raise rv_error
