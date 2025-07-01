@@ -278,6 +278,10 @@ class WarmingLevel(DataProcessor):
             else:
                 # If no member_id, keep the original key
                 ret[key] = data
+                warnings.warn(
+                    f"\n\nNo member_id found in data for key {key}. "
+                    "\nAssuming no member_id is present for this dataset."
+                )
         return ret
 
     def extend_time_domain(
