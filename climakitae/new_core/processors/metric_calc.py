@@ -651,39 +651,23 @@ class MetricCalc(DataProcessor):
                     sim_matches = data_array.sim.values == s
                     num_matches = sim_matches.sum()
 
-                    print(f"DEBUG: Simulation '{s}' has {num_matches} matches")
-                    print(f"DEBUG: sim_matches indices: {np.where(sim_matches)[0]}")
-                    print(
-                        f"DEBUG: Original data_array shape: {data_array.shape}, dims: {data_array.dims}"
-                    )
-
                     # Handle duplicate simulations by selecting the first occurrence
                     if num_matches > 1:
                         first_idx = np.where(sim_matches)[0][0]
-                        print(f"DEBUG: Selecting first occurrence at index {first_idx}")
+                        print(
+                            f"Warning: Found {num_matches} matches for simulation '{s}', selecting first occurrence"
+                        )
                         sim_data = data_array.isel(sim=first_idx)
-                        print(
-                            f"DEBUG: After isel(sim={first_idx}), shape: {sim_data.shape}, dims: {sim_data.dims}"
-                        )
-                        print(
-                            f"DEBUG: sim_data.sim values after isel: {getattr(sim_data, 'sim', 'No sim coord')}"
-                        )
                     else:
                         # Try the selection
                         try:
                             sim_data = data_array.sel(sim=s)
-                            print(
-                                f"DEBUG: After sel(sim={s}), shape: {sim_data.shape}, dims: {sim_data.dims}"
-                            )
                         except Exception as sel_error:
                             # Try alternative selection methods
                             try:
                                 # Try using isel if sel fails
                                 sim_idx = list(data_array.sim.values).index(s)
                                 sim_data = data_array.isel(sim=sim_idx)
-                                print(
-                                    f"DEBUG: After isel(sim={sim_idx}), shape: {sim_data.shape}, dims: {sim_data.dims}"
-                                )
                             except Exception as isel_error:
                                 raise sel_error
 
@@ -709,18 +693,9 @@ class MetricCalc(DataProcessor):
                             distr=self.distribution,
                         )
                     except Exception as rv_error:
-                        print(
-                            f"ERROR: Vectorized get_return_values failed with: {rv_error}"
-                        )
-                        print(f"ERROR: Exception type: {type(rv_error)}")
-                        import traceback
-
-                        print(f"ERROR: Full traceback:")
-                        traceback.print_exc()
-
                         # Fallback to individual calculation
                         print(
-                            f"DEBUG: Falling back to individual return period calculations"
+                            f"Warning: Vectorized return value calculation failed for simulation {s}, using fallback method"
                         )
                         individual_return_values = []
                         for rp in self.return_periods.tolist():
@@ -753,7 +728,7 @@ class MetricCalc(DataProcessor):
 
                             except Exception as single_rv_error:
                                 print(
-                                    f"ERROR: get_return_value failed for return period {rp}: {single_rv_error}"
+                                    f"Warning: Return value calculation failed for return period {rp}: {single_rv_error}"
                                 )
                                 individual_return_values.append(np.nan)
 
@@ -926,7 +901,7 @@ class MetricCalc(DataProcessor):
                     )
                 except Exception as rv_error:
                     print(
-                        f"ERROR: Vectorized get_return_values failed for {s}: {rv_error}"
+                        f"Warning: Vectorized return value calculation failed for {s}, using fallback method"
                     )
                     # Fallback to individual calculation
                     individual_return_values = []
@@ -960,7 +935,7 @@ class MetricCalc(DataProcessor):
 
                         except Exception as single_rv_error:
                             print(
-                                f"ERROR: get_return_value failed for return period {rp}: {single_rv_error}"
+                                f"Warning: Return value calculation failed for return period {rp}: {single_rv_error}"
                             )
                             individual_return_values.append(np.nan)
 
@@ -1172,7 +1147,7 @@ class MetricCalc(DataProcessor):
             return result
 
         except Exception as e:
-            print(f"ERROR: Failed to fit distribution {distr} to block maxima: {e}")
+            print(f"Warning: Failed to fit distribution {distr} to block maxima: {e}")
             # Return NaN array as fallback
             return xr.DataArray(
                 np.full(len(return_periods), np.nan),
