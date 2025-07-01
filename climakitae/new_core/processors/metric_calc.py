@@ -649,8 +649,23 @@ class MetricCalc(DataProcessor):
                 try:
                     sim_data = data_array.sel(sim=s).squeeze()
 
+                    # Debug: Check if sim_data still has sim dimension
+                    if "sim" in sim_data.dims:
+                        print(
+                            f"Warning: sim_data still has 'sim' dimension after selection: {sim_data.dims}"
+                        )
+                        # Force drop the sim dimension if it still exists
+                        sim_data = sim_data.squeeze("sim", drop=True)
+
                     # Extract block maxima for this simulation
                     block_maxima = get_block_maxima(sim_data, **kwargs).squeeze()
+
+                    # Debug: Check block_maxima dimensions
+                    if "sim" in block_maxima.dims:
+                        print(
+                            f"Warning: block_maxima still has 'sim' dimension: {block_maxima.dims}"
+                        )
+                        block_maxima = block_maxima.squeeze("sim", drop=True)
 
                     # Calculate return values for all return periods at once
                     result = get_return_value(
@@ -719,8 +734,14 @@ class MetricCalc(DataProcessor):
                             if len(return_values.coords.get("one_in_x", [])) != len(
                                 self.return_periods
                             ):
+                                # Be explicit about which dimension gets which coordinates
                                 return_values = return_values.assign_coords(
-                                    one_in_x=self.return_periods
+                                    {
+                                        "one_in_x": (
+                                            "one_in_x",
+                                            self.return_periods,
+                                        )
+                                    }
                                 )
                     else:
                         # Not a DataArray - convert to one
@@ -776,9 +797,6 @@ class MetricCalc(DataProcessor):
 
                 except Exception as e:
                     print(f"Warning: Failed to process simulation {s}: {e}")
-                    print(sim_data)
-                    print(block_maxima)
-                    print(result)
                     # Create NaN results for failed simulations
                     nan_return_values = xr.DataArray(
                         np.full(len(self.return_periods), np.nan),
@@ -826,7 +844,9 @@ class MetricCalc(DataProcessor):
                         if "one_in_x" in rv.dims and len(
                             rv.coords.get("one_in_x", [])
                         ) != len(self.return_periods):
-                            rv = rv.assign_coords(one_in_x=self.return_periods)
+                            rv = rv.assign_coords(
+                                {"one_in_x": ("one_in_x", self.return_periods)}
+                            )
 
                         validated_return_vals.append(rv)
                     else:
@@ -1070,7 +1090,9 @@ class MetricCalc(DataProcessor):
                         if "one_in_x" in rv.dims and len(
                             rv.coords.get("one_in_x", [])
                         ) != len(self.return_periods):
-                            rv = rv.assign_coords(one_in_x=self.return_periods)
+                            rv = rv.assign_coords(
+                                {"one_in_x": ("one_in_x", self.return_periods)}
+                            )
 
                         validated_return_vals.append(rv)
                     else:
