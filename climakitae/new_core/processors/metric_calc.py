@@ -2044,20 +2044,43 @@ class MetricCalc(DataProcessor):
                 f"Processing simulation batch {i//batch_size + 1}/{(len(sim_values) + batch_size - 1)//batch_size}"
             )
 
-            # Use intelligent batch processing (parallel or serial based on conditions)
-            batch_results, batch_p_vals = self._process_simulation_batch_parallel(
-                batch_sims, data_array, kwargs
+            # Extract batch and compute to avoid memory issues
+            batch_data = data_array.isel(sim=slice(i, i + batch_size))
+            print(
+                f"Computing batch data for simulations {i} to {i + batch_size - 1}..."
             )
+            batch_data = batch_data.compute()
 
-            all_return_vals.extend(batch_results)
-            all_p_vals.extend(batch_p_vals)
+            # Process this batch using the medium Dask method (which handles computed data well)
+            try:
+                batch_result = self._calculate_one_in_x_medium_dask(batch_data)
 
-        # Combine all results with robust error handling
+                # Extract results
+                batch_return_vals = [
+                    batch_result.return_value.isel(sim=j)
+                    for j in range(len(batch_sims))
+                ]
+                batch_p_vals = [
+                    batch_result.p_values.isel(sim=j) for j in range(len(batch_sims))
+                ]
+
+                all_return_vals.extend(batch_return_vals)
+                all_p_vals.extend(batch_p_vals)
+
+            except Exception as e:
+                print(
+                    f"Warning: Batch processing failed for batch {i//batch_size + 1}: {e}"
+                )
+                # Create NaN results for this batch
+                for sim_id in batch_sims:
+                    all_return_vals.append(self._create_nan_return_value_array())
+                    all_p_vals.append(xr.DataArray(np.nan, name="p_value"))
+
+        # Combine all results
         ret_vals, p_vals = self._combine_return_value_results(
             all_return_vals, all_p_vals, data_array
         )
 
-        # Create and return result dataset
         return self._create_one_in_x_result_dataset(ret_vals, p_vals, data_array)
 
     def _should_parallelize_batch_processing(self, data_array: xr.DataArray) -> dict:
@@ -2458,3 +2481,380 @@ class MetricCalc(DataProcessor):
             return p_value
         else:
             return xr.DataArray(np.nan, name="p_value")
+
+    def optimize_dask_performance(self):
+        """
+        Optimize Dask performance for large dataset processing.
+
+        This method configures Dask settings to improve performance when processing
+        large climate datasets with extreme value analysis.
+        """
+        try:
+            import dask
+
+            # Configure Dask for better performance with extreme value analysis
+            dask_config = {
+                "array.chunk-size": "128MiB",  # Reasonable chunk size for climate data
+                "array.slicing.split_large_chunks": True,  # Handle large chunks better
+                "distributed.worker.memory.target": 0.8,  # Use 80% of worker memory
+                "distributed.worker.memory.spill": 0.9,  # Spill at 90% memory usage
+                "distributed.worker.memory.pause": 0.95,  # Pause at 95% memory usage
+                "distributed.worker.memory.terminate": 0.98,  # Terminate at 98% memory usage
+            }
+
+            # Apply configuration
+            dask.config.set(dask_config)
+            print("Dask performance configuration applied for extreme value analysis")
+
+        except ImportError:
+            print("Dask not available - skipping performance optimization")
+        except Exception as e:
+            print(f"Warning: Failed to optimize Dask performance: {e}")
+
+    def _safe_apply_ufunc_with_dask(self, func, *args, **kwargs):
+        """
+        Safely apply xr.apply_ufunc with proper Dask configuration.
+
+        This method ensures that apply_ufunc calls are properly configured
+        for Dask arrays to avoid chunked array handling errors.
+
+        Parameters
+        ----------
+        func : callable
+            Function to apply
+        *args : tuple
+            Arguments to pass to apply_ufunc
+        **kwargs : dict
+            Keyword arguments to pass to apply_ufunc
+
+        Returns
+        -------
+        Any
+            Result of apply_ufunc call
+        """
+        # Default Dask configuration for apply_ufunc
+        dask_kwargs = {
+            "dask": "allowed",  # Allow Dask arrays but don't require parallelization
+            "output_dtypes": [float],  # Default to float output
+        }
+
+        # Check if any input arguments are Dask arrays
+        has_dask_input = any(
+            hasattr(arg, "chunks") and arg.chunks is not None
+            for arg in args
+            if hasattr(arg, "chunks")
+        )
+
+        if has_dask_input:
+            # If we have Dask inputs, ensure proper Dask handling
+            dask_kwargs["dask"] = "parallelized"
+
+            # Add meta information to help Dask understand the output structure
+            if "meta" not in kwargs.get("dask_gufunc_kwargs", {}):
+                dask_kwargs["meta"] = np.array([], dtype=float)
+
+        # Merge with user-provided kwargs (user kwargs take precedence)
+        final_kwargs = {**dask_kwargs, **kwargs}
+
+        try:
+            return xr.apply_ufunc(func, *args, **final_kwargs)
+        except Exception as e:
+            if "chunked array" in str(e) and "dask" in str(e):
+                print(
+                    f"Warning: apply_ufunc failed with Dask error, computing inputs: {e}"
+                )
+                # Fallback: compute the Dask arrays and try again
+                computed_args = []
+                for arg in args:
+                    if hasattr(arg, "chunks") and arg.chunks is not None:
+                        computed_args.append(arg.compute())
+                    else:
+                        computed_args.append(arg)
+
+                # Remove Dask-specific kwargs for non-Dask computation
+                fallback_kwargs = {
+                    k: v
+                    for k, v in final_kwargs.items()
+                    if k not in ["dask", "meta", "dask_gufunc_kwargs"]
+                }
+
+                return xr.apply_ufunc(func, *computed_args, **fallback_kwargs)
+            else:
+                raise
+
+    def _process_large_dataset_in_batches(self, data_array: xr.DataArray) -> xr.Dataset:
+        """
+        Process large datasets in batches to manage memory usage.
+
+        This method is used as a fallback when Dask optimization fails.
+        It processes the dataset by computing smaller chunks and processing them serially.
+
+        Parameters
+        ----------
+        data_array : xr.DataArray
+            Large data array to process
+
+        Returns
+        -------
+        xr.Dataset
+            Processed results
+        """
+        print("Processing large dataset in batches...")
+
+        # Determine optimal batch size based on memory constraints
+        n_sims = len(data_array.sim)
+        max_batch_size = min(
+            3, n_sims
+        )  # Process maximum 3 simulations at once for large datasets
+
+        all_return_vals = []
+        all_p_vals = []
+
+        # Process in smaller batches
+        for i in range(0, n_sims, max_batch_size):
+            end_idx = min(i + max_batch_size, n_sims)
+            batch_sims = data_array.sim.values[i:end_idx]
+
+            print(
+                f"Processing large dataset batch {i//max_batch_size + 1}/{(n_sims + max_batch_size - 1)//max_batch_size}"
+            )
+
+            # Extract batch and compute to avoid memory issues
+            batch_data = data_array.isel(sim=slice(i, end_idx))
+            print(f"Computing batch data for simulations {i} to {end_idx-1}...")
+            batch_data = batch_data.compute()
+
+            # Process this batch using the medium Dask method (which handles computed data well)
+            try:
+                batch_result = self._calculate_one_in_x_medium_dask(batch_data)
+
+                # Extract results
+                batch_return_vals = [
+                    batch_result.return_value.isel(sim=j)
+                    for j in range(len(batch_sims))
+                ]
+                batch_p_vals = [
+                    batch_result.p_values.isel(sim=j) for j in range(len(batch_sims))
+                ]
+
+                all_return_vals.extend(batch_return_vals)
+                all_p_vals.extend(batch_p_vals)
+
+            except Exception as e:
+                print(
+                    f"Warning: Batch processing failed for batch {i//max_batch_size + 1}: {e}"
+                )
+                # Create NaN results for this batch
+                for sim_id in batch_sims:
+                    all_return_vals.append(self._create_nan_return_value_array())
+                    all_p_vals.append(xr.DataArray(np.nan, name="p_value"))
+
+        # Combine all results
+        ret_vals, p_vals = self._combine_return_value_results(
+            all_return_vals, all_p_vals, data_array
+        )
+
+        return self._create_one_in_x_result_dataset(ret_vals, p_vals, data_array)
+
+    def _get_optimal_chunks(self, data_array: xr.DataArray) -> dict:
+        """
+        Calculate optimal chunk sizes for Dask arrays.
+
+        Parameters
+        ----------
+        data_array : xr.DataArray
+            Input data array
+
+        Returns
+        -------
+        dict
+            Dictionary of optimal chunk sizes by dimension
+        """
+        if not hasattr(data_array, "chunks") or data_array.chunks is None:
+            return {}
+
+        # Calculate optimal chunks based on data characteristics
+        optimal_chunks = {}
+
+        # For time dimension, use yearly chunks if possible
+        if "time" in data_array.dims:
+            time_size = data_array.sizes["time"]
+            # Aim for roughly yearly chunks (365 days) but adapt to data size
+            yearly_chunk = min(time_size, max(365, time_size // 10))
+            optimal_chunks["time"] = yearly_chunk
+
+        # For simulation dimension, process a few at a time
+        if "sim" in data_array.dims:
+            sim_size = data_array.sizes["sim"]
+            sim_chunk = min(sim_size, 2)  # Process 2 simulations at a time
+            optimal_chunks["sim"] = sim_chunk
+
+        # For spatial dimensions, keep chunks reasonably sized
+        spatial_dims = [dim for dim in data_array.dims if dim not in ["time", "sim"]]
+        for dim in spatial_dims:
+            dim_size = data_array.sizes[dim]
+            # Keep spatial chunks smaller to avoid memory issues
+            spatial_chunk = min(dim_size, 50)
+            optimal_chunks[dim] = spatial_chunk
+
+        return optimal_chunks
+
+    def _calculate_return_values_vectorized_core(
+        self, block_maxima: xr.DataArray, return_periods: np.ndarray, distr: str
+    ) -> np.ndarray:
+        """
+        Core function for calculating return values in a vectorized manner.
+
+        This function is designed to work efficiently within apply_ufunc.
+
+        Parameters
+        ----------
+        block_maxima : xr.DataArray
+            Block maxima data for a single simulation
+        return_periods : np.ndarray
+            Array of return periods to calculate
+        distr : str
+            Distribution to fit ("gev", "genpareto", "gamma")
+
+        Returns
+        -------
+        np.ndarray
+            Array of return values for each return period
+        """
+        try:
+            # Convert to numpy array for processing
+            if isinstance(block_maxima, xr.DataArray):
+                data_values = block_maxima.values
+            else:
+                data_values = np.asarray(block_maxima)
+
+            # Remove NaN values
+            valid_data = data_values[~np.isnan(data_values)]
+
+            if len(valid_data) < 3:
+                # Insufficient data for fitting
+                return np.full(len(return_periods), np.nan)
+
+            # Import required functions
+            from climakitae.explore.threshold_tools import _get_distr_func
+            import scipy.stats as stats
+
+            # Get distribution function
+            distr_func = _get_distr_func(distr)
+
+            # Fit distribution parameters
+            params = distr_func.fit(valid_data)
+
+            # Create fitted distribution
+            if distr == "gev":
+                fitted_distr = stats.genextreme(*params)
+            elif distr == "gumbel":
+                fitted_distr = stats.gumbel_r(*params)
+            elif distr == "weibull":
+                fitted_distr = stats.weibull_min(*params)
+            elif distr == "pearson3":
+                fitted_distr = stats.pearson3(*params)
+            elif distr == "genpareto":
+                fitted_distr = stats.genpareto(*params)
+            elif distr == "gamma":
+                fitted_distr = stats.gamma(*params)
+            else:
+                # Default to GEV if distribution not recognized
+                fitted_distr = stats.genextreme(*params)
+
+            # Calculate return values for each return period
+            return_values = []
+            for rp in return_periods:
+                try:
+                    # Calculate event probability
+                    block_size = 1  # Assuming 1-year blocks
+                    event_prob = block_size / rp
+
+                    # Calculate return event probability based on extremes type
+                    if self.extremes_type == "max":
+                        return_event = 1.0 - event_prob
+                    elif self.extremes_type == "min":
+                        return_event = event_prob
+                    else:
+                        return_event = 1.0 - event_prob  # Default to max
+
+                    # Calculate return value using inverse CDF
+                    return_value = fitted_distr.ppf(return_event)
+                    return_values.append(np.round(return_value, 5))
+
+                except (ValueError, ZeroDivisionError):
+                    return_values.append(np.nan)
+
+            return np.array(return_values)
+
+        except Exception as e:
+            # Return NaN array if any error occurs
+            return np.full(len(return_periods), np.nan)
+
+    def _calculate_p_value_core(self, block_maxima: xr.DataArray, distr: str) -> float:
+        """
+        Core function for calculating p-value from goodness-of-fit test.
+
+        This function is designed to work efficiently within apply_ufunc.
+
+        Parameters
+        ----------
+        block_maxima : xr.DataArray
+            Block maxima data for a single simulation
+        distr : str
+            Distribution to fit for the test
+
+        Returns
+        -------
+        float
+            P-value from Kolmogorov-Smirnov test
+        """
+        try:
+            # Convert to numpy array for processing
+            if isinstance(block_maxima, xr.DataArray):
+                data_values = block_maxima.values
+            else:
+                data_values = np.asarray(block_maxima)
+
+            # Remove NaN values
+            valid_data = data_values[~np.isnan(data_values)]
+
+            if len(valid_data) < 3:
+                # Insufficient data for testing
+                return np.nan
+
+            # Import required functions
+            from climakitae.explore.threshold_tools import _get_distr_func
+            import scipy.stats as stats
+
+            # Get distribution function
+            distr_func = _get_distr_func(distr)
+
+            # Fit distribution parameters
+            params = distr_func.fit(valid_data)
+
+            # Create fitted distribution
+            if distr == "gev":
+                fitted_distr = stats.genextreme(*params)
+            elif distr == "gumbel":
+                fitted_distr = stats.gumbel_r(*params)
+            elif distr == "weibull":
+                fitted_distr = stats.weibull_min(*params)
+            elif distr == "pearson3":
+                fitted_distr = stats.pearson3(*params)
+            elif distr == "genpareto":
+                fitted_distr = stats.genpareto(*params)
+            elif distr == "gamma":
+                fitted_distr = stats.gamma(*params)
+            else:
+                # Default to GEV if distribution not recognized
+                fitted_distr = stats.genextreme(*params)
+
+            # Perform Kolmogorov-Smirnov test
+            d_stat, p_val = stats.kstest(valid_data, fitted_distr.cdf)
+
+            return float(p_val)
+
+        except Exception as e:
+            # Return NaN if any error occurs
+            return np.nan
