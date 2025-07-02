@@ -16,6 +16,7 @@ DataCatalog
 """
 
 import warnings
+from typing import Dict, Any
 
 import geopandas as gpd
 import intake
@@ -37,7 +38,7 @@ from climakitae.core.paths import (
 )
 from climakitae.util.utils import read_csv_file
 
-from .boundaries import Boundaries
+from climakitae.new_core.data_access.boundaries import Boundaries
 
 
 class DataCatalog(dict):
@@ -92,15 +93,27 @@ class DataCatalog(dict):
 
     _instance = UNSET
 
-    def __new__(cls):
-        """Override __new__ to implement singleton pattern."""
+    def __new__(cls) -> "DataCatalog":
+        """
+        Override __new__ to implement singleton pattern.
+
+        Returns
+        -------
+        DataCatalog
+            The singleton instance of DataCatalog.
+        """
         if cls._instance is UNSET:
             cls._instance = super(DataCatalog, cls).__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self):
-        """Initialize the DataCatalog instance."""
+    def __init__(self) -> None:
+        """
+        Initialize the DataCatalog instance.
+
+        This method sets up the catalog connections and initializes internal
+        state. It only runs once due to the singleton pattern implementation.
+        """
         if not getattr(self, "_initialized", False):
             super().__init__()
             self[CATALOG_DATA] = intake.open_esm_datastore(DATA_CATALOG_URL)
@@ -122,22 +135,50 @@ class DataCatalog(dict):
 
     @property
     def data(self) -> intake_esm.core.esm_datastore:
-        """Access data catalog."""
+        """
+        Access data catalog.
+
+        Returns
+        -------
+        intake_esm.core.esm_datastore
+            The main climate data catalog.
+        """
         return self[CATALOG_DATA]
 
     @property
     def boundary(self) -> intake.catalog.Catalog:
-        """Access boundary catalog."""
+        """
+        Access boundary catalog.
+
+        Returns
+        -------
+        intake.catalog.Catalog
+            The boundary conditions catalog.
+        """
         return self[CATALOG_BOUNDARY]
 
     @property
     def renewables(self) -> intake_esm.core.esm_datastore:
-        """Access renewables catalog."""
+        """
+        Access renewables catalog.
+
+        Returns
+        -------
+        intake_esm.core.esm_datastore
+            The renewables data catalog.
+        """
         return self[CATALOG_RENEWABLES]
 
     @property
     def boundaries(self) -> Boundaries:
-        """Access boundaries data with lazy loading."""
+        """
+        Access boundaries data with lazy loading.
+
+        Returns
+        -------
+        Boundaries
+            The lazy-loading boundaries data manager.
+        """
         if self._boundaries is UNSET:
             self._boundaries = Boundaries(self.boundary)
         return self._boundaries
@@ -146,10 +187,14 @@ class DataCatalog(dict):
         """
         Merge the intake catalogs for data and renewables into a single DataFrame.
 
+        This method combines the data and renewables catalogs into a unified
+        DataFrame for easier searching and querying across all available datasets.
+
         Returns
         -------
         pd.DataFrame
-            A DataFrame containing the merged data from both catalogs.
+            A DataFrame containing the merged data from both catalogs with an
+            additional 'catalog' column identifying the source catalog.
         """
         ren_df = self.renewables.df
         data_df = self.data.df
@@ -165,17 +210,18 @@ class DataCatalog(dict):
         Parameters
         ----------
         key : str
-            Key of the catalog to set.
+            Key of the catalog to set. Must be one of the available catalog keys.
 
         Returns
         -------
         DataCatalog
             The current instance of DataCatalog allowing method chaining.
 
-        Raises
-        ------
-        ValueError
+        Warns
+        -----
+        UserWarning
             If the catalog key is not found in the available catalogs.
+            Defaults to 'data' catalog in this case.
         """
         if key not in self:
             warnings.warn(
@@ -206,21 +252,29 @@ class DataCatalog(dict):
         self[name] = intake.open_esm_datastore(catalog)
         return self
 
-    def get_data(self, query: dict) -> dict[str, xr.Dataset]:
+    def get_data(self, query: Dict[str, Any]) -> Dict[str, xr.Dataset]:
         """
         Get data from the catalog.
 
+        This method queries the active catalog using the provided parameters
+        and returns the matching datasets as a dictionary.
+
         Parameters
         ----------
-        name : str
-            Name of the catalog to access.
-        query : dict, optional
-            Query parameters for filtering data.
+        query : dict
+            Query parameters for filtering data. The available parameters
+            depend on the active catalog and may include items like 'variable',
+            'scenario', 'model', etc.
 
         Returns
         -------
         dict[str, xr.Dataset]
-            The requested dataset(s) from the catalog.
+            The requested dataset(s) from the catalog, keyed by dataset identifiers.
+
+        Notes
+        -----
+        The catalog_key must be set before calling this method. If not set,
+        this will raise an error.
         """
         print(f"Querying {self.catalog_key} catalog with query: {query}")
         # if any(isinstance(v, list) for v in query.values()):
@@ -239,16 +293,19 @@ class DataCatalog(dict):
             )
         )
 
-    def list_clip_boundaries(self):
+    def list_clip_boundaries(self) -> None:
         """
         List all available boundary options for clipping operations.
 
-        This is a convenience method that provides direct access to boundary
-        options without needing to instantiate a Clip processor.
+        This method populates the `available_boundaries` attribute with a
+        dictionary of boundary categories and their available options. It's a
+        convenience method that provides direct access to boundary options
+        without needing to instantiate a Clip processor.
 
-        Returns
-        -------
-        None
+        Notes
+        -----
+        After calling this method, the available boundaries can be accessed
+        via the `available_boundaries` attribute.
 
         Examples
         --------
@@ -276,7 +333,9 @@ class DataCatalog(dict):
         Print all available boundary options for clipping in a user-friendly format.
 
         This method provides a nicely formatted output showing all boundary
-        categories and their available options for clipping operations.
+        categories and their available options for clipping operations. The
+        output is formatted to be readable and includes summarized counts for
+        categories with many options.
 
         Examples
         --------
@@ -315,11 +374,11 @@ class DataCatalog(dict):
                     print(f"    ... and {remaining} more options")
             print()
 
-    def reset(self):
+    def reset(self) -> None:
         """
         Reset the DataCatalog instance to its initial state.
 
-        This method clears all catalogs and reinitializes the DataCatalog
-        instance, effectively resetting it to its original state.
+        This method clears the catalog key and resets the instance to its
+        original state. The catalogs themselves remain loaded and available.
         """
         self.catalog_key = UNSET

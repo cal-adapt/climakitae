@@ -2029,9 +2029,9 @@ class MetricCalc(DataProcessor):
         if self.event_duration == (1, "day"):
             kwargs["groupby"] = self.event_duration
         elif self.event_duration[1] == "hour":
-            kwargs["duration"] = self.event_duration
-
-        # Process simulations in batches, computing each batch to avoid Dask issues
+            kwargs["duration"] = (
+                self.event_duration
+            )  # Process simulations in batches, computing each batch to avoid Dask issues
         batch_size = min(5, len(data_array.sim))  # Process 5 simulations at a time
         sim_values = data_array.sim.values
 
@@ -2044,139 +2044,10 @@ class MetricCalc(DataProcessor):
                 f"Processing simulation batch {i//batch_size + 1}/{(len(sim_values) + batch_size - 1)//batch_size}"
             )
 
-            batch_results = []
-            batch_p_vals = []
-
-            for s in batch_sims:
-                try:
-                    # Select and compute individual simulation to avoid Dask issues
-                    sim_data = data_array.sel(sim=s).squeeze()
-
-                    # Compute the simulation data to convert from Dask to numpy
-                    print(f"Computing simulation {s} data...")
-                    sim_data = sim_data.compute()
-
-                    # Force drop the sim dimension if it still exists
-                    if "sim" in sim_data.dims:
-                        sim_data = sim_data.squeeze("sim", drop=True)
-
-                    # Extract block maxima for this simulation using optimized function
-                    block_maxima = _get_block_maxima_optimized(
-                        sim_data, **kwargs
-                    ).squeeze()
-
-                    # Force drop the sim dimension if it still exists in block_maxima
-                    if "sim" in block_maxima.dims:
-                        block_maxima = block_maxima.squeeze("sim", drop=True)
-
-                    # Handle spatial dimensions (e.g., closest_cell, lat, lon)
-                    spatial_dims = [
-                        dim for dim in block_maxima.dims if dim not in ["time", "year"]
-                    ]
-
-                    if spatial_dims:
-                        # We have spatial dimensions - process each location separately
-                        spatial_dim = spatial_dims[0]
-                        spatial_coords = block_maxima.coords[spatial_dim]
-
-                        location_results = []
-                        for loc_idx, spatial_coord in enumerate(spatial_coords):
-                            try:
-                                # Extract data for this specific location
-                                loc_block_maxima = block_maxima.isel(
-                                    {spatial_dim: loc_idx}
-                                )
-
-                                # Check if this location has enough valid data
-                                time_dim = (
-                                    "year"
-                                    if "year" in loc_block_maxima.dims
-                                    else "time"
-                                )
-                                valid_data = loc_block_maxima.dropna(
-                                    dim=time_dim, how="all"
-                                )
-                                n_valid_periods = len(valid_data[time_dim])
-
-                                if n_valid_periods < 3:
-                                    print(
-                                        f"Warning: Location {loc_idx} has insufficient valid data ({n_valid_periods} {time_dim} periods), skipping..."
-                                    )
-                                    raise ValueError(
-                                        f"Insufficient valid data for location {loc_idx}"
-                                    )
-
-                                # Calculate return values for this location (now with computed data)
-                                loc_result = self._get_return_values_vectorized(
-                                    valid_data,
-                                    return_periods=self.return_periods,
-                                    distr=self.distribution,
-                                )
-
-                                # Add the spatial coordinate back to the result
-                                loc_result = loc_result.assign_coords(
-                                    {spatial_dim: spatial_coords[loc_idx]}
-                                )
-                                loc_result = loc_result.expand_dims(spatial_dim)
-                                location_results.append(loc_result)
-
-                            except Exception as loc_error:
-                                print(
-                                    f"Warning: Failed to process location {loc_idx} in {spatial_dim}: {loc_error}"
-                                )
-                                # Create NaN result for this location
-                                nan_result = self._create_nan_return_value_array()
-                                nan_result = nan_result.assign_coords(
-                                    {spatial_dim: spatial_coords[loc_idx]}
-                                )
-                                nan_result = nan_result.expand_dims(spatial_dim)
-                                location_results.append(nan_result)
-
-                        # Combine results across all locations
-                        if location_results:
-                            result = xr.concat(location_results, dim=spatial_dim)
-                        else:
-                            # All locations failed - create NaN result
-                            result = xr.DataArray(
-                                np.full(
-                                    (len(spatial_coords), len(self.return_periods)),
-                                    np.nan,
-                                ),
-                                dims=[spatial_dim, "one_in_x"],
-                                coords={
-                                    spatial_dim: spatial_coords,
-                                    "one_in_x": self.return_periods,
-                                },
-                                name="return_value",
-                            )
-                    else:
-                        # No spatial dimensions - process as normal (now with computed data)
-                        result = self._get_return_values_vectorized(
-                            block_maxima,
-                            return_periods=self.return_periods,
-                            distr=self.distribution,
-                        )
-
-                    batch_results.append(result)
-
-                    # Calculate p-values if requested (now with computed data)
-                    if self.goodness_of_fit_test and block_maxima is not None:
-                        _, p_value = get_ks_stat(
-                            block_maxima, distr=self.distribution, multiple_points=False
-                        ).data_vars.values()
-                        batch_p_vals.append(p_value)
-
-                        if self.print_goodness_of_fit:
-                            self._print_goodness_of_fit_result(s, p_value)
-                    else:
-                        batch_p_vals.append(xr.DataArray(np.nan, name="p_value"))
-
-                except Exception as sim_error:
-                    print(f"Warning: Failed to process simulation {s}: {sim_error}")
-                    # Create NaN result for this simulation
-                    nan_result = self._create_nan_return_value_array()
-                    batch_results.append(nan_result)
-                    batch_p_vals.append(xr.DataArray(np.nan, name="p_value"))
+            # Use intelligent batch processing (parallel or serial based on conditions)
+            batch_results, batch_p_vals = self._process_simulation_batch_parallel(
+                batch_sims, data_array, kwargs
+            )
 
             all_return_vals.extend(batch_results)
             all_p_vals.extend(batch_p_vals)
@@ -2189,354 +2060,401 @@ class MetricCalc(DataProcessor):
         # Create and return result dataset
         return self._create_one_in_x_result_dataset(ret_vals, p_vals, data_array)
 
-    def _get_optimal_chunks(self, data_array: xr.DataArray) -> dict:
+    def _should_parallelize_batch_processing(self, data_array: xr.DataArray) -> dict:
         """
-        Determine optimal chunking strategy for large datasets.
+        Determine if batch processing should be parallelized and with what configuration.
 
         Parameters
         ----------
         data_array : xr.DataArray
-            Input data array
+            Input data array to analyze
 
         Returns
         -------
         dict
-            Optimal chunk sizes for each dimension
+            Configuration dictionary with keys:
+            - 'use_parallel': bool, whether to use parallel processing
+            - 'n_workers': int, number of parallel workers to use
+            - 'method': str, parallelization method ('thread' or 'process')
+            - 'reason': str, explanation of the decision
         """
-        if not hasattr(data_array, "chunks") or data_array.chunks is None:
-            return {}
+        import os
+        import psutil
 
-        # Target chunk size in MB (aim for 128MB chunks)
-        target_chunk_size_mb = 128
-        element_size_bytes = 8  # Assuming float64
-        target_elements = target_chunk_size_mb * 1024 * 1024 / element_size_bytes
+        # Get system information
+        n_cores = os.cpu_count() or 4
+        available_memory_gb = psutil.virtual_memory().available / 1e9
 
-        chunks = {}
-        total_elements = 1
+        # Get data characteristics
+        n_simulations = len(data_array.sim)
+        data_size_mb = data_array.nbytes / 1e6
 
-        # Calculate current total elements per chunk
-        for dim, current_chunks in zip(data_array.dims, data_array.chunks):
-            chunk_size = current_chunks[0] if current_chunks else data_array.sizes[dim]
-            total_elements *= chunk_size
+        # Decision logic
+        config = {
+            "use_parallel": False,
+            "n_workers": 1,
+            "method": "thread",
+            "reason": "",
+        }
 
-        # If chunks are too large, optimize
-        if total_elements > target_elements:
-            # Keep simulation dimension unchunked for parallel processing
-            if "sim" in data_array.dims:
-                chunks["sim"] = -1  # Don't chunk simulation dimension
+        # Don't parallelize if too few simulations
+        if n_simulations < 4:
+            config["reason"] = (
+                f"Too few simulations ({n_simulations}) to benefit from parallelization"
+            )
+            return config
 
-            # Optimize time dimension chunking
-            if "time" in data_array.dims:
-                time_size = data_array.sizes["time"]
-                optimal_time_chunk = min(time_size, int(target_elements**0.5))
-                chunks["time"] = optimal_time_chunk
+        # Don't parallelize if memory constrained
+        estimated_memory_per_sim = data_size_mb / n_simulations
+        if (
+            estimated_memory_per_sim * n_cores > available_memory_gb * 1000 * 0.5
+        ):  # Use max 50% of available memory
+            config["reason"] = (
+                f"Memory constrained: estimated {estimated_memory_per_sim:.1f}MB per sim, {available_memory_gb:.1f}GB available"
+            )
+            return config
 
-            # For spatial dimensions, use moderate chunking
-            for dim in data_array.dims:
-                if dim not in ["sim", "time"] and data_array.sizes[dim] > 10:
-                    chunks[dim] = min(data_array.sizes[dim], 10)
+        # Don't parallelize if data is very small (overhead not worth it)
+        if estimated_memory_per_sim < 10:  # Less than 10MB per simulation
+            config["reason"] = (
+                f"Data too small ({estimated_memory_per_sim:.1f}MB per sim) for parallelization overhead"
+            )
+            return config
 
-        return chunks
-
-    def _calculate_return_values_vectorized_core(
-        self, block_maxima: np.ndarray, return_periods: np.ndarray, distr: str
-    ) -> np.ndarray:
-        """
-        Core vectorized return value calculation optimized for Dask.
-
-        This function is designed to work efficiently within apply_ufunc.
-        """
-        try:
-            # Check for sufficient data
-            valid_data = block_maxima[~np.isnan(block_maxima)]
-            if len(valid_data) < 3:
-                return np.full(len(return_periods), np.nan)
-
-            # Import distribution fitting functions
-            from scipy import stats
-            from climakitae.explore.threshold_tools import _get_distr_func
-
-            # Fit distribution
-            if distr == "gev":
-                params = stats.genextreme.fit(valid_data)
-                fitted_dist = stats.genextreme(*params)
-            elif distr == "genpareto":
-                params = stats.genpareto.fit(valid_data)
-                fitted_dist = stats.genpareto(*params)
-            elif distr == "gamma":
-                params = stats.gamma.fit(valid_data)
-                fitted_dist = stats.gamma(*params)
-            else:
-                return np.full(len(return_periods), np.nan)
-
-            # Calculate return values
-            return_values = []
-            for rp in return_periods:
-                event_prob = 1.0 / rp
-                if self.extremes_type == "max":
-                    return_event = 1.0 - event_prob
-                else:
-                    return_event = event_prob
-
-                try:
-                    rv = fitted_dist.ppf(return_event)
-                    return_values.append(np.round(rv, 5))
-                except (ValueError, ZeroDivisionError):
-                    return_values.append(np.nan)
-
-            return np.array(return_values)
-        except Exception:
-            return np.full(len(return_periods), np.nan)
-
-    def _calculate_p_value_core(self, block_maxima: np.ndarray, distr: str) -> float:
-        """
-        Core p-value calculation optimized for Dask.
-        """
-        try:
-            from scipy import stats
-
-            # Remove NaN values
-            valid_data = block_maxima[~np.isnan(block_maxima)]
-            if len(valid_data) < 3:
-                return np.nan
-
-            # Fit distribution and perform KS test
-            if distr == "gev":
-                params = stats.genextreme.fit(valid_data)
-                d_stat, p_val = stats.kstest(
-                    valid_data, lambda x: stats.genextreme.cdf(x, *params)
-                )
-            elif distr == "genpareto":
-                params = stats.genpareto.fit(valid_data)
-                d_stat, p_val = stats.kstest(
-                    valid_data, lambda x: stats.genpareto.cdf(x, *params)
-                )
-            elif distr == "gamma":
-                params = stats.gamma.fit(valid_data)
-                d_stat, p_val = stats.kstest(
-                    valid_data, lambda x: stats.gamma.cdf(x, *params)
-                )
-            else:
-                return np.nan
-
-            return p_val
-        except Exception:
-            return np.nan
-
-    @staticmethod
-    def optimize_dask_performance():
-        """
-        Optimize Dask performance for large dataset processing.
-
-        This method configures Dask settings to improve performance when processing
-        large climate datasets with extreme value analysis.
-        """
+        # Check if we're already in a Dask environment that might conflict
         try:
             import dask
 
-            # Configure Dask for better performance with extreme value analysis
-            dask_config = {
-                "array.chunk-size": "128MiB",  # Reasonable chunk size for climate data
-                "array.slicing.split_large_chunks": True,  # Handle large chunks better
-                "distributed.worker.memory.target": 0.8,  # Use 80% of worker memory
-                "distributed.worker.memory.spill": 0.9,  # Spill at 90% memory usage
-                "distributed.worker.memory.pause": 0.95,  # Pause at 95% memory usage
-                "distributed.worker.memory.terminate": 0.98,  # Terminate at 98% memory usage
-            }
-
-            # Apply configuration
-            dask.config.set(dask_config)
-            print("Dask performance configuration applied for extreme value analysis")
-
+            if dask.config.get("distributed.worker.daemon", None) is not None:
+                config["reason"] = (
+                    "Already running in distributed Dask environment, avoiding nested parallelization"
+                )
+                return config
         except ImportError:
-            print("Dask not available - skipping performance optimization")
-        except Exception as e:
-            print(f"Warning: Failed to optimize Dask performance: {e}")
+            pass
 
-    def _setup_dask_cluster(self, n_workers=None):
+        # Good candidate for parallelization
+        config["use_parallel"] = True
+
+        # Determine optimal number of workers
+        # Use fewer workers than cores to avoid oversubscription
+        optimal_workers = min(
+            n_cores - 1,  # Leave one core free
+            n_simulations,  # Don't need more workers than simulations
+            max(
+                2, int(available_memory_gb * 1000 / estimated_memory_per_sim / 2)
+            ),  # Memory constraint
+        )
+
+        config["n_workers"] = max(2, optimal_workers)
+
+        # Choose method based on workload characteristics
+        # Threading is better for I/O bound tasks, multiprocessing for CPU bound
+        # Since we have both .compute() (I/O) and distribution fitting (CPU), use threading
+        # as it has less overhead and the .compute() step is often the bottleneck
+        config["method"] = "thread"
+        config["reason"] = (
+            f"Good candidate: {n_simulations} sims, {estimated_memory_per_sim:.1f}MB per sim, {n_cores} cores available"
+        )
+
+        return config
+
+    def _process_simulation_batch_parallel(
+        self, batch_sims: list, data_array: xr.DataArray, kwargs: dict
+    ) -> tuple:
         """
-        Set up a local Dask cluster for distributed processing.
+        Process a batch of simulations in parallel.
 
         Parameters
         ----------
-        n_workers : int, optional
-            Number of workers to use. Defaults to number of CPU cores.
-        """
-        try:
-            from dask.distributed import Client, LocalCluster
-            import multiprocessing
-
-            if n_workers is None:
-                n_workers = multiprocessing.cpu_count()
-
-            # Create cluster with optimized settings
-            cluster = LocalCluster(
-                n_workers=n_workers,
-                threads_per_worker=1,  # Avoid nested parallelism
-                memory_limit="auto",
-                processes=True,  # Use processes to avoid GIL
-            )
-
-            client = Client(cluster)
-            print(f"Dask cluster started with {n_workers} workers")
-            print(f"Dashboard available at: {client.dashboard_link}")
-
-            return client, cluster
-
-        except ImportError:
-            print("Warning: Dask distributed not available")
-            return None, None
-
-    def _process_large_dataset_in_batches(
-        self, data_array: xr.DataArray, batch_size: int = None
-    ) -> xr.Dataset:
-        """
-        Process very large datasets by breaking them into manageable batches.
-
-        This method is useful when even Dask optimization isn't sufficient
-        due to memory constraints or extremely large datasets.
-
-        Parameters
-        ----------
+        batch_sims : list
+            List of simulation identifiers to process
         data_array : xr.DataArray
             Input data array
-        batch_size : int, optional
-            Number of simulations to process per batch.
-            Defaults to adaptive sizing based on available memory.
+        kwargs : dict
+            Arguments for block maxima extraction
 
         Returns
         -------
-        xr.Dataset
-            Combined results from all batches
+        tuple
+            (batch_results, batch_p_vals) tuple of lists
         """
-        if batch_size is None:
-            # Adaptive batch sizing based on memory
-            import psutil
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        import threading
 
-            available_memory_gb = psutil.virtual_memory().available / (1024**3)
-
-            # Estimate memory per simulation (rough heuristic)
-            time_steps = len(data_array.time) if "time" in data_array.dims else 1000
-            memory_per_sim_mb = time_steps * 8 / (1024**2)  # 8 bytes per float64
-
-            # Use 50% of available memory
-            target_memory_gb = available_memory_gb * 0.5
-            batch_size = max(1, int(target_memory_gb * 1024 / memory_per_sim_mb))
-
-        print(
-            f"Processing {len(data_array.sim)} simulations in batches of {batch_size}"
-        )
-
-        all_results = []
-        num_sims = len(data_array.sim)
-
-        for i in range(0, num_sims, batch_size):
-            end_idx = min(i + batch_size, num_sims)
-            batch_sims = data_array.sim.values[i:end_idx]
-
-            print(
-                f"Processing batch {i//batch_size + 1}/{(num_sims + batch_size - 1)//batch_size}"
-            )
-
-            # Extract batch data
-            batch_data = data_array.sel(sim=batch_sims)
-
-            # Process this batch
+        def process_single_simulation(sim_id):
+            """Process a single simulation."""
             try:
-                if hasattr(batch_data, "chunks") and batch_data.chunks is not None:
-                    batch_result = self._calculate_one_in_x_dask_optimized(batch_data)
-                else:
-                    batch_result = self._calculate_one_in_x_vectorized(batch_data)
+                # Select and compute individual simulation
+                sim_data = data_array.sel(sim=sim_id).squeeze()
 
-                all_results.append(batch_result)
+                # Add thread-safe logging
+                thread_id = threading.current_thread().ident
+                print(f"[Thread {thread_id}] Computing simulation {sim_id} data...")
+                sim_data = sim_data.compute()
+
+                # Force drop the sim dimension if it still exists
+                if "sim" in sim_data.dims:
+                    sim_data = sim_data.squeeze("sim", drop=True)
+
+                # Extract block maxima
+                block_maxima = _get_block_maxima_optimized(sim_data, **kwargs).squeeze()
+
+                if "sim" in block_maxima.dims:
+                    block_maxima = block_maxima.squeeze("sim", drop=True)
+
+                # Process spatial dimensions if present
+                spatial_dims = [
+                    dim for dim in block_maxima.dims if dim not in ["time", "year"]
+                ]
+
+                if spatial_dims:
+                    result = self._process_spatial_dimensions(
+                        block_maxima, spatial_dims[0]
+                    )
+                else:
+                    result = self._get_return_values_vectorized(
+                        block_maxima,
+                        return_periods=self.return_periods,
+                        distr=self.distribution,
+                    )
+
+                # Calculate p-values if requested
+                p_value = self._calculate_p_value_if_requested(block_maxima, sim_id)
+
+                return result, p_value, None
 
             except Exception as e:
-                print(f"Warning: Batch processing failed: {e}")
-                # Create fallback results for this batch
-                fallback_ret_vals, fallback_p_vals = self._create_fallback_results(
-                    batch_data
+                error_msg = f"Failed to process simulation {sim_id}: {e}"
+                print(f"Warning: {error_msg}")
+                return (
+                    self._create_nan_return_value_array(),
+                    xr.DataArray(np.nan, name="p_value"),
+                    error_msg,
                 )
-                fallback_result = self._create_one_in_x_result_dataset(
-                    fallback_ret_vals, fallback_p_vals, batch_data
-                )
-                all_results.append(fallback_result)
 
-        # Combine all batch results
-        if all_results:
-            combined_result = xr.concat(all_results, dim="sim")
-            return combined_result
-        else:
-            # Fallback if all batches failed
-            ret_vals, p_vals = self._create_fallback_results(data_array)
-            return self._create_one_in_x_result_dataset(ret_vals, p_vals, data_array)
+        # Determine parallelization config
+        parallel_config = self._should_parallelize_batch_processing(data_array)
 
-    def _safe_apply_ufunc_with_dask(self, func, *args, **kwargs):
+        if not parallel_config["use_parallel"]:
+            print(f"Processing batch serially: {parallel_config['reason']}")
+            # Fall back to serial processing
+            return self._process_simulation_batch_serial(batch_sims, data_array, kwargs)
+
+        print(
+            f"Processing batch with {parallel_config['n_workers']} {parallel_config['method']} workers: {parallel_config['reason']}"
+        )
+
+        batch_results = []
+        batch_p_vals = []
+
+        # Use ThreadPoolExecutor for parallel processing
+        with ThreadPoolExecutor(max_workers=parallel_config["n_workers"]) as executor:
+            # Submit all simulations to the executor
+            future_to_sim = {
+                executor.submit(process_single_simulation, sim_id): sim_id
+                for sim_id in batch_sims
+            }
+
+            # Collect results as they complete
+            for future in as_completed(future_to_sim):
+                sim_id = future_to_sim[future]
+                try:
+                    result, p_value, error = future.result()
+                    batch_results.append(result)
+                    batch_p_vals.append(p_value)
+
+                    if error:
+                        print(f"Warning: {error}")
+
+                except Exception as e:
+                    print(
+                        f"Warning: Parallel processing failed for simulation {sim_id}: {e}"
+                    )
+                    batch_results.append(self._create_nan_return_value_array())
+                    batch_p_vals.append(xr.DataArray(np.nan, name="p_value"))
+
+        return batch_results, batch_p_vals
+
+    def _process_simulation_batch_serial(
+        self, batch_sims: list, data_array: xr.DataArray, kwargs: dict
+    ) -> tuple:
         """
-        Safely apply xr.apply_ufunc with proper Dask configuration.
-
-        This method ensures that apply_ufunc calls are properly configured
-        for Dask arrays to avoid chunked array handling errors.
+        Process a batch of simulations serially (original implementation).
 
         Parameters
         ----------
-        func : callable
-            Function to apply
-        *args : tuple
-            Arguments to pass to apply_ufunc
-        **kwargs : dict
-            Keyword arguments to pass to apply_ufunc
+        batch_sims : list
+            List of simulation identifiers to process
+        data_array : xr.DataArray
+            Input data array
+        kwargs : dict
+            Arguments for block maxima extraction
 
         Returns
         -------
-        Any
-            Result of apply_ufunc call
+        tuple
+            (batch_results, batch_p_vals) tuple of lists
         """
-        # Default Dask configuration for apply_ufunc
-        dask_kwargs = {
-            "dask": "allowed",  # Allow Dask arrays but don't require parallelization
-            "output_dtypes": [float],  # Default to float output
-        }
+        batch_results = []
+        batch_p_vals = []
 
-        # Check if any input arguments are Dask arrays
-        has_dask_input = any(
-            hasattr(arg, "chunks") and arg.chunks is not None
-            for arg in args
-            if hasattr(arg, "chunks")
-        )
+        for s in batch_sims:
+            try:
+                # Select and compute individual simulation to avoid Dask issues
+                sim_data = data_array.sel(sim=s).squeeze()
 
-        if has_dask_input:
-            # If we have Dask inputs, ensure proper Dask handling
-            dask_kwargs["dask"] = "parallelized"
+                # Compute the simulation data to convert from Dask to numpy
+                print(f"Computing simulation {s} data...")
+                sim_data = sim_data.compute()
 
-            # Add meta information to help Dask understand the output structure
-            if "meta" not in kwargs.get("dask_gufunc_kwargs", {}):
-                dask_kwargs["meta"] = np.array([], dtype=float)
+                # Force drop the sim dimension if it still exists
+                if "sim" in sim_data.dims:
+                    sim_data = sim_data.squeeze("sim", drop=True)
 
-        # Merge with user-provided kwargs (user kwargs take precedence)
-        final_kwargs = {**dask_kwargs, **kwargs}
+                # Extract block maxima for this simulation using optimized function
+                block_maxima = _get_block_maxima_optimized(sim_data, **kwargs).squeeze()
 
-        try:
-            return xr.apply_ufunc(func, *args, **final_kwargs)
-        except Exception as e:
-            if "chunked array" in str(e) and "dask" in str(e):
-                print(
-                    f"Warning: apply_ufunc failed with Dask error, computing inputs: {e}"
+                # Force drop the sim dimension if it still exists in block_maxima
+                if "sim" in block_maxima.dims:
+                    block_maxima = block_maxima.squeeze("sim", drop=True)
+
+                # Handle spatial dimensions (e.g., closest_cell, lat, lon)
+                spatial_dims = [
+                    dim for dim in block_maxima.dims if dim not in ["time", "year"]
+                ]
+
+                if spatial_dims:
+                    result = self._process_spatial_dimensions(
+                        block_maxima, spatial_dims[0]
+                    )
+                else:
+                    # No spatial dimensions - process as normal (now with computed data)
+                    result = self._get_return_values_vectorized(
+                        block_maxima,
+                        return_periods=self.return_periods,
+                        distr=self.distribution,
+                    )
+
+                batch_results.append(result)
+
+                # Calculate p-values if requested (now with computed data)
+                p_value = self._calculate_p_value_if_requested(block_maxima, s)
+                batch_p_vals.append(p_value)
+
+            except Exception as sim_error:
+                print(f"Warning: Failed to process simulation {s}: {sim_error}")
+                # Create NaN result for this simulation
+                nan_result = self._create_nan_return_value_array()
+                batch_results.append(nan_result)
+                batch_p_vals.append(xr.DataArray(np.nan, name="p_value"))
+
+        return batch_results, batch_p_vals
+
+    def _process_spatial_dimensions(
+        self, block_maxima: xr.DataArray, spatial_dim: str
+    ) -> xr.DataArray:
+        """
+        Process spatial dimensions for block maxima data.
+
+        Parameters
+        ----------
+        block_maxima : xr.DataArray
+            Block maxima data with spatial dimensions
+        spatial_dim : str
+            Name of the spatial dimension to process
+
+        Returns
+        -------
+        xr.DataArray
+            Processed return values with spatial coordinates
+        """
+        spatial_coords = block_maxima.coords[spatial_dim]
+        location_results = []
+
+        for loc_idx, spatial_coord in enumerate(spatial_coords):
+            try:
+                # Extract data for this specific location
+                loc_block_maxima = block_maxima.isel({spatial_dim: loc_idx})
+
+                # Check if this location has enough valid data
+                time_dim = "year" if "year" in loc_block_maxima.dims else "time"
+                valid_data = loc_block_maxima.dropna(dim=time_dim, how="all")
+                n_valid_periods = len(valid_data[time_dim])
+
+                if n_valid_periods < 3:
+                    print(
+                        f"Warning: Location {loc_idx} has insufficient valid data ({n_valid_periods} {time_dim} periods), skipping..."
+                    )
+                    raise ValueError(f"Insufficient valid data for location {loc_idx}")
+
+                # Calculate return values for this location
+                loc_result = self._get_return_values_vectorized(
+                    valid_data,
+                    return_periods=self.return_periods,
+                    distr=self.distribution,
                 )
-                # Fallback: compute the Dask arrays and try again
-                computed_args = []
-                for arg in args:
-                    if hasattr(arg, "chunks") and arg.chunks is not None:
-                        computed_args.append(arg.compute())
-                    else:
-                        computed_args.append(arg)
 
-                # Remove Dask-specific kwargs for non-Dask computation
-                fallback_kwargs = {
-                    k: v
-                    for k, v in final_kwargs.items()
-                    if k not in ["dask", "meta", "dask_gufunc_kwargs"]
-                }
+                # Add the spatial coordinate back to the result
+                loc_result = loc_result.assign_coords(
+                    {spatial_dim: spatial_coords[loc_idx]}
+                )
+                loc_result = loc_result.expand_dims(spatial_dim)
+                location_results.append(loc_result)
 
-                return xr.apply_ufunc(func, *computed_args, **fallback_kwargs)
-            else:
-                raise
+            except Exception as loc_error:
+                print(
+                    f"Warning: Failed to process location {loc_idx} in {spatial_dim}: {loc_error}"
+                )
+                # Create NaN result for this location
+                nan_result = self._create_nan_return_value_array()
+                nan_result = nan_result.assign_coords(
+                    {spatial_dim: spatial_coords[loc_idx]}
+                )
+                nan_result = nan_result.expand_dims(spatial_dim)
+                location_results.append(nan_result)
+
+        # Combine results across all locations
+        if location_results:
+            return xr.concat(location_results, dim=spatial_dim)
+        else:
+            # All locations failed - create NaN result
+            return xr.DataArray(
+                np.full((len(spatial_coords), len(self.return_periods)), np.nan),
+                dims=[spatial_dim, "one_in_x"],
+                coords={
+                    spatial_dim: spatial_coords,
+                    "one_in_x": self.return_periods,
+                },
+                name="return_value",
+            )
+
+    def _calculate_p_value_if_requested(
+        self, block_maxima: xr.DataArray, sim_id: str
+    ) -> xr.DataArray:
+        """
+        Calculate p-value for goodness-of-fit test if requested.
+
+        Parameters
+        ----------
+        block_maxima : xr.DataArray
+            Block maxima data
+        sim_id : str
+            Simulation identifier for logging
+
+        Returns
+        -------
+        xr.DataArray
+            P-value or NaN if test not requested
+        """
+        if self.goodness_of_fit_test and block_maxima is not None:
+            _, p_value = get_ks_stat(
+                block_maxima, distr=self.distribution, multiple_points=False
+            ).data_vars.values()
+
+            if self.print_goodness_of_fit:
+                self._print_goodness_of_fit_result(sim_id, p_value)
+
+            return p_value
+        else:
+            return xr.DataArray(np.nan, name="p_value")
