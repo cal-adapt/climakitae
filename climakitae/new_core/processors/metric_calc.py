@@ -1577,84 +1577,76 @@ class MetricCalc(DataProcessor):
             data_array = data_array.chunk(optimal_chunks)
             print(f"Rechunked data for optimal processing: {optimal_chunks}")
 
-        # Use xr.apply_ufunc with Dask integration for parallel processing
-        def _process_simulation_chunk(sim_data):
-            """Process a single simulation's data efficiently."""
-            try:
-                # Extract block maxima using optimized function
-                block_maxima = _get_block_maxima_optimized(sim_data, **kwargs)
-
-                # Calculate return values
-                return_vals = self._calculate_return_values_vectorized_core(
-                    block_maxima, self.return_periods, self.distribution
-                )
-
-                # Calculate p-values if needed
-                if self.goodness_of_fit_test:
-                    p_val = self._calculate_p_value_core(
-                        block_maxima, self.distribution
+        # For Dask optimization, we'll process simulation chunks directly
+        # rather than using apply_ufunc which has issues with xarray methods
+        print("Processing simulations using Dask delayed computation...")
+        
+        try:
+            # Process simulations in parallel using Dask delayed
+            from dask import delayed
+            
+            # Define a function to process a single simulation
+            @delayed
+            def process_single_sim(sim_idx):
+                """Process a single simulation using delayed computation."""
+                try:
+                    # Select the simulation data
+                    sim_data = data_array.isel(sim=sim_idx)
+                    
+                    # Compute this specific simulation to get an xarray object
+                    sim_data = sim_data.compute()
+                    
+                    # Extract block maxima using optimized function
+                    block_maxima = _get_block_maxima_optimized(sim_data, **kwargs)
+                    
+                    # Calculate return values
+                    return_vals = self._get_return_values_vectorized(
+                        block_maxima, self.return_periods, self.distribution
                     )
-                else:
-                    p_val = np.nan
+                    
+                    # Calculate p-values if needed
+                    if self.goodness_of_fit_test:
+                        _, p_val = get_ks_stat(
+                            block_maxima, distr=self.distribution, multiple_points=False
+                        ).data_vars.values()
+                    else:
+                        p_val = xr.DataArray(np.nan, name="p_value")
+                    
+                    return return_vals, p_val
+                    
+                except Exception as e:
+                    print(f"Warning: Failed to process simulation {sim_idx}: {e}")
+                    # Return NaN results
+                    return (
+                        self._create_nan_return_value_array(),
+                        xr.DataArray(np.nan, name="p_value")
+                    )
+            
+            # Create delayed tasks for all simulations
+            delayed_tasks = [
+                process_single_sim(i) for i in range(len(data_array.sim))
+            ]
+            
+            # Compute all tasks in parallel
+            print(f"Computing {len(delayed_tasks)} simulations in parallel...")
+            results = dask.compute(*delayed_tasks)
+            
+            # Separate return values and p-values
+            return_vals_list = [result[0] for result in results]
+            p_vals_list = [result[1] for result in results]
+            
+        except (ImportError, Exception) as e:
+            print(f"Dask delayed processing failed: {e}")
+            # Fallback to the large dataset batch processing
+            return self._process_large_dataset_in_batches(data_array)
 
-                return return_vals, p_val
-
-            except (ValueError, TypeError) as e:
-                print(f"Warning: Simulation processing failed due to error: {e}")
-                # Return NaN results
-                return (
-                    np.full(len(self.return_periods), np.nan),
-                    np.nan,
-                )
-
-        # Apply the function in parallel across simulations
-        results = xr.apply_ufunc(
-            _process_simulation_chunk,
-            data_array,
-            input_core_dims=[["time"]],  # Process along time dimension
-            output_core_dims=[["one_in_x"], []],  # Return values and p-values
-            vectorize=True,  # Apply to each simulation independently
-            dask="parallelized",  # Enable Dask parallelization
-            output_sizes={"one_in_x": len(self.return_periods)},
-            # Dask optimization parameters - use meta instead of output_dtypes
-            dask_gufunc_kwargs={
-                "meta": (
-                    np.empty((len(self.return_periods),), dtype=float),
-                    np.empty((), dtype=float),
-                ),
-                "allow_rechunk": True,
-            },
+        # Combine results with robust error handling
+        ret_vals, p_vals = self._combine_return_value_results(
+            return_vals_list, p_vals_list, data_array
         )
 
-        return_values, p_values = results
-
-        # Add coordinates and create dataset
-        return_values = return_values.assign_coords(
-            {
-                "one_in_x": self.return_periods,
-                "sim": data_array.sim,
-            }
-        )
-        p_values = p_values.assign_coords({"sim": data_array.sim})
-
-        # Create result dataset
-        result = xr.Dataset(
-            {
-                "return_value": return_values,
-                "p_values": p_values,
-            }
-        )
-
-        # Add attributes
-        result.attrs.update(
-            {
-                "groupby": f"{self.event_duration[0]} {self.event_duration[1]}",
-                "fitted_distr": self.distribution,
-                "sample_size": len(data_array.time),
-            }
-        )
-
-        return result
+        # Create and return result dataset
+        return self._create_one_in_x_result_dataset(ret_vals, p_vals, data_array)
 
     def _calculate_one_in_x_medium_dask(self, data_array: xr.DataArray) -> xr.Dataset:
         """
