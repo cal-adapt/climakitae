@@ -1284,59 +1284,9 @@ class TestConvertToLocalTime:
             dims=["time"],
             coords={"time": time_values},
         )
+        data.attrs = {"data_type": "Stations", "frequency": "monthly"}
+        data.name = "SAN FRANCISCO DWTN"
 
-        # Create a mock DataParameters object
-        mock_selections = MagicMock()
-        mock_selections.time_slice = (2020, 2020)
-        mock_selections.timescale = "hourly"
-
-        # Test 1: Monthly data (should return original data)
-        mock_selections.timescale = "monthly"
-        with patch("builtins.print") as mock_print:
-            result = convert_to_local_time(data, mock_selections)
-            assert result.equals(data)
-            mock_print.assert_called_once_with(
-                "You've selected a timescale that doesn't require any timezone shifting, due to its timescale not being granular enough (hourly). Please pass in more granular level data if you want to adjust its local timezone."
-            )
-
-        # Test 2: Daily data (should return original data)
-        mock_selections.timescale = "daily"
-        with patch("builtins.print") as mock_print:
-            result = convert_to_local_time(data, mock_selections)
-            assert result.equals(data)
-            mock_print.assert_called_once()
-
-        # Test 3: Historical Reconstruction at 2022
-        mock_selections.timescale = "hourly"
-        mock_selections.scenario_historical = ["Historical Reconstruction"]
-        mock_selections.time_slice = (2020, 2022)
-        with patch("builtins.print") as mock_print:
-            result = convert_to_local_time(data, mock_selections)
-            # Check if the specific message is in one of the calls
-            assert any(
-                "Adjusting timestep but not appending data, as there is no more ERA5 data after 2022."
-                in str(call)
-                for call in mock_print.call_args_list
-            )
-
-        # Test 4: Data at 2100 (end of possible data)
-        mock_selections.scenario_historical = []
-        mock_selections.time_slice = (2090, 2100)
-        with patch("builtins.print") as mock_print:
-            result = convert_to_local_time(data, mock_selections)
-            # Check if the specific message is in one of the calls
-            assert any(
-                "Adjusting timestep but not appending data, as there is no more data after 2100."
-                in str(call)
-                for call in mock_print.call_args_list
-            )
-
-        # Test 5: Station data type with timezone conversion
-        mock_selections.time_slice = (2020, 2021)
-        mock_selections.data_type = "Stations"
-        mock_selections.stations = ["SAN FRANCISCO DWTN"]
-
-        # Mock the stations dataframe
         mock_stations_df = pd.DataFrame(
             {
                 "station": ["SAN FRANCISCO DWTN"],
@@ -1346,39 +1296,144 @@ class TestConvertToLocalTime:
             }
         )
 
-        # Create mock additional data that would be returned by selections.retrieve()
-        additional_time = pd.date_range("2022-01-01T00:00:00", periods=24, freq="h")
-        tz_data = xr.DataArray(
-            np.random.rand(len(additional_time)),
-            dims=["time"],
-            coords={"time": additional_time},
-        )
-
+        # Test 1: Monthly data (should return original data)
+        # Mock the stations dataframe
         with patch(
             "climakitae.util.utils.read_csv_file",
             return_value=mock_stations_df,
-        ), patch.object(mock_selections, "retrieve", return_value=tz_data), patch(
+        ), patch(
+            "climakitae.util.utils.TimezoneFinder.timezone_at",
+            return_value="America/Los_Angeles",
+        ), patch(
+            "builtins.print"
+        ) as mock_print:
+            result = convert_to_local_time(data)
+            assert result.equals(data)
+            mock_print.assert_called_once_with(
+                "This dataset's timescale is not granular enough to covert to local time. Local timezone conversion requires hourly data."
+            )
+
+        # Test 2: Hourly data with no name
+        # Mock the stations dataframe
+        data.attrs["frequency"] = "hourly"
+        data.name = None
+        with patch(
+            "climakitae.util.utils.read_csv_file",
+            return_value=mock_stations_df,
+        ), patch(
+            "climakitae.util.utils.TimezoneFinder.timezone_at",
+            return_value="America/Los_Angeles",
+        ), patch(
+            "builtins.print"
+        ) as mock_print:
+            result = convert_to_local_time(data)
+            assert result.equals(data)
+            mock_print.assert_called_once_with(
+                "Station None not found in Stations CSV. Please set Data Array name to valid station name."
+            )
+
+        # Test 3: Hourly data with mismatched name
+        # Mock the stations dataframe
+        data.name = "SAN FRANCISCO"
+        with patch(
+            "climakitae.util.utils.read_csv_file",
+            return_value=mock_stations_df,
+        ), patch(
+            "climakitae.util.utils.TimezoneFinder.timezone_at",
+            return_value="America/Los_Angeles",
+        ), patch(
+            "builtins.print"
+        ) as mock_print:
+            result = convert_to_local_time(data)
+            assert result.equals(data)
+            mock_print.assert_called_once_with(
+                f"Station {data.name} not found in Stations CSV. Please set Data Array name to valid station name."
+            )
+
+        # Test 4: Station data type with timezone conversion
+        # Mock the stations dataframe
+        data.name = "SAN FRANCISCO DWTN"
+        with patch(
+            "climakitae.util.utils.read_csv_file",
+            return_value=mock_stations_df,
+        ), patch(
             "climakitae.util.utils.TimezoneFinder.timezone_at",
             return_value="America/Los_Angeles",
         ), patch(
             "builtins.print"
         ) as mock_print:
 
-            result = convert_to_local_time(data, mock_selections)
+            result = convert_to_local_time(data)
 
             # Verify the timezone was set as an attribute
             assert result.attrs["timezone"] == "America/Los_Angeles"
-
-            # Verify that the time slice was reset
-            assert mock_selections.time_slice == (2020, 2021)
 
             # Check if the print message about timezone conversion was shown
             mock_print.assert_called_with(
                 "Data converted to America/Los_Angeles timezone."
             )
 
+        # Test 4: Station data type with timezone conversion
+        # where dataset is passed
+        data = xr.DataArray(
+            np.random.rand(len(time_values)),
+            dims=["time"],
+            coords={"time": time_values},
+        )
+        data.attrs = {"data_type": "Stations", "frequency": "hourly"}
+        data.name = "SAN FRANCISCO DWTN"
+        data = data.to_dataset()
+        with patch(
+            "climakitae.util.utils.read_csv_file",
+            return_value=mock_stations_df,
+        ), patch(
+            "climakitae.util.utils.TimezoneFinder.timezone_at",
+            return_value="America/Los_Angeles",
+        ), patch(
+            "builtins.print"
+        ) as mock_print:
+
+            result = convert_to_local_time(data)
+
+            # Verify the timezone was set as an attribute
+            assert (
+                result["SAN FRANCISCO DWTN"].attrs["timezone"] == "America/Los_Angeles"
+            )
+
+            # Check if the print message about timezone conversion was shown
+            mock_print.assert_called_with(
+                "Data converted to America/Los_Angeles timezone."
+            )
+
+    def test_convert_to_local_time_no_data_type(self):
+        """Test convert_to_local_time with data that has no type set."""
+        # Create mock data with lat/lon coordinates
+        time_values = pd.date_range("2020-01-01T00:00:00", periods=24, freq="h")
+        lat_values = [34.0, 35.0]
+        lon_values = [-118.0, -117.0]
+
+        data = xr.DataArray(
+            np.random.rand(len(time_values), len(lat_values), len(lon_values)),
+            dims=["time", "lat", "lon"],
+            coords={
+                "time": time_values,
+                "lat": lat_values,
+                "lon": lon_values,
+            },
+        )
+        data.attrs = {"frequency": "hourly"}
+
+        with patch(
+            "climakitae.util.utils.TimezoneFinder.timezone_at",
+            return_value="America/Los_Angeles",
+        ), patch("builtins.print") as mock_print:
+            _ = convert_to_local_time(data)
+            mock_print.assert_called_once_with(
+                "Data Array attribute 'data_type' not found. Please set 'data_type' to 'Stations' or 'Gridded'."
+            )
+
     def test_convert_to_local_time_gridded_data(self):
-        """Test convert_to_local_time with gridded data types"""
+        """Test convert_to_local_time with gridded data types."""
 
         # Create mock data with lat/lon coordinates
         time_values = pd.date_range("2020-01-01T00:00:00", periods=24, freq="h")
@@ -1394,33 +1449,15 @@ class TestConvertToLocalTime:
                 "lon": lon_values,
             },
         )
-
-        # Create a mock DataParameters object
-        mock_selections = MagicMock()
-        mock_selections.time_slice = (2020, 2021)
-        mock_selections.timescale = "hourly"
-        mock_selections.data_type = "Gridded"
-        mock_selections.area_subset = "lat/lon"
-
-        # Create mock additional data that would be returned by selections.retrieve()
-        additional_time = pd.date_range("2022-01-01T00:00:00", periods=24, freq="h")
-        tz_data = xr.DataArray(
-            np.random.rand(len(additional_time), len(lat_values), len(lon_values)),
-            dims=["time", "lat", "lon"],
-            coords={
-                "time": additional_time,
-                "lat": lat_values,
-                "lon": lon_values,
-            },
-        )
+        data.attrs = {"data_type": "Gridded", "frequency": "hourly"}
 
         # Test with gridded data and lat/lon area_subset
-        with patch.object(mock_selections, "retrieve", return_value=tz_data), patch(
+        with patch(
             "climakitae.util.utils.TimezoneFinder.timezone_at",
             return_value="America/Los_Angeles",
         ), patch("builtins.print") as mock_print:
 
-            result = convert_to_local_time(data, mock_selections)
+            result = convert_to_local_time(data)
 
             # Verify the timezone was set as an attribute
             assert result.attrs["timezone"] == "America/Los_Angeles"
@@ -1437,175 +1474,60 @@ class TestConvertToLocalTime:
             assert len(result.time) > 0  # Ensure we have at least some time values
 
             # Optional: Verify that we're dealing with local time now (the key purpose)
-            if len(result.time) == len(data.time):
-                # If lengths are equal, values should be different (shifted by timezone)
-                assert not np.array_equal(result.time.values, data.time.values)
-            elif len(result.time) < len(data.time):
-                # If the time dimension was reduced, that's also acceptable
-                # This can happen due to timezone shifts removing some hours
-                pass
+            assert len(result.time) == len(time_values)
+            # 8 hour offset between LA and UTC times
+            new_times = time_values - pd.Timedelta(hours=8)
+            assert (data.time == new_times).all()
 
-    def test_convert_to_local_time_area_average(self):
-        """Test convert_to_local_time with area-averaged data"""
-
-        # Create mock data
-        time_values = pd.date_range("2020-01-01T00:00:00", periods=24, freq="h")
+        # Test with missing frequency and daily times
+        time_values = pd.date_range(
+            start="2020-01-01T00:00:00", end="2020-02-01T00:00:00", freq="D"
+        )
+        lat_values = [34.0, 35.0]
+        lon_values = [-118.0, -117.0]
         data = xr.DataArray(
-            np.random.rand(len(time_values)),
-            dims=["time"],
+            np.random.rand(len(time_values), len(lat_values), len(lon_values)),
+            dims=["time", "lat", "lon"],
             coords={
                 "time": time_values,
-                "lat": 34.0,  # Add lat coordinate
-                "lon": -118.0,  # Add lon coordinate
+                "lat": lat_values,
+                "lon": lon_values,
             },
         )
+        data.attrs = {"data_type": "Gridded"}
 
-        # Create a mock DataParameters object
-        mock_selections = MagicMock()
-        mock_selections.time_slice = (2020, 2021)
-        mock_selections.timescale = "hourly"
-        mock_selections.data_type = "Gridded"
-        mock_selections.area_average = "Yes"
-        mock_selections.latitude = [34.0, 35.0]
-        mock_selections.longitude = [-118.0, -117.0]
-
-        # Create mock additional data that would be returned by selections.retrieve()
-        additional_time = pd.date_range("2022-01-01T00:00:00", periods=24, freq="h")
-        tz_data = xr.DataArray(
-            np.random.rand(len(additional_time)),
-            dims=["time"],
-            coords={"time": additional_time},
-        )
-
-        # Test with area-averaged data
-        with patch.object(mock_selections, "retrieve", return_value=tz_data), patch(
+        with patch(
             "climakitae.util.utils.TimezoneFinder.timezone_at",
             return_value="America/Los_Angeles",
         ), patch("builtins.print") as mock_print:
 
-            result = convert_to_local_time(data, mock_selections)
+            result = convert_to_local_time(data)
 
-            # Verify the timezone was set as an attribute
-            assert result.attrs["timezone"] == "America/Los_Angeles"
-
-            # Verify the data contains the shifted time values
-            assert "time" in result.dims
-
-            # Check that mean lat/lon was used
-            np.testing.assert_allclose(np.mean(mock_selections.latitude), 34.5)
-            np.testing.assert_allclose(np.mean(mock_selections.longitude), -117.5)
-
-    def test_convert_to_local_time_empty_result(self):
-        """Test convert_to_local_time when retrieve returns empty data"""
-
-        # Create mock data
-        time_values = pd.date_range("2020-01-01T00:00:00", periods=24, freq="h")
-        data = xr.DataArray(
-            np.random.rand(len(time_values)),
-            dims=["time"],
-            coords={
-                "time": time_values,
-                "lat": 34.0,  # Add lat coordinate
-                "lon": -118.0,  # Add lon coordinate
-            },
-        )
-
-        # Create a mock DataParameters object
-        mock_selections = MagicMock()
-        mock_selections.time_slice = (2020, 2021)
-        mock_selections.timescale = "hourly"
-        # Set location information to prevent the default to UTC timezone message
-        mock_selections.latitude = [34.0]
-        mock_selections.longitude = [-118.0]
-        mock_selections.data_type = "Gridded"  # Provide data type
-        mock_selections.area_subset = "lat/lon"  # Specify area subset type
-
-        # Create empty data with time dimension
-        empty_data = xr.DataArray(
-            [],
-            dims=["time"],
-            coords={"time": []},
-        )
-
-        # Test when selections.retrieve() returns empty data
-        with patch.object(mock_selections, "retrieve", return_value=empty_data), patch(
-            "builtins.print"
-        ) as mock_print:
-
-            result = convert_to_local_time(data, mock_selections)
-
-            # Should return original data
-            assert result.equals(data)
-
-            # Check error message
-            mock_print.assert_any_call(
-                "You've selected a time slice that will additionally require a selected SSP. Please select an SSP in your selections and re-run this function."
+            # Check if the print message about timezone conversion was shown
+            mock_print.assert_called_with(
+                "This dataset's timescale is not granular enough to covert to local time. Local timezone conversion requires hourly data."
             )
 
-            # Verify time_slice was reset
-            assert mock_selections.time_slice == (2020, 2021)
-
-    def test_convert_to_local_time_area_subset(self):
-        """Test convert_to_local_time with gridded data and area subset"""
-
-        # Create mock data with time dimension
+        # Test with lat/lon provided for area averaged data
         time_values = pd.date_range("2020-01-01T00:00:00", periods=24, freq="h")
         data = xr.DataArray(
             np.random.rand(len(time_values)),
             dims=["time"],
-            coords={"time": time_values},
+            coords={
+                "time": time_values,
+            },
         )
+        data.attrs = {"data_type": "Gridded", "frequency": "hourly"}
 
-        # Create a mock DataParameters object
-        mock_selections = MagicMock()
-        mock_selections.time_slice = (2020, 2021)
-        mock_selections.timescale = "hourly"
-        mock_selections.data_type = "Gridded"
-        mock_selections.area_subset = "CA counties"  # Use area subset
-        mock_selections.cached_area = ["Alameda"]  # Example county
-
-        # Create mock additional data that would be returned by selections.retrieve()
-        additional_time = pd.date_range("2022-01-01T00:00:00", periods=24, freq="h")
-        tz_data = xr.DataArray(
-            np.random.rand(len(additional_time)),
-            dims=["time"],
-            coords={"time": additional_time},
-        )
-
-        # Mock the boundaries and geometry objects
-        mock_geographies = MagicMock()
-        mock_selections._geographies = mock_geographies
-
-        # Mock county data with geometry that has a centroid
-        mock_county = MagicMock()
-        mock_county.geometry.centroid.x = -122.0  # Example longitude
-        mock_county.geometry.centroid.y = 37.5  # Example latitude
-
-        # Mock the county dataframe with loc returning our mock county
-        mock_ca_counties = MagicMock()
-        mock_ca_counties.loc.__getitem__.return_value = mock_county
-
-        # Set up the necessary attributes and methods on mock_geographies
-        mock_geographies._ca_counties = mock_ca_counties
-        mock_geographies._get_ca_counties.return_value = {
-            "Alameda": 0
-        }  # Map county name to index
-
-        # Test with area subset data
-        with patch.object(mock_selections, "retrieve", return_value=tz_data), patch(
+        with patch(
             "climakitae.util.utils.TimezoneFinder.timezone_at",
             return_value="America/Los_Angeles",
         ), patch("builtins.print") as mock_print:
 
-            result = convert_to_local_time(data, mock_selections)
+            result = convert_to_local_time(data, -118.0, 34.0)
 
             # Verify the timezone was set as an attribute
             assert result.attrs["timezone"] == "America/Los_Angeles"
-
-            # Verify that TimezoneFinder.timezone_at was called with the centroid coordinates
-            from climakitae.util.utils import TimezoneFinder
-
-            TimezoneFinder.timezone_at.assert_called_with(lat=37.5, lng=-122.0)
 
             # Check if the print message about timezone conversion was shown
             mock_print.assert_called_with(
