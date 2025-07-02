@@ -985,6 +985,48 @@ class MetricCalc(DataProcessor):
 
         return result
 
+    def _add_dummy_time_if_needed(self, data_array: xr.DataArray) -> xr.DataArray:
+        """Add a dummy time dimension if not present."""
+        if "time" not in data_array.dims:
+            return data_array.expand_dims(time=[0])
+        return data_array
+
+    def _extract_block_maxima(self, data_array: xr.DataArray) -> xr.DataArray:
+        """Extract block maxima from a data array."""
+        kwargs = {
+            "extremes_type": self.extremes_type,
+            "check_ess": False,
+            "block_size": self.block_size,
+        }
+        if self.event_duration == (1, "day"):
+            kwargs["groupby"] = self.event_duration
+        elif self.event_duration[1] == "hour":
+            kwargs["duration"] = self.event_duration
+        return get_block_maxima(data_array, **kwargs).squeeze()
+
+    def _print_goodness_of_fit_result(self, sim: str, p_value: xr.DataArray):
+        """Print the goodness-of-fit test result."""
+        if p_value.values < 0.05:
+            print(
+                f"For simulation {sim}, the p-value is {p_value.values:.2f}, which is less than 0.05, so we reject the null hypothesis that the data follows a {self.distribution} distribution."
+            )
+        else:
+            print(
+                f"For simulation {sim}, the p-value is {p_value.values:.2f}, which is greater than 0.05, so we fail to reject the null hypothesis that the data follows a {self.distribution} distribution."
+            )
+
+    def _preprocess_variable_for_one_in_x(
+        self, data_array: xr.DataArray, var_name: str
+    ) -> xr.DataArray:
+        """Apply variable-specific preprocessing for 1-in-X calculations."""
+        if var_name == "pr" and self.variable_preprocessing.get(
+            "detrend_with_rolling_mean", False
+        ):
+            print("Detrending precipitation data with a 30-day rolling mean...")
+            rolling_mean = data_array.rolling(time=30, center=True).mean()
+            data_array = data_array - rolling_mean
+        return data_array
+
     def update_context(self, context):
         """
         Update the context with information about the clipping operation, to be stored
