@@ -2053,9 +2053,9 @@ class MetricCalc(DataProcessor):
             )
             batch_data = batch_data.compute()
 
-            # Process this batch using the medium Dask method (which handles computed data well)
+            # Process this batch using vectorized method for computed data
             try:
-                batch_result = self._calculate_one_in_x_medium_dask(batch_data)
+                batch_result = self._calculate_one_in_x_vectorized(batch_data)
 
                 # Extract results
                 batch_return_vals = [
@@ -2626,9 +2626,9 @@ class MetricCalc(DataProcessor):
             print(f"Computing batch data for simulations {i} to {end_idx-1}...")
             batch_data = batch_data.compute()
 
-            # Process this batch using the medium Dask method (which handles computed data well)
+            # Process this batch using vectorized method for computed data
             try:
-                batch_result = self._calculate_one_in_x_medium_dask(batch_data)
+                batch_result = self._calculate_one_in_x_vectorized(batch_data)
 
                 # Extract results
                 batch_return_vals = [
