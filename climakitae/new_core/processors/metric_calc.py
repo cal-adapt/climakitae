@@ -1622,7 +1622,8 @@ class MetricCalc(DataProcessor):
 
             # Compute all tasks in parallel
             print(f"Computing {len(delayed_tasks)} simulations in parallel...")
-            results = dask.compute(*delayed_tasks)
+            with ProgressBar():
+                results = dask.compute(*delayed_tasks)
 
             # Separate return values and p-values
             return_vals_list = [result[0] for result in results]
