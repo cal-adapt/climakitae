@@ -879,7 +879,7 @@ class MetricCalc(DataProcessor):
             print(f"Total size of data array: {total_size / 1e6:.2f} MB")
 
             # Use different strategies based on data size
-            if total_size < 1e8:  # Less than 100MB - load into memory
+            if total_size < 1e7:  # Less than 100MB - load into memory
                 print("Small array detected - loading into memory...")
                 data_array = data_array.compute()
                 use_dask_optimization = False
