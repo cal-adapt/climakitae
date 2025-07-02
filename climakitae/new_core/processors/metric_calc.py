@@ -20,6 +20,7 @@ from climakitae.explore.threshold_tools import (
     get_ks_stat,
     get_return_value,
     _get_distr_func,
+    _get_fitted_distr,
 )
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import (
@@ -981,12 +982,6 @@ class MetricCalc(DataProcessor):
             )
             return self._create_nan_return_value_array()
 
-        # Import the helper functions we need
-        from climakitae.explore.threshold_tools import (
-            _get_distr_func,
-            _get_fitted_distr,
-        )
-
         # Get the distribution function
         distr_func = _get_distr_func(distr)
 
@@ -1580,11 +1575,11 @@ class MetricCalc(DataProcessor):
         # For Dask optimization, we'll process simulation chunks directly
         # rather than using apply_ufunc which has issues with xarray methods
         print("Processing simulations using Dask delayed computation...")
-        
+
         try:
             # Process simulations in parallel using Dask delayed
             from dask import delayed
-            
+
             # Define a function to process a single simulation
             @delayed
             def process_single_sim(sim_idx):
@@ -1592,18 +1587,18 @@ class MetricCalc(DataProcessor):
                 try:
                     # Select the simulation data
                     sim_data = data_array.isel(sim=sim_idx)
-                    
+
                     # Compute this specific simulation to get an xarray object
                     sim_data = sim_data.compute()
-                    
+
                     # Extract block maxima using optimized function
                     block_maxima = _get_block_maxima_optimized(sim_data, **kwargs)
-                    
+
                     # Calculate return values
                     return_vals = self._get_return_values_vectorized(
                         block_maxima, self.return_periods, self.distribution
                     )
-                    
+
                     # Calculate p-values if needed
                     if self.goodness_of_fit_test:
                         _, p_val = get_ks_stat(
@@ -1611,30 +1606,28 @@ class MetricCalc(DataProcessor):
                         ).data_vars.values()
                     else:
                         p_val = xr.DataArray(np.nan, name="p_value")
-                    
+
                     return return_vals, p_val
-                    
+
                 except Exception as e:
                     print(f"Warning: Failed to process simulation {sim_idx}: {e}")
                     # Return NaN results
                     return (
                         self._create_nan_return_value_array(),
-                        xr.DataArray(np.nan, name="p_value")
+                        xr.DataArray(np.nan, name="p_value"),
                     )
-            
+
             # Create delayed tasks for all simulations
-            delayed_tasks = [
-                process_single_sim(i) for i in range(len(data_array.sim))
-            ]
-            
+            delayed_tasks = [process_single_sim(i) for i in range(len(data_array.sim))]
+
             # Compute all tasks in parallel
             print(f"Computing {len(delayed_tasks)} simulations in parallel...")
             results = dask.compute(*delayed_tasks)
-            
+
             # Separate return values and p-values
             return_vals_list = [result[0] for result in results]
             p_vals_list = [result[1] for result in results]
-            
+
         except (ImportError, Exception) as e:
             print(f"Dask delayed processing failed: {e}")
             # Fallback to the large dataset batch processing
