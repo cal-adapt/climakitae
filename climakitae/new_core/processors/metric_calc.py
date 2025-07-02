@@ -2138,8 +2138,8 @@ class MetricCalc(DataProcessor):
                     "distributed.worker.memory.target": 0.8,  # Use 80% of memory
                     "distributed.worker.memory.spill": 0.9,  # Spill at 90%
                     "distributed.worker.memory.pause": 0.95,  # Pause at 95%
-                    # Optimization settings
-                    "optimization.fuse": {},  # Enable graph fusion
+                    # Optimization settings - fix the delayed configuration
+                    "optimization.fuse.delayed": True,  # Enable delayed fusion
                     "array.slicing.split_large_chunks": True,
                     # Threading and scheduling
                     "scheduler": "threads",  # Use threaded scheduler for single machine
