@@ -883,9 +883,11 @@ class MetricCalc(DataProcessor):
                 print("Small array detected - loading into memory...")
                 data_array = data_array.compute()
                 use_dask_optimization = False
-            elif total_size < 1e9:  # 100MB - 1GB - use chunked processing
-                print("Medium array detected - using chunked processing...")
-                use_dask_optimization = False
+            elif total_size < 1e9:  # 100MB - 1GB - use chunked processing with Dask
+                print("Medium array detected - using Dask-aware chunked processing...")
+                use_dask_optimization = (
+                    "medium"  # Use special handling for medium arrays
+                )
             else:  # > 1GB - use Dask optimization
                 print("Large array detected - using Dask optimization...")
                 use_dask_optimization = True
@@ -904,7 +906,7 @@ class MetricCalc(DataProcessor):
         )
 
         # Try different processing strategies based on data size
-        if use_dask_optimization:
+        if use_dask_optimization == True:
             try:
                 print("Using Dask-optimized processing...")
                 return self._calculate_one_in_x_dask_optimized(data_array)
@@ -913,6 +915,17 @@ class MetricCalc(DataProcessor):
                     f"Dask optimization failed ({e}), falling back to batch processing..."
                 )
                 return self._process_large_dataset_in_batches(data_array)
+        elif use_dask_optimization == "medium":
+            try:
+                print("Using medium-size Dask-aware processing...")
+                return self._calculate_one_in_x_medium_dask(data_array)
+            except Exception as e:
+                print(
+                    f"Medium Dask processing failed ({e}), falling back to vectorized processing..."
+                )
+                # Compute the data and fallback to vectorized processing
+                data_array = data_array.compute()
+                return self._calculate_one_in_x_vectorized(data_array)
 
         # Try vectorized processing first for better performance
         try:
@@ -1986,6 +1999,196 @@ class MetricCalc(DataProcessor):
 
         return result
 
+    def _calculate_one_in_x_medium_dask(self, data_array: xr.DataArray) -> xr.Dataset:
+        """
+        Calculate 1-in-X return values for medium-size Dask arrays.
+
+        This method handles chunked arrays by computing individual simulations before
+        calling threshold_tools functions to avoid apply_ufunc Dask issues.
+
+        Parameters
+        ----------
+        data_array : xr.DataArray
+            The data on which to calculate 1-in-X return values.
+
+        Returns
+        -------
+        xr.Dataset
+            Dataset with return_value and p_values DataArrays.
+        """
+        if not EXTREME_VALUE_ANALYSIS_AVAILABLE:
+            raise ValueError("Extreme value analysis functions are not available")
+
+        # Configure block maxima extraction
+        kwargs = {
+            "extremes_type": self.extremes_type,
+            "check_ess": False,
+            "block_size": self.block_size,
+        }
+
+        if self.event_duration == (1, "day"):
+            kwargs["groupby"] = self.event_duration
+        elif self.event_duration[1] == "hour":
+            kwargs["duration"] = self.event_duration
+
+        # Process simulations in batches, computing each batch to avoid Dask issues
+        batch_size = min(5, len(data_array.sim))  # Process 5 simulations at a time
+        sim_values = data_array.sim.values
+
+        all_return_vals = []
+        all_p_vals = []
+
+        for i in range(0, len(sim_values), batch_size):
+            batch_sims = sim_values[i : i + batch_size]
+            print(
+                f"Processing simulation batch {i//batch_size + 1}/{(len(sim_values) + batch_size - 1)//batch_size}"
+            )
+
+            batch_results = []
+            batch_p_vals = []
+
+            for s in batch_sims:
+                try:
+                    # Select and compute individual simulation to avoid Dask issues
+                    sim_data = data_array.sel(sim=s).squeeze()
+
+                    # Compute the simulation data to convert from Dask to numpy
+                    print(f"Computing simulation {s} data...")
+                    sim_data = sim_data.compute()
+
+                    # Force drop the sim dimension if it still exists
+                    if "sim" in sim_data.dims:
+                        sim_data = sim_data.squeeze("sim", drop=True)
+
+                    # Extract block maxima for this simulation using optimized function
+                    block_maxima = _get_block_maxima_optimized(
+                        sim_data, **kwargs
+                    ).squeeze()
+
+                    # Force drop the sim dimension if it still exists in block_maxima
+                    if "sim" in block_maxima.dims:
+                        block_maxima = block_maxima.squeeze("sim", drop=True)
+
+                    # Handle spatial dimensions (e.g., closest_cell, lat, lon)
+                    spatial_dims = [
+                        dim for dim in block_maxima.dims if dim not in ["time", "year"]
+                    ]
+
+                    if spatial_dims:
+                        # We have spatial dimensions - process each location separately
+                        spatial_dim = spatial_dims[0]
+                        spatial_coords = block_maxima.coords[spatial_dim]
+
+                        location_results = []
+                        for loc_idx, spatial_coord in enumerate(spatial_coords):
+                            try:
+                                # Extract data for this specific location
+                                loc_block_maxima = block_maxima.isel(
+                                    {spatial_dim: loc_idx}
+                                )
+
+                                # Check if this location has enough valid data
+                                time_dim = (
+                                    "year"
+                                    if "year" in loc_block_maxima.dims
+                                    else "time"
+                                )
+                                valid_data = loc_block_maxima.dropna(
+                                    dim=time_dim, how="all"
+                                )
+                                n_valid_periods = len(valid_data[time_dim])
+
+                                if n_valid_periods < 3:
+                                    print(
+                                        f"Warning: Location {loc_idx} has insufficient valid data ({n_valid_periods} {time_dim} periods), skipping..."
+                                    )
+                                    raise ValueError(
+                                        f"Insufficient valid data for location {loc_idx}"
+                                    )
+
+                                # Calculate return values for this location (now with computed data)
+                                loc_result = self._get_return_values_vectorized(
+                                    valid_data,
+                                    return_periods=self.return_periods,
+                                    distr=self.distribution,
+                                )
+
+                                # Add the spatial coordinate back to the result
+                                loc_result = loc_result.assign_coords(
+                                    {spatial_dim: spatial_coords[loc_idx]}
+                                )
+                                loc_result = loc_result.expand_dims(spatial_dim)
+                                location_results.append(loc_result)
+
+                            except Exception as loc_error:
+                                print(
+                                    f"Warning: Failed to process location {loc_idx} in {spatial_dim}: {loc_error}"
+                                )
+                                # Create NaN result for this location
+                                nan_result = self._create_nan_return_value_array()
+                                nan_result = nan_result.assign_coords(
+                                    {spatial_dim: spatial_coords[loc_idx]}
+                                )
+                                nan_result = nan_result.expand_dims(spatial_dim)
+                                location_results.append(nan_result)
+
+                        # Combine results across all locations
+                        if location_results:
+                            result = xr.concat(location_results, dim=spatial_dim)
+                        else:
+                            # All locations failed - create NaN result
+                            result = xr.DataArray(
+                                np.full(
+                                    (len(spatial_coords), len(self.return_periods)),
+                                    np.nan,
+                                ),
+                                dims=[spatial_dim, "one_in_x"],
+                                coords={
+                                    spatial_dim: spatial_coords,
+                                    "one_in_x": self.return_periods,
+                                },
+                                name="return_value",
+                            )
+                    else:
+                        # No spatial dimensions - process as normal (now with computed data)
+                        result = self._get_return_values_vectorized(
+                            block_maxima,
+                            return_periods=self.return_periods,
+                            distr=self.distribution,
+                        )
+
+                    batch_results.append(result)
+
+                    # Calculate p-values if requested (now with computed data)
+                    if self.goodness_of_fit_test and block_maxima is not None:
+                        _, p_value = get_ks_stat(
+                            block_maxima, distr=self.distribution, multiple_points=False
+                        ).data_vars.values()
+                        batch_p_vals.append(p_value)
+
+                        if self.print_goodness_of_fit:
+                            self._print_goodness_of_fit_result(s, p_value)
+                    else:
+                        batch_p_vals.append(xr.DataArray(np.nan, name="p_value"))
+
+                except Exception as sim_error:
+                    print(f"Warning: Failed to process simulation {s}: {sim_error}")
+                    # Create NaN result for this simulation
+                    nan_result = self._create_nan_return_value_array()
+                    batch_results.append(nan_result)
+                    batch_p_vals.append(xr.DataArray(np.nan, name="p_value"))
+
+            all_return_vals.extend(batch_results)
+            all_p_vals.extend(batch_p_vals)
+
+        # Combine all results with robust error handling
+        ret_vals, p_vals = self._combine_return_value_results(
+            all_return_vals, all_p_vals, data_array
+        )
+
+        # Create and return result dataset
+        return self._create_one_in_x_result_dataset(ret_vals, p_vals, data_array)
+
     def _get_optimal_chunks(self, data_array: xr.DataArray) -> dict:
         """
         Determine optimal chunking strategy for large datasets.
@@ -2123,37 +2326,32 @@ class MetricCalc(DataProcessor):
     @staticmethod
     def optimize_dask_performance():
         """
-        Configure Dask for optimal performance with large climate datasets.
+        Optimize Dask performance for large dataset processing.
 
-        Call this method before processing large datasets to optimize Dask settings.
+        This method configures Dask settings to improve performance when processing
+        large climate datasets with extreme value analysis.
         """
         try:
             import dask
 
-            # Configure Dask for climate data processing
-            dask.config.set(
-                {
-                    # Memory management
-                    "array.chunk-size": "128MB",  # Target chunk size
-                    "distributed.worker.memory.target": 0.8,  # Use 80% of memory
-                    "distributed.worker.memory.spill": 0.9,  # Spill at 90%
-                    "distributed.worker.memory.pause": 0.95,  # Pause at 95%
-                    # Optimization settings - fix the delayed configuration
-                    "optimization.fuse.delayed": True,  # Enable delayed fusion
-                    "array.slicing.split_large_chunks": True,
-                    # Threading and scheduling
-                    "scheduler": "threads",  # Use threaded scheduler for single machine
-                    "num-workers": None,  # Use all available cores
-                    # I/O optimization
-                    "array.backends.numpy": True,
-                    "distributed.worker.daemon": False,
-                }
-            )
+            # Configure Dask for better performance with extreme value analysis
+            dask_config = {
+                "array.chunk-size": "128MiB",  # Reasonable chunk size for climate data
+                "array.slicing.split_large_chunks": True,  # Handle large chunks better
+                "distributed.worker.memory.target": 0.8,  # Use 80% of worker memory
+                "distributed.worker.memory.spill": 0.9,  # Spill at 90% memory usage
+                "distributed.worker.memory.pause": 0.95,  # Pause at 95% memory usage
+                "distributed.worker.memory.terminate": 0.98,  # Terminate at 98% memory usage
+            }
 
-            print("Dask configuration optimized for large dataset processing")
+            # Apply configuration
+            dask.config.set(dask_config)
+            print("Dask performance configuration applied for extreme value analysis")
 
         except ImportError:
-            print("Warning: Dask not available for optimization")
+            print("Dask not available - skipping performance optimization")
+        except Exception as e:
+            print(f"Warning: Failed to optimize Dask performance: {e}")
 
     def _setup_dask_cluster(self, n_workers=None):
         """
@@ -2271,3 +2469,74 @@ class MetricCalc(DataProcessor):
             # Fallback if all batches failed
             ret_vals, p_vals = self._create_fallback_results(data_array)
             return self._create_one_in_x_result_dataset(ret_vals, p_vals, data_array)
+
+    def _safe_apply_ufunc_with_dask(self, func, *args, **kwargs):
+        """
+        Safely apply xr.apply_ufunc with proper Dask configuration.
+
+        This method ensures that apply_ufunc calls are properly configured
+        for Dask arrays to avoid chunked array handling errors.
+
+        Parameters
+        ----------
+        func : callable
+            Function to apply
+        *args : tuple
+            Arguments to pass to apply_ufunc
+        **kwargs : dict
+            Keyword arguments to pass to apply_ufunc
+
+        Returns
+        -------
+        Any
+            Result of apply_ufunc call
+        """
+        # Default Dask configuration for apply_ufunc
+        dask_kwargs = {
+            "dask": "allowed",  # Allow Dask arrays but don't require parallelization
+            "output_dtypes": [float],  # Default to float output
+        }
+
+        # Check if any input arguments are Dask arrays
+        has_dask_input = any(
+            hasattr(arg, "chunks") and arg.chunks is not None
+            for arg in args
+            if hasattr(arg, "chunks")
+        )
+
+        if has_dask_input:
+            # If we have Dask inputs, ensure proper Dask handling
+            dask_kwargs["dask"] = "parallelized"
+
+            # Add meta information to help Dask understand the output structure
+            if "meta" not in kwargs.get("dask_gufunc_kwargs", {}):
+                dask_kwargs["meta"] = np.array([], dtype=float)
+
+        # Merge with user-provided kwargs (user kwargs take precedence)
+        final_kwargs = {**dask_kwargs, **kwargs}
+
+        try:
+            return xr.apply_ufunc(func, *args, **final_kwargs)
+        except Exception as e:
+            if "chunked array" in str(e) and "dask" in str(e):
+                print(
+                    f"Warning: apply_ufunc failed with Dask error, computing inputs: {e}"
+                )
+                # Fallback: compute the Dask arrays and try again
+                computed_args = []
+                for arg in args:
+                    if hasattr(arg, "chunks") and arg.chunks is not None:
+                        computed_args.append(arg.compute())
+                    else:
+                        computed_args.append(arg)
+
+                # Remove Dask-specific kwargs for non-Dask computation
+                fallback_kwargs = {
+                    k: v
+                    for k, v in final_kwargs.items()
+                    if k not in ["dask", "meta", "dask_gufunc_kwargs"]
+                }
+
+                return xr.apply_ufunc(func, *computed_args, **fallback_kwargs)
+            else:
+                raise
