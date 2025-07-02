@@ -1597,24 +1597,8 @@ class MetricCalc(DataProcessor):
 
                 return return_vals, p_val
 
-            except ValueError as e:
-                print(f"Warning: Simulation processing failed due to ValueError: {e}")
-                # Return NaN results
-                return (
-                    np.full(len(self.return_periods), np.nan),
-                    np.nan,
-                )
-            except TypeError as e:
-                print(f"Warning: Simulation processing failed due to TypeError: {e}")
-                # Return NaN results
-                return (
-                    np.full(len(self.return_periods), np.nan),
-                    np.nan,
-                )
-            except Exception as e:
-                print(
-                    f"Warning: Simulation processing failed due to unexpected error: {e}"
-                )
+            except (ValueError, TypeError) as e:
+                print(f"Warning: Simulation processing failed due to error: {e}")
                 # Return NaN results
                 return (
                     np.full(len(self.return_periods), np.nan),
@@ -1629,14 +1613,13 @@ class MetricCalc(DataProcessor):
             output_core_dims=[["one_in_x"], []],  # Return values and p-values
             vectorize=True,  # Apply to each simulation independently
             dask="parallelized",  # Enable Dask parallelization
-            output_dtypes=[float, float],
             output_sizes={"one_in_x": len(self.return_periods)},
-            # Corrected Dask optimization parameters
+            # Dask optimization parameters - use meta instead of output_dtypes
             dask_gufunc_kwargs={
-                "meta": {
-                    "return_value": np.empty((len(self.return_periods),), dtype=float),
-                    "p_values": np.empty((), dtype=float),
-                },
+                "meta": (
+                    np.empty((len(self.return_periods),), dtype=float),
+                    np.empty((), dtype=float),
+                ),
                 "allow_rechunk": True,
             },
         )
@@ -2508,7 +2491,7 @@ class MetricCalc(DataProcessor):
 
             return np.array(return_values)
 
-        except Exception as _:
+        except (ValueError, RuntimeError) as _:
             # Return NaN array if any error occurs
             return np.full(len(return_periods), np.nan)
 
