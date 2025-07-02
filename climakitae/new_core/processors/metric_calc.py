@@ -7,6 +7,8 @@ from typing import Any, Dict, Iterable, Union
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 import dask
+import psutil
+from dask.diagnostics import ProgressBar
 
 import numpy as np
 import pandas as pd
@@ -1706,7 +1708,8 @@ class MetricCalc(DataProcessor):
             print(
                 f"Computing batch data for simulations {i} to {i + batch_size - 1}..."
             )
-            batch_data = batch_data.compute()
+            with ProgressBar():
+                batch_data = batch_data.compute()
 
             # Process this batch using vectorized method for computed data
             try:
@@ -2279,8 +2282,6 @@ class MetricCalc(DataProcessor):
 
         # Calculate adaptive batch size based on available memory
         try:
-            import psutil
-
             available_memory_gb = psutil.virtual_memory().available / BYTES_TO_GB_FACTOR
 
             # Calculate how many simulations we can process given memory constraints
@@ -2324,7 +2325,9 @@ class MetricCalc(DataProcessor):
             # Extract batch and compute to avoid memory issues
             batch_data = data_array.isel(sim=slice(i, end_idx))
             print(f"Computing batch data for simulations {i} to {end_idx-1}...")
-            batch_data = batch_data.compute()
+            with ProgressBar():
+                # Compute the batch data to convert from Dask to numpy
+                batch_data = batch_data.compute()
 
             # Process this batch using vectorized method for computed data
             try:
