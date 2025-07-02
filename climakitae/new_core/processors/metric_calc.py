@@ -4,6 +4,9 @@ DataProcessor MetricCalc
 
 import warnings
 from typing import Any, Dict, Iterable, Union
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
+import dask
 
 import numpy as np
 import pandas as pd
@@ -21,6 +24,43 @@ from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
     register_processor,
 )
+from climakitae.new_core.processors.processor_utils import _get_block_maxima_optimized
+
+# Constants for data size thresholds and processing
+BYTES_TO_MB_FACTOR = 1e6  # Conversion factor from bytes to megabytes
+BYTES_TO_GB_FACTOR = 1e9  # Conversion factor from bytes to gigabytes
+SMALL_ARRAY_THRESHOLD_BYTES = 1e7  # 10MB threshold for small arrays
+MEDIUM_ARRAY_THRESHOLD_BYTES = 1e9  # 1GB threshold for medium arrays
+PERCENTILE_TO_QUANTILE_FACTOR = 100.0  # Convert percentiles to quantiles
+DEFAULT_BATCH_SIZE = 50  # Default batch size for processing simulations
+MIN_VALID_DATA_POINTS = 3  # Minimum data points required for statistical fitting
+SIGNIFICANCE_LEVEL = 0.05  # P-value threshold for statistical significance
+MIN_WORKERS_COUNT = 2  # Minimum number of workers for parallel processing
+DEFAULT_YEARLY_CHUNK_DAYS = 365  # Default chunk size for yearly data
+YEARLY_CHUNK_DIVISOR = 10  # Divisor for calculating yearly chunk size
+DEFAULT_SIM_CHUNK_SIZE = 2  # Default chunk size for simulations
+DEFAULT_SPATIAL_CHUNK_SIZE = 50  # Default chunk size for spatial dimensions
+NUMERIC_PRECISION_DECIMAL_PLACES = 2  # Decimal places for numeric output formatting
+SCIENTIFIC_NOTATION_PRECISION = 3  # Precision for scientific notation formatting
+MIN_SIMULATIONS_FOR_PARALLEL = 4  # Minimum simulations required for parallel processing
+RETURN_VALUE_PRECISION = 5  # Decimal places for return value rounding
+P_VALUE_PRECISION = 4  # Decimal places for p-value rounding
+MEMORY_SAFETY_FACTOR = 0.5  # Safety factor for memory usage calculations
+MB_TO_BYTES_FACTOR = 1000  # Conversion factor from MB to bytes
+MEMORY_DIVISOR_FACTOR = 2  # Divisor for memory constraint calculations
+
+# Constants for adaptive batch sizing
+MEDIUM_DASK_BATCH_SIZE = 50  # Batch size for medium Dask arrays
+LARGE_DATASET_MIN_BATCH_SIZE = 10  # Minimum batch size for large datasets
+LARGE_DATASET_MAX_BATCH_SIZE = 200  # Maximum batch size for large datasets
+MEMORY_PER_SIM_MB_ESTIMATE = (
+    100  # Estimated memory usage per simulation in MB (more aggressive)
+)
+TARGET_MEMORY_USAGE_FRACTION = 0.85  # Target fraction of available memory to use
+
+# Constants for return value calculations
+DEFAULT_EVENT_DURATION_DAYS = 1  # Default event duration in days
+DEFAULT_BLOCK_SIZE_YEARS = 1  # Default block size in years
 
 # Import functions for 1-in-X calculations
 try:
@@ -28,426 +68,6 @@ try:
 except ImportError as e:
     EXTREME_VALUE_ANALYSIS_AVAILABLE = False
     warnings.warn(f"Extreme value analysis functions not available: {e}")
-
-
-def _get_block_maxima_optimized(
-    da_series: xr.DataArray,
-    extremes_type: str = "max",
-    duration: tuple[int, str] = None,
-    groupby: tuple[int, str] = None,
-    grouped_duration: tuple[int, str] = None,
-    check_ess: bool = True,
-    block_size: int = 1,
-    chunk_spatial: bool = True,
-    max_memory_gb: float = 2.0,
-) -> xr.DataArray:
-    """
-    Optimized, vectorized, and Dask-compatible version of get_block_maxima.
-
-    This function converts data into block maximums,
-    defaulting to annual maximums (default block size = 1 year).
-    Optimized for large datasets and Dask arrays with improved memory management and vectorized operations.
-
-    Parameters
-    ----------
-    da_series: xarray.DataArray
-        DataArray from retrieve
-    extremes_type: str
-        option for max or min. Defaults to max
-    duration: tuple
-        length of extreme event, specified as (4, 'hour')
-    groupby: tuple
-        group over which to look for max occurrence, specified as (1, 'day')
-    grouped_duration: tuple
-        length of event after grouping, specified as (5, 'day')
-    check_ess: bool
-        optional flag specifying whether to check the effective sample size (ESS)
-        within the blocks of data, and throw a warning if the average ESS is too small.
-        can be silenced with check_ess=False.
-    block_size: int
-        block size in years. default is 1 year.
-    chunk_spatial: bool
-        whether to rechunk spatial dimensions for optimal performance
-    max_memory_gb: float
-        maximum memory to use for computation in GB
-
-    Returns
-    -------
-    xarray.DataArray
-        Block maxima with optimized processing
-    """
-    # Validate inputs
-    valid_extremes = ["max", "min"]
-    if extremes_type not in valid_extremes:
-        raise ValueError(f"invalid extremes type. expected one of: {valid_extremes}")
-
-    # Optimize chunking for Dask arrays
-    if hasattr(da_series.data, "chunks"):
-        da_series = _optimize_chunking_for_block_maxima(
-            da_series, max_memory_gb, chunk_spatial
-        )
-
-    # Process duration events using vectorized rolling operations
-    if duration is not None:
-        da_series = _apply_duration_filter_vectorized(
-            da_series, duration, extremes_type
-        )
-
-    # Process groupby events using efficient resampling
-    if groupby is not None:
-        da_series = _apply_groupby_filter_vectorized(da_series, groupby, extremes_type)
-
-    # Process grouped duration events
-    if grouped_duration is not None:
-        if groupby is None:
-            raise ValueError(
-                "To use `grouped_duration` option, must first use groupby."
-            )
-        da_series = _apply_grouped_duration_filter_vectorized(
-            da_series, grouped_duration, extremes_type
-        )
-
-    # Extract block maxima using optimized resampling
-    bms = _extract_block_extremes_vectorized(da_series, extremes_type, block_size)
-
-    # Calculate effective sample size if requested
-    if check_ess:
-        _check_effective_sample_size_optimized(da_series, block_size)
-
-    # Set attributes efficiently
-    bms = _set_block_maxima_attributes(
-        bms, duration, groupby, grouped_duration, extremes_type, block_size
-    )
-
-    # Handle NaN values efficiently
-    bms = _handle_nan_values_optimized(bms)
-
-    return bms
-
-
-def _optimize_chunking_for_block_maxima(
-    da: xr.DataArray, max_memory_gb: float, chunk_spatial: bool = True
-) -> xr.DataArray:
-    """Optimize chunking for block maxima calculation."""
-    if not hasattr(da.data, "chunks"):
-        return da
-
-    # Calculate optimal chunk sizes
-    time_size = da.sizes.get("time", 1)
-    spatial_dims = [dim for dim in da.dims if dim != "time"]
-
-    # For temporal operations, prefer larger time chunks
-    optimal_time_chunk = min(time_size, max(365, time_size // 10))
-
-    # Rechunk if beneficial
-    chunk_dict = {"time": optimal_time_chunk}
-
-    if chunk_spatial and spatial_dims:
-        # Calculate spatial chunk size based on memory constraints
-        element_size = da.dtype.itemsize
-        max_elements = int((max_memory_gb * 1e9) / element_size)
-
-        total_spatial = np.prod([da.sizes[dim] for dim in spatial_dims])
-        if total_spatial > 0:
-            spatial_chunk_size = int(np.sqrt(max_elements / optimal_time_chunk))
-
-            for dim in spatial_dims:
-                chunk_dict[dim] = min(da.sizes[dim], spatial_chunk_size)
-
-    return da.chunk(chunk_dict)
-
-
-def _apply_duration_filter_vectorized(
-    da: xr.DataArray, duration: tuple[int, str], extremes_type: str
-) -> xr.DataArray:
-    """Apply duration filter using vectorized rolling operations."""
-    dur_len, dur_type = duration
-
-    if dur_type != "hour" or getattr(da, "frequency", None) not in ["1hr", "hourly"]:
-        raise ValueError(
-            "Current specifications not implemented. `duration` options only implemented for `hour` frequency."
-        )
-
-    # Use vectorized rolling operations
-    if extremes_type == "max":
-        return da.rolling(time=dur_len, center=False).min()
-    elif extremes_type == "min":
-        return da.rolling(time=dur_len, center=False).max()
-    else:
-        raise ValueError('extremes_type needs to be either "max" or "min"')
-
-
-def _apply_groupby_filter_vectorized(
-    da: xr.DataArray, groupby: tuple[int, str], extremes_type: str
-) -> xr.DataArray:
-    """Apply groupby filter using efficient resampling."""
-    group_len, group_type = groupby
-
-    if group_type != "day":
-        raise ValueError(
-            "`groupby` specifications only implemented for 'day' groupings."
-        )
-
-    # Use efficient resampling
-    resample_rule = f"{group_len}D"
-    resampler = da.resample(time=resample_rule, label="left")
-
-    if extremes_type == "max":
-        return resampler.max()
-    elif extremes_type == "min":
-        return resampler.min()
-    else:
-        raise ValueError('extremes_type needs to be either "max" or "min"')
-
-
-def _apply_grouped_duration_filter_vectorized(
-    da: xr.DataArray, grouped_duration: tuple[int, str], extremes_type: str
-) -> xr.DataArray:
-    """Apply grouped duration filter using vectorized operations."""
-    dur2_len, dur2_type = grouped_duration
-
-    if dur2_type != "day":
-        raise ValueError(
-            "`grouped_duration` specification must be in days. example: `grouped_duration = (3, 'day')`."
-        )
-
-    # Use vectorized rolling operations
-    if extremes_type == "max":
-        return da.rolling(time=dur2_len, center=False).min()
-    elif extremes_type == "min":
-        return da.rolling(time=dur2_len, center=False).max()
-    else:
-        raise ValueError('extremes_type needs to be either "max" or "min"')
-
-
-def _extract_block_extremes_vectorized(
-    da: xr.DataArray, extremes_type: str, block_size: int
-) -> xr.DataArray:
-    """Extract block extremes using optimized resampling."""
-    resample_rule = f"{block_size}YE"
-    resampler = da.resample(time=resample_rule)
-
-    if extremes_type == "max":
-        bms = resampler.max(keep_attrs=True)
-        bms.attrs["extremes type"] = "maxima"
-    elif extremes_type == "min":
-        bms = resampler.min(keep_attrs=True)
-        bms.attrs["extremes type"] = "minima"
-    else:
-        raise ValueError('extremes_type needs to be either "max" or "min"')
-
-    return bms
-
-
-def _check_effective_sample_size_optimized(da: xr.DataArray, block_size: int) -> None:
-    """Optimized effective sample size calculation for large datasets."""
-    try:
-        if "x" in da.dims and "y" in da.dims:
-            # For gridded data, use chunked computation
-            average_ess = _calc_average_ess_gridded_optimized(da, block_size)
-        elif da.dims == ("time",):
-            # For timeseries data
-            average_ess = _calc_average_ess_timeseries_optimized(da, block_size)
-        else:
-            print(
-                f"WARNING: the effective sample size can only be checked for timeseries or spatial data. "
-                f"You provided data with the following dimensions: {da.dims}."
-            )
-            return
-
-        if average_ess < 25:
-            print(
-                f"WARNING: The average effective sample size in your data is {round(average_ess, 2)} per block, "
-                f"which is lower than a standard target of around 25. This may result in biased estimates of "
-                f"extreme value distributions when calculating return values, periods, and probabilities from this data. "
-                f"Consider using a longer block size to increase the effective sample size in each block of data."
-            )
-    except Exception as e:
-        print(f"WARNING: Could not calculate effective sample size: {e}")
-
-
-def _calc_average_ess_gridded_optimized(data: xr.DataArray, block_size: int) -> float:
-    """Optimized ESS calculation for gridded data using vectorized operations."""
-    try:
-        # Use xarray's efficient groupby operations
-        yearly_groups = data.groupby(data.time.dt.year)
-
-        # Calculate ESS for each year block using apply with optimized function
-        def calc_ess_optimized(year_data):
-            """Calculate ESS for a single year of data."""
-            # Use autocorrelation function efficiently
-            if len(year_data.time) < 10:  # Skip years with insufficient data
-                return np.nan
-
-            # Simplified ESS calculation for large datasets
-            # Use approximate autocorrelation for speed
-            n = len(year_data.time)
-            if n > 1000:  # Use approximation for large datasets
-                # Sample autocorrelation at key lags
-                lags = np.logspace(0, np.log10(min(n // 4, 100)), 20).astype(int)
-                autocorr_sum = 0
-                for lag in lags:
-                    if lag < n - 1:
-                        corr = np.corrcoef(
-                            year_data.values[:-lag], year_data.values[lag:]
-                        )[0, 1]
-                        if not np.isnan(corr):
-                            autocorr_sum += corr * (n - lag) / n
-                ess = n / (1 + 2 * autocorr_sum)
-            else:
-                # Use exact calculation for smaller datasets
-                from climakitae.explore.threshold_tools import calculate_ess
-
-                ess = calculate_ess(year_data).item()
-
-            return ess
-
-        # Apply ESS calculation efficiently
-        if hasattr(data.data, "chunks"):
-            # For Dask arrays, use map_blocks for efficiency
-            ess_values = []
-            for year, year_data in yearly_groups:
-                if year % block_size == 0:  # Sample every block_size years
-                    if "x" in year_data.dims and "y" in year_data.dims:
-                        # Sample spatial points for large grids
-                        spatial_sample = year_data.isel(
-                            x=slice(None, None, max(1, year_data.sizes["x"] // 20)),
-                            y=slice(None, None, max(1, year_data.sizes["y"] // 20)),
-                        )
-                        stacked = spatial_sample.stack(spatial=("x", "y"))
-                        ess_spatial = []
-                        for i in range(
-                            min(100, stacked.sizes["spatial"])
-                        ):  # Limit samples
-                            try:
-                                ess_val = calc_ess_optimized(stacked.isel(spatial=i))
-                                if not np.isnan(ess_val):
-                                    ess_spatial.append(ess_val)
-                            except:
-                                continue
-                        if ess_spatial:
-                            ess_values.extend(ess_spatial)
-        else:
-            # For in-memory arrays, process directly
-            ess_values = []
-            for year, year_data in yearly_groups:
-                if year % block_size == 0:
-                    try:
-                        if "x" in year_data.dims and "y" in year_data.dims:
-                            # Sample spatial locations
-                            spatial_sample = year_data.isel(
-                                x=slice(None, None, max(1, year_data.sizes["x"] // 10)),
-                                y=slice(None, None, max(1, year_data.sizes["y"] // 10)),
-                            )
-                            stacked = spatial_sample.stack(spatial=("x", "y"))
-                            for i in range(min(50, stacked.sizes["spatial"])):
-                                ess_val = calc_ess_optimized(stacked.isel(spatial=i))
-                                if not np.isnan(ess_val):
-                                    ess_values.append(ess_val)
-                        else:
-                            ess_val = calc_ess_optimized(year_data)
-                            if not np.isnan(ess_val):
-                                ess_values.append(ess_val)
-                    except:
-                        continue
-
-        return np.nanmean(ess_values) if ess_values else 25.0
-    except Exception:
-        # Fallback to simple estimate
-        return 25.0
-
-
-def _calc_average_ess_timeseries_optimized(
-    data: xr.DataArray, block_size: int
-) -> float:
-    """Optimized ESS calculation for timeseries data."""
-    try:
-        # Use efficient resampling for block-wise ESS calculation
-        block_resampler = data.resample(time=f"{block_size}YS")
-
-        ess_values = []
-        for label, block_data in block_resampler:
-            try:
-                n = len(block_data.time)
-                if n < 10:
-                    continue
-
-                # Simplified ESS calculation
-                if n > 500:  # Use approximation for large time series
-                    # Sample autocorrelation at key lags
-                    lags = np.logspace(0, np.log10(min(n // 4, 50)), 15).astype(int)
-                    autocorr_sum = 0
-                    values = block_data.values
-                    for lag in lags:
-                        if lag < n - 1:
-                            corr = np.corrcoef(values[:-lag], values[lag:])[0, 1]
-                            if not np.isnan(corr):
-                                autocorr_sum += corr * (n - lag) / n
-                    ess = n / (1 + 2 * autocorr_sum)
-                else:
-                    # Use exact calculation for smaller datasets
-                    from climakitae.explore.threshold_tools import calculate_ess
-
-                    ess = calculate_ess(block_data).item()
-
-                if not np.isnan(ess):
-                    ess_values.append(ess)
-            except:
-                continue
-
-        return np.nanmean(ess_values) if ess_values else 25.0
-    except Exception:
-        return 25.0
-
-
-def _set_block_maxima_attributes(
-    bms: xr.DataArray,
-    duration,
-    groupby,
-    grouped_duration,
-    extremes_type: str,
-    block_size: int,
-) -> xr.DataArray:
-    """Set attributes efficiently for block maxima."""
-    attrs = {
-        "duration": duration,
-        "groupby": groupby,
-        "grouped_duration": grouped_duration,
-        "extreme_value_extraction_method": "block maxima",
-        "block_size": f"{block_size} year",
-        "timeseries_type": f"block {extremes_type} series",
-    }
-    return bms.assign_attrs(attrs)
-
-
-def _handle_nan_values_optimized(bms: xr.DataArray) -> xr.DataArray:
-    """Handle NaN values efficiently using vectorized operations."""
-    if not bms.isnull().any():
-        return bms
-
-    # Check if all values are null
-    total_null = bms.isnull().sum()
-    if hasattr(total_null, "compute"):
-        total_null = total_null.compute()
-
-    if total_null.item() == bms.size:
-        raise ValueError(
-            "ERROR: The given `da_series` does not include any recorded values for this variable, "
-            "and we cannot create block maximums off of an empty DataArray."
-        )
-
-    # Drop NaN values along time dimension
-    dropped_bms = bms.dropna(dim="time")
-    dropped_count = bms.sizes["time"] - dropped_bms.sizes["time"]
-
-    if dropped_count > 0:
-        name_str = f" {bms.name}" if bms.name else ""
-        print(
-            f"Dropping {dropped_count} block maxima NaNs across entire{name_str} DataArray. "
-            f"Please see guidance for more information."
-        )
-
-    return dropped_bms
 
 
 @register_processor("metric_calc", priority=7500)
@@ -756,7 +376,7 @@ class MetricCalc(DataProcessor):
         # Calculate percentiles if requested
         if self.percentiles is not None:
             percentile_result = data.quantile(
-                [p / 100.0 for p in self.percentiles],
+                [p / PERCENTILE_TO_QUANTILE_FACTOR for p in self.percentiles],
                 dim=calc_dim,
                 keep_attrs=True,
                 skipna=self.skipna,
@@ -878,14 +498,20 @@ class MetricCalc(DataProcessor):
             print("Detected Dask array - using optimized chunked processing...")
             # Only compute if the array is small enough, otherwise process in chunks
             total_size = data_array.nbytes  # Estimate bytes (assuming float64)
-            print(f"Total size of data array: {total_size / 1e6:.2f} MB")
+            print(
+                f"Total size of data array: {total_size / BYTES_TO_MB_FACTOR:.{NUMERIC_PRECISION_DECIMAL_PLACES}f} MB"
+            )
 
             # Use different strategies based on data size
-            if total_size < 1e7:  # Less than 100MB - load into memory
+            if (
+                total_size < SMALL_ARRAY_THRESHOLD_BYTES
+            ):  # Less than 10MB - load into memory
                 print("Small array detected - loading into memory...")
                 data_array = data_array.compute()
                 use_dask_optimization = False
-            elif total_size < 1e9:  # 100MB - 1GB - use chunked processing with Dask
+            elif (
+                total_size < MEDIUM_ARRAY_THRESHOLD_BYTES
+            ):  # 10MB - 1GB - use chunked processing with Dask
                 print("Medium array detected - using Dask-aware chunked processing...")
                 use_dask_optimization = (
                     "medium"  # Use special handling for medium arrays
@@ -963,14 +589,44 @@ class MetricCalc(DataProcessor):
             kwargs["duration"] = self.event_duration
 
         # Process all simulations at once using xarray's vectorized operations
-        all_block_maxima = []
         all_return_vals = []
         all_p_vals = []
 
         # Process simulations in batches to manage memory
-        batch_size = min(
-            10, len(data_array.sim)
-        )  # Process up to 10 simulations at once
+        # Use adaptive batch sizing based on available memory
+        try:
+            import psutil
+
+            available_memory_gb = psutil.virtual_memory().available / BYTES_TO_GB_FACTOR
+
+            # Calculate adaptive batch size - more conservative for vectorized processing
+            estimated_batch_size = int(
+                (
+                    available_memory_gb
+                    * TARGET_MEMORY_USAGE_FRACTION
+                    * MB_TO_BYTES_FACTOR
+                )
+                / (MEMORY_PER_SIM_MB_ESTIMATE * 2)  # More conservative multiplier
+            )
+
+            # Clamp between reasonable values using large dataset constants
+            batch_size = max(
+                LARGE_DATASET_MIN_BATCH_SIZE,  # Minimum batch size
+                min(
+                    estimated_batch_size,
+                    LARGE_DATASET_MAX_BATCH_SIZE,
+                    len(data_array.sim),
+                ),  # Use large dataset max
+            )
+
+            print(
+                f"Using adaptive batch size: {batch_size} simulations (available memory: {available_memory_gb:.1f}GB)"
+            )
+
+        except ImportError:
+            # Fallback if psutil not available
+            batch_size = min(MEDIUM_DASK_BATCH_SIZE, len(data_array.sim))
+            print(f"Using default batch size: {batch_size} simulations")
         sim_values = data_array.sim.values
 
         for i in range(0, len(sim_values), batch_size):
@@ -1000,13 +656,13 @@ class MetricCalc(DataProcessor):
                         # Try the selection
                         try:
                             sim_data = data_array.sel(sim=s)
-                        except Exception as sel_error:
+                        except (KeyError, IndexError) as sel_error:
                             # Try alternative selection methods
                             try:
                                 # Try using isel if sel fails
                                 sim_idx = list(data_array.sim.values).index(s)
                                 sim_data = data_array.isel(sim=sim_idx)
-                            except Exception:
+                            except (KeyError, IndexError):
                                 raise sel_error
 
                     # Now squeeze to remove size-1 dimensions
@@ -1243,8 +899,6 @@ class MetricCalc(DataProcessor):
             raise ValueError("Extreme value analysis functions are not available")
 
         # Local imports
-        from climakitae.explore.threshold_tools import get_ks_stat, get_return_value
-
         return_vals = []
         p_vals = []
 
@@ -1313,13 +967,13 @@ class MetricCalc(DataProcessor):
             )
             return self._create_nan_return_value_array()
 
-        # Count valid values - need at least 3 for meaningful fitting
+        # Count valid values - need at least MIN_VALID_DATA_POINTS for meaningful fitting
         n_valid = (
             valid_data.count().values.item()
             if hasattr(valid_data.count().values, "item")
             else int(valid_data.count())
         )
-        if n_valid < 3:
+        if n_valid < MIN_VALID_DATA_POINTS:
             print(
                 f"Warning: Insufficient valid data points ({n_valid}) for distribution fitting - returning NaN values"
             )
@@ -1357,7 +1011,7 @@ class MetricCalc(DataProcessor):
                 try:
                     # fitted_distr is a frozen scipy.stats distribution with ppf method
                     return_value = fitted_distr.ppf(return_event)  # type: ignore
-                    return_values.append(np.round(return_value, 5))
+                    return_values.append(np.round(return_value, RETURN_VALUE_PRECISION))
                 except (ValueError, ZeroDivisionError):
                     return_values.append(np.nan)
 
@@ -1485,14 +1139,14 @@ class MetricCalc(DataProcessor):
         )
 
         p_val_print = (
-            format(p_val_scalar, ".3e")
-            if p_val_scalar < 0.05
-            else round(p_val_scalar, 4)
+            format(p_val_scalar, f".{SCIENTIFIC_NOTATION_PRECISION}e")
+            if p_val_scalar < SIGNIFICANCE_LEVEL
+            else round(p_val_scalar, P_VALUE_PRECISION)
         )
         to_print = f"The simulation {simulation} fitted with a {self.distribution} distribution has a p-value of {p_val_print}.\n"
 
-        if p_val_scalar < 0.05:
-            to_print += " Since the p-value is <0.05, the selected distribution does not fit the data well and therefore is not a good fit (see guidance)."
+        if p_val_scalar < SIGNIFICANCE_LEVEL:
+            to_print += f" Since the p-value is <{SIGNIFICANCE_LEVEL}, the selected distribution does not fit the data well and therefore is not a good fit (see guidance)."
         print(to_print)
 
     def update_context(self, context: Dict[str, Any]):
@@ -1821,7 +1475,7 @@ class MetricCalc(DataProcessor):
                     return_periods=self.return_periods,
                     distr=self.distribution,
                 )
-            except Exception as rv_error:
+            except Exception as _:
                 print(
                     f"Warning: Vectorized return value calculation failed for {simulation_id}, using fallback method"
                 )
@@ -1943,8 +1597,24 @@ class MetricCalc(DataProcessor):
 
                 return return_vals, p_val
 
+            except ValueError as e:
+                print(f"Warning: Simulation processing failed due to ValueError: {e}")
+                # Return NaN results
+                return (
+                    np.full(len(self.return_periods), np.nan),
+                    np.nan,
+                )
+            except TypeError as e:
+                print(f"Warning: Simulation processing failed due to TypeError: {e}")
+                # Return NaN results
+                return (
+                    np.full(len(self.return_periods), np.nan),
+                    np.nan,
+                )
             except Exception as e:
-                print(f"Warning: Simulation processing failed: {e}")
+                print(
+                    f"Warning: Simulation processing failed due to unexpected error: {e}"
+                )
                 # Return NaN results
                 return (
                     np.full(len(self.return_periods), np.nan),
@@ -1961,12 +1631,12 @@ class MetricCalc(DataProcessor):
             dask="parallelized",  # Enable Dask parallelization
             output_dtypes=[float, float],
             output_sizes={"one_in_x": len(self.return_periods)},
-            # Dask optimization parameters
+            # Corrected Dask optimization parameters
             dask_gufunc_kwargs={
-                "meta": (
-                    np.array([], dtype=float),
-                    np.array([], dtype=float),
-                ),
+                "meta": {
+                    "return_value": np.empty((len(self.return_periods),), dtype=float),
+                    "p_values": np.empty((), dtype=float),
+                },
                 "allow_rechunk": True,
             },
         )
@@ -2034,7 +1704,9 @@ class MetricCalc(DataProcessor):
             kwargs["duration"] = (
                 self.event_duration
             )  # Process simulations in batches, computing each batch to avoid Dask issues
-        batch_size = min(5, len(data_array.sim))  # Process 5 simulations at a time
+        batch_size = min(
+            MEDIUM_DASK_BATCH_SIZE, len(data_array.sim)
+        )  # Process MEDIUM_DASK_BATCH_SIZE simulations at a time
         sim_values = data_array.sim.values
 
         all_return_vals = []
@@ -2074,7 +1746,7 @@ class MetricCalc(DataProcessor):
                     f"Warning: Batch processing failed for batch {i//batch_size + 1}: {e}"
                 )
                 # Create NaN results for this batch
-                for sim_id in batch_sims:
+                for _ in batch_sims:
                     all_return_vals.append(self._create_nan_return_value_array())
                     all_p_vals.append(xr.DataArray(np.nan, name="p_value"))
 
@@ -2108,11 +1780,11 @@ class MetricCalc(DataProcessor):
 
         # Get system information
         n_cores = os.cpu_count() or 4
-        available_memory_gb = psutil.virtual_memory().available / 1e9
+        available_memory_gb = psutil.virtual_memory().available / BYTES_TO_GB_FACTOR
 
         # Get data characteristics
         n_simulations = len(data_array.sim)
-        data_size_mb = data_array.nbytes / 1e6
+        data_size_mb = data_array.nbytes / BYTES_TO_MB_FACTOR
 
         # Decision logic
         config = {
@@ -2123,7 +1795,7 @@ class MetricCalc(DataProcessor):
         }
 
         # Don't parallelize if too few simulations
-        if n_simulations < 4:
+        if n_simulations < MIN_SIMULATIONS_FOR_PARALLEL:
             config["reason"] = (
                 f"Too few simulations ({n_simulations}) to benefit from parallelization"
             )
@@ -2132,7 +1804,8 @@ class MetricCalc(DataProcessor):
         # Don't parallelize if memory constrained
         estimated_memory_per_sim = data_size_mb / n_simulations
         if (
-            estimated_memory_per_sim * n_cores > available_memory_gb * 1000 * 0.5
+            estimated_memory_per_sim * n_cores
+            > available_memory_gb * MB_TO_BYTES_FACTOR * MEMORY_SAFETY_FACTOR
         ):  # Use max 50% of available memory
             config["reason"] = (
                 f"Memory constrained: estimated {estimated_memory_per_sim:.1f}MB per sim, {available_memory_gb:.1f}GB available"
@@ -2148,8 +1821,6 @@ class MetricCalc(DataProcessor):
 
         # Check if we're already in a Dask environment that might conflict
         try:
-            import dask
-
             if dask.config.get("distributed.worker.daemon", None) is not None:
                 config["reason"] = (
                     "Already running in distributed Dask environment, avoiding nested parallelization"
@@ -2167,11 +1838,17 @@ class MetricCalc(DataProcessor):
             n_cores - 1,  # Leave one core free
             n_simulations,  # Don't need more workers than simulations
             max(
-                2, int(available_memory_gb * 1000 / estimated_memory_per_sim / 2)
+                MIN_WORKERS_COUNT,
+                int(
+                    available_memory_gb
+                    * MB_TO_BYTES_FACTOR
+                    / estimated_memory_per_sim
+                    / MEMORY_DIVISOR_FACTOR
+                ),
             ),  # Memory constraint
         )
 
-        config["n_workers"] = max(2, optimal_workers)
+        config["n_workers"] = max(MIN_WORKERS_COUNT, optimal_workers)
 
         # Choose method based on workload characteristics
         # Threading is better for I/O bound tasks, multiprocessing for CPU bound
@@ -2204,8 +1881,6 @@ class MetricCalc(DataProcessor):
         tuple
             (batch_results, batch_p_vals) tuple of lists
         """
-        from concurrent.futures import ThreadPoolExecutor, as_completed
-        import threading
 
         def process_single_simulation(sim_id):
             """Process a single simulation."""
@@ -2249,13 +1924,28 @@ class MetricCalc(DataProcessor):
 
                 return result, p_value, None
 
-            except Exception as e:
-                error_msg = f"Failed to process simulation {sim_id}: {e}"
-                print(f"Warning: {error_msg}")
+            except ValueError as e:
+                print(f"Warning: Simulation processing failed due to ValueError: {e}")
+                # Return NaN results
                 return (
-                    self._create_nan_return_value_array(),
-                    xr.DataArray(np.nan, name="p_value"),
-                    error_msg,
+                    np.full(len(self.return_periods), np.nan),
+                    np.nan,
+                )
+            except TypeError as e:
+                print(f"Warning: Simulation processing failed due to TypeError: {e}")
+                # Return NaN results
+                return (
+                    np.full(len(self.return_periods), np.nan),
+                    np.nan,
+                )
+            except Exception as e:
+                print(
+                    f"Warning: Simulation processing failed due to unexpected error: {e}"
+                )
+                # Return NaN results
+                return (
+                    np.full(len(self.return_periods), np.nan),
+                    np.nan,
                 )
 
         # Determine parallelization config
@@ -2397,7 +2087,7 @@ class MetricCalc(DataProcessor):
         spatial_coords = block_maxima.coords[spatial_dim]
         location_results = []
 
-        for loc_idx, spatial_coord in enumerate(spatial_coords):
+        for loc_idx, _ in enumerate(spatial_coords):
             try:
                 # Extract data for this specific location
                 loc_block_maxima = block_maxima.isel({spatial_dim: loc_idx})
@@ -2492,8 +2182,6 @@ class MetricCalc(DataProcessor):
         large climate datasets with extreme value analysis.
         """
         try:
-            import dask
-
             # Configure Dask for better performance with extreme value analysis
             dask_config = {
                 "array.chunk-size": "128MiB",  # Reasonable chunk size for climate data
@@ -2605,9 +2293,38 @@ class MetricCalc(DataProcessor):
 
         # Determine optimal batch size based on memory constraints
         n_sims = len(data_array.sim)
-        max_batch_size = min(
-            3, n_sims
-        )  # Process maximum 3 simulations at once for large datasets
+
+        # Calculate adaptive batch size based on available memory
+        try:
+            import psutil
+
+            available_memory_gb = psutil.virtual_memory().available / BYTES_TO_GB_FACTOR
+
+            # Calculate how many simulations we can process given memory constraints
+            # Estimate memory usage per simulation and use a safety factor
+            estimated_batch_size = int(
+                (
+                    available_memory_gb
+                    * TARGET_MEMORY_USAGE_FRACTION
+                    * MB_TO_BYTES_FACTOR
+                )
+                / MEMORY_PER_SIM_MB_ESTIMATE
+            )
+
+            # Clamp between min and max values
+            max_batch_size = max(
+                LARGE_DATASET_MIN_BATCH_SIZE,
+                min(estimated_batch_size, LARGE_DATASET_MAX_BATCH_SIZE, n_sims),
+            )
+
+            print(
+                f"Available memory: {available_memory_gb:.1f}GB, using batch size: {max_batch_size}"
+            )
+
+        except ImportError:
+            # Fallback if psutil not available
+            max_batch_size = min(LARGE_DATASET_MAX_BATCH_SIZE, n_sims)
+            print(f"psutil not available, using default batch size: {max_batch_size}")
 
         all_return_vals = []
         all_p_vals = []
@@ -2647,7 +2364,7 @@ class MetricCalc(DataProcessor):
                     f"Warning: Batch processing failed for batch {i//max_batch_size + 1}: {e}"
                 )
                 # Create NaN results for this batch
-                for sim_id in batch_sims:
+                for _ in batch_sims:
                     all_return_vals.append(self._create_nan_return_value_array())
                     all_p_vals.append(xr.DataArray(np.nan, name="p_value"))
 
@@ -2681,14 +2398,19 @@ class MetricCalc(DataProcessor):
         # For time dimension, use yearly chunks if possible
         if "time" in data_array.dims:
             time_size = data_array.sizes["time"]
-            # Aim for roughly yearly chunks (365 days) but adapt to data size
-            yearly_chunk = min(time_size, max(365, time_size // 10))
+            # Aim for roughly yearly chunks (DEFAULT_YEARLY_CHUNK_DAYS days) but adapt to data size
+            yearly_chunk = min(
+                time_size,
+                max(DEFAULT_YEARLY_CHUNK_DAYS, time_size // YEARLY_CHUNK_DIVISOR),
+            )
             optimal_chunks["time"] = yearly_chunk
 
         # For simulation dimension, process a few at a time
         if "sim" in data_array.dims:
             sim_size = data_array.sizes["sim"]
-            sim_chunk = min(sim_size, 2)  # Process 2 simulations at a time
+            sim_chunk = min(
+                sim_size, DEFAULT_SIM_CHUNK_SIZE
+            )  # Process DEFAULT_SIM_CHUNK_SIZE simulations at a time
             optimal_chunks["sim"] = sim_chunk
 
         # For spatial dimensions, keep chunks reasonably sized
@@ -2696,7 +2418,7 @@ class MetricCalc(DataProcessor):
         for dim in spatial_dims:
             dim_size = data_array.sizes[dim]
             # Keep spatial chunks smaller to avoid memory issues
-            spatial_chunk = min(dim_size, 50)
+            spatial_chunk = min(dim_size, DEFAULT_SPATIAL_CHUNK_SIZE)
             optimal_chunks[dim] = spatial_chunk
 
         return optimal_chunks
@@ -2744,21 +2466,22 @@ class MetricCalc(DataProcessor):
             params = distr_func.fit(valid_data)
 
             # Create fitted distribution
-            if distr == "gev":
-                fitted_distr = stats.genextreme(*params)
-            elif distr == "gumbel":
-                fitted_distr = stats.gumbel_r(*params)
-            elif distr == "weibull":
-                fitted_distr = stats.weibull_min(*params)
-            elif distr == "pearson3":
-                fitted_distr = stats.pearson3(*params)
-            elif distr == "genpareto":
-                fitted_distr = stats.genpareto(*params)
-            elif distr == "gamma":
-                fitted_distr = stats.gamma(*params)
-            else:
-                # Default to GEV if distribution not recognized
-                fitted_distr = stats.genextreme(*params)
+            match distr:
+                case "gev":
+                    fitted_distr = stats.genextreme(*params)
+                case "gumbel":
+                    fitted_distr = stats.gumbel_r(*params)
+                case "weibull":
+                    fitted_distr = stats.weibull_min(*params)
+                case "pearson3":
+                    fitted_distr = stats.pearson3(*params)
+                case "genpareto":
+                    fitted_distr = stats.genpareto(*params)
+                case "gamma":
+                    fitted_distr = stats.gamma(*params)
+                case _:
+                    # Default to GEV if distribution not recognized
+                    fitted_distr = stats.genextreme(*params)
 
             # Calculate return values for each return period
             return_values = []
@@ -2778,14 +2501,14 @@ class MetricCalc(DataProcessor):
 
                     # Calculate return value using inverse CDF
                     return_value = fitted_distr.ppf(return_event)
-                    return_values.append(np.round(return_value, 5))
+                    return_values.append(np.round(return_value, RETURN_VALUE_PRECISION))
 
                 except (ValueError, ZeroDivisionError):
                     return_values.append(np.nan)
 
             return np.array(return_values)
 
-        except Exception as e:
+        except Exception as _:
             # Return NaN array if any error occurs
             return np.full(len(return_periods), np.nan)
 
@@ -2828,27 +2551,28 @@ class MetricCalc(DataProcessor):
             params = distr_func.fit(valid_data)
 
             # Create fitted distribution
-            if distr == "gev":
-                fitted_distr = stats.genextreme(*params)
-            elif distr == "gumbel":
-                fitted_distr = stats.gumbel_r(*params)
-            elif distr == "weibull":
-                fitted_distr = stats.weibull_min(*params)
-            elif distr == "pearson3":
-                fitted_distr = stats.pearson3(*params)
-            elif distr == "genpareto":
-                fitted_distr = stats.genpareto(*params)
-            elif distr == "gamma":
-                fitted_distr = stats.gamma(*params)
-            else:
-                # Default to GEV if distribution not recognized
-                fitted_distr = stats.genextreme(*params)
+            match distr:
+                case "gev":
+                    fitted_distr = stats.genextreme(*params)
+                case "gumbel":
+                    fitted_distr = stats.gumbel_r(*params)
+                case "weibull":
+                    fitted_distr = stats.weibull_min(*params)
+                case "pearson3":
+                    fitted_distr = stats.pearson3(*params)
+                case "genpareto":
+                    fitted_distr = stats.genpareto(*params)
+                case "gamma":
+                    fitted_distr = stats.gamma(*params)
+                case _:
+                    # Default to GEV if distribution not recognized
+                    fitted_distr = stats.genextreme(*params)
 
             # Perform Kolmogorov-Smirnov test
-            d_stat, p_val = stats.kstest(valid_data, fitted_distr.cdf)
+            _, p_val = stats.kstest(valid_data, fitted_distr.cdf)
 
             return float(p_val)
 
-        except Exception as e:
+        except Exception as _:
             # Return NaN if any error occurs
             return np.nan

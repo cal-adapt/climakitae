@@ -497,6 +497,7 @@ def _calculate_return(
     float
         Computed extreme value metric.
     """
+    result = np.nan  # Default result in case of errors
     try:
         if data_variable == "return_value":
             event_prob = block_size / arg_value

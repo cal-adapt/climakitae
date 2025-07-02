@@ -1,14 +1,45 @@
 """
-Parameter validation module.
+Parameter validation module for climakitae.
 
-This module contains classes and functions for validating parameters
-used in the climakitae package. It includes a base class for parameter
-validation and a specific implementation for various datasets.
+This module provides a comprehensive framework for validating query parameters
+used throughout the climakitae package. It includes:
 
-The `ParameterValidator` class is an abstract base class that defines
-the interface for parameter validation. It requires subclasses to
-implement the `is_valid` method, which takes a dictionary of parameters
-and returns a boolean indicating whether the parameters are valid.
+- Abstract base class for parameter validation (`ParameterValidator`)
+- Registry system for catalog and processor validators
+- Validation logic for dataset queries and processing parameters
+- Helper functions for finding closest matching options when validation fails
+
+The validation system operates on two levels:
+1. **Catalog validation**: Ensures query parameters match available datasets
+2. **Processor validation**: Validates processing parameters for data transformations
+
+Classes
+-------
+ParameterValidator
+    Abstract base class defining the parameter validation interface.
+    Subclasses must implement `is_valid_query()` method.
+
+Functions
+---------
+register_catalog_validator
+    Decorator for registering catalog validator classes.
+register_processor_validator
+    Decorator for registering processor validator classes.
+
+Module Variables
+----------------
+_CATALOG_VALIDATOR_REGISTRY : dict
+    Registry mapping validator names to catalog validator classes.
+_PROCESSOR_VALIDATOR_REGISTRY : dict
+    Registry mapping validator names to processor validator classes.
+
+Examples
+--------
+>>> @register_catalog_validator("my_catalog")
+... class MyCatalogValidator(ParameterValidator):
+...     def is_valid_query(self, query):
+...         # Implementation here
+...         pass
 """
 
 import warnings
@@ -28,17 +59,38 @@ _PROCESSOR_VALIDATOR_REGISTRY = {}
 
 def register_catalog_validator(name: str):
     """
-    Decorator to register a validator class.
+    Decorator to register a catalog validator class in the global registry.
+
+    This decorator allows validator classes to be registered for use with
+    specific catalog types. Registered validators can be retrieved and
+    instantiated by name from the global registry.
 
     Parameters
     ----------
     name : str
-        Name of the validator
+        Unique name to register the validator under. This name will be used
+        to look up the validator class in the registry.
 
     Returns
     -------
     function
-        Decorated class
+        Decorator function that registers the class and returns it unchanged.
+
+    Examples
+    --------
+    >>> @register_catalog_validator("my_catalog")
+    ... class MyCatalogValidator(ParameterValidator):
+    ...     def is_valid_query(self, query):
+    ...         return self._is_valid_query(query)
+
+    >>> # Later retrieval:
+    >>> validator_class = _CATALOG_VALIDATOR_REGISTRY["my_catalog"]
+    >>> validator = validator_class()
+
+    Notes
+    -----
+    The registered class is stored in the module-level 
+    `_CATALOG_VALIDATOR_REGISTRY` dictionary.
     """
 
     def decorator(cls):
@@ -50,17 +102,40 @@ def register_catalog_validator(name: str):
 
 def register_processor_validator(name: str):
     """
-    Decorator to register a processor validator class.
+    Decorator to register a processor validator function in the global registry.
+
+    This decorator allows processor validation functions to be registered for
+    use with specific processing parameters. Registered validators can be
+    retrieved and called by name from the global registry.
 
     Parameters
     ----------
     name : str
-        Name of the processor validator
+        Unique name to register the processor validator under. This should
+        match the processor parameter name that the validator handles.
 
     Returns
     -------
     function
-        Decorated class
+        Decorator function that registers the validator function and returns it unchanged.
+
+    Examples
+    --------
+    >>> @register_processor_validator("spatial_subset")
+    ... def validate_spatial_subset(value, query=None):
+    ...     # Validation logic for spatial_subset processor
+    ...     return isinstance(value, dict) and 'bounds' in value
+
+    >>> # Later retrieval and use:
+    >>> validator_func = _PROCESSOR_VALIDATOR_REGISTRY["spatial_subset"]
+    >>> is_valid = validator_func(subset_params, query=user_query)
+
+    Notes
+    -----
+    - The registered function is stored in the module-level 
+      `_PROCESSOR_VALIDATOR_REGISTRY` dictionary
+    - Processor validators should accept `value` and optional `query` parameters
+    - Validators may modify the query in-place for parameter normalization
     """
 
     def decorator(cls):
@@ -72,15 +147,68 @@ def register_processor_validator(name: str):
 
 class ParameterValidator(ABC):
     """
-    Abstract base class for parameter validation.
+    Abstract base class for parameter validation in climakitae.
 
-    The user query contains the parameters to be validated.
-    These parameters fall under the following categories:
-    - processing variables: variables that are used to process the dataset
-        - the logic for this is rag tag at best
+    This class provides a framework for validating user queries containing
+    dataset selection parameters and processing parameters. It handles:
+    
+    - Catalog parameter validation (dataset selection)
+    - Processor parameter validation (data transformations)
+    - Error handling and user-friendly suggestions
+    - Parameter conversion and normalization
+
+    The validation process includes:
+    1. Converting user input to catalog keys
+    2. Searching for matching datasets in the catalog
+    3. Providing suggestions for invalid parameters
+    4. Validating processing parameters
+
+    Attributes
+    ----------
+    catalog_path : str
+        Path to the catalog CSV file.
+    catalog : object
+        Data catalog instance for dataset searching.
+    all_catalog_keys : dict
+        Dictionary of catalog keys populated from user query.
+    catalog_df : pandas.DataFrame
+        DataFrame containing catalog information.
+
+    Methods
+    -------
+    is_valid_query(query)
+        Abstract method to validate query parameters. Must be implemented by subclasses.
+    populate_catalog_keys(query)
+        Populate catalog keys from user query.
+    load_catalog_df()
+        Load the catalog DataFrame.
+
+    Notes
+    -----
+    Subclasses must implement the `is_valid_query` method to define
+    specific validation logic for their use case.
+
+    Examples
+    --------
+    >>> class MyValidator(ParameterValidator):
+    ...     def is_valid_query(self, query):
+    ...         # Custom validation logic
+    ...         return self._is_valid_query(query)
     """
 
     def __init__(self):
+        """
+        Initialize the ParameterValidator.
+
+        Sets up the validator with default catalog path and initializes
+        catalog-related attributes. Loads the catalog DataFrame upon instantiation.
+
+        Attributes initialized:
+        - catalog_path: Path to the catalog CSV file
+        - catalog: Set to UNSET initially, populated by subclasses
+        - all_catalog_keys: Set to UNSET initially, populated during validation
+        - catalog_df: Loaded from DataCatalog
+        """
         self.catalog_path = "climakitae/data/catalogs.csv"
         self.catalog = UNSET
         self.all_catalog_keys = UNSET
@@ -89,37 +217,81 @@ class ParameterValidator(ABC):
     @abstractmethod
     def is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
         """
-        Validate the query parameters.
+        Validate the query parameters (abstract method).
+
+        This method must be implemented by subclasses to define specific
+        validation logic for their use case. It should validate both
+        catalog parameters (for dataset selection) and processing parameters.
 
         Parameters
         ----------
         query : Dict[str, Any]
-            Query parameters to validate
+            Query parameters to validate. Expected to contain:
+            - Dataset selection parameters (e.g., variable, experiment_id, etc.)
+            - Processing parameters under the 'processes' key
+            - Any other relevant validation parameters
 
         Returns
         -------
         Dict[str, Any] | None
-            Validated query parameters or None if invalid
+            Validated and processed query parameters if valid, None if invalid.
+            When returning a dictionary, it should contain the cleaned and
+            validated parameters ready for dataset retrieval.
+
+        Notes
+        -----
+        Implementations typically call `_is_valid_query()` to leverage the
+        common validation logic provided by the base class.
+
+        Examples
+        --------
+        >>> def is_valid_query(self, query):
+        ...     # Custom pre-processing
+        ...     processed_query = self.preprocess_query(query)
+        ...     # Use base class validation
+        ...     return self._is_valid_query(processed_query)
         """
 
     def _is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
         """
-        Validate parameters and return processed parameters.
+        Internal method to validate query parameters and provide user feedback.
+
+        This method performs the core validation logic:
+        1. Converts user query to catalog keys
+        2. Searches for matching datasets in the catalog
+        3. Provides detailed error messages and suggestions for invalid parameters
+        4. Validates processing parameters
 
         Parameters
         ----------
-        parameters : Dict[str, Any]
-            Parameters to validate
+        query : Dict[str, Any]
+            Query parameters to validate, including dataset selection
+            and processing parameters.
 
         Returns
         -------
         Dict[str, Any] | None
-            Processed parameters if valid, otherwise None and print warning messages
+            Dictionary of validated catalog keys if successful, None if validation
+            fails. When None is returned, appropriate warning messages are printed
+            to guide the user.
 
         Raises
         ------
         ValueError
-            If parameters are invalid
+            When catalog search fails due to invalid query structure.
+
+        Notes
+        -----
+        This method provides detailed user feedback including:
+        - Number of matching datasets found
+        - Suggestions for typos or close matches
+        - Identification of conflicting parameters
+        - Guidance on available options
+
+        The method handles special cases like:
+        - experiment_id parameters (which can be lists)
+        - Parameter conflicts between dataset attributes
+        - Missing or invalid catalog keys
         """
         # convert user input to keys
         self.populate_catalog_keys(query)
@@ -222,23 +394,36 @@ class ParameterValidator(ABC):
             return self.all_catalog_keys if self._has_valid_processes(query) else None
         return None
 
-    def _has_valid_processes(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
+    def _has_valid_processes(self, query: Dict[str, Any]) -> bool:
         """
-        Validate the processor parameters.
+        Validate processor parameters using registered processor validators.
 
-        Loop through keys in query['processes'] and check if they are in the processor
-        validator registry. If they are, call the processor validator and provide the
-        value. Otherwise, warn the user that the processor input has not been validated.
+        This method loops through processing parameters in the query and validates
+        each one using registered processor validators. If a processor is not
+        registered, a warning is issued but validation continues.
 
         Parameters
         ----------
         query : Dict[str, Any]
-            Query parameters to validate
+            Query containing processing parameters under the PROC_KEY.
+            The query may be modified in-place by processor validators.
 
         Returns
         -------
-        Dict[str, Any] | None
-            Processed parameters if valid, otherwise None and print warning messages
+        bool
+            True if all processor parameters are valid or no processors are specified,
+            False if any processor validation fails.
+
+        Notes
+        -----
+        - Processor validators are called with both the parameter value and the full query
+        - Validators may modify the query in-place for parameter normalization
+        - Unregistered processors generate warnings but don't fail validation
+        - Missing processor registrations indicate incomplete validation coverage
+
+        See Also
+        --------
+        register_processor_validator : Decorator for registering processor validators
         """
 
         # loop through keys in query['processes']
@@ -266,16 +451,33 @@ class ParameterValidator(ABC):
 
     def populate_catalog_keys(self, query: Dict[str, Any]) -> None:
         """
-        Populate the catalog keys with the values from the query.
+        Populate catalog keys from user query, filtering out unset values.
+
+        This method extracts relevant catalog parameters from the user query
+        and stores them in `self.all_catalog_keys`. Only parameters that are
+        actually set (not UNSET) are retained.
 
         Parameters
         ----------
         query : Dict[str, Any]
-            query to populate
+            User query containing potential catalog parameters.
 
         Returns
         -------
         None
+            Updates `self.all_catalog_keys` in-place.
+
+        Notes
+        -----
+        This method assumes `self.all_catalog_keys` already contains the expected
+        catalog parameter names (typically initialized by subclasses). The method:
+        1. Maps query values to catalog keys
+        2. Removes any UNSET values
+        3. Stores the result in `self.all_catalog_keys`
+
+        Side Effects
+        ------------
+        Modifies `self.all_catalog_keys` attribute.
         """
         # populate catalog keys with the values from the query
         for key in self.all_catalog_keys.keys():
@@ -288,23 +490,62 @@ class ParameterValidator(ABC):
 
     def load_catalog_df(self):
         """
-        load the catalog dataframe and assign to self.catalog_df
+        Load the data catalog DataFrame and assign to instance attribute.
+
+        Creates a DataCatalog instance and extracts its catalog DataFrame
+        for use in parameter validation. The DataFrame contains metadata
+        about available datasets.
+
+        Returns
+        -------
+        None
+            Sets `self.catalog_df` attribute.
+
+        Notes
+        -----
+        This method is called during initialization and provides access to
+        the catalog data needed for parameter validation and suggestion generation.
+
+        Side Effects
+        ------------
+        Sets `self.catalog_df` attribute with the loaded catalog DataFrame.
         """
         self.catalog_df = DataCatalog().catalog_df
 
     def _convert_frequency(self, frequency: str) -> str:
         """
-        Convert frequency to table_id.
+        Convert user-friendly frequency names to catalog table_id values.
+
+        Maps common frequency descriptions to their corresponding table_id
+        values used in the data catalog.
 
         Parameters
         ----------
         frequency : str
-            Frequency to convert
+            User-provided frequency description. Supported values:
+            - "hourly" -> "1hr"
+            - "daily" or "day" -> "day"  
+            - "monthly" -> "1mon"
+            - "yearly" -> "1yr"
 
         Returns
         -------
         str
-            Converted table_id
+            Corresponding table_id value, or UNSET if frequency is not recognized.
+
+        Examples
+        --------
+        >>> validator._convert_frequency("daily")
+        'day'
+        >>> validator._convert_frequency("monthly")
+        '1mon'
+        >>> validator._convert_frequency("unknown")
+        <UNSET>
+
+        Notes
+        -----
+        The frequency mapping should eventually be moved to a constants file
+        for better maintainability.
         """
         frequency_mapping = {
             "hourly": "1hr",
@@ -317,17 +558,37 @@ class ParameterValidator(ABC):
 
     def _convert_resolution(self, resolution: str) -> str:
         """
-        Convert resolution to grid_label.
+        Convert user-friendly resolution descriptions to catalog grid_label values.
+
+        Maps spatial resolution descriptions to their corresponding grid_label
+        values used in the data catalog.
 
         Parameters
         ----------
         resolution : str
-            Resolution to convert
+            User-provided resolution description. Supported values:
+            - "3 km" -> "d03"
+            - "9 km" -> "d02"  
+            - "45 km" -> "d01"
 
         Returns
         -------
         str
-            Converted grid_label
+            Corresponding grid_label value, or UNSET if resolution is not recognized.
+
+        Examples
+        --------
+        >>> validator._convert_resolution("3 km")
+        'd03'
+        >>> validator._convert_resolution("9 km")
+        'd02'
+        >>> validator._convert_resolution("1 km")
+        <UNSET>
+
+        Notes
+        -----
+        The resolution mapping covers common WRF model domain resolutions.
+        Additional resolutions can be added to the mapping as needed.
         """
         resolution_mapping = {
             "3 km": "d03",
