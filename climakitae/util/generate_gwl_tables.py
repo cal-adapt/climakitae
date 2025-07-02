@@ -4,6 +4,8 @@ Util for generating warming level reference data in ../data/ ###
 To run, type: <<python generate_gwl_tables.py>> in the command line and wait for printed model outputs showing progress.
 """
 
+from typing import Any
+
 import cftime
 import intake
 import intake_esm
@@ -255,7 +257,7 @@ class GWLGenerator:
 
         return sims_on_aws
 
-    def build_timeseries(self, model_config: dict) -> xr.Dataset:
+    def build_timeseries(self, model_config: dict[str, Any]) -> xr.Dataset:
         """
         Builds an xarray Dataset with a time dimension, containing the concatenated historical
         and SSP time series for all specified scenarios of a given model and ensemble member.
@@ -344,7 +346,7 @@ class GWLGenerator:
                         print(f"Error loading scenario {scenario} data: {e}")
         return data_one_model
 
-    def buildDFtimeSeries_cesm2(self, model_config: dict) -> xr.Dataset:
+    def buildDFtimeSeries_cesm2(self, model_config: dict[str, Any]) -> xr.Dataset:
         """
         Builds a global temperature time series by weighting latitudes and averaging longitudes
         for the CESM2 model across specified scenarios from 1980 to 2100.
@@ -457,7 +459,7 @@ class GWLGenerator:
         return gwlevels, final_model
 
     def get_table_cesm2(
-        self, model_config: dict, reference_period: dict
+        self, model_config: dict[str, Any], reference_period: dict[str, str]
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """
         Generates a GWL table for the CESM2 model.
@@ -502,7 +504,7 @@ class GWLGenerator:
         )
 
     def get_gwl_table_for_single_model_and_ensemble(
-        self, model_config: dict, reference_period: dict
+        self, model_config: dict[str, Any], reference_period: dict[str, str]
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """
         Generates a GWL table for a single model and ensemble member.
@@ -572,7 +574,7 @@ class GWLGenerator:
             return pd.DataFrame(), pd.DataFrame()
 
     def get_gwl_table(
-        self, model_config: dict, reference_period: dict
+        self, model_config: dict[str, Any], reference_period: dict[str, str]
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """
         Generates a GWL table for a given model.
