@@ -6,6 +6,7 @@ import warnings
 from typing import Any, Dict, Iterable, Union
 
 import numpy as np
+import pandas as pd
 import xarray as xr
 
 from climakitae.core.constants import _NEW_ATTRS_KEY
@@ -479,49 +480,6 @@ class MetricCalc(DataProcessor):
             )
             return self._calculate_one_in_x_serial(data_array)
 
-    def _get_return_values_vectorized(
-        self,
-        block_maxima: xr.DataArray,
-        return_periods: np.ndarray,
-        distr: str = "gev",
-    ) -> xr.DataArray:
-        """
-        Calculate return values from block maxima using a vectorized approach.
-        """
-        if not EXTREME_VALUE_ANALYSIS_AVAILABLE:
-            raise ValueError("Extreme value analysis functions are not available")
-
-        from climakitae.explore.threshold_tools import get_return_value
-
-        # Check if the input is a Dask array
-        is_dask_array = (
-            hasattr(block_maxima, "chunks") and block_maxima.chunks is not None
-        )
-
-        # Set dask_kwargs if it's a Dask array
-        dask_kwargs = {}
-        if is_dask_array:
-            dask_kwargs = {
-                "dask": "parallelized",
-                "output_dtypes": [block_maxima.dtype],
-            }
-
-        # Apply the function to get return values
-        return_values = xr.apply_ufunc(
-            get_return_value,
-            block_maxima,
-            input_core_dims=[["time"]],
-            output_core_dims=[["one_in_x"]],
-            exclude_dims=set(("time",)),
-            vectorize=True,
-            kwargs={"return_period": return_periods, "distr": distr},
-            **dask_kwargs,
-        )
-
-        # Assign coordinates to the output
-        return_values = return_values.assign_coords(one_in_x=return_periods)
-        return return_values
-
     def _calculate_one_in_x_vectorized(self, data_array: xr.DataArray) -> xr.Dataset:
         """
         Vectorized calculation of 1-in-X values for better performance.
@@ -700,14 +658,9 @@ class MetricCalc(DataProcessor):
                                     f"Warning: Failed to process location {loc_idx} in {spatial_dim}: {loc_error}"
                                 )
                                 # Create NaN result for this location
-                                nan_result = xr.DataArray(
-                                    np.full(len(self.return_periods), np.nan),
-                                    dims=["one_in_x"],
-                                    coords={
-                                        "one_in_x": self.return_periods,
-                                        spatial_dim: spatial_coords[loc_idx],
-                                    },
-                                    name="return_value",
+                                nan_result = self._create_nan_return_value_array()
+                                nan_result = nan_result.assign_coords(
+                                    {spatial_dim: spatial_coords[loc_idx]}
                                 )
                                 nan_result = nan_result.expand_dims(spatial_dim)
                                 location_results.append(nan_result)
@@ -813,102 +766,12 @@ class MetricCalc(DataProcessor):
             all_p_vals.extend(batch_p_vals)
 
         # Combine all results with robust error handling
-        try:
-            # Validate all return values before concatenation
-            validated_return_vals = []
-            for i, rv in enumerate(all_return_vals):
-                try:
-                    # Ensure each return value has proper dimensions
-                    if isinstance(rv, xr.DataArray):
-                        # Check if it has the expected dimensions
-                        if "one_in_x" not in rv.dims:
-                            print(
-                                f"Warning: Fixing missing 'one_in_x' dimension for result {i}"
-                            )
-                            if len(rv.dims) == 1:
-                                rv = rv.rename({rv.dims[0]: "one_in_x"})
-                            elif len(rv.dims) == 0:
-                                rv = xr.DataArray(
-                                    [rv.values.item()] * len(self.return_periods),
-                                    dims=["one_in_x"],
-                                    coords={"one_in_x": self.return_periods},
-                                    name="return_value",
-                                )
-                            else:
-                                # Multi-dimensional - take the first usable dimension
-                                rv = rv.isel(
-                                    {dim: 0 for dim in rv.dims if dim != "one_in_x"}
-                                )
-                                if "one_in_x" not in rv.dims and len(rv.dims) == 1:
-                                    rv = rv.rename({rv.dims[0]: "one_in_x"})
-
-                        # Ensure coordinates are correct
-                        if "one_in_x" in rv.dims and len(
-                            rv.coords.get("one_in_x", [])
-                        ) != len(self.return_periods):
-                            rv = rv.assign_coords(
-                                {"one_in_x": ("one_in_x", self.return_periods)}
-                            )
-
-                        validated_return_vals.append(rv)
-                    else:
-                        print(
-                            f"Warning: Converting non-DataArray result {i} to DataArray"
-                        )
-                        validated_return_vals.append(
-                            xr.DataArray(
-                                np.full(len(self.return_periods), np.nan),
-                                dims=["one_in_x"],
-                                coords={"one_in_x": self.return_periods},
-                                name="return_value",
-                            )
-                        )
-                except Exception as val_error:
-                    print(f"Warning: Failed to validate return value {i}: {val_error}")
-                    validated_return_vals.append(
-                        xr.DataArray(
-                            np.full(len(self.return_periods), np.nan),
-                            dims=["one_in_x"],
-                            coords={"one_in_x": self.return_periods},
-                            name="return_value",
-                        )
-                    )
-
-            ret_vals = xr.concat(validated_return_vals, dim="sim")
-            p_vals = xr.concat(all_p_vals, dim="sim")
-        except Exception as concat_error:
-            print(f"Error during concatenation: {concat_error}")
-            # Create fallback results
-            ret_vals = xr.DataArray(
-                np.full((len(data_array.sim), len(self.return_periods)), np.nan),
-                dims=["sim", "one_in_x"],
-                coords={"sim": data_array.sim.values, "one_in_x": self.return_periods},
-                name="return_value",
-            )
-            p_vals = xr.DataArray(
-                np.full(len(data_array.sim), np.nan),
-                dims=["sim"],
-                coords={"sim": data_array.sim.values},
-                name="p_value",
-            )
-
-        # Ensure proper coordinates
-        ret_vals = ret_vals.assign_coords(sim=data_array.sim.values)
-        p_vals = p_vals.assign_coords(sim=data_array.sim.values)
-
-        # Create result dataset
-        result = xr.Dataset({"return_value": ret_vals, "p_values": p_vals})
-
-        # Add attributes
-        result.attrs.update(
-            {
-                "groupby": f"{self.event_duration[0]} {self.event_duration[1]}",
-                "fitted_distr": self.distribution,
-                "sample_size": len(data_array.time),
-            }
+        ret_vals, p_vals = self._combine_return_value_results(
+            all_return_vals, all_p_vals, data_array
         )
 
-        return result
+        # Create and return result dataset
+        return self._create_one_in_x_result_dataset(ret_vals, p_vals, data_array)
 
     def _calculate_one_in_x_serial(self, data_array: xr.DataArray) -> xr.Dataset:
         """
@@ -929,827 +792,642 @@ class MetricCalc(DataProcessor):
             sim_data = data_array.sel(sim=s).squeeze()
             print(f"Processing simulation: {s}")
 
-            try:
-                # Extract block maxima
-                block_maxima = self._extract_block_maxima(sim_data)
-
-                # Use our vectorized return value calculation
-                try:
-                    return_values = self._get_return_values_vectorized(
-                        block_maxima,
-                        return_periods=self.return_periods,
-                        distr=self.distribution,
-                    )
-                except Exception as rv_error:
-                    print(
-                        f"Warning: Vectorized return value calculation failed for {s}, using fallback method"
-                    )
-                    # Fallback to individual calculation
-                    individual_return_values = []
-                    for rp in self.return_periods.tolist():
-                        try:
-                            single_result = get_return_value(
-                                block_maxima,
-                                return_period=rp,  # Pass single return period
-                                multiple_points=False,
-                                distr=self.distribution,
-                            )
-
-                            # Extract the return value from the result
-                            if (
-                                isinstance(single_result, dict)
-                                and "return_value" in single_result
-                            ):
-                                rv = single_result["return_value"]
-                            else:
-                                rv = single_result
-
-                            # Convert to scalar if it's a DataArray
-                            if isinstance(rv, xr.DataArray):
-                                rv = (
-                                    rv.values.item()
-                                    if rv.values.size == 1
-                                    else rv.values.flat[0]
-                                )
-
-                            individual_return_values.append(rv)
-
-                        except Exception as single_rv_error:
-                            print(
-                                f"Warning: Return value calculation failed for return period {rp}: {single_rv_error}"
-                            )
-                            individual_return_values.append(np.nan)
-
-                    # Create a DataArray with the individual return values
-                    return_values = xr.DataArray(
-                        individual_return_values,
-                        dims=["one_in_x"],
-                        coords={"one_in_x": self.return_periods},
-                        name="return_value",
-                    )
-
-                return_vals.append(return_values)
-
-                # Perform goodness-of-fit test if requested
-                if self.goodness_of_fit_test:
-                    _, p_value = get_ks_stat(
-                        block_maxima, distr=self.distribution, multiple_points=False
-                    ).data_vars.values()
-                    p_vals.append(p_value)
-
-                    if self.print_goodness_of_fit:
-                        self._print_goodness_of_fit_result(s, p_value)
-                else:
-                    p_vals.append(xr.DataArray(np.nan, name="p_value"))
-
-            except (ValueError, RuntimeError, ImportError) as e:
-                print(f"Warning: Failed to process simulation {s}: {e}")
-                # Create NaN results for failed simulations
-                nan_return_values = xr.DataArray(
-                    np.full(len(self.return_periods), np.nan),
-                    dims=["one_in_x"],
-                    coords={"one_in_x": self.return_periods},
-                    name="return_value",
-                )
-                return_vals.append(nan_return_values)
-                p_vals.append(xr.DataArray(np.nan, name="p_value"))
+            return_values, p_value = self._process_single_simulation_return_values(
+                sim_data, str(s)
+            )
+            return_vals.append(return_values)
+            p_vals.append(p_value)
 
         # Combine results with robust error handling
-        try:
-            # Validate all return values before concatenation
-            validated_return_vals = []
-            for i, rv in enumerate(return_vals):
-                try:
-                    # Ensure each return value has proper dimensions
-                    if isinstance(rv, xr.DataArray):
-                        # Check if it has the expected dimensions
-                        if "one_in_x" not in rv.dims:
-                            print(
-                                f"Warning: Fixing missing 'one_in_x' dimension for result {i}"
-                            )
-                            if len(rv.dims) == 1:
-                                rv = rv.rename({rv.dims[0]: "one_in_x"})
-                            elif len(rv.dims) == 0:
-                                rv = xr.DataArray(
-                                    [rv.values.item()] * len(self.return_periods),
-                                    dims=["one_in_x"],
-                                    coords={"one_in_x": self.return_periods},
-                                    name="return_value",
-                                )
-                            else:
-                                # Multi-dimensional - take the first usable dimension
-                                rv = rv.isel(
-                                    {dim: 0 for dim in rv.dims if dim != "one_in_x"}
-                                )
-                                if "one_in_x" not in rv.dims and len(rv.dims) == 1:
-                                    rv = rv.rename({rv.dims[0]: "one_in_x"})
-
-                        # Ensure coordinates are correct
-                        if "one_in_x" in rv.dims and len(
-                            rv.coords.get("one_in_x", [])
-                        ) != len(self.return_periods):
-                            rv = rv.assign_coords(
-                                {"one_in_x": ("one_in_x", self.return_periods)}
-                            )
-
-                        validated_return_vals.append(rv)
-                    else:
-                        print(
-                            f"Warning: Converting non-DataArray result {i} to DataArray"
-                        )
-                        validated_return_vals.append(
-                            xr.DataArray(
-                                np.full(len(self.return_periods), np.nan),
-                                dims=["one_in_x"],
-                                coords={"one_in_x": self.return_periods},
-                                name="return_value",
-                            )
-                        )
-                except Exception as val_error:
-                    print(f"Warning: Failed to validate return value {i}: {val_error}")
-                    validated_return_vals.append(
-                        xr.DataArray(
-                            np.full(len(self.return_periods), np.nan),
-                            dims=["one_in_x"],
-                            coords={"one_in_x": self.return_periods},
-                            name="return_value",
-                        )
-                    )
-
-            ret_vals = xr.concat(validated_return_vals, dim="sim")
-            p_vals = xr.concat(p_vals, dim="sim")
-        except Exception as concat_error:
-            print(f"Error during concatenation: {concat_error}")
-            # Create fallback results
-            ret_vals = xr.DataArray(
-                np.full((len(data_array.sim), len(self.return_periods)), np.nan),
-                dims=["sim", "one_in_x"],
-                coords={"sim": data_array.sim.values, "one_in_x": self.return_periods},
-                name="return_value",
-            )
-            p_vals = xr.DataArray(
-                np.full(len(data_array.sim), np.nan),
-                dims=["sim"],
-                coords={"sim": data_array.sim.values},
-                name="p_value",
-            )
-
-        # Create result dataset
-        result = xr.Dataset({"return_value": ret_vals, "p_values": p_vals})
-
-        # Add attributes
-        result.attrs.update(
-            {
-                "groupby": f"{self.event_duration[0]} {self.event_duration[1]}",
-                "fitted_distr": self.distribution,
-                "sample_size": len(data_array.time),
-            }
+        ret_vals, p_vals = self._combine_return_value_results(
+            return_vals, p_vals, data_array
         )
 
-        return result
+        # Create and return result dataset
+        return self._create_one_in_x_result_dataset(ret_vals, p_vals, data_array)
 
     def _get_return_values_vectorized(
-        self,
-        block_maxima: xr.DataArray,
-        return_periods: np.ndarray,
-        distr: str = "gev",
+        self, block_maxima: xr.DataArray, return_periods: np.ndarray, distr: str = "gev"
     ) -> xr.DataArray:
         """
-        Calculate return values from block maxima using a vectorized approach.
+        Vectorized implementation of return value calculation that can handle multiple return periods.
+
+        This is a custom implementation that avoids the bug in the original get_return_value function
+        where it fails to assign coordinates properly for multi-dimensional data.
+
+        Parameters
+        ----------
+        block_maxima : xr.DataArray
+            Block maxima time series for a single simulation
+        return_periods : np.ndarray
+            Array of return periods to calculate
+        distr : str
+            Distribution to fit ("gev", "genpareto", "gamma")
+
+        Returns
+        -------
+        xr.DataArray
+            DataArray with return values for each return period
         """
-        if not EXTREME_VALUE_ANALYSIS_AVAILABLE:
-            raise ValueError("Extreme value analysis functions are not available")
+        # Check for sufficient valid data before proceeding
+        if "year" in block_maxima.dims:
+            valid_data = block_maxima.dropna(dim="year", how="all")
+        else:
+            # Find the primary dimension (likely 'time' or similar)
+            primary_dim = (
+                [
+                    dim
+                    for dim in block_maxima.dims
+                    if dim not in ["lat", "lon", "x", "y"]
+                ][0]
+                if block_maxima.dims
+                else None
+            )
+            if primary_dim:
+                valid_data = block_maxima.dropna(dim=primary_dim)
+            else:
+                valid_data = block_maxima
+        if valid_data.size == 0:
+            print(
+                "Warning: No valid data found for distribution fitting - returning NaN values"
+            )
+            return self._create_nan_return_value_array()
 
-        from climakitae.explore.threshold_tools import get_return_value
+        # Count valid values - need at least 3 for meaningful fitting
+        n_valid = (
+            valid_data.count().values.item()
+            if hasattr(valid_data.count().values, "item")
+            else int(valid_data.count())
+        )
+        if n_valid < 3:
+            print(
+                f"Warning: Insufficient valid data points ({n_valid}) for distribution fitting - returning NaN values"
+            )
+            return self._create_nan_return_value_array()
 
-        # Check if the input is a Dask array
-        is_dask_array = (
-            hasattr(block_maxima, "chunks") and block_maxima.chunks is not None
+        # Import the helper functions we need
+        from climakitae.explore.threshold_tools import (
+            _get_distr_func,
+            _get_fitted_distr,
         )
 
-        # Set dask_kwargs if it's a Dask array
-        dask_kwargs = {}
-        if is_dask_array:
-            dask_kwargs = {
-                "dask": "parallelized",
-                "output_dtypes": [block_maxima.dtype],
-            }
+        # Get the distribution function
+        distr_func = _get_distr_func(distr)
 
-        # Apply the function to get return values
-        return_values = xr.apply_ufunc(
-            get_return_value,
-            block_maxima,
-            input_core_dims=[["time"]],
-            output_core_dims=[["one_in_x"]],
-            exclude_dims=set(("time",)),
-            vectorize=True,
-            kwargs={"return_period": return_periods, "distr": distr},
-            **dask_kwargs,
-        )
+        try:
+            # Fit the distribution to the valid block maxima data
+            _, fitted_distr = _get_fitted_distr(valid_data, distr, distr_func)
 
-        # Assign coordinates to the output
-        return_values = return_values.assign_coords(one_in_x=return_periods)
-        return return_values
+            # Calculate return values for all return periods at once
+            return_values = []
+            for rp in return_periods:
+                # Calculate the event probability
+                block_size = 1  # Assuming 1-year blocks
+                event_prob = block_size / rp
 
-    def _calculate_one_in_x_vectorized(self, data_array: xr.DataArray) -> xr.Dataset:
+                # Calculate return event probability based on extremes type
+                if self.extremes_type == "max":
+                    return_event = 1.0 - event_prob
+                elif self.extremes_type == "min":
+                    return_event = event_prob
+                else:
+                    raise ValueError("extremes_type must be 'max' or 'min'")
+
+                # Calculate the return value using the inverse CDF (percentile point function)
+                try:
+                    # fitted_distr is a frozen scipy.stats distribution with ppf method
+                    return_value = fitted_distr.ppf(return_event)  # type: ignore
+                    return_values.append(np.round(return_value, 5))
+                except (ValueError, ZeroDivisionError):
+                    return_values.append(np.nan)
+
+            # Create DataArray with proper coordinates
+            result = xr.DataArray(
+                return_values,
+                dims=["one_in_x"],
+                coords={"one_in_x": return_periods},
+                name="return_value",
+                attrs={
+                    "fitted_distribution": distr,
+                    "extremes_type": self.extremes_type,
+                    "block_size": "1 year",
+                    "units": getattr(valid_data, "units", ""),
+                },
+            )
+
+            return result
+
+        except Exception as e:
+            print(f"Warning: Failed to fit distribution {distr} to block maxima: {e}")
+            # Return NaN array as fallback
+            return self._create_nan_return_value_array()
+
+    def _preprocess_variable_for_one_in_x(
+        self, data: xr.DataArray, var_name: str
+    ) -> xr.DataArray:
         """
-        Vectorized calculation of 1-in-X values for better performance.
+        Apply variable-specific preprocessing for 1-in-X calculations.
 
-        This method attempts to process multiple simulations simultaneously.
+        Parameters
+        ----------
+        data : xr.DataArray
+            Input data array
+        var_name : str
+            Variable name for preprocessing logic
+
+        Returns
+        -------
+        xr.DataArray
+            Preprocessed data array
+        """
+        # Apply precipitation-specific preprocessing
+        if (
+            "precipitation" in var_name.lower()
+            or "pr" in var_name.lower()
+            or var_name.lower() in ["precipitation (total)", "precipitation"]
+        ):
+
+            preprocessing = self.variable_preprocessing.get("precipitation", {})
+
+            # Aggregate to daily if needed and requested
+            if (
+                preprocessing.get("daily_aggregation", True)
+                and "1hr" in str(data.attrs.get("frequency", "")).lower()
+                or "hourly" in str(data.attrs.get("frequency", "")).lower()
+            ):
+                data = data.resample(time="1D").sum()
+
+            # Remove trace precipitation
+            if preprocessing.get("remove_trace", True):
+                threshold = preprocessing.get("trace_threshold", 1e-10)
+                data = data.where(data > threshold, drop=True)
+
+        return data
+
+    def _extract_block_maxima(self, data: xr.DataArray) -> xr.DataArray:
+        """
+        Extract block maxima from data array.
+
+        Parameters
+        ----------
+        data : xr.DataArray
+            Input data array
+
+        Returns
+        -------
+        xr.DataArray
+            Block maxima
         """
         if not EXTREME_VALUE_ANALYSIS_AVAILABLE:
-            raise ValueError("Extreme value analysis functions are not available")
+            raise ValueError(
+                "Block maxima extraction requires extreme value analysis functions"
+            )
 
-        # Extract block maxima for all simulations at once
-        print("Extracting block maxima for all simulations...")
+        # Import check - this should be guaranteed by the above check, but helps with type checking
+        from climakitae.explore.threshold_tools import get_block_maxima  # noqa: F401
 
-        # Configure block maxima extraction
+        # Configure block maxima extraction based on event duration
+        duration = None
+        groupby = None
+
+        if self.event_duration == (1, "day"):
+            groupby = self.event_duration
+        elif self.event_duration[1] == "hour":
+            duration = self.event_duration
+
+        # Call get_block_maxima with appropriate parameters
         kwargs = {
             "extremes_type": self.extremes_type,
-            "check_ess": False,
+            "check_ess": False,  # Disable ESS check for now
             "block_size": self.block_size,
         }
 
-        if self.event_duration == (1, "day"):
-            kwargs["groupby"] = self.event_duration
-        elif self.event_duration[1] == "hour":
-            kwargs["duration"] = self.event_duration
+        if duration is not None:
+            kwargs["duration"] = duration
+        if groupby is not None:
+            kwargs["groupby"] = groupby
 
-        # Process all simulations at once using xarray's vectorized operations
-        all_block_maxima = []
-        all_return_vals = []
-        all_p_vals = []
+        return get_block_maxima(data, **kwargs).squeeze()
 
-        # Process simulations in batches to manage memory
-        batch_size = min(
-            10, len(data_array.sim)
-        )  # Process up to 10 simulations at once
-        sim_values = data_array.sim.values
+    def _print_goodness_of_fit_result(self, simulation: str, p_value: xr.DataArray):
+        """
+        Print goodness-of-fit test results.
 
-        for i in range(0, len(sim_values), batch_size):
-            batch_sims = sim_values[i : i + batch_size]
-            print(
-                f"Processing simulation batch {i//batch_size + 1}/{(len(sim_values) + batch_size - 1)//batch_size}"
-            )
-
-            batch_results = []
-            batch_p_vals = []
-
-            for s in batch_sims:
-                block_maxima = None  # Initialize to avoid scoping issues
-                try:
-                    # Check for duplicate simulations and handle appropriately
-                    sim_matches = data_array.sim.values == s
-                    num_matches = sim_matches.sum()
-
-                    # Handle duplicate simulations by selecting the first occurrence
-                    if num_matches > 1:
-                        first_idx = np.where(sim_matches)[0][0]
-                        print(
-                            f"Warning: Found {num_matches} matches for simulation '{s}', selecting first occurrence"
-                        )
-                        sim_data = data_array.isel(sim=first_idx)
-                    else:
-                        # Try the selection
-                        try:
-                            sim_data = data_array.sel(sim=s)
-                        except Exception as sel_error:
-                            # Try alternative selection methods
-                            try:
-                                # Try using isel if sel fails
-                                sim_idx = list(data_array.sim.values).index(s)
-                                sim_data = data_array.isel(sim=sim_idx)
-                            except Exception:
-                                raise sel_error
-
-                    # Now squeeze to remove size-1 dimensions
-                    sim_data = sim_data.squeeze()
-
-                    # Force drop the sim dimension if it still exists
-                    if "sim" in sim_data.dims:
-                        sim_data = sim_data.squeeze("sim", drop=True)
-
-                    # Extract block maxima for this simulation
-                    block_maxima = get_block_maxima(sim_data, **kwargs).squeeze()
-
-                    # Force drop the sim dimension if it still exists in block_maxima
-                    if "sim" in block_maxima.dims:
-                        block_maxima = block_maxima.squeeze("sim", drop=True)
-
-                    # Check data quality and filter out locations with insufficient data
-                    if hasattr(block_maxima, "dims") and len(block_maxima.dims) > 1:
-                        # For multi-dimensional block maxima, we need to check each location
-                        spatial_dims = [
-                            dim
-                            for dim in block_maxima.dims
-                            if dim not in ["time", "year"]
-                        ]
-                        if spatial_dims:
-                            # Count valid data points for each location
-                            count_dim = (
-                                "year"
-                                if "year" in block_maxima.dims
-                                else str(block_maxima.dims[0])
-                            )
-                            valid_counts = block_maxima.count(dim=count_dim)
-                            # Filter out locations with fewer than 3 valid time periods
-                            valid_locations = valid_counts >= 3
-                            if valid_locations.sum() == 0:
-                                print(
-                                    f"Warning: No locations have sufficient valid data for simulation {s}"
-                                )
-                                raise ValueError("No valid locations found")
-                            elif valid_locations.sum() < len(valid_locations):
-                                n_valid = int(valid_locations.sum())
-                                n_total = len(valid_locations)
-                                print(
-                                    f"Filtering to {n_valid} valid locations out of {n_total} total locations"
-                                )
-                                # Filter the block maxima to only include valid locations
-                                block_maxima = block_maxima.where(
-                                    valid_locations, drop=True
-                                )
-
-                    # Handle spatial dimensions (e.g., closest_cell, lat, lon)
-                    spatial_dims = [
-                        dim for dim in block_maxima.dims if dim not in ["time", "year"]
-                    ]
-
-                    if spatial_dims:
-                        # We have spatial dimensions - need to process each location separately
-                        # Get the first spatial dimension to iterate over
-                        spatial_dim = spatial_dims[0]
-                        spatial_coords = block_maxima.coords[spatial_dim]
-
-                        location_results = []
-                        for loc_idx, spatial_coord in enumerate(spatial_coords):
-                            try:
-                                # Extract data for this specific location
-                                loc_block_maxima = block_maxima.isel(
-                                    {spatial_dim: loc_idx}
-                                )
-
-                                # Check if this location has enough valid data
-                                # Determine which time dimension to use
-                                time_dim = (
-                                    "year"
-                                    if "year" in loc_block_maxima.dims
-                                    else "time"
-                                )
-                                valid_data = loc_block_maxima.dropna(
-                                    dim=time_dim, how="all"
-                                )
-                                n_valid_periods = len(valid_data[time_dim])
-                                if (
-                                    n_valid_periods < 3
-                                ):  # Need at least 3 periods for distribution fitting
-                                    print(
-                                        f"Warning: Location {loc_idx} has insufficient valid data ({n_valid_periods} {time_dim} periods), skipping..."
-                                    )
-                                    raise ValueError(
-                                        f"Insufficient valid data for location {loc_idx}"
-                                    )
-
-                                # Calculate return values for this location
-                                loc_result = self._get_return_values_vectorized(
-                                    valid_data,  # Use the filtered data
-                                    return_periods=self.return_periods,
-                                    distr=self.distribution,
-                                )
-
-                                # Add the spatial coordinate back to the result
-                                loc_result = loc_result.assign_coords(
-                                    {spatial_dim: spatial_coords[loc_idx]}
-                                )
-                                loc_result = loc_result.expand_dims(spatial_dim)
-                                location_results.append(loc_result)
-
-                            except Exception as loc_error:
-                                print(
-                                    f"Warning: Failed to process location {loc_idx} in {spatial_dim}: {loc_error}"
-                                )
-                                # Create NaN result for this location
-                                nan_result = xr.DataArray(
-                                    np.full(len(self.return_periods), np.nan),
-                                    dims=["one_in_x"],
-                                    coords={
-                                        "one_in_x": self.return_periods,
-                                        spatial_dim: spatial_coords[loc_idx],
-                                    },
-                                    name="return_value",
-                                )
-                                nan_result = nan_result.expand_dims(spatial_dim)
-                                location_results.append(nan_result)
-
-                        # Combine results across all locations
-                        if location_results:
-                            result = xr.concat(location_results, dim=spatial_dim)
-                        else:
-                            # All locations failed - create NaN result
-                            result = xr.DataArray(
-                                np.full(
-                                    (len(spatial_coords), len(self.return_periods)),
-                                    np.nan,
-                                ),
-                                dims=[spatial_dim, "one_in_x"],
-                                coords={
-                                    spatial_dim: spatial_coords,
-                                    "one_in_x": self.return_periods,
-                                },
-                                name="return_value",
-                            )
-                    else:
-                        # No spatial dimensions - process as before
-                        result = self._get_return_values_vectorized(
-                            block_maxima,
-                            return_periods=self.return_periods,
-                            distr=self.distribution,
-                        )
-
-                except Exception:
-                    # Fallback to individual calculation
-                    print(
-                        f"Warning: Vectorized return value calculation failed for simulation {s}, using fallback method"
-                    )
-                    individual_return_values = []
-
-                    # Check if block_maxima was successfully extracted
-                    if block_maxima is None:
-                        print(
-                            f"Warning: Block maxima extraction failed for simulation {s}, returning NaN values"
-                        )
-                        individual_return_values = [np.nan] * len(self.return_periods)
-                    else:
-                        for rp in self.return_periods.tolist():
-                            try:
-                                single_result = get_return_value(
-                                    block_maxima,
-                                    return_period=rp,  # Pass single return period
-                                    multiple_points=False,
-                                    distr=self.distribution,
-                                )
-
-                                # Extract the return value from the result
-                                if (
-                                    isinstance(single_result, dict)
-                                    and "return_value" in single_result
-                                ):
-                                    rv = single_result["return_value"]
-                                else:
-                                    rv = single_result
-
-                                # Convert to scalar if it's a DataArray
-                                if isinstance(rv, xr.DataArray):
-                                    rv = (
-                                        rv.values.item()
-                                        if rv.values.size == 1
-                                        else rv.values.flat[0]
-                                    )
-
-                                individual_return_values.append(rv)
-
-                            except Exception as single_rv_error:
-                                print(
-                                    f"Warning: Return value calculation failed for return period {rp}: {single_rv_error}"
-                                )
-                                individual_return_values.append(np.nan)
-
-                    # Create a DataArray with the individual return values
-                    result = xr.DataArray(
-                        individual_return_values,
-                        dims=["one_in_x"],
-                        coords={"one_in_x": self.return_periods},
-                        name="return_value",
-                    )
-
-                # The result is now already properly formatted as a DataArray with the correct coordinates
-                return_values = result
-                batch_results.append(return_values)
-
-                # Calculate p-values if requested
-                if self.goodness_of_fit_test and block_maxima is not None:
-                    _, p_value = get_ks_stat(
-                        block_maxima, distr=self.distribution, multiple_points=False
-                    ).data_vars.values()
-                    batch_p_vals.append(p_value)
-
-                    if self.print_goodness_of_fit:
-                        self._print_goodness_of_fit_result(s, p_value)
-                else:
-                    batch_p_vals.append(xr.DataArray(np.nan, name="p_value"))
-
-            all_return_vals.extend(batch_results)
-            all_p_vals.extend(batch_p_vals)
-
-        # Combine all results with robust error handling
-        try:
-            # Validate all return values before concatenation
-            validated_return_vals = []
-            for i, rv in enumerate(all_return_vals):
-                try:
-                    # Ensure each return value has proper dimensions
-                    if isinstance(rv, xr.DataArray):
-                        # Check if it has the expected dimensions
-                        if "one_in_x" not in rv.dims:
-                            print(
-                                f"Warning: Fixing missing 'one_in_x' dimension for result {i}"
-                            )
-                            if len(rv.dims) == 1:
-                                rv = rv.rename({rv.dims[0]: "one_in_x"})
-                            elif len(rv.dims) == 0:
-                                rv = xr.DataArray(
-                                    [rv.values.item()] * len(self.return_periods),
-                                    dims=["one_in_x"],
-                                    coords={"one_in_x": self.return_periods},
-                                    name="return_value",
-                                )
-                            else:
-                                # Multi-dimensional - take the first usable dimension
-                                rv = rv.isel(
-                                    {dim: 0 for dim in rv.dims if dim != "one_in_x"}
-                                )
-                                if "one_in_x" not in rv.dims and len(rv.dims) == 1:
-                                    rv = rv.rename({rv.dims[0]: "one_in_x"})
-
-                        # Ensure coordinates are correct
-                        if "one_in_x" in rv.dims and len(
-                            rv.coords.get("one_in_x", [])
-                        ) != len(self.return_periods):
-                            rv = rv.assign_coords(
-                                {"one_in_x": ("one_in_x", self.return_periods)}
-                            )
-
-                        validated_return_vals.append(rv)
-                    else:
-                        print(
-                            f"Warning: Converting non-DataArray result {i} to DataArray"
-                        )
-                        validated_return_vals.append(
-                            xr.DataArray(
-                                np.full(len(self.return_periods), np.nan),
-                                dims=["one_in_x"],
-                                coords={"one_in_x": self.return_periods},
-                                name="return_value",
-                            )
-                        )
-                except Exception as val_error:
-                    print(f"Warning: Failed to validate return value {i}: {val_error}")
-                    validated_return_vals.append(
-                        xr.DataArray(
-                            np.full(len(self.return_periods), np.nan),
-                            dims=["one_in_x"],
-                            coords={"one_in_x": self.return_periods},
-                            name="return_value",
-                        )
-                    )
-
-            ret_vals = xr.concat(validated_return_vals, dim="sim")
-            p_vals = xr.concat(all_p_vals, dim="sim")
-        except Exception as concat_error:
-            print(f"Error during concatenation: {concat_error}")
-            # Create fallback results
-            ret_vals = xr.DataArray(
-                np.full((len(data_array.sim), len(self.return_periods)), np.nan),
-                dims=["sim", "one_in_x"],
-                coords={"sim": data_array.sim.values, "one_in_x": self.return_periods},
-                name="return_value",
-            )
-            p_vals = xr.DataArray(
-                np.full(len(data_array.sim), np.nan),
-                dims=["sim"],
-                coords={"sim": data_array.sim.values},
-                name="p_value",
-            )
-
-        # Create result dataset
-        result = xr.Dataset({"return_value": ret_vals, "p_values": p_vals})
-
-        # Add attributes
-        result.attrs.update(
-            {
-                "groupby": f"{self.event_duration[0]} {self.event_duration[1]}",
-                "fitted_distr": self.distribution,
-                "sample_size": len(data_array.time),
-            }
+        Parameters
+        ----------
+        simulation : str
+            Simulation name
+        p_value : xr.DataArray
+            P-value from KS test
+        """
+        # Handle both scalar and array p-values
+        p_val_scalar = (
+            p_value.values.item()
+            if p_value.values.size == 1
+            else p_value.values.flat[0]
         )
 
-        return result
-
-    def _calculate_one_in_x_serial(self, data_array: xr.DataArray) -> xr.Dataset:
-        """
-        Serial calculation of 1-in-X values (fallback method).
-
-        This is the original implementation for cases where vectorized processing fails.
-        """
-        if not EXTREME_VALUE_ANALYSIS_AVAILABLE:
-            raise ValueError("Extreme value analysis functions are not available")
-
-        # Local imports
-        from climakitae.explore.threshold_tools import get_ks_stat, get_return_value
-
-        return_vals = []
-        p_vals = []
-
-        for s in data_array.sim.values:
-            sim_data = data_array.sel(sim=s).squeeze()
-            print(f"Processing simulation: {s}")
-
-            try:
-                # Extract block maxima
-                block_maxima = self._extract_block_maxima(sim_data)
-
-                # Use our vectorized return value calculation
-                try:
-                    return_values = self._get_return_values_vectorized(
-                        block_maxima,
-                        return_periods=self.return_periods,
-                        distr=self.distribution,
-                    )
-                except Exception as rv_error:
-                    print(
-                        f"Warning: Vectorized return value calculation failed for {s}, using fallback method"
-                    )
-                    # Fallback to individual calculation
-                    individual_return_values = []
-                    for rp in self.return_periods.tolist():
-                        try:
-                            single_result = get_return_value(
-                                block_maxima,
-                                return_period=rp,  # Pass single return period
-                                multiple_points=False,
-                                distr=self.distribution,
-                            )
-
-                            # Extract the return value from the result
-                            if (
-                                isinstance(single_result, dict)
-                                and "return_value" in single_result
-                            ):
-                                rv = single_result["return_value"]
-                            else:
-                                rv = single_result
-
-                            # Convert to scalar if it's a DataArray
-                            if isinstance(rv, xr.DataArray):
-                                rv = (
-                                    rv.values.item()
-                                    if rv.values.size == 1
-                                    else rv.values.flat[0]
-                                )
-
-                            individual_return_values.append(rv)
-
-                        except Exception as single_rv_error:
-                            print(
-                                f"Warning: Return value calculation failed for return period {rp}: {single_rv_error}"
-                            )
-                            individual_return_values.append(np.nan)
-
-                    # Create a DataArray with the individual return values
-                    return_values = xr.DataArray(
-                        individual_return_values,
-                        dims=["one_in_x"],
-                        coords={"one_in_x": self.return_periods},
-                        name="return_value",
-                    )
-
-                return_vals.append(return_values)
-
-                # Perform goodness-of-fit test if requested
-                if self.goodness_of_fit_test:
-                    _, p_value = get_ks_stat(
-                        block_maxima, distr=self.distribution, multiple_points=False
-                    ).data_vars.values()
-                    p_vals.append(p_value)
-
-                    if self.print_goodness_of_fit:
-                        self._print_goodness_of_fit_result(s, p_value)
-                else:
-                    p_vals.append(xr.DataArray(np.nan, name="p_value"))
-
-            except (ValueError, RuntimeError, ImportError) as e:
-                print(f"Warning: Failed to process simulation {s}: {e}")
-                # Create NaN results for failed simulations
-                nan_return_values = xr.DataArray(
-                    np.full(len(self.return_periods), np.nan),
-                    dims=["one_in_x"],
-                    coords={"one_in_x": self.return_periods},
-                    name="return_value",
-                )
-                return_vals.append(nan_return_values)
-                p_vals.append(xr.DataArray(np.nan, name="p_value"))
-
-        # Combine results with robust error handling
-        try:
-            # Validate all return values before concatenation
-            validated_return_vals = []
-            for i, rv in enumerate(return_vals):
-                try:
-                    # Ensure each return value has proper dimensions
-                    if isinstance(rv, xr.DataArray):
-                        # Check if it has the expected dimensions
-                        if "one_in_x" not in rv.dims:
-                            print(
-                                f"Warning: Fixing missing 'one_in_x' dimension for result {i}"
-                            )
-                            if len(rv.dims) == 1:
-                                rv = rv.rename({rv.dims[0]: "one_in_x"})
-                            elif len(rv.dims) == 0:
-                                rv = xr.DataArray(
-                                    [rv.values.item()] * len(self.return_periods),
-                                    dims=["one_in_x"],
-                                    coords={"one_in_x": self.return_periods},
-                                    name="return_value",
-                                )
-                            else:
-                                # Multi-dimensional - take the first usable dimension
-                                rv = rv.isel(
-                                    {dim: 0 for dim in rv.dims if dim != "one_in_x"}
-                                )
-                                if "one_in_x" not in rv.dims and len(rv.dims) == 1:
-                                    rv = rv.rename({rv.dims[0]: "one_in_x"})
-
-                        # Ensure coordinates are correct
-                        if "one_in_x" in rv.dims and len(
-                            rv.coords.get("one_in_x", [])
-                        ) != len(self.return_periods):
-                            rv = rv.assign_coords(
-                                {"one_in_x": ("one_in_x", self.return_periods)}
-                            )
-
-                        validated_return_vals.append(rv)
-                    else:
-                        print(
-                            f"Warning: Converting non-DataArray result {i} to DataArray"
-                        )
-                        validated_return_vals.append(
-                            xr.DataArray(
-                                np.full(len(self.return_periods), np.nan),
-                                dims=["one_in_x"],
-                                coords={"one_in_x": self.return_periods},
-                                name="return_value",
-                            )
-                        )
-                except Exception as val_error:
-                    print(f"Warning: Failed to validate return value {i}: {val_error}")
-                    validated_return_vals.append(
-                        xr.DataArray(
-                            np.full(len(self.return_periods), np.nan),
-                            dims=["one_in_x"],
-                            coords={"one_in_x": self.return_periods},
-                            name="return_value",
-                        )
-                    )
-
-            ret_vals = xr.concat(validated_return_vals, dim="sim")
-            p_vals = xr.concat(p_vals, dim="sim")
-        except Exception as concat_error:
-            print(f"Error during concatenation: {concat_error}")
-            # Create fallback results
-            ret_vals = xr.DataArray(
-                np.full((len(data_array.sim), len(self.return_periods)), np.nan),
-                dims=["sim", "one_in_x"],
-                coords={"sim": data_array.sim.values, "one_in_x": self.return_periods},
-                name="return_value",
-            )
-            p_vals = xr.DataArray(
-                np.full(len(data_array.sim), np.nan),
-                dims=["sim"],
-                coords={"sim": data_array.sim.values},
-                name="p_value",
-            )
-
-        # Create result dataset
-        result = xr.Dataset({"return_value": ret_vals, "p_values": p_vals})
-
-        # Add attributes
-        result.attrs.update(
-            {
-                "groupby": f"{self.event_duration[0]} {self.event_duration[1]}",
-                "fitted_distr": self.distribution,
-                "sample_size": len(data_array.time),
-            }
+        p_val_print = (
+            format(p_val_scalar, ".3e")
+            if p_val_scalar < 0.05
+            else round(p_val_scalar, 4)
         )
+        to_print = f"The simulation {simulation} fitted with a {self.distribution} distribution has a p-value of {p_val_print}.\n"
 
-        return result
+        if p_val_scalar < 0.05:
+            to_print += " Since the p-value is <0.05, the selected distribution does not fit the data well and therefore is not a good fit (see guidance)."
+        print(to_print)
 
-    def update_context(self, context):
+    def update_context(self, context: Dict[str, Any]):
         """
-        Update the context with information about the clipping operation, to be stored
-                in the "new_attrs" attribute.
+        Update the context with information about the transformation.
 
         Parameters
         ----------
         context : dict[str, Any]
             Parameters for processing the data.
+
+        Note
+        ----
+        The context is updated in place. This method does not return anything.
         """
         if _NEW_ATTRS_KEY not in context:
             context[_NEW_ATTRS_KEY] = {}
 
-        context[_NEW_ATTRS_KEY][
-            self.name
-        ] = f"""Process '{self.name}' applied to the data."""
+        # Build description based on what was calculated
+        description_parts = []
 
-    def set_data_accessor(self, catalog):
-        # placeholder for setting data accessor
-        pass
+        if self.one_in_x_config is not None:
+            # 1-in-X calculations
+            return_periods_str = ", ".join(map(str, self.return_periods))
+            description_parts.append(
+                f"1-in-X return values for periods [{return_periods_str}] were "
+                f"calculated using {self.distribution} distribution with "
+                f"{self.extremes_type} extremes over {self.event_duration[0]} {self.event_duration[1]} events"
+            )
+        else:
+            # Regular metric calculations
+            if self.percentiles is not None:
+                description_parts.append(
+                    f"Percentiles {self.percentiles} were calculated"
+                )
+
+            if not self.percentiles_only:
+                description_parts.append(f"Metric '{self.metric}' was calculated")
+
+        if self.one_in_x_config is not None:
+            transformation_description = (
+                f"Process '{self.name}' applied to the data. "
+                f"{' and '.join(description_parts)}."
+            )
+        else:
+            transformation_description = (
+                f"Process '{self.name}' applied to the data. "
+                f"{' and '.join(description_parts)} along dimension(s): {self.dim}."
+            )
+
+        context[_NEW_ATTRS_KEY][self.name] = transformation_description
+
+    def _add_dummy_time_if_needed(self, data_array: xr.DataArray) -> xr.DataArray:
+        """
+        Add dummy time dimension if data has time_delta or similar warming level dimensions.
+
+        This mimics the behavior of add_dummy_time_to_wl from the legacy code.
+
+        Parameters
+        ----------
+        data_array : xr.DataArray
+            Input data array that may have time_delta or *_from_center dimensions
+
+        Returns
+        -------
+        xr.DataArray
+            Data array with proper time dimension
+        """
+        # Find the warming level time dimension
+        wl_time_dim = ""
+
+        for dim in data_array.dims:
+            dim_str = str(dim)
+            if dim_str == "time_delta":
+                wl_time_dim = "time_delta"
+                break
+            elif "from_center" in dim_str:
+                wl_time_dim = dim_str
+                break
+
+        if wl_time_dim == "":
+            raise ValueError(
+                "Data must have a 'time', 'time_delta', or '*_from_center' dimension for 1-in-X calculations"
+            )
+
+        # Determine frequency and create dummy timestamps
+        if wl_time_dim == "time_delta":
+            # Get frequency from data array attributes
+            time_freq_name = getattr(data_array, "frequency", "daily")
+            name_to_freq = {"hourly": "h", "daily": "D", "monthly": "ME"}
+        else:
+            # Extract frequency from dimension name (e.g., 'hours_from_center' -> 'hours')
+            time_freq_name = wl_time_dim.split("_")[0]
+            name_to_freq = {"hours": "h", "days": "D", "months": "ME"}
+
+        # Create dummy timestamps starting from 2000-01-01
+        freq = name_to_freq.get(time_freq_name, "D")  # Default to daily
+        timestamps = pd.date_range(
+            "2000-01-01",
+            periods=len(data_array[wl_time_dim]),
+            freq=freq,
+        )
+
+        # Replace the warming level dimension with dummy timestamps and rename to 'time'
+        data_array = data_array.assign_coords({wl_time_dim: timestamps}).rename(
+            {wl_time_dim: "time"}
+        )
+
+        return data_array
+
+    def set_data_accessor(self, catalog: DataCatalog):
+        """
+        Set the data accessor for the processor.
+
+        Parameters
+        ----------
+        catalog : DataCatalog
+            The data catalog to use for accessing data.
+
+        Note
+        ----
+        This processor does not require data access, so this is a placeholder.
+        """
+        # This processor does not require data access
+        self._catalog = catalog
+
+    def _create_nan_return_value_array(self) -> xr.DataArray:
+        """
+        Create a NaN-filled DataArray for return values with proper structure.
+
+        Returns
+        -------
+        xr.DataArray
+            DataArray filled with NaN values for all return periods
+        """
+        return xr.DataArray(
+            np.full(len(self.return_periods), np.nan),
+            dims=["one_in_x"],
+            coords={"one_in_x": self.return_periods},
+            name="return_value",
+        )
+
+    def _create_fallback_results(
+        self, data_array: xr.DataArray
+    ) -> tuple[xr.DataArray, xr.DataArray]:
+        """
+        Create fallback NaN results for return values and p-values.
+
+        Parameters
+        ----------
+        data_array : xr.DataArray
+            Input data array to get simulation dimension from
+
+        Returns
+        -------
+        tuple[xr.DataArray, xr.DataArray]
+            Tuple of (return_values, p_values) DataArrays filled with NaN
+        """
+        ret_vals = xr.DataArray(
+            np.full((len(data_array.sim), len(self.return_periods)), np.nan),
+            dims=["sim", "one_in_x"],
+            coords={"sim": data_array.sim.values, "one_in_x": self.return_periods},
+            name="return_value",
+        )
+        p_vals = xr.DataArray(
+            np.full(len(data_array.sim), np.nan),
+            dims=["sim"],
+            coords={"sim": data_array.sim.values},
+            name="p_value",
+        )
+        return ret_vals, p_vals
+
+    def _validate_and_fix_return_value(self, rv: Any, index: int) -> xr.DataArray:
+        """
+        Validate and fix a single return value DataArray to ensure proper structure.
+
+        Parameters
+        ----------
+        rv : Any
+            Return value to validate (should be xr.DataArray)
+        index : int
+            Index for warning messages
+
+        Returns
+        -------
+        xr.DataArray
+            Validated and fixed return value DataArray
+        """
+        try:
+            # Ensure it's a DataArray
+            if not isinstance(rv, xr.DataArray):
+                print(f"Warning: Converting non-DataArray result {index} to DataArray")
+                return self._create_nan_return_value_array()
+
+            # Check if it has the expected dimensions
+            if "one_in_x" not in rv.dims:
+                print(
+                    f"Warning: Fixing missing 'one_in_x' dimension for result {index}"
+                )
+                if len(rv.dims) == 1:
+                    rv = rv.rename({rv.dims[0]: "one_in_x"})
+                elif len(rv.dims) == 0:
+                    rv = xr.DataArray(
+                        [rv.values.item()] * len(self.return_periods),
+                        dims=["one_in_x"],
+                        coords={"one_in_x": self.return_periods},
+                        name="return_value",
+                    )
+                else:
+                    # Multi-dimensional - take the first usable dimension
+                    rv = rv.isel({dim: 0 for dim in rv.dims if dim != "one_in_x"})
+                    if "one_in_x" not in rv.dims and len(rv.dims) == 1:
+                        rv = rv.rename({rv.dims[0]: "one_in_x"})
+
+            # Ensure coordinates are correct
+            if "one_in_x" in rv.dims and len(rv.coords.get("one_in_x", [])) != len(
+                self.return_periods
+            ):
+                rv = rv.assign_coords({"one_in_x": ("one_in_x", self.return_periods)})
+
+            return rv
+
+        except Exception as val_error:
+            print(f"Warning: Failed to validate return value {index}: {val_error}")
+            return self._create_nan_return_value_array()
+
+    def _combine_return_value_results(
+        self, all_return_vals: list, all_p_vals: list, data_array: xr.DataArray
+    ) -> tuple[xr.DataArray, xr.DataArray]:
+        """
+        Combine and validate all return value results with robust error handling.
+
+        Parameters
+        ----------
+        all_return_vals : list
+            List of return value results to combine
+        all_p_vals : list
+            List of p-value results to combine
+        data_array : xr.DataArray
+            Input data array to get simulation dimension from
+
+        Returns
+        -------
+        tuple[xr.DataArray, xr.DataArray]
+            Tuple of (return_values, p_values) DataArrays
+        """
+        try:
+            # Validate all return values before concatenation
+            validated_return_vals = [
+                self._validate_and_fix_return_value(rv, i)
+                for i, rv in enumerate(all_return_vals)
+            ]
+
+            ret_vals = xr.concat(validated_return_vals, dim="sim")
+            p_vals = xr.concat(all_p_vals, dim="sim")
+
+        except Exception as concat_error:
+            print(f"Error during concatenation: {concat_error}")
+            ret_vals, p_vals = self._create_fallback_results(data_array)
+
+        # Ensure proper coordinates
+        ret_vals = ret_vals.assign_coords(sim=data_array.sim.values)
+        p_vals = p_vals.assign_coords(sim=data_array.sim.values)
+
+        return ret_vals, p_vals
+
+    def _create_one_in_x_result_dataset(
+        self, ret_vals: xr.DataArray, p_vals: xr.DataArray, data_array: xr.DataArray
+    ) -> xr.Dataset:
+        """
+        Create the final result dataset for 1-in-X calculations.
+
+        Parameters
+        ----------
+        ret_vals : xr.DataArray
+            Return values DataArray
+        p_vals : xr.DataArray
+            P-values DataArray
+        data_array : xr.DataArray
+            Input data array for attributes
+
+        Returns
+        -------
+        xr.Dataset
+            Final result dataset with return_value and p_values
+        """
+        result = xr.Dataset({"return_value": ret_vals, "p_values": p_vals})
+
+        # Add attributes
+        result.attrs.update(
+            {
+                "groupby": f"{self.event_duration[0]} {self.event_duration[1]}",
+                "fitted_distr": self.distribution,
+                "sample_size": len(data_array.time),
+            }
+        )
+
+        return result
+
+    def _process_single_simulation_return_values(
+        self, sim_data: xr.DataArray, simulation_id: str
+    ) -> tuple[xr.DataArray, xr.DataArray]:
+        """
+        Process return values for a single simulation.
+
+        Parameters
+        ----------
+        sim_data : xr.DataArray
+            Data for a single simulation
+        simulation_id : str
+            Simulation identifier for logging
+
+        Returns
+        -------
+        tuple[xr.DataArray, xr.DataArray]
+            Tuple of (return_values, p_value) for the simulation
+        """
+        try:
+            # Extract block maxima
+            block_maxima = self._extract_block_maxima(sim_data)
+
+            # Use our vectorized return value calculation
+            try:
+                return_values = self._get_return_values_vectorized(
+                    block_maxima,
+                    return_periods=self.return_periods,
+                    distr=self.distribution,
+                )
+            except Exception as rv_error:
+                print(
+                    f"Warning: Vectorized return value calculation failed for {simulation_id}, using fallback method"
+                )
+                # Fallback to individual calculation
+                individual_return_values = []
+                for rp in self.return_periods.tolist():
+                    try:
+                        single_result = get_return_value(
+                            block_maxima,
+                            return_period=rp,  # Pass single return period
+                            multiple_points=False,
+                            distr=self.distribution,
+                        )
+
+                        # Extract the return value from the result
+                        if (
+                            isinstance(single_result, dict)
+                            and "return_value" in single_result
+                        ):
+                            rv = single_result["return_value"]
+                        else:
+                            rv = single_result
+
+                        # Convert to scalar if it's a DataArray
+                        if isinstance(rv, xr.DataArray):
+                            rv = (
+                                rv.values.item()
+                                if rv.values.size == 1
+                                else rv.values.flat[0]
+                            )
+
+                        individual_return_values.append(rv)
+
+                    except Exception as single_rv_error:
+                        print(
+                            f"Warning: Return value calculation failed for return period {rp}: {single_rv_error}"
+                        )
+                        individual_return_values.append(np.nan)
+
+                # Create a DataArray with the individual return values
+                return_values = xr.DataArray(
+                    individual_return_values,
+                    dims=["one_in_x"],
+                    coords={"one_in_x": self.return_periods},
+                    name="return_value",
+                )
+
+            # Calculate p-values if requested
+            if self.goodness_of_fit_test:
+                _, p_value = get_ks_stat(
+                    block_maxima, distr=self.distribution, multiple_points=False
+                ).data_vars.values()
+
+                if self.print_goodness_of_fit:
+                    self._print_goodness_of_fit_result(simulation_id, p_value)
+            else:
+                p_value = xr.DataArray(np.nan, name="p_value")
+
+            return return_values, p_value
+
+        except (ValueError, RuntimeError, ImportError) as e:
+            print(f"Warning: Failed to process simulation {simulation_id}: {e}")
+            # Create NaN results for failed simulations
+            return_values = self._create_nan_return_value_array()
+            p_value = xr.DataArray(np.nan, name="p_value")
+            return return_values, p_value
