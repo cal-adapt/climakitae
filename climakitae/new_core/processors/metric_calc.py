@@ -8,11 +8,13 @@ from typing import Any, Dict, Iterable, Union
 import numpy as np
 import pandas as pd
 import xarray as xr
+import scipy.stats as stats
 
 from climakitae.core.constants import _NEW_ATTRS_KEY
 from climakitae.explore.threshold_tools import (
     get_ks_stat,
     get_return_value,
+    _get_distr_func,
 )
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import (
@@ -2735,10 +2737,6 @@ class MetricCalc(DataProcessor):
                 # Insufficient data for fitting
                 return np.full(len(return_periods), np.nan)
 
-            # Import required functions
-            from climakitae.explore.threshold_tools import _get_distr_func
-            import scipy.stats as stats
-
             # Get distribution function
             distr_func = _get_distr_func(distr)
 
@@ -2822,10 +2820,6 @@ class MetricCalc(DataProcessor):
             if len(valid_data) < 3:
                 # Insufficient data for testing
                 return np.nan
-
-            # Import required functions
-            from climakitae.explore.threshold_tools import _get_distr_func
-            import scipy.stats as stats
 
             # Get distribution function
             distr_func = _get_distr_func(distr)
