@@ -64,7 +64,7 @@ Notes
 -----
 - Processing steps are executed in the order they are added to the pipeline
 - The context dictionary is passed through all processing steps and may be modified
-- Steps that require data access can set `needs_data = True` to receive the data accessor
+- Steps that require data access can set `needs_catalog = True` to receive the data accessor
 - Validation failures return an empty xarray.Dataset rather than raising exceptions
 """
 
@@ -128,7 +128,7 @@ class Dataset:
     -----
     - Processing steps are executed in the order they are added to the pipeline
     - The context dictionary is passed through all processing steps and may be modified
-    - Steps that require data access can set `needs_data = True` to receive the data accessor
+    - Steps that require data access can set `needs_catalog = True` to receive the data accessor
     - Validation failures return an empty xarray.Dataset rather than raising exceptions
     - All components (validator, catalog, processors) must implement their respective interfaces
 

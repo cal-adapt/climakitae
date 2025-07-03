@@ -2,25 +2,26 @@
 DataProcessor MetricCalc
 """
 
-import warnings
-from typing import Any, Dict, Iterable, Union
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
-import dask
-import psutil
-from dask.diagnostics import ProgressBar
+import warnings
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Any, Dict, Iterable, Union
 
+import dask
 import numpy as np
 import pandas as pd
-import xarray as xr
+import psutil
 import scipy.stats as stats
+import xarray as xr
+from dask.delayed import delayed
+from dask.diagnostics.progress import ProgressBar
 
-from climakitae.core.constants import _NEW_ATTRS_KEY
+from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
 from climakitae.explore.threshold_tools import (
-    get_ks_stat,
-    get_return_value,
     _get_distr_func,
     _get_fitted_distr,
+    get_ks_stat,
+    get_return_value,
 )
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import (
@@ -175,26 +176,23 @@ class MetricCalc(DataProcessor):
         """
         self.value = value
         self.name = "metric_calc"
-        self._catalog = None  # Initialize catalog attribute
+        self._catalog = UNSET  # Initialize catalog attribute
 
         # Basic metric parameters
         self.metric = value.get("metric", "mean")
-        self.percentiles = value.get("percentiles", None)
+        self.percentiles = value.get("percentiles", UNSET)
         self.percentiles_only = value.get("percentiles_only", False)
         self.dim = value.get("dim", "time")
         self.keepdims = value.get("keepdims", False)
         self.skipna = value.get("skipna", True)
 
         # 1-in-X parameters
-        self.one_in_x_config = value.get("one_in_x", None)
-        if self.one_in_x_config is not None:
+        self.one_in_x_config = value.get("one_in_x", UNSET)
+        if self.one_in_x_config is not UNSET:
             self._setup_one_in_x_parameters()
 
-        # Validate inputs during initialization
-        self._validate_parameters()
-
         # Auto-configure Dask for large dataset processing
-        if self.one_in_x_config is not None:
+        if self.one_in_x_config is not UNSET:
             self.optimize_dask_performance()
 
     def _setup_one_in_x_parameters(self):
@@ -205,14 +203,14 @@ class MetricCalc(DataProcessor):
             )
 
         # Type guard to ensure one_in_x_config is not None
-        if self.one_in_x_config is None:
+        if self.one_in_x_config is UNSET:
             raise ValueError(
-                "one_in_x_config cannot be None when calling _setup_one_in_x_parameters"
+                "one_in_x_config cannot be UNSET when calling _setup_one_in_x_parameters"
             )
 
         # Required parameter
         self.return_periods = self.one_in_x_config.get("return_periods")
-        if self.return_periods is None:
+        if self.return_periods is UNSET:
             raise ValueError("return_periods is required for 1-in-X calculations")
 
         # Convert to numpy array for consistency
@@ -235,29 +233,6 @@ class MetricCalc(DataProcessor):
         self.variable_preprocessing = self.one_in_x_config.get(
             "variable_preprocessing", {}
         )
-
-    def _validate_parameters(self):
-        """
-        Validate the metric calculation parameters.
-
-        Raises
-        ------
-        ValueError
-            If invalid parameter values are provided
-        """
-        # Check that only one calculation type is specified
-        # Only consider basic metrics specified if they were explicitly set (not defaults)
-        explicit_metric_specified = (
-            "metric" in self.value and self.value["metric"] != "mean"
-        )
-        percentiles_specified = self.percentiles is not None
-        basic_metrics_specified = explicit_metric_specified or percentiles_specified
-        one_in_x_specified = self.one_in_x_config is not None
-
-        if basic_metrics_specified and one_in_x_specified:
-            raise ValueError(
-                "Cannot specify both basic metrics/percentiles and one_in_x calculations simultaneously"
-            )
 
     def execute(
         self,
@@ -289,12 +264,12 @@ class MetricCalc(DataProcessor):
 
         match result:
             case xr.Dataset() | xr.DataArray():
-                if self.one_in_x_config is not None:
+                if self.one_in_x_config is not UNSET:
                     ret = self._calculate_one_in_x_single(result)
                 else:
                     ret = self._calculate_metrics_single(result)
             case dict():
-                if self.one_in_x_config is not None:
+                if self.one_in_x_config is not UNSET:
                     ret = {
                         key: self._calculate_one_in_x_single(value)
                         for key, value in result.items()
@@ -305,7 +280,7 @@ class MetricCalc(DataProcessor):
                         for key, value in result.items()
                     }
             case list() | tuple():
-                if self.one_in_x_config is not None:
+                if self.one_in_x_config is not UNSET:
                     processed_data = [
                         self._calculate_one_in_x_single(item)
                         for item in result
@@ -366,17 +341,17 @@ class MetricCalc(DataProcessor):
         valid_dims = [dim for dim in dims_to_check if dim in available_dims]
 
         if not valid_dims:
-            print(
-                f"Warning: None of the specified dimensions {dims_to_check} exist in the data. Available dimensions: {list(available_dims)}"
+            warnings.warn(
+                f"\n\nNone of the specified dimensions {dims_to_check} exist in the data. "
+                f"\nAvailable dimensions: {list(available_dims)}"
             )
             return data
 
         # Use valid dimensions for calculation
         calc_dim = valid_dims if len(valid_dims) > 1 else valid_dims[0]
 
-        results = []
-
         # Calculate percentiles if requested
+        results = []
         if self.percentiles is not None:
             percentile_result = data.quantile(
                 [p / PERCENTILE_TO_QUANTILE_FACTOR for p in self.percentiles],
@@ -1578,7 +1553,6 @@ class MetricCalc(DataProcessor):
 
         try:
             # Process simulations in parallel using Dask delayed
-            from dask import delayed
 
             # Define a function to process a single simulation
             @delayed
@@ -1748,6 +1722,7 @@ class MetricCalc(DataProcessor):
             - 'reason': str, explanation of the decision
         """
         import os
+
         import psutil
 
         # Get system information
@@ -1896,23 +1871,9 @@ class MetricCalc(DataProcessor):
 
                 return result, p_value, None
 
-            except ValueError as e:
-                print(f"Warning: Simulation processing failed due to ValueError: {e}")
-                # Return NaN results
-                return (
-                    np.full(len(self.return_periods), np.nan),
-                    np.nan,
-                )
-            except TypeError as e:
-                print(f"Warning: Simulation processing failed due to TypeError: {e}")
-                # Return NaN results
-                return (
-                    np.full(len(self.return_periods), np.nan),
-                    np.nan,
-                )
-            except Exception as e:
+            except (ValueError, TypeError) as e:
                 print(
-                    f"Warning: Simulation processing failed due to unexpected error: {e}"
+                    f"Warning: Simulation processing failed due to {type(e).__name__}: {e}"
                 )
                 # Return NaN results
                 return (

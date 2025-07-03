@@ -1,5 +1,11 @@
 """
-DataProcessor Template
+Template for a DataProcessor subclass in climakitae.
+
+This module provides a template for implementing custom data processors that can be registered and used within the climakitae data processing pipeline. Processors are designed to transform, filter, or otherwise process xarray data objects in a modular and extensible way.
+
+Classes
+-------
+Template : Example processor template for subsetting data.
 """
 
 from typing import Any, Dict, Iterable, Union
@@ -19,19 +25,28 @@ class Template(DataProcessor):
     """
     Template for a DataProcessor.
 
+    This class serves as a template for creating new data processors. It demonstrates the required methods and docstring style for consistency within the climakitae framework.
+
     Parameters
     ----------
-    value : tuple(date-like, date-like)
-        The value to subset the data by. This should be a tuple of two
-        date-like values.
+    value : Iterable[Any]
+        The value to subset the data by. Typically a tuple of two date-like values.
+
+    Attributes
+    ----------
+    value : Iterable[Any]
+        The value used for subsetting or transformation.
+    name : str
+        The name of the processor.
 
     Methods
     -------
-
-
-    Notes
-    -----
-
+    execute(result, context)
+        Run the processor on the provided data.
+    update_context(context)
+        Update the context with information about the transformation.
+    set_data_accessor(catalog)
+        Set the data accessor for the processor (optional, for advanced use).
     """
 
     def __init__(self, value: Iterable[Any]):
@@ -40,8 +55,8 @@ class Template(DataProcessor):
 
         Parameters
         ----------
-        value : Iterable(date-like, date-like)
-            The value to subset the data by.
+        value : Iterable[Any]
+            The value to subset the data by. Typically a tuple of two date-like values.
         """
         self.value = value
         self.name = "template"
@@ -54,23 +69,19 @@ class Template(DataProcessor):
         context: Dict[str, Any],
     ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
         """
-        Run the processor
+        Run the processor on the provided data.
 
         Parameters
         ----------
-        result : xr.Dataset | xr.DataArray | Iterable[xr.Dataset | xr.DataArray]
-            The data to be sliced.
-
+        result : xr.Dataset or xr.DataArray or Iterable of these
+            The data to be processed or sliced.
         context : dict
-            The context for the processor. This is not used in this
-            implementation but is included for consistency with the
-            DataProcessor interface.
+            The context for the processor. This is not used in this implementation but is included for consistency with the DataProcessor interface.
 
         Returns
         -------
-        Union[xr.Dataset, xr.DataArray, Iterable[xr.Dataset | xr.DataArray]]
-            The sliced data. This can be a single Dataset/DataArray or
-            an iterable of them.
+        xr.Dataset, xr.DataArray, or Iterable of these
+            The processed or sliced data. This can be a single Dataset/DataArray or an iterable of them.
         """
 
     def update_context(self, context: Dict[str, Any]):
@@ -80,11 +91,11 @@ class Template(DataProcessor):
         Parameters
         ----------
         context : dict[str, Any]
-            Parameters for processing the data.
+            Parameters for processing the data. The context is updated in place.
 
-        Note
-        ----
-        The context is updated in place. This method does not return anything.
+        Returns
+        -------
+        None
         """
 
         if _NEW_ATTRS_KEY not in context:
@@ -95,5 +106,17 @@ class Template(DataProcessor):
         ] = f"""Process '{self.name}' applied to the data. Transformation was done using the following value: {self.value}."""
 
     def set_data_accessor(self, catalog: DataCatalog):
+        """
+        Set the data accessor for the processor.
+
+        Parameters
+        ----------
+        catalog : DataCatalog
+            Data catalog for accessing datasets.
+
+        Returns
+        -------
+        None
+        """
         # Placeholder for setting data accessor
         pass

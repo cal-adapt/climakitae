@@ -442,6 +442,10 @@ class DatasetFactory:
         ----------
         key : str
             Key of the catalog to query.
+        query : dict, optional
+            A dictionary to filter the catalog options. The keys of the
+            dictionary should correspond to columns in the catalog, and the
+            values are the values to filter by.
 
         Returns
         -------
@@ -491,19 +495,26 @@ class DatasetFactory:
         """
         return DataCatalog()["stations"]["station"].unique().tolist()
 
-    def get_boundaries(self, type) -> List[str]:
+    def get_boundaries(self, boundary_type: str) -> List[str]:
         """
         Get a list of available boundary datasets.
+
+        Parameters
+        ----------
+        boundary_type : str
+            The type of boundary datasets to retrieve. If the type is not found
+            in the cache, returns all available boundary types.
 
         Returns
         -------
         List[str]
-            List of available boundary datasets.
+            List of available boundary datasets for the specified type, or
+            all available boundary types if the specified type is not found.
         """
-        if type not in DataCatalog().boundaries._lookup_cache:
+        if boundary_type not in DataCatalog().boundaries._lookup_cache:
             return list(DataCatalog().boundaries._lookup_cache.keys())
         else:
-            return list(DataCatalog().boundaries._lookup_cache[type].keys())
+            return list(DataCatalog().boundaries._lookup_cache[boundary_type].keys())
 
     def reset(self):
         """

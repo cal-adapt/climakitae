@@ -89,7 +89,7 @@ def register_catalog_validator(name: str):
 
     Notes
     -----
-    The registered class is stored in the module-level 
+    The registered class is stored in the module-level
     `_CATALOG_VALIDATOR_REGISTRY` dictionary.
     """
 
@@ -132,7 +132,7 @@ def register_processor_validator(name: str):
 
     Notes
     -----
-    - The registered function is stored in the module-level 
+    - The registered function is stored in the module-level
       `_PROCESSOR_VALIDATOR_REGISTRY` dictionary
     - Processor validators should accept `value` and optional `query` parameters
     - Validators may modify the query in-place for parameter normalization
@@ -151,7 +151,7 @@ class ParameterValidator(ABC):
 
     This class provides a framework for validating user queries containing
     dataset selection parameters and processing parameters. It handles:
-    
+
     - Catalog parameter validation (dataset selection)
     - Processor parameter validation (data transformations)
     - Error handling and user-friendly suggestions
@@ -305,9 +305,10 @@ class ParameterValidator(ABC):
                 f"Query did not match any datasets: {e}\n\nSearching for close matches...",
                 UserWarning,
             )
+
         if len(subset) != 0:
             print(f"Found {len(subset)} datasets matching your query.")
-            print(f"Checking processes ...")
+            print("Checking processes ...")
             return self.all_catalog_keys if self._has_valid_processes(query) else None
 
         # dataset not found
@@ -390,7 +391,7 @@ class ParameterValidator(ABC):
             # check if the value is in the catalog
         if not df.empty:
             print(f"Found up to {len(df)} datasets matching your query.")
-            print(f"Checking processes ...")
+            print("Checking processes ...")
             return self.all_catalog_keys if self._has_valid_processes(query) else None
         return None
 
@@ -511,88 +512,3 @@ class ParameterValidator(ABC):
         Sets `self.catalog_df` attribute with the loaded catalog DataFrame.
         """
         self.catalog_df = DataCatalog().catalog_df
-
-    def _convert_frequency(self, frequency: str) -> str:
-        """
-        Convert user-friendly frequency names to catalog table_id values.
-
-        Maps common frequency descriptions to their corresponding table_id
-        values used in the data catalog.
-
-        Parameters
-        ----------
-        frequency : str
-            User-provided frequency description. Supported values:
-            - "hourly" -> "1hr"
-            - "daily" or "day" -> "day"  
-            - "monthly" -> "1mon"
-            - "yearly" -> "1yr"
-
-        Returns
-        -------
-        str
-            Corresponding table_id value, or UNSET if frequency is not recognized.
-
-        Examples
-        --------
-        >>> validator._convert_frequency("daily")
-        'day'
-        >>> validator._convert_frequency("monthly")
-        '1mon'
-        >>> validator._convert_frequency("unknown")
-        <UNSET>
-
-        Notes
-        -----
-        The frequency mapping should eventually be moved to a constants file
-        for better maintainability.
-        """
-        frequency_mapping = {
-            "hourly": "1hr",
-            "daily": "day",
-            "day": "day",
-            "monthly": "1mon",
-            "yearly": "1yr",
-        }  # TODO this goes in a constants file
-        return frequency_mapping.get(frequency, UNSET)
-
-    def _convert_resolution(self, resolution: str) -> str:
-        """
-        Convert user-friendly resolution descriptions to catalog grid_label values.
-
-        Maps spatial resolution descriptions to their corresponding grid_label
-        values used in the data catalog.
-
-        Parameters
-        ----------
-        resolution : str
-            User-provided resolution description. Supported values:
-            - "3 km" -> "d03"
-            - "9 km" -> "d02"  
-            - "45 km" -> "d01"
-
-        Returns
-        -------
-        str
-            Corresponding grid_label value, or UNSET if resolution is not recognized.
-
-        Examples
-        --------
-        >>> validator._convert_resolution("3 km")
-        'd03'
-        >>> validator._convert_resolution("9 km")
-        'd02'
-        >>> validator._convert_resolution("1 km")
-        <UNSET>
-
-        Notes
-        -----
-        The resolution mapping covers common WRF model domain resolutions.
-        Additional resolutions can be added to the mapping as needed.
-        """
-        resolution_mapping = {
-            "3 km": "d03",
-            "9 km": "d02",
-            "45 km": "d01",
-        }
-        return resolution_mapping.get(resolution, UNSET)

@@ -1,4 +1,20 @@
-"""Data processing module for climakitae.""" ""
+"""
+Data processing module for climakitae.
+
+This module defines the abstract base class for data processors, a registry system for processor classes, and example processor implementations. Processors are used to transform, filter, or otherwise process xarray data objects in a modular and extensible way.
+
+Classes
+-------
+DataProcessor : Abstract base class for all data processors.
+RenameVariables : Example processor for renaming variables.
+ApplyBiasCorrection : Example processor for bias correction.
+FilterData : Example processor for filtering data.
+
+Functions
+---------
+register_processor : Decorator for registering processor classes.
+"""
+
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, Iterable, Union
 
@@ -22,11 +38,19 @@ def register_processor(
     key : str, optional
         The key to register the processor under. If not provided, a key
         will be generated from the class name.
+    priority : int, optional
+        Optional priority for the processor. Lower values indicate higher priority.
 
     Returns
     -------
     callable
         The decorator function that registers the processor class.
+
+    Examples
+    --------
+    @register_processor("my_processor")
+    class MyProcessor(DataProcessor):
+        ...
     """
 
     def decorator(cls):
@@ -48,19 +72,22 @@ class DataProcessor(ABC):
     """
     Abstract base class for data processing.
 
-    Each subclass must have an the following methods:
-    - `execute`: Process the data.
-    - `update_context`: Update the context with additional parameters.
-    - `set_data_accessor`: Set the data accessor for the processor.
+    All data processors should inherit from this class and implement the required methods.
 
-    Notes on building a processor:
-    - The processor should only store the parameters needed for processing.
-    - The processor should not store the data itself.
-    - The processor should not throw exceptions. Instead, it should return the data
-    passed to it and a warning message
-    - All data processors should update the context with some information about how they
-    modified the data in order to keep track of the processing history and append to the
-    metadata of the data at the end of the chain.
+    Notes
+    -----
+    - Processors should only store parameters needed for processing, not the data itself.
+    - Processors should not throw exceptions; instead, they should return the data and a warning message if needed.
+    - All processors should update the context with information about how they modified the data.
+
+    Methods
+    -------
+    execute(result, context)
+        Process the data and return the result.
+    update_context(context)
+        Update the context with additional parameters.
+    set_data_accessor(catalog)
+        Set the data accessor for the processor.
     """
 
     @abstractmethod
@@ -76,15 +103,15 @@ class DataProcessor(ABC):
 
         Parameters
         ----------
-        result : object
-            data to be processed.
+        result : Dataset, DataArray, or iterable of these
+            Data to be processed.
         context : dict
             Parameters for processing the data.
 
         Returns
         -------
-        DataArray
-            Processed data in the form of a DataArray.
+        Dataset, DataArray, or iterable of these
+            Processed data.
 
         Raises
         ------
@@ -105,7 +132,6 @@ class DataProcessor(ABC):
         Returns
         -------
         None
-            Updates the context in place.
         """
 
     @abstractmethod
@@ -121,7 +147,6 @@ class DataProcessor(ABC):
         Returns
         -------
         None
-            Sets the data accessor in place.
         """
 
 
@@ -131,6 +156,15 @@ class RenameVariables(DataProcessor):
     Rename variables in the data to user-friendly names.
 
     This class is a placeholder for variable renaming logic.
+
+    Methods
+    -------
+    execute(result, context)
+        Return the input data unchanged (placeholder).
+    update_context(context)
+        No operation (placeholder).
+    set_data_accessor(catalog)
+        No operation (placeholder).
     """
 
     def execute(
@@ -158,6 +192,15 @@ class ApplyBiasCorrection(DataProcessor):
     Apply bias correction to the data.
 
     This class is a placeholder for bias correction logic.
+
+    Methods
+    -------
+    execute(result, context)
+        Return the input data unchanged (placeholder).
+    update_context(context)
+        No operation (placeholder).
+    set_data_accessor(catalog)
+        No operation (placeholder).
     """
 
     def execute(
@@ -185,6 +228,15 @@ class FilterData(DataProcessor):
     Filter data based on certain criteria.
 
     This class is a placeholder for data filtering logic.
+
+    Methods
+    -------
+    execute(result, context)
+        Return the input data unchanged (placeholder).
+    update_context(context)
+        No operation (placeholder).
+    set_data_accessor(catalog)
+        No operation (placeholder).
     """
 
     def execute(

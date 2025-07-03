@@ -44,7 +44,7 @@ class ClimateData:
     Parameters supported in queries:
     - catalog: The data catalog to use (e.g., "renewables", "data")
     - installation: The installation type (e.g., "pv_utility", "wind_offshore")
-    - activity_id: The activity identifier (e.g., "CMIP6", "CORDEX")
+    - activity_id: The activity identifier (e.g., "WRF", "LOCA2")
     - institution_id: The institution identifier (e.g., "CNRM", "DWD")
     - source_id: The source identifier (e.g., "GCM", "RCM", "Station")
     - experiment_id: The experiment identifier (e.g., "historical", "ssp245")
@@ -66,7 +66,7 @@ class ClimateData:
     source_id(source_id: str) -> ClimateData
         Set the source identifier.
     experiment_id(experiment_id: str | list[str]) -> ClimateData
-        Set the experiment identifier.
+        Set the experiment identifier(s).
     table_id(table_id: str) -> ClimateData
         Set the temporal resolution.
     grid_label(grid_label: str) -> ClimateData
@@ -109,7 +109,7 @@ class ClimateData:
     ...     .grid_label("d02")
     ...     .variable("prec")
     ...     .get()
-    ...    ) # get historical precipitation data
+    ...    )
 
     Exploring available options:
 
