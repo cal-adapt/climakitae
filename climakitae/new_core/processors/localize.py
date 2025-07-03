@@ -452,7 +452,7 @@ class Localize(DataProcessor):
 
             return closest_data
 
-        except (ValueError, KeyError, IndexError) as e:
+        except (ValueError, KeyError, IndexError, AttributeError) as e:
             print(f"Warning: Failed to process station {station_name}: {e}")
             return None
 
@@ -538,11 +538,16 @@ class Localize(DataProcessor):
             return model_data
 
         # Apply bias correction
-        corrected_data = self._bias_correct_model_data(
-            station_data, model_data, context
-        )
-
-        return corrected_data
+        try:
+            corrected_data = self._bias_correct_model_data(
+                station_data, model_data, context
+            )
+            return corrected_data
+        except Exception as e:
+            print(
+                f"Warning: Bias correction failed for station {station_row['station']}: {e}"
+            )
+            return model_data
 
     def _load_station_data(
         self, station_id: int, station_row: pd.Series
@@ -690,7 +695,23 @@ class Localize(DataProcessor):
         grouper = Grouper(group, window=window)
 
         # Convert units to match gridded data
-        obs_da = convert_units(obs_da, gridded_da.attrs["units"])
+        # Use K (Kelvin) as default if units attribute is missing
+        target_units = gridded_da.attrs.get("units", "K")
+
+        # Ensure gridded data has units attribute
+        if "units" not in gridded_da.attrs:
+            gridded_da.attrs["units"] = "K"
+
+        # Check if obs_da has units attribute, if not assume it's in Kelvin
+        if "units" not in obs_da.attrs:
+            obs_da.attrs["units"] = "K"
+
+        try:
+            obs_da = convert_units(obs_da, target_units)
+        except (ValueError, KeyError) as e:
+            print(f"Warning: Could not convert units, using original data: {e}")
+            # Ensure both have the same units for comparison
+            obs_da.attrs["units"] = target_units
 
         # Rechunk data - cannot be chunked along time dimension for xclim
         gridded_da = gridded_da.chunk(chunks=dict(time=-1))
