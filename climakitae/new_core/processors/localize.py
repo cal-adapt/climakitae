@@ -309,6 +309,18 @@ class Localize(DataProcessor):
                 if closest_data is None:
                     continue
 
+                # Ensure closest_data is a DataArray for bias correction
+                if isinstance(closest_data, xr.Dataset):
+                    # Get the first data variable from the Dataset
+                    data_vars = list(closest_data.data_vars.keys())
+                    if data_vars:
+                        closest_data = closest_data[data_vars[0]]
+                    else:
+                        print(
+                            f"Warning: No data variables found in Dataset for station {station_name}"
+                        )
+                        continue
+
                 # Drop superfluous coordinates
                 closest_data = closest_data.drop_vars(
                     [
@@ -337,6 +349,21 @@ class Localize(DataProcessor):
                         closest_data = self._bias_correct_model_data_optimized(
                             station_data, closest_data, context
                         )
+
+                # Ensure calendar compatibility for downstream processing
+                if hasattr(closest_data, "time") and hasattr(closest_data.time, "dt"):
+                    calendar_type = getattr(
+                        closest_data.time.dt, "calendar", "standard"
+                    )
+                    if calendar_type == "noleap":
+                        try:
+                            closest_data = closest_data.convert_calendar(
+                                "standard", use_cftime=False
+                            )
+                        except Exception as e:
+                            print(
+                                f"Warning: Could not convert calendar for station {station_name}: {e}"
+                            )
 
                 # Add metadata
                 closest_data.attrs["station_coordinates"] = (station_lat, station_lon)
@@ -631,6 +658,18 @@ class Localize(DataProcessor):
             if closest_data is None:
                 print(f"Warning: Could not find grid cell for station {station_name}")
                 return None
+
+            # Ensure closest_data is a DataArray for bias correction compatibility
+            if isinstance(closest_data, xr.Dataset):
+                # Get the first data variable from the Dataset
+                data_vars = list(closest_data.data_vars.keys())
+                if data_vars:
+                    closest_data = closest_data[data_vars[0]]
+                else:
+                    print(
+                        f"Warning: No data variables found in Dataset for station {station_name}"
+                    )
+                    return None
 
             # Drop any coordinates that are not also dimensions
             # This makes merging stations easier and drops superfluous coordinates
@@ -1330,12 +1369,22 @@ class Localize(DataProcessor):
             # Get time slice info
             original_time_slice = context.get("original_time_slice", (2015, 2100))
 
-            # Limit obs data to available period and convert calendar
+            # Limit obs data to available period
             obs_da = obs_da.sel(time=slice(obs_da.time.values[0], "2014-08-31"))
-            obs_da = obs_da.convert_calendar("noleap")
 
-            # Convert gridded data calendar
-            gridded_da = gridded_da.convert_calendar("noleap")
+            # Check if we need calendar conversion based on the gridded data's calendar
+            gridded_calendar = getattr(gridded_da.time.dt, "calendar", "standard")
+            obs_calendar = getattr(obs_da.time.dt, "calendar", "standard")
+
+            # Convert both to the same calendar if they differ
+            if gridded_calendar != obs_calendar:
+                if gridded_calendar == "noleap":
+                    obs_da = obs_da.convert_calendar("noleap")
+                else:
+                    # Convert gridded data to standard calendar for compatibility
+                    gridded_da = gridded_da.convert_calendar(
+                        "standard", use_cftime=False
+                    )
 
             # Split into historical and future
             historical_end = "2014-08-31"
@@ -1393,6 +1442,16 @@ class Localize(DataProcessor):
             da_combined = xr.concat([gridded_historical, da_adj_future], dim="time")  # type: ignore
             da_combined.attrs = gridded_da.attrs.copy()
             da_combined.attrs["bias_correction_applied"] = "true"
+
+            # Ensure output calendar is compatible with downstream processing
+            # Convert back to standard calendar if the original had a standard calendar
+            original_calendar = getattr(
+                context.get("original_data", gridded_da).time.dt, "calendar", "standard"
+            )
+            current_calendar = getattr(da_combined.time.dt, "calendar", "standard")
+
+            if original_calendar == "standard" and current_calendar != "standard":
+                da_combined = da_combined.convert_calendar("standard", use_cftime=False)
 
             return da_combined
 
