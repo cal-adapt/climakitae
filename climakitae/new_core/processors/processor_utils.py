@@ -4,6 +4,7 @@ Utility functions for processing data arrays in climakitae.
 
 import re
 import warnings
+from typing import Dict, Union
 
 import numpy as np
 import xarray as xr
