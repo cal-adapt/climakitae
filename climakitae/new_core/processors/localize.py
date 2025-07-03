@@ -1427,6 +1427,42 @@ class Localize(DataProcessor):
             )
             obs_train = obs_da.sel(time=slice(str(train_start), str(train_end)))
 
+            # Ensure both training datasets have compatible calendars and time coordinates
+            # This is critical to avoid broadcasting errors during QDM training
+            try:
+                # Check if we need to align time coordinates
+                if len(obs_train.time) != len(gridded_train.time):
+                    print(
+                        f"Time dimension mismatch: obs={len(obs_train.time)}, gridded={len(gridded_train.time)}"
+                    )
+
+                    # Find common time intersection for training
+                    obs_time_set = set(
+                        pd.to_datetime(obs_train.time.values).strftime("%Y-%m-%d")
+                    )
+                    gridded_time_set = set(
+                        pd.to_datetime(gridded_train.time.values).strftime("%Y-%m-%d")
+                    )
+                    common_dates = sorted(obs_time_set.intersection(gridded_time_set))
+
+                    if len(common_dates) < 365:
+                        print("WARNING: Less than 1 year of overlapping training data")
+                        print("WARNING: Bias correction may be unreliable")
+
+                    # Select only common dates for both datasets
+                    common_time_range = slice(common_dates[0], common_dates[-1])
+                    obs_train = obs_train.sel(time=common_time_range)
+                    gridded_train = gridded_train.sel(time=common_time_range)
+
+                    # Now both should have the same time dimension
+                    print(
+                        f"After alignment: obs={len(obs_train.time)}, gridded={len(gridded_train.time)}"
+                    )
+
+            except Exception as e:
+                print(f"WARNING: Time alignment failed: {e}")
+                print("WARNING: Proceeding with original time coordinates")
+
             # Train and apply QDM
             qdm = QuantileDeltaMapping.train(
                 obs_train,
