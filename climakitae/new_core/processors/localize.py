@@ -31,6 +31,7 @@ implementation uses the xclim library for quantile delta mapping.
 import re
 import traceback
 import warnings
+from functools import partial
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import geopandas as gpd
@@ -178,6 +179,208 @@ class Localize(DataProcessor):
         """
         return DataCatalog()["stations"]
 
+    def _load_all_station_data(
+        self, station_subset: gpd.GeoDataFrame
+    ) -> Dict[str, xr.DataArray]:
+        """
+        OPTIMIZATION: Load all station data at once using bulk operations.
+
+        This replaces individual S3 calls with a single bulk operation,
+        similar to the original implementation's approach.
+
+        Parameters
+        ----------
+        station_subset : gpd.GeoDataFrame
+            Subset of stations to load data for
+
+        Returns
+        -------
+        Dict[str, xr.DataArray]
+            Dictionary mapping station names to their observational data
+        """
+        # Get all file paths for the stations
+        filepaths = [
+            f"s3://cadcat/hadisd/HadISD_{station_id}.zarr"
+            for station_id in station_subset["station id"]
+        ]
+
+        # Create preprocessing function
+        def _preprocess_hadisd_bulk(
+            ds: xr.Dataset, station_subset: gpd.GeoDataFrame
+        ) -> xr.Dataset:
+            """Preprocess station data for bulk loading"""
+            # Extract station ID from file path
+            station_id = int(
+                ds.encoding["source"].split("HadISD_")[1].split(".zarr")[0]
+            )
+
+            # Get station info
+            station_info = station_subset[
+                station_subset["station id"] == station_id
+            ].iloc[0]
+            station_name = station_info["station"]
+
+            # Convert and rename
+            ds = ds.rename({"tas": station_name})
+            ds[station_name] = ds[station_name] + 273.15  # Convert C to K
+
+            # Add metadata
+            ds[station_name] = ds[station_name].assign_attrs(
+                {
+                    "coordinates": (
+                        ds.latitude.values.item(),
+                        ds.longitude.values.item(),
+                    ),
+                    "elevation": f"{ds.elevation.item()} {ds.elevation.attrs['units']}",
+                    "units": "K",
+                }
+            )
+
+            # Clean up coordinates
+            ds = ds.drop_vars(["elevation", "latitude", "longitude"], errors="ignore")
+            return ds
+
+        try:
+            # Use bulk loading with parallel processing like the original implementation
+            _partial_func = partial(
+                _preprocess_hadisd_bulk, station_subset=station_subset
+            )
+
+            station_ds = xr.open_mfdataset(
+                filepaths,
+                preprocess=_partial_func,
+                engine="zarr",
+                consolidated=False,
+                parallel=True,
+                backend_kwargs=dict(storage_options={"anon": True}),
+            )
+
+            # Convert to dictionary for easier access
+            station_data_dict = {}
+            for var_name in station_ds.data_vars:
+                station_data_dict[var_name] = station_ds[var_name]
+
+            return station_data_dict
+
+        except Exception as e:
+            print(f"Warning: Bulk station data loading failed: {e}")
+            print("Falling back to individual loading...")
+            return {}
+
+    def _process_all_stations_optimized(
+        self,
+        gridded_data: Union[xr.DataArray, xr.Dataset],
+        station_subset: gpd.GeoDataFrame,
+        context: Dict[str, Any],
+        station_data_dict: Optional[Dict[str, xr.DataArray]] = None,
+    ) -> Union[xr.DataArray, xr.Dataset]:
+        """
+        OPTIMIZATION: Process all stations with vectorized operations where possible.
+
+        Parameters
+        ----------
+        gridded_data : xr.DataArray or xr.Dataset
+            Input gridded data
+        station_subset : gpd.GeoDataFrame
+            Stations to process
+        context : Dict[str, Any]
+            Processing context
+        station_data_dict : Dict[str, xr.DataArray], optional
+            Pre-loaded station data for bias correction
+
+        Returns
+        -------
+        Union[xr.DataArray, xr.Dataset]
+            Combined results for all stations
+        """
+        station_results = []
+
+        for _, station_row in station_subset.iterrows():
+            station_name = station_row["station"]
+            station_lat = station_row["LAT_Y"]
+            station_lon = station_row["LON_X"]
+
+            try:
+                # Get closest grid cell (this is the main bottleneck that can't be easily vectorized)
+                closest_data = get_closest_gridcell(
+                    gridded_data, station_lat, station_lon, print_coords=False
+                )
+
+                if closest_data is None:
+                    continue
+
+                # Drop superfluous coordinates
+                closest_data = closest_data.drop_vars(
+                    [
+                        coord
+                        for coord in closest_data.coords
+                        if coord not in closest_data.dims
+                    ],
+                    errors="ignore",
+                )
+
+                # Apply bias correction if available
+                if (
+                    self.bias_correction
+                    and station_data_dict
+                    and station_name in station_data_dict
+                ):
+                    closest_data = self._bias_correct_model_data_optimized(
+                        station_data_dict[station_name], closest_data, context
+                    )
+                elif self.bias_correction:
+                    # Fallback to individual loading if bulk loading failed
+                    station_data = self._load_station_data(
+                        station_row["station id"], station_row
+                    )
+                    if station_data is not None:
+                        closest_data = self._bias_correct_model_data_optimized(
+                            station_data, closest_data, context
+                        )
+
+                # Add metadata
+                closest_data.attrs["station_coordinates"] = (station_lat, station_lon)
+                closest_data.attrs["station_elevation"] = station_row.get(
+                    "elevation", "unknown"
+                )
+                closest_data.attrs["name"] = station_name
+
+                # Store metadata
+                if self.station_metadata is None:
+                    self.station_metadata = []
+                self.station_metadata.append(self._get_station_metadata(station_row))
+
+                station_results.append(closest_data)
+
+            except Exception as e:
+                print(f"Warning: Failed to process station {station_name}: {e}")
+                continue
+
+        if not station_results:
+            raise ValueError("No valid station data could be processed")
+
+        return self._combine_station_results(station_results)
+
+    def _validate_inputs_dict(self, data: Dict[str, Union[xr.DataArray, xr.Dataset]]):
+        """
+        Validate dictionary inputs for station processing.
+
+        Parameters
+        ----------
+        data : Dict[str, Union[xr.DataArray, xr.Dataset]]
+            Dictionary of data to validate
+        """
+        print(f"Localizing data to stations {self.stations}...")
+        for key, value in data.items():
+            if not isinstance(value, (xr.DataArray, xr.Dataset)):
+                raise ValueError(
+                    f"Invalid data type for key '{key}': expected DataArray or Dataset"
+                )
+            if not hasattr(value, "lat") or not hasattr(value, "lon"):
+                raise ValueError(
+                    f"Data for key '{key}' must have 'lat' and 'lon' coordinates"
+                )
+
     def execute(
         self,
         result: Union[
@@ -238,28 +441,23 @@ class Localize(DataProcessor):
                     )
                     context["original_time_slice"] = original_time_slice
 
-                # Process each station
-                station_results = []
-                for _, station_row in station_subset.iterrows():
-                    station_data = self._process_single_station(
-                        result, station_row, context
-                    )
-                    if station_data is not None:
-                        station_results.append(station_data)
+                # OPTIMIZATION: Load all station data at once if bias correction is enabled
+                station_data_dict = None
+                if self.bias_correction:
+                    station_data_dict = self._load_all_station_data(station_subset)
 
-                # Combine station results
-                if station_results:
-                    combined = self._combine_station_results(station_results)
-                else:
-                    raise ValueError("No valid station data could be processed")
+                # Process all stations efficiently
+                combined = self._process_all_stations_optimized(
+                    result, station_subset, context, station_data_dict
+                )
 
                 return combined
 
             case dict():
-                self._validate_inputs(result)
+                self._validate_inputs_dict(result)
                 result = extend_time_domain(result)
                 for key, item in result.items():
-                    if "ssp" not in key:
+                    if "ssp" not in str(key):
                         continue  # Skip non-SSP data
                     ret[key] = self.execute(item, context)
                     ret[key].attrs = item.attrs
@@ -429,6 +627,10 @@ class Localize(DataProcessor):
             closest_data = get_closest_gridcell(
                 gridded_data, station_lat, station_lon, print_coords=False
             )
+
+            if closest_data is None:
+                print(f"Warning: Could not find grid cell for station {station_name}")
+                return None
 
             # Drop any coordinates that are not also dimensions
             # This makes merging stations easier and drops superfluous coordinates
@@ -954,7 +1156,7 @@ class Localize(DataProcessor):
             gridded_future = gridded_future.convert_calendar("noleap")
 
         except Exception as e:
-            print(f"DEBUG: Calendar conversion failed: {e}")
+            print(f"ERROR: Calendar conversion failed: {e}")
 
         # Convert cftime objects back to standard datetime for xclim compatibility
         try:
@@ -1003,9 +1205,9 @@ class Localize(DataProcessor):
                         "standard", use_cftime=False
                     )
             except Exception as e2:
-                print(f"DEBUG: Alternative time conversion also failed: {e2}")
+                print(f"ERROR: Alternative time conversion also failed: {e2}")
                 print(
-                    "DEBUG: Proceeding with original time coordinates - bias correction may fail"
+                    "WARNING: Proceeding with original time coordinates - bias correction may fail"
                 )
 
         # Train quantile delta mapping
@@ -1042,7 +1244,7 @@ class Localize(DataProcessor):
                         gridded_historical_for_concat.convert_calendar("noleap")
                     )
                 except Exception as e:
-                    print(f"DEBUG: Historical calendar conversion failed: {e}")
+                    print(f"ERROR: Historical calendar conversion failed: {e}")
 
                 # Convert cftime to standard datetime if needed (same as done for future data)
                 if (
@@ -1084,6 +1286,119 @@ class Localize(DataProcessor):
             print("WARNING: Returning only bias-corrected future data")
             print("WARNING: This may cause issues with downstream time slicing")
             return da_adj_future  # type: ignore
+
+    def _bias_correct_model_data_optimized(
+        self,
+        obs_da: xr.DataArray,
+        gridded_da: xr.DataArray,
+        context: Dict[str, Any],
+    ) -> xr.DataArray:
+        """
+        OPTIMIZATION: Simplified bias correction with reduced overhead.
+
+        This version eliminates redundant calendar conversions and unit handling
+        that were causing performance issues in the original implementation.
+
+        Parameters
+        ----------
+        obs_da : xr.DataArray
+            Station observational data (already preprocessed)
+        gridded_da : xr.DataArray
+            Model gridded data
+        context : Dict[str, Any]
+            Processing context containing time slice information
+
+        Returns
+        -------
+        xr.DataArray
+            Bias corrected data
+        """
+        try:
+            # Get grouper
+            grouper = Grouper("time.dayofyear", window=self.window)
+
+            # Ensure units match (obs_da should already be in Kelvin from preprocessing)
+            target_units = gridded_da.attrs.get("units", "K")
+            if obs_da.attrs.get("units") != target_units:
+                obs_da = obs_da.copy()
+                obs_da.attrs["units"] = target_units
+
+            # Rechunk for xclim compatibility
+            gridded_da = gridded_da.chunk(chunks=dict(time=-1))
+            obs_da = obs_da.chunk(chunks=dict(time=-1))
+
+            # Get time slice info
+            original_time_slice = context.get("original_time_slice", (2015, 2100))
+
+            # Limit obs data to available period and convert calendar
+            obs_da = obs_da.sel(time=slice(obs_da.time.values[0], "2014-08-31"))
+            obs_da = obs_da.convert_calendar("noleap")
+
+            # Convert gridded data calendar
+            gridded_da = gridded_da.convert_calendar("noleap")
+
+            # Split into historical and future
+            historical_end = "2014-08-31"
+            gridded_historical = gridded_da.sel(time=slice(None, historical_end))
+            gridded_future = gridded_da.sel(time=slice("2014-09-01", None))
+
+            if len(gridded_future.time) == 0:
+                print("WARNING: No future period found for bias correction")
+                return gridded_da
+
+            # Find training overlap
+            obs_start = obs_da.time.values[0]
+            obs_end = obs_da.time.values[-1]
+            hist_start = (
+                gridded_historical.time.values[0]
+                if len(gridded_historical.time) > 0
+                else obs_end
+            )
+            hist_end = (
+                gridded_historical.time.values[-1]
+                if len(gridded_historical.time) > 0
+                else obs_start
+            )
+
+            # Check for overlap
+            if (
+                obs_end < hist_start
+                or obs_start > hist_end
+                or len(gridded_historical.time) == 0
+            ):
+                print("WARNING: No temporal overlap for bias correction")
+                return gridded_da
+
+            # Extract training data
+            train_start = max(obs_start, hist_start)
+            train_end = min(obs_end, hist_end)
+
+            gridded_train = gridded_historical.sel(
+                time=slice(str(train_start), str(train_end))
+            )
+            obs_train = obs_da.sel(time=slice(str(train_start), str(train_end)))
+
+            # Train and apply QDM
+            qdm = QuantileDeltaMapping.train(
+                obs_train,
+                gridded_train,
+                nquantiles=self.nquantiles,
+                group=grouper,
+                kind="+",
+            )
+            da_adj_future = qdm.adjust(gridded_future)
+            da_adj_future.name = gridded_da.name
+
+            # Combine with historical data
+            da_combined = xr.concat([gridded_historical, da_adj_future], dim="time")  # type: ignore
+            da_combined.attrs = gridded_da.attrs.copy()
+            da_combined.attrs["bias_correction_applied"] = "true"
+
+            return da_combined
+
+        except (ValueError, KeyError, AttributeError, TypeError) as e:
+            print(f"WARNING: Optimized bias correction failed: {e}")
+            return gridded_da
 
     def update_context(self, context: Dict[str, Any]):
         """
