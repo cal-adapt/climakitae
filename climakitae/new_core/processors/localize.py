@@ -46,7 +46,7 @@ from climakitae.util.unit_conversions import convert_units
 from climakitae.util.utils import get_closest_gridcell
 
 
-@register_processor("localize", priority=175)
+@register_processor("localize", priority=1)
 class Localize(DataProcessor):
     """
     Localize gridded climate data to historical station data.
@@ -249,6 +249,8 @@ class Localize(DataProcessor):
             case dict():
                 self._validate_inputs(result)
                 for key, item in result.items():
+                    if "ss" not in key:
+                        continue  # Skip non-SSP data
                     ret[key] = self.execute(item, context)
                     ret[key].attrs = item.attrs
 
