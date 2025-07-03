@@ -103,6 +103,13 @@ class Localize(DataProcessor):
     The bias correction uses xclim's QuantileDeltaMapping implementation with
     seasonal grouping to adjust model data based on the relationship between
     historical model and observational data.
+
+    When bias correction is applied, the output contains the full time range with:
+    - Historical period (up to 2014-08-31): Original uncorrected data
+    - Future period (from 2014-09-01): Bias-corrected data
+
+    This ensures that downstream time slicing operations work correctly with
+    the complete time series while applying bias correction only where appropriate.
     """
 
     def __init__(
@@ -732,7 +739,10 @@ class Localize(DataProcessor):
         Returns
         -------
         xr.DataArray
-            Bias corrected data
+            Bias corrected data spanning the full time range:
+            - Historical period (up to 2014-08-31): Original uncorrected data
+            - Future period (from 2014-09-01): Bias-corrected data
+            If bias correction fails, returns the original data unchanged.
         """
 
         print("DEBUG: _bias_correct_model_data called")
@@ -1018,7 +1028,7 @@ class Localize(DataProcessor):
                 f"DEBUG: Original combined data period: {gridded_da.time.values[0]} to {gridded_da.time.values[-1]}"
             )
             print(f"DEBUG: Future start date used for slicing: {future_start_date}")
-            print("DEBUG: Returning uncorrected original data")
+            print("DEBUG: Returning uncorrected original combined data")
             return gridded_da  # Return the original gridded data without correction
 
         # Determine training period from overlap between obs and historical gridded data
@@ -1050,8 +1060,9 @@ class Localize(DataProcessor):
             print(
                 "WARNING: Cannot perform bias correction without overlapping training period"
             )
-            print("WARNING: Returning original future data without bias correction")
-            return gridded_future
+            print("WARNING: Returning original combined data without bias correction")
+            # Return the full original data instead of just future
+            return gridded_da
 
         # Calculate training period as the overlap between obs and historical gridded data
         train_start = max(obs_start, hist_start)
@@ -1063,8 +1074,9 @@ class Localize(DataProcessor):
         # Check if we have a meaningful training period (at least some data)
         if train_start >= train_end:
             print("WARNING: No meaningful overlapping training period")
-            print("WARNING: Returning original future data without bias correction")
-            return gridded_future
+            print("WARNING: Returning original combined data without bias correction")
+            # Return the full original data instead of just future
+            return gridded_da
 
         # Additional check: ensure training period has sufficient data (at least 1 year)
         train_duration_days = (
@@ -1265,21 +1277,103 @@ class Localize(DataProcessor):
         print(
             f"DEBUG: Future data shape before bias correction: {gridded_future.shape}"
         )
-        da_adj = quant_delt_map.adjust(gridded_future)
+        da_adj_future = quant_delt_map.adjust(gridded_future)
         print("DEBUG: Successfully applied bias correction")
-        print(f"DEBUG: Bias corrected data shape: {da_adj.shape}")
-        da_adj.name = gridded_da.name  # Preserve original name
+        print(f"DEBUG: Bias corrected future data shape: {da_adj_future.shape}")
+        da_adj_future.name = gridded_da.name  # Preserve original name
 
         # Convert time index back to datetime if needed
         try:
-            time_index = da_adj.indexes.get("time")
+            time_index = da_adj_future.indexes.get("time")
             if time_index is not None and hasattr(time_index, "to_datetimeindex"):
-                da_adj = da_adj.assign_coords(time=time_index.to_datetimeindex())
+                da_adj_future = da_adj_future.assign_coords(
+                    time=time_index.to_datetimeindex()
+                )
         except (AttributeError, KeyError, TypeError):
             # Time index conversion not needed or not available
             pass
 
-        return da_adj
+        # Combine uncorrected historical data with bias-corrected future data
+        print(
+            "DEBUG: Combining uncorrected historical data with bias-corrected future data"
+        )
+
+        # Ensure historical data has the same calendar and time format as bias-corrected future
+        try:
+            # Convert historical data to match the future data's calendar and time format
+            gridded_historical_for_concat = gridded_historical.copy()
+
+            # Apply same calendar conversion as used for bias correction
+            if len(gridded_historical_for_concat.time) > 0:
+                try:
+                    gridded_historical_for_concat = (
+                        gridded_historical_for_concat.convert_calendar("noleap")
+                    )
+                    print(
+                        "DEBUG: Converted historical data calendar to noleap for concatenation"
+                    )
+                except Exception as e:
+                    print(f"DEBUG: Historical calendar conversion failed: {e}")
+
+                # Convert cftime to standard datetime if needed (same as done for future data)
+                if (
+                    len(gridded_historical_for_concat.time) > 0
+                    and hasattr(
+                        gridded_historical_for_concat.time.values[0], "strftime"
+                    )
+                    and "cftime"
+                    in str(type(gridded_historical_for_concat.time.values[0]))
+                ):
+                    print(
+                        "DEBUG: Converting historical time from cftime to datetime for concatenation"
+                    )
+                    time_strings = [
+                        t.strftime("%Y-%m-%d %H:%M:%S")
+                        for t in gridded_historical_for_concat.time.values
+                    ]
+                    datetime_index = pd.to_datetime(time_strings)
+                    gridded_historical_for_concat = (
+                        gridded_historical_for_concat.assign_coords(time=datetime_index)
+                    )
+
+            # Concatenate historical and bias-corrected future data
+            print(
+                f"DEBUG: Historical period for concat: {gridded_historical_for_concat.time.values[0] if len(gridded_historical_for_concat.time) > 0 else 'empty'} to {gridded_historical_for_concat.time.values[-1] if len(gridded_historical_for_concat.time) > 0 else 'empty'}"
+            )
+            print(
+                f"DEBUG: Future period for concat: {da_adj_future.time.values[0] if len(da_adj_future.time) > 0 else 'empty'} to {da_adj_future.time.values[-1] if len(da_adj_future.time) > 0 else 'empty'}"
+            )
+
+            # Combine the data along time dimension
+            # Type ignore needed due to mypy not understanding that both objects are DataArrays
+            da_combined = xr.concat([gridded_historical_for_concat, da_adj_future], dim="time")  # type: ignore
+            print(f"DEBUG: Combined data shape: {da_combined.shape}")
+            print(
+                f"DEBUG: Combined time range: {da_combined.time.values[0]} to {da_combined.time.values[-1]}"
+            )
+
+            # Preserve original attributes and name
+            da_combined.attrs = gridded_da.attrs.copy()
+            da_combined.name = gridded_da.name
+
+            # Add bias correction metadata to attributes
+            da_combined.attrs["bias_correction_applied"] = "true"
+            da_combined.attrs["bias_correction_method"] = "quantile_delta_mapping"
+            da_combined.attrs["bias_correction_note"] = (
+                f"Historical period (up to {historical_end_date}) uncorrected, future period (from {future_start_date}) bias-corrected"
+            )
+            da_combined.attrs["historical_future_split_date"] = historical_end_date
+
+            print(
+                "DEBUG: Successfully combined historical (uncorrected) and future (bias-corrected) data"
+            )
+            return da_combined
+
+        except Exception as e:
+            print(f"WARNING: Failed to combine historical and future data: {e}")
+            print("WARNING: Returning only bias-corrected future data")
+            print("WARNING: This may cause issues with downstream time slicing")
+            return da_adj_future  # type: ignore
 
     def update_context(self, context: Dict[str, Any]):
         """
