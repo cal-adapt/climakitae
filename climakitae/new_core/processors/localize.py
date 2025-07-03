@@ -42,6 +42,7 @@ from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
     register_processor,
 )
+from climakitae.new_core.processors.processor_utils import extend_time_domain
 from climakitae.util.utils import get_closest_gridcell
 
 
@@ -247,6 +248,7 @@ class Localize(DataProcessor):
 
             case dict():
                 self._validate_inputs(result)
+                result = extend_time_domain(result)
                 for key, item in result.items():
                     if "ssp" not in key:
                         continue  # Skip non-SSP data
@@ -732,7 +734,7 @@ class Localize(DataProcessor):
             Bias corrected data
         """
 
-        print(f"DEBUG: _bias_correct_model_data called")
+        print("DEBUG: _bias_correct_model_data called")
         print(f"DEBUG: obs_da type: {type(obs_da)}")
         print(f"DEBUG: gridded_da type: {type(gridded_da)}")
         if hasattr(obs_da, "time"):
@@ -754,32 +756,9 @@ class Localize(DataProcessor):
             gridded_da.attrs["units"] = "K"
 
         # Ensure frequency attribute is set correctly for unit conversion
-        # might be super overkill, but ensures consistency
         if "frequency" not in gridded_da.attrs:
-            # Try to infer frequency from time coordinate
-            if "time" in gridded_da.coords and len(gridded_da.time) > 1:
-                try:
-                    time_diff = gridded_da.time[1] - gridded_da.time[0]
-                    if hasattr(time_diff, "days"):
-                        if time_diff.days >= 28:  # Monthly data
-                            gridded_da.attrs["frequency"] = "monthly"
-                        elif time_diff.days >= 1:  # Daily data
-                            gridded_da.attrs["frequency"] = "daily"
-                        else:  # Sub-daily data (hourly)
-                            gridded_da.attrs["frequency"] = "hourly"
-                    elif hasattr(time_diff, "seconds"):
-                        if time_diff.seconds <= 3600:  # 1 hour or less
-                            gridded_da.attrs["frequency"] = "hourly"
-                        elif time_diff.seconds <= 86400:  # 1 day or less
-                            gridded_da.attrs["frequency"] = "daily"
-                        else:
-                            gridded_da.attrs["frequency"] = "monthly"
-                    else:
-                        gridded_da.attrs["frequency"] = "daily"
-                except (ValueError, TypeError, AttributeError):
-                    gridded_da.attrs["frequency"] = "daily"
-            else:
-                gridded_da.attrs["frequency"] = "daily"
+            # must be hourly
+            gridded_da.attrs["frequency"] = "hourly"
 
         # Ensure time coordinate is properly formatted
         if "time" in gridded_da.coords:
@@ -812,7 +791,6 @@ class Localize(DataProcessor):
             except (ValueError, TypeError) as e:
                 print(f"DEBUG: Time conversion failed for gridded data: {e}")
                 # If time conversion fails, continue without it
-                pass
 
         # Check if obs_da has units attribute, if not assume it's in Kelvin
         if "units" not in obs_da.attrs:
@@ -868,7 +846,6 @@ class Localize(DataProcessor):
             except (ValueError, TypeError) as e:
                 print(f"DEBUG: Time conversion failed for obs data: {e}")
                 # If time conversion fails, continue without it
-                pass
 
         try:
             print(
@@ -878,12 +855,12 @@ class Localize(DataProcessor):
                 f"DEBUG: obs_da time before conversion has dt: {hasattr(obs_da.time, 'dt') if 'time' in obs_da.coords else 'No time coord'}"
             )
             obs_da = self._simple_convert_temperature(obs_da, target_units)
-            print(f"DEBUG: Successfully converted obs_da units")
+            print("DEBUG: Successfully converted obs_da units")
         except (ValueError, KeyError, AttributeError) as e:
             print(f"Warning: Could not convert units, using original data: {e}")
             import traceback
 
-            print(f"DEBUG: Full traceback for obs unit conversion error:")
+            print("DEBUG: Full traceback for obs unit conversion error:")
             traceback.print_exc()
             # Ensure both have the same units for comparison
             obs_da.attrs["units"] = target_units
@@ -950,16 +927,138 @@ class Localize(DataProcessor):
                 f"DEBUG: data_sliced.time has dt after fix: {hasattr(data_sliced.time, 'dt')}"
             )
 
-        # Align training periods - use overlapping time period
-        print("DEBUG: About to align training periods")
-        train_start = max(obs_da.time.values[0], gridded_da.time.values[0])
-        train_end = min(obs_da.time.values[-1], gridded_da.time.values[-1])
-        print(f"DEBUG: Training period: {train_start} to {train_end}")
+        # Manual separation of historical and future periods from combined array
+        print("DEBUG: About to manually separate historical and future periods")
+
+        # WORKFLOW OVERVIEW:
+        # 1. Input: Combined array with historical (1980-2014) + future (2015-2100) data
+        # 2. Separate into historical period (for training) and future period (for correction)
+        # 3. Find overlap between historical gridded data and observational data
+        # 4. Train QDM on overlapping historical period only
+        # 5. Apply bias correction to future period only
+        # 6. Return bias-corrected future data
+
+        # Define the split date between historical and future periods
+        # Historical: 1980-2014-08-31, Future: 2014-09-01-2100-09-01
+        historical_end_date = "2014-08-31"
+        future_start_date = "2014-09-01"
 
         print(
-            f"DEBUG: gridded_da.time has dt before train slice: {hasattr(gridded_da.time, 'dt')}"
+            f"DEBUG: Combined gridded data period: {gridded_da.time.values[0]} to {gridded_da.time.values[-1]}"
         )
-        gridded_train = gridded_da.sel(time=slice(str(train_start), str(train_end)))
+        print(
+            f"DEBUG: Separating at: historical <= {historical_end_date}, future >= {future_start_date}"
+        )
+
+        # Extract historical period from combined gridded data (for training with obs)
+        print(
+            f"DEBUG: gridded_da.time has dt before historical slice: {hasattr(gridded_da.time, 'dt')}"
+        )
+        gridded_historical = gridded_da.sel(time=slice(None, historical_end_date))
+        print(
+            f"DEBUG: gridded_historical.time has dt after slice: {hasattr(gridded_historical.time, 'dt')}"
+        )
+        print(
+            f"DEBUG: Historical gridded period: {gridded_historical.time.values[0] if len(gridded_historical.time) > 0 else 'empty'} to {gridded_historical.time.values[-1] if len(gridded_historical.time) > 0 else 'empty'}"
+        )
+
+        # Fix time coordinate if .dt attribute is lost
+        if not hasattr(gridded_historical.time, "dt"):
+            print("DEBUG: Fixing gridded_historical time coordinate")
+            gridded_historical = gridded_historical.assign_coords(
+                time=pd.to_datetime(gridded_historical.time)
+            )
+            print(
+                f"DEBUG: gridded_historical.time has dt after fix: {hasattr(gridded_historical.time, 'dt')}"
+            )
+
+        # Extract future period from combined gridded data (target for bias correction)
+        print(
+            f"DEBUG: gridded_da.time has dt before future slice: {hasattr(gridded_da.time, 'dt')}"
+        )
+        gridded_future = gridded_da.sel(time=slice(future_start_date, None))
+        print(
+            f"DEBUG: gridded_future.time has dt after slice: {hasattr(gridded_future.time, 'dt')}"
+        )
+        print(
+            f"DEBUG: Future gridded period: {gridded_future.time.values[0] if len(gridded_future.time) > 0 else 'empty'} to {gridded_future.time.values[-1] if len(gridded_future.time) > 0 else 'empty'}"
+        )
+
+        # Fix time coordinate if .dt attribute is lost
+        if not hasattr(gridded_future.time, "dt"):
+            print("DEBUG: Fixing gridded_future time coordinate")
+            gridded_future = gridded_future.assign_coords(
+                time=pd.to_datetime(gridded_future.time)
+            )
+            print(
+                f"DEBUG: gridded_future.time has dt after fix: {hasattr(gridded_future.time, 'dt')}"
+            )
+
+        # Determine training period from overlap between obs and historical gridded data
+        obs_start = obs_da.time.values[0]
+        obs_end = obs_da.time.values[-1]
+        hist_start = (
+            gridded_historical.time.values[0]
+            if len(gridded_historical.time) > 0
+            else obs_end
+        )
+        hist_end = (
+            gridded_historical.time.values[-1]
+            if len(gridded_historical.time) > 0
+            else obs_start
+        )
+
+        print(f"DEBUG: Obs data period: {obs_start} to {obs_end}")
+        print(f"DEBUG: Historical gridded period: {hist_start} to {hist_end}")
+
+        # Find overlap between observations and historical gridded data for training
+        if (
+            obs_end < hist_start
+            or obs_start > hist_end
+            or len(gridded_historical.time) == 0
+        ):
+            print(
+                "WARNING: No temporal overlap between observational and historical gridded data"
+            )
+            print(
+                "WARNING: Cannot perform bias correction without overlapping training period"
+            )
+            print("WARNING: Returning original future data without bias correction")
+            return gridded_future
+
+        # Calculate training period as the overlap between obs and historical gridded data
+        train_start = max(obs_start, hist_start)
+        train_end = min(obs_end, hist_end)
+        print(
+            f"DEBUG: Training period (historical overlap): {train_start} to {train_end}"
+        )
+
+        # Check if we have a meaningful training period (at least some data)
+        if train_start >= train_end:
+            print("WARNING: No meaningful overlapping training period")
+            print("WARNING: Returning original future data without bias correction")
+            return gridded_future
+
+        # Additional check: ensure training period has sufficient data (at least 1 year)
+        train_duration_days = (
+            pd.to_datetime(train_end) - pd.to_datetime(train_start)
+        ).days
+        if train_duration_days < 365:
+            print(
+                f"WARNING: Training period too short ({train_duration_days} days < 365 days)"
+            )
+            print(
+                "WARNING: Bias correction may be unreliable with < 1 year of training data"
+            )
+            print("WARNING: Continuing with available training data...")
+
+        # Extract training data from historical period
+        print(
+            f"DEBUG: gridded_historical.time has dt before train slice: {hasattr(gridded_historical.time, 'dt')}"
+        )
+        gridded_train = gridded_historical.sel(
+            time=slice(str(train_start), str(train_end))
+        )
         print(
             f"DEBUG: gridded_train.time has dt after slice: {hasattr(gridded_train.time, 'dt')}"
         )
@@ -974,6 +1073,7 @@ class Localize(DataProcessor):
                 f"DEBUG: gridded_train.time has dt after fix: {hasattr(gridded_train.time, 'dt')}"
             )
 
+        # Extract corresponding observational training data
         print(
             f"DEBUG: obs_da.time has dt before train slice: {hasattr(obs_da.time, 'dt')}"
         )
@@ -989,6 +1089,9 @@ class Localize(DataProcessor):
             print(
                 f"DEBUG: obs_train.time has dt after fix: {hasattr(obs_train.time, 'dt')}"
             )
+
+        # The target for bias correction is the future period
+        data_sliced = gridded_future
 
         # Train quantile delta mapping
         print("DEBUG: About to train QuantileDeltaMapping")

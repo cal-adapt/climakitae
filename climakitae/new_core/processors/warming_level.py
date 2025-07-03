@@ -283,50 +283,6 @@ class WarmingLevel(DataProcessor):
                 )
         return ret
 
-    def extend_time_domain(
-        self, result: Dict[str, Union[xr.Dataset, xr.DataArray]]
-    ) -> Union[xr.Dataset, xr.DataArray]:
-        """
-        Extend the time domain of the input data to cover 1980-2100.
-
-        This method ensures that all SSP scenarios have historical data
-        included in the time series, allowing for proper warming level calculations.
-        This is handled by concatenating historical data with SSP data and updating
-        the attributes to that of the SSP data. Historical data is expected to be
-        available in the input dictionary with keys formatted the same as SSP keys
-        but with "historical" instead of r"ssp.{3}" (e.g., "ssp245" becomes "historical").
-
-        Parameters
-        ----------
-        result : Dict[str, Union[xr.Dataset | xr.DataArray]]
-            A dictionary containing time-series data with keys representing different scenarios.
-
-        Returns
-        -------
-        Union[xr.Dataset, xr.DataArray]
-            The extended time-series data.
-        """
-        ret = {}
-        for key, data in result.items():
-            if "ssp" not in key:
-                continue  # Skip historical and reanalysis data
-
-            hist_key = re.sub(r"ssp.{3}", "historical", key)
-            if hist_key not in result:
-                warnings.warn(
-                    f"\n\nNo historical data found for {key} with key {hist_key}. "
-                    f"\nHistorical data is required for warming level calculations."
-                )
-                continue
-
-            ret[key] = xr.concat(
-                [result[hist_key], data],
-                dim="time",
-            )
-            ret[key].attrs.update(data.attrs)  # Preserve attributes
-
-        return ret
-
     def get_center_years(
         self, member_ids: Iterable[str], keys: Iterable[str]
     ) -> Dict[str, list]:
