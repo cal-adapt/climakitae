@@ -410,6 +410,7 @@ def _warn_about_case_sensitivity(value: str) -> bool:
     """
     # Common case variations that users might try
     boundary_dict = DataCatalog().list_clip_boundaries()
+    print(boundary_dict)
     boundary_list = []
     for _, v in boundary_dict.items():
         boundary_list.extend(v)
