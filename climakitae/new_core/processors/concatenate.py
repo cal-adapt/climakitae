@@ -2,6 +2,7 @@
 Concat DataProcessor
 """
 
+import re
 import warnings
 from typing import Any, Dict, Iterable, List, Union
 
@@ -54,21 +55,32 @@ class Concat(DataProcessor):
             Defaults to "sim".
         """
         self.dim_name = value if isinstance(value, str) else "sim"
+        self._original_dim_name = self.dim_name  # Track original dimension name
         self.name = "concat"
         self.catalog = None
         self.needs_catalog = True
 
     def execute(
         self,
-        result: xr.Dataset | xr.DataArray | Iterable[Union[xr.Dataset, xr.DataArray]],
+        result: Union[
+            xr.Dataset,
+            xr.DataArray,
+            Dict[str, Union[xr.Dataset, xr.DataArray]],
+            Iterable[Union[xr.Dataset, xr.DataArray]],
+        ],
         context: Dict[str, Any],
-    ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
+    ) -> Union[xr.Dataset, xr.DataArray]:
         """
-        Concatenate multiple datasets along a new dimension named after source_id.
+        Concatenate multiple datasets along a specified dimension.
+
+        If the dimension is "time", this method will first extend the time domain
+        of SSP scenarios by prepending historical data, then concatenate along a
+        "sim" dimension. Otherwise, it concatenates datasets along the specified
+        dimension using their source_id values.
 
         Parameters
         ----------
-        result : Iterable[Union[xr.Dataset, xr.DataArray]]
+        result : Union[xr.Dataset, xr.DataArray, Dict[str, Union[xr.Dataset, xr.DataArray]], Iterable[Union[xr.Dataset, xr.DataArray]]]
             The datasets to be concatenated. Must be an iterable of xarray Datasets or DataArrays.
 
         context : dict
@@ -77,11 +89,18 @@ class Concat(DataProcessor):
         Returns
         -------
         Union[xr.Dataset, xr.DataArray]
-            A single dataset with a new dimension that contains all input datasets.
+            A single dataset with concatenated data.
         """
-        if not isinstance(result, Iterable):
+        if isinstance(result, (xr.Dataset, xr.DataArray)):
             # If we receive a single dataset, just return it
             return result
+
+        # Special handling for time dimension concatenation
+        if self.dim_name == "time" and isinstance(result, dict):
+            # Handle time domain extension for dictionaries
+            result = self.extend_time_domain(result)  # type: ignore
+            # After extending time domain, switch to standard sim concatenation
+            self.dim_name = "sim"
 
         datasets_to_concat = []
         concat_attr = (
@@ -210,7 +229,13 @@ class Concat(DataProcessor):
                         datasets_to_concat.append(dataset)
 
         if not datasets_to_concat:
-            return result  # Return original if no valid datasets
+            # If no valid datasets to concatenate, return the first valid dataset
+            if isinstance(result, dict):
+                for dataset in result.values():
+                    if isinstance(dataset, (xr.Dataset, xr.DataArray)):
+                        return dataset
+            # If still no valid dataset found, raise an error
+            raise ValueError("No valid datasets found for concatenation")
 
         # Concatenate all datasets along the sim dimension
         try:
@@ -222,23 +247,101 @@ class Concat(DataProcessor):
             # Print dimensions of each dataset for debugging
             for i, dataset in enumerate(datasets_to_concat):
                 print(f"Dataset {i} dimensions: {list(dataset.dims.keys())}")
-            return result
+            raise
 
         print(f"Concatenated datasets along '{self.dim_name}' dimension.")
 
         self.update_context(context, attr_ids)
+
+        # Set resolution attribute if available
         resolutions = {
             "d01": "3 km",
             "d02": "9 km",
             "d03": "45 km",
         }
-        key = list(result.keys())[0]
-        key = key.split(".")
-        for k in key:
-            if k in resolutions:
-                concatenated.attrs["resolution"] = resolutions[k]
-                break
+        if isinstance(result, dict) and result:
+            key = list(result.keys())[0]
+            key_parts = key.split(".")
+            for k in key_parts:
+                if k in resolutions:
+                    concatenated.attrs["resolution"] = resolutions[k]
+                    break
         return concatenated
+
+    def extend_time_domain(
+        self, result: Dict[str, Union[xr.Dataset, xr.DataArray]]
+    ) -> Dict[str, Union[xr.Dataset, xr.DataArray]]:
+        """
+        Extend the time domain of SSP scenarios by prepending historical data.
+
+        This method finds matching historical datasets for each SSP scenario
+        and concatenates them along the time dimension, similar to the approach
+        used in warming_level.py.
+
+        Parameters
+        ----------
+        result : Dict[str, Union[xr.Dataset, xr.DataArray]]
+            A dictionary containing time-series data with keys representing different scenarios.
+
+        Returns
+        -------
+        Dict[str, Union[xr.Dataset, xr.DataArray]]
+            The extended time-series data with historical data prepended to SSP scenarios.
+        """
+        ret = {}
+
+        # Process SSP scenarios by finding and prepending historical data
+        for key, data in result.items():
+            if "ssp" not in key:
+                # Keep non-SSP data as is (including historical data)
+                ret[key] = data
+                continue
+
+            # Find corresponding historical key by replacing SSP pattern with "historical"
+            hist_key = re.sub(r"ssp.{3}", "historical", key)
+
+            if hist_key not in result:
+                warnings.warn(
+                    f"\n\nNo historical data found for {key} with key {hist_key}. "
+                    f"\nHistorical data is required for time domain extension. "
+                    f"\nKeeping original SSP data without historical extension."
+                )
+                ret[key] = data
+                continue
+
+            # Concatenate historical and SSP data along time dimension
+            try:
+                hist_data = result[hist_key]
+                # Use proper xr.concat with explicit typing
+                if isinstance(data, xr.Dataset) and isinstance(hist_data, xr.Dataset):
+                    extended_data = xr.concat([hist_data, data], dim="time")  # type: ignore
+                elif isinstance(data, xr.DataArray) and isinstance(
+                    hist_data, xr.DataArray
+                ):
+                    extended_data = xr.concat([hist_data, data], dim="time")  # type: ignore
+                else:
+                    # Handle mixed types by converting to same type
+                    if isinstance(data, xr.Dataset):
+                        if isinstance(hist_data, xr.DataArray):
+                            hist_data = hist_data.to_dataset()
+                        extended_data = xr.concat([hist_data, data], dim="time")  # type: ignore
+                    else:  # data is DataArray
+                        if isinstance(hist_data, xr.Dataset):
+                            data = data.to_dataset()
+                        extended_data = xr.concat([hist_data, data], dim="time")  # type: ignore
+
+                # Preserve SSP attributes
+                extended_data.attrs.update(data.attrs)
+                ret[key] = extended_data
+
+            except (ValueError, TypeError, KeyError, AttributeError) as e:
+                warnings.warn(
+                    f"\n\nFailed to concatenate historical and SSP data for {key}: {e}"
+                    f"\nKeeping original SSP data without historical extension."
+                )
+                ret[key] = data
+
+        return ret
 
     def update_context(
         self, context: Dict[str, Any], source_ids: List[str] | object = UNSET
@@ -272,9 +375,15 @@ class Concat(DataProcessor):
             else ""
         )
 
+        # Include information about time domain extension if time dimension was used
+        process_info = f"Process '{self.name}' applied to the data."
+        if hasattr(self, "_original_dim_name") and self._original_dim_name == "time":
+            process_info += " Time domain extension was performed by prepending historical data to SSP scenarios."
+        process_info += f" Multiple datasets were concatenated along a new '{self.dim_name}' dimension."
+
         context[_NEW_ATTRS_KEY][
             self.name
-        ] = f"""Process '{self.name}' applied to the data. Multiple datasets were concatenated along a new '{self.dim_name}' dimension.
+        ] = f"""{process_info}
         {source_info}"""
 
     def set_data_accessor(self, catalog: DataCatalog):
