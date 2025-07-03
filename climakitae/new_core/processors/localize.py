@@ -29,6 +29,7 @@ implementation uses the xclim library for quantile delta mapping.
 """
 
 import re
+import traceback
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import geopandas as gpd
@@ -960,13 +961,42 @@ class Localize(DataProcessor):
         print(
             f"DEBUG: gridded_da.time has dt before future slice: {hasattr(gridded_da.time, 'dt')}"
         )
-        gridded_future = gridded_da.sel(time=slice(future_start_date, None))
+        print(f"DEBUG: About to slice future period from {future_start_date} to end")
+        print(
+            f"DEBUG: Sample gridded_da time values around split: {gridded_da.time.sel(time=slice('2014-08-01', '2014-10-01')).values if len(gridded_da.time) > 0 else 'no data'}"
+        )
+
+        try:
+            # Try different date formats for slicing
+            gridded_future = gridded_da.sel(time=slice(future_start_date, None))
+            if len(gridded_future.time) == 0:
+                print(
+                    "DEBUG: First slice attempt returned empty, trying alternative date format"
+                )
+                # Try with explicit datetime conversion
+                future_start_dt = pd.to_datetime(future_start_date)
+                gridded_future = gridded_da.where(
+                    gridded_da.time >= future_start_dt, drop=True
+                )
+        except Exception as e:
+            print(f"DEBUG: Future slicing failed: {e}")
+            # Fallback: use index-based slicing
+            time_index = gridded_da.time.to_index()
+            future_mask = time_index >= pd.to_datetime(future_start_date)
+            if future_mask.any():
+                gridded_future = gridded_da.isel(time=future_mask)
+            else:
+                print("ERROR: No future period found in data")
+                return gridded_da
+
         print(
             f"DEBUG: gridded_future.time has dt after slice: {hasattr(gridded_future.time, 'dt')}"
         )
         print(
             f"DEBUG: Future gridded period: {gridded_future.time.values[0] if len(gridded_future.time) > 0 else 'empty'} to {gridded_future.time.values[-1] if len(gridded_future.time) > 0 else 'empty'}"
         )
+        print(f"DEBUG: Future period shape: {gridded_future.shape}")
+        print(f"DEBUG: Future period time dimension size: {len(gridded_future.time)}")
 
         # Fix time coordinate if .dt attribute is lost
         if not hasattr(gridded_future.time, "dt"):
@@ -977,6 +1007,19 @@ class Localize(DataProcessor):
             print(
                 f"DEBUG: gridded_future.time has dt after fix: {hasattr(gridded_future.time, 'dt')}"
             )
+
+        # Debug: Check if we have any data in the future period
+        print(f"DEBUG: Future period length: {len(gridded_future.time)}")
+        if len(gridded_future.time) == 0:
+            print(
+                "ERROR: Future period is empty! This will cause issues with bias correction."
+            )
+            print(
+                f"DEBUG: Original combined data period: {gridded_da.time.values[0]} to {gridded_da.time.values[-1]}"
+            )
+            print(f"DEBUG: Future start date used for slicing: {future_start_date}")
+            print("DEBUG: Returning uncorrected original data")
+            return gridded_da  # Return the original gridded data without correction
 
         # Determine training period from overlap between obs and historical gridded data
         obs_start = obs_da.time.values[0]
@@ -1075,7 +1118,7 @@ class Localize(DataProcessor):
             )
 
         # The target for bias correction is the future period
-        data_sliced = gridded_future
+        print("DEBUG: Setting target for bias correction to future period")
 
         # Convert calendars to no leap year for consistency just before QDM training
         # This minimizes issues with cftime objects in earlier processing steps
@@ -1093,10 +1136,10 @@ class Localize(DataProcessor):
                 f"DEBUG: gridded_train calendar converted, time type: {type(gridded_train.time.values[0]) if len(gridded_train.time) > 0 else 'empty'}"
             )
 
-            print("DEBUG: Converting data_sliced calendar")
-            data_sliced = data_sliced.convert_calendar("noleap")
+            print("DEBUG: Converting gridded_future calendar")
+            gridded_future = gridded_future.convert_calendar("noleap")
             print(
-                f"DEBUG: data_sliced calendar converted, time type: {type(data_sliced.time.values[0]) if len(data_sliced.time) > 0 else 'empty'}"
+                f"DEBUG: gridded_future calendar converted, time type: {type(gridded_future.time.values[0]) if len(gridded_future.time) > 0 else 'empty'}"
             )
 
         except Exception as e:
@@ -1112,7 +1155,7 @@ class Localize(DataProcessor):
             f"DEBUG: obs_train time values type: {type(obs_train.time.values[0]) if len(obs_train.time) > 0 else 'empty'}"
         )
         print(
-            f"DEBUG: data_sliced time values type: {type(data_sliced.time.values[0]) if len(data_sliced.time) > 0 else 'empty'}"
+            f"DEBUG: gridded_future time values type: {type(gridded_future.time.values[0]) if len(gridded_future.time) > 0 else 'empty'}"
         )
 
         try:
@@ -1151,21 +1194,21 @@ class Localize(DataProcessor):
                     f"DEBUG: obs_train new time type: {type(obs_train.time.values[0])}"
                 )
 
-            if hasattr(data_sliced.time.values[0], "strftime") and "cftime" in str(
-                type(data_sliced.time.values[0])
+            if hasattr(gridded_future.time.values[0], "strftime") and "cftime" in str(
+                type(gridded_future.time.values[0])
             ):
                 # Convert cftime to standard datetime using strftime/strptime
-                print("DEBUG: Converting data_sliced time from cftime to datetime")
+                print("DEBUG: Converting gridded_future time from cftime to datetime")
                 time_strings = [
-                    t.strftime("%Y-%m-%d %H:%M:%S") for t in data_sliced.time.values
+                    t.strftime("%Y-%m-%d %H:%M:%S") for t in gridded_future.time.values
                 ]
                 datetime_index = pd.to_datetime(time_strings)
-                data_sliced = data_sliced.assign_coords(time=datetime_index)
+                gridded_future = gridded_future.assign_coords(time=datetime_index)
                 print(
-                    f"DEBUG: data_sliced time converted, has dt: {hasattr(data_sliced.time, 'dt')}"
+                    f"DEBUG: gridded_future time converted, has dt: {hasattr(gridded_future.time, 'dt')}"
                 )
                 print(
-                    f"DEBUG: data_sliced new time type: {type(data_sliced.time.values[0])}"
+                    f"DEBUG: gridded_future new time type: {type(gridded_future.time.values[0])}"
                 )
 
         except (AttributeError, TypeError, ValueError, IndexError) as e:
@@ -1183,17 +1226,16 @@ class Localize(DataProcessor):
                 if len(obs_train.time) > 0:
                     obs_train = obs_train.convert_calendar("standard", use_cftime=False)
                     print(f"DEBUG: obs_train converted to standard calendar")
-                if len(data_sliced.time) > 0:
-                    data_sliced = data_sliced.convert_calendar(
+                if len(gridded_future.time) > 0:
+                    gridded_future = gridded_future.convert_calendar(
                         "standard", use_cftime=False
                     )
-                    print(f"DEBUG: data_sliced converted to standard calendar")
+                    print(f"DEBUG: gridded_future converted to standard calendar")
             except Exception as e2:
                 print(f"DEBUG: Alternative time conversion also failed: {e2}")
                 print(
                     "DEBUG: Proceeding with original time coordinates - bias correction may fail"
                 )
-        data_sliced = gridded_future
 
         # Train quantile delta mapping
         print("DEBUG: About to train QuantileDeltaMapping")
@@ -1202,6 +1244,9 @@ class Localize(DataProcessor):
         )
         print(
             f"DEBUG: gridded_train.time has dt before QDM train: {hasattr(gridded_train.time, 'dt')}"
+        )
+        print(
+            f"DEBUG: Training data shapes - obs_train: {obs_train.shape}, gridded_train: {gridded_train.shape}"
         )
         quant_delt_map = QuantileDeltaMapping.train(
             obs_train,
@@ -1215,10 +1260,14 @@ class Localize(DataProcessor):
         # Apply bias correction to future/target data
         print("DEBUG: About to apply bias correction")
         print(
-            f"DEBUG: data_sliced.time has dt before QDM adjust: {hasattr(data_sliced.time, 'dt')}"
+            f"DEBUG: gridded_future.time has dt before QDM adjust: {hasattr(gridded_future.time, 'dt')}"
         )
-        da_adj = quant_delt_map.adjust(data_sliced)
+        print(
+            f"DEBUG: Future data shape before bias correction: {gridded_future.shape}"
+        )
+        da_adj = quant_delt_map.adjust(gridded_future)
         print("DEBUG: Successfully applied bias correction")
+        print(f"DEBUG: Bias corrected data shape: {da_adj.shape}")
         da_adj.name = gridded_da.name  # Preserve original name
 
         # Convert time index back to datetime if needed
