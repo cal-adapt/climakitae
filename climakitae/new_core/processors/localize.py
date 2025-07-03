@@ -940,6 +940,16 @@ class Localize(DataProcessor):
             f"DEBUG: data_sliced.time has dt after slice: {hasattr(data_sliced.time, 'dt')}"
         )
 
+        # Fix time coordinate if .dt attribute is lost
+        if not hasattr(data_sliced.time, "dt"):
+            print("DEBUG: Fixing data_sliced time coordinate")
+            data_sliced = data_sliced.assign_coords(
+                time=pd.to_datetime(data_sliced.time)
+            )
+            print(
+                f"DEBUG: data_sliced.time has dt after fix: {hasattr(data_sliced.time, 'dt')}"
+            )
+
         # Align training periods - use overlapping time period
         print("DEBUG: About to align training periods")
         train_start = max(obs_da.time.values[0], gridded_da.time.values[0])
@@ -954,6 +964,16 @@ class Localize(DataProcessor):
             f"DEBUG: gridded_train.time has dt after slice: {hasattr(gridded_train.time, 'dt')}"
         )
 
+        # Fix time coordinate if .dt attribute is lost
+        if not hasattr(gridded_train.time, "dt"):
+            print("DEBUG: Fixing gridded_train time coordinate")
+            gridded_train = gridded_train.assign_coords(
+                time=pd.to_datetime(gridded_train.time)
+            )
+            print(
+                f"DEBUG: gridded_train.time has dt after fix: {hasattr(gridded_train.time, 'dt')}"
+            )
+
         print(
             f"DEBUG: obs_da.time has dt before train slice: {hasattr(obs_da.time, 'dt')}"
         )
@@ -961,6 +981,14 @@ class Localize(DataProcessor):
         print(
             f"DEBUG: obs_train.time has dt after slice: {hasattr(obs_train.time, 'dt')}"
         )
+
+        # Fix time coordinate if .dt attribute is lost
+        if not hasattr(obs_train.time, "dt"):
+            print("DEBUG: Fixing obs_train time coordinate")
+            obs_train = obs_train.assign_coords(time=pd.to_datetime(obs_train.time))
+            print(
+                f"DEBUG: obs_train.time has dt after fix: {hasattr(obs_train.time, 'dt')}"
+            )
 
         # Train quantile delta mapping
         print("DEBUG: About to train QuantileDeltaMapping")
