@@ -227,7 +227,7 @@ class DataCatalog(dict):
             warnings.warn(
                 f"\n\nCatalog key '{key}' not found."
                 f"\nAvailable catalogs keys are: {list(self.keys())}"
-                f"\nDefulting to 'data' catalog.\n\n"
+                f"\nDefaulting to 'data' catalog.\n\n"
             )
             key = "data"
         self.catalog_key = key
