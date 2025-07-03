@@ -889,30 +889,87 @@ class Localize(DataProcessor):
             obs_da.attrs["units"] = target_units
 
         # Rechunk data - cannot be chunked along time dimension for xclim
+        print("DEBUG: About to rechunk gridded_da")
+        print(
+            f"DEBUG: gridded_da.time has dt before rechunk: {hasattr(gridded_da.time, 'dt')}"
+        )
         gridded_da = gridded_da.chunk(chunks=dict(time=-1))
+        print(
+            f"DEBUG: gridded_da.time has dt after rechunk: {hasattr(gridded_da.time, 'dt')}"
+        )
 
         # Limit observational data to available period
+        print("DEBUG: About to slice obs_da time")
+        print(f"DEBUG: obs_da.time has dt before slice: {hasattr(obs_da.time, 'dt')}")
         obs_da = obs_da.sel(time=slice(obs_da.time.values[0], "2014-08-31"))
+        print(f"DEBUG: obs_da.time has dt after slice: {hasattr(obs_da.time, 'dt')}")
+
+        print("DEBUG: About to rechunk obs_da")
         obs_da = obs_da.chunk(chunks=dict(time=-1))
+        print(f"DEBUG: obs_da.time has dt after rechunk: {hasattr(obs_da.time, 'dt')}")
 
         # Convert calendars to no leap year for consistency
+        print("DEBUG: About to convert obs_da calendar")
+        print(
+            f"DEBUG: obs_da.time has dt before calendar convert: {hasattr(obs_da.time, 'dt')}"
+        )
         obs_da = obs_da.convert_calendar("noleap")
+        print(
+            f"DEBUG: obs_da.time has dt after calendar convert: {hasattr(obs_da.time, 'dt')}"
+        )
+
+        print("DEBUG: About to convert gridded_da calendar")
+        print(
+            f"DEBUG: gridded_da.time has dt before calendar convert: {hasattr(gridded_da.time, 'dt')}"
+        )
         gridded_da = gridded_da.convert_calendar("noleap")
+        print(
+            f"DEBUG: gridded_da.time has dt after calendar convert: {hasattr(gridded_da.time, 'dt')}"
+        )
 
         # Get original time slice from context
         original_time_slice = context.get("original_time_slice", (2015, 2100))
+        print(f"DEBUG: About to slice data for time range: {original_time_slice}")
+        print(
+            f"DEBUG: gridded_da.time has dt before data slice: {hasattr(gridded_da.time, 'dt')}"
+        )
         data_sliced = gridded_da.sel(
             time=slice(str(original_time_slice[0]), str(original_time_slice[1]))
         )
+        print(
+            f"DEBUG: data_sliced.time has dt after slice: {hasattr(data_sliced.time, 'dt')}"
+        )
 
         # Align training periods - use overlapping time period
+        print("DEBUG: About to align training periods")
         train_start = max(obs_da.time.values[0], gridded_da.time.values[0])
         train_end = min(obs_da.time.values[-1], gridded_da.time.values[-1])
+        print(f"DEBUG: Training period: {train_start} to {train_end}")
 
+        print(
+            f"DEBUG: gridded_da.time has dt before train slice: {hasattr(gridded_da.time, 'dt')}"
+        )
         gridded_train = gridded_da.sel(time=slice(str(train_start), str(train_end)))
+        print(
+            f"DEBUG: gridded_train.time has dt after slice: {hasattr(gridded_train.time, 'dt')}"
+        )
+
+        print(
+            f"DEBUG: obs_da.time has dt before train slice: {hasattr(obs_da.time, 'dt')}"
+        )
         obs_train = obs_da.sel(time=slice(str(train_start), str(train_end)))
+        print(
+            f"DEBUG: obs_train.time has dt after slice: {hasattr(obs_train.time, 'dt')}"
+        )
 
         # Train quantile delta mapping
+        print("DEBUG: About to train QuantileDeltaMapping")
+        print(
+            f"DEBUG: obs_train.time has dt before QDM train: {hasattr(obs_train.time, 'dt')}"
+        )
+        print(
+            f"DEBUG: gridded_train.time has dt before QDM train: {hasattr(gridded_train.time, 'dt')}"
+        )
         quant_delt_map = QuantileDeltaMapping.train(
             obs_train,
             gridded_train,
@@ -920,9 +977,15 @@ class Localize(DataProcessor):
             group=grouper,
             kind=kind,
         )
+        print("DEBUG: Successfully trained QuantileDeltaMapping")
 
         # Apply bias correction to future/target data
+        print("DEBUG: About to apply bias correction")
+        print(
+            f"DEBUG: data_sliced.time has dt before QDM adjust: {hasattr(data_sliced.time, 'dt')}"
+        )
         da_adj = quant_delt_map.adjust(data_sliced)
+        print("DEBUG: Successfully applied bias correction")
         da_adj.name = gridded_da.name  # Preserve original name
 
         # Convert time index back to datetime if needed
