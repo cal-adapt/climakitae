@@ -249,7 +249,7 @@ class Localize(DataProcessor):
             case dict():
                 self._validate_inputs(result)
                 for key, item in result.items():
-                    if "ss" not in key:
+                    if "ssp" not in key:
                         continue  # Skip non-SSP data
                     ret[key] = self.execute(item, context)
                     ret[key].attrs = item.attrs
@@ -690,7 +690,7 @@ class Localize(DataProcessor):
         grouper = Grouper(group, window=window)
 
         # Convert units to match gridded data
-        obs_da = convert_units(obs_da, gridded_da.units)
+        obs_da = convert_units(obs_da, gridded_da.attrs["units"])
 
         # Rechunk data - cannot be chunked along time dimension for xclim
         gridded_da = gridded_da.chunk(chunks=dict(time=-1))
