@@ -546,6 +546,21 @@ class Localize(DataProcessor):
 
         # Apply bias correction
         try:
+            print(
+                f"DEBUG: Starting bias correction for station {station_row['station']}"
+            )
+            print(f"DEBUG: model_data type: {type(model_data)}")
+            if hasattr(model_data, "time"):
+                print(f"DEBUG: model_data.time type: {type(model_data.time)}")
+                print(
+                    f"DEBUG: model_data.time has dt: {hasattr(model_data.time, 'dt')}"
+                )
+            if hasattr(station_data, "time"):
+                print(f"DEBUG: station_data.time type: {type(station_data.time)}")
+                print(
+                    f"DEBUG: station_data.time has dt: {hasattr(station_data.time, 'dt')}"
+                )
+
             # Handle Dataset vs DataArray
             if isinstance(model_data, xr.Dataset):
                 # For Dataset, apply correction to each data variable
@@ -718,6 +733,16 @@ class Localize(DataProcessor):
             Bias corrected data
         """
 
+        print(f"DEBUG: _bias_correct_model_data called")
+        print(f"DEBUG: obs_da type: {type(obs_da)}")
+        print(f"DEBUG: gridded_da type: {type(gridded_da)}")
+        if hasattr(obs_da, "time"):
+            print(f"DEBUG: obs_da.time type: {type(obs_da.time)}")
+            print(f"DEBUG: obs_da.time has dt: {hasattr(obs_da.time, 'dt')}")
+        if hasattr(gridded_da, "time"):
+            print(f"DEBUG: gridded_da.time type: {type(gridded_da.time)}")
+            print(f"DEBUG: gridded_da.time has dt: {hasattr(gridded_da.time, 'dt')}")
+
         # Get grouper with window for seasonality
         grouper = Grouper(group, window=window)
 
@@ -759,13 +784,34 @@ class Localize(DataProcessor):
 
         # Ensure time coordinate is properly formatted
         if "time" in gridded_da.coords:
+            print(f"DEBUG: Gridded data time coordinate type: {type(gridded_da.time)}")
+            print(
+                f"DEBUG: Gridded data time values type: {type(gridded_da.time.values)}"
+            )
+            print(
+                f"DEBUG: Gridded data time first value type: {type(gridded_da.time.values[0]) if len(gridded_da.time.values) > 0 else 'empty'}"
+            )
+            print(
+                f"DEBUG: Gridded data has dt attribute: {hasattr(gridded_da.time, 'dt')}"
+            )
+            print(
+                f"DEBUG: Gridded data time index type: {type(gridded_da.time.to_index())}"
+            )
             try:
                 # Ensure time coordinate has datetime index
                 if not hasattr(gridded_da.time, "dt"):
+                    print("DEBUG: Converting gridded data time coordinate to datetime")
                     gridded_da = gridded_da.assign_coords(
                         time=pd.to_datetime(gridded_da.time)
                     )
-            except (ValueError, TypeError):
+                    print(
+                        f"DEBUG: After conversion, gridded data has dt attribute: {hasattr(gridded_da.time, 'dt')}"
+                    )
+                    print(
+                        f"DEBUG: After conversion, gridded data time type: {type(gridded_da.time)}"
+                    )
+            except (ValueError, TypeError) as e:
+                print(f"DEBUG: Time conversion failed for gridded data: {e}")
                 # If time conversion fails, continue without it
                 pass
 
@@ -802,18 +848,44 @@ class Localize(DataProcessor):
 
         # Ensure time coordinate is properly formatted
         if "time" in obs_da.coords:
+            print(f"DEBUG: Obs data time coordinate type: {type(obs_da.time)}")
+            print(f"DEBUG: Obs data time values type: {type(obs_da.time.values)}")
+            print(
+                f"DEBUG: Obs data time first value type: {type(obs_da.time.values[0]) if len(obs_da.time.values) > 0 else 'empty'}"
+            )
+            print(f"DEBUG: Obs data has dt attribute: {hasattr(obs_da.time, 'dt')}")
+            print(f"DEBUG: Obs data time index type: {type(obs_da.time.to_index())}")
             try:
                 # Ensure time coordinate has datetime index
                 if not hasattr(obs_da.time, "dt"):
+                    print("DEBUG: Converting obs data time coordinate to datetime")
                     obs_da = obs_da.assign_coords(time=pd.to_datetime(obs_da.time))
-            except (ValueError, TypeError):
+                    print(
+                        f"DEBUG: After conversion, obs data has dt attribute: {hasattr(obs_da.time, 'dt')}"
+                    )
+                    print(
+                        f"DEBUG: After conversion, obs data time type: {type(obs_da.time)}"
+                    )
+            except (ValueError, TypeError) as e:
+                print(f"DEBUG: Time conversion failed for obs data: {e}")
                 # If time conversion fails, continue without it
                 pass
 
         try:
+            print(
+                f"DEBUG: About to call convert_units on obs_da with units: {obs_da.attrs.get('units', 'None')}"
+            )
+            print(
+                f"DEBUG: obs_da time before convert_units has dt: {hasattr(obs_da.time, 'dt') if 'time' in obs_da.coords else 'No time coord'}"
+            )
             obs_da = convert_units(obs_da, target_units)
+            print(f"DEBUG: Successfully converted obs_da units")
         except (ValueError, KeyError, AttributeError) as e:
             print(f"Warning: Could not convert units, using original data: {e}")
+            import traceback
+
+            print(f"DEBUG: Full traceback for obs unit conversion error:")
+            traceback.print_exc()
             # Ensure both have the same units for comparison
             obs_da.attrs["units"] = target_units
 
