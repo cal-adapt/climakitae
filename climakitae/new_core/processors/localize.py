@@ -1436,28 +1436,56 @@ class Localize(DataProcessor):
                         f"Time dimension mismatch: obs={len(obs_train.time)}, gridded={len(gridded_train.time)}"
                     )
 
-                    # Find common time intersection for training
-                    obs_time_set = set(
-                        pd.to_datetime(obs_train.time.values).strftime("%Y-%m-%d")
+                    # Use xarray's built-in time intersection functionality
+                    # This ensures exact time coordinate matching
+                    obs_train_reindexed = obs_train.reindex_like(
+                        gridded_train, method="nearest", tolerance="1D"
                     )
-                    gridded_time_set = set(
-                        pd.to_datetime(gridded_train.time.values).strftime("%Y-%m-%d")
+
+                    # Drop any NaN values that might result from reindexing
+                    obs_train_reindexed = obs_train_reindexed.dropna(dim="time")
+                    gridded_train_aligned = gridded_train.sel(
+                        time=obs_train_reindexed.time
                     )
-                    common_dates = sorted(obs_time_set.intersection(gridded_time_set))
 
-                    if len(common_dates) < 365:
-                        print("WARNING: Less than 1 year of overlapping training data")
-                        print("WARNING: Bias correction may be unreliable")
+                    # Update the training datasets
+                    obs_train = obs_train_reindexed
+                    gridded_train = gridded_train_aligned
 
-                    # Select only common dates for both datasets
-                    common_time_range = slice(common_dates[0], common_dates[-1])
-                    obs_train = obs_train.sel(time=common_time_range)
-                    gridded_train = gridded_train.sel(time=common_time_range)
-
-                    # Now both should have the same time dimension
                     print(
                         f"After alignment: obs={len(obs_train.time)}, gridded={len(gridded_train.time)}"
                     )
+
+                    # Final check - if they're still different, use intersection approach
+                    if len(obs_train.time) != len(gridded_train.time):
+                        print(
+                            "WARNING: Reindexing failed, trying intersection approach"
+                        )
+
+                        # Convert both to same time format and find exact intersection
+                        obs_times = pd.to_datetime(obs_train.time.values)
+                        gridded_times = pd.to_datetime(gridded_train.time.values)
+
+                        # Find intersection of time coordinates
+                        common_times = obs_times.intersection(gridded_times)
+
+                        if len(common_times) < 365:
+                            print(
+                                "WARNING: Less than 1 year of exact overlapping training data"
+                            )
+                            print("WARNING: Bias correction may be unreliable")
+
+                        if len(common_times) == 0:
+                            print("ERROR: No overlapping time coordinates found")
+                            return gridded_da
+
+                        # Select only exact matching times
+                        obs_train = obs_train.sel(time=common_times)
+                        gridded_train = gridded_train.sel(time=common_times)
+
+                        print(
+                            f"After intersection: obs={len(obs_train.time)}, gridded={len(gridded_train.time)}"
+                        )
 
             except Exception as e:
                 print(f"WARNING: Time alignment failed: {e}")
