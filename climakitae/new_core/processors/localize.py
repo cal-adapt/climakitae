@@ -739,8 +739,17 @@ class Localize(DataProcessor):
                     if hasattr(time_diff, "days"):
                         if time_diff.days >= 28:  # Monthly data
                             gridded_da.attrs["frequency"] = "monthly"
-                        else:
+                        elif time_diff.days >= 1:  # Daily data
                             gridded_da.attrs["frequency"] = "daily"
+                        else:  # Sub-daily data (hourly)
+                            gridded_da.attrs["frequency"] = "hourly"
+                    elif hasattr(time_diff, "seconds"):
+                        if time_diff.seconds <= 3600:  # 1 hour or less
+                            gridded_da.attrs["frequency"] = "hourly"
+                        elif time_diff.seconds <= 86400:  # 1 day or less
+                            gridded_da.attrs["frequency"] = "daily"
+                        else:
+                            gridded_da.attrs["frequency"] = "monthly"
                     else:
                         gridded_da.attrs["frequency"] = "daily"
                 except (ValueError, TypeError, AttributeError):
@@ -773,8 +782,17 @@ class Localize(DataProcessor):
                     if hasattr(time_diff, "days"):
                         if time_diff.days >= 28:  # Monthly data
                             obs_da.attrs["frequency"] = "monthly"
-                        else:
+                        elif time_diff.days >= 1:  # Daily data
                             obs_da.attrs["frequency"] = "daily"
+                        else:  # Sub-daily data (hourly)
+                            obs_da.attrs["frequency"] = "hourly"
+                    elif hasattr(time_diff, "seconds"):
+                        if time_diff.seconds <= 3600:  # 1 hour or less
+                            obs_da.attrs["frequency"] = "hourly"
+                        elif time_diff.seconds <= 86400:  # 1 day or less
+                            obs_da.attrs["frequency"] = "daily"
+                        else:
+                            obs_da.attrs["frequency"] = "monthly"
                     else:
                         obs_da.attrs["frequency"] = "daily"
                 except (ValueError, TypeError, AttributeError):
