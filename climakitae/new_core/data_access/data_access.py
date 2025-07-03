@@ -16,7 +16,7 @@ DataCatalog
 """
 
 import warnings
-from typing import Dict, Any
+from typing import Any, Dict
 
 import geopandas as gpd
 import intake
@@ -36,9 +36,8 @@ from climakitae.core.paths import (
     RENEWABLES_CATALOG_URL,
     STATIONS_CSV_PATH,
 )
-from climakitae.util.utils import read_csv_file
-
 from climakitae.new_core.data_access.boundaries import Boundaries
+from climakitae.util.utils import read_csv_file
 
 
 class DataCatalog(dict):
@@ -293,7 +292,7 @@ class DataCatalog(dict):
             )
         )
 
-    def list_clip_boundaries(self) -> None:
+    def list_clip_boundaries(self) -> dict[str, list[str]]:
         """
         List all available boundary options for clipping operations.
 
@@ -327,6 +326,8 @@ class DataCatalog(dict):
             # Convert keys to a sorted list for better presentation
             boundary_keys = sorted(list(lookups.keys()))
             self.available_boundaries[category] = boundary_keys
+
+        return self.available_boundaries
 
     def print_clip_boundaries(self) -> None:
         """
