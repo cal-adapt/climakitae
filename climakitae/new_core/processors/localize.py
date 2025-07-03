@@ -46,7 +46,7 @@ from climakitae.util.unit_conversions import convert_units
 from climakitae.util.utils import get_closest_gridcell
 
 
-@register_processor("localize", priority=1)
+@register_processor("localize", priority=175)
 class Localize(DataProcessor):
     """
     Localize gridded climate data to historical station data.
@@ -133,13 +133,13 @@ class Localize(DataProcessor):
         match value:
             case str() | list():
                 self.stations = [value] if isinstance(value, str) else value
-                self.bias_correction = False
+                self.bias_correction = True
                 self.method = "quantile_delta_mapping"
                 self.window = 90
                 self.nquantiles = 20
             case dict():
                 self.stations = value.get("stations", [])
-                self.bias_correction = value.get("bias_correction", False)
+                self.bias_correction = value.get("bias_correction", True)
                 self.method = value.get("method", "quantile_delta_mapping")
                 self.window = value.get("window", 90)
                 self.nquantiles = value.get("nquantiles", 20)
@@ -212,7 +212,6 @@ class Localize(DataProcessor):
         and processes each station individually before combining results into a
         unified Dataset structure.
         """
-        # Validate inputs
 
         ret = {}
 
