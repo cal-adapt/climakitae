@@ -457,8 +457,11 @@ class Localize(DataProcessor):
             return None
 
     def _apply_bias_correction(
-        self, model_data: xr.DataArray, station_row: pd.Series, context: Dict[str, Any]
-    ) -> xr.DataArray:
+        self,
+        model_data: Union[xr.DataArray, xr.Dataset],
+        station_row: pd.Series,
+        context: Dict[str, Any],
+    ) -> Union[xr.DataArray, xr.Dataset]:
         """
         Apply bias correction using observational data from the weather station.
 
@@ -467,7 +470,7 @@ class Localize(DataProcessor):
 
         Parameters
         ----------
-        model_data : xr.DataArray
+        model_data : xr.DataArray or xr.Dataset
             Model gridded data to be bias corrected
         station_row : pd.Series
             Station metadata row containing station information
@@ -476,7 +479,7 @@ class Localize(DataProcessor):
 
         Returns
         -------
-        xr.DataArray
+        xr.DataArray or xr.Dataset
             Bias corrected model data
 
         Raises
@@ -488,6 +491,7 @@ class Localize(DataProcessor):
         -----
         This method serves as a dispatcher to specific bias correction
         implementations. Currently only 'quantile_delta_mapping' is supported.
+        Handles both DataArray and Dataset inputs.
         """
 
         if self.method == "quantile_delta_mapping":
@@ -496,8 +500,11 @@ class Localize(DataProcessor):
             raise ValueError(f"Unsupported bias correction method: {self.method}")
 
     def _apply_qdm_correction(
-        self, model_data: xr.DataArray, station_row: pd.Series, context: Dict[str, Any]
-    ) -> xr.DataArray:
+        self,
+        model_data: Union[xr.DataArray, xr.Dataset],
+        station_row: pd.Series,
+        context: Dict[str, Any],
+    ) -> Union[xr.DataArray, xr.Dataset]:
         """
         Apply Quantile Delta Mapping (QDM) bias correction.
 
@@ -507,7 +514,7 @@ class Localize(DataProcessor):
 
         Parameters
         ----------
-        model_data : xr.DataArray
+        model_data : xr.DataArray or xr.Dataset
             Model data to be bias corrected
         station_row : pd.Series
             Station metadata containing station ID and other information
@@ -516,7 +523,7 @@ class Localize(DataProcessor):
 
         Returns
         -------
-        xr.DataArray
+        xr.DataArray or xr.Dataset
             Bias corrected model data, or original data if correction fails
 
         Notes
@@ -524,7 +531,7 @@ class Localize(DataProcessor):
         If station data cannot be loaded, a warning is printed and the original
         model data is returned without correction. The method handles the
         complete QDM workflow including data loading, preprocessing, and
-        bias correction application.
+        bias correction application. Handles both DataArray and Dataset inputs.
         """
 
         # Get station data
@@ -539,10 +546,30 @@ class Localize(DataProcessor):
 
         # Apply bias correction
         try:
-            corrected_data = self._bias_correct_model_data(
-                station_data, model_data, context
-            )
-            return corrected_data
+            # Handle Dataset vs DataArray
+            if isinstance(model_data, xr.Dataset):
+                # For Dataset, apply correction to each data variable
+                corrected_vars = {}
+                for var_name, data_array in model_data.data_vars.items():
+                    corrected_vars[var_name] = self._bias_correct_model_data(
+                        station_data, data_array, context
+                    )
+                # Reconstruct Dataset with corrected variables
+                corrected_data = xr.Dataset(corrected_vars)
+                # Preserve original attributes and coordinates
+                corrected_data.attrs = model_data.attrs
+                for coord_name, coord_data in model_data.coords.items():
+                    if coord_name not in corrected_data.coords:
+                        corrected_data = corrected_data.assign_coords(
+                            {coord_name: coord_data}
+                        )
+                return corrected_data
+            else:
+                # For DataArray, apply correction directly
+                corrected_data = self._bias_correct_model_data(
+                    station_data, model_data, context
+                )
+                return corrected_data
         except Exception as e:
             print(
                 f"Warning: Bias correction failed for station {station_row['station']}: {e}"
@@ -750,8 +777,14 @@ class Localize(DataProcessor):
         da_adj = quant_delt_map.adjust(data_sliced)
         da_adj.name = gridded_da.name  # Preserve original name
 
-        # Convert time index back to datetime
-        da_adj["time"] = da_adj.indexes["time"].to_datetimeindex()
+        # Convert time index back to datetime if needed
+        try:
+            time_index = da_adj.indexes.get("time")
+            if time_index is not None and hasattr(time_index, "to_datetimeindex"):
+                da_adj = da_adj.assign_coords(time=time_index.to_datetimeindex())
+        except (AttributeError, KeyError, TypeError):
+            # Time index conversion not needed or not available
+            pass
 
         return da_adj
 
