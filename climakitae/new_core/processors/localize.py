@@ -729,13 +729,72 @@ class Localize(DataProcessor):
         if "units" not in gridded_da.attrs:
             gridded_da.attrs["units"] = "K"
 
+        # Ensure frequency attribute is set correctly for unit conversion
+        # might be super overkill, but ensures consistency
+        if "frequency" not in gridded_da.attrs:
+            # Try to infer frequency from time coordinate
+            if "time" in gridded_da.coords and len(gridded_da.time) > 1:
+                try:
+                    time_diff = gridded_da.time[1] - gridded_da.time[0]
+                    if hasattr(time_diff, "days"):
+                        if time_diff.days >= 28:  # Monthly data
+                            gridded_da.attrs["frequency"] = "monthly"
+                        else:
+                            gridded_da.attrs["frequency"] = "daily"
+                    else:
+                        gridded_da.attrs["frequency"] = "daily"
+                except (ValueError, TypeError, AttributeError):
+                    gridded_da.attrs["frequency"] = "daily"
+            else:
+                gridded_da.attrs["frequency"] = "daily"
+
+        # Ensure time coordinate is properly formatted
+        if "time" in gridded_da.coords:
+            try:
+                # Ensure time coordinate has datetime index
+                if not hasattr(gridded_da.time, "dt"):
+                    gridded_da = gridded_da.assign_coords(
+                        time=pd.to_datetime(gridded_da.time)
+                    )
+            except (ValueError, TypeError):
+                # If time conversion fails, continue without it
+                pass
+
         # Check if obs_da has units attribute, if not assume it's in Kelvin
         if "units" not in obs_da.attrs:
             obs_da.attrs["units"] = "K"
 
+        # Ensure frequency attribute is set correctly for unit conversion
+        if "frequency" not in obs_da.attrs:
+            # Try to infer frequency from time coordinate
+            if "time" in obs_da.coords and len(obs_da.time) > 1:
+                try:
+                    time_diff = obs_da.time[1] - obs_da.time[0]
+                    if hasattr(time_diff, "days"):
+                        if time_diff.days >= 28:  # Monthly data
+                            obs_da.attrs["frequency"] = "monthly"
+                        else:
+                            obs_da.attrs["frequency"] = "daily"
+                    else:
+                        obs_da.attrs["frequency"] = "daily"
+                except (ValueError, TypeError, AttributeError):
+                    obs_da.attrs["frequency"] = "daily"
+            else:
+                obs_da.attrs["frequency"] = "daily"
+
+        # Ensure time coordinate is properly formatted
+        if "time" in obs_da.coords:
+            try:
+                # Ensure time coordinate has datetime index
+                if not hasattr(obs_da.time, "dt"):
+                    obs_da = obs_da.assign_coords(time=pd.to_datetime(obs_da.time))
+            except (ValueError, TypeError):
+                # If time conversion fails, continue without it
+                pass
+
         try:
             obs_da = convert_units(obs_da, target_units)
-        except (ValueError, KeyError) as e:
+        except (ValueError, KeyError, AttributeError) as e:
             print(f"Warning: Could not convert units, using original data: {e}")
             # Ensure both have the same units for comparison
             obs_da.attrs["units"] = target_units
