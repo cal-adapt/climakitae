@@ -295,6 +295,7 @@ class Localize(DataProcessor):
         station names by looking up the codes in the station metadata.
         """
         # Check that we have gridded data
+        print(f"Localizing data to stations {self.stations}...")
         match data:
             case xr.DataArray() | xr.Dataset():
                 if not hasattr(data, "lat") or not hasattr(data, "lon"):
