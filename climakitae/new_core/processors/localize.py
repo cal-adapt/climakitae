@@ -885,24 +885,8 @@ class Localize(DataProcessor):
         obs_da = obs_da.chunk(chunks=dict(time=-1))
         print(f"DEBUG: obs_da.time has dt after rechunk: {hasattr(obs_da.time, 'dt')}")
 
-        # Convert calendars to no leap year for consistency
-        print("DEBUG: About to convert obs_da calendar")
-        print(
-            f"DEBUG: obs_da.time has dt before calendar convert: {hasattr(obs_da.time, 'dt')}"
-        )
-        obs_da = obs_da.convert_calendar("noleap")
-        print(
-            f"DEBUG: obs_da.time has dt after calendar convert: {hasattr(obs_da.time, 'dt')}"
-        )
-
-        print("DEBUG: About to convert gridded_da calendar")
-        print(
-            f"DEBUG: gridded_da.time has dt before calendar convert: {hasattr(gridded_da.time, 'dt')}"
-        )
-        gridded_da = gridded_da.convert_calendar("noleap")
-        print(
-            f"DEBUG: gridded_da.time has dt after calendar convert: {hasattr(gridded_da.time, 'dt')}"
-        )
+        # NOTE: We'll convert calendars later, just before training QDM
+        # Converting too early creates cftime objects that are incompatible with xclim
 
         # Get original time slice from context
         original_time_slice = context.get("original_time_slice", (2015, 2100))
@@ -1091,6 +1075,124 @@ class Localize(DataProcessor):
             )
 
         # The target for bias correction is the future period
+        data_sliced = gridded_future
+
+        # Convert calendars to no leap year for consistency just before QDM training
+        # This minimizes issues with cftime objects in earlier processing steps
+        print("DEBUG: About to convert calendars for QDM training")
+        try:
+            print("DEBUG: Converting obs_train calendar")
+            obs_train = obs_train.convert_calendar("noleap")
+            print(
+                f"DEBUG: obs_train calendar converted, time type: {type(obs_train.time.values[0]) if len(obs_train.time) > 0 else 'empty'}"
+            )
+
+            print("DEBUG: Converting gridded_train calendar")
+            gridded_train = gridded_train.convert_calendar("noleap")
+            print(
+                f"DEBUG: gridded_train calendar converted, time type: {type(gridded_train.time.values[0]) if len(gridded_train.time) > 0 else 'empty'}"
+            )
+
+            print("DEBUG: Converting data_sliced calendar")
+            data_sliced = data_sliced.convert_calendar("noleap")
+            print(
+                f"DEBUG: data_sliced calendar converted, time type: {type(data_sliced.time.values[0]) if len(data_sliced.time) > 0 else 'empty'}"
+            )
+
+        except Exception as e:
+            print(f"DEBUG: Calendar conversion failed: {e}")
+            print("DEBUG: Continuing without calendar conversion")
+
+        # Convert cftime objects back to standard datetime for xclim compatibility
+        print("DEBUG: Converting cftime objects to standard datetime for xclim")
+        print(
+            f"DEBUG: gridded_train time values type: {type(gridded_train.time.values[0]) if len(gridded_train.time) > 0 else 'empty'}"
+        )
+        print(
+            f"DEBUG: obs_train time values type: {type(obs_train.time.values[0]) if len(obs_train.time) > 0 else 'empty'}"
+        )
+        print(
+            f"DEBUG: data_sliced time values type: {type(data_sliced.time.values[0]) if len(data_sliced.time) > 0 else 'empty'}"
+        )
+
+        try:
+            # Check if we have cftime objects
+            if hasattr(gridded_train.time.values[0], "strftime") and "cftime" in str(
+                type(gridded_train.time.values[0])
+            ):
+                # Convert cftime to standard datetime using strftime/strptime
+                print("DEBUG: Converting gridded_train time from cftime to datetime")
+                time_strings = [
+                    t.strftime("%Y-%m-%d %H:%M:%S") for t in gridded_train.time.values
+                ]
+                datetime_index = pd.to_datetime(time_strings)
+                gridded_train = gridded_train.assign_coords(time=datetime_index)
+                print(
+                    f"DEBUG: gridded_train time converted, has dt: {hasattr(gridded_train.time, 'dt')}"
+                )
+                print(
+                    f"DEBUG: gridded_train new time type: {type(gridded_train.time.values[0])}"
+                )
+
+            if hasattr(obs_train.time.values[0], "strftime") and "cftime" in str(
+                type(obs_train.time.values[0])
+            ):
+                # Convert cftime to standard datetime using strftime/strptime
+                print("DEBUG: Converting obs_train time from cftime to datetime")
+                time_strings = [
+                    t.strftime("%Y-%m-%d %H:%M:%S") for t in obs_train.time.values
+                ]
+                datetime_index = pd.to_datetime(time_strings)
+                obs_train = obs_train.assign_coords(time=datetime_index)
+                print(
+                    f"DEBUG: obs_train time converted, has dt: {hasattr(obs_train.time, 'dt')}"
+                )
+                print(
+                    f"DEBUG: obs_train new time type: {type(obs_train.time.values[0])}"
+                )
+
+            if hasattr(data_sliced.time.values[0], "strftime") and "cftime" in str(
+                type(data_sliced.time.values[0])
+            ):
+                # Convert cftime to standard datetime using strftime/strptime
+                print("DEBUG: Converting data_sliced time from cftime to datetime")
+                time_strings = [
+                    t.strftime("%Y-%m-%d %H:%M:%S") for t in data_sliced.time.values
+                ]
+                datetime_index = pd.to_datetime(time_strings)
+                data_sliced = data_sliced.assign_coords(time=datetime_index)
+                print(
+                    f"DEBUG: data_sliced time converted, has dt: {hasattr(data_sliced.time, 'dt')}"
+                )
+                print(
+                    f"DEBUG: data_sliced new time type: {type(data_sliced.time.values[0])}"
+                )
+
+        except (AttributeError, TypeError, ValueError, IndexError) as e:
+            print(
+                f"DEBUG: Time conversion from cftime failed, continuing with existing time coords: {e}"
+            )
+            # Try alternative approach - use xarray's built-in conversion
+            try:
+                print("DEBUG: Trying alternative time conversion approach")
+                if len(gridded_train.time) > 0:
+                    gridded_train = gridded_train.convert_calendar(
+                        "standard", use_cftime=False
+                    )
+                    print(f"DEBUG: gridded_train converted to standard calendar")
+                if len(obs_train.time) > 0:
+                    obs_train = obs_train.convert_calendar("standard", use_cftime=False)
+                    print(f"DEBUG: obs_train converted to standard calendar")
+                if len(data_sliced.time) > 0:
+                    data_sliced = data_sliced.convert_calendar(
+                        "standard", use_cftime=False
+                    )
+                    print(f"DEBUG: data_sliced converted to standard calendar")
+            except Exception as e2:
+                print(f"DEBUG: Alternative time conversion also failed: {e2}")
+                print(
+                    "DEBUG: Proceeding with original time coordinates - bias correction may fail"
+                )
         data_sliced = gridded_future
 
         # Train quantile delta mapping
