@@ -293,8 +293,7 @@ class Concat(DataProcessor):
         # Process SSP scenarios by finding and prepending historical data
         for key, data in result.items():
             if "ssp" not in key:
-                # Keep non-SSP data as is (including historical data)
-                ret[key] = data
+                # drop non-SSP data since historical gets prepended
                 continue
 
             # Find corresponding historical key by replacing SSP pattern with "historical"
