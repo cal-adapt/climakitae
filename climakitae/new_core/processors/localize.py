@@ -42,7 +42,6 @@ from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
     register_processor,
 )
-from climakitae.util.unit_conversions import convert_units
 from climakitae.util.utils import get_closest_gridcell
 
 
@@ -873,12 +872,12 @@ class Localize(DataProcessor):
 
         try:
             print(
-                f"DEBUG: About to call convert_units on obs_da with units: {obs_da.attrs.get('units', 'None')}"
+                f"DEBUG: About to call simple_convert_temperature on obs_da with units: {obs_da.attrs.get('units', 'None')}"
             )
             print(
-                f"DEBUG: obs_da time before convert_units has dt: {hasattr(obs_da.time, 'dt') if 'time' in obs_da.coords else 'No time coord'}"
+                f"DEBUG: obs_da time before conversion has dt: {hasattr(obs_da.time, 'dt') if 'time' in obs_da.coords else 'No time coord'}"
             )
-            obs_da = convert_units(obs_da, target_units)
+            obs_da = self._simple_convert_temperature(obs_da, target_units)
             print(f"DEBUG: Successfully converted obs_da units")
         except (ValueError, KeyError, AttributeError) as e:
             print(f"Warning: Could not convert units, using original data: {e}")
@@ -1125,3 +1124,47 @@ class Localize(DataProcessor):
 
         combined = xr.Dataset(station_dict)
         return combined
+
+    def _simple_convert_temperature(
+        self, da: xr.DataArray, target_units: str
+    ) -> xr.DataArray:
+        """
+        Simple temperature conversion that doesn't rely on time coordinate .dt accessor.
+
+        Parameters
+        ----------
+        da : xr.DataArray
+            Data array to convert
+        target_units : str
+            Target units for conversion
+
+        Returns
+        -------
+        xr.DataArray
+            Converted data array
+        """
+        current_units = da.attrs.get("units", "K")
+
+        # If same units, no conversion needed
+        if current_units == target_units:
+            return da
+
+        # Convert temperature units - assuming we're dealing with temperature data
+        if current_units == "K" and target_units == "degC":
+            da = da - 273.15
+        elif current_units == "degC" and target_units == "K":
+            da = da + 273.15
+        elif current_units == "K" and target_units == "degF":
+            da = (1.8 * (da - 273.15)) + 32
+        elif current_units == "degC" and target_units == "degF":
+            da = (1.8 * da) + 32
+        elif current_units == "degF" and target_units == "K":
+            da = ((da - 32) / 1.8) + 273.15
+        elif current_units == "degF" and target_units == "degC":
+            da = (da - 32) / 1.8
+        # Add more conversions as needed
+
+        # Update units attribute
+        da.attrs["units"] = target_units
+
+        return da
