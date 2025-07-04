@@ -49,7 +49,7 @@ from climakitae.new_core.processors.processor_utils import extend_time_domain
 from climakitae.util.utils import get_closest_gridcell
 
 
-@register_processor("localize", priority=1)
+@register_processor("localize", priority=155)
 class Localize(DataProcessor):
     """
     Localize gridded climate data to historical station data.
@@ -453,6 +453,7 @@ class Localize(DataProcessor):
         """
 
         ret = {}
+        print(result)
 
         match result:
             case xr.DataArray() | xr.Dataset():
