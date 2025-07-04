@@ -29,8 +29,6 @@ implementation uses the xclim library for quantile delta mapping.
 """
 
 import re
-import traceback
-import warnings
 from functools import partial
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -388,6 +386,36 @@ class Localize(DataProcessor):
 
         return self._combine_station_results(station_results)
 
+    def _validate_and_convert_stations(self):
+        """
+        Validate that all specified stations exist and convert airport codes to station names.
+
+        Raises
+        ------
+        ValueError
+            If specified stations are not found in metadata
+            If airport codes are ambiguous or not found
+        """
+        available_stations = self._stations_gdf["station"].tolist()
+        invalid_stations = []
+
+        for i, s in enumerate(self.stations):
+            if len(s) == 4:
+                # This is a 4 letter airport code, convert to station name
+                mask = self._stations_gdf["station id"].str.contains(s, na=False)
+                if not mask.any():
+                    raise ValueError(f"Station ID '{s}' not found in metadata")
+                elif sum(mask) > 1:
+                    raise ValueError(f"Multiple stations found for ID '{s}'")
+                else:
+                    self.stations[i] = self._stations_gdf[mask]["station"].values[0]
+            else:
+                if s not in available_stations:
+                    invalid_stations.append(s)
+
+        if invalid_stations:
+            raise ValueError(f"Invalid stations: {invalid_stations}")
+
     def _validate_inputs_dict(self, data: Dict[str, Union[xr.DataArray, xr.Dataset]]):
         """
         Validate dictionary inputs for station processing.
@@ -396,6 +424,12 @@ class Localize(DataProcessor):
         ----------
         data : Dict[str, Union[xr.DataArray, xr.Dataset]]
             Dictionary of data to validate
+
+        Raises
+        ------
+        ValueError
+            If any data lacks required 'lat' and 'lon' coordinates
+            If any data is not a DataArray or Dataset
         """
         print(f"Localizing data to stations {self.stations}...")
         for key, value in data.items():
@@ -414,7 +448,7 @@ class Localize(DataProcessor):
             xr.DataArray, xr.Dataset, Dict[str, Union[xr.DataArray, xr.Dataset]]
         ],
         context: Dict[str, Any],
-    ) -> Union[xr.DataArray, xr.Dataset]:
+    ) -> Union[xr.DataArray, xr.Dataset, Dict[str, Union[xr.DataArray, xr.Dataset]]]:
         """
         Execute station localization on the input gridded data.
 
@@ -493,87 +527,6 @@ class Localize(DataProcessor):
         self.update_context(context)
         return ret
 
-    def _validate_inputs(self, data: Union[xr.DataArray, xr.Dataset]):
-        """
-        Validate that inputs are suitable for station processing.
-
-        Checks that the input data contains required spatial coordinates and
-        validates that all specified stations exist in the metadata. Converts
-        4-letter airport codes to full station names when applicable.
-
-        Parameters
-        ----------
-        data : xr.DataArray or xr.Dataset or dict or list/tuple
-            Input data to validate. Must contain 'lat' and 'lon' coordinates
-            for spatial processing.
-
-        Raises
-        ------
-        ValueError
-            If data lacks required 'lat' and 'lon' coordinates
-            If data type is not supported
-            If specified stations are not found in metadata
-            If airport codes are ambiguous or not found
-
-        Notes
-        -----
-        This method also handles conversion of 4-letter airport codes to full
-        station names by looking up the codes in the station metadata.
-        """
-        # Check that we have gridded data
-        print(f"Localizing data to stations {self.stations}...")
-        match data:
-            case xr.DataArray() | xr.Dataset():
-                if not hasattr(data, "lat") or not hasattr(data, "lon"):
-                    raise ValueError(
-                        "Input data must have 'lat' and 'lon' coordinates for station localization"
-                    )
-            case dict():
-                for key, value in data.items():
-                    if not isinstance(value, (xr.DataArray, xr.Dataset)):
-                        raise ValueError(
-                            f"Invalid data type for key '{key}': expected DataArray or Dataset"
-                        )
-                    if not hasattr(value, "lat") or not hasattr(value, "lon"):
-                        raise ValueError(
-                            f"Data for key '{key}' must have 'lat' and 'lon' coordinates"
-                        )
-            case list() | tuple():
-                for item in data:
-                    if not isinstance(item, (xr.DataArray, xr.Dataset)):
-                        raise ValueError(
-                            f"Invalid item in list/tuple: expected DataArray or Dataset, got {type(item)}"
-                        )
-                    if not hasattr(item, "lat") or not hasattr(item, "lon"):
-                        raise ValueError(
-                            "All items in list/tuple must have 'lat' and 'lon' coordinates"
-                        )
-            case _:
-                raise ValueError(
-                    "Input data must be a DataArray, Dataset, dict of DataArrays/Datasets, or list/tuple of DataArrays/Datasets"
-                )
-
-        # Validate stations exist
-        available_stations = self._stations_gdf["station"].tolist()
-        invalid_stations = []
-        for i, s in enumerate(self.stations):
-            if len(s) == 4:
-                # this is a 4 letter airport code, convert to station name
-                mask = self._stations_gdf["station id"].contains(s)
-                if not mask.any():
-                    raise ValueError(f"Station ID '{s}' not found in metadata")
-                elif sum(mask) > 1:
-                    raise ValueError(f"Multiple stations found for ID '{s}'")
-                else:
-                    self.stations[i] = self._stations_gdf[mask]["station"].values[0]
-
-            else:
-                if s not in available_stations:
-                    invalid_stations.append(s)
-
-        if invalid_stations:
-            raise ValueError(f"Invalid stations: {invalid_stations}")
-
     def _get_station_subset(self) -> gpd.GeoDataFrame:
         """
         Get subset of station metadata for requested stations.
@@ -608,226 +561,6 @@ class Localize(DataProcessor):
         This is a placeholder method for compatibility with the DataProcessor
         interface. Currently not implemented for the Localize processor.
         """
-
-    def _process_single_station(
-        self,
-        gridded_data: Union[xr.DataArray, xr.Dataset],
-        station_row: pd.Series,
-        context: Dict[str, Any],
-    ) -> Optional[Union[xr.DataArray, xr.Dataset]]:
-        """
-        Process gridded data for a single weather station.
-
-        Extracts data from the nearest grid cell to the station location,
-        applies optional bias correction, and adds station metadata as attributes.
-
-        Parameters
-        ----------
-        gridded_data : xr.DataArray or xr.Dataset
-            Input gridded climate data to extract from
-        station_row : pd.Series
-            Row from station metadata containing station information including
-            coordinates, name, and identifiers
-        context : dict of str to Any
-            Processing context passed through the pipeline
-
-        Returns
-        -------
-        xr.DataArray or xr.Dataset or None
-            Extracted and processed data for the station, or None if processing
-            failed. Contains station coordinates and elevation as attributes.
-            Returns DataArray for single-variable input, Dataset for multi-variable input.
-
-        Notes
-        -----
-        This method uses nearest-neighbor spatial extraction and removes
-        superfluous coordinates that are not dimensions to facilitate merging
-        multiple stations. Station metadata is collected for later use.
-        """
-
-        # Extract station info
-        station_name = station_row["station"]
-        station_lat = station_row["LAT_Y"]
-        station_lon = station_row["LON_X"]
-
-        try:
-            # Get closest grid cell
-            closest_data = get_closest_gridcell(
-                gridded_data, station_lat, station_lon, print_coords=False
-            )
-
-            if closest_data is None:
-                print(f"Warning: Could not find grid cell for station {station_name}")
-                return None
-
-            # Ensure closest_data is a DataArray for bias correction compatibility
-            if isinstance(closest_data, xr.Dataset):
-                # Get the first data variable from the Dataset
-                data_vars = list(closest_data.data_vars.keys())
-                if data_vars:
-                    closest_data = closest_data[data_vars[0]]
-                else:
-                    print(
-                        f"Warning: No data variables found in Dataset for station {station_name}"
-                    )
-                    return None
-
-            # Drop any coordinates that are not also dimensions
-            # This makes merging stations easier and drops superfluous coordinates
-            closest_data = closest_data.drop_vars(
-                [
-                    coord
-                    for coord in closest_data.coords
-                    if coord not in closest_data.dims
-                ],
-                errors="ignore",
-            )
-
-            # Apply bias correction if requested
-            if self.bias_correction:
-                closest_data = self._apply_bias_correction(
-                    closest_data, station_row, context
-                )
-
-            # Store station metadata
-            if self.station_metadata is None:
-                self.station_metadata = []
-            self.station_metadata.append(self._get_station_metadata(station_row))
-
-            # Add station coordinates and elevation as attributes
-            closest_data.attrs["station_coordinates"] = (station_lat, station_lon)
-            closest_data.attrs["station_elevation"] = station_row.get(
-                "elevation", "unknown"
-            )
-
-            # Rename to station name for easy identification
-            closest_data.attrs["name"] = station_name
-
-            return closest_data
-
-        except (ValueError, KeyError, IndexError, AttributeError) as e:
-            print(f"Warning: Failed to process station {station_name}: {e}")
-            return None
-
-    def _apply_bias_correction(
-        self,
-        model_data: Union[xr.DataArray, xr.Dataset],
-        station_row: pd.Series,
-        context: Dict[str, Any],
-    ) -> Union[xr.DataArray, xr.Dataset]:
-        """
-        Apply bias correction using observational data from the weather station.
-
-        Dispatches to the appropriate bias correction method based on the
-        configured method. Currently supports quantile delta mapping.
-
-        Parameters
-        ----------
-        model_data : xr.DataArray or xr.Dataset
-            Model gridded data to be bias corrected
-        station_row : pd.Series
-            Station metadata row containing station information
-        context : dict of str to Any
-            Processing context with configuration information
-
-        Returns
-        -------
-        xr.DataArray or xr.Dataset
-            Bias corrected model data
-
-        Raises
-        ------
-        ValueError
-            If the specified bias correction method is not supported
-
-        Notes
-        -----
-        This method serves as a dispatcher to specific bias correction
-        implementations. Currently only 'quantile_delta_mapping' is supported.
-        Handles both DataArray and Dataset inputs.
-        """
-
-        if self.method == "quantile_delta_mapping":
-            return self._apply_qdm_correction(model_data, station_row, context)
-        else:
-            raise ValueError(f"Unsupported bias correction method: {self.method}")
-
-    def _apply_qdm_correction(
-        self,
-        model_data: Union[xr.DataArray, xr.Dataset],
-        station_row: pd.Series,
-        context: Dict[str, Any],
-    ) -> Union[xr.DataArray, xr.Dataset]:
-        """
-        Apply Quantile Delta Mapping (QDM) bias correction.
-
-        Loads observational station data and applies quantile delta mapping
-        bias correction to adjust model data based on historical relationships
-        between model and observational data.
-
-        Parameters
-        ----------
-        model_data : xr.DataArray or xr.Dataset
-            Model data to be bias corrected
-        station_row : pd.Series
-            Station metadata containing station ID and other information
-        context : dict of str to Any
-            Processing context with time slice and other configuration
-
-        Returns
-        -------
-        xr.DataArray or xr.Dataset
-            Bias corrected model data, or original data if correction fails
-
-        Notes
-        -----
-        If station data cannot be loaded, a warning is printed and the original
-        model data is returned without correction. The method handles the
-        complete QDM workflow including data loading, preprocessing, and
-        bias correction application. Handles both DataArray and Dataset inputs.
-        """
-
-        # Get station data
-        station_id = station_row["station id"]
-        station_data = self._load_station_data(station_id, station_row)
-
-        if station_data is None:
-            print(
-                f"\n\nWARNING: No station data available for station {station_row['station']}"
-            )
-            return model_data
-
-        # Apply bias correction
-        try:
-            # Handle Dataset vs DataArray
-            if isinstance(model_data, xr.Dataset):
-                # For Dataset, apply correction to each data variable
-                corrected_vars = {}
-                for var_name, data_array in model_data.data_vars.items():
-                    corrected_vars[var_name] = self._bias_correct_model_data(
-                        station_data, data_array, context
-                    )
-                # Reconstruct Dataset with corrected variables
-                corrected_data = xr.Dataset(corrected_vars)
-                # Preserve original attributes and coordinates
-                corrected_data.attrs = model_data.attrs
-                for coord_name, coord_data in model_data.coords.items():
-                    if coord_name not in corrected_data.coords:
-                        corrected_data = corrected_data.assign_coords(
-                            {coord_name: coord_data}
-                        )
-                return corrected_data
-            else:
-                # For DataArray, apply correction directly
-                corrected_data = self._bias_correct_model_data(
-                    station_data, model_data, context
-                )
-                return corrected_data
-        except Exception as e:
-            print(
-                f"Warning: Bias correction failed for station {station_row['station']}: {e}"
-            )
-            return model_data
 
     def _load_station_data(
         self, station_id: int, station_row: pd.Series
@@ -938,395 +671,6 @@ class Localize(DataProcessor):
 
         return station_data
 
-    def _bias_correct_model_data(
-        self,
-        obs_da: xr.DataArray,
-        gridded_da: xr.DataArray,
-        context: Dict[str, Any],
-        window: int = 90,
-        group: str = "time.dayofyear",
-        kind: str = "+",
-    ) -> xr.DataArray:
-        """
-        Bias correct model data using observational station data.
-
-        Parameters
-        ----------
-        obs_da : xr.DataArray
-            Station observational data
-        gridded_da : xr.DataArray
-            Model gridded data
-        context : Dict[str, Any]
-            Processing context containing time slice information
-        window : int, optional
-            Window of days +/- for grouping (default: 90)
-        group : str, optional
-            Time frequency to group data by (default: "time.dayofyear")
-        kind : str, optional
-            Adjustment kind, additive "+" or multiplicative "*" (default: "+")
-
-        Returns
-        -------
-        xr.DataArray
-            Bias corrected data spanning the full time range:
-            - Historical period (up to 2014-08-31): Original uncorrected data
-            - Future period (from 2014-09-01): Bias-corrected data
-            If bias correction fails, returns the original data unchanged.
-        """
-
-        # Get grouper with window for seasonality
-        grouper = Grouper(group, window=window)
-
-        # Convert units to match gridded data
-        # Use K (Kelvin) as default if units attribute is missing
-        target_units = gridded_da.attrs.get("units", "K")
-
-        # Ensure gridded data has units attribute
-        if "units" not in gridded_da.attrs:
-            gridded_da.attrs["units"] = "K"
-
-        # Ensure frequency attribute is set correctly for unit conversion
-        if "frequency" not in gridded_da.attrs:
-            # must be hourly
-            gridded_da.attrs["frequency"] = "hourly"
-
-        # Ensure time coordinate is properly formatted
-        if "time" in gridded_da.coords:
-            try:
-                # Ensure time coordinate has datetime index
-                if not hasattr(gridded_da.time, "dt"):
-                    gridded_da = gridded_da.assign_coords(
-                        time=pd.to_datetime(gridded_da.time)
-                    )
-            except (ValueError, TypeError) as e:
-                # If time conversion fails, continue without it
-                pass
-
-        # Check if obs_da has units attribute, if not assume it's in Kelvin
-        if "units" not in obs_da.attrs:
-            obs_da.attrs["units"] = "K"
-
-        # Ensure frequency attribute is set correctly for unit conversion
-        if "frequency" not in obs_da.attrs:
-            # Try to infer frequency from time coordinate
-            if "time" in obs_da.coords and len(obs_da.time) > 1:
-                try:
-                    time_diff = obs_da.time[1] - obs_da.time[0]
-                    if hasattr(time_diff, "days"):
-                        if time_diff.days >= 28:  # Monthly data
-                            obs_da.attrs["frequency"] = "monthly"
-                        elif time_diff.days >= 1:  # Daily data
-                            obs_da.attrs["frequency"] = "daily"
-                        else:  # Sub-daily data (hourly)
-                            obs_da.attrs["frequency"] = "hourly"
-                    elif hasattr(time_diff, "seconds"):
-                        if time_diff.seconds <= 3600:  # 1 hour or less
-                            obs_da.attrs["frequency"] = "hourly"
-                        elif time_diff.seconds <= 86400:  # 1 day or less
-                            obs_da.attrs["frequency"] = "daily"
-                        else:
-                            obs_da.attrs["frequency"] = "monthly"
-                    else:
-                        obs_da.attrs["frequency"] = "daily"
-                except (ValueError, TypeError, AttributeError):
-                    obs_da.attrs["frequency"] = "daily"
-            else:
-                obs_da.attrs["frequency"] = "daily"
-
-        # Ensure time coordinate is properly formatted
-        if "time" in obs_da.coords:
-            try:
-                # Ensure time coordinate has datetime index
-                if not hasattr(obs_da.time, "dt"):
-                    obs_da = obs_da.assign_coords(time=pd.to_datetime(obs_da.time))
-            except (ValueError, TypeError) as e:
-                # If time conversion fails, continue without it
-                pass
-
-        try:
-            obs_da = self._simple_convert_temperature(obs_da, target_units)
-        except (ValueError, KeyError, AttributeError) as e:
-            print(f"Warning: Could not convert units, using original data: {e}")
-            # Ensure both have the same units for comparison
-            obs_da.attrs["units"] = target_units
-
-        # Rechunk data - cannot be chunked along time dimension for xclim
-        gridded_da = gridded_da.chunk(chunks=dict(time=-1))
-
-        # Limit observational data to available period
-        obs_da = obs_da.sel(time=slice(obs_da.time.values[0], "2014-08-31"))
-
-        obs_da = obs_da.chunk(chunks=dict(time=-1))
-
-        # NOTE: We'll convert calendars later, just before training QDM
-        # Converting too early creates cftime objects that are incompatible with xclim
-
-        # Get original time slice from context
-        original_time_slice = context.get("original_time_slice", (2015, 2100))
-        data_sliced = gridded_da.sel(
-            time=slice(str(original_time_slice[0]), str(original_time_slice[1]))
-        )
-
-        # Fix time coordinate if .dt attribute is lost
-        if not hasattr(data_sliced.time, "dt"):
-            data_sliced = data_sliced.assign_coords(
-                time=pd.to_datetime(data_sliced.time)
-            )
-
-        # Manual separation of historical and future periods from combined array
-        historical_end_date = "2014-08-31"
-        future_start_date = "2014-09-01"
-
-        gridded_historical = gridded_da.sel(time=slice(None, historical_end_date))
-
-        # Fix time coordinate if .dt attribute is lost
-        if not hasattr(gridded_historical.time, "dt"):
-            gridded_historical = gridded_historical.assign_coords(
-                time=pd.to_datetime(gridded_historical.time)
-            )
-
-        # Extract future period from combined gridded data (target for bias correction)
-        try:
-            # Try different date formats for slicing
-            gridded_future = gridded_da.sel(time=slice(future_start_date, None))
-            if len(gridded_future.time) == 0:
-                # Try with explicit datetime conversion
-                future_start_dt = pd.to_datetime(future_start_date)
-                gridded_future = gridded_da.where(
-                    gridded_da.time >= future_start_dt, drop=True
-                )
-        except Exception as e:
-            # Fallback: use index-based slicing
-            time_index = gridded_da.time.to_index()
-            future_mask = time_index >= pd.to_datetime(future_start_date)
-            if future_mask.any():
-                gridded_future = gridded_da.isel(time=future_mask)
-            else:
-                print("ERROR: No future period found in data")
-                return gridded_da
-
-        # Fix time coordinate if .dt attribute is lost
-        if not hasattr(gridded_future.time, "dt"):
-            gridded_future = gridded_future.assign_coords(
-                time=pd.to_datetime(gridded_future.time)
-            )
-
-        if len(gridded_future.time) == 0:
-            return gridded_da  # Return the original gridded data without correction
-
-        # Determine training period from overlap between obs and historical gridded data
-        obs_start = obs_da.time.values[0]
-        obs_end = obs_da.time.values[-1]
-        hist_start = (
-            gridded_historical.time.values[0]
-            if len(gridded_historical.time) > 0
-            else obs_end
-        )
-        hist_end = (
-            gridded_historical.time.values[-1]
-            if len(gridded_historical.time) > 0
-            else obs_start
-        )
-
-        # Find overlap between observations and historical gridded data for training
-        if (
-            obs_end < hist_start
-            or obs_start > hist_end
-            or len(gridded_historical.time) == 0
-        ):
-            warnings.warn(
-                "No temporal overlap between observational and historical gridded data. "
-                "Cannot perform bias correction without overlapping training period. "
-                "Returning original combined data without bias correction"
-            )
-            # Return the full original data instead of just future
-            return gridded_da
-
-        # Calculate training period as the overlap between obs and historical gridded data
-        train_start = max(obs_start, hist_start)
-        train_end = min(obs_end, hist_end)
-
-        # Check if we have a meaningful training period (at least some data)
-        if train_start >= train_end:
-            print("WARNING: No meaningful overlapping training period")
-            print("WARNING: Returning original combined data without bias correction")
-            # Return the full original data instead of just future
-            return gridded_da
-
-        # Additional check: ensure training period has sufficient data (at least 1 year)
-        train_duration_days = (
-            pd.to_datetime(train_end) - pd.to_datetime(train_start)
-        ).days
-        if train_duration_days < 365:
-            print(
-                f"WARNING: Training period too short ({train_duration_days} days < 365 days)"
-            )
-            print(
-                "WARNING: Bias correction may be unreliable with < 1 year of training data"
-            )
-            print("WARNING: Continuing with available training data...")
-
-        # Extract training data from historical period
-        gridded_train = gridded_historical.sel(
-            time=slice(str(train_start), str(train_end))
-        )
-
-        # Fix time coordinate if .dt attribute is lost
-        if not hasattr(gridded_train.time, "dt"):
-            gridded_train = gridded_train.assign_coords(
-                time=pd.to_datetime(gridded_train.time)
-            )
-
-        # Extract corresponding observational training data
-        obs_train = obs_da.sel(time=slice(str(train_start), str(train_end)))
-
-        # Fix time coordinate if .dt attribute is lost
-        if not hasattr(obs_train.time, "dt"):
-            obs_train = obs_train.assign_coords(time=pd.to_datetime(obs_train.time))
-
-        # The target for bias correction is the future period
-
-        # Convert calendars to no leap year for consistency just before QDM training
-        # This minimizes issues with cftime objects in earlier processing steps
-        try:
-            obs_train = obs_train.convert_calendar("noleap")
-
-            gridded_train = gridded_train.convert_calendar("noleap")
-
-            gridded_future = gridded_future.convert_calendar("noleap")
-
-        except Exception as e:
-            print(f"ERROR: Calendar conversion failed: {e}")
-
-        # Convert cftime objects back to standard datetime for xclim compatibility
-        try:
-            # Check if we have cftime objects
-            if hasattr(gridded_train.time.values[0], "strftime") and "cftime" in str(
-                type(gridded_train.time.values[0])
-            ):
-                # Convert cftime to standard datetime using strftime/strptime
-                time_strings = [
-                    t.strftime("%Y-%m-%d %H:%M:%S") for t in gridded_train.time.values
-                ]
-                datetime_index = pd.to_datetime(time_strings)
-                gridded_train = gridded_train.assign_coords(time=datetime_index)
-
-            if hasattr(obs_train.time.values[0], "strftime") and "cftime" in str(
-                type(obs_train.time.values[0])
-            ):
-                # Convert cftime to standard datetime using strftime/strptime
-                time_strings = [
-                    t.strftime("%Y-%m-%d %H:%M:%S") for t in obs_train.time.values
-                ]
-                datetime_index = pd.to_datetime(time_strings)
-                obs_train = obs_train.assign_coords(time=datetime_index)
-
-            if hasattr(gridded_future.time.values[0], "strftime") and "cftime" in str(
-                type(gridded_future.time.values[0])
-            ):
-                # Convert cftime to standard datetime using strftime/strptime
-                time_strings = [
-                    t.strftime("%Y-%m-%d %H:%M:%S") for t in gridded_future.time.values
-                ]
-                datetime_index = pd.to_datetime(time_strings)
-                gridded_future = gridded_future.assign_coords(time=datetime_index)
-
-        except (AttributeError, TypeError, ValueError, IndexError) as e:
-            # Try alternative approach - use xarray's built-in conversion
-            try:
-                if len(gridded_train.time) > 0:
-                    gridded_train = gridded_train.convert_calendar(
-                        "standard", use_cftime=False
-                    )
-                if len(obs_train.time) > 0:
-                    obs_train = obs_train.convert_calendar("standard", use_cftime=False)
-                if len(gridded_future.time) > 0:
-                    gridded_future = gridded_future.convert_calendar(
-                        "standard", use_cftime=False
-                    )
-            except Exception as e2:
-                print(f"ERROR: Alternative time conversion also failed: {e2}")
-                print(
-                    "WARNING: Proceeding with original time coordinates - bias correction may fail"
-                )
-
-        # Train quantile delta mapping
-        quant_delt_map = QuantileDeltaMapping.train(
-            obs_train,
-            gridded_train,
-            nquantiles=self.nquantiles,
-            group=grouper,
-            kind=kind,
-        )
-        da_adj_future = quant_delt_map.adjust(gridded_future)
-        da_adj_future.name = gridded_da.name  # Preserve original name
-
-        # Convert time index back to datetime if needed
-        try:
-            time_index = da_adj_future.indexes.get("time")
-            if time_index is not None and hasattr(time_index, "to_datetimeindex"):
-                da_adj_future = da_adj_future.assign_coords(
-                    time=time_index.to_datetimeindex()
-                )
-        except (AttributeError, KeyError, TypeError):
-            # Time index conversion not needed or not available
-            pass
-
-        # Ensure historical data has the same calendar and time format as bias-corrected future
-        try:
-            # Convert historical data to match the future data's calendar and time format
-            gridded_historical_for_concat = gridded_historical.copy()
-
-            # Apply same calendar conversion as used for bias correction
-            if len(gridded_historical_for_concat.time) > 0:
-                try:
-                    gridded_historical_for_concat = (
-                        gridded_historical_for_concat.convert_calendar("noleap")
-                    )
-                except Exception as e:
-                    print(f"ERROR: Historical calendar conversion failed: {e}")
-
-                # Convert cftime to standard datetime if needed (same as done for future data)
-                if (
-                    len(gridded_historical_for_concat.time) > 0
-                    and hasattr(
-                        gridded_historical_for_concat.time.values[0], "strftime"
-                    )
-                    and "cftime"
-                    in str(type(gridded_historical_for_concat.time.values[0]))
-                ):
-                    time_strings = [
-                        t.strftime("%Y-%m-%d %H:%M:%S")
-                        for t in gridded_historical_for_concat.time.values
-                    ]
-                    datetime_index = pd.to_datetime(time_strings)
-                    gridded_historical_for_concat = (
-                        gridded_historical_for_concat.assign_coords(time=datetime_index)
-                    )
-
-            # Combine the data along time dimension
-            da_combined = xr.concat([gridded_historical_for_concat, da_adj_future], dim="time")  # type: ignore
-
-            # Preserve original attributes and name
-            da_combined.attrs = gridded_da.attrs.copy()
-            da_combined.name = gridded_da.name
-
-            # Add bias correction metadata to attributes
-            da_combined.attrs["bias_correction_applied"] = "true"
-            da_combined.attrs["bias_correction_method"] = "quantile_delta_mapping"
-            da_combined.attrs["bias_correction_note"] = (
-                f"Historical period (up to {historical_end_date}) uncorrected, future period (from {future_start_date}) bias-corrected"
-            )
-            da_combined.attrs["historical_future_split_date"] = historical_end_date
-
-            return da_combined
-
-        except Exception as e:
-            print(f"WARNING: Failed to combine historical and future data: {e}")
-            print("WARNING: Returning only bias-corrected future data")
-            print("WARNING: This may cause issues with downstream time slicing")
-            return da_adj_future  # type: ignore
-
     def _bias_correct_model_data_optimized(
         self,
         obs_da: xr.DataArray,
@@ -1367,9 +711,6 @@ class Localize(DataProcessor):
             # Rechunk for xclim compatibility
             gridded_da = gridded_da.chunk(chunks=dict(time=-1))
             obs_da = obs_da.chunk(chunks=dict(time=-1))
-
-            # Get time slice info
-            original_time_slice = context.get("original_time_slice", (2015, 2100))
 
             # Limit obs data to available period
             obs_da = obs_da.sel(time=slice(obs_da.time.values[0], "2014-08-31"))
@@ -1675,19 +1016,23 @@ class Localize(DataProcessor):
             return da
 
         # Convert temperature units - assuming we're dealing with temperature data
-        if current_units == "K" and target_units == "degC":
-            da = da - 273.15
-        elif current_units == "degC" and target_units == "K":
-            da = da + 273.15
-        elif current_units == "K" and target_units == "degF":
-            da = (1.8 * (da - 273.15)) + 32
-        elif current_units == "degC" and target_units == "degF":
-            da = (1.8 * da) + 32
-        elif current_units == "degF" and target_units == "K":
-            da = ((da - 32) / 1.8) + 273.15
-        elif current_units == "degF" and target_units == "degC":
-            da = (da - 32) / 1.8
-        # Add more conversions as needed
+        match (current_units, target_units):
+            case ("K", "degC"):
+                da = da - 273.15
+            case ("degC", "K"):
+                da = da + 273.15
+            case ("K", "degF"):
+                da = (1.8 * (da - 273.15)) + 32
+            case ("degC", "degF"):
+                da = (1.8 * da) + 32
+            case ("degF", "K"):
+                da = ((da - 32) / 1.8) + 273.15
+            case ("degF", "degC"):
+                da = (da - 32) / 1.8
+            case _:
+                raise ValueError(
+                    f"Unsupported temperature conversion from {current_units} to {target_units}"
+                )
 
         # Update units attribute
         da.attrs["units"] = target_units
