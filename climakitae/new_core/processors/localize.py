@@ -1353,6 +1353,7 @@ class Localize(DataProcessor):
         xr.DataArray
             Bias corrected data
         """
+        print("INFO: running optimized bias correction")
         try:
             # Get grouper
             grouper = Grouper("time.dayofyear", window=self.window)
