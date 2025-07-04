@@ -75,7 +75,6 @@ class TimeSlice(DataProcessor):
             The sliced data. This can be a single Dataset/DataArray or
             an iterable of them.
         """
-        print(result)
         match result:
             case dict():  # most likely case at top
                 subset_data = {}
