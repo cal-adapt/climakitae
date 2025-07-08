@@ -203,11 +203,29 @@ def get_block_maxima(
                 "ERROR: The given `da_series` does not include any recorded values for this variable, and we cannot create block maximums off of an empty DataArray."
             )
         else:
-            dropped_bms = bms.dropna(dim="time")
-            print(
-                f"Dropping {bms.size - dropped_bms.size} block maxima NaNs across entire{f' {bms.name}' if bms.name else ''} DataArray. Please guidance for more information. "
-            )
-            bms = dropped_bms
+            # Handle NaN dropping differently for gridded data vs timeseries data
+            if "x" in bms.dims and "y" in bms.dims:
+                # For gridded data, only drop time steps where ALL spatial points are NaN
+                # This prevents dropping time steps that have valid data at some spatial locations
+                all_nan_times = bms.isnull().all(dim=["x", "y"])
+                if all_nan_times.any():
+                    dropped_bms = bms.where(~all_nan_times, drop=True)
+                    print(
+                        f"Dropping {all_nan_times.sum().item()} time steps where all spatial points are NaN across entire{f' {bms.name}' if bms.name else ''} DataArray."
+                    )
+                    bms = dropped_bms
+            elif bms.dims == ("time",):
+                # For timeseries data, drop NaN time steps as before
+                dropped_bms = bms.dropna(dim="time")
+                print(
+                    f"Dropping {bms.size - dropped_bms.size} block maxima NaNs across entire{f' {bms.name}' if bms.name else ''} DataArray. Please guidance for more information. "
+                )
+                bms = dropped_bms
+            else:
+                # For other dimension combinations, be conservative and don't drop
+                print(
+                    f"WARNING: Found NaN values in block maxima but unable to determine appropriate dropping strategy for dimensions {bms.dims}. Keeping all data."
+                )
 
     return bms
 
