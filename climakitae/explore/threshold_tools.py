@@ -367,8 +367,8 @@ def _get_fitted_distr(
         """
         return dict(zip(p_names, p_values))
 
-    parameters = None
-    fitted_distr = None
+    parameters = UNSET
+    fitted_distr = UNSET
 
     p_values = distr_func.fit(bms)
 
@@ -490,8 +490,8 @@ def get_ks_stat(
     new_ds["p_value"].attrs["stat test"] = "KS test"
     new_ds.attrs = bms_attributes
     new_ds.attrs["distribution"] = "{}".format(str(distr))
-    new_ds["p_value"].attrs["units"] = None
-    new_ds["d_statistic"].attrs["units"] = None
+    new_ds["p_value"].attrs["units"] = UNSET
+    new_ds["d_statistic"].attrs["units"] = UNSET
     return new_ds
 
 
@@ -797,7 +797,7 @@ def _get_return_variable(
             new_ds["return_prob"].attrs[
                 "threshold"
             ] = f"exceedance of {arg_value} {threshold_unit} event"
-            new_ds["return_prob"].attrs["units"] = None
+            new_ds["return_prob"].attrs["units"] = UNSET
         case "return_period":
             return_value_unit = bms_attributes["units"]
             new_ds["return_period"].attrs[
@@ -1003,7 +1003,7 @@ def get_exceedance_count(
         length of exceedance in order to qualify as an event (after grouping)
     smoothing: int
         option to average the result across multiple periods with a
-        rolling average; value is either None or the number of timesteps to use
+        rolling average; value is either UNSET or the number of timesteps to use
         as the window size
 
     Returns
@@ -1133,7 +1133,7 @@ def _is_greater(time1: tuple[int, str], time2: tuple[int, str]) -> bool:
         (3, "month"), (1, "month") --> True
     """
     order = ["hour", "day", "month", "year"]
-    if time1 is None or time2 is None:
+    if time1 is UNSET or time2 is UNSET:
         return False
     elif time1[1] == time2[1]:
         return time1[0] > time2[0]
@@ -1173,9 +1173,9 @@ def _get_exceedance_events(
     # Identify occurances (and preserve NaNs)
     match threshold_direction:
         case "above":
-            events_da = (da > threshold_value).where(da.isnull() is False)
+            events_da = (da > threshold_value).where(~da.isnull())
         case "below":
-            events_da = (da < threshold_value).where(da.isnull() is False)
+            events_da = (da < threshold_value).where(~da.isnull())
         case _:
             raise ValueError(
                 f"Unknown value for `threshold_direction` parameter: {threshold_direction}. Available options are 'above' or 'below'."
@@ -1193,7 +1193,7 @@ def _get_exceedance_events(
         events_da = events_da.rolling(time=window_size, center=False).min("time")
 
     # Groupby
-    if groupby is not None:
+    if groupby is not UNSET:
         if (
             (groupby == (1, "hour") and da.frequency == "hourly")
             or (groupby == (1, "day") and da.frequency == "daily")
@@ -1211,7 +1211,7 @@ def _get_exceedance_events(
                 time=f"{group_len}{indexer_type}", label="left"
             ).sum()  # sum occurences within each group
             events_da = (group_totals > 0).where(
-                group_totals.isnull() is False
+                ~group_totals.isnull()
             )  # turn back into a boolean with preserved NaNs (0 or 1 for whether there is any occurance in the group)
     return events_da
 
@@ -1237,16 +1237,16 @@ def _exceedance_count_name(exceedance_count: xr.DataArray) -> str:
     """
     # If duration is used, this determines the event name
     dur = exceedance_count.duration2
-    if dur is not UNSET:
+    if dur is not None and dur is not UNSET:
         d_num, d_type = dur
         if d_num != 1:
             event = f"{d_num}-{d_type} events"
         else:
             event = f"{d_type}s"  # ex: day --> days
     else:
-        # otherwise use "groupby" if not None
+        # otherwise use "groupby" if not UNSET
         grp = exceedance_count.group
-        if grp is not UNSET:
+        if grp is not UNSET and grp is not None:
             g_num, g_type = grp
             if g_num != 1:
                 event = f"{g_num}-{g_type} events"
