@@ -6,8 +6,10 @@ import statsmodels as sm
 import xarray as xr
 from scipy import stats
 
+from climakitae.core.constants import UNSET
 
-def calculate_ess(data: xr.DataArray, nlags: int = None) -> xr.DataArray:
+
+def calculate_ess(data: xr.DataArray, nlags: int = UNSET) -> xr.DataArray:
     """
     Function for calculating the effective sample size (ESS) of the provided data.
 
@@ -26,7 +28,7 @@ def calculate_ess(data: xr.DataArray, nlags: int = None) -> xr.DataArray:
         Returned as a DataArray object so it can be utilized by xr.groupby and xr.resample.
     """
     n = len(data)
-    if nlags is None:
+    if nlags is UNSET:
         nlags = n
     acf = sm.tsa.stattools.acf(data, nlags=nlags, fft=True)
     sums = 0
@@ -39,9 +41,9 @@ def calculate_ess(data: xr.DataArray, nlags: int = None) -> xr.DataArray:
 def get_block_maxima(
     da_series: xr.DataArray,
     extremes_type: str = "max",
-    duration: tuple[int, str] = None,
-    groupby: tuple[int, str] = None,
-    grouped_duration: tuple[int, str] = None,
+    duration: tuple[int, str] = UNSET,
+    groupby: tuple[int, str] = UNSET,
+    grouped_duration: tuple[int, str] = UNSET,
     check_ess: bool = True,
     block_size: int = 1,
 ) -> xr.DataArray:
@@ -85,7 +87,7 @@ def get_block_maxima(
             "invalid extremes type. expected one of the following: %s" % extremes_types
         )
 
-    if duration != None:
+    if duration is not UNSET:
         # In this case, user is interested in extreme events lasting at least
         # as long as the length of `duration`.
         dur_len, dur_type = duration
@@ -105,7 +107,7 @@ def get_block_maxima(
             case _:
                 raise ValueError('extremes_type needs to be either "max" or "min"')
 
-    if groupby != None:
+    if groupby is not UNSET:
         # In this case, select the max (min) in each group. (This option is
         # really only meaningful when coupled with the `grouped_duration` option.)
         group_len, group_type = groupby
@@ -123,8 +125,8 @@ def get_block_maxima(
             case _:
                 raise ValueError('extremes_type needs to be either "max" or "min"')
 
-    if grouped_duration != None:
-        if groupby == None:
+    if grouped_duration is not UNSET:
+        if groupby is UNSET:
             raise ValueError(
                 "To use `grouped_duration` option, must first use groupby."
             )
@@ -159,6 +161,7 @@ def get_block_maxima(
     # Calculate the effective sample size of the computed event type in all blocks
     # Check the average value to ensure that it's above threshold ESS
     if check_ess:
+        average_ess = -1
         if "x" in da_series.dims and "y" in da_series.dims:
             # Case for data with spatial dimensions (gridded)
             average_ess = _calc_average_ess_gridded_data(da_series, block_size)
@@ -172,7 +175,7 @@ def get_block_maxima(
                 f"WARNING: the effective sample size can only be checked for timeseries or spatial data. You provided data with the following dimensions: {da_series.dims}."
             )
 
-        if average_ess < 25:
+        if average_ess < 25 and average_ess > 0:
             print(
                 f"WARNING: The average effective sample size in your data is {round(average_ess, 2)} per block, which is lower than a standard target of around 25. This may result in biased estimates of extreme value distributions when calculating return values, periods, and probabilities from this data. Consider using a longer block size to increase the effective sample size in each block of data."
             )
@@ -183,7 +186,7 @@ def get_block_maxima(
             "duration": duration,
             "groupby": groupby,
             "grouped_duration": grouped_duration,
-            "extreme_value_extraction_method": f"block maxima",
+            "extreme_value_extraction_method": "block maxima",
             "block_size": f"{block_size} year",
             "timeseries_type": f"block {extremes_type} series",
         }
@@ -295,7 +298,7 @@ def _calc_average_ess_timeseries_data(data: xr.DataArray, block_size: int) -> fl
     return mean_ess
 
 
-def _get_distr_func(distr: str) -> scipy.stats:
+def _get_distr_func(distr: str) -> scipy.stats._continuous_distns.rv_continuous_frozen:
     """Function that sets the scipy distribution object
 
     Sets corresponding distribution function from selected
@@ -333,7 +336,9 @@ def _get_distr_func(distr: str) -> scipy.stats:
 
 
 def _get_fitted_distr(
-    bms: xr.DataArray, distr: str, distr_func: scipy.stats
+    bms: xr.DataArray,
+    distr: str,
+    distr_func: scipy.stats._continuous_distns.rv_continuous_frozen,
 ) -> dict[str, float] | scipy.stats._distn_infrastructure.rv_continuous_frozen:
     """Function for fitting data to distribution function
 
@@ -597,7 +602,7 @@ def _bootstrap(
     new_bms = np.random.choice(bms, size=sample_size, replace=True)
 
     try:
-        parameters, fitted_distr = _get_fitted_distr(new_bms, distr, distr_func)
+        _, fitted_distr = _get_fitted_distr(new_bms, distr, distr_func)
         result = _calculate_return(
             fitted_distr=fitted_distr,
             data_variable=data_variable,
@@ -732,7 +737,7 @@ def _get_return_variable(
 
     def _return_variable(bms):
         try:
-            parameters, fitted_distr = _get_fitted_distr(bms, distr, distr_func)
+            _, fitted_distr = _get_fitted_distr(bms, distr, distr_func)
             return_variable = _calculate_return(
                 fitted_distr=fitted_distr,
                 data_variable=data_variable,
@@ -802,12 +807,12 @@ def _get_return_variable(
                 'data_variable needs to be either "return_value", "return_prob", or "return_period"'
             )
 
-    new_ds["conf_int_lower_limit"].attrs["confidence interval lower bound"] = (
-        "{}th percentile".format(str(conf_int_lower_bound))
-    )
-    new_ds["conf_int_upper_limit"].attrs["confidence interval upper bound"] = (
-        "{}th percentile".format(str(conf_int_upper_bound))
-    )
+    new_ds["conf_int_lower_limit"].attrs[
+        "confidence interval lower bound"
+    ] = f"{conf_int_lower_bound}th percentile"
+    new_ds["conf_int_upper_limit"].attrs[
+        "confidence interval upper bound"
+    ] = f"{conf_int_upper_bound}th percentile"
 
     new_ds.attrs["distribution"] = f"{distr}"
     return new_ds
@@ -961,12 +966,12 @@ def get_return_period(
 def get_exceedance_count(
     da: xr.DataArray,
     threshold_value: float,
-    duration1: tuple[int, str] = None,
+    duration1: tuple[int, str] = UNSET,
     period: tuple[int, str] = (1, "year"),
     threshold_direction="above",
-    duration2: tuple[int, str] = None,
-    groupby: tuple[int, str] = None,
-    smoothing: int = None,
+    duration2: tuple[int, str] = UNSET,
+    groupby: tuple[int, str] = UNSET,
+    smoothing: int = UNSET,
 ) -> xr.DataArray:
     """Calculate the number of occurances of exceeding the specified threshold
     within each period.
@@ -1051,13 +1056,13 @@ def get_exceedance_count(
 
     # --------- Apply specified duration requirement ---------------------------
 
-    if duration2 is not None:
+    if duration2 is not UNSET:
         dur_len, dur_type = duration2
 
         if (
-            groupby is not None
+            groupby is not UNSET
             and groupby[1] == dur_type
-            or groupby is None
+            or groupby is UNSET
             and freq[1] == dur_type
         ):
             window_size = dur_len
@@ -1082,7 +1087,7 @@ def get_exceedance_count(
     ).sum()
 
     # Optional smoothing
-    if smoothing is not None:
+    if smoothing is not UNSET:
         exceedance_count = exceedance_count.rolling(time=smoothing, center=True).mean(
             "time"
         )
@@ -1138,8 +1143,8 @@ def _get_exceedance_events(
     da: xr.DataArray,
     threshold_value: float,
     threshold_direction: str = "above",
-    duration1: tuple[int, str] = None,
-    groupby: tuple[int, str] = None,
+    duration1: tuple[int, str] = UNSET,
+    groupby: tuple[int, str] = UNSET,
 ) -> xr.DataArray:
     """Function for generating logical array of threshold event occurance
 
@@ -1166,15 +1171,15 @@ def _get_exceedance_events(
     # Identify occurances (and preserve NaNs)
     match threshold_direction:
         case "above":
-            events_da = (da > threshold_value).where(da.isnull() == False)
+            events_da = (da > threshold_value).where(da.isnull() is False)
         case "below":
-            events_da = (da < threshold_value).where(da.isnull() == False)
+            events_da = (da < threshold_value).where(da.isnull() is False)
         case _:
             raise ValueError(
                 f"Unknown value for `threshold_direction` parameter: {threshold_direction}. Available options are 'above' or 'below'."
             )
 
-    if duration1 is not None:
+    if duration1 is not UNSET:
         dur_len, dur_type = duration1
         if dur_type != "hour" or da.frequency != "hourly":
             raise ValueError("Current specifications not yet implemented.")
@@ -1204,7 +1209,7 @@ def _get_exceedance_events(
                 time=f"{group_len}{indexer_type}", label="left"
             ).sum()  # sum occurences within each group
             events_da = (group_totals > 0).where(
-                group_totals.isnull() == False
+                group_totals.isnull() is False
             )  # turn back into a boolean with preserved NaNs (0 or 1 for whether there is any occurance in the group)
     return events_da
 
@@ -1230,7 +1235,7 @@ def _exceedance_count_name(exceedance_count: xr.DataArray) -> str:
     """
     # If duration is used, this determines the event name
     dur = exceedance_count.duration2
-    if dur is not None:
+    if dur is not UNSET:
         d_num, d_type = dur
         if d_num != 1:
             event = f"{d_num}-{d_type} events"
@@ -1239,7 +1244,7 @@ def _exceedance_count_name(exceedance_count: xr.DataArray) -> str:
     else:
         # otherwise use "groupby" if not None
         grp = exceedance_count.group
-        if grp is not None:
+        if grp is not UNSET:
             g_num, g_type = grp
             if g_num != 1:
                 event = f"{g_num}-{g_type} events"
