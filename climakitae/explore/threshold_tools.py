@@ -298,7 +298,9 @@ def _calc_average_ess_timeseries_data(data: xr.DataArray, block_size: int) -> fl
     return mean_ess
 
 
-def _get_distr_func(distr: str) -> scipy.stats._continuous_distns.rv_continuous_frozen:
+def _get_distr_func(
+    distr: str,
+) -> scipy.stats._distn_infrastructure.rv_continuous_frozen:
     """Function that sets the scipy distribution object
 
     Sets corresponding distribution function from selected
@@ -338,7 +340,7 @@ def _get_distr_func(distr: str) -> scipy.stats._continuous_distns.rv_continuous_
 def _get_fitted_distr(
     bms: xr.DataArray,
     distr: str,
-    distr_func: scipy.stats._continuous_distns.rv_continuous_frozen,
+    distr_func: scipy.stats._distn_infrastructure.rv_continuous_frozen,
 ) -> dict[str, float] | scipy.stats._distn_infrastructure.rv_continuous_frozen:
     """Function for fitting data to distribution function
 
