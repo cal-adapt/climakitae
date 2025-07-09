@@ -9,10 +9,8 @@ from climakitae.explore.uncertainty import (
     GWL_1850_1900_FILE,
     GWL_1981_2010_FILE,
     CmipOpt,
-    calc_anom,
     cmip_mmm,
     get_ensemble_data,
-    get_ks_pval_df,
     get_warm_level,
     grab_multimodel_data,
     weighted_temporal_mean,
@@ -76,9 +74,9 @@ def test_get_warm_level_file_loading(mock_read_csv, mock_data_for_warm_level):
     mock_read_csv.side_effect = side_effect
 
     # Test IPCC path (ipcc=True)
-    with patch("climakitae.explore.uncertainty.gwl_1850_1900_file", GWL_1850_1900_FILE):
+    with patch("climakitae.explore.uncertainty.GWL_1850_1900_FILE", GWL_1850_1900_FILE):
         with patch(
-            "climakitae.explore.uncertainty.gwl_1981_2010_file", GWL_1981_2010_FILE
+            "climakitae.explore.uncertainty.GWL_1981_2010_FILE", GWL_1981_2010_FILE
         ):
             # Mock just enough of the function to test file loading
             with patch.object(
@@ -101,9 +99,9 @@ def test_get_warm_level_file_loading(mock_read_csv, mock_data_for_warm_level):
 
     # Test non-IPCC path (ipcc=False)
     mock_read_csv.reset_mock()
-    with patch("climakitae.explore.uncertainty.gwl_1850_1900_file", GWL_1850_1900_FILE):
+    with patch("climakitae.explore.uncertainty.GWL_1850_1900_FILE", GWL_1850_1900_FILE):
         with patch(
-            "climakitae.explore.uncertainty.gwl_1981_2010_file", GWL_1981_2010_FILE
+            "climakitae.explore.uncertainty.GWL_1981_2010_FILE", GWL_1981_2010_FILE
         ):
             with patch.object(
                 pd, "concat", return_value=pd.concat([mock_non_ipcc_df, mock_ece3_df])

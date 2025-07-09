@@ -47,11 +47,11 @@ class TestDataInterface:
                 "climakitae.core.data_interface.VariableDescriptions"
             ) as mock_var_desc,
             patch(
-                "climakitae.core.data_interface.stations_csv_path",
+                "climakitae.core.data_interface.STATIONS_CSV_PATH",
                 "data/hadisd_stations.csv",
             ),
             patch(
-                "climakitae.core.data_interface.gwl_1850_1900_file",
+                "climakitae.core.data_interface.GWL_1850_1900_FILE",
                 "data/gwl_1850-1900ref.csv",
             ),
             patch(
@@ -59,7 +59,7 @@ class TestDataInterface:
                 "https://cadcat.s3.amazonaws.com/cae-collection.json",
             ),
             patch(
-                "climakitae.core.data_interface.boundary_catalog_url",
+                "climakitae.core.data_interface.BOUNDARY_CATALOG_URL",
                 "boundary_catalog_url_value",
             ),
         ):
