@@ -55,11 +55,11 @@ class TestDataInterface:
                 "data/gwl_1850-1900ref.csv",
             ),
             patch(
-                "climakitae.core.data_interface.data_catalog_url",
+                "climakitae.core.data_interface.DATA_CATALOG_URL",
                 "https://cadcat.s3.amazonaws.com/cae-collection.json",
             ),
             patch(
-                "climakitae.core.data_interface.boundary_catalog_url",
+                "climakitae.core.data_interface.BOUNDARY_CATALOG_URL",
                 "boundary_catalog_url_value",
             ),
         ):
