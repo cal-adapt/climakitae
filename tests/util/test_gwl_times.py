@@ -76,4 +76,3 @@ def test_check_columns_sorted(name, df):
     assert column_names == sorted(
         column_names, key=float
     ), f"Dynamic columns are not sorted in {name}."
-    ), f"Dynamic columns are not sorted in {name}."
