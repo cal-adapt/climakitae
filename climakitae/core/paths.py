@@ -8,9 +8,6 @@ STATIONS_CSV_PATH = "data/hadisd_stations.csv"
 # Intake Data Calalog URLs
 DATA_CATALOG_URL = "https://cadcat.s3.amazonaws.com/cae-collection.json"
 BOUNDARY_CATALOG_URL = "https://cadcat.s3.amazonaws.com/parquet/catalog.yaml"
-RENEWABLES_CATALOG_URL = (
-    "https://wfclimres.s3.amazonaws.com/era/era-ren-collection.json"
-)
 
 # S3 scratch bucket for exporting
 EXPORT_S3_BUCKET = "cadcat-tmp"

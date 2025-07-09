@@ -1,14 +1,15 @@
 """Tests to see that GWL times csv's are formatted correctly"""
 
-import pytest
 import pandas as pd
-from climakitae.util.utils import read_csv_file
-from climakitae.core.paths import gwl_1850_1900_file, gwl_1981_2010_file
+import pytest
+
 from climakitae.core.constants import WARMING_LEVELS
+from climakitae.core.paths import GWL_1850_1900_FILE, GWL_1981_2010_FILE
+from climakitae.util.utils import read_csv_file
 
 # Load the DataFrames
-gwl_times_1850_1900 = read_csv_file(gwl_1850_1900_file)
-gwl_times_1981_2010 = read_csv_file(gwl_1981_2010_file)
+gwl_times_1850_1900 = read_csv_file(GWL_1850_1900_FILE)
+gwl_times_1981_2010 = read_csv_file(GWL_1981_2010_FILE)
 
 # Parameterized DataFrames for testing
 gwl_dfs = [("1850-1900", gwl_times_1850_1900), ("1981-2010", gwl_times_1981_2010)]
@@ -74,4 +75,5 @@ def test_check_columns_sorted(name, df):
     column_names = [col for col in df.columns if col.replace(".", "").isdigit()]
     assert column_names == sorted(
         column_names, key=float
+    ), f"Dynamic columns are not sorted in {name}."
     ), f"Dynamic columns are not sorted in {name}."

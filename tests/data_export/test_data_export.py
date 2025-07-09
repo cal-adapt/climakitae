@@ -14,13 +14,13 @@ import pytest
 import xarray as xr
 
 import climakitae.core.data_export as export
-from climakitae.core.paths import stations_csv_path
+from climakitae.core.paths import STATIONS_CSV_PATH
 
 
 def input() -> str:
     # When mocking open() we still want to be able to read the stations
     # from the stations_csv_path, so getting that input here.
-    with open(os.path.join("climakitae", stations_csv_path), "r") as f:
+    with open(os.path.join("climakitae", STATIONS_CSV_PATH), "r") as f:
         input = f.read()
     return input
 
