@@ -773,24 +773,72 @@ def extend_time_domain(
     -------
     Union[xr.Dataset, xr.DataArray]
         The extended time-series data.
+
+    Notes
+    -----
+    - By construction, this function will drop reanalysis data.
     """
     ret = {}
+
+    # don't run twice, check if historical data was already prepended
+    # this is to avoid unnecessary processing if the data has already been extended
+    if any(v.attrs.get("historical_prepended", False) for v in result.values()):
+        return result  # type: ignore
+
+    print(
+        "\n\nINFO: Prepending historical data to SSP scenarios."
+        "\nThis is the default concatenation strategy for retrieved data in climakitae."
+        '\nTo change this behavior, set `"concat": "sim"` in your processes dictionary.'
+    )
+
+    # Process SSP scenarios by finding and prepending historical data
     for key, data in result.items():
         if "ssp" not in key:
-            continue  # Skip historical and reanalysis data
+            # drop non-SSP data since historical gets prepended
+            continue
 
+        # Find corresponding historical key by replacing SSP pattern with "historical"
         hist_key = re.sub(r"ssp.{3}", "historical", key)
+
         if hist_key not in result:
             warnings.warn(
                 f"\n\nNo historical data found for {key} with key {hist_key}. "
-                f"\nHistorical data is required for warming level calculations."
+                f"\nHistorical data is required for time domain extension. "
+                f"\nKeeping original SSP data without historical extension."
             )
+            ret[key] = data
             continue
 
-        ret[key] = xr.concat(
-            [result[hist_key], data],
-            dim="time",
-        )
-        ret[key].attrs.update(data.attrs)  # Preserve attributes
+        # Concatenate historical and SSP data along time dimension
+        try:
+            hist_data = result[hist_key]
+            # Use proper xr.concat with explicit typing
+            if isinstance(data, xr.Dataset) and isinstance(hist_data, xr.Dataset):
+                extended_data = xr.concat([hist_data, data], dim="time")  # type: ignore
+            elif isinstance(data, xr.DataArray) and isinstance(hist_data, xr.DataArray):
+                extended_data = xr.concat([hist_data, data], dim="time")  # type: ignore
+            else:
+                # Handle mixed types by converting to same type
+                if isinstance(data, xr.Dataset):
+                    if isinstance(hist_data, xr.DataArray):
+                        hist_data = hist_data.to_dataset()
+                    extended_data = xr.concat([hist_data, data], dim="time")  # type: ignore
+                else:  # data is DataArray
+                    if isinstance(hist_data, xr.Dataset):
+                        data = data.to_dataset()
+                    extended_data = xr.concat([hist_data, data], dim="time")  # type: ignore
+
+            # Preserve SSP attributes
+            extended_data.attrs.update(data.attrs)
+            # add key attr indicating historical data was prepended
+            extended_data.attrs["historical_prepended"] = True
+            ret[key] = extended_data
+
+        except (ValueError, TypeError, KeyError, AttributeError) as e:
+            warnings.warn(
+                f"\n\nFailed to concatenate historical and SSP data for {key}: {e}"
+                f"\nKeeping original SSP data without historical extension."
+            )
+            ret[key] = data
 
     return ret

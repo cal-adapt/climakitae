@@ -14,6 +14,7 @@ from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
     register_processor,
 )
+from climakitae.new_core.processors.processor_utils import extend_time_domain
 
 
 # concatenation processor in the pre-processing chain
@@ -44,7 +45,7 @@ class Concat(DataProcessor):
     All input datasets should have the 'source_id' attribute.
     """
 
-    def __init__(self, value: str = "sim"):
+    def __init__(self, value: str = "time"):
         """
         Initialize the concat processor.
 
@@ -98,7 +99,7 @@ class Concat(DataProcessor):
         # Special handling for time dimension concatenation
         if self.dim_name == "time" and isinstance(result, dict):
             # Handle time domain extension for dictionaries
-            result = self.extend_time_domain(result)  # type: ignore
+            result = extend_time_domain(result)  # type: ignore
             # After extending time domain, switch to standard sim concatenation
             self.dim_name = "sim"
 
@@ -266,80 +267,6 @@ class Concat(DataProcessor):
                     concatenated.attrs["resolution"] = resolutions[k]
                     break
         return concatenated
-
-    def extend_time_domain(
-        self, result: Dict[str, Union[xr.Dataset, xr.DataArray]]
-    ) -> Dict[str, Union[xr.Dataset, xr.DataArray]]:
-        """
-        Extend the time domain of SSP scenarios by prepending historical data.
-
-        This method finds matching historical datasets for each SSP scenario
-        and concatenates them along the time dimension, similar to the approach
-        used in warming_level.py.
-
-        Parameters
-        ----------
-        result : Dict[str, Union[xr.Dataset, xr.DataArray]]
-            A dictionary containing time-series data with keys representing different scenarios.
-
-        Returns
-        -------
-        Dict[str, Union[xr.Dataset, xr.DataArray]]
-            The extended time-series data with historical data prepended to SSP scenarios.
-        """
-        ret = {}
-
-        # Process SSP scenarios by finding and prepending historical data
-        for key, data in result.items():
-            if "ssp" not in key:
-                # drop non-SSP data since historical gets prepended
-                continue
-
-            # Find corresponding historical key by replacing SSP pattern with "historical"
-            hist_key = re.sub(r"ssp.{3}", "historical", key)
-
-            if hist_key not in result:
-                warnings.warn(
-                    f"\n\nNo historical data found for {key} with key {hist_key}. "
-                    f"\nHistorical data is required for time domain extension. "
-                    f"\nKeeping original SSP data without historical extension."
-                )
-                ret[key] = data
-                continue
-
-            # Concatenate historical and SSP data along time dimension
-            try:
-                hist_data = result[hist_key]
-                # Use proper xr.concat with explicit typing
-                if isinstance(data, xr.Dataset) and isinstance(hist_data, xr.Dataset):
-                    extended_data = xr.concat([hist_data, data], dim="time")  # type: ignore
-                elif isinstance(data, xr.DataArray) and isinstance(
-                    hist_data, xr.DataArray
-                ):
-                    extended_data = xr.concat([hist_data, data], dim="time")  # type: ignore
-                else:
-                    # Handle mixed types by converting to same type
-                    if isinstance(data, xr.Dataset):
-                        if isinstance(hist_data, xr.DataArray):
-                            hist_data = hist_data.to_dataset()
-                        extended_data = xr.concat([hist_data, data], dim="time")  # type: ignore
-                    else:  # data is DataArray
-                        if isinstance(hist_data, xr.Dataset):
-                            data = data.to_dataset()
-                        extended_data = xr.concat([hist_data, data], dim="time")  # type: ignore
-
-                # Preserve SSP attributes
-                extended_data.attrs.update(data.attrs)
-                ret[key] = extended_data
-
-            except (ValueError, TypeError, KeyError, AttributeError) as e:
-                warnings.warn(
-                    f"\n\nFailed to concatenate historical and SSP data for {key}: {e}"
-                    f"\nKeeping original SSP data without historical extension."
-                )
-                ret[key] = data
-
-        return ret
 
     def update_context(
         self, context: Dict[str, Any], source_ids: List[str] | object = UNSET
