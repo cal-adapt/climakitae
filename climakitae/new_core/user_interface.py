@@ -490,15 +490,15 @@ class ClimateData:
         self._show_options("experiment_id", "Experiment IDs (Simulation runs)")
 
     def show_table_id_options(self) -> None:
-        """Display available table ID options (temporal resolutions)."""
+        """Display available table ID options (Temporal resolutions)."""
         self._show_options(
-            "table_id", "Available table ID options (temporal resolutions)"
+            "table_id", "Available table ID options (Temporal resolutions)"
         )
 
     def show_grid_label_options(self) -> None:
-        """Display available grid label options (spatial resolutions)."""
+        """Display available grid label options (Spatial resolutions)."""
         self._show_options(
-            "grid_label", "Available grid label options (spatial resolutions)"
+            "grid_label", "Available grid label options (Spatial resolutions)"
         )
 
     def show_variable_options(self) -> None:
