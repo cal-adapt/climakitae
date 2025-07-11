@@ -787,8 +787,8 @@ def extend_time_domain(
 
     print(
         "\n\nINFO: Prepending historical data to SSP scenarios."
-        "\nThis is the default concatenation strategy for retrieved data in climakitae."
-        '\nTo change this behavior, set `"concat": "sim"` in your processes dictionary.'
+        "\n      This is the default concatenation strategy for retrieved data in climakitae."
+        '\n      To change this behavior, set `"concat": "sim"` in your processes dictionary.'
     )
 
     # Process SSP scenarios by finding and prepending historical data
