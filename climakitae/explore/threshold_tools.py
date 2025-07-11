@@ -1,5 +1,7 @@
 """Helper functions for performing analyses related to thresholds"""
 
+import warnings
+
 import numpy as np
 import scipy
 import statsmodels as sm
@@ -226,8 +228,10 @@ def get_block_maxima(
                 bms = dropped_bms
             else:
                 # For other dimension combinations, be conservative and don't drop
-                print(
-                    f"WARNING: Found NaN values in block maxima but unable to determine appropriate dropping strategy for dimensions {bms.dims}. Keeping all data."
+                warnings.warn(
+                    f"\n\nWARNING: Found NaN values in block maxima but unable to determine appropriate dropping strategy for dimensions {bms.dims}"
+                    "\nNo NaN values will be dropped from the block maxima DataArray."
+                    "\nPlease inspect the data and handle NaN values appropriately before proceeding."
                 )
 
     return bms
