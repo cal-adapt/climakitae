@@ -267,7 +267,23 @@ class DatasetFactory:
 
         if "concat" not in query[PROC_KEY]:
             # add default concatenation step if not present
-            query[PROC_KEY]["concat"] = "sim"
+            default_concat = "time"
+            # now we check if "time" makes sense
+            value = query.get("experiment_id", UNSET)
+            match value:
+                case str():
+                    # if experiment_id is a string, check if it contains "historical"
+                    if "historical" in value.lower() or "reanalysis" in value.lower():
+                        # if it does, we can use "sim" as the default concat dimension
+                        default_concat = "sim"
+                case list() | tuple():
+                    # if experiment_id is a list or tuple, check each element
+                    # if there are no elements with "ssp" in them then we use the sim
+                    # approach
+                    if not any("ssp" in str(item).lower() for item in value):
+                        default_concat = "sim"
+
+            query[PROC_KEY]["concat"] = default_concat
 
         if "update_attributes" not in query[PROC_KEY]:
             # add default attribute update step if not present

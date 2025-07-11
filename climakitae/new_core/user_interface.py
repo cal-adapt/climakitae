@@ -25,7 +25,9 @@ import traceback
 from typing import Any, Dict, Iterable, Optional, Union
 
 from climakitae.core.constants import UNSET
+from climakitae.core.paths import VARIABLE_DESCRIPTIONS_CSV_PATH
 from climakitae.new_core.dataset_factory import DatasetFactory
+from climakitae.util.utils import read_csv_file
 
 
 class ClimateData:
@@ -137,6 +139,7 @@ class ClimateData:
         try:
             self._factory = DatasetFactory()
             self._reset_query()
+            self.var_desc = read_csv_file(VARIABLE_DESCRIPTIONS_CSV_PATH)
             print("✅ Ready to query! ")
         except Exception as e:
             print(f"❌ Setup failed: {str(e)}")
@@ -609,8 +612,11 @@ class ClimateData:
             if not options:
                 print("No options available with current parameters")
             else:
+                max_len = max(len(option) for option in options)
                 for option in sorted(options):
-                    print(f"{option}")
+                    print(
+                        f"{self._format_option(option, option_type, spacing=4 + max_len - len(option))}"
+                    )
                 print("\n")
         except Exception as e:
             print(f"Error retrieving options: {e}")
@@ -656,3 +662,41 @@ class ClimateData:
             if key in self._query:
                 self._query[key] = value
         return self
+
+    def _format_option(self, option: str, option_type: str, spacing: int = 0) -> str:
+        """
+        Format an option string for display.
+
+        Parameters
+        ----------
+        option : str
+            The option string to format.
+        option_type : str
+            The type of option being formatted.
+
+        Returns
+        -------
+        str
+            The formatted option string.
+        """
+        match option_type:
+            case "grid_label":
+                conversion = {
+                    "d01": "45 km",
+                    "d02": " 9 km",
+                    "d03": " 3 km",
+                }
+                return f"{option} ({conversion.get(option, 'Unknown')})"
+            case "variable_id":
+                # look up variable description
+                # grab row dataframe
+                spaces = " " * spacing
+                row = self.var_desc[self.var_desc["variable_id"] == option]
+                if not row.empty:
+                    desc = row["display_name"].values[0]
+                    return f"{option}:{spaces}{desc}"
+                else:
+                    return f"{option}:{spaces}No description available"
+            case _:
+                # Default case for other option types
+                return option

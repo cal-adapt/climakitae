@@ -55,7 +55,7 @@ class Concat(DataProcessor):
             Optional dimension name to use instead of "sim".
             Defaults to "sim".
         """
-        self.dim_name = value if isinstance(value, str) else "sim"
+        self.dim_name = value if isinstance(value, str) else "time"
         self._original_dim_name = self.dim_name  # Track original dimension name
         self.name = "concat"
         self.catalog = None
@@ -235,6 +235,7 @@ class Concat(DataProcessor):
                     if isinstance(dataset, (xr.Dataset, xr.DataArray)):
                         return dataset
             # If still no valid dataset found, raise an error
+            print(result)
             raise ValueError("No valid datasets found for concatenation")
 
         # Concatenate all datasets along the sim dimension
