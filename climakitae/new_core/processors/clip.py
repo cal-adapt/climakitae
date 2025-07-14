@@ -1,17 +1,99 @@
 """
-Dafrom typing import Any, Dict, Iterable, Union
+Data processor to clip data based on spatial boundaries.
 
-import geopandas as gpd
-import pyproj
-import xarray as xr
-from shapely.geometry import box, mapping
+This module provides the `Clip` processor class for spatial data clipping operations
+in the climakitae data processing pipeline. It supports multiple clipping modes
+including boundary-based clipping, coordinate-based clipping, and point-based
+gridcell extraction.
 
-from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
-from climakitae.new_core.data_access.data_access import DataCatalog
-from climakitae.new_core.processors.abc_data_processor import (
-    DataProcessor,
-    register_processor,
-)or clipping data based on spatial boundaries.
+Classes
+-------
+Clip : DataProcessor
+    Main processor class for clipping operations with support for:
+    - Single and multiple boundary clipping using predefined boundaries
+    - Coordinate bounding box clipping
+    - Single and multiple point closest-gridcell extraction
+    - Custom geometry clipping from shapefiles
+
+Clipping Modes
+--------------
+1. **Boundary Clipping**: Clip data using predefined administrative or utility boundaries
+   - Single boundary: `Clip("CA")` or `Clip("Los Angeles County")`
+   - Multiple boundaries: `Clip(["CA", "OR", "WA"])` (combined using union)
+   - Supports states, counties, watersheds, utilities, and forecast zones
+
+2. **Coordinate Clipping**: Clip data using lat/lon coordinate bounds
+   - Bounding box: `Clip(((lat_min, lat_max), (lon_min, lon_max)))`
+   - Single point: `Clip((lat, lon))` - returns closest gridcell
+   - Multiple points: `Clip([(lat1, lon1), (lat2, lon2)])` - returns closest gridcells
+
+3. **Custom Geometry**: Clip using custom shapefiles
+   - Shapefile path: `Clip("/path/to/shapefile.shp")`
+
+Key Features
+------------
+- **Smart Point Handling**: For point-based clipping, automatically searches for
+  the nearest gridcell with valid (non-NaN) data within expanding search radii
+- **Efficient Multi-Point Processing**: Uses vectorized operations for multiple
+  points to minimize computation time
+- **Duplicate Filtering**: Automatically removes duplicate gridcells when multiple
+  points map to the same location
+- **Comprehensive Error Handling**: Provides detailed error messages and suggestions
+  for invalid boundary keys
+- **Context Tracking**: Records clipping operations in dataset attributes for
+  reproducibility and provenance
+
+Data Types Supported
+-------------------
+- xarray.Dataset
+- xarray.DataArray
+- Dictionary of datasets/arrays
+- Lists/tuples of datasets/arrays
+
+Dependencies
+------------
+- geopandas: For geometry operations and spatial data handling
+- shapely: For geometric operations and coordinate transformations
+- xarray: For multi-dimensional data array operations
+- rioxarray: For rasterio-based clipping operations
+- pyproj: For coordinate reference system transformations
+- geopy: For geodesic distance calculations
+
+Examples
+--------
+>>> # Single state boundary
+>>> processor = Clip("CA")
+>>> clipped_data = processor.execute(dataset, context)
+
+>>> # Multiple state boundaries (union)
+>>> processor = Clip(["CA", "OR", "WA"])
+>>> clipped_data = processor.execute(dataset, context)
+
+>>> # Coordinate bounding box
+>>> processor = Clip(((32.0, 42.0), (-125.0, -114.0)))
+>>> clipped_data = processor.execute(dataset, context)
+
+>>> # Single point (closest gridcell)
+>>> processor = Clip((37.7749, -122.4194))  # San Francisco
+>>> clipped_data = processor.execute(dataset, context)
+
+>>> # Multiple points (closest gridcells)
+>>> points = [(37.7749, -122.4194), (34.0522, -118.2437)]  # SF and LA
+>>> processor = Clip(points)
+>>> clipped_data = processor.execute(dataset, context)
+
+>>> # Custom shapefile
+>>> processor = Clip("/path/to/custom_boundary.shp")
+>>> clipped_data = processor.execute(dataset, context)
+
+Notes
+-----
+- The processor requires a DataCatalog to access predefined boundary data
+- Point-based clipping includes intelligent search for valid data within expanding
+  radii (0.01°, 0.05°, 0.1°, 0.2°, 0.5°) if the closest gridcell contains NaN values
+- Multi-point operations are optimized using vectorized calculations where possible
+- All clipping operations preserve the original data's coordinate reference system
+- Results include metadata about the clipping operation in the dataset attributes
 """
 
 import os
