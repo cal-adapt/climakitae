@@ -2,7 +2,6 @@
 Concat DataProcessor
 """
 
-import re
 import warnings
 from typing import Any, Dict, Iterable, List, Union
 
@@ -256,9 +255,9 @@ class Concat(DataProcessor):
 
         # Set resolution attribute if available
         resolutions = {
-            "d01": "3 km",
+            "d01": "45 km",
             "d02": "9 km",
-            "d03": "45 km",
+            "d03": "3 km",
         }
         if isinstance(result, dict) and result:
             key = list(result.keys())[0]
@@ -289,28 +288,13 @@ class Concat(DataProcessor):
         if _NEW_ATTRS_KEY not in context:
             context[_NEW_ATTRS_KEY] = {}
 
-        # If source_ids is not provided, use the default value
-        if source_ids is UNSET:
-            source_ids = []
-        elif not isinstance(source_ids, list):
-            source_ids = [source_ids]
-
-        source_info = (
-            f"source_ids: {', '.join(str(sid) for sid in source_ids)}"
-            if source_ids
-            else ""
-        )
-
         # Include information about time domain extension if time dimension was used
         process_info = f"Process '{self.name}' applied to the data."
         if hasattr(self, "_original_dim_name") and self._original_dim_name == "time":
             process_info += " Time domain extension was performed by prepending historical data to SSP scenarios."
         process_info += f" Multiple datasets were concatenated along a new '{self.dim_name}' dimension."
 
-        context[_NEW_ATTRS_KEY][
-            self.name
-        ] = f"""{process_info}
-        {source_info}"""
+        context[_NEW_ATTRS_KEY][self.name] = f"""{process_info}"""
 
     def set_data_accessor(self, catalog: DataCatalog):
         """
