@@ -1,5 +1,5 @@
 """
-Filter Unbiased Models Processor
+Filter Unadjusted Models Processor
 """
 
 import warnings
@@ -15,8 +15,8 @@ from climakitae.new_core.processors.abc_data_processor import (
 )
 
 
-@register_processor("filter_unbiased_models", priority=0)
-class FilterUnbiasedModels(DataProcessor):
+@register_processor("filter_unadjusted_models", priority=0)
+class FilterUnAdjustedModels(DataProcessor):
     """
     Processor to filter out models that do not have a-priori bias adjustment.
 
@@ -34,10 +34,10 @@ class FilterUnbiasedModels(DataProcessor):
         Update the context with information about the transformation.
     set_data_accessor(catalog)
         Set the data accessor for the processor.
-    _contains_unbiased_models(result) -> bool
-        Check if the result contains any unbiased models.
-    _remove_unbiased_models(result) -> Union[xr.Dataset, xr.DataArray, Iterable[xr.Dataset, xr.DataArray], None]
-        Remove unbiased models from the result.
+    _contains_unadjusted_models(result) -> bool
+        Check if the result contains any unadjusted models.
+    _remove_unadjusted_models(result) -> Union[xr.Dataset, xr.DataArray, Iterable[xr.Dataset, xr.DataArray], None]
+        Remove unadjusted models from the result.
 
     Notes
     -----
@@ -54,11 +54,11 @@ class FilterUnbiasedModels(DataProcessor):
         Parameters
         ----------
         value : str
-            The state of the filter. If "yes", it filters out unbiased models.
+            The state of the filter. If "yes", it filters out unadjusted models.
         """
         self.valid_values = ["yes", "no"]
         self.value = value.lower()
-        self.name = "filter_unbiased_models"
+        self.name = "filter_unadjusted_models"
 
     def execute(
         self,
@@ -93,21 +93,21 @@ class FilterUnbiasedModels(DataProcessor):
         """
         match self.value:
             case "yes":
-                # check if there are any unbiased models in the dataset
-                if self._contains_unbiased_models(result):
+                # check if there are any unadjusted models in the dataset
+                if self._contains_unadjusted_models(result):
                     warnings.warn(
                         f"\n\nYour query selected models that do not have a-priori bias adjustment. "
                         f"\nThese models have been removed from the returned query."
                         f"\nTo include them, please add the following processor to your query: "
                         f"\nClimateData().processes('{self.name}': 'no')\n\n"
                     )
-                    return self._remove_unbiased_models(result)
+                    return self._remove_unadjusted_models(result)
 
-                # If no unbiased models are found, return the result as is
+                # If no unadjusted models are found, return the result as is
                 return result
             case "no":
                 # check if there are any biased models in the dataset
-                if self._contains_unbiased_models(result):
+                if self._contains_unadjusted_models(result):
                     warnings.warn(
                         "\n\nYour query selected models that do not have a-priori bias adjustment. "
                         "\nThese models HAVE NOT been removed from the returned query."
@@ -121,24 +121,24 @@ class FilterUnbiasedModels(DataProcessor):
                     f"Valid values are: {', '.join(self.valid_values)}."
                 )
 
-    def _contains_unbiased_models(
+    def _contains_unadjusted_models(
         self,
         result: Union[
             xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
         ],
     ) -> bool:
         """
-        Check if the result contains any unbiased models.
+        Check if the result contains any unadjusted models.
 
         Parameters
         ----------
         result : Union[xr.Dataset, xr.DataArray, Iterable[xr.Dataset, xr.DataArray]]
-            The data to check for unbiased models.
+            The data to check for unadjusted models.
 
         Returns
         -------
         bool
-            True if the result contains unbiased models, False otherwise.
+            True if the result contains unadjusted models, False otherwise.
 
         Raises
         ------
@@ -154,17 +154,17 @@ class FilterUnbiasedModels(DataProcessor):
                 return model_id in NON_WRF_BA_MODELS
             case dict():
                 return any(
-                    self._contains_unbiased_models(item) for item in result.values()
+                    self._contains_unadjusted_models(item) for item in result.values()
                 )
             case list() | tuple():
-                return any(self._contains_unbiased_models(item) for item in result)
+                return any(self._contains_unadjusted_models(item) for item in result)
             case _:
                 raise TypeError(
                     f"Unsupported type for result: {type(result)}. "
                     "Expected xr.Dataset, xr.DataArray, or Iterable."
                 )
 
-    def _remove_unbiased_models(
+    def _remove_unadjusted_models(
         self,
         result: Union[
             xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
@@ -173,7 +173,7 @@ class FilterUnbiasedModels(DataProcessor):
         xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]], None
     ]:
         """
-        Remove unbiased models from the result.
+        Remove unadjusted models from the result.
 
         Parameters
         ----------
@@ -183,7 +183,7 @@ class FilterUnbiasedModels(DataProcessor):
         Returns
         -------
         Union[xr.Dataset, xr.DataArray, Iterable[xr.Dataset, xr.DataArray]] | None
-            The filtered data without unbiased models or None if all models are unbiased.
+            The filtered data without unadjusted models or None if all models are unadjusted.
 
         Raises
         ------
@@ -192,19 +192,19 @@ class FilterUnbiasedModels(DataProcessor):
         """
         match result:
             case xr.Dataset() | xr.DataArray():
-                return result if not self._contains_unbiased_models(result) else None
+                return result if not self._contains_unadjusted_models(result) else None
             case dict():
                 return {
                     key: value
                     for key, value in result.items()
-                    if not self._contains_unbiased_models(value)
+                    if not self._contains_unadjusted_models(value)
                 }
             case list() | tuple():
                 return type(result)(
                     [
                         value
                         for value in result
-                        if not self._contains_unbiased_models(value)
+                        if not self._contains_unadjusted_models(value)
                     ]
                 )
             case _:

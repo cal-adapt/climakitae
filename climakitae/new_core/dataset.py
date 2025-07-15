@@ -245,6 +245,10 @@ class Dataset:
         TypeError
             If the parameter validator is not an instance of ParameterValidator.
         """
+        if not parameter_validator:
+            warnings.warn(
+                "No parameter validator provided. This may lead to unvalidated queries."
+            )
         if not isinstance(parameter_validator, ParameterValidator):
             raise TypeError(
                 "Parameter validator must be an instance of ParameterValidator."

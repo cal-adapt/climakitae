@@ -46,6 +46,9 @@ from climakitae.new_core.param_validation.abc_param_validation import (
     _CATALOG_VALIDATOR_REGISTRY,
     ParameterValidator,
 )
+from climakitae.new_core.param_validation.param_validation_tools import (
+    _get_closest_options,
+)
 from climakitae.new_core.processors.abc_data_processor import _PROCESSOR_REGISTRY
 
 
@@ -401,10 +404,33 @@ class DatasetFactory:
         if val_reg_key in self._validator_registry:
             return self._validator_registry[val_reg_key](self._catalog)
 
-        raise ValueError(
-            f"\n\nNo validator registered for catalog = '{val_reg_key}'"
-            f"\nPlease check the input query or register a new validator.\n\n"
-        )
+        # check for typo or close matches
+        closest = _get_closest_options(val_reg_key, self._validator_registry.keys())
+        if not closest:
+            warnings.warn(
+                f"No validator registered for '{val_reg_key}'. "
+                "Available options: {list(self._validator_registry.keys())}"
+            )
+            return None
+
+        match len(closest):
+            case 0:
+                warnings.warn(
+                    f"No validator registered for '{val_reg_key}'. "
+                    "Available options: {list(self._validator_registry.keys())}"
+                )
+                return None  # type: ignore[return-value]
+            case 1:
+                warnings.warn(
+                    f"\n\nUsing closest match '{closest[0]}' for validator '{val_reg_key}'."
+                )
+                return self._validator_registry[closest[0]](self._catalog)
+            case _:
+                warnings.warn(
+                    f"Multiple closest matches found for '{val_reg_key}': {closest}. "
+                    "Please specify a more precise key."
+                )
+                return None  # type: ignore[return-value]
 
     def _get_catalog_key_from_query(self, query: Dict[str, Any]) -> str:
         """
