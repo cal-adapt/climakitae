@@ -837,8 +837,7 @@ def extend_time_domain(
         except (ValueError, TypeError, KeyError, AttributeError) as e:
             warnings.warn(
                 f"\n\nFailed to concatenate historical and SSP data for {key}: {e}"
-                f"\nKeeping original SSP data without historical extension."
+                f"\nSince no historical data is available, this data is dropped."
             )
-            ret[key] = data
 
     return ret

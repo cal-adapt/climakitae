@@ -701,6 +701,3 @@ class ClimateData:
             case _:
                 # Default case for other option types
                 return option
-
-
-__all__ = ["ClimateData", "export"]
