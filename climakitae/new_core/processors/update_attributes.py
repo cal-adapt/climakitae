@@ -13,6 +13,45 @@ from climakitae.new_core.processors.abc_data_processor import (
     register_processor,
 )
 
+common_attrs = {
+    "x": {
+        "standard_name": "projection_x_coordinate",
+        "units": "metre",
+        "axis": "X",
+        "long_name": "x coordinate of projection",
+    },
+    "y": {
+        "standard_name": "projection_y_coordinate",
+        "units": "metre",
+        "axis": "Y",
+        "long_name": "y coordinate of projection",
+    },
+    "lat": {
+        "standard_name": "latitude",
+        "units": "degrees_north",
+        "axis": "Y",
+        "long_name": "latitude coordinate",
+    },
+    "lon": {
+        "standard_name": "longitude",
+        "units": "degrees_east",
+        "axis": "X",
+        "long_name": "longitude coordinate",
+    },
+    "time": {
+        "standard_name": "time",
+        "axis": "T",
+        "long_name": "time coordinate",
+    },
+    "sim": {
+        "standard_name": "simulation",
+        "units": "N/A",
+        "axis": "S",
+        "long_name": "simulation index",
+        "description": "unique identifier for each simulation run based on catalog parameters",
+    },
+}
+
 
 # second to last processor in the whole chain
 @register_processor("update_attributes", priority=9998)
@@ -54,8 +93,15 @@ class UpdateAttributes(DataProcessor):
             case dict():
                 for key, item in result.items():
                     result[key].attrs = item.attrs | context[_NEW_ATTRS_KEY]
+                    for dim in item.dims:
+                        if dim not in item.attrs:
+                            item[dim].attrs = common_attrs.get(dim, {})
             case xr.Dataset() | xr.DataArray():
                 result.attrs = result.attrs | context[_NEW_ATTRS_KEY]
+                for dim in result.dims:
+                    result[dim].attrs.update(common_attrs.get(dim, {}))
+                    print(result[dim].attrs)
+
             case list() | tuple():
                 for i, item in enumerate(result):
                     result[i].attrs = item.attrs | context[_NEW_ATTRS_KEY]
