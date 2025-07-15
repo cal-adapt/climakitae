@@ -25,6 +25,7 @@ import traceback
 from typing import Any, Dict, Iterable, Optional, Union
 
 from climakitae.core.constants import UNSET
+from climakitae.core.data_export import export
 from climakitae.core.paths import VARIABLE_DESCRIPTIONS_CSV_PATH
 from climakitae.new_core.dataset_factory import DatasetFactory
 from climakitae.util.utils import read_csv_file
@@ -700,3 +701,6 @@ class ClimateData:
             case _:
                 # Default case for other option types
                 return option
+
+
+__all__ = ["ClimateData", "export"]
