@@ -524,6 +524,7 @@ class ClimateData:
         try:
             for processor in self._factory.get_processors():
                 print(f"{processor}")
+            print("\n")
         except Exception as e:
             print(f"Error retrieving processors: {e}")
 
@@ -580,7 +581,7 @@ class ClimateData:
             ("show_grid_label_options", "Grid Labels (Spatial Resolution)"),
             ("show_variable_options", "Variables"),
             ("show_processors", "Processors"),
-            ("show_stations", "Stations"),
+            # ("show_stations", "Stations"),
         ]
 
         for method_name, section_title in option_methods:

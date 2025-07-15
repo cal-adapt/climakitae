@@ -100,7 +100,6 @@ class UpdateAttributes(DataProcessor):
                 result.attrs = result.attrs | context[_NEW_ATTRS_KEY]
                 for dim in result.dims:
                     result[dim].attrs.update(common_attrs.get(dim, {}))
-                    print(result[dim].attrs)
 
             case list() | tuple():
                 for i, item in enumerate(result):

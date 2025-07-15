@@ -6,7 +6,7 @@ from .clip import Clip
 from .concatenate import Concat
 from .convert_units import ConvertUnits
 from .export import Export
-from .filter_unbiased_models import FilterUnbiasedModels
+from .filter_unbiased_models import FilterUnAdjustedModels
 from .localize import Localize
 from .metric_calc import MetricCalc
 from .time_slice import TimeSlice
@@ -18,7 +18,7 @@ __all__ = [
     "Concat",
     "ConvertUnits",
     "Export",
-    "FilterUnbiasedModels",
+    "FilterUnAdjustedModels",
     "Localize",
     "MetricCalc",
     "TimeSlice",
