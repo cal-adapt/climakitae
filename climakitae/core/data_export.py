@@ -19,9 +19,9 @@ from botocore.exceptions import ClientError
 from timezonefinder import TimezoneFinder
 
 from climakitae.core.paths import (
-    export_s3_bucket,
-    stations_csv_path,
-    variable_descriptions_csv_path,
+    EXPORT_S3_BUCKET,
+    STATIONS_CSV_PATH,
+    VARIABLE_DESCRIPTIONS_CSV_PATH,
 )
 from climakitae.util.utils import read_csv_file
 
@@ -391,11 +391,11 @@ def _export_to_zarr(data: xr.DataArray | xr.Dataset, save_name: str, mode: str):
             print("Saving file to S3 scratch bucket as Zarr...")
             display_path = f"{os.environ['SCRATCH_BUCKET']}/{save_name}"
             path = "simplecache::" + display_path
-            prefix = display_path.split(export_s3_bucket + "/")[-1]
+            prefix = display_path.split(EXPORT_S3_BUCKET + "/")[-1]
 
             s3 = boto3.resource("s3")
             try:
-                s3.Object(export_s3_bucket, prefix + "/.zattrs").load()
+                s3.Object(EXPORT_S3_BUCKET, prefix + "/.zattrs").load()
             except botocore.exceptions.ClientError as e:
                 if e.response["Error"]["Code"] == "404":
                     # The object does not exist so go ahead and write to S3
@@ -566,14 +566,14 @@ def _dataset_to_dataframe(dataset: xr.Dataset) -> pd.DataFrame:
     df = _update_header(df, variable_unit_map)
 
     # Helpers for adding to header climate variable names associated w/ stations
-    station_df = read_csv_file(stations_csv_path)
+    station_df = read_csv_file(STATIONS_CSV_PATH)
     station_lst = list(station_df.station)
 
     def _is_station(name):
         """Return True if `name` is an HadISD station name."""
         return name in station_lst
 
-    variable_description_df = read_csv_file(variable_descriptions_csv_path)
+    variable_description_df = read_csv_file(VARIABLE_DESCRIPTIONS_CSV_PATH)
     variable_ids = variable_description_df.variable_id.values
 
     def _variable_id_to_name(var_id: str) -> str:
@@ -1234,7 +1234,7 @@ def write_tmy_file(
     None
     """
 
-    station_df = read_csv_file(stations_csv_path)
+    station_df = read_csv_file(STATIONS_CSV_PATH)
 
     # check that data passed is a DataFrame object
     if type(df) != pd.DataFrame:

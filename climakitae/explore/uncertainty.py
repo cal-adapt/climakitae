@@ -10,7 +10,7 @@ from xmip.preprocessing import rename_cmip6
 
 from climakitae.core.data_interface import DataInterface, DataParameters
 from climakitae.core.data_load import area_subset_geometry
-from climakitae.core.paths import gwl_1850_1900_file, gwl_1981_2010_file
+from climakitae.core.paths import GWL_1850_1900_FILE, GWL_1981_2010_FILE
 from climakitae.util.utils import read_csv_file
 
 
@@ -700,10 +700,10 @@ def get_warm_level(
         )
 
     if ipcc:
-        gwl_file = gwl_1850_1900_file
+        gwl_file = GWL_1850_1900_FILE
         gwl_times = read_csv_file(gwl_file, index_col=[0, 1, 2])
     else:
-        gwl_file_all = gwl_1981_2010_file
+        gwl_file_all = GWL_1981_2010_FILE
         gwl_times_all = read_csv_file(gwl_file_all)
         # TODO Add information on a more complete list of ensemble members of
         # EC-Earth3 to cover internal variability notebook needs

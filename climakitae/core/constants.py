@@ -30,6 +30,7 @@ NON_WRF_BA_MODELS = [
     "WRF_FGOALS-g3_r1i1p1f1",
     "WRF_CNRM-ESM2-1_r1i1p1f2",
     "WRF_CESM2_r11i1p1f1",
+    "WRF_ENSMEAN_r11i1p1f1",
 ]
 
 # WRF models that do not reach 0.8°C GWL
@@ -45,3 +46,25 @@ LOCA_NO_0PT8_GWL_MODELS = [
     "LOCA2_EC-Earth3-Veg_r3i1p1f1_historical+ssp585",
     "LOCA2_EC-Earth3-Veg_r5i1p1f1_historical+ssp245",
 ]
+
+# Constant Keys for User Interface
+_NEW_ATTRS_KEY = "new_attrs"
+PROC_KEY = "processes"
+
+# Constant Keys for Data Catalog
+CATALOG_DATA = "data"
+CATALOG_RENEWABLES = "renewables"
+CATALOG_BOUNDARY = "boundary"
+
+# Boundary Data Constants
+WESTERN_STATES_LIST = ["CA", "NV", "OR", "WA", "UT", "MT", "ID", "AZ", "CO", "NM", "WY"]
+
+PRIORITY_UTILITIES = [
+    "Pacific Gas & Electric Company",
+    "San Diego Gas & Electric",
+    "Southern California Edison",
+    "Los Angeles Department of Water & Power",
+    "Sacramento Municipal Utility District",
+]
+
+CALISO_AREA_THRESHOLD = 100
