@@ -264,9 +264,9 @@ class DatasetFactory:
             # create empty processing step key
             query[PROC_KEY] = {}
 
-        if "filter_unbiased_models" not in query[PROC_KEY]:
+        if "filter_unadjusted_models" not in query[PROC_KEY]:
             # add default filtering step if not present
-            query[PROC_KEY]["filter_unbiased_models"] = "yes"
+            query[PROC_KEY]["filter_unadjusted_models"] = "yes"
 
         if "concat" not in query[PROC_KEY]:
             # add default concatenation step if not present
