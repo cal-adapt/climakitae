@@ -1,13 +1,17 @@
 """Helper functions for performing analyses related to thresholds"""
 
+import warnings
+
 import numpy as np
 import scipy
 import statsmodels as sm
 import xarray as xr
 from scipy import stats
 
+from climakitae.core.constants import UNSET
 
-def calculate_ess(data: xr.DataArray, nlags: int = None) -> xr.DataArray:
+
+def calculate_ess(data: xr.DataArray, nlags: int = UNSET) -> xr.DataArray:
     """
     Function for calculating the effective sample size (ESS) of the provided data.
 
@@ -26,7 +30,7 @@ def calculate_ess(data: xr.DataArray, nlags: int = None) -> xr.DataArray:
         Returned as a DataArray object so it can be utilized by xr.groupby and xr.resample.
     """
     n = len(data)
-    if nlags is None:
+    if nlags is UNSET:
         nlags = n
     acf = sm.tsa.stattools.acf(data, nlags=nlags, fft=True)
     sums = 0
@@ -39,9 +43,9 @@ def calculate_ess(data: xr.DataArray, nlags: int = None) -> xr.DataArray:
 def get_block_maxima(
     da_series: xr.DataArray,
     extremes_type: str = "max",
-    duration: tuple[int, str] = None,
-    groupby: tuple[int, str] = None,
-    grouped_duration: tuple[int, str] = None,
+    duration: tuple[int, str] = UNSET,
+    groupby: tuple[int, str] = UNSET,
+    grouped_duration: tuple[int, str] = UNSET,
     check_ess: bool = True,
     block_size: int = 1,
 ) -> xr.DataArray:
@@ -85,7 +89,7 @@ def get_block_maxima(
             "invalid extremes type. expected one of the following: %s" % extremes_types
         )
 
-    if duration != None:
+    if duration is not UNSET:
         # In this case, user is interested in extreme events lasting at least
         # as long as the length of `duration`.
         dur_len, dur_type = duration
@@ -105,7 +109,7 @@ def get_block_maxima(
             case _:
                 raise ValueError('extremes_type needs to be either "max" or "min"')
 
-    if groupby != None:
+    if groupby is not UNSET:
         # In this case, select the max (min) in each group. (This option is
         # really only meaningful when coupled with the `grouped_duration` option.)
         group_len, group_type = groupby
@@ -123,8 +127,8 @@ def get_block_maxima(
             case _:
                 raise ValueError('extremes_type needs to be either "max" or "min"')
 
-    if grouped_duration != None:
-        if groupby == None:
+    if grouped_duration is not UNSET:
+        if groupby is UNSET:
             raise ValueError(
                 "To use `grouped_duration` option, must first use groupby."
             )
@@ -159,6 +163,7 @@ def get_block_maxima(
     # Calculate the effective sample size of the computed event type in all blocks
     # Check the average value to ensure that it's above threshold ESS
     if check_ess:
+        average_ess = -1
         if "x" in da_series.dims and "y" in da_series.dims:
             # Case for data with spatial dimensions (gridded)
             average_ess = _calc_average_ess_gridded_data(da_series, block_size)
@@ -172,7 +177,7 @@ def get_block_maxima(
                 f"WARNING: the effective sample size can only be checked for timeseries or spatial data. You provided data with the following dimensions: {da_series.dims}."
             )
 
-        if average_ess < 25:
+        if average_ess < 25 and average_ess > 0:
             print(
                 f"WARNING: The average effective sample size in your data is {round(average_ess, 2)} per block, which is lower than a standard target of around 25. This may result in biased estimates of extreme value distributions when calculating return values, periods, and probabilities from this data. Consider using a longer block size to increase the effective sample size in each block of data."
             )
@@ -183,7 +188,7 @@ def get_block_maxima(
             "duration": duration,
             "groupby": groupby,
             "grouped_duration": grouped_duration,
-            "extreme_value_extraction_method": f"block maxima",
+            "extreme_value_extraction_method": "block maxima",
             "block_size": f"{block_size} year",
             "timeseries_type": f"block {extremes_type} series",
         }
@@ -203,11 +208,31 @@ def get_block_maxima(
                 "ERROR: The given `da_series` does not include any recorded values for this variable, and we cannot create block maximums off of an empty DataArray."
             )
         else:
-            dropped_bms = bms.dropna(dim="time")
-            print(
-                f"Dropping {bms.size - dropped_bms.size} block maxima NaNs across entire{f' {bms.name}' if bms.name else ''} DataArray. Please guidance for more information. "
-            )
-            bms = dropped_bms
+            # Handle NaN dropping differently for gridded data vs timeseries data
+            if "x" in bms.dims and "y" in bms.dims:
+                # For gridded data, only drop time steps where ALL spatial points are NaN
+                # This prevents dropping time steps that have valid data at some spatial locations
+                all_nan_times = bms.isnull().all(dim=["x", "y"])
+                if all_nan_times.any():
+                    dropped_bms = bms.where(~all_nan_times, drop=True)
+                    print(
+                        f"Dropping {all_nan_times.sum().item()} time steps where all spatial points are NaN across entire{f' {bms.name}' if bms.name else ''} DataArray."
+                    )
+                    bms = dropped_bms
+            elif bms.dims == ("time",):
+                # For timeseries data, drop NaN time steps as before
+                dropped_bms = bms.dropna(dim="time")
+                print(
+                    f"Dropping {bms.size - dropped_bms.size} block maxima NaNs across entire{f' {bms.name}' if bms.name else ''} DataArray. Please guidance for more information. "
+                )
+                bms = dropped_bms
+            else:
+                # For other dimension combinations, be conservative and don't drop
+                warnings.warn(
+                    f"\n\nWARNING: Found NaN values in block maxima but unable to determine appropriate dropping strategy for dimensions {bms.dims}"
+                    "\nNo NaN values will be dropped from the block maxima DataArray."
+                    "\nPlease inspect the data and handle NaN values appropriately before proceeding."
+                )
 
     return bms
 
@@ -277,7 +302,9 @@ def _calc_average_ess_timeseries_data(data: xr.DataArray, block_size: int) -> fl
     return mean_ess
 
 
-def _get_distr_func(distr: str) -> scipy.stats:
+def _get_distr_func(
+    distr: str,
+) -> scipy.stats._distn_infrastructure.rv_continuous_frozen:
     """Function that sets the scipy distribution object
 
     Sets corresponding distribution function from selected
@@ -315,7 +342,9 @@ def _get_distr_func(distr: str) -> scipy.stats:
 
 
 def _get_fitted_distr(
-    bms: xr.DataArray, distr: str, distr_func: scipy.stats
+    bms: xr.DataArray,
+    distr: str,
+    distr_func: scipy.stats._distn_infrastructure.rv_continuous_frozen,
 ) -> dict[str, float] | scipy.stats._distn_infrastructure.rv_continuous_frozen:
     """Function for fitting data to distribution function
 
@@ -342,8 +371,8 @@ def _get_fitted_distr(
         """
         return dict(zip(p_names, p_values))
 
-    parameters = None
-    fitted_distr = None
+    parameters = UNSET
+    fitted_distr = UNSET
 
     p_values = distr_func.fit(bms)
 
@@ -465,8 +494,8 @@ def get_ks_stat(
     new_ds["p_value"].attrs["stat test"] = "KS test"
     new_ds.attrs = bms_attributes
     new_ds.attrs["distribution"] = "{}".format(str(distr))
-    new_ds["p_value"].attrs["units"] = None
-    new_ds["d_statistic"].attrs["units"] = None
+    new_ds["p_value"].attrs["units"] = UNSET
+    new_ds["d_statistic"].attrs["units"] = UNSET
     return new_ds
 
 
@@ -579,7 +608,7 @@ def _bootstrap(
     new_bms = np.random.choice(bms, size=sample_size, replace=True)
 
     try:
-        parameters, fitted_distr = _get_fitted_distr(new_bms, distr, distr_func)
+        _, fitted_distr = _get_fitted_distr(new_bms, distr, distr_func)
         result = _calculate_return(
             fitted_distr=fitted_distr,
             data_variable=data_variable,
@@ -714,7 +743,7 @@ def _get_return_variable(
 
     def _return_variable(bms):
         try:
-            parameters, fitted_distr = _get_fitted_distr(bms, distr, distr_func)
+            _, fitted_distr = _get_fitted_distr(bms, distr, distr_func)
             return_variable = _calculate_return(
                 fitted_distr=fitted_distr,
                 data_variable=data_variable,
@@ -772,7 +801,7 @@ def _get_return_variable(
             new_ds["return_prob"].attrs[
                 "threshold"
             ] = f"exceedance of {arg_value} {threshold_unit} event"
-            new_ds["return_prob"].attrs["units"] = None
+            new_ds["return_prob"].attrs["units"] = UNSET
         case "return_period":
             return_value_unit = bms_attributes["units"]
             new_ds["return_period"].attrs[
@@ -784,12 +813,12 @@ def _get_return_variable(
                 'data_variable needs to be either "return_value", "return_prob", or "return_period"'
             )
 
-    new_ds["conf_int_lower_limit"].attrs["confidence interval lower bound"] = (
-        "{}th percentile".format(str(conf_int_lower_bound))
-    )
-    new_ds["conf_int_upper_limit"].attrs["confidence interval upper bound"] = (
-        "{}th percentile".format(str(conf_int_upper_bound))
-    )
+    new_ds["conf_int_lower_limit"].attrs[
+        "confidence interval lower bound"
+    ] = f"{conf_int_lower_bound}th percentile"
+    new_ds["conf_int_upper_limit"].attrs[
+        "confidence interval upper bound"
+    ] = f"{conf_int_upper_bound}th percentile"
 
     new_ds.attrs["distribution"] = f"{distr}"
     return new_ds
@@ -943,12 +972,12 @@ def get_return_period(
 def get_exceedance_count(
     da: xr.DataArray,
     threshold_value: float,
-    duration1: tuple[int, str] = None,
+    duration1: tuple[int, str] = UNSET,
     period: tuple[int, str] = (1, "year"),
     threshold_direction="above",
-    duration2: tuple[int, str] = None,
-    groupby: tuple[int, str] = None,
-    smoothing: int = None,
+    duration2: tuple[int, str] = UNSET,
+    groupby: tuple[int, str] = UNSET,
+    smoothing: int = UNSET,
 ) -> xr.DataArray:
     """Calculate the number of occurances of exceeding the specified threshold
     within each period.
@@ -978,7 +1007,7 @@ def get_exceedance_count(
         length of exceedance in order to qualify as an event (after grouping)
     smoothing: int
         option to average the result across multiple periods with a
-        rolling average; value is either None or the number of timesteps to use
+        rolling average; value is either UNSET or the number of timesteps to use
         as the window size
 
     Returns
@@ -1033,13 +1062,13 @@ def get_exceedance_count(
 
     # --------- Apply specified duration requirement ---------------------------
 
-    if duration2 is not None:
+    if duration2 is not UNSET:
         dur_len, dur_type = duration2
 
         if (
-            groupby is not None
+            groupby is not UNSET
             and groupby[1] == dur_type
-            or groupby is None
+            or groupby is UNSET
             and freq[1] == dur_type
         ):
             window_size = dur_len
@@ -1064,7 +1093,7 @@ def get_exceedance_count(
     ).sum()
 
     # Optional smoothing
-    if smoothing is not None:
+    if smoothing is not UNSET:
         exceedance_count = exceedance_count.rolling(time=smoothing, center=True).mean(
             "time"
         )
@@ -1108,7 +1137,7 @@ def _is_greater(time1: tuple[int, str], time2: tuple[int, str]) -> bool:
         (3, "month"), (1, "month") --> True
     """
     order = ["hour", "day", "month", "year"]
-    if time1 is None or time2 is None:
+    if time1 is UNSET or time2 is UNSET:
         return False
     elif time1[1] == time2[1]:
         return time1[0] > time2[0]
@@ -1120,8 +1149,8 @@ def _get_exceedance_events(
     da: xr.DataArray,
     threshold_value: float,
     threshold_direction: str = "above",
-    duration1: tuple[int, str] = None,
-    groupby: tuple[int, str] = None,
+    duration1: tuple[int, str] = UNSET,
+    groupby: tuple[int, str] = UNSET,
 ) -> xr.DataArray:
     """Function for generating logical array of threshold event occurance
 
@@ -1148,15 +1177,15 @@ def _get_exceedance_events(
     # Identify occurances (and preserve NaNs)
     match threshold_direction:
         case "above":
-            events_da = (da > threshold_value).where(da.isnull() == False)
+            events_da = (da > threshold_value).where(~da.isnull())
         case "below":
-            events_da = (da < threshold_value).where(da.isnull() == False)
+            events_da = (da < threshold_value).where(~da.isnull())
         case _:
             raise ValueError(
                 f"Unknown value for `threshold_direction` parameter: {threshold_direction}. Available options are 'above' or 'below'."
             )
 
-    if duration1 is not None:
+    if duration1 is not UNSET:
         dur_len, dur_type = duration1
         if dur_type != "hour" or da.frequency != "hourly":
             raise ValueError("Current specifications not yet implemented.")
@@ -1168,7 +1197,7 @@ def _get_exceedance_events(
         events_da = events_da.rolling(time=window_size, center=False).min("time")
 
     # Groupby
-    if groupby is not None:
+    if groupby is not UNSET:
         if (
             (groupby == (1, "hour") and da.frequency == "hourly")
             or (groupby == (1, "day") and da.frequency == "daily")
@@ -1186,7 +1215,7 @@ def _get_exceedance_events(
                 time=f"{group_len}{indexer_type}", label="left"
             ).sum()  # sum occurences within each group
             events_da = (group_totals > 0).where(
-                group_totals.isnull() == False
+                ~group_totals.isnull()
             )  # turn back into a boolean with preserved NaNs (0 or 1 for whether there is any occurance in the group)
     return events_da
 
@@ -1212,16 +1241,16 @@ def _exceedance_count_name(exceedance_count: xr.DataArray) -> str:
     """
     # If duration is used, this determines the event name
     dur = exceedance_count.duration2
-    if dur is not None:
+    if dur is not None and dur is not UNSET:
         d_num, d_type = dur
         if d_num != 1:
             event = f"{d_num}-{d_type} events"
         else:
             event = f"{d_type}s"  # ex: day --> days
     else:
-        # otherwise use "groupby" if not None
+        # otherwise use "groupby" if not UNSET
         grp = exceedance_count.group
-        if grp is not None:
+        if grp is not UNSET and grp is not None:
             g_num, g_type = grp
             if g_num != 1:
                 event = f"{g_num}-{g_type} events"
