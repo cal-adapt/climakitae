@@ -341,7 +341,7 @@ class GWLGenerator:
                         )  # needed for MPI-ESM1-2-LR
                         data_one_model[scenario] = xr.concat(
                             [data_historical, timeseries], dim="time"
-                        )  # .to_pandas())
+                        )
                     except Exception as e:
                         print(f"Error loading scenario {scenario} data: {e}")
         return data_one_model
@@ -647,10 +647,6 @@ class GWLGenerator:
         if gwlevels_tbl and wl_data_tbls:
             # Renaming columns of all ensemble members within model
             try:
-                # Align indexes before concatenation
-                wl_data_tbls = [
-                    df.reindex(wl_data_tbls[0].index) for df in wl_data_tbls
-                ]
                 wl_data_tbl_sim = pd.concat(wl_data_tbls, axis=1)
             except Exception as e:
                 print(f"Error concatenating timeseries results for model {model}: {e}")
@@ -661,9 +657,6 @@ class GWLGenerator:
 
             # Use the filtered list for concatenation
             try:
-                gwlevels_tbl = [
-                    df.reindex(gwlevels_tbl[0].index) for df in gwlevels_tbl
-                ]
                 return (
                     pd.concat(gwlevels_tbl, keys=successful_ens_mems),
                     wl_data_tbl_sim,
@@ -754,7 +747,7 @@ class GWLGenerator:
                     f"Error writing GWL index file for {start_year[:4]}-{end_year[:4]}: {e}"
                 )
 
-            # Creating WL lookup table with 1850-1900 reference period
+            # Create WL lookup table for reference period
             if all_gw_data_tbls:
                 [print(x.head()) for x in all_gw_tbls]
                 all_gw_levels = pd.concat(all_gw_tbls, keys=models)
@@ -810,7 +803,7 @@ def main(_kTest=False):
             models = list(sims_on_aws.T.columns)
 
             if test:
-                models = models[0:1]
+                models = models["ACCESS-CM2"]
 
             # Pre-defined configuration
             reference_periods = [
@@ -839,4 +832,3 @@ if __name__ == "__main__":
         main(_kTest=True)
     else:
         main()
-#
