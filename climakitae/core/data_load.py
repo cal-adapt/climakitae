@@ -19,8 +19,8 @@ from dask.diagnostics import ProgressBar
 from geopandas import GeoDataFrame
 from rioxarray.exceptions import NoDataInBounds
 from shapely.geometry import box
-from xclim.sdba import Grouper
-from xclim.sdba.adjustment import QuantileDeltaMapping
+from xsdba import Grouper
+from xsdba.adjustment import QuantileDeltaMapping
 
 from climakitae.core.boundaries import Boundaries
 from climakitae.core.constants import WARMING_LEVELS
