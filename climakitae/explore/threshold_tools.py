@@ -722,13 +722,22 @@ def _get_return_variable(
     if data_variable not in data_variables:
         raise ValueError(f"Invalid `data_variable`. Must be one of: {data_variables}")
 
+    # Drop NaN values along time axis, in case any exist
+    bms = bms.dropna(dim='time', how='all')
+
     distr_func = _get_distr_func(distr)
     bms_attributes = bms.attrs
 
     if multiple_points:
+        if {"lat", "lon"}.issubset(bms.dims):
+            spatial = ["lat", "lon"]
+        elif {"x", "y"}.issubset(bms.dims):
+            spatial = ["y", "x"]
+        else:
+            raise ValueError("Expected spatial dims to include either ['lat', 'lon'] or ['x', 'y']")
         bms = (
-            bms.stack(allpoints=["y", "x"])
-            .dropna(dim="allpoints")
+            bms.stack(allpoints=spatial)
+            .dropna("allpoints")
             .squeeze()
             .groupby("allpoints")
         )
@@ -754,17 +763,24 @@ def _get_return_variable(
         except (ValueError, ZeroDivisionError):
             return_variable = np.nan
 
-        conf_int_lower_limit, conf_int_upper_limit = _conf_int(
-            bms=bms,
-            distr=distr,
-            data_variable=data_variable,
-            arg_value=arg_value,
-            bootstrap_runs=bootstrap_runs,
-            conf_int_lower_bound=conf_int_lower_bound,
-            conf_int_upper_bound=conf_int_upper_bound,
-            block_size=block_size,
-            extremes_type=extremes_type,
-        )
+        if bootstrap_runs == 0:
+            conf_int_lower_limit = np.full_like(arg_value, np.nan, dtype=float)
+            conf_int_upper_limit = np.full_like(arg_value, np.nan, dtype=float)
+            # print(1)
+            
+        else:
+            conf_int_lower_limit, conf_int_upper_limit = _conf_int(
+                bms=bms,
+                distr=distr,
+                data_variable=data_variable,
+                arg_value=arg_value,
+                bootstrap_runs=bootstrap_runs,
+                conf_int_lower_bound=conf_int_lower_bound,
+                conf_int_upper_bound=conf_int_upper_bound,
+                block_size=block_size,
+                extremes_type=extremes_type,
+            )
+        # import pdb; pdb.set_trace()
         return (
             np.array([return_variable]),
             np.array([conf_int_lower_limit]),
@@ -784,8 +800,6 @@ def _get_return_variable(
     new_ds = new_ds.assign_coords(
         one_in_x=arg_value
     )  # Writing multiple 1-in-X params as different coords of `arg_value` dimension
-    new_ds["conf_int_lower_limit"] = conf_int_lower_limit
-    new_ds["conf_int_upper_limit"] = conf_int_upper_limit
     if multiple_points:
         new_ds = new_ds.unstack("allpoints")
 
@@ -813,12 +827,15 @@ def _get_return_variable(
                 'data_variable needs to be either "return_value", "return_prob", or "return_period"'
             )
 
-    new_ds["conf_int_lower_limit"].attrs[
-        "confidence interval lower bound"
-    ] = f"{conf_int_lower_bound}th percentile"
-    new_ds["conf_int_upper_limit"].attrs[
-        "confidence interval upper bound"
-    ] = f"{conf_int_upper_bound}th percentile"
+    if bootstrap_runs > 0:
+        new_ds["conf_int_lower_limit"] = conf_int_lower_limit
+        new_ds["conf_int_upper_limit"] = conf_int_upper_limit
+        new_ds["conf_int_lower_limit"].attrs[
+            "confidence interval lower bound"
+        ] = f"{conf_int_lower_bound}th percentile"
+        new_ds["conf_int_upper_limit"].attrs[
+            "confidence interval upper bound"
+        ] = f"{conf_int_upper_bound}th percentile"
 
     new_ds.attrs["distribution"] = f"{distr}"
     return new_ds
