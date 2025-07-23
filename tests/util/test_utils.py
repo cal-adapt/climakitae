@@ -821,7 +821,7 @@ class TestUtils:
         assert "months_from_center" not in result_months.dims
         assert "time" in result_months.dims
         # Check that timestamps are month-end frequency
-        expected_months = pd.date_range("2000-01-01", periods=len(months), freq="ME")
+        expected_months = pd.date_range("2000-01-01", periods=len(months), freq="MS")
         np.testing.assert_array_equal(result_months.time.values, expected_months.values)
 
         # Test 4: DataArray with hours_from_center dimension
