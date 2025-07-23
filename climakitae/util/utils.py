@@ -958,6 +958,9 @@ def add_dummy_time_to_wl(wl_da: xr.DataArray) -> xr.DataArray:
         freq=name_to_freq[time_freq_name],
     )
 
+    # Filter out leap days (Feb 29)
+    timestamps = timestamps[~((timestamps.month == 2) & (timestamps.day == 29))]
+
     # Replacing WL timestamps with dummy timestamps so that calculations from tools like `thresholds_tools`
     # can be computed on a DataArray with a time dimension
     wl_da = wl_da.assign_coords({wl_time_dim: timestamps}).rename({wl_time_dim: "time"})
