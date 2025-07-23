@@ -946,10 +946,10 @@ def add_dummy_time_to_wl(wl_da: xr.DataArray) -> xr.DataArray:
     # Creating map from frequency name to freq var needed for pandas date range
     if wl_time_dim == "time_delta":
         time_freq_name = wl_da.frequency
-        name_to_freq = {"hourly": "h", "daily": "D", "monthly": "ME"}
+        name_to_freq = {"hourly": "h", "daily": "D", "monthly": "MS"}
     else:
         time_freq_name = wl_time_dim.split("_")[0]
-        name_to_freq = {"hours": "h", "days": "D", "months": "ME"}
+        name_to_freq = {"hours": "h", "days": "D", "months": "MS"}
 
     # Creating dummy timestamps
     timestamps = pd.date_range(
