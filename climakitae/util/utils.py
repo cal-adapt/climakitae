@@ -964,7 +964,7 @@ def add_dummy_time_to_wl(wl_da: xr.DataArray) -> xr.DataArray:
     timestamps = timestamps[~((timestamps.month == 2) & (timestamps.day == 29))]
 
     # Only selecting timestamps that are within the desired time range, trimming down from * 1.1 above
-    timestamps = timestamps[:len(wl_da[wl_time_dim])]
+    timestamps = timestamps[: len(wl_da[wl_time_dim])]
 
     # Replacing WL timestamps with dummy timestamps so that calculations from tools like `thresholds_tools`
     # can be computed on a DataArray with a time dimension
