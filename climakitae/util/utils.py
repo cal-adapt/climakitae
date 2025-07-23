@@ -954,7 +954,9 @@ def add_dummy_time_to_wl(wl_da: xr.DataArray) -> xr.DataArray:
     # Creating dummy timestamps
     timestamps = pd.date_range(
         "2000-01-01",
-        periods=int(len(wl_da[wl_time_dim]) * 1.1), # Creating too many timestamps, eventually to be trimmed down
+        periods=int(
+            len(wl_da[wl_time_dim]) * 1.1
+        ),  # Creating too many timestamps, eventually to be trimmed down
         freq=name_to_freq[time_freq_name],
     )
 
