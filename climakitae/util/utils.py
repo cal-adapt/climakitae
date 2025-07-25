@@ -972,6 +972,10 @@ def add_dummy_time_to_wl(wl_da: xr.DataArray) -> xr.DataArray:
     # Adjust number of periods to add leap day hours if hourly, else add leap days as periods
     extra_periods = total_leap_days * 24 if freq == "h" else total_leap_days
 
+    # Edge case, if total time passed in is less than 60 days (when Feb 29th is), then don't add `extra_periods`
+    if (freq == "h" and len_time < 24 * 60) or (freq == "D" and len_time < 60):
+        extra_periods = 0
+
     # Create the dummy timestamps including leap day adjustments
     timestamps = pd.date_range(
         start="2000-01-01", periods=len_time + extra_periods, freq=freq
