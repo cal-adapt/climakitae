@@ -342,23 +342,23 @@ def get_sliced_data(
 
     Parameters
     ----------
-    y: xr.DataArray
+    y : xr.DataArray
         Data to compute warming level anomolies, one simulation at a time via groupby
-    level: str
+    level : str
         Warming level amount
-    years: pd.DataFrame
+    years : pd.DataFrame
         Lookup table for the date a given simulation reaches each warming level.
-    months: np.ndarray
+    months : np.ndarray
         Months to include in a warming level slice.
-    window: int, optional
+    window : int, optional
         Number of years to generate time window for. Default to 15 years.
         For example, a 15 year window would generate a window of 15 years in the past from the central warming level date, and 15 years into the future. I.e. if a warming level is reached in 2030, the window would be (2015,2045).
-    scenario: str, one of "ssp370", "ssp585", "ssp245"
-        Shared Socioeconomic Pathway. Default to SSP 3-7.0
+    anom : str
+        Find the anomaly
 
     Returns
-    --------
-    anomaly_da: xr.DataArray
+    -------
+    xr.DataArray
     """
     gwl_times_subset = years.loc[process_item(y)]
 
@@ -456,18 +456,29 @@ class WarmingLevelChoose(DataParameters):
     This class extends DataParameters to provide functionality for choosing and analyzing
     data around specific global warming levels (GWLs). It allows users to specify a time window
     around the warming level and whether to return anomalies relative to a historical reference period.
-    Attributes:
-        window (param.Integer): Size of the time window (in years) around the global warming level.
-                                The default is 15 years (i.e., a 30-year window centered on the GWL).
-        anom (param.Selector): Whether to return data as anomalies (difference from historical
-                                reference period). Options are "Yes" or "No".
-        warming_levels (list): Available warming levels for selection.
-        months (numpy.ndarray): Available months (1-12) for selection.
-        load_data (bool): Whether to load data as it's being computed. Setting to False allows
-                         for batch processing or working with smaller chunks of data.
-    Methods:
-        _anom_allowed(): Controls whether the anomaly option is required based on the
-                        downscaling method.
+
+    Attributes
+    ----------
+
+    window : param.Integer
+        Size of the time window (in years) around the global warming level.
+        The default is 15 years (i.e., a 30-year window centered on the GWL).
+    anom : param.Selector
+        Whether to return data as anomalies (difference from historical
+        reference period). Options are "Yes" or "No".
+    warming_levels : list
+        Available warming levels for selection.
+    months : numpy.ndarray
+        Available months (1-12) for selection.
+    load_data : bool
+        Whether to load data as it's being computed. Setting to False allows
+        for batch processing or working with smaller chunks of data.
+
+    Methods
+    -------
+        _anom_allowed():
+            Controls whether the anomaly option is required based on the
+            downscaling method.
     """
 
     window = param.Integer(
