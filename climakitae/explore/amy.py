@@ -201,7 +201,7 @@ def compute_amy(data: xr.DataArray, days_in_year: int = 366) -> pd.DataFrame:
     return df_amy
 
 
-def compute_severe_yr(data, days_in_year=366):
+def compute_severe_yr(data: xr.DataArray, days_in_year: int = 366) -> pd.DataFrame:
     """Calculate the severe meteorological year based on the 90th percentile of data.
 
     Applicable for both the historical and future periods.
@@ -213,9 +213,6 @@ def compute_severe_yr(data, days_in_year=366):
     days_in_year: int, optional
         Either 366 or 365, depending on whether or not the year is a leap year.
         Default to 366 days (leap year)
-    show_pbar: bool, optional
-        Show progress bar? Default to false.
-        Progress bar is nice for using this function within a notebook.
 
     Returns
     -------
