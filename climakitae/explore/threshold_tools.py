@@ -60,7 +60,7 @@ def get_block_maxima(
 
     Parameters
     ----------
-    da: xarray.DataArray
+    da_series: xarray.DataArray
         DataArray from retrieve
     extremes_type: str
         option for max or min
