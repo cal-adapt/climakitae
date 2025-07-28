@@ -419,7 +419,9 @@ def get_ks_stat(
     bms: xarray.DataArray
         Block maximum series, can be output from the function get_block_maxima()
     distr: str
+        name of distribution to use
     multiple_points: boolean
+        whether to use multiple points or not
 
     Returns
     -------
