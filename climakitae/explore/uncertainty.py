@@ -18,7 +18,7 @@ from climakitae.util.utils import read_csv_file
 class CmipOpt:
     """A class for holding relevant data options for cmip preprocessing
 
-    Parameters
+    Attributes
     ----------
     variable: str
         variable name, cf-compliant (or cmip6 variable name)
@@ -61,7 +61,7 @@ class CmipOpt:
 
         Returns
         -------
-        ds: xr.Dataset
+        xr.Dataset
             Subsetted data, area-weighting applied if area_average is true
         """
         to_drop = [v for v in list(ds.data_vars) if v != self.variable]
@@ -84,7 +84,7 @@ def _cf_to_dt(ds: xr.Dataset) -> xr.Dataset:
 
     Returns
     -------
-    ds: xr.Dataset
+    xr.Dataset
         Converted calendar data
     """
     if type(ds.indexes["time"]) not in [pd.core.indexes.datetimes.DatetimeIndex]:
@@ -110,7 +110,7 @@ def _calendar_align(ds: xr.Dataset) -> xr.Dataset:
 
     Returns
     -------
-    ds: xr.Dataset
+    xr.Dataset
         Calendar-aligned data
     """
     ds["time"] = pd.to_datetime(ds.time.dt.strftime("%Y-%m"))
@@ -124,7 +124,7 @@ def _clip_region(ds: xr.Dataset, area_subset: list, location: str) -> xr.Dataset
     ----------
     ds: xr.Dataset
         Input data
-    area_subset: DataParameters.area_subset
+    area_subset: list[str]
         "counties"/"states" as options
     location: str
         county/state name
@@ -171,7 +171,7 @@ def _standardize_cmip6_data(ds: xr.Dataset) -> xr.Dataset:
 
     Returns
     -------
-    ds: xr.Dataset
+    xr.Dataset
         CMIP6 data with consistent dimensions, names, and calendars.
     """
 
@@ -199,7 +199,7 @@ def _area_wgt_average(ds: xr.Dataset) -> xr.Dataset:
 
     Returns
     -------
-    ds: xr.Dataset
+    xr.Dataset
         Area-averaged data by weights
     """
     weights = np.cos(np.deg2rad(ds.y))
@@ -219,7 +219,7 @@ def _drop_member_id(dset_dict: dict) -> xr.Dataset:
 
     Returns
     -------
-    dset_dict: xr.Dataset
+    xr.Dataset
         Data, with member_id dim removed
     """
     for dname, dset in dset_dict.items():
@@ -242,7 +242,7 @@ def _precip_flux_to_total(ds: xr.Dataset) -> xr.Dataset:
         CMIP6 output with data variable 'pr'
     Returns
     -------
-    ds: xr.Dataset
+    xr.Dataset
         Data with converted precipitation units
     """
     ds_attrs = ds.attrs
@@ -270,7 +270,7 @@ def _grab_ensemble_data_by_experiment_id(
 
     Returns
     -------
-    list of xr.Dataset
+    list[xr.Dataset]
     """
 
     # Open AE data catalog for regridded CMIP6 data
@@ -312,7 +312,7 @@ def grab_multimodel_data(copt: CmipOpt, alpha_sort: bool = False) -> xr.Dataset:
 
     Returns
     -------
-    mdls_ds: xr.Dataset
+    xr.Dataset
         Processed CMIP6 models concatenated into a single ds
     """
     col = intake.open_esm_datastore(
@@ -432,16 +432,16 @@ def get_ensemble_data(
     -----------
     variable: str
         Name of variable
-    selections: _DataSelector
+    selections: DataParameters
         Data and location settings
-    cmip_names: list of str
+    cmip_names: list[str]
         Name of CMIP6 simulations
     warm_level: float, optional
         Global warming level to use, default to 3.0
 
     Returns
     -------
-    hist_ds, warm_ds: list of xr.Dataset
+    list[xr.Dataset]
 
     """
     # Get a list of datasets, each with one simulation (i.e. one dataset with several member_id values for CESM2, etc)
@@ -535,7 +535,7 @@ def weighted_temporal_mean(ds: xr.DataArray) -> xr.DataArray:
 
     Returns
     -------
-    obs_sum / ones_out : xarray.Dataset
+    xarray.Dataset
     """
 
     # Determine the month length
@@ -583,7 +583,7 @@ def calc_anom(ds_yr: xr.Dataset, base_start: int, base_end: int) -> xr.Dataset:
 
     Returns
     -------
-    mdl_temp_anom: xr.Dataset
+    xr.Dataset
         Anomaly data calculated with input baseline start and end
     """
     mdl_baseline = ds_yr.sel(time=slice(base_start, base_end)).mean("time")
@@ -601,7 +601,7 @@ def cmip_mmm(ds: xr.Dataset) -> xr.Dataset:
 
     Returns
     -------
-    ds_mmm: xr.Dataset
+    xr.Dataset
         Mean across input data taken on simulation dim
     """
     ds_mmm = ds.mean("simulation")
@@ -625,7 +625,7 @@ def get_ks_pval_df(
 
     Returns
     -------
-    p_df: pd.DataFrame
+    pd.DataFrame
         columns are lat, lon, and p_value;
         only retains spatial points where
         p_value < sig_lvl
@@ -674,7 +674,7 @@ def get_warm_level(
 
     Parameters
     ----------
-    warm_level : float or int
+    warm_level : float | int
         options: 1.5, 2.0, 3.0, 4.0
     ds : xr.Dataset
         Can only have one 'simulation' coordinate
