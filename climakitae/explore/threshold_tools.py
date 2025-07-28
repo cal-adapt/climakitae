@@ -421,7 +421,7 @@ def get_ks_stat(
     distr: str
         name of distribution to use
     multiple_points: boolean
-        whether to use multiple points or not
+        Whether or not the data contains multiple points (has x, y dimensions)
 
     Returns
     -------
@@ -651,11 +651,11 @@ def _conf_int(
     arg_value: float
         value to do the calucation to
     bootstrap_runs: int
-        number of bootstrap runs
+        Number of bootstrap samples
     conf_int_lower_bound: float
-        low bound of confidence interval
+        Confidence interval lower bound
     conf_int_upper_bound: float
-        upper bound of confidence interval
+        Confidence interval upper bound
     block_size: int
         block size, in years, of the provided block maximum series
 
@@ -710,12 +710,19 @@ def _get_return_variable(
     bms: xarray.DataArray
         Block maximum series, can be output from the function get_block_maxima()
     data_variable: str
+        can be return_value, return_prob, return_period
     arg_value: float
+        value to do the calucation to
     distr: str
+        name of distribution to use
     bootstrap_runs: int
+        Number of bootstrap samples
     conf_int_lower_bound: float
+        Confidence interval lower bound
     conf_int_upper_bound: float
+        Confidence interval upper bound
     multiple_points: boolean
+        Whether or not the data contains multiple points (has x, y dimensions)
 
     Returns
     -------
