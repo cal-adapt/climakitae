@@ -645,13 +645,17 @@ def _conf_int(
     bms: xarray.DataArray
         Block maximum series, can be output from the function get_block_maxima()
     distr: str
+        name of distribution to use
     data_variable: str
         can be return_value, return_prob, return_period
     arg_value: float
         value to do the calucation to
     bootstrap_runs: int
+        number of bootstrap runs
     conf_int_lower_bound: float
+        low bound of confidence interval
     conf_int_upper_bound: float
+        upper bound of confidence interval
     block_size: int
         block size, in years, of the provided block maximum series
 
