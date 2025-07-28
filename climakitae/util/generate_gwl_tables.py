@@ -803,7 +803,7 @@ def main(_kTest=False):
             models = list(sims_on_aws.T.columns)
 
             if test:
-                models = models["ACCESS-CM2"]
+                models = ["ACCESS-CM2"]
 
             # Pre-defined configuration
             reference_periods = [
