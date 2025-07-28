@@ -585,6 +585,7 @@ def _bootstrap(
     bms: xarray.DataArray
         Block maximum series, can be output from the function get_block_maxima()
     distr: str
+        name of distribution to use
     data_variable: str
         can be return_value, return_prob, return_period
     arg_value: float
