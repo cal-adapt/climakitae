@@ -250,7 +250,9 @@ def compute_severe_yr(data: xr.DataArray, days_in_year: int = 366) -> pd.DataFra
 # =========================== HELPER FUNCTIONS: MISC ==============================
 
 
-def compute_mean_monthly_meteo_yr(tmy_df: pd.DataFrame, col_name: str = "mean_value") -> pd.DataFrame:
+def compute_mean_monthly_meteo_yr(
+    tmy_df: pd.DataFrame, col_name: str = "mean_value"
+) -> pd.DataFrame:
     """Compute mean monthly values for input meteorological year data.
 
     Parameters
