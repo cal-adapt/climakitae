@@ -1007,18 +1007,18 @@ def get_exceedance_count(
         scenarios, simulations, or x and y coordinates.
     threshold_value: float
         value against which to test exceedance
-    period: tuple[int,str]
+    duration1: tuple[int, str]
+        length of exceedance in order to qualify as an event (before grouping)
+    period: tuple[int, str]
         amount of time across which to sum the number of occurances,
         default is (1, "year"). Specified as a tuple: (x, time) where x is an
         integer, and time is one of: ["day", "month", "year"]
     threshold_direction: str
         either "above" or "below", default is above.
-    duration1: tuple
-        length of exceedance in order to qualify as an event (before grouping)
-    groupby: tuple[int,str]
-        see examples for explanation. Typical grouping could be (1, "day")
-    duration2: tuple[int,str]
+    duration2: tuple[int, str]
         length of exceedance in order to qualify as an event (after grouping)
+    groupby: tuple[int, str]
+        see examples for explanation. Typical grouping could be (1, "day")
     smoothing: int
         option to average the result across multiple periods with a
         rolling average; value is either UNSET or the number of timesteps to use
