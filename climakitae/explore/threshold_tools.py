@@ -1136,9 +1136,9 @@ def _is_greater(time1: tuple[int, str], time2: tuple[int, str]) -> bool:
 
     Parameters
     ----------
-    time1: tuple
+    time1: tuple[int, str]
         tuple of period (int), duration (str)
-    time2: tuple
+    time2: tuple[int, str]
         tuple of period (int), duration (str)
 
     Returns
@@ -1178,9 +1178,9 @@ def _get_exceedance_events(
         value against which to test exceedance
     threshold_direction: str
         either "above" or "below", default is above.
-    duration1: tuple
+    duration1: tuple[int, str]
         length of exceedance in order to qualify as an event (before grouping)
-    groupby: tuple
+    groupby: tuple[int, str]
         see examples for explanation. Typical grouping could be (1, "day")
 
     Returns

@@ -32,7 +32,7 @@ class TimeSeriesParameters(param.Parameterized):
         Number of timesteps for rolling mean calculations (default 0).
     percentile: int | float, optional
         Percentile to calculate when using the "Percentile" option in extremes (range 0-1).
-    reference_range: tuple[dt.datetime,dt.datetime]
+    reference_range: tuple[dt.datetime, dt.datetime]
         Reference date range (default 1981-01-01 to 2010-12-31).
     remove_seasonal_cycle: bool, optional
         True to remove the seasonal cycle from the timeseries (default False).
@@ -208,7 +208,7 @@ def _update_attrs(
     ----------
     data_to_output : xr.DataArray
         The attributes of this data array will be modified.
-    attrs_to_add : dict[str,str]
+    attrs_to_add : dict[str, str]
         Dictionary containing attributes to modify.
 
     Returns
