@@ -962,7 +962,7 @@ def add_dummy_time_to_wl(wl_da: xr.DataArray) -> xr.DataArray:
     # Calculate approximate number of years spanned by data
     years_span = len_time / num_time_units_per_year[freq]
     start_year = 2000
-    end_year = int(start_year + years_span)
+    end_year = int(start_year + years_span - 1)
 
     # Calculate total leap days in the period
     total_leap_days = sum(
