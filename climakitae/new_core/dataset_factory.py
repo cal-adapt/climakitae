@@ -502,6 +502,7 @@ class DatasetFactory:
             for k, v in query.items():
                 if k in filtered_df.columns:
                     filtered_df = filtered_df[filtered_df[k] == v]
+        print(key, filtered_df[key])
         return sorted(list(filtered_df[key].dropna().unique()))
 
     def get_validators(self) -> List[str]:
