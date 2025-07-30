@@ -726,8 +726,15 @@ def _get_return_variable(
     bms_attributes = bms.attrs
 
     if multiple_points:
+         # Determine spatial dimensions
+        if {"lat", "lon"}.issubset(bms.dims):
+            spatial_dims = ["lat", "lon"]
+        elif {"x", "y"}.issubset(bms.dims):
+            spatial_dims = ["y", "x"]
+        else:
+            raise ValueError("Expected spatial dims to include either ['lat', 'lon'] or ['x', 'y']")
         bms = (
-            bms.stack(allpoints=["y", "x"])
+            bms.stack(allpoints=spatial_dims)
             .dropna(dim="allpoints")
             .squeeze()
             .groupby("allpoints")
@@ -743,6 +750,8 @@ def _get_return_variable(
 
     def _return_variable(bms):
         try:
+            # Drop invalid values along time-axis
+            bms = bms[~np.isnan(bms)]
             _, fitted_distr = _get_fitted_distr(bms, distr, distr_func)
             return_variable = _calculate_return(
                 fitted_distr=fitted_distr,
