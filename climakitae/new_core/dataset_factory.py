@@ -501,8 +501,30 @@ class DatasetFactory:
             # Filter the catalog DataFrame based on the query
             for k, v in query.items():
                 if k in filtered_df.columns:
-                    filtered_df = filtered_df[filtered_df[k] == v]
-        print(key, filtered_df[key])
+                    if isinstance(v, (list, tuple)):
+                        if len(v) == 0:
+                            # Empty list - no filtering needed for this key
+                            continue
+                        elif len(v) == 1:
+                            # Single element - use exact or partial match
+                            filtered_df = filtered_df[
+                                filtered_df[k].str.contains(
+                                    str(v[0]), case=False, na=False
+                                )
+                            ]
+                        else:
+                            # Multiple elements - match any of them (partial match)
+                            pattern = "|".join([str(item) for item in v])
+                            filtered_df = filtered_df[
+                                filtered_df[k].str.contains(
+                                    pattern, case=False, na=False
+                                )
+                            ]
+                    else:
+                        # Single value - use partial match
+                        filtered_df = filtered_df[
+                            filtered_df[k].str.contains(str(v), case=False, na=False)
+                        ]
         return sorted(list(filtered_df[key].dropna().unique()))
 
     def get_validators(self) -> List[str]:
