@@ -523,7 +523,7 @@ class DatasetFactory:
                     else:
                         # Single value - use partial match
                         filtered_df = filtered_df[
-                            filtered_df[k].str.contains(str(v), case=False, na=False)
+                            filtered_df[k].str.equals(str(v), case=False, na=False)
                         ]
         return sorted(list(filtered_df[key].dropna().unique()))
 
