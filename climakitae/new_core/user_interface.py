@@ -469,41 +469,37 @@ class ClimateData:
     # Option exploration methods
     def show_catalog_options(self) -> None:
         """Display available catalog options."""
-        self._show_options("catalog", "Catalogs (Cloud data collections)")
+        self._show_options("catalog", "catalog options (Cloud data collections)")
 
     def show_installation_options(self) -> None:
         """Display available installation options."""
         self._show_options(
-            "installation", "Installations (Renewable energy technology types)"
+            "installation", "installation options (Renewable energy technology types)"
         )
 
     def show_activity_id_options(self) -> None:
         """Display available activity ID options."""
-        self._show_options("activity_id", "Activity IDs (Downscaling methods)")
+        self._show_options("activity_id", "activity_id options (Downscaling methods)")
 
     def show_institution_id_options(self) -> None:
         """Display available institution ID options."""
-        self._show_options("institution_id", "Institution IDs (Data producers)")
+        self._show_options("institution_id", "institution_id options (Data producers)")
 
     def show_source_id_options(self) -> None:
         """Display available source ID options."""
-        self._show_options("source_id", "Source IDs (Climate model simulations)")
+        self._show_options("source_id", "source_id options (Climate model simulations)")
 
     def show_experiment_id_options(self) -> None:
         """Display available experiment ID options."""
-        self._show_options("experiment_id", "Experiment IDs (Simulation runs)")
+        self._show_options("experiment_id", "experiment_id options (Simulation runs)")
 
     def show_table_id_options(self) -> None:
         """Display available table ID options (Temporal resolutions)."""
-        self._show_options(
-            "table_id", "Available table ID options (Temporal resolutions)"
-        )
+        self._show_options("table_id", "table_id options (Temporal resolutions)")
 
     def show_grid_label_options(self) -> None:
         """Display available grid label options (Spatial resolutions)."""
-        self._show_options(
-            "grid_label", "Available grid label options (Spatial resolutions)"
-        )
+        self._show_options("grid_label", "grid_label options (Spatial resolutions)")
 
     def show_variable_options(self) -> None:
         """Display available variable options."""
