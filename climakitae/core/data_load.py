@@ -1332,13 +1332,13 @@ def read_catalog_from_select(selections: "DataParameters") -> xr.DataArray:
                 )
 
         # ------ Set attributes ------
-        # Reset selections to user's original selections
-        selections.variable_id = [orig_var_id_selection]
-        selections.units = orig_unit_selection
-
         # Convert units before copying data attributes
         da = convert_units(da, selected_units=orig_unit_selection)
         da.name = orig_variable_selection  # Set name of DataArray
+
+        # Reset selections to user's original selections
+        selections.variable_id = [orig_var_id_selection]
+        selections.units = orig_unit_selection
 
         # Some of the derived variables may be constructed from data that comes from the same institution
         # The dev team hasn't looked into this yet -- opportunity for future improvement
