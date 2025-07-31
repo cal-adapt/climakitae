@@ -55,7 +55,8 @@ iwp,Dynamical,"daily, monthly",kg/m2,Ice water path,The integral of ice water co
 sfc_runoff,Dynamical,"daily, monthly",mm/d,Surface runoff,The rate at which water travels over the ground surface until it reaches a body of water (stream / river etc.),ae_blue,FALSE,None
 subsfc_runoff,Dynamical,"daily, monthly",mm/d,Subsurface runoff,The rate at which water that has infiltrated the ground surface travels underground until it reaches a body of water (stream / river etc.),ae_blue,FALSE,None
 prec_max,Dynamical,"daily, monthly",mm/h,Maximum precipitation,The maximum precipitation rate in a single hour. ,ae_blue,TRUE,None
-cape,Dynamical,"daily, monthly",J/kg,Convective Available Potential Energy,"A measure of atmospheric instability, representing the potential energy available for convective storm development. Higher CAPE values are indicative of greater instability. ",ae_orange,FALSE,None
+cape,Dynamical,"daily, monthly",J/kg,Convective Available Potential Energy,"A measure of atmospheric instability that represents the potential energy available for convective storm development. Higher CAPE values are indicative of greater instability. ",ae_orange,FALSE,None
+
 cin,Dynamical,"daily, monthly",J/kg,Convective Inhibition,"The amount of energy required to lift a parcel of air to the Level of Free Convection, which is a measure of atmospheric stability. Low CIN values are conducive for convective storm development. ",ae_diverging,FALSE,None
 snow,Dynamical,"daily, monthly",mm,Snow water equivalent,The depth of liquid water on the surface that would be present if all snow melted instaneously; used to quantify the amount of water stored within snowpack and water resources. Typically abbreviated as SWE.,ae_blue,FALSE,None
 pr,Statistical,"daily, monthly",kg m-2 s-1,Precipitation (total),Total precipitation. Computed by summing total gridscale precipitation and total cumulus precipitation.,ae_blue,TRUE,None
