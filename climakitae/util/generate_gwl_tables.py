@@ -130,18 +130,18 @@ def main():
         Works for all of the models(/GCMs) in the list `models`, which appear in the current
         data catalog of WRF downscaling.
 
-        Parameters:
+        Parameters
         ----------
-        variable : str
+        variable: str
             The variable to process, e.g., `tas`. `tas` is the only variable used in this file currently.
-        model : str
+        model: str
             The model name.
-        ens_mem : str
+        ens_mem: str
             The ensemble member ID.
-        scenarios : list
+        scenarios: list
             A list of scenario names to include, e.g., ['historical', 'ssp585', 'ssp370'].
 
-        Returns:
+        Returns
         -------
         xarray.Dataset
             A dataset with time as the dimension, containing the appended historical and SSP time series.
@@ -197,14 +197,14 @@ def main():
         Takes a smoothed time series of global mean temperature of different scenarios for a model
         and returns a table indicating the timestamp at which the specified warming level is reached.
 
-        Parameters:
+        Parameters
         ----------
-        smoothed : pandas.DataFrame
+        smoothed: pandas.DataFrame
             A DataFrame containing a global mean temperature time series for a model for multiple scenarios.
-        degree : float
+        degree: float
             The global warming level to detect, e.g., 1.5, 2, etc.
 
-        Returns:
+        Returns
         -------
         pandas.DataFrame
             A table containing timestamps for when each scenario first crosses the specified warming level.
@@ -237,22 +237,22 @@ def main():
         """
         Generates a GWL lookup table for one ensemble member of CESM2.
 
-        Parameters:
+        Parameters
         ----------
-        variable : str
+        variable: str
             The variable to process, e.g., 'tas'.
-        model : str
+        model: str
             The model name, e.g., 'CESM2'.
-        ens_mem : str
+        ens_mem: str
             The ensemble member ID.
-        scenarios : list
+        scenarios: list
             A list of scenario names, e.g., ['historical', 'ssp370'].
-        start_year : str, optional
+        start_year: str, optional
             The start year for the reference period in the format 'YYYYMMDD'.
-        end_year : str, optional
+        end_year: str, optional
             The end year for the reference period in the format 'YYYYMMDD'.
 
-        Returns:
+        Returns
         -------
         tuple
             A DataFrame of warming levels and a DataFrame of global mean temperature time series.
@@ -286,20 +286,20 @@ def main():
         """
         Generates a GWL table for the CESM2 model.
 
-        Parameters:
+        Parameters
         ----------
-        variable : str
+        variable: str
             The variable to process, e.g., 'tas'.
-        model : str
+        model: str
             The model name, e.g., 'CESM2'.
-        scenarios : list
+        scenarios: list
             A list of scenario names to include, e.g., ['ssp370'].
-        start_year : str, optional
+        start_year: str, optional
             The start year for the reference period in the format 'YYYYMMDD'.
-        end_year : str, optional
+        end_year: str, optional
             The end year for the reference period in the format 'YYYYMMDD'.
 
-        Returns:
+        Returns
         -------
         tuple
             A DataFrame of warming levels and a DataFrame of global mean temperature time series for the CESM2 model.
@@ -338,22 +338,22 @@ def main():
         Loops through various global warming levels from `climakitae.core.constants`
         for the requested model/variant and scenarios.
 
-        Parameters:
+        Parameters
         ----------
-        variable : str
+        variable: str
             The variable to process, e.g., 'tas'.
-        model : str
+        model: str
             The model name.
-        ens_mem : str
+        ens_mem: str
             The ensemble member ID.
-        scenarios : list
+        scenarios: list
             A list of scenario names to include, e.g., ['historical', 'ssp585', 'ssp370'].
-        start_year : str, optional
+        start_year: str, optional
             The start year for the reference period in the format 'YYYYMMDD'.
-        end_year : str, optional
+        end_year: str, optional
             The end year for the reference period in the format 'YYYYMMDD'.
 
-        Returns:
+        Returns
         -------
         tuple
             A DataFrame containing warming levels and a DataFrame with global mean temperature time series.
@@ -405,20 +405,20 @@ def main():
         """
         Generates a GWL table for a given model and scenarios.
 
-        Parameters:
+        Parameters
         ----------
-        variable : str
+        variable: str
             The variable to process, e.g., 'tas'.
-        model : str
+        model: str
             The model name.
-        scenarios : list
+        scenarios: list
             A list of scenario names to include, e.g., ['ssp585', 'ssp370', 'ssp245'].
-        start_year : str, optional
+        start_year: str, optional
             The start year for the reference period in the format 'YYYYMMDD'.
-        end_year : str, optional
+        end_year: str, optional
             The end year for the reference period in the format 'YYYYMMDD'.
 
-        Returns:
+        Returns
         -------
         tuple
             A DataFrame containing warming levels and a DataFrame with global mean temperature time series.
@@ -544,12 +544,12 @@ def get_sims_on_aws(df: pd.DataFrame) -> pd.DataFrame:
     models that have both historical and at least one SSP ensemble member. Additionally, it ensures
     that only historical ensemble members with variants in at least one SSP are kept.
 
-    Parameters:
+    Parameters
     ----------
-    df : pandas.DataFrame
+    df: pandas.DataFrame
         A DataFrame containing metadata for CMIP6 simulations.
 
-    Returns:
+    Returns
     -------
     pandas.DataFrame
         A DataFrame indexed by model names (source_id) and columns corresponding to scenarios
