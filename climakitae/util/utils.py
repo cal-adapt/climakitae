@@ -1,4 +1,3 @@
-import copy
 import datetime
 import os
 from typing import Iterable, Union
@@ -12,16 +11,12 @@ import rioxarray as rio
 from shapely.geometry import mapping
 from typing import Any
 import xarray as xr
-import intake
 from timezonefinder import TimezoneFinder
 
-from climakitae.core.constants import SSPS, UNSET, WARMING_LEVELS
+from climakitae.core.constants import SSPS, UNSET
 
 # from climakitae.core.data_interface import DataParameters
-from climakitae.core.paths import (
-    data_catalog_url,
-    stations_csv_path,
-)
+from climakitae.core.paths import stations_csv_path
 
 
 def downscaling_method_as_list(downscaling_method: str) -> list[str]:
@@ -156,7 +151,7 @@ def get_closest_gridcell(
 
     Parameters
     ----------
-    data: xr.DataArray or xr.Dataset
+    data: xr.DataArray | xr.Dataset
         Gridded data
     lat: float
         Latitude of coordinate pair
@@ -167,8 +162,8 @@ def get_closest_gridcell(
         Default to True. Set to False for backend use.
 
     Returns
-    --------
-    xr.DataArray or None
+    -------
+    xr.DataArray | None
         Grid cell closest to input lat,lon coordinate pair
 
     See also
@@ -224,7 +219,7 @@ def get_closest_gridcell(
 
 def get_closest_gridcells(
     data: xr.Dataset, lats: Iterable[float] | float, lons: Iterable[float] | float
-) -> xr.Dataset | None:
+) -> xr.Dataset | xr.DataArray | None:
     """
     Find the nearest grid cell(s) for given latitude and longitude coordinates.
 
@@ -234,11 +229,11 @@ def get_closest_gridcells(
 
     Parameters
     ----------
-    data : xr.DataArray or xr.Dataset
+    data: xr.DataArray | xr.Dataset
         Gridded dataset with (x, y) or (lat, lon) dimensions.
-    lats : float or array-like
+    lats: float | Iterable[float]
         Latitude coordinate(s).
-    lons : float or array-like
+    lons: float | Iterable[float]
         Longitude coordinate(s).
 
     Returns
@@ -290,22 +285,22 @@ def get_closest_gridcells(
 
         Parameters
         ----------
-        data : xr.DataArray or xr.Dataset
+        data: xr.DataArray | xr.Dataset
             Gridded dataset with spatial dimensions.
-        dim1_name : str
+        dim1_name: str
             First spatial dimension (e.g., 'x' or 'lat').
-        dim2_name : str
+        dim2_name: str
             Second spatial dimension (e.g., 'y' or 'lon').
-        coords1 : float or array-like
+        coords1: float | Iterable[float]
             Coordinates along `dim1_name`.
-        coords2 : float or array-like
+        coords2: float | Iterable[float]
             Coordinates along `dim2_name`.
-        tolerance : float
+        tolerance: float
             Maximum allowed distance from the nearest grid cell.
 
         Returns
         -------
-        xr.DataArray or None
+        xr.Dataset | xr.DataArray | None
             Nearest grid cell(s) or `None` if out of bounds.
 
         See Also
@@ -668,7 +663,7 @@ def trendline(data: xr.Dataset, kind: str = "mean") -> xr.Dataset:
     Parameters
     ----------
     data: xr.Dataset
-    kind: str (optional)
+    kind: str , optional
         Options are 'mean' and 'median'
 
     Returns
@@ -780,13 +775,19 @@ def convert_to_local_time(
     """
     Convert time dimension from UTC to local time for the grid or station.
 
-    Args:
-        data (xarray.DataArray | xr.Dataset): Input data.
-        grid_lon (float): Mean longitude of dataset if no lat/lon coordinates
-        grid_lat (float): Mean latitude of dataset if no lat/lon coordinates
+    Parameters
+    ----------
+        data: xr.DataArray | xr.Dataset
+            Input data.
+        grid_lon: float
+            Mean longitude of dataset if no lat/lon coordinates
+        grid_lat: float
+            Mean latitude of dataset if no lat/lon coordinates
 
-    Returns:
-        xarray.DataArray: Data with converted time coordinate.
+    Returns
+    -------
+        xr.DataArray | xr.Dataset
+            Data with converted time coordinate.
     """
 
     # Only converting hourly data
@@ -911,13 +912,13 @@ def add_dummy_time_to_wl(wl_da: xr.DataArray) -> xr.DataArray:
 
     Parameters
     ----------
-    wl_da : xarray.DataArray
+    wl_da: xr.DataArray
         The input Warming Levels DataArray. It is expected to have a time-based dimension which typically includes "from_center"
         in its name or `time_delta` indicating the time dimension in relation to the year that the given warming level is reached per simulation.
 
     Returns
     -------
-    xarray.DataArray
+    xr.DataArray
         A modified version of the input DataArray with the original time dimension replaced by a dummy time series. The new dimension
         will be named "time".
 
@@ -970,14 +971,15 @@ def downscaling_method_to_activity_id(
     """Convert downscaling method to activity id to match catalog names
 
     Parameters
-    -----------
+    ----------
     downscaling_method: str
+        Downscaling method
     reverse: boolean, optional
         Set reverse=True to get downscaling method from input activity_id
         Default to False
 
     Returns
-    --------
+    -------
     str
     """
     downscaling_dict = {"Dynamical": "WRF", "Statistical": "LOCA2"}
@@ -991,8 +993,9 @@ def resolution_to_gridlabel(resolution: str, reverse: bool = False) -> str:
     """Convert resolution format to grid_label format matching catalog names.
 
     Parameters
-    -----------
+    ----------
     resolution: str
+        resolution
     reverse: boolean, optional
         Set reverse=True to get resolution format from input grid_label.
         Default to False
@@ -1000,7 +1003,6 @@ def resolution_to_gridlabel(resolution: str, reverse: bool = False) -> str:
     Returns
     -------
     str
-
     """
     res_dict = {"45 km": "d01", "9 km": "d02", "3 km": "d03"}
 
@@ -1014,15 +1016,14 @@ def timescale_to_table_id(timescale: str, reverse: bool = False) -> str:
 
     Parameters
     ----------
-    timescale : str
-    reverse : boolean, optional
+    timescale: str
+    reverse: boolean, optional
         Set reverse=True to get resolution format from input table_id.
         Default to False
 
     Returns
     -------
     str
-
     """
     # yearly max is not an option in the Selections GUI, but its included here to make parsing through the data easier for the non-GUI data access/view options
     timescale_dict = {
@@ -1051,7 +1052,6 @@ def scenario_to_experiment_id(scenario: str, reverse: bool = False) -> str:
     Returns
     -------
     str
-
     """
     scenario_dict = {
         "Historical Reconstruction": "reanalysis",
@@ -1151,7 +1151,6 @@ def _get_scenario_from_selections(selections) -> tuple[list[str], list[str]]:
     -------
     scenario_ssp: list of str
     scenario_historical: list of str
-
     """
 
     match selections.approach:
@@ -1194,7 +1193,7 @@ def clip_to_shapefile(
 
     Parameters
     ----------
-    data : xr.Dataset | xr.DataArray
+    data: xr.Dataset | xr.DataArray
         Data to be clipped.
     shapefile_path: str
         Filepath to shapefile. Shapefile must include valid CRS.
@@ -1207,7 +1206,7 @@ def clip_to_shapefile(
 
     Returns
     -------
-    clipped : xr.Dataset | xr.DataArray
+    clipped: xr.Dataset | xr.DataArray
         Returns same type as 'data', but grid is clipped to shapefile feature(s).
     """
     if data.rio.crs is None:
