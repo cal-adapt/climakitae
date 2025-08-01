@@ -1,7 +1,7 @@
-import copy
+import calendar
 import datetime
 import os
-from typing import Iterable, Union
+from typing import Any, Iterable, Union
 
 import geopandas as gpd
 import intake_esm
@@ -9,20 +9,14 @@ import numpy as np
 import pandas as pd
 import pyproj
 import rioxarray as rio
-from shapely.geometry import mapping
-from typing import Any
 import xarray as xr
-import intake
-import calendar
+from shapely.geometry import mapping
 from timezonefinder import TimezoneFinder
 
 from climakitae.core.constants import SSPS, UNSET, WARMING_LEVELS
 
 # from climakitae.core.data_interface import DataParameters
-from climakitae.core.paths import (
-    data_catalog_url,
-    stations_csv_path,
-)
+from climakitae.core.paths import DATA_CATALOG_URL, STATIONS_CSV_PATH
 
 
 def downscaling_method_as_list(downscaling_method: str) -> list[str]:
@@ -833,7 +827,7 @@ def convert_to_local_time(
     match data_type:
         case "Stations":
             # Read stations database
-            stations_df = read_csv_file(stations_csv_path)
+            stations_df = read_csv_file(STATIONS_CSV_PATH)
             stations_df = stations_df.drop(columns=["Unnamed: 0"])
 
             # Filter by selected station(s) - assume first station if multiple

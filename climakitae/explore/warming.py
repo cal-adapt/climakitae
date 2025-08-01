@@ -18,7 +18,7 @@ from tqdm.auto import tqdm
 from climakitae.core.constants import SSPS, WARMING_LEVELS
 from climakitae.core.data_interface import DataParameters
 from climakitae.core.data_load import load
-from climakitae.core.paths import gwl_1850_1900_file, gwl_1981_2010_file
+from climakitae.core.paths import GWL_1850_1900_FILE, GWL_1981_2010_FILE
 from climakitae.util.utils import (
     _get_cat_subset,
     read_csv_file,
@@ -115,9 +115,9 @@ class WarmingLevels:
         self.catalog_data = _drop_invalid_sims(self.catalog_data, self.wl_params)
 
         if self.wl_params.anom == "Yes":
-            self.gwl_times = read_csv_file(gwl_1981_2010_file, index_col=[0, 1, 2])
+            self.gwl_times = read_csv_file(GWL_1981_2010_FILE, index_col=[0, 1, 2])
         else:
-            self.gwl_times = read_csv_file(gwl_1850_1900_file, index_col=[0, 1, 2])
+            self.gwl_times = read_csv_file(GWL_1850_1900_FILE, index_col=[0, 1, 2])
         self.gwl_times = self.gwl_times.dropna(how="all")
         self.catalog_data = clean_list(self.catalog_data, self.gwl_times)
 
@@ -569,7 +569,7 @@ def _drop_invalid_sims(ds: xr.Dataset, selections: DataParameters) -> xr.Dataset
 
 
 def _check_available_warming_levels() -> List[float]:
-    gwl_times = read_csv_file(gwl_1850_1900_file)
+    gwl_times = read_csv_file(GWL_1850_1900_FILE)
     available_warming_levels = list(
         gwl_times.columns.drop(["GCM", "run", "scenario"]).values
     )

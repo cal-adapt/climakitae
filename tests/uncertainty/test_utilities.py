@@ -15,7 +15,7 @@ import xarray as xr
 from shapely.geometry import Polygon
 
 from climakitae.core.data_interface import DataParameters
-from climakitae.core.paths import gwl_1850_1900_file, gwl_1981_2010_file
+from climakitae.core.paths import GWL_1850_1900_FILE, GWL_1981_2010_FILE
 from climakitae.explore.uncertainty import (
     _area_wgt_average,
     _calendar_align,
