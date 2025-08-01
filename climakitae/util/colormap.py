@@ -12,7 +12,9 @@ from climakitae.core.paths import (
 from climakitae.util.utils import _package_file_path
 
 
-def read_ae_colormap(cmap="ae_orange", cmap_hex=False):
+def read_ae_colormap(
+    cmap: str = "ae_orange", cmap_hex: bool = False
+) -> matplotlib.colors.LinearSegmentedColormap | list:
     """Read in AE colormap by name
 
     Parameters
@@ -30,7 +32,6 @@ def read_ae_colormap(cmap="ae_orange", cmap_hex=False):
         used for matplotlib (if cmap_hex == False)
     cmap_data: list
         used for hvplot maps (if cmap_hex == True)
-
     """
 
     match cmap:
