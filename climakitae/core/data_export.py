@@ -6,6 +6,7 @@ import urllib
 import warnings
 from importlib.metadata import version as _version
 from math import prod
+from typing import Tuple
 
 import boto3
 import botocore
@@ -1204,6 +1205,7 @@ def write_tmy_file(
     stn_lon: float,
     stn_state: str,
     stn_elev: float = 0.0,
+    years: Tuple[int, int] = (1990, 2020),
     file_ext: str = "tmy",
 ):
     """Exports TMY data either as .epw or .tmy file
@@ -1354,6 +1356,7 @@ def write_tmy_file(
         state: str,
         timezone: str,
         elevation: float,
+        years: Tuple[int, int],
         df: pd.DataFrame,
     ) -> list[str]:
         """
@@ -1408,7 +1411,7 @@ def write_tmy_file(
         )
 
         # line 7 - comments 2, including date range here from which TMY calculated
-        line_7 = "COMMENTS 2, TMY data produced using 1990-2020 climatological period\n"
+        line_7 = f"COMMENTS 2, TMY data produced using {years[0]}-{years[1]} climatological period\n"
 
         # line 8 - data periods, num data periods, num records per hour, data period name, data period start day of week, data period start (Jan 1), data period end (Dec 31)
         line_8 = "DATA PERIODS,1,1,Data,,1/ 1,12/31\n"
@@ -1458,6 +1461,7 @@ def write_tmy_file(
                         state,
                         timezone,
                         elevation,
+                        years,
                         df,
                     )
                 )  # writes required header lines
