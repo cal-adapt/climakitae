@@ -5,7 +5,13 @@ from climakitae.core.data_interface import DataParameters
 from climakitae.core.data_load import load
 
 
-def batch_select(approach: str, selections: DataParameters, points: np.ndarray, load_data: bool = False, progress_bar: bool = True) -> xr.DataArray:
+def batch_select(
+    approach: str,
+    selections: DataParameters,
+    points: np.ndarray,
+    load_data: bool = False,
+    progress_bar: bool = True,
+) -> xr.DataArray:
     """
     Conducts batch mode analysis on a series of points for a given metric.
 
