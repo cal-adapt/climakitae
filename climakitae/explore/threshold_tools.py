@@ -60,7 +60,7 @@ def get_block_maxima(
 
     Parameters
     ----------
-    da: xarray.DataArray
+    da_series: xarray.DataArray
         DataArray from retrieve
     extremes_type: str
         option for max or min
@@ -419,7 +419,9 @@ def get_ks_stat(
     bms: xarray.DataArray
         Block maximum series, can be output from the function get_block_maxima()
     distr: str
+        name of distribution to use
     multiple_points: boolean
+        Whether or not the data contains multiple points (has x, y dimensions)
 
     Returns
     -------
@@ -583,6 +585,7 @@ def _bootstrap(
     bms: xarray.DataArray
         Block maximum series, can be output from the function get_block_maxima()
     distr: str
+        name of distribution to use
     data_variable: str
         can be return_value, return_prob, return_period
     arg_value: float
@@ -642,13 +645,17 @@ def _conf_int(
     bms: xarray.DataArray
         Block maximum series, can be output from the function get_block_maxima()
     distr: str
+        name of distribution to use
     data_variable: str
         can be return_value, return_prob, return_period
     arg_value: float
         value to do the calucation to
     bootstrap_runs: int
+        Number of bootstrap samples
     conf_int_lower_bound: float
+        Confidence interval lower bound
     conf_int_upper_bound: float
+        Confidence interval upper bound
     block_size: int
         block size, in years, of the provided block maximum series
 
@@ -703,12 +710,19 @@ def _get_return_variable(
     bms: xarray.DataArray
         Block maximum series, can be output from the function get_block_maxima()
     data_variable: str
+        can be return_value, return_prob, return_period
     arg_value: float
+        value to do the calucation to
     distr: str
+        name of distribution to use
     bootstrap_runs: int
+        Number of bootstrap samples
     conf_int_lower_bound: float
+        Confidence interval lower bound
     conf_int_upper_bound: float
+        Confidence interval upper bound
     multiple_points: boolean
+        Whether or not the data contains multiple points (has x, y dimensions)
 
     Returns
     -------
@@ -993,18 +1007,18 @@ def get_exceedance_count(
         scenarios, simulations, or x and y coordinates.
     threshold_value: float
         value against which to test exceedance
-    period: tuple[int,str]
+    duration1: tuple[int, str]
+        length of exceedance in order to qualify as an event (before grouping)
+    period: tuple[int, str]
         amount of time across which to sum the number of occurances,
         default is (1, "year"). Specified as a tuple: (x, time) where x is an
         integer, and time is one of: ["day", "month", "year"]
     threshold_direction: str
         either "above" or "below", default is above.
-    duration1: tuple
-        length of exceedance in order to qualify as an event (before grouping)
-    groupby: tuple[int,str]
-        see examples for explanation. Typical grouping could be (1, "day")
-    duration2: tuple[int,str]
+    duration2: tuple[int, str]
         length of exceedance in order to qualify as an event (after grouping)
+    groupby: tuple[int, str]
+        see examples for explanation. Typical grouping could be (1, "day")
     smoothing: int
         option to average the result across multiple periods with a
         rolling average; value is either UNSET or the number of timesteps to use
@@ -1122,9 +1136,9 @@ def _is_greater(time1: tuple[int, str], time2: tuple[int, str]) -> bool:
 
     Parameters
     ----------
-    time1: tuple
+    time1: tuple[int, str]
         tuple of period (int), duration (str)
-    time2: tuple
+    time2: tuple[int, str]
         tuple of period (int), duration (str)
 
     Returns
@@ -1164,9 +1178,9 @@ def _get_exceedance_events(
         value against which to test exceedance
     threshold_direction: str
         either "above" or "below", default is above.
-    duration1: tuple
+    duration1: tuple[int, str]
         length of exceedance in order to qualify as an event (before grouping)
-    groupby: tuple
+    groupby: tuple[int, str]
         see examples for explanation. Typical grouping could be (1, "day")
 
     Returns

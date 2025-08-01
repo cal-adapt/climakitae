@@ -1,5 +1,5 @@
 from dask.distributed import Client, PipInstall
-from dask_gateway import Gateway, GatewayCluster
+from dask_gateway import GatewayCluster
 
 
 class Cluster(GatewayCluster):
