@@ -7,7 +7,7 @@ from typing import Any, Dict, Iterable, List, Union
 
 import xarray as xr
 
-from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
+from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET, CATALOG_REN_ENERGY_GEN
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
@@ -112,7 +112,7 @@ class Concat(DataProcessor):
                 "member_id",
             ]
             if self.catalog
-            and getattr(self.catalog, "catalog_key", None) == "renewables"
+            and getattr(self.catalog, "catalog_key", None) == CATALOG_REN_ENERGY_GEN
             else [
                 "intake_esm_attrs:activity_id",
                 "intake_esm_attrs:institution_id",

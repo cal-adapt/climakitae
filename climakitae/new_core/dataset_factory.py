@@ -444,7 +444,7 @@ class DatasetFactory:
         Returns
         -------
         str
-            Key for the catalog to use (e.g., "data", "renewables")
+            Key for the catalog to use (e.g., "cadcat", "renewable energy generation")
 
         """
         # search catalog for matching datasets

@@ -27,8 +27,8 @@ import xarray as xr
 
 from climakitae.core.constants import (
     CATALOG_BOUNDARY,
-    CATALOG_DATA,
-    CATALOG_RENEWABLES,
+    CATALOG_CADCAT,
+    CATALOG_REN_ENERGY_GEN,
     UNSET,
 )
 from climakitae.core.paths import (
@@ -116,9 +116,11 @@ class DataCatalog(dict):
         """
         if not getattr(self, "_initialized", False):
             super().__init__()
-            self[CATALOG_DATA] = intake.open_esm_datastore(DATA_CATALOG_URL)
+            self[CATALOG_CADCAT] = intake.open_esm_datastore(DATA_CATALOG_URL)
             self[CATALOG_BOUNDARY] = intake.open_catalog(BOUNDARY_CATALOG_URL)
-            self[CATALOG_RENEWABLES] = intake.open_esm_datastore(RENEWABLES_CATALOG_URL)
+            self[CATALOG_REN_ENERGY_GEN] = intake.open_esm_datastore(
+                RENEWABLES_CATALOG_URL
+            )
             self.catalog_df = self.merge_catalogs()
             stations_df = read_csv_file(STATIONS_CSV_PATH)
             self["stations"] = gpd.GeoDataFrame(
@@ -143,7 +145,7 @@ class DataCatalog(dict):
         intake_esm.core.esm_datastore
             The main climate data catalog.
         """
-        return self[CATALOG_DATA]
+        return self[CATALOG_CADCAT]
 
     @property
     def boundary(self) -> intake.catalog.Catalog:
@@ -167,7 +169,7 @@ class DataCatalog(dict):
         intake_esm.core.esm_datastore
             The renewables data catalog.
         """
-        return self[CATALOG_RENEWABLES]
+        return self[CATALOG_REN_ENERGY_GEN]
 
     @property
     def boundaries(self) -> Boundaries:
@@ -198,8 +200,8 @@ class DataCatalog(dict):
         """
         ren_df = self.renewables.df
         data_df = self.data.df
-        ren_df["catalog"] = CATALOG_RENEWABLES
-        data_df["catalog"] = CATALOG_DATA
+        ren_df["catalog"] = CATALOG_REN_ENERGY_GEN
+        data_df["catalog"] = CATALOG_CADCAT
         ret = pd.concat([ren_df, data_df], ignore_index=True)
         return ret
 

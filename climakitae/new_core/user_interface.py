@@ -45,7 +45,7 @@ class ClimateData:
     instance itself to enable method chaining.
 
     Parameters supported in queries:
-    - catalog: The data catalog to use (e.g., "renewables", "data")
+    - catalog: The data catalog to use (e.g., "renewable energy generation", "cadcat")
     - installation: The installation type (e.g., "pv_utility", "wind_offshore")
     - activity_id: The activity identifier (e.g., "WRF", "LOCA2")
     - institution_id: The institution identifier (e.g., "CNRM", "DWD")
@@ -105,7 +105,7 @@ class ClimateData:
 
     >>> cd = ClimateData()
     >>> data = (cd
-    ...     .catalog("data")
+    ...     .catalog("cadcat")
     ...     .activity_id("WRF")
     ...     .experiment_id("historical")
     ...     .table_id("1hr")
@@ -118,7 +118,7 @@ class ClimateData:
 
     >>> cd = ClimateData()
     >>> cd.show_catalog_options()
-    >>> cd.catalog("data").show_variable_options()
+    >>> cd.catalog("cadcat").show_variable_options()
 
     Using with processing:
 
@@ -474,7 +474,7 @@ class ClimateData:
     def show_installation_options(self) -> None:
         """Display available installation options."""
         self._show_options(
-            "installation", "installation options (Renewable energy technology types)"
+            "installation", "installation options (Renewable energy generation types)"
         )
 
     def show_activity_id_options(self) -> None:
@@ -568,7 +568,6 @@ class ClimateData:
 
         option_methods = [
             ("show_catalog_options", "Catalogs"),
-            ("show_installation_options", "Installations"),
             ("show_activity_id_options", "Activity IDs"),
             ("show_institution_id_options", "Institution IDs"),
             ("show_source_id_options", "Source IDs"),
@@ -576,6 +575,7 @@ class ClimateData:
             ("show_table_id_options", "Table IDs (Temporal Resolution)"),
             ("show_grid_label_options", "Grid Labels (Spatial Resolution)"),
             ("show_variable_options", "Variables"),
+            ("show_installation_options", "Installations"),
             ("show_processors", "Processors"),
             # ("show_stations", "Stations"),
         ]

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from climakitae.core.constants import CATALOG_RENEWABLES, UNSET
+from climakitae.core.constants import CATALOG_REN_ENERGY_GEN, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.param_validation.abc_param_validation import (
     ParameterValidator,
@@ -14,7 +14,7 @@ from climakitae.new_core.param_validation.abc_param_validation import (
 )
 
 
-@register_catalog_validator(CATALOG_RENEWABLES)
+@register_catalog_validator(CATALOG_REN_ENERGY_GEN)
 class RenewablesValidator(ParameterValidator):
     """
     Validator for renewable energy dataset parameters.
