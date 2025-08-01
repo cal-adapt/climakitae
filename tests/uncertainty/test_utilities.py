@@ -56,7 +56,7 @@ def test_calendar_align():
 
     mock_data = xr.Dataset(
         {
-            "time": ("time", pd.date_range("2000-01-01", periods=10, freq="ME")),
+            "time": ("time", pd.date_range("2000-01-01", periods=10, freq="MS")),
             "var": (("time"), range(10)),
         },
         coords={

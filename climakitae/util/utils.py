@@ -1,10 +1,9 @@
-import copy
+import calendar
 import datetime
 import os
 from typing import Any, Iterable, Union
 
 import geopandas as gpd
-import intake
 import intake_esm
 import numpy as np
 import pandas as pd
@@ -938,21 +937,52 @@ def add_dummy_time_to_wl(wl_da: xr.DataArray) -> xr.DataArray:
             "DataArray does not contain necessary warming level information."
         )
 
-    # Finding time frequency and
-    # Creating map from frequency name to freq var needed for pandas date range
+    # Determine time frequency name and pandas freq string mapping
     if wl_time_dim == "time_delta":
         time_freq_name = wl_da.frequency
-        name_to_freq = {"hourly": "h", "daily": "D", "monthly": "ME"}
+        name_to_freq = {"hourly": "h", "daily": "D", "monthly": "MS"}
     else:
         time_freq_name = wl_time_dim.split("_")[0]
-        name_to_freq = {"hours": "h", "days": "D", "months": "ME"}
+        name_to_freq = {"hours": "h", "days": "D", "months": "MS"}
 
-    # Creating dummy timestamps
-    timestamps = pd.date_range(
-        "2000-01-01",
-        periods=len(wl_da[wl_time_dim]),
-        freq=name_to_freq[time_freq_name],
+    freq = name_to_freq[time_freq_name]
+
+    # Number of time units per normal year
+    num_time_units_per_year = {"h": 8760, "D": 365, "MS": 12}
+
+    # Calculate total number of units in wl_da along wl_time_dim
+    len_time = len(wl_da[wl_time_dim])
+
+    # Calculate approximate number of years spanned by data
+    years_span = len_time / num_time_units_per_year[freq]
+    start_year = 2000
+    end_year = int(start_year + years_span - 1)
+
+    # Calculate total leap days in the period
+    total_leap_days = sum(
+        calendar.isleap(year) for year in range(start_year, end_year + 1)
     )
+
+    # Adjust number of periods to add leap day hours if hourly, else add leap days as periods
+    extra_periods = total_leap_days * 24 if freq == "h" else total_leap_days
+
+    # Edge cases:
+    # if total time passed in is less than 60 days (when Feb 29th is), then don't add `extra_periods`
+    # if we're looking at monthly data, then don't add `extra_periods`
+    if (
+        (freq == "h" and len_time < 24 * 60)
+        or (freq == "D" and len_time < 60)
+        or (freq == "MS")
+    ):
+        extra_periods = 0
+
+    # Create the dummy timestamps including leap day adjustments
+    timestamps = pd.date_range(
+        start="2000-01-01", periods=len_time + extra_periods, freq=freq
+    )
+
+    # Filter out leap days (Feb 29)
+    timestamps = timestamps[~((timestamps.month == 2) & (timestamps.day == 29))]
 
     # Replacing WL timestamps with dummy timestamps so that calculations from tools like `thresholds_tools`
     # can be computed on a DataArray with a time dimension
