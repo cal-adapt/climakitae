@@ -11,11 +11,8 @@ import rioxarray as rio
 from shapely.geometry import mapping
 from typing import Any
 import xarray as xr
-<<<<<<< HEAD
-=======
 import intake
 import calendar
->>>>>>> main
 from timezonefinder import TimezoneFinder
 
 from climakitae.core.constants import SSPS, UNSET
