@@ -27,7 +27,13 @@ from climakitae.core.paths import (
 )
 
 
-def calculate_warming_level(warming_data: xr.DataArray, gwl_times: pd.DataFrame, level: float, months: list[int], window: int) -> xr.DataArray:
+def calculate_warming_level(
+    warming_data: xr.DataArray,
+    gwl_times: pd.DataFrame,
+    level: float,
+    months: list[int],
+    window: int,
+) -> xr.DataArray:
     """Perform warming level computation for a single warming level.
     Assumes the data has already been stacked by simulation and scenario to create a MultiIndex dimension "all_sims" and that the invalid simulations have been removed such that the gwl_times table can be adequately parsed.
     Internal function only; see the function _apply_warming_levels_approach for more documentation on how this function is applied internally.
@@ -72,7 +78,13 @@ def calculate_warming_level(warming_data: xr.DataArray, gwl_times: pd.DataFrame,
     return warming_data
 
 
-def _get_sliced_data(y: xr.DataArray, level: float, gwl_times: pd.DataFrame, months: list[int], window: int) -> xr.DataArray:
+def _get_sliced_data(
+    y: xr.DataArray,
+    level: float,
+    gwl_times: pd.DataFrame,
+    months: list[int],
+    window: int,
+) -> xr.DataArray:
     """Calculate warming level anomalies.
     Warming level is computed for each individual simulation/scenario.
 
@@ -203,7 +215,7 @@ def drop_invalid_sims(ds: xr.Dataset, selections: DataParameters) -> xr.Dataset:
         `scenario`.
     selections: DataParameters
         Warming level data selections
-        
+
     Returns
     -------
     xr.Dataset
