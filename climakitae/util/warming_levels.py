@@ -7,7 +7,6 @@ import xarray as xr
 import intake
 
 from typing import Union
-from climakitae.core.data_interface import DataParameters
 from climakitae.util.utils import (
     scenario_to_experiment_id,
     _get_cat_subset,
@@ -202,7 +201,7 @@ def _extract_string_identifiers(da: xr.DataArray) -> tuple[str, str, str]:
     return (sim_str, ensemble, scenario)
 
 
-def drop_invalid_sims(ds: xr.Dataset, selections: DataParameters) -> xr.Dataset:
+def drop_invalid_sims(ds: xr.Dataset, selections) -> xr.Dataset:
     """
     As part of the warming levels calculation, the data is stacked by simulation and scenario, creating some empty values for that coordinate.
     Here, we remove those empty coordinate values.
