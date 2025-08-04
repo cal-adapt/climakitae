@@ -121,6 +121,9 @@ def _get_sliced_data(
         start_year = centered_year - window
         end_year = centered_year + (window - 1)
 
+        if start_year < 1981:
+            start_year = 1981
+
         sliced = y.sel(time=slice(str(start_year), str(end_year)))
 
         # Creating a mask for timestamps that are within the desired months
