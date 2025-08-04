@@ -1199,13 +1199,13 @@ def _tmy_8760_size_check(df: pd.DataFrame) -> pd.DataFrame:
 def write_tmy_file(
     filename_to_export: str,
     df: pd.DataFrame,
+    years: Tuple[int, int],
     location_name: str,
     station_code: int,
     stn_lat: float,
     stn_lon: float,
     stn_state: str,
     stn_elev: float = 0.0,
-    years: Tuple[int, int] = (1990, 2020),
     file_ext: str = "tmy",
 ):
     """Exports TMY data either as .epw or .tmy file
