@@ -1216,6 +1216,8 @@ def write_tmy_file(
         Filename string, constructed with station name and simulation
     df: pd.DataFrame
         Dataframe of TMY data to export
+    years: Tuple
+        Tuple containing climatology start and end years
     location_name: str
         Location name string, often station name
     station_code: int
