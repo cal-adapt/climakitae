@@ -75,7 +75,8 @@ noaa_heat_index_derived,Dynamical,hourly,degF,NOAA Heat Index,"Operational measu
 ffwi,Dynamical,hourly,[0 to 100],Fosberg fire weather index,Operational fire weather index using meteorological inputs (temperature / relative humidity / windspeed) to quantify fire risk. Large values imply a higher risk value.,ae_orange,FALSE,None
 gen,Dynamical,hourly,MW,Power generation,Power generation by the panel or turbine array. ,ae_orange,FALSE,None
 gen,Dynamical,daily,MW,Power generation,Power generation by the panel or turbine array. ,ae_orange,FALSE,None
-cf,Dynamical,hourly,[0 to 1],Capacity factor,The ratio of power produced to the nameplate capacity. Power production can be estimated by multipling capacity factor by nameplate capacity. ,ae_orange,FALSE,None
+cf,Dynamical,hourly,[0 to 1],Capacity factor,The ratio of power produced to the nameplate capacity. Power production can be estimated by multiplying capacity factor by nameplate capacity.,ae_orange,FALSE,None
+
 cf,Dynamical,daily,[0 to 1],Capacity factor,The ratio of power produced to the nameplate capacity. Power production can be estimated by multipling capacity factor by nameplate capacity. ,ae_orange,FALSE,None
 lcl,Dynamical,"daily, monthly",m,Lifting Condensation Level,"The height in the atmosphere where a parcel of air reaches saturation at 100% relative humidity. The LCL is an approximate estimate of the cloud height, and is important for convective development. ",ae_orange,FALSE,None
 lfc,Dynamical,"daily, monthly",m,Level of Free Convection,The height in the atmosphere where a lifted air parcel becomes warmer than its surroundings and rises freely. The LFC is important for convective development. ,ae_orange,FALSE,None
