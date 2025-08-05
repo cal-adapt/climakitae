@@ -4,11 +4,13 @@ import numpy as np
 import xarray as xr
 
 
-def compute_hdd_cdd(t2, hdd_threshold, cdd_threshold):
+def compute_hdd_cdd(
+    t2: xr.DataArray, hdd_threshold: int, cdd_threshold: int
+) -> tuple[xr.DataArray, xr.DataArray]:
     """Compute heating degree days (HDD) and cooling degree days (CDD)
 
     Parameters
-    -----------
+    ----------
     t2: xr.DataArray
         Air temperature at 2m gridded data
     hdd_threshold: int, optional
@@ -51,11 +53,13 @@ def compute_hdd_cdd(t2, hdd_threshold, cdd_threshold):
     return (hdd, cdd)
 
 
-def compute_hdh_cdh(t2, hdh_threshold, cdh_threshold):
+def compute_hdh_cdh(
+    t2: xr.DataArray, hdh_threshold: int, cdh_threshold: int
+) -> tuple[xr.DataArray, xr.DataArray]:
     """Compute heating degree hours (HDH) and cooling degree hours (CDH)
 
     Parameters
-    -----------
+    ----------
     t2: xr.DataArray
         Air temperature at 2m gridded data
     hdh_threshold: int, optional
@@ -96,16 +100,22 @@ def compute_hdh_cdh(t2, hdh_threshold, cdh_threshold):
     return (hdh, cdh)
 
 
-def compute_dewpointtemp(temperature, rel_hum):
+def compute_dewpointtemp(
+    temperature: xr.DataArray, rel_hum: xr.DataArray
+) -> xr.DataArray:
     """Calculate dew point temperature
 
-    Args:
-        temperature (xr.DataArray): Temperature in Kelvin
-        rel_hum (xr.DataArray): Relative humidity (0-100 scale)
+    Parameters
+    ----------
+        temperature: xr.DataArray
+            Temperature in Kelvin (K)
+        rel_hum: xr.DataArray
+            Relative humidity (0-100 scale)
 
     Returns
-        dew_point (xr.DataArray): Dew point (K)
-
+    -------
+        dew_point: xr.DataArray
+            Dew point (K)
     """
     es = 0.611 * np.exp(
         5423 * ((1 / 273) - (1 / temperature))
@@ -121,17 +131,24 @@ def compute_dewpointtemp(temperature, rel_hum):
     return tdps
 
 
-def compute_specific_humidity(tdps, pressure, name="q2_derived"):
+def compute_specific_humidity(
+    tdps: xr.DataArray, pressure: xr.DataArray, name: str = "q2_derived"
+) -> xr.DataArray:
     """Compute specific humidity.
 
-    Args:
-        tdps (xr.DataArray): Dew-point temperature, in K
-        pressure (xr.DataArray): Air pressure, in Pascals
-        name (str, optional): Name to assign to output DataArray
+    Parameters
+    ----------
+        tdps: xr.DataArray
+            Dew-point temperature, in K
+        pressure: xr.DataArray
+            Air pressure, in Pascals
+        name: str, optional
+            Name to assign to output DataArray
 
-    Returns:
-        spec_hum (xr.DataArray): Specific humidity
-
+    Returns
+    -------
+        spec_hum: xr.DataArray
+            Specific humidity
     """
 
     # Calculate vapor pressure, unit is in kPa
@@ -149,18 +166,30 @@ def compute_specific_humidity(tdps, pressure, name="q2_derived"):
     return q
 
 
-def compute_relative_humidity(pressure, temperature, mixing_ratio, name="rh_derived"):
+def compute_relative_humidity(
+    pressure: xr.DataArray,
+    temperature: xr.DataArray,
+    mixing_ratio: xr.DataArray,
+    name: str = "rh_derived",
+) -> xr.DataArray:
     """Compute relative humidity.
     Variable attributes need to be assigned outside of this function because the metpy function removes them
 
-    Args:
-        pressure (xr.DataArray): Pressure in hPa
-        temperature (xr.DataArray): Temperature in Celsius
-        mixing_ratio (xr.DataArray): Dimensionless mass mixing ratio in g/kg
-        name (str, optional): Name to assign to output DataArray
+    Parameters
+    ----------
+        pressure: xr.DataArray
+            Pressure in hPa
+        temperature: xr.DataArray
+            Temperature in Celsius
+        mixing_ratio: xr.DataArray
+            Dimensionless mass mixing ratio in g/kg
+        name: str, optional
+            Name to assign to output DataArray
 
-    Returns:
-        rel_hum (xr.DataArray): Relative humidity
+    Returns
+    -------
+        rel_hum: xr.DataArray
+            Relative humidity
 
     Source: https://www.weather.gov/media/epz/wxcalc/mixingRatio.pdf
     """
@@ -193,18 +222,28 @@ def compute_relative_humidity(pressure, temperature, mixing_ratio, name="rh_deri
 
 
 def _convert_specific_humidity_to_relative_humidity(
-    temperature, q, pressure, name="rh_derived"
-):
+    temperature: xr.DataArray,
+    q: xr.DataArray,
+    pressure: xr.DataArray,
+    name: str = "rh_derived",
+) -> xr.DataArray:
     """Converts specific humidity to relative humidity.
 
-    Args:
-        temperature (xr.DataArray): Temperature in Kelvin
-        q (xr.DataArray): Specific humidity, in g/kg
-        pressure (xr.DataArray): Pressure, in Pascals
-        name (str, optional): Name to assign to output DataArray
+    Parameters
+    ----------
+        temperature: xr.DataArray
+            Temperature in Kelvin
+        q: xr.DataArray
+            Specific humidity, in g/kg
+        pressure: xr.DataArray
+            Pressure, in Pascals
+        name: str, optional
+            Name to assign to output DataArray
 
-    Returns:
-        rel_hum (xr.DataArray): Relative humidity
+    Returns
+    -------
+        rel_hum: xr.DataArray
+            Relative humidity
     """
 
     # Calculates saturated vapor pressure, unit is in kPa
@@ -225,38 +264,53 @@ def _convert_specific_humidity_to_relative_humidity(
     return rel_hum
 
 
-def compute_wind_mag(u10, v10, name="wind_speed_derived"):
+def compute_wind_mag(
+    u10: xr.DataArray, v10: xr.DataArray, name: str = "wind_speed_derived"
+) -> xr.DataArray:
     """Compute wind magnitude at 10 meters
 
-    Args:
-        u10 (xr.DataArray): Zonal velocity at 10 meters height in m/s
-        v10 (xr.DataArray): Meridonal velocity at 10 meters height in m/s
-        name (str, optional): Name to assign to output DataArray
+    Parameters
+    ----------
+        u10: xr.DataArray
+            Zonal velocity at 10 meters height in m/s
+        v10: xr.DataArray
+            Meridonal velocity at 10 meters height in m/s
+        name: str, optional
+            Name to assign to output DataArray
 
-    Returns:
-        wind_mag (xr.DataArray): Wind magnitude
-
+    Returns
+    -------
+        wind_mag: xr.DataArray
+            Wind magnitude
     """
     wind_mag = np.sqrt(np.square(u10) + np.square(v10))
-    wind_mag.name = "wind_speed_derived"
+    wind_mag.name = name
     wind_mag.attrs["units"] = "m s-1"
     return wind_mag
 
 
-def compute_wind_dir(u10, v10, name="wind_direction_derived"):
+def compute_wind_dir(
+    u10: xr.DataArray, v10: xr.DataArray, name: str = "wind_direction_derived"
+) -> xr.DataArray:
     """Compute wind direction at 10 meters
 
-    Args:
-        u10 (xr.DataArray): Zonal velocity at 10 meters height in m/s
-        v10 (xr.DataArray): Meridional velocity at 10 meters height in m/s
-        name (str, optional): Name to assign to output DataArray
+    Parameters
+    ----------
+        u10: xr.DataArray
+            Zonal velocity at 10 meters height in m/s
+        v10: xr.DataArray
+            Meridional velocity at 10 meters height in m/s
+        name: str, optional
+            Name to assign to output DataArray
 
-    Returns:
-        wind_dir (xr.DataArray): Wind direction, in [0, 360] degrees,
-            with 0/360 defined as north, by meteorological convention
+    Returns
+    -------
+        wind_dir: xr.DataArray
+            Wind direction, in [0, 360] degrees, with 0/360 defined as north, by meteorological convention
 
-    Notes:
-        source:  https://sites.google.com/view/raybellwaves/cheat-sheets/xarray
+    Notes
+    -----
+        source: https://sites.google.com/view/raybellwaves/cheat-sheets/xarray
     """
 
     wind_dir = np.mod(90 - np.arctan2(-v10, -u10) * (180 / np.pi), 360)
