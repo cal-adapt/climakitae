@@ -67,7 +67,7 @@ def _add_metadata(data: xr.Dataset):
 
     Parameters
     ----------
-    data: xarray.Dataset
+    data: xr.Dataset
     """
     ds_attrs = data.attrs
 
@@ -95,7 +95,7 @@ def _estimate_file_size(data: xr.DataArray | xr.Dataset, format: str) -> float:
 
     Parameters
     ----------
-    data: xarray.DataArray or xarray.Dataset
+    data: xr.DataArray | xr.Dataset
         data to export to the specified `format`
     format: str
         file format ("Zarr", "NetCDF", "CSV")
@@ -133,7 +133,7 @@ def _warn_large_export(file_size: float, file_size_threshold: float | int = 5):
     ----------
     file_size: float
         Predicted file size in GB.
-    file_size_threshold: float or int
+    file_size_threshold: float | int
         Threshold size in GB for warning.
     """
     if file_size > file_size_threshold:
@@ -153,7 +153,7 @@ def _update_encoding(data: xr.Dataset):
 
     Parameters
     ----------
-    data: xarray.Dataset
+    data: xr.Dataset
 
     Returns
     -------
@@ -170,7 +170,7 @@ def _update_encoding(data: xr.Dataset):
 
         Parameters
         ----------
-        d: xarray.Dataset
+        d: xr.Dataset
 
         Returns
         -------
@@ -195,7 +195,7 @@ def _fillvalue_encoding(data: xr.Dataset) -> dict[str, int | float | None]:
 
     Parameters
     ----------
-    data: xarray.Dataset
+    data: xr.Dataset
 
     Returns
     -------
@@ -212,7 +212,7 @@ def _compression_encoding(data: xr.Dataset) -> dict[str, int | float | None]:
 
     Parameters
     ----------
-    data: xarray.Dataset
+    data: xr.Dataset
 
     Returns
     -------
@@ -228,7 +228,7 @@ def _convert_da_to_ds(data: xr.DataArray | xr.Dataset) -> xr.Dataset:
 
     Parameters
     ----------
-    data: xarray.DataArray or xarray.Dataset
+    data: xr.DataArray | xr.Dataset
     """
     match data:
         case xr.DataArray():
@@ -253,9 +253,9 @@ def _export_to_netcdf(data: xr.DataArray | xr.Dataset, save_name: str):
 
     Parameters
     ----------
-    data: xarray.DataArray or xarray.Dataset
+    data: xr.DataArray | xr.Dataset
         data to export to NetCDF format
-    save_name: string
+    save_name: str
         desired output file name, including the file extension
 
     Returns
@@ -311,11 +311,11 @@ def _export_to_zarr(data: xr.DataArray | xr.Dataset, save_name: str, mode: str):
 
     Parameters
     ----------
-    data: xarray.DataArray or xarray.Dataset
+    data: xr.DataArray | xr.Dataset
         data to export to Zarr format
-    save_name: string
+    save_name: str
         desired output Zarr directory name
-    mode: string
+    mode: str
         location logic for storing export file (`local`, `s3`)
 
     Returns
@@ -416,7 +416,7 @@ def _get_unit(dataarray: xr.DataArray) -> str:
 
     Parameters
     ----------
-    dataarray: xarray.DataArray
+    dataarray: xr.DataArray
 
     Returns
     -------
@@ -478,15 +478,15 @@ def _update_header(
 
     Parameters
     ----------
-    df: pandas.DataFrame
+    df: pd.DataFrame
         data table to update
-    variable_unit_map: list of tuple
+    variable_unit_map: list[tuple[str, str]]
         list of tuples where each tuple contains the name and unit of the data
         variable in a column of the input data table
 
     Returns
     -------
-    pandas.DataFrame
+    pd.DataFrame
         data table with updated header
     """
     df.columns = pd.MultiIndex.from_tuples(
@@ -509,12 +509,12 @@ def _dataarray_to_dataframe(dataarray: xr.DataArray) -> pd.DataFrame:
 
     Parameters
     ----------
-    dataarray: xarray.DataArray
+    dataarray: xr.DataArray
         data to be prepared for export
 
     Returns
     -------
-    pandas.DataFrame
+    pd.DataFrame
         data ready for export
     """
     if not dataarray.name:
@@ -550,12 +550,12 @@ def _dataset_to_dataframe(dataset: xr.Dataset) -> pd.DataFrame:
 
     Parameters
     ----------
-    dataset: xarray.Dataset
+    dataset: xr.Dataset
         data to be prepared for export
 
     Returns
     -------
-    pandas.DataFrame
+    pd.DataFrame
         data ready for export
     """
     df = dataset.to_dataframe()
@@ -656,9 +656,9 @@ def _export_to_csv(data: xr.DataArray | xr.Dataset, save_name: str):
 
     Parameters
     ----------
-    data : xarray.DataArray or xarray.Dataset
+    data: xr.DataArray | xr.Dataset
         data to export to CSV format
-    save_name : string
+    save_name: str
         desired export file prefix
 
     Returns
@@ -816,19 +816,19 @@ def export(
 
     Parameters
     ----------
-    data : xr.DataArray or xr.Dataset
+    data: xr.DataArray | xr.Dataset
         Data to export, as output by e.g. `DataParameters.retrieve()`.
-    filename : str, optional
+    filename: str, optional
         Output file name (without file extension, i.e. "my_filename" instead
         of "my_filename.nc"). The default is "dataexport".
-    format : str, optional
+    format: str, optional
         File format ("Zarr", "NetCDF", "CSV"). The default is "NetCDF".
-    mode : str, optional
+    mode: str, optional
         Save location logic for Zarr file ("local", "s3"). The default is "local"
 
     Returns
     -------
-     None
+    None
     """
     ftype = type(data)
 
@@ -886,6 +886,17 @@ def _grab_dem_elev_m(lat: float, lon: float) -> float:
     https://gis.stackexchange.com/questions/338392/getting-elevation-for-multiple-lat-long-coordinates-in-python
 
     Note: This is breaking at present (2/29/2024) -- setting to pulling station elevation from csv, 0 for custom
+
+    Parameters
+    ----------
+    lat: float
+        latitude of point of interest
+    lon: float
+        longitude of point of interest
+    Returns
+    -------
+    float
+        elevation at point of interest
     """
     url = r"https://epqs.nationalmap.gov/v1/json?"
 
@@ -1252,7 +1263,9 @@ def write_tmy_file(
         Parameters
         ----------
         lat: float
+            latitude of point of interest
         lon: float
+            longitude of point of interest
 
         Returns
         -------
@@ -1321,7 +1334,7 @@ def write_tmy_file(
 
         Returns
         -------
-        headers: list of strs
+        headers: list[str]
 
         Source: https://www.nrel.gov/docs/fy08osti/43156.pdf (pg. 3)
         """
@@ -1372,7 +1385,7 @@ def write_tmy_file(
 
         Returns
         -------
-        headers: list of strs
+        headers: list[str]
 
         Source: EnergyPlus Version 23.1.0 Documentation
         """
