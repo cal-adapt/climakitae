@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 import xarray as xr
 
-from climakitae.core.paths import gwl_1850_1900_file
+from climakitae.core.paths import GWL_1850_1900_FILE
 from climakitae.explore.warming import (
     WarmingLevels,
     _drop_invalid_sims,
@@ -23,7 +23,7 @@ from climakitae.util.utils import read_csv_file
 from climakitae.util.warming_levels import _get_sliced_data, calculate_warming_level
 
 # Load warming level times from CSV
-gwl_times = read_csv_file(gwl_1850_1900_file, index_col=[0, 1, 2])
+gwl_times = read_csv_file(GWL_1850_1900_FILE, index_col=[0, 1, 2])
 
 
 def test_missing_all_sims_attribute(

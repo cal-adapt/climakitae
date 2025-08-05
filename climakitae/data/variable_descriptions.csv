@@ -55,6 +55,10 @@ iwp,Dynamical,"daily, monthly",kg/m2,Ice water path,The integral of ice water co
 sfc_runoff,Dynamical,"daily, monthly",mm/d,Surface runoff,The rate at which water travels over the ground surface until it reaches a body of water (stream / river etc.),ae_blue,FALSE,None
 subsfc_runoff,Dynamical,"daily, monthly",mm/d,Subsurface runoff,The rate at which water that has infiltrated the ground surface travels underground until it reaches a body of water (stream / river etc.),ae_blue,FALSE,None
 prec_max,Dynamical,"daily, monthly",mm/h,Maximum precipitation,The maximum precipitation rate in a single hour. ,ae_blue,TRUE,None
+cape,Dynamical,"daily, monthly",J/kg,Convective Available Potential Energy,"A measure of atmospheric instability that represents the potential energy available for convective storm development. Higher CAPE values are indicative of greater instability. ",ae_orange,FALSE,None
+
+cin,Dynamical,"daily, monthly",J/kg,Convective Inhibition,"The amount of energy required to lift a parcel of air to the Level of Free Convection which is a measure of atmospheric stability. Low CIN values are conducive for convective storm development.",ae_diverging,FALSE,None
+
 snow,Dynamical,"daily, monthly",mm,Snow water equivalent,The depth of liquid water on the surface that would be present if all snow melted instaneously; used to quantify the amount of water stored within snowpack and water resources. Typically abbreviated as SWE.,ae_blue,FALSE,None
 pr,Statistical,"daily, monthly",kg m-2 s-1,Precipitation (total),Total precipitation. Computed by summing total gridscale precipitation and total cumulus precipitation.,ae_blue,TRUE,None
 tasmax,Statistical,"daily, monthly",K,Maximum air temperature at 2m,The maximum daily air temperature at 2m above the Earth's surface. ,ae_orange,TRUE,None
@@ -66,6 +70,23 @@ hursmin,Statistical,"daily, monthly",percent,Minimum relative humidity,The minim
 hursmax,Statistical,"daily, monthly",percent,Maximum relative humidity,The maximum percentage of water vapor (i.e. moisture) relative to the amount of water vapor needed to saturate the air at the current air temperature and pressure.,ae_blue,TRUE,None
 wspeed,Statistical,"daily, monthly",m s-1,Wind speed at 10m,Wind speed at 10 meters above the Earth's surface. Computed by taking the vector magnitude of the west-east (u) component of wind and the north-south (v) component of wind.,ae_orange,TRUE,None
 rsds,Statistical,"daily, monthly",W/m2,Shortwave flux at the surface,Shortwave radiation from the sun that reaches Earth's surface. ,ae_orange,TRUE,None
-fosberg_index_derived,Dynamical,hourly,[0 to 100],Fosberg fire weather index,Operational fire weather index using meteorological inputs (temperature / relative humidity / windspeed) to quantify fire risk. Large values imply a higher risk value.,ae_orange,TRUE,"t2, q2, psfc, u10"
 effective_temp_index_derived,Dynamical,daily,K,Effective Temperature,The sum of half of yesterday's effective temperature and half of the current day's actual temperature. Accounts for previous day's temperature due to consumer behavior and perception of the weather. ,ae_orange,TRUE,t2
 noaa_heat_index_derived,Dynamical,hourly,degF,NOAA Heat Index,"Operational measure of what the the temperature ""feels like"" to the human body.",ae_orange,TRUE,"t2, q2, psfc"
+ffwi,Dynamical,hourly,[0 to 100],Fosberg fire weather index,Operational fire weather index using meteorological inputs (temperature / relative humidity / windspeed) to quantify fire risk. Large values imply a higher risk value.,ae_orange,FALSE,None
+gen,Dynamical,hourly,MW,Power generation,Power generation by the panel or turbine array. ,ae_orange,FALSE,None
+gen,Dynamical,daily,MW,Power generation,Power generation by the panel or turbine array. ,ae_orange,FALSE,None
+cf,Dynamical,hourly,[0 to 1],Capacity factor,The ratio of power produced to the nameplate capacity. Power production can be estimated by multiplying capacity factor by nameplate capacity.,ae_orange,FALSE,None
+
+cf,Dynamical,daily,[0 to 1],Capacity factor,The ratio of power produced to the nameplate capacity. Power production can be estimated by multiplying capacity factor by nameplate capacity.,ae_orange,FALSE,None
+
+lcl,Dynamical,"daily, monthly",m,Lifting Condensation Level,"The height in the atmosphere where a parcel of air reaches saturation at 100% relative humidity. The LCL is an approximate estimate of the cloud height, and is important for convective development. ",ae_orange,FALSE,None
+lfc,Dynamical,"daily, monthly",m,Level of Free Convection,The height in the atmosphere where a lifted air parcel becomes warmer than its surroundings and rises freely. The LFC is important for convective development. ,ae_orange,FALSE,None
+p,Dynamical,hourly,Pa,Air pressure,Air pressure at Earth's surface.,ae_diverging,FALSE,None
+pblh,Dynamical,"daily, monthly",m,Planetary boundary layer height,The height of the planetary boundary layer which indicative of the boundary between the turbulent surface layer and the free atmosphere. The PBL height is important for pollution dispersion / cloud formation / and extreme weather events. ,ae_orange,FALSE,None
+ph,Dynamical,hourly,Pa,Geopotential height perturbation,The deviation from the base geopotential height of a level of the atmosphere. ,ae_diverging,FALSE,None
+rh_max,Dynamical,daily,percent,Maximum relative humidity,The percentage of water vapor (i.e. moisture) relative to the amount of water vapor needed to saturate the air at the current air temperature and pressure.,ae_blue,FALSE,None
+rh_min,Dynamical,daily,percent,Minimum relative humidity,The minimum percentage of water vapor (i.e. moisture) relative to the amount of water vapor needed to saturate the air at the current air temperature and pressure.,ae_blue,FALSE,None
+t,Dynamical,"daily, monthly",K,Air Temperature at 2m,"Temperature of the air 2m above Earth's surface. This is the standard measure of air temperature used for most modeling applications and is also referred to as ""Ambient Temperature"".",ae_orange,FALSE,None
+u,Dynamical,"daily, monthly",m s-1,West-East component of Wind at 10m,Wind coming from the west; measured at 10m above Earth's surface. By convention wind coming from the east is negative.,ae_diverging,FALSE,None
+v,Dynamical,"daily, monthly",m s-1,North-South component of Wind at 10m,Wind coming from the north; measured at 10m above Earth's surface. By convention wind coming from the south is negative.,ae_diverging,FALSE,None
+znt,Dynamical,hourly,m,Surface roughness length,A measure of how air flows over different surfaces (e.g. forest/urban/water) with highers surface roughness lengths indicating increased turbulence and friction. ,ae_orange,FALSE,None
