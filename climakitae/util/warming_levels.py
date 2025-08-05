@@ -485,4 +485,3 @@ def get_year_at_gwl(gwl: Union[float, int], ssp: str = "all") -> pd.DataFrame:
         wl_timing_df.loc[ssp] = [x_5, year_gwl_reached, x_95]
 
     return wl_timing_df
-    return wl_timing_df
