@@ -1369,7 +1369,7 @@ class DataParameters(param.Parameterized):
 
         Returns
         -------
-        data_return : xr.DataArray | xr.Dataset | list of xr.DataArray
+        data_return: xr.DataArray | xr.Dataset | List[xr.DataArray]
             DataArray or Dataset object
         """
 
@@ -1543,15 +1543,15 @@ def _get_var_name_from_table(
 
     Parameters
     ----------
-    variable_id : str
-    downscaling_method : str
-    timescale : str
-    var_df : pd.DataFrame
+    variable_id: str
+    downscaling_method: str
+    timescale: str
+    var_df: pd.DataFrame
         Variable descriptions table
 
     Returns
     -------
-    var_name : str
+    var_name: str
         Display name of variable from variable descriptions table
         Will match what the user would see in the selections GUI
     """
@@ -1597,7 +1597,7 @@ def _get_closest_options(
 
     Returns
     -------
-    closest_options: list or None
+    closest_options: list[str] | None
         List of best guesses, or None if nothing close is found
     """
 
@@ -1648,7 +1648,6 @@ def _check_if_good_input(d: dict, cat_df: pd.DataFrame) -> dict:
     -------
     d: dict
         Cleaned up dictionary
-
     """
     # Check that inputs are valid, make guess if not valid
     for key, val in zip(
@@ -1991,7 +1990,6 @@ def get_data(
     Notes
     -----
     Errors aren't raised by the function. Rather, an appropriate informative message is printed, and the function returns None. This is due to the fact that the AE Jupyter Hub raises a strange Pieces Mismatch Error for some bad inputs; instead, that error is ignored and a more informative error message is printed instead.
-
     """
 
     def _check_valid_input_station(
@@ -2005,15 +2003,14 @@ def get_data(
 
         Parameters
         ----------
-        stations: list of str
+        stations: list[str]
         station_options_all: list of string
             All the possible station options
             Can be retrieved from DataParameters()._stations_gdf.station.values
 
         Returns
         -------
-        stations: list of str
-
+        stations: list[str]
         """
         station_options_all = sorted(
             station_options_all
