@@ -341,7 +341,10 @@ class TestReadCatalog:
         result = read_catalog_from_select(selections)
         assert isinstance(result, xr.core.dataarray.DataArray)
         assert result.name == selections.variable
-        assert result.attrs["variable_id"] == selections.variable_id[0]
+        assert (
+            result.attrs["variable_id"]
+            == f"{selections.variable_id[0]}, {selections.variable_id[1]}"
+        )
         # Check that there's at least one variant for each model in selections
         for sim in selections.simulation:
             if sim != "ERA5":
