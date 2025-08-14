@@ -34,7 +34,7 @@ class TestThreshold:
 
     def test_data_attributes(self, my_test_data: xr.DataArray):
         expected = [
-            "t2",
+            "t2, t",
             "K",
             "Gridded",
             "45 km",
