@@ -1,11 +1,11 @@
-"""
-Template for a DataProcessor subclass in climakitae.
+"""Template for a DataProcessor subclass in climakitae.
 
 This module provides a template for implementing custom data processors that can be registered and used within the climakitae data processing pipeline. Processors are designed to transform, filter, or otherwise process xarray data objects in a modular and extensible way.
 
 Classes
 -------
 Template : Example processor template for subsetting data.
+
 """
 
 from typing import Any, Dict, Iterable, Union
@@ -22,8 +22,7 @@ from climakitae.new_core.processors.abc_data_processor import (
 
 @register_processor("template", priority=50)
 class Template(DataProcessor):
-    """
-    Template for a DataProcessor.
+    """Template for a DataProcessor.
 
     This class serves as a template for creating new data processors. It demonstrates the required methods and docstring style for consistency within the climakitae framework.
 
@@ -47,16 +46,17 @@ class Template(DataProcessor):
         Update the context with information about the transformation.
     set_data_accessor(catalog)
         Set the data accessor for the processor (optional, for advanced use).
+
     """
 
     def __init__(self, value: Iterable[Any]):
-        """
-        Initialize the processor.
+        """Initialize the processor.
 
         Parameters
         ----------
         value : Iterable[Any]
             The value to subset the data by. Typically a tuple of two date-like values.
+
         """
         self.value = value
         self.name = "template"
@@ -68,8 +68,7 @@ class Template(DataProcessor):
         ],
         context: Dict[str, Any],
     ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
-        """
-        Run the processor on the provided data.
+        """Run the processor on the provided data.
 
         Parameters
         ----------
@@ -82,11 +81,11 @@ class Template(DataProcessor):
         -------
         xr.Dataset, xr.DataArray, or Iterable of these
             The processed or sliced data. This can be a single Dataset/DataArray or an iterable of them.
+
         """
 
     def update_context(self, context: Dict[str, Any]):
-        """
-        Update the context with information about the transformation.
+        """Update the context with information about the transformation.
 
         Parameters
         ----------
@@ -96,6 +95,7 @@ class Template(DataProcessor):
         Returns
         -------
         None
+
         """
 
         if _NEW_ATTRS_KEY not in context:
@@ -106,8 +106,7 @@ class Template(DataProcessor):
         ] = f"""Process '{self.name}' applied to the data. Transformation was done using the following value: {self.value}."""
 
     def set_data_accessor(self, catalog: DataCatalog):
-        """
-        Set the data accessor for the processor.
+        """Set the data accessor for the processor.
 
         Parameters
         ----------
@@ -117,6 +116,7 @@ class Template(DataProcessor):
         Returns
         -------
         None
+
         """
         # Placeholder for setting data accessor
         pass
