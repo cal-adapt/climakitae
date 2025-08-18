@@ -12,17 +12,18 @@ def effective_temp(T: xr.DataArray) -> xr.DataArray:
 
     Parameters
     ----------
-    T: xr.DataArray
+    T : xr.DataArray
         Daily air temperature in any units
 
     Returns
     -------
-    eft: xr.DataArray
+    eft : xr.DataArray
         Effective temperature
 
     References
     ----------
     https://www.nationalgas.com/document/132516/download
+
     """
     # Get "yesterday" temp by shifting the time index back one time step (1 day)
     # Get "day before" temp by shifting the time index back two time steps (2 days)
@@ -52,20 +53,21 @@ def noaa_heat_index(T: xr.DataArray, RH: xr.DataArray) -> xr.DataArray:
 
     Parameters
     ----------
-    T: xr.DataArray
+    T : xr.DataArray
         Temperature in deg F
-    RH: xr.DataArray
+    RH : xr.DataArray
         Relative Humidity in percentage (0-100)
 
     Returns
     -------
-    HI: xr.DataArray
+    HI : xr.DataArray
         Heat index per timestep
 
     References
     ----------
     NOAA: https://www.wpc.ncep.noaa.gov/html/heatindex_equation.shtml
     NCAR NCL documentation: https://www.ncl.ucar.edu/Document/Functions/Heat_stress/heat_index_nws.shtml
+
     """
     T = T.reindex_like(RH)  # Need to have the same dimension/coordinate orders
     HI = (
@@ -127,11 +129,11 @@ def fosberg_fire_index(
 
     Parameters
     ----------
-    t2_F: xr.DataArray
+    t2_F : xr.DataArray
         Air temperature in units of Fahrenheit
-    rh_percent: xr.DataArray
+    rh_percent : xr.DataArray
         Relative humidity in units of 0-100 (percent)
-    windspeed_mph: xr.DataArray
+    windspeed_mph : xr.DataArray
         Windspeed in units of miles per hour
 
     Returns
@@ -187,18 +189,18 @@ def _equilibrium_moisture_constant(
 
     Parameters
     ----------
-    h: xr.DataArray
+    h : xr.DataArray
         relative humidity in units of 0-100 (percent)
-    T: xr.DataArray
+    T : xr.DataArray
         air temperature in units of Fahrenheit
 
     Returns
     -------
-    m_low: xr.DataArray
+    m_low : xr.DataArray
         equilibrium moisture constant for low humidity (<10%)
-    m_mid: xr.DataArray
+    m_mid : xr.DataArray
         equilibrium moisture constant for 10% < humidity <= 50%
-    m_high: xr.DataArray
+    m_high : xr.DataArray
         equilibrium moisture constant for high humidity (>50%)
 
     """
@@ -220,13 +222,14 @@ def _moisture_dampening_coeff(m: xr.DataArray) -> xr.DataArray:
 
     Parameters
     ----------
-    m: xr.DataArray
+    m : xr.DataArray
         equilibrium moisture constant
 
     Returns
     -------
-    n: xr.DataArray
+    n : xr.DataArray
         moisture dampening coefficient
+
     """
     n = 1 - 2 * (m / 30) + 1.5 * (m / 30) ** 2 - 0.5 * (m / 30) ** 3
     return n
