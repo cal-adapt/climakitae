@@ -20,9 +20,7 @@ handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(message)s"))
 
 
 def enable_app_logging():
-    """
-    Enables application logging by adding a handler.
-    """
+    """Enables application logging by adding a handler."""
     global app_log_enabled
     if not app_log_enabled:
         app_log_enabled = True
@@ -30,9 +28,7 @@ def enable_app_logging():
 
 
 def disable_app_logging():
-    """
-    Disables logging by removing application logger handler.
-    """
+    """Disables logging by removing application logger handler."""
     global app_log_enabled
     if app_log_enabled:
         app_log_enabled = False
