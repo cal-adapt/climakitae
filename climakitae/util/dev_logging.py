@@ -1,5 +1,4 @@
-"""
-Notes about this logger (Updated 5/1/24):
+"""Notes about this logger (Updated 5/1/24):
 
 This logger is to be used for developers who want to see a comprehensive view of the function call stacks of any functions
 within `climakitae`. In order to use this logger, you must do the following:
@@ -33,26 +32,26 @@ indentation_level = 0
 
 
 def _log(func: types.FunctionType) -> types.FunctionType:
-    """
-    Wraps around existing functions, adding print statements upon execution and the
+    """Wraps around existing functions, adding print statements upon execution and the
     amount of time it takes for execution. Allows function's call-stack to be viewed
     for all sub-functions that also have this wrapper.
 
     Parameters
     ----------
-    func: types.FunctionType
+    func : types.FunctionType
         The function to be wrapped.
 
     Returns
     -------
     function
         The wrapped function with logging capabilities.
+
     """
 
     def _wrapper(*args, **kwargs) -> types.FunctionType:
-        """
-        Wraps timer and print statement around functions if `lib_log_enabled` is True,
+        """Wraps timer and print statement around functions if `lib_log_enabled` is True,
         otherwise return the function's result.
+
         """
         global indentation_level
         start_time = time.time()
@@ -74,12 +73,12 @@ def _log(func: types.FunctionType) -> types.FunctionType:
 
 
 def enable_lib_logging(obj: types.ModuleType):
-    """
-    Adds the `log` wrapper to all functions and sub-classes within the given module or class.
+    """Adds the `log` wrapper to all functions and sub-classes within the given module or class.
 
     Parameters
     ----------
-    obj: types.ModuleType or type (module or class)
+    obj : types.ModuleType or type (module or class)
+
     """
     # Check if the passed in object is a module or a class
     if isinstance(obj, types.ModuleType) or isinstance(obj, type):
@@ -113,13 +112,13 @@ def enable_lib_logging(obj: types.ModuleType):
 
 
 def disable_lib_logging(module: types.ModuleType):
-    """
-    Removes the `log` wrapper to all functions within the given module.
+    """Removes the `log` wrapper to all functions within the given module.
 
     Parameters
     ----------
-    module: types.ModuleType (module)
+    module : types.ModuleType (module)
         The module to remove the logger from.
+
     """
     for name in dir(module):
         res = getattr(module, name)
