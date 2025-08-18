@@ -20,21 +20,22 @@ class CmipOpt:
 
     Attributes
     ----------
-    variable: str
+    variable : str
         variable name, cf-compliant (or cmip6 variable name)
-    area_subset: str
+    area_subset : str
         geographic boundary name (states/counties)
-    location: str
+    location : str
         geographic area name (name of county/state)
-    timescale: str
+    timescale : str
         frequency of data
-    area_average: bool
+    area_average : bool
         average computed across domain
 
     Methods
     -------
     _cmip_clip
         CMIP6-specific subsetting
+
     """
 
     def __init__(
@@ -56,13 +57,14 @@ class CmipOpt:
 
         Parameters
         ----------
-        ds: xr.Dataset
+        ds : xr.Dataset
             Input data
 
         Returns
         -------
         xr.Dataset
             Subsetted data, area-weighting applied if area_average is true
+
         """
         to_drop = [v for v in list(ds.data_vars) if v != self.variable]
         ds = ds.drop_vars(to_drop)
@@ -79,13 +81,14 @@ def _cf_to_dt(ds: xr.Dataset) -> xr.Dataset:
 
     Parameters
     ----------
-    ds: xr.Dataset
+    ds : xr.Dataset
         Input data
 
     Returns
     -------
     xr.Dataset
         Converted calendar data
+
     """
     if type(ds.indexes["time"]) not in [pd.core.indexes.datetimes.DatetimeIndex]:
         datetimeindex = ds.indexes["time"].to_datetimeindex()
@@ -105,13 +108,14 @@ def _calendar_align(ds: xr.Dataset) -> xr.Dataset:
 
     Parameters
     ----------
-    ds: xr.Dataset
+    ds : xr.Dataset
         Input data
 
     Returns
     -------
     xr.Dataset
         Calendar-aligned data
+
     """
     ds["time"] = pd.to_datetime(ds.time.dt.strftime("%Y-%m"))
     return ds
@@ -122,17 +126,18 @@ def _clip_region(ds: xr.Dataset, area_subset: list, location: str) -> xr.Dataset
 
     Parameters
     ----------
-    ds: xr.Dataset
+    ds : xr.Dataset
         Input data
-    area_subset: list[str]
+    area_subset : list[str]
         "counties"/"states" as options
-    location: str
+    location : str
         county/state name
 
     Returns
     -------
     xr.Dataset
         Clipped dataset to region of interest
+
     """
     data_interface = DataInterface()
     geographies = data_interface.geographies
@@ -166,13 +171,14 @@ def _standardize_cmip6_data(ds: xr.Dataset) -> xr.Dataset:
 
     Parameters
     ----------
-    ds: xr.Dataset
+    ds : xr.Dataset
         Input data
 
     Returns
     -------
     xr.Dataset
         CMIP6 data with consistent dimensions, names, and calendars.
+
     """
 
     ds_simulation = ds.attrs["source_id"]
@@ -194,13 +200,14 @@ def _area_wgt_average(ds: xr.Dataset) -> xr.Dataset:
 
     Parameters
     ----------
-    ds: xr.Dataset
+    ds : xr.Dataset
         Input data
 
     Returns
     -------
     xr.Dataset
         Area-averaged data by weights
+
     """
     weights = np.cos(np.deg2rad(ds.y))
     weights.name = "weights"
@@ -214,13 +221,14 @@ def _drop_member_id(dset_dict: dict) -> xr.Dataset:
 
     Parameters
     ----------
-    dset_dict: dict
+    dset_dict : dict
         dictionary in the format {dataset_name:xr.Dataset}
 
     Returns
     -------
     xr.Dataset
         Data, with member_id dim removed
+
     """
     for dname, dset in dset_dict.items():
         if "member_id" in dset.coords:
@@ -230,20 +238,19 @@ def _drop_member_id(dset_dict: dict) -> xr.Dataset:
 
 
 def _precip_flux_to_total(ds: xr.Dataset) -> xr.Dataset:
-    """
-    converts precip flux units
-    (kg m-2 s-1) to total precip
-    per month (mm)
+    """Converts precip flux units (kg m-2 s-1) to total precip per month (mm)
     NOTE: assumes regular calendar
 
     Parameters
     ----------
-    ds: xarray.Dataset
+    ds : xarray.Dataset
         CMIP6 output with data variable 'pr'
+
     Returns
     -------
     xr.Dataset
         Data with converted precipitation units
+
     """
     ds_attrs = ds.attrs
     days_month = ds.time.dt.days_in_month
@@ -261,16 +268,17 @@ def _grab_ensemble_data_by_experiment_id(
     """Grab CMIP6 ensemble data
 
     Parameters
-    -----------
-    variable: str
+    ----------
+    variable : str
         Name of variable
-    cmip_names: list of str
+    cmip_names : list of str
         Name of CMIP6 simulations
-    experiment_id: scenario, one of "historical" or "ssp375"
+    experiment_id : scenario, one of "historical" or "ssp375"
 
     Returns
     -------
     list[xr.Dataset]
+
     """
 
     # Open AE data catalog for regridded CMIP6 data
@@ -305,15 +313,16 @@ def grab_multimodel_data(copt: CmipOpt, alpha_sort: bool = False) -> xr.Dataset:
 
     Parameters
     ----------
-    copt: CmipOpt
+    copt : CmipOpt
         Selections: variable, area_subset, location, area_average, timescale
-    alpha_sort: bool, default=False
+    alpha_sort : bool, default=False
         Set to True if sorting model names alphabetically is desired
 
     Returns
     -------
     xr.Dataset
         Processed CMIP6 models concatenated into a single ds
+
     """
     col = intake.open_esm_datastore(
         "https://cadcat.s3.amazonaws.com/tmp/cmip6-regrid.json"
@@ -429,14 +438,14 @@ def get_ensemble_data(
     Get's future data at warming level range. Slices historical period to 1981-2010.
 
     Parameters
-    -----------
-    variable: str
+    ----------
+    variable : str
         Name of variable
-    selections: DataParameters
+    selections : DataParameters
         Data and location settings
-    cmip_names: list[str]
+    cmip_names : list[str]
         Name of CMIP6 simulations
-    warm_level: float, optional
+    warm_level : float, optional
         Global warming level to use, default to 3.0
 
     Returns
@@ -524,18 +533,19 @@ def get_ensemble_data(
 
 
 def weighted_temporal_mean(ds: xr.DataArray) -> xr.DataArray:
-    """weight by days in each month
+    """Weight by days in each month
 
     Function for calculating annual averages pulled + adapted from NCAR
     Link: https://ncar.github.io/esds/posts/2021/yearly-averages-xarray/
 
     Parameters
     ----------
-    ds: xarray.DataArray
+    ds : xarray.DataArray
 
     Returns
     -------
     xarray.Dataset
+
     """
 
     # Determine the month length
@@ -574,17 +584,18 @@ def calc_anom(ds_yr: xr.Dataset, base_start: int, base_end: int) -> xr.Dataset:
 
     Parameters
     ----------
-    ds_yr: xr.Dataset
+    ds_yr : xr.Dataset
         must be the output from cmip_annual
-    base_start: int
+    base_start : int
         start year of baseline to calculate
-    base_end: int
+    base_end : int
         end year of the baseline to calculate
 
     Returns
     -------
     xr.Dataset
         Anomaly data calculated with input baseline start and end
+
     """
     mdl_baseline = ds_yr.sel(time=slice(base_start, base_end)).mean("time")
     mdl_temp_anom = ds_yr - mdl_baseline
@@ -596,13 +607,14 @@ def cmip_mmm(ds: xr.Dataset) -> xr.Dataset:
 
     Parameters
     ----------
-    ds: xr.Dataset
+    ds : xr.Dataset
         Input data, multiple simulations
 
     Returns
     -------
     xr.Dataset
         Mean across input data taken on simulation dim
+
     """
     ds_mmm = ds.mean("simulation")
     return ds_mmm
@@ -616,11 +628,11 @@ def get_ks_pval_df(
 
     Parameters
     ----------
-    sample1: xr.Dataset
+    sample1 : xr.Dataset
         first sample for comparison
-    sample2: xr.Dataset
+    sample2 : xr.Dataset
         sample against which to compare sample1
-    sig_lvl: float
+    sig_lvl : float
         alpha level for statistical significance
 
     Returns
@@ -629,6 +641,7 @@ def get_ks_pval_df(
         columns are lat, lon, and p_value;
         only retains spatial points where
         p_value < sig_lvl
+
     """
 
     sample1 = sample1.stack(allpoints=["y", "x"]).squeeze().groupby("allpoints")
@@ -688,6 +701,7 @@ def get_warm_level(
     -------
     xr.Dataset
         Subset of projected data -14/+15 years from warming level threshold
+
     """
     try:
         warm_level = float(warm_level)
