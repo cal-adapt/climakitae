@@ -28,12 +28,12 @@ def make_weighted_timeseries(temp: xr.DataArray) -> xr.DataArray:
     The function weights the latitude grids by size and averages across all longitudes,
     resulting in a single time series object.
 
-    Parameters:
+    Parameters
     ----------
     temp : xarray.DataArray
         An xarray DataArray of global temperature with latitude and longitude coordinates.
 
-    Returns:
+    Returns
     -------
     xarray.DataArray
         A time series of global temperature that is spatially weighted across latitudes and averaged
@@ -133,7 +133,7 @@ class GWLGenerator:
         """
         Initialize the GWLGenerator with the CMIP6 data catalog.
 
-        Parameters:
+        Parameters
         ----------
         df : pandas.DataFrame
             DataFrame containing metadata for CMIP6 simulations
@@ -171,13 +171,13 @@ class GWLGenerator:
         """
         Pull CESM2 LENS dataset subset from Intake catalog and reformat datasets.
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         catalog_cesm: intake_esm.esm_datastore
             Intake ESM catalog pointing to CESM2 data
 
-        Returns:
-        --------
+        Returns
+        -------
         xr.Dataset
             CESM2 data for historical and ssp370
         """
@@ -206,7 +206,7 @@ class GWLGenerator:
         models that have both historical and at least one SSP ensemble member. Additionally, it ensures
         that only historical ensemble members with variants in at least one SSP are kept.
 
-        Returns:
+        Returns
         -------
         pandas.DataFrame
             A DataFrame indexed by model names (source_id) and columns corresponding to scenarios
@@ -351,12 +351,12 @@ class GWLGenerator:
         Builds a global temperature time series by weighting latitudes and averaging longitudes
         for the CESM2 model across specified scenarios from 1980 to 2100.
 
-        Parameters:
+        Parameters
         ----------
         model_config : dict
             Dictionary containing 'variable', 'model', 'ens_mem', and 'scenarios' keys
 
-        Returns:
+        Returns
         -------
         xarray.Dataset
             A dataset containing the global temperature time series for each scenario.
@@ -674,7 +674,7 @@ class GWLGenerator:
         """
         Generates global warming level (GWL) reference files for specified models.
 
-        Parameters:
+        Parameters
         ----------
         models : list
             List of model names to processThe keys in the returned dictionary
