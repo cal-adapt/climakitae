@@ -11,17 +11,18 @@ def compute_hdd_cdd(
 
     Parameters
     ----------
-    t2: xr.DataArray
+    t2 : xr.DataArray
         Air temperature at 2m gridded data
-    hdd_threshold: int, optional
+    hdd_threshold : int, optional
         Standard temperature in Fahrenheit.
-    cdd_threshold: int, optional
+    cdd_threshold : int, optional
         Standard temperature in Fahrenheit.
 
     Returns
     -------
     tuple of xr.DataArray
         (hdd, cdd)
+
     """
 
     # Check that temperature data was passed to function, throw error if not
@@ -60,17 +61,18 @@ def compute_hdh_cdh(
 
     Parameters
     ----------
-    t2: xr.DataArray
+    t2 : xr.DataArray
         Air temperature at 2m gridded data
-    hdh_threshold: int, optional
+    hdh_threshold : int, optional
         Standard temperature in Fahrenheit.
-    cdh_threshold: int, optional
+    cdh_threshold : int, optional
         Standard temperature in Fahrenheit.
 
     Returns
     -------
     tuple of xr.DataArray
         (hdh, cdh)
+
     """
 
     # Check that temperature data was passed to function, throw error if not
@@ -107,15 +109,16 @@ def compute_dewpointtemp(
 
     Parameters
     ----------
-        temperature: xr.DataArray
+        temperature : xr.DataArray
             Temperature in Kelvin (K)
-        rel_hum: xr.DataArray
+        rel_hum : xr.DataArray
             Relative humidity (0-100 scale)
 
     Returns
     -------
-        dew_point: xr.DataArray
+        dew_point : xr.DataArray
             Dew point (K)
+
     """
     es = 0.611 * np.exp(
         5423 * ((1 / 273) - (1 / temperature))
@@ -138,17 +141,18 @@ def compute_specific_humidity(
 
     Parameters
     ----------
-        tdps: xr.DataArray
+        tdps : xr.DataArray
             Dew-point temperature, in K
-        pressure: xr.DataArray
+        pressure : xr.DataArray
             Air pressure, in Pascals
-        name: str, optional
+        name : str, optional
             Name to assign to output DataArray
 
     Returns
     -------
-        spec_hum: xr.DataArray
+        spec_hum : xr.DataArray
             Specific humidity
+
     """
 
     # Calculate vapor pressure, unit is in kPa
@@ -177,21 +181,22 @@ def compute_relative_humidity(
 
     Parameters
     ----------
-        pressure: xr.DataArray
+        pressure : xr.DataArray
             Pressure in hPa
-        temperature: xr.DataArray
+        temperature : xr.DataArray
             Temperature in Celsius
-        mixing_ratio: xr.DataArray
+        mixing_ratio : xr.DataArray
             Dimensionless mass mixing ratio in g/kg
-        name: str, optional
+        name : str, optional
             Name to assign to output DataArray
 
     Returns
     -------
-        rel_hum: xr.DataArray
+        rel_hum : xr.DataArray
             Relative humidity
 
     Source: https://www.weather.gov/media/epz/wxcalc/mixingRatio.pdf
+
     """
 
     # Calculates saturated vapor pressure
@@ -231,19 +236,20 @@ def _convert_specific_humidity_to_relative_humidity(
 
     Parameters
     ----------
-        temperature: xr.DataArray
+        temperature : xr.DataArray
             Temperature in Kelvin
-        q: xr.DataArray
+        q : xr.DataArray
             Specific humidity, in g/kg
-        pressure: xr.DataArray
+        pressure : xr.DataArray
             Pressure, in Pascals
-        name: str, optional
+        name : str, optional
             Name to assign to output DataArray
 
     Returns
     -------
-        rel_hum: xr.DataArray
+        rel_hum : xr.DataArray
             Relative humidity
+
     """
 
     # Calculates saturated vapor pressure, unit is in kPa
@@ -271,17 +277,18 @@ def compute_wind_mag(
 
     Parameters
     ----------
-        u10: xr.DataArray
+        u10 : xr.DataArray
             Zonal velocity at 10 meters height in m/s
-        v10: xr.DataArray
+        v10 : xr.DataArray
             Meridonal velocity at 10 meters height in m/s
-        name: str, optional
+        name : str, optional
             Name to assign to output DataArray
 
     Returns
     -------
         wind_mag: xr.DataArray
             Wind magnitude
+
     """
     wind_mag = np.sqrt(np.square(u10) + np.square(v10))
     wind_mag.name = name
@@ -296,21 +303,22 @@ def compute_wind_dir(
 
     Parameters
     ----------
-        u10: xr.DataArray
+        u10 : xr.DataArray
             Zonal velocity at 10 meters height in m/s
-        v10: xr.DataArray
+        v10 : xr.DataArray
             Meridional velocity at 10 meters height in m/s
-        name: str, optional
+        name : str, optional
             Name to assign to output DataArray
 
     Returns
     -------
-        wind_dir: xr.DataArray
+        wind_dir : xr.DataArray
             Wind direction, in [0, 360] degrees, with 0/360 defined as north, by meteorological convention
 
     Notes
     -----
         source: https://sites.google.com/view/raybellwaves/cheat-sheets/xarray
+
     """
 
     wind_dir = np.mod(90 - np.arctan2(-v10, -u10) * (180 / np.pi), 360)
