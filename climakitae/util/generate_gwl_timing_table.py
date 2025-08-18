@@ -1,9 +1,9 @@
-"""
-Util for generating estimated crossing years for global warming levels
+"""Util for generating estimated crossing years for global warming levels
 
 Outputs a csv file for reference in ../data/ ###
 
 To run, type: <<python generate_gwl_timing_table.py>> in the command line. Runs in about 20 seconds and returns no output.
+
 """
 
 import numpy as np
@@ -20,8 +20,7 @@ from climakitae.util.utils import read_csv_file, write_csv_file
 
 
 def main():
-    """
-    Generates global warming level (GWL) timing table based on the IPCC warming trajectories and ranges in ../data/
+    """Generates global warming level (GWL) timing table based on the IPCC warming trajectories and ranges in ../data/
 
     Uses the same method that  ../explore/warming.py uses to generate visualizations to identify crossing years.
 
