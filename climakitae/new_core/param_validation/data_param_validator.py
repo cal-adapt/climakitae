@@ -1,6 +1,4 @@
-"""
-Validator for data catalog parameters.
-"""
+"""Validator for data catalog parameters."""
 
 from __future__ import annotations
 
@@ -17,8 +15,7 @@ from climakitae.new_core.param_validation.abc_param_validation import (
 
 @register_catalog_validator(CATALOG_CADCAT)
 class DataValidator(ParameterValidator):
-    """
-    Validator for data catalog parameters.
+    """Validator for data catalog parameters.
 
     Parameters
     ----------
@@ -27,16 +24,17 @@ class DataValidator(ParameterValidator):
 
     Attributes
     ----------
+
     """
 
     def __init__(self, catalog: DataCatalog):
-        """
-        Initialize with  catalog of renewable energy datasets.
+        """Initialize with  catalog of renewable energy datasets.
 
         Parameters
         ----------
         catalog : DataCatalog
             Catalog of datasets
+
         """
         super().__init__()
         self.all_catalog_keys = {
@@ -51,8 +49,7 @@ class DataValidator(ParameterValidator):
         self.catalog = catalog.data
 
     def is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
-        """
-        Catalog specific validation for the query.
+        """Catalog specific validation for the query.
 
         Parameters
         ----------
@@ -70,6 +67,7 @@ class DataValidator(ParameterValidator):
 
         1. Check if the query contains the localize processor.
             Localize is not supported for LOCA2 datasets.
+
         """
         initial_checks = [self._check_query_for_wrf_and_localize(query)]
         if not all(initial_checks):
@@ -77,8 +75,7 @@ class DataValidator(ParameterValidator):
         return super()._is_valid_query(query)
 
     def _check_query_for_wrf_and_localize(self, query: Dict[str, Any]) -> bool:
-        """
-        Check if the query contains the localize processor.
+        """Check if the query contains the localize processor.
 
         Localize is not supported for LOCA2 datasets.
 
@@ -91,6 +88,7 @@ class DataValidator(ParameterValidator):
         -------
         bool
             True if the query does not contain localize processor, False otherwise.
+
         """
         if "localize" in query.get("processes", {}).keys():
             if "WRF" not in query.get("activity_id", ""):
