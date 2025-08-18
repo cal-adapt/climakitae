@@ -1,7 +1,4 @@
-<<<<<<< HEAD
-=======
 import calendar
->>>>>>> main
 import datetime
 import os
 from typing import Any, Iterable, Union
@@ -19,11 +16,7 @@ from timezonefinder import TimezoneFinder
 from climakitae.core.constants import SSPS, UNSET
 
 # from climakitae.core.data_interface import DataParameters
-<<<<<<< HEAD
-from climakitae.core.paths import stations_csv_path
-=======
 from climakitae.core.paths import DATA_CATALOG_URL, STATIONS_CSV_PATH
->>>>>>> main
 
 
 def downscaling_method_as_list(downscaling_method: str) -> list[str]:
