@@ -33,10 +33,10 @@ xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
 
 
 def _set_amy_year_inputs(year_start: int, year_end: int) -> tuple[int, int]:
-    """
-    Helper function for _retrieve_meteo_yr_data.
+    """Helper function for _retrieve_meteo_yr_data.
     Checks that the user has input valid values.
     Sets year end if it hasn't been set; default is 30 year range (year_start + 30). Minimum is 5 year range.
+
     """
     match year_end:
         case None:
@@ -73,19 +73,20 @@ def retrieve_meteo_yr_data(
 
     Parameters
     ----------
-    self: AverageMetYearParameters
-    ssp: str
+    self : AverageMetYearParameters
+    ssp : str
         one of "SSP 2-4.5", "SSP 3-7.0", "SSP 5-8.5"
         Shared Socioeconomic Pathway. Defaults to SSP 3-7.0
-    year_start: int, optional
+    year_start : int, optional
         Year between 1980-2095. Default to 2015
-    year_end: int, optional
+    year_end : int, optional
         Year between 1985-2100. Default to year_start+30
 
     Returns
     -------
     xr.DataArray
         Hourly ensemble means from year_start-year_end for the ssp specified.
+
     """
     # Ensure only WRF data is being used
     data_params.downscaling_method = "Dynamical"
@@ -165,9 +166,9 @@ def compute_amy(data: xr.DataArray, days_in_year: int = 366) -> pd.DataFrame:
 
     Parameters
     ----------
-    data: xr.DataArray
+    data : xr.DataArray
         Hourly data for one variable
-    days_in_year: int, optional
+    days_in_year : int, optional
         Either 366 or 365, depending on whether or not the year is a leap year.
         Default to 366 days (leap year)
 
@@ -176,6 +177,7 @@ def compute_amy(data: xr.DataArray, days_in_year: int = 366) -> pd.DataFrame:
     pd.DataFrame
         Average meteorological year table, with days of year as
         the index and hour of day as the columns.
+
     """
 
     def _closest_to_mean(dat: xr.DataArray) -> xr.DataArray:
@@ -208,9 +210,9 @@ def compute_severe_yr(data: xr.DataArray, days_in_year: int = 366) -> pd.DataFra
 
     Parameters
     ----------
-    data: xr.DataArray
+    data : xr.DataArray
         Hourly data for one variable
-    days_in_year: int, optional
+    days_in_year : int, optional
         Either 366 or 365, depending on whether or not the year is a leap year.
         Default to 366 days (leap year)
 
@@ -219,6 +221,7 @@ def compute_severe_yr(data: xr.DataArray, days_in_year: int = 366) -> pd.DataFra
     pd.DataFrame
         Severe meteorological year table, with days of year as
         the index and hour of day as the columns.
+
     """
 
     def closest_to_quantile(dat):
@@ -257,10 +260,10 @@ def compute_mean_monthly_meteo_yr(
 
     Parameters
     ----------
-    tmy_df: pd.DataFrame
+    tmy_df : pd.DataFrame
         Matrix with day of year as index and hour as columns
         Output of either compute_severe_yr or compute_meteo_yr
-    col_name: str, optional
+    col_name : str, optional
         Name to give single output column
         It may be informative to assign this to the name of the data variable
 
@@ -268,6 +271,7 @@ def compute_mean_monthly_meteo_yr(
     -------
     pd.DataFrame
         Table with month as index and monthly mean as column
+
     """
     # Convert from matrix --> hour and data as individual columns
     tmy_stacked = (
