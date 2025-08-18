@@ -12,25 +12,25 @@ def batch_select(
     load_data: bool = False,
     progress_bar: bool = True,
 ) -> xr.DataArray:
-    """
-    Conducts batch mode analysis on a series of points for a given metric.
+    """Conducts batch mode analysis on a series of points for a given metric.
 
     Parameters
     ----------
-    approach: str
-    selections: DataParameters
+    approach : str
+    selections : DataParameters
         Selections object that describes the area of interest. The `area_subset` and `cached_area` attributes are automatically overwritten.
-    points: np.ndarray
+    points : np.ndarray
         An array at lat/lon points to gather the specified data at.
-    load_data: boolean
+    load_data : boolean
         A boolean that tells the function whether or not to load the data into memory.
-    progress_bar: boolean
+    progress_bar : boolean
         A boolean that determines whether progress bar is displayed.
 
     Returns
     -------
     cells_of_interest: xr.DataArray
         Gridcells that the points lie within, aggregated together into one DataArray. It can or cannot be loaded into memory, depending on `load_data`.
+
     """
     print(f"Batch retrieving all {len(points)} points passed in...\n")
 
