@@ -451,8 +451,7 @@ def get_sliced_data(
 
 
 class WarmingLevelChoose(DataParameters):
-    """
-    Class for selecting data at specific warming levels in climate datasets.
+    """Class for selecting data at specific warming levels in climate datasets.
     This class extends DataParameters to provide functionality for choosing and analyzing
     data around specific global warming levels (GWLs). It allows users to specify a time window
     around the warming level and whether to return anomalies relative to a historical reference period.
@@ -476,9 +475,10 @@ class WarmingLevelChoose(DataParameters):
 
     Methods
     -------
-        _anom_allowed():
+        _anom_allowed()
             Controls whether the anomaly option is required based on the
             downscaling method.
+
     """
 
     window = param.Integer(
@@ -521,9 +521,7 @@ class WarmingLevelChoose(DataParameters):
 
     @param.depends("downscaling_method", watch=True)
     def _anom_allowed(self):
-        """
-        Require 'anomaly' for non-bias-corrected data.
-        """
+        """Require 'anomaly' for non-bias-corrected data."""
         if self.downscaling_method == "Dynamical":
             self.param["anom"].objects = ["Yes", "No"]
             self.anom = "Yes"
@@ -533,8 +531,7 @@ class WarmingLevelChoose(DataParameters):
 
 
 def _drop_invalid_sims(ds: xr.Dataset, selections: DataParameters) -> xr.Dataset:
-    """
-    As part of the warming levels calculation, the data is stacked by simulation and
+    """As part of the warming levels calculation, the data is stacked by simulation and
     scenario, creating some empty values for that coordinate.
     Here, we remove those empty coordinate values.
 
@@ -544,7 +541,7 @@ def _drop_invalid_sims(ds: xr.Dataset, selections: DataParameters) -> xr.Dataset
         The dataset must have a
         dimension `all_sims` that results from stacking `simulation` and
         `scenario`.
-    selections: DataParameters
+    selections : DataParameters
         The selections made in the GUI, which are used to filter the
         dataset.
 
@@ -557,6 +554,7 @@ def _drop_invalid_sims(ds: xr.Dataset, selections: DataParameters) -> xr.Dataset
     ------
     AttributeError
         If the dataset does not have an `all_sims` dimension.
+
     """
     df = _get_cat_subset(selections).df
 
