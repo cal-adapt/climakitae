@@ -19,19 +19,20 @@ def read_ae_colormap(
 
     Parameters
     ----------
-    cmap: str
+    cmap : str
         one of ["ae_orange", "ae_diverging", "ae_blue", "ae_diverging_r", "categorical_cb"]
-    cmap_hex: boolean
+    cmap_hex : boolean
         return RGB or hex colors?
 
     Returns
     -------
     one of either
 
-    cmap_data: matplotlib.colors.LinearSegmentedColormap
+    cmap_data : matplotlib.colors.LinearSegmentedColormap
         used for matplotlib (if cmap_hex == False)
-    cmap_data: list
+    cmap_data : list
         used for hvplot maps (if cmap_hex == True)
+
     """
 
     match cmap:
