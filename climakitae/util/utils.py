@@ -24,13 +24,14 @@ def downscaling_method_as_list(downscaling_method: str) -> list[str]:
 
     Parameters
     ----------
-    downscaling_method: str
+    downscaling_method : str
         one of "Dynamical", "Statistical", or "Dynamical+Statistical"
 
     Returns
     -------
-    method_list: list
+    method_list : list
         one of ["Dynamical"], ["Statistical"], or ["Dynamical","Statistical"]
+
     """
     method_list = []
     if downscaling_method == "Dynamical+Statistical":
@@ -45,13 +46,14 @@ def area_average(dset: xr.Dataset) -> xr.Dataset:
 
     Parameters
     ----------
-    dset: xr.Dataset
+    dset : xr.Dataset
         one dataset from the catalog
 
     Returns
     -------
     xr.Dataset
         sub-setted output data
+
     """
     weights = np.cos(np.deg2rad(dset.lat))
     if set(["x", "y"]).issubset(set(dset.dims)):
@@ -70,16 +72,17 @@ def read_csv_file(
 
     Parameters
     ----------
-    rel_path: str
+    rel_path : str
         path to CSV file relative to this util python file
-    index_col: str
+    index_col : str
         CSV column to index DataFrame on
-    parse_dates: boolean
+    parse_dates : boolean
         Whether to have pandas parse the date strings
 
     Returns
     -------
     pd.DataFrame
+
     """
     return pd.read_csv(
         _package_file_path(rel_path),
@@ -114,14 +117,15 @@ def write_csv_file(df: pd.DataFrame, rel_path: str) -> None:
 
     Parameters
     ----------
-    df: pd.DataFrame
+    df : pd.DataFrame
         pandas DataFrame to write out
-    rel_path: str
+    rel_path : str
         path to CSV file relative to this util python file
 
     Returns
     -------
     None
+
     """
     return df.to_csv(_package_file_path(rel_path))
 
@@ -131,12 +135,13 @@ def _package_file_path(rel_path: str) -> str:
 
     Parameters
     ----------
-    rel_path: str
+    rel_path : str
         path to file relative to this util python file
 
     Returns
     -------
     str
+
     """
     return os.path.normpath(os.path.join(os.path.dirname(__file__), "..", rel_path))
 
@@ -151,13 +156,13 @@ def get_closest_gridcell(
 
     Parameters
     ----------
-    data: xr.DataArray | xr.Dataset
+    data : xr.DataArray | xr.Dataset
         Gridded data
-    lat: float
+    lat : float
         Latitude of coordinate pair
-    lon: float
+    lon : float
         Longitude of coordinate pair
-    print_coords: bool, optional
+    print_coords : bool, optional
         Print closest coorindates?
         Default to True. Set to False for backend use.
 
@@ -169,6 +174,7 @@ def get_closest_gridcell(
     See also
     --------
     xr.DataArray.sel
+
     """
 
     # Use data cellsize as tolerance for selecting nearest
@@ -220,8 +226,7 @@ def get_closest_gridcell(
 def get_closest_gridcells(
     data: xr.Dataset, lats: Iterable[float] | float, lons: Iterable[float] | float
 ) -> xr.Dataset | xr.DataArray | None:
-    """
-    Find the nearest grid cell(s) for given latitude and longitude coordinates.
+    """Find the nearest grid cell(s) for given latitude and longitude coordinates.
 
     If the dataset uses (x, y) coordinates, lat/lon values are transformed to match its projection.
     The function then selects the closest grid cell using `sel()` or `get_indexer()`, ensuring
@@ -229,11 +234,11 @@ def get_closest_gridcells(
 
     Parameters
     ----------
-    data: xr.DataArray | xr.Dataset
+    data : xr.DataArray | xr.Dataset
         Gridded dataset with (x, y) or (lat, lon) dimensions.
-    lats: float | Iterable[float]
+    lats : float | Iterable[float]
         Latitude coordinate(s).
-    lons: float | Iterable[float]
+    lons : float | Iterable[float]
         Longitude coordinate(s).
 
     Returns
@@ -250,6 +255,7 @@ def get_closest_gridcells(
     See Also
     --------
     xr.DataArray.sel, pyproj.Transformer
+
     """
     # Use data cellsize as tolerance for selecting nearest
     # Using this method to guard against single row|col
@@ -277,25 +283,24 @@ def get_closest_gridcells(
         coords2: float | Iterable[float],
         tolerance: float,
     ) -> xr.Dataset | xr.DataArray | None:
-        """
-        Find the nearest valid grid cells within a given tolerance.
+        """Find the nearest valid grid cells within a given tolerance.
 
         Uses `get_indexer()` to find the closest grid cell indices along two spatial dimensions,
         ensuring they are within the dataset bounds and tolerance.
 
         Parameters
         ----------
-        data: xr.DataArray | xr.Dataset
+        data : xr.DataArray | xr.Dataset
             Gridded dataset with spatial dimensions.
-        dim1_name: str
+        dim1_name : str
             First spatial dimension (e.g., 'x' or 'lat').
-        dim2_name: str
+        dim2_name : str
             Second spatial dimension (e.g., 'y' or 'lon').
-        coords1: float | Iterable[float]
+        coords1 : float | Iterable[float]
             Coordinates along `dim1_name`.
-        coords2: float | Iterable[float]
+        coords2 : float | Iterable[float]
             Coordinates along `dim2_name`.
-        tolerance: float
+        tolerance : float
             Maximum allowed distance from the nearest grid cell.
 
         Returns
@@ -306,6 +311,7 @@ def get_closest_gridcells(
         See Also
         --------
         xr.DataArray.get_indexer, xr.DataArray.isel
+
         """
         dim1_idx = data[dim1_name].to_index().get_indexer(coords1, method="nearest")
         dim2_idx = data[dim2_name].to_index().get_indexer(coords2, method="nearest")
@@ -356,23 +362,23 @@ def julianDay_to_date(
 
     Parameters
     ----------
-    julday: int
+    julday : int
         Julian day (day of year)
-    year: int, optional
+    year : int, optional
         Year to use. If None, uses current year or a leap year (2024) based on needs.
         Default is None.
-    return_type: str, optional
+    return_type : str, optional
         Type of return value:
         - "str": formatted string (default)
         - "datetime": datetime object
         - "date": date object
-    str_format: str, optional
+    str_format : str, optional
         String format of output date when return_type is "str".
         Default is "%b-%d" which outputs format like "Jan-01".
 
     Returns
     -------
-    date: str, datetime.datetime, or datetime.date
+    date : str, datetime.datetime, or datetime.date
         Julian day converted to specified format or object
 
     Examples
@@ -383,6 +389,7 @@ def julianDay_to_date(
     datetime.date(2023, 2, 1)
     >>> julianDay_to_date(60, year=2024, str_format="%Y-%m-%d")
     '2024-02-29'
+
     """
     # Determine which year to use
     if year is None:
@@ -408,13 +415,14 @@ def readable_bytes(b: int) -> str:
 
     Parameters
     ----------
-    B: byte
+    B : byte
 
     Returns
     -------
     str
 
     Code from stackoverflow: https://stackoverflow.com/questions/12523586/python-format-size-application-converting-b-to-kb-mb-gb-tb
+
     """
     b = float(b)
     kb = 1024
@@ -442,16 +450,16 @@ def reproject_data(
 
     Parameters
     ----------
-    xr_da: xr.DataArray
+    xr_da : xr.DataArray
         2-or-3-dimensional DataArray, with 2 spatial dimensions
-    proj: str
+    proj : str
         proj to use for reprojection (default to "EPSG:4326"-- lat/lon coords)
-    fill_value: float
+    fill_value : float
         fill value (default to np.nan)
 
     Returns
     -------
-    data_reprojected: xr.DataArray
+    data_reprojected : xr.DataArray
         2-or-3-dimensional reprojected DataArray
 
     Raises
@@ -460,6 +468,7 @@ def reproject_data(
         if input data does not have spatial coords x,y
     ValueError
         if input data has more than 5 dimensions
+
     """
 
     def _reproject_data_4D(
@@ -472,19 +481,20 @@ def reproject_data(
 
         Parameters
         ----------
-        data: xr.DataArray
+        data : xr.DataArray
             4-dimensional DataArray, with 2 spatial dimensions
-        reproject_dim: str
+        reproject_dim : str
             name of dimensions to use
-        proj: str
+        proj : str
             proj to use for reprojection (default to "EPSG:4326"-- lat/lon coords)
-        fill_value: float
+        fill_value : float
             fill value (default to np.nan)
 
         Returns
         -------
-        data_reprojected: xr.DataArray
+        data_reprojected : xr.DataArray
             4-dimensional reprojected DataArray
+
         """
         rp_list = []
         for i in range(len(data[reproject_dim])):
@@ -507,19 +517,20 @@ def reproject_data(
 
         Parameters
         ----------
-        data: xr.DataArray
+        data : xr.DataArray
             5-dimensional DataArray, with 2 spatial dimensions
-        reproject_dim: list
+        reproject_dim : list
             list of str dimension names to use
-        proj: str
+        proj : str
             proj to use for reprojection (default to "EPSG:4326"-- lat/lon coords)
-        fill_value: float
+        fill_value : float
             fill value (default to np.nan)
 
         Returns
         -------
-        data_reprojected: xr.DataArray
+        data_reprojected : xr.DataArray
             5-dimensional reprojected DataArray
+
         """
         rp_list_j = []
         reproject_dim_j = reproject_dim[0]
@@ -597,13 +608,14 @@ def compute_annual_aggreggate(
 
     Parameters
     ----------
-    data: xr.DataArray
-    name: str
-    num_grid_cells: int
+    data : xr.DataArray
+    name : str
+    num_grid_cells : int
 
     Returns
     -------
-    annual_ag: xr.DataArray
+    annual_ag : xr.DataArray
+
     """
     annual_ag = data.squeeze().groupby("time.year").sum(["time"])  # Aggregate annually
     annual_ag = annual_ag / num_grid_cells  # Divide by number of gridcells
@@ -616,11 +628,12 @@ def compute_multimodel_stats(data: xr.DataArray) -> xr.DataArray:
 
     Parameters
     ----------
-    data: xr.DataArray
+    data : xr.DataArray
 
     Returns
     -------
-    stats_concat: xr.DataArray
+    stats_concat : xr.DataArray
+
     """
     # Compute mean across simulation dimensions and add is as a coordinate
     sim_mean = (
@@ -662,18 +675,19 @@ def trendline(data: xr.Dataset, kind: str = "mean") -> xr.Dataset:
 
     Parameters
     ----------
-    data: xr.Dataset
-    kind: str , optional
+    data : xr.Dataset
+    kind : str , optional
         Options are 'mean' and 'median'
 
     Returns
     -------
-    trendline: xr.Dataset
+    trendline : xr.Dataset
 
     Note
     ----
     1. Development note: If an additional option to trendline 'kind' is required,
     compute_multimodel_stats must be modified to update optionality.
+
     """
     ret_trendline = xr.Dataset()
     match kind:
@@ -709,11 +723,12 @@ def combine_hdd_cdd(data: xr.DataArray) -> xr.DataArray:
 
     Parameters
     ----------
-    data: xr.DataArray
+    data : xr.DataArray
 
     Returns
     -------
-    data: xr.DataArray
+    data : xr.DataArray
+
     """
     if data.name not in [
         "Annual Heating Degree Days (HDD)",
@@ -734,17 +749,17 @@ def combine_hdd_cdd(data: xr.DataArray) -> xr.DataArray:
 
 
 def summary_table(data: xr.Dataset) -> pd.DataFrame:
-    """
-    Helper function to organize dataset object into a pandas dataframe for ease.
+    """Helper function to organize dataset object into a pandas dataframe for ease.
 
     Parameters
     ----------
-    data: xr.Dataset
+    data : xr.Dataset
 
     Returns
     -------
-    df: pd.DataFrame
+    df : pd.DataFrame
         df is organized so that the simulations are stacked in individual columns by year/time
+
     """
 
     # Identify whether the temporal dimension is "time" or "year"
@@ -772,22 +787,22 @@ def convert_to_local_time(
     lon: float = UNSET,
     lat: float = UNSET,
 ) -> xr.DataArray | xr.Dataset:
-    """
-    Convert time dimension from UTC to local time for the grid or station.
+    """Convert time dimension from UTC to local time for the grid or station.
 
     Parameters
     ----------
-        data: xr.DataArray | xr.Dataset
+        data : xr.DataArray | xr.Dataset
             Input data.
-        grid_lon: float
+        grid_lon : float
             Mean longitude of dataset if no lat/lon coordinates
-        grid_lat: float
+        grid_lat : float
             Mean latitude of dataset if no lat/lon coordinates
 
     Returns
     -------
         xr.DataArray | xr.Dataset
             Data with converted time coordinate.
+
     """
 
     # Only converting hourly data
@@ -907,12 +922,11 @@ def convert_to_local_time(
 
 
 def add_dummy_time_to_wl(wl_da: xr.DataArray) -> xr.DataArray:
-    """
-    Replace the `[hours/days/months]_from_center` or `time_delta` dimension in a DataArray returned from WarmingLevels with a dummy time index for calculations with tools that require a `time` dimension.
+    """Replace the `[hours/days/months]_from_center` or `time_delta` dimension in a DataArray returned from WarmingLevels with a dummy time index for calculations with tools that require a `time` dimension.
 
     Parameters
     ----------
-    wl_da: xr.DataArray
+    wl_da : xr.DataArray
         The input Warming Levels DataArray. It is expected to have a time-based dimension which typically includes "from_center"
         in its name or `time_delta` indicating the time dimension in relation to the year that the given warming level is reached per simulation.
 
@@ -927,6 +941,7 @@ def add_dummy_time_to_wl(wl_da: xr.DataArray) -> xr.DataArray:
     - The function looks for the dimension name containing "from_center" to identify the time-based dimension.
     - It supports creating dummy time series with frequencies of hours, days, or months, based on the prefix of the dimension name.
     - The dummy time series starts from "2000-01-01".
+
     """
     # Adjusting the time index into dummy time-series for counting
     # Finding time-based dimension
@@ -1003,15 +1018,16 @@ def downscaling_method_to_activity_id(
 
     Parameters
     ----------
-    downscaling_method: str
+    downscaling_method : str
         Downscaling method
-    reverse: boolean, optional
+    reverse : boolean, optional
         Set reverse=True to get downscaling method from input activity_id
         Default to False
 
     Returns
     -------
     str
+
     """
     downscaling_dict = {"Dynamical": "WRF", "Statistical": "LOCA2"}
 
@@ -1025,15 +1041,16 @@ def resolution_to_gridlabel(resolution: str, reverse: bool = False) -> str:
 
     Parameters
     ----------
-    resolution: str
+    resolution : str
         resolution
-    reverse: boolean, optional
+    reverse : boolean, optional
         Set reverse=True to get resolution format from input grid_label.
         Default to False
 
     Returns
     -------
     str
+
     """
     res_dict = {"45 km": "d01", "9 km": "d02", "3 km": "d03"}
 
@@ -1047,14 +1064,15 @@ def timescale_to_table_id(timescale: str, reverse: bool = False) -> str:
 
     Parameters
     ----------
-    timescale: str
-    reverse: boolean, optional
+    timescale : str
+    reverse : boolean, optional
         Set reverse=True to get resolution format from input table_id.
         Default to False
 
     Returns
     -------
     str
+
     """
     # yearly max is not an option in the Selections GUI, but its included here to make parsing through the data easier for the non-GUI data access/view options
     timescale_dict = {
@@ -1070,19 +1088,19 @@ def timescale_to_table_id(timescale: str, reverse: bool = False) -> str:
 
 
 def scenario_to_experiment_id(scenario: str, reverse: bool = False) -> str:
-    """
-    Convert scenario format to experiment_id format matching catalog names.
+    """Convert scenario format to experiment_id format matching catalog names.
 
     Parameters
     ----------
-    scenario: str
-    reverse: boolean, optional
+    scenario : str
+    reverse : boolean, optional
         Set reverse=True to get scenario format from input experiement_id.
         Default to False
 
     Returns
     -------
     str
+
     """
     scenario_dict = {
         "Historical Reconstruction": "reanalysis",
@@ -1105,13 +1123,14 @@ def _get_cat_subset(
 
     Parameters
     ----------
-    selections: DataParameters
+    selections : DataParameters
         object holding user's selections
 
     Returns
     -------
-    cat_subset: intake_esm.source.ESMDataSource
+    cat_subset : intake_esm.source.ESMDataSource
         catalog subset
+
     """
 
     scenario_ssp, scenario_historical = _get_scenario_from_selections(selections)
@@ -1175,13 +1194,14 @@ def _get_scenario_from_selections(selections) -> tuple[list[str], list[str]]:
 
     Parameters
     ----------
-    selections: DataParameters
+    selections : DataParameters
         object holding user's selections
 
     Returns
     -------
-    scenario_ssp: list of str
-    scenario_historical: list of str
+    scenario_ssp : list of str
+    scenario_historical : list of str
+
     """
 
     match selections.approach:
@@ -1224,13 +1244,13 @@ def clip_to_shapefile(
 
     Parameters
     ----------
-    data: xr.Dataset | xr.DataArray
+    data : xr.Dataset | xr.DataArray
         Data to be clipped.
-    shapefile_path: str
+    shapefile_path : str
         Filepath to shapefile. Shapefile must include valid CRS.
-    feature: tuple(str, str | int | float | list)
+    feature : tuple(str, str | int | float | list)
         Tuple containing attribute name and value(s) for target feature(s) (optional).
-    name: str
+    name : str
         Location name to record in data attributes if 'feature' parameter is not set (optional).
     **kwargs
         Additional arguments to pass to the rioxarray clip function
@@ -1239,6 +1259,7 @@ def clip_to_shapefile(
     -------
     clipped: xr.Dataset | xr.DataArray
         Returns same type as 'data', but grid is clipped to shapefile feature(s).
+
     """
     if data.rio.crs is None:
         raise RuntimeError(
