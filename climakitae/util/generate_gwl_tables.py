@@ -1,7 +1,7 @@
-"""
-Util for generating warming level reference data in ../data/ ###
+"""Util for generating warming level reference data in ../data/ ###
 
 To run, type: <<python generate_gwl_tables.py>> in the command line and wait for printed model outputs showing progress.
+
 """
 
 from typing import Any
@@ -22,8 +22,7 @@ test = False
 
 
 def make_weighted_timeseries(temp: xr.DataArray) -> xr.DataArray:
-    """
-    Creates a spatially-weighted single-dimension time series of global temperature.
+    """Creates a spatially-weighted single-dimension time series of global temperature.
 
     The function weights the latitude grids by size and averages across all longitudes,
     resulting in a single time series object.
@@ -43,6 +42,7 @@ def make_weighted_timeseries(temp: xr.DataArray) -> xr.DataArray:
     -------
     ValueError
         If the DataArray doesn't contain recognizable latitude/longitude coordinates.
+
     """
     # Find variable names for latitude and longitude to make code more readable
     lat_candidates = ["lat", "latitude"]
@@ -76,8 +76,7 @@ def make_weighted_timeseries(temp: xr.DataArray) -> xr.DataArray:
 
 
 class GWLGenerator:
-    """
-    Class for generating Global Warming Level (GWL) reference data.
+    """Class for generating Global Warming Level (GWL) reference data.
     Encapsulates the parameters and methods needed for GWL calculations.
 
     Attributes
@@ -88,9 +87,9 @@ class GWLGenerator:
         DataFrame listing available simulations on AWS
     fs : s3fs.S3FileSystem
         S3 file system object for accessing AWS data
-    ens_mem_cesm: dict
+    ens_mem_cesm : dict
         List of realizations for CESM2
-    cesm2_lens: xr.Dataset
+    cesm2_lens : xr.Dataset
         CESM2 LENS data loaded from catalog
 
     Methods
@@ -122,6 +121,7 @@ class GWLGenerator:
     >>> models = ["EC-Earth3"]
     >>> reference_periods = [{"start_year": "19810101", "end_year": "20101231"}]
     >>> gwl_generator.generate_gwl_file(models, reference_periods)
+
     """
 
     def __init__(
@@ -130,17 +130,17 @@ class GWLGenerator:
         catalog_cesm: intake_esm.core.esm_datastore,
         sims_on_aws: dict = None,
     ):
-        """
-        Initialize the GWLGenerator with the CMIP6 data catalog.
+        """Initialize the GWLGenerator with the CMIP6 data catalog.
 
         Parameters
         ----------
         df : pandas.DataFrame
             DataFrame containing metadata for CMIP6 simulations
-        catalog_cesm: intake_esm.esm_datastore
+        catalog_cesm : intake_esm.esm_datastore
             Intake ESM catalog pointing to CESM2 data
         sims_on_aws : pandas.DataFrame, optional
             DataFrame listing available simulations on AWS. If None, it will be generated.
+
         """
         self.df = df
         self.sims_on_aws = (
@@ -168,18 +168,18 @@ class GWLGenerator:
     def _set_cesm2_lens(
         self, catalog_cesm: intake_esm.core.esm_datastore
     ) -> xr.Dataset:
-        """
-        Pull CESM2 LENS dataset subset from Intake catalog and reformat datasets.
+        """Pull CESM2 LENS dataset subset from Intake catalog and reformat datasets.
 
         Parameters
         ----------
-        catalog_cesm: intake_esm.esm_datastore
+        catalog_cesm : intake_esm.esm_datastore
             Intake ESM catalog pointing to CESM2 data
 
         Returns
         -------
         xr.Dataset
             CESM2 data for historical and ssp370
+
         """
         catalog_cesm_subset = catalog_cesm.search(
             variable="TREFHT", frequency="monthly", forcing_variant="cmip6"
@@ -198,8 +198,7 @@ class GWLGenerator:
         return cesm2_lens
 
     def get_sims_on_aws(self) -> pd.DataFrame:
-        """
-        Generates a pandas DataFrame listing all relevant CMIP6 simulations available on AWS.
+        """Generates a pandas DataFrame listing all relevant CMIP6 simulations available on AWS.
 
         This function filters the input DataFrame `df` and identifies and lists CMIP6 model simulations
         for historical and various SSP (Shared Socioeconomic Pathway) scenarios. It only includes
@@ -212,6 +211,7 @@ class GWLGenerator:
             A DataFrame indexed by model names (source_id) and columns corresponding to scenarios
             ('historical', 'ssp585', 'ssp370', 'ssp245', 'ssp126'). Each cell contains a list of
             ensemble member IDs available on AWS for that model and scenario.
+
         """
         # Get model list
         df_subset = self.df[
@@ -258,8 +258,7 @@ class GWLGenerator:
         return sims_on_aws
 
     def build_timeseries(self, model_config: dict[str, Any]) -> xr.Dataset:
-        """
-        Builds an xarray Dataset with a time dimension, containing the concatenated historical
+        """Builds an xarray Dataset with a time dimension, containing the concatenated historical
         and SSP time series for all specified scenarios of a given model and ensemble member.
         Works for all of the models(/GCMs) in the list `models`, which appear in the current
         data catalog of WRF downscaling.
@@ -273,6 +272,7 @@ class GWLGenerator:
         -------
         xarray.Dataset
             A dataset with time as the dimension, containing the appended historical and SSP time series.
+
         """
         variable = model_config["variable"]
         model = model_config["model"]
@@ -347,8 +347,7 @@ class GWLGenerator:
         return data_one_model
 
     def buildDFtimeSeries_cesm2(self, model_config: dict[str, Any]) -> xr.Dataset:
-        """
-        Builds a global temperature time series by weighting latitudes and averaging longitudes
+        """Builds a global temperature time series by weighting latitudes and averaging longitudes
         for the CESM2 model across specified scenarios from 1980 to 2100.
 
         Parameters
@@ -360,6 +359,7 @@ class GWLGenerator:
         -------
         xarray.Dataset
             A dataset containing the global temperature time series for each scenario.
+
         """
         ens_mem = model_config["ens_mem"]
         scenarios = model_config["scenarios"]
@@ -376,30 +376,30 @@ class GWLGenerator:
 
     @staticmethod
     def get_gwl(smoothed: pd.DataFrame, degree: float) -> pd.DataFrame:
-        """
-        Computes the timestamp when a given GWL is first reached.
+        """Computes the timestamp when a given GWL is first reached.
         Takes a smoothed time series of global mean temperature of different scenarios for a model
         and returns a table indicating the timestamp at which the specified warming level is reached.
 
         Parameters
         ----------
-        smoothed: pandas.DataFrame
+        smoothed : pandas.DataFrame
             A DataFrame containing a global mean temperature time series for a model for multiple scenarios.
-        degree: float
+        degree : float
             The global warming level to detect, e.g., 1.5, 2, etc.
 
         Returns
         -------
         pandas.DataFrame
             A table containing timestamps for when each scenario first crosses the specified warming level.
+
         """
 
         def get_wl_timestamp(
             scenario: pd.Series, degree: float
         ) -> cftime.DatetimeNoLeap | float:
-            """
-            Given a scenario of wl's and timestamps, find the timestamp that first crosses the degree passed in.
+            """Given a scenario of wl's and timestamps, find the timestamp that first crosses the degree passed in.
             Return np.NaN if none of the timestamps pass this degree level.
+
             """
             if any(scenario >= degree):
                 wl_ts = scenario[scenario >= degree].index[0]
@@ -413,8 +413,7 @@ class GWLGenerator:
     def get_table_one_cesm2(
         self, model_config: dict, reference_period: dict
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        """
-        Generates a GWL lookup table for one ensemble member of CESM2.
+        """Generates a GWL lookup table for one ensemble member of CESM2.
 
         Parameters
         ----------
@@ -427,6 +426,7 @@ class GWLGenerator:
         -------
         tuple
             A DataFrame of warming levels and a DataFrame of global mean temperature time series.
+
         """
         model = model_config["model"]
         ens_mem = model_config["ens_mem"]
@@ -461,8 +461,7 @@ class GWLGenerator:
     def get_table_cesm2(
         self, model_config: dict[str, Any], reference_period: dict[str, str]
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        """
-        Generates a GWL table for the CESM2 model.
+        """Generates a GWL table for the CESM2 model.
 
         Parameters
         ----------
@@ -475,6 +474,7 @@ class GWLGenerator:
         -------
         tuple
             A DataFrame of warming levels and a DataFrame of global mean temperature time series for the CESM2 model.
+
         """
         global test
         model = model_config["model"]
@@ -506,8 +506,7 @@ class GWLGenerator:
     def get_gwl_table_for_single_model_and_ensemble(
         self, model_config: dict[str, Any], reference_period: dict[str, str]
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        """
-        Generates a GWL table for a single model and ensemble member.
+        """Generates a GWL table for a single model and ensemble member.
 
         Loops through various global warming levels from `climakitae.core.constants`
         for the requested model/variant and scenarios.
@@ -523,6 +522,7 @@ class GWLGenerator:
         -------
         tuple
             A DataFrame containing warming levels and a DataFrame with global mean temperature time series.
+
         """
         model = model_config["model"]
         ens_mem = model_config["ens_mem"]
@@ -576,8 +576,7 @@ class GWLGenerator:
     def get_gwl_table(
         self, model_config: dict[str, Any], reference_period: dict[str, str]
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        """
-        Generates a GWL table for a given model.
+        """Generates a GWL table for a given model.
 
         Parameters
         ----------
@@ -591,6 +590,7 @@ class GWLGenerator:
         tuple
             A DataFrame containing warming levels and a DataFrame with global mean temperature time series.
             To be exported into `gwl_[time period]ref.csv` and `gwl_[time period]ref_timeidx.csv`.
+
         """
         global test
         model = model_config["model"]
@@ -671,8 +671,7 @@ class GWLGenerator:
             return pd.DataFrame(), pd.DataFrame()
 
     def generate_gwl_file(self, models: list[str], reference_periods: list[dict]):
-        """
-        Generates global warming level (GWL) reference files for specified models.
+        """Generates global warming level (GWL) reference files for specified models.
 
         Parameters
         ----------
@@ -680,6 +679,7 @@ class GWLGenerator:
             List of model names to processThe keys in the returned dictionary
         reference_periods : list
             List of dictionaries with 'start_year' and 'end_year' keys
+
         """
 
         for period in reference_periods:
@@ -774,13 +774,13 @@ class GWLGenerator:
 
 
 def main(_kTest=False):
-    """
-    Generates global warming level (GWL) reference files for all available CMIP6 GCMs and CESM2-LENS.
+    """Generates global warming level (GWL) reference files for all available CMIP6 GCMs and CESM2-LENS.
 
     This includes:
     - Connecting to AWS S3 storage to access CMIP6 and CESM2-LENS data.
     - Filtering and processing data to create global temperature time series.
     - Generating and saving warming level tables in CSV format for different reference periods.
+
     """
     # Connect to AWS S3 storage
 
