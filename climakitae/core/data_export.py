@@ -6,6 +6,7 @@ import urllib
 import warnings
 from importlib.metadata import version as _version
 from math import prod
+from typing import Tuple
 
 import boto3
 import botocore
@@ -19,9 +20,9 @@ from botocore.exceptions import ClientError
 from timezonefinder import TimezoneFinder
 
 from climakitae.core.paths import (
-    export_s3_bucket,
-    stations_csv_path,
-    variable_descriptions_csv_path,
+    EXPORT_S3_BUCKET,
+    STATIONS_CSV_PATH,
+    VARIABLE_DESCRIPTIONS_CSV_PATH,
 )
 from climakitae.util.utils import read_csv_file
 
@@ -391,11 +392,11 @@ def _export_to_zarr(data: xr.DataArray | xr.Dataset, save_name: str, mode: str):
             print("Saving file to S3 scratch bucket as Zarr...")
             display_path = f"{os.environ['SCRATCH_BUCKET']}/{save_name}"
             path = "simplecache::" + display_path
-            prefix = display_path.split(export_s3_bucket + "/")[-1]
+            prefix = display_path.split(EXPORT_S3_BUCKET + "/")[-1]
 
             s3 = boto3.resource("s3")
             try:
-                s3.Object(export_s3_bucket, prefix + "/.zattrs").load()
+                s3.Object(EXPORT_S3_BUCKET, prefix + "/.zattrs").load()
             except botocore.exceptions.ClientError as e:
                 if e.response["Error"]["Code"] == "404":
                     # The object does not exist so go ahead and write to S3
@@ -566,14 +567,14 @@ def _dataset_to_dataframe(dataset: xr.Dataset) -> pd.DataFrame:
     df = _update_header(df, variable_unit_map)
 
     # Helpers for adding to header climate variable names associated w/ stations
-    station_df = read_csv_file(stations_csv_path)
+    station_df = read_csv_file(STATIONS_CSV_PATH)
     station_lst = list(station_df.station)
 
     def _is_station(name):
         """Return True if `name` is an HadISD station name."""
         return name in station_lst
 
-    variable_description_df = read_csv_file(variable_descriptions_csv_path)
+    variable_description_df = read_csv_file(VARIABLE_DESCRIPTIONS_CSV_PATH)
     variable_ids = variable_description_df.variable_id.values
 
     def _variable_id_to_name(var_id: str) -> str:
@@ -1209,6 +1210,7 @@ def _tmy_8760_size_check(df: pd.DataFrame) -> pd.DataFrame:
 def write_tmy_file(
     filename_to_export: str,
     df: pd.DataFrame,
+    years: Tuple[int, int],
     location_name: str,
     station_code: int,
     stn_lat: float,
@@ -1225,6 +1227,8 @@ def write_tmy_file(
         Filename string, constructed with station name and simulation
     df: pd.DataFrame
         Dataframe of TMY data to export
+    years: Tuple
+        Tuple containing climatology start and end years
     location_name: str
         Location name string, often station name
     station_code: int
@@ -1245,7 +1249,7 @@ def write_tmy_file(
     None
     """
 
-    station_df = read_csv_file(stations_csv_path)
+    station_df = read_csv_file(STATIONS_CSV_PATH)
 
     # check that data passed is a DataFrame object
     if type(df) != pd.DataFrame:
@@ -1367,6 +1371,7 @@ def write_tmy_file(
         state: str,
         timezone: str,
         elevation: float,
+        years: Tuple[int, int],
         df: pd.DataFrame,
     ) -> list[str]:
         """
@@ -1421,7 +1426,7 @@ def write_tmy_file(
         )
 
         # line 7 - comments 2, including date range here from which TMY calculated
-        line_7 = "COMMENTS 2, TMY data produced using 1990-2020 climatological period\n"
+        line_7 = f"COMMENTS 2, TMY data produced using {years[0]}-{years[1]} climatological period\n"
 
         # line 8 - data periods, num data periods, num records per hour, data period name, data period start day of week, data period start (Jan 1), data period end (Dec 31)
         line_8 = "DATA PERIODS,1,1,Data,,1/ 1,12/31\n"
@@ -1471,6 +1476,7 @@ def write_tmy_file(
                         state,
                         timezone,
                         elevation,
+                        years,
                         df,
                     )
                 )  # writes required header lines
