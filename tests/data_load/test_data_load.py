@@ -122,7 +122,7 @@ class TestDataLoadHidden:
         assert result is None
 
         # Edit a unit to cause exception
-        selections.variable_options_df.loc[29, "unit"] = "C"
+        selections.variable_options_df.loc[34, "unit"] = "C"
         with pytest.raises(ValueError):
             result = _check_valid_unit_selection(selections)
 
