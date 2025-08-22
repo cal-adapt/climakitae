@@ -5,8 +5,10 @@ This module contains comprehensive unit tests for the ClimateData class
 that provide the high-level interface for accessing climate data.
 """
 
-import pandas as pd
 from unittest.mock import MagicMock, patch
+
+import pandas as pd
+
 from climakitae.core.constants import UNSET
 from climakitae.new_core.user_interface import ClimateData
 
@@ -50,7 +52,7 @@ class TestClimateDataInit:
 class TestClimateDataParameterSetters:
     """Test class for parameter setting methods."""
 
-    def setup_method(self, method):
+    def setup_method(self):
         """Set up test fixtures."""
         mock_factory_instance = MagicMock()
         with patch(
@@ -217,7 +219,7 @@ class TestClimateDataParameterSetters:
 class TestClimateDataGet:
     """Test class for get method."""
 
-    def setup_method(self, method):
+    def setup_method(self):
         """Set up test fixtures."""
         mock_factory_instance = MagicMock()
         with patch(
@@ -279,7 +281,7 @@ class TestClimateDataGet:
 class TestClimateDataValidation:
     """Test class for parameter validation."""
 
-    def setup_method(self, method):
+    def setup_method(self):
         """Set up test fixtures."""
         mock_factory_instance = MagicMock()
         with patch(
@@ -315,7 +317,7 @@ class TestClimateDataValidation:
 class TestClimateDataOptionMethods:
     """Test class for option exploration methods."""
 
-    def setup_method(self, method):
+    def setup_method(self):
         """Set up test fixtures."""
         mock_factory_instance = MagicMock()
         with patch(
@@ -357,7 +359,7 @@ class TestClimateDataOptionMethods:
 class TestClimateDataConvenienceMethods:
     """Test class for convenience methods."""
 
-    def setup_method(self, method):
+    def setup_method(self):
         """Set up test fixtures."""
         mock_factory_instance = MagicMock()
         with patch(
@@ -396,7 +398,7 @@ class TestClimateDataConvenienceMethods:
 class TestClimateDataChaining:
     """Test class for method chaining functionality."""
 
-    def setup_method(self, method):
+    def setup_method(self):
         """Set up test fixtures."""
         mock_factory_instance = MagicMock()
         with patch(
@@ -432,7 +434,7 @@ class TestClimateDataChaining:
 class TestClimateDataAdditionalShowMethods:
     """Test class for additional show methods."""
 
-    def setup_method(self, method):
+    def setup_method(self):
         """Set up test fixtures."""
         mock_factory_instance = MagicMock()
         with patch(
@@ -612,7 +614,7 @@ class TestClimateDataAdditionalShowMethods:
 class TestClimateDataAdditionalMethods:
     """Test class for additional methods like load_query and _reset_query."""
 
-    def setup_method(self, method):
+    def setup_method(self):
         """Set up test fixtures."""
         mock_factory_instance = MagicMock()
         with patch(
