@@ -1591,8 +1591,8 @@ class TestConvertToLocalTime:
 
         # Mock geopandas df dataset to trim -- station list
         data = {
-            "latitude": np.random.uniform(low=30.0, high=65.0, size=10),
-            "longitude": np.random.uniform(low=-140.0, high=-115.0, size=10),
+            "latitude": np.random.uniform(low=38.0, high=45.0, size=10),
+            "longitude": np.random.uniform(low=-125.0, high=-118.0, size=10),
         }
         df = pd.DataFrame(data)
         geometry = [box(-121.6, 38.3, -120.0, 42)]
@@ -1615,4 +1615,4 @@ class TestConvertToLocalTime:
         gdf_none = gpd.GeoDataFrame(df, geometry=geometry, crs=None)
         with patch("geopandas.read_file", return_value=gdf_none):
             with pytest.raises(RuntimeError):
-                result = clip_gpd_to_shapefile(gdf_none, "not_a_file.shp")
+                result = clip_gpd_to_shapefile(gdf, "not_a_file.shp")
