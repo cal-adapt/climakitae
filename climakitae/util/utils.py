@@ -10,7 +10,7 @@ import pandas as pd
 import pyproj
 import rioxarray as rio
 import xarray as xr
-from shapely.geometry import mapping
+from shapely.geometry import mapping, Point
 from timezonefinder import TimezoneFinder
 
 from climakitae.core.constants import SSPS, UNSET, WARMING_LEVELS
@@ -1287,3 +1287,71 @@ def clip_to_shapefile(
     clipped.attrs["location_subset"] = location
 
     return clipped
+
+
+def clip_gpd_to_shapefile(
+    gdf: gpd.GeoDataFrame,
+    shapefile_path: str,
+) -> gpd.GeoDataFrame:
+    """Use a shapefile to select an area subset of a geodataframe.
+    Used to subset stationlist to shapefile area.
+
+    Parameters
+    ----------
+    gdf : gpd.GeoDataFrame
+        Data to be clipped.
+    shapefile_path : str
+        Filepath to shapefile. Shapefile must include valid CRS.
+
+    Returns
+    -------
+    clipped : gpd.GeoDataFrame
+        Subsetted geodataframe within shapefile area of interest.
+    """
+
+    def _latlon_to_mercator_cartopy(lat, lon):
+        """Helper function for coodinate conversion.
+
+        Paramters
+        ---------
+        lat : float
+            Latitude coordinate.
+        lon : float
+            Longitude coordinate.
+
+        Returns
+        -------
+        x : float
+            Longitude coordinate.
+        y : float
+            Latitude coordinate.
+        """
+        proj_latlon = pyproj.CRS("EPSG:4326")
+        proj_mercator = pyproj.CRS("EPSG:3857")
+
+        # Transform the coordinates
+        transformer = pyproj.Transformer.from_crs(
+            proj_latlon, proj_mercator, always_xy=True
+        )
+        x, y = transformer.transform(lon, lat)
+
+        return x, y
+
+    # Add geometry column to gdf
+    geom = [
+        Point(_latlon_to_mercator_cartopy(lat, lon))
+        for lat, lon in zip(gdf.latitude, gdf.longitude)
+    ]
+
+    # Adds coordinates
+    sub_gdf = gpd.GeoDataFrame(gdf, geometry=geom).set_crs(
+        crs="EPSG:3857", allow_override=True
+    )
+
+    # Subset for stations within area boundaries
+    sub_gdf = gpd.overlay(sub_gdf, shapefile_path, how="intersection")
+
+    # Useful information
+    print(f"Number of stations within area: {len(sub_gdf)}")
+
+    return sub_gdf
