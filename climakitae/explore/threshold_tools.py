@@ -754,17 +754,22 @@ def _get_return_variable(
         except (ValueError, ZeroDivisionError):
             return_variable = np.nan
 
-        conf_int_lower_limit, conf_int_upper_limit = _conf_int(
-            bms=bms,
-            distr=distr,
-            data_variable=data_variable,
-            arg_value=arg_value,
-            bootstrap_runs=bootstrap_runs,
-            conf_int_lower_bound=conf_int_lower_bound,
-            conf_int_upper_bound=conf_int_upper_bound,
-            block_size=block_size,
-            extremes_type=extremes_type,
-        )
+        try:
+            conf_int_lower_limit, conf_int_upper_limit = _conf_int(
+                bms=bms,
+                distr=distr,
+                data_variable=data_variable,
+                arg_value=arg_value,
+                bootstrap_runs=bootstrap_runs,
+                conf_int_lower_bound=conf_int_lower_bound,
+                conf_int_upper_bound=conf_int_upper_bound,
+                block_size=block_size,
+                extremes_type=extremes_type,
+            )
+        except ValueError:
+            conf_int_lower_limit = np.nan
+            conf_int_upper_limit = np.nan
+
         return (
             np.array([return_variable]),
             np.array([conf_int_lower_limit]),
