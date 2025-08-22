@@ -17,6 +17,7 @@ from climakitae.util.utils import (  # stack_sims_across_locs, # TODO: Uncomment
     _package_file_path,
     add_dummy_time_to_wl,
     area_average,
+    clip_gpd_to_shapefile,
     clip_to_shapefile,
     combine_hdd_cdd,
     compute_annual_aggreggate,
@@ -1584,3 +1585,34 @@ class TestConvertToLocalTime:
         with patch("geopandas.read_file", return_value=gdf):
             with pytest.raises(RuntimeError):
                 result = clip_to_shapefile(data, "not_a_file.shp")
+
+    def test_clip_gdf_to_shapefile(self):
+        """Test for clip_gdf_to_shapefile with geodataframe to shapefile."""
+
+        # Mock geopandas df dataset to trim -- station list
+        data = {
+            "latitude": np.random.uniform(low=30.0, high=65.0, size=10),
+            "longitude": np.random.uniform(low=-140.0, high=-115.0, size=10),
+        }
+        df = pd.DataFrame(data)
+        geometry = [box(-121.6, 38.3, -120.0, 42)]
+        gdf = gpd.GeoDataFrame(df, geometry=geometry, crs="EPSG:4326")
+
+        # This should clip succesfully
+        with patch("geopandas.read_file", return_value=gdf):
+            result = clip_gpd_to_shapefile(gdf, "not_a_file.shp")
+
+        assert result["latitude"].min().item() == pytest.approx(38.3, 1e-6)
+        assert result["latitude"].max().item() == pytest.approx(32.0, 1e-6)
+        assert result["longitude"].min().item() == pytest.approx(-121.6, 1e-6)
+        assert result["longitude"].max().item() == pytest.approx(-120.0, 1e-6)
+
+        # Input data lacks CRS
+        with pytest.raises(RuntimeError):
+            result = clip_gpd_to_shapefile(gpd.GeoDataFrame(), "not_a_file.shp")
+
+        # "Shapefile" lacks CRS
+        gdf_none = gpd.GeoDataFrame(df, geometry=geometry, crs=None)
+        with patch("geopandas.read_file", return_value=gdf_none):
+            with pytest.raises(RuntimeError):
+                result = clip_gpd_to_shapefile(gdf_none, "not_a_file.shp")
