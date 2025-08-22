@@ -7,21 +7,21 @@ class Boundaries:
 
     Attributes
     ----------
-    _cat: intake.catalog.Catalog
+    _cat : intake.catalog.Catalog
         Parquet boundary catalog instance
-    _us_states: pd.DataFrame
+    _us_states : pd.DataFrame
         Table of US state names and geometries
-    _ca_counties: pd.DataFrame
+    _ca_counties : pd.DataFrame
         Table of California county names and geometries
         Sorted by county name alphabetical order
-    _ca_watersheds: pd.DataFrame
+    _ca_watersheds : pd.DataFrame
         Table of California watershed names and geometries
         Sorted by watershed name alphabetical order
-    _ca_utilities: pd.DataFrame
+    _ca_utilities : pd.DataFrame
         Table of California IOUs and POUs, names and geometries
-    _ca_forecast_zones: pd.DataFrame
+    _ca_forecast_zones : pd.DataFrame
         Table of California Demand Forecast Zones
-    _ca_electric_balancing_areas: pd.DataFrame
+    _ca_electric_balancing_areas : pd.DataFrame
         Table of Electric Balancing Areas
 
     Methods
@@ -38,6 +38,7 @@ class Boundaries:
         Returns a dict for CA electric load serving entities IOUs & POUs
     _get_electric_balancing_areas(self)
         Returns a dict for CA Electric Balancing Authority Areas
+
     """
 
     _cat = None
@@ -79,8 +80,7 @@ class Boundaries:
         ] = self._ca_forecast_zones["FZ_Def"]
 
     def _get_us_states(self):
-        """
-        Returns a custom sorted dictionary of western state abbreviations and indices.
+        """Returns a custom sorted dictionary of western state abbreviations and indices.
 
         Returns
         -------
@@ -110,8 +110,7 @@ class Boundaries:
         return dict(zip(_us_states_subset.abbrevs, _us_states_subset.index))
 
     def _get_ca_counties(self):
-        """
-        Returns a dictionary of California counties and their indices
+        """Returns a dictionary of California counties and their indices
         in the geoparquet file.
 
         Returns
@@ -124,8 +123,7 @@ class Boundaries:
         ).to_dict()
 
     def _get_ca_watersheds(self):
-        """
-        Returns a lookup dictionary for CA watersheds that references
+        """Returns a lookup dictionary for CA watersheds that references
         the geoparquet file.
 
         Returns
@@ -138,8 +136,7 @@ class Boundaries:
         ).to_dict()
 
     def _get_forecast_zones(self):
-        """
-        Returns a lookup dictionary for CA Electricity Demand Forecast Zones that references
+        """Returns a lookup dictionary for CA Electricity Demand Forecast Zones that references
         the geoparquet file.
 
         Returns
@@ -152,8 +149,7 @@ class Boundaries:
         ).to_dict()
 
     def _get_ious_pous(self):
-        """
-        Returns a lookup dictionary for CA Electric Load Serving Entities IOUs & POUs that references
+        """Returns a lookup dictionary for CA Electric Load Serving Entities IOUs & POUs that references
         the geoparquet file.
 
         Returns
@@ -179,8 +175,7 @@ class Boundaries:
         return dict(zip(_subset["Utility"], _subset.index))
 
     def _get_electric_balancing_areas(self):
-        """
-        Returns a lookup dictionary for CA Electric Balancing Authority Areas that references
+        """Returns a lookup dictionary for CA Electric Balancing Authority Areas that references
         the geoparquet file.
 
         Returns

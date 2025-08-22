@@ -17,7 +17,7 @@ class TimeSeriesParameters(param.Parameterized):
     ----------
     dataset : xr.DataArray
         Timeseries data
-    **params:
+    **params
         Additional arguments to initialize Param class.
 
     Attributes
@@ -26,21 +26,21 @@ class TimeSeriesParameters(param.Parameterized):
         The time series data provided to the class.
     anomaly : bool, optional
         True to transform timeseries into anomalies (default True).
-    extremes: list[str], optional
+    extremes : list[str], optional
         List of extremes quantities to compute (options "Max", "Min", "Percentile").
-    num_timesteps: int, optional
+    num_timesteps : int, optional
         Number of timesteps for rolling mean calculations (default 0).
-    percentile: int | float, optional
+    percentile : int | float, optional
         Percentile to calculate when using the "Percentile" option in extremes (range 0-1).
-    reference_range: tuple[dt.datetime,dt.datetime]
+    reference_range : tuple[dt.datetime, dt.datetime]
         Reference date range (default 1981-01-01 to 2010-12-31).
-    remove_seasonal_cycle: bool, optional
+    remove_seasonal_cycle : bool, optional
         True to remove the seasonal cycle from the timeseries (default False).
-    resample_window: int, optional
+    resample_window : int, optional
         Size of resample window (between 1-30, inclusive).
-    separate_seasons: bool, optional
+    separate_seasons : bool, optional
         True to disaggregate into four seasons (default False).
-    smoothing: str, optional
+    smoothing : str, optional
         Set to "Running Mean" for smoothing (default "None").
 
     Methods
@@ -109,6 +109,7 @@ class TimeSeriesParameters(param.Parameterized):
         -------
         xr.DataArray
             Transformed result.
+
         """
         if self.remove_seasonal_cycle:
             to_plot = self.data.groupby("time.month") - self.data.groupby(
@@ -118,9 +119,7 @@ class TimeSeriesParameters(param.Parameterized):
             to_plot = self.data
 
         def _get_anom(y: xr.Dataset) -> xr.DataArray:
-            """
-            Returns the difference with respect to the average across a historical range.
-            """
+            """Returns the difference with respect to the average across a historical range."""
             if y.attrs["frequency"] == "1month":
                 # If frequency is monthly, then the reference period average needs to be a
                 # weighted average, with weights equal to the number of days in each month
@@ -208,13 +207,14 @@ def _update_attrs(
     ----------
     data_to_output : xr.DataArray
         The attributes of this data array will be modified.
-    attrs_to_add : dict[str,str]
+    attrs_to_add : dict[str, str]
         Dictionary containing attributes to modify.
 
     Returns
     -------
     xr.DataArray
         Modified data array.
+
     """
     attributes = data_to_output.attrs
     attrs_to_add.pop("name")
@@ -248,8 +248,7 @@ def _update_attrs(
 
 
 class TimeSeries:
-    """
-    Holds the instance of TimeSeriesParameters that is used for the following purposes:
+    """Holds the instance of TimeSeriesParameters that is used for the following purposes:
     1) to display a panel that previews various time-series transforms (explore), and
     2) to save the transform represented by the current state of that preview into a new variable (output_current).
 
@@ -260,7 +259,7 @@ class TimeSeries:
 
     Attributes
     ----------
-    choices: TimeSeriesParameters
+    choices : TimeSeriesParameters
         Param object containing time series data and analysis parameters.
 
     """
