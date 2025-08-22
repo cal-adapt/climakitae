@@ -1603,8 +1603,8 @@ class TestConvertToLocalTime:
             result = clip_gpd_to_shapefile(gdf, "not_a_file.shp")
 
         assert result["latitude"].min().item() == pytest.approx(38.3, 1e-6)
-        assert result["latitude"].max().item() == pytest.approx(32.0, 1e-6)
-        assert result["longitude"].min().item() == pytest.approx(-121.6, 1e-6)
+        assert result["latitude"].max().item() == pytest.approx(41.5, 1e-6)
+        assert result["longitude"].min().item() == pytest.approx(-121.4, 1e-6)
         assert result["longitude"].max().item() == pytest.approx(-120.0, 1e-6)
 
         # Input data lacks CRS
