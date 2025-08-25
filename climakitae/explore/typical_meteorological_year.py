@@ -254,7 +254,9 @@ class TMY:
             print(f"Initializing TMY object for {latitude},{longitude}")
             self._set_loc_from_lat_lon(latitude, longitude)
         else:
-            print("Please provide valid station name or latitude and longitude")
+            raise ValueError(
+                "No valid station name or latitude and longitude provided."
+            )
             # TODO: raise error for missing input
         self.start_year = start_year
         self.end_year = end_year
@@ -288,11 +290,11 @@ class TMY:
                 "station id"
             ].item()
             one_station = stn_file.loc[stn_file["station"] == self.stn_name]
-        except Exception as e:
+        except ValueError:
             # TODO: raise error correctly
-            print("Could  not find station in hadisd_stations.csv")
-            print("Please provide valid station name")
-            raise (e)
+            raise ValueError(
+                "Could  not find station in hadisd_stations.csv. Please provide valid station name"
+            )
         self.stn_lat = one_station.LAT_Y.item()
         self.stn_lon = one_station.LON_X.item()
         self.stn_state = one_station.state.item()
@@ -303,7 +305,7 @@ class TMY:
         self.stn_lat = latitude
         self.stn_lon = longitude
         self._set_lat_lon()
-        # TODO: set stn_name, stn_code, stn_state
+        # Set station variables to "None"
         self.stn_name = "None"
         self.stn_code = "None"
         self.stn_state = "None"
