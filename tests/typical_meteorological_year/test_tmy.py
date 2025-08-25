@@ -3,8 +3,10 @@ import pytest
 import xarray as xr
 import numpy as np
 import pandas as pd
+import panel
 
 def test_compute_cdf(self):
+    """Test cdf function applied to single array."""
     # Create test data array
     test_data = np.arange(0,365*3,1)
     test = xr.DataArray(
@@ -19,6 +21,7 @@ def test_compute_cdf(self):
     assert result[1][-1] == 1. # Max probability 1
 
 def test_get_cdf_by_sim(self):
+    """Test cdf computation by simulation."""
     # Create test data array
     test_data = np.arange(0,365*3,1)
     test_data = test_data * np.ones((2,len(test_data)))
@@ -43,6 +46,7 @@ def test_get_cdf_by_sim(self):
     assert (result.simulation == test.simulation).all()
 
 def test_get_cdf_by_mon_and_sim(self):
+    """Test cdf calculation by month and simulation."""
     # Create test data array
     test_data = np.arange(0,365*3,1)
     test_data = test_data * np.ones((2,len(test_data)))
@@ -67,6 +71,7 @@ def test_get_cdf_by_mon_and_sim(self):
     assert result[1][0][0].max() == pytest.approx(test.isel({"simulation":1}).groupby("time.month").max()[0], abs=0.4)
 
 def test_get_cdf(self):
+    """Test full cdf workflow with dataset."""
     # Create test dataset
     test_data = np.arange(0,365*3,1)
     test_data = test_data * np.ones((2,len(test_data)))
@@ -92,6 +97,7 @@ def test_get_cdf(self):
     assert result["temperature"].isel(simulation=0,month=6)[0].max() == pytest.approx(test["temperature"].isel({"simulation":1}).groupby("time.month").max()[6], abs=0.4)
 
 def test_fs_statistic(self):
+    """Test f-s statistic computation on cdf data."""
     test_data = np.arange(0,365*3,1)
     test_data = test_data * np.ones((2,len(test_data)))
     test = xr.DataArray(
@@ -123,6 +129,7 @@ def test_fs_statistic(self):
     assert (fs["temperature"] != 0).any()
 
 def test_compute_weighted_fs(self):
+    """Test weighing of f-s statistic."""
     test_data = np.array([20])
     test = xr.DataArray(
         name = "Daily max air temperature",
@@ -144,6 +151,26 @@ def test_compute_weighted_fs(self):
         test[item] = test_data
     fs = compute_weighted_fs(test)
 
+    # Check that results are correctly weighted
     values_list = [1,1,2,1,1,2,1,1,5,5]
     for variable,value in zip(vars_list,values_list):
         assert fs[variable] == value
+
+def test_plot_one_var_cdf(self):
+    """Test that plot runs and returns object."""
+    # Create test dataset
+    test_data = np.arange(0,365*3,1)
+    test_data = test_data * np.ones((2,len(test_data)))
+    test = xr.DataArray(
+        name = "temperature",
+        data=test_data,
+        coords={
+            "simulation": ["sim1","sim2"],
+            "time": pd.date_range(start="2001-01-01", end="2003-12-31"),
+        }).to_dataset()
+    test["temperature"].attrs["units"] = "C"
+    result = get_cdf(test)
+
+    test_plot = plot_one_var_cdf(result,"temperature")
+
+    assert isinstance(test_plot,panel.layout.base.Column)
