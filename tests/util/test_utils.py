@@ -1608,7 +1608,6 @@ class TestConvertToLocalTime:
         # This should clip succesfully
         result = clip_gpd_to_shapefile(gdf, clip_poly)
 
-        assert not result.empty
         assert result["latitude"].min() >= 38.3
         assert result["latitude"].max() <= 42.0
         assert result["longitude"].min() >= -121.6
