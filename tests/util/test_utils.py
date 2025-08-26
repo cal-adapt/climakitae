@@ -1597,26 +1597,26 @@ class TestConvertToLocalTime:
             }
         )
         df["geometry"] = [Point(xy) for xy in zip(df["longitude"], df["latitude"])]
-        gdf = gpd.GeoDataFrame(df, geometry="geometry", crs="EPSG:4326")
+        gdf = gpd.GeoDataFrame(df, geometry="geometry", crs="EPSG:3857")
 
         # Define clipping polygon
         clip_poly = gpd.GeoDataFrame(
-            geometry=[box(-121.0, 38.8, -120.9, 40.3)],
-            crs="EPSG:4326",
+            geometry=[box(-121.5, 38.5, -120.5, 40.0)],
+            crs="EPSG:3857",
         )
 
         # This should clip succesfully
         result = clip_gpd_to_shapefile(gdf, clip_poly)
 
-        assert not result.empty, "Clip returned empty GeoDataFrame"
+        assert not result.empty
         assert result["latitude"].min() >= 38.5
-        assert result["latitude"].max() <= 41.5
+        assert result["latitude"].max() <= 40.0
         assert result["longitude"].min() >= -121.5
-        assert result["longitude"].max() <= -120.1
+        assert result["longitude"].max() <= -120.5
 
         # "Shapefile" lacks CRS
         clip_poly_none = gpd.GeoDataFrame(
-            geometry=[box(-121.0, 38.8, -120.9, 40.3)], crs=None
+            geometry=[box(-121.5, 38.5, -120.5, 40.0)], crs=None
         )
         with pytest.raises(RuntimeError, match="CRS"):
             result = clip_gpd_to_shapefile(gdf, clip_poly_none)
