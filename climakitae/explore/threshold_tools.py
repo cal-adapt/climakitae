@@ -687,6 +687,7 @@ def _get_return_variable(
     conf_int_upper_bound: float = 97.5,
     multiple_points: bool = True,
     extremes_type: str = "max",
+    dropna_time: bool = True,
 ) -> xr.Dataset:
     """Generic function used by `get_return_value`, `get_return_period`, and
     `get_return_prob`.
@@ -709,6 +710,7 @@ def _get_return_variable(
     conf_int_lower_bound: float
     conf_int_upper_bound: float
     multiple_points: boolean
+    dropna_time: boolean
 
     Returns
     -------
@@ -733,6 +735,11 @@ def _get_return_variable(
             .groupby("allpoints")
         )
 
+    if dropna_time:
+        # Drop NaNs for years with missing data
+        # e.g. when an SSP has missing data at a warming leve
+        bms = bms.dropna(dim="time", how="all")
+
     # get block_size from the block maxima series attributes, if available. otherwise assume block size=1 year
     if hasattr(bms, "block size"):
         block_size = int(
@@ -754,21 +761,17 @@ def _get_return_variable(
         except (ValueError, ZeroDivisionError):
             return_variable = np.nan
 
-        try:
-            conf_int_lower_limit, conf_int_upper_limit = _conf_int(
-                bms=bms,
-                distr=distr,
-                data_variable=data_variable,
-                arg_value=arg_value,
-                bootstrap_runs=bootstrap_runs,
-                conf_int_lower_bound=conf_int_lower_bound,
-                conf_int_upper_bound=conf_int_upper_bound,
-                block_size=block_size,
-                extremes_type=extremes_type,
-            )
-        except ValueError:
-            conf_int_lower_limit = np.nan
-            conf_int_upper_limit = np.nan
+        conf_int_lower_limit, conf_int_upper_limit = _conf_int(
+            bms=bms,
+            distr=distr,
+            data_variable=data_variable,
+            arg_value=arg_value,
+            bootstrap_runs=bootstrap_runs,
+            conf_int_lower_bound=conf_int_lower_bound,
+            conf_int_upper_bound=conf_int_upper_bound,
+            block_size=block_size,
+            extremes_type=extremes_type,
+        )
 
         return (
             np.array([return_variable]),
@@ -838,6 +841,7 @@ def get_return_value(
     conf_int_upper_bound: float = 97.5,
     multiple_points: bool = True,
     extremes_type: str = "max",
+    dropna_time: bool = True,
 ) -> xr.Dataset:
     """Creates xarray Dataset with return values and confidence intervals from maximum series.
 
@@ -874,6 +878,7 @@ def get_return_value(
         conf_int_upper_bound,
         multiple_points,
         extremes_type,
+        dropna_time,
     )
 
 
@@ -886,6 +891,7 @@ def get_return_prob(
     conf_int_upper_bound: float = 97.5,
     multiple_points: bool = True,
     extremes_type: str = "max",
+    dropna_time: bool = True,
 ) -> xr.Dataset:
     """Creates xarray Dataset with return probabilities and confidence intervals from maximum series.
 
@@ -922,6 +928,7 @@ def get_return_prob(
         conf_int_upper_bound,
         multiple_points,
         extremes_type,
+        dropna_time=dropna_time,
     )
 
 
@@ -933,6 +940,7 @@ def get_return_period(
     conf_int_lower_bound: float = 2.5,
     conf_int_upper_bound: float = 97.5,
     multiple_points: bool = True,
+    dropna_time: bool = True,
 ) -> xr.Dataset:
     """Creates xarray Dataset with return periods and confidence intervals from maximum series.
 
@@ -968,6 +976,7 @@ def get_return_period(
         conf_int_lower_bound,
         conf_int_upper_bound,
         multiple_points,
+        dropna_time,
     )
 
 
