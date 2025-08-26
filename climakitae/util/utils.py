@@ -1291,7 +1291,7 @@ def clip_to_shapefile(
 
 def clip_gpd_to_shapefile(
     gdf: gpd.GeoDataFrame,
-    shapefile_path: gpd.GeoDataFrame,
+    shapefile: gpd.GeoDataFrame,
 ) -> gpd.GeoDataFrame:
     """Use a shapefile to select an area subset of a geodataframe.
     Used to subset stationlist to shapefile area.
@@ -1300,8 +1300,8 @@ def clip_gpd_to_shapefile(
     ----------
     gdf : gpd.GeoDataFrame
         Data to be clipped.
-    shapefile_path : str
-        Filepath to shapefile. Shapefile must include valid CRS.
+    shapefile : gpd.GeoDataFrame
+        Shapefile must include valid CRS.
 
     Returns
     -------
@@ -1344,12 +1344,10 @@ def clip_gpd_to_shapefile(
     ]
 
     # Adds coordinates
-    sub_gdf = gpd.GeoDataFrame(gdf, geometry=geom).set_crs(
-        crs="EPSG:3857", allow_override=True
-    )
+    sub_gdf = gpd.GeoDataFrame(gdf, geometry=geom).set_crs(crs="EPSG:3857")
 
     # Subset for stations within area boundaries
-    sub_gdf = gpd.overlay(sub_gdf, shapefile_path, how="intersection")
+    sub_gdf = gpd.overlay(sub_gdf, shapefile, how="intersection")
 
     # Useful information
     print(f"Number of stations within area: {len(sub_gdf)}")

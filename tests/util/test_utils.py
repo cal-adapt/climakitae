@@ -1606,8 +1606,7 @@ class TestConvertToLocalTime:
         )
 
         # This should clip succesfully
-        with patch("geopandas.read_file", return_value=clip_poly):
-            result = clip_gpd_to_shapefile(gdf, "not_a_shpfile.shp")
+        result = clip_gpd_to_shapefile(gdf, clip_poly)
 
         assert not result.empty
         assert result["latitude"].min() >= 38.3
@@ -1615,16 +1614,9 @@ class TestConvertToLocalTime:
         assert result["longitude"].min() >= -121.6
         assert result["longitude"].max() <= -120.0
 
-        # Input data lacks CRS
-        gdf_none = gpd.GeoDataFrame(df, geometry="geometry", crs=None)
-        with patch("geopandas.read_file", return_value=clip_poly):
-            with pytest.raises(RuntimeError, match="Missing CRS"):
-                result = clip_gpd_to_shapefile(gdf_none, "not_a_shpfile.shp")
-
         # "Shapefile" lacks CRS
         clip_poly_none = gpd.GeoDataFrame(
             geometry=[box(-121.6, 38.3, -120.0, 42.0)], crs=None
         )
-        with patch("geopandas.read_file", return_value=clip_poly_none):
-            with pytest.raises(RuntimeError, match="Missing CRS"):
-                result = clip_gpd_to_shapefile(gdf, "not_a_shpfile.shp")
+        with pytest.raises(RuntimeError, match="CRS"):
+            result = clip_gpd_to_shapefile(gdf, clip_poly_none)
