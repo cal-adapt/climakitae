@@ -1309,41 +1309,8 @@ def clip_gpd_to_shapefile(
         Subsetted geodataframe within shapefile area of interest.
     """
 
-    def _latlon_to_mercator_cartopy(lat: float, lon: float) -> tuple[float, float]:
-        """Helper function for coodinate conversion.
-
-        Paramters
-        ---------
-        lat : float
-            Latitude coordinate.
-        lon : float
-            Longitude coordinate.
-
-        Returns
-        -------
-        x : float
-            Longitude coordinate.
-        y : float
-            Latitude coordinate.
-        """
-        proj_latlon = pyproj.CRS("EPSG:4326")
-        proj_mercator = pyproj.CRS("EPSG:3857")
-
-        # Transform the coordinates
-        transformer = pyproj.Transformer.from_crs(
-            proj_latlon, proj_mercator, always_xy=True
-        )
-        x, y = transformer.transform(lon, lat)
-
-        return x, y
-
-    # Add geometry column to gdf in EPSG:3857
-    geom = [
-        Point(_latlon_to_mercator_cartopy(lat, lon))
-        for lat, lon in zip(gdf.latitude, gdf.longitude)
-    ]
-
     # Adds coordinates
+    geom = gpd.points_from_xy(gdf["longitude"], gdf["latitude"])
     sub_gdf = gpd.GeoDataFrame(gdf, geometry=geom).set_crs(
         crs="EPSG:3857", allow_override=True
     )
