@@ -1,5 +1,4 @@
-"""
-Util for generating warming level reference data file
+"""Util for generating warming level reference data file
 "gwl_1981-2010ref_EC-Earth3_ssp370.csv" in ../data
 
 The CSV file is generated for use in ../explore/uncertainty.py. It contains,
@@ -8,6 +7,7 @@ are reached under SSP3-7.0.
 
 To run, type: <<python generate_gwl_tables_unc.py>> in the command line and wait
 for printed model outputs showing progress.
+
 """
 
 import concurrent.futures
@@ -24,27 +24,27 @@ test = False
 
 
 def make_weighted_timeseries(temp: xr.DataArray) -> xr.DataArray:
-    """
-    Creates a spatially-weighted single-dimension time series of global temperature.
+    """Creates a spatially-weighted single-dimension time series of global temperature.
 
     The function weights the latitude grids by size and averages across all longitudes,
     resulting in a single time series object.
 
-    Parameters:
+    Parameters
     ----------
     temp : xarray.DataArray
         An xarray DataArray of global temperature with latitude and longitude coordinates.
 
-    Returns:
+    Returns
     -------
     xarray.DataArray
         A time series of global temperature that is spatially weighted across latitudes and averaged
         across all longitudes.
 
-    Raises:
-    -------
+    Raises
+    ------
     ValueError
         If the DataArray doesn't contain recognizable latitude/longitude coordinates.
+
     """
     # Find variable names for latitude and longitude to make code more readable
     lat_candidates = ["lat", "latitude"]
@@ -78,8 +78,7 @@ def make_weighted_timeseries(temp: xr.DataArray) -> xr.DataArray:
 
 
 class GWLGenerator:
-    """
-    Class for generating Global Warming Level (GWL) reference data.
+    """Class for generating Global Warming Level (GWL) reference data.
     Encapsulates the parameters and methods needed for GWL calculations.
 
     Attributes
@@ -115,18 +114,19 @@ class GWLGenerator:
     >>> scenarios = ["ssp370"]
     >>> reference_periods = [{"start_year": "19810101", "end_year": "20101231"}]
     >>> gwl_generator.generate_gwl_file(models, scenarios, reference_periods)
+
     """
 
     def __init__(self, df, sims_on_aws=None):
-        """
-        Initialize the GWLGenerator with the CMIP6 data catalog.
+        """Initialize the GWLGenerator with the CMIP6 data catalog.
 
-        Parameters:
+        Parameters
         ----------
         df : pandas.DataFrame
             DataFrame containing metadata for CMIP6 simulations
         sims_on_aws : pandas.DataFrame, optional
             DataFrame listing available simulations on AWS. If None, it will be generated.
+
         """
         self.df = df
         self.sims_on_aws = (
@@ -135,13 +135,13 @@ class GWLGenerator:
         self.fs = s3fs.S3FileSystem(anon=True)
 
     def get_sims_on_aws(self) -> pd.DataFrame:
-        """
-        Generates a pandas DataFrame listing all relevant CMIP6 simulations available on AWS.
+        """Generates a pandas DataFrame listing all relevant CMIP6 simulations available on AWS.
 
-        Returns:
+        Returns
         -------
         pandas.DataFrame
             DataFrame indexed by model names with columns for different scenarios.
+
         """
         df_subset = self.df[
             (self.df.table_id == "Amon")
@@ -195,19 +195,19 @@ class GWLGenerator:
         return sims_on_aws
 
     def build_timeseries(self, model_config: dict) -> xr.Dataset:
-        """
-        Builds an xarray Dataset with a time dimension, containing the concatenated historical
+        """Builds an xarray Dataset with a time dimension, containing the concatenated historical
         and SSP time series for all specified scenarios of a given model and ensemble member.
 
-        Parameters:
+        Parameters
         ----------
         model_config : dict
             Dictionary containing 'variable', 'model', 'ens_mem', and 'scenarios' keys
 
-        Returns:
+        Returns
         -------
         xarray.Dataset
             Dataset with time as the dimension, containing the appended historical and SSP time series.
+
         """
         variable = model_config["variable"]
         model = model_config["model"]
@@ -279,26 +279,26 @@ class GWLGenerator:
 
     @staticmethod
     def get_gwl(smoothed: pd.DataFrame, degree: float) -> pd.DataFrame:
-        """
-        Computes the timestamp when a given GWL is first reached.
+        """Computes the timestamp when a given GWL is first reached.
 
-        Parameters:
+        Parameters
         ----------
         smoothed : pandas.DataFrame
             DataFrame containing global mean temperature time series for multiple scenarios
         degree : float
             The global warming level to detect
 
-        Returns:
+        Returns
         -------
         pandas.DataFrame
             Table with timestamps for when each scenario first crosses the specified warming level
+
         """
 
         def get_wl_timestamp(scenario: str, degree: float) -> pd.Timestamp:
-            """
-            Find the timestamp that first crosses the given degree.
+            """Find the timestamp that first crosses the given degree.
             Return np.nan if none of the timestamps pass this degree level.
+
             """
             if any(scenario >= degree):
                 wl_ts = scenario[scenario >= degree].index[0]
@@ -312,20 +312,20 @@ class GWLGenerator:
     def get_gwl_table_for_single_model_and_ensemble(
         self, model_config: dict, reference_period: dict
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        """
-        Generates a GWL table for a single model and ensemble member.
+        """Generates a GWL table for a single model and ensemble member.
 
-        Parameters:
+        Parameters
         ----------
         model_config : dict
             Dictionary containing 'variable', 'model', 'ens_mem', and 'scenarios' keys
         reference_period : dict
             Dictionary containing 'start_year' and 'end_year' keys
 
-        Returns:
+        Returns
         -------
         tuple
             DataFrame containing warming levels and DataFrame with global mean temperature time series
+
         """
         model = model_config["model"]
         ens_mem = model_config["ens_mem"]
@@ -380,20 +380,20 @@ class GWLGenerator:
     def get_gwl_table(
         self, model_config: dict, reference_period: dict
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        """
-        Generates GWL tables for a model across all its ensemble members.
+        """Generates GWL tables for a model across all its ensemble members.
 
-        Parameters:
+        Parameters
         ----------
         model_config : dict
             Dictionary containing 'variable', 'model', and 'scenarios' keys
         reference_period : dict
             Dictionary containing 'start_year' and 'end_year' keys
 
-        Returns:
+        Returns
         -------
         tuple
             DataFrame containing warming levels and DataFrame with global mean temperature time series
+
         """
         global test
         model = model_config["model"]
@@ -484,10 +484,9 @@ class GWLGenerator:
     def generate_gwl_file(
         self, models: list[str], scenarios: list[str], reference_periods: list[dict]
     ):
-        """
-        Generates global warming level (GWL) reference files for specified models.
+        """Generates global warming level (GWL) reference files for specified models.
 
-        Parameters:
+        Parameters
         ----------
         models : list
             List of model names to process
@@ -562,9 +561,8 @@ class GWLGenerator:
 
 
 def main(_kTest=False):
-    """
-    Main function to run the GWL generator for EC-Earth3 model.
-    """
+    """Main function to run the GWL generator for EC-Earth3 model."""
+
     global test
     test = _kTest
     try:
@@ -601,4 +599,3 @@ if __name__ == "__main__":
         main(_kTest=True)
     else:
         main()
-#

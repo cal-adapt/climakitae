@@ -1,6 +1,4 @@
-"""
-Validator for renewable energy dataset parameters.
-"""
+"""Validator for renewable energy dataset parameters."""
 
 from __future__ import annotations
 
@@ -16,8 +14,7 @@ from climakitae.new_core.param_validation.abc_param_validation import (
 
 @register_catalog_validator(CATALOG_REN_ENERGY_GEN)
 class RenewablesValidator(ParameterValidator):
-    """
-    Validator for renewable energy dataset parameters.
+    """Validator for renewable energy dataset parameters.
 
     Parameters
     ----------
@@ -26,16 +23,17 @@ class RenewablesValidator(ParameterValidator):
 
     Attributes
     ----------
+
     """
 
     def __init__(self, catalog: DataCatalog):
-        """
-        Initialize with  catalog of renewable energy datasets.
+        """Initialize with  catalog of renewable energy datasets.
 
         Parameters
         ----------
         catalog : DataCatalog
             Catalog of datasets
+
         """
         super().__init__()
         self.all_catalog_keys = {

@@ -1,5 +1,4 @@
-"""
-Climate Data Interface Module for Accessing Climate Data.
+"""Climate Data Interface Module for Accessing Climate Data.
 
 This module provides a high-level interface for accessing climate data through
 the ClimateData class. It implements a fluent interface pattern that allows users
@@ -19,6 +18,7 @@ Example Usage:
     ...               .table_id("day")
     ...               .grid_label("d03")
     ...               .get())
+
 """
 
 import traceback
@@ -32,8 +32,7 @@ from climakitae.util.utils import read_csv_file
 
 
 class ClimateData:
-    """
-    A fluent interface for accessing climate data.
+    """A fluent interface for accessing climate data.
 
     This class provides a chainable interface for setting parameters and retrieving
     climate data. It uses a factory pattern to create datasets and validators
@@ -128,14 +127,15 @@ class ClimateData:
     ...         .variable("pr")
     ...         .processes(processes)
     ...         .get())
+
     """
 
     def __init__(self):
-        """
-        Initialize the ClimateData interface.
+        """Initialize the ClimateData interface.
 
         Sets up the factory for dataset creation and initializes
         query parameters to their default (UNSET) state.
+
         """
         try:
             self._factory = DatasetFactory()
@@ -148,13 +148,13 @@ class ClimateData:
             return
 
     def _reset_query(self) -> "ClimateData":
-        """
-        Reset all query parameters to their default UNSET state.
+        """Reset all query parameters to their default UNSET state.
 
         Returns
         -------
         ClimateData
             The current instance for method chaining.
+
         """
         self._query = {
             "catalog": UNSET,
@@ -173,8 +173,7 @@ class ClimateData:
 
     # Core parameter setting methods
     def catalog(self, catalog: str) -> "ClimateData":
-        """
-        Set the data catalog to use for the query.
+        """Set the data catalog to use for the query.
 
         Parameters
         ----------
@@ -185,6 +184,7 @@ class ClimateData:
         -------
         ClimateData
             The current instance for method chaining.
+
         """
         if not isinstance(catalog, str) or not catalog.strip():
             raise ValueError("Catalog must be a non-empty string")
@@ -192,8 +192,7 @@ class ClimateData:
         return self
 
     def installation(self, installation: str) -> "ClimateData":
-        """
-        Set the installation type for the query.
+        """Set the installation type for the query.
 
         Parameters
         ----------
@@ -204,6 +203,7 @@ class ClimateData:
         -------
         ClimateData
             The current instance for method chaining.
+
         """
         if not isinstance(installation, str) or not installation.strip():
             raise ValueError("Installation must be a non-empty string")
@@ -211,8 +211,7 @@ class ClimateData:
         return self
 
     def activity_id(self, activity_id: str) -> "ClimateData":
-        """
-        Set the activity identifier for the query.
+        """Set the activity identifier for the query.
 
         Parameters
         ----------
@@ -223,6 +222,7 @@ class ClimateData:
         -------
         ClimateData
             The current instance for method chaining.
+
         """
         if not isinstance(activity_id, str) or not activity_id.strip():
             raise ValueError("Activity ID must be a non-empty string")
@@ -230,8 +230,7 @@ class ClimateData:
         return self
 
     def institution_id(self, institution_id: str) -> "ClimateData":
-        """
-        Set the institution identifier for the query.
+        """Set the institution identifier for the query.
 
         Parameters
         ----------
@@ -242,6 +241,7 @@ class ClimateData:
         -------
         ClimateData
             The current instance for method chaining.
+
         """
         if not isinstance(institution_id, str) or not institution_id.strip():
             raise ValueError("Institution ID must be a non-empty string")
@@ -249,8 +249,7 @@ class ClimateData:
         return self
 
     def source_id(self, source_id: str) -> "ClimateData":
-        """
-        Set the source identifier for the query.
+        """Set the source identifier for the query.
 
         Parameters
         ----------
@@ -261,6 +260,7 @@ class ClimateData:
         -------
         ClimateData
             The current instance for method chaining.
+
         """
         if not isinstance(source_id, str) or not source_id.strip():
             raise ValueError("Source ID must be a non-empty string")
@@ -268,8 +268,7 @@ class ClimateData:
         return self
 
     def experiment_id(self, experiment_id: str | list[str]) -> "ClimateData":
-        """
-        Set the experiment identifier for the query.
+        """Set the experiment identifier for the query.
 
         Parameters
         ----------
@@ -280,6 +279,7 @@ class ClimateData:
         -------
         ClimateData
             The current instance for method chaining.
+
         """
         exp = []
         if not isinstance(experiment_id, (str, list)):
@@ -299,8 +299,7 @@ class ClimateData:
         return self
 
     def table_id(self, table_id: str) -> "ClimateData":
-        """
-        Set the temporal resolution identifier for the query.
+        """Set the temporal resolution identifier for the query.
 
         Parameters
         ----------
@@ -311,6 +310,7 @@ class ClimateData:
         -------
         ClimateData
             The current instance for method chaining.
+
         """
         if not isinstance(table_id, str) or not table_id.strip():
             raise ValueError("Table ID must be a non-empty string")
@@ -318,8 +318,7 @@ class ClimateData:
         return self
 
     def grid_label(self, grid_label: str) -> "ClimateData":
-        """
-        Set the spatial resolution identifier for the query.
+        """Set the spatial resolution identifier for the query.
 
         Parameters
         ----------
@@ -330,6 +329,7 @@ class ClimateData:
         -------
         ClimateData
             The current instance for method chaining.
+
         """
         if not isinstance(grid_label, str) or not grid_label.strip():
             raise ValueError("Grid label must be a non-empty string")
@@ -337,8 +337,7 @@ class ClimateData:
         return self
 
     def variable(self, variable: str) -> "ClimateData":
-        """
-        Set the climate variable to retrieve.
+        """Set the climate variable to retrieve.
 
         Parameters
         ----------
@@ -349,6 +348,7 @@ class ClimateData:
         -------
         ClimateData
             The current instance for method chaining.
+
         """
         if not isinstance(variable, str) or not variable.strip():
             raise ValueError("Variable must be a non-empty string")
@@ -356,8 +356,7 @@ class ClimateData:
         return self
 
     def processes(self, processes: Dict[str, Union[str, Iterable]]) -> "ClimateData":
-        """
-        Set processing operations to apply to the retrieved data.
+        """Set processing operations to apply to the retrieved data.
 
         Parameters
         ----------
@@ -368,6 +367,7 @@ class ClimateData:
         -------
         ClimateData
             The current instance for method chaining.
+
         """
         if not isinstance(processes, dict):
             raise ValueError("Processes must be a dictionary")
@@ -376,8 +376,7 @@ class ClimateData:
 
     # Main execution method
     def get(self) -> Optional[Any]:
-        """
-        Execute the configured query and retrieve climate data.
+        """Execute the configured query and retrieve climate data.
 
         Validates required parameters, creates the appropriate dataset using
         the factory pattern, executes the query, and resets the query state
@@ -395,6 +394,7 @@ class ClimateData:
             If required parameters are missing during validation.
         Exception
             If there are errors during dataset creation or execution.
+
         """
         data = None
 
@@ -434,13 +434,13 @@ class ClimateData:
         return data
 
     def _validate_required_parameters(self) -> bool:
-        """
-        Validate that all required parameters are set.
+        """Validate that all required parameters are set.
 
         Returns
         -------
         bool
             True if all required parameters are present, False otherwise.
+
         """
         required_params = ["variable_id", "grid_label", "table_id", "catalog"]
         missing_params = []
@@ -592,8 +592,7 @@ class ClimateData:
         self.show_query()
 
     def _show_options(self, option_type: str, title: str) -> None:
-        """
-        Helper method to display options with consistent formatting.
+        """Helper method to display options with consistent formatting.
 
         Parameters
         ----------
@@ -601,6 +600,7 @@ class ClimateData:
             The type of option to display.
         title : str
             The title for the options display.
+
         """
         print(f"{title}:")
         print("-" * (len(title) + 1))
@@ -621,30 +621,29 @@ class ClimateData:
 
     # Convenience methods for common workflows
     def reset(self) -> "ClimateData":
-        """
-        Manually reset the query parameters.
+        """Manually reset the query parameters.
 
         Returns
         -------
         ClimateData
             The current instance with reset parameters.
+
         """
         return self._reset_query()
 
     def copy_query(self) -> Dict[str, Any]:
-        """
-        Get a copy of the current query parameters.
+        """Get a copy of the current query parameters.
 
         Returns
         -------
         Dict[str, Any]
             A copy of the current query parameters.
+
         """
         return {k: v for k, v in self._query.items() if v is not UNSET}
 
     def load_query(self, query_params: Dict[str, Any]) -> "ClimateData":
-        """
-        Load query parameters from a dictionary.
+        """Load query parameters from a dictionary.
 
         Parameters
         ----------
@@ -655,6 +654,7 @@ class ClimateData:
         -------
         ClimateData
             The current instance with loaded parameters.
+
         """
         for key, value in query_params.items():
             if key in self._query:
@@ -662,8 +662,7 @@ class ClimateData:
         return self
 
     def _format_option(self, option: str, option_type: str, spacing: int = 0) -> str:
-        """
-        Format an option string for display.
+        """Format an option string for display.
 
         Parameters
         ----------
@@ -676,6 +675,7 @@ class ClimateData:
         -------
         str
             The formatted option string.
+
         """
         match option_type:
             case "grid_label":

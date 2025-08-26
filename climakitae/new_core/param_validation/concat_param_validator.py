@@ -1,6 +1,4 @@
-"""
-Validator for parameters provided to Concat Processor.
-"""
+"""Validator for parameters provided to Concat Processor."""
 
 from __future__ import annotations
 
@@ -14,8 +12,7 @@ from climakitae.new_core.param_validation.abc_param_validation import (
 
 @register_processor_validator("concat")
 def validate_concat_param(value: str, **kwargs: Any) -> bool:  # noqa: ARG001
-    """
-    Validate the parameters provided to the Concat Processor.
+    """Validate the parameters provided to the Concat Processor.
 
     Parameters
     ----------
@@ -27,6 +24,7 @@ def validate_concat_param(value: str, **kwargs: Any) -> bool:  # noqa: ARG001
     -------
     bool
         True if all parameters are valid, False otherwise
+
     """
     if not isinstance(value, str):
         warnings.warn(

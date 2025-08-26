@@ -1,6 +1,4 @@
-"""
-Validator for parameters provided to FilterunadjustedModels Processor.
-"""
+"""Validator for parameters provided to FilterunadjustedModels Processor."""
 
 from __future__ import annotations
 
@@ -16,8 +14,7 @@ from climakitae.new_core.param_validation.abc_param_validation import (
 def validate_filter_unadjusted_models_param(
     value: str, **kwargs: Any
 ) -> bool:  # noqa: ARG001
-    """
-    Validate the parameters provided to the FilterUnadjustedModels Processor.
+    """Validate the parameters provided to the FilterUnadjustedModels Processor.
 
     Parameters
     ----------
@@ -30,6 +27,7 @@ def validate_filter_unadjusted_models_param(
     -------
     bool
         True if all parameters are valid, False otherwise
+
     """
     if not isinstance(value, str):
         warnings.warn(

@@ -4,7 +4,7 @@ import xarray as xr
 import numpy as np
 
 
-def effective_temp(T):
+def effective_temp(T: xr.DataArray) -> xr.DataArray:
     """Compute effective temperature
     Effective Temp = (1/2)*(yesterday's effective temp) + (1/2)*(today's actual temp)
     To make sense of the expansion, today's ET is consist of a portion of the actual temperature of each day up to today--half of today's temp, 1/4 of yesterday's temp, 1/8 of the day before yesterday's temp etc, thus it's "an exponentially smoothed temperature" as stated in the glossary of the reference.
@@ -12,17 +12,18 @@ def effective_temp(T):
 
     Parameters
     ----------
-    T: xr.DataArray
+    T : xr.DataArray
         Daily air temperature in any units
 
     Returns
-    --------
-    eft: xr.DataArray
+    -------
+    eft : xr.DataArray
         Effective temperature
 
     References
     ----------
     https://www.nationalgas.com/document/132516/download
+
     """
     # Get "yesterday" temp by shifting the time index back one time step (1 day)
     # Get "day before" temp by shifting the time index back two time steps (2 days)
@@ -45,25 +46,25 @@ def effective_temp(T):
     return eft
 
 
-def noaa_heat_index(T, RH):
+def noaa_heat_index(T: xr.DataArray, RH: xr.DataArray) -> xr.DataArray:
     """Compute the NOAA Heat Index.
     Heat Index quantifies the perceived "real feel" of air temperature on the human body,
     including the impact of humidity. See references for more information on this derived variable.
 
     Parameters
     ----------
-    T: xr.DataArray
+    T : xr.DataArray
         Temperature in deg F
-    RH: xr.DataArray
+    RH : xr.DataArray
         Relative Humidity in percentage (0-100)
 
     Returns
-    --------
-    HI: xr.DataArray
+    -------
+    HI : xr.DataArray
         Heat index per timestep
 
     References
-    -----------
+    ----------
     NOAA: https://www.wpc.ncep.noaa.gov/html/heatindex_equation.shtml
     NCAR NCL documentation: https://www.ncl.ucar.edu/Document/Functions/Heat_stress/heat_index_nws.shtml
 
@@ -119,18 +120,20 @@ def noaa_heat_index(T, RH):
 ## ========== FOSBERG FIRE INDEX AND RELATED HELPER FUNCTIONS ==========
 
 
-def fosberg_fire_index(t2_F, rh_percent, windspeed_mph):
+def fosberg_fire_index(
+    t2_F: xr.DataArray, rh_percent: xr.DataArray, windspeed_mph: xr.DataArray
+) -> xr.DataArray:
     """Compute the Fosberg Fire Weather Index.
     Use hourly weather as inputs.
     Ensure that the input variables are in the correct units (see below).
 
     Parameters
     ----------
-    t2_F: xr.DataArray
+    t2_F : xr.DataArray
         Air temperature in units of Fahrenheit
-    rh_percent: xr.DataArray
+    rh_percent : xr.DataArray
         Relative humidity in units of 0-100 (percent)
-    windspeed_mph: xr.DataArray
+    windspeed_mph : xr.DataArray
         Windspeed in units of miles per hour
 
     Returns
@@ -176,7 +179,9 @@ def fosberg_fire_index(t2_F, rh_percent, windspeed_mph):
 
 
 # Define some helper functions
-def _equilibrium_moisture_constant(h, T):
+def _equilibrium_moisture_constant(
+    h: xr.DataArray, T: xr.DataArray
+) -> tuple[xr.DataArray, xr.DataArray, xr.DataArray]:
     """Compute the equilibrium moisture constant.
     Dependent on relative humidity percent.
     Used to compute Fosberg Fire Weather Index.
@@ -184,18 +189,18 @@ def _equilibrium_moisture_constant(h, T):
 
     Parameters
     ----------
-    h: xr.DataArray
+    h : xr.DataArray
         relative humidity in units of 0-100 (percent)
-    T: xr.DataArray
+    T : xr.DataArray
         air temperature in units of Fahrenheit
 
     Returns
     -------
-    m_low: xr.DataArray
+    m_low : xr.DataArray
         equilibrium moisture constant for low humidity (<10%)
-    m_mid: xr.DataArray
+    m_mid : xr.DataArray
         equilibrium moisture constant for 10% < humidity <= 50%
-    m_high: xr.DataArray
+    m_high : xr.DataArray
         equilibrium moisture constant for high humidity (>50%)
 
     """
@@ -211,14 +216,19 @@ def _equilibrium_moisture_constant(h, T):
     return (m_low, m_mid, m_high)
 
 
-def _moisture_dampening_coeff(m):
+def _moisture_dampening_coeff(m: xr.DataArray) -> xr.DataArray:
     """Compute the moisture dampening coefficient.
     Used to compute Fosberg Fire Weather Index.
 
     Parameters
     ----------
-    m: xr.DataArray
+    m : xr.DataArray
         equilibrium moisture constant
+
+    Returns
+    -------
+    n : xr.DataArray
+        moisture dampening coefficient
 
     """
     n = 1 - 2 * (m / 30) + 1.5 * (m / 30) ** 2 - 0.5 * (m / 30) ** 3
