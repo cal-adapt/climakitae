@@ -1615,10 +1615,14 @@ class TestConvertToLocalTime:
 
         # Input data lacks CRS
         with pytest.raises(RuntimeError):
-            result = clip_gpd_to_shapefile(gpd.GeoDataFrame(geometry=[]), "not_a_file.shp")
+            result = clip_gpd_to_shapefile(
+                gpd.GeoDataFrame(geometry=[]), "not_a_file.shp"
+            )
 
         # "Shapefile" lacks CRS
-        gdf_none = gpd.GeoDataFrame(geometry=[box(-121.6, 38.3, -120.0, 42.0)] crs=None)
+        gdf_none = gpd.GeoDataFrame(
+            geometry=[box(-121.6, 38.3, -120.0, 42.0)], crs=None
+        )
         with patch("geopandas.read_file", return_value=gdf_none):
             with pytest.raises(RuntimeError):
                 result = clip_gpd_to_shapefile(gdf, "not_a_file.shp")
