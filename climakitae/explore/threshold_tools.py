@@ -886,6 +886,8 @@ def get_return_value(
         Confidence interval upper bound
     multiple_points : boolean
         Whether or not the data contains multiple points (has x, y dimensions)
+    dropna_time: boolean
+        Whether to drop NaNs along the time axis
 
     Returns
     -------
@@ -937,6 +939,8 @@ def get_return_prob(
         Confidence interval upper bound
     multiple_points : boolean
         Whether or not the data contains multiple points (has x, y dimensions)
+    dropna_time: boolean
+        Whether to drop NaNs along the time axis
 
     Returns
     -------
@@ -987,6 +991,8 @@ def get_return_period(
         Confidence interval upper bound
     multiple_points : boolean
         Whether or not the data contains multiple points (has x, y dimensions)
+    dropna_time: boolean
+        Whether to drop NaNs along the time axis
 
     Returns
     -------
@@ -1004,7 +1010,7 @@ def get_return_period(
         conf_int_lower_bound,
         conf_int_upper_bound,
         multiple_points,
-        dropna_time,
+        dropna_time=dropna_time,
     )
 
 
