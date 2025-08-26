@@ -10,7 +10,7 @@ import pandas as pd
 import pyproj
 import rioxarray as rio
 import xarray as xr
-from shapely.geometry import mapping
+from shapely.geometry import mapping, Point
 from timezonefinder import TimezoneFinder
 
 from climakitae.core.constants import SSPS, UNSET
@@ -1310,5 +1310,54 @@ def clip_to_shapefile(
     else:
         location = [name]
     clipped.attrs["location_subset"] = location
+
+    return clipped
+
+
+def clip_gpd_to_shapefile(
+    gdf: gpd.GeoDataFrame,
+    shapefile: gpd.GeoDataFrame,
+) -> gpd.GeoDataFrame:
+    """Use a shapefile to select an area subset of a geodataframe.
+    Used to subset stationlist to shapefile area.
+
+    Parameters
+    ----------
+    gdf : gpd.GeoDataFrame
+        Data to be clipped.
+    shapefile : gpd.GeoDataFrame
+        Shapefile must include valid CRS.
+
+    Returns
+    -------
+    clipped : gpd.GeoDataFrame
+        Subsetted geodataframe within shapefile area of interest.
+    """
+
+    # Adds coordinates
+    geom = gpd.points_from_xy(gdf["longitude"], gdf["latitude"])
+    sub_gdf = gpd.GeoDataFrame(gdf, geometry=geom).set_crs(
+        crs="EPSG:3857", allow_override=True
+    )
+
+    # Check CRS
+    if sub_gdf is None or shapefile.crs is None:
+        raise RuntimeError(
+            "Both input GeoDataFrame and shapefile must have a defined CRS."
+        )
+
+    if sub_gdf.crs != shapefile.crs:
+        shapefile = shapefile.to_crs(sub_gdf.crs)
+
+    # Subset for stations within area boundaries
+    clipped = sub_gdf[sub_gdf.geometry.intersects(shapefile.unary_union)]
+
+    if clipped.empty:
+        raise RuntimeError(
+            "Clipping returned an empty GeoDataFrame; check geometries and CRS."
+        )
+
+    # Useful information
+    print(f"Number of stations within area: {len(clipped)}")
 
     return clipped
