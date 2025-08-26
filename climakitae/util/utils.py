@@ -1349,7 +1349,7 @@ def clip_gpd_to_shapefile(
     )
 
     # Subset for stations within area boundaries
-    sub_gdf = gpd.clip(sub_gdf, shapefile)
+    sub_gdf = gpd.overlay(sub_gdf, shapefile, how="intersection")
 
     # Useful information
     print(f"Number of stations within area: {len(sub_gdf)}")
