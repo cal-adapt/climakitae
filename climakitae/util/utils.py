@@ -1291,7 +1291,7 @@ def clip_to_shapefile(
 
 def clip_gpd_to_shapefile(
     gdf: gpd.GeoDataFrame,
-    shapefile_path: str,
+    shapefile_path: gpd.GeoDataFrame,
 ) -> gpd.GeoDataFrame:
     """Use a shapefile to select an area subset of a geodataframe.
     Used to subset stationlist to shapefile area.
@@ -1309,7 +1309,7 @@ def clip_gpd_to_shapefile(
         Subsetted geodataframe within shapefile area of interest.
     """
 
-    def _latlon_to_mercator_cartopy(lat, lon):
+    def _latlon_to_mercator_cartopy(lat: float, lon: float) -> tuple[float, float]:
         """Helper function for coodinate conversion.
 
         Paramters
@@ -1337,7 +1337,7 @@ def clip_gpd_to_shapefile(
 
         return x, y
 
-    # Add geometry column to gdf
+    # Add geometry column to gdf in EPSG:3857
     geom = [
         Point(_latlon_to_mercator_cartopy(lat, lon))
         for lat, lon in zip(gdf.latitude, gdf.longitude)
