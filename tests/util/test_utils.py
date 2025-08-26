@@ -1593,7 +1593,7 @@ class TestConvertToLocalTime:
         df = pd.DataFrame(
             {
                 "latitude": [38.5, 39.0, 40.0, 41.5],
-                "longitude": [-121.5, -121.2, 120.5, -119.9],
+                "longitude": [-121.5, -121.2, -120.5, -120.1],
             }
         )
         df["geometry"] = [Point(xy) for xy in zip(df["longitude"], df["latitude"])]
@@ -1608,6 +1608,7 @@ class TestConvertToLocalTime:
         # This should clip succesfully
         result = clip_gpd_to_shapefile(gdf, clip_poly)
 
+        assert not result.empty, "Clip returned empty GeoDataFrame"
         assert result["latitude"].min() >= 38.3
         assert result["latitude"].max() <= 42.0
         assert result["longitude"].min() >= -121.6
