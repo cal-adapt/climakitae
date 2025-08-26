@@ -88,7 +88,7 @@ def test_return_period_dropna(T2_ams: xr.DataArray):
         distr="gumbel",
         bootstrap_runs=1,
         multiple_points=False,
-        dropna_time = True
+        dropna_time=True,
     )
     assert not np.isnan(rvs["return_period"].values[()])
 
