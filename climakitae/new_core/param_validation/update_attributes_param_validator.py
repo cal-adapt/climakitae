@@ -1,6 +1,4 @@
-"""
-Validator for parameters provided to UpdateAttributes Processor.
-"""
+"""Validator for parameters provided to UpdateAttributes Processor."""
 
 from __future__ import annotations
 
@@ -13,8 +11,7 @@ from climakitae.new_core.param_validation.abc_param_validation import (
 
 @register_processor_validator("update_attributes")
 def validate_update_attributes_param(value: Any, **kwargs: Any) -> bool:  # noqa: ARG001
-    """
-    Validate the parameters provided to the UpdateAttributes Processor.
+    """Validate the parameters provided to the UpdateAttributes Processor.
 
     Parameters
     ----------
@@ -26,6 +23,7 @@ def validate_update_attributes_param(value: Any, **kwargs: Any) -> bool:  # noqa
     -------
     bool
         True if all parameters are valid, False otherwise
+
     """
     # UpdateAttributes processor accepts any value type, including UNSET
     # This is a very permissive validator since the processor is designed

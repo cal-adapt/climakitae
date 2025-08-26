@@ -1,6 +1,4 @@
-"""
-Concat DataProcessor
-"""
+"""Concat DataProcessor"""
 
 import warnings
 from typing import Any, Dict, Iterable, List, Union
@@ -19,8 +17,7 @@ from climakitae.new_core.processors.processor_utils import extend_time_domain
 # concatenation processor in the pre-processing chain
 @register_processor("concat", priority=50)
 class Concat(DataProcessor):
-    """
-    DataProcessor that concatenates multiple datasets along a new "sim" dimension.
+    """DataProcessor that concatenates multiple datasets along a new "sim" dimension.
 
     This processor takes an iterable of xarray datasets or data arrays and concatenates
     them along a new "sim" dimension using their source_id values. This is useful
@@ -42,17 +39,18 @@ class Concat(DataProcessor):
     Notes
     -----
     All input datasets should have the 'source_id' attribute.
+
     """
 
     def __init__(self, value: str = "time"):
-        """
-        Initialize the concat processor.
+        """Initialize the concat processor.
 
         Parameters
         ----------
         value : str, optional
             Optional dimension name to use instead of "sim".
             Defaults to "sim".
+
         """
         self.dim_name = value if isinstance(value, str) else "time"
         self._original_dim_name = self.dim_name  # Track original dimension name
@@ -70,8 +68,7 @@ class Concat(DataProcessor):
         ],
         context: Dict[str, Any],
     ) -> Union[xr.Dataset, xr.DataArray]:
-        """
-        Concatenate multiple datasets along a specified dimension.
+        """Concatenate multiple datasets along a specified dimension.
 
         If the dimension is "time", this method will first extend the time domain
         of SSP scenarios by prepending historical data, then concatenate along a
@@ -90,6 +87,7 @@ class Concat(DataProcessor):
         -------
         Union[xr.Dataset, xr.DataArray]
             A single dataset with concatenated data.
+
         """
         if isinstance(result, (xr.Dataset, xr.DataArray)):
             # If we receive a single dataset, just return it
@@ -271,8 +269,7 @@ class Concat(DataProcessor):
     def update_context(
         self, context: Dict[str, Any], source_ids: List[str] | object = UNSET
     ):
-        """
-        Update the context with information about the concatenation transformation.
+        """Update the context with information about the concatenation transformation.
 
         Parameters
         ----------
@@ -284,6 +281,7 @@ class Concat(DataProcessor):
         Note
         ----
         The context is updated in place. This method does not return anything.
+
         """
         if _NEW_ATTRS_KEY not in context:
             context[_NEW_ATTRS_KEY] = {}
@@ -297,12 +295,12 @@ class Concat(DataProcessor):
         context[_NEW_ATTRS_KEY][self.name] = f"""{process_info}"""
 
     def set_data_accessor(self, catalog: DataCatalog):
-        """
-        Set the data catalog for this processor.
+        """Set the data catalog for this processor.
 
         Parameters
         ----------
         catalog : DataCatalog
             The data catalog to be used by this processor.
+
         """
         self.catalog = catalog

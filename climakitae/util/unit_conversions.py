@@ -1,6 +1,6 @@
-"""
-Calculates alternative units for variables with multiple commonly
+"""Calculates alternative units for variables with multiple commonly
 used units, following NWS conversions for pressure and wind speed.
+
 """
 
 import xarray as xr
@@ -33,20 +33,21 @@ def convert_units(da: xr.DataArray, selected_units: str) -> xr.DataArray:
 
     Parameters
     ----------
-    da: xr.DataArray
+    da : xr.DataArray
         data
-    selected_units: str
+    selected_units : str
         selected units of data, from selections.units
 
     Returns
     -------
-    da: xr.DataArray
+    da : xr.DataArray
         data with converted units and updated units attribute
 
     References
     ----------
     Wind speed: https://www.weather.gov/media/epz/wxcalc/windConversion.pdf
     Pressure: https://www.weather.gov/media/epz/wxcalc/pressureConversion.pdf
+
     """
 
     # Get native units of data from attributes

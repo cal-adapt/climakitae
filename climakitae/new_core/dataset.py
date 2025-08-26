@@ -1,5 +1,4 @@
-"""
-Dataset Processing Pipeline Module
+"""Dataset Processing Pipeline Module
 
 This module provides the core Dataset class that implements a flexible, pipeline-based
 approach for climate data processing. The Dataset class serves as a central orchestrator
@@ -66,6 +65,7 @@ Notes
 - The context dictionary is passed through all processing steps and may be modified
 - Steps that require data access can set `needs_catalog = True` to receive the data accessor
 - Validation failures return an empty xarray.Dataset rather than raising exceptions
+
 """
 
 import traceback
@@ -84,8 +84,7 @@ from climakitae.new_core.processors.abc_data_processor import (
 
 
 class Dataset:
-    """
-    A pipeline-based data processing class for climate data workflows.
+    """A pipeline-based data processing class for climate data workflows.
 
     The Dataset class serves as a central orchestrator that coordinates data access,
     parameter validation, and sequential processing steps. It implements a fluent
@@ -137,11 +136,11 @@ class Dataset:
     DataCatalog : Interface for data access components
     ParameterValidator : Interface for parameter validation components
     DataProcessor : Interface for data processing components
+
     """
 
     def __init__(self):
-        """
-        Initialize the Dataset class.
+        """Initialize the Dataset class.
 
         Attributes
         ----------
@@ -151,14 +150,14 @@ class Dataset:
             The parameter validator instance used for validating query parameters.
         processing_pipeline : list of DataProcessor or UNSET
             A list of processing steps to be executed sequentially on the data.
+
         """
         self.data_access = UNSET
         self.parameter_validator = UNSET
         self.processing_pipeline = UNSET  # list of processing steps
 
     def execute(self, parameters: Dict[str, Any] = UNSET) -> xr.Dataset:
-        """
-        Execute the dataset processing pipeline.
+        """Execute the dataset processing pipeline.
 
         Parameters
         ----------
@@ -169,6 +168,7 @@ class Dataset:
         -------
         xr.Dataset
             Result of the processing pipeline
+
         """
         # Initialize context with parameters
         context = parameters.copy() if parameters is not UNSET else {}
@@ -227,8 +227,7 @@ class Dataset:
     def with_param_validator(
         self, parameter_validator: ParameterValidator
     ) -> "Dataset":
-        """
-        Set a new parameter validator.
+        """Set a new parameter validator.
 
         Parameters
         ----------
@@ -244,6 +243,7 @@ class Dataset:
         ------
         TypeError
             If the parameter validator is not an instance of ParameterValidator.
+
         """
         if not parameter_validator:
             warnings.warn(
@@ -257,8 +257,7 @@ class Dataset:
         return self
 
     def with_catalog(self, catalog: DataCatalog) -> "Dataset":
-        """
-        Set a new data catalog.
+        """Set a new data catalog.
 
         Parameters
         ----------
@@ -278,6 +277,7 @@ class Dataset:
             If the catalog does not have a 'get_data' method.
         TypeError
             If the 'get_data' method is not callable.
+
         """
         if not isinstance(catalog, DataCatalog):
             raise TypeError("Data catalog must be an instance of DataCatalog.")
@@ -291,12 +291,11 @@ class Dataset:
         return self
 
     def with_processing_step(self, step: DataProcessor) -> "Dataset":
-        """
-        Add a new processing step to the pipeline.
+        """Add a new processing step to the pipeline.
 
         Parameters
         ----------
-        step: DataProcessor
+        step : DataProcessor
             Processing step to add to the pipeline. Must have 'execute' and 'update_context' methods.
 
         Returns
@@ -312,6 +311,7 @@ class Dataset:
             If the step does not have 'execute', 'update_context', or 'set_data_accessor' methods.
         TypeError
             If the step is not callable.
+
         """
         if not hasattr(step, "execute") or not callable(getattr(step, "execute")):
             raise TypeError("Processing step must have an 'execute' method.")

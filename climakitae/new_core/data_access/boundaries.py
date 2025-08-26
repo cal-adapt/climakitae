@@ -1,5 +1,4 @@
-"""
-Lazy-loading boundaries module for ClimakitAE.
+"""Lazy-loading boundaries module for ClimakitAE.
 
 This module provides efficient access to geospatial boundary data for climate
 data subsetting and analysis. The Boundaries class implements lazy loading
@@ -38,6 +37,7 @@ Examples
 >>>
 >>> # Preload all data for performance-critical scenarios
 >>> boundaries.preload_all()
+
 """
 
 import warnings
@@ -54,8 +54,7 @@ from climakitae.core.constants import (
 
 
 class Boundaries:
-    """
-    Lazy-loading geospatial polygon data manager for ClimakitAE.
+    """Lazy-loading geospatial polygon data manager for ClimakitAE.
 
     This class provides efficient access to various boundary datasets stored
     in S3 parquet catalogs. Data is loaded only when first accessed, improving
@@ -150,11 +149,11 @@ class Boundaries:
     - Memory usage can be monitored and managed through provided methods
     - Western states are ordered according to WESTERN_STATES_LIST constant
     - Utilities are ordered with priority utilities first, then alphabetically
+
     """
 
     def __init__(self, boundary_catalog: intake.catalog.Catalog):
-        """
-        Initialize the Boundaries class with a boundary catalog.
+        """Initialize the Boundaries class with a boundary catalog.
 
         Sets up the lazy-loading infrastructure and validates the catalog
         structure to ensure all required boundary datasets are available.
@@ -177,6 +176,7 @@ class Boundaries:
         >>> import intake
         >>> catalog = intake.open_catalog('s3://bucket/boundaries.yaml')
         >>> boundaries = Boundaries(catalog)
+
         """
         self._cat = boundary_catalog
 
@@ -195,8 +195,7 @@ class Boundaries:
         self.validate_catalog()
 
     def validate_catalog(self) -> None:
-        """
-        Validate that required catalog entries exist and are accessible.
+        """Validate that required catalog entries exist and are accessible.
 
         Checks for the presence of all required boundary datasets in the
         catalog. This ensures that the boundary data can be loaded when
@@ -320,8 +319,7 @@ class Boundaries:
         self.__ca_electric_balancing_areas = value
 
     def _process_us_states(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Process raw US states data.
+        """Process raw US states data.
 
         Parameters
         ----------
@@ -332,12 +330,12 @@ class Boundaries:
         -------
         pd.DataFrame
             Processed US states DataFrame
+
         """
         return df  # No processing needed currently
 
     def _process_ca_counties(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Process raw CA counties data.
+        """Process raw CA counties data.
 
         Parameters
         ----------
@@ -348,12 +346,12 @@ class Boundaries:
         -------
         pd.DataFrame
             Processed CA counties DataFrame sorted by name
+
         """
         return df.sort_values("NAME")
 
     def _process_ca_watersheds(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Process raw CA watersheds data.
+        """Process raw CA watersheds data.
 
         Parameters
         ----------
@@ -364,12 +362,12 @@ class Boundaries:
         -------
         pd.DataFrame
             Processed CA watersheds DataFrame sorted by name
+
         """
         return df.sort_values("Name")
 
     def _process_ca_utilities(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Process raw CA utilities data.
+        """Process raw CA utilities data.
 
         Parameters
         ----------
@@ -380,12 +378,12 @@ class Boundaries:
         -------
         pd.DataFrame
             Processed CA utilities DataFrame
+
         """
         return df  # No processing needed currently
 
     def _process_ca_forecast_zones(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Process CA forecast zones data - replace 'Other' with county names.
+        """Process CA forecast zones data - replace 'Other' with county names.
 
         Parameters
         ----------
@@ -396,14 +394,14 @@ class Boundaries:
         -------
         pd.DataFrame
             Processed CA forecast zones DataFrame with 'Other' names replaced
+
         """
         df = df.copy()
         df.loc[df["FZ_Name"] == "Other", "FZ_Name"] = df["FZ_Def"]
         return df
 
     def _process_ca_electric_balancing_areas(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Process CA electric balancing areas data - remove tiny CALISO polygon.
+        """Process CA electric balancing areas data - remove tiny CALISO polygon.
 
         The CALISO polygon has two options where one is super tiny with negligible area.
         This removes the tiny polygon and keeps only the large one.
@@ -417,6 +415,7 @@ class Boundaries:
         -------
         pd.DataFrame
             Processed DataFrame with tiny CALISO polygon removed
+
         """
         tiny_caliso = df.loc[
             (df["NAME"] == "CALISO") & (df["SHAPE_Area"] < CALISO_AREA_THRESHOLD)
@@ -424,26 +423,26 @@ class Boundaries:
         return df.drop(tiny_caliso)
 
     def _get_us_states(self) -> Dict[str, int]:
-        """
-        Get cached lookup dictionary for western US states.
+        """Get cached lookup dictionary for western US states.
 
         Returns
         -------
         Dict[str, int]
             Dictionary mapping state abbreviations to DataFrame indices
+
         """
         if "us_states" not in self._lookup_cache:
             self._lookup_cache["us_states"] = self._build_us_states_lookup()
         return self._lookup_cache["us_states"]
 
     def _build_us_states_lookup(self) -> Dict[str, int]:
-        """
-        Build lookup dictionary for western US states with custom ordering.
+        """Build lookup dictionary for western US states with custom ordering.
 
         Returns
         -------
         Dict[str, int]
             Dictionary mapping state abbreviations to DataFrame indices
+
         """
         us_states_subset = self._us_states.query("abbrevs in @WESTERN_STATES_LIST")[
             ["abbrevs"]
@@ -455,13 +454,13 @@ class Boundaries:
         return dict(zip(us_states_subset.abbrevs, us_states_subset.index))
 
     def _get_ca_counties(self) -> Dict[str, int]:
-        """
-        Get cached lookup dictionary for California counties.
+        """Get cached lookup dictionary for California counties.
 
         Returns
         -------
         Dict[str, int]
             Dictionary mapping county names to DataFrame indices
+
         """
         if "ca_counties" not in self._lookup_cache:
             self._lookup_cache["ca_counties"] = pd.Series(
@@ -470,13 +469,13 @@ class Boundaries:
         return self._lookup_cache["ca_counties"]
 
     def _get_ca_watersheds(self) -> Dict[str, int]:
-        """
-        Get cached lookup dictionary for California watersheds.
+        """Get cached lookup dictionary for California watersheds.
 
         Returns
         -------
         Dict[str, int]
             Dictionary mapping watershed names to DataFrame indices
+
         """
         if "ca_watersheds" not in self._lookup_cache:
             self._lookup_cache["ca_watersheds"] = pd.Series(
@@ -485,13 +484,13 @@ class Boundaries:
         return self._lookup_cache["ca_watersheds"]
 
     def _get_forecast_zones(self) -> Dict[str, int]:
-        """
-        Get cached lookup dictionary for CA electricity demand forecast zones.
+        """Get cached lookup dictionary for CA electricity demand forecast zones.
 
         Returns
         -------
         Dict[str, int]
             Dictionary mapping forecast zone names to DataFrame indices
+
         """
         if "forecast_zones" not in self._lookup_cache:
             self._lookup_cache["forecast_zones"] = pd.Series(
@@ -500,8 +499,7 @@ class Boundaries:
         return self._lookup_cache["forecast_zones"]
 
     def _get_ious_pous(self) -> Dict[str, int]:
-        """
-        Get cached lookup dictionary for CA electric load serving entities (IOUs & POUs).
+        """Get cached lookup dictionary for CA electric load serving entities (IOUs & POUs).
 
         Returns prioritized utilities first, then remaining utilities alphabetically.
 
@@ -509,19 +507,20 @@ class Boundaries:
         -------
         Dict[str, int]
             Dictionary mapping utility names to DataFrame indices
+
         """
         if "ious_pous" not in self._lookup_cache:
             self._lookup_cache["ious_pous"] = self._build_ious_pous_lookup()
         return self._lookup_cache["ious_pous"]
 
     def _build_ious_pous_lookup(self) -> Dict[str, int]:
-        """
-        Build lookup dictionary for CA electric utilities with custom ordering.
+        """Build lookup dictionary for CA electric utilities with custom ordering.
 
         Returns
         -------
         Dict[str, int]
             Dictionary mapping utility names to DataFrame indices
+
         """
         other_utilities = [
             utility
@@ -537,13 +536,13 @@ class Boundaries:
         return dict(zip(subset["Utility"], subset.index))
 
     def _get_electric_balancing_areas(self) -> Dict[str, int]:
-        """
-        Get cached lookup dictionary for CA electric balancing authority areas.
+        """Get cached lookup dictionary for CA electric balancing authority areas.
 
         Returns
         -------
         Dict[str, int]
             Dictionary mapping balancing area names to DataFrame indices
+
         """
         if "electric_balancing_areas" not in self._lookup_cache:
             self._lookup_cache["electric_balancing_areas"] = pd.Series(
@@ -553,8 +552,7 @@ class Boundaries:
         return self._lookup_cache["electric_balancing_areas"]
 
     def boundary_dict(self) -> Dict[str, Dict[str, int]]:
-        """
-        Return dictionary of all boundary lookup dictionaries for UI population.
+        """Return dictionary of all boundary lookup dictionaries for UI population.
 
         Creates a comprehensive dictionary of all available boundary datasets
         with their corresponding lookup dictionaries. This is primarily used
@@ -605,6 +603,7 @@ class Boundaries:
         - Western states follow ordering in WESTERN_STATES_LIST
         - Utilities are ordered with priority utilities first
         - All other boundaries are sorted alphabetically
+
         """
         return {
             "none": {"entire domain": 0},
@@ -618,8 +617,7 @@ class Boundaries:
         }
 
     def load(self) -> None:
-        """
-        Preload all boundary data (deprecated - data loads automatically when accessed).
+        """Preload all boundary data (deprecated - data loads automatically when accessed).
 
         This method is kept for backward compatibility. Data now loads automatically
         when first accessed through the property system.
@@ -629,6 +627,7 @@ class Boundaries:
         This method is deprecated as of version X.X.X. Use preload_all() instead
         for explicit preloading, or simply access data normally for automatic
         lazy loading.
+
         """
         warnings.warn(
             "The load() method is deprecated. Data now loads automatically when accessed. "
@@ -639,8 +638,7 @@ class Boundaries:
         self.preload_all()
 
     def preload_all(self) -> None:
-        """
-        Preload all boundary data for performance-critical scenarios.
+        """Preload all boundary data for performance-critical scenarios.
 
         Forces immediate loading of all boundary datasets and builds all
         lookup caches. This eliminates lazy loading delays for subsequent
@@ -675,6 +673,7 @@ class Boundaries:
         - Useful for batch processing or repeated boundary access
         - Data remains cached until clear_cache() is called
         - Memory usage can be monitored with get_memory_usage()
+
         """
         # Force loading of all properties
         _ = (
@@ -697,8 +696,7 @@ class Boundaries:
         )
 
     def clear_cache(self) -> None:
-        """
-        Clear all cached data and lookup dictionaries to free memory.
+        """Clear all cached data and lookup dictionaries to free memory.
 
         Removes all loaded boundary DataFrames and lookup dictionaries from
         memory, returning the Boundaries instance to its initial state. Data
@@ -729,6 +727,7 @@ class Boundaries:
         - Lookup dictionaries will be rebuilt as needed
         - Does not affect the underlying catalog or data sources
         - Memory savings are immediate and substantial for loaded datasets
+
         """
         # Clear raw DataFrames
         self.__us_states = None
@@ -742,8 +741,7 @@ class Boundaries:
         self._lookup_cache.clear()
 
     def get_memory_usage(self) -> Dict[str, Union[int, str]]:
-        """
-        Get detailed memory usage information for loaded boundary datasets.
+        """Get detailed memory usage information for loaded boundary datasets.
 
         Analyzes memory consumption of all loaded boundary DataFrames and
         provides both detailed per-dataset usage and summary statistics.
@@ -795,6 +793,7 @@ class Boundaries:
         - Unloaded datasets report 0 bytes usage
         - Lookup dictionary cache usage is counted separately
         - Total includes all loaded DataFrames but not lookup dictionaries
+
         """
         usage = {}
         total_bytes = 0
@@ -827,8 +826,7 @@ class Boundaries:
 
     @staticmethod
     def _format_bytes(bytes_value: int | float) -> str:
-        """
-        Convert bytes to human-readable format with appropriate units.
+        """Convert bytes to human-readable format with appropriate units.
 
         Parameters
         ----------
@@ -848,6 +846,7 @@ class Boundaries:
         '1.0 MB'
         >>> Boundaries._format_bytes(1536)
         '1.5 KB'
+
         """
         for unit in ["B", "KB", "MB", "GB"]:
             if bytes_value < 1024.0:

@@ -1,6 +1,4 @@
-"""
-UpdateAttributes Processor definition.
-"""
+"""UpdateAttributes Processor definition."""
 
 from typing import Any, Dict, Iterable, Union
 
@@ -56,20 +54,20 @@ common_attrs = {
 # second to last processor in the whole chain
 @register_processor("update_attributes", priority=9998)
 class UpdateAttributes(DataProcessor):
-    """
-    Update attributes of the data.
+    """Update attributes of the data.
 
     Adds new attributes to the data that describe the processing steps
+
     """
 
     def __init__(self, value: Any = UNSET):
-        """
-        Initialize the UpdateAttributes processor.
+        """Initialize the UpdateAttributes processor.
 
         Parameters
         ----------
         value : Any
             The value to update the attributes with.
+
         """
         self.value = value
         self.name = "update_attributes"
@@ -81,10 +79,10 @@ class UpdateAttributes(DataProcessor):
         ],
         context: Dict[str, Any],
     ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
-        """
-        Execute the UpdateAttributes processor.
+        """Execute the UpdateAttributes processor.
 
         This method updates the attributes of the data based on the provided value.
+
         """
         if self.name not in context:
             self.update_context(context)
@@ -112,8 +110,7 @@ class UpdateAttributes(DataProcessor):
         return result
 
     def update_context(self, context: Dict[str, Any]):
-        """
-        Update the context with information about the clipping operation, to be stored
+        """Update the context with information about the clipping operation, to be stored
                 in the "new_attrs" attribute.
 
         Parameters
@@ -124,6 +121,7 @@ class UpdateAttributes(DataProcessor):
         Note
         ----
         The context is updated in place. This method does not return anything.
+
         """
 
         if _NEW_ATTRS_KEY not in context:

@@ -1,24 +1,36 @@
-from climakitae.util.utils import get_closest_gridcells, stack_sims_across_locs
-from climakitae.core.data_load import load
+import numpy as np
 import xarray as xr
+from climakitae.util.utils import get_closest_gridcells
+from climakitae.core.data_interface import DataParameters
+from climakitae.core.data_load import load
 
 
-def batch_select(approach, selections, points, load_data=False, progress_bar=True):
-    """
-    Conducts batch mode analysis on a series of points for a given metric.
+def batch_select(
+    approach: str,
+    selections: DataParameters,
+    points: np.ndarray,
+    load_data: bool = False,
+    progress_bar: bool = True,
+) -> xr.DataArray:
+    """Conducts batch mode analysis on a series of points for a given metric.
 
     Parameters
     ----------
-    selections: `Select` object
+    approach : str
+    selections : DataParameters
         Selections object that describes the area of interest. The `area_subset` and `cached_area` attributes are automatically overwritten.
-    points: np.array
+    points : np.ndarray
         An array at lat/lon points to gather the specified data at.
-    load_data: Boolean
+    load_data : boolean
         A boolean that tells the function whether or not to load the data into memory.
+    progress_bar : boolean
+        A boolean that determines whether progress bar is displayed.
 
     Returns
     -------
-    cells_of_interest: xr.DataArray of the gridcells that the points lie within, aggregated together into one DataArray. It can or cannot be loaded into memory, depending on `load_data`.
+    cells_of_interest: xr.DataArray
+        Gridcells that the points lie within, aggregated together into one DataArray. It can or cannot be loaded into memory, depending on `load_data`.
+
     """
     print(f"Batch retrieving all {len(points)} points passed in...\n")
 
