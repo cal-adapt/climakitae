@@ -1348,8 +1348,22 @@ def clip_gpd_to_shapefile(
         crs="EPSG:3857", allow_override=True
     )
 
+    # Check CRS
+    if sub_gdf is None or shapefile.crs is None:
+        raise RuntimeError(
+            "Both input GeoDataFrame and shapefile must have a defined CRS."
+        )
+
+    if sub_gdf.crs != shapefile.crs:
+        shapefile.crs = shapefile.to_crs("EPSG:3857")
+
     # Subset for stations within area boundaries
     clipped = sub_gdf[sub_gdf.geometry.intersects(shapefile.unary_union)]
+
+    if clipped.empty:
+        raise RuntimeError(
+            "Clipping returned an empty GeoDataFrame; check geometries and CRS."
+        )
 
     # Useful information
     print(f"Number of stations within area: {len(clipped)}")
