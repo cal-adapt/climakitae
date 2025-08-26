@@ -703,7 +703,7 @@ def _get_return_variable(
     conf_int_upper_bound: float = 97.5,
     multiple_points: bool = True,
     extremes_type: str = "max",
-    dropna_time: bool = True,
+    dropna_time: bool = False,
 ) -> xr.Dataset:
     """Generic function used by `get_return_value`, `get_return_period`, and
     `get_return_prob`.
@@ -762,7 +762,8 @@ def _get_return_variable(
 
     if dropna_time:
         # Drop NaNs for years with missing data
-        # e.g. when an SSP has missing data at a warming leve
+        # e.g. when an SSP has missing data at a warming level
+        print("Dropping NaNs along time dimension.")
         bms = bms.dropna(dim="time", how="all")
 
     # get block_size from the block maxima series attributes, if available. otherwise assume block size=1 year
@@ -866,7 +867,7 @@ def get_return_value(
     conf_int_upper_bound: float = 97.5,
     multiple_points: bool = True,
     extremes_type: str = "max",
-    dropna_time: bool = True,
+    dropna_time: bool = False,
 ) -> xr.Dataset:
     """Creates xarray Dataset with return values and confidence intervals from maximum series.
 
@@ -919,7 +920,7 @@ def get_return_prob(
     conf_int_upper_bound: float = 97.5,
     multiple_points: bool = True,
     extremes_type: str = "max",
-    dropna_time: bool = True,
+    dropna_time: bool = False,
 ) -> xr.Dataset:
     """Creates xarray Dataset with return probabilities and confidence intervals from maximum series.
 
@@ -971,7 +972,7 @@ def get_return_period(
     conf_int_lower_bound: float = 2.5,
     conf_int_upper_bound: float = 97.5,
     multiple_points: bool = True,
-    dropna_time: bool = True,
+    dropna_time: bool = False,
 ) -> xr.Dataset:
     """Creates xarray Dataset with return periods and confidence intervals from maximum series.
 
