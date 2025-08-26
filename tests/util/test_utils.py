@@ -1590,40 +1590,41 @@ class TestConvertToLocalTime:
         """Test for clip_gdf_to_shapefile with geodataframe to shapefile."""
 
         # Mock geopandas df dataset to trim -- station list
-        data = {
-            "latitude": np.random.uniform(low=38.0, high=45.0, size=10),
-            "longitude": np.random.uniform(low=-125.0, high=-118.0, size=10),
-        }
-        df = pd.DataFrame(data)
+        df = pd.DataFrame(
+            {
+                "latitude": [38.5, 39.0, 40.0, 41.5],
+                "longitude": [-121.5, -121.2, 120.5, -119.9],
+            }
+        )
         df["geometry"] = [Point(xy) for xy in zip(df["longitude"], df["latitude"])]
         gdf = gpd.GeoDataFrame(df, geometry="geometry", crs="EPSG:4326")
 
         # Define clipping polygon
         clip_poly = gpd.GeoDataFrame(
-            geometry=[box(-121.6, 38.3, -120.0, 43)],
+            geometry=[box(-121.6, 38.3, -120.0, 42)],
             crs="EPSG:4326",
         )
 
         # This should clip succesfully
-        with patch("gpd.read_file", return_value=clip_poly):
-            result = clip_gpd_to_shapefile(gdf, "not_a_file.shp")
+        with patch("geopandas.read_file", return_value=clip_poly):
+            result = clip_gpd_to_shapefile(gdf, "not_a_shpfile.shp")
 
-        assert result["latitude"].min() == pytest.approx(38.3, 1e-6)
-        assert result["latitude"].max() == pytest.approx(41.5, 1e-6)
-        assert result["longitude"].min() == pytest.approx(-121.6, 1e-6)
-        assert result["longitude"].max() == pytest.approx(-120.0, 1e-6)
+        assert not result.empty
+        assert result["latitude"].min() >= 38.3
+        assert result["latitude"].max() <= 42.0
+        assert result["longitude"].min() >= -121.6
+        assert result["longitude"].max() <= -120.0
 
         # Input data lacks CRS
-        with pytest.raises(RuntimeError):
-            with patch("gpd.read_file", return_value=clip_poly):
-                result = clip_gpd_to_shapefile(
-                    gpd.GeoDataFrame(geometry=[]), "not_a_file.shp"
-                )
+        gdf_none = gpd.GeoDataFrame(df, geometry="geometry", crs=None)
+        with patch("geopandas.read_file", return_value=clip_poly):
+            with pytest.raises(RuntimeError, match="Missing CRS"):
+                result = clip_gpd_to_shapefile(gdf_none, "not_a_shpfile.shp")
 
         # "Shapefile" lacks CRS
-        gdf_none = gpd.GeoDataFrame(
+        clip_poly_none = gpd.GeoDataFrame(
             geometry=[box(-121.6, 38.3, -120.0, 42.0)], crs=None
         )
-        with patch("gpd.read_file", return_value=gdf_none):
-            with pytest.raises(RuntimeError):
-                result = clip_gpd_to_shapefile(gdf, "not_a_file.shp")
+        with patch("geopandas.read_file", return_value=clip_poly_none):
+            with pytest.raises(RuntimeError, match="Missing CRS"):
+                result = clip_gpd_to_shapefile(gdf, "not_a_shpfile.shp")
