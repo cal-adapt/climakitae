@@ -1603,6 +1603,7 @@ class TestConvertToLocalTime:
         clip_poly = gpd.GeoDataFrame(
             geometry=[box(-121.6, 38.3, -120.0, 42)],
             crs="EPSG:4326",
+            allow_override=True,
         )
 
         # This should clip succesfully

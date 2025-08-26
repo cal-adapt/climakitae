@@ -1344,7 +1344,9 @@ def clip_gpd_to_shapefile(
     ]
 
     # Adds coordinates
-    sub_gdf = gpd.GeoDataFrame(gdf, geometry=geom).set_crs(crs="EPSG:3857")
+    sub_gdf = gpd.GeoDataFrame(gdf, geometry=geom).set_crs(
+        crs="EPSG:3857", allow_override=True
+    )
 
     # Subset for stations within area boundaries
     sub_gdf = gpd.overlay(sub_gdf, shapefile, how="intersection")
