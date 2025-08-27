@@ -41,7 +41,7 @@ class TestDatasetWithCatalogMethod:
 
         dataset = Dataset()
 
-        dataset.with_catalog(mock_data_catalog)
+        dataset.with_catalog(mock_catalog_instance)
         print(dataset.data_access)
 
-        assert dataset is mock_data_catalog
+        assert dataset is mock_catalog_instance
