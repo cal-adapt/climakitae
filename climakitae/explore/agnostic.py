@@ -35,6 +35,7 @@ def create_lookup_tables():
         warming levels to their occurence times for each GCM simulation we
         catalog, and "warming level lookup table" which contains yearly warming
         levels for those simulations.
+
     """
     # Find the names of all the GCMs that we catalog
     data_interface = DataInterface()
@@ -207,9 +208,9 @@ def _create_cached_area_select(
 
 
 def _compute_results(selections, agg_func, years, months):
-    """
-    Retrieves selections object data from all SSP 2-4.5, 3-7.0, 5-8.5 pathways, aggregates the simulations together,
+    """Retrieves selections object data from all SSP 2-4.5, 3-7.0, 5-8.5 pathways, aggregates the simulations together,
     and computes the passed in metric on all the simulations.
+
     """
     # Aggregating all simulations across all SSP pathways
     all_data = []
@@ -274,10 +275,10 @@ def _compute_results(selections, agg_func, years, months):
 
 
 def _split_stats(sims, data):
-    """
-    Takes calculated simulations and creates different dictionaries to describe statistics about the simulations
+    """Takes calculated simulations and creates different dictionaries to describe statistics about the simulations
     Ex. single model compute = min, q1, median, q3, max
     multi-model = middle 10%
+
     """
     single_model_names = {
         "min": sims[sims.argmin()].simulation.item(),
@@ -319,9 +320,7 @@ def _split_stats(sims, data):
 
 
 def _compute_selections_and_stats(selections, agg_func, years, months):
-    """
-    Aggregates the selections data across SSPs and computes statistics from the results
-    """
+    """Aggregates the selections data across SSPs and computes statistics from the results"""
     # Compute results on selections object
     results, data = _compute_results(selections, agg_func, years, months)
 
@@ -417,33 +416,33 @@ def agg_lat_lon_sims(
     months=list(range(1, 13)),
     wrf_timescale="monthly",
 ):
-    """
-    Gets aggregated WRF or LOCA simulation data for a lat/lon coordinate or lat/lon range for a given metric and timeframe (years, months).
+    """Gets aggregated WRF or LOCA simulation data for a lat/lon coordinate or lat/lon range for a given metric and timeframe (years, months).
     It combines all selected simulation data that is filtered by lat/lon, years, and specific months across SSP pathways
     and runs the passed in metric on all of the data. The results are then returned in ascending order,
     along with dictionaries mapping specific statistic names to the simulation objects themselves.
 
     Parameters
     ----------
-    lat: float
+    lat : float
         Latitude for specific location of interest.
-    lon: float
+    lon : float
         Longitude for specific location of interest.
-    agg_func: str
+    agg_func : str
         The function to aggregate the simulations by.
-    years: tuple
+    years : tuple
         The lower and upper year bounds (inclusive) to subset simulation data by.
-    months: list, optional
+    months : list, optional
         Specific months of interest. The default is all months.
 
     Returns
     -------
-    single_stats: dict of str: xr.DataArray
+    single_stats : dict of str: xr.DataArray
         Dictionary mapping string names of statistics to single simulation xr.DataArray objects.
-    multiple_stats: dict of str: xr.DataArray
+    multiple_stats : dict of str: xr.DataArray
         Dictionary mapping string names of statistics to multiple simulations xr.DataArray objects.
-    results: xr.DataArray
+    results : xr.DataArray
         Aggregated results of running the given aggregation function on the lat/lon gridcell of interest. Results are also sorted in ascending order.
+
     """
     # Validating if inputs are correct (lat/lon is appropriate types and variable is available for selected downscaling method)
     logger.debug("Validating inputs")
@@ -470,8 +469,7 @@ def agg_area_subset_sims(
     months=list(range(1, 13)),
     wrf_timescale="monthly",
 ):
-    """
-    This function combines all available WRF or LOCA simulation data that is filtered on the `area_subset` (a string
+    """This function combines all available WRF or LOCA simulation data that is filtered on the `area_subset` (a string
     from existing keys in Boundaries.boundary_dict()) and on one of the areas of the values in that
     `area_subset` (`cached_area`). It then extracts this data across all SSP pathways for specific years/months,
     and runs the passed in `agg_func` on all of this data. The results are then returned in 3 values, the first
@@ -481,25 +479,26 @@ def agg_area_subset_sims(
 
     Parameters
     ----------
-    area_subset: str
+    area_subset : str
         Describes the category of the boundaries of interest (i.e. "CA Electric Load Serving Entities (IOU & POU)")
-    cached_area: str
+    cached_area : str
         Describes the specific area of interest (i.e. "Southern California Edison")
-    agg_func: str
+    agg_func : str
         The metric to aggregate the simulations by.
-    years: tuple
+    years : tuple
         The lower and upper year bounds (inclusive) to extract simulation data by.
-    months: list, optional
+    months : list, optional
         Specific months of interest. The default is all months.
 
     Returns
     -------
-    single_stats: dict of str: xr.DataArray
+    single_stats : dict of str: xr.DataArray
         Dictionary mapping string names of statistics to single simulation xr.DataArray objects.
-    multiple_stats: dict of str: xr.DataArray
+    multiple_stats : dict of str: xr.DataArray
         Dictionary mapping string names of statistics to multiple simulations xr.DataArray objects.
-    results: xr.DataArray
+    results : xr.DataArray
         Aggregated results of running the given aggregation function on the lat/lon gridcell of interest. Results are also sorted in ascending order.
+
     """
     # Validating if variable is available for the given downscaling method
     _validate_inputs(years, variable, downscaling_method, units, wrf_timescale)

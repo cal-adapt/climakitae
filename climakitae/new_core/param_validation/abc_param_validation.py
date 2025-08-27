@@ -1,5 +1,4 @@
-"""
-Parameter validation module for climakitae.
+"""Parameter validation module for climakitae.
 
 This module provides a comprehensive framework for validating query parameters
 used throughout the climakitae package. It includes:
@@ -40,6 +39,7 @@ Examples
 ...     def is_valid_query(self, query):
 ...         # Implementation here
 ...         pass
+
 """
 
 import warnings
@@ -58,8 +58,7 @@ _PROCESSOR_VALIDATOR_REGISTRY = {}
 
 
 def register_catalog_validator(name: str):
-    """
-    Decorator to register a catalog validator class in the global registry.
+    """Decorator to register a catalog validator class in the global registry.
 
     This decorator allows validator classes to be registered for use with
     specific catalog types. Registered validators can be retrieved and
@@ -91,6 +90,7 @@ def register_catalog_validator(name: str):
     -----
     The registered class is stored in the module-level
     `_CATALOG_VALIDATOR_REGISTRY` dictionary.
+
     """
 
     def decorator(cls):
@@ -101,8 +101,7 @@ def register_catalog_validator(name: str):
 
 
 def register_processor_validator(name: str):
-    """
-    Decorator to register a processor validator function in the global registry.
+    """Decorator to register a processor validator function in the global registry.
 
     This decorator allows processor validation functions to be registered for
     use with specific processing parameters. Registered validators can be
@@ -136,6 +135,7 @@ def register_processor_validator(name: str):
       `_PROCESSOR_VALIDATOR_REGISTRY` dictionary
     - Processor validators should accept `value` and optional `query` parameters
     - Validators may modify the query in-place for parameter normalization
+
     """
 
     def decorator(cls):
@@ -146,8 +146,7 @@ def register_processor_validator(name: str):
 
 
 class ParameterValidator(ABC):
-    """
-    Abstract base class for parameter validation in climakitae.
+    """Abstract base class for parameter validation in climakitae.
 
     This class provides a framework for validating user queries containing
     dataset selection parameters and processing parameters. It handles:
@@ -194,11 +193,11 @@ class ParameterValidator(ABC):
     ...     def is_valid_query(self, query):
     ...         # Custom validation logic
     ...         return self._is_valid_query(query)
+
     """
 
     def __init__(self):
-        """
-        Initialize the ParameterValidator.
+        """Initialize the ParameterValidator.
 
         Sets up the validator with default catalog path and initializes
         catalog-related attributes. Loads the catalog DataFrame upon instantiation.
@@ -208,6 +207,7 @@ class ParameterValidator(ABC):
         - catalog: Set to UNSET initially, populated by subclasses
         - all_catalog_keys: Set to UNSET initially, populated during validation
         - catalog_df: Loaded from DataCatalog
+
         """
         self.catalog_path = "climakitae/data/catalogs.csv"
         self.catalog = UNSET
@@ -216,8 +216,7 @@ class ParameterValidator(ABC):
 
     @abstractmethod
     def is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
-        """
-        Validate the query parameters (abstract method).
+        """Validate the query parameters (abstract method).
 
         This method must be implemented by subclasses to define specific
         validation logic for their use case. It should validate both
@@ -250,11 +249,11 @@ class ParameterValidator(ABC):
         ...     processed_query = self.preprocess_query(query)
         ...     # Use base class validation
         ...     return self._is_valid_query(processed_query)
+
         """
 
     def _is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
-        """
-        Internal method to validate query parameters and provide user feedback.
+        """Internal method to validate query parameters and provide user feedback.
 
         This method performs the core validation logic:
         1. Converts user query to catalog keys
@@ -292,6 +291,7 @@ class ParameterValidator(ABC):
         - experiment_id parameters (which can be lists)
         - Parameter conflicts between dataset attributes
         - Missing or invalid catalog keys
+
         """
         # convert user input to keys
         self.populate_catalog_keys(query)
@@ -396,8 +396,7 @@ class ParameterValidator(ABC):
         return None
 
     def _has_valid_processes(self, query: Dict[str, Any]) -> bool:
-        """
-        Validate processor parameters using registered processor validators.
+        """Validate processor parameters using registered processor validators.
 
         This method loops through processing parameters in the query and validates
         each one using registered processor validators. If a processor is not
@@ -425,6 +424,7 @@ class ParameterValidator(ABC):
         See Also
         --------
         register_processor_validator : Decorator for registering processor validators
+
         """
 
         # loop through keys in query['processes']
@@ -451,8 +451,7 @@ class ParameterValidator(ABC):
         return True
 
     def populate_catalog_keys(self, query: Dict[str, Any]) -> None:
-        """
-        Populate catalog keys from user query, filtering out unset values.
+        """Populate catalog keys from user query, filtering out unset values.
 
         This method extracts relevant catalog parameters from the user query
         and stores them in `self.all_catalog_keys`. Only parameters that are
@@ -479,6 +478,7 @@ class ParameterValidator(ABC):
         Side Effects
         ------------
         Modifies `self.all_catalog_keys` attribute.
+
         """
         # populate catalog keys with the values from the query
         for key in self.all_catalog_keys.keys():
@@ -490,8 +490,7 @@ class ParameterValidator(ABC):
         }
 
     def load_catalog_df(self):
-        """
-        Load the data catalog DataFrame and assign to instance attribute.
+        """Load the data catalog DataFrame and assign to instance attribute.
 
         Creates a DataCatalog instance and extracts its catalog DataFrame
         for use in parameter validation. The DataFrame contains metadata
@@ -510,5 +509,6 @@ class ParameterValidator(ABC):
         Side Effects
         ------------
         Sets `self.catalog_df` attribute with the loaded catalog DataFrame.
+
         """
         self.catalog_df = DataCatalog().catalog_df

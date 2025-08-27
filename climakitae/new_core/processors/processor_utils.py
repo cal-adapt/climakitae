@@ -1,6 +1,4 @@
-"""
-Utility functions for processing data arrays in climakitae.
-"""
+"""Utility functions for processing data arrays in climakitae."""
 
 import re
 import warnings
@@ -51,8 +49,7 @@ def _get_block_maxima_optimized(
     chunk_spatial: bool = True,
     max_memory_gb: float = 2.0,
 ) -> xr.DataArray:
-    """
-    Optimized, vectorized, and Dask-compatible version of get_block_maxima.
+    """Optimized, vectorized, and Dask-compatible version of get_block_maxima.
 
     This function converts data into block maximums, defaulting to annual maximums
     (default block size = 1 year). Optimized for large datasets and Dask arrays with
@@ -60,31 +57,32 @@ def _get_block_maxima_optimized(
 
     Parameters
     ----------
-    da_series: xarray.DataArray
+    da_series : xarray.DataArray
         DataArray from retrieve
-    extremes_type: str
+    extremes_type : str
         option for max or min. Defaults to max
-    duration: tuple
+    duration : tuple
         length of extreme event, specified as (4, 'hour')
-    groupby: tuple
+    groupby : tuple
         group over which to look for max occurrence, specified as (1, 'day')
-    grouped_duration: tuple
+    grouped_duration : tuple
         length of event after grouping, specified as (5, 'day')
-    check_ess: bool
+    check_ess : bool
         optional flag specifying whether to check the effective sample size (ESS)
         within the blocks of data, and throw a warning if the average ESS is too small.
         can be silenced with check_ess=False.
-    block_size: int
+    block_size : int
         block size in years. default is 1 year.
-    chunk_spatial: bool
+    chunk_spatial : bool
         whether to rechunk spatial dimensions for optimal performance
-    max_memory_gb: float
+    max_memory_gb : float
         maximum memory to use for computation in GB
 
     Returns
     -------
     xarray.DataArray
         Block maxima with optimized processing
+
     """
     # Validate inputs
     valid_extremes = ["max", "min"]
@@ -138,8 +136,7 @@ def _get_block_maxima_optimized(
 def _optimize_chunking_for_block_maxima(
     da: xr.DataArray, max_memory_gb: float, chunk_spatial: bool = True
 ) -> xr.DataArray:
-    """
-    Optimize chunking for block maxima calculation with Dask arrays.
+    """Optimize chunking for block maxima calculation with Dask arrays.
 
     This function optimizes the chunk sizes for efficient block maxima computation,
     balancing memory usage with computational performance. For temporal operations,
@@ -164,6 +161,7 @@ def _optimize_chunking_for_block_maxima(
     For non-Dask arrays, the original array is returned unchanged.
     The function calculates optimal chunk sizes based on memory constraints
     and the structure of temporal vs spatial dimensions.
+
     """
     if not hasattr(da.data, "chunks"):
         return da
@@ -198,8 +196,7 @@ def _optimize_chunking_for_block_maxima(
 def _apply_duration_filter_vectorized(
     da: xr.DataArray, duration: tuple[int, str], extremes_type: str
 ) -> xr.DataArray:
-    """
-    Apply duration filter using vectorized rolling operations.
+    """Apply duration filter using vectorized rolling operations.
 
     This function applies a duration-based filter to identify extreme events
     that persist for a specified duration. Currently only supports hourly
@@ -230,6 +227,7 @@ def _apply_duration_filter_vectorized(
     For maximum extremes, the function applies a rolling minimum to identify
     events where values remain above a threshold for the specified duration.
     For minimum extremes, the logic is reversed.
+
     """
     dur_len, dur_type = duration
 
@@ -250,8 +248,7 @@ def _apply_duration_filter_vectorized(
 def _apply_groupby_filter_vectorized(
     da: xr.DataArray, groupby: tuple[int, str], extremes_type: str
 ) -> xr.DataArray:
-    """
-    Apply groupby filter using efficient resampling.
+    """Apply groupby filter using efficient resampling.
 
     This function groups data over specified time periods and extracts
     extremes within each group. Currently only supports day-based groupings.
@@ -278,6 +275,7 @@ def _apply_groupby_filter_vectorized(
     Notes
     -----
     Uses pandas resampling with 'left' labeling for consistent time indexing.
+
     """
     group_len, group_type = groupby
 
@@ -301,8 +299,7 @@ def _apply_groupby_filter_vectorized(
 def _apply_grouped_duration_filter_vectorized(
     da: xr.DataArray, grouped_duration: tuple[int, str], extremes_type: str
 ) -> xr.DataArray:
-    """
-    Apply grouped duration filter using vectorized operations.
+    """Apply grouped duration filter using vectorized operations.
 
     This function applies a duration filter after groupby operations to identify
     events that persist for a specified duration within grouped periods.
@@ -331,6 +328,7 @@ def _apply_grouped_duration_filter_vectorized(
     -----
     This filter is typically applied after groupby operations to further
     refine the identification of persistent extreme events.
+
     """
     dur2_len, dur2_type = grouped_duration
 
@@ -351,8 +349,7 @@ def _apply_grouped_duration_filter_vectorized(
 def _extract_block_extremes_vectorized(
     da: xr.DataArray, extremes_type: str, block_size: int
 ) -> xr.DataArray:
-    """
-    Extract block extremes using optimized resampling.
+    """Extract block extremes using optimized resampling.
 
     This function extracts extreme values (maxima or minima) from blocks
     of data, typically annual blocks, using efficient pandas resampling.
@@ -380,6 +377,7 @@ def _extract_block_extremes_vectorized(
     -----
     Uses year-end resampling ('YE') to ensure consistent block boundaries.
     Preserves original attributes and adds extremes type information.
+
     """
     resample_rule = f"{block_size}YE"
     resampler = da.resample(time=resample_rule)
@@ -397,8 +395,7 @@ def _extract_block_extremes_vectorized(
 
 
 def _check_effective_sample_size_optimized(da: xr.DataArray, block_size: int) -> None:
-    """
-    Optimized effective sample size calculation for large datasets.
+    """Optimized effective sample size calculation for large datasets.
 
     This function calculates the effective sample size (ESS) to assess
     the statistical independence of data points within blocks. ESS accounts
@@ -423,6 +420,7 @@ def _check_effective_sample_size_optimized(da: xr.DataArray, block_size: int) ->
     The function handles both gridded (x, y, time) and timeseries (time) data.
     For gridded data, spatial sampling is used to estimate representative ESS.
     A warning is issued if ESS falls below the minimum threshold.
+
     """
     try:
         if "x" in da.dims and "y" in da.dims:
@@ -450,8 +448,7 @@ def _check_effective_sample_size_optimized(da: xr.DataArray, block_size: int) ->
 
 
 def _calc_average_ess_gridded_optimized(data: xr.DataArray, block_size: int) -> float:
-    """
-    Optimized ESS calculation for gridded data using vectorized operations.
+    """Optimized ESS calculation for gridded data using vectorized operations.
 
     This function calculates the effective sample size for gridded datasets
     by sampling spatial locations and computing ESS for each time series.
@@ -476,6 +473,7 @@ def _calc_average_ess_gridded_optimized(data: xr.DataArray, block_size: int) -> 
     for autocorrelation approximation. For smaller datasets, uses exact
     calculation. Spatial sampling strategy differs between Dask and
     in-memory arrays for optimal performance.
+
     """
     try:
         # Use xarray's efficient groupby operations
@@ -575,8 +573,7 @@ def _calc_average_ess_gridded_optimized(data: xr.DataArray, block_size: int) -> 
 def _calc_average_ess_timeseries_optimized(
     data: xr.DataArray, block_size: int
 ) -> float:
-    """
-    Optimized ESS calculation for timeseries data.
+    """Optimized ESS calculation for timeseries data.
 
     This function calculates the effective sample size for timeseries data
     by processing temporal blocks and computing autocorrelation-adjusted ESS.
@@ -600,6 +597,7 @@ def _calc_average_ess_timeseries_optimized(
     For large time series (>500 time points), uses logarithmic lag sampling
     for autocorrelation approximation. For smaller time series, uses exact
     calculation from the threshold_tools module.
+
     """
     try:
         # Use efficient resampling for block-wise ESS calculation
@@ -651,8 +649,7 @@ def _set_block_maxima_attributes(
     extremes_type: str,
     block_size: int,
 ) -> xr.DataArray:
-    """
-    Set attributes efficiently for block maxima DataArray.
+    """Set attributes efficiently for block maxima DataArray.
 
     This function adds comprehensive metadata attributes to the block maxima
     DataArray to document the processing parameters and methods used.
@@ -681,6 +678,7 @@ def _set_block_maxima_attributes(
     -----
     Attributes include processing parameters and method documentation
     for reproducibility and data provenance tracking.
+
     """
     attrs = {
         "duration": duration,
@@ -694,8 +692,7 @@ def _set_block_maxima_attributes(
 
 
 def _handle_nan_values_optimized(bms: xr.DataArray) -> xr.DataArray:
-    """
-    Handle NaN values efficiently using vectorized operations.
+    """Handle NaN values efficiently using vectorized operations.
 
     This function processes NaN values in block maxima DataArrays by checking
     for completely empty datasets and dropping time steps with NaN values.
@@ -722,6 +719,7 @@ def _handle_nan_values_optimized(bms: xr.DataArray) -> xr.DataArray:
     For Dask arrays, the null count computation is optimized using
     the compute() method. The function provides user feedback about
     the number of dropped time steps for transparency.
+
     """
     if not bms.isnull().any():
         return bms
@@ -754,8 +752,7 @@ def _handle_nan_values_optimized(bms: xr.DataArray) -> xr.DataArray:
 def extend_time_domain(
     result: Dict[str, Union[xr.Dataset, xr.DataArray]],
 ) -> Union[xr.Dataset, xr.DataArray]:
-    """
-    Extend the time domain of the input data to cover 1980-2100.
+    """Extend the time domain of the input data to cover 1980-2100.
 
     This method ensures that all SSP scenarios have historical data
     included in the time series, allowing for proper warming level calculations.
@@ -777,6 +774,7 @@ def extend_time_domain(
     Notes
     -----
     - By construction, this function will drop reanalysis data.
+
     """
     ret = {}
 

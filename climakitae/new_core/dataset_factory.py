@@ -30,6 +30,7 @@ Notes
 This module follows the factory design pattern to encapsulate the complex logic
 of creating appropriate combinations of data access, validation, and processing
 components based on user queries from the ClimateData UI.
+
 """
 
 from __future__ import annotations
@@ -51,8 +52,7 @@ from climakitae.new_core.processors.abc_data_processor import _PROCESSOR_REGISTR
 
 
 class DatasetFactory:
-    """
-    Factory for creating Dataset objects with appropriate catalogs, validators, and processors.
+    """Factory for creating Dataset objects with appropriate catalogs, validators, and processors.
 
     This factory translates UI queries from the ClimateData interface into fully
     configured Dataset objects with the correct combination of data catalogs for
@@ -126,11 +126,11 @@ class DatasetFactory:
     DataCatalog : Data access abstraction
     ParameterValidator : Base class for parameter validation
     DataProcessor : Base class for data processing steps
+
     """
 
     def __init__(self):
-        """
-        Initialize the DatasetFactory.
+        """Initialize the DatasetFactory.
 
         Parameters
         ----------
@@ -144,6 +144,7 @@ class DatasetFactory:
             If the catalog file cannot be found at the specified path.
         RuntimeError
             If the catalog file cannot be loaded or parsed.
+
         """
         self._catalog = None
         self._catalog_df = DataCatalog().catalog_df
@@ -151,8 +152,7 @@ class DatasetFactory:
         self._processing_step_registry = _PROCESSOR_REGISTRY
 
     def create_dataset(self, ui_query: Dict[str, Any]) -> Dataset:
-        """
-        Create a Dataset based on a UI query from ClimateData.
+        """Create a Dataset based on a UI query from ClimateData.
 
         This method orchestrates the creation of a complete Dataset by:
         1. Determining the appropriate catalog based on query parameters
@@ -192,6 +192,7 @@ class DatasetFactory:
         --------
         Dataset : The returned dataset class
         create_validator : Method for creating parameter validators
+
         """
         dataset = Dataset()
 
@@ -217,8 +218,7 @@ class DatasetFactory:
     def _get_list_of_processing_steps(
         self, query: Dict[str, Any]
     ) -> List[tuple[str, Any]]:
-        """
-        Get a list of processing steps based on query parameters.
+        """Get a list of processing steps based on query parameters.
 
         This method determines the complete set of processing steps required
         for a query by examining explicit user requests, implicit requirements
@@ -254,6 +254,7 @@ class DatasetFactory:
         See Also
         --------
         _PROCESSOR_REGISTRY : Global registry of available processors
+
         """
         processing_steps = []
         priorities = []
@@ -324,8 +325,7 @@ class DatasetFactory:
         return processing_steps
 
     def register_catalog(self, key: str, catalog: DataCatalog):
-        """
-        Register a data catalog with the factory.
+        """Register a data catalog with the factory.
 
         Parameters
         ----------
@@ -351,12 +351,12 @@ class DatasetFactory:
         See Also
         --------
         DataCatalog : Base catalog class
+
         """
         self._catalog[key] = catalog
 
     def register_validator(self, key: str, validator_class: Type[ParameterValidator]):
-        """
-        Register a parameter validator with the factory.
+        """Register a parameter validator with the factory.
 
         Parameters
         ----------
@@ -364,12 +364,12 @@ class DatasetFactory:
             Identifier for the validator (approach, data_type combination)
         validator_class : Type[ParameterValidator]
             Validator class to register
+
         """
         self._validator_registry[key] = validator_class
 
     def register_processing_step(self, step_type: str, step_class):
-        """
-        Register a processing step with the factory.
+        """Register a processing step with the factory.
 
         Parameters
         ----------
@@ -377,12 +377,12 @@ class DatasetFactory:
             Identifier for the processing step
         step_class : class
             Processing step class to register
+
         """
         self._processing_step_registry[step_type] = step_class
 
     def create_validator(self, val_reg_key: str) -> ParameterValidator:
-        """
-        Create a parameter validator based on data_type and approach.
+        """Create a parameter validator based on data_type and approach.
 
         Parameters
         ----------
@@ -398,6 +398,7 @@ class DatasetFactory:
         ------
         ValueError
             If no validator is registered for the given combination
+
         """
         if val_reg_key in self._validator_registry:
             return self._validator_registry[val_reg_key](self._catalog)
@@ -431,8 +432,7 @@ class DatasetFactory:
                 return None  # type: ignore[return-value]
 
     def _get_catalog_key_from_query(self, query: Dict[str, Any]) -> str:
-        """
-        Get the appropriate catalog for the query.
+        """Get the appropriate catalog for the query.
 
         Parameters
         ----------
@@ -475,8 +475,7 @@ class DatasetFactory:
     def get_catalog_options(
         self, key: str, query: dict[str, Any] | object = UNSET
     ) -> List[str]:
-        """
-        Get available options for a specific catalog.
+        """Get available options for a specific catalog.
 
         Parameters
         ----------
@@ -491,6 +490,7 @@ class DatasetFactory:
         -------
         List[str]
             List of available options for the specified catalog.
+
         """
         if key not in self._catalog_df.columns:
             raise ValueError(f"Catalog key '{key}' not found.")
@@ -526,41 +526,40 @@ class DatasetFactory:
         return sorted(list(filtered_df[key].dropna().unique()))
 
     def get_validators(self) -> List[str]:
-        """
-        Get a list of available validators.
+        """Get a list of available validators.
 
         Returns
         -------
         List[str]
             List of available validators.
+
         """
         return sorted(list(self._validator_registry.keys()))
 
     def get_processors(self) -> List[str]:
-        """
-        Get a list of available processors.
+        """Get a list of available processors.
 
         Returns
         -------
         List[str]
             List of available processors.
+
         """
         return sorted(list(self._processing_step_registry.keys()))
 
     def get_stations(self) -> List[str]:
-        """
-        Get a list of available station datasets.
+        """Get a list of available station datasets.
 
         Returns
         -------
         List[str]
             List of available station datasets.
+
         """
         return DataCatalog()["stations"]["station"].unique().tolist()
 
     def get_boundaries(self, boundary_type: str) -> List[str]:
-        """
-        Get a list of available boundary datasets.
+        """Get a list of available boundary datasets.
 
         Parameters
         ----------
@@ -573,6 +572,7 @@ class DatasetFactory:
         List[str]
             List of available boundary datasets for the specified type, or
             all available boundary types if the specified type is not found.
+
         """
         if boundary_type not in DataCatalog().boundaries._lookup_cache:
             return list(DataCatalog().boundaries._lookup_cache.keys())
@@ -580,10 +580,10 @@ class DatasetFactory:
             return list(DataCatalog().boundaries._lookup_cache[boundary_type].keys())
 
     def reset(self):
-        """
-        Reset the factory state, clearing all registered catalogs, validators, and processors.
+        """Reset the factory state, clearing all registered catalogs, validators, and processors.
 
         This method is useful for reinitializing the factory without creating a new instance.
+
         """
         self._validator_registry = _CATALOG_VALIDATOR_REGISTRY
         self._processing_step_registry = _PROCESSOR_REGISTRY
