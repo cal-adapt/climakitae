@@ -6,6 +6,11 @@ provides the core Dataset class that implements a flexible, pipeline-based
 approach for climate data processing.
 """
 
+from unittest.mock import MagicMock, patch
+
+import pandas as pd
+import pytest
+
 from climakitae.new_core.dataset import Dataset
 
 
@@ -20,3 +25,25 @@ class TestDatasetInit:
         assert hasattr(dataset, "data_access")
         assert hasattr(dataset, "parameter_validator")
         assert hasattr(dataset, "processing_pipeline")
+
+
+class TestDatasetWithCatalogMethod:
+    """Test class for with_catalog method."""
+
+    @patch("climakitae.new_core.dataset_factory.DataCatalog")
+    def test_with_catalog_successful(self, mock_data_catalog):
+        """Test successful with_catalog set."""
+        mock_catalog_instance = MagicMock()
+        mock_catalog_instance.catalog_df = pd.DataFrame(
+            {
+                "catalog": ["test_catalog", "another_catalog"],
+                "variable_id": ["var1", "var2"],
+            }
+        )
+        mock_data_catalog.return_value = mock_catalog_instance
+
+        dataset = Dataset()
+
+        dataset.with_catalog(mock_data_catalog)
+
+        assert dataset.data_access is mock_data_catalog
