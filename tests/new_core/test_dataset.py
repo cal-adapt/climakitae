@@ -30,7 +30,7 @@ class TestDatasetInit:
 class TestDatasetWithCatalogMethod:
     """Test class for with_catalog method."""
 
-    def test_with_catalog_successful(self, mock_data_catalog):
+    def test_with_catalog_successful(self):
         """Test successful with_catalog set."""
 
         data_catalog = DataCatalog()
