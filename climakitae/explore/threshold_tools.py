@@ -703,6 +703,7 @@ def _get_return_variable(
     conf_int_upper_bound: float = 97.5,
     multiple_points: bool = True,
     extremes_type: str = "max",
+    dropna_time: bool = False,
 ) -> xr.Dataset:
     """Generic function used by `get_return_value`, `get_return_period`, and
     `get_return_prob`.
@@ -732,6 +733,8 @@ def _get_return_variable(
         Confidence interval upper bound
     multiple_points : boolean
         Whether or not the data contains multiple points (has x, y dimensions)
+    dropna_time: boolean
+        Whether to drop NaNs along the time axis
 
     Returns
     -------
@@ -756,6 +759,12 @@ def _get_return_variable(
             .squeeze()
             .groupby("allpoints")
         )
+
+    if dropna_time:
+        # Drop NaNs for years with missing data
+        # e.g. when an SSP has missing data at a warming level
+        print("Dropping NaNs along time dimension.")
+        bms = bms.dropna(dim="time", how="all")
 
     # get block_size from the block maxima series attributes, if available. otherwise assume block size=1 year
     if hasattr(bms, "block size"):
@@ -789,6 +798,7 @@ def _get_return_variable(
             block_size=block_size,
             extremes_type=extremes_type,
         )
+
         return (
             np.array([return_variable]),
             np.array([conf_int_lower_limit]),
@@ -857,6 +867,7 @@ def get_return_value(
     conf_int_upper_bound: float = 97.5,
     multiple_points: bool = True,
     extremes_type: str = "max",
+    dropna_time: bool = False,
 ) -> xr.Dataset:
     """Creates xarray Dataset with return values and confidence intervals from maximum series.
 
@@ -876,6 +887,8 @@ def get_return_value(
         Confidence interval upper bound
     multiple_points : boolean
         Whether or not the data contains multiple points (has x, y dimensions)
+    dropna_time: boolean
+        Whether to drop NaNs along the time axis
 
     Returns
     -------
@@ -894,6 +907,7 @@ def get_return_value(
         conf_int_upper_bound,
         multiple_points,
         extremes_type,
+        dropna_time,
     )
 
 
@@ -906,6 +920,7 @@ def get_return_prob(
     conf_int_upper_bound: float = 97.5,
     multiple_points: bool = True,
     extremes_type: str = "max",
+    dropna_time: bool = False,
 ) -> xr.Dataset:
     """Creates xarray Dataset with return probabilities and confidence intervals from maximum series.
 
@@ -925,6 +940,8 @@ def get_return_prob(
         Confidence interval upper bound
     multiple_points : boolean
         Whether or not the data contains multiple points (has x, y dimensions)
+    dropna_time: boolean
+        Whether to drop NaNs along the time axis
 
     Returns
     -------
@@ -943,6 +960,7 @@ def get_return_prob(
         conf_int_upper_bound,
         multiple_points,
         extremes_type,
+        dropna_time=dropna_time,
     )
 
 
@@ -954,6 +972,7 @@ def get_return_period(
     conf_int_lower_bound: float = 2.5,
     conf_int_upper_bound: float = 97.5,
     multiple_points: bool = True,
+    dropna_time: bool = False,
 ) -> xr.Dataset:
     """Creates xarray Dataset with return periods and confidence intervals from maximum series.
 
@@ -973,6 +992,8 @@ def get_return_period(
         Confidence interval upper bound
     multiple_points : boolean
         Whether or not the data contains multiple points (has x, y dimensions)
+    dropna_time: boolean
+        Whether to drop NaNs along the time axis
 
     Returns
     -------
@@ -990,6 +1011,7 @@ def get_return_period(
         conf_int_lower_bound,
         conf_int_upper_bound,
         multiple_points,
+        dropna_time=dropna_time,
     )
 
 
