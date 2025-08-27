@@ -1,4 +1,5 @@
-"""DatasetFactory Module
+"""
+DatasetFactory Module.
 
 This module provides a factory class for creating climate data processing components
 and complete datasets with appropriate validation and processing pipelines. It serves
@@ -36,8 +37,6 @@ from __future__ import annotations
 
 import warnings
 from typing import Any, Dict, List, Type
-
-import pandas as pd
 
 from climakitae.core.constants import _NEW_ATTRS_KEY, PROC_KEY, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
