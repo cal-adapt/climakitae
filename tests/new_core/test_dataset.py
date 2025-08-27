@@ -12,7 +12,7 @@ import pandas as pd
 import pytest
 
 from climakitae.new_core.dataset import Dataset
-
+from climakitae.new_core.dataset_factory import DataCatalog
 
 class TestDatasetInit:
     """Test class for Dataset initialization"""
@@ -30,18 +30,18 @@ class TestDatasetInit:
 class TestDatasetWithCatalogMethod:
     """Test class for with_catalog method."""
 
-    @patch("climakitae.new_core.dataset_factory.DataCatalog")
     def test_with_catalog_successful(self, mock_data_catalog):
         """Test successful with_catalog set."""
-        mock_catalog_instance = MagicMock()
-        mock_catalog_instance.catalog_df = pd.DataFrame(
+
+        data_catalog = DataCatalog()
+
+        data_catalog.catalog_df = pd.DataFrame(
             {"catalog": ["climate"], "variable_id": ["tas"]}
         )
-        mock_data_catalog.return_value = mock_catalog_instance
 
         dataset = Dataset()
 
-        dataset.with_catalog(mock_catalog_instance)
+        dataset.with_catalog(data_catalog)
         print(dataset.data_access)
 
-        assert dataset is mock_catalog_instance
+        assert dataset.data_access is data_catalog
