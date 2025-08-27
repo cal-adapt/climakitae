@@ -35,10 +35,7 @@ class TestDatasetWithCatalogMethod:
         """Test successful with_catalog set."""
         mock_catalog_instance = MagicMock()
         mock_catalog_instance.catalog_df = pd.DataFrame(
-            {
-                "catalog": ["test_catalog", "another_catalog"],
-                "variable_id": ["var1", "var2"],
-            }
+            {"catalog": ["climate"], "variable_id": ["tas"]}
         )
         mock_data_catalog.return_value = mock_catalog_instance
 
