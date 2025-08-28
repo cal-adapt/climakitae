@@ -42,6 +42,19 @@ class TestDatasetWithCatalogMethod:
         dataset = Dataset()
 
         dataset.with_catalog(data_catalog)
-        print(dataset.data_access)
 
         assert dataset.data_access is data_catalog
+
+    def test_with_catalog_is_datacatalog(self):
+        """Test with_catalog input catalog is DataCatalog."""
+        dictionary = {
+            "catalog": ["test_catalog", "another_catalog"],
+            "variable_id": ["var1", "var2"],
+        }
+
+        dataset = Dataset()
+
+        try:
+            dataset.with_catalog(dictionary)
+        except TypeError as e:
+            assert "Data catalog must be an instance of DataCatalog." in str(e)
