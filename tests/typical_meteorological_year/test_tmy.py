@@ -1,10 +1,14 @@
+from unittest.mock import patch
+
 import numpy as np
 import pandas as pd
 import panel
 import pytest
 import xarray as xr
 
+from climakitae.core.constants import UNSET
 from climakitae.explore.typical_meteorological_year import (
+    TMY,
     compute_cdf,
     compute_weighted_fs,
     fs_statistic,
@@ -12,7 +16,6 @@ from climakitae.explore.typical_meteorological_year import (
     get_cdf_by_mon_and_sim,
     get_cdf_by_sim,
     plot_one_var_cdf,
-    TMY,
 )
 
 
@@ -210,8 +213,41 @@ class TestFunctionsForTMY:
         assert isinstance(test_plot, panel.layout.base.Column)
 
 
+def mock_da_daily():
+    test_data = np.arange(0, 365 * 3, 1)
+    test_data = test_data * np.ones((2, len(test_data)))
+    test = xr.DataArray(
+        name="temperature",
+        data=test_data,
+        coords={
+            "simulation": ["sim1", "sim2"],
+            "time": pd.date_range(
+                start="2001-01-01-00", end="2003-12-31-23", freq="1D"
+            ),
+        },
+    )
+    return test
+
+
 class TestTMYClass:
+    @pytest.fixture
+    def mock_da_hourly(self):
+        test_data = np.arange(0, 365 * 3 * 24, 1)
+        test_data = test_data * np.ones((2, len(test_data)))
+        test = xr.DataArray(
+            name="temperature",
+            data=test_data,
+            coords={
+                "simulation": ["sim1", "sim2"],
+                "time": pd.date_range(
+                    start="2001-01-01-00", end="2003-12-31-23", freq="1h"
+                ),
+            },
+        )
+        return test
+
     def test_TMY_init_station(self):
+        """Check class initialization with station."""
         # Use valid station name
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
         start_year = 1990
@@ -235,6 +271,7 @@ class TestTMYClass:
             tmy = TMY(start_year, end_year, station_name=stn_name)
 
     def test_TMY_init_coords(self):
+        """Check class initialization with coordinates."""
         # Use valid station name
         lat = 33.56
         lon = -117.81
@@ -245,3 +282,87 @@ class TestTMYClass:
         assert tmy.latitude == pytest.approx((33.510000000000005, 33.61), abs=1e-6)
         assert tmy.longitude == pytest.approx((-117.87, -117.75), abs=1e-6)
         assert tmy.stn_code == "None"
+
+    def test__load_single_variable(self):
+        """Load data for a single variable."""
+        lat = 33.56
+        lon = -117.81
+        start_year = 1990
+        end_year = 2020
+        # Initialize TMY object
+        tmy = TMY(start_year, end_year, latitude=lat, longitude=lon)
+        # Actually going to load data for a single point and check results
+        result = tmy._load_single_variable("Air Temperature at 2m", "degC")
+        assert isinstance(result, xr.DataArray)
+        assert result.name == "Air Temperature at 2m"
+        assert result.attrs["units"] == "degC"
+        assert result.lat.shape == ()
+        assert result.lon.shape == ()
+        assert result.lat.data == 33.544018
+        assert result.lon.data == -117.829834
+        assert (result.simulation.values == tmy.data_models).all()
+
+    @patch("climakitae.core.data_interface.get_data", return_value=mock_da_hourly)
+    def test__get_tmy_variable(self, mock_da_hourly):
+        """Check that daily stat gets returned."""
+        stn_name = "Santa Ana John Wayne Airport (KSNA)"
+        start_year = 2001
+        end_year = 2003
+        # Initialize TMY object
+        tmy = TMY(start_year, end_year, station_name=stn_name)
+        result = tmy._get_tmy_variable("temperature", "K", ["max"])
+        assert isinstance(result, list)
+        assert len(result[0].time) == 365 * 3
+
+    '''def test_load_all_variables(self):
+        """Check that data load gets called and results merged."""
+        stn_name = "Santa Ana John Wayne Airport (KSNA)"
+        start_year = 2001
+        end_year = 2003
+        # Initialize TMY object
+        varlist = ["Daily max air temperature","Daily min air temperature","Daily mean air temperature", "Daily max dewpoint temperature","Daily min dewpoint temperature","Daily mean dewpoint temperature","Daily max wind speed","Daily mean wind speed","Global horizontal irradiance","Direct normal irradiance"]
+        tmy = TMY(start_year, end_year, station_name=stn_name)
+        with patch.object(tmy, "get_tmy_variable", return_value = [xr.DataArray(name="name",data=np.array([1])) for x in range(0,3)]):
+            result = tmy.load_all_variables()
+            assert isinstance(tmy.all_vars,xr.Dataset)
+            for varname in varlist:
+                assert varname in tmy.all_vars
+        '''
+
+    def test_set_cdf_climatology(self):
+        """Check that data load and get_cdf get called."""
+        stn_name = "Santa Ana John Wayne Airport (KSNA)"
+        start_year = 2001
+        end_year = 2003
+        # Initialize TMY object
+        tmy = TMY(start_year, end_year, station_name=stn_name)
+        with (
+            patch.object(tmy, "load_all_variables") as mock_load,
+            patch(
+                "climakitae.explore.typical_meteorological_year.get_cdf",
+                return_value=xr.Dataset(),
+            ) as mock_get_cdf,
+        ):
+            tmy.set_cdf_climatology()
+            # load_all_variables called since we just initialized this TMY object
+            mock_load.assert_called_once()
+            mock_get_cdf.assert_called_once()
+            assert tmy.cdf_climatology is not UNSET
+
+    @patch(
+        "climakitae.explore.typical_meteorological_year.get_cdf_monthly",
+        return_value=mock_da_daily().groupby("time.year").sum(),
+    )
+    def test_cdf_monthly(self, mock_get_cdf_monthly):
+        """Check that data load and get_cdf_monthly get called."""
+        stn_name = "Santa Ana John Wayne Airport (KSNA)"
+        start_year = 2001
+        end_year = 2003
+        # Initialize TMY object
+        tmy = TMY(start_year, end_year, station_name=stn_name)
+        with patch.object(tmy, "load_all_variables") as mock_load:
+            tmy.set_cdf_monthly()
+            # load_all_variables called since we just initialized this TMY object
+            mock_load.assert_called_once()
+            mock_get_cdf_monthly.assert_called_once()
+            assert tmy.cdf_monthly is not UNSET
