@@ -7,9 +7,6 @@ from climakitae.util.utils import (
 )
 from climakitae.core.data_export import write_tmy_file
 from climakitae.core.data_interface import get_data
-import climakitaegui as ckg  # Need for hvplot to work
-
-import panel
 
 import pandas as pd
 import xarray as xr
@@ -147,45 +144,6 @@ def compute_weighted_fs(da_fs: xr.Dataset) -> xr.Dataset:
         # Multiply each variable by it's appropriate weight
         da_fs[var] = da_fs[var] * weight
     return da_fs
-
-
-def plot_one_var_cdf(cdf_da: xr.Dataset, var: str) -> panel.layout.base.Column:
-    """Plot CDF for a single variable
-    Written to function for the unique configuration of the CDF DataArray object
-    Silences an annoying hvplot warning
-    Will show every simulation together on the plot
-
-    Parameters
-    -----------
-    cdf: xr.DataArray
-       Cumulative density function for a single variable
-
-    Returns
-    -------
-    panel.layout.base.Column
-        Hvplot lineplot
-
-    """
-    cdf_da = cdf_da[var]
-    prob_da = cdf_da.sel(data="probability", drop=True).rename(
-        "probability"
-    )  # Grab only probability da
-    bins_da = cdf_da.sel(data="bins", drop=True).rename("bins")  # Grab just bin values
-    ds = xr.merge([prob_da, bins_da])  # Merge the two to form a single Dataset object
-    cdf_pl = ds.hvplot(
-        "bins",
-        "probability",
-        by="simulation",  # Simulations should all be displayed together
-        widget_location="bottom",
-        grid=True,
-        xlabel="{0} ({1})".format(var, cdf_da.attrs["units"]),
-        xlim=(
-            bins_da.min().item(),
-            bins_da.max().item(),
-        ),  # Fix the x-limits for all months
-        ylabel="Probability (0-1)",
-    )
-    return cdf_pl
 
 
 class TMY:
@@ -335,16 +293,6 @@ class TMY:
         if self.verbose:
             print(msg)
 
-    def generate_tmy(self):
-        """Run the whole TMY workflow."""
-        # This runs the whole workflow at once
-        print("Running TMY workflow. Expected overall runtime: 40 minutes")
-        self.load_all_variables()
-        self.get_candidate_months()
-        self.run_tmy_analysis()
-        self.export_tmy_data_epw()
-        return
-
     def _load_single_variable(self, varname, units):
         if self.end_year == 2100:
             print(
@@ -386,23 +334,58 @@ class TMY:
         if "max" in stats:
             # max air temp
             max_data = data.resample(time="1D").max()
+            max_data.attrs["frequency"] = "daily"
             returned_data.append(max_data)
 
         if "min" in stats:
             # min air temp
             min_data = data.resample(time="1D").min()
+            min_data.attrs["frequency"] = "daily"
             returned_data.append(min_data)
 
         if "mean" in stats:
             # mean air temp
             mean_data = data.resample(time="1D").mean()
+            mean_data.attrs["frequency"] = "daily"
             returned_data.append(mean_data)
 
         if "sum" in stats:
             sum_data = data.resample(time="1D").sum()
+            sum_data.attrs["frequency"] = "daily"
             returned_data.append(sum_data)
 
         return returned_data
+
+    def _make_8760_tables(self, all_vars_ds, top_df):
+        tmy_df_all = {}
+        for sim in all_vars_ds.simulation.values:
+            df_list = []
+            print(f"Calculating TMY for simulation: {sim}")
+            for mon in tqdm(np.arange(1, 13, 1)):
+                # Get year corresponding to month and simulation combo
+                year = top_df.loc[
+                    (top_df["month"] == mon) & (top_df["simulation"] == sim)
+                ].year.item()
+
+                # Select data for unique month, year, and simulation
+                data_at_stn_mon_sim_yr = all_vars_ds.sel(
+                    simulation=sim, time=f"{mon}-{year}"
+                ).expand_dims("simulation")
+
+                # Reformat as dataframe
+                df_by_mon_sim_yr = data_at_stn_mon_sim_yr.to_dataframe()
+                df_by_mon_sim_yr = df_by_mon_sim_yr.reset_index()
+
+                # Reformat time index to remove seconds
+                df_by_mon_sim_yr["time"] = pd.to_datetime(
+                    df_by_mon_sim_yr["time"].values
+                ).strftime("%Y-%m-%d %H:%M")
+                df_list.append(df_by_mon_sim_yr)
+
+            # Concatenate all DataFrames together
+            tmy_df_by_sim = pd.concat(df_list)
+            tmy_df_all[sim] = tmy_df_by_sim
+        return tmy_df_all
 
     def load_all_variables(self):
         """Load the datasets needed to create TMY."""
@@ -518,7 +501,7 @@ class TMY:
         )
         return
 
-    def set_top_df(self):
+    def calculate_top_df(self):
         """Calculate top months dataframe."""
         # Pass the weighted F-S sum data for simplicity
         if self.weighted_fs_sum is UNSET:
@@ -542,18 +525,6 @@ class TMY:
         self.top_df = pd.concat(df_list).drop(columns=["top_values"]).reset_index()
         self._vprint("Top months:")
         self._vprint(self.top_df)
-        return
-
-    def get_candidate_months(self):
-        """Run CDF functions to get top candidates."""
-        self._vprint(
-            "Getting top months for TMY. Expected runtime with loaded data: 1 min"
-        )
-        self.set_cdf_climatology()
-        self.set_cdf_monthly()
-        self.set_weighted_statistic()
-        self.set_top_df()
-        print("Done.")
         return
 
     def show_tmy_data_to_export(self, simulation: str):
@@ -580,37 +551,6 @@ class TMY:
         )
         return
 
-    def _run_analysis_top_months(self, all_vars_ds):
-        tmy_df_all = {}
-        for sim in all_vars_ds.simulation.values:
-            df_list = []
-            print(f"Calculating TMY for simulation: {sim}")
-            for mon in tqdm(np.arange(1, 13, 1)):
-                # Get year corresponding to month and simulation combo
-                year = self.top_df.loc[
-                    (self.top_df["month"] == mon) & (self.top_df["simulation"] == sim)
-                ].year.item()
-
-                # Select data for unique month, year, and simulation
-                data_at_stn_mon_sim_yr = all_vars_ds.sel(
-                    simulation=sim, time=f"{mon}-{year}"
-                ).expand_dims("simulation")
-
-                # Reformat as dataframe
-                df_by_mon_sim_yr = data_at_stn_mon_sim_yr.to_dataframe()
-                df_by_mon_sim_yr = df_by_mon_sim_yr.reset_index()
-
-                # Reformat time index to remove seconds
-                df_by_mon_sim_yr["time"] = pd.to_datetime(
-                    df_by_mon_sim_yr["time"].values
-                ).strftime("%Y-%m-%d %H:%M")
-                df_list.append(df_by_mon_sim_yr)
-
-            # Concatenate all DataFrames together
-            tmy_df_by_sim = pd.concat(df_list)
-            tmy_df_all[sim] = tmy_df_by_sim
-        return tmy_df_all
-
     def run_tmy_analysis(self):
         """Generate typical meteorological year data
         Output will be a list of dataframes per simulation.
@@ -634,12 +574,13 @@ class TMY:
         # Loop through each variable and grab data from catalog
         all_vars_list = []
 
+        print(self.vars_and_units.items())
         for var, units in self.vars_and_units.items():
             print(f"Retrieving data for {var}", end="... ")
             data_by_var = self._load_single_variable(var, units)
 
             # Drop unwanted coords
-            data_by_var = data_by_var.squeeze().drop(
+            data_by_var = data_by_var.squeeze().drop_vars(
                 ["lakemask", "landmask", "x", "y", "Lambert_Conformal"]
             )
 
@@ -647,14 +588,15 @@ class TMY:
             print("complete!")
 
         # Merge data from all variables into a single xr.Dataset object
-        all_vars_ds = xr.merge(all_vars_list)
+        all_vars_ds = xr.merge(all_vars_list, self.top_df)
 
         # Construct TMY
         print(
             "\nSTEP 2: Calculating Typical Meteorological Year per model simulation\nProgress bar shows code looping through each month in the year.\n"
         )
-        self.tmy_data_to_export = self._run_analysis_top_months(
-            all_vars_ds
+
+        self.tmy_data_to_export = self._make_8760_tables(
+            all_vars_ds, self.top_df
         )  # Return dict of TMY by simulation
 
     def export_tmy_data(self, extension: str = "tmy"):
@@ -684,4 +626,30 @@ class TMY:
             )
             if self.verbose:
                 print("  Wrote", filename)
+        return
+
+    def get_candidate_months(self):
+        """Run CDF functions to get top candidates.
+
+        This function can be used to view the candidate months
+        without running the entire TMY workflow.
+        """
+        self._vprint(
+            "Getting top months for TMY. Expected runtime with loaded data: 1 min"
+        )
+        self.set_cdf_climatology()
+        self.set_cdf_monthly()
+        self.set_weighted_statistic()
+        self.calculate_top_df()
+        print("Done.")
+        return
+
+    def generate_tmy(self):
+        """Run the whole TMY workflow."""
+        # This runs the whole workflow at once
+        print("Running TMY workflow. Expected overall runtime: 40 minutes")
+        self.load_all_variables()
+        self.get_candidate_months()
+        self.run_tmy_analysis()
+        self.export_tmy_data()
         return
