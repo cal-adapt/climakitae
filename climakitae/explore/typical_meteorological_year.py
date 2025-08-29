@@ -267,8 +267,23 @@ class TMY:
             "WRF_TaiESM1_r1i1p1f1",
             "WRF_MIROC6_r1i1p1f1",
         ]
+        # Data only available for these scenarios
         self.scenario = ["Historical Climate", "SSP 3-7.0"]
+        # These are the variables used in TMY
+        self.vars_and_units = {
+            "Air Temperature at 2m": "degC",
+            "Dew point temperature": "degC",
+            "Relative humidity": "[0 to 100]",
+            "Instantaneous downwelling shortwave flux at bottom": "W/m2",
+            "Shortwave surface downward direct normal irradiance": "W/m2",
+            "Shortwave surface downward diffuse irradiance": "W/m2",
+            "Instantaneous downwelling longwave flux at bottom": "W/m2",
+            "Wind speed at 10m": "m s-1",
+            "Wind direction at 10m": "degrees",
+            "Surface Pressure": "Pa",
+        }
         self.verbose = verbose
+        # These will get set later in analysis
         self.cdf_climatology = UNSET
         self.cdf_monthly = UNSET
         self.weighted_fs_sum = UNSET
@@ -330,8 +345,7 @@ class TMY:
         self.export_tmy_data_epw()
         return
 
-    def get_tmy_variable(self, varname, units, stats):
-        """Fetch a single variable, resample and reduce."""
+    def _load_single_variable(self, varname, units):
         if self.end_year == 2100:
             print(
                 "End year is 2100. The final day in timeseries may be incomplete after data is converted to local time."
@@ -348,18 +362,24 @@ class TMY:
             units=units,
             latitude=self.latitude,
             longitude=self.longitude,
-            area_average="Yes",
+            area_average="No",
             scenario=self.scenario,
             time_slice=(self.start_year, new_end_year),
         )
-
-        data = convert_to_local_time(
-            data, self.stn_lon, self.stn_lat
-        )  # convert to local timezone, provide lon/lat because area average data lacks coordinates
-        data = data.sel(
-            {"time": slice(f"{self.start_year}-01-01", f"{self.end_year}-12-31")}
+        data = get_closest_gridcell(
+            data, self.stn_lat, self.stn_lon, print_coords=False
         )
-        data = data.sel(simulation=self.data_models)
+        data = convert_to_local_time(data)  # only want closest gridcell
+        data = data.sel(
+            {"time": slice(f"{self.start_year}-01-01-00", f"{self.end_year}-12-31-23")}
+        )  # get desired time slice in local time
+        data = data.sel(simulation=self.data_models)  # only models with solar variables
+        return data
+
+    def _get_tmy_variable(self, varname, units, stats):
+        """Fetch a single variable, resample and reduce."""
+
+        data = self._load_single_variable(varname, units)
 
         returned_data = []
 
@@ -389,7 +409,7 @@ class TMY:
         self._vprint("Loading variables. Expected runtime: 7 minutes")
 
         print("Getting air temperature", end="... ")
-        airtemp_data = self.get_tmy_variable(
+        airtemp_data = self._get_tmy_variable(
             "Air Temperature at 2m", "degC", ["max", "min", "mean"]
         )
         # unpack and rename
@@ -402,7 +422,7 @@ class TMY:
 
         print("Getting dew point temperature", end="... ")
         # dew point temperature
-        dewpt_data = self.get_tmy_variable(
+        dewpt_data = self._get_tmy_variable(
             "Dew point temperature", "degC", ["max", "min", "mean"]
         )
         # unpack and rename
@@ -415,7 +435,7 @@ class TMY:
 
         # wind speed
         print("Getting wind speed", end="... ")
-        wndspd_data = self.get_tmy_variable(
+        wndspd_data = self._get_tmy_variable(
             "Wind speed at 10m", "m s-1", ["max", "mean"]
         )
         # unpack and rename
@@ -426,7 +446,7 @@ class TMY:
 
         # global irradiance
         print("Getting global irradiance", end="... ")
-        total_ghi_data = self.get_tmy_variable(
+        total_ghi_data = self._get_tmy_variable(
             "Instantaneous downwelling shortwave flux at bottom", "W/m2", ["sum"]
         )
         total_ghi_data = total_ghi_data[0]
@@ -434,7 +454,7 @@ class TMY:
 
         # direct normal irradiance
         print("Getting direct normal irradiance", end="... ")
-        total_dni_data = self.get_tmy_variable(
+        total_dni_data = self._get_tmy_variable(
             "Shortwave surface downward direct normal irradiance", "W/m2", ["sum"]
         )
         total_dni_data = total_dni_data[0]
@@ -552,18 +572,7 @@ class TMY:
 
         self.tmy_data_to_export[simulation].plot(
             x="time",
-            y=[
-                "Air Temperature at 2m",
-                "Dew point temperature",
-                "Relative humidity",
-                "Instantaneous downwelling shortwave flux at bottom",
-                "Shortwave surface downward direct normal irradiance",
-                "Shortwave surface downward diffuse irradiance",
-                "Instantaneous downwelling longwave flux at bottom",
-                "Wind speed at 10m",
-                "Wind direction at 10m",
-                "Surface Pressure",
-            ],
+            y=list(self.vars_and_units.keys()),
             title=f"Typical Meteorological Year ({simulation})",
             subplots=True,
             figsize=(10, 8),
@@ -571,89 +580,7 @@ class TMY:
         )
         return
 
-    def run_tmy_analysis(self):
-        """Generate typical meteorological year data
-        Output will be a list of dataframes per simulation.
-        Print statements throughout the function indicate to the user the progress of the computatioconvert_to_local_time
-
-        Parameters
-        -----------
-        top_df: pd.DataFrame
-            Table with column values month, simulation, and year
-            Each month-sim-yr combo represents the top candidate that has the lowest weighted sum from the FS statistic
-
-        Returns
-        --------
-        dict of str: pd.DataFrame
-            Dictionary in the format of {simulation:TMY corresponding to that simulation}
-
-        """
-        self._vprint("Generating TMY data to export. Expected runtime: 30 minutes")
-
-        ## ================== GET DATA FROM CATALOG ==================
-        vars_and_units = {
-            "Air Temperature at 2m": "degC",
-            "Dew point temperature": "degC",
-            "Relative humidity": "[0 to 100]",
-            "Instantaneous downwelling shortwave flux at bottom": "W/m2",
-            "Shortwave surface downward direct normal irradiance": "W/m2",
-            "Shortwave surface downward diffuse irradiance": "W/m2",
-            "Instantaneous downwelling longwave flux at bottom": "W/m2",
-            "Wind speed at 10m": "m s-1",
-            "Wind direction at 10m": "degrees",
-            "Surface Pressure": "Pa",
-        }
-
-        if self.end_year == 2100:
-            new_end_year = 2100
-        else:
-            new_end_year = self.end_year + 1
-
-        # Loop through each variable and grab data from catalog
-        all_vars_list = []
-        print("STEP 1: RETRIEVING HOURLY DATA FROM CATALOG\n")
-        for var, units in vars_and_units.items():
-            print(f"Retrieving data for {var}", end="... ")
-            data_by_var = get_data(
-                variable=var,
-                resolution="9 km",
-                timescale="hourly",
-                data_type="Gridded",
-                units=units,
-                latitude=self.latitude,
-                longitude=self.longitude,
-                area_average="No",
-                scenario=self.scenario,
-                time_slice=(self.start_year, self.end_year + 1),
-            )
-            data_by_var = convert_to_local_time(
-                data_by_var
-            )  # convert to local timezone.
-            data_by_var = data_by_var.sel(
-                {"time": slice(f"{self.start_year}-01-01", f"{new_end_year}-12-31")}
-            )  # get desired time slice in local time
-            data_by_var = get_closest_gridcell(
-                data_by_var, self.stn_lat, self.stn_lon, print_coords=False
-            )  # retrieve only closest gridcell
-            data_by_var = data_by_var.sel(
-                simulation=self.data_models
-            )  # Subset for only the models that have solar variables
-
-            # Drop unwanted coords
-            data_by_var = data_by_var.squeeze().drop(
-                ["lakemask", "landmask", "x", "y", "Lambert_Conformal"]
-            )
-
-            all_vars_list.append(data_by_var)  # Append to list
-            print("complete!")
-
-        # Merge data from all variables into a single xr.Dataset object
-        all_vars_ds = xr.merge(all_vars_list)
-
-        ## ================== CONSTRUCT TMY ==================
-        print(
-            "\nSTEP 2: CALCULATING TYPICAL METEOROLOGICAL YEAR PER MODEL SIMULATION\nProgress bar shows code looping through each month in the year.\n"
-        )
+    def _run_analysis_top_months(self, all_vars_ds):
         tmy_df_all = {}
         for sim in all_vars_ds.simulation.values:
             df_list = []
@@ -682,8 +609,53 @@ class TMY:
             # Concatenate all DataFrames together
             tmy_df_by_sim = pd.concat(df_list)
             tmy_df_all[sim] = tmy_df_by_sim
+        return tmy_df_all
 
-        self.tmy_data_to_export = tmy_df_all  # Return dict of TMY by simulation
+    def run_tmy_analysis(self):
+        """Generate typical meteorological year data
+        Output will be a list of dataframes per simulation.
+        Print statements throughout the function indicate to the user the progress of the computatioconvert_to_local_time
+
+        Parameters
+        -----------
+        top_df: pd.DataFrame
+            Table with column values month, simulation, and year
+            Each month-sim-yr combo represents the top candidate that has the lowest weighted sum from the FS statistic
+
+        Returns
+        --------
+        dict of str: pd.DataFrame
+            Dictionary in the format of {simulation:TMY corresponding to that simulation}
+
+        """
+        self._vprint("Generating TMY data to export. Expected runtime: 30 minutes")
+
+        print("STEP 1: Retrieving hourly data from catalog\n")
+        # Loop through each variable and grab data from catalog
+        all_vars_list = []
+
+        for var, units in self.vars_and_units.items():
+            print(f"Retrieving data for {var}", end="... ")
+            data_by_var = self._load_single_variable(var, units)
+
+            # Drop unwanted coords
+            data_by_var = data_by_var.squeeze().drop(
+                ["lakemask", "landmask", "x", "y", "Lambert_Conformal"]
+            )
+
+            all_vars_list.append(data_by_var)  # Append to list
+            print("complete!")
+
+        # Merge data from all variables into a single xr.Dataset object
+        all_vars_ds = xr.merge(all_vars_list)
+
+        # Construct TMY
+        print(
+            "\nSTEP 2: Calculating Typical Meteorological Year per model simulation\nProgress bar shows code looping through each month in the year.\n"
+        )
+        self.tmy_data_to_export = self._run_analysis_top_months(
+            all_vars_ds
+        )  # Return dict of TMY by simulation
 
     def export_tmy_data(self, extension: str = "tmy"):
         """Write TMY data to EPW file.
