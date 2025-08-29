@@ -237,6 +237,7 @@ class DataCatalog(dict):
                     f"No validator registered for '{key}'. "
                     f"Available options: {list(self.keys())}"
                 )
+                return None
 
             match len(closest):
                 case 0:
