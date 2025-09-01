@@ -9,7 +9,6 @@ Tests cover initialization, registration, method contracts, and error handling.
 from abc import ABC
 from unittest.mock import MagicMock
 
-import numpy as np
 import pytest
 import xarray as xr
 
@@ -17,10 +16,7 @@ from climakitae.core.constants import UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import (
     _PROCESSOR_REGISTRY,
-    ApplyBiasCorrection,
     DataProcessor,
-    FilterData,
-    RenameVariables,
     register_processor,
 )
 
@@ -279,119 +275,6 @@ class TestDataProcessorABC:
         assert result is mock_dataset
 
 
-class TestConcreteProcessors:
-    """Test the concrete processor implementations."""
-
-    @pytest.fixture
-    def sample_dataset(self):
-        """Create a sample xarray Dataset for testing."""
-        data = np.random.rand(10, 5)
-        coords = {"time": range(10), "location": range(5)}
-        return xr.Dataset({"temperature": (["time", "location"], data)}, coords=coords)
-
-    @pytest.fixture
-    def sample_dataarray(self):
-        """Create a sample xarray DataArray for testing."""
-        data = np.random.rand(8, 3)
-        coords = {"x": range(8), "y": range(3)}
-        return xr.DataArray(data, coords=coords, dims=["x", "y"])
-
-    @pytest.fixture
-    def sample_context(self):
-        """Create a sample context dictionary."""
-        return {
-            "variable_id": "temperature",
-            "time_range": "2020-2030",
-            "location": "California",
-        }
-
-    @pytest.fixture
-    def mock_datacatalog(self):
-        """Create a mock DataCatalog."""
-        return MagicMock(spec=DataCatalog)
-
-    def test_rename_variables_processor(
-        self, sample_dataset, sample_context, mock_datacatalog
-    ):
-        """Test RenameVariables processor."""
-        processor = RenameVariables()
-
-        # Test execute method (placeholder implementation)
-        result = processor.execute(sample_dataset, sample_context)
-        assert result is sample_dataset  # Should return unchanged for now
-
-        # Test update_context method
-        original_context = sample_context.copy()
-        processor.update_context(sample_context)
-        assert sample_context == original_context  # Should be unchanged for now
-
-        # Test set_data_accessor method
-        processor.set_data_accessor(mock_datacatalog)  # Should not raise exception
-
-    def test_apply_bias_correction_processor(
-        self, sample_dataarray, sample_context, mock_datacatalog
-    ):
-        """Test ApplyBiasCorrection processor."""
-        processor = ApplyBiasCorrection()
-
-        # Test execute method with DataArray
-        result = processor.execute(sample_dataarray, sample_context)
-        assert result is sample_dataarray
-
-        # Test with iterable of datasets
-        dataset_list = [sample_dataarray, sample_dataarray]
-        result = processor.execute(dataset_list, sample_context)
-        assert result is dataset_list
-
-        # Test other methods
-        processor.update_context(sample_context)
-        processor.set_data_accessor(mock_datacatalog)
-
-    def test_filter_data_processor(
-        self, sample_dataset, sample_context, mock_datacatalog
-    ):
-        """Test FilterData processor."""
-        processor = FilterData()
-
-        # Test execute method
-        result = processor.execute(sample_dataset, sample_context)
-        assert result is sample_dataset
-
-        # Test other methods
-        processor.update_context(sample_context)
-        processor.set_data_accessor(mock_datacatalog)
-
-    def test_processors_inherit_from_dataprocessor(self):
-        """Test that all concrete processors inherit from DataProcessor."""
-        processors = [RenameVariables(), ApplyBiasCorrection(), FilterData()]
-
-        for processor in processors:
-            assert isinstance(processor, DataProcessor)
-            assert hasattr(processor, "execute")
-            assert hasattr(processor, "update_context")
-            assert hasattr(processor, "set_data_accessor")
-
-    def test_processors_handle_different_input_types(
-        self, sample_dataset, sample_dataarray, sample_context
-    ):
-        """Test that processors can handle different input types."""
-        processors = [RenameVariables(), ApplyBiasCorrection(), FilterData()]
-
-        for processor in processors:
-            # Test with Dataset
-            result1 = processor.execute(sample_dataset, sample_context)
-            assert result1 is not None
-
-            # Test with DataArray
-            result2 = processor.execute(sample_dataarray, sample_context)
-            assert result2 is not None
-
-            # Test with list of datasets
-            dataset_list = [sample_dataset, sample_dataarray]
-            result3 = processor.execute(dataset_list, sample_context)
-            assert result3 is not None
-
-
 class TestProcessorIntegration:
     """Test processor integration scenarios."""
 
@@ -539,27 +422,6 @@ class TestEdgeCases:
 
         _, priority = _PROCESSOR_REGISTRY["none_priority"]
         assert priority is None
-
-    def test_processors_with_complex_data_types(self):
-        """Test processors with complex xarray data structures."""
-        processor = RenameVariables()
-
-        # Create complex dataset with multiple variables and dimensions
-        data = xr.Dataset(
-            {
-                "temperature": (["x", "y", "time"], np.random.rand(5, 5, 10)),
-                "humidity": (["x", "y", "time"], np.random.rand(5, 5, 10)),
-            }
-        )
-
-        context = {"complex": True}
-        result = processor.execute(data, context)
-
-        # Should handle complex data without issues
-        assert result is data
-        assert isinstance(result, xr.Dataset)
-        assert "temperature" in result.data_vars
-        assert "humidity" in result.data_vars
 
     def test_registry_state_isolation(self):
         """Test that registry modifications don't affect other tests."""
