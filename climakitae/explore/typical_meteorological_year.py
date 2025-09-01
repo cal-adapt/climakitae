@@ -12,7 +12,7 @@ from climakitae.core.data_interface import get_data
 from climakitae.util.utils import convert_to_local_time, get_closest_gridcell
 
 
-def compute_cdf(da: xr.DataArray) -> xr.DataArray:
+def _compute_cdf(da: xr.DataArray) -> xr.DataArray:
     """Compute the cumulative density function for an input DataArray."""
     da_np = da.values  # Get numpy array of values
     num_samples = 1024  # Number of samples to generate
@@ -39,16 +39,16 @@ def compute_cdf(da: xr.DataArray) -> xr.DataArray:
     return cdf_da
 
 
-def get_cdf_by_sim(da: xr.DataArray) -> xr.DataArray:
+def _get_cdf_by_sim(da: xr.DataArray) -> xr.DataArray:
     """Function to help get_cdf."""
     # Group the DataArray by simulation
-    return da.groupby("simulation").apply(compute_cdf)
+    return da.groupby("simulation").map(_compute_cdf)
 
 
-def get_cdf_by_mon_and_sim(da: xr.DataArray) -> xr.DataArray:
+def _get_cdf_by_mon_and_sim(da: xr.DataArray) -> xr.DataArray:
     """Function to help get_cdf."""
     # Group the DataArray by month in the year
-    return da.groupby("time.month").apply(get_cdf_by_sim)
+    return da.groupby("time.month").map(_get_cdf_by_sim)
 
 
 def get_cdf(ds: xr.DataArray) -> xr.Dataset:
@@ -63,7 +63,7 @@ def get_cdf(ds: xr.DataArray) -> xr.Dataset:
     -------
     xr.Dataset
     """
-    return ds.apply(get_cdf_by_mon_and_sim)
+    return ds.map(_get_cdf_by_mon_and_sim)
 
 
 def get_cdf_monthly(ds: xr.DataArray) -> xr.Dataset:
@@ -80,28 +80,37 @@ def get_cdf_monthly(ds: xr.DataArray) -> xr.Dataset:
     """
 
     def get_cdf_mon_yr(da):
-        return da.groupby("time.year").apply(get_cdf_by_mon_and_sim)
+        return da.groupby("time.year").map(_get_cdf_by_mon_and_sim)
 
-    return ds.apply(get_cdf_mon_yr)
+    return ds.map(get_cdf_mon_yr)
 
 
 def remove_pinatubo_years(ds: xr.Dataset) -> xr.Dataset:
-    """Drop years after Pinatubo eruption from dataset."""
+    """Drop years after Pinatubo eruption from dataset.
+
+    Parameters
+    ----------
+    ds: xr.Dataset
+
+    Returns
+    -------
+    xr.Dataset
+    """
     ds = ds.where((~ds.year.isin([1991, 1992, 1993, 1994])), np.nan, drop=True)
     return ds
 
 
 def fs_statistic(cdf_climatology: xr.Dataset, cdf_monthly: xr.DataArray) -> xr.Dataset:
-    """
-    Calculates the Finkelstein-Schafer statistic:
+    """Calculates the Finkelstein-Schafer statistic.
+
     Absolute difference between long-term climatology and candidate CDF, divided by number of days in month
 
     Parameters
     -----------
     cdf_climatology: xr.Dataset
-        Climatological CDF
+       Climatological CDF dataset (get_cdf result)
     cdf_monthly: xr.Dataset
-        Monthly CDF
+       Monthly CDF dataset (get_cdf_monthly result)
 
     Returns
     -------
@@ -147,6 +156,61 @@ def compute_weighted_fs(da_fs: xr.Dataset) -> xr.Dataset:
         # Multiply each variable by it's appropriate weight
         da_fs[var] = da_fs[var] * weight
     return da_fs
+
+
+def compute_weighted_fs_sum(
+    cdf_climatology: xr.Dataset, cdf_monthly: xr.Dataset
+) -> xr.DataArray:
+    """Sum f-s statistic over variable and bin number.
+
+    Parameters
+    ----------
+    cdf_climatology: xr.Dataset
+       Climatological CDF dataset (get_cdf result)
+    cdf_monthly: xr.Dataset
+       Monthly CDF dataset (get_cdf_monthly result)
+
+    Returns
+    -------
+    xr.DataArray
+    """
+    all_vars_fs = fs_statistic(cdf_climatology, cdf_monthly)
+    weighted_fs = compute_weighted_fs(all_vars_fs)
+
+    # Sum
+    return (
+        weighted_fs.to_array().sum(dim=["variable", "bin_number"]).drop_vars(["data"])
+    )
+
+
+def get_top_months(da_fs):
+    """Return dataframe of top months by simulation.
+
+    Parameters
+    ----------
+    da_fs: xr.Dataset
+       Summed weighted f-s statistic
+
+    Returns
+    -------
+    pd.DataFrame
+
+    """
+    df_list = []
+    num_values = (
+        1  # Selecting the top value for now, persistence statistics calls for top 5
+    )
+    for sim in da_fs.simulation.values:
+        for mon in da_fs.month.values:
+            da_i = da_fs.sel(month=mon, simulation=sim)
+            top_xr = da_i.sortby(da_i, ascending=True)[:num_values].expand_dims(
+                ["month", "simulation"]
+            )
+            top_df_i = top_xr.to_dataframe(name="top_values")
+            df_list.append(top_df_i)
+
+    # Concatenate list together for all months and simulations
+    return pd.concat(df_list).drop(columns=["top_values"]).reset_index()
 
 
 class TMY:
@@ -248,7 +312,7 @@ class TMY:
         self.cdf_climatology = UNSET
         self.cdf_monthly = UNSET
         self.weighted_fs_sum = UNSET
-        self.top_df = UNSET
+        self.top_months = UNSET
         self.all_vars = UNSET
         self.tmy_data_to_export = UNSET
 
@@ -296,6 +360,8 @@ class TMY:
             print(msg)
 
     def _load_single_variable(self, varname, units):
+        """Fetch catalog data for one variable."""
+        # Extra year in UTC time to get full period in local time.
         if self.end_year == 2100:
             print(
                 "End year is 2100. The final day in timeseries may be incomplete after data is converted to local time."
@@ -316,18 +382,38 @@ class TMY:
             scenario=self.scenario,
             time_slice=(self.start_year, new_end_year),
         )
+        # Compute over single gridcell
         data = get_closest_gridcell(
             data, self.stn_lat, self.stn_lon, print_coords=False
         )
-        data = convert_to_local_time(data)  # only want closest gridcell
+        # Work in local time
+        data = convert_to_local_time(data)
+        # Get desired time slice in local time
         data = data.sel(
             {"time": slice(f"{self.start_year}-01-01-00", f"{self.end_year}-12-31-23")}
-        )  # get desired time slice in local time
-        data = data.sel(simulation=self.data_models)  # only models with solar variables
+        )
+        # Only use preset models with solar variables
+        data = data.sel(simulation=self.data_models)
         return data
 
-    def _get_tmy_variable(self, varname, units, stats):
-        """Fetch a single variable, resample and reduce."""
+    def _get_tmy_variable(
+        self, varname: str, units: str, stats: list[str]
+    ) -> xr.Dataset:
+        """Fetch a single variable, resample and reduce.
+
+        Parameters
+        ----------
+        varname: str
+           Variable to load.
+        units: str
+            Desired units.
+        stats: list[str]
+            Daily stats to compute ('max','min','mean', and/or 'sum')
+
+        Returns
+        -------
+        xr.Dataset
+        """
 
         data = self._load_single_variable(varname, units)
 
@@ -358,7 +444,24 @@ class TMY:
 
         return returned_data
 
-    def _make_8760_tables(self, all_vars_ds, top_df):
+    def _make_8760_tables(
+        self, all_vars_ds: xr.Dataset, top_df: pd.DataFrame
+    ) -> pd.DataFrame:
+        """Extract top months from loaded data and arrange in table.
+
+        Pulled out of the run_tmy_analysis() code for easier testing.
+
+        Parameters
+        ----------
+        all_vars_ds: xr.Dataset
+           Timeseries of all loaded variables needed for TMY.
+        top_df: pd.DataFrame
+           Dataframe of top months by model.
+
+        Returns
+        -------
+        pd.DataFrame
+        """
         tmy_df_all = {}
         for sim in all_vars_ds.simulation.values:
             df_list = []
@@ -492,39 +595,19 @@ class TMY:
         if self.cdf_monthly is UNSET:
             self.set_cdf_monthly()
         self._vprint("Calculating weighted FS statistic.")
-        all_vars_fs = fs_statistic(self.cdf_climatology, self.cdf_monthly)
-        weighted_fs = compute_weighted_fs(all_vars_fs)
-
-        # Sum
-        self.weighted_fs_sum = (
-            weighted_fs.to_array().sum(dim=["variable", "bin_number"]).drop(["data"])
+        self.weighted_fs_sum = compute_weighted_fs_sum(
+            self.cdf_climatology, self.cdf_monthly
         )
         return
 
-    def calculate_top_df(self):
+    def set_top_months(self):
         """Calculate top months dataframe."""
         # Pass the weighted F-S sum data for simplicity
         if self.weighted_fs_sum is UNSET:
             self.set_weighted_statistic()
-        ds = self.weighted_fs_sum
-
-        df_list = []
-        num_values = (
-            1  # Selecting the top value for now, persistence statistics calls for top 5
-        )
-        for sim in ds.simulation.values:
-            for mon in ds.month.values:
-                da_i = ds.sel(month=mon, simulation=sim)
-                top_xr = da_i.sortby(da_i, ascending=True)[:num_values].expand_dims(
-                    ["month", "simulation"]
-                )
-                top_df_i = top_xr.to_dataframe(name="top_values")
-                df_list.append(top_df_i)
-
-        # Concatenate list together for all months and simulations
-        self.top_df = pd.concat(df_list).drop(columns=["top_values"]).reset_index()
+        self.top_months = get_top_months(self.weighted_fs_sum)
         self._vprint("Top months:")
-        self._vprint(self.top_df)
+        self._vprint(self.top_months)
         return
 
     def show_tmy_data_to_export(self, simulation: str):
@@ -588,7 +671,7 @@ class TMY:
             print("complete!")
 
         # Merge data from all variables into a single xr.Dataset object
-        all_vars_ds = xr.merge(all_vars_list, self.top_df)
+        all_vars_ds = xr.merge(all_vars_list, self.top_months)
 
         # Construct TMY
         print(
@@ -596,7 +679,7 @@ class TMY:
         )
 
         self.tmy_data_to_export = self._make_8760_tables(
-            all_vars_ds, self.top_df
+            all_vars_ds, self.top_months
         )  # Return dict of TMY by simulation
 
     def export_tmy_data(self, extension: str = "tmy"):
@@ -640,7 +723,7 @@ class TMY:
         self.set_cdf_climatology()
         self.set_cdf_monthly()
         self.set_weighted_statistic()
-        self.calculate_top_df()
+        self.set_top_months()
         print("Done.")
         return
 
