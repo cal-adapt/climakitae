@@ -13,7 +13,17 @@ from climakitae.util.utils import convert_to_local_time, get_closest_gridcell
 
 
 def _compute_cdf(da: xr.DataArray) -> xr.DataArray:
-    """Compute the cumulative density function for an input DataArray."""
+    """Compute the cumulative density function for an input DataArray.
+
+    Parameters
+    ----------
+    da: xr.DataArray
+        Single simulation and month
+
+    Returns
+    -------
+    xr.DataArray
+    """
     da_np = da.values  # Get numpy array of values
     num_samples = 1024  # Number of samples to generate
     count, bins_count = np.histogram(  # Create a numpy histogram of the values
@@ -40,13 +50,33 @@ def _compute_cdf(da: xr.DataArray) -> xr.DataArray:
 
 
 def _get_cdf_by_sim(da: xr.DataArray) -> xr.DataArray:
-    """Function to help get_cdf."""
+    """Function to help get_cdf.
+
+    Parameters
+    ----------
+    da: xr.DataArray
+        Hourly data
+
+    Returns
+    -------
+    xr.DataArray
+    """
     # Group the DataArray by simulation
     return da.groupby("simulation").map(_compute_cdf)
 
 
 def _get_cdf_by_mon_and_sim(da: xr.DataArray) -> xr.DataArray:
-    """Function to help get_cdf."""
+    """Function to help get_cdf.
+
+    Parameters
+    ----------
+    da: xr.DataArray
+        Hourly data
+
+    Returns
+    -------
+    xr.DataArray
+    """
     # Group the DataArray by month in the year
     return da.groupby("time.month").map(_get_cdf_by_sim)
 
@@ -253,7 +283,7 @@ class TMY:
         CDF monthly data by model
     weighted_fs_sum: xr.Dataset
         Weighted F-S statistic results
-    top_df: pd.DataFrame
+    top_months: pd.DataFrame
         Table of top months by model
     all_vars: xr.Dataset
         All loaded variables for TMY
@@ -317,7 +347,13 @@ class TMY:
         self.tmy_data_to_export = UNSET
 
     def _set_loc_from_stn_name(self, station_name: str):
-        """Get coordinates and other station metadata from station"""
+        """Get coordinates and other station metadata from station
+
+        Parameters
+        ----------
+        station_name: str
+           Name of HadISD station
+        """
         # read in station file of CA HadISD stations
         stn_file = pkg_resources.resource_filename(
             "climakitae", "data/hadisd_stations.csv"
@@ -340,27 +376,57 @@ class TMY:
         self._set_lat_lon()
         return
 
-    def _set_loc_from_lat_lon(self, latitude, longitude):
+    def _set_loc_from_lat_lon(self, latitude: float, longitude: float):
+        """Set class attributes based on latitude and longitude variables.
+
+        Parameters:
+        -----------
+        latitude: float
+           Location latitude in degrees
+        longitude: float
+           Location longitude in degrees
+        """
         self.stn_lat = latitude
         self.stn_lon = longitude
         self._set_lat_lon()
-        # Set station variables to "None"
+        # Set station variables to string "None"
+        # to be written to file with final data
         self.stn_name = "None"
         self.stn_code = "None"
         self.stn_state = "None"
 
+        self._vprint("Station name:", stn_name)
+        self._vprint("Station code:", stn_code)
+        self._vprint("Station latitude:", stn_lat)
+        self._vprint("Station longitude:", stn_lon)
+        return
+
     def _set_lat_lon(self):
-        # TODO: check if this buffer is generalizable
+        """Set the lat/lon ranges for selecting data around the grid point."""
         self.latitude = (self.stn_lat - 0.05, self.stn_lat + 0.05)
         self.longitude = (self.stn_lon - 0.06, self.stn_lon + 0.06)
+        return
 
-    def _vprint(self, msg):
+    def _vprint(self, msg: str):
         """Checks verbosity and prints as allowed."""
         if self.verbose:
             print(msg)
+        return
 
-    def _load_single_variable(self, varname, units):
-        """Fetch catalog data for one variable."""
+    def _load_single_variable(self, varname: str, units: str) -> xr.DataArray:
+        """Fetch catalog data for one variable.
+
+        Parameters
+        ----------
+        varname: str
+           Name of desired catalog variable
+        units: str
+           Desired units
+
+        Returns
+        -------
+        xr.DataArray
+        """
         # Extra year in UTC time to get full period in local time.
         if self.end_year == 2100:
             print(
@@ -444,6 +510,7 @@ class TMY:
 
         return returned_data
 
+    @staticmethod
     def _make_8760_tables(
         self, all_vars_ds: xr.Dataset, top_df: pd.DataFrame
     ) -> pd.DataFrame:
@@ -494,7 +561,7 @@ class TMY:
 
     def load_all_variables(self):
         """Load the datasets needed to create TMY."""
-        self._vprint("Loading variables. Expected runtime: 7 minutes")
+        self.print("Loading data from catalog. Expected runtime: 7 minutes")
 
         print("Getting air temperature", end="... ")
         airtemp_data = self._get_tmy_variable(
@@ -548,7 +615,7 @@ class TMY:
         total_dni_data = total_dni_data[0]
         total_dni_data.name = "Direct normal irradiance"
 
-        print("Loading all variables into memory.")
+        self._vprint("Loading all variables into memory.")
         all_vars = xr.merge(
             [
                 max_airtemp_data.squeeze(),
@@ -566,7 +633,8 @@ class TMY:
 
         # load all indices in
         self.all_vars = all_vars.compute()
-        print("All TMY variables loaded.")
+        self._vprint("All TMY variables loaded.")
+        return
 
     def set_cdf_climatology(self):
         """Calculate the long-term climatology for each index for each month so
@@ -589,12 +657,12 @@ class TMY:
         return
 
     def set_weighted_statistic(self):
-        """Calculate the weighted f-s statistic."""
+        """Calculate the weighted F-S statistic."""
         if self.cdf_climatology is UNSET:
             self.set_cdf_climatology()
         if self.cdf_monthly is UNSET:
             self.set_cdf_monthly()
-        self._vprint("Calculating weighted FS statistic.")
+        self._vprint("Calculating weighted F-S statistic.")
         self.weighted_fs_sum = compute_weighted_fs_sum(
             self.cdf_climatology, self.cdf_monthly
         )
@@ -605,9 +673,8 @@ class TMY:
         # Pass the weighted F-S sum data for simplicity
         if self.weighted_fs_sum is UNSET:
             self.set_weighted_statistic()
+        self._vprint("Finding top months (lowest F-S statistic)")
         self.top_months = get_top_months(self.weighted_fs_sum)
-        self._vprint("Top months:")
-        self._vprint(self.top_months)
         return
 
     def show_tmy_data_to_export(self, simulation: str):
@@ -651,9 +718,9 @@ class TMY:
             Dictionary in the format of {simulation:TMY corresponding to that simulation}
 
         """
-        self._vprint("Generating TMY data to export. Expected runtime: 30 minutes")
+        print("Assembling TMY data to export. Expected runtime: 30 minutes")
 
-        print("STEP 1: Retrieving hourly data from catalog\n")
+        self._vprint("  STEP 1: Retrieving hourly data from catalog\n")
         # Loop through each variable and grab data from catalog
         all_vars_list = []
 
@@ -674,13 +741,15 @@ class TMY:
         all_vars_ds = xr.merge(all_vars_list, self.top_months)
 
         # Construct TMY
-        print(
-            "\nSTEP 2: Calculating Typical Meteorological Year per model simulation\nProgress bar shows code looping through each month in the year.\n"
+        self._vprint(
+            "\n  STEP 2: Calculating Typical Meteorological Year per model simulation\nProgress bar shows code looping through each month in the year.\n"
         )
 
         self.tmy_data_to_export = self._make_8760_tables(
             all_vars_ds, self.top_months
         )  # Return dict of TMY by simulation
+        self._vprint("TMY analysis complete")
+        return
 
     def export_tmy_data(self, extension: str = "tmy"):
         """Write TMY data to EPW file.
@@ -691,10 +760,10 @@ class TMY:
             Desired file extension ('tmy' or 'epw')
 
         """
-        self._vprint("Exporting TMY to file.")
+        print("Exporting TMY to file.")
         for sim, tmy in self.tmy_data_to_export.items():
             filename = "TMY_{0}_{1}".format(
-                stn_name.replace(" ", "_").replace("(", "").replace(")", ""), sim
+                self.stn_name.replace(" ", "_").replace("(", "").replace(")", ""), sim
             ).lower()
             write_tmy_file(
                 filename,
@@ -707,8 +776,7 @@ class TMY:
                 self.stn_state,
                 file_ext=extension,
             )
-            if self.verbose:
-                print("  Wrote", filename)
+            self._vprint("  Wrote", filename)
         return
 
     def get_candidate_months(self):
@@ -724,7 +792,6 @@ class TMY:
         self.set_cdf_monthly()
         self.set_weighted_statistic()
         self.set_top_months()
-        print("Done.")
         return
 
     def generate_tmy(self):
