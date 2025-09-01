@@ -2,36 +2,37 @@ from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
-import panel
 import pytest
 import xarray as xr
 
 from climakitae.core.constants import UNSET
 from climakitae.explore.typical_meteorological_year import (
     TMY,
-    compute_cdf,
+    _compute_cdf,
+    _get_cdf_by_mon_and_sim,
+    _get_cdf_by_sim,
     compute_weighted_fs,
+    compute_weighted_fs_sum,
     fs_statistic,
     get_cdf,
-    get_cdf_by_mon_and_sim,
-    get_cdf_by_sim,
     get_cdf_monthly,
+    get_top_months,
     remove_pinatubo_years,
 )
 
 
 class TestFunctionsForTMY:
-    def test_compute_cdf(self):
+    def test__compute_cdf(self):
         """Test cdf function applied to single array."""
         # Create test data array
         test_data = np.arange(0, 365 * 3, 1)
-        test = xr.DataArray(
+        test_da = xr.DataArray(
             data=test_data,
             coords={
                 "time": pd.date_range(start="2001-01-01", end="2003-12-31"),
             },
         )
-        result = compute_cdf(test)
+        result = _compute_cdf(test_da)
         assert result.shape == (2, 1023)
         # Max bin is max value
         assert result[0].max() == pytest.approx(test_data.max(), abs=1e-6)
@@ -48,7 +49,7 @@ class TestFunctionsForTMY:
             "simulation": ["sim1", "sim2"],
         }
         da = xr.DataArray(
-            name="Air Temperature at 2m",
+            name="Daily max air temperature",
             dims=["time", "simulation"],
             data=test_data,
             coords=coords,
@@ -59,62 +60,62 @@ class TestFunctionsForTMY:
         for dim in ["year", "month", "bin_number"]:
             assert dim in result.dims
 
-    def test_get_cdf_by_sim(self):
+    def test__get_cdf_by_sim(self):
         """Test cdf computation by simulation."""
         # Create test data array
         test_data = np.arange(0, 365 * 3, 1)
         test_data = test_data * np.ones((2, len(test_data)))
-        test = xr.DataArray(
+        test_da = xr.DataArray(
             data=test_data,
             coords={
                 "simulation": ["sim1", "sim2"],
                 "time": pd.date_range(start="2001-01-01", end="2003-12-31"),
             },
         )
-        result = get_cdf_by_sim(test)
+        result = _get_cdf_by_sim(test_da)
 
         # Correct shape
         assert result.shape == (2, 2, 1023)
 
         # Max of first simulation matches
         assert result[0][0].max() == pytest.approx(
-            test.isel(simulation=0).max(), abs=1e-6
+            test_da.isel(simulation=0).max(), abs=1e-6
         )
 
         # Max of second simulation matches
         assert result[1][0].max() == pytest.approx(
-            test.isel(simulation=1).max(), abs=1e-6
+            test_da.isel(simulation=1).max(), abs=1e-6
         )
 
         # Simulation list contains all sims
-        assert (result.simulation == test.simulation).all()
+        assert (result.simulation == test_da.simulation).all()
 
-    def test_get_cdf_by_mon_and_sim(self):
+    def test__get_cdf_by_mon_and_sim(self):
         """Test cdf calculation by month and simulation."""
         # Create test data array
         test_data = np.arange(0, 365 * 3, 1)
         test_data = test_data * np.ones((2, len(test_data)))
-        test = xr.DataArray(
+        test_da = xr.DataArray(
             data=test_data,
             coords={
                 "simulation": ["sim1", "sim2"],
                 "time": pd.date_range(start="2001-01-01", end="2003-12-31"),
             },
         )
-        result = get_cdf_by_mon_and_sim(test)
+        result = _get_cdf_by_mon_and_sim(test_da)
 
         # Result contains all months
         assert (result.month == np.arange(1, 13)).all()
 
         # Simulation list contains all sims
-        assert (result.simulation == test.simulation).all()
+        assert (result.simulation == test_da.simulation).all()
 
         # Shape correct
         assert result.shape == (2, 12, 2, 1023)
 
         # Spot check the January max matches
         assert result[1][0][0].max() == pytest.approx(
-            test.isel({"simulation": 1}).groupby("time.month").max()[0], abs=1e-6
+            test_da.isel({"simulation": 1}).groupby("time.month").max()[0], abs=1e-6
         )
 
     def test_get_cdf(self):
@@ -122,7 +123,7 @@ class TestFunctionsForTMY:
         # Create test dataset
         test_data = np.arange(0, 365 * 3, 1)
         test_data = test_data * np.ones((2, len(test_data)))
-        test = xr.DataArray(
+        test_ds = xr.DataArray(
             name="temperature",
             data=test_data,
             coords={
@@ -130,8 +131,8 @@ class TestFunctionsForTMY:
                 "time": pd.date_range(start="2001-01-01", end="2003-12-31"),
             },
         ).to_dataset()
-        test["wind speed"] = (["simulation", "time"], test_data)
-        result = get_cdf(test)
+        test_ds["wind speed"] = (["simulation", "time"], test_data)
+        result = get_cdf(test_ds)
 
         assert "temperature" in result
         assert "wind speed" in result
@@ -145,7 +146,10 @@ class TestFunctionsForTMY:
         assert result["temperature"].isel(simulation=0, month=6)[
             0
         ].max() == pytest.approx(
-            test["temperature"].isel({"simulation": 1}).groupby("time.month").max()[6],
+            test_ds["temperature"]
+            .isel({"simulation": 1})
+            .groupby("time.month")
+            .max()[6],
             abs=1e-6,
         )
 
@@ -153,7 +157,7 @@ class TestFunctionsForTMY:
         """Test f-s statistic computation on cdf data."""
         test_data = np.arange(0, 365 * 3, 1)
         test_data = test_data * np.ones((2, len(test_data)))
-        test = xr.DataArray(
+        test_ds = xr.DataArray(
             name="temperature",
             data=test_data,
             coords={
@@ -161,7 +165,7 @@ class TestFunctionsForTMY:
                 "time": pd.date_range(start="2001-01-01", end="2003-12-31"),
             },
         ).to_dataset()
-        result = get_cdf(test)
+        result = get_cdf(test_ds)
 
         # Since datasets are identical, fs should be zero
         fs = fs_statistic(result, result)
@@ -169,7 +173,7 @@ class TestFunctionsForTMY:
 
         test_data2 = np.ones((365 * 3))
         test_data2 = test_data2 * np.ones((2, len(test_data2)))
-        test2 = xr.DataArray(
+        test_ds2 = xr.DataArray(
             name="temperature",
             data=test_data2,
             coords={
@@ -177,7 +181,7 @@ class TestFunctionsForTMY:
                 "time": pd.date_range(start="2001-01-01", end="2003-12-31"),
             },
         ).to_dataset()
-        result2 = get_cdf(test2)
+        result2 = get_cdf(test_ds2)
 
         # Should have non-zero differences now
         fs = fs_statistic(result, result2)
@@ -186,7 +190,7 @@ class TestFunctionsForTMY:
     def test_compute_weighted_fs(self):
         """Test weighing of f-s statistic."""
         test_data = np.array([20])
-        test = xr.DataArray(
+        test_ds = xr.DataArray(
             name="Daily max air temperature", data=test_data
         ).to_dataset()
         vars_list = [
@@ -202,15 +206,113 @@ class TestFunctionsForTMY:
             "Direct normal irradiance",
         ]
         for item in vars_list[1:]:
-            test[item] = test_data
-        fs = compute_weighted_fs(test)
+            test_ds[item] = test_data
+        fs = compute_weighted_fs(test_ds)
 
         # Check that results are correctly weighted
         values_list = [1, 1, 2, 1, 1, 2, 1, 1, 5, 5]
         for variable, value in zip(vars_list, values_list):
             assert fs[variable] == value
 
+    def test_compute_weighted_fs_sum(self):
+        """Check format and values of weighted fs statistic sum."""
+        # Fake cdf climatology data
+        coords = {
+            "data": ["bins", "probability"],
+            "simulation": ["sim1", "sim2"],
+            "month": list(range(1, 13)),
+        }
+        dims = {"data": 2, "simulation": 2, "month": 12, "bin_number": 10}
+        probs = np.linspace(0.01, 1, 10)
+        bins = np.array(range(1, 11))
+        data = np.vstack((bins, probs))
+        data = np.expand_dims(data, [1, 2]) * np.ones((1, 2, 12, 1))
+        ds_clim = xr.DataArray(
+            name="Daily max air temperature",
+            data=data,
+            dims=dims,
+            coords=coords,
+        ).to_dataset()
+
+        # Fake cdf monthly data
+        coords = {
+            "data": ["bins", "probability"],
+            "simulation": ["sim1", "sim2"],
+            "month": list(range(1, 13)),
+            "year": list(range(2001, 2004)),
+        }
+        dims = {"data": 2, "simulation": 2, "month": 12, "year": 3, "bin_number": 10}
+        probs = np.linspace(0.05, 1, 10)
+        bins = np.array(range(1, 11))
+        data2 = np.vstack((bins, probs))
+        data2 = np.expand_dims(data2, [1, 2, 3]) * np.ones((1, 2, 12, 3, 1))
+        ds_month = xr.DataArray(
+            name="Daily max air temperature",
+            data=data2,
+            dims=dims,
+            coords=coords,
+        ).to_dataset()
+
+        # Populate required variables
+        vars_list = [
+            "Daily max air temperature",
+            "Daily min air temperature",
+            "Daily mean air temperature",
+            "Daily max dewpoint temperature",
+            "Daily min dewpoint temperature",
+            "Daily mean dewpoint temperature",
+            "Daily max wind speed",
+            "Daily mean wind speed",
+            "Global horizontal irradiance",
+            "Direct normal irradiance",
+        ]
+        for item in vars_list[1:]:
+            ds_clim[item] = (("data", "simulation", "month", "bin_number"), data)
+            ds_month[item] = (
+                ("data", "simulation", "month", "year", "bin_number"),
+                data2,
+            )
+
+        # Get weighted F-S statistics
+        result = compute_weighted_fs_sum(ds_clim, ds_month)
+        assert isinstance(result, xr.DataArray)
+        assert result.shape == (2, 12, 3)
+        assert "month" in result.dims
+        # Spot check a row of values
+        test = result.sel(simulation="sim1", month=1).data
+        expected = np.array([0.00645161, 0.00645161, 0.00645161])
+        assert np.allclose(test, expected, atol=1e-9)
+
+    def test_get_top_months(self):
+        """Check top months dataframe format and that month with lowest f-s value is chosen."""
+        coords = {
+            "simulation": ["sim1", "sim2"],
+            "month": list(range(1, 13)),
+            "year": list(range(2001, 2004)),
+        }
+        dims = {"simulation": 2, "month": 12, "year": 3}
+        sim1 = np.linspace(0.05, 1, 12)
+        sim2 = np.linspace(0.3, 1, 12)
+        data = np.vstack((sim1, sim2))
+        data = np.expand_dims(data, [2]) + np.ones((1, 12, 3)) * np.array(
+            [0, 0.02, 0.04]
+        )
+        fs = xr.DataArray(
+            name="Daily max air temperature",
+            data=data,
+            dims=dims,
+            coords=coords,
+        )
+        result = get_top_months(fs)
+        # Correctly formatted dataframe
+        for col in ["month", "simulation", "year"]:
+            assert col in result.columns
+        assert (np.unique(result["simulation"]) == np.array(["sim1", "sim2"])).all()
+        # Lowest stat value is in 2001 for all sims, months
+        assert (result.year.values == [2001 for x in range(0, 24)]).all()
+
     def test_remove_pinatubo_years(self):
+        """Check that years immediately after eruption are removed from dataset."""
         test_data = np.arange(0, 10, 1)
         test_data = test_data * np.ones((1, len(test_data)))
         test_ds = xr.DataArray(
@@ -304,21 +406,6 @@ def mock_t_ds():
 
 
 class TestTMYClass:
-    @pytest.fixture
-    def mock_da_hourly(self):
-        test_data = np.arange(0, 365 * 3 * 24, 1)
-        test_data = test_data * np.ones((2, len(test_data)))
-        test = xr.DataArray(
-            name="temperature",
-            data=test_data,
-            coords={
-                "simulation": ["sim1", "sim2"],
-                "time": pd.date_range(
-                    start="2001-01-01-00", end="2003-12-31-23", freq="1h"
-                ),
-            },
-        )
-        return test
 
     def test_TMY_init_station(self):
         """Check class initialization with station."""
@@ -441,7 +528,7 @@ class TestTMYClass:
             ) as mock_get_cdf,
         ):
             tmy.set_cdf_climatology()
-            # load_all_variables called since we just initialized this TMY object
+            # Check correct methods called
             mock_load.assert_called_once()
             mock_get_cdf.assert_called_once()
             assert tmy.cdf_climatology is not UNSET
@@ -453,11 +540,10 @@ class TestTMYClass:
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
         start_year = 2001
         end_year = 2003
-        # Initialize TMY object
         tmy = TMY(start_year, end_year, station_name=stn_name)
         with patch.object(tmy, "load_all_variables") as mock_load:
             tmy.set_cdf_monthly()
-            # load_all_variables called since we just initialized this TMY object
+            # Check correct methods called
             mock_load.assert_called_once()
             mock_get_cdf_monthly.assert_called_once()
             mock_remove_pinatubo.assert_called_once()
@@ -467,7 +553,6 @@ class TestTMYClass:
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
         start_year = 2001
         end_year = 2003
-        # Initialize TMY object
         tmy = TMY(start_year, end_year, station_name=stn_name)
         with (
             patch.object(tmy, "load_all_variables") as mock_load,
@@ -476,6 +561,7 @@ class TestTMYClass:
             patch.object(tmy, "export_tmy_data") as mock_export,
         ):
             tmy.generate_tmy()
+            # Check correct methods called
             mock_load.assert_called_once()
             mock_get_months.assert_called_once()
             mock_run_tmy.assert_called_once()
@@ -491,15 +577,16 @@ class TestTMYClass:
             patch.object(tmy, "set_cdf_monthly") as mock_month,
             patch.object(tmy, "set_cdf_climatology") as mock_clim,
             patch.object(tmy, "set_weighted_statistic") as mock_weight,
-            patch.object(tmy, "calculate_top_df") as mock_top_df,
+            patch.object(tmy, "set_top_months") as mock_top_months,
         ):
             tmy.get_candidate_months()
+            # Check correct methods called
             mock_clim.assert_called_once()
             mock_month.assert_called_once()
             mock_weight.assert_called_once()
-            mock_top_df.assert_called_once()
+            mock_top_months.assert_called_once()
 
-    def test__make_tables(self):
+    def test__make_8760_tables(self):
         data = {
             "month": list(range(1, 13)),
             "simulation": ["WRF_EC-Earth3_r1i1p1f1" for x in range(0, 12)],
@@ -511,7 +598,6 @@ class TestTMYClass:
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
         start_year = 2001
         end_year = 2003
-        # Initialize TMY object
         tmy = TMY(start_year, end_year, station_name=stn_name)
         result = tmy._make_8760_tables(all_vars_ds, df)
         # Check result dict of dataframes (only 1 for 1 simulation in test)
@@ -532,6 +618,15 @@ class TestTMYClass:
         ).all()
         assert len(result["WRF_EC-Earth3_r1i1p1f1"].index) == 8760
 
-    def test_calculate_top_df(self):
-        # self.weighted_fs xarray.DataArray (simulation: 4, year: 27, month: 12)
-        pass
+    @patch("climakitae.explore.typical_meteorological_year.get_top_months")
+    def test_set_top_months(self, mock_top_months):
+        stn_name = "Santa Ana John Wayne Airport (KSNA)"
+        start_year = 2001
+        end_year = 2003
+        # Initialize TMY object
+        tmy = TMY(start_year, end_year, station_name=stn_name)
+        with patch.object(tmy, "set_weighted_statistic") as mock_fs:
+            tmy.set_top_months()
+            # Check correct methods called
+            mock_fs.assert_called_once()
+            mock_top_months.assert_called_once()
