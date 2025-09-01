@@ -271,10 +271,12 @@ class TMY:
         Initial year of TMY period
     end_year: str
         Final year of TMY period
-    data_models: list[str]
+    simulations: list[str]
         List of included simulations
     scenario: list[str]
         List of scenarios
+    vars_and_units: dict[str,str]
+        Dictionary of all required variables and units
     verbose: bool
         True to increase verbosity
     cdf_climatology: xr.Dataset
@@ -312,11 +314,10 @@ class TMY:
             raise ValueError(
                 "No valid station name or latitude and longitude provided."
             )
-            # TODO: raise error for missing input
         self.start_year = start_year
         self.end_year = end_year
-        # These 4 models have the solar variables needed
-        self.data_models = [
+        # These 4 simulations have the solar variables needed
+        self.simulations = [
             "WRF_EC-Earth3_r1i1p1f1",
             "WRF_MPI-ESM1-2-HR_r3i1p1f1",
             "WRF_TaiESM1_r1i1p1f1",
@@ -345,6 +346,21 @@ class TMY:
         self.top_months = UNSET
         self.all_vars = UNSET
         self.tmy_data_to_export = UNSET
+
+        self._print_attrs()
+
+    def _print_attrs(self):
+        """If verbose, print attributes for informational purposes."""
+        if self.verbose:
+            print("TMY settings")
+            print("------------")
+            print("  Station name:", self.stn_name)
+            print("  Station code:", self.stn_code)
+            print("  Station latitude:", self.stn_lat)
+            print("  Station longitude:", self.stn_lon)
+            print("  Start year:", self.start_year)
+            print("  End year:", self.end_year)
+            print("  Scenarios:", self.scenario)
 
     def _set_loc_from_stn_name(self, station_name: str):
         """Get coordinates and other station metadata from station
@@ -394,11 +410,6 @@ class TMY:
         self.stn_name = "None"
         self.stn_code = "None"
         self.stn_state = "None"
-
-        self._vprint("Station name:", stn_name)
-        self._vprint("Station code:", stn_code)
-        self._vprint("Station latitude:", stn_lat)
-        self._vprint("Station longitude:", stn_lon)
         return
 
     def _set_lat_lon(self):
@@ -459,7 +470,7 @@ class TMY:
             {"time": slice(f"{self.start_year}-01-01-00", f"{self.end_year}-12-31-23")}
         )
         # Only use preset models with solar variables
-        data = data.sel(simulation=self.data_models)
+        data = data.sel(simulation=self.simulations)
         return data
 
     def _get_tmy_variable(
@@ -561,7 +572,7 @@ class TMY:
 
     def load_all_variables(self):
         """Load the datasets needed to create TMY."""
-        self.print("Loading data from catalog. Expected runtime: 7 minutes")
+        print("Loading data from catalog. Expected runtime: 7 minutes")
 
         print("Getting air temperature", end="... ")
         airtemp_data = self._get_tmy_variable(
