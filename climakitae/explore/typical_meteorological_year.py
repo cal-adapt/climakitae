@@ -1,18 +1,15 @@
 """Working version of TMY class."""
 
+import numpy as np
+import pandas as pd
+import pkg_resources
+import xarray as xr
+from tqdm.auto import tqdm  # Progress bar
+
 from climakitae.core.constants import UNSET
-from climakitae.util.utils import (
-    convert_to_local_time,
-    get_closest_gridcell,
-)
 from climakitae.core.data_export import write_tmy_file
 from climakitae.core.data_interface import get_data
-
-import pandas as pd
-import xarray as xr
-import numpy as np
-import pkg_resources
-from tqdm.auto import tqdm  # Progress bar
+from climakitae.util.utils import convert_to_local_time, get_closest_gridcell
 
 
 def compute_cdf(da: xr.DataArray) -> xr.DataArray:
@@ -86,6 +83,12 @@ def get_cdf_monthly(ds: xr.DataArray) -> xr.Dataset:
         return da.groupby("time.year").apply(get_cdf_by_mon_and_sim)
 
     return ds.apply(get_cdf_mon_yr)
+
+
+def remove_pinatubo_years(ds: xr.Dataset) -> xr.Dataset:
+    """Drop years after Pinatubo eruption from dataset."""
+    ds = ds.where((~ds.year.isin([1991, 1992, 1993, 1994])), np.nan, drop=True)
+    return ds
 
 
 def fs_statistic(cdf_climatology: xr.Dataset, cdf_monthly: xr.DataArray) -> xr.Dataset:
@@ -263,11 +266,10 @@ class TMY:
                 "station id"
             ].item()
             one_station = stn_file.loc[stn_file["station"] == self.stn_name]
-        except ValueError:
-            # TODO: raise error correctly
+        except ValueError as e:
             raise ValueError(
-                "Could  not find station in hadisd_stations.csv. Please provide valid station name"
-            )
+                "Could  not find station in hadisd_stations.csv. Please provide valid station name."
+            ) from e
         self.stn_lat = one_station.LAT_Y.item()
         self.stn_lon = one_station.LON_X.item()
         self.stn_state = one_station.state.item()
@@ -480,9 +482,7 @@ class TMY:
         self._vprint("Calculating monthly CDF.")
         self.cdf_monthly = get_cdf_monthly(self.all_vars)
         # Remove the years for the Pinatubo eruption
-        self.cdf_monthly = self.cdf_monthly.where(
-            (~self.cdf_monthly.year.isin([1991, 1992, 1993, 1994])), np.nan, drop=True
-        )
+        self.cdf_monthly = remove_pinatubo_years(self.cdf_monthly)
         return
 
     def set_weighted_statistic(self):
