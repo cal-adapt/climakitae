@@ -47,7 +47,12 @@ def test_return_value_dropna(T2_ams: xr.DataArray):
     """Test Return Values with dropna_time option."""
     T2_ams.data[2] = np.nan
     rvs = threshold_tools.get_return_value(
-        T2_ams, return_period=10, distr="gev", bootstrap_runs=1, multiple_points=False
+        T2_ams,
+        return_period=10,
+        distr="gev",
+        bootstrap_runs=1,
+        multiple_points=False,
+        dropna_time=True,
     )
     assert not np.isnan(rvs["return_value"].values[()])
 
