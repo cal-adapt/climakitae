@@ -347,21 +347,6 @@ class TMY:
         self.all_vars = UNSET
         self.tmy_data_to_export = UNSET
 
-        self._print_attrs()
-
-    def _print_attrs(self):
-        """If verbose, print attributes for informational purposes."""
-        if self.verbose:
-            print("TMY settings")
-            print("------------")
-            print("  Station name:", self.stn_name)
-            print("  Station code:", self.stn_code)
-            print("  Station latitude:", self.stn_lat)
-            print("  Station longitude:", self.stn_lon)
-            print("  Start year:", self.start_year)
-            print("  End year:", self.end_year)
-            print("  Scenarios:", self.scenario)
-
     def _set_loc_from_stn_name(self, station_name: str):
         """Get coordinates and other station metadata from station
 
@@ -523,7 +508,7 @@ class TMY:
 
     @staticmethod
     def _make_8760_tables(
-        self, all_vars_ds: xr.Dataset, top_df: pd.DataFrame
+        all_vars_ds: xr.Dataset, top_months: pd.DataFrame
     ) -> pd.DataFrame:
         """Extract top months from loaded data and arrange in table.
 
@@ -533,7 +518,7 @@ class TMY:
         ----------
         all_vars_ds: xr.Dataset
            Timeseries of all loaded variables needed for TMY.
-        top_df: pd.DataFrame
+        top_months: pd.DataFrame
            Dataframe of top months by model.
 
         Returns
@@ -546,8 +531,8 @@ class TMY:
             print(f"Calculating TMY for simulation: {sim}")
             for mon in tqdm(np.arange(1, 13, 1)):
                 # Get year corresponding to month and simulation combo
-                year = top_df.loc[
-                    (top_df["month"] == mon) & (top_df["simulation"] == sim)
+                year = top_months.loc[
+                    (top_months["month"] == mon) & (top_months["simulation"] == sim)
                 ].year.item()
 
                 # Select data for unique month, year, and simulation
@@ -731,12 +716,12 @@ class TMY:
         """
         print("Assembling TMY data to export. Expected runtime: 30 minutes")
 
-        self._vprint("  STEP 1: Retrieving hourly data from catalog\n")
+        self._vprint("  STEP 1: Retrieving hourly data from catalog")
         # Loop through each variable and grab data from catalog
         all_vars_list = []
 
         for var, units in self.vars_and_units.items():
-            print(f"Retrieving data for {var}", end="... ")
+            print(f"  Retrieving data for {var}", end="... ")
             data_by_var = self._load_single_variable(var, units)
 
             # Drop unwanted coords
@@ -748,7 +733,7 @@ class TMY:
             print("complete!")
 
         # Merge data from all variables into a single xr.Dataset object
-        all_vars_ds = xr.merge(all_vars_list, self.top_months)
+        all_vars_ds = xr.merge(all_vars_list)
 
         # Construct TMY
         self._vprint(
