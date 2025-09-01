@@ -10,12 +10,13 @@ from climakitae.core.constants import UNSET
 from climakitae.explore.typical_meteorological_year import (
     TMY,
     compute_cdf,
-    get_cdf_monthly,
     compute_weighted_fs,
     fs_statistic,
     get_cdf,
     get_cdf_by_mon_and_sim,
     get_cdf_by_sim,
+    get_cdf_monthly,
+    remove_pinatubo_years,
 )
 
 
@@ -209,6 +210,25 @@ class TestFunctionsForTMY:
         for variable, value in zip(vars_list, values_list):
             assert fs[variable] == value
 
+    def test_remove_pinatubo_years(self):
+        test_data = np.arange(0, 10, 1)
+        test_data = test_data * np.ones((1, len(test_data)))
+        test_ds = xr.DataArray(
+            name="temperature",
+            data=test_data,
+            coords={
+                "simulation": ["sim1"],
+                "year": range(1991, 2001),
+            },
+        ).to_dataset()
+        result = remove_pinatubo_years(test_ds)
+        # Check Pinatubo years gone
+        for year in range(1991, 1995):
+            assert year not in result.year
+        # Check other years still present
+        for year in range(1995, 2001):
+            assert year in result.year
+
 
 @pytest.fixture
 def mock_t_hourly():
@@ -281,64 +301,6 @@ def mock_t_ds():
         "timezone": "America/Los_Angeles",
     }
     return da.to_dataset()
-
-
-def stand_in_grouped():
-    test_data = np.arange(0, 36, 1)
-    test_data = np.expand_dims(test_data, [1, 2])
-    coords = {
-        "x": 7.819e05,
-        "y": -4.116e06,
-        "lakemask": 0,
-        "landmask": 0,
-        "Lambert_Conformal": 0,
-        "time": pd.date_range(start="2001-01-01-00", end="2003-12-31-23", freq="1ME"),
-        "scenario": ["Historical + SSP 3-7.0"],
-        "simulation": ["WRF_EC-Earth3_r1i1p1f1"],
-    }
-    da = xr.DataArray(
-        name="Air Temperature at 2m",
-        dims=["time", "scenario", "simulation"],
-        data=test_data,
-        coords=coords,
-    )
-    return da.groupby("time.year").sum()
-
-
-def stand_in_daily():
-    test_data = np.arange(0, 365 * 3, 1)
-    test_data = test_data = np.expand_dims(test_data, [1, 2]) * np.ones((1, 1, 2))
-    coords = {
-        "x": 7.819e05,
-        "y": -4.116e06,
-        "lakemask": 0,
-        "landmask": 0,
-        "Lambert_Conformal": 0,
-        "time": pd.date_range(start="2001-01-01-00", end="2003-12-31-23", freq="1D"),
-        "scenario": ["Historical + SSP 3-7.0"],
-        "simulation": ["WRF_EC-Earth3_r1i1p1f1", "WRF_MPI-ESM1-2-HR_r3i1p1f1"],
-    }
-    da = xr.DataArray(
-        name="name",
-        dims=["time", "scenario", "simulation"],
-        data=test_data,
-        coords=coords,
-    )
-    da.attrs = {
-        "variable_id": "",
-        "extended_description": "",
-        "units": "",
-        "data_type": "Gridded",
-        "resolution": "9 km",
-        "frequency": "daily",
-        "location_subset": ["coordinate selection"],
-        "approach": "Time",
-        "downscaling_method": "Dynamical",
-        "institution": "UCLA",
-        "grid_mapping": "Lambert_Conformal",
-        "timezone": "America/Los_Angeles",
-    }
-    return da
 
 
 class TestTMYClass:
@@ -484,11 +446,9 @@ class TestTMYClass:
             mock_get_cdf.assert_called_once()
             assert tmy.cdf_climatology is not UNSET
 
-    @patch(
-        "climakitae.explore.typical_meteorological_year.get_cdf_monthly",
-        return_value=stand_in_grouped(),
-    )
-    def test_cdf_monthly(self, mock_get_cdf_monthly):
+    @patch("climakitae.explore.typical_meteorological_year.get_cdf_monthly")
+    @patch("climakitae.explore.typical_meteorological_year.remove_pinatubo_years")
+    def test_cdf_monthly(self, mock_get_cdf_monthly, mock_remove_pinatubo):
         """Check that data load and get_cdf_monthly get called."""
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
         start_year = 2001
@@ -500,6 +460,7 @@ class TestTMYClass:
             # load_all_variables called since we just initialized this TMY object
             mock_load.assert_called_once()
             mock_get_cdf_monthly.assert_called_once()
+            mock_remove_pinatubo.assert_called_once()
             assert tmy.cdf_monthly is not UNSET
 
     def test_generate_tmy(self):
