@@ -574,7 +574,7 @@ class TMY:
         """Load the datasets needed to create TMY."""
         print("Loading data from catalog. Expected runtime: 7 minutes")
 
-        print("Getting air temperature", end="... ")
+        print("  Getting air temperature", end="... ")
         airtemp_data = self._get_tmy_variable(
             "Air Temperature at 2m", "degC", ["max", "min", "mean"]
         )
@@ -586,7 +586,7 @@ class TMY:
         mean_airtemp_data = airtemp_data[2]
         mean_airtemp_data.name = "Daily mean air temperature"
 
-        print("Getting dew point temperature", end="... ")
+        print("  Getting dew point temperature", end="... ")
         # dew point temperature
         dewpt_data = self._get_tmy_variable(
             "Dew point temperature", "degC", ["max", "min", "mean"]
@@ -600,7 +600,7 @@ class TMY:
         mean_dewpt_data.name = "Daily mean dewpoint temperature"
 
         # wind speed
-        print("Getting wind speed", end="... ")
+        print("  Getting wind speed", end="... ")
         wndspd_data = self._get_tmy_variable(
             "Wind speed at 10m", "m s-1", ["max", "mean"]
         )
@@ -611,7 +611,7 @@ class TMY:
         mean_windspd_data.name = "Daily mean wind speed"
 
         # global irradiance
-        print("Getting global irradiance", end="... ")
+        print("  Getting global irradiance", end="... ")
         total_ghi_data = self._get_tmy_variable(
             "Instantaneous downwelling shortwave flux at bottom", "W/m2", ["sum"]
         )
@@ -619,14 +619,14 @@ class TMY:
         total_ghi_data.name = "Global horizontal irradiance"
 
         # direct normal irradiance
-        print("Getting direct normal irradiance", end="... ")
+        print("  Getting direct normal irradiance", end="... ")
         total_dni_data = self._get_tmy_variable(
             "Shortwave surface downward direct normal irradiance", "W/m2", ["sum"]
         )
         total_dni_data = total_dni_data[0]
         total_dni_data.name = "Direct normal irradiance"
 
-        self._vprint("Loading all variables into memory.")
+        self._vprint("  Loading all variables into memory.")
         all_vars = xr.merge(
             [
                 max_airtemp_data.squeeze(),
@@ -644,7 +644,7 @@ class TMY:
 
         # load all indices in
         self.all_vars = all_vars.compute()
-        self._vprint("All TMY variables loaded.")
+        self._vprint("  All TMY variables loaded.")
         return
 
     def set_cdf_climatology(self):
@@ -735,7 +735,6 @@ class TMY:
         # Loop through each variable and grab data from catalog
         all_vars_list = []
 
-        print(self.vars_and_units.items())
         for var, units in self.vars_and_units.items():
             print(f"Retrieving data for {var}", end="... ")
             data_by_var = self._load_single_variable(var, units)
