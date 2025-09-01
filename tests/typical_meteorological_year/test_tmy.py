@@ -154,7 +154,7 @@ class TestFunctionsForTMY:
         )
 
     def test_fs_statistic(self):
-        """Test f-s statistic computation on cdf data."""
+        """Test F-S statistic computation on cdf data."""
         test_data = np.arange(0, 365 * 3, 1)
         test_data = test_data * np.ones((2, len(test_data)))
         test_ds = xr.DataArray(
@@ -188,7 +188,7 @@ class TestFunctionsForTMY:
         assert (fs["temperature"] != 0).any()
 
     def test_compute_weighted_fs(self):
-        """Test weighing of f-s statistic."""
+        """Test weighing of F-S statistic."""
         test_data = np.array([20])
         test_ds = xr.DataArray(
             name="Daily max air temperature", data=test_data
@@ -215,7 +215,7 @@ class TestFunctionsForTMY:
             assert fs[variable] == value
 
     def test_compute_weighted_fs_sum(self):
-        """Check format and values of weighted fs statistic sum."""
+        """Check format and values of weighted F-S statistic sum."""
         # Fake cdf climatology data
         coords = {
             "data": ["bins", "probability"],
@@ -333,7 +333,8 @@ class TestFunctionsForTMY:
 
 
 @pytest.fixture
-def mock_t_hourly():
+def mock_t_hourly() -> xr.DataArray:
+    """Fixture hourly data array."""
     test_data = np.arange(0, 365 * 3 * 24, 1)
     test_data = np.expand_dims(test_data, [1, 2])
     coords = {
@@ -369,7 +370,8 @@ def mock_t_hourly():
     return da
 
 
-def mock_t_ds():
+def mock_t_ds() -> xr.Dataset:
+    """Fake hourly dataset that can be manipulated to set up tests."""
     test_data = np.arange(0, 365 * 3 * 24, 1)
     test_data = np.expand_dims(test_data, [1, 2])
     coords = {
@@ -405,6 +407,7 @@ def mock_t_ds():
     return da.to_dataset()
 
 
+@pytest.mark.advanced
 class TestTMYClass:
 
     def test_TMY_init_station(self):
@@ -418,13 +421,14 @@ class TestTMYClass:
         assert tmy.start_year == start_year
         assert tmy.end_year == end_year
         assert tmy.stn_name == stn_name
+        # Check that we pull correct station coordinates
         assert tmy.latitude == pytest.approx((33.62975, 33.729749999999996), abs=1e-6)
         assert tmy.longitude == pytest.approx(
             (-117.92746, -117.80745999999999), abs=1e-6
         )
         assert tmy.stn_state == "CA"
         assert tmy.stn_code == 72297793184
-        assert tmy.verbose == False
+        assert not tmy.verbose
 
         # Use invalid station name
         stn_name = "KSNA"
@@ -587,6 +591,7 @@ class TestTMYClass:
             mock_top_months.assert_called_once()
 
     def test__make_8760_tables(self):
+        """Check that dataframe of 8760 values returned."""
         data = {
             "month": list(range(1, 13)),
             "simulation": ["WRF_EC-Earth3_r1i1p1f1" for x in range(0, 12)],
@@ -620,6 +625,7 @@ class TestTMYClass:
 
     @patch("climakitae.explore.typical_meteorological_year.get_top_months")
     def test_set_top_months(self, mock_top_months):
+        """Check that set_top_months calls correct functions."""
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
         start_year = 2001
         end_year = 2003
