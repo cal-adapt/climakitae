@@ -1,4 +1,10 @@
-"""Working version of TMY class."""
+"""
+Functions for Typical Meteorological Year creation.
+
+This code has been ported from the cae-notebooks typical_meteorological_year notebook.
+It includes statistical code for creating cumulative distributions and the F-S statistic
+along with a TMY class that organizes the workflow code.
+"""
 
 import numpy as np
 import pandas as pd
@@ -133,7 +139,7 @@ def remove_pinatubo_years(ds: xr.Dataset) -> xr.Dataset:
 def fs_statistic(cdf_climatology: xr.Dataset, cdf_monthly: xr.DataArray) -> xr.Dataset:
     """Calculates the Finkelstein-Schafer statistic.
 
-    Absolute difference between long-term climatology and candidate CDF, divided by number of days in month
+    Absolute difference between long-term climatology and candidate CDF, divided by number of days in month.
 
     Parameters
     -----------
@@ -721,7 +727,7 @@ class TMY:
         all_vars_list = []
 
         for var, units in self.vars_and_units.items():
-            print(f"  Retrieving data for {var}", end="... ")
+            print(f"  Getting {var}", end="... ")
             data_by_var = self._load_single_variable(var, units)
 
             # Drop unwanted coords
@@ -770,7 +776,6 @@ class TMY:
                 self.stn_state,
                 file_ext=extension,
             )
-            self._vprint("  Wrote", filename)
         return
 
     def get_candidate_months(self):
