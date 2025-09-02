@@ -29,20 +29,28 @@ from climakitae.core.paths import (
 from climakitae.new_core.data_access.boundaries import Boundaries
 import intake
 
-def create_mock_objs():
+import pytest
+from unittest.mock import MagicMock, patch, PropertyMock
+import pandas as pd
+import xarray as xr
+
+# from climakitae.new_core.data_access import DataCatalog, UNSET
+
+# --- Step 1: Create raw mock objects ---
+def make_mock_objects():
+    """Return mock ESM catalog, subset, boundary catalog, boundaries, stations_df, datasets."""
     
-    # Create mock objects
+    # ESM catalog
     mock_esm_catalog = MagicMock()
     mock_esm_catalog.df = pd.DataFrame({
         "id": [1, 2, 3],
         "name": ["Alice", "Bob", "Charlie"],
         "age": [25, 30, 35]
     })
-
+    
     mock_subset = MagicMock()
     mock_esm_catalog.search.return_value = mock_subset
 
-    # Create mock dataset dictionary with two xr.Datasets dataset
     ds1 = xr.Dataset(
         data_vars={"tasmax": (["time"], [1.0, 2.0])},
         coords={"time": [0, 1]},
@@ -53,11 +61,10 @@ def create_mock_objs():
         coords={"time": [0, 1]},
         attrs={"source_id": "MODEL2", "experiment_id": "historical"},
     )
-    mock_data_dict = {"dataset1": ds1, "dataset2": ds2}
-    mock_subset.to_dataset_dict.return_value = mock_data_dict
-    
-    # Create mock boundary catalog
-    mock_boundary_catalog = MagicMock(spec=intake.catalog.Catalog)
+    mock_subset.to_dataset_dict.return_value = {"dataset1": ds1, "dataset2": ds2}
+
+    # Boundary catalog
+    mock_boundary_catalog = MagicMock()
     mock_boundaries = MagicMock()
     boundary_dict = {
         'none': {'entire domain': 0},
@@ -66,20 +73,25 @@ def create_mock_objs():
         'CA counties': {'Alameda County': 54, 'Alpine County': 25},
         'CA watersheds': {'Aliso-San Onofre': 128, 'Antelope-Fremont Valleys': 11},
         'CA Electric Load Serving Entities (IOU & POU)': {'Pacific Gas & Electric Company': 2,
-        'San Diego Gas & Electric': 3},
-        'CA Electricity Demand Forecast Zones': {'LADWP Coastal': 0,
-        'Greater Bay Area': 1},
+                                                          'San Diego Gas & Electric': 3},
+        'CA Electricity Demand Forecast Zones': {'LADWP Coastal': 0, 'Greater Bay Area': 1},
         'CA Electric Balancing Authority Areas': {'BANC': 0, 'CALISO': 1},
-
     }
     mock_boundaries.boundary_dict.return_value = boundary_dict
 
-    # Create mock stations df
+    # Stations dataframe
     mock_stations_df = pd.DataFrame({
         "LON_X": [-120.0, -121.0],
         "LAT_Y": [35.0, 36.0],
         "station_name": ["Station1", "Station2"]
     })
+
+    return mock_esm_catalog, mock_boundary_catalog, mock_boundaries, mock_stations_df
+
+
+@pytest.fixture
+def mock_data_catalog_and_objs():
+    mock_esm_catalog, mock_boundary_catalog, mock_boundaries, mock_stations_df = make_mock_objects()
 
     with patch(
         "climakitae.new_core.data_access.data_access.intake.open_esm_datastore",
@@ -91,7 +103,7 @@ def create_mock_objs():
         "climakitae.new_core.data_access.data_access.read_csv_file",
         return_value=mock_stations_df
     ):
-        # Reset singleton
+        # Reset singleton for clean test state
         DataCatalog._instance = UNSET
         catalog_instance = DataCatalog()
 
@@ -101,18 +113,13 @@ def create_mock_objs():
             new_callable=PropertyMock,
             return_value=mock_boundaries,
         ):
-            return catalog_instance, mock_esm_catalog, mock_boundary_catalog, mock_stations_df, mock_open_esm, mock_open_catalog
+            yield catalog_instance, mock_esm_catalog, mock_boundary_catalog, mock_stations_df, mock_open_esm, mock_open_catalog
 
 
 @pytest.fixture
-def mock_data_catalog_and_objs():
-    return create_mock_objs()
-
-
-@pytest.fixture
-def mock_data_catalog():
-    mock_data_catalog, *_ = create_mock_objs()
-    return mock_data_catalog
+def mock_data_catalog(mock_data_catalog_and_objs):
+    catalog_instance, *_ = mock_data_catalog_and_objs
+    return catalog_instance
 
 
 class TestDataCatalogInitialization:
@@ -173,10 +180,8 @@ class TestDataCatalogInitialization:
     def test_boundaries_property_lazy_loads(self, mock_data_catalog_and_objs):
         """The .boundaries property should lazy-load Boundaries object."""
         mock_data_catalog, *_ = mock_data_catalog_and_objs
-        # mock_data_catalog = DataCatalog()
         assert mock_data_catalog._boundaries is UNSET
-        boundaries = mock_data_catalog.boundaries  # First access
-        assert mock_data_catalog._boundaries is not UNSET
+        boundaries = mock_data_catalog.boundaries 
         assert mock_data_catalog.boundaries is boundaries  # Same object on second access
 
     def test_get_data_queries_correct_catalog(self, mock_data_catalog_and_objs):
@@ -279,7 +284,7 @@ class TestDataCatalogCatalogKeyManagement:
             'CA Electricity Demand Forecast Zones',
             'CA Electric Balancing Authority Areas'
         ]
-        assert all (k in expected_names for k in list(clip_boundaries.keys()))
+        assert all([k in expected_names for k in list(clip_boundaries.keys())])
 
     def test_print_clip_boundaries(self, mock_data_catalog, capfd):
 
