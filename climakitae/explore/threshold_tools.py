@@ -82,7 +82,6 @@ def get_block_maxima(
     xarray.DataArray
 
     """
-
     extremes_types = ["max", "min"]  # valid user options
     if extremes_type not in extremes_types:
         raise ValueError(
@@ -270,6 +269,7 @@ def _calc_average_ess_gridded_data(data: xr.DataArray, block_size: int) -> float
 
         # Compute mean ESS for time block and append to list
         ess_mean_by_time_block = ess_by_time_block.mean(skipna=True).item()
+        print(15, ess_mean_by_time_block)
         ess_means_list.append(ess_mean_by_time_block)
 
     # Compute mean across all time blocks
@@ -294,7 +294,6 @@ def _calc_average_ess_timeseries_data(data: xr.DataArray, block_size: int) -> fl
         Average effective sample size across time blocks for input data
 
     """
-
     # Resample the data depending on the block size
     # Calculate ESS for each block
     ess_by_time_block = data.resample(time=f"{block_size}YS").apply(calculate_ess)
@@ -322,7 +321,6 @@ def _get_distr_func(
     scipy.stats
 
     """
-
     match distr:
         case "gev":
             distr_func = stats.genextreme
@@ -433,7 +431,6 @@ def get_ks_stat(
     xarray.Dataset
 
     """
-
     distr_func = _get_distr_func(distr)
     bms_attributes = bms.attrs
 
@@ -605,7 +602,6 @@ def _bootstrap(
     float
 
     """
-
     data_variables = ["return_value", "return_prob", "return_period"]
     if data_variable not in data_variables:
         raise ValueError(
@@ -672,13 +668,13 @@ def _conf_int(
     float, float
 
     """
-
     bootstrap_values = []
 
     for _ in range(bootstrap_runs):
         result = _bootstrap(
             bms, distr, data_variable, arg_value, block_size, extremes_type
         )
+        print(17, type(bootstrap_values))
         bootstrap_values.append(result)
 
     bootstrap_values = np.stack(bootstrap_values, axis=0)
@@ -896,7 +892,6 @@ def get_return_value(
         Dataset with return values and confidence intervals
 
     """
-
     return _get_return_variable(
         bms,
         "return_value",
@@ -949,7 +944,6 @@ def get_return_prob(
         Dataset with return probabilities and confidence intervals
 
     """
-
     return _get_return_variable(
         bms,
         "return_prob",
@@ -1001,7 +995,6 @@ def get_return_period(
         Dataset with return periods and confidence intervals
 
     """
-
     return _get_return_variable(
         bms,
         "return_period",
@@ -1064,7 +1057,6 @@ def get_exceedance_count(
     xarray.DataArray
 
     """
-
     # --------- Type check arguments -------------------------------------------
 
     # Check compatibility of periods, durations, and groupbys
@@ -1225,7 +1217,6 @@ def _get_exceedance_events(
     xarray.DataArray
 
     """
-
     # Identify occurances (and preserve NaNs)
     match threshold_direction:
         case "above":
@@ -1367,7 +1358,6 @@ def exceedance_plot_subtitle(exceedance_count: xr.DataArray) -> str:
         'Number of days per year with conditions lasting at least 4-hours'
 
     """
-
     if exceedance_count.duration2 != exceedance_count.duration1:
         dur_len, dur_type = exceedance_count.duration1
         _s = "" if dur_len == 1 else "s"
