@@ -6,14 +6,16 @@ framework including decorator registration, abstract base class functionality,
 and validation logic.
 """
 
+import warnings
 from unittest.mock import patch
 
 import pandas as pd
 import pytest
 
-from climakitae.core.constants import UNSET
+from climakitae.core.constants import PROC_KEY, UNSET
 from climakitae.new_core.param_validation.abc_param_validation import (
     _CATALOG_VALIDATOR_REGISTRY,
+    _PROCESSOR_VALIDATOR_REGISTRY,
     ParameterValidator,
     register_catalog_validator,
 )
@@ -169,3 +171,78 @@ class TestParameterValidatorMethods:
 
             assert self.validator.catalog_df.equals(mock_df)
             mock_dc.assert_called_once()
+
+
+class TestHasValidProcesses:
+    """Test class for _has_valid_processes method."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        _PROCESSOR_VALIDATOR_REGISTRY.clear()
+        with patch(
+            "climakitae.new_core.param_validation.abc_param_validation.DataCatalog"
+        ):
+            self.validator = ConcreteValidator()
+
+    def test_has_valid_processes_no_processes(self):
+        """Test _has_valid_processes with no processes in query."""
+        query = {"variable": "tas"}
+
+        result = self.validator._has_valid_processes(query)
+
+        assert result is True
+
+    def test_has_valid_processes_all_valid(self):
+        """Test _has_valid_processes with all valid processes."""
+        # Register validators
+        _PROCESSOR_VALIDATOR_REGISTRY["proc1"] = lambda v, query=None: True
+        _PROCESSOR_VALIDATOR_REGISTRY["proc2"] = lambda v, query=None: True
+
+        query = {PROC_KEY: {"proc1": "value1", "proc2": "value2"}}
+
+        result = self.validator._has_valid_processes(query)
+
+        assert result is True
+
+    def test_has_valid_processes_invalid_processor(self):
+        """Test _has_valid_processes with invalid processor."""
+        _PROCESSOR_VALIDATOR_REGISTRY["proc1"] = lambda v, query=None: False
+
+        query = {PROC_KEY: {"proc1": "invalid_value"}}
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            result = self.validator._has_valid_processes(query)
+
+            assert result is False
+            assert len(w) == 1
+            assert "proc1 with value invalid_value is not valid" in str(w[0].message)
+
+    def test_has_valid_processes_unregistered_processor(self):
+        """Test _has_valid_processes with unregistered processor."""
+        query = {PROC_KEY: {"unregistered_proc": "value"}}
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            result = self.validator._has_valid_processes(query)
+
+            assert result is True  # Unregistered processors don't fail validation
+            assert len(w) == 1
+            assert "unregistered_proc is not registered" in str(w[0].message)
+
+    def test_has_valid_processes_modifies_query(self):
+        """Test that processor validators can modify query in place."""
+
+        def modifying_validator(value, query=None):
+            if query:
+                query["modified"] = True
+            return True
+
+        _PROCESSOR_VALIDATOR_REGISTRY["modifier"] = modifying_validator
+
+        query = {PROC_KEY: {"modifier": "value"}}
+
+        result = self.validator._has_valid_processes(query)
+
+        assert result is True
+        assert query.get("modified") is True
