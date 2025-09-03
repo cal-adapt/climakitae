@@ -59,7 +59,7 @@ class TestDatasetWithCatalogMethod:
         except TypeError as e:
             assert "Data catalog must be an instance of DataCatalog." in str(e)
 
-    def test_with_catalog_has_get_data(self, mock_data_catalog):
+    def test_with_catalog_has_get_data(self):
         """Test with_catalog input catalog has 'get_data' method."""
         data_catalog = DataCatalog()
 
