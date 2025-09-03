@@ -110,3 +110,62 @@ class TestParameterValidatorInit:
 
         with pytest.raises(Exception, match="Catalog error"):
             ConcreteValidator()
+
+
+class TestParameterValidatorMethods:
+    """Test class for ParameterValidator methods."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        with patch(
+            "climakitae.new_core.param_validation.abc_param_validation.DataCatalog"
+        ):
+            self.validator = ConcreteValidator()
+            self.validator.catalog_df = pd.DataFrame(
+                {
+                    "variable": ["tas", "pr", "tasmax"],
+                    "experiment_id": ["ssp245", "ssp245", "historical"],
+                    "source_id": ["model1", "model2", "model1"],
+                }
+            )
+
+    def test_populate_catalog_keys_with_values(self):
+        """Test populate_catalog_keys with set values."""
+        self.validator.all_catalog_keys = {
+            "variable": UNSET,
+            "experiment_id": UNSET,
+            "source_id": UNSET,
+        }
+
+        query = {"variable": "tas", "experiment_id": "ssp245", "extra_key": "ignored"}
+
+        self.validator.populate_catalog_keys(query)
+
+        assert self.validator.all_catalog_keys == {
+            "variable": "tas",
+            "experiment_id": "ssp245",
+        }
+
+    def test_populate_catalog_keys_all_unset(self):
+        """Test populate_catalog_keys when all values are unset."""
+        self.validator.all_catalog_keys = {"variable": UNSET, "experiment_id": UNSET}
+
+        query = {}
+
+        self.validator.populate_catalog_keys(query)
+
+        assert self.validator.all_catalog_keys == {}
+
+    def test_load_catalog_df(self):
+        """Test load_catalog_df method."""
+        mock_df = pd.DataFrame({"col1": [1, 2], "col2": [3, 4]})
+
+        with patch(
+            "climakitae.new_core.param_validation.abc_param_validation.DataCatalog"
+        ) as mock_dc:
+            mock_dc.return_value.catalog_df = mock_df
+
+            self.validator.load_catalog_df()
+
+            assert self.validator.catalog_df.equals(mock_df)
+            mock_dc.assert_called_once()
