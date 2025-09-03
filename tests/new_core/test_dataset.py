@@ -59,8 +59,8 @@ class TestDatasetWithCatalogMethod:
         except TypeError as e:
             assert "Data catalog must be an instance of DataCatalog." in str(e)
 
-    def test_with_catalog_has_get_data(self):
-        """Test with_catalog input catalog has 'get_data' method."""
+    def test_with_catalog_has_get_data_error(self):
+        """Test with_catalog has 'get_data' method error message."""
         delattr(DataCatalog, 'get_data')
         data_catalog = DataCatalog()
 
@@ -74,3 +74,19 @@ class TestDatasetWithCatalogMethod:
             dataset.with_catalog(data_catalog)
         except AttributeError as e:
             assert "Data catalog must have a 'get_data' method to retrieve data." in str(e)
+
+    def test_with_catalog_get_data_callable_error(self):
+        """Test with_catalog callable 'get_data' method error message."""
+        DataCatalog.get_data = None
+        data_catalog = DataCatalog()
+
+        data_catalog.catalog_df = pd.DataFrame(
+            {"catalog": ["climate"], "variable_id": ["tas"]}
+        )
+
+        dataset = Dataset()
+
+        try:
+            dataset.with_catalog(data_catalog)
+        except TypeError as e:
+            assert "'get_data' method in data catalog must be callable." in str(e)
