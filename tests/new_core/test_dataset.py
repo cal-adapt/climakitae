@@ -61,12 +61,12 @@ class TestDatasetWithCatalogMethod:
 
     def test_with_catalog_has_get_data(self):
         """Test with_catalog input catalog has 'get_data' method."""
+        delattr(DataCatalog, 'get_data')
         data_catalog = DataCatalog()
 
         data_catalog.catalog_df = pd.DataFrame(
             {"catalog": ["climate"], "variable_id": ["tas"]}
         )
-        delattr(data_catalog, 'get_data')
 
         dataset = Dataset()
 
