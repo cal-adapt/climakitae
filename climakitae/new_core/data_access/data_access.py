@@ -1,5 +1,4 @@
-"""
-Data access module for ClimakitAE.
+"""Data access module for ClimakitAE.
 
 This module provides a singleton DataCatalog class for managing connections to
 various climate data catalogs including boundary, renewables, and general climate
@@ -13,6 +12,7 @@ DataCatalog
     Singleton class that inherits from dict and manages catalog connections.
     Provides properties for accessing specific catalogs and methods for
     querying and retrieving climate datasets.
+
 """
 
 import difflib
@@ -42,8 +42,7 @@ from climakitae.util.utils import read_csv_file
 
 
 class DataCatalog(dict):
-    """
-    Singleton class for managing catalog connections to climate data sources.
+    """Singleton class for managing catalog connections to climate data sources.
 
     This class implements the singleton pattern and inherits from dict to provide
     a unified interface for accessing multiple climate data catalogs. It manages
@@ -89,18 +88,19 @@ class DataCatalog(dict):
 
     The class automatically handles catalog initialization and provides sensible
     defaults when invalid catalog keys are specified.
+
     """
 
     _instance = UNSET
 
     def __new__(cls) -> "DataCatalog":
-        """
-        Override __new__ to implement singleton pattern.
+        """Override __new__ to implement singleton pattern.
 
         Returns
         -------
         DataCatalog
             The singleton instance of DataCatalog.
+
         """
         if cls._instance is UNSET:
             cls._instance = super(DataCatalog, cls).__new__(cls)
@@ -108,11 +108,11 @@ class DataCatalog(dict):
         return cls._instance
 
     def __init__(self) -> None:
-        """
-        Initialize the DataCatalog instance.
+        """Initialize the DataCatalog instance.
 
         This method sets up the catalog connections and initializes internal
         state. It only runs once due to the singleton pattern implementation.
+
         """
         if not getattr(self, "_initialized", False):
             super().__init__()
@@ -137,57 +137,56 @@ class DataCatalog(dict):
 
     @property
     def data(self) -> intake_esm.core.esm_datastore:
-        """
-        Access data catalog.
+        """Access data catalog.
 
         Returns
         -------
         intake_esm.core.esm_datastore
             The main climate data catalog.
+
         """
         return self[CATALOG_CADCAT]
 
     @property
     def boundary(self) -> intake.catalog.Catalog:
-        """
-        Access boundary catalog.
+        """Access boundary catalog.
 
         Returns
         -------
         intake.catalog.Catalog
             The boundary conditions catalog.
+
         """
         return self[CATALOG_BOUNDARY]
 
     @property
     def renewables(self) -> intake_esm.core.esm_datastore:
-        """
-        Access renewables catalog.
+        """Access renewables catalog.
 
         Returns
         -------
         intake_esm.core.esm_datastore
             The renewables data catalog.
+
         """
         return self[CATALOG_REN_ENERGY_GEN]
 
     @property
     def boundaries(self) -> Boundaries:
-        """
-        Access boundaries data with lazy loading.
+        """Access boundaries data with lazy loading.
 
         Returns
         -------
         Boundaries
             The lazy-loading boundaries data manager.
+
         """
         if self._boundaries is UNSET:
             self._boundaries = Boundaries(self.boundary)
         return self._boundaries
 
     def merge_catalogs(self) -> pd.DataFrame:
-        """
-        Merge the intake catalogs for data and renewables into a single DataFrame.
+        """Merge the intake catalogs for data and renewables into a single DataFrame.
 
         This method combines the data and renewables catalogs into a unified
         DataFrame for easier searching and querying across all available datasets.
@@ -197,6 +196,7 @@ class DataCatalog(dict):
         pd.DataFrame
             A DataFrame containing the merged data from both catalogs with an
             additional 'catalog' column identifying the source catalog.
+
         """
         ren_df = self.renewables.df
         data_df = self.data.df
@@ -206,8 +206,7 @@ class DataCatalog(dict):
         return ret
 
     def set_catalog_key(self, key: str) -> "DataCatalog":
-        """
-        Set the catalog key for accessing a specific catalog.
+        """Set the catalog key for accessing a specific catalog.
 
         Parameters
         ----------
@@ -224,6 +223,7 @@ class DataCatalog(dict):
         UserWarning
             If the catalog key is not found in the available catalogs.
             Defaults to 'data' catalog in this case.
+
         """
         if key not in self:
             warnings.warn(
@@ -261,8 +261,7 @@ class DataCatalog(dict):
         return self
 
     def set_catalog(self, name: str, catalog: str) -> "DataCatalog":
-        """
-        Set a named catalog.
+        """Set a named catalog.
 
         Parameters
         ----------
@@ -275,13 +274,13 @@ class DataCatalog(dict):
         -------
         DataCatalog
             The current instance of DataCatalog allowing method chaining.
+
         """
         self[name] = intake.open_esm_datastore(catalog)
         return self
 
     def get_data(self, query: Dict[str, Any]) -> Dict[str, xr.Dataset]:
-        """
-        Get data from the catalog.
+        """Get data from the catalog.
 
         This method queries the active catalog using the provided parameters
         and returns the matching datasets as a dictionary.
@@ -302,6 +301,7 @@ class DataCatalog(dict):
         -----
         The catalog_key must be set before calling this method. If not set,
         this will raise an error.
+
         """
         print(f"Querying {self.catalog_key} catalog with query: {query}")
         # if any(isinstance(v, list) for v in query.values()):
@@ -321,8 +321,7 @@ class DataCatalog(dict):
         )
 
     def list_clip_boundaries(self) -> dict[str, list[str]]:
-        """
-        List all available boundary options for clipping operations.
+        """List all available boundary options for clipping operations.
 
         This method populates the `available_boundaries` attribute with a
         dictionary of boundary categories and their available options. It's a
@@ -340,6 +339,7 @@ class DataCatalog(dict):
         >>> catalog.list_clip_boundaries()
         >>> print(catalog.available_boundaries["states"])
         ['AZ', 'CA', 'CO', 'ID', 'MT', 'NV', 'NM', 'OR', 'UT', 'WA', 'WY']
+
         """
         boundary_dict = self.boundaries.boundary_dict()
 
@@ -358,8 +358,7 @@ class DataCatalog(dict):
         return self.available_boundaries
 
     def print_clip_boundaries(self) -> None:
-        """
-        Print all available boundary options for clipping in a user-friendly format.
+        """Print all available boundary options for clipping in a user-friendly format.
 
         This method provides a nicely formatted output showing all boundary
         categories and their available options for clipping operations. The
@@ -376,6 +375,7 @@ class DataCatalog(dict):
         states:
           - AZ, CA, CO, ID, MT
             ... and 6 more options
+
         """
         try:
             self.list_clip_boundaries()
@@ -404,11 +404,11 @@ class DataCatalog(dict):
             print()
 
     def reset(self) -> None:
-        """
-        Reset the DataCatalog instance to its initial state.
+        """Reset the DataCatalog instance to its initial state.
 
         This method clears the catalog key and resets the instance to its
         original state. The catalogs themselves remain loaded and available.
+
         """
         self.catalog_key = UNSET
 
@@ -418,18 +418,19 @@ def _get_closest_options(val, valid_options, cutoff=0.59):
 
     Parameters
     ----------
-    val: str
+    val : str
         User input
-    valid_options: list
+    valid_options  list
         Valid options for that key from the catalog
-    cutoff: a float in the range [0, 1]
+    cutoff : a float in the range [0, 1]
         See difflib.get_close_matches
         Possibilities that don't score at least that similar to word are ignored.
 
     Returns
     -------
-    closest_options: list or None
+    closest_options : list or None
         List of best guesses, or None if nothing close is found
+
     """
 
     # Perhaps the user just capitalized it wrong?

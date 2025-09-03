@@ -38,11 +38,11 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install pytest cftime
+        pip install pytest cftime pytest-xdist
     - name: Install climakitae
       run: pip install . --no-deps
     - name: Test with pytest (Basic)
-      run: pytest --no-header -vv -m "not advanced"
+      run: pytest -n auto --no-header -vv -m "not advanced"
     - name: Test with pytest (Advanced)
       if: github.event.label.name == 'Advanced Testing'
-      run: pytest --no-header -vv -m "advanced"
+      run: pytest -n auto --no-header -vv -m "advanced"

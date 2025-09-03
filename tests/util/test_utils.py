@@ -9,7 +9,7 @@ import pandas as pd
 import pyproj
 import pytest
 import xarray as xr
-from shapely.geometry import box
+from shapely.geometry import box, Point
 
 from climakitae.util.utils import (  # stack_sims_across_locs, # TODO: Uncomment when implemented
     _get_cat_subset,
@@ -17,6 +17,7 @@ from climakitae.util.utils import (  # stack_sims_across_locs, # TODO: Uncomment
     _package_file_path,
     add_dummy_time_to_wl,
     area_average,
+    clip_gpd_to_shapefile,
     clip_to_shapefile,
     combine_hdd_cdd,
     compute_annual_aggreggate,
@@ -1584,3 +1585,38 @@ class TestConvertToLocalTime:
         with patch("geopandas.read_file", return_value=gdf):
             with pytest.raises(RuntimeError):
                 result = clip_to_shapefile(data, "not_a_file.shp")
+
+    def test_clip_gdf_to_shapefile(self):
+        """Test for clip_gdf_to_shapefile with geodataframe to shapefile."""
+
+        # Mock geopandas df dataset to trim -- station list
+        df = pd.DataFrame(
+            {
+                "latitude": [38.5, 39.0, 40.0, 41.5],
+                "longitude": [-121.5, -121.2, -120.5, -120.1],
+            }
+        )
+        df["geometry"] = [Point(xy) for xy in zip(df["longitude"], df["latitude"])]
+        gdf = gpd.GeoDataFrame(df, geometry="geometry", crs="EPSG:3857")
+
+        # Define clipping polygon
+        clip_poly = gpd.GeoDataFrame(
+            geometry=[box(-121.5, 38.5, -120.5, 40.0)],
+            crs="EPSG:3857",
+        )
+
+        # This should clip succesfully
+        result = clip_gpd_to_shapefile(gdf, clip_poly)
+
+        assert not result.empty
+        assert result["latitude"].min() >= 38.5
+        assert result["latitude"].max() <= 40.0
+        assert result["longitude"].min() >= -121.5
+        assert result["longitude"].max() <= -120.5
+
+        # "Shapefile" lacks CRS
+        clip_poly_none = gpd.GeoDataFrame(
+            geometry=[box(-121.5, 38.5, -120.5, 40.0)], crs=None
+        )
+        with pytest.raises(RuntimeError, match="CRS"):
+            result = clip_gpd_to_shapefile(gdf, clip_poly_none)

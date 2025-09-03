@@ -1,6 +1,4 @@
-"""
-Filter Unadjusted Models Processor
-"""
+"""Filter Unadjusted Models Processor"""
 
 import warnings
 from typing import Any, Dict, Iterable, Union
@@ -17,8 +15,7 @@ from climakitae.new_core.processors.abc_data_processor import (
 
 @register_processor("filter_unadjusted_models", priority=0)
 class FilterUnAdjustedModels(DataProcessor):
-    """
-    Processor to filter out models that do not have a-priori bias adjustment.
+    """Processor to filter out models that do not have a-priori bias adjustment.
 
     Parameters
     ----------
@@ -45,16 +42,17 @@ class FilterUnAdjustedModels(DataProcessor):
     It is added to the processor chain by default when using the `ClimateData` class.
     If you want to include these models, you manually add the processor to your query
     and set the value to "no".
+
     """
 
     def __init__(self, value: str = "yes"):
-        """
-        Initialize the processor.
+        """Initialize the processor.
 
         Parameters
         ----------
         value : str
             The state of the filter. If "yes", it filters out unadjusted models.
+
         """
         self.valid_values = ["yes", "no"]
         self.value = value.lower()
@@ -67,8 +65,7 @@ class FilterUnAdjustedModels(DataProcessor):
         ],
         context: Dict[str, Any],
     ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
-        """
-        Run the processor
+        """Run the processor
 
         Parameters
         ----------
@@ -90,6 +87,7 @@ class FilterUnAdjustedModels(DataProcessor):
         ------
         ValueError
             If the value is not one of the valid values.
+
         """
         match self.value:
             case "yes":
@@ -127,8 +125,7 @@ class FilterUnAdjustedModels(DataProcessor):
             xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
         ],
     ) -> bool:
-        """
-        Check if the result contains any unadjusted models.
+        """Check if the result contains any unadjusted models.
 
         Parameters
         ----------
@@ -144,6 +141,7 @@ class FilterUnAdjustedModels(DataProcessor):
         ------
         TypeError
             If the result is not of type xr.Dataset, xr.DataArray, or Iterable.
+
         """
         match result:
             case xr.Dataset() | xr.DataArray():
@@ -172,8 +170,7 @@ class FilterUnAdjustedModels(DataProcessor):
     ) -> Union[
         xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]], None
     ]:
-        """
-        Remove unadjusted models from the result.
+        """Remove unadjusted models from the result.
 
         Parameters
         ----------
@@ -189,6 +186,7 @@ class FilterUnAdjustedModels(DataProcessor):
         ------
         TypeError
             If the result is not of type xr.Dataset, xr.DataArray, or Iterable.
+
         """
         match result:
             case xr.Dataset() | xr.DataArray():
@@ -214,8 +212,7 @@ class FilterUnAdjustedModels(DataProcessor):
                 )
 
     def update_context(self, context: Dict[str, Any]):
-        """
-        Update the context with information about the transformation.
+        """Update the context with information about the transformation.
 
         Parameters
         ----------
@@ -225,6 +222,7 @@ class FilterUnAdjustedModels(DataProcessor):
         Note
         ----
         The context is updated in place. This method does not return anything.
+
         """
 
         if _NEW_ATTRS_KEY not in context:

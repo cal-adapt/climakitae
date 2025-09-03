@@ -43,6 +43,21 @@ def test_return_value(T2_ams: xr.DataArray):
 
 
 @pytest.mark.advanced
+def test_return_value_dropna(T2_ams: xr.DataArray):
+    """Test Return Values with dropna_time option."""
+    T2_ams.data[2] = np.nan
+    rvs = threshold_tools.get_return_value(
+        T2_ams,
+        return_period=10,
+        distr="gev",
+        bootstrap_runs=1,
+        multiple_points=False,
+        dropna_time=True,
+    )
+    assert not np.isnan(rvs["return_value"].values[()])
+
+
+@pytest.mark.advanced
 def test_return_value_invalid_distr(T2_ams: xr.DataArray):
     """# Test invalid distribution argument for Return Values."""
     with pytest.raises(ValueError, match="invalid distribution type"):
@@ -64,6 +79,21 @@ def test_return_period(T2_ams: xr.DataArray):
         distr="gumbel",
         bootstrap_runs=1,
         multiple_points=False,
+    )
+    assert not np.isnan(rvs["return_period"].values[()])
+
+
+@pytest.mark.advanced
+def test_return_period_dropna(T2_ams: xr.DataArray):
+    """Test Return Periods."""
+    T2_ams.data[2] = np.nan
+    rvs = threshold_tools.get_return_period(
+        T2_ams,
+        return_value=290,
+        distr="gumbel",
+        bootstrap_runs=1,
+        multiple_points=False,
+        dropna_time=True,
     )
     assert not np.isnan(rvs["return_period"].values[()])
 

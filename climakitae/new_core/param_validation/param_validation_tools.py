@@ -1,6 +1,4 @@
-"""
-Tools for validating user input
-"""
+"""Tools for validating user input"""
 
 import datetime
 import difflib
@@ -16,18 +14,19 @@ def _get_closest_options(val, valid_options, cutoff=0.59):
 
     Parameters
     ----------
-    val: str
+    val : str
         User input
-    valid_options: list
+    valid_options : list
         Valid options for that key from the catalog
-    cutoff: a float in the range [0, 1]
+    cutoff : a float in the range [0, 1]
         See difflib.get_close_matches
         Possibilities that don't score at least that similar to word are ignored.
 
     Returns
     -------
-    closest_options: list or None
+    closest_options : list or None
         List of best guesses, or None if nothing close is found
+
     """
 
     # Perhaps the user just capitalized it wrong?
@@ -58,8 +57,7 @@ def _validate_experimental_id_param(
     value: list[str] | None,
     valid_experiment_ids: list[str],
 ) -> bool:
-    """
-    Validate the experiment_id parameter.
+    """Validate the experiment_id parameter.
 
     This function checks if the provided value is valid for the experiment_id parameter.
     It performs a greedy match against a predefined list of valid experiment IDs,
@@ -81,6 +79,7 @@ def _validate_experimental_id_param(
     multiple valid experiment IDs. If the value is a single string that does not
     match any valid experiment ID, it will attempt to find the closest match
     from the valid_experiment_ids list and issue a warning.
+
     """
 
     if value is None:
@@ -141,8 +140,7 @@ def _validate_experimental_id_param(
 
 
 def _coerce_to_dates(value: Iterable[Any]) -> tuple[pd.Timestamp, pd.Timestamp]:
-    """
-    Coerce the values to date-like objects.
+    """Coerce the values to date-like objects.
 
     Parameters
     ----------
@@ -153,6 +151,7 @@ def _coerce_to_dates(value: Iterable[Any]) -> tuple[pd.Timestamp, pd.Timestamp]:
     -------
     tuple
         The coerced values.
+
     """
     ret = []
     for x in value:

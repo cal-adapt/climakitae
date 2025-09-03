@@ -1,5 +1,5 @@
 from dask.distributed import Client, PipInstall
-from dask_gateway import Gateway, GatewayCluster
+from dask_gateway import GatewayCluster, Gateway
 
 
 class Cluster(GatewayCluster):
@@ -30,6 +30,7 @@ class Cluster(GatewayCluster):
         Returns
         -------
         distributed.client.Client
+
         """
         clusters = self.gateway.list_clusters()
         if clusters:
