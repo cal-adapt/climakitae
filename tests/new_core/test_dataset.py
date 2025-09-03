@@ -12,7 +12,7 @@ import pandas as pd
 import pytest
 
 from climakitae.new_core.dataset import Dataset
-from climakitae.new_core.data_access import DataCatalog
+from climakitae.new_core.data_access.data_access import DataCatalog
 
 class TestDatasetInit:
     """Test class for Dataset initialization"""
@@ -59,7 +59,7 @@ class TestDatasetWithCatalogMethod:
         except TypeError as e:
             assert "Data catalog must be an instance of DataCatalog." in str(e)
 
-    @patch("climakitae.new_core.data_access.DataCatalog")
+    @patch("climakitae.new_core.data_access.data_access.DataCatalog")
     def test_with_catalog_has_get_data(self, mock_data_catalog):
         """Test with_catalog input catalog has 'get_data' method."""
         mock_catalog_instance = MagicMock()
