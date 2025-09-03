@@ -738,6 +738,7 @@ class TestCalcAverageEssGriddedOptimized:
         assert isinstance(result, (int, float))
         assert not np.isnan(result)
 
+    @pytest.mark.advanced
     def test_dask_array_ess_calculation(self):
         """Test ESS calculation with Dask arrays."""
         # Create dask-backed dataset
@@ -872,9 +873,9 @@ class TestCalcAverageEssTimeseriesOptimized:
         large_data = TestDataFactory.create_timeseries_dataset(
             time_periods=time_periods,
             frequency="H",  # Hourly frequency
-            start_date="2020-01-01"
+            start_date="2020-01-01",
         )
-        
+
         # Use block_size=2 so each block contains 2 years worth of hourly data
         # This gives us 365*24*2 = 17520 points per block, well above threshold
         result = _calc_average_ess_timeseries_optimized(large_data, block_size=2)
@@ -888,7 +889,7 @@ class TestCalcAverageEssTimeseriesOptimized:
         # Create strongly autocorrelated timeseries data to test correlation calculation
         time_periods = 600  # Above LARGE_TIMESERIES_THRESHOLD
         time = pd.date_range("2020-01-01", periods=time_periods, freq="D")
-        
+
         # Create autocorrelated data using AR(1) process
         np.random.seed(42)  # For reproducible results
         phi = 0.7  # AR(1) coefficient for autocorrelation
@@ -896,26 +897,26 @@ class TestCalcAverageEssTimeseriesOptimized:
         autocorr_data = np.zeros(time_periods)
         autocorr_data[0] = noise[0]
         for i in range(1, time_periods):
-            autocorr_data[i] = phi * autocorr_data[i-1] + noise[i]
-        
+            autocorr_data[i] = phi * autocorr_data[i - 1] + noise[i]
+
         # Create xarray dataset
         large_corr_data = xr.DataArray(
             autocorr_data,
             coords={"time": time},
             dims=["time"],
             name="temperature",
-            attrs={"units": "K"}
+            attrs={"units": "K"},
         )
-        
+
         # Use block_size=1 so the entire 600-day series becomes one block
         # This will trigger the autocorrelation approximation path
         result = _calc_average_ess_timeseries_optimized(large_corr_data, block_size=1)
 
         assert isinstance(result, (int, float))
         # ESS should be positive but less than n due to autocorrelation
-        assert result > 0  
+        assert result > 0
         # ESS should be less than total points due to correlation
-        assert result < time_periods  
+        assert result < time_periods
         assert not np.isnan(result)
 
     @patch("climakitae.explore.threshold_tools.calculate_ess")
@@ -1291,6 +1292,7 @@ class TestExtendTimeDomain:
             assert extended_data.attrs.get("historical_prepended", False)
 
 
+@pytest.mark.advanced
 class TestIntegrationBlockMaxima:
     """Integration tests for complete block maxima workflows."""
 
