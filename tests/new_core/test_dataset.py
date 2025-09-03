@@ -69,7 +69,7 @@ class TestDatasetWithCatalogMethod:
                 "variable_id": ["var1", "var2"],
             }
         )
-        del mock_catalog_instance,get_data
+        delattr(mock_catalog_instance, 'get_data')
         mock_data_catalog.return_value = mock_catalog_instance
 
         dataset = Dataset()
