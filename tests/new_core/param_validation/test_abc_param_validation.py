@@ -6,8 +6,15 @@ framework including decorator registration, abstract base class functionality,
 and validation logic.
 """
 
+from unittest.mock import patch
+
+import pandas as pd
+import pytest
+
+from climakitae.core.constants import UNSET
 from climakitae.new_core.param_validation.abc_param_validation import (
     _CATALOG_VALIDATOR_REGISTRY,
+    ParameterValidator,
     register_catalog_validator,
 )
 
@@ -69,3 +76,37 @@ class TestRegisterCatalogValidator:
             pass
 
         assert _CATALOG_VALIDATOR_REGISTRY["test_catalog"] is Validator2
+
+
+class ConcreteValidator(ParameterValidator):
+    """Concrete implementation for testing abstract class."""
+
+    def is_valid_query(self, query):
+        """Implementation of abstract method."""
+        return self._is_valid_query(query)
+
+
+class TestParameterValidatorInit:
+    """Test class for ParameterValidator initialization."""
+
+    @patch("climakitae.new_core.param_validation.abc_param_validation.DataCatalog")
+    def test_init_successful(self, mock_data_catalog):
+        """Test successful initialization of ParameterValidator."""
+        mock_catalog_df = pd.DataFrame({"test": [1, 2, 3]})
+        mock_data_catalog.return_value.catalog_df = mock_catalog_df
+
+        validator = ConcreteValidator()
+
+        assert validator.catalog_path == "climakitae/data/catalogs.csv"
+        assert validator.catalog is UNSET
+        assert validator.all_catalog_keys is UNSET
+        assert validator.catalog_df.equals(mock_catalog_df)
+        mock_data_catalog.assert_called_once()
+
+    @patch("climakitae.new_core.param_validation.abc_param_validation.DataCatalog")
+    def test_init_with_datacatalog_error(self, mock_data_catalog):
+        """Test initialization when DataCatalog raises an exception."""
+        mock_data_catalog.side_effect = Exception("Catalog error")
+
+        with pytest.raises(Exception, match="Catalog error"):
+            ConcreteValidator()
