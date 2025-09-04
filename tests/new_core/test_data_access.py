@@ -190,6 +190,9 @@ class TestDataCatalogInitialization:
         catalog1 = DataCatalog()
         catalog2 = DataCatalog()
         assert catalog1 is catalog2  # Same object reference
+        # delete the objects after test to avoid side effects
+        del catalog1
+        del catalog2
 
     def test_data_property_returns_cadcat_catalog(
         self, mock_data_catalog_and_objs: Tuple
