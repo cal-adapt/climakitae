@@ -392,7 +392,7 @@ class TestIsValidQuery:
             result = self.validator._is_valid_query(query)
 
         mock_validate_exp.assert_called_once_with(
-            ["ssp245", "ssp585"], ["ssp245", "ssp245", "historical", "ssp585"]
+            ["ssp245", "ssp585"], ["ssp245", "historical", "ssp585"]
         )
 
     def test_is_valid_query_invalid_key(self):
