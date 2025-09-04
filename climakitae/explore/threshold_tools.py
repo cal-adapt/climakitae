@@ -269,7 +269,6 @@ def _calc_average_ess_gridded_data(data: xr.DataArray, block_size: int) -> float
 
         # Compute mean ESS for time block and append to list
         ess_mean_by_time_block = ess_by_time_block.mean(skipna=True).item()
-        print(15, ess_mean_by_time_block)
         ess_means_list.append(ess_mean_by_time_block)
 
     # Compute mean across all time blocks
@@ -674,7 +673,6 @@ def _conf_int(
         result = _bootstrap(
             bms, distr, data_variable, arg_value, block_size, extremes_type
         )
-        print(17, type(bootstrap_values))
         bootstrap_values.append(result)
 
     bootstrap_values = np.stack(bootstrap_values, axis=0)
@@ -811,8 +809,12 @@ def _get_return_variable(
     )
     return_variable = return_variable.rename(data_variable)
     new_ds = return_variable.to_dataset()
+    if isinstance(arg_value, (list, tuple, np.ndarray)):
+        coord_value = np.atleast_1d(np.array(arg_value).flatten())
+    else:
+        coord_value = [arg_value]
     new_ds = new_ds.assign_coords(
-        one_in_x=arg_value
+        one_in_x=coord_value
     )  # Writing multiple 1-in-X params as different coords of `arg_value` dimension
     new_ds["conf_int_lower_limit"] = conf_int_lower_limit
     new_ds["conf_int_upper_limit"] = conf_int_upper_limit
