@@ -449,3 +449,21 @@ class TestIsValidQuery:
                 result = self.validator._is_valid_query(query)
 
         assert result is None
+
+
+class TestParameterValidatorAbstract:
+    """Test class for abstract method enforcement."""
+
+    def test_cannot_instantiate_abstract_class(self):
+        """Test that ParameterValidator cannot be instantiated directly."""
+        with pytest.raises(TypeError, match="Can't instantiate abstract class"):
+            ParameterValidator()
+
+    def test_must_implement_is_valid_query(self):
+        """Test that subclasses must implement is_valid_query."""
+
+        class IncompleteValidator(ParameterValidator):
+            pass
+
+        with pytest.raises(TypeError, match="Can't instantiate abstract class"):
+            IncompleteValidator()
