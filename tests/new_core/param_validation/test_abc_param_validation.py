@@ -292,3 +292,160 @@ class TestHasValidProcesses:
 
         assert result is True
         assert query.get("modified") is True
+
+
+class TestIsValidQuery:
+    """Test class for _is_valid_query method."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        _PROCESSOR_VALIDATOR_REGISTRY.clear()
+        with patch(
+            "climakitae.new_core.param_validation.abc_param_validation.DataCatalog"
+        ):
+            self.validator = ConcreteValidator()
+            self.validator.catalog_df = pd.DataFrame(
+                {
+                    "variable": ["tas", "pr", "tasmax", "tasmin"],
+                    "experiment_id": ["ssp245", "ssp245", "historical", "ssp585"],
+                    "source_id": ["model1", "model2", "model1", "model3"],
+                    "grid_label": ["gr1", "gr1", "gr2", "gr1"],
+                }
+            )
+
+            # Mock catalog
+            self.validator.catalog = MagicMock()
+            self.validator.catalog.df = self.validator.catalog_df
+
+            # Initialize all_catalog_keys
+            self.validator.all_catalog_keys = {
+                "variable": UNSET,
+                "experiment_id": UNSET,
+                "source_id": UNSET,
+                "grid_label": UNSET,
+            }
+
+    def test_is_valid_query_successful_match(self):
+        """Test _is_valid_query with successful dataset match."""
+        query = {"variable": "tas", "experiment_id": "ssp245", "source_id": "model1"}
+
+        # Mock successful search
+        self.validator.catalog.search.return_value = MagicMock(__len__=lambda self: 5)
+
+        with patch("builtins.print") as mock_print:
+            result = self.validator._is_valid_query(query)
+
+        assert result == {
+            "variable": "tas",
+            "experiment_id": "ssp245",
+            "source_id": "model1",
+        }
+        mock_print.assert_any_call("Found 5 datasets matching your query.")
+
+    def test_is_valid_query_no_matches(self):
+        """Test _is_valid_query when no datasets match."""
+        query = {"variable": "nonexistent"}
+
+        # Mock catalog search raising ValueError
+        self.validator.catalog.search.side_effect = ValueError("No datasets found")
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            with patch("builtins.print"):
+                result = self.validator._is_valid_query(query)
+
+        assert result is None
+        assert len(w) > 0
+        assert "Query did not match any datasets" in str(w[0].message)
+
+    @patch(
+        "climakitae.new_core.param_validation.abc_param_validation._get_closest_options"
+    )
+    def test_is_valid_query_with_typo(self, mock_get_closest):
+        """Test _is_valid_query suggests corrections for typos."""
+        query = {"variable": "tass"}  # Typo for 'tas'
+
+        self.validator.catalog.search.return_value = MagicMock(__len__=lambda self: 0)
+        mock_get_closest.return_value = ["tas", "tasmax"]
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            with patch("builtins.print") as mock_print:
+                result = self.validator._is_valid_query(query)
+
+        assert result is None
+        mock_print.assert_any_call("Could not find any datasets with variable = tass.")
+        assert any(
+            "Did you mean one of these options" in str(warning.message) for warning in w
+        )
+
+    @patch(
+        "climakitae.new_core.param_validation.abc_param_validation._validate_experimental_id_param"
+    )
+    def test_is_valid_query_experiment_id_list(self, mock_validate_exp):
+        """Test _is_valid_query with experiment_id as list."""
+        query = {"experiment_id": ["ssp245", "ssp585"]}
+
+        self.validator.catalog.search.return_value = MagicMock(__len__=lambda self: 0)
+        mock_validate_exp.return_value = True
+
+        with patch("builtins.print"):
+            result = self.validator._is_valid_query(query)
+
+        mock_validate_exp.assert_called_once_with(
+            ["ssp245", "ssp585"], ["ssp245", "ssp245", "historical", "ssp585"]
+        )
+
+    def test_is_valid_query_invalid_key(self):
+        """Test _is_valid_query with key not in catalog."""
+        query = {"invalid_key": "value"}
+
+        self.validator.catalog.search.return_value = MagicMock(__len__=lambda self: 0)
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            with patch("builtins.print"):
+                result = self.validator._is_valid_query(query)
+
+        assert result is None
+        assert any(
+            "Key invalid_key not found in catalog" in str(warning.message)
+            for warning in w
+        )
+
+    def test_is_valid_query_conflicting_parameters(self):
+        """Test _is_valid_query with conflicting parameters."""
+        query = {
+            "variable": "tas",
+            "grid_label": "gr2",  # Conflicts with tas which has gr1
+        }
+
+        self.validator.catalog.search.return_value = MagicMock(__len__=lambda self: 0)
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            with patch("builtins.print"):
+                result = self.validator._is_valid_query(query)
+
+        assert result is None
+        assert any(
+            "conflict between grid_label and variable" in str(warning.message)
+            for warning in w
+        )
+
+    def test_is_valid_query_with_invalid_processes(self):
+        """Test _is_valid_query fails when processes are invalid."""
+        query = {"variable": "tas", PROC_KEY: {"invalid_proc": "value"}}
+
+        # Mock successful catalog search
+        self.validator.catalog.search.return_value = MagicMock(__len__=lambda self: 5)
+
+        # Register a failing processor validator
+        _PROCESSOR_VALIDATOR_REGISTRY["invalid_proc"] = lambda v, query=None: False
+
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter("always")
+            with patch("builtins.print"):
+                result = self.validator._is_valid_query(query)
+
+        assert result is None
