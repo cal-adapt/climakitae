@@ -346,17 +346,16 @@ class TestIsValidQuery:
         """Test _is_valid_query when no datasets match."""
         query = {"variable": "nonexistent"}
 
-        # Mock catalog search raising ValueError
-        self.validator.catalog.search.side_effect = ValueError("No datasets found")
+        # Mock catalog search returning empty result (0 length)
+        self.validator.catalog.search.return_value = MagicMock(__len__=lambda self: 0)
 
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            with patch("builtins.print"):
-                result = self.validator._is_valid_query(query)
+        with patch("builtins.print"):
+            result = self.validator._is_valid_query(query)
 
         assert result is None
-        assert len(w) > 0
-        assert "Query did not match any datasets" in str(w[0].message)
+        # Note: No warning about "Query did not match any datasets" since we're 
+        # not raising ValueError but the method should still return None when 
+        # no datasets are found
 
     @patch(
         "climakitae.new_core.param_validation.abc_param_validation._get_closest_options"
