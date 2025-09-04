@@ -467,3 +467,59 @@ class TestParameterValidatorAbstract:
 
         with pytest.raises(TypeError, match="Can't instantiate abstract class"):
             IncompleteValidator()
+
+
+class TestParameterValidatorIntegration:
+    """Integration tests for complete validation workflows."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        _CATALOG_VALIDATOR_REGISTRY.clear()
+        _PROCESSOR_VALIDATOR_REGISTRY.clear()
+
+    def test_complete_validation_workflow(self):
+        """Test complete validation workflow with catalog and processor validators."""
+
+        # Register a catalog validator
+        @register_catalog_validator("test_catalog")
+        class TestCatalogValidator(ParameterValidator):
+            def is_valid_query(self, query):
+                return self._is_valid_query(query)
+
+        # Register processor validators
+        @register_processor_validator("spatial_subset")
+        def validate_spatial(value, query=None):
+            return isinstance(value, dict) and "bounds" in value
+
+        @register_processor_validator("temporal_average")
+        def validate_temporal(value, query=None):
+            return value in ["daily", "monthly", "yearly"]
+
+        # Create validator instance
+        with patch(
+            "climakitae.new_core.param_validation.abc_param_validation.DataCatalog"
+        ) as mock_dc:
+            mock_dc.return_value.catalog_df = pd.DataFrame(
+                {"variable": ["tas", "pr"], "experiment_id": ["ssp245", "ssp245"]}
+            )
+
+            validator = _CATALOG_VALIDATOR_REGISTRY["test_catalog"]()
+            validator.catalog = MagicMock()
+            validator.catalog.df = validator.catalog_df
+            validator.catalog.search.return_value = MagicMock(__len__=lambda self: 2)
+            validator.all_catalog_keys = {"variable": UNSET, "experiment_id": UNSET}
+
+            # Valid query
+            query = {
+                "variable": "tas",
+                "experiment_id": "ssp245",
+                PROC_KEY: {
+                    "spatial_subset": {"bounds": [1, 2, 3, 4]},
+                    "temporal_average": "monthly",
+                },
+            }
+
+            with patch("builtins.print"):
+                result = validator.is_valid_query(query)
+
+            assert result == {"variable": "tas", "experiment_id": "ssp245"}
