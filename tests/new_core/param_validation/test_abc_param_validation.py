@@ -7,7 +7,7 @@ and validation logic.
 """
 
 import warnings
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
@@ -18,6 +18,7 @@ from climakitae.new_core.param_validation.abc_param_validation import (
     _PROCESSOR_VALIDATOR_REGISTRY,
     ParameterValidator,
     register_catalog_validator,
+    register_processor_validator,
 )
 
 
@@ -78,6 +79,51 @@ class TestRegisterCatalogValidator:
             pass
 
         assert _CATALOG_VALIDATOR_REGISTRY["test_catalog"] is Validator2
+
+
+class TestRegisterProcessorValidator:
+    """Test class for the register_processor_validator decorator."""
+
+    def setup_method(self):
+        """Clear the registry before each test."""
+        _PROCESSOR_VALIDATOR_REGISTRY.clear()
+
+    def test_register_processor_validator_successful(self):
+        """Test successful registration of a processor validator."""
+
+        @register_processor_validator("spatial_subset")
+        def validate_spatial(value, query=None):
+            return True
+
+        assert "spatial_subset" in _PROCESSOR_VALIDATOR_REGISTRY
+        assert _PROCESSOR_VALIDATOR_REGISTRY["spatial_subset"] is validate_spatial
+
+    def test_register_processor_validator_returns_function(self):
+        """Test that decorator returns the function unchanged."""
+
+        @register_processor_validator("test_processor")
+        def validate_test(value, query=None):
+            return value == "valid"
+
+        # Function should work normally
+        assert validate_test("valid") is True
+        assert validate_test("invalid") is False
+
+    def test_register_multiple_processors(self):
+        """Test registering multiple processor validators."""
+
+        @register_processor_validator("proc1")
+        def validate1(value, query=None):
+            return True
+
+        @register_processor_validator("proc2")
+        def validate2(value, query=None):
+            return False
+
+        assert "proc1" in _PROCESSOR_VALIDATOR_REGISTRY
+        assert "proc2" in _PROCESSOR_VALIDATOR_REGISTRY
+        assert _PROCESSOR_VALIDATOR_REGISTRY["proc1"]("test") is True
+        assert _PROCESSOR_VALIDATOR_REGISTRY["proc2"]("test") is False
 
 
 class ConcreteValidator(ParameterValidator):
