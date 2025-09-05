@@ -14,11 +14,18 @@ import pytest
 
 from climakitae.core.constants import PROC_KEY, UNSET
 from climakitae.new_core.param_validation.abc_param_validation import (
-    _CATALOG_VALIDATOR_REGISTRY,
-    _PROCESSOR_VALIDATOR_REGISTRY,
-    ParameterValidator,
-    register_catalog_validator,
-    register_processor_validator,
+    _CATALOG_VALIDATOR_REGISTRY, _PROCESSOR_VALIDATOR_REGISTRY,
+    ParameterValidator, register_catalog_validator,
+    register_processor_validator)
+
+# Suppress known external warnings that are not relevant to our tests
+warnings.filterwarnings(
+    "ignore",
+    message="The 'shapely.geos' module is deprecated",
+    category=DeprecationWarning,
+)
+warnings.filterwarnings(
+    "ignore", message="pkg_resources is deprecated", category=DeprecationWarning
 )
 
 
@@ -130,7 +137,7 @@ class ConcreteValidator(ParameterValidator):
     """Concrete implementation for testing abstract class."""
 
     def is_valid_query(self, query):
-        """Implementation of abstract method."""
+        """Implement abstract method for testing."""
         return self._is_valid_query(query)
 
 
@@ -349,8 +356,10 @@ class TestIsValidQuery:
         # Mock catalog search returning empty result (0 length)
         self.validator.catalog.search.return_value = MagicMock(__len__=lambda self: 0)
 
-        with patch("builtins.print"):
-            result = self.validator._is_valid_query(query)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UserWarning)
+            with patch("builtins.print"):
+                result = self.validator._is_valid_query(query)
 
         assert result is None
         # Note: No warning about "Query did not match any datasets" since we're
@@ -389,7 +398,7 @@ class TestIsValidQuery:
         mock_validate_exp.return_value = True
 
         with patch("builtins.print"):
-            result = self.validator._is_valid_query(query)
+            self.validator._is_valid_query(query)
 
         mock_validate_exp.assert_called_once_with(
             ["ssp245", "ssp585"], ["ssp245", "historical", "ssp585"]
