@@ -4,9 +4,8 @@ This module contains unit tests for the DataCatalog class, which is part of the 
 These tests cover the initialization, default values, update methods, getting data, listing and printing clip boundaries, and resetting.
 """
 
-import warnings
-from typing import Tuple
-from unittest.mock import MagicMock, Mock, PropertyMock, patch
+from typing import Generator, Tuple
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import geopandas as gpd
 import pandas as pd
@@ -88,7 +87,7 @@ def make_mock_objects() -> Tuple[MagicMock, MagicMock, MagicMock, pd.DataFrame]:
 
 
 @pytest.fixture
-def mock_data_catalog_and_objs() -> Tuple:
+def mock_data_catalog_and_objs() -> Generator:
     """Fixture to provide a mock DataCatalog instance along with its dependencies."""
     mock_esm_catalog, mock_boundary_catalog, mock_boundaries, mock_stations_df = (
         make_mock_objects()
@@ -128,9 +127,7 @@ class TestDataCatalogInitialization:
 
     def test_intake_functions_called(self, mock_data_catalog_and_objs: Tuple):
         """Intake functions should be called with correct URLs during initialization."""
-        mock_data_catalog, _, _, _, mock_open_esm, mock_open_catalog = (
-            mock_data_catalog_and_objs
-        )
+        *_, mock_open_esm, mock_open_catalog = mock_data_catalog_and_objs
 
         # Intake functions called with expected args
         assert mock_open_esm.call_count == 2
@@ -140,18 +137,18 @@ class TestDataCatalogInitialization:
 
     def test_contains_expected_catalog_keys(self, mock_data_catalog_and_objs: Tuple):
         """The DataCatalog should store catalogs under expected keys after initialization."""
-        mock_data_catalog, mock_esm_catalog, mock_boundary_catalog, *_ = (
+        catalog_instance, mock_esm_catalog, mock_boundary_catalog, *_ = (
             mock_data_catalog_and_objs
         )
 
         # Catalogs stored correctly
-        assert mock_data_catalog[CATALOG_CADCAT] == mock_esm_catalog
-        assert mock_data_catalog[CATALOG_BOUNDARY] == mock_boundary_catalog
-        assert mock_data_catalog[CATALOG_REN_ENERGY_GEN] == mock_esm_catalog
+        assert catalog_instance[CATALOG_CADCAT] == mock_esm_catalog
+        assert catalog_instance[CATALOG_BOUNDARY] == mock_boundary_catalog
+        assert catalog_instance[CATALOG_REN_ENERGY_GEN] == mock_esm_catalog
 
     def test_contains_expected_entries(self, mock_data_catalog_and_objs: Tuple):
         """The DataCatalog should contain expected entries after initialization."""
-        mock_data_catalog, *_ = mock_data_catalog_and_objs
+        catalog_instance, *_ = mock_data_catalog_and_objs
 
         # Contains expected entries
         for key in (
@@ -160,18 +157,18 @@ class TestDataCatalogInitialization:
             CATALOG_REN_ENERGY_GEN,
             "stations",
         ):
-            assert key in mock_data_catalog
+            assert key in catalog_instance
 
     def test_stations_is_gdf(self, mock_data_catalog_and_objs: Tuple):
         """The 'stations' entry should be a GeoDataFrame."""
-        mock_data_catalog, *_ = mock_data_catalog_and_objs
-        stations = mock_data_catalog["stations"]
+        catalog_instance, *_ = mock_data_catalog_and_objs
+        stations = catalog_instance["stations"]
         assert isinstance(stations, gpd.GeoDataFrame)
 
     def test_catalog_df_structure(self, mock_data_catalog_and_objs: Tuple):
         """The catalog_df property should return a DataFrame with expected structure."""
-        mock_data_catalog, *_ = mock_data_catalog_and_objs
-        df = mock_data_catalog.catalog_df
+        catalog_instance, *_ = mock_data_catalog_and_objs
+        df = catalog_instance.catalog_df
 
         assert isinstance(df, pd.DataFrame)
         assert set(df["catalog"].unique()).issubset(
@@ -180,10 +177,10 @@ class TestDataCatalogInitialization:
 
     def test_initialized_state(self, mock_data_catalog_and_objs: Tuple):
         """Test that the DataCatalog instance is marked as initialized after creation."""
-        mock_data_catalog, *_ = mock_data_catalog_and_objs
+        catalog_instance, *_ = mock_data_catalog_and_objs
 
-        assert mock_data_catalog._initialized is True
-        assert mock_data_catalog.catalog_key == UNSET
+        assert catalog_instance._initialized is True
+        assert catalog_instance.catalog_key == UNSET
 
     def test_singleton_pattern(self):
         """Test that DataCatalog truly implements singleton pattern."""
@@ -198,22 +195,20 @@ class TestDataCatalogInitialization:
         self, mock_data_catalog_and_objs: Tuple
     ):
         """The .data property should return the CADCAT catalog."""
-        mock_data_catalog, *_ = mock_data_catalog_and_objs
-        assert mock_data_catalog.data is mock_data_catalog[CATALOG_CADCAT]
+        catalog_instance, *_ = mock_data_catalog_and_objs
+        assert catalog_instance.data is catalog_instance[CATALOG_CADCAT]
 
     def test_boundaries_property_lazy_loads(self, mock_data_catalog_and_objs: Tuple):
         """The .boundaries property should lazy-load Boundaries object."""
-        mock_data_catalog, *_ = mock_data_catalog_and_objs
-        assert mock_data_catalog._boundaries is UNSET
-        boundaries = mock_data_catalog.boundaries
-        assert (
-            mock_data_catalog.boundaries is boundaries
-        )  # Same object on second access
+        catalog_instance, *_ = mock_data_catalog_and_objs
+        assert catalog_instance._boundaries is UNSET
+        boundaries = catalog_instance.boundaries
+        assert catalog_instance.boundaries is boundaries  # Same object on second access
 
     def test_get_data_queries_correct_catalog(self, mock_data_catalog_and_objs: Tuple):
         """Test that get_data queries the correct catalog based on catalog_key."""
 
-        mock_data_catalog, mock_esm_catalog, *_ = mock_data_catalog_and_objs
+        catalog_instance, mock_esm_catalog, *_ = mock_data_catalog_and_objs
 
         # Setup mock to track calls
         mock_search = MagicMock()
@@ -221,8 +216,8 @@ class TestDataCatalogInitialization:
         mock_search.to_dataset_dict = mock_to_dataset
         mock_esm_catalog.search = MagicMock(return_value=mock_search)
 
-        mock_data_catalog.set_catalog_key("cadcat")
-        result = mock_data_catalog.get_data({"variable_id": "t2max"})
+        catalog_instance.set_catalog_key("cadcat")
+        _ = catalog_instance.get_data({"variable_id": "t2max"})
 
         # Verify the chain of calls
         mock_esm_catalog.search.assert_called_once_with(variable_id="t2max")
