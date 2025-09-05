@@ -164,7 +164,7 @@ def fs_statistic(cdf_climatology: xr.Dataset, cdf_monthly: xr.DataArray) -> xr.D
 def compute_weighted_fs(da_fs: xr.Dataset) -> xr.Dataset:
     """Weights the Finkelstein-Schafer (F-S) statistic based on TMY3 methodology.
 
-    Uses weights recommended by NREL. See https://nsrdb.nrel.gov/data-sets/tmy.
+    Uses weights recommended by NREL for TMY files. See https://nsrdb.nrel.gov/data-sets/tmy.
 
     Parameters
     -----------
