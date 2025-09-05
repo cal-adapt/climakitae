@@ -309,7 +309,7 @@ class TMY:
         station_name: str = UNSET,
         latitude: float = UNSET,
         longitude: float = UNSET,
-        verbose: bool = False,
+        verbose: bool = True,
     ):
         # Set variables
         if station_name is not UNSET:
