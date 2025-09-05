@@ -353,8 +353,8 @@ class TestIsValidQuery:
             result = self.validator._is_valid_query(query)
 
         assert result is None
-        # Note: No warning about "Query did not match any datasets" since we're 
-        # not raising ValueError but the method should still return None when 
+        # Note: No warning about "Query did not match any datasets" since we're
+        # not raising ValueError but the method should still return None when
         # no datasets are found
 
     @patch(
