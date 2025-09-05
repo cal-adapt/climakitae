@@ -753,7 +753,7 @@ class TMY:
         self._vprint("TMY analysis complete")
         return
 
-    def export_tmy_data(self, extension: str = "tmy"):
+    def export_tmy_data(self, extension: str = "epw"):
         """Write TMY data to EPW file.
 
         Parameters
