@@ -42,11 +42,13 @@ from climakitae.core.constants import _NEW_ATTRS_KEY, PROC_KEY, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.dataset import Dataset
 from climakitae.new_core.param_validation.abc_param_validation import (
-    _CATALOG_VALIDATOR_REGISTRY, ParameterValidator)
-from climakitae.new_core.param_validation.param_validation_tools import \
-    _get_closest_options
-from climakitae.new_core.processors.abc_data_processor import \
-    _PROCESSOR_REGISTRY
+    _CATALOG_VALIDATOR_REGISTRY,
+    ParameterValidator,
+)
+from climakitae.new_core.param_validation.param_validation_tools import (
+    _get_closest_options,
+)
+from climakitae.new_core.processors.abc_data_processor import _PROCESSOR_REGISTRY
 
 
 class DatasetFactory:
