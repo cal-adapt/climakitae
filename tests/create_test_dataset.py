@@ -7,11 +7,12 @@ Depending on the number of variables you use to construct your dataset and the g
 
 # Install dependencies
 import sys
-import xarray as xr
-from climakitae.core.data_load import read_catalog_from_select
-from climakitae.core.data_interface import DataParameters
-from climakitae.core.constants import SSPS
 
+import xarray as xr
+
+from climakitae.core.constants import SSPS
+from climakitae.core.data_interface import DataParameters
+from climakitae.core.data_load import read_catalog_from_select
 
 # ----------------- CHOOSE SETTINGS FOR TEST DATASET -----------------
 

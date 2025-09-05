@@ -1,7 +1,7 @@
 """Functions for deriving indices"""
 
-import xarray as xr
 import numpy as np
+import xarray as xr
 
 
 def effective_temp(T: xr.DataArray) -> xr.DataArray:

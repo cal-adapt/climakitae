@@ -1,7 +1,8 @@
 import pytest
 import xarray as xr
-from climakitae.explore import thresholds
+
 from climakitae.core.data_interface import DataParameters
+from climakitae.explore import thresholds
 
 
 @pytest.mark.advanced

@@ -3,6 +3,7 @@ Test that an appropriate error is raised.
 """
 
 import pytest
+
 from climakitae.core.data_interface import DataParameters
 
 

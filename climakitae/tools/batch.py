@@ -1,8 +1,9 @@
 import numpy as np
 import xarray as xr
-from climakitae.util.utils import get_closest_gridcells
+
 from climakitae.core.data_interface import DataParameters
 from climakitae.core.data_load import load
+from climakitae.util.utils import get_closest_gridcells
 
 
 def batch_select(

@@ -47,8 +47,8 @@ from climakitae.util.utils import (
 )
 from climakitae.util.warming_levels import (
     calculate_warming_level,
-    drop_invalid_sims,
     create_new_warming_level_table,
+    drop_invalid_sims,
 )
 
 if TYPE_CHECKING:
