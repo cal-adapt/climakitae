@@ -10,10 +10,13 @@ import pandas as pd
 import pytest
 from shapely.geometry import box
 
-from climakitae.core.data_interface import (DataInterface,
-                                            _check_if_good_input, _get_subarea,
-                                            _get_user_options,
-                                            get_subsetting_options)
+from climakitae.core.data_interface import (
+    DataInterface,
+    _check_if_good_input,
+    _get_subarea,
+    _get_user_options,
+    get_subsetting_options,
+)
 
 
 class TestDataInterface:

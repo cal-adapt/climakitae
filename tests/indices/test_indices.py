@@ -3,10 +3,11 @@
 import pytest
 import xarray as xr
 
-from climakitae.tools.derived_variables import (compute_relative_humidity,
-                                                compute_wind_mag)
-from climakitae.tools.indices import (effective_temp, fosberg_fire_index,
-                                      noaa_heat_index)
+from climakitae.tools.derived_variables import (
+    compute_relative_humidity,
+    compute_wind_mag,
+)
+from climakitae.tools.indices import effective_temp, fosberg_fire_index, noaa_heat_index
 from climakitae.util.unit_conversions import convert_units
 
 

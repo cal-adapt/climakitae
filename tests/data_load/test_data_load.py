@@ -8,18 +8,26 @@ import xarray as xr
 from pytest import approx
 
 from climakitae.core.data_interface import DataParameters
-from climakitae.core.data_load import (_check_valid_unit_selection,
-                                       _get_data_attributes, _get_eff_temp,
-                                       _get_fosberg_fire_index,
-                                       _get_hourly_dewpoint, _get_hourly_rh,
-                                       _get_hourly_specific_humidity,
-                                       _get_monthly_daily_dewpoint,
-                                       _get_noaa_heat_index, _get_Uearth,
-                                       _get_Vearth, _get_wind_dir_derived,
-                                       _get_wind_speed_derived,
-                                       _override_unit_defaults, _time_slice,
-                                       area_subset_geometry, load,
-                                       read_catalog_from_select)
+from climakitae.core.data_load import (
+    _check_valid_unit_selection,
+    _get_data_attributes,
+    _get_eff_temp,
+    _get_fosberg_fire_index,
+    _get_hourly_dewpoint,
+    _get_hourly_rh,
+    _get_hourly_specific_humidity,
+    _get_monthly_daily_dewpoint,
+    _get_noaa_heat_index,
+    _get_Uearth,
+    _get_Vearth,
+    _get_wind_dir_derived,
+    _get_wind_speed_derived,
+    _override_unit_defaults,
+    _time_slice,
+    area_subset_geometry,
+    load,
+    read_catalog_from_select,
+)
 
 
 def mock_data() -> xr.DataArray:

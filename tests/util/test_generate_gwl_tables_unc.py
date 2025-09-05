@@ -14,8 +14,11 @@ import pytest
 import s3fs  # Import needed for type hinting
 import xarray as xr
 
-from climakitae.util.generate_gwl_tables_unc import (GWLGenerator, main,
-                                                     make_weighted_timeseries)
+from climakitae.util.generate_gwl_tables_unc import (
+    GWLGenerator,
+    main,
+    make_weighted_timeseries,
+)
 
 TEST_MODEL = "EC-Earth3"
 TEST_REFERENCE_PERIOD = {"start_year": "19810101", "end_year": "20101231"}

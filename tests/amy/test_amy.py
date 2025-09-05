@@ -4,9 +4,14 @@ import pytest
 import xarray as xr
 
 from climakitae.core.data_interface import DataParameters
-from climakitae.explore.amy import (_format_meteo_yr_df, _set_amy_year_inputs,
-                                    compute_amy, compute_mean_monthly_meteo_yr,
-                                    compute_severe_yr, retrieve_meteo_yr_data)
+from climakitae.explore.amy import (
+    _format_meteo_yr_df,
+    _set_amy_year_inputs,
+    compute_amy,
+    compute_mean_monthly_meteo_yr,
+    compute_severe_yr,
+    retrieve_meteo_yr_data,
+)
 
 
 @pytest.mark.advanced
