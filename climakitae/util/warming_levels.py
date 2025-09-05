@@ -8,23 +8,13 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from climakitae.core.paths import (
-    DATA_CATALOG_URL,
-    GWL_1850_1900_FILE,
-    GWL_1850_1900_TIMEIDX_FILE,
-    HIST_FILE,
-    SSP119_FILE,
-    SSP126_FILE,
-    SSP245_FILE,
-    SSP370_FILE,
-    SSP585_FILE,
-)
-from climakitae.util.utils import (
-    _get_cat_subset,
-    read_csv_file,
-    resolution_to_gridlabel,
-    scenario_to_experiment_id,
-)
+from climakitae.core.paths import (DATA_CATALOG_URL, GWL_1850_1900_FILE,
+                                   GWL_1850_1900_TIMEIDX_FILE, HIST_FILE,
+                                   SSP119_FILE, SSP126_FILE, SSP245_FILE,
+                                   SSP370_FILE, SSP585_FILE)
+from climakitae.util.utils import (_get_cat_subset, read_csv_file,
+                                   resolution_to_gridlabel,
+                                   scenario_to_experiment_id)
 
 
 def calculate_warming_level(

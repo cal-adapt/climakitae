@@ -2,13 +2,8 @@ import matplotlib
 import matplotlib.colors as mcolors
 import numpy as np
 
-from climakitae.core.paths import (
-    AE_BLUE,
-    AE_DIVERGING,
-    AE_DIVERGING_R,
-    AE_ORANGE,
-    CATEGORICAL_CB,
-)
+from climakitae.core.paths import (AE_BLUE, AE_DIVERGING, AE_DIVERGING_R,
+                                   AE_ORANGE, CATEGORICAL_CB)
 from climakitae.util.utils import _package_file_path
 
 

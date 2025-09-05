@@ -76,11 +76,10 @@ import xarray as xr
 
 from climakitae.core.constants import UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
-from climakitae.new_core.param_validation.abc_param_validation import ParameterValidator
+from climakitae.new_core.param_validation.abc_param_validation import \
+    ParameterValidator
 from climakitae.new_core.processors.abc_data_processor import (
-    _PROCESSOR_REGISTRY,
-    DataProcessor,
-)
+    _PROCESSOR_REGISTRY, DataProcessor)
 
 
 class Dataset:

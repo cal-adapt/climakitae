@@ -13,13 +13,9 @@ import xarray as xr
 
 from climakitae.explore import threshold_tools
 from climakitae.explore.threshold_tools import (
-    _calc_average_ess_gridded_data,
-    _calc_average_ess_timeseries_data,
-    _exceedance_count_name,
-    _get_distr_func,
-    _get_exceedance_events,
-    _get_fitted_distr,
-)
+    _calc_average_ess_gridded_data, _calc_average_ess_timeseries_data,
+    _exceedance_count_name, _get_distr_func, _get_exceedance_events,
+    _get_fitted_distr)
 
 
 class TestThresholdTools:

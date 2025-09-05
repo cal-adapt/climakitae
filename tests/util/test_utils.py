@@ -9,35 +9,18 @@ import pandas as pd
 import pyproj
 import pytest
 import xarray as xr
-from shapely.geometry import box, Point
+from shapely.geometry import Point, box
 
 from climakitae.util.utils import (  # stack_sims_across_locs, # TODO: Uncomment when implemented
-    _get_cat_subset,
-    _get_scenario_from_selections,
-    _package_file_path,
-    add_dummy_time_to_wl,
-    area_average,
-    clip_gpd_to_shapefile,
-    clip_to_shapefile,
-    combine_hdd_cdd,
-    compute_annual_aggreggate,
-    compute_multimodel_stats,
-    convert_to_local_time,
-    downscaling_method_as_list,
-    downscaling_method_to_activity_id,
-    get_closest_gridcell,
-    get_closest_gridcells,
-    julianDay_to_date,
-    read_csv_file,
-    readable_bytes,
-    reproject_data,
-    resolution_to_gridlabel,
-    scenario_to_experiment_id,
-    summary_table,
-    timescale_to_table_id,
-    trendline,
-    write_csv_file,
-)
+    _get_cat_subset, _get_scenario_from_selections, _package_file_path,
+    add_dummy_time_to_wl, area_average, clip_gpd_to_shapefile,
+    clip_to_shapefile, combine_hdd_cdd, compute_annual_aggreggate,
+    compute_multimodel_stats, convert_to_local_time,
+    downscaling_method_as_list, downscaling_method_to_activity_id,
+    get_closest_gridcell, get_closest_gridcells, julianDay_to_date,
+    read_csv_file, readable_bytes, reproject_data, resolution_to_gridlabel,
+    scenario_to_experiment_id, summary_table, timescale_to_table_id, trendline,
+    write_csv_file)
 
 
 class TestUtils:

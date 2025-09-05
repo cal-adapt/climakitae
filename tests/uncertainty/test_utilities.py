@@ -17,25 +17,15 @@ from shapely.geometry import Polygon
 from climakitae.core.data_interface import DataParameters
 from climakitae.core.paths import GWL_1850_1900_FILE, GWL_1981_2010_FILE
 from climakitae.explore.uncertainty import (
-    _area_wgt_average,
-    _calendar_align,
-    _cf_to_dt,
-    _clip_region,
-    _drop_member_id,
-    _grab_ensemble_data_by_experiment_id,
-    _precip_flux_to_total,
-    _standardize_cmip6_data,
-)
-from tests.uncertainty.fixtures import (
-    global_dataset,
-    mock_catalog,
-    mock_data_for_clipping,
-    mock_data_for_standardization,
-    mock_geoms_for_clipping,
-    mock_multi_ens_dataset,
-    multi_var_dataset,
-    simple_dataset,
-)
+    _area_wgt_average, _calendar_align, _cf_to_dt, _clip_region,
+    _drop_member_id, _grab_ensemble_data_by_experiment_id,
+    _precip_flux_to_total, _standardize_cmip6_data)
+from tests.uncertainty.fixtures import (global_dataset, mock_catalog,
+                                        mock_data_for_clipping,
+                                        mock_data_for_standardization,
+                                        mock_geoms_for_clipping,
+                                        mock_multi_ens_dataset,
+                                        multi_var_dataset, simple_dataset)
 
 
 def test_calendar_align():

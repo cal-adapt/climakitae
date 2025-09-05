@@ -10,11 +10,10 @@ import pandas as pd
 import pyproj
 import rioxarray as rio
 import xarray as xr
-from shapely.geometry import mapping, Point
+from shapely.geometry import Point, mapping
 from timezonefinder import TimezoneFinder
 
 from climakitae.core.constants import SSPS, UNSET
-
 # from climakitae.core.data_interface import DataParameters
 from climakitae.core.paths import DATA_CATALOG_URL, STATIONS_CSV_PATH
 

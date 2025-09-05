@@ -5,22 +5,15 @@ import pandas as pd
 import pytest
 import xarray as xr
 
-from climakitae.explore.uncertainty import (
-    GWL_1850_1900_FILE,
-    GWL_1981_2010_FILE,
-    CmipOpt,
-    cmip_mmm,
-    get_ensemble_data,
-    get_warm_level,
-    grab_multimodel_data,
-    weighted_temporal_mean,
-)
-from tests.uncertainty.fixtures import (
-    mock_data_for_clipping,
-    mock_data_for_warm_level,
-    mock_multi_ens_dataset,
-    wrf_dataset,
-)
+from climakitae.explore.uncertainty import (GWL_1850_1900_FILE,
+                                            GWL_1981_2010_FILE, CmipOpt,
+                                            cmip_mmm, get_ensemble_data,
+                                            get_warm_level,
+                                            grab_multimodel_data,
+                                            weighted_temporal_mean)
+from tests.uncertainty.fixtures import (mock_data_for_clipping,
+                                        mock_data_for_warm_level,
+                                        mock_multi_ens_dataset, wrf_dataset)
 
 
 def test_get_warm_level_input_validation():

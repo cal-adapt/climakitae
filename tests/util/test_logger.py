@@ -1,11 +1,8 @@
 from _pytest.logging import LogCaptureFixture
 
-from climakitae.util.logger import (
-    current_logging_status,
-    disable_app_logging,
-    enable_app_logging,
-    handler,
-)
+from climakitae.util.logger import (current_logging_status,
+                                    disable_app_logging, enable_app_logging,
+                                    handler)
 from climakitae.util.logger import logger as app_logger
 
 

@@ -3,21 +3,17 @@
 from typing import Dict, List, Tuple
 from unittest.mock import MagicMock, PropertyMock, call, patch
 
+import intake
+import intake_esm
 import numpy as np
 import pandas as pd
 import pytest
 import s3fs  # Import needed for type hinting
 import xarray as xr
 
-import intake_esm
-import intake
-
 from climakitae.core.constants import WARMING_LEVELS
-from climakitae.util.generate_gwl_tables import (
-    GWLGenerator,
-    main,
-    make_weighted_timeseries,
-)
+from climakitae.util.generate_gwl_tables import (GWLGenerator, main,
+                                                 make_weighted_timeseries)
 
 TEST_MODEL = "EC-Earth3"
 TEST_REFERENCE_PERIOD = {"start_year": "19810101", "end_year": "20101231"}

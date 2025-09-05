@@ -19,11 +19,8 @@ import xarray as xr
 from botocore.exceptions import ClientError
 from timezonefinder import TimezoneFinder
 
-from climakitae.core.paths import (
-    EXPORT_S3_BUCKET,
-    STATIONS_CSV_PATH,
-    VARIABLE_DESCRIPTIONS_CSV_PATH,
-)
+from climakitae.core.paths import (EXPORT_S3_BUCKET, STATIONS_CSV_PATH,
+                                   VARIABLE_DESCRIPTIONS_CSV_PATH)
 from climakitae.util.utils import read_csv_file
 
 xr.set_options(keep_attrs=True)
