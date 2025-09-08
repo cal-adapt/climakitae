@@ -740,7 +740,6 @@ class TMY:
             )
 
             all_vars_list.append(data_by_var)  # Append to list
-        print(all_vars_list)
 
         # Merge data from all variables into a single xr.Dataset object
         all_vars_ds = xr.merge(all_vars_list)
