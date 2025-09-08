@@ -422,13 +422,11 @@ class TestTMYClass:
         assert tmy.end_year == end_year
         assert tmy.stn_name == stn_name
         # Check that we pull correct station coordinates
-        assert tmy.latitude == pytest.approx((33.62975, 33.729749999999996), abs=1e-6)
-        assert tmy.longitude == pytest.approx(
-            (-117.92746, -117.80745999999999), abs=1e-6
-        )
+        assert tmy.lat_range == pytest.approx((33.57975, 33.77975), abs=1e-6)
+        assert tmy.lon_range == pytest.approx((-117.967459, -117.76746), abs=1e-6)
         assert tmy.stn_state == "CA"
         assert tmy.stn_code == 72297793184
-        assert not tmy.verbose
+        assert tmy.verbose
 
         # Use invalid station name
         stn_name = "KSNA"
@@ -444,8 +442,8 @@ class TestTMYClass:
         end_year = 2020
         # Initialize TMY object
         tmy = TMY(start_year, end_year, latitude=lat, longitude=lon)
-        assert tmy.latitude == pytest.approx((33.510000000000005, 33.61), abs=1e-6)
-        assert tmy.longitude == pytest.approx((-117.87, -117.75), abs=1e-6)
+        assert tmy.lat_range == pytest.approx((33.46, 33.66), abs=1e-6)
+        assert tmy.lon_range == pytest.approx((-117.91, -117.71), abs=1e-6)
         assert tmy.stn_code == "None"
 
     def test__load_single_variable(self):
@@ -463,9 +461,9 @@ class TestTMYClass:
         assert result.attrs["units"] == "degC"
         assert result.lat.shape == ()
         assert result.lon.shape == ()
-        assert result.lat.data == 33.544018
-        assert result.lon.data == -117.829834
-        assert (result.simulation.values == tmy.data_models).all()
+        assert result.lat.data == 33.55938
+        assert result.lon.data == -117.80269
+        assert (result.simulation.values == tmy.simulations).all()
 
     def test__get_tmy_variable(self, mock_t_hourly):
         """Check that daily stat gets returned and values match expected."""
