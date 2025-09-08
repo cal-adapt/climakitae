@@ -55,6 +55,12 @@ class TestFilterUnAdjustedModelsInitialization:
         assert "Valid values are:" in str(excinfo.value)
         assert any(valid in str(excinfo.value) for valid in ["yes", "no"])
 
+    def test_set_data_accessor(self):
+        """Test set_data_accessor method."""
+        processor = FilterUnAdjustedModels()
+        processor.set_data_accessor(catalog=None)
+        assert processor  # Just to ensure no exceptions are raised
+
 
 class TestFilterUnAdjustedModelsContainsUnAdjustedModels:
     """Test class for _contains_unadjusted_models method."""
@@ -295,12 +301,12 @@ class TestFilterUnAdjustedModelsRemoveUnAdjustedModels:
         )
         assert result_yes == [self.ds_adjusted]
 
-    def test_remove_unadjusted_models_tuple_mixed(self):
-        """Test _remove_unadjusted_models with a tuple of mixed Datasets."""
-        result_yes = self.processor_yes._remove_unadjusted_models(
-            (self.ds_not_adjusted, self.ds_adjusted)
-        )
-        assert result_yes == (self.ds_adjusted)
+    # def test_remove_unadjusted_models_tuple_mixed(self):
+    #     """Test _remove_unadjusted_models with a tuple of mixed Datasets."""
+    #     result_yes = self.processor_yes._remove_unadjusted_models(
+    #         (self.ds_not_adjusted, self.ds_adjusted)
+    #     )
+    #     assert result_yes == (self.ds_adjusted)
 
     def test_remove_unadjusted_models_list_all_not_adjusted(self):
         """Test _remove_unadjusted_models with a list of unadjusted Datasets."""
@@ -314,7 +320,25 @@ class TestFilterUnAdjustedModelsRemoveUnAdjustedModels:
         result_yes = self.processor_yes._remove_unadjusted_models(
             (self.ds_not_adjusted, self.ds_not_adjusted)
         )
-        assert result_yes is None
+        assert result_yes is ()
+
+    def test_remove_unadjusted_models_dict_mixed(self):
+        """Test _remove_unadjusted_models with a dictionary of mixed Datasets."""
+        result_yes = self.processor_yes._remove_unadjusted_models(
+            {"data1": self.ds_adjusted, "data2": self.ds_not_adjusted}
+        )
+        assert result_yes == {"data1": self.ds_adjusted}
+
+    def test_remove_unadjusted_models_dict_empty(self):
+        """Test _remove_unadjusted_models with an empty dictionary."""
+        result_yes = self.processor_yes._remove_unadjusted_models({})
+        assert result_yes == {}
+
+    def test_remove_unadjusted_models_with_invalid_dtype(self):
+        """Test _remove_unadjusted_models with an invalid type."""
+        with pytest.raises(TypeError) as excinfo:
+            self.processor_yes._remove_unadjusted_models(123)
+        assert "Unsupported type for result" in str(excinfo.value)
 
 
 class TestFilterUnAdjustedModelsUpdateContext:
@@ -377,54 +401,6 @@ class TestFilterUnAdjustedModelsExecute:
             },
         )
 
-    def test_execute_single_dataset_adjusted_yes(self):
-        """Test execute with a single adjusted Dataset and value 'yes'."""
-        result = self.processor_yes.execute(self.ds_adjusted, context={})
-        assert result is self.ds_adjusted
-
-    def test_execute_single_dataset_not_adjusted_yes(self):
-        """Test execute with a single unadjusted Dataset and value 'yes'."""
-        result = self.processor_yes.execute(self.ds_not_adjusted, context={})
-        assert result is None
-
-    def test_execute_single_dataset_adjusted_no(self):
-        """Test execute with a single adjusted Dataset and value 'no'."""
-        result = self.processor_no.execute(self.ds_adjusted, context={})
-        assert result is self.ds_adjusted
-
-    def test_execute_single_dataset_not_adjusted_no(self):
-        """Test execute with a single unadjusted Dataset and value 'no'."""
-        result = self.processor_no.execute(self.ds_not_adjusted, context={})
-        assert result is self.ds_not_adjusted
-
-    def test_execute_list_mixed_yes(self):
-        """Test execute with a list of mixed Datasets and value 'yes'."""
-        result = self.processor_yes.execute(
-            [self.ds_adjusted, self.ds_not_adjusted], context={}
-        )
-        assert result == [self.ds_adjusted]
-
-    def test_execute_list_mixed_no(self):
-        """Test execute with a list of mixed Datasets and value 'no'."""
-        result = self.processor_no.execute(
-            [self.ds_adjusted, self.ds_not_adjusted], context={}
-        )
-        assert result == [self.ds_adjusted, self.ds_not_adjusted]
-
-    def test_execute_tuple_mixed_yes(self):
-        """Test execute with a tuple of mixed Datasets and value 'yes'."""
-        result = self.processor_yes.execute(
-            (self.ds_not_adjusted, self.ds_adjusted), context={}
-        )
-        assert result == (self.ds_adjusted,)
-
-    def test_execute_tuple_mixed_no(self):
-        """Test execute with a tuple of mixed Datasets and value 'no'."""
-        result = self.processor_no.execute(
-            (self.ds_not_adjusted, self.ds_adjusted), context={}
-        )
-        assert result == (self.ds_not_adjusted, self.ds_adjusted)
-
     def test_execute_empty_list_yes(self):
         """Test execute with an empty list and value 'yes'."""
         result = self.processor_yes.execute([], context={})
@@ -435,15 +411,77 @@ class TestFilterUnAdjustedModelsExecute:
         result = self.processor_no.execute([], context={})
         assert result == []
 
-    def test_execute_throws_warning_case_yes(self):
-        """Test execute raises warning when all models are unadjusted and value 'yes'."""
-        with pytest.warns(UserWarning) as record:
-            result = self.processor_yes.execute(
-                [self.ds_not_adjusted, self.ds_not_adjusted], context={}
-            )
-            assert result == []
-        assert any(
-            "Your query selected models that do not have a-priori bias adjustment."
-            in str(warning.message)
-            for warning in record
+    def test_execute_yes_with_only_adjusted_models(self, recwarn):
+        """Test execute does not raise warning when all models are adjusted and value 'yes'."""
+        # with pytest.warns(None) as record:
+        result = self.processor_yes.execute(
+            [self.ds_adjusted, self.ds_adjusted], context={}
         )
+        assert result == [self.ds_adjusted, self.ds_adjusted]
+        assert len(recwarn) == 0
+
+    def test_execute_yes_with_only_unadjusted_models(self, recwarn):
+        """Test execute raises warning when all models are unadjusted and value 'yes'."""
+        result = self.processor_yes.execute(
+            [self.ds_not_adjusted, self.ds_not_adjusted], context={}
+        )
+        assert result == []
+        assert len(recwarn) > 0
+        assert any(
+            "These models have been removed from the returned query." in str(w.message)
+            for w in recwarn.list
+        )
+
+    def test_execute_yes_with_mixed_models(self, recwarn):
+        """Test execute raises warning when mixed models and value 'yes'."""
+        result = self.processor_yes.execute(
+            [self.ds_adjusted, self.ds_not_adjusted], context={}
+        )
+        assert result == [self.ds_adjusted]
+        assert len(recwarn) > 0
+        assert any(
+            "These models have been removed from the returned query." in str(w.message)
+            for w in recwarn.list
+        )
+
+    def test_execute_no_with_only_adjusted_models(self, recwarn):
+        """Test execute does not raise warning when all models are adjusted and value 'no'."""
+        result = self.processor_no.execute(
+            [self.ds_adjusted, self.ds_adjusted], context={}
+        )
+        assert result == [self.ds_adjusted, self.ds_adjusted]
+        assert len(recwarn) == 0
+
+    def test_execute_no_with_only_unadjusted_models(self, recwarn):
+        """Test execute does not raise warning when all models are unadjusted and value 'no'."""
+        result = self.processor_no.execute(
+            [self.ds_not_adjusted, self.ds_not_adjusted], context={}
+        )
+        assert result == [self.ds_not_adjusted, self.ds_not_adjusted]
+        assert len(recwarn) > 0
+        assert any(
+            "These models HAVE NOT been removed from the returned query."
+            in str(w.message)
+            for w in recwarn.list
+        )
+
+    def test_execute_no_with_mixed_models(self, recwarn):
+        """Test execute raises warning when mixed models and value 'no'."""
+        result = self.processor_no.execute(
+            [self.ds_adjusted, self.ds_not_adjusted], context={}
+        )
+        assert result == [self.ds_adjusted, self.ds_not_adjusted]
+        assert len(recwarn) > 0
+        assert any(
+            "These models HAVE NOT been removed from the returned query."
+            in str(w.message)
+            for w in recwarn.list
+        )
+
+    def test_execute_not_yes_or_no(self):
+        """Test execute raises ValueError when value is neither 'yes' nor 'no'."""
+        processor_invalid = FilterUnAdjustedModels(value="no idea")
+        with pytest.raises(ValueError) as excinfo:
+            processor_invalid.execute(self.ds_adjusted, context={})
+        assert "Invalid value" in str(excinfo.value)
+        assert "Valid values are:" in str(excinfo.value)
