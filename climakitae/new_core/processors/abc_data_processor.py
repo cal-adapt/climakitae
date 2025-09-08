@@ -148,3 +148,111 @@ class DataProcessor(ABC):
         None
 
         """
+
+
+# @register_processor("rename_variables")
+class RenameVariables(DataProcessor):
+    """Rename variables in the data to user-friendly names.
+
+    This class is a placeholder for variable renaming logic.
+
+    Methods
+    -------
+    execute(result, context)
+        Return the input data unchanged (placeholder).
+    update_context(context)
+        No operation (placeholder).
+    set_data_accessor(catalog)
+        No operation (placeholder).
+
+    """
+
+    def execute(
+        self,
+        result: Union[
+            xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
+        ],
+        context: Dict[str, Any],
+    ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
+        # Placeholder for variable renaming logic
+        return result
+
+    def update_context(self, context: Dict[str, Any]):
+        # Placeholder for updating context
+        pass
+
+    def set_data_accessor(self, catalog: DataCatalog):
+        # Placeholder for setting data accessor
+        pass
+
+
+# @register_processor("apply_bias_correction")
+class ApplyBiasCorrection(DataProcessor):
+    """Apply bias correction to the data.
+
+    This class is a placeholder for bias correction logic.
+
+    Methods
+    -------
+    execute(result, context)
+        Return the input data unchanged (placeholder).
+    update_context(context)
+        No operation (placeholder).
+    set_data_accessor(catalog)
+        No operation (placeholder).
+
+    """
+
+    def execute(
+        self,
+        result: Union[
+            xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
+        ],
+        context: Dict[str, Any],
+    ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
+        # Placeholder for bias correction logic
+        return result
+
+    def update_context(self, context: Dict[str, Any]):
+        # Placeholder for updating context
+        pass
+
+    def set_data_accessor(self, catalog: DataCatalog):
+        # Placeholder for setting data accessor
+        pass
+
+
+# @register_processor("filter_data")
+class FilterData(DataProcessor):
+    """Filter data based on certain criteria.
+
+    This class is a placeholder for data filtering logic.
+
+    Methods
+    -------
+    execute(result, context)
+        Return the input data unchanged (placeholder).
+    update_context(context)
+        No operation (placeholder).
+    set_data_accessor(catalog)
+        No operation (placeholder).
+
+    """
+
+    def execute(
+        self,
+        result: Union[
+            xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
+        ],
+        context: Dict[str, Any],
+    ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
+        # Placeholder for data filtering logic
+        return result
+
+    def update_context(self, context: Dict[str, Any]):
+        # Placeholder for updating context
+        pass
+
+    def set_data_accessor(self, catalog: DataCatalog):
+        # Placeholder for setting data accessor
+        pass
