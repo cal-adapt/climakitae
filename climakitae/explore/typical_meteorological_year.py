@@ -406,9 +406,10 @@ class TMY:
         return
 
     def _set_lat_lon(self):
-        """Set the lat/lon ranges for selecting data around the grid point."""
-        self.latitude = (self.stn_lat - 0.05, self.stn_lat + 0.05)
-        self.longitude = (self.stn_lon - 0.06, self.stn_lon + 0.06)
+        """Set the lat/lon ranges for selecting data around the grid point
+        in call to get_data()."""
+        self.lat_range = (self.stn_lat - 0.1, self.stn_lat + 0.1)
+        self.lon_range = (self.stn_lon - 0.1, self.stn_lon + 0.1)
         return
 
     def _vprint(self, msg: str):
@@ -442,12 +443,12 @@ class TMY:
 
         data = get_data(
             variable=varname,
-            resolution="9 km",
+            resolution="3 km",
             timescale="hourly",
             data_type="Gridded",
             units=units,
-            latitude=self.latitude,
-            longitude=self.longitude,
+            latitude=self.lat_range,
+            longitude=self.lon_range,
             area_average="No",
             scenario=self.scenario,
             time_slice=(self.start_year, new_end_year),
@@ -571,6 +572,7 @@ class TMY:
         airtemp_data = self._get_tmy_variable(
             "Air Temperature at 2m", "degC", ["max", "min", "mean"]
         )
+
         # unpack and rename
         max_airtemp_data = airtemp_data[0]
         max_airtemp_data.name = "Daily max air temperature"
@@ -738,6 +740,7 @@ class TMY:
             )
 
             all_vars_list.append(data_by_var)  # Append to list
+        print(all_vars_list)
 
         # Merge data from all variables into a single xr.Dataset object
         all_vars_ds = xr.merge(all_vars_list)
