@@ -124,6 +124,7 @@ def mock_data_catalog(mock_data_catalog_and_objs: Tuple) -> DataCatalog:
 
 
 class TestDataCatalogInitialization:
+    """Test the initialization and basic properties of the DataCatalog class."""
 
     def test_intake_functions_called(self, mock_data_catalog_and_objs: Tuple):
         """Intake functions should be called with correct URLs during initialization."""
@@ -225,6 +226,7 @@ class TestDataCatalogInitialization:
 
 
 class TestDataCatalogCatalogKeyManagement:
+    """Test setting and getting catalog_key in DataCatalog."""
 
     def test_get_data_with_unset_catalog_key(self, mock_data_catalog: DataCatalog):
         """Getting data with UNSET catalog_key should raise error."""
