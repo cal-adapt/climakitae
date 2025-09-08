@@ -1,0 +1,34 @@
+import pandas as pd
+from tabulate import tabulate
+import numpy as np
+
+def vd_csv_to_markdown(csv_file_path: str, output_markdown_path: str):
+    """
+    Converts variable_descriptions CSV file to an enhanced Markdown table.
+
+    Args:
+        csv_file_path (str): The path to the input variable CSV file.
+        output_markdown_path (str, optional): The path to save the output Markdown file.
+                                              If None, the Markdown table is printed to the console.
+    """
+    try:
+        # Load the variable descriptions CSV file into a pandas DataFrame
+        df = pd.read_csv(csv_file_path)
+
+        df.insert(1, 'derived', np.where(df['variable_id'].str.endswith('_derived'), 'True', 'False'))        
+        # Convert the DataFrame to a Markdown table string
+        # 'pipe' formssat creates a standard Markdown table
+        # 'headers="keys"' uses column names from the DataFrame as table headers
+        markdown_table = tabulate(df, headers='keys', tablefmt='github', showindex=False)
+
+        if output_markdown_path:
+            with open(output_markdown_path, 'w') as f:
+                f.write(markdown_table)
+            print(f"Markdown table saved to: {output_markdown_path}")
+        else:
+            print(markdown_table)
+
+    except FileNotFoundError:
+        print(f"Error: CSV file not found at '{csv_file_path}'")
+    except Exception as e:
+        print(f"An error occurred: {e}")
