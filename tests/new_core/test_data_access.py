@@ -117,7 +117,7 @@ def mock_data_catalog_and_objs() -> Generator:
 
 
 @pytest.fixture
-def mock_data_catalog(mock_data_catalog_and_objs: Tuple) -> DataCatalog:
+def mock_data_catalog(mock_data_catalog_and_objs: Generator) -> DataCatalog:
     """Fixture to provide a mock DataCatalog instance."""
     catalog_instance, *_ = mock_data_catalog_and_objs
     return catalog_instance
