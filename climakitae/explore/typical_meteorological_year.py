@@ -382,7 +382,7 @@ class TMY:
         self.stn_lat = one_station.LAT_Y.item()
         self.stn_lon = one_station.LON_X.item()
         self.stn_state = one_station.state.item()
-        self._set_lat_lon()
+        self._set_lat_lon_range()
         return
 
     def _set_loc_from_lat_lon(self, latitude: float, longitude: float):
@@ -397,7 +397,7 @@ class TMY:
         """
         self.stn_lat = latitude
         self.stn_lon = longitude
-        self._set_lat_lon()
+        self._set_lat_lon_range()
         # Set station variables to string "None"
         # to be written to file with final data
         self.stn_name = "None"
@@ -405,7 +405,7 @@ class TMY:
         self.stn_state = "None"
         return
 
-    def _set_lat_lon(self):
+    def _set_lat_lon_range(self):
         """Set the lat/lon ranges for selecting data around the grid point
         in call to get_data()."""
         self.lat_range = (self.stn_lat - 0.1, self.stn_lat + 0.1)
