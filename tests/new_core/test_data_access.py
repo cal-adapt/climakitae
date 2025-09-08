@@ -226,7 +226,7 @@ class TestDataCatalogInitialization:
 
 
 class TestDataCatalogCatalogKeyManagement:
-    """Test setting and getting catalog_key in DataCatalog."""
+    """Test setting and getting `catalog_key` in DataCatalog."""
 
     def test_get_data_with_unset_catalog_key(self, mock_data_catalog: DataCatalog):
         """Getting data with UNSET catalog_key should raise error."""
