@@ -9,6 +9,7 @@ Subpackages
 
    climakitae.core
    climakitae.explore
+   climakitae.new_core
    climakitae.tools
    climakitae.util
 
