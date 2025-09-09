@@ -4,6 +4,7 @@ backend code for building the warming levels GUI
 """
 
 import calendar
+
 # Silence warnings
 import logging
 from typing import Iterable, List
@@ -18,8 +19,11 @@ from climakitae.core.constants import SSPS, WARMING_LEVELS
 from climakitae.core.data_interface import DataParameters
 from climakitae.core.data_load import load
 from climakitae.core.paths import GWL_1850_1900_FILE, GWL_1981_2010_FILE
-from climakitae.util.utils import (_get_cat_subset, read_csv_file,
-                                   scenario_to_experiment_id)
+from climakitae.util.utils import (
+    _get_cat_subset,
+    read_csv_file,
+    scenario_to_experiment_id,
+)
 
 # warnings.simplefilter(action="ignore", category=FutureWarning)
 

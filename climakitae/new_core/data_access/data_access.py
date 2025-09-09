@@ -25,10 +25,18 @@ import intake_esm
 import pandas as pd
 import xarray as xr
 
-from climakitae.core.constants import (CATALOG_BOUNDARY, CATALOG_CADCAT,
-                                       CATALOG_REN_ENERGY_GEN, UNSET)
-from climakitae.core.paths import (BOUNDARY_CATALOG_URL, DATA_CATALOG_URL,
-                                   RENEWABLES_CATALOG_URL, STATIONS_CSV_PATH)
+from climakitae.core.constants import (
+    CATALOG_BOUNDARY,
+    CATALOG_CADCAT,
+    CATALOG_REN_ENERGY_GEN,
+    UNSET,
+)
+from climakitae.core.paths import (
+    BOUNDARY_CATALOG_URL,
+    DATA_CATALOG_URL,
+    RENEWABLES_CATALOG_URL,
+    STATIONS_CSV_PATH,
+)
 from climakitae.new_core.data_access.boundaries import Boundaries
 from climakitae.util.utils import read_csv_file
 
