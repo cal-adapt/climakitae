@@ -2,7 +2,6 @@ import warnings
 from ast import literal_eval
 from datetime import timedelta
 from functools import partial
-
 # Importing DataParameters causes ImportError due to circular import
 # so only import for type checking and reference as str 'DataParameters'
 from typing import TYPE_CHECKING
@@ -24,32 +23,26 @@ from xsdba.adjustment import QuantileDeltaMapping
 
 from climakitae.core.boundaries import Boundaries
 from climakitae.core.constants import WARMING_LEVELS
-from climakitae.tools.derived_variables import (
-    compute_dewpointtemp,
-    compute_relative_humidity,
-    compute_specific_humidity,
-    compute_wind_dir,
-    compute_wind_mag,
-)
-from climakitae.tools.indices import effective_temp, fosberg_fire_index, noaa_heat_index
-from climakitae.util.unit_conversions import convert_units, get_unit_conversion_options
-from climakitae.util.utils import (
-    _get_cat_subset,
-    _get_scenario_from_selections,
-    area_average,
-    downscaling_method_as_list,
-    downscaling_method_to_activity_id,
-    get_closest_gridcell,
-    readable_bytes,
-    resolution_to_gridlabel,
-    scenario_to_experiment_id,
-    timescale_to_table_id,
-)
-from climakitae.util.warming_levels import (
-    calculate_warming_level,
-    drop_invalid_sims,
-    create_new_warming_level_table,
-)
+from climakitae.tools.derived_variables import (compute_dewpointtemp,
+                                                compute_relative_humidity,
+                                                compute_specific_humidity,
+                                                compute_wind_dir,
+                                                compute_wind_mag)
+from climakitae.tools.indices import (effective_temp, fosberg_fire_index,
+                                      noaa_heat_index)
+from climakitae.util.unit_conversions import (convert_units,
+                                              get_unit_conversion_options)
+from climakitae.util.utils import (_get_cat_subset,
+                                   _get_scenario_from_selections, area_average,
+                                   downscaling_method_as_list,
+                                   downscaling_method_to_activity_id,
+                                   get_closest_gridcell, readable_bytes,
+                                   resolution_to_gridlabel,
+                                   scenario_to_experiment_id,
+                                   timescale_to_table_id)
+from climakitae.util.warming_levels import (calculate_warming_level,
+                                            create_new_warming_level_table,
+                                            drop_invalid_sims)
 
 if TYPE_CHECKING:
     from climakitae.core.data_interface import DataParameters

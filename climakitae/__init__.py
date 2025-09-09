@@ -1,11 +1,12 @@
-from climakitae.core.data_load import load
 from climakitae.core.data_export import export, remove_zarr
+from climakitae.core.data_load import load
 
 try:
     from importlib.metadata import version as _version
 except ImportError:
     # if the fallback library is missing, we are doomed.
-    from importlib_metadata import version as _version  # type: ignore[no-redef]
+    from importlib_metadata import \
+        version as _version  # type: ignore[no-redef]
 
 try:
     __version__ = _version("climakitae")

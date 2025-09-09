@@ -36,22 +36,15 @@ from shapely.geometry import box
 from climakitae.core.boundaries import Boundaries
 from climakitae.core.constants import SSPS, WARMING_LEVELS
 from climakitae.core.data_load import read_catalog_from_select
-from climakitae.core.paths import (
-    BOUNDARY_CATALOG_URL,
-    DATA_CATALOG_URL,
-    GWL_1850_1900_FILE,
-    STATIONS_CSV_PATH,
-    VARIABLE_DESCRIPTIONS_CSV_PATH,
-)
+from climakitae.core.paths import (BOUNDARY_CATALOG_URL, DATA_CATALOG_URL,
+                                   GWL_1850_1900_FILE, STATIONS_CSV_PATH,
+                                   VARIABLE_DESCRIPTIONS_CSV_PATH)
 from climakitae.util.unit_conversions import get_unit_conversion_options
-from climakitae.util.utils import (
-    downscaling_method_as_list,
-    downscaling_method_to_activity_id,
-    read_csv_file,
-    resolution_to_gridlabel,
-    scenario_to_experiment_id,
-    timescale_to_table_id,
-)
+from climakitae.util.utils import (downscaling_method_as_list,
+                                   downscaling_method_to_activity_id,
+                                   read_csv_file, resolution_to_gridlabel,
+                                   scenario_to_experiment_id,
+                                   timescale_to_table_id)
 from climakitae.util.warming_levels import create_ae_warming_trajectories
 
 # Warnings raised by function get_subsetting_options, not sure why but they are silenced here

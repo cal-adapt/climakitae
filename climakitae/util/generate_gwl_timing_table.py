@@ -9,13 +9,8 @@ To run, type: <<python generate_gwl_timing_table.py>> in the command line. Runs 
 import numpy as np
 import pandas as pd
 
-from climakitae.core.paths import (
-    SSP119_FILE,
-    SSP126_FILE,
-    SSP245_FILE,
-    SSP370_FILE,
-    SSP585_FILE,
-)
+from climakitae.core.paths import (SSP119_FILE, SSP126_FILE, SSP245_FILE,
+                                   SSP370_FILE, SSP585_FILE)
 from climakitae.util.utils import read_csv_file, write_csv_file
 
 
