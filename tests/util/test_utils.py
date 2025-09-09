@@ -9,7 +9,7 @@ import pandas as pd
 import pyproj
 import pytest
 import xarray as xr
-from shapely.geometry import box, Point
+from shapely.geometry import Point, box
 
 from climakitae.util.utils import (  # stack_sims_across_locs, # TODO: Uncomment when implemented
     _get_cat_subset,

@@ -1,7 +1,8 @@
 import datetime as dt
-import xarray as xr
-import param
+
 import pandas as pd
+import param
+import xarray as xr
 
 # Remove param's parameter descriptions from docstring because
 # ANSI escape sequences in them complicate their rendering
