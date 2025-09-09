@@ -87,19 +87,6 @@ Priority:   0-10     50-200    100-750    7500     9998-9999
 
 ---
 
-#### Template (Priority: 50)
-**File**: `template.py`  
-**Purpose**: Reference template for creating new processors  
-
-**How it works**:
-- Demonstrates proper processor structure and documentation
-- Shows required method implementations
-- Provides coding patterns for new processor development
-
-**Usage Context**: Development reference only - not used in production pipelines.
-
----
-
 ### Spatial Operations (Priority 100-200)
 
 #### TimeSlice (Priority: 100)
