@@ -34,7 +34,7 @@ jobs:
       run: |
         set -e
         cd $GITHUB_WORKSPACE/${{github.repository}}.wiki
-        cp $GITHUB_WORKSPACE/Variable-Descriptions.md
+        cp $GITHUB_WORKSPACE/Variable-Descriptions.md .
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git add Variable-Descriptions.md
