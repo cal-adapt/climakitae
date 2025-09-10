@@ -236,7 +236,7 @@ def sample_nan_dataset():
     xr.DataArray
         Dataset with some NaN values.
     """
-    da = TestDataFactory.create_climate_dataset(
+    dataset_with_nan = TestDataFactory.create_climate_dataset(
         variables=["tasmax"],
         time_periods=365 * 2,
         lat_points=3,
@@ -244,9 +244,9 @@ def sample_nan_dataset():
         start_date="2020-01-01",
     )
     # Introduce NaN values in some time steps
-    da.values[50:60] = np.nan
-    da.values[200:210] = np.nan
-    return da
+    dataset_with_nan.values[50:60] = np.nan
+    dataset_with_nan.values[200:210] = np.nan
+    return dataset_with_nan
 
 
 @pytest.fixture
@@ -669,7 +669,7 @@ class TestCheckEffectiveSampleSizeOptimized:
         assert "WARNING: Could not calculate effective sample size" in printed_text
 
     @patch("builtins.print")
-    def test_ess_check_gridded_data(self, mock_print):
+    def test_ess_check_gridded_data(self):
         """Test ESS check for gridded data."""
         # Create data with x,y dimensions as expected by the implementation
         gridded_data = TestDataFactory.create_climate_dataset(
@@ -682,7 +682,7 @@ class TestCheckEffectiveSampleSizeOptimized:
         assert isinstance(gridded_data, xr.DataArray)
 
     @patch("builtins.print")
-    def test_ess_check_timeseries_data(self, mock_print, sample_timeseries_dataset):
+    def test_ess_check_timeseries_data(self, sample_timeseries_dataset):
         """Test ESS check for timeseries data."""
         _check_effective_sample_size_optimized(sample_timeseries_dataset, block_size=1)
 
