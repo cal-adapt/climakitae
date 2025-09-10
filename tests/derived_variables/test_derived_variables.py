@@ -2,12 +2,13 @@
 
 import pytest
 import xarray as xr
+
 from climakitae.tools.derived_variables import (
-    compute_relative_humidity,
-    compute_wind_mag,
-    compute_wind_dir,
     compute_dewpointtemp,
+    compute_relative_humidity,
     compute_specific_humidity,
+    compute_wind_dir,
+    compute_wind_mag,
 )
 
 
