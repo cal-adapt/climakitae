@@ -48,6 +48,10 @@ if __name__ == "__main__":
     if len(sys.argv) > 2:  # Check if two arguments are provided
         arg1 = sys.argv[1]
         arg2 = sys.argv[2]
+        import os
+
+        current_directory = os.getcwd()
+        print(current_directory)
         process_arguments(arg1, arg2)
         vd_csv_to_markdown(arg1, arg2)
     else:
