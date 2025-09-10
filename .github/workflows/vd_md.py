@@ -4,17 +4,19 @@ import pandas as pd
 from tabulate import tabulate
 
 def process_arguments(arg1, arg2):
-    print(f"Input var_desc csv path: {arg1}")
-    print(f"Output markdown path: {arg2}")
+    print(f"Input variable_descriptions csv path: {arg1}")
+    print(f"Output markdown file path: {arg2}")
 
 def vd_csv_to_markdown(csv_file_path: str, output_markdown_path: str):
-    """
-    Converts variable_descriptions CSV file to an enhanced Markdown table.
+    """Converts variable_descriptions CSV file to an enhanced Markdown table.
 
-    Args:
-        csv_file_path (str): The path to the input variable CSV file.
-        output_markdown_path (str, optional): The path to save the output Markdown file.
-                                              If None, the Markdown table is printed to the console.
+    Parameters
+    ----------
+        csv_file_path: str
+            The path to the input variable CSV file.
+        output_markdown_path: str, optional
+            The path to save the output Markdown file.
+            If None, the Markdown table is printed to the console.
     """
     try:
         # Load the variable descriptions CSV file into a pandas DataFrame
@@ -26,7 +28,7 @@ def vd_csv_to_markdown(csv_file_path: str, output_markdown_path: str):
             np.where(df["variable_id"].str.endswith("_derived"), "True", "False"),
         )
         # Convert the DataFrame to a Markdown table string
-        # 'pipe' formssat creates a standard Markdown table
+        # 'github' formssat creates a standard Markdown table with GitHub format
         # 'headers="keys"' uses column names from the DataFrame as table headers
         markdown_table = tabulate(
             df, headers="keys", tablefmt="github", showindex=False
@@ -48,12 +50,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 2:  # Check if two arguments are provided
         arg1 = sys.argv[1]
         arg2 = sys.argv[2]
-        import os
 
-        current_directory = os.getcwd()
-        print(current_directory)
-        current_directory_contents = os.listdir()
-        print(f"Contents of current directory: {current_directory_contents}")
         process_arguments(arg1, arg2)
         vd_csv_to_markdown(arg1, arg2)
     else:
