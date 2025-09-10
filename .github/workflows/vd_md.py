@@ -53,7 +53,8 @@ if __name__ == "__main__":
         current_directory = os.getcwd()
         print(current_directory)
         current_directory_contents = os.listdir()
-        print(f"Contents of current directory: {current_directory_contents}")        process_arguments(arg1, arg2)
+        print(f"Contents of current directory: {current_directory_contents}")
+        process_arguments(arg1, arg2)
         vd_csv_to_markdown(arg1, arg2)
     else:
         print("Usage: python vd_md.py <input_csv> <output_md>")
