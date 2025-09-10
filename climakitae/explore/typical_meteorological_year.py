@@ -256,7 +256,10 @@ class TMY:
     """Encapsulate the code needed to generate Typical Meteorological Year (TMY) files.
 
     Uses WRF hourly data to produce TMYs. User provides the start and end years along
-    with station location to generate file.
+    with location to generate file. The location can either be provided as latitude
+    and longitude coordinates or as the name of a HadISD station in California. If all three
+    location settings are used, data will be selected for the point given by latitude and
+    longitude, while the station name will be used in output file headers as appropriate.
 
 
     Parameters
@@ -267,9 +270,9 @@ class TMY:
         Final year of TMY period
     station_name: str (optional)
         Long name of desired station
-    latitude : float (optional)
+    latitude : float | int (optional)
         Latitude for TMY data if station_name not set
-    longitude : float (optional)
+    longitude : float | int (optional)
         Longitude for TMY data if station_name not set
     verbose: bool
         True to increase verbosity
@@ -308,21 +311,34 @@ class TMY:
         start_year: int,
         end_year: int,
         station_name: str = UNSET,
-        latitude: float = UNSET,
-        longitude: float = UNSET,
+        latitude: float | int = UNSET,
+        longitude: float | int = UNSET,
         verbose: bool = True,
     ):
-        # Set variables
-        if station_name is not UNSET:
-            print(f"Initializing TMY object for {station_name}")
-            self._set_loc_from_stn_name(station_name)
-        elif (latitude is not UNSET) and (longitude is not UNSET):
-            print(f"Initializing TMY object for {latitude},{longitude}")
-            self._set_loc_from_lat_lon(latitude, longitude)
-        else:
-            raise ValueError(
-                "No valid station name or latitude and longitude provided."
-            )
+        # Here we go through a few different ways to get the TMY location
+        match latitude, longitude, station_name:
+            # UNSET will match to object type
+            # Case 1: All variables set. Station name will be saved but lat/lon used for location
+            case float() | int(), float() | int(), str():
+                print("Latitude, longitude, and station name provided.")
+                print("Getting location from latitude and longitude.")
+                print(f"Initializing TMY object for {latitude},{longitude}")
+                self._set_loc_from_lat_lon(latitude, longitude)
+                self.stn_name = station_name
+            # Case 2: lat/lon provided, no station_name string
+            case float() | int(), float() | int(), object():
+                print(f"Initializing TMY object for {latitude},{longitude}")
+                self._set_loc_from_lat_lon(latitude, longitude)
+            # Case 3: station name provided, lat/lon not numeric
+            case object(), object(), str():
+                print(f"Initializing TMY object for {station_name}")
+                self._set_loc_from_stn_name(station_name)
+            # Last case: something else provided
+            case _:
+                raise ValueError(
+                    "No valid station name or latitude and longitude provided."
+                )
+        # Set other variables
         self.start_year = start_year
         self.end_year = end_year
         # These 4 simulations have the solar variables needed
@@ -387,7 +403,7 @@ class TMY:
         self.stn_state = one_station.state.item()
         self._set_lat_lon_range()
 
-    def _set_loc_from_lat_lon(self, latitude: float, longitude: float):
+    def _set_loc_from_lat_lon(self, latitude: float | int, longitude: float | int):
         """Set class attributes based on latitude and longitude variables.
 
         Parameters:
