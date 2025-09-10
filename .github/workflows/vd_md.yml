@@ -23,7 +23,7 @@ jobs:
     - name: Install climakitae
       run: pip install . --no-deps
     - name: Convert to MD
-      run: python .github/workflows/vd_md.py $GITHUB_WORKSPACE/climakitae/data/variable_descriptions.csv Variable-Descriptions.md
+      run: python .github/workflows/vd_md.py $GITHUB_WORKSPACE/climakitae/data/variable_descriptions.csv $GITHUB_WORKSPACE/climakitae/data/Variable-Descriptions.md
     - name: Checkout Wiki
       uses: actions/checkout@v4
       with:
@@ -34,7 +34,7 @@ jobs:
       run: |
         set -e
         cd $GITHUB_WORKSPACE/${{github.repository}}.wiki
-        cp $GITHUB_WORKSPACE/Variable-Descriptions.md .
+        cp $GITHUB_WORKSPACE/climakitae/data/Variable-Descriptions.md .
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git add Variable-Descriptions.md
