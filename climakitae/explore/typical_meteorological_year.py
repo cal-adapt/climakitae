@@ -766,7 +766,8 @@ class TMY:
         """
         print("Exporting TMY to file.")
         for sim, tmy in self.tmy_data_to_export.items():
-            filename = "TMY_{0}_{1}".format(
+            clean_stn_name = self.stn_name.replace(" ", "_").replace("(", "").replace(")", "")
+            filename = f"TMY_{clean_stn_name}_{sim}".lower()
                 self.stn_name.replace(" ", "_").replace("(", "").replace(")", ""), sim
             ).lower()
             write_tmy_file(
