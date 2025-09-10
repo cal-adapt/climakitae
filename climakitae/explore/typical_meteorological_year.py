@@ -17,6 +17,19 @@ from climakitae.core.data_export import write_tmy_file
 from climakitae.core.data_interface import get_data
 from climakitae.util.utils import convert_to_local_time, get_closest_gridcell
 
+WEIGHTS_PER_VAR = {
+    "Daily max air temperature": 1 / 20,
+    "Daily min air temperature": 1 / 20,
+    "Daily mean air temperature": 2 / 20,
+    "Daily max dewpoint temperature": 1 / 20,
+    "Daily min dewpoint temperature": 1 / 20,
+    "Daily mean dewpoint temperature": 2 / 20,
+    "Daily max wind speed": 1 / 20,
+    "Daily mean wind speed": 1 / 20,
+    "Global horizontal irradiance": 5 / 20,
+    "Direct normal irradiance": 5 / 20,
+}
+
 
 def _compute_cdf(da: xr.DataArray) -> xr.DataArray:
     """Compute the cumulative density function for an input DataArray.
@@ -136,7 +149,7 @@ def remove_pinatubo_years(ds: xr.Dataset) -> xr.Dataset:
     return ds
 
 
-def fs_statistic(cdf_climatology: xr.Dataset, cdf_monthly: xr.DataArray) -> xr.Dataset:
+def fs_statistic(cdf_climatology: xr.Dataset, cdf_monthly: xr.Dataset) -> xr.Dataset:
     """Calculates the Finkelstein-Schafer statistic.
 
     Absolute difference between long-term climatology and candidate CDF, divided by number of days in month.
@@ -177,20 +190,8 @@ def compute_weighted_fs(da_fs: xr.Dataset) -> xr.Dataset:
         Weighted F-S statistic
 
     """
-    weights_per_var = {
-        "Daily max air temperature": 1 / 20,
-        "Daily min air temperature": 1 / 20,
-        "Daily mean air temperature": 2 / 20,
-        "Daily max dewpoint temperature": 1 / 20,
-        "Daily min dewpoint temperature": 1 / 20,
-        "Daily mean dewpoint temperature": 2 / 20,
-        "Daily max wind speed": 1 / 20,
-        "Daily mean wind speed": 1 / 20,
-        "Global horizontal irradiance": 5 / 20,
-        "Direct normal irradiance": 5 / 20,
-    }
 
-    for var, weight in weights_per_var.items():
+    for var, weight in WEIGHTS_PER_VAR.items():
         # Multiply each variable by it's appropriate weight
         da_fs[var] = da_fs[var] * weight
     return da_fs
@@ -354,6 +355,8 @@ class TMY:
         self.top_months = UNSET
         self.all_vars = UNSET
         self.tmy_data_to_export = UNSET
+        self.lat_range = UNSET
+        self.lon_range = UNSET
 
     def _set_loc_from_stn_name(self, station_name: str):
         """Get coordinates and other station metadata from station
@@ -383,7 +386,6 @@ class TMY:
         self.stn_lon = one_station.LON_X.item()
         self.stn_state = one_station.state.item()
         self._set_lat_lon_range()
-        return
 
     def _set_loc_from_lat_lon(self, latitude: float, longitude: float):
         """Set class attributes based on latitude and longitude variables.
@@ -403,20 +405,17 @@ class TMY:
         self.stn_name = "None"
         self.stn_code = "None"
         self.stn_state = "None"
-        return
 
     def _set_lat_lon_range(self):
         """Set the lat/lon ranges for selecting data around the grid point
         in call to get_data()."""
         self.lat_range = (self.stn_lat - 0.1, self.stn_lat + 0.1)
         self.lon_range = (self.stn_lon - 0.1, self.stn_lon + 0.1)
-        return
 
     def _vprint(self, msg: str):
         """Checks verbosity and prints as allowed."""
         if self.verbose:
             print(msg)
-        return
 
     def _load_single_variable(self, varname: str, units: str) -> xr.DataArray:
         """Fetch catalog data for one variable.
@@ -640,7 +639,6 @@ class TMY:
         # load all indices in
         self.all_vars = all_vars.compute()
         self._vprint("  All TMY variables loaded.")
-        return
 
     def set_cdf_climatology(self):
         """Calculate the long-term climatology for each index for each month so
@@ -650,7 +648,6 @@ class TMY:
             self.load_all_variables()
         self._vprint("Calculating CDF climatology.")
         self.cdf_climatology = get_cdf(self.all_vars)
-        return
 
     def set_cdf_monthly(self):
         """Get CDF for each month and variable."""
@@ -660,7 +657,6 @@ class TMY:
         self.cdf_monthly = get_cdf_monthly(self.all_vars)
         # Remove the years for the Pinatubo eruption
         self.cdf_monthly = remove_pinatubo_years(self.cdf_monthly)
-        return
 
     def set_weighted_statistic(self):
         """Calculate the weighted F-S statistic."""
@@ -672,7 +668,6 @@ class TMY:
         self.weighted_fs_sum = compute_weighted_fs_sum(
             self.cdf_climatology, self.cdf_monthly
         )
-        return
 
     def set_top_months(self):
         """Calculate top months dataframe."""
@@ -681,7 +676,6 @@ class TMY:
             self.set_weighted_statistic()
         self._vprint("Finding top months (lowest F-S statistic)")
         self.top_months = get_top_months(self.weighted_fs_sum)
-        return
 
     def show_tmy_data_to_export(self, simulation: str):
         """Show line plots of TMY data for single model.
@@ -705,12 +699,11 @@ class TMY:
             figsize=(10, 8),
             legend=True,
         )
-        return
 
     def run_tmy_analysis(self):
         """Generate typical meteorological year data
         Output will be a list of dataframes per simulation.
-        Print statements throughout the function indicate to the user the progress of the computatioconvert_to_local_time
+        Print statements throughout the function indicate to the user the progress of the computatioconvert_to_local_time.
 
         Parameters
         -----------
@@ -718,11 +711,9 @@ class TMY:
             Table with column values month, simulation, and year
             Each month-sim-yr combo represents the top candidate that has the lowest weighted sum from the FS statistic
 
-        Returns
-        --------
-        dict of str: pd.DataFrame
-            Dictionary in the format of {simulation:TMY corresponding to that simulation}
-
+        Notes
+        -----
+        Results are saved to the class variable `tmy_data_to_export`.
         """
         print("Assembling TMY data to export. Expected runtime: 30 minutes")
 
@@ -753,7 +744,6 @@ class TMY:
             all_vars_ds, self.top_months
         )  # Return dict of TMY by simulation
         self._vprint("TMY analysis complete")
-        return
 
     def export_tmy_data(self, extension: str = "epw"):
         """Write TMY data to EPW file.
@@ -765,7 +755,7 @@ class TMY:
 
         """
         print("Exporting TMY to file.")
-        for sim, tmy in self.tmy_data_to_export.items():
+        for sim, _ in self.tmy_data_to_export.items():
             filename = "TMY_{0}_{1}".format(
                 self.stn_name.replace(" ", "_").replace("(", "").replace(")", ""), sim
             ).lower()
@@ -780,7 +770,6 @@ class TMY:
                 self.stn_state,
                 file_ext=extension,
             )
-        return
 
     def get_candidate_months(self):
         """Run CDF functions to get top candidates.
@@ -795,7 +784,6 @@ class TMY:
         self.set_cdf_monthly()
         self.set_weighted_statistic()
         self.set_top_months()
-        return
 
     def generate_tmy(self):
         """Run the whole TMY workflow."""
@@ -805,4 +793,3 @@ class TMY:
         self.get_candidate_months()
         self.run_tmy_analysis()
         self.export_tmy_data()
-        return
