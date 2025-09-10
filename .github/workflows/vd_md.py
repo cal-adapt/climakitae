@@ -1,7 +1,11 @@
+import sys
+import numpy as np
 import pandas as pd
 from tabulate import tabulate
-import numpy as np
 
+def process_arguments(arg1, arg2):
+    print(f"Input var_desc csv path: {arg1}")
+    print(f"Output markdown path: {arg2}")
 
 def vd_csv_to_markdown(csv_file_path: str, output_markdown_path: str):
     """
@@ -39,3 +43,12 @@ def vd_csv_to_markdown(csv_file_path: str, output_markdown_path: str):
         print(f"Error: CSV file not found at '{csv_file_path}'")
     except Exception as e:
         print(f"An error occurred: {e}")
+
+if __name__ == "__main__":
+    if len(sys.argv) > 2:  # Check if two arguments are provided
+        arg1 = sys.argv[1]
+        arg2 = sys.argv[2]
+        process_arguments(arg1, arg2)
+        vd_csv_to_markdown(arg1, arg2)
+    else:
+        print("Usage: python vd_md.py <input_csv> <output_md>")
