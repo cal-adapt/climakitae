@@ -24,4 +24,4 @@ jobs:
     - name: Install climakitae
       run: pip install . --no-deps
     - name: Convert to MD
-      run: python .github/workflows/vd_md.py '$GITHUB_WORKSPACE/climakitae/data/variable_descriptions.csv' 'variable_descriptions.md'
+      run: python .github/workflows/vd_md.py $GITHUB_WORKSPACE/climakitae/data/variable_descriptions.csv variable_descriptions.md
