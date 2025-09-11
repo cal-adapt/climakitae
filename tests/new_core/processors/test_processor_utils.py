@@ -1366,6 +1366,7 @@ class TestIntegrationBlockMaxima:
             assert time_range.max().item() >= 2099
 
     @pytest.mark.integration
+    @pytest.mark.advanced
     def test_memory_performance_large_dataset(self):
         """Test memory performance with large datasets."""
         # Create large dataset to test memory management
