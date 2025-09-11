@@ -669,7 +669,7 @@ class TestCheckEffectiveSampleSizeOptimized:
         assert "WARNING: Could not calculate effective sample size" in printed_text
 
     @patch("builtins.print")
-    def test_ess_check_gridded_data(self):
+    def test_ess_check_gridded_data(self, _mock_print):
         """Test ESS check for gridded data."""
         # Create data with x,y dimensions as expected by the implementation
         gridded_data = TestDataFactory.create_climate_dataset(
@@ -682,7 +682,7 @@ class TestCheckEffectiveSampleSizeOptimized:
         assert isinstance(gridded_data, xr.DataArray)
 
     @patch("builtins.print")
-    def test_ess_check_timeseries_data(self, sample_timeseries_dataset):
+    def test_ess_check_timeseries_data(self, mock_print, sample_timeseries_dataset):
         """Test ESS check for timeseries data."""
         _check_effective_sample_size_optimized(sample_timeseries_dataset, block_size=1)
 
