@@ -3,9 +3,11 @@ import numpy as np
 import pandas as pd
 from tabulate import tabulate
 
+
 def process_arguments(arg1, arg2):
     print(f"Input variable_descriptions csv path: {arg1}")
     print(f"Output markdown file path: {arg2}")
+
 
 def vd_csv_to_markdown(csv_file_path: str, output_markdown_path: str):
     """Converts variable_descriptions CSV file to an enhanced Markdown table.
@@ -45,6 +47,7 @@ def vd_csv_to_markdown(csv_file_path: str, output_markdown_path: str):
         print(f"Error: CSV file not found at '{csv_file_path}'")
     except Exception as e:
         print(f"An error occurred: {e}")
+
 
 if __name__ == "__main__":
     if len(sys.argv) > 2:  # Check if two arguments are provided
