@@ -115,23 +115,26 @@ class TestRenewablesValidatorRegistration:
 
         # Create a mock registry to test registration in isolation
         mock_registry = {}
-        
+
         # Test the decorator functionality
-        with patch('climakitae.new_core.param_validation.abc_param_validation._CATALOG_VALIDATOR_REGISTRY', mock_registry):
+        with patch(
+            "climakitae.new_core.param_validation.abc_param_validation._CATALOG_VALIDATOR_REGISTRY",
+            mock_registry,
+        ):
             # Apply the decorator to a test class
             @register_catalog_validator(CATALOG_REN_ENERGY_GEN)
             class TestValidator:
                 pass
-            
+
             # Verify the registration worked
             assert CATALOG_REN_ENERGY_GEN in mock_registry
             assert mock_registry[CATALOG_REN_ENERGY_GEN] is TestValidator
-            
+
         # Also verify that RenewablesValidator is properly designed to be a validator
         mock_data_catalog = MagicMock()
         mock_renewables_catalog = MagicMock()
         mock_data_catalog.renewables = mock_renewables_catalog
-        
+
         # Should be able to instantiate the validator
         validator = RenewablesValidator(mock_data_catalog)
         assert validator is not None
