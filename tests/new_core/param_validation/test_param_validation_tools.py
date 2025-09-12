@@ -151,3 +151,31 @@ class TestValidateExperimentalIdParam:
         assert "ssp245" in value
         assert "ssp370" in value
         assert "ssp585" in value
+
+    def test_validate_experimental_id_param_single_invalid(self):
+        """Test _validate_experimental_id_param with invalid single string.
+        
+        Tests that the function returns False and issues warnings
+        for invalid experiment IDs.
+        """
+        valid_experiment_ids = ["historical", "ssp245", "ssp370", "ssp585"]
+        
+        # Test invalid ID with close match
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            result = _validate_experimental_id_param("historicl", valid_experiment_ids)
+            
+            assert result is False
+            assert len(w) == 1
+            assert "Experiment ID 'historicl' not found" in str(w[0].message)
+            assert "Did you mean any of the following 'historical'" in str(w[0].message)
+        
+        # Test invalid ID with no close match
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            result = _validate_experimental_id_param("invalid123", valid_experiment_ids)
+            
+            assert result is False
+            assert len(w) == 1
+            assert "Experiment ID 'invalid123' not found" in str(w[0].message)
+            assert "Please check the available experiment IDs" in str(w[0].message)
