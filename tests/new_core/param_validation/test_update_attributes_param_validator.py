@@ -117,3 +117,21 @@ class TestValidateUpdateAttributesParam:
         
         result = validate_update_attributes_param(False)
         assert result is True
+
+
+class TestUpdateAttributesValidatorRegistration:
+    """Test class for UpdateAttributes validator registration."""
+
+    def test_validator_registration(self):
+        """Test that validate_update_attributes_param is properly registered.
+        
+        Tests that the validator function is correctly registered with the
+        processor validation system under the "update_attributes" key.
+        """
+        from climakitae.new_core.param_validation.abc_param_validation import (
+            _PROCESSOR_VALIDATOR_REGISTRY,
+        )
+        
+        # Verify that the update_attributes validator is registered
+        assert "update_attributes" in _PROCESSOR_VALIDATOR_REGISTRY
+        assert _PROCESSOR_VALIDATOR_REGISTRY["update_attributes"] is validate_update_attributes_param
