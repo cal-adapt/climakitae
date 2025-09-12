@@ -1,3 +1,9 @@
+"""
+Test suite for climakitae/explore/typical_meteorological_year.py
+
+Includes tests for the more general functions along with the TMY class.
+"""
+
 from unittest.mock import patch
 
 import numpy as np
@@ -22,6 +28,8 @@ from climakitae.explore.typical_meteorological_year import (
 
 
 class TestFunctionsForTMY:
+    """Test the general functions that are not part of the TMY class."""
+
     def test__compute_cdf(self):
         """Test cdf function applied to single array."""
         # Create test data array
@@ -409,8 +417,9 @@ def mock_t_ds() -> xr.Dataset:
 
 @pytest.mark.advanced
 class TestTMYClass:
+    """Test the TMY class with fake data."""
 
-    def test_TMY_init_station(self):
+    def test_init_with_station(self):
         """Check class initialization with station."""
         # Use valid station name
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
@@ -433,7 +442,7 @@ class TestTMYClass:
         with pytest.raises(ValueError):
             tmy = TMY(start_year, end_year, station_name=stn_name)
 
-    def test_TMY_init_coords(self):
+    def test_init_with_coords(self):
         """Check class initialization with coordinates."""
         # Use valid station name
         lat = 33.56
@@ -552,6 +561,7 @@ class TestTMYClass:
             assert tmy.cdf_monthly is not UNSET
 
     def test_generate_tmy(self):
+        """Test that all steps called in full workflow."""
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
         start_year = 2001
         end_year = 2003
@@ -570,6 +580,7 @@ class TestTMYClass:
             mock_export.assert_called_once()
 
     def test_get_candidate_months(self):
+        """Test the TMY workflow calls up to set_top_months."""
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
         start_year = 2001
         end_year = 2003
