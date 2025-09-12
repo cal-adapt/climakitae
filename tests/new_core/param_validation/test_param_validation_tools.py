@@ -40,3 +40,23 @@ class TestGetClosestOptions:
         # Test mixed case
         result = _get_closest_options("Ssp245", valid_options)
         assert result == ["ssp245"]
+
+    def test_get_closest_options_substring_match(self):
+        """Test _get_closest_options with substring matches.
+        
+        Tests that the function correctly identifies options where the
+        input is a substring of valid options.
+        """
+        valid_options = ["historical", "ssp245", "ssp370", "ssp585"]
+        
+        # Test substring that matches one option
+        result = _get_closest_options("hist", valid_options)
+        assert result == ["historical"]
+        
+        # Test substring that matches multiple options
+        result = _get_closest_options("ssp", valid_options)
+        assert result == ["ssp245", "ssp370", "ssp585"]
+        
+        # Test case-insensitive substring
+        result = _get_closest_options("SSP", valid_options)
+        assert result == ["ssp245", "ssp370", "ssp585"]
