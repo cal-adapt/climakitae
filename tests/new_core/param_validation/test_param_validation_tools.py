@@ -9,6 +9,7 @@ import warnings
 
 from climakitae.new_core.param_validation.param_validation_tools import (
     _get_closest_options,
+    _validate_experimental_id_param,
 )
 
 # Suppress known external warnings that are not relevant to our tests
@@ -100,3 +101,18 @@ class TestGetClosestOptions:
         # Test truly no match case with high cutoff and no substring
         result = _get_closest_options("xyz123", valid_options, cutoff=0.9)
         assert result is None
+
+
+class TestValidateExperimentalIdParam:
+    """Test class for _validate_experimental_id_param function."""
+
+    def test_validate_experimental_id_param_none_input(self):
+        """Test _validate_experimental_id_param with None input.
+        
+        Tests that the function returns False when None is provided
+        as the experiment ID parameter.
+        """
+        valid_experiment_ids = ["historical", "ssp245", "ssp370", "ssp585"]
+        
+        result = _validate_experimental_id_param(None, valid_experiment_ids)
+        assert result is False
