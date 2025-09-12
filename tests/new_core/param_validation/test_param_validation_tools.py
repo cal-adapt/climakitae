@@ -32,76 +32,76 @@ class TestGetClosestOptions:
 
     def test_get_closest_options_capitalization_match(self):
         """Test _get_closest_options with case-insensitive matches.
-        
+
         Tests that the function correctly identifies options that differ
         only in capitalization.
         """
         valid_options = ["historical", "ssp245", "ssp370", "ssp585"]
-        
+
         # Test exact match with different case
         result = _get_closest_options("HISTORICAL", valid_options)
         assert result == ["historical"]
-        
+
         # Test mixed case
         result = _get_closest_options("Ssp245", valid_options)
         assert result == ["ssp245"]
 
     def test_get_closest_options_substring_match(self):
         """Test _get_closest_options with substring matches.
-        
+
         Tests that the function correctly identifies options where the
         input is a substring of valid options.
         """
         valid_options = ["historical", "ssp245", "ssp370", "ssp585"]
-        
+
         # Test substring that matches one option
         result = _get_closest_options("hist", valid_options)
         assert result == ["historical"]
-        
+
         # Test substring that matches multiple options
         result = _get_closest_options("ssp", valid_options)
         assert result == ["ssp245", "ssp370", "ssp585"]
-        
+
         # Test case-insensitive substring
         result = _get_closest_options("SSP", valid_options)
         assert result == ["ssp245", "ssp370", "ssp585"]
 
     def test_get_closest_options_difflib_match(self):
         """Test _get_closest_options with difflib fuzzy matching.
-        
+
         Tests that the function uses difflib to find close matches
         when capitalization and substring matching don't work.
         """
         valid_options = ["historical", "ssp245", "ssp370", "ssp585"]
-        
+
         # Test typo that should match with difflib
         result = _get_closest_options("historcal", valid_options)
         assert result == ["historical"]
-        
+
         # Test another typo
         result = _get_closest_options("ssp24", valid_options)
         assert result == ["ssp245"]
-        
+
         # Test with custom cutoff - should still find match
         result = _get_closest_options("historicl", valid_options, cutoff=0.6)
         assert result == ["historical"]
 
     def test_get_closest_options_no_match(self):
         """Test _get_closest_options when no close matches are found.
-        
+
         Tests that the function returns None when no matches are found
         using any of the matching strategies.
         """
         valid_options = ["historical", "ssp245", "ssp370", "ssp585"]
-        
+
         # Test completely unrelated input
         result = _get_closest_options("banana", valid_options)
         assert result is None
-        
+
         # Test with high cutoff that prevents matches
         result = _get_closest_options("hist", valid_options, cutoff=0.9)
         assert result == ["historical"]  # Should still match as substring
-        
+
         # Test truly no match case with high cutoff and no substring
         result = _get_closest_options("xyz123", valid_options, cutoff=0.9)
         assert result is None
@@ -112,42 +112,42 @@ class TestValidateExperimentalIdParam:
 
     def test_validate_experimental_id_param_none_input(self):
         """Test _validate_experimental_id_param with None input.
-        
+
         Tests that the function returns False when None is provided
         as the experiment ID parameter.
         """
         valid_experiment_ids = ["historical", "ssp245", "ssp370", "ssp585"]
-        
+
         result = _validate_experimental_id_param(None, valid_experiment_ids)
         assert result is False
 
     def test_validate_experimental_id_param_single_valid(self):
         """Test _validate_experimental_id_param with single valid string.
-        
+
         Tests that the function returns True when a valid single
         experiment ID string is provided.
         """
         valid_experiment_ids = ["historical", "ssp245", "ssp370", "ssp585"]
-        
+
         # Test with valid single string
         result = _validate_experimental_id_param("historical", valid_experiment_ids)
         assert result is True
-        
+
         result = _validate_experimental_id_param("ssp245", valid_experiment_ids)
         assert result is True
 
     def test_validate_experimental_id_param_single_partial_match(self):
         """Test _validate_experimental_id_param with partial match expansion.
-        
+
         Tests that the function expands partial matches to all matching
         experiment IDs (e.g., 'ssp' matches all SSP scenarios).
         """
         valid_experiment_ids = ["historical", "ssp245", "ssp370", "ssp585"]
-        
+
         # Create a mutable list to test the in-place modification
         value = ["ssp"]
         result = _validate_experimental_id_param(value, valid_experiment_ids)
-        
+
         # Should return True and modify the list in place
         assert result is True
         # The original partial match should be replaced with all matching IDs
@@ -158,31 +158,106 @@ class TestValidateExperimentalIdParam:
 
     def test_validate_experimental_id_param_single_invalid(self):
         """Test _validate_experimental_id_param with invalid single string.
-        
+
         Tests that the function returns False and issues warnings
         for invalid experiment IDs.
         """
         valid_experiment_ids = ["historical", "ssp245", "ssp370", "ssp585"]
-        
+
         # Test invalid ID with close match
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             result = _validate_experimental_id_param("historicl", valid_experiment_ids)
-            
+
             assert result is False
             assert len(w) == 1
             assert "Experiment ID 'historicl' not found" in str(w[0].message)
             assert "Did you mean any of the following 'historical'" in str(w[0].message)
-        
+
         # Test invalid ID with no close match
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             result = _validate_experimental_id_param("invalid123", valid_experiment_ids)
-            
+
             assert result is False
             assert len(w) == 1
             assert "Experiment ID 'invalid123' not found" in str(w[0].message)
             assert "Please check the available experiment IDs" in str(w[0].message)
+
+    def test_validate_experimental_id_param_multiple_all_valid(self):
+        """Test _validate_experimental_id_param with multiple valid experiment IDs.
+
+        Tests that the function returns True when all provided experiment IDs
+        are valid in a list format.
+        """
+        valid_experiment_ids = ["historical", "ssp245", "ssp370", "ssp585"]
+
+        # Test with multiple valid IDs
+        result = _validate_experimental_id_param(
+            ["historical", "ssp245"], valid_experiment_ids
+        )
+        assert result is True
+
+        # Test with all valid IDs
+        result = _validate_experimental_id_param(
+            ["historical", "ssp245", "ssp370", "ssp585"], valid_experiment_ids
+        )
+        assert result is True
+
+    def test_validate_experimental_id_param_multiple_some_invalid(self):
+        """Test _validate_experimental_id_param with mixed valid/invalid IDs.
+
+        Tests that the function returns False and issues warnings for each
+        invalid experiment ID when some are valid and some are invalid.
+        """
+        valid_experiment_ids = ["historical", "ssp245", "ssp370", "ssp585"]
+
+        # Test with one valid, one invalid with close match
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            result = _validate_experimental_id_param(
+                ["historical", "ssp24"], valid_experiment_ids
+            )
+
+            assert result is False
+            assert len(w) == 1
+            assert "Experiment ID 'ssp24' not found" in str(w[0].message)
+            assert "Did you mean 'ssp245'" in str(w[0].message)
+
+    def test_validate_experimental_id_param_multiple_all_invalid(self):
+        """Test _validate_experimental_id_param with multiple invalid IDs.
+
+        Tests that the function returns False and issues warnings for each
+        invalid experiment ID when all provided IDs are invalid.
+        """
+        valid_experiment_ids = ["historical", "ssp245", "ssp370", "ssp585"]
+
+        # Test with multiple invalid IDs, some with close matches
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            result = _validate_experimental_id_param(
+                ["histrical", "ssp999", "invalid"], valid_experiment_ids
+            )
+
+            assert result is False
+            # Should have warnings for each invalid ID
+            assert len(w) == 3
+            # Check that warnings are issued for each invalid ID
+            warning_messages = [str(warning.message) for warning in w]
+            assert any("histrical" in msg for msg in warning_messages)
+            assert any("ssp999" in msg for msg in warning_messages)
+            assert any("invalid" in msg for msg in warning_messages)
+
+    def test_validate_experimental_id_param_empty_list(self):
+        """Test _validate_experimental_id_param with empty list.
+
+        Tests that the function returns False when an empty list
+        is provided as the experiment ID parameter.
+        """
+        valid_experiment_ids = ["historical", "ssp245", "ssp370", "ssp585"]
+
+        result = _validate_experimental_id_param([], valid_experiment_ids)
+        assert result is False
 
 
 class TestCoerceToDates:
@@ -190,13 +265,13 @@ class TestCoerceToDates:
 
     def test_coerce_to_dates_valid_strings(self):
         """Test _coerce_to_dates with valid string inputs.
-        
+
         Tests that the function correctly converts various string
         date formats to pandas Timestamps.
         """
         # Test various string formats
         result = _coerce_to_dates(["2020-01-01", "2021-12-31"])
-        
+
         assert isinstance(result, tuple)
         assert len(result) == 2
         assert isinstance(result[0], pd.Timestamp)
@@ -206,7 +281,7 @@ class TestCoerceToDates:
 
     def test_coerce_to_dates_invalid_types(self):
         """Test _coerce_to_dates with invalid input types.
-        
+
         Tests that the function returns None and issues warnings
         for invalid date-like objects.
         """
@@ -214,7 +289,7 @@ class TestCoerceToDates:
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             result = _coerce_to_dates([{"not": "a_date"}])
-            
+
             assert result is None
             assert len(w) == 1
             assert "is not a date-like object" in str(w[0].message)
@@ -222,7 +297,7 @@ class TestCoerceToDates:
 
     def test_coerce_to_dates_mixed_valid_types(self):
         """Test _coerce_to_dates with various valid input types.
-        
+
         Tests that the function handles different date-like types
         including datetime objects, timestamps, and numeric values.
         """
@@ -230,9 +305,11 @@ class TestCoerceToDates:
         test_date = datetime.date(2020, 1, 1)
         test_datetime = datetime.datetime(2021, 12, 31, 12, 0, 0)
         test_timestamp = pd.Timestamp("2022-06-15")
-        
-        result = _coerce_to_dates([test_date, test_datetime, test_timestamp, "2023-01-01"])
-        
+
+        result = _coerce_to_dates(
+            [test_date, test_datetime, test_timestamp, "2023-01-01"]
+        )
+
         assert result is not None
         assert isinstance(result, tuple)
         assert len(result) == 4
