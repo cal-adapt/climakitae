@@ -54,3 +54,9 @@ class TestValidateConcatParam:
         """Test validation with valid string that has leading/trailing whitespace."""
         result = validate_concat_param(input_value)
         assert result is expected
+
+    def test_validate_concat_param_empty_string(self):
+        """Test validation with empty string input."""
+        with pytest.warns(UserWarning, match="dimension name cannot be empty"):
+            result = validate_concat_param("")
+            assert result is False
