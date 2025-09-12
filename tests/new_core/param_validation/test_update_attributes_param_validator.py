@@ -67,3 +67,32 @@ class TestValidateUpdateAttributesParam:
         
         result = validate_update_attributes_param(-2.5)
         assert result is True
+
+    def test_validate_with_complex_data_types(self):
+        """Test validate_update_attributes_param with complex data structures.
+        
+        Tests that the validator accepts dictionaries, lists, and other
+        complex data types, demonstrating its permissive nature.
+        """
+        # Test with dictionary
+        result = validate_update_attributes_param({"key": "value", "number": 42})
+        assert result is True
+        
+        # Test with empty dictionary
+        result = validate_update_attributes_param({})
+        assert result is True
+        
+        # Test with list
+        result = validate_update_attributes_param([1, 2, 3, "test"])
+        assert result is True
+        
+        # Test with empty list
+        result = validate_update_attributes_param([])
+        assert result is True
+        
+        # Test with nested structures
+        result = validate_update_attributes_param({
+            "nested": {"data": [1, 2, 3]},
+            "list": ["a", "b", {"inner": "value"}]
+        })
+        assert result is True
