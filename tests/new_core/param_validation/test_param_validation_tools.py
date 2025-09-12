@@ -80,3 +80,23 @@ class TestGetClosestOptions:
         # Test with custom cutoff - should still find match
         result = _get_closest_options("historicl", valid_options, cutoff=0.6)
         assert result == ["historical"]
+
+    def test_get_closest_options_no_match(self):
+        """Test _get_closest_options when no close matches are found.
+        
+        Tests that the function returns None when no matches are found
+        using any of the matching strategies.
+        """
+        valid_options = ["historical", "ssp245", "ssp370", "ssp585"]
+        
+        # Test completely unrelated input
+        result = _get_closest_options("banana", valid_options)
+        assert result is None
+        
+        # Test with high cutoff that prevents matches
+        result = _get_closest_options("hist", valid_options, cutoff=0.9)
+        assert result == ["historical"]  # Should still match as substring
+        
+        # Test truly no match case with high cutoff and no substring
+        result = _get_closest_options("xyz123", valid_options, cutoff=0.9)
+        assert result is None
