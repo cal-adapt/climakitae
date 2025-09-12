@@ -47,7 +47,7 @@ class TestValidateUpdateAttributesParam:
             (False, "boolean False"),
             # Special values
             (None, "None value"),
-            (UNSET, "UNSET constant"),
+            ("__UNSET__", "UNSET constant"),  # Use string placeholder
             # Complex data structures
             ({"key": "value", "number": 42}, "dictionary with mixed types"),
             ({}, "empty dictionary"),
@@ -73,6 +73,10 @@ class TestValidateUpdateAttributesParam:
         description : str
             Human-readable description of the test case.
         """
+        # Resolve the UNSET placeholder to the actual constant
+        if test_value == "__UNSET__":
+            test_value = UNSET
+            
         result = validate_update_attributes_param(test_value)
         assert result is True, f"Validator should accept {description}: {test_value}"
 
