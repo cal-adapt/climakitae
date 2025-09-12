@@ -90,3 +90,41 @@ class TestValidateFilterUnadjustedModelsParam:
             assert "Invalid value" in str(w[0].message)
             assert "FilterUnadjustedModels Processor" in str(w[0].message)
             assert "Supported values are: ['yes', 'no']" in str(w[0].message)
+
+    @pytest.mark.parametrize(
+        "input_value",
+        [
+            123,
+            12.5,
+            True,
+            False,
+            None,
+            ["yes"],
+            {"value": "yes"},
+            ("yes",),
+        ],
+        ids=[
+            "integer",
+            "float",
+            "boolean_true",
+            "boolean_false",
+            "none",
+            "list",
+            "dict",
+            "tuple",
+        ],
+    )
+    def test_validate_filter_unadjusted_models_param_invalid_type(self, input_value):
+        """Test validate_filter_unadjusted_models_param with non-string types.
+        
+        Tests validation with various non-string types that should
+        trigger type warnings and return False.
+        """
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            result = validate_filter_unadjusted_models_param(input_value)
+            
+            assert result is False
+            assert len(w) == 1
+            assert "FilterunadjustedModels Processor expects a string value" in str(w[0].message)
+            assert "Please check the configuration" in str(w[0].message)
