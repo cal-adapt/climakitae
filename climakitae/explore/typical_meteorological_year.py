@@ -504,9 +504,7 @@ class TMY:
         data = data.sel(simulation=self.simulations)
         return data
 
-    def _get_tmy_variable(
-        self, varname: str, units: str, stats: list[str]
-    ) -> xr.Dataset:
+    def _get_tmy_variable(self, varname: str, units: str, stats: list[str]) -> list:
         """Fetch a single variable, resample and reduce.
 
         Parameters
@@ -524,38 +522,19 @@ class TMY:
         """
 
         data = self._load_single_variable(varname, units)
-
         returned_data = []
-
-        if "max" in stats:
-            # max air temp
-            max_data = data.resample(time="1D").max()
-            max_data.attrs["frequency"] = "daily"
-            returned_data.append(max_data)
-
-        if "min" in stats:
-            # min air temp
-            min_data = data.resample(time="1D").min()
-            min_data.attrs["frequency"] = "daily"
-            returned_data.append(min_data)
-
-        if "mean" in stats:
-            # mean air temp
-            mean_data = data.resample(time="1D").mean()
-            mean_data.attrs["frequency"] = "daily"
-            returned_data.append(mean_data)
-
-        if "sum" in stats:
-            sum_data = data.resample(time="1D").sum()
-            sum_data.attrs["frequency"] = "daily"
-            returned_data.append(sum_data)
+        stat_options = ["max", "min", "mean", "sum"]
+        for stat in stat_options:
+            if stat not in stats:
+                continue
+            stat_data = getattr(data.resample(time="1D"), stat)()
+            stat_data.attrs["frequency"] = "daily"
+            returned_data.append(stat_data)
 
         return returned_data
 
     @staticmethod
-    def _make_8760_tables(
-        all_vars_ds: xr.Dataset, top_months: pd.DataFrame
-    ) -> pd.DataFrame:
+    def _make_8760_tables(all_vars_ds: xr.Dataset, top_months: pd.DataFrame) -> dict:
         """Extract top months from loaded data and arrange in table.
 
         Pulled out of the run_tmy_analysis() code for easier testing.
@@ -605,74 +584,70 @@ class TMY:
         """Load the datasets needed to create TMY."""
         print("Loading data from catalog. Expected runtime: 7 minutes")
 
-        print("  Getting air temperature", end="... ")
-        airtemp_data = self._get_tmy_variable(
-            "Air Temperature at 2m", "degC", ["max", "min", "mean"]
-        )
+        # Configuration for each variable group
+        variable_configs = [
+            {
+                "name": "air temperature",
+                "variable": "Air Temperature at 2m",
+                "units": "degC",
+                "stats": ["max", "min", "mean"],
+                "output_names": [
+                    "Daily max air temperature",
+                    "Daily min air temperature",
+                    "Daily mean air temperature",
+                ],
+            },
+            {
+                "name": "dew point temperature",
+                "variable": "Dew point temperature",
+                "units": "degC",
+                "stats": ["max", "min", "mean"],
+                "output_names": [
+                    "Daily max dewpoint temperature",
+                    "Daily min dewpoint temperature",
+                    "Daily mean dewpoint temperature",
+                ],
+            },
+            {
+                "name": "wind speed",
+                "variable": "Wind speed at 10m",
+                "units": "m s-1",
+                "stats": ["max", "mean"],
+                "output_names": ["Daily max wind speed", "Daily mean wind speed"],
+            },
+            {
+                "name": "global irradiance",
+                "variable": "Instantaneous downwelling shortwave flux at bottom",
+                "units": "W/m2",
+                "stats": ["sum"],
+                "output_names": ["Global horizontal irradiance"],
+            },
+            {
+                "name": "direct normal irradiance",
+                "variable": "Shortwave surface downward direct normal irradiance",
+                "units": "W/m2",
+                "stats": ["sum"],
+                "output_names": ["Direct normal irradiance"],
+            },
+        ]
 
-        # unpack and rename
-        max_airtemp_data = airtemp_data[0]
-        max_airtemp_data.name = "Daily max air temperature"
-        min_airtemp_data = airtemp_data[1]
-        min_airtemp_data.name = "Daily min air temperature"
-        mean_airtemp_data = airtemp_data[2]
-        mean_airtemp_data.name = "Daily mean air temperature"
+        # Load and process each variable group
+        all_data_arrays = []
+        for config in variable_configs:
+            print(f"  Getting {config['name']}", end="... ")
 
-        print("  Getting dew point temperature", end="... ")
-        # dew point temperature
-        dewpt_data = self._get_tmy_variable(
-            "Dew point temperature", "degC", ["max", "min", "mean"]
-        )
-        # unpack and rename
-        max_dewpt_data = dewpt_data[0]
-        max_dewpt_data.name = "Daily max dewpoint temperature"
-        min_dewpt_data = dewpt_data[1]
-        min_dewpt_data.name = "Daily min dewpoint temperature"
-        mean_dewpt_data = dewpt_data[2]
-        mean_dewpt_data.name = "Daily mean dewpoint temperature"
+            # Get the data using the refactored _get_tmy_variable method
+            data_list = self._get_tmy_variable(
+                config["variable"], config["units"], config["stats"]
+            )
 
-        # wind speed
-        print("  Getting wind speed", end="... ")
-        wndspd_data = self._get_tmy_variable(
-            "Wind speed at 10m", "m s-1", ["max", "mean"]
-        )
-        # unpack and rename
-        max_windspd_data = wndspd_data[0]
-        max_windspd_data.name = "Daily max wind speed"
-        mean_windspd_data = wndspd_data[1]
-        mean_windspd_data.name = "Daily mean wind speed"
-
-        # global irradiance
-        print("  Getting global irradiance", end="... ")
-        total_ghi_data = self._get_tmy_variable(
-            "Instantaneous downwelling shortwave flux at bottom", "W/m2", ["sum"]
-        )
-        total_ghi_data = total_ghi_data[0]
-        total_ghi_data.name = "Global horizontal irradiance"
-
-        # direct normal irradiance
-        print("  Getting direct normal irradiance", end="... ")
-        total_dni_data = self._get_tmy_variable(
-            "Shortwave surface downward direct normal irradiance", "W/m2", ["sum"]
-        )
-        total_dni_data = total_dni_data[0]
-        total_dni_data.name = "Direct normal irradiance"
+            # Rename each data array and add to collection
+            for data_array, output_name in zip(data_list, config["output_names"]):
+                data_array.name = output_name
+                all_data_arrays.append(data_array.squeeze())
 
         self._vprint("  Loading all variables into memory.")
-        all_vars = xr.merge(
-            [
-                max_airtemp_data.squeeze(),
-                min_airtemp_data.squeeze(),
-                mean_airtemp_data.squeeze(),
-                max_dewpt_data.squeeze(),
-                min_dewpt_data.squeeze(),
-                mean_dewpt_data.squeeze(),
-                max_windspd_data.squeeze(),
-                mean_windspd_data.squeeze(),
-                total_ghi_data.squeeze(),
-                total_dni_data.squeeze(),
-            ]
-        )
+        all_vars = xr.merge(all_data_arrays)
 
         # load all indices in
         self.all_vars = all_vars.compute()
