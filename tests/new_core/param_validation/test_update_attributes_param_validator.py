@@ -41,3 +41,29 @@ class TestValidateUpdateAttributesParam:
         
         result = validate_update_attributes_param("complex string with spaces and 123")
         assert result is True
+
+    def test_validate_with_numeric_values(self):
+        """Test validate_update_attributes_param with numeric inputs.
+        
+        Tests that the validator accepts various numeric types (int, float)
+        and returns True for all of them.
+        """
+        # Test with integer values
+        result = validate_update_attributes_param(42)
+        assert result is True
+        
+        result = validate_update_attributes_param(0)
+        assert result is True
+        
+        result = validate_update_attributes_param(-100)
+        assert result is True
+        
+        # Test with float values
+        result = validate_update_attributes_param(3.14159)
+        assert result is True
+        
+        result = validate_update_attributes_param(0.0)
+        assert result is True
+        
+        result = validate_update_attributes_param(-2.5)
+        assert result is True
