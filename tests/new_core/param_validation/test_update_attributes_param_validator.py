@@ -76,7 +76,7 @@ class TestValidateUpdateAttributesParam:
         # Resolve the UNSET placeholder to the actual constant
         if test_value == "__UNSET__":
             test_value = UNSET
-            
+
         result = validate_update_attributes_param(test_value)
         assert result is True, f"Validator should accept {description}: {test_value}"
 
