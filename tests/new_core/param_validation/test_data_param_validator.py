@@ -72,3 +72,14 @@ class TestDataValidator:
             assert result is None
             assert len(w) == 1
             assert "Localize processor is not supported for LOCA2 datasets" in str(w[0].message)
+
+    def test_check_query_for_wrf_and_localize_valid_no_localize(self):
+        """Test _check_query_for_wrf_and_localize with no localize processor.
+        
+        Tests that queries without the localize processor return True.
+        """
+        query = {"variable_id": "tas", "activity_id": "LOCA2"}
+        
+        result = self.validator._check_query_for_wrf_and_localize(query)
+        
+        assert result is True
