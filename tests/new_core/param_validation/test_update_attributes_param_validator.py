@@ -135,3 +135,26 @@ class TestUpdateAttributesValidatorRegistration:
         # Verify that the update_attributes validator is registered
         assert "update_attributes" in _PROCESSOR_VALIDATOR_REGISTRY
         assert _PROCESSOR_VALIDATOR_REGISTRY["update_attributes"] is validate_update_attributes_param
+
+    def test_validate_with_kwargs(self):
+        """Test validate_update_attributes_param with keyword arguments.
+        
+        Tests that the validator properly handles keyword arguments
+        (which are ignored per the function signature) and still returns True.
+        """
+        # Test with various kwargs - they should all be ignored
+        result = validate_update_attributes_param(
+            "test_value", 
+            extra_param="ignored",
+            another_kwarg=42,
+            complex_kwarg={"nested": "data"}
+        )
+        assert result is True
+        
+        # Test with only kwargs, no positional value
+        result = validate_update_attributes_param(
+            None,
+            processor_name="update_attributes",
+            dataset_info={"source": "test"}
+        )
+        assert result is True
