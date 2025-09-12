@@ -203,3 +203,41 @@ class TestCoerceToDates:
         assert isinstance(result[1], pd.Timestamp)
         assert result[0] == pd.Timestamp("2020-01-01")
         assert result[1] == pd.Timestamp("2021-12-31")
+
+    def test_coerce_to_dates_invalid_types(self):
+        """Test _coerce_to_dates with invalid input types.
+        
+        Tests that the function returns None and issues warnings
+        for invalid date-like objects.
+        """
+        # Test with invalid type
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            result = _coerce_to_dates([{"not": "a_date"}])
+            
+            assert result is None
+            assert len(w) == 1
+            assert "is not a date-like object" in str(w[0].message)
+            assert "Expected a string, int, float, datetime.date" in str(w[0].message)
+
+    def test_coerce_to_dates_mixed_valid_types(self):
+        """Test _coerce_to_dates with various valid input types.
+        
+        Tests that the function handles different date-like types
+        including datetime objects, timestamps, and numeric values.
+        """
+        # Test with mixed valid types
+        test_date = datetime.date(2020, 1, 1)
+        test_datetime = datetime.datetime(2021, 12, 31, 12, 0, 0)
+        test_timestamp = pd.Timestamp("2022-06-15")
+        
+        result = _coerce_to_dates([test_date, test_datetime, test_timestamp, "2023-01-01"])
+        
+        assert result is not None
+        assert isinstance(result, tuple)
+        assert len(result) == 4
+        assert all(isinstance(ts, pd.Timestamp) for ts in result)
+        assert result[0] == pd.Timestamp("2020-01-01")
+        assert result[1] == pd.Timestamp("2021-12-31 12:00:00")
+        assert result[2] == pd.Timestamp("2022-06-15")
+        assert result[3] == pd.Timestamp("2023-01-01")
