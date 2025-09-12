@@ -5,9 +5,13 @@ This module contains comprehensive unit tests for the parameter validation
 tools including closest option matching, experiment ID validation, and date coercion.
 """
 
+import datetime
 import warnings
 
+import pandas as pd
+
 from climakitae.new_core.param_validation.param_validation_tools import (
+    _coerce_to_dates,
     _get_closest_options,
     _validate_experimental_id_param,
 )
@@ -179,3 +183,23 @@ class TestValidateExperimentalIdParam:
             assert len(w) == 1
             assert "Experiment ID 'invalid123' not found" in str(w[0].message)
             assert "Please check the available experiment IDs" in str(w[0].message)
+
+
+class TestCoerceToDates:
+    """Test class for _coerce_to_dates function."""
+
+    def test_coerce_to_dates_valid_strings(self):
+        """Test _coerce_to_dates with valid string inputs.
+        
+        Tests that the function correctly converts various string
+        date formats to pandas Timestamps.
+        """
+        # Test various string formats
+        result = _coerce_to_dates(["2020-01-01", "2021-12-31"])
+        
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[0], pd.Timestamp)
+        assert isinstance(result[1], pd.Timestamp)
+        assert result[0] == pd.Timestamp("2020-01-01")
+        assert result[1] == pd.Timestamp("2021-12-31")
