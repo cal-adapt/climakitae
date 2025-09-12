@@ -60,3 +60,18 @@ class TestValidateConcatParam:
         with pytest.warns(UserWarning, match="dimension name cannot be empty"):
             result = validate_concat_param("")
             assert result is False
+
+    @pytest.mark.parametrize(
+        "input_value",
+        [
+            "   ",  # spaces only
+            "\t\t",  # tabs only
+            "\n\n",  # newlines only
+            " \t\n ",  # mixed whitespace
+        ],
+    )
+    def test_validate_concat_param_whitespace_only_string(self, input_value):
+        """Test validation with whitespace-only string input."""
+        with pytest.warns(UserWarning, match="dimension name cannot be empty"):
+            result = validate_concat_param(input_value)
+            assert result is False
