@@ -75,3 +75,21 @@ class TestValidateConcatParam:
         with pytest.warns(UserWarning, match="dimension name cannot be empty"):
             result = validate_concat_param(input_value)
             assert result is False
+
+    @pytest.mark.parametrize(
+        "input_value",
+        [
+            123,  # integer
+            12.5,  # float
+            True,  # boolean
+            None,  # None type
+            ["sim"],  # list
+            {"dim": "sim"},  # dictionary
+            ("sim",),  # tuple
+        ],
+    )
+    def test_validate_concat_param_invalid_type(self, input_value):
+        """Test validation with invalid input types."""
+        with pytest.warns(UserWarning, match="expects a string value"):
+            result = validate_concat_param(input_value)
+            assert result is False
