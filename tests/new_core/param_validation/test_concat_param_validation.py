@@ -7,6 +7,8 @@ functionality that validates dimension names for the Concat Processor.
 
 import warnings
 
+import pytest
+
 from climakitae.new_core.param_validation.concat_param_validator import (
     validate_concat_param,
 )
@@ -25,24 +27,30 @@ warnings.filterwarnings(
 class TestValidateConcatParam:
     """Test class for validate_concat_param function validation logic."""
 
-    def test_validate_concat_param_valid_string(self):
+    @pytest.mark.parametrize(
+        "input_value,expected",
+        [
+            ("sim", True),
+            ("time", True),
+            ("ensemble", True),
+        ],
+    )
+    def test_validate_concat_param_valid_string(self, input_value, expected):
         """Test validation with valid string input."""
-        result = validate_concat_param("sim")
-        assert result is True
+        result = validate_concat_param(input_value)
+        assert result is expected
 
-        result = validate_concat_param("time")
-        assert result is True
-
-        result = validate_concat_param("ensemble")
-        assert result is True
-
-    def test_validate_concat_param_valid_string_with_whitespace(self):
+    @pytest.mark.parametrize(
+        "input_value,expected",
+        [
+            ("  sim  ", True),
+            ("\ttime\n", True),
+            (" ensemble ", True),
+        ],
+    )
+    def test_validate_concat_param_valid_string_with_whitespace(
+        self, input_value, expected
+    ):
         """Test validation with valid string that has leading/trailing whitespace."""
-        result = validate_concat_param("  sim  ")
-        assert result is True
-
-        result = validate_concat_param("\ttime\n")
-        assert result is True
-
-        result = validate_concat_param(" ensemble ")
-        assert result is True
+        result = validate_concat_param(input_value)
+        assert result is expected
