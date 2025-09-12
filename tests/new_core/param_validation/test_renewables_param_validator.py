@@ -107,3 +107,32 @@ class TestRenewablesValidatorRegistration:
         # Verify that the renewables validator is registered
         assert CATALOG_REN_ENERGY_GEN in _CATALOG_VALIDATOR_REGISTRY
         assert _CATALOG_VALIDATOR_REGISTRY[CATALOG_REN_ENERGY_GEN] is RenewablesValidator
+
+    def test_is_valid_query_with_none_return(self):
+        """Test is_valid_query when parent method returns None.
+        
+        Tests that the is_valid_query method properly handles cases where
+        the parent _is_valid_query method returns None.
+        """
+        from unittest.mock import patch
+        from climakitae.new_core.param_validation.abc_param_validation import ParameterValidator
+        
+        # Create mock DataCatalog
+        mock_data_catalog = MagicMock()
+        mock_renewables_catalog = MagicMock()
+        mock_data_catalog.renewables = mock_renewables_catalog
+
+        # Initialize validator
+        validator = RenewablesValidator(mock_data_catalog)
+        
+        # Mock the parent class method to return None
+        with patch.object(ParameterValidator, '_is_valid_query') as mock_parent_method:
+            mock_parent_method.return_value = None
+            
+            # Test query
+            test_query = {"invalid_key": "test_value"}
+            result = validator.is_valid_query(test_query)
+            
+            # Verify parent method was called and None was returned
+            mock_parent_method.assert_called_once_with(test_query)
+            assert result is None
