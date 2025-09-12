@@ -29,10 +29,10 @@ class TestValidateConcatParam:
         """Test validation with valid string input."""
         result = validate_concat_param("sim")
         assert result is True
-        
+
         result = validate_concat_param("time")
         assert result is True
-        
+
         result = validate_concat_param("ensemble")
         assert result is True
 
@@ -40,9 +40,9 @@ class TestValidateConcatParam:
         """Test validation with valid string that has leading/trailing whitespace."""
         result = validate_concat_param("  sim  ")
         assert result is True
-        
+
         result = validate_concat_param("\ttime\n")
         assert result is True
-        
+
         result = validate_concat_param(" ensemble ")
         assert result is True
