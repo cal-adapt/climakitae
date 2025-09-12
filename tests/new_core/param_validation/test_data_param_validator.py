@@ -83,3 +83,19 @@ class TestDataValidator:
         result = self.validator._check_query_for_wrf_and_localize(query)
         
         assert result is True
+
+    def test_check_query_for_wrf_and_localize_valid_with_wrf_and_t2(self):
+        """Test _check_query_for_wrf_and_localize with valid localize configuration.
+        
+        Tests that queries with localize processor, WRF activity_id, and t2 variable
+        return True.
+        """
+        query = {
+            "processes": {"localize": {}},
+            "activity_id": "WRF",
+            "variable_id": "t2"
+        }
+        
+        result = self.validator._check_query_for_wrf_and_localize(query)
+        
+        assert result is True
