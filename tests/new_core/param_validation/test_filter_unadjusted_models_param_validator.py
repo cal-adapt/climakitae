@@ -45,3 +45,48 @@ class TestValidateFilterUnadjustedModelsParam:
         """
         result = validate_filter_unadjusted_models_param(value)
         assert result == expected
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "true",
+            "false", 
+            "YES",
+            "NO",
+            "y",
+            "n",
+            "1",
+            "0",
+            "invalid",
+            "maybe",
+            "",
+        ],
+        ids=[
+            "true",
+            "false", 
+            "YES_uppercase",
+            "NO_uppercase",
+            "y_short",
+            "n_short",
+            "numeric_1",
+            "numeric_0",
+            "invalid_word",
+            "maybe",
+            "empty_string",
+        ],
+    )
+    def test_validate_filter_unadjusted_models_param_invalid_value(self, value):
+        """Test validate_filter_unadjusted_models_param with invalid string values.
+        
+        Tests validation with various invalid string values that should
+        trigger warnings and return False.
+        """
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            result = validate_filter_unadjusted_models_param(value)
+            
+            assert result is False
+            assert len(w) == 1
+            assert "Invalid value" in str(w[0].message)
+            assert "FilterUnadjustedModels Processor" in str(w[0].message)
+            assert "Supported values are: ['yes', 'no']" in str(w[0].message)
