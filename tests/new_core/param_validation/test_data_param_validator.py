@@ -120,3 +120,24 @@ class TestDataValidator:
             assert len(w) == 1
             assert "Localize processor is not supported for LOCA2 datasets" in str(w[0].message)
             assert "Please specify '.activity_id(WRF)'" in str(w[0].message)
+
+    def test_check_query_for_wrf_and_localize_invalid_wrong_variable(self):
+        """Test _check_query_for_wrf_and_localize with localize and wrong variable.
+        
+        Tests that queries with localize processor and WRF but wrong variable_id
+        return False and emit proper warning.
+        """
+        query = {
+            "processes": {"localize": {}},
+            "activity_id": "WRF",
+            "variable_id": "tas"  # Wrong variable, should be t2
+        }
+        
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            result = self.validator._check_query_for_wrf_and_localize(query)
+            
+            assert result is False
+            assert len(w) == 1
+            assert "Localize processor is not supported for any variable other than 't2'" in str(w[0].message)
+            assert "Please specify '.variable_id('t2')'" in str(w[0].message)
