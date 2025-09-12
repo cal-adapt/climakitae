@@ -55,3 +55,36 @@ class TestRenewablesValidatorInit:
         # Verify all values are set to UNSET
         for value in validator.all_catalog_keys.values():
             assert value is UNSET
+
+
+class TestRenewablesValidatorValidation:
+    """Test class for RenewablesValidator validation methods."""
+
+    def test_is_valid_query_calls_parent_method(self):
+        """Test that is_valid_query calls the parent _is_valid_query method.
+        
+        Tests that the is_valid_query method properly delegates to the parent
+        class method and returns the expected result.
+        """
+        from unittest.mock import patch
+        from climakitae.new_core.param_validation.abc_param_validation import ParameterValidator
+        
+        # Create mock DataCatalog
+        mock_data_catalog = MagicMock()
+        mock_renewables_catalog = MagicMock()
+        mock_data_catalog.renewables = mock_renewables_catalog
+
+        # Initialize validator
+        validator = RenewablesValidator(mock_data_catalog)
+        
+        # Mock the parent class method
+        with patch.object(ParameterValidator, '_is_valid_query') as mock_parent_method:
+            mock_parent_method.return_value = {"result": "test"}
+            
+            # Test query
+            test_query = {"variable_id": "test_variable"}
+            result = validator.is_valid_query(test_query)
+            
+            # Verify parent method was called with correct arguments
+            mock_parent_method.assert_called_once_with(test_query)
+            assert result == {"result": "test"}
