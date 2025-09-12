@@ -39,7 +39,7 @@ class TestValidateFilterUnadjustedModelsParam:
         self, value, expected
     ):
         """Test validate_filter_unadjusted_models_param with valid values.
-        
+
         Tests validation with supported string values "yes" and "no".
         Both should return True.
         """
@@ -50,7 +50,7 @@ class TestValidateFilterUnadjustedModelsParam:
         "value",
         [
             "true",
-            "false", 
+            "false",
             "YES",
             "NO",
             "y",
@@ -63,7 +63,7 @@ class TestValidateFilterUnadjustedModelsParam:
         ],
         ids=[
             "true",
-            "false", 
+            "false",
             "YES_uppercase",
             "NO_uppercase",
             "y_short",
@@ -77,14 +77,14 @@ class TestValidateFilterUnadjustedModelsParam:
     )
     def test_validate_filter_unadjusted_models_param_invalid_value(self, value):
         """Test validate_filter_unadjusted_models_param with invalid string values.
-        
+
         Tests validation with various invalid string values that should
         trigger warnings and return False.
         """
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             result = validate_filter_unadjusted_models_param(value)
-            
+
             assert result is False
             assert len(w) == 1
             assert "Invalid value" in str(w[0].message)
@@ -116,15 +116,17 @@ class TestValidateFilterUnadjustedModelsParam:
     )
     def test_validate_filter_unadjusted_models_param_invalid_type(self, input_value):
         """Test validate_filter_unadjusted_models_param with non-string types.
-        
+
         Tests validation with various non-string types that should
         trigger type warnings and return False.
         """
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             result = validate_filter_unadjusted_models_param(input_value)
-            
+
             assert result is False
             assert len(w) == 1
-            assert "FilterunadjustedModels Processor expects a string value" in str(w[0].message)
+            assert "FilterunadjustedModels Processor expects a string value" in str(
+                w[0].message
+            )
             assert "Please check the configuration" in str(w[0].message)
