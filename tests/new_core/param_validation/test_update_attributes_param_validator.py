@@ -7,6 +7,8 @@ function that provides parameter validation for the UpdateAttributes processor.
 
 import warnings
 
+import pytest
+
 from climakitae.core.constants import UNSET
 from climakitae.new_core.param_validation.update_attributes_param_validator import (
     validate_update_attributes_param,
@@ -26,97 +28,57 @@ warnings.filterwarnings(
 class TestValidateUpdateAttributesParam:
     """Test class for validate_update_attributes_param function."""
 
-    def test_validate_with_string_value(self):
-        """Test validate_update_attributes_param with string input.
+    @pytest.mark.parametrize(
+        "test_value,description",
+        [
+            # String values
+            ("test_string", "regular string"),
+            ("", "empty string"),
+            ("complex string with spaces and 123", "complex string"),
+            
+            # Numeric values
+            (42, "positive integer"),
+            (0, "zero integer"),
+            (-100, "negative integer"),
+            (3.14159, "positive float"),
+            (0.0, "zero float"),
+            (-2.5, "negative float"),
+            
+            # Boolean values
+            (True, "boolean True"),
+            (False, "boolean False"),
+            
+            # Special values
+            (None, "None value"),
+            (UNSET, "UNSET constant"),
+            
+            # Complex data structures
+            ({"key": "value", "number": 42}, "dictionary with mixed types"),
+            ({}, "empty dictionary"),
+            ([1, 2, 3, "test"], "list with mixed types"),
+            ([], "empty list"),
+            (
+                {"nested": {"data": [1, 2, 3]}, "list": ["a", "b", {"inner": "value"}]},
+                "nested data structure"
+            ),
+        ],
+        ids=lambda x: x[1] if isinstance(x, tuple) else str(x)
+    )
+    def test_validate_accepts_all_input_types(self, test_value, description):
+        """Test that validate_update_attributes_param accepts all input types.
         
-        Tests that the validator accepts string values and returns True,
-        demonstrating the permissive nature of the UpdateAttributes processor.
+        Tests the permissive nature of the UpdateAttributes processor validator
+        by verifying it returns True for any input type.
+        
+        Parameters
+        ----------
+        test_value : Any
+            The value to test with the validator.
+        description : str
+            Human-readable description of the test case.
         """
-        # Test with various string values
-        result = validate_update_attributes_param("test_string")
-        assert result is True
-        
-        result = validate_update_attributes_param("")
-        assert result is True
-        
-        result = validate_update_attributes_param("complex string with spaces and 123")
-        assert result is True
-
-    def test_validate_with_numeric_values(self):
-        """Test validate_update_attributes_param with numeric inputs.
-        
-        Tests that the validator accepts various numeric types (int, float)
-        and returns True for all of them.
-        """
-        # Test with integer values
-        result = validate_update_attributes_param(42)
-        assert result is True
-        
-        result = validate_update_attributes_param(0)
-        assert result is True
-        
-        result = validate_update_attributes_param(-100)
-        assert result is True
-        
-        # Test with float values
-        result = validate_update_attributes_param(3.14159)
-        assert result is True
-        
-        result = validate_update_attributes_param(0.0)
-        assert result is True
-        
-        result = validate_update_attributes_param(-2.5)
-        assert result is True
-
-    def test_validate_with_complex_data_types(self):
-        """Test validate_update_attributes_param with complex data structures.
-        
-        Tests that the validator accepts dictionaries, lists, and other
-        complex data types, demonstrating its permissive nature.
-        """
-        # Test with dictionary
-        result = validate_update_attributes_param({"key": "value", "number": 42})
-        assert result is True
-        
-        # Test with empty dictionary
-        result = validate_update_attributes_param({})
-        assert result is True
-        
-        # Test with list
-        result = validate_update_attributes_param([1, 2, 3, "test"])
-        assert result is True
-        
-        # Test with empty list
-        result = validate_update_attributes_param([])
-        assert result is True
-        
-        # Test with nested structures
-        result = validate_update_attributes_param({
-            "nested": {"data": [1, 2, 3]},
-            "list": ["a", "b", {"inner": "value"}]
-        })
-        assert result is True
-
-    def test_validate_with_special_values(self):
-        """Test validate_update_attributes_param with special values.
-        
-        Tests that the validator accepts None and UNSET values,
-        which are mentioned as potentially valid in the source code.
-        """
-        # Test with None (mentioned as potentially valid in source comments)
-        result = validate_update_attributes_param(None)
-        assert result is True
-        
-        # Test with UNSET (mentioned as accepted in source comments)
-        result = validate_update_attributes_param(UNSET)
-        assert result is True
-        
-        # Test with boolean values
-        result = validate_update_attributes_param(True)
-        assert result is True
-        
-        result = validate_update_attributes_param(False)
-        assert result is True
+        result = validate_update_attributes_param(test_value)
+        assert result is True, f"Validator should accept {description}: {test_value}"
 
 
 class TestUpdateAttributesValidatorRegistration:
@@ -124,37 +86,61 @@ class TestUpdateAttributesValidatorRegistration:
 
     def test_validator_registration(self):
         """Test that validate_update_attributes_param is properly registered.
-        
+
         Tests that the validator function is correctly registered with the
         processor validation system under the "update_attributes" key.
         """
         from climakitae.new_core.param_validation.abc_param_validation import (
             _PROCESSOR_VALIDATOR_REGISTRY,
         )
-        
+
         # Verify that the update_attributes validator is registered
         assert "update_attributes" in _PROCESSOR_VALIDATOR_REGISTRY
-        assert _PROCESSOR_VALIDATOR_REGISTRY["update_attributes"] is validate_update_attributes_param
+        assert (
+            _PROCESSOR_VALIDATOR_REGISTRY["update_attributes"]
+            is validate_update_attributes_param
+        )
 
-    def test_validate_with_kwargs(self):
+    @pytest.mark.parametrize(
+        "value,kwargs,description",
+        [
+            (
+                "test_value",
+                {"extra_param": "ignored", "another_kwarg": 42, "complex_kwarg": {"nested": "data"}},
+                "string value with multiple kwargs"
+            ),
+            (
+                None,
+                {"processor_name": "update_attributes", "dataset_info": {"source": "test"}},
+                "None value with processor-specific kwargs"
+            ),
+            (
+                42,
+                {"param1": "value1", "param2": [1, 2, 3]},
+                "numeric value with mixed kwargs"
+            ),
+            (
+                {"data": "test"},
+                {},
+                "dictionary value with no kwargs"
+            ),
+        ],
+        ids=lambda x: x[2] if isinstance(x, tuple) else str(x)
+    )
+    def test_validate_with_kwargs(self, value, kwargs, description):
         """Test validate_update_attributes_param with keyword arguments.
-        
+
         Tests that the validator properly handles keyword arguments
         (which are ignored per the function signature) and still returns True.
-        """
-        # Test with various kwargs - they should all be ignored
-        result = validate_update_attributes_param(
-            "test_value", 
-            extra_param="ignored",
-            another_kwarg=42,
-            complex_kwarg={"nested": "data"}
-        )
-        assert result is True
         
-        # Test with only kwargs, no positional value
-        result = validate_update_attributes_param(
-            None,
-            processor_name="update_attributes",
-            dataset_info={"source": "test"}
-        )
-        assert result is True
+        Parameters
+        ----------
+        value : Any
+            The positional value to pass to the validator.
+        kwargs : dict
+            Keyword arguments to pass to the validator.
+        description : str
+            Human-readable description of the test case.
+        """
+        result = validate_update_attributes_param(value, **kwargs)
+        assert result is True, f"Validator should return True for {description}"
