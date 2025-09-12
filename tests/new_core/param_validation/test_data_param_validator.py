@@ -141,3 +141,21 @@ class TestDataValidator:
             assert len(w) == 1
             assert "Localize processor is not supported for any variable other than 't2'" in str(w[0].message)
             assert "Please specify '.variable_id('t2')'" in str(w[0].message)
+
+    def test_is_valid_query_calls_parent_when_checks_pass(self):
+        """Test is_valid_query calls parent method when initial checks pass.
+        
+        Tests that is_valid_query calls the parent _is_valid_query method
+        when all initial checks pass.
+        """
+        query = {"variable_id": "tas"}  # No localize processor, should pass initial checks
+        expected_result = {"variable_id": "tas"}
+        
+        # Mock the parent class _is_valid_query method
+        with patch('climakitae.new_core.param_validation.abc_param_validation.ParameterValidator._is_valid_query', 
+                  return_value=expected_result) as mock_parent:
+            result = self.validator.is_valid_query(query)
+            
+            # Should call parent method once and return its result
+            mock_parent.assert_called_once_with(query)
+            assert result == expected_result
