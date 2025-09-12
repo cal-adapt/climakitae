@@ -88,3 +88,22 @@ class TestRenewablesValidatorValidation:
             # Verify parent method was called with correct arguments
             mock_parent_method.assert_called_once_with(test_query)
             assert result == {"result": "test"}
+
+
+class TestRenewablesValidatorRegistration:
+    """Test class for RenewablesValidator registration."""
+
+    def test_validator_registration(self):
+        """Test that RenewablesValidator is properly registered for renewables catalog.
+        
+        Tests that the validator class is correctly registered with the
+        catalog registration system using the CATALOG_REN_ENERGY_GEN constant.
+        """
+        from climakitae.core.constants import CATALOG_REN_ENERGY_GEN
+        from climakitae.new_core.param_validation.abc_param_validation import (
+            _CATALOG_VALIDATOR_REGISTRY,
+        )
+        
+        # Verify that the renewables validator is registered
+        assert CATALOG_REN_ENERGY_GEN in _CATALOG_VALIDATOR_REGISTRY
+        assert _CATALOG_VALIDATOR_REGISTRY[CATALOG_REN_ENERGY_GEN] is RenewablesValidator
