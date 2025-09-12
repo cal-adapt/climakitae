@@ -111,6 +111,7 @@ class TestRenewablesValidatorRegistration:
         from climakitae.new_core.param_validation.abc_param_validation import (
             _CATALOG_VALIDATOR_REGISTRY,
         )
+
         # Import the param_validation module to ensure all validators are registered
         import climakitae.new_core.param_validation  # noqa: F401
 
