@@ -35,7 +35,6 @@ class TestValidateUpdateAttributesParam:
             ("test_string", "regular string"),
             ("", "empty string"),
             ("complex string with spaces and 123", "complex string"),
-            
             # Numeric values
             (42, "positive integer"),
             (0, "zero integer"),
@@ -43,15 +42,12 @@ class TestValidateUpdateAttributesParam:
             (3.14159, "positive float"),
             (0.0, "zero float"),
             (-2.5, "negative float"),
-            
             # Boolean values
             (True, "boolean True"),
             (False, "boolean False"),
-            
             # Special values
             (None, "None value"),
             (UNSET, "UNSET constant"),
-            
             # Complex data structures
             ({"key": "value", "number": 42}, "dictionary with mixed types"),
             ({}, "empty dictionary"),
@@ -59,17 +55,17 @@ class TestValidateUpdateAttributesParam:
             ([], "empty list"),
             (
                 {"nested": {"data": [1, 2, 3]}, "list": ["a", "b", {"inner": "value"}]},
-                "nested data structure"
+                "nested data structure",
             ),
         ],
-        ids=lambda x: x[1] if isinstance(x, tuple) else str(x)
+        ids=lambda x: x[1] if isinstance(x, tuple) else str(x),
     )
     def test_validate_accepts_all_input_types(self, test_value, description):
         """Test that validate_update_attributes_param accepts all input types.
-        
+
         Tests the permissive nature of the UpdateAttributes processor validator
         by verifying it returns True for any input type.
-        
+
         Parameters
         ----------
         test_value : Any
@@ -106,33 +102,36 @@ class TestUpdateAttributesValidatorRegistration:
         [
             (
                 "test_value",
-                {"extra_param": "ignored", "another_kwarg": 42, "complex_kwarg": {"nested": "data"}},
-                "string value with multiple kwargs"
+                {
+                    "extra_param": "ignored",
+                    "another_kwarg": 42,
+                    "complex_kwarg": {"nested": "data"},
+                },
+                "string value with multiple kwargs",
             ),
             (
                 None,
-                {"processor_name": "update_attributes", "dataset_info": {"source": "test"}},
-                "None value with processor-specific kwargs"
+                {
+                    "processor_name": "update_attributes",
+                    "dataset_info": {"source": "test"},
+                },
+                "None value with processor-specific kwargs",
             ),
             (
                 42,
                 {"param1": "value1", "param2": [1, 2, 3]},
-                "numeric value with mixed kwargs"
+                "numeric value with mixed kwargs",
             ),
-            (
-                {"data": "test"},
-                {},
-                "dictionary value with no kwargs"
-            ),
+            ({"data": "test"}, {}, "dictionary value with no kwargs"),
         ],
-        ids=lambda x: x[2] if isinstance(x, tuple) else str(x)
+        ids=lambda x: x[2] if isinstance(x, tuple) else str(x),
     )
     def test_validate_with_kwargs(self, value, kwargs, description):
         """Test validate_update_attributes_param with keyword arguments.
 
         Tests that the validator properly handles keyword arguments
         (which are ignored per the function signature) and still returns True.
-        
+
         Parameters
         ----------
         value : Any
