@@ -60,3 +60,23 @@ class TestGetClosestOptions:
         # Test case-insensitive substring
         result = _get_closest_options("SSP", valid_options)
         assert result == ["ssp245", "ssp370", "ssp585"]
+
+    def test_get_closest_options_difflib_match(self):
+        """Test _get_closest_options with difflib fuzzy matching.
+        
+        Tests that the function uses difflib to find close matches
+        when capitalization and substring matching don't work.
+        """
+        valid_options = ["historical", "ssp245", "ssp370", "ssp585"]
+        
+        # Test typo that should match with difflib
+        result = _get_closest_options("historcal", valid_options)
+        assert result == ["historical"]
+        
+        # Test another typo
+        result = _get_closest_options("ssp24", valid_options)
+        assert result == ["ssp245"]
+        
+        # Test with custom cutoff - should still find match
+        result = _get_closest_options("historicl", valid_options, cutoff=0.6)
+        assert result == ["historical"]
