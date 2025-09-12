@@ -116,3 +116,18 @@ class TestValidateExperimentalIdParam:
         
         result = _validate_experimental_id_param(None, valid_experiment_ids)
         assert result is False
+
+    def test_validate_experimental_id_param_single_valid(self):
+        """Test _validate_experimental_id_param with single valid string.
+        
+        Tests that the function returns True when a valid single
+        experiment ID string is provided.
+        """
+        valid_experiment_ids = ["historical", "ssp245", "ssp370", "ssp585"]
+        
+        # Test with valid single string
+        result = _validate_experimental_id_param("historical", valid_experiment_ids)
+        assert result is True
+        
+        result = _validate_experimental_id_param("ssp245", valid_experiment_ids)
+        assert result is True
