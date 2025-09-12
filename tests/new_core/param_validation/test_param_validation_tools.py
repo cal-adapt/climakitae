@@ -131,3 +131,23 @@ class TestValidateExperimentalIdParam:
         
         result = _validate_experimental_id_param("ssp245", valid_experiment_ids)
         assert result is True
+
+    def test_validate_experimental_id_param_single_partial_match(self):
+        """Test _validate_experimental_id_param with partial match expansion.
+        
+        Tests that the function expands partial matches to all matching
+        experiment IDs (e.g., 'ssp' matches all SSP scenarios).
+        """
+        valid_experiment_ids = ["historical", "ssp245", "ssp370", "ssp585"]
+        
+        # Create a mutable list to test the in-place modification
+        value = ["ssp"]
+        result = _validate_experimental_id_param(value, valid_experiment_ids)
+        
+        # Should return True and modify the list in place
+        assert result is True
+        # The original partial match should be replaced with all matching IDs
+        assert "ssp" not in value
+        assert "ssp245" in value
+        assert "ssp370" in value
+        assert "ssp585" in value
