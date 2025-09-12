@@ -99,3 +99,24 @@ class TestDataValidator:
         result = self.validator._check_query_for_wrf_and_localize(query)
         
         assert result is True
+
+    def test_check_query_for_wrf_and_localize_invalid_no_wrf(self):
+        """Test _check_query_for_wrf_and_localize with localize but no WRF.
+        
+        Tests that queries with localize processor but without WRF activity_id
+        return False and emit proper warning.
+        """
+        query = {
+            "processes": {"localize": {}},
+            "activity_id": "LOCA2",
+            "variable_id": "t2"
+        }
+        
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            result = self.validator._check_query_for_wrf_and_localize(query)
+            
+            assert result is False
+            assert len(w) == 1
+            assert "Localize processor is not supported for LOCA2 datasets" in str(w[0].message)
+            assert "Please specify '.activity_id(WRF)'" in str(w[0].message)
