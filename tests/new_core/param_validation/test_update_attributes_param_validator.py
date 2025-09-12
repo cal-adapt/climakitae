@@ -96,3 +96,24 @@ class TestValidateUpdateAttributesParam:
             "list": ["a", "b", {"inner": "value"}]
         })
         assert result is True
+
+    def test_validate_with_special_values(self):
+        """Test validate_update_attributes_param with special values.
+        
+        Tests that the validator accepts None and UNSET values,
+        which are mentioned as potentially valid in the source code.
+        """
+        # Test with None (mentioned as potentially valid in source comments)
+        result = validate_update_attributes_param(None)
+        assert result is True
+        
+        # Test with UNSET (mentioned as accepted in source comments)
+        result = validate_update_attributes_param(UNSET)
+        assert result is True
+        
+        # Test with boolean values
+        result = validate_update_attributes_param(True)
+        assert result is True
+        
+        result = validate_update_attributes_param(False)
+        assert result is True
