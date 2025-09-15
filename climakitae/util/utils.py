@@ -921,7 +921,7 @@ def convert_to_local_time(
     return data
 
 
-def add_dummy_time_to_wl(wl_da: xr.DataArray) -> xr.DataArray:
+def add_dummy_time_to_wl(wl_da: xr.DataArray, freq_name="daily") -> xr.DataArray:
     """Replace the `[hours/days/months]_from_center` or `time_delta` dimension in a DataArray returned from WarmingLevels with a dummy time index for calculations with tools that require a `time` dimension.
 
     Parameters
@@ -960,8 +960,14 @@ def add_dummy_time_to_wl(wl_da: xr.DataArray) -> xr.DataArray:
 
     # Determine time frequency name and pandas freq string mapping
     if wl_time_dim == "time_delta":
-        time_freq_name = wl_da.frequency
+
+        try:
+            time_freq_name = wl_da.frequency
+        except AttributeError:
+            time_freq_name = freq_name
+            
         name_to_freq = {"hourly": "h", "daily": "D", "monthly": "MS"}
+   
     else:
         time_freq_name = wl_time_dim.split("_")[0]
         name_to_freq = {"hours": "h", "days": "D", "months": "MS"}
