@@ -135,7 +135,7 @@ class TestDatasetWithParamValidatorMethod:
 
         dataset.with_param_validator(data_validator)
 
-        assert dataset.validator.all_catalog_keys == {
+        assert dataset.parameter_validator.all_catalog_keys == {
             "variable": "tas",
             "experiment_id": "ssp245",
         }
