@@ -1913,7 +1913,7 @@ def get_data(
     downscaling_method: str = "Dynamical",
     data_type: str = "Gridded",
     approach: str = "Time",
-    scenario: str = None,
+    scenario: Union[str, list[str]] = None,
     units: str = None,
     warming_level: list[float] = None,
     area_subset: str = "none",

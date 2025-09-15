@@ -809,6 +809,10 @@ def _get_return_variable(
     )
     return_variable = return_variable.rename(data_variable)
     new_ds = return_variable.to_dataset()
+
+    # normalize the arg_value parameter so it can be used consistently as
+    # coordinate values in an xarray Dataset, regardless of whether the user passed in
+    # a single value or a collection of values.
     if isinstance(arg_value, (list, tuple, np.ndarray)):
         coord_value = np.atleast_1d(np.array(arg_value).flatten())
     else:
