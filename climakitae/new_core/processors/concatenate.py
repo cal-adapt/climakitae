@@ -5,7 +5,7 @@ from typing import Any, Dict, Iterable, List, Union
 
 import xarray as xr
 
-from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET, CATALOG_REN_ENERGY_GEN
+from climakitae.core.constants import _NEW_ATTRS_KEY, CATALOG_REN_ENERGY_GEN, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
