@@ -1219,6 +1219,29 @@ def _tmy_8760_size_check(df: pd.DataFrame) -> pd.DataFrame:
             return None
 
 
+def _tmy_reset_time_for_gwl(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Change dummy time in GWL data to start at year 0001
+    for writing TMY results.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Dataframe of TMY data to export
+    """
+
+    def replace_year(datestr: str) -> str:
+        """Subtract 2000 from dummy year to reset to 0001 baseline."""
+        year = int(datestr.split("-")[0])
+        year = year - 2000
+        datestr = str(year).zfill(4) + "-" + "-".join(datestr.split("-")[1:])
+        return datestr
+
+    cleaned_years = [replace_year(t) for t in df["time"]]
+    df["time"] = cleaned_years
+    return df
+
+
 def write_tmy_file(
     filename_to_export: str,
     df: pd.DataFrame,
@@ -1272,6 +1295,10 @@ def write_tmy_file(
 
     # size check on TMY dataframe
     df = _tmy_8760_size_check(df)
+
+    # change time axis for GWL data to not use 2000's dummy times
+    if "warming_level" in df.columns:
+        df = _tmy_reset_time_for_gwl(df)
 
     def _utc_offset_timezone(lat, lon):
         """Based on user input of lat lon, returns the UTC offset for that timezone
@@ -1433,13 +1460,20 @@ def write_tmy_file(
         # line 5 - holidays/daylight savings, leap year (yes/no), daylight savings start, daylight savings end, num of holidays
         line_5 = "HOLIDAYS/DAYLIGHT SAVINGS,No,0,0,0\n"
 
-        # line 6 - comments 1, going to include simulation + scenario information here
-        line_6 = "COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Scenario: {0}, Simulation: {1}\n".format(
-            df["scenario"].values[0], df["simulation"].values[0]
-        )
-
-        # line 7 - comments 2, including date range here from which TMY calculated
-        line_7 = f"COMMENTS 2, TMY data produced using {years[0]}-{years[1]} climatological period\n"
+        if "warming_level" in df.columns:
+            # line 6 - comments 1, going to include simulation + warming level information here
+            line_6 = "COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Warming Level: {0}, Simulation: {1}\n".format(
+                df["warming_level"].values[0], df["simulation"].values[0]
+            )
+            # line 7 - comments 2, including date range here from which TMY calculated
+            line_7 = f"COMMENTS 2, TMY data produced using {df["warming_level"].values[0]} warming level\n"
+        elif "scenario" in df.columns:
+            # line 6 - comments 1, going to include simulation + scenario information here
+            line_6 = "COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Scenario: {0}, Simulation: {1}\n".format(
+                df["scenario"].values[0], df["simulation"].values[0]
+            )
+            # line 7 - comments 2, including date range here from which TMY calculated
+            line_7 = f"COMMENTS 2, TMY data produced using {years[0]}-{years[1]} climatological period\n"
 
         # line 8 - data periods, num data periods, num records per hour, data period name, data period start day of week, data period start (Jan 1), data period end (Dec 31)
         line_8 = "DATA PERIODS,1,1,Data,,1/ 1,12/31\n"
@@ -1467,7 +1501,8 @@ def write_tmy_file(
                     )
                 )  # writes required header lines
                 df = df.drop(
-                    columns=["simulation", "lat", "lon", "scenario"]
+                    columns=["simulation", "lat", "lon", "scenario", "warming_level"],
+                    errors="ignore",
                 )  # drops header columns from df
                 dfAsString = df.to_csv(sep=",", header=False, index=False)
                 f.write(dfAsString)  # writes data in TMY format
