@@ -96,6 +96,14 @@ class TestDatasetWithCatalogMethod:
             assert "'get_data' method in data catalog must be callable." in str(e)
 
 
+class ConcreteValidator(ParameterValidator):
+    """Concrete implementation for testing abstract class."""
+
+    def is_valid_query(self, query):
+        """Implement abstract method for testing."""
+        return self._is_valid_query(query)
+
+
 class TestDatasetWithParamValidatorMethod:
     """Test class for with_param_validator method."""
 
@@ -111,7 +119,7 @@ class TestDatasetWithParamValidatorMethod:
                 "source_id": ["model1", "model2", "model1"],
             }
         )
-        data_validator = ParameterValidator()
+        data_validator = ConcreteValidator()
         data_validator.catalog = data_catalog
         query = {"variable": "tas", "experiment_id": "ssp245", "extra_key": "ignored"}
         data_validator.populate_catalog_keys(query)
