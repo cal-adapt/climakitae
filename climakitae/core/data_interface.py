@@ -22,7 +22,7 @@ the interactive GUI selection interface.
 
 import difflib
 import warnings
-from typing import Iterable, List, Union
+from typing import List, Union
 
 import geopandas as gpd
 import intake
@@ -96,7 +96,6 @@ def _get_user_options(
         Unique variable id values for input user selections
 
     """
-
     method_list = downscaling_method_as_list(downscaling_method)
 
     # Get catalog subset from user inputs
@@ -176,7 +175,6 @@ def _get_variable_options_df(
         Subset of var_config for input downscaling_method and timescale
 
     """
-
     # Based on logic in the code and the name of the variable this needs to be the
     # opposite of the variable named enable_hidden_vars
     hide_hidden_vars = not enable_hidden_vars
@@ -242,7 +240,6 @@ def _get_var_ids(
         variable ids from intake catalog matching incoming query
 
     """
-
     method_list = downscaling_method_as_list(downscaling_method)
 
     var_id = variable_descriptions[
@@ -355,7 +352,6 @@ def _get_subarea(
     gpd.GeoDataFrame
 
     """
-
     df_ae = gpd.GeoDataFrame()
 
     def _get_subarea_from_shape_index(
@@ -810,7 +806,9 @@ class DataParameters(param.Parameterized):
         self.scenario_ssp = []
 
         # Set variable param
-        self.param["variable"].objects = self.variable_options_df.display_name.values
+        self.param["variable"].objects = (
+            self.variable_options_df.display_name.values.tolist()
+        )
         self.variable = self.default_variable
 
         # Set colormap, units, & extended description
@@ -972,7 +970,6 @@ class DataParameters(param.Parameterized):
         UPDATE IF YOU ADD MORE INDICES.
 
         """
-
         ## Remove derived index as an option if the current selections do not have any index options.
         indices = True
         # Cases where we currently don't have derived indices
@@ -1003,7 +1000,6 @@ class DataParameters(param.Parameterized):
     )
     def _update_user_options(self):
         """Update unique variable options"""
-
         # Station data is only available hourly
         match (self.data_type, self.downscaling_method):
             case ("Stations", _):
@@ -1070,7 +1066,7 @@ class DataParameters(param.Parameterized):
                     raise ValueError(
                         'variable_type needs to be either "Variable" or "Derived Index"'
                     )
-            var_options = self.variable_options_df.display_name.values
+            var_options = self.variable_options_df.display_name.values.tolist()
             self.param["variable"].objects = var_options
             if self.variable not in var_options:
                 self.variable = var_options[0]
@@ -1134,7 +1130,6 @@ class DataParameters(param.Parameterized):
     )
     def _update_scenarios(self):
         """Update scenario options. Raise data warning if a bad selection is made."""
-
         if self.approach == "Time":
             # Set incoming scenario_historical
             _scenario_historical = self.scenario_historical
@@ -1229,8 +1224,8 @@ class DataParameters(param.Parameterized):
                     all("SSP" not in one for one in self.scenario_ssp)
                 )
                 and (
-                    not True
-                    in ["Historical" in one for one in self.scenario_historical]
+                    True
+                    not in ["Historical" in one for one in self.scenario_historical]
                 )
                 and (self.scenario_ssp != ["n/a"])
                 and (self.scenario_historical != ["n/a"])
@@ -1254,7 +1249,7 @@ class DataParameters(param.Parameterized):
                 ):
                     data_warning = bad_time_slice_warning
             elif True in ["SSP" in one for one in self.scenario_ssp]:
-                if not True in [
+                if True not in [
                     "Historical" in one for one in self.scenario_historical
                 ]:
                     if (self.time_slice[0] < self.ssp_range[0]) or (
@@ -1306,7 +1301,7 @@ class DataParameters(param.Parameterized):
                 x in ["Historical Reconstruction", "Historical Climate"]
                 for x in self.scenario_historical
             ]
-        ) and (not True in ["SSP" in one for one in self.scenario_ssp]):
+        ) and (True not in ["SSP" in one for one in self.scenario_ssp]):
             low_bound, upper_bound = historical_climate_range
 
         if True in ["SSP" in one for one in self.scenario_ssp]:
@@ -1612,7 +1607,6 @@ def _get_closest_options(
         List of best guesses, or None if nothing close is found
 
     """
-
     # Perhaps the user just capitalized it wrong?
     is_it_just_capitalized_wrong = [
         i for i in valid_options if val.lower() == i.lower()
@@ -1759,7 +1753,6 @@ def get_data_options(
         Catalog options for user-provided inputs
 
     """
-
     # Get intake catalog and variable descriptions from DataInterface object
     data_interface = DataInterface()
     var_df = data_interface.variable_descriptions
