@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
+from climakitae.core.constants import UNSET
 from climakitae.new_core.dataset import Dataset
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.param_validation.abc_param_validation import ParameterValidator
@@ -120,6 +121,12 @@ class TestDatasetWithParamValidatorMethod:
             }
         )
         data_validator = ConcreteValidator()
+        data_validator.all_catalog_keys = {
+            "variable": UNSET,
+            "experiment_id": UNSET,
+            "source_id": UNSET,
+        }
+
         data_validator.catalog = data_catalog
         query = {"variable": "tas", "experiment_id": "ssp245", "extra_key": "ignored"}
         data_validator.populate_catalog_keys(query)
