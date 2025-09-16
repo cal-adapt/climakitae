@@ -15,6 +15,7 @@ from climakitae.core.constants import UNSET
 from climakitae.new_core.dataset import Dataset
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.param_validation.abc_param_validation import ParameterValidator
+from climakitae.new_core.processors.concatenate import Concat
 
 
 class TestDatasetInit:
@@ -139,3 +140,20 @@ class TestDatasetWithParamValidatorMethod:
             "variable": "tas",
             "experiment_id": "ssp245",
         }
+
+
+class TestDatasetWithProcessingStepMethod:
+    """Test class for with_processing_step method."""
+
+    def test_with_processing_step_successful(self):
+        """Test successful with_param_validator set."""
+
+        processing_step = Concat()
+
+        dataset = Dataset()
+
+        dataset.with_processing_step(processing_step)
+
+        assert hasattr(dataset.processing_pipeline, "execute")
+        assert hasattr(dataset.processing_pipeline, "update_context")
+        assert hasattr(dataset.processing_pipeline, "set_data_accessor")
