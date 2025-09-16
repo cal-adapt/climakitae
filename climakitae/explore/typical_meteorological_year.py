@@ -226,13 +226,15 @@ def compute_weighted_fs_sum(
     )
 
 
-def get_top_months(da_fs):
+def get_top_months(da_fs: xr.DataArray,skip_last: bool=False) -> pd.DataFrame:
     """Return dataframe of top months by simulation.
 
     Parameters
     ----------
     da_fs: xr.Dataset
        Summed weighted f-s statistic
+    skip_last: bool
+        True to exclude the final month, e.g. if data missing after time conversion
 
     Returns
     -------
@@ -249,6 +251,15 @@ def get_top_months(da_fs):
             top_xr = da_i.sortby(da_i, ascending=True)[:num_values].expand_dims(
                 ["month", "simulation"]
             )
+            if num_values==1 & skip_last:
+                # Check that last year/month not chosen
+                if top_xr.year==da_fs.year[-1]:
+                    if top_xr.month==da_fs.month[-1]:
+                        # If chosen, exclude it and pick the next match
+                        # This logic can be folded into persistence statistics when those are developed
+                        top_xr = da_i.sortby(da_i, ascending=True)[1:2].expand_dims(
+                            ["month", "simulation"]
+                        )
             top_df_i = top_xr.to_dataframe(name="top_values")
             df_list.append(top_df_i)
 
@@ -354,18 +365,23 @@ class TMY:
                 raise ValueError(
                     "No valid station name or latitude and longitude provided."
                 )
-        # Set other variables
+        # Time variables
         match start_year, end_year, warming_level:
             # User set all options - bad
             case float() | int(), float() | int(), float():
                 raise ValueError(
                     "Variables `start_year` and `end_year` cannot be paired with `warming_level`. Set either `start_year` and `end_year` OR `warming_level."
                 )
-            # Some other combo - unset variable will be set as UNSET
+            # Some other combo - unset variable will be saved as UNSET
             case _:
                 self.start_year = start_year
                 self.end_year = end_year
                 self.warming_level = warming_level
+        # Whether to drop the last month as a possible match
+        self.skip_last = False
+        if self.warming_level:
+            # True for warming levels because final hours get lost to UTC conversion
+            self.skip_last = True
         # Ranges used in get_data to pull smaller dataset without warnings
         self.lat_range = (self.stn_lat - 0.1, self.stn_lat + 0.1)
         self.lon_range = (self.stn_lon - 0.1, self.stn_lon + 0.1)
@@ -759,7 +775,7 @@ class TMY:
         if self.weighted_fs_sum is UNSET:
             self.set_weighted_statistic()
         self._vprint("Finding top months (lowest F-S statistic)")
-        self.top_months = get_top_months(self.weighted_fs_sum)
+        self.top_months = get_top_months(self.weighted_fs_sum,skip_last=self.skip_last)
 
     def show_tmy_data_to_export(self, simulation: str):
         """Show line plots of TMY data for single model.
