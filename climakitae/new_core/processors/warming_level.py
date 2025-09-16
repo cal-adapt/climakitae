@@ -319,6 +319,13 @@ class WarmingLevel(DataProcessor):
                 )
                 continue
 
+            if "time" not in data.dims or "time" not in result[hist_key].dims:
+                warnings.warn(
+                    f"\n\nNo time dimension found in data for key {key} or {hist_key}. "
+                    f"\nCannot extend time domain without time dimension."
+                )
+                continue
+
             ret[key] = xr.concat(
                 [result[hist_key], data],
                 dim="time",

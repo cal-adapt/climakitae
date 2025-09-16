@@ -965,9 +965,9 @@ def add_dummy_time_to_wl(wl_da: xr.DataArray, freq_name="daily") -> xr.DataArray
             time_freq_name = wl_da.frequency
         except AttributeError:
             time_freq_name = freq_name
-            
+
         name_to_freq = {"hourly": "h", "daily": "D", "monthly": "MS"}
-   
+
     else:
         time_freq_name = wl_time_dim.split("_")[0]
         name_to_freq = {"hours": "h", "days": "D", "months": "MS"}
