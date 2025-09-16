@@ -1237,7 +1237,7 @@ def _tmy_reset_time_for_gwl(df: pd.DataFrame) -> pd.DataFrame:
         datestr = str(year).zfill(4) + "-" + "-".join(datestr.split("-")[1:])
         return datestr
 
-    cleaned_years = [replace_year(t) for t in df["time"]]
+    cleaned_years = [replace_year(str(t)) for t in df["time"]]
     df["time"] = cleaned_years
     return df
 
