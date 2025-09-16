@@ -147,8 +147,14 @@ class TestDatasetWithProcessingStepMethod:
 
     def test_with_processing_step_successful(self):
         """Test successful with_param_validator set."""
+        data_catalog = DataCatalog()
+
+        data_catalog.catalog_df = pd.DataFrame(
+            {"catalog": ["climate"], "variable_id": ["tas"]}
+        )
 
         processing_step = Concat()
+        processing_step.set_data_accessor(data_catalog)
 
         dataset = Dataset()
 
