@@ -319,6 +319,37 @@ class TestFunctionsForTMY:
         # Lowest stat value is in 2001 for all sims, months
         assert (result.year.values == [2001 for x in range(0, 24)]).all()
 
+    def test_get_top_months_skip_last(self):
+        """Check get_top_months excludes the final month as an option only when
+        the skip_last flag is set to True."""
+        coords = {
+            "simulation": ["sim1", "sim2"],
+            "month": list(range(1, 13)),
+            "year": list(range(2001, 2004)),
+        }
+        dims = {"simulation": 2, "month": 12, "year": 3}
+        sim1 = np.linspace(0.05, 1, 12)
+        sim2 = np.linspace(0.3, 1, 12)
+        data = np.vstack((sim1, sim2))
+        data = np.expand_dims(data, [2]) + np.ones((1, 12, 3)) * np.array(
+            [0, 0.02, 0.04]
+        )
+        fs = xr.DataArray(
+            name="Daily max air temperature",
+            data=data,
+            dims=dims,
+            coords=coords,
+        )
+        # Set last year/month to lowest stat value to be best match
+        fs[:, -1, -1] = np.zeros((2,))
+        result = get_top_months(fs)
+        # Default is no skipping - so final year should get chosen for December
+        assert (result.loc[result["month"] == 12]["year"] == [2003, 2003]).all()
+
+        result = get_top_months(fs, skip_last=True)
+        # Default is no skipping - so final year should get chosen for December
+        assert (result.loc[result["month"] == 12]["year"] == [2001, 2001]).all()
+
     def test_remove_pinatubo_years(self):
         """Check that years immediately after eruption are removed from dataset."""
         test_data = np.arange(0, 10, 1)
