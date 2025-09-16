@@ -160,6 +160,4 @@ class TestDatasetWithProcessingStepMethod:
 
         dataset.with_processing_step(processing_step)
 
-        assert hasattr(dataset.processing_pipeline, "execute")
-        assert hasattr(dataset.processing_pipeline, "update_context")
-        assert hasattr(dataset.processing_pipeline, "set_data_accessor")
+        assert dataset.processing_pipeline.name == "concat"
