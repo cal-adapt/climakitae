@@ -457,7 +457,7 @@ class TestTMYClass:
         start_year = 1990
         end_year = 2020
         # Initialize TMY object
-        tmy = TMY(start_year, end_year, station_name=stn_name)
+        tmy = TMY(start_year=start_year, end_year=end_year, station_name=stn_name)
         assert tmy.start_year == start_year
         assert tmy.end_year == end_year
         assert tmy.stn_name == stn_name
@@ -471,7 +471,11 @@ class TestTMYClass:
         # Use invalid station name
         stn_name = "KSNA"
         with pytest.raises(ValueError):
-            tmy = TMY(start_year, end_year, station_name=stn_name)
+            tmy = TMY(start_year=start_year, end_year=end_year, station_name=stn_name)
+
+        # Don't provide any loc data:
+        with pytest.raises(ValueError,match="No valid station name or latitude and longitude provided."):
+            tmy = TMY(start_year, end_year)
 
     def test_init_with_coords(self):
         """Check class initialization with coordinates."""
@@ -481,19 +485,55 @@ class TestTMYClass:
         start_year = 1990
         end_year = 2020
         # Initialize TMY object
-        tmy = TMY(start_year, end_year, latitude=lat, longitude=lon)
+        tmy = TMY(start_year=start_year, end_year=end_year, latitude=lat, longitude=lon)
         assert tmy.lat_range == pytest.approx((33.46, 33.66), abs=1e-6)
         assert tmy.lon_range == pytest.approx((-117.91, -117.71), abs=1e-6)
         assert tmy.stn_code == "None"
 
-    def test__load_single_variable(self):
+    def test_init_with_custom_name(self):
+        """Check class initialization with coordinates."""
+        # Use valid station name
+        lat = 33.56
+        lon = -117.81
+        start_year = 1990
+        end_year = 2020
+        station_name = "custom_station"
+        # Initialize TMY object
+        tmy = TMY(start_year=start_year, end_year=end_year, latitude=lat, longitude=lon, station_name=station_name)
+        assert tmy.lat_range == pytest.approx((33.46, 33.66), abs=1e-6)
+        assert tmy.lon_range == pytest.approx((-117.91, -117.71), abs=1e-6)
+        assert tmy.stn_name == station_name
+        assert tmy.warming_level is UNSET
+
+        # not allowed to use HadISD station name with lat/lon
+        with pytest.raises(ValueError,match="Do not set `latitude` and `longitude` when using a HadISD station for `station_name`. Change `station_name` value if using custom location."):
+            station_name = "Santa Ana John Wayne Airport (KSNA)"
+            tmy = TMY(start_year=start_year, end_year=end_year, latitude=lat, longitude=lon, station_name=station_name)            
+
+    def test_init_with_warming_level(self):
+        """Check class initialization with coordinates."""
+        # Use valid station name
+        lat = 33.56
+        lon = -117.81
+        warming_level = 2.0
+        # Initialize TMY object
+        tmy = TMY(warming_level = warming_level, latitude=lat, longitude=lon)
+        assert tmy.warming_level == warming_level
+        assert tmy.start_year is UNSET
+        assert tmy.end_year is UNSET
+
+        # Can't use years with GWL
+        with pytest.raises(ValueError, match="Variables `start_year` and `end_year` cannot be paired with `warming_level`. Set either `start_year` and `end_year` OR `warming_level."):
+            tmy = TMY(start_year = 2000, end_year = 2020, warming_level = warming_level, latitude=lat, longitude=lon)
+
+    def test__load_single_variable_time(self):
         """Load data for a single variable."""
         lat = 33.56
         lon = -117.81
         start_year = 1990
         end_year = 2020
         # Initialize TMY object
-        tmy = TMY(start_year, end_year, latitude=lat, longitude=lon)
+        tmy = TMY(start_year=start_year, end_year=end_year, latitude=lat, longitude=lon)
         # Actually going to load data for a single point and check results
         result = tmy._load_single_variable("Air Temperature at 2m", "degC")
         assert isinstance(result, xr.DataArray)
@@ -505,6 +545,26 @@ class TestTMYClass:
         assert result.lon.data == -117.80269
         assert (result.simulation.values == tmy.simulations).all()
 
+    def test__load_single_variable_warming_level(self):
+        """Load data for a single variable."""
+        lat = 33.56
+        lon = -117.81
+        warming_level = 2.0
+        # Initialize TMY object
+        tmy = TMY(warming_level=warming_level, latitude=lat, longitude=lon)
+        # Actually going to load data for a single point and check results
+        result = tmy._load_single_variable("Air Temperature at 2m", "degC")
+        assert isinstance(result, xr.DataArray)
+        assert result.name == "Air Temperature at 2m"
+        assert result.attrs["units"] == "degC"
+        assert result.lat.shape == ()
+        assert result.lon.shape == ()
+        assert result.lat.data == 33.55938
+        assert result.lon.data == -117.80269
+        assert (result.warming_level.values == [2.0]).all()
+        simulations = [s + "_historical+ssp370" for s in tmy.simulations]
+        assert (result.simulation.values == simulations).all()
+
     def test__get_tmy_variable(self, mock_t_hourly):
         """Check that daily stat gets returned and values match expected."""
         lat = 33.56
@@ -512,7 +572,7 @@ class TestTMYClass:
         start_year = 1990
         end_year = 2020
         # Initialize TMY object
-        tmy = TMY(start_year, end_year, latitude=lat, longitude=lon)
+        tmy = TMY(start_year=start_year, end_year=end_year, latitude=lat, longitude=lon)
         # Actually going to load data for a single point and check results
         with patch.object(tmy, "_load_single_variable", return_value=mock_t_hourly):
             result = tmy._get_tmy_variable(
@@ -582,7 +642,7 @@ class TestTMYClass:
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
         start_year = 2001
         end_year = 2003
-        tmy = TMY(start_year, end_year, station_name=stn_name)
+        tmy = TMY(start_year=start_year, end_year=end_year, station_name=stn_name)
         with patch.object(tmy, "load_all_variables") as mock_load:
             tmy.set_cdf_monthly()
             # Check correct methods called
@@ -596,7 +656,7 @@ class TestTMYClass:
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
         start_year = 2001
         end_year = 2003
-        tmy = TMY(start_year, end_year, station_name=stn_name)
+        tmy = TMY(start_year=start_year, end_year=end_year, station_name=stn_name)
         with (
             patch.object(tmy, "load_all_variables") as mock_load,
             patch.object(tmy, "get_candidate_months") as mock_get_months,
@@ -616,7 +676,7 @@ class TestTMYClass:
         start_year = 2001
         end_year = 2003
         # Initialize TMY object
-        tmy = TMY(start_year, end_year, station_name=stn_name)
+        tmy = TMY(start_year=start_year, end_year=end_year, station_name=stn_name)
         with (
             patch.object(tmy, "set_cdf_monthly") as mock_month,
             patch.object(tmy, "set_cdf_climatology") as mock_clim,
@@ -643,7 +703,7 @@ class TestTMYClass:
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
         start_year = 2001
         end_year = 2003
-        tmy = TMY(start_year, end_year, station_name=stn_name)
+        tmy = TMY(start_year=start_year, end_year=end_year, station_name=stn_name)
         result = tmy._make_8760_tables(all_vars_ds, df)
         # Check result dict of dataframes (only 1 for 1 simulation in test)
         assert list(result.keys()) == list(all_vars_ds.simulation.values)
@@ -670,7 +730,7 @@ class TestTMYClass:
         start_year = 2001
         end_year = 2003
         # Initialize TMY object
-        tmy = TMY(start_year, end_year, station_name=stn_name)
+        tmy = TMY(start_year=start_year, end_year=end_year, station_name=stn_name)
         with patch.object(tmy, "set_weighted_statistic") as mock_fs:
             tmy.set_top_months()
             # Check correct methods called

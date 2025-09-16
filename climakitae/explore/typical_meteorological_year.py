@@ -226,7 +226,7 @@ def compute_weighted_fs_sum(
     )
 
 
-def get_top_months(da_fs: xr.DataArray,skip_last: bool=False) -> pd.DataFrame:
+def get_top_months(da_fs: xr.DataArray, skip_last: bool = False) -> pd.DataFrame:
     """Return dataframe of top months by simulation.
 
     Parameters
@@ -251,10 +251,10 @@ def get_top_months(da_fs: xr.DataArray,skip_last: bool=False) -> pd.DataFrame:
             top_xr = da_i.sortby(da_i, ascending=True)[:num_values].expand_dims(
                 ["month", "simulation"]
             )
-            if num_values==1 & skip_last:
+            if num_values == 1 & skip_last:
                 # Check that last year/month not chosen
-                if top_xr.year==da_fs.year[-1]:
-                    if top_xr.month==da_fs.month[-1]:
+                if top_xr.year == da_fs.year[-1]:
+                    if top_xr.month == da_fs.month[-1]:
                         # If chosen, exclude it and pick the next match
                         # This logic can be folded into persistence statistics when those are developed
                         top_xr = da_i.sortby(da_i, ascending=True)[1:2].expand_dims(
@@ -569,7 +569,7 @@ class TMY:
         xr.DataArray
         """
         # Warming level approach
-        if self.warming_level:
+        if self.warming_level is not UNSET:
             data = self._load_warming_level_approach(varname, units)
             simulations = [x + "_historical+ssp370" for x in self.simulations]
         # Use Time approach
@@ -775,7 +775,7 @@ class TMY:
         if self.weighted_fs_sum is UNSET:
             self.set_weighted_statistic()
         self._vprint("Finding top months (lowest F-S statistic)")
-        self.top_months = get_top_months(self.weighted_fs_sum,skip_last=self.skip_last)
+        self.top_months = get_top_months(self.weighted_fs_sum, skip_last=self.skip_last)
 
     def show_tmy_data_to_export(self, simulation: str):
         """Show line plots of TMY data for single model.
