@@ -1,5 +1,4 @@
 import datetime
-import logging
 import os
 import shutil
 import urllib
@@ -10,13 +9,11 @@ from typing import Tuple
 
 import boto3
 import botocore
-import fsspec
 import numpy as np
 import pandas as pd
 import pytz
 import requests
 import xarray as xr
-from botocore.exceptions import ClientError
 from timezonefinder import TimezoneFinder
 
 from climakitae.core.paths import (
@@ -298,6 +295,43 @@ def _export_to_netcdf(data: xr.DataArray | xr.Dataset, save_name: str):
             )
         )
     encoding = _fillvalue_encoding(_data) | _compression_encoding(_data)
+
+    # Recursively validate attribute types
+    def validate_attrs(obj):
+        """Recursively validate that all attributes are of allowed types."""
+        allowed_types = (
+            str,
+            int,
+            float,
+            complex,
+            np.ndarray,
+            list,
+            tuple,
+            bytes,
+            np.integer,
+            np.floating,
+            np.complexfloating,
+        )
+
+        if hasattr(obj, "attrs"):
+            for key, value in list(obj.attrs.items()):
+                if value is not None and not isinstance(value, allowed_types):
+                    # Convert or remove problematic attributes
+                    try:
+                        obj.attrs[key] = str(value)
+                    except:
+                        del obj.attrs[key]
+
+    # Validate dataset attributes
+    validate_attrs(_data)
+
+    # Validate coordinate attributes
+    for coord in _data.coords:
+        validate_attrs(_data[coord])
+
+    # Validate data variable attributes
+    for var in _data.data_vars:
+        validate_attrs(_data[var])
     _data.to_netcdf(path, format="NETCDF4", engine="netcdf4", encoding=encoding)
     print(
         (
@@ -901,6 +935,7 @@ def _grab_dem_elev_m(lat: float, lon: float) -> float:
         latitude of point of interest
     lon : float
         longitude of point of interest
+
     Returns
     -------
     float
@@ -939,7 +974,6 @@ def _epw_format_data(df: pd.DataFrame) -> pd.DataFrame:
     df : pd.DataFrame
 
     """
-
     # set time col to datetime object for easy split
     df["time"] = pd.to_datetime(df["time"])
     if "warming_level" in df.columns:
@@ -1187,7 +1221,6 @@ def _tmy_8760_size_check(df: pd.DataFrame) -> pd.DataFrame:
         Dataframe of TMY to export, explicitly 8760 in size
 
     """
-
     # first drop any duplicate time rows -- some df with 8760 are 8759 with duplicate rows, i.e., not a true 8760
     # this should handle cases of 8761 by reducing to 8760 or 8759
     df_to_check = df.copy(deep=True)
@@ -1294,7 +1327,6 @@ def write_tmy_file(
     None
 
     """
-
     station_df = read_csv_file(STATIONS_CSV_PATH)
 
     # check that data passed is a DataFrame object
@@ -1388,7 +1420,6 @@ def write_tmy_file(
         Source: https://www.nrel.gov/docs/fy08osti/43156.pdf (pg. 3)
 
         """
-
         # line 1 - site information
         # line 1: USAF, station name quote delimited, state, time zone, lat, lon, elev (m)
         line_1 = "{0},'{1}',{2},{3},{4},{5},{6},{7}\n".format(
@@ -1440,7 +1471,6 @@ def write_tmy_file(
         Source: EnergyPlus Version 23.1.0 Documentation
 
         """
-
         # line 1 - location, location name, state, country, WMO, lat, lon
         # line 1 - location, location name, state, country, weather station number (2 cols), lat, lon, time zone, elevation
         line_1 = "LOCATION,{0},{1},USA,{2},{3},{4},{5},{6},{7}\n".format(

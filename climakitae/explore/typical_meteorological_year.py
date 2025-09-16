@@ -827,7 +827,6 @@ class TMY:
         self.tmy_data_to_export = self._make_8760_tables(
             all_vars_ds, self.top_months
         )  # Return dict of TMY by simulation
-
         self._vprint("TMY analysis complete")
 
     def export_tmy_data(self, extension: str = "epw"):

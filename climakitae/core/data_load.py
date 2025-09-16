@@ -95,7 +95,15 @@ def load(xr_da: xr.DataArray, progress_bar: bool = False) -> xr.DataArray:
     if avail_mem - xr_data_nbytes < 268435456:
         print("Available memory: {0}".format(readable_bytes(avail_mem)))
         print("Total memory of input data: {0}".format(readable_bytes(xr_data_nbytes)))
-        raise MemoryError("Your input dataset is too large to read into memory!")
+        warnings.warn(
+            "Your input dataset may be too large to read into memory!", UserWarning
+        )
+        # take user input on continuing
+        proceed = input(
+            "If you continue, your system may become unresponsive. Do you want to proceed? (y/n): "
+        )
+        if proceed.lower() != "y":
+            raise MemoryError("Process aborted by user.")
     else:
         print(
             "Processing data to read {0} of data into memory... ".format(
