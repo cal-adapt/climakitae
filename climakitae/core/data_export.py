@@ -942,13 +942,23 @@ def _epw_format_data(df: pd.DataFrame) -> pd.DataFrame:
 
     # set time col to datetime object for easy split
     df["time"] = pd.to_datetime(df["time"])
-    df = df.assign(
-        year=df["time"].dt.year,
-        month=df["time"].dt.month,
-        day=df["time"].dt.day,
-        hour=df["time"].dt.hour + 1,  # 1-24, not 0-23
-        minute=df["time"].dt.minute,
-    )
+    if "warming_level" in df.columns:
+        # change year for GWL data to not use 2000's dummy times
+        df = df.assign(
+            year=df["time"].dt.year - 1999, #0001 +
+            month=df["time"].dt.month,
+            day=df["time"].dt.day,
+            hour=df["time"].dt.hour + 1,  # 1-24, not 0-23
+            minute=df["time"].dt.minute,
+        )
+    else:
+        df = df.assign(
+            year=df["time"].dt.year,
+            month=df["time"].dt.month,
+            day=df["time"].dt.day,
+            hour=df["time"].dt.hour + 1,  # 1-24, not 0-23
+            minute=df["time"].dt.minute,
+        )
 
     # set epw variable order, very specific -- manually set
     # Note: vars not provided by AE are noted as missing
@@ -1296,10 +1306,6 @@ def write_tmy_file(
     # size check on TMY dataframe
     df = _tmy_8760_size_check(df)
 
-    # change time axis for GWL data to not use 2000's dummy times
-    if "warming_level" in df.columns:
-        df = _tmy_reset_time_for_gwl(df)
-
     def _utc_offset_timezone(lat, lon):
         """Based on user input of lat lon, returns the UTC offset for that timezone
 
@@ -1485,6 +1491,10 @@ def write_tmy_file(
     # typical meteorological year format
     match file_ext:
         case "tmy":
+            # change time axis for GWL data to not use 2000's dummy times
+            if "warming_level" in df.columns:
+                df = _tmy_reset_time_for_gwl(df)
+            
             path_to_file = filename_to_export + ".tmy"
 
             with open(path_to_file, "w") as f:
