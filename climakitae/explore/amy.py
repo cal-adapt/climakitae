@@ -17,12 +17,14 @@ The AMY is comparable to a typical meteorological year, but not quite the same f
 ## 2: Future-minus-historical warming level AMY (see warming_levels)
 ## 3: Severe AMY based upon historical baseline and a designated threshold/percentile
 
+from typing import Tuple
+
 import numpy as np
 import pandas as pd
 import xarray as xr
 from tqdm.auto import tqdm  # Progress bar
 
-from climakitae.core.data_interface import DataParameters
+from climakitae.core.data_interface import DataParameters, get_data
 from climakitae.core.data_load import read_catalog_from_select
 from climakitae.util.utils import julianDay_to_date
 
@@ -32,6 +34,7 @@ xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
 # =========================== HELPER FUNCTIONS: DATA RETRIEVAL ==============================
 
 
+# !DEPRECATED
 def _set_amy_year_inputs(year_start: int, year_end: int) -> tuple[int, int]:
     """Helper function for _retrieve_meteo_yr_data.
     Checks that the user has input valid values.
@@ -59,6 +62,7 @@ def _set_amy_year_inputs(year_start: int, year_end: int) -> tuple[int, int]:
     return (year_start, year_end)
 
 
+# !DEPRECATED
 def retrieve_meteo_yr_data(
     data_params: DataParameters,
     ssp: str = None,
@@ -129,9 +133,100 @@ def retrieve_meteo_yr_data(
     return amy_data.isel(scenario=0, simulation=0)
 
 
+def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
+    """
+    Backend function for retrieving data needed for computing climate profiles.
+
+    Reads in the full hourly data for the 8760 analysis, including all warming levels.
+
+    Parameters
+    ----------
+    **kwargs : dict
+        Keyword arguments for data selection. Allowed keys:
+        - variable (Optional) : str, default "Air Temperature at 2m"
+        - resolution (Optional) : str, default "4km"
+        - scenario (Optional) : List[str], default ["SSP 3-7.0"]
+        - warming_levels (Required) : List[float], default [1.2]
+        - cached_area (Optional) : str or List[str]
+        - units (Optional) : str, default "degF"
+
+    Returns
+    -------
+    Tuple[xr.Dataset, xr.Dataset]
+        (historic_data, future_data) - Historical data at 1.2°C warming,
+        and future data at specified warming levels.
+
+    Raises
+    ------
+    ValueError
+        If invalid parameter keys are provided.
+
+    Notes
+    -----
+    Historical data is always retrieved for warming level = 1.2°C.
+    Future data uses user-specified warming levels or defaults.
+    """
+
+    # Define allowed inputs with types and defaults
+    ALLOWED_INPUTS = {
+        "variable": (str, "Air Temperature at 2m"),
+        "resolution": (str, "4km"),
+        "scenario": (list, ["SSP 3-7.0"]),
+        "warming_levels": (list, [1.2]),
+        "cached_area": ((str, list), None),
+        "units": (str, "degF"),
+    }
+
+    # if the user does not enter warming level the analysis is a moot point
+    # because the historical data is always at 1.2C
+    REQUIRED_INPUTS = ["warming_level"]
+    for req in REQUIRED_INPUTS:
+        if req not in kwargs:
+            raise ValueError(f"Missing required input: '{req}'")
+
+    # Validate input keys
+    invalid_keys = set(kwargs.keys()) - set(ALLOWED_INPUTS.keys())
+    if invalid_keys:
+        raise ValueError(
+            f"Invalid input(s): {list(invalid_keys)}. "
+            f"Allowed inputs are: {list(ALLOWED_INPUTS.keys())}"
+        )
+
+    # Validate input types
+    for key, value in kwargs.items():
+        expected_type, _ = ALLOWED_INPUTS[key]
+        if not isinstance(value, expected_type):
+            raise TypeError(
+                f"Parameter '{key}' must be of type {expected_type.__name__}, "
+                f"got {type(value).__name__}"
+            )
+
+    # Set default parameters for data retrieval
+    get_data_params = {
+        "variable": kwargs.get("variable", "Air Temperature at 2m"),
+        "resolution": kwargs.get("resolution", "4km"),
+        "downscaling_method": "Dynamical",  # must be WRF, cannot be LOCA
+        "timescale": "hourly",  # must be hourly for 8760 analysis
+        "area_average": "Yes",
+        "units": "degF",
+        "scenario": kwargs.get("scenario", ["SSP 3-7.0"]),
+        "approach": "Warming Levels",
+        "warming_level": [1.2],
+    }
+
+    historic_data = get_data(**get_data_params)
+
+    # Update with any user-provided parameters for future data retrieval
+    get_data_params.update(kwargs)
+    future_data = get_data(**get_data_params)
+
+    return historic_data, future_data
+
+
 # =========================== HELPER FUNCTIONS: AMY/TMY CALCULATION ==============================
 
 
+# TODO : update this function to handle the correct formatting of multi-warming level dataframes
 def _format_meteo_yr_df(df: pd.DataFrame) -> pd.DataFrame:
     """Format dataframe output from compute_amy and compute_severe_yr"""
     ## Re-order columns for PST, with easy to read time labels
@@ -159,6 +254,8 @@ def _format_meteo_yr_df(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+# TODO : update this function to handle the correct formatting of multi-warming level dataframes
+# * See compute_profile function below for possible implementation
 def compute_amy(data: xr.DataArray, days_in_year: int = 366) -> pd.DataFrame:
     """Calculates the average meteorological year based on a designated period of time
 
@@ -201,6 +298,167 @@ def compute_amy(data: xr.DataArray, days_in_year: int = 366) -> pd.DataFrame:
     # Format dataframe
     df_amy = _format_meteo_yr_df(df_amy)
     return df_amy
+
+
+def compute_profile(data: xr.DataArray, days_in_year: int = 366) -> pd.DataFrame:
+    """Calculates the average meteorological year profile for warming level data using 8760 analysis
+
+    This function handles global warming levels approach using time_delta coordinate.
+    Takes the first 8760 hours (one year) from the time_delta dimension and processes
+    each warming level separately, preserving the warming_level dimension.
+
+    Parameters
+    ----------
+    data : xr.DataArray
+        Hourly data for one variable with warming_level and time_delta dimensions
+    days_in_year : int, optional
+        Either 366 or 365, depending on whether or not the year is a leap year.
+        Default to 366 days (leap year)
+
+    Returns
+    -------
+    pd.DataFrame
+        Average meteorological year table for each warming level, with days of year as
+        the index and hour of day as the columns. If multiple warming levels exist,
+        they will be included as additional column levels.
+
+    """
+
+    # Step 1: Take ensemble mean across simulations
+    if "simulation" in data.dims:
+        data = data.mean("simulation")
+
+    # Step 2: Slice to first 8760 hours (one year) from time_delta
+    data_8760 = data.isel(time_delta=slice(0, 8760))
+
+    # Step 3: Create synthetic time coordinates for the 8760 hours
+    hours_per_day = 24
+    n_hours = 8760
+
+    # Create dayofyear (1-365 or 1-366) and hour (0-23) coordinates
+    dayofyear = np.repeat(np.arange(1, days_in_year + 1), hours_per_day)[:n_hours]
+    hour = np.tile(np.arange(0, hours_per_day), days_in_year)[:n_hours]
+
+    # Assign synthetic coordinates
+    data_8760 = data_8760.assign_coords(
+        synthetic_dayofyear=("time_delta", dayofyear),
+        synthetic_hour=("time_delta", hour),
+    )
+
+    # Step 4: Define helper functions (same as original)
+    def _closest_to_mean(dat: xr.DataArray) -> xr.DataArray:
+        """Find the value closest to the mean of the data."""
+        stacked = dat.stack(allofit=list(dat.dims))
+        index = abs(stacked - stacked.mean("allofit")).argmin(dim="allofit").values
+        return xr.DataArray(stacked.isel(allofit=index).values)
+
+    def _return_diurnal(y: xr.DataArray) -> xr.DataArray:
+        """Return the diurnal cycle of the data."""
+        return y.groupby("synthetic_hour").map(_closest_to_mean)
+
+    # Step 5: Process each warming level separately
+    warming_levels = data_8760.warming_level.values
+
+    if len(warming_levels) == 1:
+        # Single warming level - process normally
+        hourly_da = data_8760.groupby("synthetic_dayofyear").map(_return_diurnal)
+
+        # Create DataFrame
+        df_profile = pd.DataFrame(
+            hourly_da.values,
+            columns=np.arange(1, 25, 1),
+            index=np.arange(1, days_in_year + 1, 1),
+        )
+
+    else:
+        # Multiple warming levels - process each separately and combine
+        profile_dict = {}
+
+        for wl in warming_levels:
+            data_wl = data_8760.sel(warming_level=wl)
+            hourly_da = data_wl.groupby("synthetic_dayofyear").map(_return_diurnal)
+
+            profile_dict[f"WL_{wl}"] = hourly_da.values
+
+        # Create multi-level DataFrame
+        profile_arrays = list(profile_dict.values())
+        warming_level_names = list(profile_dict.keys())
+
+        # Stack arrays and create MultiIndex columns
+        stacked_data = np.stack(profile_arrays, axis=-1)
+
+        # Reshape for DataFrame: (days, hours*warming_levels)
+        reshaped_data = stacked_data.reshape(days_in_year, -1)
+
+        # Create MultiIndex columns (Hour, Warming_Level)
+        hours = np.arange(1, 25, 1)
+        col_tuples = [
+            (hour, wl_name) for hour in hours for wl_name in warming_level_names
+        ]
+        multi_cols = pd.MultiIndex.from_tuples(
+            col_tuples, names=["Hour", "Warming_Level"]
+        )
+
+        df_profile = pd.DataFrame(
+            reshaped_data,
+            columns=multi_cols,
+            index=np.arange(1, days_in_year + 1, 1),
+        )
+
+    # Step 6: Format dataframe using existing helper
+    if len(warming_levels) == 1:
+        df_profile = _format_meteo_yr_df(df_profile)
+    else:
+        # For multiple warming levels, we need custom formatting
+        df_profile = _format_profile_df_multi_wl(df_profile)
+
+    return df_profile
+
+
+def _format_profile_df_multi_wl(df: pd.DataFrame) -> pd.DataFrame:
+    """Format dataframe output for multiple warming levels"""
+    # Convert Julian date index to Month-Day format
+    year = 2024 if len(df) == 366 else 2023
+    new_index = [
+        julianDay_to_date(julday, year=year, str_format="%b-%d") for julday in df.index
+    ]
+    df.index = pd.Index(new_index, name="Day of Year")
+
+    # Reorder columns for PST (move hours 17-23 to front)
+    _ = df.columns.get_level_values("Hour").unique()
+    wl_levels = df.columns.get_level_values("Warming_Level").unique()
+
+    # Create new column order (17-24, then 1-16) for each warming level
+    new_cols = []
+    for wl in wl_levels:
+        pst_hours = list(range(18, 25)) + list(range(1, 18))  # 18-24, then 1-17 for PST
+        for hour in pst_hours:
+            if (hour, wl) in df.columns:
+                new_cols.append((hour, wl))
+
+    df = df[new_cols]
+
+    # Create readable hour labels
+    hour_labels = []
+    for ampm in ["am", "pm"]:
+        hr_lst = []
+        for hr in range(1, 13, 1):
+            hr_lst.append(str(hr) + ampm)
+        hr_lst = hr_lst[-1:] + hr_lst[:-1]  # Move 12am/12pm to front
+        hour_labels = hour_labels + hr_lst
+
+    # Update column names while preserving MultiIndex structure
+    new_col_tuples = []
+    for _, (hour, wl) in enumerate(df.columns):
+        hour_idx = (hour - 1) % 24  # Convert to 0-based index
+        hour_label = hour_labels[hour_idx]
+        new_col_tuples.append((hour_label, wl))
+
+    df.columns = pd.MultiIndex.from_tuples(
+        new_col_tuples, names=["Hour", "Warming_Level"]
+    )
+
+    return df
 
 
 def compute_severe_yr(data: xr.DataArray, days_in_year: int = 366) -> pd.DataFrame:
