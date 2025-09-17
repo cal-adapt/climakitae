@@ -146,7 +146,7 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
         - variable (Optional) : str, default "Air Temperature at 2m"
         - resolution (Optional) : str, default "4km"
         - scenario (Optional) : List[str], default ["SSP 3-7.0"]
-        - warming_levels (Required) : List[float], default [1.2]
+        - warming_level (Required) : List[float], default [1.2]
         - cached_area (Optional) : str or List[str]
         - units (Optional) : str, default "degF"
 
@@ -160,6 +160,20 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
     ------
     ValueError
         If invalid parameter keys are provided.
+
+    Example
+    -------
+    >>> historic_data, future_data = retrieve_profile_data(
+    ...     variable="Air Temperature at 2m",
+    ...     resolution="45 km",
+    ...     scenario=["SSP 3-7.0"],
+    ...     warming_level=[1.5, 2.0, 3.0],
+    ...     units="degF"
+    ... )
+
+    >>> historic_data, future_data = retrieve_profile_data(
+    ...     warming_level=[2.0]
+    ... )
 
     Notes
     -----
