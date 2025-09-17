@@ -25,6 +25,7 @@ from climakitae.util.utils import read_csv_file
 
 xr.set_options(keep_attrs=True)
 bytes_per_gigabyte = 1024 * 1024 * 1024
+degree_sign = "\N{DEGREE SIGN}"
 
 
 def remove_zarr(filename: str):
@@ -979,7 +980,7 @@ def _epw_format_data(df: pd.DataFrame) -> pd.DataFrame:
     if "warming_level" in df.columns:
         # change year for GWL data to not use 2000's dummy times
         df = df.assign(
-            year=df["time"].dt.year - 1999, #0001 +
+            year=df["time"].dt.year - 1999,  # 0001 +
             month=df["time"].dt.month,
             day=df["time"].dt.day,
             hour=df["time"].dt.hour + 1,  # 1-24, not 0-23
@@ -1498,8 +1499,8 @@ def write_tmy_file(
 
         if "warming_level" in df.columns:
             # line 6 - comments 1, going to include simulation + warming level information here
-            line_6 = "COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Warming Level: {0}, Simulation: {1}\n".format(
-                df["warming_level"].values[0], df["simulation"].values[0]
+            line_6 = "COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Warming Level: {0}{1}C, Simulation: {2}\n".format(
+                df["warming_level"].values[0], degree_sign, df["simulation"].values[0]
             )
             # line 7 - comments 2, including date range here from which TMY calculated
             line_7 = f"COMMENTS 2, TMY data produced using {df["warming_level"].values[0]} warming level\n"
@@ -1524,7 +1525,7 @@ def write_tmy_file(
             # change time axis for GWL data to not use 2000's dummy times
             if "warming_level" in df.columns:
                 df = _tmy_reset_time_for_gwl(df)
-            
+
             path_to_file = filename_to_export + ".tmy"
 
             with open(path_to_file, "w") as f:
