@@ -171,9 +171,9 @@ class WarmingLevel(DataProcessor):
                         "\nSkipping this warming level."
                     )
                     continue
-                start_year = pd.to_datetime(year).year - self.warming_level_window
+                start_year = year - self.warming_level_window
                 start_year = max(start_year, 1981)
-                end_year = pd.to_datetime(year).year + self.warming_level_window
+                end_year = year + self.warming_level_window
                 end_year = min(end_year, 2100)
 
                 da_slice = ret[key].sel(time=slice(f"{start_year}", f"{end_year}"))
@@ -198,7 +198,7 @@ class WarmingLevel(DataProcessor):
                 # Add simulation and centered_year coordinates
                 da_slice = da_slice.assign_coords(
                     simulation=key,
-                    centered_year=(["warming_level"], [pd.to_datetime(year).year]),
+                    centered_year=(["warming_level"], [year]),
                 )
 
                 slices.append(da_slice)
@@ -285,7 +285,7 @@ class WarmingLevel(DataProcessor):
 
     def extend_time_domain(
         self, result: Dict[str, Union[xr.Dataset, xr.DataArray]]
-    ) -> Union[xr.Dataset, xr.DataArray]:
+    ) -> Dict[str, Union[xr.Dataset, xr.DataArray]]:
         """
         Extend the time domain of the input data to cover 1980-2100.
 
@@ -398,16 +398,24 @@ class WarmingLevel(DataProcessor):
                             mask.idxmax()  # Get the first occurrence of the warming level
                         )
                     else:
+                        max_valid_wl = (
+                            self.warming_level_times.loc[
+                                (key_list[2], member_id, key_list[3])
+                            ]
+                            .dropna()
+                            .index.max()
+                        )
                         warnings.warn(
                             f"\n\nNo warming level data found for {wl_table_key} at {wl}C. "
-                            f"\nPlease pick a warming level less than {self.warming_level_times[wl_table_key].max()}C."
+                            f"\nPlease pick a warming level less than {max_valid_wl}C."
                         )
                         center_years[key].append(np.nan)
                 else:
                     # this is a common warming level, so we can just get the year
                     tuple_key = (key_list[2], member_id, key_list[3])
-                    center_years[key].append(
+                    center_time = pd.to_datetime(
                         self.warming_level_times.loc[tuple_key, str(wl)]
                     )
+                    center_years[key].append(center_time.year)
 
         return center_years

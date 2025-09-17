@@ -23,8 +23,57 @@ from climakitae.new_core.processors.warming_level import WarmingLevel
 
 @pytest.fixture
 def processor():
-    """Fixture for an empty WarmingLevel processor."""
-    return WarmingLevel(value={})
+    """Fixture for an empty WarmingLevel processor with mock warming level time DataFrames."""
+    wl_processor = WarmingLevel(value={})
+    wl_time_data = [
+        [
+            "GCM",
+            "run",
+            "scenario",
+            "0.8",
+            "1.0",
+            "1.2",
+        ],
+        [
+            "ACCESS-CM2",
+            "r3i1p1f1",
+            "ssp585",
+            "2005-09-16 00:00:00",
+            "2012-01-16 12:00:00",
+            "2017-05-16 12:00:00",
+        ],
+        [
+            "ACCESS-ESM1-5",
+            "r3i1p1f1",
+            "ssp585",
+            "2010-11-16 00:00:00",
+            "2016-09-16 00:00:00",
+            "2021-06-16 00:00:00",
+        ],
+        [
+            "CNRM-ESM2-1",
+            "r1i1p1f2",
+            "ssp585",
+            "2006-08-16 12:00:00",
+            "2014-07-16 12:00:00",
+            "2020-05-16 12:00:00",
+        ],
+    ]
+    wl_processor.warming_level_times = pd.DataFrame(
+        wl_time_data[1:], columns=wl_time_data[0]
+    ).set_index(["GCM", "run", "scenario"])
+
+    wl_time_idx_data = [
+        ["time", "ACCESS-CM2_r3i1p1f1_ssp585", "ACCESS-CM2_r3i1p1f1_ssp370"],
+        ["2025-1", 1.5, 1.6],
+        ["2035-1", 1.7, 1.8],
+        ["2045-1", 1.9, 2.0],
+    ]
+    wl_processor.warming_level_times_idx = pd.DataFrame(
+        wl_time_idx_data[1:], columns=wl_time_idx_data[0]
+    ).set_index("time")
+
+    return wl_processor
 
 
 class TestWarmingLevelProcessorInitialization:
@@ -36,6 +85,14 @@ class TestWarmingLevelProcessorInitialization:
         assert processor.warming_level_window == 15
         assert isinstance(processor.warming_level_times, pd.DataFrame)
         assert isinstance(processor.warming_level_times_idx, pd.DataFrame)
+
+    @pytest.mark.parametrize("invalid_type", [None, 123, "string", 5.5, []])
+    def test_invalid_initialization(self, invalid_type):
+        """Test invalid initialization with wrong types for value parameter."""
+        with pytest.raises(
+            TypeError, match="Expected dictionary for warming level configuration"
+        ):
+            WarmingLevel(value=invalid_type)
 
     def test_custom_initialization(self):
         """Test custom initialization."""
@@ -197,7 +254,71 @@ class TestWarmingLevelExtendTimeDomain:
 
 
 class TestWarmingLevelGetCenterYears:
-    pass
+
+    def test_no_valid_member_id(self, processor):
+        """Test that get_center_years returns empty dict if all member_ids are None."""
+        member_ids = [None, None]
+        keys = ["key1", "key2"]
+        ret = processor.get_center_years(member_ids, keys)
+        assert ret == {}
+
+    # timeidx: GCM name _ member id _ ssp
+
+    # member_ids = 'r1i1p1f1', 'r3i1p1f1', 'r1i1p1f1', 'r1i1p1f1', 'r1i1p1f1']
+    # keys = dict_keys(['WRF.UCLA.MIROC6.ssp370.mon.d01.r1i1p1f1', 'WRF.UCLA.MPI-ESM1-2-HR.ssp370.mon.d01.r3i1p1f1', 'WRF.UCLA.EC-Earth3-Veg.ssp370.mon.d01.r1i1p1f1', 'WRF.UCLA.EC-Earth3.ssp370.mon.d01.r1i1p1f1', 'WRF.UCLA.TaiESM1.ssp370.mon.d01.r1i1p1f1'])
+
+    def test_valid_member_id_and_keys(self, processor):
+        """Test that get_center_years returns np.nan for keys not in warming level table at a common WL."""
+        processor.warming_levels = [1.0]
+        member_ids = ["r3i1p1f1", "r1i1p1f2"]
+        keys = [
+            "WRF.UCLA.ACCESS-CM2.ssp585.mon.d01.r3i1p1f1",
+            "WRF.UCLA.CNRM-ESM2-1.ssp585.mon.d01.r1i1p1f2",
+        ]
+        ret = processor.get_center_years(member_ids, keys)
+        assert len(ret) == 2
+        assert ret["WRF.UCLA.ACCESS-CM2.ssp585.mon.d01.r3i1p1f1"] == [2012]
+        assert ret["WRF.UCLA.CNRM-ESM2-1.ssp585.mon.d01.r1i1p1f2"] == [2014]
+
+    def test_custom_wl_key_not_found(self, processor):
+        """Test that get_center_years returns np.nan for keys not in warming level table at a common WL."""
+        processor.warming_levels = [1.2345]
+        member_ids = ["r1i1p1f1"]
+        keys = [
+            "WRF.UCLA.MIROC6.ssp370.mon.d01.r1i1p1f1",  # This key is not in the wl table
+        ]
+        with pytest.warns(
+            UserWarning, match="Warming level table does not contain data"
+        ):
+            ret = processor.get_center_years(member_ids, keys)
+            assert len(ret) == 1
+            assert ret["WRF.UCLA.MIROC6.ssp370.mon.d01.r1i1p1f1"] == [np.nan]
+
+    def test_valid_custom_wl(self, processor):
+        """Test that get_center_years returns correct year for keys in warming level table at a custom WL."""
+        processor.warming_levels = [1.78987]
+        member_ids = ["r3i1p1f1"]
+        keys = [
+            "WRF.UCLA.ACCESS-CM2.ssp585.mon.d01.r3i1p1f1",  # This key is in the wl table
+        ]
+        ret = processor.get_center_years(member_ids, keys)
+        assert len(ret) == 1
+        assert ret["WRF.UCLA.ACCESS-CM2.ssp585.mon.d01.r3i1p1f1"] == ["2045-1"]
+
+    def test_invalid_custom_wl(self, processor):
+        """Test that get_center_years returns np.nan for keys in warming level table at a custom WL not found."""
+        processor.warming_levels = [2.5678]
+        member_ids = ["r3i1p1f1"]
+        keys = [
+            "WRF.UCLA.ACCESS-CM2.ssp585.mon.d01.r3i1p1f1",  # This key is in the wl table
+        ]
+        with pytest.warns(
+            UserWarning,
+            match=f"\n\nNo warming level data found for ACCESS-CM2_r3i1p1f1_ssp585 at 2.5678C. \nPlease pick a warming level less than 1.2C.",
+        ):
+            ret = processor.get_center_years(member_ids, keys)
+            assert len(ret) == 1
+            assert ret["WRF.UCLA.ACCESS-CM2.ssp585.mon.d01.r3i1p1f1"] == [np.nan]
 
 
 class TestWarmingLevelExecute:
