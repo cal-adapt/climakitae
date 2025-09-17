@@ -608,8 +608,9 @@ class TMY:
             df.loc[row_ind, "Relative humidity"] = np.float32(rh_da)
         return df, day1ind
 
-    @staticmethod
-    def _make_8760_tables(all_vars_ds: xr.Dataset, top_months: pd.DataFrame) -> dict:
+    def _make_8760_tables(
+        self, all_vars_ds: xr.Dataset, top_months: pd.DataFrame
+    ) -> dict:
         """Extract top months from loaded data and arrange in table.
 
         Pulled out of the run_tmy_analysis() code for easier testing.
