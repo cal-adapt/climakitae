@@ -160,9 +160,8 @@ class TestDatasetWithProcessingStepMethod:
                 pass
 
         mock_dataset = Dataset()
-        #context = {"test": "value"}
-        #mock_catalog = MagicMock(spec=DataCatalog)
 
         mock_dataset.with_processing_step(TestProcessor)
 
-        assert mock_dataset.processing_pipeline is TestProcessor
+        assert type(mock_dataset.processing_pipeline) is list
+        assert mock_dataset.processing_pipeline[0] is TestProcessor
