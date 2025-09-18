@@ -9,13 +9,14 @@ approach for climate data processing.
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
+import xarray as xr
 import pytest
 
 from climakitae.core.constants import UNSET
 from climakitae.new_core.dataset import Dataset
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.param_validation.abc_param_validation import ParameterValidator
-from climakitae.new_core.processors.concatenate import Concat
+from climakitae.new_core.processors.abc_data_processor import DataProcessor
 
 
 class TestDatasetInit:
@@ -147,17 +148,21 @@ class TestDatasetWithProcessingStepMethod:
 
     def test_with_processing_step_successful(self):
         """Test successful with_param_validator set."""
-        data_catalog = DataCatalog()
 
-        data_catalog.catalog_df = pd.DataFrame(
-            {"catalog": ["climate"], "variable_id": ["tas"]}
-        )
+        class TestProcessor(DataProcessor):
+            def execute(self, result, context):
+                return result
 
-        processing_step = Concat()
-        processing_step.set_data_accessor(data_catalog)
+            def update_context(self, context):
+                pass
 
-        dataset = Dataset()
+            def set_data_accessor(self, catalog):
+                pass
 
-        dataset.with_processing_step(processing_step)
+        mock_dataset = xr.Dataset()
+        context = {"test": "value"}
+        mock_catalog = MagicMock(spec=DataCatalog)
 
-        assert dataset.processing_pipeline.name == "concat"
+        mock_dataset.with_processing_step(TestProcessor)
+
+        assert mock_dataset.processing_pipeline is TestProcessor
