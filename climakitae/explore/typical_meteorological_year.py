@@ -407,6 +407,7 @@ class TMY:
             "Wind direction at 10m": "degrees",
             "Surface Pressure": "Pa",
         }
+        self.gwl_year_range = UNSET
         self.verbose = verbose
         # These will get set later in analysis
         self.cdf_climatology = UNSET
@@ -552,6 +553,7 @@ class TMY:
         # Set the start and end years based on the dummy time
         self.start_year = data.time[0].dt.year.item()
         self.end_year = data.time[-1].dt.year.item()
+
         return data
 
     def _load_single_variable(self, varname: str, units: str) -> xr.DataArray:
@@ -845,6 +847,28 @@ class TMY:
         )  # Return dict of TMY by simulation
         self._vprint("TMY analysis complete")
 
+    def match_str_to_wl(warming_level):
+        """Return warming level description string
+
+        Parameters
+        ----------
+        warming_level: float
+            A standard warming level
+        """
+        match warming_level:
+            case _ if warming_level < 1.5:
+                return "_present-day"
+            case 1.5:
+                return "_near-future"
+            case 2.0:
+                return "_mid-century"
+            case 2.5:
+                return "_mid-late-century"
+            case 3.0:
+                return "_late-century"
+            case _:
+                return f"_warming-level-{warming_level}"
+
     def export_tmy_data(self, extension: str = "epw"):
         """Write TMY data to EPW file.
 
@@ -859,11 +883,23 @@ class TMY:
             clean_stn_name = (
                 self.stn_name.replace(" ", "_").replace("(", "").replace(")", "")
             )
-            filename = f"TMY_{clean_stn_name}_{sim}".lower()
+            # replace scenario with descriptive name if present for gwl case
+            clean_sim = sim.replace(
+                "_historical+ssp370", match_str_to_wl(self.warming_level)
+            )
+            filename = f"TMY_{clean_stn_name}_{clean_sim}".lower()
+            # Get right year range
+            if self.warming_level is UNSET:
+                years = (self.start_year, self.end_year)
+            else:
+                centered_year = self.all_vars.sel(simulation=sim).centered_year.data
+                year1 = centered_year - 15
+                year2 = centered_year + 14
+                years = (year1, year2)
             write_tmy_file(
                 filename,
                 self.tmy_data_to_export[sim],
-                (self.start_year, self.end_year),
+                years,
                 self.stn_name,
                 self.stn_code,
                 self.stn_lat,

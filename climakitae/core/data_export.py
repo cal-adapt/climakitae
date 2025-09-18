@@ -1474,16 +1474,7 @@ def write_tmy_file(
         """
         # line 1 - location, location name, state, country, WMO, lat, lon
         # line 1 - location, location name, state, country, weather station number (2 cols), lat, lon, time zone, elevation
-        line_1 = "LOCATION,{0},{1},USA,{2},{3},{4},{5},{6},{7}\n".format(
-            location_name.upper(),
-            state,
-            "Custom_{}".format(station_code),
-            station_code,
-            stn_lat,
-            stn_lon,
-            timezone,
-            elevation,
-        )
+        line_1 = f"LOCATION,{location_name.upper()},{state},USA,{"Custom_{}".format(station_code)},{station_code},{stn_lat},{stn_lon},{timezone},{elevation}\n"
 
         # line 2 - design conditions, leave blank for now
         line_2 = "DESIGN CONDITIONS\n"
@@ -1498,19 +1489,17 @@ def write_tmy_file(
         line_5 = "HOLIDAYS/DAYLIGHT SAVINGS,No,0,0,0\n"
 
         if "warming_level" in df.columns:
+            warming_level = df["warming_level"].values[0]
+            simulation = df["simulation"].values[0]
             # line 6 - comments 1, going to include simulation + warming level information here
-            line_6 = "COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Warming Level: {0}{1}C, Simulation: {2}\n".format(
-                df["warming_level"].values[0], degree_sign, df["simulation"].values[0]
-            )
+            line_6 = f"COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Warming Level: {warming_level}{degree_sign}C, Simulation: {simulation}\n"
             # line 7 - comments 2, including date range here from which TMY calculated
-            line_7 = f"COMMENTS 2, TMY data produced using {df["warming_level"].values[0]} warming level\n"
+            line_7 = f"COMMENTS 2,TMY data produced using {warming_level}{degree_sign}C warming level. Year corresponds to index (1-30) in 30-year window centered on warming level. Model years for {warming_level}{degree_sign}C warming level in simulation {simulation} are {years[0]}-{years[1]}\n"
         elif "scenario" in df.columns:
             # line 6 - comments 1, going to include simulation + scenario information here
-            line_6 = "COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Scenario: {0}, Simulation: {1}\n".format(
-                df["scenario"].values[0], df["simulation"].values[0]
-            )
+            line_6 = f"COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Scenario: {df["scenario"].values[0]}, Simulation: {df["simulation"].values[0]}\n"
             # line 7 - comments 2, including date range here from which TMY calculated
-            line_7 = f"COMMENTS 2, TMY data produced using {years[0]}-{years[1]} climatological period\n"
+            line_7 = f"COMMENTS 2,TMY data produced using {years[0]}-{years[1]} climatological period\n"
 
         # line 8 - data periods, num data periods, num records per hour, data period name, data period start day of week, data period start (Jan 1), data period end (Dec 31)
         line_8 = "DATA PERIODS,1,1,Data,,1/ 1,12/31\n"
