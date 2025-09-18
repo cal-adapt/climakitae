@@ -847,6 +847,7 @@ class TMY:
         )  # Return dict of TMY by simulation
         self._vprint("TMY analysis complete")
 
+    @staticmethod
     def match_str_to_wl(warming_level):
         """Return warming level description string
 
@@ -885,7 +886,7 @@ class TMY:
             )
             # replace scenario with descriptive name if present for gwl case
             clean_sim = sim.replace(
-                "_historical+ssp370", match_str_to_wl(self.warming_level)
+                "_historical+ssp370", self.match_str_to_wl(self.warming_level)
             )
             filename = f"TMY_{clean_stn_name}_{clean_sim}".lower()
             # Get right year range

@@ -474,7 +474,10 @@ class TestTMYClass:
             tmy = TMY(start_year=start_year, end_year=end_year, station_name=stn_name)
 
         # Don't provide any loc data:
-        with pytest.raises(ValueError,match="No valid station name or latitude and longitude provided."):
+        with pytest.raises(
+            ValueError,
+            match="No valid station name or latitude and longitude provided.",
+        ):
             tmy = TMY(start_year, end_year)
 
     def test_init_with_coords(self):
@@ -499,16 +502,31 @@ class TestTMYClass:
         end_year = 2020
         station_name = "custom_station"
         # Initialize TMY object
-        tmy = TMY(start_year=start_year, end_year=end_year, latitude=lat, longitude=lon, station_name=station_name)
+        tmy = TMY(
+            start_year=start_year,
+            end_year=end_year,
+            latitude=lat,
+            longitude=lon,
+            station_name=station_name,
+        )
         assert tmy.lat_range == pytest.approx((33.46, 33.66), abs=1e-6)
         assert tmy.lon_range == pytest.approx((-117.91, -117.71), abs=1e-6)
         assert tmy.stn_name == station_name
         assert tmy.warming_level is UNSET
 
         # not allowed to use HadISD station name with lat/lon
-        with pytest.raises(ValueError,match="Do not set `latitude` and `longitude` when using a HadISD station for `station_name`. Change `station_name` value if using custom location."):
+        with pytest.raises(
+            ValueError,
+            match="Do not set `latitude` and `longitude` when using a HadISD station for `station_name`. Change `station_name` value if using custom location.",
+        ):
             station_name = "Santa Ana John Wayne Airport (KSNA)"
-            tmy = TMY(start_year=start_year, end_year=end_year, latitude=lat, longitude=lon, station_name=station_name)            
+            tmy = TMY(
+                start_year=start_year,
+                end_year=end_year,
+                latitude=lat,
+                longitude=lon,
+                station_name=station_name,
+            )
 
     def test_init_with_warming_level(self):
         """Check class initialization with coordinates."""
@@ -517,14 +535,23 @@ class TestTMYClass:
         lon = -117.81
         warming_level = 2.0
         # Initialize TMY object
-        tmy = TMY(warming_level = warming_level, latitude=lat, longitude=lon)
+        tmy = TMY(warming_level=warming_level, latitude=lat, longitude=lon)
         assert tmy.warming_level == warming_level
         assert tmy.start_year is UNSET
         assert tmy.end_year is UNSET
 
         # Can't use years with GWL
-        with pytest.raises(ValueError, match="Variables `start_year` and `end_year` cannot be paired with `warming_level`. Set either `start_year` and `end_year` OR `warming_level."):
-            tmy = TMY(start_year = 2000, end_year = 2020, warming_level = warming_level, latitude=lat, longitude=lon)
+        with pytest.raises(
+            ValueError,
+            match="Variables `start_year` and `end_year` cannot be paired with `warming_level`. Set either `start_year` and `end_year` OR `warming_level.",
+        ):
+            tmy = TMY(
+                start_year=2000,
+                end_year=2020,
+                warming_level=warming_level,
+                latitude=lat,
+                longitude=lon,
+            )
 
     def test__load_single_variable_time(self):
         """Load data for a single variable."""
