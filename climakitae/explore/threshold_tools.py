@@ -1415,5 +1415,3 @@ def exceedance_plot_subtitle(exceedance_count: xr.DataArray) -> str:
         _exceedance_count_name(exceedance_count) + period_str + dur_str + grp_str
     )
     return _subtitle
-    return _subtitle
-    return _subtitle
