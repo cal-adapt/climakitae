@@ -159,9 +159,9 @@ class TestDatasetWithProcessingStepMethod:
             def set_data_accessor(self, catalog):
                 pass
 
-        mock_dataset = xr.Dataset()
-        context = {"test": "value"}
-        mock_catalog = MagicMock(spec=DataCatalog)
+        mock_dataset = Dataset()
+        #context = {"test": "value"}
+        #mock_catalog = MagicMock(spec=DataCatalog)
 
         mock_dataset.with_processing_step(TestProcessor)
 
