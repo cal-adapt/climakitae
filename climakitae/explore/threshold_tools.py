@@ -1,13 +1,14 @@
 """Helper functions for performing analyses related to thresholds"""
 
 import warnings
+from itertools import product
 
 import numpy as np
 import scipy
 import statsmodels as sm
 import xarray as xr
 from scipy import stats
-from itertools import product
+
 from climakitae.core.constants import UNSET
 
 
@@ -757,14 +758,20 @@ def _get_return_variable(
     if dropna_time:
         # PRINTING TO USER which simulations and locations will be dropped before they're being dropped, since in `_return_variable`, the objects will be numpy arrays instead of xarray objects
         # e.g. when an SSP has missing data at a warming level, when a warming level data that does beyond 2100
-        print("Dropping NaNs along time dimension for the following dimensions combinations:\n")
+        print(
+            "Dropping NaNs along time dimension for the following dimensions combinations:\n"
+        )
 
         # Finding the dimension name combos with timesteps that will be dropped
         bms_isnull = bms.isnull()
         isnull_mask = bms_isnull.stack(all_dims=bms_isnull.dims)
         vals_to_drop = isnull_mask.where(isnull_mask, drop=True)
-        all_dims_to_drop = vals_to_drop.unstack().isel(time=0) # Selecting time=0 because we DON'T want the time dimension being printed out as well
-        dim_vals = [all_dims_to_drop[dim].values.tolist() for dim in all_dims_to_drop.dims]
+        all_dims_to_drop = vals_to_drop.unstack().isel(
+            time=0
+        )  # Selecting time=0 because we DON'T want the time dimension being printed out as well
+        dim_vals = [
+            all_dims_to_drop[dim].values.tolist() for dim in all_dims_to_drop.dims
+        ]
 
         # Combining the dimension name combos into a printed output
         for combo in product(*dim_vals):
@@ -779,13 +786,13 @@ def _get_return_variable(
     else:
         block_size = 1
 
-    def _return_variable(bms, sim_name):
+    def _return_variable(bms):
 
         if dropna_time and np.isnan(bms).any():
             # Drop NaNs for years with missing data FOR EACH SIMULATION
             # e.g. when an SSP has missing data at a warming level
             bms = bms[~np.isnan(bms)]
-        
+
         try:
             _, fitted_distr = _get_fitted_distr(bms, distr, distr_func)
             return_variable = _calculate_return(
@@ -815,17 +822,16 @@ def _get_return_variable(
             np.array([conf_int_lower_limit]),
             np.array([conf_int_upper_limit]),
         )
+
     return_variable, conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
         _return_variable,
         bms,
-        bms["simulation"],
-        input_core_dims=[["time"], []],
-        exclude_dims={"time"},
+        input_core_dims=[["time"]],
+        exclude_dims=set(("time",)),
         vectorize=True,
         output_core_dims=[["one_in_x"], ["one_in_x"], ["one_in_x"]],
     )
 
-    
     return_variable = return_variable.rename(data_variable)
     new_ds = return_variable.to_dataset()
 
@@ -1408,4 +1414,6 @@ def exceedance_plot_subtitle(exceedance_count: xr.DataArray) -> str:
     _subtitle = (
         _exceedance_count_name(exceedance_count) + period_str + dur_str + grp_str
     )
+    return _subtitle
+    return _subtitle
     return _subtitle
