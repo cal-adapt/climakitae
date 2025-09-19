@@ -160,28 +160,52 @@ def _coerce_to_dates(value: Iterable[Any]) -> tuple[pd.Timestamp, pd.Timestamp]:
 
     Parameters
     ----------
-    value : tuple
-        The value to coerce.
+    value : Iterable[Any]
+        An iterable containing exactly 2 date-like objects to coerce.
+        Each element can be a string, int, float, datetime.date, 
+        datetime.datetime, pd.Timestamp, or pd.DatetimeIndex.
 
     Returns
     -------
-    tuple
-        The coerced values.
+    tuple[pd.Timestamp, pd.Timestamp]
+        A tuple containing exactly 2 pd.Timestamp objects.
+
+    Raises
+    ------
+    ValueError
+        If the iterable doesn't contain exactly 2 elements or if any
+        element cannot be coerced to a date-like object.
 
     """
+    # Convert to list to check length and iterate
+    value_list = list(value)
+    
+    if len(value_list) != 2:
+        raise ValueError(
+            f"Expected exactly 2 date-like values, got {len(value_list)}"
+        )
+    
     ret = []
-    for x in value:
-        match x:
-            case str() | int() | float() | datetime.date() | datetime.datetime():
-                ret.append(pd.to_datetime(x))
-            case pd.Timestamp():
-                ret.append(x)
-            case pd.DatetimeIndex():
-                ret.append(x[0])
-            case _:
-                warnings.warn(
-                    f"\n\nValue '{x}' is not a date-like object. "
-                    "\nExpected a string, int, float, datetime.date, datetime.datetime, or pd.Timestamp."
-                )
-                return None
+    for i, x in enumerate(value_list):
+        try:
+            match x:
+                case str() | int() | float() | datetime.date() | datetime.datetime():
+                    ret.append(pd.to_datetime(x))
+                case pd.Timestamp():
+                    ret.append(x)
+                case pd.DatetimeIndex():
+                    if len(x) == 0:
+                        raise ValueError(f"Empty DatetimeIndex at position {i}")
+                    ret.append(x[0])
+                case _:
+                    raise ValueError(
+                        f"Value '{x}' at position {i} is not a date-like object. "
+                        f"Expected a string, int, float, datetime.date, datetime.datetime, "
+                        f"pd.Timestamp, or pd.DatetimeIndex."
+                    )
+        except (ValueError, TypeError, pd.errors.OutOfBoundsDatetime) as e:
+            raise ValueError(
+                f"Cannot coerce value '{x}' at position {i} to datetime: {e}"
+            ) from e
+    
     return tuple(ret)

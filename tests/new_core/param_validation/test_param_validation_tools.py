@@ -16,16 +16,6 @@ from climakitae.new_core.param_validation.param_validation_tools import (
     _validate_experimental_id_param,
 )
 
-# Suppress known external warnings that are not relevant to our tests
-warnings.filterwarnings(
-    "ignore",
-    message="The 'shapely.geos' module is deprecated",
-    category=DeprecationWarning,
-)
-warnings.filterwarnings(
-    "ignore", message="pkg_resources is deprecated", category=DeprecationWarning
-)
-
 
 class TestGetClosestOptions:
     """Test class for _get_closest_options function."""
@@ -304,10 +294,11 @@ class TestCoerceToDates:
         # Test with mixed valid types
         test_date = datetime.date(2020, 1, 1)
         test_datetime = datetime.datetime(2021, 12, 31, 12, 0, 0)
+        test_datetimeindex = pd.DatetimeIndex(["2022-06-15"])
         test_timestamp = pd.Timestamp("2022-06-15")
 
         result = _coerce_to_dates(
-            [test_date, test_datetime, test_timestamp, "2023-01-01"]
+            [test_date, test_datetime, test_datetimeindex, test_timestamp, "2023-01-01"]
         )
 
         assert result is not None
