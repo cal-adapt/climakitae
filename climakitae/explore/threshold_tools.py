@@ -756,27 +756,30 @@ def _get_return_variable(
         )
 
     if dropna_time:
-        # PRINTING TO USER which simulations and locations will be dropped before they're being dropped, since in `_return_variable`, the objects will be numpy arrays instead of xarray objects
-        # e.g. when an SSP has missing data at a warming level, when a warming level data that does beyond 2100
-        print(
-            "Dropping NaNs along time dimension for the following dimensions combinations:\n"
-        )
 
         # Finding the dimension name combos with timesteps that will be dropped
         bms_isnull = bms.isnull()
         isnull_mask = bms_isnull.stack(all_dims=bms_isnull.dims)
         vals_to_drop = isnull_mask.where(isnull_mask, drop=True)
-        all_dims_to_drop = vals_to_drop.unstack().isel(
-            time=0
-        )  # Selecting time=0 because we DON'T want the time dimension being printed out as well
-        dim_vals = [
-            all_dims_to_drop[dim].values.tolist() for dim in all_dims_to_drop.dims
-        ]
 
-        # Combining the dimension name combos into a printed output
-        for combo in product(*dim_vals):
-            print(f"  {dict(zip(all_dims_to_drop.dims, combo))}")
-        print("\n")
+        # Determining if we need to tell the user that there will be some NaNs dropped
+        if len(vals_to_drop) > 0:
+            # PRINTING TO USER which simulations and locations will be dropped before they're being dropped, since in `_return_variable`, the objects will be numpy arrays instead of xarray objects
+            # e.g. when an SSP has missing data at a warming level, when a warming level data that does beyond 2100
+            print(
+                "Dropping NaNs along time dimension for the following dimensions combinations:\n"
+            )
+            all_dims_to_drop = vals_to_drop.unstack().isel(
+                time=0
+            )  # Selecting time=0 because we DON'T want the time dimension being printed out as well
+            dim_vals = [
+                all_dims_to_drop[dim].values.tolist() for dim in all_dims_to_drop.dims
+            ]
+
+            # Combining the dimension name combos into a printed output
+            for combo in product(*dim_vals):
+                print(f"  {dict(zip(all_dims_to_drop.dims, combo))}")
+            print("\n")
 
     # get block_size from the block maxima series attributes, if available. otherwise assume block size=1 year
     if hasattr(bms, "block size"):
