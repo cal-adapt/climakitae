@@ -146,7 +146,7 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
         - variable (Optional) : str, default "Air Temperature at 2m"
         - resolution (Optional) : str, default "4km"
         - scenario (Optional) : List[str], default ["SSP 3-7.0"]
-        - warming_level (Required) : List[float], default [1.2]
+        - warming_levels (Required) : List[float], default [1.2]
         - cached_area (Optional) : str or List[str]
         - units (Optional) : str, default "degF"
 
@@ -186,9 +186,11 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
         "variable": (str, "Air Temperature at 2m"),
         "resolution": (str, "4km"),
         "scenario": (list, ["SSP 3-7.0"]),
-        "warming_levels": (list, [1.2]),
+        "warming_level": (list, [1.2]),
         "cached_area": ((str, list), None),
         "units": (str, "degF"),
+        "latitude": ((float, tuple), None),
+        "longitude": ((float, tuple), None),
     }
 
     # if the user does not enter warming level the analysis is a moot point
@@ -218,14 +220,15 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
     # Set default parameters for data retrieval
     get_data_params = {
         "variable": kwargs.get("variable", "Air Temperature at 2m"),
-        "resolution": kwargs.get("resolution", "4km"),
+        "resolution": kwargs.get("resolution", "3 km"),
         "downscaling_method": "Dynamical",  # must be WRF, cannot be LOCA
         "timescale": "hourly",  # must be hourly for 8760 analysis
         "area_average": "Yes",
         "units": "degF",
         "scenario": kwargs.get("scenario", ["SSP 3-7.0"]),
-        "approach": "Warming Levels",
+        "approach": "Warming Level",
         "warming_level": [1.2],
+        "cached_area": kwargs.get("cached_area", None),
     }
 
     historic_data = get_data(**get_data_params)
