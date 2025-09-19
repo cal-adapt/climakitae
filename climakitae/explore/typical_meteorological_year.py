@@ -848,7 +848,7 @@ class TMY:
         self._vprint("TMY analysis complete")
 
     @staticmethod
-    def _match_str_to_wl(warming_level):
+    def _match_str_to_wl(warming_level: str) -> str:
         """Return warming level description string
 
         Parameters
