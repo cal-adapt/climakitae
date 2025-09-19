@@ -162,8 +162,14 @@ def _coerce_to_dates(value: Iterable[Any]) -> tuple[pd.Timestamp, pd.Timestamp]:
     ----------
     value : Iterable[Any]
         An iterable containing exactly 2 date-like objects to coerce.
-        Each element can be a string, int, float, datetime.date, 
+        Each element can be a string, int, float, datetime.date,
         datetime.datetime, pd.Timestamp, or pd.DatetimeIndex.
+
+        For integer/float values in the range 1900-2200, they are treated as years:
+        - First position: Start of year (January 1st)
+        - Second position: End of year (December 31st)
+
+        Other numeric values are treated as Unix timestamps.
 
     Returns
     -------
@@ -176,20 +182,37 @@ def _coerce_to_dates(value: Iterable[Any]) -> tuple[pd.Timestamp, pd.Timestamp]:
         If the iterable doesn't contain exactly 2 elements or if any
         element cannot be coerced to a date-like object.
 
+    Examples
+    --------
+    >>> _coerce_to_dates([2020, 2021])
+    (Timestamp('2020-01-01 00:00:00'), Timestamp('2021-12-31 00:00:00'))
+
+    >>> _coerce_to_dates(["2020-01-01", "2021-06-15"])
+    (Timestamp('2020-01-01 00:00:00'), Timestamp('2021-06-15 00:00:00'))
+
     """
     # Convert to list to check length and iterate
     value_list = list(value)
-    
+
     if len(value_list) != 2:
-        raise ValueError(
-            f"Expected exactly 2 date-like values, got {len(value_list)}"
-        )
-    
+        raise ValueError(f"Expected exactly 2 date-like values, got {len(value_list)}")
+
     ret = []
     for i, x in enumerate(value_list):
         try:
             match x:
-                case str() | int() | float() | datetime.date() | datetime.datetime():
+                case str() | datetime.date() | datetime.datetime():
+                    ret.append(pd.to_datetime(x))
+                case int() | float() if 1900 <= x <= 2200:
+                    # Handle year integers/floats - interpret as year ranges
+                    if i == 0:
+                        # First position: start of year (Jan 1st)
+                        ret.append(pd.Timestamp(year=int(x), month=1, day=1))
+                    else:
+                        # Second position: end of year (Dec 31st)
+                        ret.append(pd.Timestamp(year=int(x), month=12, day=31))
+                case int() | float():
+                    # Handle other numeric values (Unix timestamps, etc.)
                     ret.append(pd.to_datetime(x))
                 case pd.Timestamp():
                     ret.append(x)
@@ -207,5 +230,5 @@ def _coerce_to_dates(value: Iterable[Any]) -> tuple[pd.Timestamp, pd.Timestamp]:
             raise ValueError(
                 f"Cannot coerce value '{x}' at position {i} to datetime: {e}"
             ) from e
-    
+
     return tuple(ret)

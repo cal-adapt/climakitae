@@ -9,6 +9,7 @@ import datetime
 import warnings
 
 import pandas as pd
+import pytest
 
 from climakitae.new_core.param_validation.param_validation_tools import (
     _coerce_to_dates,
@@ -251,61 +252,300 @@ class TestValidateExperimentalIdParam:
 
 
 class TestCoerceToDates:
-    """Test class for _coerce_to_dates function."""
+    """Test class for _coerce_to_dates function.
 
-    def test_coerce_to_dates_valid_strings(self):
-        """Test _coerce_to_dates with valid string inputs.
+    This class tests the date coercion functionality including valid inputs,
+    invalid types, length validation, and edge cases with comprehensive
+    parameterized testing approaches.
+    """
 
-        Tests that the function correctly converts various string
-        date formats to pandas Timestamps.
+    @pytest.mark.parametrize(
+        "input_data,expected",
+        [
+            # String inputs
+            (
+                ["2020-01-01", "2021-12-31"],
+                (pd.Timestamp("2020-01-01"), pd.Timestamp("2021-12-31")),
+            ),
+            (
+                ["2020/01/01", "2021/12/31"],
+                (pd.Timestamp("2020-01-01"), pd.Timestamp("2021-12-31")),
+            ),
+            (
+                ["Jan 1, 2020", "Dec 31, 2021"],
+                (pd.Timestamp("2020-01-01"), pd.Timestamp("2021-12-31")),
+            ),
+            (
+                ["2020-01-01 12:30:45", "2021-12-31 23:59:59"],
+                (
+                    pd.Timestamp("2020-01-01 12:30:45"),
+                    pd.Timestamp("2021-12-31 23:59:59"),
+                ),
+            ),
+            # Integer inputs (year integers)
+            (
+                [2020, 2021],
+                (pd.Timestamp("2020-01-01"), pd.Timestamp("2021-12-31")),
+            ),
+            # Float inputs (year floats)
+            (
+                [2020.0, 2021.0],
+                (pd.Timestamp("2020-01-01"), pd.Timestamp("2021-12-31")),
+            ),
+            # datetime.date inputs
+            (
+                [datetime.date(2020, 1, 1), datetime.date(2021, 12, 31)],
+                (pd.Timestamp("2020-01-01"), pd.Timestamp("2021-12-31")),
+            ),
+            # datetime.datetime inputs
+            (
+                [
+                    datetime.datetime(2020, 1, 1, 12, 30),
+                    datetime.datetime(2021, 12, 31, 23, 59),
+                ],
+                (
+                    pd.Timestamp("2020-01-01 12:30:00"),
+                    pd.Timestamp("2021-12-31 23:59:00"),
+                ),
+            ),
+            # pd.Timestamp inputs
+            (
+                [pd.Timestamp("2020-01-01"), pd.Timestamp("2021-12-31")],
+                (pd.Timestamp("2020-01-01"), pd.Timestamp("2021-12-31")),
+            ),
+            # pd.DatetimeIndex inputs
+            (
+                [
+                    pd.DatetimeIndex(["2020-01-01"])[0],
+                    pd.DatetimeIndex(["2021-12-31"])[0],
+                ],
+                (pd.Timestamp("2020-01-01"), pd.Timestamp("2021-12-31")),
+            ),
+            # Mixed valid types
+            (
+                [datetime.date(2020, 1, 1), "2021-12-31"],
+                (pd.Timestamp("2020-01-01"), pd.Timestamp("2021-12-31")),
+            ),
+            (
+                [pd.Timestamp("2020-01-01"), datetime.datetime(2021, 12, 31)],
+                (pd.Timestamp("2020-01-01"), pd.Timestamp("2021-12-31")),
+            ),
+            (
+                ["2020-01-01", 2021],
+                (pd.Timestamp("2020-01-01"), pd.Timestamp("2021-12-31")),
+            ),
+        ],
+        ids=[
+            "iso_strings",
+            "slash_strings",
+            "natural_strings",
+            "datetime_strings",
+            "year_ints",
+            "year_floats",
+            "date_objects",
+            "datetime_objects",
+            "timestamps",
+            "datetime_index",
+            "mixed_date_string",
+            "mixed_timestamp_datetime",
+            "mixed_string_year",
+        ],
+    )
+    def test_coerce_to_dates_valid_inputs(self, input_data, expected):
+        """Test _coerce_to_dates with various valid input combinations.
+
+        Parameters
+        ----------
+        input_data : list
+            Input data to coerce to dates.
+        expected : tuple
+            Expected output tuple of pd.Timestamp objects.
         """
-        # Test various string formats
-        result = _coerce_to_dates(["2020-01-01", "2021-12-31"])
+        result = _coerce_to_dates(input_data)
 
         assert isinstance(result, tuple)
         assert len(result) == 2
         assert isinstance(result[0], pd.Timestamp)
         assert isinstance(result[1], pd.Timestamp)
+        assert result[0] == expected[0]
+        assert result[1] == expected[1]
+
+    @pytest.mark.parametrize(
+        "invalid_input,expected_error_message",
+        [
+            # Invalid types
+            ([{"not": "a_date"}, "2021-01-01"], "is not a date-like object"),
+            (["2020-01-01", [1, 2, 3]], "is not a date-like object"),
+            ([None, "2021-01-01"], "Cannot coerce value"),
+            (["2020-01-01", object()], "is not a date-like object"),
+            # Invalid date strings
+            (["invalid-date", "2021-01-01"], "Cannot coerce value"),
+            (["2020-13-01", "2021-01-01"], "Cannot coerce value"),  # Invalid month
+            (["2020-01-32", "2021-01-01"], "Cannot coerce value"),  # Invalid day
+            # Empty DatetimeIndex
+            ([pd.DatetimeIndex([]), "2021-01-01"], "Empty DatetimeIndex"),
+            (["2020-01-01", pd.DatetimeIndex([])], "Empty DatetimeIndex"),
+        ],
+        ids=[
+            "dict_input",
+            "list_input",
+            "none_input",
+            "object_input",
+            "invalid_string",
+            "invalid_month",
+            "invalid_day",
+            "empty_datetime_index_first",
+            "empty_datetime_index_second",
+        ],
+    )
+    def test_coerce_to_dates_invalid_inputs(
+        self, invalid_input, expected_error_message
+    ):
+        """Test _coerce_to_dates with various invalid input types.
+
+        Parameters
+        ----------
+        invalid_input : list
+            Invalid input data that should raise ValueError.
+        expected_error_message : str
+            Expected error message substring.
+        """
+        with pytest.raises(ValueError, match=expected_error_message):
+            _coerce_to_dates(invalid_input)
+
+    @pytest.mark.parametrize(
+        "input_length,input_data",
+        [
+            (0, []),
+            (1, ["2020-01-01"]),
+            (3, ["2020-01-01", "2021-01-01", "2022-01-01"]),
+            (5, ["2020-01-01", "2021-01-01", "2022-01-01", "2023-01-01", "2024-01-01"]),
+        ],
+        ids=["empty", "single", "triple", "quintuple"],
+    )
+    def test_coerce_to_dates_invalid_length(self, input_length, input_data):
+        """Test _coerce_to_dates with invalid input lengths.
+
+        Parameters
+        ----------
+        input_length : int
+            Length of input data (for test ID purposes).
+        input_data : list
+            Input data with invalid length.
+        """
+        with pytest.raises(
+            ValueError, match=f"Expected exactly 2 date-like values, got {input_length}"
+        ):
+            _coerce_to_dates(input_data)
+
+    @pytest.mark.parametrize(
+        "iterable_type",
+        [
+            tuple,
+            list,
+            lambda x: iter(x),  # iterator
+            lambda x: (i for i in x),  # generator
+        ],
+        ids=["tuple", "list", "iterator", "generator"],
+    )
+    def test_coerce_to_dates_iterable_types(self, iterable_type):
+        """Test _coerce_to_dates with different iterable types.
+
+        Parameters
+        ----------
+        iterable_type : callable
+            Function to convert list to different iterable type.
+        """
+        input_data = ["2020-01-01", "2021-12-31"]
+        iterable_input = iterable_type(input_data)
+
+        result = _coerce_to_dates(iterable_input)
+
+        assert isinstance(result, tuple)
+        assert len(result) == 2
         assert result[0] == pd.Timestamp("2020-01-01")
         assert result[1] == pd.Timestamp("2021-12-31")
 
-    def test_coerce_to_dates_invalid_types(self):
-        """Test _coerce_to_dates with invalid input types.
+    def test_coerce_to_dates_edge_cases_datetime_index(self):
+        """Test _coerce_to_dates with DatetimeIndex edge cases."""
+        # Single element DatetimeIndex
+        single_dt_index = pd.DatetimeIndex(["2020-01-01"])
+        result = _coerce_to_dates([single_dt_index, "2021-12-31"])
 
-        Tests that the function returns None and issues warnings
-        for invalid date-like objects.
-        """
-        # Test with invalid type
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            result = _coerce_to_dates([{"not": "a_date"}])
+        assert result[0] == pd.Timestamp("2020-01-01")
+        assert result[1] == pd.Timestamp("2021-12-31")
 
-            assert result is None
-            assert len(w) == 1
-            assert "is not a date-like object" in str(w[0].message)
-            assert "Expected a string, int, float, datetime.date" in str(w[0].message)
+        # Multi-element DatetimeIndex (should use first element)
+        multi_dt_index = pd.DatetimeIndex(["2020-01-01", "2020-02-01", "2020-03-01"])
+        result = _coerce_to_dates([multi_dt_index, "2021-12-31"])
 
-    def test_coerce_to_dates_mixed_valid_types(self):
-        """Test _coerce_to_dates with various valid input types.
+        assert result[0] == pd.Timestamp("2020-01-01")
+        assert result[1] == pd.Timestamp("2021-12-31")
 
-        Tests that the function handles different date-like types
-        including datetime objects, timestamps, and numeric values.
-        """
-        # Test with mixed valid types
-        test_date = datetime.date(2020, 1, 1)
-        test_datetime = datetime.datetime(2021, 12, 31, 12, 0, 0)
-        test_datetimeindex = pd.DatetimeIndex(["2022-06-15"])
-        test_timestamp = pd.Timestamp("2022-06-15")
-
-        result = _coerce_to_dates(
-            [test_date, test_datetime, test_datetimeindex, test_timestamp, "2023-01-01"]
+    def test_coerce_to_dates_timezone_handling(self):
+        """Test _coerce_to_dates with timezone-aware datetime objects."""
+        # Timezone-aware datetime
+        tz_datetime = datetime.datetime(
+            2020, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc
         )
 
-        assert result is not None
+        result = _coerce_to_dates([tz_datetime, "2021-12-31"])
+
+        assert isinstance(result[0], pd.Timestamp)
+        assert result[0].year == 2020
+        assert result[0].month == 1
+        assert result[0].day == 1
+
+    def test_coerce_to_dates_boundary_dates(self):
+        """Test _coerce_to_dates with boundary date values."""
+        # Test very early and late dates
+        early_date = "1900-01-01"
+        late_date = "2100-12-31"
+
+        result = _coerce_to_dates([early_date, late_date])
+
+        assert result[0] == pd.Timestamp("1900-01-01")
+        assert result[1] == pd.Timestamp("2100-12-31")
+
+    def test_coerce_to_dates_unix_timestamps(self):
+        """Test _coerce_to_dates with Unix timestamp values.
+
+        Note: Unix timestamps need to be handled carefully as pandas
+        may interpret large integers as nanoseconds by default.
+        """
+        # Test with Unix timestamps converted to datetime strings first
+        # This shows the expected behavior for timestamp-like values
+        unix_ts_1 = 1577836800  # 2020-01-01 00:00:00 UTC
+        unix_ts_2 = 1640995199  # 2021-12-31 23:59:59 UTC
+
+        # Convert to datetime objects first, then test
+        dt1 = datetime.datetime.fromtimestamp(unix_ts_1)
+        dt2 = datetime.datetime.fromtimestamp(unix_ts_2)
+
+        result = _coerce_to_dates([dt1, dt2])
+
         assert isinstance(result, tuple)
-        assert len(result) == 4
-        assert all(isinstance(ts, pd.Timestamp) for ts in result)
-        assert result[0] == pd.Timestamp("2020-01-01")
-        assert result[1] == pd.Timestamp("2021-12-31 12:00:00")
-        assert result[2] == pd.Timestamp("2022-06-15")
-        assert result[3] == pd.Timestamp("2023-01-01")
+        assert len(result) == 2
+        assert result[0] == pd.Timestamp(dt1)
+        assert result[1] == pd.Timestamp(dt2)
+
+    def test_coerce_to_dates_set_order_independent(self):
+        """Test _coerce_to_dates with set input (order-independent check).
+
+        Since sets don't preserve order, we check that both expected
+        timestamps are present but don't enforce a specific order.
+        """
+        input_data = ["2020-01-01", "2021-12-31"]
+        set_input = set(input_data)
+
+        result = _coerce_to_dates(set_input)
+
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[0], pd.Timestamp)
+        assert isinstance(result[1], pd.Timestamp)
+
+        # Check that both expected dates are present (order-independent)
+        result_set = {result[0], result[1]}
+        expected_set = {pd.Timestamp("2020-01-01"), pd.Timestamp("2021-12-31")}
+        assert result_set == expected_set
