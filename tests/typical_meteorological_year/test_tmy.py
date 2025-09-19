@@ -750,7 +750,7 @@ class TestTMYClass:
         ).all()
         assert len(result["WRF_EC-Earth3_r1i1p1f1"].index) == 8760
 
-    def test_match_str_to_wl(self):
+    def test__match_str_to_wl(self):
         """Check the string returned for multiple warming levels."""
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
         start_year = 2001

@@ -669,6 +669,29 @@ class TMY:
             tmy_df_all[sim] = tmy_df_by_sim
         return tmy_df_all
 
+    @staticmethod
+    def _match_str_to_wl(warming_level: str) -> str:
+        """Return warming level description string
+
+        Parameters
+        ----------
+        warming_level: float
+            A standard warming level
+        """
+        match warming_level:
+            case _ if warming_level < 1.5:
+                return "_present-day"
+            case 1.5:
+                return "_near-future"
+            case 2.0:
+                return "_mid-century"
+            case 2.5:
+                return "_mid-late-century"
+            case 3.0:
+                return "_late-century"
+            case _:
+                return f"_warming-level-{warming_level}"
+
     def load_all_variables(self):
         """Load the datasets needed to create TMY."""
         print("Loading data from catalog. Expected runtime: 7 minutes")
@@ -846,29 +869,6 @@ class TMY:
             all_vars_ds, self.top_months
         )  # Return dict of TMY by simulation
         self._vprint("TMY analysis complete")
-
-    @staticmethod
-    def _match_str_to_wl(warming_level: str) -> str:
-        """Return warming level description string
-
-        Parameters
-        ----------
-        warming_level: float
-            A standard warming level
-        """
-        match warming_level:
-            case _ if warming_level < 1.5:
-                return "_present-day"
-            case 1.5:
-                return "_near-future"
-            case 2.0:
-                return "_mid-century"
-            case 2.5:
-                return "_mid-late-century"
-            case 3.0:
-                return "_late-century"
-            case _:
-                return f"_warming-level-{warming_level}"
 
     def export_tmy_data(self, extension: str = "epw"):
         """Write TMY data to EPW file.
