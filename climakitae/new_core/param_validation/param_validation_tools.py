@@ -57,29 +57,45 @@ def _validate_experimental_id_param(
     value: list[str] | None,
     valid_experiment_ids: list[str],
 ) -> bool:
-    """Validate the experiment_id parameter.
+    """Validate the experiment_id parameter against a list of valid experiment IDs.
 
-    This function checks if the provided value is valid for the experiment_id parameter.
-    It performs a greedy match against a predefined list of valid experiment IDs,
-    replacing partial matches with the full valid ID.
+    This function checks if the provided experiment_id value(s) are valid by comparing
+    them against a predefined list of valid experiment IDs. It supports partial matching
+    for convenience and provides helpful error messages with suggestions for invalid inputs.
 
     Parameters
     ----------
-    value : str | list[str] | None
-        The experiment_id parameter to validate.
+    value : list[str] | None
+        The experiment_id parameter to validate. Can be None, a single string converted
+        to a list internally, or a list of strings representing experiment IDs.
+    valid_experiment_ids : list[str]
+        A list of valid experiment ID strings to validate against.
 
     Returns
     -------
-    bool
-        True if valid, False otherwise.
+    bool :
+        True if all provided experiment IDs are valid or can be matched, False otherwise.
+        Returns False for None or empty inputs.
+
+    Warnings
+    --------
+    UserWarning
+        Issued when an experiment ID is not found, either with suggestions for
+        the closest matches or a general message to check available IDs.
 
     Notes
     -----
-    Modifies input value in place if it contains a single string that matches
-    multiple valid experiment IDs. If the value is a single string that does not
-    match any valid experiment ID, it will attempt to find the closest match
-    from the valid_experiment_ids list and issue a warning.
+    This function modifies the input value list in place under certain conditions:
 
+    - For single string inputs that partially match multiple valid experiment IDs,
+      the function performs a greedy match, replacing the partial string with all
+      matching full experiment IDs (e.g., "ssp" might expand to ["ssp126", "ssp245", "ssp585"]).
+
+    - For invalid experiment IDs, the function attempts to find the closest match
+      using fuzzy matching and issues warnings with suggestions.
+
+    - For multiple values, each is validated individually, and warnings are issued
+      for any invalid entries.
     """
 
     if value is None:
