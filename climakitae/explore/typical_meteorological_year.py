@@ -829,13 +829,19 @@ class TMY:
         tmy_data_to_export = self._make_8760_tables(
             all_vars_ds, self.top_months
         )  # Return dict of TMY by simulation
-        # Smooth transition hours
-        tmy_data_to_export = tmy_data_to_export.reset_index()
-        tmy_data_to_export = self._smooth_month_transition_hours(tmy_data_to_export)
 
-        # Mixing ratio was only needed for smoothing relative humidity,
-        # so it can be dropped now.
-        tmy_data_to_export = tmy_data_to_export.drop("Water Vapor Mixing Ratio at 2m")
+        # Smooth transition hours
+        for sim in tmy_data_to_export:
+            tmy_data_to_export["sim"] = tmy_data_to_export["sim"].reset_index()
+            tmy_data_to_export["sim"] = self._smooth_month_transition_hours(
+                tmy_data_to_export["sim"]
+            )
+
+            # Mixing ratio was only needed for smoothing relative humidity,
+            # so it can be dropped now.
+            tmy_data_to_export["sim"] = tmy_data_to_export["sim"].drop(
+                "Water Vapor Mixing Ratio at 2m"
+            )
         self.tmy_data_to_export = tmy_data_to_export
         self._vprint("TMY analysis complete")
 
