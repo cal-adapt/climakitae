@@ -2248,6 +2248,10 @@ def get_data(
         columns={"variable": "display_name"}
     )  # Rename column so that it can be merged with cat_df
 
+    # Filter variable descriptions based on enable_hidden_vars
+    if not enable_hidden_vars:
+        var_df = var_df[var_df["show"] == True]
+
     ## --------- ERROR HANDLING ----------
     # Deal with bad or missing users inputs
 
