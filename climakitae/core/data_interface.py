@@ -2428,9 +2428,15 @@ def get_data(
             ]
 
     # Check if it's an index
-    variable_id = (
-        var_df[var_df["display_name"] == cat_dict["variable"][0]].iloc[0].variable_id
+    # Use proper variable_id lookup that considers downscaling method and timescale
+    variable_ids = _get_var_ids(
+        data_interface.variable_descriptions,
+        cat_dict["variable"][0],
+        cat_dict["downscaling_method"][0],
+        cat_dict["timescale"][0],
+        enable_hidden_vars=enable_hidden_vars,
     )
+    variable_id = variable_ids[0] if variable_ids else ""
     variable_type = "Derived Index" if "_index" in variable_id else "Variable"
 
     # Settings for selections
