@@ -1437,7 +1437,9 @@ class DataParameters(param.Parameterized):
 
 
 def _get_user_friendly_catalog(
-    intake_catalog: intake_esm.source.ESMDataSource, variable_descriptions: pd.DataFrame
+    intake_catalog: intake_esm.source.ESMDataSource,
+    variable_descriptions: pd.DataFrame,
+    enable_hidden_vars: bool = False,
 ) -> pd.DataFrame:
     """Get a user-friendly version of the intake data catalog using climakitae naming conventions
 
