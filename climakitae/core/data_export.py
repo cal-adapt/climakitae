@@ -1502,9 +1502,7 @@ def write_tmy_file(
                 dfAsString = df.to_csv(sep=",", header=False, index=False)
                 f.write(dfAsString)  # writes data in TMY format
             print(
-                "TMY data exported to .tmy format with filename {}.tmy, with size {}".format(
-                    filename_to_export, len(df)
-                )
+                f"TMY data exported to .tmy format with filename {filename_to_export.tmy}, with size {len(df)}"
             )
         # energy plus weather format
         case "epw":
@@ -1528,9 +1526,15 @@ def write_tmy_file(
                 )
                 f.write(df_string)  # writes data in EPW format
             print(
-                "TMY data exported to .epw format with filename {}, with size {}.epw".format(
-                    filename_to_export, len(df)
-                )
+                f"TMY data exported to .epw format with filename {filename_to_export}, with size {len(df)}"
+            )
+        case "csv":
+            path_to_file = filename_to_export + ".csv"
+            df.to_csv(path_to_file, index=False)
+            print(
+                f"TMY data exported to .csv format with filename {filename_to_export}, with size {len(df)}"
             )
         case _:
-            print('Please pass either "tmy" or "epw" as a file format for export.')
+            print(
+                'Please pass either "tmy","epw", or "csv" as a file format for export.'
+            )
