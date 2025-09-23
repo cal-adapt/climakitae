@@ -2398,6 +2398,7 @@ def get_data(
         timescale=timescale,
         scenario=scenario,
         tidy=False,
+        enable_hidden_vars=enable_hidden_vars,
     )
 
     if check_input_df is None:
