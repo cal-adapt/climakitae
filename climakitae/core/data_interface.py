@@ -217,6 +217,7 @@ def _get_var_ids(
     variable: str,
     downscaling_method: str,
     timescale: str,
+    enable_hidden_vars: bool = False,
 ) -> list[str]:
     """Get variable ids that match the selected variable, timescale, and downscaling
     method. Required to account for the fact that LOCA, WRF, and various timescales use
