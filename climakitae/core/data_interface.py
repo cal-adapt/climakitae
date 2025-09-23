@@ -2533,6 +2533,21 @@ def get_data(
             selections.longitude = selections_dict["longitude"]
         if selections_dict["stations"] is not None:
             selections.stations = selections_dict["stations"]
+
+        for key in kwargs:
+            if getattr(selections, key, None) is not None:
+                setattr(selections, key, kwargs[key])
+
+        # Force update variable_id after all attributes are set
+        # This ensures hidden variables work correctly
+        selections.variable_id = _get_var_ids(
+            data_interface.variable_descriptions,
+            selections.variable,
+            selections.downscaling_method,
+            selections.timescale,
+            enable_hidden_vars=enable_hidden_vars,
+        )
+
     except ValueError as error_message:
         # The error message is really long
         # And sometimes has a confusing Attribute Error: Pieces mismatch that is hard to interpret
