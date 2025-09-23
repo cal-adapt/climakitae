@@ -1556,6 +1556,7 @@ def write_tmy_file(
                         df,
                     )
                 )  # writes required header lines
+                # WL time change happens in _epw_format_data if needed
                 df_string = _epw_format_data(df).to_csv(
                     sep=",", header=False, index=False
                 )
@@ -1564,6 +1565,9 @@ def write_tmy_file(
                 f"TMY data exported to .epw format with filename {filename_to_export}, with size {len(df)}"
             )
         case "csv":
+            # change time axis for GWL data to not use 2000's dummy times
+            if "warming_level" in df.columns:
+                df = _tmy_reset_time_for_gwl(df)
             path_to_file = filename_to_export + ".csv"
             df.to_csv(path_to_file, index=False)
             print(
