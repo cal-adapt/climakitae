@@ -450,7 +450,7 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
     #     data = data.mean("simulation")
 
     # # Step 2: Slice to first 8760 hours (one year) from time_delta
-    # data_8760 = data.isel(time_delta=slice(0, 8760))
+    data_8760 = data.isel(time_delta=slice(0, 8760))
 
     # Step 3: Create synthetic time coordinates for the 8760 hours
     print("      📅 Creating synthetic time coordinates...")
