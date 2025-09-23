@@ -2488,7 +2488,7 @@ def get_data(
     )  # Set units if user doesn't set them manually
 
     ## ------ CREATE SELECTIONS OBJECT --------
-    selections = DataParameters()
+    selections = DataParameters(enable_hidden_vars=enable_hidden_vars)
 
     # Error handling for stations
     # If the user input a value for the station argument, check that it exists
