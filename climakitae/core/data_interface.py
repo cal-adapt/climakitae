@@ -1116,7 +1116,9 @@ class DataParameters(param.Parameterized):
                     "states"
                 ].keys()
 
-    @param.depends("variable", "timescale", "downscaling_method", watch=True)
+    @param.depends(
+        "variable", "timescale", "downscaling_method", "enable_hidden_vars", watch=True
+    )
     def _update_unit_options(self):
         """Update unit options and native units for selected variable."""
         var_info = self.variable_options_df[
