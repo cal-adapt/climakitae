@@ -330,43 +330,91 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
     days_in_year = kwargs.pop("days_in_year", 365)
     q = kwargs.pop("q", 0.5)
 
+    print("🌡️  Starting climate profile computation...")
+    print(
+        f"   Parameters: warming_level={kwargs.get('warming_level', [1.2])}, "
+        f"variable={kwargs.get('variable', 'Air Temperature at 2m')}"
+    )
+    print(f"   Days in year: {days_in_year}, Quantile: {q}")
+
     # Retrieve the climate data
-    historic_data, future_data = retrieve_profile_data(**kwargs)
+    print("📊 Retrieving climate data...")
+    with tqdm(total=2, desc="Data retrieval", unit="dataset") as pbar:
+        historic_data, future_data = retrieve_profile_data(**kwargs)
+        pbar.update(2)
+
+    print(
+        f"   ✓ Historical data shape: {historic_data.dims if hasattr(historic_data, 'dims') else 'N/A'}"
+    )
+    print(
+        f"   ✓ Future data shape: {future_data.dims if hasattr(future_data, 'dims') else 'N/A'}"
+    )
 
     # Call compute_profile with the processed data
     # Compute profiles for both historical and future data
+    print("🔄 Processing data for profile computation...")
+
     if isinstance(future_data, xr.Dataset):
         var_name = list(future_data.data_vars.keys())[0]
         future_profile_data = future_data[var_name]
+        print(f"   ✓ Extracted variable '{var_name}' from future dataset")
     else:
         future_profile_data = future_data
+        print("   ✓ Using future data as DataArray")
 
     if isinstance(historic_data, xr.Dataset):
         var_name = list(historic_data.data_vars.keys())[0]
         historic_profile_data = historic_data[var_name]
+        print(f"   ✓ Extracted variable '{var_name}' from historic dataset")
     else:
         historic_profile_data = historic_data
+        print("   ✓ Using historic data as DataArray")
 
     # Compute profiles for both datasets
-    future_profile = compute_profile(
-        future_profile_data, days_in_year=days_in_year, q=q
-    )
-    historic_profile = compute_profile(
-        historic_profile_data, days_in_year=days_in_year, q=q
-    )
+    print("⚙️  Computing climate profiles...")
+
+    with tqdm(total=2, desc="Profile computation", unit="profile") as pbar:
+        print("   Computing future profile...")
+        future_profile = compute_profile(
+            future_profile_data, days_in_year=days_in_year, q=q
+        )
+        pbar.update(1)
+
+        print("   Computing historic profile...")
+        historic_profile = compute_profile(
+            historic_profile_data, days_in_year=days_in_year, q=q
+        )
+        pbar.update(1)
+
+    print(f"   ✓ Future profile shape: {future_profile.shape}")
+    print(f"   ✓ Historic profile shape: {historic_profile.shape}")
 
     # Compute the difference (future - historical)
+    print("🔢 Computing climate profile differences (future - historical)...")
+
     if isinstance(future_profile.columns, pd.MultiIndex):
         # Handle multiple warming levels
+        print(f"   Processing {len(future_profile.columns)} warming level columns...")
         difference_profile = future_profile.copy()
-        for col in future_profile.columns:
-            difference_profile[col] = (
-                future_profile[col] - historic_profile.iloc[:, 0]
-            )  # Use first column of historic
+
+        with tqdm(
+            total=len(future_profile.columns),
+            desc="Computing differences",
+            unit="column",
+        ) as pbar:
+            for col in future_profile.columns:
+                difference_profile[col] = (
+                    future_profile[col] - historic_profile.iloc[:, 0]
+                )  # Use first column of historic
+                pbar.update(1)
     else:
         # Single warming level
+        print("   Computing difference for single warming level...")
         difference_profile = future_profile - historic_profile
 
+    print(
+        f"✅ Climate profile computation complete! Final shape: {difference_profile.shape}"
+    )
     return difference_profile
 
 
