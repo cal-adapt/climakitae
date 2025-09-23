@@ -1087,6 +1087,7 @@ class DataParameters(param.Parameterized):
             self.variable,
             self.downscaling_method,
             self.timescale,
+            self.enable_hidden_vars,
         )
         self.colormap = var_info.colormap.item()
 
