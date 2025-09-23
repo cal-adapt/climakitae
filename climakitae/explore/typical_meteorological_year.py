@@ -559,9 +559,6 @@ class TMY:
         day1hour1 = times[(times.dt.day == 1) & (times.dt.hour == 0)][
             1:
         ]  # skip Jan 1 since no prior month
-        assert (
-            len(day1hour1) == 11
-        ), "Count of day 1 hour 0 instances should be 12 in an 8760"
         day1ind = [int(np.where(times.to_numpy() == x)[0][0]) for x in day1hour1]
         # bracket around the 1st of the month
         start_times = [x - 6 for x in day1ind]
@@ -606,11 +603,10 @@ class TMY:
                 mixing_ratio=q2_da,  # g/kg
             ).data
             df.loc[row_ind, "Relative humidity"] = np.float32(rh_da)
-        return df, day1ind
+        return df
 
-    def _make_8760_tables(
-        self, all_vars_ds: xr.Dataset, top_months: pd.DataFrame
-    ) -> dict:
+    @staticmethod
+    def _make_8760_tables(all_vars_ds: xr.Dataset, top_months: pd.DataFrame) -> dict:
         """Extract top months from loaded data and arrange in table.
 
         Pulled out of the run_tmy_analysis() code for easier testing.
@@ -653,13 +649,6 @@ class TMY:
 
             # Concatenate all DataFrames together
             tmy_df_by_sim = pd.concat(df_list)
-
-            # Smooth transition hours
-            tmy_df_by_sim = self._smooth_month_transition_hours(tmy_df_by_sim)
-
-            # Mixing ratio was only needed for smoothing relative humidity,
-            # so it can be dropped now.
-            tmy_df_by_sim = tmy_df_by_sim.drop("Water Vapor Mixing Ratio at 2m")
 
             tmy_df_all[sim] = tmy_df_by_sim
         return tmy_df_all
@@ -837,9 +826,17 @@ class TMY:
             "\n  STEP 2: Calculating Typical Meteorological Year per model simulation\nProgress bar shows code looping through each month in the year.\n"
         )
 
-        self.tmy_data_to_export = self._make_8760_tables(
+        tmy_data_to_export = self._make_8760_tables(
             all_vars_ds, self.top_months
         )  # Return dict of TMY by simulation
+        # Smooth transition hours
+        tmy_data_to_export = tmy_data_to_export.reset_index()
+        tmy_data_to_export = self._smooth_month_transition_hours(tmy_data_to_export)
+
+        # Mixing ratio was only needed for smoothing relative humidity,
+        # so it can be dropped now.
+        tmy_data_to_export = tmy_data_to_export.drop("Water Vapor Mixing Ratio at 2m")
+        self.tmy_data_to_export = tmy_data_to_export
         self._vprint("TMY analysis complete")
 
     def export_tmy_data(self, extension: str = "epw"):

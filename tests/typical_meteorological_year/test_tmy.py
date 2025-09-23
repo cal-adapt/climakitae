@@ -632,6 +632,48 @@ class TestTMYClass:
         ).all()
         assert len(result["WRF_EC-Earth3_r1i1p1f1"].index) == 8760
 
+    def test__smooth_month_transition_hours(self):
+        """Check that smoothed data returned for variables in list. Does not check relative humidity."""
+        variable_list = [
+            "Air Temperature at 2m",
+            "Dew point temperature",
+            "Wind speed at 10m",
+            "Wind direction at 10m",
+            "Surface Pressure",
+            "Water Vapor Mixing Ratio at 2m",
+        ]
+        data = {
+            "time": pd.date_range("2000-01-01-00", "2000-03-31-23", freq="1h"),
+            "simulation": ["WRF_EC-Earth3_r1i1p1f1" for x in range(0, 2184)],
+        }
+        # Add data with a transition from 0 to 1 at midnight on
+        # Jan 31/Feb 1 to smooth
+        for varname in variable_list:
+            data[varname] = np.zeros(len(data["time"]))
+            data[varname][31 * 24 : 32 * 24] = 1
+        df = pd.DataFrame.from_dict(data)
+
+        stn_name = "Santa Ana John Wayne Airport (KSNA)"
+        start_year = 2001
+        end_year = 2003
+        tmy = TMY(start_year, end_year, station_name=stn_name)
+        result = tmy._smooth_month_transition_hours(df)
+
+        # Get a linear fit over a similar 12 hour window to the data
+        x = np.arange(0, 12)
+        n = np.concat((np.zeros(6), np.ones(6)))
+        fit = np.polyfit(x, n, 1)
+        fitted_line = x * fit[0] + fit[1]
+
+        # Check that the correct variables were smoothed
+        for varname in variable_list:
+            assert pytest.approx(fitted_line[0], 1e-6) == pytest.approx(
+                result[varname][738], 1e-6
+            )
+            assert pytest.approx(fitted_line[11], 1e-6) == pytest.approx(
+                result[varname][749], 1e-6
+            )
+
     @patch("climakitae.explore.typical_meteorological_year.get_top_months")
     def test_set_top_months(self, mock_top_months):
         """Check that set_top_months calls correct functions."""
