@@ -1584,6 +1584,10 @@ def _get_var_name_from_table(
         & (var_df["downscaling_method"] == downscaling_method)
     ]
 
+    # Filter by show column unless hidden variables are enabled
+    if not enable_hidden_vars:
+        var_df_query = var_df_query[var_df_query["show"] == True]
+
     # Timescale in table needs to be handled differently
     # This is because the monthly variables are derived from daily variables, so they are listed in the table as "daily, monthly"
     # Hourly variables may be different
