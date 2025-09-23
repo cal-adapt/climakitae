@@ -876,7 +876,7 @@ class TMY:
         Parameters
         ----------
         extension: str
-            Desired file extension ('tmy' or 'epw')
+            Desired file extension ('tmy','epw', or 'csv')
 
         """
         print("Exporting TMY to file.")
