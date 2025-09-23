@@ -1553,7 +1553,11 @@ def _get_user_friendly_catalog(
 
 
 def _get_var_name_from_table(
-    variable_id: str, downscaling_method: str, timescale: str, var_df: pd.DataFrame
+    variable_id: str,
+    downscaling_method: str,
+    timescale: str,
+    var_df: pd.DataFrame,
+    enable_hidden_vars: bool = False,
 ) -> str:
     """Get the variable name corresponding to its ID, downscaling method, and timescale
     Enables the _get_user_friendly_catalog function to get the name of a variable corresponding to a set of user inputs
