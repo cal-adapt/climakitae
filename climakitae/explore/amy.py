@@ -457,24 +457,27 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
     print("      📅 Creating synthetic time coordinates...")
     hours_per_day = 24
     hours_per_year = 8760
-    # Fix: Use the sliced data length, not original data length
-    n_years = len(data_8760.time_delta) // (
-        days_in_year * hours_per_day
-    )  # Should be 1 year for 8760 hours
 
-    print(
-        f"      ✓ Processing {n_years} year of data ({len(data_8760.time_delta)} hours total)"
-    )
+    # Get actual length of sliced data
+    actual_hours = len(data_8760.time_delta)
+    print(f"      ✓ Sliced data has {actual_hours} hours")
 
-    # Synthetic hour of year (1–8760) repeated for all years
-    hour_of_year = np.tile(np.arange(1, hours_per_year + 1), n_years)
+    # For 8760 analysis, we expect exactly 8760 hours (1 year)
+    if actual_hours != hours_per_year:
+        print(f"      ⚠️  Warning: Expected {hours_per_year} hours, got {actual_hours}")
 
-    # Synthetic year index (1–30) repeated for each hour of the year
-    year = np.repeat(np.arange(1, n_years + 1), hours_per_year)
+    # Create synthetic coordinates for the actual data length
+    # Hour of year (1–8760) for the sliced data
+    hour_of_year = np.arange(1, actual_hours + 1)
+
+    # For 8760 hours, this represents 1 year, so all hours belong to year 1
+    year = np.ones(actual_hours, dtype=int)
+
+    print(f"      ✓ Created coordinates for {len(hour_of_year)} hours")
 
     # Assign coordinates
     print("      🏷️  Assigning synthetic coordinates...")
-    data_8760 = data.assign_coords(
+    data_8760 = data_8760.assign_coords(
         synthetic_hour_of_year=("time_delta", hour_of_year),
         synthetic_year=("time_delta", year),
     )
@@ -544,7 +547,7 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
                 # Select warming level data
                 data_wl = data_8760.sel(warming_level=wl)
 
-                # Optimization: Group and process more efficiently
+                # Optimization: Group and process more efficiently``
                 # Process all hours for this warming level at once
                 hourly_da = data_wl.groupby("synthetic_hour_of_year").map(
                     _closest_to_mean
