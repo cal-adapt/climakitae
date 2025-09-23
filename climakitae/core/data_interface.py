@@ -1516,6 +1516,7 @@ def _get_user_friendly_catalog(
             x["downscaling_method"],
             x["timescale"],
             variable_descriptions,
+            enable_hidden_vars,
         ),
         axis=1,
     )
