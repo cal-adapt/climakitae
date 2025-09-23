@@ -185,7 +185,6 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
     ALLOWED_INPUTS = {
         "variable": (str, "Air Temperature at 2m"),
         "resolution": (str, "3 km"),
-        "scenario": (list, ["SSP 3-7.0"]),
         "warming_level": (list, [1.2]),
         "cached_area": ((str, list), None),
         "units": (str, "degF"),
@@ -225,7 +224,6 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
         "timescale": "hourly",  # must be hourly for 8760 analysis
         "area_average": "Yes",
         "units": "degF",
-        "scenario": kwargs.get("scenario", ["SSP 3-7.0"]),
         "approach": "Warming Level",
         "warming_level": [1.2],
         "cached_area": kwargs.get("cached_area", None),
@@ -289,8 +287,93 @@ def compute_amy(data: xr.DataArray, days_in_year: int = 366) -> pd.DataFrame:
     return df_amy
 
 
+def get_climate_profile(**kwargs) -> pd.DataFrame:
+    """
+    High-level function to compute climate profiles using warming level data.
+
+    This function retrieves climate data and computes average meteorological year
+    profiles using the 8760 analysis approach. It combines data retrieval and
+    profile computation in a single call.
+
+    Parameters
+    ----------
+    **kwargs : dict
+        Keyword arguments for data selection. Allowed keys:
+        - variable (Optional) : str, default "Air Temperature at 2m"
+        - resolution (Optional) : str, default "3 km"
+        - warming_level (Required) : List[float], default [1.2]
+        - cached_area (Optional) : str or List[str]
+        - units (Optional) : str, default "degF"
+        - latitude (Optional) : float or tuple
+        - longitude (Optional) : float or tuple
+        - days_in_year (Optional) : int, default 365
+        - q (Optional) : float, default 0.5, quantile for profile calculation
+
+    Returns
+    -------
+    pd.DataFrame
+        Average meteorological year table for each warming level, with days of year as
+        the index and hour of day as the columns. If multiple warming levels exist,
+        they will be included as additional column levels.
+
+    Examples
+    --------
+    >>> profile = get_climate_profile(
+    ...     variable="Air Temperature at 2m",
+    ...     warming_level=[1.5, 2.0, 3.0],
+    ...     units="degF"
+    ... )
+
+    >>> profile = get_climate_profile(warming_level=[2.0])
+    """
+    # Extract parameters for compute_profile
+    days_in_year = kwargs.pop("days_in_year", 365)
+    q = kwargs.pop("q", 0.5)
+
+    # Retrieve the climate data
+    historic_data, future_data = retrieve_profile_data(**kwargs)
+
+    # Call compute_profile with the processed data
+    # Compute profiles for both historical and future data
+    if isinstance(future_data, xr.Dataset):
+        var_name = list(future_data.data_vars.keys())[0]
+        future_profile_data = future_data[var_name]
+    else:
+        future_profile_data = future_data
+
+    if isinstance(historic_data, xr.Dataset):
+        var_name = list(historic_data.data_vars.keys())[0]
+        historic_profile_data = historic_data[var_name]
+    else:
+        historic_profile_data = historic_data
+
+    # Compute profiles for both datasets
+    future_profile = compute_profile(
+        future_profile_data, days_in_year=days_in_year, q=q
+    )
+    historic_profile = compute_profile(
+        historic_profile_data, days_in_year=days_in_year, q=q
+    )
+
+    # Compute the difference (future - historical)
+    if isinstance(future_profile.columns, pd.MultiIndex):
+        # Handle multiple warming levels
+        difference_profile = future_profile.copy()
+        for col in future_profile.columns:
+            difference_profile[col] = (
+                future_profile[col] - historic_profile.iloc[:, 0]
+            )  # Use first column of historic
+    else:
+        # Single warming level
+        difference_profile = future_profile - historic_profile
+
+    return difference_profile
+
+
 def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.DataFrame:
-    """Calculates the average meteorological year profile for warming level data using 8760 analysis
+    """
+    Calculates the average meteorological year profile for warming level data using 8760
+    analysis
 
     This function handles global warming levels approach using time_delta coordinate.
     Takes the first 8760 hours (one year) from the time_delta dimension and processes
@@ -299,7 +382,9 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
     Parameters
     ----------
     data : xr.DataArray
-        Hourly data for one variable with warming_level and time_delta dimensions
+        Hourly base-line subtracted data for one variable with warming_level and
+        time_delta dimensions
+
     days_in_year : int, optional
         Either 366 or 365, depending on whether or not the year is a leap year.
         Default to 366 days (leap year)
