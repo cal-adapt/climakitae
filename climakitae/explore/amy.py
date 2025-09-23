@@ -184,7 +184,7 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
     # Define allowed inputs with types and defaults
     ALLOWED_INPUTS = {
         "variable": (str, "Air Temperature at 2m"),
-        "resolution": (str, "4km"),
+        "resolution": (str, "3 km"),
         "scenario": (list, ["SSP 3-7.0"]),
         "warming_level": (list, [1.2]),
         "cached_area": ((str, list), None),
@@ -244,34 +244,6 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
 
 
 # TODO : update this function to handle the correct formatting of multi-warming level dataframes
-def _format_meteo_yr_df(df: pd.DataFrame) -> pd.DataFrame:
-    """Format dataframe output from compute_amy and compute_severe_yr"""
-    ## Re-order columns for PST, with easy to read time labels
-    cols = df.columns.tolist()
-    cols = cols[7:] + cols[:7]
-    df = df[cols]
-
-    n_col_lst = []
-    for ampm in ["am", "pm"]:
-        hr_lst = []
-        for hr in range(1, 13, 1):
-            hr_lst.append(str(hr) + ampm)
-        hr_lst = hr_lst[-1:] + hr_lst[:-1]
-        n_col_lst = n_col_lst + hr_lst
-    df.columns = n_col_lst
-    df.columns.name = "Hour"
-
-    # Convert Julian date index to Month-Day format
-    # Use 2024 as year if we have 366 days (leap year), otherwise use 2023
-    year = 2024 if len(df) == 366 else 2023
-    new_index = [
-        julianDay_to_date(julday, year=year, str_format="%b-%d") for julday in df.index
-    ]
-    df.index = pd.Index(new_index, name="Day of Year")
-    return df
-
-
-# TODO : update this function to handle the correct formatting of multi-warming level dataframes
 # * See compute_profile function below for possible implementation
 def compute_amy(data: xr.DataArray, days_in_year: int = 366) -> pd.DataFrame:
     """Calculates the average meteorological year based on a designated period of time
@@ -297,7 +269,7 @@ def compute_amy(data: xr.DataArray, days_in_year: int = 366) -> pd.DataFrame:
     def _closest_to_mean(dat: xr.DataArray) -> xr.DataArray:
         """Find the value closest to the mean of the data."""
         stacked = dat.stack(allofit=list(dat.dims))
-        index = abs(stacked - stacked.mean("allofit")).argmin(dim="allofit").values
+        index = abs(stacked - stacked.quantile("allofit")).argmin(dim="allofit").values
         return xr.DataArray(stacked.isel(allofit=index).values)
 
     def _return_diurnal(y: xr.DataArray) -> xr.DataArray:
@@ -317,7 +289,7 @@ def compute_amy(data: xr.DataArray, days_in_year: int = 366) -> pd.DataFrame:
     return df_amy
 
 
-def compute_profile(data: xr.DataArray, days_in_year: int = 366) -> pd.DataFrame:
+def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.DataFrame:
     """Calculates the average meteorological year profile for warming level data using 8760 analysis
 
     This function handles global warming levels approach using time_delta coordinate.
@@ -340,49 +312,54 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 366) -> pd.DataFrame
         they will be included as additional column levels.
 
     """
+    # # Step 1: Take ensemble mean across simulations
+    # if "simulation" in data.dims:
+    #     data = data.mean("simulation")
 
-    # Step 1: Take ensemble mean across simulations
-    if "simulation" in data.dims:
-        data = data.mean("simulation")
-
-    # Step 2: Slice to first 8760 hours (one year) from time_delta
-    data_8760 = data.isel(time_delta=slice(0, 8760))
+    # # Step 2: Slice to first 8760 hours (one year) from time_delta
+    # data_8760 = data.isel(time_delta=slice(0, 8760))
 
     # Step 3: Create synthetic time coordinates for the 8760 hours
     hours_per_day = 24
-    n_hours = 8760
+    hours_per_year = 8760
+    n_years = len(data.time_delta) // (
+        days_in_year * hours_per_day
+    )  # Requires `time_delta` dimension on data
 
-    # Create dayofyear (1-365 or 1-366) and hour (0-23) coordinates
-    dayofyear = np.repeat(np.arange(1, days_in_year + 1), hours_per_day)[:n_hours]
-    hour = np.tile(np.arange(0, hours_per_day), days_in_year)[:n_hours]
+    # Synthetic hour of year (1–8760) repeated for all years
+    hour_of_year = np.tile(np.arange(1, hours_per_year + 1), n_years)
 
-    # Assign synthetic coordinates
-    data_8760 = data_8760.assign_coords(
-        synthetic_dayofyear=("time_delta", dayofyear),
-        synthetic_hour=("time_delta", hour),
+    # Synthetic year index (1–30) repeated for each hour of the year
+    year = np.repeat(np.arange(1, n_years + 1), hours_per_year)
+
+    # Assign coordinates
+    data_8760 = data.assign_coords(
+        synthetic_hour_of_year=("time_delta", hour_of_year),
+        synthetic_year=("time_delta", year),
     )
 
-    # Step 4: Define helper functions (same as original)
     def _closest_to_mean(dat: xr.DataArray) -> xr.DataArray:
         """Find the value closest to the mean of the data."""
         stacked = dat.stack(allofit=list(dat.dims))
-        index = abs(stacked - stacked.mean("allofit")).argmin(dim="allofit").values
-        return xr.DataArray(stacked.isel(allofit=index).values)
+        index = (
+            abs(stacked - stacked.quantile(q, "allofit")).argmin(dim="allofit").values
+        )
+        return stacked.isel(allofit=index)
 
-    def _return_diurnal(y: xr.DataArray) -> xr.DataArray:
-        """Return the diurnal cycle of the data."""
-        return y.groupby("synthetic_hour").map(_closest_to_mean)
-
-    # Step 5: Process each warming level separately
     warming_levels = data_8760.warming_level.values
 
-    if len(warming_levels) == 1:
+    if (
+        len(warming_levels) == 1 or data_8760.warming_level.size == 1
+    ):  # In case `warming_level` is not a dimension
+
         # Single warming level - process normally
-        hourly_da = data_8760.groupby("synthetic_dayofyear").map(_return_diurnal)
+
+        # Create `amy` DataArray with `_closest_to_mean` applied across warming levels
+        hourly_da = data_8760.groupby(["synthetic_hour_of_year"]).map(_closest_to_mean)
 
         # Create DataFrame
         df_profile = pd.DataFrame(
-            hourly_da.values,
+            hourly_da.values.reshape(days_in_year, hours_per_day),
             columns=np.arange(1, 25, 1),
             index=np.arange(1, days_in_year + 1, 1),
         )
@@ -391,9 +368,13 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 366) -> pd.DataFrame
         # Multiple warming levels - process each separately and combine
         profile_dict = {}
 
-        for wl in warming_levels:
+        for wl in data_8760.warming_level.values:
             data_wl = data_8760.sel(warming_level=wl)
-            hourly_da = data_wl.groupby("synthetic_dayofyear").map(_return_diurnal)
+
+            # Create `amy` DataArray with `_closest_to_mean` applied across warming levels
+            hourly_da = data_wl.groupby(
+                ["warming_level", "synthetic_hour_of_year"]
+            ).map(_closest_to_mean)
 
             profile_dict[f"WL_{wl}"] = hourly_da.values
 
@@ -430,6 +411,34 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 366) -> pd.DataFrame
         df_profile = _format_profile_df_multi_wl(df_profile)
 
     return df_profile
+
+
+# TODO : update this function to handle the correct formatting of multi-warming level dataframes
+def _format_meteo_yr_df(df: pd.DataFrame) -> pd.DataFrame:
+    """Format dataframe output from compute_amy and compute_severe_yr"""
+    ## Re-order columns for PST, with easy to read time labels
+    cols = df.columns.tolist()
+    cols = cols[7:] + cols[:7]
+    df = df[cols]
+
+    n_col_lst = []
+    for ampm in ["am", "pm"]:
+        hr_lst = []
+        for hr in range(1, 13, 1):
+            hr_lst.append(str(hr) + ampm)
+        hr_lst = hr_lst[-1:] + hr_lst[:-1]
+        n_col_lst = n_col_lst + hr_lst
+    df.columns = n_col_lst
+    df.columns.name = "Hour"
+
+    # Convert Julian date index to Month-Day format
+    # Use 2024 as year if we have 366 days (leap year), otherwise use 2023
+    year = 2024 if len(df) == 366 else 2023
+    new_index = [
+        julianDay_to_date(julday, year=year, str_format="%b-%d") for julday in df.index
+    ]
+    df.index = pd.Index(new_index, name="Day of Year")
+    return df
 
 
 def _format_profile_df_multi_wl(df: pd.DataFrame) -> pd.DataFrame:
