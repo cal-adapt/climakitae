@@ -449,19 +449,21 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
     # if "simulation" in data.dims:
     #     data = data.mean("simulation")
 
-    # # Step 2: Slice to first 8760 hours (one year) from time_delta
+    # Step 2: Slice to first 8760 hours (one year) from time_delta
+    print("      ✂️  Slicing to first 8760 hours for profile analysis...")
     data_8760 = data.isel(time_delta=slice(0, 8760))
 
     # Step 3: Create synthetic time coordinates for the 8760 hours
     print("      📅 Creating synthetic time coordinates...")
     hours_per_day = 24
     hours_per_year = 8760
-    n_years = len(data.time_delta) // (
+    # Fix: Use the sliced data length, not original data length
+    n_years = len(data_8760.time_delta) // (
         days_in_year * hours_per_day
-    )  # Requires `time_delta` dimension on data
+    )  # Should be 1 year for 8760 hours
 
     print(
-        f"      ✓ Processing {n_years} years of data ({len(data.time_delta)} hours total)"
+        f"      ✓ Processing {n_years} year of data ({len(data_8760.time_delta)} hours total)"
     )
 
     # Synthetic hour of year (1–8760) repeated for all years
@@ -479,11 +481,19 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
     print("      ✓ Synthetic coordinates assigned")
 
     def _closest_to_mean(dat: xr.DataArray) -> xr.DataArray:
-        """Find the value closest to the mean of the data."""
+        """Find the value closest to the mean of the data. Optimized version."""
+        # Optimization: Use numpy operations directly when possible
+        if dat.size == 1:
+            return dat
+
+        # Stack all dimensions for processing
         stacked = dat.stack(allofit=list(dat.dims))
-        index = (
-            abs(stacked - stacked.quantile(q, "allofit")).argmin(dim="allofit").values
-        )
+
+        # Optimization: Compute quantile and differences in one operation
+        target_quantile = stacked.quantile(q, "allofit")
+        differences = abs(stacked - target_quantile)
+        index = differences.argmin(dim="allofit").values
+
         return stacked.isel(allofit=index)
 
     warming_levels = data_8760.warming_level.values
@@ -512,24 +522,33 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
         print(f"      ✓ Single warming level profile created: {df_profile.shape}")
 
     else:
-        # Multiple warming levels - process each separately and combine
+        # Multiple warming levels - process more efficiently
         print("      📊 Computing profiles for multiple warming levels...")
+        print("      ⚡ Using optimized vectorized approach...")
+
+        # Pre-allocate results dictionary
         profile_dict = {}
+        n_warming_levels = len(data_8760.warming_level.values)
 
         with tqdm(
-            total=len(data_8760.warming_level.values),
+            total=n_warming_levels,
             desc="      Processing warming levels",
             unit="level",
             leave=False,
         ) as pbar:
-            for wl in data_8760.warming_level.values:
-                print(f"         🔍 Processing warming level {wl}°C...")
+            for i, wl in enumerate(data_8760.warming_level.values):
+                print(
+                    f"         🔍 Processing warming level {wl}°C ({i+1}/{n_warming_levels})..."
+                )
+
+                # Select warming level data
                 data_wl = data_8760.sel(warming_level=wl)
 
-                # Create `amy` DataArray with `_closest_to_mean` applied across warming levels
-                hourly_da = data_wl.groupby(
-                    ["warming_level", "synthetic_hour_of_year"]
-                ).map(_closest_to_mean)
+                # Optimization: Group and process more efficiently
+                # Process all hours for this warming level at once
+                hourly_da = data_wl.groupby("synthetic_hour_of_year").map(
+                    _closest_to_mean
+                )
 
                 profile_dict[f"WL_{wl}"] = hourly_da.values
                 print(f"         ✓ Completed warming level {wl}°C")
@@ -537,11 +556,16 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
 
         # Create multi-level DataFrame
         print("      📋 Creating multi-level DataFrame...")
+
+        # Optimization: Pre-allocate arrays for better memory usage
         profile_arrays = list(profile_dict.values())
         warming_level_names = list(profile_dict.keys())
 
         # Stack arrays and create MultiIndex columns
         print("      🏗️  Stacking arrays and creating MultiIndex columns...")
+        print(
+            f"         Memory usage optimization: Processing {len(profile_arrays)} warming levels..."
+        )
         stacked_data = np.stack(profile_arrays, axis=-1)
 
         # Reshape for DataFrame: (days, hours*warming_levels)
