@@ -1953,6 +1953,8 @@ def get_data(
     warming_level_window: int = None,
     warming_level_months: list[int] = None,
     all_touched=False,
+    enable_hidden_vars: bool = False,
+    **kwargs,
 ) -> xr.DataArray:
     # Need to add error handing for bad variable input
     """Retrieve formatted data from the Analytics Engine data catalog using a simple function.
