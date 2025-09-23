@@ -453,11 +453,16 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
     # data_8760 = data.isel(time_delta=slice(0, 8760))
 
     # Step 3: Create synthetic time coordinates for the 8760 hours
+    print("      📅 Creating synthetic time coordinates...")
     hours_per_day = 24
     hours_per_year = 8760
     n_years = len(data.time_delta) // (
         days_in_year * hours_per_day
     )  # Requires `time_delta` dimension on data
+
+    print(
+        f"      ✓ Processing {n_years} years of data ({len(data.time_delta)} hours total)"
+    )
 
     # Synthetic hour of year (1–8760) repeated for all years
     hour_of_year = np.tile(np.arange(1, hours_per_year + 1), n_years)
@@ -466,10 +471,12 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
     year = np.repeat(np.arange(1, n_years + 1), hours_per_year)
 
     # Assign coordinates
+    print("      🏷️  Assigning synthetic coordinates...")
     data_8760 = data.assign_coords(
         synthetic_hour_of_year=("time_delta", hour_of_year),
         synthetic_year=("time_delta", year),
     )
+    print("      ✓ Synthetic coordinates assigned")
 
     def _closest_to_mean(dat: xr.DataArray) -> xr.DataArray:
         """Find the value closest to the mean of the data."""
@@ -480,42 +487,61 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
         return stacked.isel(allofit=index)
 
     warming_levels = data_8760.warming_level.values
+    print(
+        f"      🌡️  Processing {len(warming_levels)} warming level(s): {warming_levels}"
+    )
 
     if (
         len(warming_levels) == 1 or data_8760.warming_level.size == 1
     ):  # In case `warming_level` is not a dimension
 
         # Single warming level - process normally
+        print("      📊 Computing profile for single warming level...")
 
         # Create `amy` DataArray with `_closest_to_mean` applied across warming levels
+        print("      🔍 Finding closest-to-mean values for each hour of year...")
         hourly_da = data_8760.groupby(["synthetic_hour_of_year"]).map(_closest_to_mean)
 
         # Create DataFrame
+        print("      📋 Creating profile DataFrame...")
         df_profile = pd.DataFrame(
             hourly_da.values.reshape(days_in_year, hours_per_day),
             columns=np.arange(1, 25, 1),
             index=np.arange(1, days_in_year + 1, 1),
         )
+        print(f"      ✓ Single warming level profile created: {df_profile.shape}")
 
     else:
         # Multiple warming levels - process each separately and combine
+        print("      📊 Computing profiles for multiple warming levels...")
         profile_dict = {}
 
-        for wl in data_8760.warming_level.values:
-            data_wl = data_8760.sel(warming_level=wl)
+        with tqdm(
+            total=len(data_8760.warming_level.values),
+            desc="      Processing warming levels",
+            unit="level",
+            leave=False,
+        ) as pbar:
+            for wl in data_8760.warming_level.values:
+                print(f"         🔍 Processing warming level {wl}°C...")
+                data_wl = data_8760.sel(warming_level=wl)
 
-            # Create `amy` DataArray with `_closest_to_mean` applied across warming levels
-            hourly_da = data_wl.groupby(
-                ["warming_level", "synthetic_hour_of_year"]
-            ).map(_closest_to_mean)
+                # Create `amy` DataArray with `_closest_to_mean` applied across warming levels
+                hourly_da = data_wl.groupby(
+                    ["warming_level", "synthetic_hour_of_year"]
+                ).map(_closest_to_mean)
 
-            profile_dict[f"WL_{wl}"] = hourly_da.values
+                profile_dict[f"WL_{wl}"] = hourly_da.values
+                print(f"         ✓ Completed warming level {wl}°C")
+                pbar.update(1)
 
         # Create multi-level DataFrame
+        print("      📋 Creating multi-level DataFrame...")
         profile_arrays = list(profile_dict.values())
         warming_level_names = list(profile_dict.keys())
 
         # Stack arrays and create MultiIndex columns
+        print("      🏗️  Stacking arrays and creating MultiIndex columns...")
         stacked_data = np.stack(profile_arrays, axis=-1)
 
         # Reshape for DataFrame: (days, hours*warming_levels)
@@ -535,14 +561,19 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
             columns=multi_cols,
             index=np.arange(1, days_in_year + 1, 1),
         )
+        print(f"      ✓ Multi-level profile created: {df_profile.shape}")
 
     # Step 6: Format dataframe using existing helper
+    print("      🎨 Formatting profile DataFrame...")
     if len(warming_levels) == 1:
+        print("      📝 Applying single warming level formatting...")
         df_profile = _format_meteo_yr_df(df_profile)
     else:
         # For multiple warming levels, we need custom formatting
+        print("      📝 Applying multi-warming level formatting...")
         df_profile = _format_profile_df_multi_wl(df_profile)
 
+    print(f"      ✅ Profile computation complete! Final shape: {df_profile.shape}")
     return df_profile
 
 
