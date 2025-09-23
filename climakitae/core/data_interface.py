@@ -1783,7 +1783,9 @@ def get_data_options(
     var_df = data_interface.variable_descriptions
     catalog = data_interface.data_catalog
     cat_df = _get_user_friendly_catalog(
-        intake_catalog=catalog, variable_descriptions=var_df
+        intake_catalog=catalog,
+        variable_descriptions=var_df,
+        enable_hidden_vars=enable_hidden_vars,
     )
 
     # Raise error for bad input from user
