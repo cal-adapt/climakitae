@@ -1747,6 +1747,7 @@ def get_data_options(
     timescale: str = None,
     scenario: Union[str, list[str]] = None,
     tidy: bool = True,
+    enable_hidden_vars: bool = False,
 ) -> pd.DataFrame:
     """Get data options, in the same format as the Select GUI, given a set of possible inputs.
     Allows the user to access the data using the same language as the GUI, bypassing the sometimes unintuitive naming in the catalog.
