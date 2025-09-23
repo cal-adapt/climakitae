@@ -252,6 +252,11 @@ def _get_var_ids(
             variable_descriptions["downscaling_method"].isin(method_list)
         )  # Make sure it's the right downscaling method
     ]
+
+    # Filter by show column unless hidden variables are enabled
+    if not enable_hidden_vars:
+        var_id = var_id[var_id["show"] == True]
+
     var_id = list(var_id.variable_id.values)
     return var_id
 
