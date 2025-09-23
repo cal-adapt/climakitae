@@ -375,7 +375,7 @@ def mock_t_hourly() -> xr.DataArray:
         "grid_mapping": "Lambert_Conformal",
         "timezone": "America/Los_Angeles",
     }
-    return da
+    yield da
 
 
 def mock_t_ds() -> xr.Dataset:
@@ -419,6 +419,7 @@ def mock_t_ds() -> xr.Dataset:
 class TestTMYClass:
     """Test the TMY class with fake data."""
 
+    @pytest.mark.integration
     def test_init_with_station(self):
         """Check class initialization with station."""
         # Use valid station name
@@ -442,6 +443,7 @@ class TestTMYClass:
         with pytest.raises(ValueError):
             tmy = TMY(start_year, end_year, station_name=stn_name)
 
+    @pytest.mark.integration
     def test_init_with_coords(self):
         """Check class initialization with coordinates."""
         # Use valid station name
@@ -455,6 +457,7 @@ class TestTMYClass:
         assert tmy.lon_range == pytest.approx((-117.91, -117.71), abs=1e-6)
         assert tmy.stn_code == "None"
 
+    @pytest.mark.integration
     def test__load_single_variable(self):
         """Load data for a single variable."""
         lat = 33.56
