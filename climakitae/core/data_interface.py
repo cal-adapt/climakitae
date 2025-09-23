@@ -2019,6 +2019,11 @@ def get_data(
         Only valid for approach = "Warming Level" and data_type = "Stations"
     all_touched : boolean
         spatial subset option for within or touching selection
+    enable_hidden_vars : boolean, optional
+        Return all variables, including the ones in which "show" is set to False?
+        Default to False
+    kwargs : dict
+        Additional keyword arguments to pass to DataParameters()
 
     Returns
     -------
