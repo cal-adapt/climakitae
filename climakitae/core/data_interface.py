@@ -1768,6 +1768,9 @@ def get_data_options(
     tidy : boolean, optional
         Format the pandas dataframe? This creates a DataFrame with a MultiIndex that makes it easier to parse the options.
         Default to True
+    enable_hidden_vars : boolean, optional
+        Return all variables, including the ones in which "show" is set to False?
+        Default to False
 
     Returns
     -------
