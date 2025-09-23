@@ -1568,6 +1568,9 @@ def write_tmy_file(
             # change time axis for GWL data to not use 2000's dummy times
             if "warming_level" in df.columns:
                 df = _tmy_reset_time_for_gwl(df)
+                df["centered_year"] = pd.to_numeric(
+                    df["centered_year"], downcast="integer"
+                )
             path_to_file = filename_to_export + ".csv"
             df.to_csv(path_to_file, index=False)
             print(
