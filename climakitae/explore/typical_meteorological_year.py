@@ -630,7 +630,7 @@ class TMY:
         """Following the NREL procedure, smooth the data in the transitions between months.
 
         As described in https://docs.nrel.gov/docs/fy08osti/43156.pdf, the hourly data is smoothed
-        between months via a linear fit during a 12-hour window centered on day 1, hour 0.
+        between months via a curve fit during a 12-hour window centered on day 1, hour 0.
         The radiation variables are not smoothed. Relative humidity during the 12-hour window
         is calculated from smoothed air temperature, surface pressure, and mixing ratio.
 
