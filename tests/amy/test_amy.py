@@ -97,6 +97,20 @@ def test_retrieve_meteo_yr_data() -> None:
 
 
 @pytest.mark.advanced
+@patch("climakitae.explore.amy.read_catalog_from_select")
+def test_retrieve_meteo_yr_data_no_data_available(mock_read_catalog):
+    """Test error when no data is available for the given parameters."""
+    # Mock read_catalog_from_select to return None (no data available)
+    mock_read_catalog.return_value = None
+
+    data_params = DataParameters()
+
+    # This should raise the specific ValueError for insufficient data
+    with pytest.raises(ValueError, match="COULD NOT RETRIEVE DATA"):
+        retrieve_meteo_yr_data(data_params)
+
+
+@pytest.mark.advanced
 def create_mock_hourly_da() -> xr.DataArray:
     # Create mock data: 365 days × 24 hours with random temperature values
 
