@@ -330,67 +330,39 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
     days_in_year = kwargs.pop("days_in_year", 365)
     q = kwargs.pop("q", 0.5)
 
-    print("🌡️  Starting climate profile computation...")
-    print(
-        f"   Parameters: warming_level={kwargs.get('warming_level', [1.2])}, "
-        f"variable={kwargs.get('variable', 'Air Temperature at 2m')}"
-    )
-    print(f"   Days in year: {days_in_year}, Quantile: {q}")
-
     # Retrieve the climate data
     print("📊 Retrieving climate data...")
     with tqdm(total=2, desc="Data retrieval", unit="dataset") as pbar:
         historic_data, future_data = retrieve_profile_data(**kwargs)
         pbar.update(2)
 
-    print(
-        f"   ✓ Historical data shape: {historic_data.dims if hasattr(historic_data, 'dims') else 'N/A'}"
-    )
-    print(
-        f"   ✓ Future data shape: {future_data.dims if hasattr(future_data, 'dims') else 'N/A'}"
-    )
-
     # Call compute_profile with the processed data
     # Compute profiles for both historical and future data
-    print("🔄 Processing data for profile computation...")
-
     if isinstance(future_data, xr.Dataset):
         var_name = list(future_data.data_vars.keys())[0]
         future_profile_data = future_data[var_name]
-        print(f"   ✓ Extracted variable '{var_name}' from future dataset")
     else:
         future_profile_data = future_data
-        print("   ✓ Using future data as DataArray")
 
     if isinstance(historic_data, xr.Dataset):
         var_name = list(historic_data.data_vars.keys())[0]
         historic_profile_data = historic_data[var_name]
-        print(f"   ✓ Extracted variable '{var_name}' from historic dataset")
     else:
         historic_profile_data = historic_data
-        print("   ✓ Using historic data as DataArray")
 
     # Compute profiles for both datasets
     print("⚙️  Computing climate profiles...")
 
     with tqdm(total=2, desc="Profile computation", unit="profile") as pbar:
-        print("   Computing future profile...")
         future_profile = compute_profile(
             future_profile_data, days_in_year=days_in_year, q=q
         )
         pbar.update(1)
 
-        print("   Computing historic profile...")
         historic_profile = compute_profile(
             historic_profile_data, days_in_year=days_in_year, q=q
         )
         pbar.update(1)
-
-    print(f"   ✓ Future profile shape: {future_profile.shape}")
-    print(f"   ✓ Historic profile shape: {historic_profile.shape}")
-
-    # Compute the difference (future - historical)
-    print("🔢 Computing climate profile differences (future - historical)...")
 
     # Check the structure of both profiles to handle simulation dimension properly
     future_has_multiindex = isinstance(future_profile.columns, pd.MultiIndex)
@@ -403,10 +375,6 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
 
         if "Simulation" in future_levels and "Simulation" in historic_levels:
             # Both have simulations - compute difference for matching simulations
-            print(
-                "   📊 Both profiles have simulation dimension - computing paired differences..."
-            )
-
             difference_profile = future_profile.copy()
 
             # Get unique simulations from both profiles
@@ -430,8 +398,6 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
                     hour = col[0] if "Hour" in future_levels else col[-1]
                     difference_profile[col] = future_profile[col] - historic_mean[hour]
             else:
-                print(f"   ✓ Found {len(common_sims)} matching simulations")
-
                 # Compute differences for matching simulations
                 n_cols = len(future_profile.columns)
                 with tqdm(
@@ -479,7 +445,6 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
 
         elif "Warming_Level" in future_levels and "Simulation" not in future_levels:
             # Future has warming levels but no simulations
-            print("   📊 Computing differences for multiple warming levels...")
             difference_profile = future_profile.copy()
 
             n_cols = len(future_profile.columns)
@@ -507,7 +472,6 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
 
     elif future_has_multiindex and not historic_has_multiindex:
         # Future has MultiIndex, historic doesn't
-        print("   📊 Future has MultiIndex, historic has single-level columns...")
         difference_profile = future_profile.copy()
 
         n_cols = len(future_profile.columns)
@@ -554,8 +518,6 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
 
     else:
         # Both have single-level columns
-        print("   📊 Computing difference for single-level profiles...")
-
         # Check if columns match
         if list(future_profile.columns) == list(historic_profile.columns):
             print("   ✓ Columns match - computing element-wise difference")
@@ -572,6 +534,9 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
 
     print(
         f"✅ Climate profile computation complete! Final shape: {difference_profile.shape}"
+    )
+    print(
+        f"   (Days: {difference_profile.shape[0]}, Hours/Columns: {difference_profile.shape[1]})"
     )
     return difference_profile
 
@@ -608,71 +573,39 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
         included as additional column levels.
 
     """
-    # Step 1: Check for simulation dimension
+    # Check for simulation dimension
     has_simulation = "simulation" in data.dims
     if has_simulation:
         n_simulations = len(data.simulation)
         simulations = data.simulation.values
-        print(f"      📊 Data has {n_simulations} simulation(s)")
-        print(
-            f"      📈 Preserving individual simulations: {simulations[:3]}..."
-            if len(simulations) > 3
-            else f"      📈 Preserving simulations: {simulations}"
-        )
     else:
         n_simulations = 1
         simulations = [None]
-        print("      📊 No simulation dimension found")
 
-    # Step 2: Slice to first 8760 hours (one year) from time_delta
-    print("      ✂️  Slicing to first 8760 hours for profile analysis...")
+    # Slice to first 8760 hours (one year) from time_delta
     data_8760 = data.isel(time_delta=slice(0, 8760))
 
-    # Step 3: Create synthetic time coordinates for the 8760 hours
-    print("      📅 Creating synthetic time coordinates...")
+    # Create synthetic time coordinates for the 8760 hours
     hours_per_day = 24
     hours_per_year = 8760
-
-    # Get actual length of sliced data
     actual_hours = len(data_8760.time_delta)
-    print(f"      ✓ Sliced data has {actual_hours} hours")
 
-    # For 8760 analysis, we expect exactly 8760 hours (1 year)
     if actual_hours != hours_per_year:
         print(f"      ⚠️  Warning: Expected {hours_per_year} hours, got {actual_hours}")
 
-    # Create synthetic coordinates for the actual data length
+    # Create synthetic coordinates
     hour_of_year = np.arange(1, actual_hours + 1)
     year = np.ones(actual_hours, dtype=int)
-
-    print(f"      ✓ Created coordinates for {len(hour_of_year)} hours")
-
-    # Assign coordinates
-    print("      🏷️  Assigning synthetic coordinates...")
     data_8760 = data_8760.assign_coords(
         synthetic_hour_of_year=("time_delta", hour_of_year),
         synthetic_year=("time_delta", year),
     )
-    print("      ✓ Synthetic coordinates assigned")
 
     warming_levels = data_8760.warming_level.values
-    print(
-        f"      🌡️  Processing {len(warming_levels)} warming level(s): {warming_levels}"
-    )
-
-    # Get the actual data shape
-    data_shape = data_8760.shape
-    print(f"      📐 Data shape after slicing: {data_shape}")
 
     # Process based on warming levels and simulations
     if len(warming_levels) == 1 and n_simulations == 1:
-        # Simple case: single warming level, single simulation (or no simulation dim)
-        print(
-            "      📊 Computing profile for single warming level and single simulation..."
-        )
-        print("      ⚡ Using efficient vectorized operations...")
-
-        # Squeeze out single dimensions and reshape
+        # Single warming level, single simulation
         data_squeezed = data_8760.squeeze()
         data_reshaped = data_squeezed.values.reshape(days_in_year, hours_per_day)
 
@@ -681,53 +614,36 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
             columns=np.arange(1, 25, 1),
             index=np.arange(1, days_in_year + 1, 1),
         )
-        print(f"      ✓ Single profile created: {df_profile.shape}")
 
     elif len(warming_levels) == 1 and n_simulations > 1:
         # Single warming level, multiple simulations
-        print(
-            f"      📊 Computing profile for single warming level with {n_simulations} simulations..."
-        )
 
         # Create profile for each simulation
         profile_dict = {}
 
-        with tqdm(
-            total=n_simulations,
-            desc="      Processing simulations",
-            unit="sim",
-            leave=False,
-        ) as pbar:
-            for i, sim in enumerate(simulations):
-                # Extract meaningful simulation label
-                sim_str = str(sim)
-                # Parse simulation string to extract model name
-                if "WRF_" in sim_str:
-                    # Extract the GCM model name (e.g., CESM2, CNRM-ESM2-1, etc.)
-                    parts = sim_str.split("_")
-                    if len(parts) >= 2:
-                        sim_label = parts[1]  # Get the GCM name
-                    else:
-                        sim_label = f"Sim_{i+1}"
+        for i, sim in enumerate(simulations):
+            # Extract meaningful simulation label
+            sim_str = str(sim)
+            # Parse simulation string to extract model name
+            if "WRF_" in sim_str:
+                # Extract the GCM model name (e.g., CESM2, CNRM-ESM2-1, etc.)
+                parts = sim_str.split("_")
+                if len(parts) >= 2:
+                    sim_label = parts[1]  # Get the GCM name
                 else:
-                    sim_label = f"Sim_{i+1}" if sim is None else sim_str.split("_")[0]
+                    sim_label = f"Sim_{i+1}"
+            else:
+                sim_label = f"Sim_{i+1}" if sim is None else sim_str.split("_")[0]
 
-                print(
-                    f"         🔍 Processing simulation {i+1}/{n_simulations}: {sim_label}"
-                )
+            # Select data for this simulation
+            sim_data = data_8760.isel(simulation=i).squeeze("warming_level")
 
-                # Select data for this simulation
-                sim_data = data_8760.isel(simulation=i).squeeze("warming_level")
+            # Reshape to (365, 24)
+            sim_data_reshaped = sim_data.values.reshape(days_in_year, hours_per_day)
 
-                # Reshape to (365, 24)
-                sim_data_reshaped = sim_data.values.reshape(days_in_year, hours_per_day)
-
-                profile_dict[sim_label] = sim_data_reshaped
-                pbar.update(1)
+            profile_dict[sim_label] = sim_data_reshaped
 
         # Create multi-level DataFrame with simulations as second level
-        print("      📋 Creating multi-level DataFrame with simulation dimension...")
-
         hours = np.arange(1, 25, 1)
         sim_names = list(profile_dict.keys())
 
@@ -747,14 +663,9 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
             columns=multi_cols,
             index=np.arange(1, days_in_year + 1, 1),
         )
-        print(f"      ✓ Multi-simulation profile created: {df_profile.shape}")
 
     elif len(warming_levels) > 1 and n_simulations == 1:
         # Multiple warming levels, single simulation
-        print(
-            f"      📊 Computing profiles for {len(warming_levels)} warming levels..."
-        )
-
         profile_dict = {}
 
         with tqdm(
@@ -764,10 +675,6 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
             leave=False,
         ) as pbar:
             for i, wl in enumerate(warming_levels):
-                print(
-                    f"         🔍 Processing warming level {wl}°C ({i+1}/{len(warming_levels)})..."
-                )
-
                 # Select data for this warming level
                 wl_data = data_8760.isel(warming_level=i)
                 if has_simulation:
@@ -780,8 +687,6 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
                 pbar.update(1)
 
         # Create multi-level DataFrame
-        print("      📋 Creating multi-level DataFrame with warming levels...")
-
         hours = np.arange(1, 25, 1)
         wl_names = list(profile_dict.keys())
 
@@ -803,14 +708,9 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
             columns=multi_cols,
             index=np.arange(1, days_in_year + 1, 1),
         )
-        print(f"      ✓ Multi-warming level profile created: {df_profile.shape}")
 
     else:
         # Multiple warming levels AND multiple simulations
-        print(
-            f"      📊 Computing profiles for {len(warming_levels)} warming levels × {n_simulations} simulations..."
-        )
-
         profile_dict = {}
         total_combinations = len(warming_levels) * n_simulations
 
@@ -835,11 +735,6 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
                             f"Sim_{sim_idx+1}" if sim is None else sim_str.split("_")[0]
                         )
 
-                    combo_num = wl_idx * n_simulations + sim_idx + 1
-                    print(
-                        f"         🔍 Processing WL {wl}°C, {sim_label} ({combo_num}/{total_combinations})..."
-                    )
-
                     # Select data for this combination
                     combo_data = data_8760.isel(
                         warming_level=wl_idx, simulation=sim_idx
@@ -855,10 +750,6 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
                     pbar.update(1)
 
         # Create multi-level DataFrame with three levels: Hour, Warming_Level, Simulation
-        print(
-            "      📋 Creating multi-level DataFrame with warming level and simulation dimensions..."
-        )
-
         hours = np.arange(1, 25, 1)
         wl_names = [f"WL_{wl}" for wl in warming_levels]
         sim_names = list(
@@ -889,19 +780,13 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
             columns=multi_cols,
             index=np.arange(1, days_in_year + 1, 1),
         )
-        print(f"      ✓ Multi-level profile created: {df_profile.shape}")
-
-    # Step 6: Format dataframe using existing helper
-    print("      🎨 Formatting profile DataFrame...")
 
     # Determine which formatting function to use based on the structure
     if not isinstance(df_profile.columns, pd.MultiIndex):
         # Simple single-level columns
-        print("      📝 Applying single-level formatting...")
         df_profile = _format_meteo_yr_df(df_profile)
     else:
         # Multi-level columns - need special formatting
-        print("      📝 Applying multi-level formatting...")
         # For now, just format the index (Day of Year)
         year = 2024 if len(df_profile) == 366 else 2023
         new_index = [
@@ -911,6 +796,9 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
         df_profile.index = pd.Index(new_index, name="Day of Year")
 
     print(f"      ✅ Profile computation complete! Final shape: {df_profile.shape}")
+    print(
+        f"         With index: {df_profile.index.name}, columns: {df_profile.columns.names}"
+    )
     return df_profile
 
 
