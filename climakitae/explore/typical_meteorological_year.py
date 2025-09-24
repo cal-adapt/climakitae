@@ -16,8 +16,11 @@ from tqdm.auto import tqdm  # Progress bar
 from climakitae.core.constants import UNSET
 from climakitae.core.data_export import write_tmy_file
 from climakitae.core.data_interface import get_data
-from climakitae.tools.derived_variables import compute_relative_humidity
-from climakitae.util.utils import convert_to_local_time, get_closest_gridcell
+from climakitae.util.utils import (
+    convert_to_local_time,
+    get_closest_gridcell,
+    add_dummy_time_to_wl,
+)
 
 WEIGHTS_PER_VAR = {
     "Daily max air temperature": 1 / 20,
@@ -224,13 +227,15 @@ def compute_weighted_fs_sum(
     )
 
 
-def get_top_months(da_fs):
+def get_top_months(da_fs: xr.DataArray, skip_last: bool = False) -> pd.DataFrame:
     """Return dataframe of top months by simulation.
 
     Parameters
     ----------
     da_fs: xr.Dataset
        Summed weighted f-s statistic
+    skip_last: bool
+        True to exclude the final month, e.g. if data missing after time conversion
 
     Returns
     -------
@@ -247,6 +252,15 @@ def get_top_months(da_fs):
             top_xr = da_i.sortby(da_i, ascending=True)[:num_values].expand_dims(
                 ["month", "simulation"]
             )
+            if num_values == 1 & skip_last:
+                # Check that last year/month not chosen
+                if top_xr.year == da_fs.year[-1]:
+                    if top_xr.month == da_fs.month[-1]:
+                        # If chosen, exclude it and pick the next match
+                        # This logic can be folded into persistence statistics when those are developed
+                        top_xr = da_i.sortby(da_i, ascending=True)[1:2].expand_dims(
+                            ["month", "simulation"]
+                        )
             top_df_i = top_xr.to_dataframe(name="top_values")
             df_list.append(top_df_i)
 
@@ -313,8 +327,9 @@ class TMY:
 
     def __init__(
         self,
-        start_year: int,
-        end_year: int,
+        start_year: int = UNSET,
+        end_year: int = UNSET,
+        warming_level: float = UNSET,
         station_name: str = UNSET,
         latitude: float | int = UNSET,
         longitude: float | int = UNSET,
@@ -351,9 +366,23 @@ class TMY:
                 raise ValueError(
                     "No valid station name or latitude and longitude provided."
                 )
-        # Set other variables
-        self.start_year = start_year
-        self.end_year = end_year
+        # Time variables
+        match start_year, end_year, warming_level:
+            # User set all options - bad
+            case float() | int(), float() | int(), float():
+                raise ValueError(
+                    "Variables `start_year` and `end_year` cannot be paired with `warming_level`. Set either `start_year` and `end_year` OR `warming_level."
+                )
+            # Some other combo - unset variable will be saved as UNSET
+            case _:
+                self.start_year = start_year
+                self.end_year = end_year
+                self.warming_level = warming_level
+        # Whether to drop the last month as a possible match
+        self.skip_last = False
+        if self.warming_level:
+            # True for warming levels because final hours get lost to UTC conversion
+            self.skip_last = True
         # Ranges used in get_data to pull smaller dataset without warnings
         self.lat_range = (self.stn_lat - 0.1, self.stn_lat + 0.1)
         self.lon_range = (self.stn_lon - 0.1, self.stn_lon + 0.1)
@@ -380,6 +409,7 @@ class TMY:
             "Surface Pressure": "Pa",
             "Water Vapor Mixing Ratio at 2m": "g kg-1",
         }
+        self.gwl_year_range = UNSET
         self.verbose = verbose
         # These will get set later in analysis
         self.cdf_climatology = UNSET
@@ -457,8 +487,8 @@ class TMY:
         if self.verbose:
             print(msg)
 
-    def _load_single_variable(self, varname: str, units: str) -> xr.DataArray:
-        """Fetch catalog data for one variable.
+    def _load_time_approach(self, varname: str, units: str) -> xr.DataArray:
+        """Run get_data with the time level approach.
 
         Parameters
         ----------
@@ -492,6 +522,64 @@ class TMY:
             scenario=self.scenario,
             time_slice=(self.start_year, new_end_year),
         )
+        return data
+
+    def _load_warming_level_approach(self, varname: str, units: str) -> xr.DataArray:
+        """Run get_data with the warming level approach.
+
+        Parameters
+        ----------
+        varname: str
+           Name of desired catalog variable
+        units: str
+           Desired units
+
+        Returns
+        -------
+        xr.DataArray
+        """
+        # Extra year in UTC time to get full period in local time.
+        data = get_data(
+            variable=varname,
+            resolution="3 km",
+            timescale="hourly",
+            data_type="Gridded",
+            units=units,
+            latitude=self.lat_range,
+            longitude=self.lon_range,
+            area_average="No",
+            approach="Warming Level",
+            warming_level=[self.warming_level],
+        )
+        data = add_dummy_time_to_wl(data)
+        # Set the start and end years based on the dummy time
+        self.start_year = data.time[0].dt.year.item()
+        self.end_year = data.time[-1].dt.year.item()
+
+        return data
+
+    def _load_single_variable(self, varname: str, units: str) -> xr.DataArray:
+        """Fetch catalog data for one variable.
+
+        Parameters
+        ----------
+        varname: str
+           Name of desired catalog variable
+        units: str
+           Desired units
+
+        Returns
+        -------
+        xr.DataArray
+        """
+        # Warming level approach
+        if self.warming_level is not UNSET:
+            data = self._load_warming_level_approach(varname, units)
+            simulations = [x + "_historical+ssp370" for x in self.simulations]
+        # Use Time approach
+        else:
+            data = self._load_time_approach(varname, units)
+            simulations = self.simulations
 
         # Compute over single gridcell
         data = get_closest_gridcell(
@@ -504,7 +592,7 @@ class TMY:
             {"time": slice(f"{self.start_year}-01-01-00", f"{self.end_year}-12-31-23")}
         )
         # Only use preset models with solar variables
-        data = data.sel(simulation=self.simulations)
+        data = data.sel(simulation=simulations)
         return data
 
     def _get_tmy_variable(self, varname: str, units: str, stats: list[str]) -> list:
@@ -663,6 +751,29 @@ class TMY:
             tmy_df_all[sim] = tmy_df_by_sim
         return tmy_df_all
 
+    @staticmethod
+    def _match_str_to_wl(warming_level: str) -> str:
+        """Return warming level description string
+
+        Parameters
+        ----------
+        warming_level: float
+            A standard warming level
+        """
+        match warming_level:
+            case _ if warming_level < 1.5:
+                return "_present-day"
+            case 1.5:
+                return "_near-future"
+            case 2.0:
+                return "_mid-century"
+            case 2.5:
+                return "_mid-late-century"
+            case 3.0:
+                return "_late-century"
+            case _:
+                return f"_warming-level-{warming_level}"
+
     def load_all_variables(self):
         """Load the datasets needed to create TMY."""
         print("Loading data from catalog. Expected runtime: 7 minutes")
@@ -771,7 +882,7 @@ class TMY:
         if self.weighted_fs_sum is UNSET:
             self.set_weighted_statistic()
         self._vprint("Finding top months (lowest F-S statistic)")
-        self.top_months = get_top_months(self.weighted_fs_sum)
+        self.top_months = get_top_months(self.weighted_fs_sum, skip_last=self.skip_last)
 
     def show_tmy_data_to_export(self, simulation: str):
         """Show line plots of TMY data for single model.
@@ -861,7 +972,7 @@ class TMY:
         Parameters
         ----------
         extension: str
-            Desired file extension ('tmy' or 'epw')
+            Desired file extension ('tmy','epw', or 'csv')
 
         """
         print("Exporting TMY to file.")
@@ -869,11 +980,23 @@ class TMY:
             clean_stn_name = (
                 self.stn_name.replace(" ", "_").replace("(", "").replace(")", "")
             )
-            filename = f"TMY_{clean_stn_name}_{sim}".lower()
+            # replace scenario with descriptive name if present for gwl case
+            clean_sim = sim.replace(
+                "_historical+ssp370", self._match_str_to_wl(self.warming_level)
+            )
+            filename = f"TMY_{clean_stn_name}_{clean_sim}".lower()
+            # Get right year range
+            if self.warming_level is UNSET:
+                years = (self.start_year, self.end_year)
+            else:
+                centered_year = self.all_vars.sel(simulation=sim).centered_year.data
+                year1 = centered_year - 15
+                year2 = centered_year + 14
+                years = (year1, year2)
             write_tmy_file(
                 filename,
                 self.tmy_data_to_export[sim],
-                (self.start_year, self.end_year),
+                years,
                 self.stn_name,
                 self.stn_code,
                 self.stn_lat,
