@@ -4,12 +4,14 @@ Test suite for climakitae/explore/typical_meteorological_year.py
 Includes tests for the more general functions along with the TMY class.
 """
 
+import warnings
 from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
+from scipy.optimize import OptimizeWarning
 
 from climakitae.core.constants import UNSET
 from climakitae.explore.typical_meteorological_year import (
@@ -636,7 +638,7 @@ class TestTMYClass:
         assert len(result["WRF_EC-Earth3_r1i1p1f1"].index) == 8760
 
     def test__smooth_month_transition_hours(self):
-        """Check that smoothed data returned for variables in list. Does not check relative humidity."""
+        """Check that smoothed data returned for variables in list."""
         variable_list = [
             "Air Temperature at 2m",
             "Dew point temperature",
@@ -644,13 +646,14 @@ class TestTMYClass:
             "Wind direction at 10m",
             "Surface Pressure",
             "Water Vapor Mixing Ratio at 2m",
+            "Relative humidity",
         ]
         data = {
             "time": pd.date_range("2000-01-01-00", "2000-03-31-23", freq="1h"),
             "simulation": ["WRF_EC-Earth3_r1i1p1f1" for x in range(0, 2184)],
         }
         # Add data with a transition from 0 to 1 at midnight on
-        # Jan 31/Feb 1 to smooth
+        # Jan 31/Feb 1 to be smoothed
         for varname in variable_list:
             data[varname] = np.zeros(len(data["time"]))
             data[varname][31 * 24 : 32 * 24] = 1
@@ -660,21 +663,25 @@ class TestTMYClass:
         start_year = 2001
         end_year = 2003
         tmy = TMY(start_year, end_year, station_name=stn_name)
-        result = tmy._smooth_month_transition_hours(df)
+        with warnings.catch_warnings():
+            warnings.simplefilter(action="ignore", category=OptimizeWarning)
+            result = tmy._smooth_month_transition_hours(df.copy())
 
-        # Get a linear fit over a similar 12 hour window to the data
-        x = np.arange(0, 12)
-        n = np.concat((np.zeros(6), np.ones(6)))
-        fit = np.polyfit(x, n, 1)
-        fitted_line = x * fit[0] + fit[1]
-
-        # Check that the correct variables were smoothed
+        # Check that data was altered in the smoothing window for all listed variables
         for varname in variable_list:
-            assert pytest.approx(fitted_line[0], 1e-6) == pytest.approx(
+            assert not pytest.approx(df[varname][738], 1e-6) == pytest.approx(
                 result[varname][738], 1e-6
             )
-            assert pytest.approx(fitted_line[11], 1e-6) == pytest.approx(
-                result[varname][749], 1e-6
+            assert not pytest.approx(df[varname][746], 1e-6) == pytest.approx(
+                result[varname][746], 1e-6
+            )
+        # Check that values outside the window were not changed
+        for varname in variable_list:
+            assert pytest.approx(df[varname][780], 1e-6) == pytest.approx(
+                result[varname][780], 1e-6
+            )
+            assert pytest.approx(df[varname][720], 1e-6) == pytest.approx(
+                result[varname][720], 1e-6
             )
 
     @patch("climakitae.explore.typical_meteorological_year.get_top_months")
