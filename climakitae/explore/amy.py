@@ -508,31 +508,39 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
         len(warming_levels) == 1 or data_8760.warming_level.size == 1
     ):  # In case `warming_level` is not a dimension
 
-        # Single warming level - process normally
-        print("      📊 Computing profile for single warming level...")
+        # Single warming level - process with vectorized approach
+        print("      📊 Computing profile for single warming level using vectorized approach...")
 
-        # Create `amy` DataArray with `_closest_to_mean` applied across warming levels
-        print("      🔍 Finding closest-to-mean values for each hour of year...")
-        hourly_da = data_8760.groupby(["synthetic_hour_of_year"]).map(_closest_to_mean)
-
-        # Create DataFrame
-        print("      📋 Creating profile DataFrame...")
+        # MAJOR OPTIMIZATION: Process all hours at once instead of one by one
+        print("      � Computing profile using efficient vectorized operations...")
+        
+        # Compute directly on the 8760 hours: reshape into (365, 24) for profile
+        print("      🔄 Reshaping data for profile computation...")
+        data_reshaped = data_8760.values.reshape(days_in_year, 24)
+        
+        # For each day-hour combination, we just take the single value we have
+        # (since we sliced to 8760 hours, there's exactly one value per hour)
         df_profile = pd.DataFrame(
-            hourly_da.values.reshape(days_in_year, hours_per_day),
+            data_reshaped,
             columns=np.arange(1, 25, 1),
             index=np.arange(1, days_in_year + 1, 1),
         )
         print(f"      ✓ Single warming level profile created: {df_profile.shape}")
 
     else:
-        # Multiple warming levels - process more efficiently
+        # Multiple warming levels - process with super-efficient vectorized approach
         print("      📊 Computing profiles for multiple warming levels...")
-        print("      ⚡ Using optimized vectorized approach...")
+        print("      🚀 Using ultra-optimized vectorized approach...")
 
-        # Pre-allocate results dictionary
+        # MAJOR OPTIMIZATION: Process all warming levels at once
         profile_dict = {}
         n_warming_levels = len(data_8760.warming_level.values)
 
+        print(f"      ⚡ Processing all {n_warming_levels} warming levels simultaneously...")
+        
+        # Convert to numpy for ultra-fast processing
+        data_values = data_8760.values  # Shape: (8760, n_warming_levels)
+        
         with tqdm(
             total=n_warming_levels,
             desc="      Processing warming levels",
@@ -540,38 +548,30 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
             leave=False,
         ) as pbar:
             for i, wl in enumerate(data_8760.warming_level.values):
-                print(
-                    f"         🔍 Processing warming level {wl}°C ({i+1}/{n_warming_levels})..."
-                )
+                print(f"         🔍 Processing warming level {wl}°C ({i+1}/{n_warming_levels})...")
 
-                # Select warming level data
-                data_wl = data_8760.sel(warming_level=wl)
-
-                # Optimization: Group and process more efficiently``
-                # Process all hours for this warming level at once
-                hourly_da = data_wl.groupby("synthetic_hour_of_year").map(
-                    _closest_to_mean
-                )
-
-                profile_dict[f"WL_{wl}"] = hourly_da.values
+                # Extract data for this warming level and reshape to (365, 24)
+                wl_data = data_values[:, i].reshape(days_in_year, 24)
+                
+                profile_dict[f"WL_{wl}"] = wl_data
                 print(f"         ✓ Completed warming level {wl}°C")
                 pbar.update(1)
 
-        # Create multi-level DataFrame
+        # Create multi-level DataFrame using efficient numpy operations
         print("      📋 Creating multi-level DataFrame...")
 
-        # Optimization: Pre-allocate arrays for better memory usage
-        profile_arrays = list(profile_dict.values())
+        # Convert dictionary to efficient numpy array structure
+        profile_arrays = list(profile_dict.values())  # Each is (365, 24)
         warming_level_names = list(profile_dict.keys())
 
-        # Stack arrays and create MultiIndex columns
-        print("      🏗️  Stacking arrays and creating MultiIndex columns...")
-        print(
-            f"         Memory usage optimization: Processing {len(profile_arrays)} warming levels..."
-        )
+        # Ultra-efficient: Stack arrays directly using numpy
+        print("      🏗️  Creating optimized MultiIndex DataFrame...")
+        print(f"         Processing {len(profile_arrays)} warming levels...")
+        
+        # Stack arrays: (365, 24, n_warming_levels)
         stacked_data = np.stack(profile_arrays, axis=-1)
 
-        # Reshape for DataFrame: (days, hours*warming_levels)
+        # Reshape for DataFrame: (365, 24*n_warming_levels)
         reshaped_data = stacked_data.reshape(days_in_year, -1)
 
         # Create MultiIndex columns (Hour, Warming_Level)
