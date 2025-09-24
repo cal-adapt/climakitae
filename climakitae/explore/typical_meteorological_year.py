@@ -899,9 +899,13 @@ class TMY:
             print("Please run TMY.generate_tmy() to create TMY data for viewing.")
             return
 
+        # WVMR not in final TMY dataframe
+        fig_y = list(self.vars_and_units.keys())
+        fig_y.remove("Water Vapor Mixing Ratio at 2m")
+
         self.tmy_data_to_export[simulation].plot(
             x="time",
-            y=list(self.vars_and_units.keys()),
+            y=fig_y,
             title=f"Typical Meteorological Year ({simulation})",
             subplots=True,
             figsize=(10, 8),
@@ -945,7 +949,7 @@ class TMY:
 
         # Construct TMY
         self._vprint(
-            "\n  STEP 2: Calculating Typical Meteorological Year per model simulation\nProgress bar shows code looping through each month in the year.\n"
+            "\n  STEP 2: Calculating Typical Meteorological Year per model simulation\n  Progress bar shows code looping through each month in the year.\n"
         )
 
         tmy_data_to_export = self._make_8760_tables(
