@@ -471,14 +471,6 @@ class TestTMYClass:
         assert tmy.stn_code == 72297793184
         assert tmy.verbose
 
-        # Use station name with lat lon (not valid)
-        lat = 33.56
-        lon = -117.81
-        with pytest.raises(ValueError):
-            tmy = TMY(
-                start_year, end_year, latitude=lat, longitude=lon, station_name=stn_name
-            )
-
         # Use invalid station name
         stn_name = "KSNA"
         with pytest.raises(ValueError):

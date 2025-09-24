@@ -16,6 +16,7 @@ from tqdm.auto import tqdm  # Progress bar
 from climakitae.core.constants import UNSET
 from climakitae.core.data_export import write_tmy_file
 from climakitae.core.data_interface import get_data
+from climakitae.tools.derived_variables import compute_relative_humidity
 from climakitae.util.utils import (
     convert_to_local_time,
     get_closest_gridcell,
