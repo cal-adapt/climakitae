@@ -421,33 +421,50 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
 def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.DataFrame:
     """
     Calculates the average meteorological year profile for warming level data using 8760
-    analysis
+    analysis.
 
     This function handles global warming levels approach using time_delta coordinate.
     Takes the first 8760 hours (one year) from the time_delta dimension and processes
-    each warming level separately, preserving the warming_level dimension.
+    each warming level and simulation separately, preserving both dimensions.
 
     Parameters
     ----------
     data : xr.DataArray
-        Hourly base-line subtracted data for one variable with warming_level and
-        time_delta dimensions
+        Hourly base-line subtracted data for one variable with warming_level,
+        time_delta, and simulation dimensions
 
     days_in_year : int, optional
         Either 366 or 365, depending on whether or not the year is a leap year.
-        Default to 366 days (leap year)
+        Default to 365 days
+
+    q : float, optional
+        Quantile value for selecting representative values. Currently unused
+        in the optimized implementation.
 
     Returns
     -------
     pd.DataFrame
-        Average meteorological year table for each warming level, with days of year as
-        the index and hour of day as the columns. If multiple warming levels exist,
-        they will be included as additional column levels.
+        Average meteorological year table for each warming level and simulation,
+        with days of year as the index and hour of day as the columns.
+        If multiple warming levels and/or simulations exist, they will be
+        included as additional column levels.
 
     """
-    # # Step 1: Take ensemble mean across simulations
-    # if "simulation" in data.dims:
-    #     data = data.mean("simulation")
+    # Step 1: Check for simulation dimension
+    has_simulation = "simulation" in data.dims
+    if has_simulation:
+        n_simulations = len(data.simulation)
+        simulations = data.simulation.values
+        print(f"      📊 Data has {n_simulations} simulation(s)")
+        print(
+            f"      📈 Preserving individual simulations: {simulations[:3]}..."
+            if len(simulations) > 3
+            else f"      📈 Preserving simulations: {simulations}"
+        )
+    else:
+        n_simulations = 1
+        simulations = [None]
+        print("      📊 No simulation dimension found")
 
     # Step 2: Slice to first 8760 hours (one year) from time_delta
     print("      ✂️  Slicing to first 8760 hours for profile analysis...")
@@ -467,10 +484,7 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
         print(f"      ⚠️  Warning: Expected {hours_per_year} hours, got {actual_hours}")
 
     # Create synthetic coordinates for the actual data length
-    # Hour of year (1–8760) for the sliced data
     hour_of_year = np.arange(1, actual_hours + 1)
-
-    # For 8760 hours, this represents 1 year, so all hours belong to year 1
     year = np.ones(actual_hours, dtype=int)
 
     print(f"      ✓ Created coordinates for {len(hour_of_year)} hours")
@@ -483,109 +497,220 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
     )
     print("      ✓ Synthetic coordinates assigned")
 
-    # def _closest_to_mean(dat: xr.DataArray) -> xr.DataArray:
-    #     """Find the value closest to the mean of the data. Optimized version."""
-    #     # Optimization: Use numpy operations directly when possible
-    #     if dat.size == 1:
-    #         return dat
-
-    #     # Stack all dimensions for processing
-    #     stacked = dat.stack(allofit=list(dat.dims))
-
-    #     # Optimization: Compute quantile and differences in one operation
-    #     target_quantile = stacked.quantile(q, "allofit")
-    #     differences = abs(stacked - target_quantile)
-    #     index = differences.argmin(dim="allofit").values
-
-    #     return stacked.isel(allofit=index)
-
     warming_levels = data_8760.warming_level.values
     print(
         f"      🌡️  Processing {len(warming_levels)} warming level(s): {warming_levels}"
     )
 
-    if (
-        len(warming_levels) == 1 or data_8760.warming_level.size == 1
-    ):  # In case `warming_level` is not a dimension
+    # Get the actual data shape
+    data_shape = data_8760.shape
+    print(f"      📐 Data shape after slicing: {data_shape}")
 
-        # Single warming level - process with vectorized approach
-        print("      📊 Computing profile for single warming level using vectorized approach...")
+    # Process based on warming levels and simulations
+    if len(warming_levels) == 1 and n_simulations == 1:
+        # Simple case: single warming level, single simulation (or no simulation dim)
+        print(
+            "      📊 Computing profile for single warming level and single simulation..."
+        )
+        print("      ⚡ Using efficient vectorized operations...")
 
-        # MAJOR OPTIMIZATION: Process all hours at once instead of one by one
-        print("      � Computing profile using efficient vectorized operations...")
-        
-        # Compute directly on the 8760 hours: reshape into (365, 24) for profile
-        print("      🔄 Reshaping data for profile computation...")
-        print(data_8760)
-        data_reshaped = data_8760.values.reshape(days_in_year, 24)
-        
-        # For each day-hour combination, we just take the single value we have
-        # (since we sliced to 8760 hours, there's exactly one value per hour)
+        # Squeeze out single dimensions and reshape
+        data_squeezed = data_8760.squeeze()
+        data_reshaped = data_squeezed.values.reshape(days_in_year, hours_per_day)
+
         df_profile = pd.DataFrame(
             data_reshaped,
             columns=np.arange(1, 25, 1),
             index=np.arange(1, days_in_year + 1, 1),
         )
-        print(f"      ✓ Single warming level profile created: {df_profile.shape}")
+        print(f"      ✓ Single profile created: {df_profile.shape}")
 
-    else:
-        # Multiple warming levels - process with super-efficient vectorized approach
-        print("      📊 Computing profiles for multiple warming levels...")
-        print("      🚀 Using ultra-optimized vectorized approach...")
+    elif len(warming_levels) == 1 and n_simulations > 1:
+        # Single warming level, multiple simulations
+        print(
+            f"      📊 Computing profile for single warming level with {n_simulations} simulations..."
+        )
 
-        # MAJOR OPTIMIZATION: Process all warming levels at once
+        # Create profile for each simulation
         profile_dict = {}
-        n_warming_levels = len(data_8760.warming_level.values)
 
-        print(f"      ⚡ Processing all {n_warming_levels} warming levels simultaneously...")
-        
-        # Convert to numpy for ultra-fast processing
-        data_values = data_8760.values  # Shape: (8760, n_warming_levels)
-        
         with tqdm(
-            total=n_warming_levels,
+            total=n_simulations,
+            desc="      Processing simulations",
+            unit="sim",
+            leave=False,
+        ) as pbar:
+            for i, sim in enumerate(simulations):
+                print(
+                    f"         🔍 Processing simulation {i+1}/{n_simulations}: {sim[:20]}..."
+                    if len(str(sim)) > 20
+                    else f"         🔍 Processing simulation {i+1}/{n_simulations}: {sim}"
+                )
+
+                # Select data for this simulation
+                sim_data = data_8760.isel(simulation=i).squeeze("warming_level")
+
+                # Reshape to (365, 24)
+                sim_data_reshaped = sim_data.values.reshape(days_in_year, hours_per_day)
+
+                sim_label = (
+                    f"Sim_{i+1}" if sim is None else str(sim).split("_")[0]
+                )  # Use short label
+                profile_dict[sim_label] = sim_data_reshaped
+                pbar.update(1)
+
+        # Create multi-level DataFrame with simulations as second level
+        print("      📋 Creating multi-level DataFrame with simulation dimension...")
+
+        hours = np.arange(1, 25, 1)
+        sim_names = list(profile_dict.keys())
+
+        col_tuples = [(hour, sim_name) for hour in hours for sim_name in sim_names]
+        multi_cols = pd.MultiIndex.from_tuples(col_tuples, names=["Hour", "Simulation"])
+
+        # Stack all data horizontally
+        all_data = []
+        for hour in range(hours_per_day):
+            for sim_name in sim_names:
+                all_data.append(profile_dict[sim_name][:, hour])
+
+        all_data_array = np.column_stack(all_data)
+
+        df_profile = pd.DataFrame(
+            all_data_array,
+            columns=multi_cols,
+            index=np.arange(1, days_in_year + 1, 1),
+        )
+        print(f"      ✓ Multi-simulation profile created: {df_profile.shape}")
+
+    elif len(warming_levels) > 1 and n_simulations == 1:
+        # Multiple warming levels, single simulation
+        print(
+            f"      📊 Computing profiles for {len(warming_levels)} warming levels..."
+        )
+
+        profile_dict = {}
+
+        with tqdm(
+            total=len(warming_levels),
             desc="      Processing warming levels",
             unit="level",
             leave=False,
         ) as pbar:
-            for i, wl in enumerate(data_8760.warming_level.values):
-                print(f"         🔍 Processing warming level {wl}°C ({i+1}/{n_warming_levels})...")
+            for i, wl in enumerate(warming_levels):
+                print(
+                    f"         🔍 Processing warming level {wl}°C ({i+1}/{len(warming_levels)})..."
+                )
 
-                # Extract data for this warming level and reshape to (365, 24)
-                wl_data = data_values[:, i].reshape(days_in_year, 24)
-                
-                profile_dict[f"WL_{wl}"] = wl_data
-                print(f"         ✓ Completed warming level {wl}°C")
+                # Select data for this warming level
+                wl_data = data_8760.isel(warming_level=i)
+                if has_simulation:
+                    wl_data = wl_data.squeeze("simulation")
+
+                # Reshape to (365, 24)
+                wl_data_reshaped = wl_data.values.reshape(days_in_year, hours_per_day)
+
+                profile_dict[f"WL_{wl}"] = wl_data_reshaped
                 pbar.update(1)
 
-        # Create multi-level DataFrame using efficient numpy operations
-        print("      📋 Creating multi-level DataFrame...")
+        # Create multi-level DataFrame
+        print("      📋 Creating multi-level DataFrame with warming levels...")
 
-        # Convert dictionary to efficient numpy array structure
-        profile_arrays = list(profile_dict.values())  # Each is (365, 24)
-        warming_level_names = list(profile_dict.keys())
-
-        # Ultra-efficient: Stack arrays directly using numpy
-        print("      🏗️  Creating optimized MultiIndex DataFrame...")
-        print(f"         Processing {len(profile_arrays)} warming levels...")
-        
-        # Stack arrays: (365, 24, n_warming_levels)
-        stacked_data = np.stack(profile_arrays, axis=-1)
-
-        # Reshape for DataFrame: (365, 24*n_warming_levels)
-        reshaped_data = stacked_data.reshape(days_in_year, -1)
-
-        # Create MultiIndex columns (Hour, Warming_Level)
         hours = np.arange(1, 25, 1)
-        col_tuples = [
-            (hour, wl_name) for hour in hours for wl_name in warming_level_names
-        ]
+        wl_names = list(profile_dict.keys())
+
+        col_tuples = [(hour, wl_name) for hour in hours for wl_name in wl_names]
         multi_cols = pd.MultiIndex.from_tuples(
             col_tuples, names=["Hour", "Warming_Level"]
         )
 
+        # Stack all data horizontally
+        all_data = []
+        for hour in range(hours_per_day):
+            for wl_name in wl_names:
+                all_data.append(profile_dict[wl_name][:, hour])
+
+        all_data_array = np.column_stack(all_data)
+
         df_profile = pd.DataFrame(
-            reshaped_data,
+            all_data_array,
+            columns=multi_cols,
+            index=np.arange(1, days_in_year + 1, 1),
+        )
+        print(f"      ✓ Multi-warming level profile created: {df_profile.shape}")
+
+    else:
+        # Multiple warming levels AND multiple simulations
+        print(
+            f"      📊 Computing profiles for {len(warming_levels)} warming levels × {n_simulations} simulations..."
+        )
+
+        profile_dict = {}
+        total_combinations = len(warming_levels) * n_simulations
+
+        with tqdm(
+            total=total_combinations,
+            desc="      Processing WL×Sim combinations",
+            unit="combo",
+            leave=False,
+        ) as pbar:
+            for wl_idx, wl in enumerate(warming_levels):
+                for sim_idx, sim in enumerate(simulations):
+                    combo_num = wl_idx * n_simulations + sim_idx + 1
+                    print(
+                        f"         🔍 Processing WL {wl}°C, Sim {sim_idx+1}/{n_simulations} ({combo_num}/{total_combinations})..."
+                    )
+
+                    # Select data for this combination
+                    combo_data = data_8760.isel(
+                        warming_level=wl_idx, simulation=sim_idx
+                    )
+
+                    # Reshape to (365, 24)
+                    combo_data_reshaped = combo_data.values.reshape(
+                        days_in_year, hours_per_day
+                    )
+
+                    sim_label = (
+                        f"Sim_{sim_idx+1}" if sim is None else str(sim).split("_")[0]
+                    )
+                    key = (f"WL_{wl}", sim_label)
+                    profile_dict[key] = combo_data_reshaped
+                    pbar.update(1)
+
+        # Create multi-level DataFrame with three levels: Hour, Warming_Level, Simulation
+        print(
+            "      📋 Creating multi-level DataFrame with warming level and simulation dimensions..."
+        )
+
+        hours = np.arange(1, 25, 1)
+        wl_names = [f"WL_{wl}" for wl in warming_levels]
+        sim_names = [
+            f"Sim_{i+1}" if sim is None else str(sim).split("_")[0]
+            for i, sim in enumerate(simulations)
+        ]
+
+        col_tuples = [
+            (hour, wl_name, sim_name)
+            for hour in hours
+            for wl_name in wl_names
+            for sim_name in sim_names
+        ]
+        multi_cols = pd.MultiIndex.from_tuples(
+            col_tuples, names=["Hour", "Warming_Level", "Simulation"]
+        )
+
+        # Stack all data horizontally
+        all_data = []
+        for hour in range(hours_per_day):
+            for wl_name in wl_names:
+                for sim_name in sim_names:
+                    all_data.append(profile_dict[(wl_name, sim_name)][:, hour])
+
+        all_data_array = np.column_stack(all_data)
+
+        df_profile = pd.DataFrame(
+            all_data_array,
             columns=multi_cols,
             index=np.arange(1, days_in_year + 1, 1),
         )
@@ -593,13 +718,22 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
 
     # Step 6: Format dataframe using existing helper
     print("      🎨 Formatting profile DataFrame...")
-    if len(warming_levels) == 1:
-        print("      📝 Applying single warming level formatting...")
+
+    # Determine which formatting function to use based on the structure
+    if not isinstance(df_profile.columns, pd.MultiIndex):
+        # Simple single-level columns
+        print("      📝 Applying single-level formatting...")
         df_profile = _format_meteo_yr_df(df_profile)
     else:
-        # For multiple warming levels, we need custom formatting
-        print("      📝 Applying multi-warming level formatting...")
-        df_profile = _format_profile_df_multi_wl(df_profile)
+        # Multi-level columns - need special formatting
+        print("      📝 Applying multi-level formatting...")
+        # For now, just format the index (Day of Year)
+        year = 2024 if len(df_profile) == 366 else 2023
+        new_index = [
+            julianDay_to_date(julday, year=year, str_format="%b-%d")
+            for julday in df_profile.index
+        ]
+        df_profile.index = pd.Index(new_index, name="Day of Year")
 
     print(f"      ✅ Profile computation complete! Final shape: {df_profile.shape}")
     return df_profile
