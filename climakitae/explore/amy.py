@@ -480,7 +480,9 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
                             historic_hour = historic_profile.iloc[
                                 :, 0
                             ]  # Fall back to first column
-                        difference_profile.loc[:, col] = future_profile[col] - historic_hour
+                        difference_profile.loc[:, col] = (
+                            future_profile[col] - historic_hour
+                        )
                     pbar.update(1)
 
     elif future_has_multiindex and not historic_has_multiindex:
