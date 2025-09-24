@@ -475,7 +475,9 @@ class TestTMYClass:
         lat = 33.56
         lon = -117.81
         with pytest.raises(ValueError):
-            tmy = TMY(start_year, end_year, latitude=lat, longitude=lon, station_name=stn_name)        
+            tmy = TMY(
+                start_year, end_year, latitude=lat, longitude=lon, station_name=stn_name
+            )
 
         # Use invalid station name
         stn_name = "KSNA"
