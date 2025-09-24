@@ -529,7 +529,8 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
                     if isinstance(col_position, int):
                         historic_col_idx = col_position % len(historic_profile.columns)
                         difference_profile.loc[:, col] = (
-                            future_profile[col] - historic_profile.iloc[:, historic_col_idx]
+                            future_profile[col]
+                            - historic_profile.iloc[:, historic_col_idx]
                         )
                 pbar.update(1)
 
