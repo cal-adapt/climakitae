@@ -483,21 +483,21 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
     )
     print("      ✓ Synthetic coordinates assigned")
 
-    def _closest_to_mean(dat: xr.DataArray) -> xr.DataArray:
-        """Find the value closest to the mean of the data. Optimized version."""
-        # Optimization: Use numpy operations directly when possible
-        if dat.size == 1:
-            return dat
+    # def _closest_to_mean(dat: xr.DataArray) -> xr.DataArray:
+    #     """Find the value closest to the mean of the data. Optimized version."""
+    #     # Optimization: Use numpy operations directly when possible
+    #     if dat.size == 1:
+    #         return dat
 
-        # Stack all dimensions for processing
-        stacked = dat.stack(allofit=list(dat.dims))
+    #     # Stack all dimensions for processing
+    #     stacked = dat.stack(allofit=list(dat.dims))
 
-        # Optimization: Compute quantile and differences in one operation
-        target_quantile = stacked.quantile(q, "allofit")
-        differences = abs(stacked - target_quantile)
-        index = differences.argmin(dim="allofit").values
+    #     # Optimization: Compute quantile and differences in one operation
+    #     target_quantile = stacked.quantile(q, "allofit")
+    #     differences = abs(stacked - target_quantile)
+    #     index = differences.argmin(dim="allofit").values
 
-        return stacked.isel(allofit=index)
+    #     return stacked.isel(allofit=index)
 
     warming_levels = data_8760.warming_level.values
     print(
@@ -516,6 +516,7 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
         
         # Compute directly on the 8760 hours: reshape into (365, 24) for profile
         print("      🔄 Reshaping data for profile computation...")
+        print(data_8760)
         data_reshaped = data_8760.values.reshape(days_in_year, 24)
         
         # For each day-hour combination, we just take the single value we have
