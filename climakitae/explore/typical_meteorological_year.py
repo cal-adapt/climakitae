@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import pkg_resources
 import xarray as xr
+from scipy import optimize
 from tqdm.auto import tqdm  # Progress bar
 
 from climakitae.core.constants import UNSET
@@ -584,8 +585,17 @@ class TMY:
             for variable in variable_list:
                 tseries = df[variable].to_numpy()
                 to_smooth = tseries[ts:te]
-                fit = np.polyfit(x, to_smooth, 1)
-                fitted_line = x * fit[0] + fit[1]
+                # Assign higher certainty to the end points
+                # to keep continuity with the surrounding data
+                sigma = np.ones(len(to_smooth))
+                sigma[[0, -1]] = 0.01
+
+                # Second order polynomial fit
+                def f(x, *p):
+                    return np.poly1d(p)(x)
+
+                fit, _ = optimize.curve_fit(f, x, to_smooth, (0, 0, 0), sigma=sigma)
+                fitted_line = np.poly1d(fit)(x)
                 df.loc[row_ind, variable] = np.float32(fitted_line)
 
             # Smoothed relative humidity has to be calculated from
