@@ -541,10 +541,21 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
             leave=False,
         ) as pbar:
             for i, sim in enumerate(simulations):
+                # Extract meaningful simulation label
+                sim_str = str(sim)
+                # Parse simulation string to extract model name
+                if "WRF_" in sim_str:
+                    # Extract the GCM model name (e.g., CESM2, CNRM-ESM2-1, etc.)
+                    parts = sim_str.split("_")
+                    if len(parts) >= 2:
+                        sim_label = parts[1]  # Get the GCM name
+                    else:
+                        sim_label = f"Sim_{i+1}"
+                else:
+                    sim_label = f"Sim_{i+1}" if sim is None else sim_str.split("_")[0]
+
                 print(
-                    f"         🔍 Processing simulation {i+1}/{n_simulations}: {sim[:20]}..."
-                    if len(str(sim)) > 20
-                    else f"         🔍 Processing simulation {i+1}/{n_simulations}: {sim}"
+                    f"         🔍 Processing simulation {i+1}/{n_simulations}: {sim_label}"
                 )
 
                 # Select data for this simulation
@@ -553,9 +564,6 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
                 # Reshape to (365, 24)
                 sim_data_reshaped = sim_data.values.reshape(days_in_year, hours_per_day)
 
-                sim_label = (
-                    f"Sim_{i+1}" if sim is None else str(sim).split("_")[0]
-                )  # Use short label
                 profile_dict[sim_label] = sim_data_reshaped
                 pbar.update(1)
 
@@ -656,9 +664,22 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
         ) as pbar:
             for wl_idx, wl in enumerate(warming_levels):
                 for sim_idx, sim in enumerate(simulations):
+                    # Extract meaningful simulation label
+                    sim_str = str(sim)
+                    if "WRF_" in sim_str:
+                        parts = sim_str.split("_")
+                        if len(parts) >= 2:
+                            sim_label = parts[1]  # Get the GCM name
+                        else:
+                            sim_label = f"Sim_{sim_idx+1}"
+                    else:
+                        sim_label = (
+                            f"Sim_{sim_idx+1}" if sim is None else sim_str.split("_")[0]
+                        )
+
                     combo_num = wl_idx * n_simulations + sim_idx + 1
                     print(
-                        f"         🔍 Processing WL {wl}°C, Sim {sim_idx+1}/{n_simulations} ({combo_num}/{total_combinations})..."
+                        f"         🔍 Processing WL {wl}°C, {sim_label} ({combo_num}/{total_combinations})..."
                     )
 
                     # Select data for this combination
@@ -671,9 +692,6 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
                         days_in_year, hours_per_day
                     )
 
-                    sim_label = (
-                        f"Sim_{sim_idx+1}" if sim is None else str(sim).split("_")[0]
-                    )
                     key = (f"WL_{wl}", sim_label)
                     profile_dict[key] = combo_data_reshaped
                     pbar.update(1)
@@ -685,10 +703,9 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
 
         hours = np.arange(1, 25, 1)
         wl_names = [f"WL_{wl}" for wl in warming_levels]
-        sim_names = [
-            f"Sim_{i+1}" if sim is None else str(sim).split("_")[0]
-            for i, sim in enumerate(simulations)
-        ]
+        sim_names = list(
+            set([key[1] for key in profile_dict.keys()])
+        )  # Get unique sim names
 
         col_tuples = [
             (hour, wl_name, sim_name)
