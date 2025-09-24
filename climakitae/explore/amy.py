@@ -392,25 +392,132 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
     # Compute the difference (future - historical)
     print("🔢 Computing climate profile differences (future - historical)...")
 
-    if isinstance(future_profile.columns, pd.MultiIndex):
-        # Handle multiple warming levels
-        print(f"   Processing {len(future_profile.columns)} warming level columns...")
+    # Check the structure of both profiles to handle simulation dimension properly
+    future_has_multiindex = isinstance(future_profile.columns, pd.MultiIndex)
+    historic_has_multiindex = isinstance(historic_profile.columns, pd.MultiIndex)
+    
+    if future_has_multiindex and historic_has_multiindex:
+        # Both have MultiIndex - need to handle carefully
+        future_levels = future_profile.columns.names
+        historic_levels = historic_profile.columns.names
+        
+        if "Simulation" in future_levels and "Simulation" in historic_levels:
+            # Both have simulations - compute difference for matching simulations
+            print("   📊 Both profiles have simulation dimension - computing paired differences...")
+            
+            difference_profile = future_profile.copy()
+            
+            # Get unique simulations from both profiles
+            future_sims = future_profile.columns.get_level_values("Simulation").unique()
+            historic_sims = historic_profile.columns.get_level_values("Simulation").unique()
+            
+            # Find common simulations
+            common_sims = set(future_sims) & set(historic_sims)
+            
+            if not common_sims:
+                print("   ⚠️  Warning: No matching simulations found between future and historic profiles!")
+                print(f"      Future simulations: {list(future_sims)}")
+                print(f"      Historic simulations: {list(historic_sims)}")
+                # Fall back to using mean of historic
+                historic_mean = historic_profile.groupby(level="Hour", axis=1).mean()
+                for col in future_profile.columns:
+                    hour = col[0] if "Hour" in future_levels else col[-1]
+                    difference_profile[col] = future_profile[col] - historic_mean[hour]
+            else:
+                print(f"   ✓ Found {len(common_sims)} matching simulations")
+                
+                # Compute differences for matching simulations
+                n_cols = len(future_profile.columns)
+                with tqdm(total=n_cols, desc="   Computing paired differences", unit="column") as pbar:
+                    for col in future_profile.columns:
+                        # Extract levels from the column
+                        if "Hour" in future_levels and "Simulation" in future_levels:
+                            if len(col) == 3:  # Hour, Warming_Level, Simulation
+                                hour, wl, sim = col
+                                historic_col = (hour, sim) if (hour, sim) in historic_profile.columns else None
+                            else:  # Hour, Simulation
+                                hour, sim = col
+                                historic_col = (hour, sim) if (hour, sim) in historic_profile.columns else None
+                        
+                        if historic_col and historic_col in historic_profile.columns:
+                            difference_profile[col] = future_profile[col] - historic_profile[historic_col]
+                        else:
+                            # If no matching simulation, use mean of historic for that hour
+                            hour = col[0]  # Assuming hour is first level
+                            if "Simulation" in historic_levels:
+                                historic_hour_mean = historic_profile.xs(hour, level="Hour", axis=1).mean()
+                            else:
+                                historic_hour_mean = historic_profile[hour] if hour in historic_profile.columns else 0
+                            difference_profile[col] = future_profile[col] - historic_hour_mean
+                        pbar.update(1)
+        
+        elif "Warming_Level" in future_levels and "Simulation" not in future_levels:
+            # Future has warming levels but no simulations
+            print("   📊 Computing differences for multiple warming levels...")
+            difference_profile = future_profile.copy()
+            
+            n_cols = len(future_profile.columns)
+            with tqdm(total=n_cols, desc="   Computing differences", unit="column") as pbar:
+                for col in future_profile.columns:
+                    hour = col[0] # Assuming (Hour, Warming_Level) structure
+                    if hour in historic_profile.columns:
+                        difference_profile[col] = future_profile[col] - historic_profile[hour]
+                    else:
+                        # Try to find corresponding hour in historic MultiIndex
+                        if historic_has_multiindex and "Hour" in historic_levels:
+                            historic_hour = historic_profile.xs(hour, level="Hour", axis=1).iloc[:, 0]
+                        else:
+                            historic_hour = historic_profile.iloc[:, 0]  # Fall back to first column
+                        difference_profile[col] = future_profile[col] - historic_hour
+                    pbar.update(1)
+    
+    elif future_has_multiindex and not historic_has_multiindex:
+        # Future has MultiIndex, historic doesn't
+        print("   📊 Future has MultiIndex, historic has single-level columns...")
         difference_profile = future_profile.copy()
-
-        with tqdm(
-            total=len(future_profile.columns),
-            desc="Computing differences",
-            unit="column",
-        ) as pbar:
+        
+        n_cols = len(future_profile.columns)
+        with tqdm(total=n_cols, desc="   Computing differences", unit="column") as pbar:
             for col in future_profile.columns:
-                difference_profile[col] = (
-                    future_profile[col] - historic_profile.iloc[:, 0]
-                )  # Use first column of historic
+                # Try to match hour
+                if "Hour" in future_profile.columns.names:
+                    hour_idx = future_profile.columns.names.index("Hour")
+                    hour = col[hour_idx]
+                    # Find corresponding hour in historic (considering PST shift)
+                    if hour in historic_profile.columns:
+                        difference_profile[col] = future_profile[col] - historic_profile[hour]
+                    else:
+                        # Try numeric hour matching (1-24)
+                        hour_num = int(hour.replace('am', '').replace('pm', '')) if isinstance(hour, str) else hour
+                        if hour_num in historic_profile.columns:
+                            difference_profile[col] = future_profile[col] - historic_profile[hour_num]
+                        else:
+                            # Fall back to positional matching
+                            col_position = future_profile.columns.get_loc(col)
+                            historic_col_idx = col_position % len(historic_profile.columns)
+                            difference_profile[col] = future_profile[col] - historic_profile.iloc[:, historic_col_idx]
+                else:
+                    # No hour level, use positional matching
+                    col_position = future_profile.columns.get_loc(col)
+                    historic_col_idx = col_position % len(historic_profile.columns)
+                    difference_profile[col] = future_profile[col] - historic_profile.iloc[:, historic_col_idx]
                 pbar.update(1)
+    
     else:
-        # Single warming level
-        print("   Computing difference for single warming level...")
-        difference_profile = future_profile - historic_profile
+        # Both have single-level columns
+        print("   📊 Computing difference for single-level profiles...")
+        
+        # Check if columns match
+        if list(future_profile.columns) == list(historic_profile.columns):
+            print("   ✓ Columns match - computing element-wise difference")
+            difference_profile = future_profile - historic_profile
+        else:
+            print("   ⚠️  Warning: Column mismatch between future and historic profiles")
+            print(f"      Future columns: {list(future_profile.columns)[:5]}...")
+            print(f"      Historic columns: {list(historic_profile.columns)[:5]}...")
+            # Try to align by position
+            min_cols = min(len(future_profile.columns), len(historic_profile.columns))
+            difference_profile = future_profile.iloc[:, :min_cols] - historic_profile.iloc[:, :min_cols]
 
     print(
         f"✅ Climate profile computation complete! Final shape: {difference_profile.shape}"
@@ -846,75 +953,4 @@ def compute_severe_yr(data: xr.DataArray, days_in_year: int = 366) -> pd.DataFra
     Returns
     -------
     pd.DataFrame
-        Severe meteorological year table, with days of year as
-        the index and hour of day as the columns.
-
-    """
-
-    def closest_to_quantile(dat):
-        stacked = dat.stack(allofit=list(dat.dims))
-        index = (
-            abs(stacked - stacked.quantile(q=0.90, dim="allofit"))
-            .argmin(dim="allofit")
-            .values
-        )
-        return xr.DataArray(stacked.isel(allofit=index).values)
-
-    def return_diurnal(y):
-        return y.groupby("time.hour").map(closest_to_quantile)
-
-    hourly_da = data.groupby("time.dayofyear").map(return_diurnal)
-
-    ## Funnel data into pandas DataFrame object
-    df_severe_yr = pd.DataFrame(
-        hourly_da,
-        columns=np.arange(1, 25, 1),
-        index=np.arange(1, days_in_year + 1, 1),
-    )
-
-    # Format dataframe
-    df_severe_yr = _format_meteo_yr_df(df_severe_yr)
-    return df_severe_yr
-
-
-# =========================== HELPER FUNCTIONS: MISC ==============================
-
-
-def compute_mean_monthly_meteo_yr(
-    tmy_df: pd.DataFrame, col_name: str = "mean_value"
-) -> pd.DataFrame:
-    """Compute mean monthly values for input meteorological year data.
-
-    Parameters
-    ----------
-    tmy_df : pd.DataFrame
-        Matrix with day of year as index and hour as columns
-        Output of either compute_severe_yr or compute_meteo_yr
-    col_name : str, optional
-        Name to give single output column
-        It may be informative to assign this to the name of the data variable
-
-    Returns
-    -------
-    pd.DataFrame
-        Table with month as index and monthly mean as column
-
-    """
-    # Convert from matrix --> hour and data as individual columns
-    tmy_stacked = (
-        pd.DataFrame(tmy_df.stack()).rename(columns={0: col_name}).reset_index()
-    )
-    # Combine Hour and Day of Year to get combined date. Assign as index
-    tmy_stacked["Date"] = tmy_stacked["Day of Year"] + " " + tmy_stacked["Hour"]
-    tmy_stacked = tmy_stacked.drop(columns=["Day of Year", "Hour"]).set_index("Date")
-
-    # Reformat index to datetime so that you can resample the data monthly
-    reformatted_idx = pd.to_datetime(
-        ["2024." + idx for idx in tmy_stacked.index], format="%Y.%b-%d %I%p"
-    )
-    tmy_monthly_mean = tmy_stacked.set_index(reformatted_idx).resample("MS").mean()
-
-    # Reset index to be user-friendly month strings
-    tmy_monthly_mean = tmy_monthly_mean.set_index(tmy_monthly_mean.index.strftime("%b"))
-    tmy_monthly_mean.index.name = "Month"
-    return tmy_monthly_mean
+        Severe meteorological year table, with days of year as the index
