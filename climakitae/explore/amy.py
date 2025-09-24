@@ -466,7 +466,8 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
                 for col in future_profile.columns:
                     hour = col[0]  # Assuming (Hour, Warming_Level) structure
                     if hour in historic_profile.columns:
-                        difference_profile[col] = (
+                        # Use .loc to properly assign to MultiIndex columns
+                        difference_profile.loc[:, col] = (
                             future_profile[col] - historic_profile[hour]
                         )
                     else:
@@ -479,7 +480,7 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
                             historic_hour = historic_profile.iloc[
                                 :, 0
                             ]  # Fall back to first column
-                        difference_profile[col] = future_profile[col] - historic_hour
+                        difference_profile.loc[:, col] = future_profile[col] - historic_hour
                     pbar.update(1)
 
     elif future_has_multiindex and not historic_has_multiindex:
@@ -495,7 +496,7 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
                     hour = col[hour_idx]
                     # Find corresponding hour in historic (considering PST shift)
                     if hour in historic_profile.columns:
-                        difference_profile[col] = (
+                        difference_profile.loc[:, col] = (
                             future_profile[col] - historic_profile[hour]
                         )
                     else:
@@ -506,26 +507,28 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
                             else hour
                         )
                         if hour_num in historic_profile.columns:
-                            difference_profile[col] = (
+                            difference_profile.loc[:, col] = (
                                 future_profile[col] - historic_profile[hour_num]
                             )
                         else:
                             # Fall back to positional matching
                             col_position = future_profile.columns.get_loc(col)
-                            historic_col_idx = col_position % len(
-                                historic_profile.columns
-                            )
-                            difference_profile[col] = (
-                                future_profile[col]
-                                - historic_profile.iloc[:, historic_col_idx]
-                            )
+                            if isinstance(col_position, int):
+                                historic_col_idx = col_position % len(
+                                    historic_profile.columns
+                                )
+                                difference_profile.loc[:, col] = (
+                                    future_profile[col]
+                                    - historic_profile.iloc[:, historic_col_idx]
+                                )
                 else:
                     # No hour level, use positional matching
                     col_position = future_profile.columns.get_loc(col)
-                    historic_col_idx = col_position % len(historic_profile.columns)
-                    difference_profile[col] = (
-                        future_profile[col] - historic_profile.iloc[:, historic_col_idx]
-                    )
+                    if isinstance(col_position, int):
+                        historic_col_idx = col_position % len(historic_profile.columns)
+                        difference_profile.loc[:, col] = (
+                            future_profile[col] - historic_profile.iloc[:, historic_col_idx]
+                        )
                 pbar.update(1)
 
     else:
