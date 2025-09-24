@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
+from unittest.mock import MagicMock, patch
 
 from climakitae.core.data_interface import DataParameters
 from climakitae.explore.amy import (
@@ -9,8 +10,11 @@ from climakitae.explore.amy import (
     _set_amy_year_inputs,
     compute_amy,
     compute_mean_monthly_meteo_yr,
+    compute_profile,
     compute_severe_yr,
+    get_climate_profile,
     retrieve_meteo_yr_data,
+    retrieve_profile_data,
 )
 
 
