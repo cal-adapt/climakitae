@@ -839,9 +839,8 @@ class TMY:
 
             # Mixing ratio was only needed for smoothing relative humidity,
             # so it can be dropped now.
-            print(tmy_data_to_export.columns)
             tmy_data_to_export[sim] = tmy_data_to_export[sim].drop(
-                "Water Vapor Mixing Ratio at 2m"
+                columns="Water Vapor Mixing Ratio at 2m"
             )
         self.tmy_data_to_export = tmy_data_to_export
         self._vprint("TMY analysis complete")
