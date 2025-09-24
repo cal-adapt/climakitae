@@ -149,6 +149,7 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
         - warming_levels (Required) : List[float], default [1.2]
         - cached_area (Optional) : str or List[str]
         - units (Optional) : str, default "degF"
+        - no_delta (optional) : bool, default False, if True, do not retrieve historical data, return raw future profile
 
     Returns
     -------
@@ -180,7 +181,7 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
     Historical data is always retrieved for warming level = 1.2°C.
     Future data uses user-specified warming levels or defaults.
     """
-
+    no_delta = kwargs.pop("no_delta", False)
     # Define allowed inputs with types and defaults
     ALLOWED_INPUTS = {
         "variable": (str, "Air Temperature at 2m"),
@@ -229,7 +230,10 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
         "cached_area": kwargs.get("cached_area", None),
     }
 
-    historic_data = get_data(**get_data_params)
+    historic_data = None
+    if not no_delta:
+        # Retrieve historical data at 1.2°C warming level
+        historic_data = get_data(**get_data_params)
 
     # Update with any user-provided parameters for future data retrieval
     get_data_params.update(kwargs)
@@ -308,6 +312,7 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
         - longitude (Optional) : float or tuple
         - days_in_year (Optional) : int, default 365
         - q (Optional) : float, default 0.5, quantile for profile calculation
+        - no_delta (optional) : bool, default False, if True, do not apply baseline subtraction, return raw future profile
 
     Returns
     -------
@@ -329,6 +334,7 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
     # Extract parameters for compute_profile
     days_in_year = kwargs.pop("days_in_year", 365)
     q = kwargs.pop("q", 0.5)
+    no_delta = kwargs.get("no_delta", False)
 
     # Retrieve the climate data
     print("📊 Retrieving climate data...")
@@ -358,11 +364,17 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
             future_profile_data, days_in_year=days_in_year, q=q
         )
         pbar.update(1)
-
-        historic_profile = compute_profile(
-            historic_profile_data, days_in_year=days_in_year, q=q
-        )
+        if no_delta:
+            historic_profile = None
+        else:
+            historic_profile = compute_profile(
+                historic_profile_data, days_in_year=days_in_year, q=q
+            )
         pbar.update(1)
+
+    if no_delta or historic_profile is None:
+        print("   ✓ No baseline subtraction requested, returning raw future profile")
+        return future_profile
 
     # Check the structure of both profiles to handle simulation dimension properly
     future_has_multiindex = isinstance(future_profile.columns, pd.MultiIndex)
