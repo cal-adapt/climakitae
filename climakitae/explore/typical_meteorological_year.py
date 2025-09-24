@@ -952,6 +952,8 @@ class TMY:
             all_vars_ds, self.top_months
         )  # Return dict of TMY by simulation
 
+        self._vprint("  Smoothing data at transitions between months.")
+        self._vprint("  Dropping water vapor mixing ratio.")
         # Smooth transition hours
         for sim in tmy_data_to_export:
             tmy_data_to_export[sim] = tmy_data_to_export[sim].reset_index()
@@ -965,7 +967,7 @@ class TMY:
                 columns="Water Vapor Mixing Ratio at 2m"
             )
         self.tmy_data_to_export = tmy_data_to_export
-        self._vprint("TMY analysis complete")
+        self._vprint("TMY analysis complete.")
 
     def export_tmy_data(self, extension: str = "epw"):
         """Write TMY data to EPW file.
