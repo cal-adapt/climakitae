@@ -594,7 +594,6 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
         Multi-index columns include Hour, Warming_Level, and Simulation dimensions.
 
     """
-    print(data.attrs)
     # Check for simulation dimension
     has_simulation = "simulation" in data.dims
     if has_simulation:
@@ -805,7 +804,9 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
     # Preserve units information from the original data
     if hasattr(data, "attrs") and "units" in data.attrs:
         df_profile.attrs["units"] = data.attrs["units"]
-        df_profile.attrs["display_name"] = data.attrs.get("display_name", "N/A")
+        df_profile.attrs["extended_description"] = data.attrs.get(
+            "extended_description", "N/A"
+        )
         df_profile.attrs["variable_name"] = data.attrs.get("variable_id", data.name)
 
     # Add metadata about the profile computation
