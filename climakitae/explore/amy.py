@@ -594,6 +594,7 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
         Multi-index columns include Hour, Warming_Level, and Simulation dimensions.
 
     """
+    print(data.attrs)
     # Check for simulation dimension
     has_simulation = "simulation" in data.dims
     if has_simulation:
