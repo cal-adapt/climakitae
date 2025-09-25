@@ -853,52 +853,6 @@ def _format_meteo_yr_df(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def _format_profile_df_multi_wl(df: pd.DataFrame) -> pd.DataFrame:
-    """Format dataframe output for multiple warming levels"""
-    # Convert Julian date index to Month-Day format
-    year = 2024 if len(df) == 366 else 2023
-    new_index = [
-        julianDay_to_date(julday, year=year, str_format="%b-%d") for julday in df.index
-    ]
-    df.index = pd.Index(new_index, name="Day of Year")
-
-    # Reorder columns for PST (move hours 17-23 to front)
-    _ = df.columns.get_level_values("Hour").unique()
-    wl_levels = df.columns.get_level_values("Warming_Level").unique()
-
-    # Create new column order (17-24, then 1-16) for each warming level
-    new_cols = []
-    for wl in wl_levels:
-        pst_hours = list(range(18, 25)) + list(range(1, 18))  # 18-24, then 1-17 for PST
-        for hour in pst_hours:
-            if (hour, wl) in df.columns:
-                new_cols.append((hour, wl))
-
-    df = df[new_cols]
-
-    # Create readable hour labels
-    hour_labels = []
-    for ampm in ["am", "pm"]:
-        hr_lst = []
-        for hr in range(1, 13, 1):
-            hr_lst.append(str(hr) + ampm)
-        hr_lst = hr_lst[-1:] + hr_lst[:-1]  # Move 12am/12pm to front
-        hour_labels = hour_labels + hr_lst
-
-    # Update column names while preserving MultiIndex structure
-    new_col_tuples = []
-    for _, (hour, wl) in enumerate(df.columns):
-        hour_idx = (hour - 1) % 24  # Convert to 0-based index
-        hour_label = hour_labels[hour_idx]
-        new_col_tuples.append((hour_label, wl))
-
-    df.columns = pd.MultiIndex.from_tuples(
-        new_col_tuples, names=["Hour", "Warming_Level"]
-    )
-
-    return df
-
-
 def compute_severe_yr(data: xr.DataArray, days_in_year: int = 366) -> pd.DataFrame:
     """Calculate the severe meteorological year based on the 90th percentile of data.
 
