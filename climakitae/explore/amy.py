@@ -318,7 +318,8 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
     pd.DataFrame
         Average meteorological year table for each warming level, with days of year as
         the index and hour of day as the columns. If multiple warming levels exist,
-        they will be included as additional column levels.
+        they will be included as additional column levels. Units and metadata are 
+        preserved in the DataFrame's attrs dictionary.
 
     Examples
     --------
@@ -664,10 +665,10 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
                 # Group by hour_of_year and compute quantile across all years
                 # This gives us the q-th quantile for each of the 8760 hours
                 # Load data to avoid dask chunking issues with quantile
-                if hasattr(subset_data.data, 'chunks'):
+                if hasattr(subset_data.data, "chunks"):
                     # If it's a dask array, load it into memory
                     subset_data = subset_data.compute()
-                
+
                 profile_1d = subset_data.groupby("hour_of_year").quantile(
                     q, dim="time_delta"
                 )
@@ -788,10 +789,24 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
         ]
         df_profile.index = pd.Index(new_index, name="Day of Year")
 
+    # Preserve units information from the original data
+    if hasattr(data, 'attrs') and 'units' in data.attrs:
+        df_profile.attrs['units'] = data.attrs['units']
+        df_profile.attrs['long_name'] = data.attrs.get('long_name', 'Climate variable')
+        df_profile.attrs['variable_name'] = data.attrs.get('variable_id', data.name)
+    
+    # Add metadata about the profile computation
+    df_profile.attrs['quantile'] = q
+    df_profile.attrs['method'] = '8760 analysis - quantile across 30 years'
+    df_profile.attrs['description'] = f'Climate profile computed using {q*100:.0f}th percentile of hourly data'
+
     print(f"      ✅ Profile computation complete! Final shape: {df_profile.shape}")
     print(
         f"         With index: {df_profile.index.name}, columns: {df_profile.columns.names}"
     )
+    if hasattr(data, 'attrs') and 'units' in data.attrs:
+        print(f"         Units: {data.attrs['units']}")
+    
     return df_profile
 
 
@@ -916,6 +931,54 @@ def compute_severe_yr(data: xr.DataArray, days_in_year: int = 366) -> pd.DataFra
 
 
 # =========================== HELPER FUNCTIONS: MISC ==============================
+
+
+def get_profile_units(profile_df: pd.DataFrame) -> str:
+    """
+    Extract units information from a climate profile DataFrame.
+    
+    Parameters
+    ----------
+    profile_df : pd.DataFrame
+        Climate profile DataFrame with units stored in attrs
+        
+    Returns
+    -------
+    str
+        Units string, or 'Unknown' if not found
+        
+    Examples
+    --------
+    >>> profile = get_climate_profile(variable="Air Temperature at 2m", warming_level=[2.0])
+    >>> units = get_profile_units(profile)
+    >>> print(f"Temperature units: {units}")
+    """
+    return profile_df.attrs.get('units', 'Unknown')
+
+
+def get_profile_metadata(profile_df: pd.DataFrame) -> dict:
+    """
+    Extract all metadata from a climate profile DataFrame.
+    
+    Parameters
+    ----------
+    profile_df : pd.DataFrame
+        Climate profile DataFrame with metadata stored in attrs
+        
+    Returns
+    -------
+    dict
+        Dictionary containing all available metadata
+        
+    Examples
+    --------
+    >>> profile = get_climate_profile(variable="Air Temperature at 2m", warming_level=[2.0])
+    >>> metadata = get_profile_metadata(profile)
+    >>> print(f"Variable: {metadata.get('variable_name')}")
+    >>> print(f"Units: {metadata.get('units')}")
+    >>> print(f"Method: {metadata.get('method')}")
+    """
+    return dict(profile_df.attrs)
 
 
 def compute_mean_monthly_meteo_yr(
