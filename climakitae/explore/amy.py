@@ -311,7 +311,7 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
         - latitude (Optional) : float or tuple
         - longitude (Optional) : float or tuple
         - days_in_year (Optional) : int, default 365
-        - q (Optional) : float, default 0.5, quantile for profile calculation
+        - q (Optional) : float | list[float], default [], quantile for profile calculation
         - no_delta (optional) : bool, default False, if True, do not apply baseline subtraction, return raw future profile
 
     Returns
@@ -600,8 +600,8 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
         n_simulations = 1
         simulations = [None]
 
-    # Slice to first 8760 hours (one year) from time_delta
-    data_8760 = data.isel(time_delta=slice(0, 8760))
+    # Slice to the 8760 hours (one year) from time_delta = 0
+    data_8760 = data.sel(time_delta=slice(0, 8760))
 
     # Create synthetic time coordinates for the 8760 hours
     hours_per_day = 24
