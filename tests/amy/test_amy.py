@@ -873,3 +873,41 @@ class TestRetrieveProfileData:
             assert call_kwargs['timescale'] == "hourly"
             assert call_kwargs['area_average'] == "Yes"
             assert call_kwargs['approach'] == "Warming Level"
+
+    @patch('climakitae.explore.amy.get_data')
+    def test_retrieve_profile_data_no_delta_true(self, mock_get_data):
+        """Test retrieve_profile_data with no_delta=True.
+        
+        Tests that when no_delta=True, only future data is retrieved
+        and historic data is None (no historic data call made).
+        """
+        # Mock get_data to return future dataset (should only be called once)
+        mock_get_data.return_value = self.mock_future_dataset
+        
+        # Call function with no_delta=True
+        historic_data, future_data = retrieve_profile_data(
+            warming_level=[2.5], 
+            no_delta=True,
+            variable="Air Temperature at 2m",
+            resolution="9 km"
+        )
+        
+        # Verify historic data is None (not retrieved)
+        assert historic_data is None
+        
+        # Verify future data is the expected dataset
+        assert future_data is self.mock_future_dataset
+        
+        # Verify get_data was called only once (for future data only)
+        assert mock_get_data.call_count == 1
+        
+        # Verify the single call was for future data with correct parameters
+        call_kwargs = mock_get_data.call_args[1]
+        assert call_kwargs['warming_level'] == [2.5]
+        assert call_kwargs['variable'] == "Air Temperature at 2m"
+        assert call_kwargs['resolution'] == "9 km"
+        assert call_kwargs['downscaling_method'] == "Dynamical"
+        assert call_kwargs['approach'] == "Warming Level"
+        
+        # Verify the no_delta parameter was properly consumed and not passed to get_data
+        assert 'no_delta' not in call_kwargs
