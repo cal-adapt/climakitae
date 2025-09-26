@@ -816,3 +816,60 @@ class TestRetrieveProfileData:
             assert call_kwargs['variable'] == "Air Temperature at 2m"
             assert call_kwargs['resolution'] == "3 km"
             assert call_kwargs['downscaling_method'] == "Dynamical"
+
+    @patch('climakitae.explore.amy.get_data')
+    def test_retrieve_profile_data_custom_params(self, mock_get_data):
+        """Test retrieve_profile_data with custom parameters.
+        
+        Tests that all custom parameters are properly passed through
+        to the get_data function calls for both historic and future data.
+        """
+        # Mock get_data to return different datasets
+        mock_get_data.side_effect = [self.mock_historic_dataset, self.mock_future_dataset]
+        
+        # Call function with comprehensive custom parameters
+        custom_params = {
+            'variable': 'Air Temperature at 2m',
+            'resolution': '45 km',
+            'warming_level': [1.5, 2.0, 3.0],
+            'units': 'degC',
+            'cached_area': 'Los Angeles County',
+            'latitude': 34.0522,
+            'longitude': -118.2437
+        }
+        
+        historic_data, future_data = retrieve_profile_data(**custom_params)
+        
+        # Verify return values are the expected datasets
+        assert historic_data is self.mock_historic_dataset
+        assert future_data is self.mock_future_dataset
+        
+        # Verify get_data was called twice
+        assert mock_get_data.call_count == 2
+        
+        # Verify historic call parameters (always uses warming_level=1.2)
+        historic_call_kwargs = mock_get_data.call_args_list[0][1]
+        assert historic_call_kwargs['warming_level'] == [1.2]  # Always 1.2 for historic
+        assert historic_call_kwargs['variable'] == 'Air Temperature at 2m'
+        assert historic_call_kwargs['resolution'] == '45 km'
+        assert historic_call_kwargs['units'] == 'degC'
+        assert historic_call_kwargs['cached_area'] == 'Los Angeles County'
+        assert historic_call_kwargs['latitude'] == 34.0522
+        assert historic_call_kwargs['longitude'] == -118.2437
+        
+        # Verify future call parameters (uses user-provided warming levels)
+        future_call_kwargs = mock_get_data.call_args_list[1][1]
+        assert future_call_kwargs['warming_level'] == [1.5, 2.0, 3.0]
+        assert future_call_kwargs['variable'] == 'Air Temperature at 2m'
+        assert future_call_kwargs['resolution'] == '45 km'
+        assert future_call_kwargs['units'] == 'degC'
+        assert future_call_kwargs['cached_area'] == 'Los Angeles County'
+        assert future_call_kwargs['latitude'] == 34.0522
+        assert future_call_kwargs['longitude'] == -118.2437
+        
+        # Verify standard parameters are always set correctly
+        for call_kwargs in [historic_call_kwargs, future_call_kwargs]:
+            assert call_kwargs['downscaling_method'] == "Dynamical"
+            assert call_kwargs['timescale'] == "hourly"
+            assert call_kwargs['area_average'] == "Yes"
+            assert call_kwargs['approach'] == "Warming Level"
