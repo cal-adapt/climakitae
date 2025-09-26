@@ -655,6 +655,12 @@ def _merge_all(
             one_key = reconstruction[0]
             all_ssps = _process_dset(one_key, data_dict[one_key], selections)
             all_ssps = _add_scenario_dim(all_ssps, "Historical Reconstruction")
+        else:
+            # Handle case where no scenarios, no historical, and no reconstruction data
+            raise ValueError(
+                "No data available for the selected combination. "
+                "Please check that data exists for your selected parameters (variable, resolution, timescale, approach, etc.)"
+            )
 
     # Rename expanded dimension:
     all_ssps = all_ssps.rename({"member_id": "simulation"})

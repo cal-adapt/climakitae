@@ -217,6 +217,7 @@ def _get_var_ids(
     variable: str,
     downscaling_method: str,
     timescale: str,
+    enable_hidden_vars: bool = False,
 ) -> list[str]:
     """Get variable ids that match the selected variable, timescale, and downscaling
     method. Required to account for the fact that LOCA, WRF, and various timescales use
@@ -251,6 +252,11 @@ def _get_var_ids(
             variable_descriptions["downscaling_method"].isin(method_list)
         )  # Make sure it's the right downscaling method
     ]
+
+    # Filter by show column unless hidden variables are enabled
+    if not enable_hidden_vars:
+        var_id = var_id[var_id["show"] == True]
+
     var_id = list(var_id.variable_id.values)
     return var_id
 
@@ -825,6 +831,7 @@ class DataParameters(param.Parameterized):
             self.variable,
             self.downscaling_method,
             self.timescale,
+            self.enable_hidden_vars,
         )
         self._data_warning = ""
 
@@ -1080,6 +1087,7 @@ class DataParameters(param.Parameterized):
             self.variable,
             self.downscaling_method,
             self.timescale,
+            self.enable_hidden_vars,
         )
         self.colormap = var_info.colormap.item()
 
@@ -1108,7 +1116,9 @@ class DataParameters(param.Parameterized):
                     "states"
                 ].keys()
 
-    @param.depends("variable", "timescale", "downscaling_method", watch=True)
+    @param.depends(
+        "variable", "timescale", "downscaling_method", "enable_hidden_vars", watch=True
+    )
     def _update_unit_options(self):
         """Update unit options and native units for selected variable."""
         var_info = self.variable_options_df[
@@ -1427,7 +1437,9 @@ class DataParameters(param.Parameterized):
 
 
 def _get_user_friendly_catalog(
-    intake_catalog: intake_esm.source.ESMDataSource, variable_descriptions: pd.DataFrame
+    intake_catalog: intake_esm.source.ESMDataSource,
+    variable_descriptions: pd.DataFrame,
+    enable_hidden_vars: bool = False,
 ) -> pd.DataFrame:
     """Get a user-friendly version of the intake data catalog using climakitae naming conventions
 
@@ -1504,6 +1516,7 @@ def _get_user_friendly_catalog(
             x["downscaling_method"],
             x["timescale"],
             variable_descriptions,
+            enable_hidden_vars,
         ),
         axis=1,
     )
@@ -1540,7 +1553,11 @@ def _get_user_friendly_catalog(
 
 
 def _get_var_name_from_table(
-    variable_id: str, downscaling_method: str, timescale: str, var_df: pd.DataFrame
+    variable_id: str,
+    downscaling_method: str,
+    timescale: str,
+    var_df: pd.DataFrame,
+    enable_hidden_vars: bool = False,
 ) -> str:
     """Get the variable name corresponding to its ID, downscaling method, and timescale
     Enables the _get_user_friendly_catalog function to get the name of a variable corresponding to a set of user inputs
@@ -1566,6 +1583,10 @@ def _get_var_name_from_table(
         (var_df["variable_id"] == variable_id)
         & (var_df["downscaling_method"] == downscaling_method)
     ]
+
+    # Filter by show column unless hidden variables are enabled
+    if not enable_hidden_vars:
+        var_df_query = var_df_query[var_df_query["show"] == True]
 
     # Timescale in table needs to be handled differently
     # This is because the monthly variables are derived from daily variables, so they are listed in the table as "daily, monthly"
@@ -1726,6 +1747,7 @@ def get_data_options(
     timescale: str = None,
     scenario: Union[str, list[str]] = None,
     tidy: bool = True,
+    enable_hidden_vars: bool = False,
 ) -> pd.DataFrame:
     """Get data options, in the same format as the Select GUI, given a set of possible inputs.
     Allows the user to access the data using the same language as the GUI, bypassing the sometimes unintuitive naming in the catalog.
@@ -1746,6 +1768,9 @@ def get_data_options(
     tidy : boolean, optional
         Format the pandas dataframe? This creates a DataFrame with a MultiIndex that makes it easier to parse the options.
         Default to True
+    enable_hidden_vars : boolean, optional
+        Return all variables, including the ones in which "show" is set to False?
+        Default to False
 
     Returns
     -------
@@ -1758,7 +1783,9 @@ def get_data_options(
     var_df = data_interface.variable_descriptions
     catalog = data_interface.data_catalog
     cat_df = _get_user_friendly_catalog(
-        intake_catalog=catalog, variable_descriptions=var_df
+        intake_catalog=catalog,
+        variable_descriptions=var_df,
+        enable_hidden_vars=enable_hidden_vars,
     )
 
     # Raise error for bad input from user
@@ -1926,6 +1953,8 @@ def get_data(
     warming_level_window: int = None,
     warming_level_months: list[int] = None,
     all_touched=False,
+    enable_hidden_vars: bool = False,
+    **kwargs,
 ) -> xr.DataArray:
     # Need to add error handing for bad variable input
     """Retrieve formatted data from the Analytics Engine data catalog using a simple function.
@@ -1990,6 +2019,11 @@ def get_data(
         Only valid for approach = "Warming Level" and data_type = "Stations"
     all_touched : boolean
         spatial subset option for within or touching selection
+    enable_hidden_vars : boolean, optional
+        Return all variables, including the ones in which "show" is set to False?
+        Default to False
+    kwargs : dict
+        Additional keyword arguments to pass to DataParameters()
 
     Returns
     -------
@@ -2214,6 +2248,10 @@ def get_data(
         columns={"variable": "display_name"}
     )  # Rename column so that it can be merged with cat_df
 
+    # Filter variable descriptions based on enable_hidden_vars
+    if not enable_hidden_vars:
+        var_df = var_df[var_df["show"] == True]
+
     ## --------- ERROR HANDLING ----------
     # Deal with bad or missing users inputs
 
@@ -2360,6 +2398,7 @@ def get_data(
         timescale=timescale,
         scenario=scenario,
         tidy=False,
+        enable_hidden_vars=enable_hidden_vars,
     )
 
     if check_input_df is None:
@@ -2389,9 +2428,15 @@ def get_data(
             ]
 
     # Check if it's an index
-    variable_id = (
-        var_df[var_df["display_name"] == cat_dict["variable"][0]].iloc[0].variable_id
+    # Use proper variable_id lookup that considers downscaling method and timescale
+    variable_ids = _get_var_ids(
+        data_interface.variable_descriptions,
+        cat_dict["variable"][0],
+        cat_dict["downscaling_method"][0],
+        cat_dict["timescale"][0],
+        enable_hidden_vars=enable_hidden_vars,
     )
+    variable_id = variable_ids[0] if variable_ids else ""
     variable_type = "Derived Index" if "_index" in variable_id else "Variable"
 
     # Settings for selections
@@ -2443,7 +2488,7 @@ def get_data(
     )  # Set units if user doesn't set them manually
 
     ## ------ CREATE SELECTIONS OBJECT --------
-    selections = DataParameters()
+    selections = DataParameters(enable_hidden_vars=enable_hidden_vars)
 
     # Error handling for stations
     # If the user input a value for the station argument, check that it exists
@@ -2488,6 +2533,21 @@ def get_data(
             selections.longitude = selections_dict["longitude"]
         if selections_dict["stations"] is not None:
             selections.stations = selections_dict["stations"]
+
+        for key in kwargs:
+            if getattr(selections, key, None) is not None:
+                setattr(selections, key, kwargs[key])
+
+        # Force update variable_id after all attributes are set
+        # This ensures hidden variables work correctly
+        selections.variable_id = _get_var_ids(
+            data_interface.variable_descriptions,
+            selections.variable,
+            selections.downscaling_method,
+            selections.timescale,
+            enable_hidden_vars=enable_hidden_vars,
+        )
+
     except ValueError as error_message:
         # The error message is really long
         # And sometimes has a confusing Attribute Error: Pieces mismatch that is hard to interpret
