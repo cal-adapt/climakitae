@@ -1065,6 +1065,74 @@ class TestComputeProfile:
         assert result.attrs.get("quantile") == 0.5
         assert "8760 analysis" in result.attrs.get("method", "")
 
+    @patch('builtins.print')
+    def test_compute_profile_multiple_simulations(self, mock_print):
+        """Test compute_profile with multiple simulations.
+        
+        Tests that the function properly handles multiple climate model simulations,
+        creating a MultiIndex DataFrame with Hour and Simulation dimensions
+        and extracting meaningful simulation labels from model identifiers.
+        """
+        # Call function with multiple simulations data
+        result = compute_profile(self.single_wl_multi_sim_data)
+        
+        # Verify return type and structure
+        assert isinstance(result, pd.DataFrame)
+        assert result.shape[0] == 365, f"Expected 365 rows, got {result.shape[0]}"
+        
+        # Verify columns are MultiIndex with correct structure
+        assert isinstance(result.columns, pd.MultiIndex), "Columns should be MultiIndex for multiple simulations"
+        assert result.columns.names == ["Hour", "Simulation"], "Column names should be ['Hour', 'Simulation']"
+        
+        # Verify simulation labels are extracted properly from model identifiers
+        simulation_labels = result.columns.get_level_values("Simulation").unique()
+        expected_sim_labels = ["CESM2", "CNRM-ESM2-1", "GFDL-ESM4"]  # Extracted from WRF_MODEL_... format
+        assert len(simulation_labels) == 3, f"Expected 3 simulations, got {len(simulation_labels)}"
+        for expected_sim in expected_sim_labels:
+            assert expected_sim in simulation_labels, f"Expected simulation {expected_sim} not found"
+        
+        # Verify hour labels are present
+        hour_labels = result.columns.get_level_values("Hour").unique()
+        assert len(hour_labels) == 24, f"Expected 24 hours, got {len(hour_labels)}"
+        
+        # Check total number of columns (24 hours × 3 simulations)
+        assert result.shape[1] == 72, f"Expected 72 columns (24 hours × 3 simulations), got {result.shape[1]}"
+        
+        # Verify data completeness and reasonableness
+        assert not result.isnull().any().any(), "Result should not contain NaN values"
+        assert result.min().min() > -100, "Temperature values seem unreasonably low"
+        assert result.max().max() < 200, "Temperature values seem unreasonably high"
+        
+        # Verify each simulation has data across all hours and days
+        for sim_label in expected_sim_labels:
+            sim_data = result.xs(sim_label, level="Simulation", axis=1)
+            assert sim_data.shape == (365, 24), f"Simulation {sim_label} should have shape (365, 24)"
+            assert not sim_data.isnull().any().any(), f"Simulation {sim_label} should not have NaN values"
+        
+        # Verify simulations have different values (they should have model-specific biases)
+        sim1_data = result.xs("CESM2", level="Simulation", axis=1)
+        sim2_data = result.xs("CNRM-ESM2-1", level="Simulation", axis=1)
+        sim3_data = result.xs("GFDL-ESM4", level="Simulation", axis=1)
+        
+        # Simulations should have different average values due to model differences
+        sim1_avg = np.mean(sim1_data.to_numpy())
+        sim2_avg = np.mean(sim2_data.to_numpy())
+        sim3_avg = np.mean(sim3_data.to_numpy())
+        
+        # At least one pair should be different (models have different biases)
+        assert not (abs(sim1_avg - sim2_avg) < 0.01 and abs(sim2_avg - sim3_avg) < 0.01), "Simulations should have different average values"
+        
+        # Verify index formatting
+        assert result.index.name == "Day of Year"
+        assert len(result.index) == 365
+        assert isinstance(result.index[0], str)
+        
+        # Verify metadata preservation
+        assert result.attrs.get("units") == "degF"
+        assert result.attrs.get("variable_name") == "tasmax"
+        assert result.attrs.get("quantile") == 0.5
+        assert "8760 analysis" in result.attrs.get("method", "")
+
 
 class TestRetrieveProfileData:
     """Test class for retrieve_profile_data function."""
