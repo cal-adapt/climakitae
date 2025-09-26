@@ -10,11 +10,13 @@ import numpy as np
 import pandas as pd
 import pkg_resources
 import xarray as xr
+from scipy import optimize
 from tqdm.auto import tqdm  # Progress bar
 
 from climakitae.core.constants import UNSET
 from climakitae.core.data_export import write_tmy_file
 from climakitae.core.data_interface import get_data
+from climakitae.tools.derived_variables import compute_relative_humidity
 from climakitae.util.utils import (
     convert_to_local_time,
     get_closest_gridcell,
@@ -406,6 +408,7 @@ class TMY:
             "Wind speed at 10m": "m s-1",
             "Wind direction at 10m": "degrees",
             "Surface Pressure": "Pa",
+            "Water Vapor Mixing Ratio at 2m": "g kg-1",
         }
         self.gwl_year_range = UNSET
         self.verbose = verbose
@@ -623,6 +626,85 @@ class TMY:
         return returned_data
 
     @staticmethod
+    def _smooth_month_transition_hours(df: pd.DataFrame) -> pd.DataFrame:
+        """Following the NREL procedure, smooth the data in the transitions between months.
+
+        As described in https://docs.nrel.gov/docs/fy08osti/43156.pdf, the hourly data is smoothed
+        between months via a curve fit during a 12-hour window centered on day 1, hour 0.
+        The radiation variables are not smoothed. Relative humidity during the 12-hour window
+        is calculated from smoothed air temperature, surface pressure, and mixing ratio.
+
+        Parameters
+        ----------
+        df: pd.DataFrame
+            Data to smooth for a single simulation
+
+        Returns
+        -------
+        df: pd.DataFrame
+        """
+        times = df["time"]
+        # Find hour 0 of first day of each month
+        times = pd.to_datetime(times)
+        day1hour1 = times[(times.dt.day == 1) & (times.dt.hour == 0)][
+            1:
+        ]  # skip Jan 1 since no prior month
+        day1ind = [int(np.where(times.to_numpy() == x)[0][0]) for x in day1hour1]
+        # bracket around the 1st of the month
+        start_times = [x - 6 for x in day1ind]
+        end_times = [x + 6 for x in day1ind]
+
+        # These are the variables getting smoothed. Plus RH, but
+        # that gets calculated separately.
+        variable_list = [
+            "Air Temperature at 2m",
+            "Dew point temperature",
+            "Wind speed at 10m",
+            "Wind direction at 10m",
+            "Surface Pressure",
+            "Water Vapor Mixing Ratio at 2m",
+        ]
+
+        # For each month, do a linear fit to smooth the data in the 12 hour window
+        # around day 01 hour 00
+        x = np.arange(0, 12)
+        for ts, te in zip(start_times, end_times):
+            row_ind = np.arange(ts, te)
+            # Smooth the listed variables
+            for variable in variable_list:
+                tseries = df[variable].to_numpy()
+                to_smooth = tseries[ts:te]
+                # Assign higher certainty to the end points
+                # to keep continuity with the surrounding data
+                sigma = np.ones(len(to_smooth))
+                sigma[[0, -1]] = 0.01
+
+                # Second order polynomial fit
+                def f(x, *p):
+                    return np.poly1d(p)(x)
+
+                fit, _ = optimize.curve_fit(f, x, to_smooth, (0, 0, 0), sigma=sigma)
+                fitted_line = np.poly1d(fit)(x)
+                df.loc[row_ind, variable] = np.float32(fitted_line)
+
+            # Smoothed relative humidity has to be calculated from
+            # fitted temperature, mixing ratio, and pressure
+            pressure_da = xr.DataArray(
+                df.loc[row_ind, "Surface Pressure"] / 100.0
+            )  # to hPa
+            t2_da = xr.DataArray(df.loc[row_ind, "Air Temperature at 2m"])  # C
+            q2_da = xr.DataArray(
+                df.loc[row_ind, "Water Vapor Mixing Ratio at 2m"]
+            )  # g/kg
+            rh_da = compute_relative_humidity(
+                pressure=pressure_da,  # hPa
+                temperature=t2_da,  # degC
+                mixing_ratio=q2_da,  # g/kg
+            ).data
+            df.loc[row_ind, "Relative humidity"] = np.float32(rh_da)
+        return df
+
+    @staticmethod
     def _make_8760_tables(all_vars_ds: xr.Dataset, top_months: pd.DataFrame) -> dict:
         """Extract top months from loaded data and arrange in table.
 
@@ -666,6 +748,7 @@ class TMY:
 
             # Concatenate all DataFrames together
             tmy_df_by_sim = pd.concat(df_list)
+
             tmy_df_all[sim] = tmy_df_by_sim
         return tmy_df_all
 
@@ -816,9 +899,13 @@ class TMY:
             print("Please run TMY.generate_tmy() to create TMY data for viewing.")
             return
 
+        # WVMR not in final TMY dataframe
+        fig_y = list(self.vars_and_units.keys())
+        fig_y.remove("Water Vapor Mixing Ratio at 2m")
+
         self.tmy_data_to_export[simulation].plot(
             x="time",
-            y=list(self.vars_and_units.keys()),
+            y=fig_y,
             title=f"Typical Meteorological Year ({simulation})",
             subplots=True,
             figsize=(10, 8),
@@ -862,13 +949,29 @@ class TMY:
 
         # Construct TMY
         self._vprint(
-            "\n  STEP 2: Calculating Typical Meteorological Year per model simulation\nProgress bar shows code looping through each month in the year.\n"
+            "\n  STEP 2: Calculating Typical Meteorological Year per model simulation\n  Progress bar shows code looping through each month in the year.\n"
         )
 
-        self.tmy_data_to_export = self._make_8760_tables(
+        tmy_data_to_export = self._make_8760_tables(
             all_vars_ds, self.top_months
         )  # Return dict of TMY by simulation
-        self._vprint("TMY analysis complete")
+
+        self._vprint("  Smoothing data at transitions between months.")
+        self._vprint("  Dropping water vapor mixing ratio.")
+        # Smooth transition hours
+        for sim in tmy_data_to_export:
+            tmy_data_to_export[sim] = tmy_data_to_export[sim].reset_index()
+            tmy_data_to_export[sim] = self._smooth_month_transition_hours(
+                tmy_data_to_export[sim]
+            )
+
+            # Mixing ratio was only needed for smoothing relative humidity,
+            # so it can be dropped now.
+            tmy_data_to_export[sim] = tmy_data_to_export[sim].drop(
+                columns="Water Vapor Mixing Ratio at 2m"
+            )
+        self.tmy_data_to_export = tmy_data_to_export
+        self._vprint("TMY analysis complete.")
 
     def export_tmy_data(self, extension: str = "epw"):
         """Write TMY data to EPW file.
