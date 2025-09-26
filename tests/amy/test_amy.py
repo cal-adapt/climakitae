@@ -749,6 +749,156 @@ class TestGetClimateProfile:
         assert mock_retrieve.call_count == 5
 
 
+class TestComputeProfile:
+    """Test class for compute_profile function."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        # Create mock xarray DataArrays with proper dimensions for compute_profile
+        
+        # Time dimension - 30 years of hourly data (262,800 hours)
+        self.hours_per_year = 8760
+        self.n_years = 30
+        self.total_hours = self.hours_per_year * self.n_years
+        
+        # Create realistic climate data with seasonal and diurnal patterns
+        # Base temperature around 15°C with seasonal variation
+        hours = np.arange(self.total_hours)
+        seasonal_pattern = 10 * np.sin(2 * np.pi * hours / self.hours_per_year - np.pi/2)  # Annual cycle
+        diurnal_pattern = 5 * np.sin(2 * np.pi * (hours % 24) / 24 - np.pi/2)  # Daily cycle
+        base_temp = 15.0
+        noise = np.random.normal(0, 2, self.total_hours)  # Some random variation
+        
+        self.mock_climate_data = base_temp + seasonal_pattern + diurnal_pattern + noise
+        
+        # Create single warming level, single simulation DataArray
+        self.single_wl_single_sim_data = xr.DataArray(
+            data=self.mock_climate_data[np.newaxis, :],  # Add warming_level dimension
+            dims=["warming_level", "time_delta"],
+            coords={
+                "warming_level": [2.0],  # Make it an array
+                "time_delta": np.arange(self.total_hours),
+            },
+            attrs={
+                "units": "degF",
+                "variable_id": "tasmax",
+                "extended_description": "Daily Maximum Near-Surface Air Temperature"
+            }
+        )
+        
+        # Create multiple warming levels, single simulation DataArray
+        warming_levels = [1.5, 2.0, 3.0]
+        multi_wl_data = []
+        for i, wl in enumerate(warming_levels):
+            # Add warming level effect (higher warming = higher base temp)
+            wl_effect = i * 2.0  # Each level adds 2°C
+            wl_data = self.mock_climate_data + wl_effect
+            multi_wl_data.append(wl_data)
+        
+        self.multi_wl_single_sim_data = xr.DataArray(
+            data=np.array(multi_wl_data),
+            dims=["warming_level", "time_delta"],
+            coords={
+                "warming_level": warming_levels,
+                "time_delta": np.arange(self.total_hours),
+            },
+            attrs={
+                "units": "degF", 
+                "variable_id": "tasmax",
+                "extended_description": "Daily Maximum Near-Surface Air Temperature"
+            }
+        )
+        
+        # Create single warming level, multiple simulations DataArray
+        simulations = ["WRF_CESM2_r1i1p1f1", "WRF_CNRM-ESM2-1_r1i1p1f2", "WRF_GFDL-ESM4_r1i1p1f1"]
+        single_wl_multi_sim_data = []
+        for i, sim in enumerate(simulations):
+            # Add slight simulation differences
+            sim_bias = (i - 1) * 1.0  # Different models have different biases
+            sim_data = self.mock_climate_data + sim_bias
+            single_wl_multi_sim_data.append(sim_data)
+        
+        self.single_wl_multi_sim_data = xr.DataArray(
+            data=np.array(single_wl_multi_sim_data)[:, np.newaxis, :],  # Add warming_level dim
+            dims=["simulation", "warming_level", "time_delta"],
+            coords={
+                "simulation": simulations,
+                "warming_level": [2.0],  # Make it an array
+                "time_delta": np.arange(self.total_hours),
+            },
+            attrs={
+                "units": "degF",
+                "variable_id": "tasmax", 
+                "extended_description": "Daily Maximum Near-Surface Air Temperature"
+            }
+        )
+        
+        # Create multiple warming levels AND multiple simulations DataArray
+        multi_wl_multi_sim_data = []
+        for i, wl in enumerate(warming_levels):
+            wl_sims = []
+            for j, sim in enumerate(simulations):
+                # Combine warming level effect and simulation bias
+                combined_data = self.mock_climate_data + (i * 2.0) + ((j - 1) * 1.0)
+                wl_sims.append(combined_data)
+            multi_wl_multi_sim_data.append(wl_sims)
+        
+        self.multi_wl_multi_sim_data = xr.DataArray(
+            data=np.array(multi_wl_multi_sim_data),
+            dims=["warming_level", "simulation", "time_delta"],
+            coords={
+                "warming_level": warming_levels,
+                "simulation": simulations,
+                "time_delta": np.arange(self.total_hours),
+            },
+            attrs={
+                "units": "degF",
+                "variable_id": "tasmax",
+                "extended_description": "Daily Maximum Near-Surface Air Temperature" 
+            }
+        )
+
+    @patch('builtins.print')
+    def test_compute_profile_default_params(self, mock_print):
+        """Test compute_profile with default parameters.
+        
+        Tests that the function returns a properly formatted DataFrame
+        with 365 days, 24 hours, median quantile processing, and proper
+        index formatting when using simplest data structure.
+        """
+        # Call function with default parameters using single warming level data
+        result = compute_profile(self.single_wl_single_sim_data)
+        
+        # Verify return type and basic structure
+        assert isinstance(result, pd.DataFrame)
+        assert result.shape == (365, 24), f"Expected (365, 24), got {result.shape}"
+        
+        # Verify default parameters were applied
+        assert result.attrs.get("quantile") == 0.5, "Default quantile should be 0.5"
+        
+        # Verify index is properly formatted (Day of Year format like "Jan-01")
+        assert result.index.name == "Day of Year"
+        assert isinstance(result.index[0], str)
+        assert "-" in result.index[0]  # Should be "Month-Day" format
+        assert len(result.index) == 365
+        
+        # Verify columns are properly formatted hour labels
+        expected_hour_labels = [f"{h}am" for h in [12] + list(range(1, 12))] + [f"{h}pm" for h in [12] + list(range(1, 12))]
+        assert list(result.columns) == expected_hour_labels
+        assert result.columns.name == "Hour"
+        
+        # Verify data contains reasonable climate values (not NaN, not extreme)
+        assert not result.isnull().any().any(), "Result should not contain NaN values"
+        assert result.min().min() > -50, "Minimum temperature seems unreasonably low"
+        assert result.max().max() < 150, "Maximum temperature seems unreasonably high"
+        
+        # Verify metadata is properly set
+        assert result.attrs.get("units") == "degF"
+        assert result.attrs.get("variable_name") == "tasmax"
+        assert "8760 analysis" in result.attrs.get("method", "")
+        assert "50th percentile" in result.attrs.get("description", "")
+
+
 class TestRetrieveProfileData:
     """Test class for retrieve_profile_data function."""
 
