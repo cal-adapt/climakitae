@@ -1229,6 +1229,80 @@ class TestComputeProfile:
         assert result.attrs.get("quantile") == 0.5
         assert "8760 analysis" in result.attrs.get("method", "")
 
+    @patch('builtins.print')
+    def test_compute_profile_metadata_preservation(self, mock_print):
+        """Test compute_profile metadata preservation and enhancement.
+        
+        Tests that the function properly preserves input metadata and adds
+        new metadata about the profile computation process, including
+        quantile information, method description, and variable details.
+        """
+        # Test with input data that has rich metadata
+        test_data = self.single_wl_single_sim_data.copy()
+        test_data.attrs.update({
+            "units": "degC",
+            "variable_id": "tas", 
+            "extended_description": "Daily Mean Near-Surface Air Temperature",
+            "institution": "Test Institution",
+            "experiment": "ssp245",
+            "custom_attribute": "test_value"
+        })
+        
+        # Call function with custom quantile
+        result = compute_profile(test_data, q=0.8)
+        
+        # Verify input metadata is preserved
+        assert result.attrs.get("units") == "degC", "Input units should be preserved"
+        assert result.attrs.get("variable_name") == "tas", "Variable ID should be preserved as variable_name"
+        assert result.attrs.get("extended_description") == "Daily Mean Near-Surface Air Temperature", "Extended description should be preserved"
+        
+        # Verify new computation metadata is added
+        assert result.attrs.get("quantile") == 0.8, "Quantile parameter should be recorded"
+        assert result.attrs.get("method") == "8760 analysis - actual data closest to quantile across 30 years", "Method should be documented"
+        assert "80th percentile" in result.attrs.get("description", ""), "Description should include quantile information"
+        
+        # Test with missing metadata
+        minimal_data = xr.DataArray(
+            data=self.mock_climate_data[np.newaxis, :],
+            dims=["warming_level", "time_delta"],
+            coords={
+                "warming_level": [2.0],
+                "time_delta": np.arange(self.total_hours),
+            },
+            # No attrs specified
+        )
+        
+        result_minimal = compute_profile(minimal_data, q=0.3)
+        
+        # Should still add computation metadata even if input metadata is missing
+        assert result_minimal.attrs.get("quantile") == 0.3
+        assert result_minimal.attrs.get("method") == "8760 analysis - actual data closest to quantile across 30 years"
+        assert "30th percentile" in result_minimal.attrs.get("description", "")
+        
+        # Should handle missing input metadata gracefully
+        assert result_minimal.attrs.get("variable_name") is None or result_minimal.attrs.get("variable_name") == "None"
+        
+        # Test metadata consistency across different data structures
+        result_multi = compute_profile(self.multi_wl_single_sim_data, q=0.25)
+        
+        # Same computation metadata should be added regardless of data structure complexity
+        assert result_multi.attrs.get("quantile") == 0.25
+        assert result_multi.attrs.get("method") == "8760 analysis - actual data closest to quantile across 30 years"
+        assert "25th percentile" in result_multi.attrs.get("description", "")
+        assert result_multi.attrs.get("units") == "degF"  # From original setup
+        assert result_multi.attrs.get("variable_name") == "tasmax"  # From original setup
+        
+        # Verify quantile edge cases are handled properly in descriptions
+        result_min = compute_profile(self.single_wl_single_sim_data, q=0.0)
+        result_max = compute_profile(self.single_wl_single_sim_data, q=1.0)
+        
+        assert "0th percentile" in result_min.attrs.get("description", "")
+        assert "100th percentile" in result_max.attrs.get("description", "")
+        
+        # Verify median is described properly
+        result_median = compute_profile(self.single_wl_single_sim_data, q=0.5)
+        assert "50th percentile" in result_median.attrs.get("description", "")
+
 
 class TestRetrieveProfileData:
     """Test class for retrieve_profile_data function."""
