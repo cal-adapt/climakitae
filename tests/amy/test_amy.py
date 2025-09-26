@@ -1001,6 +1001,70 @@ class TestComputeProfile:
         assert "8760 analysis" in result.attrs.get("method", "")
         assert "50th percentile" in result.attrs.get("description", "")
 
+    @patch('builtins.print')
+    def test_compute_profile_multiple_warming_levels(self, mock_print):
+        """Test compute_profile with multiple warming levels.
+        
+        Tests that the function properly handles multiple warming levels,
+        creating a MultiIndex DataFrame with Hour and Warming_Level dimensions
+        and organizing data appropriately across warming levels.
+        """
+        # Call function with multiple warming levels data
+        result = compute_profile(self.multi_wl_single_sim_data)
+        
+        # Verify return type and structure
+        assert isinstance(result, pd.DataFrame)
+        assert result.shape[0] == 365, f"Expected 365 rows, got {result.shape[0]}"
+        
+        # Verify columns are MultiIndex with correct structure
+        assert isinstance(result.columns, pd.MultiIndex), "Columns should be MultiIndex for multiple warming levels"
+        assert result.columns.names == ["Hour", "Warming_Level"], "Column names should be ['Hour', 'Warming_Level']"
+        
+        # Verify warming level labels are present
+        warming_level_labels = result.columns.get_level_values("Warming_Level").unique()
+        expected_wl_labels = ["WL_1.5", "WL_2.0", "WL_3.0"]
+        assert len(warming_level_labels) == 3, f"Expected 3 warming levels, got {len(warming_level_labels)}"
+        for expected_wl in expected_wl_labels:
+            assert expected_wl in warming_level_labels, f"Expected warming level {expected_wl} not found"
+        
+        # Verify hour labels are present
+        hour_labels = result.columns.get_level_values("Hour").unique()
+        assert len(hour_labels) == 24, f"Expected 24 hours, got {len(hour_labels)}"
+        
+        # Check total number of columns (24 hours × 3 warming levels)
+        assert result.shape[1] == 72, f"Expected 72 columns (24 hours × 3 warming levels), got {result.shape[1]}"
+        
+        # Verify data completeness and reasonableness
+        assert not result.isnull().any().any(), "Result should not contain NaN values"
+        assert result.min().min() > -100, "Temperature values seem unreasonably low"
+        assert result.max().max() < 200, "Temperature values seem unreasonably high"
+        
+        # Verify warming level progression - higher warming levels should generally have higher temperatures
+        # Check average temperature progression across warming levels using numpy operations
+        wl_1_5_subset = result.xs("WL_1.5", level="Warming_Level", axis=1)
+        wl_2_0_subset = result.xs("WL_2.0", level="Warming_Level", axis=1)
+        wl_3_0_subset = result.xs("WL_3.0", level="Warming_Level", axis=1)
+        
+        # Use numpy to compute means to avoid type issues
+        import numpy as np
+        wl_1_5_avg = np.mean(wl_1_5_subset.to_numpy())
+        wl_2_0_avg = np.mean(wl_2_0_subset.to_numpy())
+        wl_3_0_avg = np.mean(wl_3_0_subset.to_numpy())
+        
+        assert wl_3_0_avg > wl_1_5_avg, "Average temperature should increase with warming level"
+        assert wl_2_0_avg > wl_1_5_avg, "WL_2.0 should be warmer than WL_1.5 on average"
+        
+        # Verify index formatting
+        assert result.index.name == "Day of Year"
+        assert len(result.index) == 365
+        assert isinstance(result.index[0], str)
+        
+        # Verify metadata preservation
+        assert result.attrs.get("units") == "degF"
+        assert result.attrs.get("variable_name") == "tasmax"
+        assert result.attrs.get("quantile") == 0.5
+        assert "8760 analysis" in result.attrs.get("method", "")
+
 
 class TestRetrieveProfileData:
     """Test class for retrieve_profile_data function."""
