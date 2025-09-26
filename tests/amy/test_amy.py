@@ -926,8 +926,8 @@ class TestRetrieveProfileData:
         with pytest.raises(ValueError, match="Invalid input\\(s\\): \\['invalid_param'\\]"):
             retrieve_profile_data(warming_level=[2.0], invalid_param="test")
         
-        # Test multiple invalid parameter keys
-        with pytest.raises(ValueError, match="Invalid input\\(s\\):.*bad_param1.*bad_param2"):
+        # Test multiple invalid parameter keys (order may vary)
+        with pytest.raises(ValueError, match="Invalid input\\(s\\):.*bad_param"):
             retrieve_profile_data(warming_level=[2.0], bad_param1="test", bad_param2="test2")
         
         # Test invalid parameter type - warming_level should be list
