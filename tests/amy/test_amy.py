@@ -747,3 +747,72 @@ class TestGetClimateProfile:
 
         # Verify that retrieve_profile_data was called in all error cases
         assert mock_retrieve.call_count == 5
+
+
+class TestRetrieveProfileData:
+    """Test class for retrieve_profile_data function."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        # Create mock xarray datasets that would be returned by get_data
+        times = pd.date_range("2020-01-01", periods=8760, freq="h")
+        
+        self.mock_historic_dataset = xr.Dataset(
+            {"tasmax": (["time"], np.random.rand(8760))}, 
+            coords={"time": times}
+        )
+        self.mock_historic_dataset.attrs = {
+            "units": "degF", 
+            "variable_id": "tasmax",
+            "warming_level": 1.2
+        }
+        
+        self.mock_future_dataset = xr.Dataset(
+            {"tasmax": (["time"], np.random.rand(8760))}, 
+            coords={"time": times}
+        )
+        self.mock_future_dataset.attrs = {
+            "units": "degF", 
+            "variable_id": "tasmax", 
+            "warming_level": 2.0
+        }
+
+    @patch('climakitae.explore.amy.get_data')
+    def test_retrieve_profile_data_default_params(self, mock_get_data):
+        """Test retrieve_profile_data with default parameters.
+        
+        Tests that the function returns both historic and future data
+        with proper default parameter handling and warming level setup.
+        """
+        # Mock get_data to return different datasets for historic vs future calls
+        mock_get_data.side_effect = [self.mock_historic_dataset, self.mock_future_dataset]
+        
+        # Call function with minimal required parameter
+        historic_data, future_data = retrieve_profile_data(warming_level=[2.0])
+        
+        # Verify return values are the expected datasets
+        assert historic_data is self.mock_historic_dataset
+        assert future_data is self.mock_future_dataset
+        
+        # Verify get_data was called twice (historic + future)
+        assert mock_get_data.call_count == 2
+        
+        # Verify historic call used warming_level=1.2 and other defaults
+        historic_call_kwargs = mock_get_data.call_args_list[0][1]  # First call kwargs
+        assert historic_call_kwargs['warming_level'] == [1.2]
+        assert historic_call_kwargs['variable'] == "Air Temperature at 2m"
+        assert historic_call_kwargs['resolution'] == "3 km"
+        assert historic_call_kwargs['downscaling_method'] == "Dynamical"
+        assert historic_call_kwargs['timescale'] == "hourly"
+        assert historic_call_kwargs['area_average'] == "Yes"
+        assert historic_call_kwargs['approach'] == "Warming Level"
+        
+        # Verify future call used user-provided warming_level
+        future_call_kwargs = mock_get_data.call_args_list[1][1]  # Second call kwargs  
+        assert future_call_kwargs['warming_level'] == [2.0]
+        
+        # Verify both calls have consistent base parameters
+        for call_kwargs in [historic_call_kwargs, future_call_kwargs]:
+            assert call_kwargs['variable'] == "Air Temperature at 2m"
+            assert call_kwargs['resolution'] == "3 km"
+            assert call_kwargs['downscaling_method'] == "Dynamical"
