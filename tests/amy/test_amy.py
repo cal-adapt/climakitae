@@ -668,3 +668,38 @@ class TestGetClimateProfile:
         
         # Verify compute_profile was attempted
         mock_compute.assert_called_once()
+
+    @patch('climakitae.explore.amy.retrieve_profile_data')
+    def test_get_climate_profile_invalid_params(self, mock_retrieve):
+        """Test get_climate_profile with invalid parameters.
+        
+        Tests error handling for various invalid parameter scenarios
+        including missing required parameters, invalid keys, and wrong types.
+        """
+        # Test missing required parameter (warming_level)
+        mock_retrieve.side_effect = ValueError("Missing required input: 'warming_level'")
+        with pytest.raises(ValueError, match="Missing required input: 'warming_level'"):
+            get_climate_profile(variable="Air Temperature at 2m")
+        
+        # Test invalid parameter key
+        mock_retrieve.side_effect = ValueError("Invalid input(s): ['invalid_param']. Allowed inputs are: ['variable', 'resolution', 'warming_level', 'cached_area', 'units', 'latitude', 'longitude']")
+        with pytest.raises(ValueError, match="Invalid input\\(s\\): \\['invalid_param'\\]"):
+            get_climate_profile(warming_level=[2.0], invalid_param="test")
+        
+        # Test invalid parameter type - warming_level should be list
+        mock_retrieve.side_effect = TypeError("Parameter 'warming_level' must be of type list, got float")
+        with pytest.raises(TypeError, match="Parameter 'warming_level' must be of type list"):
+            get_climate_profile(warming_level=2.0)
+        
+        # Test invalid parameter type - variable should be str
+        mock_retrieve.side_effect = TypeError("Parameter 'variable' must be of type str, got int")
+        with pytest.raises(TypeError, match="Parameter 'variable' must be of type str"):
+            get_climate_profile(warming_level=[2.0], variable=123)
+        
+        # Test invalid parameter type - resolution should be str
+        mock_retrieve.side_effect = TypeError("Parameter 'resolution' must be of type str, got int")
+        with pytest.raises(TypeError, match="Parameter 'resolution' must be of type str"):
+            get_climate_profile(warming_level=[2.0], resolution=45)
+        
+        # Verify that retrieve_profile_data was called in all error cases
+        assert mock_retrieve.call_count == 5
