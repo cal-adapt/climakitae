@@ -39,7 +39,7 @@ class TestRegisterCatalogValidator:
         """Save original registry state and clear for testing."""
         self._original_catalog_registry = _CATALOG_VALIDATOR_REGISTRY.copy()
         _CATALOG_VALIDATOR_REGISTRY.clear()
-    
+
     def teardown_method(self):
         """Restore original registry state."""
         _CATALOG_VALIDATOR_REGISTRY.clear()
@@ -104,7 +104,7 @@ class TestRegisterProcessorValidator:
         """Save original registry state and clear for testing."""
         self._original_processor_registry = _PROCESSOR_VALIDATOR_REGISTRY.copy()
         _PROCESSOR_VALIDATOR_REGISTRY.clear()
-    
+
     def teardown_method(self):
         """Restore original registry state."""
         _PROCESSOR_VALIDATOR_REGISTRY.clear()
@@ -252,7 +252,7 @@ class TestHasValidProcesses:
             "climakitae.new_core.param_validation.abc_param_validation.DataCatalog"
         ):
             self.validator = ConcreteValidator()
-    
+
     def teardown_method(self):
         """Restore original registry state."""
         _PROCESSOR_VALIDATOR_REGISTRY.clear()
@@ -353,7 +353,7 @@ class TestIsValidQuery:
                 "source_id": UNSET,
                 "grid_label": UNSET,
             }
-    
+
     def teardown_method(self):
         """Restore original registry state."""
         _PROCESSOR_VALIDATOR_REGISTRY.clear()
@@ -509,7 +509,7 @@ class TestParameterValidatorIntegration:
         self._original_processor_registry = _PROCESSOR_VALIDATOR_REGISTRY.copy()
         _CATALOG_VALIDATOR_REGISTRY.clear()
         _PROCESSOR_VALIDATOR_REGISTRY.clear()
-    
+
     def teardown_method(self):
         """Restore original registry states."""
         _CATALOG_VALIDATOR_REGISTRY.clear()
