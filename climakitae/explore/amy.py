@@ -224,9 +224,11 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
         "variable": kwargs.get("variable", "Air Temperature at 2m"),
         "resolution": kwargs.get("resolution", "3 km"),
         "downscaling_method": "Dynamical",  # must be WRF, cannot be LOCA
-        "timescale": "hourly",  # must be hourly for 8760 analysis
+        "timescale": kwargs.get(
+            "timescale", "hourly"
+        ),  # must be hourly for 8760 analysis
         "area_average": "Yes",
-        "units": "degF",
+        "units": kwargs.get("units", None),
         "approach": "Warming Level",
         "warming_level": [1.2],
         "cached_area": kwargs.get("cached_area", None),
