@@ -898,6 +898,60 @@ class TestComputeProfile:
         assert "8760 analysis" in result.attrs.get("method", "")
         assert "50th percentile" in result.attrs.get("description", "")
 
+    @patch('builtins.print')
+    def test_compute_profile_custom_params(self, mock_print):
+        """Test compute_profile with custom parameters.
+        
+        Tests that the function properly handles different quantile values,
+        verifying parameter effects on DataFrame structure and metadata.
+        Note: days_in_year parameter affects reshaping but function always processes 8760 hours.
+        """
+        # Test with different quantile value (using standard 365 days to avoid reshape error)
+        result = compute_profile(self.single_wl_single_sim_data, days_in_year=365, q=0.9)
+        
+        # Verify return type and structure
+        assert isinstance(result, pd.DataFrame)
+        assert result.shape == (365, 24), f"Expected (365, 24), got {result.shape}"
+        
+        # Verify custom parameters were applied
+        assert result.attrs.get("quantile") == 0.9, "Custom quantile should be 0.9"
+        
+        # Verify custom quantile is reflected in description
+        assert "90th percentile" in result.attrs.get("description", "")
+        
+        # Test with different quantile values
+        result_q10 = compute_profile(self.single_wl_single_sim_data, q=0.1)
+        assert result_q10.attrs.get("quantile") == 0.1
+        assert "10th percentile" in result_q10.attrs.get("description", "")
+        
+        result_q75 = compute_profile(self.single_wl_single_sim_data, q=0.75)
+        assert result_q75.attrs.get("quantile") == 0.75
+        assert "75th percentile" in result_q75.attrs.get("description", "")
+        
+        # Verify data values are different for different quantiles
+        # Higher quantiles should generally have higher values for temperature data
+        assert not result.equals(result_q10), "Different quantiles should produce different results"
+        assert not result.equals(result_q75), "Different quantiles should produce different results"
+        
+        # Test extreme quantiles
+        result_min = compute_profile(self.single_wl_single_sim_data, q=0.0)
+        result_max = compute_profile(self.single_wl_single_sim_data, q=1.0)
+        
+        # Min quantile should have lower values than max quantile in most cases
+        assert result_min.mean().mean() <= result_max.mean().mean(), "Minimum quantile should have lower average values than maximum quantile"
+        
+        # Test boundary quantile values
+        result_median = compute_profile(self.single_wl_single_sim_data, q=0.5)
+        assert result_median.attrs.get("quantile") == 0.5, "Median quantile should be properly set"
+        
+        # Verify all results have consistent metadata structure
+        for test_result in [result, result_q10, result_q75, result_min, result_max, result_median]:
+            assert test_result.attrs.get("method") == "8760 analysis - actual data closest to quantile across 30 years"
+            assert test_result.attrs.get("units") == "degF"
+            assert test_result.attrs.get("variable_name") == "tasmax"
+            assert test_result.index.name == "Day of Year"
+            assert test_result.columns.name == "Hour"
+
 
 class TestRetrieveProfileData:
     """Test class for retrieve_profile_data function."""
