@@ -532,3 +532,36 @@ class TestGetClimateProfile:
         # Verify difference calculation
         expected_diff = self.mock_future_profile - self.mock_historic_profile
         pd.testing.assert_frame_equal(result, expected_diff)
+
+    @patch('climakitae.explore.amy.compute_profile')
+    @patch('climakitae.explore.amy.retrieve_profile_data')
+    @patch('builtins.print')
+    def test_get_climate_profile_no_delta(self, mock_print, mock_retrieve, mock_compute):
+        """Test get_climate_profile with no_delta=True.
+        
+        Tests that when no_delta=True, the function returns raw future
+        profile without baseline subtraction.
+        """
+        # Mock the retrieve_profile_data function
+        mock_retrieve.return_value = (self.mock_historic_data, self.mock_future_data)
+        
+        # Mock the compute_profile function - should only be called once for future data
+        mock_compute.return_value = self.mock_future_profile
+        
+        # Call the function with no_delta=True
+        result = get_climate_profile(warming_level=[2.0], no_delta=True)
+        
+        # Verify data retrieval was called
+        mock_retrieve.assert_called_once()
+        
+        # Verify compute_profile was called only once (for future data only)
+        assert mock_compute.call_count == 1
+        
+        # Verify the function returned the future profile directly
+        assert isinstance(result, pd.DataFrame)
+        pd.testing.assert_frame_equal(result, self.mock_future_profile)
+        
+        # Verify print message about no baseline subtraction
+        printed_messages = [str(call) for call in mock_print.call_args_list]
+        found_no_delta_message = any("No baseline subtraction requested" in msg for msg in printed_messages)
+        assert found_no_delta_message, "Expected no baseline subtraction message not found"
