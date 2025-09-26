@@ -409,21 +409,24 @@ class TestGetClimateProfile:
         self.mock_future_profile = pd.DataFrame(
             np.random.rand(365, 24),
             columns=np.arange(1, 25),
-            index=pd.Index([f"Jan-{i:02d}" for i in range(1, 32)] + 
-                          [f"Feb-{i:02d}" for i in range(1, 29)] +
-                          [f"Mar-{i:02d}" for i in range(1, 32)] +
-                          [f"Apr-{i:02d}" for i in range(1, 31)] +
-                          [f"May-{i:02d}" for i in range(1, 32)] +
-                          [f"Jun-{i:02d}" for i in range(1, 31)] +
-                          [f"Jul-{i:02d}" for i in range(1, 32)] +
-                          [f"Aug-{i:02d}" for i in range(1, 32)] +
-                          [f"Sep-{i:02d}" for i in range(1, 31)] +
-                          [f"Oct-{i:02d}" for i in range(1, 32)] +
-                          [f"Nov-{i:02d}" for i in range(1, 31)] +
-                          [f"Dec-{i:02d}" for i in range(1, 32)][:365], name="Day of Year"),
+            index=pd.Index(
+                [f"Jan-{i:02d}" for i in range(1, 32)]
+                + [f"Feb-{i:02d}" for i in range(1, 29)]
+                + [f"Mar-{i:02d}" for i in range(1, 32)]
+                + [f"Apr-{i:02d}" for i in range(1, 31)]
+                + [f"May-{i:02d}" for i in range(1, 32)]
+                + [f"Jun-{i:02d}" for i in range(1, 31)]
+                + [f"Jul-{i:02d}" for i in range(1, 32)]
+                + [f"Aug-{i:02d}" for i in range(1, 32)]
+                + [f"Sep-{i:02d}" for i in range(1, 31)]
+                + [f"Oct-{i:02d}" for i in range(1, 32)]
+                + [f"Nov-{i:02d}" for i in range(1, 31)]
+                + [f"Dec-{i:02d}" for i in range(1, 32)][:365],
+                name="Day of Year",
+            ),
         )
         self.mock_future_profile.attrs = {"units": "degF", "variable_name": "tasmax"}
-        
+
         self.mock_historic_profile = pd.DataFrame(
             np.random.rand(365, 24),
             columns=np.arange(1, 25),
@@ -432,274 +435,315 @@ class TestGetClimateProfile:
         self.mock_historic_profile.attrs = {"units": "degF", "variable_name": "tasmax"}
 
         # Create mock xarray data
-        times = pd.date_range('2020-01-01', periods=8760, freq='h')
-        self.mock_future_data = xr.Dataset({
-            'tasmax': (['time'], np.random.rand(8760))
-        }, coords={'time': times})
+        times = pd.date_range("2020-01-01", periods=8760, freq="h")
+        self.mock_future_data = xr.Dataset(
+            {"tasmax": (["time"], np.random.rand(8760))}, coords={"time": times}
+        )
         self.mock_future_data.attrs = {"units": "degF"}
-        
-        self.mock_historic_data = xr.Dataset({
-            'tasmax': (['time'], np.random.rand(8760))
-        }, coords={'time': times})
+
+        self.mock_historic_data = xr.Dataset(
+            {"tasmax": (["time"], np.random.rand(8760))}, coords={"time": times}
+        )
         self.mock_historic_data.attrs = {"units": "degF"}
 
-    @patch('climakitae.explore.amy.compute_profile')
-    @patch('climakitae.explore.amy.retrieve_profile_data')
-    @patch('builtins.print')
-    def test_get_climate_profile_default_params(self, mock_print, mock_retrieve, mock_compute):
+    @patch("climakitae.explore.amy.compute_profile")
+    @patch("climakitae.explore.amy.retrieve_profile_data")
+    @patch("builtins.print")
+    def test_get_climate_profile_default_params(
+        self, mock_print, mock_retrieve, mock_compute
+    ):
         """Test get_climate_profile with default parameters.
-        
+
         Tests basic functionality with default warming level,
         verifying data retrieval and profile computation workflow.
         """
         # Mock the retrieve_profile_data function
         mock_retrieve.return_value = (self.mock_historic_data, self.mock_future_data)
-        
+
         # Mock the compute_profile function
-        mock_compute.side_effect = [self.mock_future_profile, self.mock_historic_profile]
-        
+        mock_compute.side_effect = [
+            self.mock_future_profile,
+            self.mock_historic_profile,
+        ]
+
         # Call the function with minimal parameters (warming_level is required)
         result = get_climate_profile(warming_level=[2.0])
-        
+
         # Verify data retrieval was called with correct parameters
         mock_retrieve.assert_called_once()
         call_args = mock_retrieve.call_args[1]  # Get kwargs
-        assert call_args['warming_level'] == [2.0]
-        
+        assert call_args["warming_level"] == [2.0]
+
         # Verify compute_profile was called twice (future and historic)
         assert mock_compute.call_count == 2
-        
+
         # Verify result is a DataFrame
         assert isinstance(result, pd.DataFrame)
         assert result.shape == (365, 24)  # Default days_in_year=365, 24 hours
-        
+
         # Verify difference calculation (future - historic)
         expected_diff = self.mock_future_profile - self.mock_historic_profile
         pd.testing.assert_frame_equal(result, expected_diff)
 
-    @patch('climakitae.explore.amy.compute_profile')
-    @patch('climakitae.explore.amy.retrieve_profile_data')
-    @patch('builtins.print')
-    def test_get_climate_profile_custom_params(self, mock_print, mock_retrieve, mock_compute):
+    @patch("climakitae.explore.amy.compute_profile")
+    @patch("climakitae.explore.amy.retrieve_profile_data")
+    @patch("builtins.print")
+    def test_get_climate_profile_custom_params(
+        self, mock_print, mock_retrieve, mock_compute
+    ):
         """Test get_climate_profile with custom parameters.
-        
+
         Tests functionality with various custom parameters including
         variable, resolution, units, and other optional parameters.
         """
         # Mock the retrieve_profile_data function
         mock_retrieve.return_value = (self.mock_historic_data, self.mock_future_data)
-        
+
         # Mock the compute_profile function
-        mock_compute.side_effect = [self.mock_future_profile, self.mock_historic_profile]
-        
+        mock_compute.side_effect = [
+            self.mock_future_profile,
+            self.mock_historic_profile,
+        ]
+
         # Call the function with custom parameters
         custom_params = {
-            'variable': 'Air Temperature at 2m',
-            'resolution': '45 km', 
-            'warming_level': [1.5],
-            'units': 'degC',
-            'days_in_year': 366,
-            'q': 0.75,
-            'cached_area': 'Los Angeles County',
-            'latitude': 34.0522,
-            'longitude': -118.2437
+            "variable": "Air Temperature at 2m",
+            "resolution": "45 km",
+            "warming_level": [1.5],
+            "units": "degC",
+            "days_in_year": 366,
+            "q": 0.75,
+            "cached_area": "Los Angeles County",
+            "latitude": 34.0522,
+            "longitude": -118.2437,
         }
-        
+
         result = get_climate_profile(**custom_params)
-        
+
         # Verify data retrieval was called with correct parameters
         mock_retrieve.assert_called_once()
         call_args = mock_retrieve.call_args[1]  # Get kwargs
-        assert call_args['variable'] == 'Air Temperature at 2m'
-        assert call_args['resolution'] == '45 km'
-        assert call_args['warming_level'] == [1.5]
-        assert call_args['units'] == 'degC'
-        assert call_args['cached_area'] == 'Los Angeles County'
-        assert call_args['latitude'] == 34.0522
-        assert call_args['longitude'] == -118.2437
-        
+        assert call_args["variable"] == "Air Temperature at 2m"
+        assert call_args["resolution"] == "45 km"
+        assert call_args["warming_level"] == [1.5]
+        assert call_args["units"] == "degC"
+        assert call_args["cached_area"] == "Los Angeles County"
+        assert call_args["latitude"] == 34.0522
+        assert call_args["longitude"] == -118.2437
+
         # Verify compute_profile was called with custom parameters
         assert mock_compute.call_count == 2
         # Check first call (future data)
-        first_call_args = mock_compute.call_args_list[0][1]  # Get kwargs from first call
-        assert first_call_args['days_in_year'] == 366
-        assert first_call_args['q'] == 0.75
-        
+        first_call_args = mock_compute.call_args_list[0][
+            1
+        ]  # Get kwargs from first call
+        assert first_call_args["days_in_year"] == 366
+        assert first_call_args["q"] == 0.75
+
         # Verify result is a DataFrame with correct shape
         assert isinstance(result, pd.DataFrame)
         assert result.shape == (365, 24)  # Mock data shape
-        
+
         # Verify difference calculation
         expected_diff = self.mock_future_profile - self.mock_historic_profile
         pd.testing.assert_frame_equal(result, expected_diff)
 
-    @patch('climakitae.explore.amy.compute_profile')
-    @patch('climakitae.explore.amy.retrieve_profile_data')
-    @patch('builtins.print')
-    def test_get_climate_profile_no_delta(self, mock_print, mock_retrieve, mock_compute):
+    @patch("climakitae.explore.amy.compute_profile")
+    @patch("climakitae.explore.amy.retrieve_profile_data")
+    @patch("builtins.print")
+    def test_get_climate_profile_no_delta(
+        self, mock_print, mock_retrieve, mock_compute
+    ):
         """Test get_climate_profile with no_delta=True.
-        
+
         Tests that when no_delta=True, the function returns raw future
         profile without baseline subtraction.
         """
         # Mock the retrieve_profile_data function
         mock_retrieve.return_value = (self.mock_historic_data, self.mock_future_data)
-        
+
         # Mock the compute_profile function - should only be called once for future data
         mock_compute.return_value = self.mock_future_profile
-        
+
         # Call the function with no_delta=True
         result = get_climate_profile(warming_level=[2.0], no_delta=True)
-        
+
         # Verify data retrieval was called
         mock_retrieve.assert_called_once()
-        
+
         # Verify compute_profile was called only once (for future data only)
         assert mock_compute.call_count == 1
-        
+
         # Verify the function returned the future profile directly
         assert isinstance(result, pd.DataFrame)
         pd.testing.assert_frame_equal(result, self.mock_future_profile)
-        
+
         # Verify print message about no baseline subtraction
         printed_messages = [str(call) for call in mock_print.call_args_list]
-        found_no_delta_message = any("No baseline subtraction requested" in msg for msg in printed_messages)
-        assert found_no_delta_message, "Expected no baseline subtraction message not found"
+        found_no_delta_message = any(
+            "No baseline subtraction requested" in msg for msg in printed_messages
+        )
+        assert (
+            found_no_delta_message
+        ), "Expected no baseline subtraction message not found"
 
-    @patch('climakitae.explore.amy.compute_profile')
-    @patch('climakitae.explore.amy.retrieve_profile_data')
-    @patch('builtins.print')
-    def test_get_climate_profile_multiple_warming_levels(self, mock_print, mock_retrieve, mock_compute):
+    @patch("climakitae.explore.amy.compute_profile")
+    @patch("climakitae.explore.amy.retrieve_profile_data")
+    @patch("builtins.print")
+    def test_get_climate_profile_multiple_warming_levels(
+        self, mock_print, mock_retrieve, mock_compute
+    ):
         """Test get_climate_profile with multiple warming levels.
-        
+
         Tests functionality when multiple warming levels are provided,
         verifying proper handling of MultiIndex DataFrame structure.
         """
         # Create mock profiles with MultiIndex columns for multiple warming levels
         hours = list(range(1, 25))
-        warming_levels = ['WL_1.5', 'WL_2.0', 'WL_3.0']
-        
+        warming_levels = ["WL_1.5", "WL_2.0", "WL_3.0"]
+
         # Create MultiIndex columns (Hour, Warming_Level)
         multi_cols = pd.MultiIndex.from_product(
-            [hours, warming_levels], 
-            names=['Hour', 'Warming_Level']
+            [hours, warming_levels], names=["Hour", "Warming_Level"]
         )
-        
+
         mock_future_multiindex = pd.DataFrame(
             np.random.rand(365, len(multi_cols)),
             columns=multi_cols,
-            index=self.mock_future_profile.index
+            index=self.mock_future_profile.index,
         )
         mock_future_multiindex.attrs = {"units": "degF", "variable_name": "tasmax"}
-        
+
         # Mock the retrieve_profile_data function
         mock_retrieve.return_value = (self.mock_historic_data, self.mock_future_data)
-        
+
         # Mock compute_profile to return MultiIndex future, single-level historic
         mock_compute.side_effect = [mock_future_multiindex, self.mock_historic_profile]
-        
+
         # Call the function with multiple warming levels
         result = get_climate_profile(warming_level=[1.5, 2.0, 3.0])
-        
+
         # Verify data retrieval was called
         mock_retrieve.assert_called_once()
         call_args = mock_retrieve.call_args[1]
-        assert call_args['warming_level'] == [1.5, 2.0, 3.0]
-        
+        assert call_args["warming_level"] == [1.5, 2.0, 3.0]
+
         # Verify compute_profile was called twice
         assert mock_compute.call_count == 2
-        
+
         # Verify result is a DataFrame with MultiIndex columns
         assert isinstance(result, pd.DataFrame)
         assert isinstance(result.columns, pd.MultiIndex)
-        
+
         # Verify column structure
         assert "Hour" in result.columns.names
         assert "Warming_Level" in result.columns.names
-        
+
         # Verify shape - should have same number of rows as input
         assert result.shape[0] == 365
-        
+
         # The difference calculation should work with the MultiIndex structure
         # Each warming level column should be (future - historic) for corresponding hour
         for col in result.columns:
             hour = col[0]  # Hour is first level
             if hour in self.mock_historic_profile.columns:
-                expected_val = mock_future_multiindex[col] - self.mock_historic_profile[hour]
-                pd.testing.assert_series_equal(result[col], expected_val, check_names=False)
+                expected_val = (
+                    mock_future_multiindex[col] - self.mock_historic_profile[hour]
+                )
+                pd.testing.assert_series_equal(
+                    result[col], expected_val, check_names=False
+                )
 
-    @patch('climakitae.explore.amy.retrieve_profile_data')
-    @patch('builtins.print')
+    @patch("climakitae.explore.amy.retrieve_profile_data")
+    @patch("builtins.print")
     def test_get_climate_profile_data_retrieval_error(self, mock_print, mock_retrieve):
         """Test get_climate_profile when data retrieval fails.
-        
+
         Tests error handling when retrieve_profile_data raises an exception.
         """
         # Mock retrieve_profile_data to raise an exception
         mock_retrieve.side_effect = ValueError("Failed to retrieve climate data")
-        
+
         # Call the function and expect it to raise the same exception
         with pytest.raises(ValueError, match="Failed to retrieve climate data"):
             get_climate_profile(warming_level=[2.0])
-        
+
         # Verify data retrieval was attempted
         mock_retrieve.assert_called_once()
 
-    @patch('climakitae.explore.amy.compute_profile')
-    @patch('climakitae.explore.amy.retrieve_profile_data')
-    @patch('builtins.print')
-    def test_get_climate_profile_compute_profile_error(self, mock_print, mock_retrieve, mock_compute):
+    @patch("climakitae.explore.amy.compute_profile")
+    @patch("climakitae.explore.amy.retrieve_profile_data")
+    @patch("builtins.print")
+    def test_get_climate_profile_compute_profile_error(
+        self, mock_print, mock_retrieve, mock_compute
+    ):
         """Test get_climate_profile when compute_profile fails.
-        
+
         Tests error handling when compute_profile raises an exception.
         """
         # Mock successful data retrieval
         mock_retrieve.return_value = (self.mock_historic_data, self.mock_future_data)
-        
+
         # Mock compute_profile to raise an exception on first call
         mock_compute.side_effect = ValueError("Profile computation failed")
-        
+
         # Call the function and expect it to raise the same exception
         with pytest.raises(ValueError, match="Profile computation failed"):
             get_climate_profile(warming_level=[2.0])
-        
+
         # Verify data retrieval succeeded
         mock_retrieve.assert_called_once()
-        
+
         # Verify compute_profile was attempted
         mock_compute.assert_called_once()
 
-    @patch('climakitae.explore.amy.retrieve_profile_data')
+    @patch("climakitae.explore.amy.retrieve_profile_data")
     def test_get_climate_profile_invalid_params(self, mock_retrieve):
         """Test get_climate_profile with invalid parameters.
-        
+
         Tests error handling for various invalid parameter scenarios
         including missing required parameters, invalid keys, and wrong types.
         """
         # Test missing required parameter (warming_level)
-        mock_retrieve.side_effect = ValueError("Missing required input: 'warming_level'")
+        mock_retrieve.side_effect = ValueError(
+            "Missing required input: 'warming_level'"
+        )
         with pytest.raises(ValueError, match="Missing required input: 'warming_level'"):
             get_climate_profile(variable="Air Temperature at 2m")
-        
+
         # Test invalid parameter key
-        mock_retrieve.side_effect = ValueError("Invalid input(s): ['invalid_param']. Allowed inputs are: ['variable', 'resolution', 'warming_level', 'cached_area', 'units', 'latitude', 'longitude']")
-        with pytest.raises(ValueError, match="Invalid input\\(s\\): \\['invalid_param'\\]"):
+        mock_retrieve.side_effect = ValueError(
+            "Invalid input(s): ['invalid_param']. Allowed inputs are: ['variable', 'resolution', 'warming_level', 'cached_area', 'units', 'latitude', 'longitude']"
+        )
+        with pytest.raises(
+            ValueError, match="Invalid input\\(s\\): \\['invalid_param'\\]"
+        ):
             get_climate_profile(warming_level=[2.0], invalid_param="test")
-        
+
         # Test invalid parameter type - warming_level should be list
-        mock_retrieve.side_effect = TypeError("Parameter 'warming_level' must be of type list, got float")
-        with pytest.raises(TypeError, match="Parameter 'warming_level' must be of type list"):
+        mock_retrieve.side_effect = TypeError(
+            "Parameter 'warming_level' must be of type list, got float"
+        )
+        with pytest.raises(
+            TypeError, match="Parameter 'warming_level' must be of type list"
+        ):
             get_climate_profile(warming_level=2.0)
-        
+
         # Test invalid parameter type - variable should be str
-        mock_retrieve.side_effect = TypeError("Parameter 'variable' must be of type str, got int")
+        mock_retrieve.side_effect = TypeError(
+            "Parameter 'variable' must be of type str, got int"
+        )
         with pytest.raises(TypeError, match="Parameter 'variable' must be of type str"):
             get_climate_profile(warming_level=[2.0], variable=123)
-        
+
         # Test invalid parameter type - resolution should be str
-        mock_retrieve.side_effect = TypeError("Parameter 'resolution' must be of type str, got int")
-        with pytest.raises(TypeError, match="Parameter 'resolution' must be of type str"):
+        mock_retrieve.side_effect = TypeError(
+            "Parameter 'resolution' must be of type str, got int"
+        )
+        with pytest.raises(
+            TypeError, match="Parameter 'resolution' must be of type str"
+        ):
             get_climate_profile(warming_level=[2.0], resolution=45)
-        
+
         # Verify that retrieve_profile_data was called in all error cases
         assert mock_retrieve.call_count == 5
