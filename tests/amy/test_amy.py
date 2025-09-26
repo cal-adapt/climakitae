@@ -565,3 +565,65 @@ class TestGetClimateProfile:
         printed_messages = [str(call) for call in mock_print.call_args_list]
         found_no_delta_message = any("No baseline subtraction requested" in msg for msg in printed_messages)
         assert found_no_delta_message, "Expected no baseline subtraction message not found"
+
+    @patch('climakitae.explore.amy.compute_profile')
+    @patch('climakitae.explore.amy.retrieve_profile_data')
+    @patch('builtins.print')
+    def test_get_climate_profile_multiple_warming_levels(self, mock_print, mock_retrieve, mock_compute):
+        """Test get_climate_profile with multiple warming levels.
+        
+        Tests functionality when multiple warming levels are provided,
+        verifying proper handling of MultiIndex DataFrame structure.
+        """
+        # Create mock profiles with MultiIndex columns for multiple warming levels
+        hours = list(range(1, 25))
+        warming_levels = ['WL_1.5', 'WL_2.0', 'WL_3.0']
+        
+        # Create MultiIndex columns (Hour, Warming_Level)
+        multi_cols = pd.MultiIndex.from_product(
+            [hours, warming_levels], 
+            names=['Hour', 'Warming_Level']
+        )
+        
+        mock_future_multiindex = pd.DataFrame(
+            np.random.rand(365, len(multi_cols)),
+            columns=multi_cols,
+            index=self.mock_future_profile.index
+        )
+        mock_future_multiindex.attrs = {"units": "degF", "variable_name": "tasmax"}
+        
+        # Mock the retrieve_profile_data function
+        mock_retrieve.return_value = (self.mock_historic_data, self.mock_future_data)
+        
+        # Mock compute_profile to return MultiIndex future, single-level historic
+        mock_compute.side_effect = [mock_future_multiindex, self.mock_historic_profile]
+        
+        # Call the function with multiple warming levels
+        result = get_climate_profile(warming_level=[1.5, 2.0, 3.0])
+        
+        # Verify data retrieval was called
+        mock_retrieve.assert_called_once()
+        call_args = mock_retrieve.call_args[1]
+        assert call_args['warming_level'] == [1.5, 2.0, 3.0]
+        
+        # Verify compute_profile was called twice
+        assert mock_compute.call_count == 2
+        
+        # Verify result is a DataFrame with MultiIndex columns
+        assert isinstance(result, pd.DataFrame)
+        assert isinstance(result.columns, pd.MultiIndex)
+        
+        # Verify column structure
+        assert "Hour" in result.columns.names
+        assert "Warming_Level" in result.columns.names
+        
+        # Verify shape - should have same number of rows as input
+        assert result.shape[0] == 365
+        
+        # The difference calculation should work with the MultiIndex structure
+        # Each warming level column should be (future - historic) for corresponding hour
+        for col in result.columns:
+            hour = col[0]  # Hour is first level
+            if hour in self.mock_historic_profile.columns:
+                expected_val = mock_future_multiindex[col] - self.mock_historic_profile[hour]
+                pd.testing.assert_series_equal(result[col], expected_val, check_names=False)
