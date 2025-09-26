@@ -1133,6 +1133,102 @@ class TestComputeProfile:
         assert result.attrs.get("quantile") == 0.5
         assert "8760 analysis" in result.attrs.get("method", "")
 
+    @patch('builtins.print')
+    def test_compute_profile_multiple_wl_multiple_sim(self, mock_print):
+        """Test compute_profile with multiple warming levels AND multiple simulations.
+        
+        Tests the most complex data structure case, verifying that the function
+        creates a 3-level MultiIndex DataFrame with Hour, Warming_Level, and 
+        Simulation dimensions and properly organizes all combinations.
+        """
+        # Call function with multiple warming levels and multiple simulations data
+        result = compute_profile(self.multi_wl_multi_sim_data)
+        
+        # Verify return type and structure
+        assert isinstance(result, pd.DataFrame)
+        assert result.shape[0] == 365, f"Expected 365 rows, got {result.shape[0]}"
+        
+        # Verify columns are MultiIndex with correct 3-level structure
+        assert isinstance(result.columns, pd.MultiIndex), "Columns should be MultiIndex for multiple warming levels and simulations"
+        assert result.columns.names == ["Hour", "Warming_Level", "Simulation"], "Column names should be ['Hour', 'Warming_Level', 'Simulation']"
+        
+        # Verify warming level labels are present
+        warming_level_labels = result.columns.get_level_values("Warming_Level").unique()
+        expected_wl_labels = ["WL_1.5", "WL_2.0", "WL_3.0"]
+        assert len(warming_level_labels) == 3, f"Expected 3 warming levels, got {len(warming_level_labels)}"
+        for expected_wl in expected_wl_labels:
+            assert expected_wl in warming_level_labels, f"Expected warming level {expected_wl} not found"
+        
+        # Verify simulation labels are extracted properly
+        simulation_labels = result.columns.get_level_values("Simulation").unique()
+        expected_sim_labels = ["CESM2", "CNRM-ESM2-1", "GFDL-ESM4"]
+        assert len(simulation_labels) == 3, f"Expected 3 simulations, got {len(simulation_labels)}"
+        for expected_sim in expected_sim_labels:
+            assert expected_sim in simulation_labels, f"Expected simulation {expected_sim} not found"
+        
+        # Verify hour labels are present
+        hour_labels = result.columns.get_level_values("Hour").unique()
+        assert len(hour_labels) == 24, f"Expected 24 hours, got {len(hour_labels)}"
+        
+        # Check total number of columns (24 hours × 3 warming levels × 3 simulations = 216)
+        expected_cols = 24 * 3 * 3
+        assert result.shape[1] == expected_cols, f"Expected {expected_cols} columns, got {result.shape[1]}"
+        
+        # Verify data completeness and reasonableness
+        assert not result.isnull().any().any(), "Result should not contain NaN values"
+        assert result.min().min() > -100, "Temperature values seem unreasonably low"
+        assert result.max().max() < 200, "Temperature values seem unreasonably high"
+        
+        # Verify each combination of warming level and simulation has data
+        for wl_label in expected_wl_labels:
+            for sim_label in expected_sim_labels:
+                # Use tuple indexing for multi-level selection
+                combo_columns = [col for col in result.columns 
+                               if col[1] == wl_label and col[2] == sim_label]
+                combo_data = result[combo_columns]
+                assert combo_data.shape == (365, 24), f"Combination {wl_label}-{sim_label} should have shape (365, 24)"
+                assert not combo_data.isnull().any().any(), f"Combination {wl_label}-{sim_label} should not have NaN values"
+        
+        # Verify warming level progression within each simulation
+        for sim_label in expected_sim_labels:
+            wl_1_5_cols = [col for col in result.columns 
+                          if col[1] == "WL_1.5" and col[2] == sim_label]
+            wl_3_0_cols = [col for col in result.columns 
+                          if col[1] == "WL_3.0" and col[2] == sim_label]
+            
+            wl_1_5_data = result[wl_1_5_cols]
+            wl_3_0_data = result[wl_3_0_cols]
+            
+            wl_1_5_avg = np.mean(wl_1_5_data.to_numpy())
+            wl_3_0_avg = np.mean(wl_3_0_data.to_numpy())
+            
+            assert wl_3_0_avg > wl_1_5_avg, f"For simulation {sim_label}, WL_3.0 should be warmer than WL_1.5 on average"
+        
+        # Verify simulation differences within each warming level
+        for wl_label in expected_wl_labels:
+            sim_avgs = []
+            for sim_label in expected_sim_labels:
+                sim_cols = [col for col in result.columns 
+                           if col[1] == wl_label and col[2] == sim_label]
+                sim_data = result[sim_cols]
+                sim_avg = np.mean(sim_data.to_numpy())
+                sim_avgs.append(sim_avg)
+            
+            # At least some simulations should have different averages due to model differences
+            sim_ranges = max(sim_avgs) - min(sim_avgs)
+            assert sim_ranges > 0.01, f"For warming level {wl_label}, simulations should have different average values"
+        
+        # Verify index formatting
+        assert result.index.name == "Day of Year"
+        assert len(result.index) == 365
+        assert isinstance(result.index[0], str)
+        
+        # Verify metadata preservation
+        assert result.attrs.get("units") == "degF"
+        assert result.attrs.get("variable_name") == "tasmax"
+        assert result.attrs.get("quantile") == 0.5
+        assert "8760 analysis" in result.attrs.get("method", "")
+
 
 class TestRetrieveProfileData:
     """Test class for retrieve_profile_data function."""
