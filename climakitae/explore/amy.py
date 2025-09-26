@@ -148,6 +148,8 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
         - scenario (Optional) : List[str], default ["SSP 3-7.0"]
         - warming_levels (Required) : List[float], default [1.2]
         - cached_area (Optional) : str or List[str]
+        - latitude (Optional) : float or tuple
+        - longitude (Optional) : float or tuple
         - units (Optional) : str, default "degF"
         - no_delta (optional) : bool, default False, if True, do not retrieve historical data, return raw future profile
 
@@ -228,6 +230,8 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
         "approach": "Warming Level",
         "warming_level": [1.2],
         "cached_area": kwargs.get("cached_area", None),
+        "latitude": kwargs.get("latitude", None),
+        "longitude": kwargs.get("longitude", None),
     }
 
     historic_data = None
@@ -341,6 +345,8 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
     with tqdm(total=2, desc="Data retrieval", unit="dataset") as pbar:
         historic_data, future_data = retrieve_profile_data(**kwargs)
         pbar.update(2)
+
+    print(future_data.attrs)
 
     # Call compute_profile with the processed data
     # Compute profiles for both historical and future data
@@ -855,6 +861,7 @@ def _format_meteo_yr_df(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+# ! DEPRECATED
 def compute_severe_yr(data: xr.DataArray, days_in_year: int = 366) -> pd.DataFrame:
     """Calculate the severe meteorological year based on the 90th percentile of data.
 
