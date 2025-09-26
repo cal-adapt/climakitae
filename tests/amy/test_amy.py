@@ -476,3 +476,59 @@ class TestGetClimateProfile:
         # Verify difference calculation (future - historic)
         expected_diff = self.mock_future_profile - self.mock_historic_profile
         pd.testing.assert_frame_equal(result, expected_diff)
+
+    @patch('climakitae.explore.amy.compute_profile')
+    @patch('climakitae.explore.amy.retrieve_profile_data')
+    @patch('builtins.print')
+    def test_get_climate_profile_custom_params(self, mock_print, mock_retrieve, mock_compute):
+        """Test get_climate_profile with custom parameters.
+        
+        Tests functionality with various custom parameters including
+        variable, resolution, units, and other optional parameters.
+        """
+        # Mock the retrieve_profile_data function
+        mock_retrieve.return_value = (self.mock_historic_data, self.mock_future_data)
+        
+        # Mock the compute_profile function
+        mock_compute.side_effect = [self.mock_future_profile, self.mock_historic_profile]
+        
+        # Call the function with custom parameters
+        custom_params = {
+            'variable': 'Air Temperature at 2m',
+            'resolution': '45 km', 
+            'warming_level': [1.5],
+            'units': 'degC',
+            'days_in_year': 366,
+            'q': 0.75,
+            'cached_area': 'Los Angeles County',
+            'latitude': 34.0522,
+            'longitude': -118.2437
+        }
+        
+        result = get_climate_profile(**custom_params)
+        
+        # Verify data retrieval was called with correct parameters
+        mock_retrieve.assert_called_once()
+        call_args = mock_retrieve.call_args[1]  # Get kwargs
+        assert call_args['variable'] == 'Air Temperature at 2m'
+        assert call_args['resolution'] == '45 km'
+        assert call_args['warming_level'] == [1.5]
+        assert call_args['units'] == 'degC'
+        assert call_args['cached_area'] == 'Los Angeles County'
+        assert call_args['latitude'] == 34.0522
+        assert call_args['longitude'] == -118.2437
+        
+        # Verify compute_profile was called with custom parameters
+        assert mock_compute.call_count == 2
+        # Check first call (future data)
+        first_call_args = mock_compute.call_args_list[0][1]  # Get kwargs from first call
+        assert first_call_args['days_in_year'] == 366
+        assert first_call_args['q'] == 0.75
+        
+        # Verify result is a DataFrame with correct shape
+        assert isinstance(result, pd.DataFrame)
+        assert result.shape == (365, 24)  # Mock data shape
+        
+        # Verify difference calculation
+        expected_diff = self.mock_future_profile - self.mock_historic_profile
+        pd.testing.assert_frame_equal(result, expected_diff)
