@@ -627,3 +627,44 @@ class TestGetClimateProfile:
             if hour in self.mock_historic_profile.columns:
                 expected_val = mock_future_multiindex[col] - self.mock_historic_profile[hour]
                 pd.testing.assert_series_equal(result[col], expected_val, check_names=False)
+
+    @patch('climakitae.explore.amy.retrieve_profile_data')
+    @patch('builtins.print')
+    def test_get_climate_profile_data_retrieval_error(self, mock_print, mock_retrieve):
+        """Test get_climate_profile when data retrieval fails.
+        
+        Tests error handling when retrieve_profile_data raises an exception.
+        """
+        # Mock retrieve_profile_data to raise an exception
+        mock_retrieve.side_effect = ValueError("Failed to retrieve climate data")
+        
+        # Call the function and expect it to raise the same exception
+        with pytest.raises(ValueError, match="Failed to retrieve climate data"):
+            get_climate_profile(warming_level=[2.0])
+        
+        # Verify data retrieval was attempted
+        mock_retrieve.assert_called_once()
+
+    @patch('climakitae.explore.amy.compute_profile')
+    @patch('climakitae.explore.amy.retrieve_profile_data')
+    @patch('builtins.print')
+    def test_get_climate_profile_compute_profile_error(self, mock_print, mock_retrieve, mock_compute):
+        """Test get_climate_profile when compute_profile fails.
+        
+        Tests error handling when compute_profile raises an exception.
+        """
+        # Mock successful data retrieval
+        mock_retrieve.return_value = (self.mock_historic_data, self.mock_future_data)
+        
+        # Mock compute_profile to raise an exception on first call
+        mock_compute.side_effect = ValueError("Profile computation failed")
+        
+        # Call the function and expect it to raise the same exception
+        with pytest.raises(ValueError, match="Profile computation failed"):
+            get_climate_profile(warming_level=[2.0])
+        
+        # Verify data retrieval succeeded
+        mock_retrieve.assert_called_once()
+        
+        # Verify compute_profile was attempted
+        mock_compute.assert_called_once()
