@@ -952,6 +952,55 @@ class TestComputeProfile:
             assert test_result.index.name == "Day of Year"
             assert test_result.columns.name == "Hour"
 
+    @patch('builtins.print')
+    def test_compute_profile_single_wl_single_sim(self, mock_print):
+        """Test compute_profile with single warming level and single simulation.
+        
+        Tests the simplest data structure case, verifying that the function
+        produces a DataFrame with simple (non-MultiIndex) column structure
+        and proper data organization.
+        """
+        # Call function with single warming level, single simulation data
+        result = compute_profile(self.single_wl_single_sim_data)
+        
+        # Verify return type and basic structure
+        assert isinstance(result, pd.DataFrame)
+        assert result.shape == (365, 24), f"Expected (365, 24), got {result.shape}"
+        
+        # Verify columns are simple (not MultiIndex) with hour labels
+        assert not isinstance(result.columns, pd.MultiIndex), "Columns should be simple, not MultiIndex"
+        assert result.columns.name == "Hour"
+        
+        # Verify hour labels are in expected AM/PM format
+        expected_hour_labels = [f"{h}am" for h in [12] + list(range(1, 12))] + [f"{h}pm" for h in [12] + list(range(1, 12))]
+        assert list(result.columns) == expected_hour_labels
+        
+        # Verify index is properly formatted
+        assert result.index.name == "Day of Year"
+        assert len(result.index) == 365
+        assert isinstance(result.index[0], str)
+        
+        # Check that data values are reasonable for temperature
+        assert not result.isnull().any().any(), "Result should not contain NaN values"
+        assert result.min().min() > -100, "Temperature values seem unreasonably low"
+        assert result.max().max() < 200, "Temperature values seem unreasonably high"
+        
+        # Verify data has expected seasonal pattern (July should be warmer than January on average)
+        july_rows = [idx for idx in result.index if idx.startswith("Jul")]
+        jan_rows = [idx for idx in result.index if idx.startswith("Jan")]
+        
+        if july_rows and jan_rows:
+            july_avg = result.loc[july_rows].mean().mean()
+            jan_avg = result.loc[jan_rows].mean().mean()
+            assert july_avg > jan_avg, "July should be warmer than January on average"
+        
+        # Verify metadata is complete and correct
+        assert result.attrs.get("units") == "degF"
+        assert result.attrs.get("variable_name") == "tasmax"
+        assert result.attrs.get("quantile") == 0.5  # Default quantile
+        assert "8760 analysis" in result.attrs.get("method", "")
+        assert "50th percentile" in result.attrs.get("description", "")
+
 
 class TestRetrieveProfileData:
     """Test class for retrieve_profile_data function."""
