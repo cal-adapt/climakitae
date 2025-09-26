@@ -948,3 +948,84 @@ class TestRetrieveProfileData:
         
         # Note: latitude and cached_area have tuple type specs which cause 
         # AttributeError in the current implementation, so we'll skip those specific tests
+
+    @patch('climakitae.explore.amy.get_data')
+    def test_retrieve_profile_data_warming_level_handling(self, mock_get_data):
+        """Test retrieve_profile_data warming level handling.
+        
+        Tests that historic data always uses 1.2°C warming level while 
+        future data uses user-specified warming levels.
+        """
+        # Mock get_data to return different datasets
+        mock_get_data.side_effect = [self.mock_historic_dataset, self.mock_future_dataset]
+        
+        # Test with single warming level
+        historic_data, future_data = retrieve_profile_data(warming_level=[3.0])
+        
+        # Verify calls were made correctly
+        assert mock_get_data.call_count == 2
+        
+        # Verify historic always uses 1.2°C
+        historic_call = mock_get_data.call_args_list[0][1]
+        assert historic_call['warming_level'] == [1.2]
+        
+        # Verify future uses user-specified level
+        future_call = mock_get_data.call_args_list[1][1] 
+        assert future_call['warming_level'] == [3.0]
+        
+        # Reset mock for multiple warming levels test
+        mock_get_data.reset_mock()
+        mock_get_data.side_effect = [self.mock_historic_dataset, self.mock_future_dataset]
+        
+        # Test with multiple warming levels
+        historic_data, future_data = retrieve_profile_data(warming_level=[1.5, 2.0, 2.5, 3.0])
+        
+        # Verify historic still uses 1.2°C
+        historic_call = mock_get_data.call_args_list[0][1]
+        assert historic_call['warming_level'] == [1.2]
+        
+        # Verify future uses all user-specified levels
+        future_call = mock_get_data.call_args_list[1][1]
+        assert future_call['warming_level'] == [1.5, 2.0, 2.5, 3.0]
+    
+    @patch('climakitae.explore.amy.get_data')
+    def test_retrieve_profile_data_get_data_integration(self, mock_get_data):
+        """Test retrieve_profile_data integration with get_data function.
+        
+        Tests that the function correctly integrates with get_data,
+        properly handling return values and exceptions.
+        """
+        # Test successful integration
+        mock_get_data.side_effect = [self.mock_historic_dataset, self.mock_future_dataset]
+        
+        historic_data, future_data = retrieve_profile_data(
+            warming_level=[2.0],
+            variable="Precipitation",
+            resolution="27 km",
+            units="mm/day"
+        )
+        
+        # Verify correct return values
+        assert historic_data is self.mock_historic_dataset
+        assert future_data is self.mock_future_dataset
+        
+        # Verify get_data was called with consistent base parameters
+        for call_args in mock_get_data.call_args_list:
+            kwargs = call_args[1]
+            assert kwargs['downscaling_method'] == "Dynamical"
+            assert kwargs['timescale'] == "hourly"
+            assert kwargs['area_average'] == "Yes"
+            assert kwargs['approach'] == "Warming Level"
+            assert kwargs['variable'] == "Precipitation"
+            assert kwargs['resolution'] == "27 km"
+            assert kwargs['units'] == "mm/day"
+        
+        # Test error propagation from get_data
+        mock_get_data.reset_mock()
+        mock_get_data.side_effect = ValueError("Data retrieval failed")
+        
+        with pytest.raises(ValueError, match="Data retrieval failed"):
+            retrieve_profile_data(warming_level=[2.0])
+        
+        # Should have attempted the first call (historic) before failing
+        assert mock_get_data.call_count == 1
