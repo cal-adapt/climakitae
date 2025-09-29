@@ -25,6 +25,7 @@ from climakitae.util.utils import read_csv_file
 
 xr.set_options(keep_attrs=True)
 bytes_per_gigabyte = 1024 * 1024 * 1024
+degree_sign = "\N{DEGREE SIGN}"
 
 
 def remove_zarr(filename: str):
@@ -976,13 +977,23 @@ def _epw_format_data(df: pd.DataFrame) -> pd.DataFrame:
     """
     # set time col to datetime object for easy split
     df["time"] = pd.to_datetime(df["time"])
-    df = df.assign(
-        year=df["time"].dt.year,
-        month=df["time"].dt.month,
-        day=df["time"].dt.day,
-        hour=df["time"].dt.hour + 1,  # 1-24, not 0-23
-        minute=df["time"].dt.minute,
-    )
+    if "warming_level" in df.columns:
+        # change year for GWL data to not use 2000's dummy times
+        df = df.assign(
+            year=df["time"].dt.year - 1999,  # 0001 +
+            month=df["time"].dt.month,
+            day=df["time"].dt.day,
+            hour=df["time"].dt.hour + 1,  # 1-24, not 0-23
+            minute=df["time"].dt.minute,
+        )
+    else:
+        df = df.assign(
+            year=df["time"].dt.year,
+            month=df["time"].dt.month,
+            day=df["time"].dt.day,
+            hour=df["time"].dt.hour + 1,  # 1-24, not 0-23
+            minute=df["time"].dt.minute,
+        )
 
     # set epw variable order, very specific -- manually set
     # Note: vars not provided by AE are noted as missing
@@ -1252,6 +1263,29 @@ def _tmy_8760_size_check(df: pd.DataFrame) -> pd.DataFrame:
             return None
 
 
+def _tmy_reset_time_for_gwl(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Change dummy time in GWL data to start at year 0001
+    for writing TMY results.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Dataframe of TMY data to export
+    """
+
+    def replace_year(datestr: str) -> str:
+        """Subtract 2000 from dummy year to reset to 0001 baseline."""
+        year = int(datestr.split("-")[0])
+        year = year - 2000
+        datestr = str(year).zfill(4) + "-" + "-".join(datestr.split("-")[1:])
+        return datestr
+
+    cleaned_years = [replace_year(str(t)) for t in df["time"]]
+    df["time"] = cleaned_years
+    return df
+
+
 def write_tmy_file(
     filename_to_export: str,
     df: pd.DataFrame,
@@ -1440,16 +1474,7 @@ def write_tmy_file(
         """
         # line 1 - location, location name, state, country, WMO, lat, lon
         # line 1 - location, location name, state, country, weather station number (2 cols), lat, lon, time zone, elevation
-        line_1 = "LOCATION,{0},{1},USA,{2},{3},{4},{5},{6},{7}\n".format(
-            location_name.upper(),
-            state,
-            "Custom_{}".format(station_code),
-            station_code,
-            stn_lat,
-            stn_lon,
-            timezone,
-            elevation,
-        )
+        line_1 = f"LOCATION,{location_name.upper()},{state},USA,{"Custom_{}".format(station_code)},{station_code},{stn_lat},{stn_lon},{timezone},{elevation}\n"
 
         # line 2 - design conditions, leave blank for now
         line_2 = "DESIGN CONDITIONS\n"
@@ -1463,13 +1488,18 @@ def write_tmy_file(
         # line 5 - holidays/daylight savings, leap year (yes/no), daylight savings start, daylight savings end, num of holidays
         line_5 = "HOLIDAYS/DAYLIGHT SAVINGS,No,0,0,0\n"
 
-        # line 6 - comments 1, going to include simulation + scenario information here
-        line_6 = "COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Scenario: {0}, Simulation: {1}\n".format(
-            df["scenario"].values[0], df["simulation"].values[0]
-        )
-
-        # line 7 - comments 2, including date range here from which TMY calculated
-        line_7 = f"COMMENTS 2, TMY data produced using {years[0]}-{years[1]} climatological period\n"
+        if "warming_level" in df.columns:
+            warming_level = df["warming_level"].values[0]
+            simulation = df["simulation"].values[0]
+            # line 6 - comments 1, going to include simulation + warming level information here
+            line_6 = f"COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Warming Level: {warming_level}{degree_sign}C, Simulation: {simulation}\n"
+            # line 7 - comments 2, including date range here from which TMY calculated
+            line_7 = f"COMMENTS 2,TMY data produced using {warming_level}{degree_sign}C warming level. Year corresponds to index (1-30) in 30-year window centered on warming level. Model years for {warming_level}{degree_sign}C warming level in simulation {simulation} are {years[0]}-{years[1]}\n"
+        elif "scenario" in df.columns:
+            # line 6 - comments 1, going to include simulation + scenario information here
+            line_6 = f"COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Scenario: {df["scenario"].values[0]}, Simulation: {df["simulation"].values[0]}\n"
+            # line 7 - comments 2, including date range here from which TMY calculated
+            line_7 = f"COMMENTS 2,TMY data produced using {years[0]}-{years[1]} climatological period\n"
 
         # line 8 - data periods, num data periods, num records per hour, data period name, data period start day of week, data period start (Jan 1), data period end (Dec 31)
         line_8 = "DATA PERIODS,1,1,Data,,1/ 1,12/31\n"
@@ -1481,6 +1511,10 @@ def write_tmy_file(
     # typical meteorological year format
     match file_ext:
         case "tmy":
+            # change time axis for GWL data to not use 2000's dummy times
+            if "warming_level" in df.columns:
+                df = _tmy_reset_time_for_gwl(df)
+
             path_to_file = filename_to_export + ".tmy"
 
             with open(path_to_file, "w") as f:
@@ -1497,14 +1531,13 @@ def write_tmy_file(
                     )
                 )  # writes required header lines
                 df = df.drop(
-                    columns=["simulation", "lat", "lon", "scenario"]
+                    columns=["simulation", "lat", "lon", "scenario", "warming_level"],
+                    errors="ignore",
                 )  # drops header columns from df
                 dfAsString = df.to_csv(sep=",", header=False, index=False)
                 f.write(dfAsString)  # writes data in TMY format
             print(
-                "TMY data exported to .tmy format with filename {}.tmy, with size {}".format(
-                    filename_to_export, len(df)
-                )
+                f"TMY data exported to .tmy format with filename {filename_to_export.tmy}, with size {len(df)}"
             )
         # energy plus weather format
         case "epw":
@@ -1523,14 +1556,27 @@ def write_tmy_file(
                         df,
                     )
                 )  # writes required header lines
+                # WL time change happens in _epw_format_data if needed
                 df_string = _epw_format_data(df).to_csv(
                     sep=",", header=False, index=False
                 )
                 f.write(df_string)  # writes data in EPW format
             print(
-                "TMY data exported to .epw format with filename {}, with size {}.epw".format(
-                    filename_to_export, len(df)
+                f"TMY data exported to .epw format with filename {filename_to_export}, with size {len(df)}"
+            )
+        case "csv":
+            # change time axis for GWL data to not use 2000's dummy times
+            if "warming_level" in df.columns:
+                df = _tmy_reset_time_for_gwl(df)
+                df["centered_year"] = pd.to_numeric(
+                    df["centered_year"], downcast="integer"
                 )
+            path_to_file = filename_to_export + ".csv"
+            df.to_csv(path_to_file, index=False)
+            print(
+                f"TMY data exported to .csv format with filename {filename_to_export}, with size {len(df)}"
             )
         case _:
-            print('Please pass either "tmy" or "epw" as a file format for export.')
+            print(
+                'Please pass either "tmy","epw", or "csv" as a file format for export.'
+            )
