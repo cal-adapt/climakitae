@@ -4,12 +4,14 @@ Test suite for climakitae/explore/typical_meteorological_year.py
 Includes tests for the more general functions along with the TMY class.
 """
 
+import warnings
 from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
+from scipy.optimize import OptimizeWarning
 
 from climakitae.core.constants import UNSET
 from climakitae.explore.typical_meteorological_year import (
@@ -406,7 +408,7 @@ def mock_t_hourly() -> xr.DataArray:
         "grid_mapping": "Lambert_Conformal",
         "timezone": "America/Los_Angeles",
     }
-    return da
+    yield da
 
 
 def mock_t_ds() -> xr.Dataset:
@@ -450,6 +452,7 @@ def mock_t_ds() -> xr.Dataset:
 class TestTMYClass:
     """Test the TMY class with fake data."""
 
+    @pytest.mark.integration
     def test_init_with_station(self):
         """Check class initialization with station."""
         # Use valid station name
@@ -480,6 +483,7 @@ class TestTMYClass:
         ):
             tmy = TMY(start_year, end_year)
 
+    @pytest.mark.integration
     def test_init_with_coords(self):
         """Check class initialization with coordinates."""
         # Use valid station name
@@ -493,6 +497,7 @@ class TestTMYClass:
         assert tmy.lon_range == pytest.approx((-117.91, -117.71), abs=1e-6)
         assert tmy.stn_code == "None"
 
+    @pytest.mark.integration
     def test_init_with_custom_name(self):
         """Check class initialization with coordinates."""
         # Use valid station name
@@ -528,6 +533,7 @@ class TestTMYClass:
                 station_name=station_name,
             )
 
+    @pytest.mark.integration
     def test_init_with_warming_level(self):
         """Check class initialization with coordinates."""
         # Use valid station name
@@ -553,6 +559,7 @@ class TestTMYClass:
                 longitude=lon,
             )
 
+    @pytest.mark.integration
     def test__load_single_variable_time(self):
         """Load data for a single variable."""
         lat = 33.56
@@ -749,6 +756,53 @@ class TestTMYClass:
             ]
         ).all()
         assert len(result["WRF_EC-Earth3_r1i1p1f1"].index) == 8760
+
+    def test__smooth_month_transition_hours(self):
+        """Check that smoothed data returned for variables in list."""
+        variable_list = [
+            "Air Temperature at 2m",
+            "Dew point temperature",
+            "Wind speed at 10m",
+            "Wind direction at 10m",
+            "Surface Pressure",
+            "Water Vapor Mixing Ratio at 2m",
+            "Relative humidity",
+        ]
+        data = {
+            "time": pd.date_range("2000-01-01-00", "2000-03-31-23", freq="1h"),
+            "simulation": ["WRF_EC-Earth3_r1i1p1f1" for x in range(0, 2184)],
+        }
+        # Add data with a transition from 0 to 1 at midnight on
+        # Jan 31/Feb 1 to be smoothed
+        for varname in variable_list:
+            data[varname] = np.zeros(len(data["time"]))
+            data[varname][31 * 24 : 32 * 24] = 1
+        df = pd.DataFrame.from_dict(data)
+
+        stn_name = "Santa Ana John Wayne Airport (KSNA)"
+        start_year = 2001
+        end_year = 2003
+        tmy = TMY(start_year, end_year, station_name=stn_name)
+        with warnings.catch_warnings():
+            warnings.simplefilter(action="ignore", category=OptimizeWarning)
+            result = tmy._smooth_month_transition_hours(df.copy())
+
+        # Check that data was altered in the smoothing window for all listed variables
+        for varname in variable_list:
+            assert not pytest.approx(df[varname][738], 1e-6) == pytest.approx(
+                result[varname][738], 1e-6
+            )
+            assert not pytest.approx(df[varname][746], 1e-6) == pytest.approx(
+                result[varname][746], 1e-6
+            )
+        # Check that values outside the window were not changed
+        for varname in variable_list:
+            assert pytest.approx(df[varname][780], 1e-6) == pytest.approx(
+                result[varname][780], 1e-6
+            )
+            assert pytest.approx(df[varname][720], 1e-6) == pytest.approx(
+                result[varname][720], 1e-6
+            )
 
     def test__match_str_to_wl(self):
         """Check the string returned for multiple warming levels."""
