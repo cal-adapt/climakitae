@@ -645,7 +645,7 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
 
     # Process all data using quantile computation across years
     print(
-        f"      ⚙️  Computing quantiles for {len(warming_levels)} warming level(s) and {n_simulations} simulation(s)"
+        f"      ⚙️ Computing quantiles for {len(warming_levels)} warming level(s) and {n_simulations} simulation(s)"
     )
 
     # Initialize storage for profiles
