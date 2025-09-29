@@ -755,22 +755,26 @@ class TestComputeProfile:
     def setup_method(self):
         """Set up test fixtures."""
         # Create mock xarray DataArrays with proper dimensions for compute_profile
-        
+
         # Time dimension - 30 years of hourly data (262,800 hours)
         self.hours_per_year = 8760
         self.n_years = 30
         self.total_hours = self.hours_per_year * self.n_years
-        
+
         # Create realistic climate data with seasonal and diurnal patterns
         # Base temperature around 15°C with seasonal variation
         hours = np.arange(self.total_hours)
-        seasonal_pattern = 10 * np.sin(2 * np.pi * hours / self.hours_per_year - np.pi/2)  # Annual cycle
-        diurnal_pattern = 5 * np.sin(2 * np.pi * (hours % 24) / 24 - np.pi/2)  # Daily cycle
+        seasonal_pattern = 10 * np.sin(
+            2 * np.pi * hours / self.hours_per_year - np.pi / 2
+        )  # Annual cycle
+        diurnal_pattern = 5 * np.sin(
+            2 * np.pi * (hours % 24) / 24 - np.pi / 2
+        )  # Daily cycle
         base_temp = 15.0
         noise = np.random.normal(0, 2, self.total_hours)  # Some random variation
-        
+
         self.mock_climate_data = base_temp + seasonal_pattern + diurnal_pattern + noise
-        
+
         # Create single warming level, single simulation DataArray
         self.single_wl_single_sim_data = xr.DataArray(
             data=self.mock_climate_data[np.newaxis, :],  # Add warming_level dimension
@@ -782,10 +786,10 @@ class TestComputeProfile:
             attrs={
                 "units": "degF",
                 "variable_id": "tasmax",
-                "extended_description": "Daily Maximum Near-Surface Air Temperature"
-            }
+                "extended_description": "Daily Maximum Near-Surface Air Temperature",
+            },
         )
-        
+
         # Create multiple warming levels, single simulation DataArray
         warming_levels = [1.5, 2.0, 3.0]
         multi_wl_data = []
@@ -794,7 +798,7 @@ class TestComputeProfile:
             wl_effect = i * 2.0  # Each level adds 2°C
             wl_data = self.mock_climate_data + wl_effect
             multi_wl_data.append(wl_data)
-        
+
         self.multi_wl_single_sim_data = xr.DataArray(
             data=np.array(multi_wl_data),
             dims=["warming_level", "time_delta"],
@@ -803,23 +807,29 @@ class TestComputeProfile:
                 "time_delta": np.arange(self.total_hours),
             },
             attrs={
-                "units": "degF", 
+                "units": "degF",
                 "variable_id": "tasmax",
-                "extended_description": "Daily Maximum Near-Surface Air Temperature"
-            }
+                "extended_description": "Daily Maximum Near-Surface Air Temperature",
+            },
         )
-        
+
         # Create single warming level, multiple simulations DataArray
-        simulations = ["WRF_CESM2_r1i1p1f1", "WRF_CNRM-ESM2-1_r1i1p1f2", "WRF_GFDL-ESM4_r1i1p1f1"]
+        simulations = [
+            "WRF_CESM2_r1i1p1f1",
+            "WRF_CNRM-ESM2-1_r1i1p1f2",
+            "WRF_GFDL-ESM4_r1i1p1f1",
+        ]
         single_wl_multi_sim_data = []
         for i, sim in enumerate(simulations):
             # Add slight simulation differences
             sim_bias = (i - 1) * 1.0  # Different models have different biases
             sim_data = self.mock_climate_data + sim_bias
             single_wl_multi_sim_data.append(sim_data)
-        
+
         self.single_wl_multi_sim_data = xr.DataArray(
-            data=np.array(single_wl_multi_sim_data)[:, np.newaxis, :],  # Add warming_level dim
+            data=np.array(single_wl_multi_sim_data)[
+                :, np.newaxis, :
+            ],  # Add warming_level dim
             dims=["simulation", "warming_level", "time_delta"],
             coords={
                 "simulation": simulations,
@@ -828,11 +838,11 @@ class TestComputeProfile:
             },
             attrs={
                 "units": "degF",
-                "variable_id": "tasmax", 
-                "extended_description": "Daily Maximum Near-Surface Air Temperature"
-            }
+                "variable_id": "tasmax",
+                "extended_description": "Daily Maximum Near-Surface Air Temperature",
+            },
         )
-        
+
         # Create multiple warming levels AND multiple simulations DataArray
         multi_wl_multi_sim_data = []
         for i, wl in enumerate(warming_levels):
@@ -842,7 +852,7 @@ class TestComputeProfile:
                 combined_data = self.mock_climate_data + (i * 2.0) + ((j - 1) * 1.0)
                 wl_sims.append(combined_data)
             multi_wl_multi_sim_data.append(wl_sims)
-        
+
         self.multi_wl_multi_sim_data = xr.DataArray(
             data=np.array(multi_wl_multi_sim_data),
             dims=["warming_level", "simulation", "time_delta"],
@@ -854,146 +864,172 @@ class TestComputeProfile:
             attrs={
                 "units": "degF",
                 "variable_id": "tasmax",
-                "extended_description": "Daily Maximum Near-Surface Air Temperature" 
-            }
+                "extended_description": "Daily Maximum Near-Surface Air Temperature",
+            },
         )
 
-    @patch('builtins.print')
+    @patch("builtins.print")
     def test_compute_profile_default_params(self, mock_print):
         """Test compute_profile with default parameters.
-        
+
         Tests that the function returns a properly formatted DataFrame
         with 365 days, 24 hours, median quantile processing, and proper
         index formatting when using simplest data structure.
         """
         # Call function with default parameters using single warming level data
         result = compute_profile(self.single_wl_single_sim_data)
-        
+
         # Verify return type and basic structure
         assert isinstance(result, pd.DataFrame)
         assert result.shape == (365, 24), f"Expected (365, 24), got {result.shape}"
-        
+
         # Verify default parameters were applied
         assert result.attrs.get("quantile") == 0.5, "Default quantile should be 0.5"
-        
+
         # Verify index is properly formatted (Day of Year format like "Jan-01")
         assert result.index.name == "Day of Year"
         assert isinstance(result.index[0], str)
         assert "-" in result.index[0]  # Should be "Month-Day" format
         assert len(result.index) == 365
-        
+
         # Verify columns are properly formatted hour labels
-        expected_hour_labels = [f"{h}am" for h in [12] + list(range(1, 12))] + [f"{h}pm" for h in [12] + list(range(1, 12))]
+        expected_hour_labels = [f"{h}am" for h in [12] + list(range(1, 12))] + [
+            f"{h}pm" for h in [12] + list(range(1, 12))
+        ]
         assert list(result.columns) == expected_hour_labels
         assert result.columns.name == "Hour"
-        
+
         # Verify data contains reasonable climate values (not NaN, not extreme)
         assert not result.isnull().any().any(), "Result should not contain NaN values"
         assert result.min().min() > -50, "Minimum temperature seems unreasonably low"
         assert result.max().max() < 150, "Maximum temperature seems unreasonably high"
-        
+
         # Verify metadata is properly set
         assert result.attrs.get("units") == "degF"
         assert result.attrs.get("variable_name") == "tasmax"
         assert "8760 analysis" in result.attrs.get("method", "")
         assert "50th percentile" in result.attrs.get("description", "")
 
-    @patch('builtins.print')
+    @patch("builtins.print")
     def test_compute_profile_custom_params(self, mock_print):
         """Test compute_profile with custom parameters.
-        
+
         Tests that the function properly handles different quantile values,
         verifying parameter effects on DataFrame structure and metadata.
         Note: days_in_year parameter affects reshaping but function always processes 8760 hours.
         """
         # Test with different quantile value (using standard 365 days to avoid reshape error)
-        result = compute_profile(self.single_wl_single_sim_data, days_in_year=365, q=0.9)
-        
+        result = compute_profile(
+            self.single_wl_single_sim_data, days_in_year=365, q=0.9
+        )
+
         # Verify return type and structure
         assert isinstance(result, pd.DataFrame)
         assert result.shape == (365, 24), f"Expected (365, 24), got {result.shape}"
-        
+
         # Verify custom parameters were applied
         assert result.attrs.get("quantile") == 0.9, "Custom quantile should be 0.9"
-        
+
         # Verify custom quantile is reflected in description
         assert "90th percentile" in result.attrs.get("description", "")
-        
+
         # Test with different quantile values
         result_q10 = compute_profile(self.single_wl_single_sim_data, q=0.1)
         assert result_q10.attrs.get("quantile") == 0.1
         assert "10th percentile" in result_q10.attrs.get("description", "")
-        
+
         result_q75 = compute_profile(self.single_wl_single_sim_data, q=0.75)
         assert result_q75.attrs.get("quantile") == 0.75
         assert "75th percentile" in result_q75.attrs.get("description", "")
-        
+
         # Verify data values are different for different quantiles
         # Higher quantiles should generally have higher values for temperature data
-        assert not result.equals(result_q10), "Different quantiles should produce different results"
-        assert not result.equals(result_q75), "Different quantiles should produce different results"
-        
+        assert not result.equals(
+            result_q10
+        ), "Different quantiles should produce different results"
+        assert not result.equals(
+            result_q75
+        ), "Different quantiles should produce different results"
+
         # Test extreme quantiles
         result_min = compute_profile(self.single_wl_single_sim_data, q=0.0)
         result_max = compute_profile(self.single_wl_single_sim_data, q=1.0)
-        
+
         # Min quantile should have lower values than max quantile in most cases
-        assert result_min.mean().mean() <= result_max.mean().mean(), "Minimum quantile should have lower average values than maximum quantile"
-        
+        assert (
+            result_min.mean().mean() <= result_max.mean().mean()
+        ), "Minimum quantile should have lower average values than maximum quantile"
+
         # Test boundary quantile values
         result_median = compute_profile(self.single_wl_single_sim_data, q=0.5)
-        assert result_median.attrs.get("quantile") == 0.5, "Median quantile should be properly set"
-        
+        assert (
+            result_median.attrs.get("quantile") == 0.5
+        ), "Median quantile should be properly set"
+
         # Verify all results have consistent metadata structure
-        for test_result in [result, result_q10, result_q75, result_min, result_max, result_median]:
-            assert test_result.attrs.get("method") == "8760 analysis - actual data closest to quantile across 30 years"
+        for test_result in [
+            result,
+            result_q10,
+            result_q75,
+            result_min,
+            result_max,
+            result_median,
+        ]:
+            assert (
+                test_result.attrs.get("method")
+                == "8760 analysis - actual data closest to quantile across 30 years"
+            )
             assert test_result.attrs.get("units") == "degF"
             assert test_result.attrs.get("variable_name") == "tasmax"
             assert test_result.index.name == "Day of Year"
             assert test_result.columns.name == "Hour"
 
-    @patch('builtins.print')
+    @patch("builtins.print")
     def test_compute_profile_single_wl_single_sim(self, mock_print):
         """Test compute_profile with single warming level and single simulation.
-        
+
         Tests the simplest data structure case, verifying that the function
         produces a DataFrame with simple (non-MultiIndex) column structure
         and proper data organization.
         """
         # Call function with single warming level, single simulation data
         result = compute_profile(self.single_wl_single_sim_data)
-        
+
         # Verify return type and basic structure
         assert isinstance(result, pd.DataFrame)
         assert result.shape == (365, 24), f"Expected (365, 24), got {result.shape}"
-        
+
         # Verify columns are simple (not MultiIndex) with hour labels
-        assert not isinstance(result.columns, pd.MultiIndex), "Columns should be simple, not MultiIndex"
+        assert not isinstance(
+            result.columns, pd.MultiIndex
+        ), "Columns should be simple, not MultiIndex"
         assert result.columns.name == "Hour"
-        
+
         # Verify hour labels are in expected AM/PM format
-        expected_hour_labels = [f"{h}am" for h in [12] + list(range(1, 12))] + [f"{h}pm" for h in [12] + list(range(1, 12))]
+        expected_hour_labels = [f"{h}am" for h in [12] + list(range(1, 12))] + [
+            f"{h}pm" for h in [12] + list(range(1, 12))
+        ]
         assert list(result.columns) == expected_hour_labels
-        
+
         # Verify index is properly formatted
         assert result.index.name == "Day of Year"
         assert len(result.index) == 365
         assert isinstance(result.index[0], str)
-        
+
         # Check that data values are reasonable for temperature
         assert not result.isnull().any().any(), "Result should not contain NaN values"
         assert result.min().min() > -100, "Temperature values seem unreasonably low"
         assert result.max().max() < 200, "Temperature values seem unreasonably high"
-        
+
         # Verify data has expected seasonal pattern (July should be warmer than January on average)
         july_rows = [idx for idx in result.index if idx.startswith("Jul")]
         jan_rows = [idx for idx in result.index if idx.startswith("Jan")]
-        
+
         if july_rows and jan_rows:
             july_avg = result.loc[july_rows].mean().mean()
             jan_avg = result.loc[jan_rows].mean().mean()
             assert july_avg > jan_avg, "July should be warmer than January on average"
-        
+
         # Verify metadata is complete and correct
         assert result.attrs.get("units") == "degF"
         assert result.attrs.get("variable_name") == "tasmax"
@@ -1001,266 +1037,353 @@ class TestComputeProfile:
         assert "8760 analysis" in result.attrs.get("method", "")
         assert "50th percentile" in result.attrs.get("description", "")
 
-    @patch('builtins.print')
+    @patch("builtins.print")
     def test_compute_profile_multiple_warming_levels(self, mock_print):
         """Test compute_profile with multiple warming levels.
-        
+
         Tests that the function properly handles multiple warming levels,
         creating a MultiIndex DataFrame with Hour and Warming_Level dimensions
         and organizing data appropriately across warming levels.
         """
         # Call function with multiple warming levels data
         result = compute_profile(self.multi_wl_single_sim_data)
-        
+
         # Verify return type and structure
         assert isinstance(result, pd.DataFrame)
         assert result.shape[0] == 365, f"Expected 365 rows, got {result.shape[0]}"
-        
+
         # Verify columns are MultiIndex with correct structure
-        assert isinstance(result.columns, pd.MultiIndex), "Columns should be MultiIndex for multiple warming levels"
-        assert result.columns.names == ["Hour", "Warming_Level"], "Column names should be ['Hour', 'Warming_Level']"
-        
+        assert isinstance(
+            result.columns, pd.MultiIndex
+        ), "Columns should be MultiIndex for multiple warming levels"
+        assert result.columns.names == [
+            "Hour",
+            "Warming_Level",
+        ], "Column names should be ['Hour', 'Warming_Level']"
+
         # Verify warming level labels are present
         warming_level_labels = result.columns.get_level_values("Warming_Level").unique()
         expected_wl_labels = ["WL_1.5", "WL_2.0", "WL_3.0"]
-        assert len(warming_level_labels) == 3, f"Expected 3 warming levels, got {len(warming_level_labels)}"
+        assert (
+            len(warming_level_labels) == 3
+        ), f"Expected 3 warming levels, got {len(warming_level_labels)}"
         for expected_wl in expected_wl_labels:
-            assert expected_wl in warming_level_labels, f"Expected warming level {expected_wl} not found"
-        
+            assert (
+                expected_wl in warming_level_labels
+            ), f"Expected warming level {expected_wl} not found"
+
         # Verify hour labels are present
         hour_labels = result.columns.get_level_values("Hour").unique()
         assert len(hour_labels) == 24, f"Expected 24 hours, got {len(hour_labels)}"
-        
+
         # Check total number of columns (24 hours × 3 warming levels)
-        assert result.shape[1] == 72, f"Expected 72 columns (24 hours × 3 warming levels), got {result.shape[1]}"
-        
+        assert (
+            result.shape[1] == 72
+        ), f"Expected 72 columns (24 hours × 3 warming levels), got {result.shape[1]}"
+
         # Verify data completeness and reasonableness
         assert not result.isnull().any().any(), "Result should not contain NaN values"
         assert result.min().min() > -100, "Temperature values seem unreasonably low"
         assert result.max().max() < 200, "Temperature values seem unreasonably high"
-        
+
         # Verify warming level progression - higher warming levels should generally have higher temperatures
         # Check average temperature progression across warming levels using numpy operations
         wl_1_5_subset = result.xs("WL_1.5", level="Warming_Level", axis=1)
         wl_2_0_subset = result.xs("WL_2.0", level="Warming_Level", axis=1)
         wl_3_0_subset = result.xs("WL_3.0", level="Warming_Level", axis=1)
-        
+
         # Use numpy to compute means to avoid type issues
         import numpy as np
+
         wl_1_5_avg = np.mean(wl_1_5_subset.to_numpy())
         wl_2_0_avg = np.mean(wl_2_0_subset.to_numpy())
         wl_3_0_avg = np.mean(wl_3_0_subset.to_numpy())
-        
-        assert wl_3_0_avg > wl_1_5_avg, "Average temperature should increase with warming level"
+
+        assert (
+            wl_3_0_avg > wl_1_5_avg
+        ), "Average temperature should increase with warming level"
         assert wl_2_0_avg > wl_1_5_avg, "WL_2.0 should be warmer than WL_1.5 on average"
-        
+
         # Verify index formatting
         assert result.index.name == "Day of Year"
         assert len(result.index) == 365
         assert isinstance(result.index[0], str)
-        
+
         # Verify metadata preservation
         assert result.attrs.get("units") == "degF"
         assert result.attrs.get("variable_name") == "tasmax"
         assert result.attrs.get("quantile") == 0.5
         assert "8760 analysis" in result.attrs.get("method", "")
 
-    @patch('builtins.print')
+    @patch("builtins.print")
     def test_compute_profile_multiple_simulations(self, mock_print):
         """Test compute_profile with multiple simulations.
-        
+
         Tests that the function properly handles multiple climate model simulations,
         creating a MultiIndex DataFrame with Hour and Simulation dimensions
         and extracting meaningful simulation labels from model identifiers.
         """
         # Call function with multiple simulations data
         result = compute_profile(self.single_wl_multi_sim_data)
-        
+
         # Verify return type and structure
         assert isinstance(result, pd.DataFrame)
         assert result.shape[0] == 365, f"Expected 365 rows, got {result.shape[0]}"
-        
+
         # Verify columns are MultiIndex with correct structure
-        assert isinstance(result.columns, pd.MultiIndex), "Columns should be MultiIndex for multiple simulations"
-        assert result.columns.names == ["Hour", "Simulation"], "Column names should be ['Hour', 'Simulation']"
-        
+        assert isinstance(
+            result.columns, pd.MultiIndex
+        ), "Columns should be MultiIndex for multiple simulations"
+        assert result.columns.names == [
+            "Hour",
+            "Simulation",
+        ], "Column names should be ['Hour', 'Simulation']"
+
         # Verify simulation labels are extracted properly from model identifiers
         simulation_labels = result.columns.get_level_values("Simulation").unique()
-        expected_sim_labels = ["CESM2", "CNRM-ESM2-1", "GFDL-ESM4"]  # Extracted from WRF_MODEL_... format
-        assert len(simulation_labels) == 3, f"Expected 3 simulations, got {len(simulation_labels)}"
+        expected_sim_labels = [
+            "CESM2",
+            "CNRM-ESM2-1",
+            "GFDL-ESM4",
+        ]  # Extracted from WRF_MODEL_... format
+        assert (
+            len(simulation_labels) == 3
+        ), f"Expected 3 simulations, got {len(simulation_labels)}"
         for expected_sim in expected_sim_labels:
-            assert expected_sim in simulation_labels, f"Expected simulation {expected_sim} not found"
-        
+            assert (
+                expected_sim in simulation_labels
+            ), f"Expected simulation {expected_sim} not found"
+
         # Verify hour labels are present
         hour_labels = result.columns.get_level_values("Hour").unique()
         assert len(hour_labels) == 24, f"Expected 24 hours, got {len(hour_labels)}"
-        
+
         # Check total number of columns (24 hours × 3 simulations)
-        assert result.shape[1] == 72, f"Expected 72 columns (24 hours × 3 simulations), got {result.shape[1]}"
-        
+        assert (
+            result.shape[1] == 72
+        ), f"Expected 72 columns (24 hours × 3 simulations), got {result.shape[1]}"
+
         # Verify data completeness and reasonableness
         assert not result.isnull().any().any(), "Result should not contain NaN values"
         assert result.min().min() > -100, "Temperature values seem unreasonably low"
         assert result.max().max() < 200, "Temperature values seem unreasonably high"
-        
+
         # Verify each simulation has data across all hours and days
         for sim_label in expected_sim_labels:
             sim_data = result.xs(sim_label, level="Simulation", axis=1)
-            assert sim_data.shape == (365, 24), f"Simulation {sim_label} should have shape (365, 24)"
-            assert not sim_data.isnull().any().any(), f"Simulation {sim_label} should not have NaN values"
-        
+            assert sim_data.shape == (
+                365,
+                24,
+            ), f"Simulation {sim_label} should have shape (365, 24)"
+            assert (
+                not sim_data.isnull().any().any()
+            ), f"Simulation {sim_label} should not have NaN values"
+
         # Verify simulations have different values (they should have model-specific biases)
         sim1_data = result.xs("CESM2", level="Simulation", axis=1)
         sim2_data = result.xs("CNRM-ESM2-1", level="Simulation", axis=1)
         sim3_data = result.xs("GFDL-ESM4", level="Simulation", axis=1)
-        
+
         # Simulations should have different average values due to model differences
         sim1_avg = np.mean(sim1_data.to_numpy())
         sim2_avg = np.mean(sim2_data.to_numpy())
         sim3_avg = np.mean(sim3_data.to_numpy())
-        
+
         # At least one pair should be different (models have different biases)
-        assert not (abs(sim1_avg - sim2_avg) < 0.01 and abs(sim2_avg - sim3_avg) < 0.01), "Simulations should have different average values"
-        
+        assert not (
+            abs(sim1_avg - sim2_avg) < 0.01 and abs(sim2_avg - sim3_avg) < 0.01
+        ), "Simulations should have different average values"
+
         # Verify index formatting
         assert result.index.name == "Day of Year"
         assert len(result.index) == 365
         assert isinstance(result.index[0], str)
-        
+
         # Verify metadata preservation
         assert result.attrs.get("units") == "degF"
         assert result.attrs.get("variable_name") == "tasmax"
         assert result.attrs.get("quantile") == 0.5
         assert "8760 analysis" in result.attrs.get("method", "")
 
-    @patch('builtins.print')
+    @patch("builtins.print")
     def test_compute_profile_multiple_wl_multiple_sim(self, mock_print):
         """Test compute_profile with multiple warming levels AND multiple simulations.
-        
+
         Tests the most complex data structure case, verifying that the function
-        creates a 3-level MultiIndex DataFrame with Hour, Warming_Level, and 
+        creates a 3-level MultiIndex DataFrame with Hour, Warming_Level, and
         Simulation dimensions and properly organizes all combinations.
         """
         # Call function with multiple warming levels and multiple simulations data
         result = compute_profile(self.multi_wl_multi_sim_data)
-        
+
         # Verify return type and structure
         assert isinstance(result, pd.DataFrame)
         assert result.shape[0] == 365, f"Expected 365 rows, got {result.shape[0]}"
-        
+
         # Verify columns are MultiIndex with correct 3-level structure
-        assert isinstance(result.columns, pd.MultiIndex), "Columns should be MultiIndex for multiple warming levels and simulations"
-        assert result.columns.names == ["Hour", "Warming_Level", "Simulation"], "Column names should be ['Hour', 'Warming_Level', 'Simulation']"
-        
+        assert isinstance(
+            result.columns, pd.MultiIndex
+        ), "Columns should be MultiIndex for multiple warming levels and simulations"
+        assert result.columns.names == [
+            "Hour",
+            "Warming_Level",
+            "Simulation",
+        ], "Column names should be ['Hour', 'Warming_Level', 'Simulation']"
+
         # Verify warming level labels are present
         warming_level_labels = result.columns.get_level_values("Warming_Level").unique()
         expected_wl_labels = ["WL_1.5", "WL_2.0", "WL_3.0"]
-        assert len(warming_level_labels) == 3, f"Expected 3 warming levels, got {len(warming_level_labels)}"
+        assert (
+            len(warming_level_labels) == 3
+        ), f"Expected 3 warming levels, got {len(warming_level_labels)}"
         for expected_wl in expected_wl_labels:
-            assert expected_wl in warming_level_labels, f"Expected warming level {expected_wl} not found"
-        
+            assert (
+                expected_wl in warming_level_labels
+            ), f"Expected warming level {expected_wl} not found"
+
         # Verify simulation labels are extracted properly
         simulation_labels = result.columns.get_level_values("Simulation").unique()
         expected_sim_labels = ["CESM2", "CNRM-ESM2-1", "GFDL-ESM4"]
-        assert len(simulation_labels) == 3, f"Expected 3 simulations, got {len(simulation_labels)}"
+        assert (
+            len(simulation_labels) == 3
+        ), f"Expected 3 simulations, got {len(simulation_labels)}"
         for expected_sim in expected_sim_labels:
-            assert expected_sim in simulation_labels, f"Expected simulation {expected_sim} not found"
-        
+            assert (
+                expected_sim in simulation_labels
+            ), f"Expected simulation {expected_sim} not found"
+
         # Verify hour labels are present
         hour_labels = result.columns.get_level_values("Hour").unique()
         assert len(hour_labels) == 24, f"Expected 24 hours, got {len(hour_labels)}"
-        
+
         # Check total number of columns (24 hours × 3 warming levels × 3 simulations = 216)
         expected_cols = 24 * 3 * 3
-        assert result.shape[1] == expected_cols, f"Expected {expected_cols} columns, got {result.shape[1]}"
-        
+        assert (
+            result.shape[1] == expected_cols
+        ), f"Expected {expected_cols} columns, got {result.shape[1]}"
+
         # Verify data completeness and reasonableness
         assert not result.isnull().any().any(), "Result should not contain NaN values"
         assert result.min().min() > -100, "Temperature values seem unreasonably low"
         assert result.max().max() < 200, "Temperature values seem unreasonably high"
-        
+
         # Verify each combination of warming level and simulation has data
         for wl_label in expected_wl_labels:
             for sim_label in expected_sim_labels:
                 # Use tuple indexing for multi-level selection
-                combo_columns = [col for col in result.columns 
-                               if col[1] == wl_label and col[2] == sim_label]
+                combo_columns = [
+                    col
+                    for col in result.columns
+                    if col[1] == wl_label and col[2] == sim_label
+                ]
                 combo_data = result[combo_columns]
-                assert combo_data.shape == (365, 24), f"Combination {wl_label}-{sim_label} should have shape (365, 24)"
-                assert not combo_data.isnull().any().any(), f"Combination {wl_label}-{sim_label} should not have NaN values"
-        
+                assert combo_data.shape == (
+                    365,
+                    24,
+                ), f"Combination {wl_label}-{sim_label} should have shape (365, 24)"
+                assert (
+                    not combo_data.isnull().any().any()
+                ), f"Combination {wl_label}-{sim_label} should not have NaN values"
+
         # Verify warming level progression within each simulation
         for sim_label in expected_sim_labels:
-            wl_1_5_cols = [col for col in result.columns 
-                          if col[1] == "WL_1.5" and col[2] == sim_label]
-            wl_3_0_cols = [col for col in result.columns 
-                          if col[1] == "WL_3.0" and col[2] == sim_label]
-            
+            wl_1_5_cols = [
+                col
+                for col in result.columns
+                if col[1] == "WL_1.5" and col[2] == sim_label
+            ]
+            wl_3_0_cols = [
+                col
+                for col in result.columns
+                if col[1] == "WL_3.0" and col[2] == sim_label
+            ]
+
             wl_1_5_data = result[wl_1_5_cols]
             wl_3_0_data = result[wl_3_0_cols]
-            
+
             wl_1_5_avg = np.mean(wl_1_5_data.to_numpy())
             wl_3_0_avg = np.mean(wl_3_0_data.to_numpy())
-            
-            assert wl_3_0_avg > wl_1_5_avg, f"For simulation {sim_label}, WL_3.0 should be warmer than WL_1.5 on average"
-        
+
+            assert (
+                wl_3_0_avg > wl_1_5_avg
+            ), f"For simulation {sim_label}, WL_3.0 should be warmer than WL_1.5 on average"
+
         # Verify simulation differences within each warming level
         for wl_label in expected_wl_labels:
             sim_avgs = []
             for sim_label in expected_sim_labels:
-                sim_cols = [col for col in result.columns 
-                           if col[1] == wl_label and col[2] == sim_label]
+                sim_cols = [
+                    col
+                    for col in result.columns
+                    if col[1] == wl_label and col[2] == sim_label
+                ]
                 sim_data = result[sim_cols]
                 sim_avg = np.mean(sim_data.to_numpy())
                 sim_avgs.append(sim_avg)
-            
+
             # At least some simulations should have different averages due to model differences
             sim_ranges = max(sim_avgs) - min(sim_avgs)
-            assert sim_ranges > 0.01, f"For warming level {wl_label}, simulations should have different average values"
-        
+            assert (
+                sim_ranges > 0.01
+            ), f"For warming level {wl_label}, simulations should have different average values"
+
         # Verify index formatting
         assert result.index.name == "Day of Year"
         assert len(result.index) == 365
         assert isinstance(result.index[0], str)
-        
+
         # Verify metadata preservation
         assert result.attrs.get("units") == "degF"
         assert result.attrs.get("variable_name") == "tasmax"
         assert result.attrs.get("quantile") == 0.5
         assert "8760 analysis" in result.attrs.get("method", "")
 
-    @patch('builtins.print')
+    @patch("builtins.print")
     def test_compute_profile_metadata_preservation(self, mock_print):
         """Test compute_profile metadata preservation and enhancement.
-        
+
         Tests that the function properly preserves input metadata and adds
         new metadata about the profile computation process, including
         quantile information, method description, and variable details.
         """
         # Test with input data that has rich metadata
         test_data = self.single_wl_single_sim_data.copy()
-        test_data.attrs.update({
-            "units": "degC",
-            "variable_id": "tas", 
-            "extended_description": "Daily Mean Near-Surface Air Temperature",
-            "institution": "Test Institution",
-            "experiment": "ssp245",
-            "custom_attribute": "test_value"
-        })
-        
+        test_data.attrs.update(
+            {
+                "units": "degC",
+                "variable_id": "tas",
+                "extended_description": "Daily Mean Near-Surface Air Temperature",
+                "institution": "Test Institution",
+                "experiment": "ssp245",
+                "custom_attribute": "test_value",
+            }
+        )
+
         # Call function with custom quantile
         result = compute_profile(test_data, q=0.8)
-        
+
         # Verify input metadata is preserved
         assert result.attrs.get("units") == "degC", "Input units should be preserved"
-        assert result.attrs.get("variable_name") == "tas", "Variable ID should be preserved as variable_name"
-        assert result.attrs.get("extended_description") == "Daily Mean Near-Surface Air Temperature", "Extended description should be preserved"
-        
+        assert (
+            result.attrs.get("variable_name") == "tas"
+        ), "Variable ID should be preserved as variable_name"
+        assert (
+            result.attrs.get("extended_description")
+            == "Daily Mean Near-Surface Air Temperature"
+        ), "Extended description should be preserved"
+
         # Verify new computation metadata is added
-        assert result.attrs.get("quantile") == 0.8, "Quantile parameter should be recorded"
-        assert result.attrs.get("method") == "8760 analysis - actual data closest to quantile across 30 years", "Method should be documented"
-        assert "80th percentile" in result.attrs.get("description", ""), "Description should include quantile information"
-        
+        assert (
+            result.attrs.get("quantile") == 0.8
+        ), "Quantile parameter should be recorded"
+        assert (
+            result.attrs.get("method")
+            == "8760 analysis - actual data closest to quantile across 30 years"
+        ), "Method should be documented"
+        assert "80th percentile" in result.attrs.get(
+            "description", ""
+        ), "Description should include quantile information"
+
         # Test with missing metadata
         minimal_data = xr.DataArray(
             data=self.mock_climate_data[np.newaxis, :],
@@ -1271,34 +1394,45 @@ class TestComputeProfile:
             },
             # No attrs specified
         )
-        
+
         result_minimal = compute_profile(minimal_data, q=0.3)
-        
+
         # Should still add computation metadata even if input metadata is missing
         assert result_minimal.attrs.get("quantile") == 0.3
-        assert result_minimal.attrs.get("method") == "8760 analysis - actual data closest to quantile across 30 years"
+        assert (
+            result_minimal.attrs.get("method")
+            == "8760 analysis - actual data closest to quantile across 30 years"
+        )
         assert "30th percentile" in result_minimal.attrs.get("description", "")
-        
+
         # Should handle missing input metadata gracefully
-        assert result_minimal.attrs.get("variable_name") is None or result_minimal.attrs.get("variable_name") == "None"
-        
+        assert (
+            result_minimal.attrs.get("variable_name") is None
+            or result_minimal.attrs.get("variable_name") == "None"
+        )
+
         # Test metadata consistency across different data structures
         result_multi = compute_profile(self.multi_wl_single_sim_data, q=0.25)
-        
+
         # Same computation metadata should be added regardless of data structure complexity
         assert result_multi.attrs.get("quantile") == 0.25
-        assert result_multi.attrs.get("method") == "8760 analysis - actual data closest to quantile across 30 years"
+        assert (
+            result_multi.attrs.get("method")
+            == "8760 analysis - actual data closest to quantile across 30 years"
+        )
         assert "25th percentile" in result_multi.attrs.get("description", "")
         assert result_multi.attrs.get("units") == "degF"  # From original setup
-        assert result_multi.attrs.get("variable_name") == "tasmax"  # From original setup
-        
+        assert (
+            result_multi.attrs.get("variable_name") == "tasmax"
+        )  # From original setup
+
         # Verify quantile edge cases are handled properly in descriptions
         result_min = compute_profile(self.single_wl_single_sim_data, q=0.0)
         result_max = compute_profile(self.single_wl_single_sim_data, q=1.0)
-        
+
         assert "0th percentile" in result_min.attrs.get("description", "")
         assert "100th percentile" in result_max.attrs.get("description", "")
-        
+
         # Verify median is described properly
         result_median = compute_profile(self.single_wl_single_sim_data, q=0.5)
         assert "50th percentile" in result_median.attrs.get("description", "")
@@ -1311,276 +1445,299 @@ class TestRetrieveProfileData:
         """Set up test fixtures."""
         # Create mock xarray datasets that would be returned by get_data
         times = pd.date_range("2020-01-01", periods=8760, freq="h")
-        
+
         self.mock_historic_dataset = xr.Dataset(
-            {"tasmax": (["time"], np.random.rand(8760))}, 
-            coords={"time": times}
+            {"tasmax": (["time"], np.random.rand(8760))}, coords={"time": times}
         )
         self.mock_historic_dataset.attrs = {
-            "units": "degF", 
+            "units": "degF",
             "variable_id": "tasmax",
-            "warming_level": 1.2
-        }
-        
-        self.mock_future_dataset = xr.Dataset(
-            {"tasmax": (["time"], np.random.rand(8760))}, 
-            coords={"time": times}
-        )
-        self.mock_future_dataset.attrs = {
-            "units": "degF", 
-            "variable_id": "tasmax", 
-            "warming_level": 2.0
+            "warming_level": 1.2,
         }
 
-    @patch('climakitae.explore.amy.get_data')
+        self.mock_future_dataset = xr.Dataset(
+            {"tasmax": (["time"], np.random.rand(8760))}, coords={"time": times}
+        )
+        self.mock_future_dataset.attrs = {
+            "units": "degF",
+            "variable_id": "tasmax",
+            "warming_level": 2.0,
+        }
+
+    @patch("climakitae.explore.amy.get_data")
     def test_retrieve_profile_data_default_params(self, mock_get_data):
         """Test retrieve_profile_data with default parameters.
-        
+
         Tests that the function returns both historic and future data
         with proper default parameter handling and warming level setup.
         """
         # Mock get_data to return different datasets for historic vs future calls
-        mock_get_data.side_effect = [self.mock_historic_dataset, self.mock_future_dataset]
-        
+        mock_get_data.side_effect = [
+            self.mock_historic_dataset,
+            self.mock_future_dataset,
+        ]
+
         # Call function with minimal required parameter
         historic_data, future_data = retrieve_profile_data(warming_level=[2.0])
-        
+
         # Verify return values are the expected datasets
         assert historic_data is self.mock_historic_dataset
         assert future_data is self.mock_future_dataset
-        
+
         # Verify get_data was called twice (historic + future)
         assert mock_get_data.call_count == 2
-        
+
         # Verify historic call used warming_level=1.2 and other defaults
         historic_call_kwargs = mock_get_data.call_args_list[0][1]  # First call kwargs
-        assert historic_call_kwargs['warming_level'] == [1.2]
-        assert historic_call_kwargs['variable'] == "Air Temperature at 2m"
-        assert historic_call_kwargs['resolution'] == "3 km"
-        assert historic_call_kwargs['downscaling_method'] == "Dynamical"
-        assert historic_call_kwargs['timescale'] == "hourly"
-        assert historic_call_kwargs['area_average'] == "Yes"
-        assert historic_call_kwargs['approach'] == "Warming Level"
-        
+        assert historic_call_kwargs["warming_level"] == [1.2]
+        assert historic_call_kwargs["variable"] == "Air Temperature at 2m"
+        assert historic_call_kwargs["resolution"] == "3 km"
+        assert historic_call_kwargs["downscaling_method"] == "Dynamical"
+        assert historic_call_kwargs["timescale"] == "hourly"
+        assert historic_call_kwargs["area_average"] == "Yes"
+        assert historic_call_kwargs["approach"] == "Warming Level"
+
         # Verify future call used user-provided warming_level
-        future_call_kwargs = mock_get_data.call_args_list[1][1]  # Second call kwargs  
-        assert future_call_kwargs['warming_level'] == [2.0]
-        
+        future_call_kwargs = mock_get_data.call_args_list[1][1]  # Second call kwargs
+        assert future_call_kwargs["warming_level"] == [2.0]
+
         # Verify both calls have consistent base parameters
         for call_kwargs in [historic_call_kwargs, future_call_kwargs]:
-            assert call_kwargs['variable'] == "Air Temperature at 2m"
-            assert call_kwargs['resolution'] == "3 km"
-            assert call_kwargs['downscaling_method'] == "Dynamical"
+            assert call_kwargs["variable"] == "Air Temperature at 2m"
+            assert call_kwargs["resolution"] == "3 km"
+            assert call_kwargs["downscaling_method"] == "Dynamical"
 
-    @patch('climakitae.explore.amy.get_data')
+    @patch("climakitae.explore.amy.get_data")
     def test_retrieve_profile_data_custom_params(self, mock_get_data):
         """Test retrieve_profile_data with custom parameters.
-        
+
         Tests that all custom parameters are properly passed through
         to the get_data function calls for both historic and future data.
         """
         # Mock get_data to return different datasets
-        mock_get_data.side_effect = [self.mock_historic_dataset, self.mock_future_dataset]
-        
+        mock_get_data.side_effect = [
+            self.mock_historic_dataset,
+            self.mock_future_dataset,
+        ]
+
         # Call function with comprehensive custom parameters
         custom_params = {
-            'variable': 'Air Temperature at 2m',
-            'resolution': '45 km',
-            'warming_level': [1.5, 2.0, 3.0],
-            'units': 'degC',
-            'cached_area': 'Los Angeles County',
-            'latitude': 34.0522,
-            'longitude': -118.2437
+            "variable": "Air Temperature at 2m",
+            "resolution": "45 km",
+            "warming_level": [1.5, 2.0, 3.0],
+            "units": "degC",
+            "cached_area": "Los Angeles County",
+            "latitude": 34.0522,
+            "longitude": -118.2437,
         }
-        
+
         historic_data, future_data = retrieve_profile_data(**custom_params)
-        
+
         # Verify return values are the expected datasets
         assert historic_data is self.mock_historic_dataset
         assert future_data is self.mock_future_dataset
-        
+
         # Verify get_data was called twice
         assert mock_get_data.call_count == 2
-        
+
         # Verify historic call parameters (always uses warming_level=1.2)
         historic_call_kwargs = mock_get_data.call_args_list[0][1]
-        assert historic_call_kwargs['warming_level'] == [1.2]  # Always 1.2 for historic
-        assert historic_call_kwargs['variable'] == 'Air Temperature at 2m'
-        assert historic_call_kwargs['resolution'] == '45 km'
-        assert historic_call_kwargs['units'] == 'degC'
-        assert historic_call_kwargs['cached_area'] == 'Los Angeles County'
-        assert historic_call_kwargs['latitude'] == 34.0522
-        assert historic_call_kwargs['longitude'] == -118.2437
-        
+        assert historic_call_kwargs["warming_level"] == [1.2]  # Always 1.2 for historic
+        assert historic_call_kwargs["variable"] == "Air Temperature at 2m"
+        assert historic_call_kwargs["resolution"] == "45 km"
+        assert historic_call_kwargs["units"] == "degC"
+        assert historic_call_kwargs["cached_area"] == "Los Angeles County"
+        assert historic_call_kwargs["latitude"] == 34.0522
+        assert historic_call_kwargs["longitude"] == -118.2437
+
         # Verify future call parameters (uses user-provided warming levels)
         future_call_kwargs = mock_get_data.call_args_list[1][1]
-        assert future_call_kwargs['warming_level'] == [1.5, 2.0, 3.0]
-        assert future_call_kwargs['variable'] == 'Air Temperature at 2m'
-        assert future_call_kwargs['resolution'] == '45 km'
-        assert future_call_kwargs['units'] == 'degC'
-        assert future_call_kwargs['cached_area'] == 'Los Angeles County'
-        assert future_call_kwargs['latitude'] == 34.0522
-        assert future_call_kwargs['longitude'] == -118.2437
-        
+        assert future_call_kwargs["warming_level"] == [1.5, 2.0, 3.0]
+        assert future_call_kwargs["variable"] == "Air Temperature at 2m"
+        assert future_call_kwargs["resolution"] == "45 km"
+        assert future_call_kwargs["units"] == "degC"
+        assert future_call_kwargs["cached_area"] == "Los Angeles County"
+        assert future_call_kwargs["latitude"] == 34.0522
+        assert future_call_kwargs["longitude"] == -118.2437
+
         # Verify standard parameters are always set correctly
         for call_kwargs in [historic_call_kwargs, future_call_kwargs]:
-            assert call_kwargs['downscaling_method'] == "Dynamical"
-            assert call_kwargs['timescale'] == "hourly"
-            assert call_kwargs['area_average'] == "Yes"
-            assert call_kwargs['approach'] == "Warming Level"
+            assert call_kwargs["downscaling_method"] == "Dynamical"
+            assert call_kwargs["timescale"] == "hourly"
+            assert call_kwargs["area_average"] == "Yes"
+            assert call_kwargs["approach"] == "Warming Level"
 
-    @patch('climakitae.explore.amy.get_data')
+    @patch("climakitae.explore.amy.get_data")
     def test_retrieve_profile_data_no_delta_true(self, mock_get_data):
         """Test retrieve_profile_data with no_delta=True.
-        
+
         Tests that when no_delta=True, only future data is retrieved
         and historic data is None (no historic data call made).
         """
         # Mock get_data to return future dataset (should only be called once)
         mock_get_data.return_value = self.mock_future_dataset
-        
+
         # Call function with no_delta=True
         historic_data, future_data = retrieve_profile_data(
-            warming_level=[2.5], 
+            warming_level=[2.5],
             no_delta=True,
             variable="Air Temperature at 2m",
-            resolution="9 km"
+            resolution="9 km",
         )
-        
+
         # Verify historic data is None (not retrieved)
         assert historic_data is None
-        
+
         # Verify future data is the expected dataset
         assert future_data is self.mock_future_dataset
-        
+
         # Verify get_data was called only once (for future data only)
         assert mock_get_data.call_count == 1
-        
+
         # Verify the single call was for future data with correct parameters
         call_kwargs = mock_get_data.call_args[1]
-        assert call_kwargs['warming_level'] == [2.5]
-        assert call_kwargs['variable'] == "Air Temperature at 2m"
-        assert call_kwargs['resolution'] == "9 km"
-        assert call_kwargs['downscaling_method'] == "Dynamical"
-        assert call_kwargs['approach'] == "Warming Level"
-        
+        assert call_kwargs["warming_level"] == [2.5]
+        assert call_kwargs["variable"] == "Air Temperature at 2m"
+        assert call_kwargs["resolution"] == "9 km"
+        assert call_kwargs["downscaling_method"] == "Dynamical"
+        assert call_kwargs["approach"] == "Warming Level"
+
         # Verify the no_delta parameter was properly consumed and not passed to get_data
-        assert 'no_delta' not in call_kwargs
+        assert "no_delta" not in call_kwargs
 
     def test_retrieve_profile_data_validation_errors(self):
         """Test retrieve_profile_data parameter validation.
-        
+
         Tests various validation error scenarios including missing required
         parameters, invalid parameter keys, and incorrect parameter types.
         """
         # Test missing required parameter (warming_level)
         with pytest.raises(ValueError, match="Missing required input: 'warming_level'"):
             retrieve_profile_data(variable="Air Temperature at 2m")
-        
+
         # Test invalid parameter key
-        with pytest.raises(ValueError, match="Invalid input\\(s\\): \\['invalid_param'\\]"):
+        with pytest.raises(
+            ValueError, match="Invalid input\\(s\\): \\['invalid_param'\\]"
+        ):
             retrieve_profile_data(warming_level=[2.0], invalid_param="test")
-        
+
         # Test multiple invalid parameter keys (order may vary)
         with pytest.raises(ValueError, match="Invalid input\\(s\\):.*bad_param"):
-            retrieve_profile_data(warming_level=[2.0], bad_param1="test", bad_param2="test2")
-        
+            retrieve_profile_data(
+                warming_level=[2.0], bad_param1="test", bad_param2="test2"
+            )
+
         # Test invalid parameter type - warming_level should be list
-        with pytest.raises(TypeError, match="Parameter 'warming_level' must be of type list"):
+        with pytest.raises(
+            TypeError, match="Parameter 'warming_level' must be of type list"
+        ):
             retrieve_profile_data(warming_level=2.0)
-        
+
         # Test invalid parameter type - variable should be str
         with pytest.raises(TypeError, match="Parameter 'variable' must be of type str"):
             retrieve_profile_data(warming_level=[2.0], variable=123)
-        
+
         # Test invalid parameter type - resolution should be str
-        with pytest.raises(TypeError, match="Parameter 'resolution' must be of type str"):
+        with pytest.raises(
+            TypeError, match="Parameter 'resolution' must be of type str"
+        ):
             retrieve_profile_data(warming_level=[2.0], resolution=45)
-        
+
         # Test invalid parameter type - units should be str
         with pytest.raises(TypeError, match="Parameter 'units' must be of type str"):
             retrieve_profile_data(warming_level=[2.0], units=123)
-        
-        # Note: latitude and cached_area have tuple type specs which cause 
+
+        # Note: latitude and cached_area have tuple type specs which cause
         # AttributeError in the current implementation, so we'll skip those specific tests
 
-    @patch('climakitae.explore.amy.get_data')
+    @patch("climakitae.explore.amy.get_data")
     def test_retrieve_profile_data_warming_level_handling(self, mock_get_data):
         """Test retrieve_profile_data warming level handling.
-        
-        Tests that historic data always uses 1.2°C warming level while 
+
+        Tests that historic data always uses 1.2°C warming level while
         future data uses user-specified warming levels.
         """
         # Mock get_data to return different datasets
-        mock_get_data.side_effect = [self.mock_historic_dataset, self.mock_future_dataset]
-        
+        mock_get_data.side_effect = [
+            self.mock_historic_dataset,
+            self.mock_future_dataset,
+        ]
+
         # Test with single warming level
         historic_data, future_data = retrieve_profile_data(warming_level=[3.0])
-        
+
         # Verify calls were made correctly
         assert mock_get_data.call_count == 2
-        
+
         # Verify historic always uses 1.2°C
         historic_call = mock_get_data.call_args_list[0][1]
-        assert historic_call['warming_level'] == [1.2]
-        
+        assert historic_call["warming_level"] == [1.2]
+
         # Verify future uses user-specified level
-        future_call = mock_get_data.call_args_list[1][1] 
-        assert future_call['warming_level'] == [3.0]
-        
+        future_call = mock_get_data.call_args_list[1][1]
+        assert future_call["warming_level"] == [3.0]
+
         # Reset mock for multiple warming levels test
         mock_get_data.reset_mock()
-        mock_get_data.side_effect = [self.mock_historic_dataset, self.mock_future_dataset]
-        
+        mock_get_data.side_effect = [
+            self.mock_historic_dataset,
+            self.mock_future_dataset,
+        ]
+
         # Test with multiple warming levels
-        historic_data, future_data = retrieve_profile_data(warming_level=[1.5, 2.0, 2.5, 3.0])
-        
+        historic_data, future_data = retrieve_profile_data(
+            warming_level=[1.5, 2.0, 2.5, 3.0]
+        )
+
         # Verify historic still uses 1.2°C
         historic_call = mock_get_data.call_args_list[0][1]
-        assert historic_call['warming_level'] == [1.2]
-        
+        assert historic_call["warming_level"] == [1.2]
+
         # Verify future uses all user-specified levels
         future_call = mock_get_data.call_args_list[1][1]
-        assert future_call['warming_level'] == [1.5, 2.0, 2.5, 3.0]
-    
-    @patch('climakitae.explore.amy.get_data')
+        assert future_call["warming_level"] == [1.5, 2.0, 2.5, 3.0]
+
+    @patch("climakitae.explore.amy.get_data")
     def test_retrieve_profile_data_get_data_integration(self, mock_get_data):
         """Test retrieve_profile_data integration with get_data function.
-        
+
         Tests that the function correctly integrates with get_data,
         properly handling return values and exceptions.
         """
         # Test successful integration
-        mock_get_data.side_effect = [self.mock_historic_dataset, self.mock_future_dataset]
-        
+        mock_get_data.side_effect = [
+            self.mock_historic_dataset,
+            self.mock_future_dataset,
+        ]
+
         historic_data, future_data = retrieve_profile_data(
             warming_level=[2.0],
             variable="Precipitation",
             resolution="27 km",
-            units="mm/day"
+            units="mm/day",
         )
-        
+
         # Verify correct return values
         assert historic_data is self.mock_historic_dataset
         assert future_data is self.mock_future_dataset
-        
+
         # Verify get_data was called with consistent base parameters
         for call_args in mock_get_data.call_args_list:
             kwargs = call_args[1]
-            assert kwargs['downscaling_method'] == "Dynamical"
-            assert kwargs['timescale'] == "hourly"
-            assert kwargs['area_average'] == "Yes"
-            assert kwargs['approach'] == "Warming Level"
-            assert kwargs['variable'] == "Precipitation"
-            assert kwargs['resolution'] == "27 km"
-            assert kwargs['units'] == "mm/day"
-        
+            assert kwargs["downscaling_method"] == "Dynamical"
+            assert kwargs["timescale"] == "hourly"
+            assert kwargs["area_average"] == "Yes"
+            assert kwargs["approach"] == "Warming Level"
+            assert kwargs["variable"] == "Precipitation"
+            assert kwargs["resolution"] == "27 km"
+            assert kwargs["units"] == "mm/day"
+
         # Test error propagation from get_data
         mock_get_data.reset_mock()
         mock_get_data.side_effect = ValueError("Data retrieval failed")
-        
+
         with pytest.raises(ValueError, match="Data retrieval failed"):
             retrieve_profile_data(warming_level=[2.0])
-        
+
         # Should have attempted the first call (historic) before failing
         assert mock_get_data.call_count == 1
