@@ -316,7 +316,7 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
         - latitude (Optional) : float or tuple
         - longitude (Optional) : float or tuple
         - days_in_year (Optional) : int, default 365
-        - q (Optional) : float | list[float], default [], quantile for profile calculation
+        - q (Optional) : float | list[float], default 0.5, quantile for profile calculation
         - no_delta (optional) : bool, default False, if True, do not apply baseline subtraction, return raw future profile
 
     Returns
