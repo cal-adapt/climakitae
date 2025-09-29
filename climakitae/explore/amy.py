@@ -144,7 +144,7 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
     **kwargs : dict
         Keyword arguments for data selection. Allowed keys:
         - variable (Optional) : str, default "Air Temperature at 2m"
-        - resolution (Optional) : str, default "4km"
+        - resolution (Optional) : str, default "3 km"
         - scenario (Optional) : List[str], default ["SSP 3-7.0"]
         - warming_levels (Required) : List[float], default [1.2]
         - cached_area (Optional) : str or List[str]
