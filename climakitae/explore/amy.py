@@ -269,7 +269,7 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
 
     # Call compute_profile with the processed data
     # Compute profiles for both historical and future data
-    def _fetch_primary_data_variable(ds: xr.Dataset) -> Tuple[str | None, xr.DataArray]:
+    def _fetch_primary_data_variable(ds: xr.Dataset) -> xr.DataArray:
         """
         Helper to extract the primary data variable from a Dataset.
 
@@ -280,11 +280,11 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
 
         Returns
         -------
-        Tuple[str | None, xr.DataArray]
-            A tuple containing the variable name and the corresponding DataArray.
+        xr.DataArray
+            The primary data variable as a DataArray.
         """
         if not isinstance(ds, xr.Dataset):
-            return None, ds
+            return ds
         var_name = list(ds.data_vars.keys())[0]
         return ds[var_name]
 
