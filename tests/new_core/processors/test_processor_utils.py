@@ -44,7 +44,7 @@ class TestDataFactory:
         lat_points=5,
         lon_points=5,
         start_date="2020-01-01",
-        frequency="D",
+        frequency="d",
         with_dask=False,
         **kwargs,
     ) -> xr.DataArray:
@@ -103,7 +103,7 @@ class TestDataFactory:
         )
 
         # Set frequency attribute based on input frequency
-        if frequency == "1H":
+        if frequency == "h":
             da_series.attrs["frequency"] = "1hr"
         elif frequency == "1hr" or frequency == "hourly":
             da_series.attrs["frequency"] = "hourly"
@@ -204,7 +204,7 @@ def sample_hourly_dataset():
         lat_points=3,
         lon_points=3,
         start_date="2020-01-01",
-        frequency="1H",
+        frequency="h",
     )
 
 
@@ -872,7 +872,7 @@ class TestCalcAverageEssTimeseriesOptimized:
         time_periods = 365 * 24 * 2  # 2 years of hourly data
         large_data = TestDataFactory.create_timeseries_dataset(
             time_periods=time_periods,
-            frequency="H",  # Hourly frequency
+            frequency="h",  # Hourly frequency
             start_date="2020-01-01",
         )
 
@@ -1327,7 +1327,7 @@ class TestIntegrationBlockMaxima:
             time_periods=24 * 365,  # 1 year of hourly data
             lat_points=3,
             lon_points=3,
-            frequency="1H",
+            frequency="h",
         )
 
         result = _get_block_maxima_optimized(
@@ -1404,7 +1404,7 @@ class TestAdvancedScenarios:
             lat_points=3,
             lon_points=3,
             start_date="2020-01-01",
-            frequency="1T",  # 1 minute
+            frequency="min",  # 1 minute
         )
 
         # Should handle high-resolution data
