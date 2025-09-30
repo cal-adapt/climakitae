@@ -448,7 +448,9 @@ def _compute_simulation_paired_difference(
                     historic_hour_mean = _get_historic_hour_mean(
                         historic_profile, historic_levels, hour
                     )
-                    difference_profile.loc[:, col] = future_profile[col] - historic_hour_mean
+                    difference_profile.loc[:, col] = (
+                        future_profile[col] - historic_hour_mean
+                    )
                 pbar.update(1)
 
     return difference_profile
