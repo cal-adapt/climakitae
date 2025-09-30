@@ -70,3 +70,43 @@ class TestRetrieveProfileData:
         historic_data, future_data = result
         assert historic_data is None, "Historic data should be None when no_delta=True"
         assert future_data == mock_future, "Future data should be returned"
+
+    def test_retrieve_profile_data_accepts_valid_parameters(self):
+        """Test that retrieve_profile_data accepts valid parameter combinations."""
+        # Setup mock return values
+        mock_historic = MagicMock(spec=xr.Dataset)
+        mock_future = MagicMock(spec=xr.Dataset)
+        self.mock_get_data.side_effect = [mock_historic, mock_future]
+
+        # Execute function with basic valid parameters
+        result = retrieve_profile_data(warming_level=[1.5, 2.0])
+
+        # Verify outcome: function should complete successfully with valid parameters
+        assert isinstance(result, tuple), "Should return a tuple with valid parameters"
+        assert len(result) == 2, "Should return tuple of two elements"
+        
+        # Verify get_data was called twice (once for historic, once for future)
+        assert self.mock_get_data.call_count == 2, "Should call get_data twice"
+
+    def test_retrieve_profile_data_with_complex_parameters(self):
+        """Test that retrieve_profile_data handles complex parameter combinations."""
+        # Setup mock return values
+        mock_historic = MagicMock(spec=xr.Dataset)
+        mock_future = MagicMock(spec=xr.Dataset)
+        self.mock_get_data.side_effect = [mock_historic, mock_future]
+
+        # Execute function with complex valid parameters that previously caused the bug
+        result = retrieve_profile_data(
+            variable="Air Temperature at 2m",
+            resolution="45 km",
+            warming_level=[1.5, 2.0],
+            cached_area="bay area",
+            units="degC"
+        )
+
+        # Verify outcome: function should complete successfully
+        assert isinstance(result, tuple), "Should handle complex parameters"
+        assert len(result) == 2, "Should return two datasets"
+        historic_data, future_data = result
+        assert historic_data == mock_historic, "Historic data should be returned"
+        assert future_data == mock_future, "Future data should be returned"
