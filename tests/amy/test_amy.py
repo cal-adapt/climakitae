@@ -959,6 +959,48 @@ class TestComputeWarmingLevelDifference:
                 abs(val - expected_diff) < 0.001
             ), f"Column {i} difference should be {expected_diff}, got {val}"
 
+    def test_compute_warming_level_difference_handles_duplicate_columns(self):
+        """Test _compute_warming_level_difference handles duplicate columns properly."""
+        hours = [1, 1, 2, 2]  # Duplicate hours
+        warming_levels = [2.0]
+
+        # Create future profile with duplicate columns
+        future_cols = pd.MultiIndex.from_product(
+            [hours, warming_levels], names=["Hour", "Warming_Level"]
+        )
+        future_dup = pd.DataFrame(
+            np.random.rand(10, len(future_cols)) + 20.0,
+            index=range(1, 11),
+            columns=future_cols,
+        )
+
+        # Create historic profile with duplicate columns
+        historic_dup = pd.DataFrame(
+            np.random.rand(10, len(hours)) + 15.0,
+            index=range(1, 11),
+            columns=hours,
+        )
+
+        # Execute function
+        future_levels = ["Hour", "Warming_Level"]
+        historic_levels = []
+
+        with patch("builtins.print") as mock_print:
+            result = _compute_warming_level_difference(
+                future_dup, historic_dup, future_levels, historic_levels
+            )
+
+        # Verify outcome: handles duplicates and shows warnings
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert result.shape[0] == future_dup.shape[0], "Should preserve row count"
+
+        # Check that warnings about duplicates were printed
+        printed_calls = [str(call) for call in mock_print.call_args_list]
+        printed_output = " ".join(printed_calls)
+        assert (
+            "duplicate columns" in printed_output.lower()
+        ), "Should warn about duplicate columns"
+
 
 class TestFormatBasedOnStructure:
     """Test class for _format_based_on_structure function.
