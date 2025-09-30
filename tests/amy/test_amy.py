@@ -928,7 +928,9 @@ class TestComputeWarmingLevelDifference:
             [hours, warming_levels], names=["Hour", "Warming_Level"]
         )
         future_data = pd.DataFrame(
-            [[25.0, 30.0, 20.0]], index=[1], columns=future_cols  # One row for simplicity
+            [[25.0, 30.0, 20.0]],
+            index=[1],
+            columns=future_cols,  # One row for simplicity
         )
 
         # Historic profile with known values for matching
@@ -949,7 +951,7 @@ class TestComputeWarmingLevelDifference:
 
         # Check specific hour matching: future[hour, wl] - historic[hour]
         # Hour 1: 25.0 - 15.0 = 10.0
-        # Hour 12: 30.0 - 20.0 = 10.0  
+        # Hour 12: 30.0 - 20.0 = 10.0
         # Hour 24: 20.0 - 10.0 = 10.0
         # Verify that differences are computed correctly by checking all values are 10.0
         result_values = result.iloc[0].values  # Get first row values
@@ -1171,7 +1173,9 @@ class TestComputeMixedIndexDifference:
             names=["Hour", "Warming_Level", "Simulation"],
         )
         future_data = pd.DataFrame(
-            [[25.0, 30.0, 20.0]], index=[1], columns=future_cols  # One row for simplicity
+            [[25.0, 30.0, 20.0]],
+            index=[1],
+            columns=future_cols,  # One row for simplicity
         )
 
         # Historic profile with corresponding hours
@@ -1191,8 +1195,8 @@ class TestComputeMixedIndexDifference:
         # Verify specific hour matching produces expected differences
         # The function should match hours in MultiIndex with simple historic columns
         result_values = result.iloc[0].values
-        expected_diffs = [10.0, 10.0, 10.0]  # 25-15, 30-20, 20-10 
-        
+        expected_diffs = [10.0, 10.0, 10.0]  # 25-15, 30-20, 20-10
+
         for i, (actual, expected) in enumerate(zip(result_values, expected_diffs)):
             assert (
                 abs(actual - expected) < 0.001
@@ -1342,7 +1346,7 @@ class TestComputeSimpleDifference:
     def setup_method(self):
         """Set up test fixtures."""
         hours = list(range(1, 25))
-        
+
         # Create future profile with simple columns
         self.future_profile = pd.DataFrame(
             np.random.rand(365, 24) + 20.0,
@@ -1406,11 +1410,11 @@ class TestComputeSimpleDifference:
 
         # Verify specific element-wise differences
         # Hour 1: 25.0 - 15.0 = 10.0
-        # Hour 12: 30.0 - 20.0 = 10.0  
+        # Hour 12: 30.0 - 20.0 = 10.0
         # Hour 24: 20.0 - 10.0 = 10.0
         expected_diffs = [10.0, 10.0, 10.0]
         result_values = result.iloc[0].values
-        
+
         for i, (actual, expected) in enumerate(zip(result_values, expected_diffs)):
             assert (
                 abs(actual - expected) < 0.001
@@ -1429,14 +1433,14 @@ class TestComputeSimpleDifference:
         future_data = pd.DataFrame(
             np.random.rand(10, 3) + 20.0,
             index=range(1, 11),
-            columns=['temp1', 'temp2', 'temp3'],
+            columns=["temp1", "temp2", "temp3"],
         )
 
         # Create historic profile with same structure but different names
         historic_data = pd.DataFrame(
             np.random.rand(10, 3) + 15.0,
             index=range(1, 11),
-            columns=['var1', 'var2', 'var3'],
+            columns=["var1", "var2", "var3"],
         )
 
         # Execute function
@@ -1463,15 +1467,15 @@ class TestComputeSimpleDifference:
         # Result might have NaN values due to pandas column alignment behavior
         # The function attempts positional alignment but pandas aligns by name
         # This is expected behavior when column names don't match
-        assert result.isna().all().all() or result.notna().any().any(), (
-            "Function should handle column mismatch gracefully"
-        )
+        assert (
+            result.isna().all().all() or result.notna().any().any()
+        ), "Function should handle column mismatch gracefully"
 
     def test_compute_simple_difference_with_empty_profiles(self):
         """Test _compute_simple_difference with empty DataFrames."""
         # Create empty DataFrames with matching structure
-        future_data = pd.DataFrame(columns=['temp', 'precip'])
-        historic_data = pd.DataFrame(columns=['temp', 'precip'])
+        future_data = pd.DataFrame(columns=["temp", "precip"])
+        historic_data = pd.DataFrame(columns=["temp", "precip"])
 
         # Execute function
         with patch("builtins.print") as mock_print:
@@ -1480,9 +1484,10 @@ class TestComputeSimpleDifference:
         # Verify outcome: handles empty data gracefully
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
         assert result.empty, "Result should be empty when input DataFrames are empty"
-        assert list(result.columns) == ['temp', 'precip'], (
-            "Should preserve column structure even with empty data"
-        )
+        assert list(result.columns) == [
+            "temp",
+            "precip",
+        ], "Should preserve column structure even with empty data"
         assert result.shape == (0, 2), "Should have correct empty shape"
 
         # Check that success message was printed (columns match)
@@ -1498,12 +1503,12 @@ class TestComputeSimpleDifference:
         future_data = pd.DataFrame(
             [[25.5, 12.3, 8.7]],
             index=[1],
-            columns=['temp', 'precip', 'humidity'],
+            columns=["temp", "precip", "humidity"],
         )
         historic_data = pd.DataFrame(
             [[20.2, 10.1, 7.9]],
             index=[1],
-            columns=['temp', 'precip', 'humidity'],
+            columns=["temp", "precip", "humidity"],
         )
 
         # Execute function
@@ -1513,15 +1518,19 @@ class TestComputeSimpleDifference:
         # Verify outcome: processes single row correctly
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
         assert result.shape == (1, 3), "Should have single row with three columns"
-        assert list(result.columns) == ['temp', 'precip', 'humidity'], (
-            "Should preserve column names"
-        )
+        assert list(result.columns) == [
+            "temp",
+            "precip",
+            "humidity",
+        ], "Should preserve column names"
 
-        # Check that all differences are positive (future > historic)  
+        # Check that all differences are positive (future > historic)
         assert (result > 0).all().all(), "All differences should be positive"
 
         # Verify differences are not NaN and within reasonable ranges
-        assert result.notna().all().all(), "All difference values should be valid numbers"
+        assert (
+            result.notna().all().all()
+        ), "All difference values should be valid numbers"
         assert (result < 100).all().all(), "All differences should be reasonable values"
 
         # Check that success message was printed
@@ -1548,11 +1557,11 @@ class TestFindMatchingHistoricColumn:
     def setup_method(self):
         """Set up test fixtures."""
         hours = [1, 12, 24]
-        simulations = ['sim1', 'sim2']
+        simulations = ["sim1", "sim2"]
 
         # Create historic profile with (Hour, Simulation) MultiIndex structure
         historic_cols = pd.MultiIndex.from_product(
-            [hours, simulations], names=['Hour', 'Simulation']
+            [hours, simulations], names=["Hour", "Simulation"]
         )
         self.sample_historic_profile = pd.DataFrame(
             np.random.rand(10, len(historic_cols)) + 15.0,
@@ -1563,9 +1572,9 @@ class TestFindMatchingHistoricColumn:
     def test_find_matching_historic_column_returns_tuple_or_none(self):
         """Test _find_matching_historic_column returns tuple or None."""
         # Test future column that exists in historic profile
-        future_col = (1, 'sim1')  # (Hour, Simulation)
-        future_levels = ['Hour', 'Simulation']
-        historic_levels = ['Hour', 'Simulation']
+        future_col = (1, "sim1")  # (Hour, Simulation)
+        future_levels = ["Hour", "Simulation"]
+        historic_levels = ["Hour", "Simulation"]
 
         # Execute function
         result = _find_matching_historic_column(
@@ -1573,26 +1582,26 @@ class TestFindMatchingHistoricColumn:
         )
 
         # Verify outcome: returns tuple or None
-        assert isinstance(result, tuple) or result is None, (
-            "Should return a tuple or None"
-        )
-        
+        assert (
+            isinstance(result, tuple) or result is None
+        ), "Should return a tuple or None"
+
         # In this case, should return matching tuple
         assert isinstance(result, tuple), "Should return tuple for valid match"
         assert len(result) == 2, "Returned tuple should have 2 elements"
-        assert result == (1, 'sim1'), "Should return exact matching tuple"
+        assert result == (1, "sim1"), "Should return exact matching tuple"
 
     def test_find_matching_historic_column_with_matching_hour_simulation(self):
         """Test _find_matching_historic_column with valid Hour and Simulation matching."""
         # Test various combinations that exist in the historic profile
         test_cases = [
-            ((1, 'sim1'), (1, 'sim1')),  # First hour, first simulation
-            ((12, 'sim2'), (12, 'sim2')),  # Middle hour, second simulation
-            ((24, 'sim1'), (24, 'sim1')),  # Last hour, first simulation
+            ((1, "sim1"), (1, "sim1")),  # First hour, first simulation
+            ((12, "sim2"), (12, "sim2")),  # Middle hour, second simulation
+            ((24, "sim1"), (24, "sim1")),  # Last hour, first simulation
         ]
-        
-        future_levels = ['Hour', 'Simulation']
-        historic_levels = ['Hour', 'Simulation']
+
+        future_levels = ["Hour", "Simulation"]
+        historic_levels = ["Hour", "Simulation"]
 
         for future_col, expected_result in test_cases:
             # Execute function
@@ -1602,22 +1611,22 @@ class TestFindMatchingHistoricColumn:
 
             # Verify outcome: returns correct matching tuple
             assert isinstance(result, tuple), f"Should return tuple for {future_col}"
-            assert result == expected_result, (
-                f"Should return {expected_result} for future column {future_col}"
-            )
-            assert result in self.sample_historic_profile.columns, (
-                f"Returned column {result} should exist in historic profile"
-            )
+            assert (
+                result == expected_result
+            ), f"Should return {expected_result} for future column {future_col}"
+            assert (
+                result in self.sample_historic_profile.columns
+            ), f"Returned column {result} should exist in historic profile"
 
     def test_find_matching_historic_column_with_different_level_order(self):
         """Test _find_matching_historic_column when historic levels are in different order."""
         # Create historic profile with (Simulation, Hour) order instead of (Hour, Simulation)
         hours = [1, 12, 24]
-        simulations = ['sim1', 'sim2']
-        
+        simulations = ["sim1", "sim2"]
+
         # Reversed order: Simulation first, then Hour
         reversed_historic_cols = pd.MultiIndex.from_product(
-            [simulations, hours], names=['Simulation', 'Hour']
+            [simulations, hours], names=["Simulation", "Hour"]
         )
         reversed_historic_profile = pd.DataFrame(
             np.random.rand(10, len(reversed_historic_cols)) + 15.0,
@@ -1626,9 +1635,9 @@ class TestFindMatchingHistoricColumn:
         )
 
         # Future column in (Hour, Simulation) order
-        future_col = (1, 'sim1')  # Hour first, Simulation second
-        future_levels = ['Hour', 'Simulation']
-        historic_levels = ['Simulation', 'Hour']  # Reversed order
+        future_col = (1, "sim1")  # Hour first, Simulation second
+        future_levels = ["Hour", "Simulation"]
+        historic_levels = ["Simulation", "Hour"]  # Reversed order
 
         # Execute function
         result = _find_matching_historic_column(
@@ -1638,13 +1647,13 @@ class TestFindMatchingHistoricColumn:
         # Verify outcome: function handles level order correctly
         assert isinstance(result, tuple), "Should return tuple for reversed level order"
         # Function should create ('sim1', 1) to match historic (Simulation, Hour) order
-        expected_result = ('sim1', 1)  # Simulation first, Hour second
-        assert result == expected_result, (
-            f"Should return {expected_result} for reversed historic levels"
-        )
-        assert result in reversed_historic_profile.columns, (
-            "Returned column should exist in reversed historic profile"
-        )
+        expected_result = ("sim1", 1)  # Simulation first, Hour second
+        assert (
+            result == expected_result
+        ), f"Should return {expected_result} for reversed historic levels"
+        assert (
+            result in reversed_historic_profile.columns
+        ), "Returned column should exist in reversed historic profile"
 
     def test_find_matching_historic_column_with_missing_levels(self):
         """Test _find_matching_historic_column when required levels are missing."""
@@ -1652,54 +1661,52 @@ class TestFindMatchingHistoricColumn:
         test_scenarios = [
             # Future missing Hour level
             {
-                'future_col': ('sim1',),  # Only simulation
-                'future_levels': ['Simulation'],  # Missing Hour
-                'historic_levels': ['Hour', 'Simulation'],
-                'description': 'future missing Hour level'
+                "future_col": ("sim1",),  # Only simulation
+                "future_levels": ["Simulation"],  # Missing Hour
+                "historic_levels": ["Hour", "Simulation"],
+                "description": "future missing Hour level",
             },
             # Future missing Simulation level
             {
-                'future_col': (1,),  # Only hour
-                'future_levels': ['Hour'],  # Missing Simulation
-                'historic_levels': ['Hour', 'Simulation'],
-                'description': 'future missing Simulation level'
+                "future_col": (1,),  # Only hour
+                "future_levels": ["Hour"],  # Missing Simulation
+                "historic_levels": ["Hour", "Simulation"],
+                "description": "future missing Simulation level",
             },
             # Historic missing Hour level
             {
-                'future_col': (1, 'sim1'),
-                'future_levels': ['Hour', 'Simulation'],
-                'historic_levels': ['Simulation'],  # Missing Hour
-                'description': 'historic missing Hour level'
+                "future_col": (1, "sim1"),
+                "future_levels": ["Hour", "Simulation"],
+                "historic_levels": ["Simulation"],  # Missing Hour
+                "description": "historic missing Hour level",
             },
             # Historic missing Simulation level
             {
-                'future_col': (1, 'sim1'),
-                'future_levels': ['Hour', 'Simulation'],
-                'historic_levels': ['Hour'],  # Missing Simulation
-                'description': 'historic missing Simulation level'
+                "future_col": (1, "sim1"),
+                "future_levels": ["Hour", "Simulation"],
+                "historic_levels": ["Hour"],  # Missing Simulation
+                "description": "historic missing Simulation level",
             },
             # Both missing required levels
             {
-                'future_col': ('other',),
-                'future_levels': ['Other'],  # No Hour or Simulation
-                'historic_levels': ['Different'],  # No Hour or Simulation
-                'description': 'both missing Hour and Simulation levels'
+                "future_col": ("other",),
+                "future_levels": ["Other"],  # No Hour or Simulation
+                "historic_levels": ["Different"],  # No Hour or Simulation
+                "description": "both missing Hour and Simulation levels",
             },
         ]
 
         for scenario in test_scenarios:
             # Execute function
             result = _find_matching_historic_column(
-                scenario['future_col'], 
-                scenario['future_levels'], 
-                self.sample_historic_profile, 
-                scenario['historic_levels']
+                scenario["future_col"],
+                scenario["future_levels"],
+                self.sample_historic_profile,
+                scenario["historic_levels"],
             )
 
             # Verify outcome: returns None when required levels are missing
-            assert result is None, (
-                f"Should return None when {scenario['description']}"
-            )
+            assert result is None, f"Should return None when {scenario['description']}"
 
     def test_find_matching_historic_column_with_no_matching_column(self):
         """Test _find_matching_historic_column when constructed column doesn't exist in historic."""
@@ -1707,42 +1714,37 @@ class TestFindMatchingHistoricColumn:
         test_cases = [
             # Hour exists but simulation doesn't
             {
-                'future_col': (1, 'nonexistent_sim'),
-                'description': 'nonexistent simulation'
+                "future_col": (1, "nonexistent_sim"),
+                "description": "nonexistent simulation",
             },
-            # Simulation exists but hour doesn't  
-            {
-                'future_col': (999, 'sim1'),
-                'description': 'nonexistent hour'
-            },
+            # Simulation exists but hour doesn't
+            {"future_col": (999, "sim1"), "description": "nonexistent hour"},
             # Neither hour nor simulation exists
             {
-                'future_col': (999, 'nonexistent_sim'),
-                'description': 'both nonexistent hour and simulation'
+                "future_col": (999, "nonexistent_sim"),
+                "description": "both nonexistent hour and simulation",
             },
         ]
 
-        future_levels = ['Hour', 'Simulation']
-        historic_levels = ['Hour', 'Simulation']
+        future_levels = ["Hour", "Simulation"]
+        historic_levels = ["Hour", "Simulation"]
 
         for case in test_cases:
             # Execute function
             result = _find_matching_historic_column(
-                case['future_col'], 
-                future_levels, 
-                self.sample_historic_profile, 
-                historic_levels
+                case["future_col"],
+                future_levels,
+                self.sample_historic_profile,
+                historic_levels,
             )
 
             # Verify outcome: returns None when constructed column doesn't exist
-            assert result is None, (
-                f"Should return None for {case['description']}"
-            )
+            assert result is None, f"Should return None for {case['description']}"
 
             # Double-check that the constructed column indeed doesn't exist
-            assert case['future_col'] not in self.sample_historic_profile.columns, (
-                f"Test case {case['future_col']} should not exist in historic profile"
-            )
+            assert (
+                case["future_col"] not in self.sample_historic_profile.columns
+            ), f"Test case {case['future_col']} should not exist in historic profile"
 
 
 class TestFormatBasedOnStructure:
