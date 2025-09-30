@@ -166,3 +166,25 @@ class TestGetClimateProfile:
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
         assert result.shape[0] > 0, "DataFrame should have rows"
         assert result.shape[1] > 0, "DataFrame should have columns"
+
+    def test_get_climate_profile_with_no_delta_returns_raw_future(self):
+        """Test that get_climate_profile returns raw future profile when no_delta=True."""
+        # Setup mock datasets with proper data_vars
+        mock_future_data = MagicMock(spec=xr.Dataset)
+        mock_future_data.data_vars = {'tasmax': MagicMock()}
+        
+        # When no_delta=True, only future data is returned, historic is None
+        self.mock_retrieve_profile_data.return_value = (None, mock_future_data)
+        
+        # Create mock future profile
+        mock_future_profile = pd.DataFrame(np.random.rand(365, 24))
+        self.mock_compute_profile.return_value = mock_future_profile
+        
+        # Execute function with no_delta=True
+        result = get_climate_profile(warming_level=[2.0], no_delta=True)
+        
+        # Verify outcome: returns the raw future profile (no difference calculation)
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert result.shape == mock_future_profile.shape, "Should return the original future profile shape"
+        # Verify compute_profile was called only once (for future data only)
+        assert self.mock_compute_profile.call_count == 1, "Should call compute_profile only once for future data"
