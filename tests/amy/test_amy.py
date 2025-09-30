@@ -699,3 +699,129 @@ class TestComputeMultiindexDifference:
         # Verify outcome: returns valid DataFrame (internal handling of duplicates)
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
         assert result.shape[0] == future_dup.shape[0], "Should preserve number of rows"
+
+
+class TestComputeSimulationPairedDifference:
+    """Test class for _compute_simulation_paired_difference function.
+    
+    Tests the function that computes paired differences when both profiles
+    have simulation dimensions, matching simulations between future and historic
+    profiles for accurate comparison.
+    
+    Attributes
+    ----------
+    future_profile : pd.DataFrame
+        Future profile with simulation columns.
+    historic_profile : pd.DataFrame 
+        Historic profile with simulation columns.
+    """
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        hours = list(range(1, 25))
+        simulations = ["sim1", "sim2", "sim3"]
+        
+        # Create future profile with (Hour, Simulation)
+        future_cols = pd.MultiIndex.from_product(
+            [hours, simulations],
+            names=["Hour", "Simulation"]
+        )
+        self.future_profile = pd.DataFrame(
+            np.random.rand(365, len(future_cols)) + 20.0,
+            index=range(1, 366),
+            columns=future_cols
+        )
+        
+        # Create historic profile with (Hour, Simulation) - same simulations
+        self.historic_profile = pd.DataFrame(
+            np.random.rand(365, len(future_cols)) + 15.0,
+            index=range(1, 366),
+            columns=future_cols
+        )
+
+    def test_compute_simulation_paired_difference_matches_common_simulations(self):
+        """Test _compute_simulation_paired_difference matches common simulations correctly."""
+        # Execute function with matching simulation sets
+        future_levels = ["Hour", "Simulation"]
+        historic_levels = ["Hour", "Simulation"]
+        
+        result = _compute_simulation_paired_difference(
+            self.future_profile, self.historic_profile, 
+            future_levels, historic_levels
+        )
+        
+        # Verify outcome: returns DataFrame with paired differences
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert isinstance(result.columns, pd.MultiIndex), "Should maintain MultiIndex structure"
+        assert result.columns.names == ["Hour", "Simulation"], "Should preserve column level names"
+        assert result.shape == self.future_profile.shape, "Shape should match future profile"
+        
+        # Check that differences are computed (future - historic)
+        # Values should be positive since future (20+) > historic (15+)
+        assert result.mean().mean() > 0, "Differences should be positive (future > historic)"
+
+    def test_compute_simulation_paired_difference_with_no_common_simulations(self):
+        """Test _compute_simulation_paired_difference when no simulations match."""
+        # Create historic profile with different simulations
+        hours = list(range(1, 25))
+        different_sims = ["sim4", "sim5", "sim6"]  # No overlap with future sims
+        
+        historic_cols = pd.MultiIndex.from_product(
+            [hours, different_sims],
+            names=["Hour", "Simulation"]
+        )
+        historic_different = pd.DataFrame(
+            np.random.rand(365, len(historic_cols)) + 15.0,
+            index=range(1, 366),
+            columns=historic_cols
+        )
+        
+        # Execute function with no matching simulations
+        future_levels = ["Hour", "Simulation"]
+        historic_levels = ["Hour", "Simulation"]
+        
+        result = _compute_simulation_paired_difference(
+            self.future_profile, historic_different,
+            future_levels, historic_levels
+        )
+        
+        # Verify outcome: returns DataFrame when no matches (computes average difference)
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert result.shape == self.future_profile.shape, "Shape should match future profile"
+        # When no common simulations, function computes difference using averages
+        # Results should still be meaningful (positive since future > historic)
+        assert result.mean().mean() > 0, "Should compute positive differences even without matched sims"
+
+    def test_compute_simulation_paired_difference_with_duplicate_columns(self):
+        """Test _compute_simulation_paired_difference handles duplicate columns correctly."""
+        # Create future profile with duplicate columns
+        hours = [1, 1, 2, 2]  # Duplicate hours
+        sims = ["sim1", "sim1"]  # Duplicate simulations
+        
+        dup_cols = pd.MultiIndex.from_product(
+            [hours, sims],
+            names=["Hour", "Simulation"]
+        )
+        
+        future_dup = pd.DataFrame(
+            np.random.rand(10, len(dup_cols)) + 20.0,
+            index=range(1, 11),
+            columns=dup_cols
+        )
+        historic_dup = pd.DataFrame(
+            np.random.rand(10, len(dup_cols)) + 15.0,
+            index=range(1, 11),
+            columns=dup_cols
+        )
+        
+        # Execute function
+        future_levels = ["Hour", "Simulation"]
+        historic_levels = ["Hour", "Simulation"]
+        
+        result = _compute_simulation_paired_difference(
+            future_dup, historic_dup, future_levels, historic_levels
+        )
+        
+        # Verify outcome: handles duplicates gracefully
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert result.shape[0] == future_dup.shape[0], "Should preserve row count"
