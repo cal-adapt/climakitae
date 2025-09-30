@@ -18,6 +18,23 @@ from climakitae.explore.amy import (
     get_profile_units,
     get_profile_metadata,
     set_profile_metadata,
+    _compute_difference_profile,
+    _compute_multiindex_difference,
+    _compute_simulation_paired_difference,
+    _compute_warming_level_difference,
+    _compute_mixed_index_difference,
+    _compute_simple_difference,
+    _find_matching_historic_column,
+    _get_historic_hour_mean,
+    _find_matching_historic_value,
+    _format_based_on_structure,
+    _construct_profile_dataframe,
+    _create_simple_dataframe,
+    _create_single_wl_multi_sim_dataframe,
+    _create_multi_wl_single_sim_dataframe,
+    _create_multi_wl_multi_sim_dataframe,
+    _stack_profile_data,
+    _format_meteo_yr_df,
 )
 
 
@@ -391,3 +408,157 @@ class TestProfileUtilityFunctions:
             ValueError, match="Metadata must be provided as a dictionary"
         ):
             set_profile_metadata(self.sample_profile, "not_a_dict")
+
+
+class TestComputeDifferenceProfile:
+    """Test class for _compute_difference_profile function.
+    
+    Tests the function that computes differences between future and historic
+    climate profiles, handling various DataFrame column structures including
+    simple indexes and MultiIndex columns.
+    
+    Attributes
+    ----------
+    simple_future_profile : pd.DataFrame
+        Simple future profile with single-level columns.
+    simple_historic_profile : pd.DataFrame
+        Simple historic profile with single-level columns.
+    multi_future_profile : pd.DataFrame
+        Future profile with MultiIndex columns.
+    multi_historic_profile : pd.DataFrame
+        Historic profile with MultiIndex columns.
+    """
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        # Create simple profiles (single-level columns)
+        self.simple_future_profile = pd.DataFrame(
+            np.random.rand(365, 24) + 20.0,  # Future is warmer
+            index=range(1, 366),
+            columns=range(1, 25)
+        )
+        self.simple_historic_profile = pd.DataFrame(
+            np.random.rand(365, 24) + 15.0,  # Historic is cooler
+            index=range(1, 366),
+            columns=range(1, 25)
+        )
+        
+        # Create MultiIndex profiles
+        hours = list(range(1, 25))
+        wl_levels = [1.5, 2.0]
+        simulations = ["sim1", "sim2"]
+        
+        # Future with MultiIndex (Hour, Warming_Level, Simulation)
+        multi_cols_future = pd.MultiIndex.from_product(
+            [hours, wl_levels, simulations],
+            names=["Hour", "Warming_Level", "Simulation"]
+        )
+        self.multi_future_profile = pd.DataFrame(
+            np.random.rand(365, len(multi_cols_future)) + 20.0,
+            index=range(1, 366),
+            columns=multi_cols_future
+        )
+        
+        # Historic with MultiIndex (Hour, Simulation)
+        multi_cols_historic = pd.MultiIndex.from_product(
+            [hours, simulations],
+            names=["Hour", "Simulation"]
+        )
+        self.multi_historic_profile = pd.DataFrame(
+            np.random.rand(365, len(multi_cols_historic)) + 15.0,
+            index=range(1, 366),
+            columns=multi_cols_historic
+        )
+
+    def test_compute_difference_profile_with_simple_columns(self):
+        """Test _compute_difference_profile with simple single-level columns."""
+        # Execute function
+        result = _compute_difference_profile(
+            self.simple_future_profile, self.simple_historic_profile
+        )
+        
+        # Verify outcome: returns DataFrame with difference values
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert result.shape == self.simple_future_profile.shape, "Shape should match future profile"
+        
+        # Check that differences are computed correctly (future - historic)
+        # Since future values are ~20 and historic are ~15, differences should be ~5
+        assert result.mean().mean() > 0, "Future should be warmer than historic on average"
+        assert result.mean().mean() < 10, "Difference should be reasonable (< 10 degrees)"
+
+    def test_compute_difference_profile_with_multiindex_columns(self):
+        """Test _compute_difference_profile with MultiIndex columns."""
+        # Create matched MultiIndex profiles for testing
+        hours = list(range(1, 25))
+        simulations = ["sim1", "sim2"]
+        
+        # Both profiles have (Hour, Simulation) structure
+        multi_cols = pd.MultiIndex.from_product(
+            [hours, simulations],
+            names=["Hour", "Simulation"]
+        )
+        
+        future_multi = pd.DataFrame(
+            np.random.rand(365, len(multi_cols)) + 20.0,
+            index=range(1, 366),
+            columns=multi_cols
+        )
+        historic_multi = pd.DataFrame(
+            np.random.rand(365, len(multi_cols)) + 15.0,
+            index=range(1, 366),
+            columns=multi_cols
+        )
+        
+        # Execute function
+        result = _compute_difference_profile(future_multi, historic_multi)
+        
+        # Verify outcome: returns DataFrame with MultiIndex structure preserved
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert isinstance(result.columns, pd.MultiIndex), "Should preserve MultiIndex structure"
+        assert result.columns.names == ["Hour", "Simulation"], "Should preserve column level names"
+        assert result.shape == future_multi.shape, "Shape should match future profile"
+
+    def test_compute_difference_profile_with_mixed_index_types(self):
+        """Test _compute_difference_profile when future has MultiIndex and historic has simple columns."""
+        # Execute function with mixed index types
+        result = _compute_difference_profile(
+            self.multi_future_profile, self.simple_historic_profile
+        )
+        
+        # Verify outcome: returns DataFrame preserving future structure
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert isinstance(result.columns, pd.MultiIndex), "Should preserve future MultiIndex structure"
+        assert result.shape == self.multi_future_profile.shape, "Shape should match future profile"
+        assert result.columns.names == self.multi_future_profile.columns.names, "Should preserve column level names"
+
+    def test_compute_difference_profile_handles_empty_dataframes(self):
+        """Test _compute_difference_profile with empty DataFrames."""
+        # Create empty DataFrames
+        empty_future = pd.DataFrame()
+        empty_historic = pd.DataFrame()
+        
+        # Execute function
+        result = _compute_difference_profile(empty_future, empty_historic)
+        
+        # Verify outcome: returns empty DataFrame
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert result.empty, "Should return empty DataFrame for empty inputs"
+
+    def test_compute_difference_profile_preserves_metadata(self):
+        """Test that _compute_difference_profile preserves metadata from future profile."""
+        # Add metadata to future profile
+        self.simple_future_profile.attrs = {
+            "units": "degC",
+            "variable_id": "tasmax",
+            "description": "Future temperature profile"
+        }
+        
+        # Execute function
+        result = _compute_difference_profile(
+            self.simple_future_profile, self.simple_historic_profile
+        )
+        
+        # Verify outcome: metadata is preserved
+        assert hasattr(result, "attrs"), "Result should have attrs attribute"
+        assert result.attrs["units"] == "degC", "Should preserve units metadata"
+        assert result.attrs["variable_id"] == "tasmax", "Should preserve variable_id metadata"
