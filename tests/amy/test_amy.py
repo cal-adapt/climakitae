@@ -6,11 +6,8 @@ and climate profile computation functions that provide climate profile analysis.
 """
 
 import pytest
-import pandas as pd
-import numpy as np
 import xarray as xr
-from unittest.mock import MagicMock, patch, Mock
-from typing import Tuple
+from unittest.mock import MagicMock, patch
 
 from climakitae.explore.amy import retrieve_profile_data
 
@@ -52,3 +49,9 @@ class TestRetrieveProfileData:
         historic_data, future_data = result
         assert historic_data == mock_historic, "First element should be historic data"
         assert future_data == mock_future, "Second element should be future data"
+
+    def test_retrieve_profile_data_with_invalid_parameters_raises_error(self):
+        """Test that retrieve_profile_data raises error for invalid parameter keys."""
+        # Execute and verify outcome: should raise ValueError for invalid keys
+        with pytest.raises(ValueError, match="Invalid input"):
+            retrieve_profile_data(invalid_param="test", another_invalid=123)
