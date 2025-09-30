@@ -1093,6 +1093,72 @@ class TestComputeWarmingLevelDifference:
         ), "Future should be warmer than historic on average with fallback"
 
 
+class TestComputeMixedIndexDifference:
+    """Test class for _compute_mixed_index_difference function.
+
+    Tests the function that computes differences when future profile has
+    MultiIndex columns and historic profile has simple columns, handling
+    various matching scenarios and fallback logic.
+
+    Attributes
+    ----------
+    future_profile : pd.DataFrame
+        Future profile with MultiIndex columns.
+    historic_profile : pd.DataFrame
+        Historic profile with simple columns.
+    """
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        hours = list(range(1, 25))
+        warming_levels = [1.5, 2.0]
+        simulations = ["sim1", "sim2"]
+
+        # Create future profile with (Hour, Warming_Level, Simulation) MultiIndex
+        future_cols = pd.MultiIndex.from_product(
+            [hours, warming_levels, simulations],
+            names=["Hour", "Warming_Level", "Simulation"],
+        )
+        self.future_profile = pd.DataFrame(
+            np.random.rand(365, len(future_cols)) + 20.0,
+            index=range(1, 366),
+            columns=future_cols,
+        )
+
+        # Create simple historic profile with hour columns
+        self.historic_profile = pd.DataFrame(
+            np.random.rand(365, 24) + 15.0,
+            index=range(1, 366),
+            columns=hours,
+        )
+
+    def test_compute_mixed_index_difference_returns_difference_dataframe(self):
+        """Test _compute_mixed_index_difference returns DataFrame with computed differences."""
+        # Execute function
+        result = _compute_mixed_index_difference(
+            self.future_profile, self.historic_profile
+        )
+
+        # Verify outcome: returns DataFrame with differences computed
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert (
+            result.shape == self.future_profile.shape
+        ), "Result shape should match future profile"
+        assert isinstance(
+            result.columns, pd.MultiIndex
+        ), "Should preserve future MultiIndex structure"
+        assert result.columns.names == [
+            "Hour",
+            "Warming_Level",
+            "Simulation",
+        ], "Should preserve column level names"
+
+        # Verify differences are computed (future - historic should be positive on average)
+        assert (
+            result.mean().mean() > 0
+        ), "Future should be warmer than historic on average"
+
+
 class TestFormatBasedOnStructure:
     """Test class for _format_based_on_structure function.
 
