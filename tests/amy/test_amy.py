@@ -1492,6 +1492,45 @@ class TestComputeSimpleDifference:
             "columns match" in printed_output.lower()
         ), "Should confirm columns match even for empty DataFrames"
 
+    def test_compute_simple_difference_with_single_row(self):
+        """Test _compute_simple_difference with single-row DataFrames."""
+        # Create single-row DataFrames
+        future_data = pd.DataFrame(
+            [[25.5, 12.3, 8.7]],
+            index=[1],
+            columns=['temp', 'precip', 'humidity'],
+        )
+        historic_data = pd.DataFrame(
+            [[20.2, 10.1, 7.9]],
+            index=[1],
+            columns=['temp', 'precip', 'humidity'],
+        )
+
+        # Execute function
+        with patch("builtins.print") as mock_print:
+            result = _compute_simple_difference(future_data, historic_data)
+
+        # Verify outcome: processes single row correctly
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert result.shape == (1, 3), "Should have single row with three columns"
+        assert list(result.columns) == ['temp', 'precip', 'humidity'], (
+            "Should preserve column names"
+        )
+
+        # Check that all differences are positive (future > historic)  
+        assert (result > 0).all().all(), "All differences should be positive"
+
+        # Verify differences are not NaN and within reasonable ranges
+        assert result.notna().all().all(), "All difference values should be valid numbers"
+        assert (result < 100).all().all(), "All differences should be reasonable values"
+
+        # Check that success message was printed
+        printed_calls = [str(call) for call in mock_print.call_args_list]
+        printed_output = " ".join(printed_calls)
+        assert (
+            "columns match" in printed_output.lower()
+        ), "Should confirm columns match for single-row data"
+
 
 class TestFormatBasedOnStructure:
     """Test class for _format_based_on_structure function.
