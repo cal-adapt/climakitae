@@ -102,10 +102,18 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
         "resolution": (str, "3 km"),
         "warming_level": (list, [1.2]),
         "cached_area": ((str, list), None),
-        "units": (str, "degF"),
         "latitude": ((float, tuple), None),
         "longitude": ((float, tuple), None),
         "stations": (list, None),
+        "units": kwargs.get(
+            "units",
+            (
+                "degF"  # Default to degF if user hasn't specified both variable and units
+                if kwargs.get("variable", None) is None
+                and kwargs.get("units", None) is None
+                else None  # otherwise default to None and let get_data decide
+            ),
+        ),
     }
 
     # if the user does not enter warming level the analysis is a moot point
@@ -178,9 +186,7 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
         "variable": kwargs.get("variable", "Air Temperature at 2m"),
         "resolution": kwargs.get("resolution", "3 km"),
         "downscaling_method": "Dynamical",  # must be WRF, cannot be LOCA
-        "timescale": kwargs.get(
-            "timescale", "hourly"
-        ),  # must be hourly for 8760 analysis
+        "timescale": "hourly",  # must be hourly for 8760 analysis
         "area_average": "Yes",
         "units": kwargs.get(
             "units",
@@ -196,6 +202,7 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
         "cached_area": kwargs.get("cached_area", None),
         "latitude": kwargs.get("latitude", None),
         "longitude": kwargs.get("longitude", None),
+        "stations": kwargs.get("stations", None),
     }
 
     historic_data = None
@@ -827,17 +834,31 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
 
         sim_str = str(sim)
         if "WRF_" in sim_str:
-            # Extract the GCM model name (e.g., CESM2, CNRM-ESM2-1, etc.)
+            # Parse simulation name format: WRF_GCM_params_scenario
+            # Example: WRF_CESM2_r11i1p1f1_historical+ssp245
             parts = sim_str.split("_")
-            if len(parts) >= 2:
-                # Include simulation index to ensure uniqueness
-                return f"{parts[1]}_{sim_idx+1}"  # Get the GCM name with index
+            if len(parts) >= 4:
+                gcm = parts[1]  # e.g., CESM2, CNRM-ESM2-1
+                params = parts[2]  # e.g., r11i1p1f1
+                scenario = parts[3]  # e.g., historical+ssp245
+
+                # Extract SSP from scenario (e.g., ssp245 from historical+ssp245)
+                if "ssp" in scenario:
+                    ssp_part = scenario.split("ssp")[-1]  # Get part after 'ssp'
+                    ssp = f"ssp{ssp_part}"
+                else:
+                    ssp = "hist"  # fallback for historical-only
+
+                return f"{gcm}-{params}-{ssp}"
+            elif len(parts) >= 2:
+                # Fallback for shorter format
+                return f"{parts[1]}-{sim_idx+1}"
             else:
                 return f"Sim_{sim_idx+1}"
         else:
-            # Ensure uniqueness by adding index
+            # Ensure uniqueness by adding index for non-WRF format
             base_name = sim_str.split("_")[0] if "_" in sim_str else sim_str
-            return f"{base_name}_{sim_idx+1}"
+            return f"{base_name}-{sim_idx+1}"
 
     # Process all data using quantile computation across years
     print(
