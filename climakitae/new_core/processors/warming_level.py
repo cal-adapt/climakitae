@@ -122,16 +122,16 @@ class WarmingLevel(DataProcessor):
             - simulation: Combined simulation identifiers
             - time_delta: Time steps relative to warming level center year
         """
-        # Load warming level times table if not already loaded
-        if self.warming_level_times is None:
-            try:
-                self.warming_level_times = read_csv_file(
-                    GWL_1981_2010_TIMEIDX_FILE, index_col="time", parse_dates=True
-                )
-            except (FileNotFoundError, pd.errors.ParserError) as e:
-                raise RuntimeError(
-                    f"Failed to load warming level times table: {e}"
-                ) from e
+        # # Load warming level times table if not already loaded
+        # if self.warming_level_times is None:
+        #     try:
+        #         self.warming_level_times = read_csv_file(
+        #             GWL_1981_2010_TIMEIDX_FILE, index_col="time", parse_dates=True
+        #         )
+        #     except (FileNotFoundError, pd.errors.ParserError) as e:
+        #         raise RuntimeError(
+        #             f"Failed to load warming level times table: {e}"
+        #         ) from e
 
         # add member id as a suffix to the keys
         # and split the data by member_id
@@ -230,6 +230,9 @@ class WarmingLevel(DataProcessor):
         dict
             The updated processing context with warming level metadata.
         """
+        if _NEW_ATTRS_KEY not in context:
+            context[_NEW_ATTRS_KEY] = {}
+
         context[_NEW_ATTRS_KEY][
             self.name
         ] = f"""Process '{self.name}' applied to the data. Transformation was done using the following settings: {self.value}."""

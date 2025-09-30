@@ -12,6 +12,9 @@ The tests cover:
 - Error handling: Confirming that appropriate exceptions are raised for invalid inputs.
 """
 
+import os
+from unittest.mock import MagicMock, PropertyMock, patch
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -73,7 +76,14 @@ def processor():
         wl_time_idx_data[1:], columns=wl_time_idx_data[0]
     ).set_index("time")
 
-    return wl_processor
+    yield wl_processor
+
+
+@pytest.fixture
+def full_processor():
+    """Fixture for a full WarmingLevel processor with default warming level time DataFrames."""
+    wl_processor = WarmingLevel(value={})
+    yield wl_processor
 
 
 class TestWarmingLevelProcessorInitialization:
@@ -322,4 +332,45 @@ class TestWarmingLevelGetCenterYears:
 
 
 class TestWarmingLevelExecute:
-    pass
+    """Tests for the execute method of WarmingLevel DataProcessor."""
+
+    # @patch("climakitae.new_core.processors.warming_level.read_csv_file")
+    # def test_empty_warming_level_times_error(self, mock_read_csv_file, processor):
+    #     """Test that execute raises error if warming_level_times is empty and cannot be found."""
+    #     processor.warming_level_times = None
+    #     mock_read_csv_file.side_effect = FileNotFoundError("File not found")
+
+    #     with pytest.raises(
+    #         RuntimeError, match="Failed to load warming level times table"
+    #     ):
+    #         processor.execute(result=None, context={})
+
+    # def test_(self, processor):
+    #     """Test that execute successfully reads warming level times if not already loaded."""
+    #     processor.warming_level_times = None
+
+    #     with patch(
+    #         "climakitae.new_core.processors.warming_level.read_csv_file"
+    #     ) as mock_read_csv_file:
+    #         mock_data = pd.DataFrame(
+    #             {
+    #                 "time": [1, 2],
+    #                 "GCM": ["ACCESS-CM2", "ACCESS-CM2"],
+    #             }
+    #         )
+    #         mock_read_csv_file.return_value = mock_data
+
+    #         # Execute should now load the mock data without error
+    #         processor.execute(result=None, context={})
+    #         assert processor.warming_level_times.equals(mock_data)
+    #         mock_read_csv_file.assert_called_once()  # Ensure the mock was called
+
+    def test_execute(self, request, full_processor):
+        test_result = request.getfixturevalue("test_dataarray_dict")
+        context = {}
+        response = full_processor.execute(result=test_result, context=context)
+        assert isinstance(response, dict)
+        print(response)
+        import pdb
+
+        pdb.set_trace()
