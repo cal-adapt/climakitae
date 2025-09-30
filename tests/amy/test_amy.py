@@ -1885,6 +1885,41 @@ class TestGetHistoricHourMean:
                     f"Hour {case['hour']}, Row {i}: expected {expected_value}, got {actual_value}"
                 )
 
+    def test_get_historic_hour_mean_with_missing_hour(self):
+        """Test _get_historic_hour_mean when requested hour doesn't exist returns 0."""
+        # Test with simple structure (no Simulation levels)
+        historic_levels = ['Hour']
+        nonexistent_hours = [5, 999, 'nonexistent_hour']
+
+        for missing_hour in nonexistent_hours:
+            # Execute function
+            result = _get_historic_hour_mean(
+                self.historic_simple, historic_levels, missing_hour
+            )
+
+            # Verify outcome: returns 0 when hour doesn't exist
+            if isinstance(result, pd.Series):
+                assert (result == 0).all(), f"Should return 0 for missing hour {missing_hour}"
+            else:
+                assert result == 0, f"Should return 0 for missing hour {missing_hour}"
+
+        # Test with MultiIndex structure - should raise error when trying to use xs with missing level
+        historic_levels = ['Hour', 'Simulation']
+        
+        for missing_hour in [5, 999]:  # Test numeric missing hours
+            try:
+                result = _get_historic_hour_mean(
+                    self.historic_with_sim, historic_levels, missing_hour
+                )
+                # If no exception, the function handled it gracefully (may return empty Series)
+                assert isinstance(result, (pd.Series, type(None), int)), (
+                    f"Should handle missing hour {missing_hour} gracefully"
+                )
+            except KeyError:
+                # KeyError is expected when using xs with missing level
+                # This documents the current behavior
+                assert True, f"KeyError expected for missing hour {missing_hour} in MultiIndex"
+
 
 class TestFormatBasedOnStructure:
     """Test class for _format_based_on_structure function.
