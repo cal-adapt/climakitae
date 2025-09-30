@@ -562,3 +562,140 @@ class TestComputeDifferenceProfile:
         assert hasattr(result, "attrs"), "Result should have attrs attribute"
         assert result.attrs["units"] == "degC", "Should preserve units metadata"
         assert result.attrs["variable_id"] == "tasmax", "Should preserve variable_id metadata"
+
+
+class TestComputeMultiindexDifference:
+    """Test class for _compute_multiindex_difference function.
+    
+    Tests the function that computes differences when both future and historic
+    profiles have MultiIndex columns, handling various combinations of warming
+    levels and simulations.
+    
+    Attributes
+    ----------
+    future_profile : pd.DataFrame
+        Future profile with MultiIndex columns.
+    historic_profile : pd.DataFrame
+        Historic profile with MultiIndex columns.
+    """
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        hours = list(range(1, 25))
+        simulations = ["sim1", "sim2"]
+        warming_levels = [1.5, 2.0]
+        
+        # Create future profile with (Hour, Warming_Level, Simulation)
+        future_cols = pd.MultiIndex.from_product(
+            [hours, warming_levels, simulations],
+            names=["Hour", "Warming_Level", "Simulation"]
+        )
+        self.future_profile = pd.DataFrame(
+            np.random.rand(365, len(future_cols)) + 20.0,
+            index=range(1, 366),
+            columns=future_cols
+        )
+        
+        # Create historic profile with (Hour, Simulation)
+        historic_cols = pd.MultiIndex.from_product(
+            [hours, simulations],
+            names=["Hour", "Simulation"]
+        )
+        self.historic_profile = pd.DataFrame(
+            np.random.rand(365, len(historic_cols)) + 15.0,
+            index=range(1, 366),
+            columns=historic_cols
+        )
+
+    def test_compute_multiindex_difference_with_simulation_levels(self):
+        """Test _compute_multiindex_difference when both profiles have Simulation levels."""
+        # Create profiles where both have Simulation levels
+        hours = list(range(1, 25))
+        simulations = ["sim1", "sim2"]
+        
+        # Both profiles have (Hour, Simulation) structure
+        cols = pd.MultiIndex.from_product(
+            [hours, simulations],
+            names=["Hour", "Simulation"]
+        )
+        
+        future_sim = pd.DataFrame(
+            np.random.rand(365, len(cols)) + 20.0,
+            index=range(1, 366),
+            columns=cols
+        )
+        historic_sim = pd.DataFrame(
+            np.random.rand(365, len(cols)) + 15.0,
+            index=range(1, 366),
+            columns=cols
+        )
+        
+        # Execute function
+        result = _compute_multiindex_difference(future_sim, historic_sim)
+        
+        # Verify outcome: returns DataFrame with proper structure
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert isinstance(result.columns, pd.MultiIndex), "Should maintain MultiIndex structure"
+        assert result.columns.names == ["Hour", "Simulation"], "Should preserve column level names"
+        assert result.shape == future_sim.shape, "Shape should match future profile"
+
+    def test_compute_multiindex_difference_with_warming_level_only(self):
+        """Test _compute_multiindex_difference when future has Warming_Level but no Simulation."""
+        # Create future profile with (Hour, Warming_Level) but no Simulation
+        hours = list(range(1, 25))
+        warming_levels = [1.5, 2.0]
+        
+        future_cols = pd.MultiIndex.from_product(
+            [hours, warming_levels],
+            names=["Hour", "Warming_Level"]
+        )
+        future_wl = pd.DataFrame(
+            np.random.rand(365, len(future_cols)) + 20.0,
+            index=range(1, 366),
+            columns=future_cols
+        )
+        
+        # Create simple historic profile  
+        historic_simple = pd.DataFrame(
+            np.random.rand(365, len(hours)) + 15.0,
+            index=range(1, 366),
+            columns=hours
+        )
+        
+        # Execute function
+        result = _compute_multiindex_difference(future_wl, historic_simple)
+        
+        # Verify outcome: returns DataFrame preserving future structure
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert isinstance(result.columns, pd.MultiIndex), "Should maintain future MultiIndex structure"
+        assert result.columns.names == ["Hour", "Warming_Level"], "Should preserve future column level names"
+        assert result.shape == future_wl.shape, "Shape should match future profile"
+
+    def test_compute_multiindex_difference_handles_duplicate_columns(self):
+        """Test _compute_multiindex_difference handles DataFrames with duplicate columns."""
+        # Create DataFrame with duplicate columns to test deduplication
+        hours = [1, 1, 2, 2]  # Duplicate hours
+        simulations = ["sim1", "sim1"]  # Duplicate simulations
+        
+        duplicate_cols = pd.MultiIndex.from_product(
+            [hours, simulations],
+            names=["Hour", "Simulation"]
+        )
+        
+        future_dup = pd.DataFrame(
+            np.random.rand(10, len(duplicate_cols)) + 20.0,
+            index=range(1, 11),
+            columns=duplicate_cols
+        )
+        historic_dup = pd.DataFrame(
+            np.random.rand(10, len(duplicate_cols)) + 15.0,
+            index=range(1, 11),
+            columns=duplicate_cols
+        )
+        
+        # Execute function - should handle duplicates gracefully
+        result = _compute_multiindex_difference(future_dup, historic_dup)
+        
+        # Verify outcome: returns valid DataFrame (internal handling of duplicates)
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert result.shape[0] == future_dup.shape[0], "Should preserve number of rows"
