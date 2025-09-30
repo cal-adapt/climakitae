@@ -55,3 +55,18 @@ class TestRetrieveProfileData:
         # Execute and verify outcome: should raise ValueError for invalid keys
         with pytest.raises(ValueError, match="Invalid input"):
             retrieve_profile_data(invalid_param="test", another_invalid=123)
+
+    def test_retrieve_profile_data_with_no_delta_returns_none_historic(self):
+        """Test that retrieve_profile_data returns None for historic when no_delta=True."""
+        # Setup mock return value
+        mock_future = MagicMock(spec=xr.Dataset)
+        self.mock_get_data.return_value = mock_future
+
+        # Execute function with no_delta=True
+        result = retrieve_profile_data(no_delta=True, warming_level=[2.0])
+
+        # Verify outcome: historic data should be None when no_delta=True
+        assert isinstance(result, tuple), "Should return a tuple"
+        historic_data, future_data = result
+        assert historic_data is None, "Historic data should be None when no_delta=True"
+        assert future_data == mock_future, "Future data should be returned"
