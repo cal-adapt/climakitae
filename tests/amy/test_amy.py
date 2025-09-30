@@ -1379,6 +1379,50 @@ class TestComputeSimpleDifference:
             result.mean().mean() > 0
         ), "Future should be warmer than historic on average"
 
+    def test_compute_simple_difference_with_matching_columns(self):
+        """Test _compute_simple_difference with matching columns and known values."""
+        # Create test data with specific values to verify computation
+        hours = [1, 12, 24]  # Use subset for clearer verification
+
+        # Future profile with known values
+        future_data = pd.DataFrame(
+            [[25.0, 30.0, 20.0]], index=[1], columns=hours  # One row for simplicity
+        )
+
+        # Historic profile with known values for matching columns
+        historic_data = pd.DataFrame(
+            [[15.0, 20.0, 10.0]], index=[1], columns=hours  # Matching columns
+        )
+
+        # Execute function
+        with patch("builtins.print") as mock_print:
+            result = _compute_simple_difference(future_data, historic_data)
+
+        # Verify outcome: element-wise difference computed correctly
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert (
+            result.shape == future_data.shape
+        ), "Result shape should match future profile"
+
+        # Verify specific element-wise differences
+        # Hour 1: 25.0 - 15.0 = 10.0
+        # Hour 12: 30.0 - 20.0 = 10.0  
+        # Hour 24: 20.0 - 10.0 = 10.0
+        expected_diffs = [10.0, 10.0, 10.0]
+        result_values = result.iloc[0].values
+        
+        for i, (actual, expected) in enumerate(zip(result_values, expected_diffs)):
+            assert (
+                abs(actual - expected) < 0.001
+            ), f"Column {i} difference should be {expected}, got {actual}"
+
+        # Check that success message was printed
+        printed_calls = [str(call) for call in mock_print.call_args_list]
+        printed_output = " ".join(printed_calls)
+        assert (
+            "columns match" in printed_output.lower()
+        ), "Should print success message for matching columns"
+
 
 class TestFormatBasedOnStructure:
     """Test class for _format_based_on_structure function.
