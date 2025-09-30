@@ -1467,6 +1467,31 @@ class TestComputeSimpleDifference:
             "Function should handle column mismatch gracefully"
         )
 
+    def test_compute_simple_difference_with_empty_profiles(self):
+        """Test _compute_simple_difference with empty DataFrames."""
+        # Create empty DataFrames with matching structure
+        future_data = pd.DataFrame(columns=['temp', 'precip'])
+        historic_data = pd.DataFrame(columns=['temp', 'precip'])
+
+        # Execute function
+        with patch("builtins.print") as mock_print:
+            result = _compute_simple_difference(future_data, historic_data)
+
+        # Verify outcome: handles empty data gracefully
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert result.empty, "Result should be empty when input DataFrames are empty"
+        assert list(result.columns) == ['temp', 'precip'], (
+            "Should preserve column structure even with empty data"
+        )
+        assert result.shape == (0, 2), "Should have correct empty shape"
+
+        # Check that success message was printed (columns match)
+        printed_calls = [str(call) for call in mock_print.call_args_list]
+        printed_output = " ".join(printed_calls)
+        assert (
+            "columns match" in printed_output.lower()
+        ), "Should confirm columns match even for empty DataFrames"
+
 
 class TestFormatBasedOnStructure:
     """Test class for _format_based_on_structure function.
