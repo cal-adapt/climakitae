@@ -825,3 +825,79 @@ class TestComputeSimulationPairedDifference:
         # Verify outcome: handles duplicates gracefully
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
         assert result.shape[0] == future_dup.shape[0], "Should preserve row count"
+
+
+class TestFormatBasedOnStructure:
+    """Test class for _format_based_on_structure function.
+    
+    Tests the function that formats DataFrames based on whether they have
+    single-level or multi-level columns, ensuring proper formatting for
+    climate profile display and processing.
+    
+    Attributes
+    ----------
+    simple_df : pd.DataFrame
+        DataFrame with simple single-level columns.
+    multi_df : pd.DataFrame
+        DataFrame with MultiIndex columns.
+    """
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        # Create DataFrame with simple columns
+        self.simple_df = pd.DataFrame(
+            np.random.rand(365, 24),
+            index=range(1, 366),
+            columns=range(1, 25)
+        )
+        
+        # Create DataFrame with MultiIndex columns
+        hours = list(range(1, 25))
+        simulations = ["sim1", "sim2"]
+        multi_cols = pd.MultiIndex.from_product(
+            [hours, simulations],
+            names=["Hour", "Simulation"]
+        )
+        self.multi_df = pd.DataFrame(
+            np.random.rand(365, len(multi_cols)),
+            index=range(1, 366),
+            columns=multi_cols
+        )
+
+    def test_format_based_on_structure_with_simple_columns(self):
+        """Test _format_based_on_structure with single-level columns."""
+        # Store original state for comparison
+        original_columns = self.simple_df.columns.copy()
+        
+        # Execute function
+        _format_based_on_structure(self.simple_df)
+        
+        # Verify outcome: simple columns should be formatted appropriately  
+        assert not isinstance(self.simple_df.columns, pd.MultiIndex), "Should maintain simple column structure"
+        # The function modifies the DataFrame in-place, check it's still valid
+        assert isinstance(self.simple_df, pd.DataFrame), "Should remain a valid DataFrame"
+        assert len(self.simple_df.columns) == len(original_columns), "Should preserve column count"
+
+    def test_format_based_on_structure_with_multiindex_columns(self):
+        """Test _format_based_on_structure with MultiIndex columns."""
+        # Store original MultiIndex info
+        original_shape = self.multi_df.shape
+        
+        # Execute function  
+        _format_based_on_structure(self.multi_df)
+        
+        # Verify outcome: MultiIndex should be handled appropriately
+        assert isinstance(self.multi_df, pd.DataFrame), "Should remain a valid DataFrame"
+        assert self.multi_df.shape == original_shape, "Should preserve DataFrame shape"
+        # Function should preserve or appropriately modify MultiIndex structure
+        if isinstance(self.multi_df.columns, pd.MultiIndex):
+            assert self.multi_df.columns.names is not None, "Should have meaningful column level names"
+
+    def test_format_based_on_structure_handles_empty_dataframe(self):
+        """Test _format_based_on_structure with empty DataFrame."""
+        # Create empty DataFrame
+        empty_df = pd.DataFrame()
+        
+        # Execute function - expect it to raise an error for empty DataFrame
+        with pytest.raises(ValueError, match="Length mismatch"):
+            _format_based_on_structure(empty_df)
