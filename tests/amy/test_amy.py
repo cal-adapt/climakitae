@@ -1747,6 +1747,75 @@ class TestFindMatchingHistoricColumn:
             ), f"Test case {case['future_col']} should not exist in historic profile"
 
 
+class TestGetHistoricHourMean:
+    """Test class for _get_historic_hour_mean function.
+
+    Tests the function that computes the mean of historic profile values
+    for a specific hour, handling both MultiIndex columns with Simulation
+    levels and simple column structures.
+
+    Attributes
+    ----------
+    historic_with_sim : pd.DataFrame
+        Historic profile with (Hour, Simulation) MultiIndex columns.
+    historic_simple : pd.DataFrame
+        Historic profile with simple hour columns.
+    """
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        hours = [1, 12, 24]
+        simulations = ['sim1', 'sim2', 'sim3']
+
+        # Create historic profile with (Hour, Simulation) MultiIndex structure
+        historic_cols = pd.MultiIndex.from_product(
+            [hours, simulations], names=['Hour', 'Simulation']
+        )
+        # Use predictable values for testing means
+        self.historic_with_sim = pd.DataFrame(
+            [[10.0, 20.0, 30.0, 15.0, 25.0, 35.0, 5.0, 15.0, 25.0],  # Row 1
+             [12.0, 22.0, 32.0, 17.0, 27.0, 37.0, 7.0, 17.0, 27.0]],  # Row 2
+            index=[1, 2],
+            columns=historic_cols,
+        )
+
+        # Create simple historic profile with hour columns
+        self.historic_simple = pd.DataFrame(
+            [[100.0, 200.0, 300.0],  # Row 1
+             [110.0, 210.0, 310.0]],  # Row 2
+            index=[1, 2],
+            columns=hours,
+        )
+
+    def test_get_historic_hour_mean_returns_series(self):
+        """Test _get_historic_hour_mean returns pd.Series."""
+        # Test with MultiIndex structure
+        historic_levels = ['Hour', 'Simulation']
+        hour = 1
+
+        # Execute function
+        result = _get_historic_hour_mean(
+            self.historic_with_sim, historic_levels, hour
+        )
+
+        # Verify outcome: returns pd.Series
+        assert isinstance(result, pd.Series), "Should return a pandas Series"
+        # xs extracts all columns for hour 1, then mean() computes mean across rows
+        # Result should have one value per simulation (3 simulations)
+        assert len(result) == 3, "Should have one value per simulation"
+        assert result.index.name == 'Simulation', "Index should be Simulation level"
+
+        # Test with simple structure
+        historic_levels = ['Hour']
+        result_simple = _get_historic_hour_mean(
+            self.historic_simple, historic_levels, hour
+        )
+
+        # Verify outcome: also returns pd.Series (converted from single column)
+        assert isinstance(result_simple, pd.Series), "Should return a pandas Series for simple structure"
+        assert len(result_simple) == 2, "Should have same number of rows as input DataFrame"
+
+
 class TestFormatBasedOnStructure:
     """Test class for _format_based_on_structure function.
 
