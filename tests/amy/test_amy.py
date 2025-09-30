@@ -1001,6 +1001,53 @@ class TestComputeWarmingLevelDifference:
             "duplicate columns" in printed_output.lower()
         ), "Should warn about duplicate columns"
 
+    def test_compute_warming_level_difference_with_multiindex_historic(self):
+        """Test _compute_warming_level_difference when historic profile has MultiIndex columns."""
+        hours = list(range(1, 25))
+        warming_levels = [2.0]
+        simulations = ["sim1"]
+
+        # Create future profile with (Hour, Warming_Level) MultiIndex
+        future_cols = pd.MultiIndex.from_product(
+            [hours, warming_levels], names=["Hour", "Warming_Level"]
+        )
+        future_multi = pd.DataFrame(
+            np.random.rand(365, len(future_cols)) + 20.0,
+            index=range(1, 366),
+            columns=future_cols,
+        )
+
+        # Create historic profile with (Hour, Simulation) MultiIndex
+        historic_cols = pd.MultiIndex.from_product(
+            [hours, simulations], names=["Hour", "Simulation"]
+        )
+        historic_multi = pd.DataFrame(
+            np.random.rand(365, len(historic_cols)) + 15.0,
+            index=range(1, 366),
+            columns=historic_cols,
+        )
+
+        # Execute function
+        future_levels = ["Hour", "Warming_Level"]
+        historic_levels = ["Hour", "Simulation"]
+
+        result = _compute_warming_level_difference(
+            future_multi, historic_multi, future_levels, historic_levels
+        )
+
+        # Verify outcome: handles MultiIndex historic profile without crashing
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert (
+            result.shape == future_multi.shape
+        ), "Result shape should match future profile"
+        assert isinstance(
+            result.columns, pd.MultiIndex
+        ), "Should preserve future MultiIndex structure"
+
+        # Verify function completes successfully (may produce NaN if no matching structure)
+        # This documents the current behavior when historic MultiIndex doesn't align with future
+        assert result is not None, "Function should complete and return result"
+
 
 class TestFormatBasedOnStructure:
     """Test class for _format_based_on_structure function.
