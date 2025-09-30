@@ -1238,6 +1238,47 @@ class TestComputeMixedIndexDifference:
             "duplicate columns" in printed_output.lower()
         ), "Should warn about duplicate columns"
 
+    def test_compute_mixed_index_difference_with_non_matching_hours(self):
+        """Test _compute_mixed_index_difference when future and historic hours don't align."""
+        # Create future profile with specific hours
+        future_hours = [1, 2, 3]
+        warming_levels = [2.0]
+        simulations = ["sim1"]
+
+        future_cols = pd.MultiIndex.from_product(
+            [future_hours, warming_levels, simulations],
+            names=["Hour", "Warming_Level", "Simulation"],
+        )
+        future_data = pd.DataFrame(
+            np.random.rand(10, len(future_cols)) + 20.0,
+            index=range(1, 11),
+            columns=future_cols,
+        )
+
+        # Create historic profile with different hours (no overlap)
+        historic_hours = [10, 11, 12]
+        historic_data = pd.DataFrame(
+            np.random.rand(10, len(historic_hours)) + 15.0,
+            index=range(1, 11),
+            columns=historic_hours,
+        )
+
+        # Execute function
+        result = _compute_mixed_index_difference(future_data, historic_data)
+
+        # Verify outcome: handles non-matching hours with fallback logic
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert (
+            result.shape == future_data.shape
+        ), "Result shape should match future profile"
+
+        # Verify differences are computed using fallback logic
+        # Function should use _find_matching_historic_value which provides fallback
+        assert result.notna().any().any(), "Should produce non-NaN values with fallback"
+        assert (
+            result.mean().mean() > 0
+        ), "Future should be warmer than historic on average with fallback"
+
 
 class TestFormatBasedOnStructure:
     """Test class for _format_based_on_structure function.
