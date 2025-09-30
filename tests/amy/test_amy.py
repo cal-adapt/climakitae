@@ -412,11 +412,11 @@ class TestProfileUtilityFunctions:
 
 class TestComputeDifferenceProfile:
     """Test class for _compute_difference_profile function.
-    
+
     Tests the function that computes differences between future and historic
     climate profiles, handling various DataFrame column structures including
     simple indexes and MultiIndex columns.
-    
+
     Attributes
     ----------
     simple_future_profile : pd.DataFrame
@@ -428,46 +428,45 @@ class TestComputeDifferenceProfile:
     multi_historic_profile : pd.DataFrame
         Historic profile with MultiIndex columns.
     """
-    
+
     def setup_method(self):
         """Set up test fixtures."""
         # Create simple profiles (single-level columns)
         self.simple_future_profile = pd.DataFrame(
             np.random.rand(365, 24) + 20.0,  # Future is warmer
             index=range(1, 366),
-            columns=range(1, 25)
+            columns=range(1, 25),
         )
         self.simple_historic_profile = pd.DataFrame(
             np.random.rand(365, 24) + 15.0,  # Historic is cooler
             index=range(1, 366),
-            columns=range(1, 25)
+            columns=range(1, 25),
         )
-        
+
         # Create MultiIndex profiles
         hours = list(range(1, 25))
         wl_levels = [1.5, 2.0]
         simulations = ["sim1", "sim2"]
-        
+
         # Future with MultiIndex (Hour, Warming_Level, Simulation)
         multi_cols_future = pd.MultiIndex.from_product(
             [hours, wl_levels, simulations],
-            names=["Hour", "Warming_Level", "Simulation"]
+            names=["Hour", "Warming_Level", "Simulation"],
         )
         self.multi_future_profile = pd.DataFrame(
             np.random.rand(365, len(multi_cols_future)) + 20.0,
             index=range(1, 366),
-            columns=multi_cols_future
+            columns=multi_cols_future,
         )
-        
+
         # Historic with MultiIndex (Hour, Simulation)
         multi_cols_historic = pd.MultiIndex.from_product(
-            [hours, simulations],
-            names=["Hour", "Simulation"]
+            [hours, simulations], names=["Hour", "Simulation"]
         )
         self.multi_historic_profile = pd.DataFrame(
             np.random.rand(365, len(multi_cols_historic)) + 15.0,
             index=range(1, 366),
-            columns=multi_cols_historic
+            columns=multi_cols_historic,
         )
 
     def test_compute_difference_profile_with_simple_columns(self):
@@ -476,46 +475,56 @@ class TestComputeDifferenceProfile:
         result = _compute_difference_profile(
             self.simple_future_profile, self.simple_historic_profile
         )
-        
+
         # Verify outcome: returns DataFrame with difference values
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert result.shape == self.simple_future_profile.shape, "Shape should match future profile"
-        
+        assert (
+            result.shape == self.simple_future_profile.shape
+        ), "Shape should match future profile"
+
         # Check that differences are computed correctly (future - historic)
         # Since future values are ~20 and historic are ~15, differences should be ~5
-        assert result.mean().mean() > 0, "Future should be warmer than historic on average"
-        assert result.mean().mean() < 10, "Difference should be reasonable (< 10 degrees)"
+        assert (
+            result.mean().mean() > 0
+        ), "Future should be warmer than historic on average"
+        assert (
+            result.mean().mean() < 10
+        ), "Difference should be reasonable (< 10 degrees)"
 
     def test_compute_difference_profile_with_multiindex_columns(self):
         """Test _compute_difference_profile with MultiIndex columns."""
         # Create matched MultiIndex profiles for testing
         hours = list(range(1, 25))
         simulations = ["sim1", "sim2"]
-        
+
         # Both profiles have (Hour, Simulation) structure
         multi_cols = pd.MultiIndex.from_product(
-            [hours, simulations],
-            names=["Hour", "Simulation"]
+            [hours, simulations], names=["Hour", "Simulation"]
         )
-        
+
         future_multi = pd.DataFrame(
             np.random.rand(365, len(multi_cols)) + 20.0,
             index=range(1, 366),
-            columns=multi_cols
+            columns=multi_cols,
         )
         historic_multi = pd.DataFrame(
             np.random.rand(365, len(multi_cols)) + 15.0,
             index=range(1, 366),
-            columns=multi_cols
+            columns=multi_cols,
         )
-        
+
         # Execute function
         result = _compute_difference_profile(future_multi, historic_multi)
-        
+
         # Verify outcome: returns DataFrame with MultiIndex structure preserved
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert isinstance(result.columns, pd.MultiIndex), "Should preserve MultiIndex structure"
-        assert result.columns.names == ["Hour", "Simulation"], "Should preserve column level names"
+        assert isinstance(
+            result.columns, pd.MultiIndex
+        ), "Should preserve MultiIndex structure"
+        assert result.columns.names == [
+            "Hour",
+            "Simulation",
+        ], "Should preserve column level names"
         assert result.shape == future_multi.shape, "Shape should match future profile"
 
     def test_compute_difference_profile_with_mixed_index_types(self):
@@ -524,22 +533,28 @@ class TestComputeDifferenceProfile:
         result = _compute_difference_profile(
             self.multi_future_profile, self.simple_historic_profile
         )
-        
+
         # Verify outcome: returns DataFrame preserving future structure
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert isinstance(result.columns, pd.MultiIndex), "Should preserve future MultiIndex structure"
-        assert result.shape == self.multi_future_profile.shape, "Shape should match future profile"
-        assert result.columns.names == self.multi_future_profile.columns.names, "Should preserve column level names"
+        assert isinstance(
+            result.columns, pd.MultiIndex
+        ), "Should preserve future MultiIndex structure"
+        assert (
+            result.shape == self.multi_future_profile.shape
+        ), "Shape should match future profile"
+        assert (
+            result.columns.names == self.multi_future_profile.columns.names
+        ), "Should preserve column level names"
 
     def test_compute_difference_profile_handles_empty_dataframes(self):
         """Test _compute_difference_profile with empty DataFrames."""
         # Create empty DataFrames
         empty_future = pd.DataFrame()
         empty_historic = pd.DataFrame()
-        
+
         # Execute function
         result = _compute_difference_profile(empty_future, empty_historic)
-        
+
         # Verify outcome: returns empty DataFrame
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
         assert result.empty, "Should return empty DataFrame for empty inputs"
@@ -550,27 +565,29 @@ class TestComputeDifferenceProfile:
         self.simple_future_profile.attrs = {
             "units": "degC",
             "variable_id": "tasmax",
-            "description": "Future temperature profile"
+            "description": "Future temperature profile",
         }
-        
+
         # Execute function
         result = _compute_difference_profile(
             self.simple_future_profile, self.simple_historic_profile
         )
-        
+
         # Verify outcome: metadata is preserved
         assert hasattr(result, "attrs"), "Result should have attrs attribute"
         assert result.attrs["units"] == "degC", "Should preserve units metadata"
-        assert result.attrs["variable_id"] == "tasmax", "Should preserve variable_id metadata"
+        assert (
+            result.attrs["variable_id"] == "tasmax"
+        ), "Should preserve variable_id metadata"
 
 
 class TestComputeMultiindexDifference:
     """Test class for _compute_multiindex_difference function.
-    
+
     Tests the function that computes differences when both future and historic
     profiles have MultiIndex columns, handling various combinations of warming
     levels and simulations.
-    
+
     Attributes
     ----------
     future_profile : pd.DataFrame
@@ -578,33 +595,32 @@ class TestComputeMultiindexDifference:
     historic_profile : pd.DataFrame
         Historic profile with MultiIndex columns.
     """
-    
+
     def setup_method(self):
         """Set up test fixtures."""
         hours = list(range(1, 25))
         simulations = ["sim1", "sim2"]
         warming_levels = [1.5, 2.0]
-        
+
         # Create future profile with (Hour, Warming_Level, Simulation)
         future_cols = pd.MultiIndex.from_product(
             [hours, warming_levels, simulations],
-            names=["Hour", "Warming_Level", "Simulation"]
+            names=["Hour", "Warming_Level", "Simulation"],
         )
         self.future_profile = pd.DataFrame(
             np.random.rand(365, len(future_cols)) + 20.0,
             index=range(1, 366),
-            columns=future_cols
+            columns=future_cols,
         )
-        
+
         # Create historic profile with (Hour, Simulation)
         historic_cols = pd.MultiIndex.from_product(
-            [hours, simulations],
-            names=["Hour", "Simulation"]
+            [hours, simulations], names=["Hour", "Simulation"]
         )
         self.historic_profile = pd.DataFrame(
             np.random.rand(365, len(historic_cols)) + 15.0,
             index=range(1, 366),
-            columns=historic_cols
+            columns=historic_cols,
         )
 
     def test_compute_multiindex_difference_with_simulation_levels(self):
@@ -612,31 +628,31 @@ class TestComputeMultiindexDifference:
         # Create profiles where both have Simulation levels
         hours = list(range(1, 25))
         simulations = ["sim1", "sim2"]
-        
+
         # Both profiles have (Hour, Simulation) structure
         cols = pd.MultiIndex.from_product(
-            [hours, simulations],
-            names=["Hour", "Simulation"]
+            [hours, simulations], names=["Hour", "Simulation"]
         )
-        
+
         future_sim = pd.DataFrame(
-            np.random.rand(365, len(cols)) + 20.0,
-            index=range(1, 366),
-            columns=cols
+            np.random.rand(365, len(cols)) + 20.0, index=range(1, 366), columns=cols
         )
         historic_sim = pd.DataFrame(
-            np.random.rand(365, len(cols)) + 15.0,
-            index=range(1, 366),
-            columns=cols
+            np.random.rand(365, len(cols)) + 15.0, index=range(1, 366), columns=cols
         )
-        
+
         # Execute function
         result = _compute_multiindex_difference(future_sim, historic_sim)
-        
+
         # Verify outcome: returns DataFrame with proper structure
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert isinstance(result.columns, pd.MultiIndex), "Should maintain MultiIndex structure"
-        assert result.columns.names == ["Hour", "Simulation"], "Should preserve column level names"
+        assert isinstance(
+            result.columns, pd.MultiIndex
+        ), "Should maintain MultiIndex structure"
+        assert result.columns.names == [
+            "Hour",
+            "Simulation",
+        ], "Should preserve column level names"
         assert result.shape == future_sim.shape, "Shape should match future profile"
 
     def test_compute_multiindex_difference_with_warming_level_only(self):
@@ -644,31 +660,33 @@ class TestComputeMultiindexDifference:
         # Create future profile with (Hour, Warming_Level) but no Simulation
         hours = list(range(1, 25))
         warming_levels = [1.5, 2.0]
-        
+
         future_cols = pd.MultiIndex.from_product(
-            [hours, warming_levels],
-            names=["Hour", "Warming_Level"]
+            [hours, warming_levels], names=["Hour", "Warming_Level"]
         )
         future_wl = pd.DataFrame(
             np.random.rand(365, len(future_cols)) + 20.0,
             index=range(1, 366),
-            columns=future_cols
+            columns=future_cols,
         )
-        
-        # Create simple historic profile  
+
+        # Create simple historic profile
         historic_simple = pd.DataFrame(
-            np.random.rand(365, len(hours)) + 15.0,
-            index=range(1, 366),
-            columns=hours
+            np.random.rand(365, len(hours)) + 15.0, index=range(1, 366), columns=hours
         )
-        
+
         # Execute function
         result = _compute_multiindex_difference(future_wl, historic_simple)
-        
+
         # Verify outcome: returns DataFrame preserving future structure
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert isinstance(result.columns, pd.MultiIndex), "Should maintain future MultiIndex structure"
-        assert result.columns.names == ["Hour", "Warming_Level"], "Should preserve future column level names"
+        assert isinstance(
+            result.columns, pd.MultiIndex
+        ), "Should maintain future MultiIndex structure"
+        assert result.columns.names == [
+            "Hour",
+            "Warming_Level",
+        ], "Should preserve future column level names"
         assert result.shape == future_wl.shape, "Shape should match future profile"
 
     def test_compute_multiindex_difference_handles_duplicate_columns(self):
@@ -676,26 +694,25 @@ class TestComputeMultiindexDifference:
         # Create DataFrame with duplicate columns to test deduplication
         hours = [1, 1, 2, 2]  # Duplicate hours
         simulations = ["sim1", "sim1"]  # Duplicate simulations
-        
+
         duplicate_cols = pd.MultiIndex.from_product(
-            [hours, simulations],
-            names=["Hour", "Simulation"]
+            [hours, simulations], names=["Hour", "Simulation"]
         )
-        
+
         future_dup = pd.DataFrame(
             np.random.rand(10, len(duplicate_cols)) + 20.0,
             index=range(1, 11),
-            columns=duplicate_cols
+            columns=duplicate_cols,
         )
         historic_dup = pd.DataFrame(
             np.random.rand(10, len(duplicate_cols)) + 15.0,
             index=range(1, 11),
-            columns=duplicate_cols
+            columns=duplicate_cols,
         )
-        
+
         # Execute function - should handle duplicates gracefully
         result = _compute_multiindex_difference(future_dup, historic_dup)
-        
+
         # Verify outcome: returns valid DataFrame (internal handling of duplicates)
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
         assert result.shape[0] == future_dup.shape[0], "Should preserve number of rows"
@@ -703,40 +720,39 @@ class TestComputeMultiindexDifference:
 
 class TestComputeSimulationPairedDifference:
     """Test class for _compute_simulation_paired_difference function.
-    
+
     Tests the function that computes paired differences when both profiles
     have simulation dimensions, matching simulations between future and historic
     profiles for accurate comparison.
-    
+
     Attributes
     ----------
     future_profile : pd.DataFrame
         Future profile with simulation columns.
-    historic_profile : pd.DataFrame 
+    historic_profile : pd.DataFrame
         Historic profile with simulation columns.
     """
-    
+
     def setup_method(self):
         """Set up test fixtures."""
         hours = list(range(1, 25))
         simulations = ["sim1", "sim2", "sim3"]
-        
+
         # Create future profile with (Hour, Simulation)
         future_cols = pd.MultiIndex.from_product(
-            [hours, simulations],
-            names=["Hour", "Simulation"]
+            [hours, simulations], names=["Hour", "Simulation"]
         )
         self.future_profile = pd.DataFrame(
             np.random.rand(365, len(future_cols)) + 20.0,
             index=range(1, 366),
-            columns=future_cols
+            columns=future_cols,
         )
-        
+
         # Create historic profile with (Hour, Simulation) - same simulations
         self.historic_profile = pd.DataFrame(
             np.random.rand(365, len(future_cols)) + 15.0,
             index=range(1, 366),
-            columns=future_cols
+            columns=future_cols,
         )
 
     def test_compute_simulation_paired_difference_matches_common_simulations(self):
@@ -744,96 +760,171 @@ class TestComputeSimulationPairedDifference:
         # Execute function with matching simulation sets
         future_levels = ["Hour", "Simulation"]
         historic_levels = ["Hour", "Simulation"]
-        
+
         result = _compute_simulation_paired_difference(
-            self.future_profile, self.historic_profile, 
-            future_levels, historic_levels
+            self.future_profile, self.historic_profile, future_levels, historic_levels
         )
-        
+
         # Verify outcome: returns DataFrame with paired differences
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert isinstance(result.columns, pd.MultiIndex), "Should maintain MultiIndex structure"
-        assert result.columns.names == ["Hour", "Simulation"], "Should preserve column level names"
-        assert result.shape == self.future_profile.shape, "Shape should match future profile"
-        
+        assert isinstance(
+            result.columns, pd.MultiIndex
+        ), "Should maintain MultiIndex structure"
+        assert result.columns.names == [
+            "Hour",
+            "Simulation",
+        ], "Should preserve column level names"
+        assert (
+            result.shape == self.future_profile.shape
+        ), "Shape should match future profile"
+
         # Check that differences are computed (future - historic)
         # Values should be positive since future (20+) > historic (15+)
-        assert result.mean().mean() > 0, "Differences should be positive (future > historic)"
+        assert (
+            result.mean().mean() > 0
+        ), "Differences should be positive (future > historic)"
 
     def test_compute_simulation_paired_difference_with_no_common_simulations(self):
         """Test _compute_simulation_paired_difference when no simulations match."""
         # Create historic profile with different simulations
         hours = list(range(1, 25))
         different_sims = ["sim4", "sim5", "sim6"]  # No overlap with future sims
-        
+
         historic_cols = pd.MultiIndex.from_product(
-            [hours, different_sims],
-            names=["Hour", "Simulation"]
+            [hours, different_sims], names=["Hour", "Simulation"]
         )
         historic_different = pd.DataFrame(
             np.random.rand(365, len(historic_cols)) + 15.0,
             index=range(1, 366),
-            columns=historic_cols
+            columns=historic_cols,
         )
-        
+
         # Execute function with no matching simulations
         future_levels = ["Hour", "Simulation"]
         historic_levels = ["Hour", "Simulation"]
-        
+
         result = _compute_simulation_paired_difference(
-            self.future_profile, historic_different,
-            future_levels, historic_levels
+            self.future_profile, historic_different, future_levels, historic_levels
         )
-        
+
         # Verify outcome: returns DataFrame when no matches (computes average difference)
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert result.shape == self.future_profile.shape, "Shape should match future profile"
+        assert (
+            result.shape == self.future_profile.shape
+        ), "Shape should match future profile"
         # When no common simulations, function computes difference using averages
         # Results should still be meaningful (positive since future > historic)
-        assert result.mean().mean() > 0, "Should compute positive differences even without matched sims"
+        assert (
+            result.mean().mean() > 0
+        ), "Should compute positive differences even without matched sims"
 
     def test_compute_simulation_paired_difference_with_duplicate_columns(self):
         """Test _compute_simulation_paired_difference handles duplicate columns correctly."""
         # Create future profile with duplicate columns
         hours = [1, 1, 2, 2]  # Duplicate hours
         sims = ["sim1", "sim1"]  # Duplicate simulations
-        
+
         dup_cols = pd.MultiIndex.from_product(
-            [hours, sims],
-            names=["Hour", "Simulation"]
+            [hours, sims], names=["Hour", "Simulation"]
         )
-        
+
         future_dup = pd.DataFrame(
             np.random.rand(10, len(dup_cols)) + 20.0,
             index=range(1, 11),
-            columns=dup_cols
+            columns=dup_cols,
         )
         historic_dup = pd.DataFrame(
             np.random.rand(10, len(dup_cols)) + 15.0,
             index=range(1, 11),
-            columns=dup_cols
+            columns=dup_cols,
         )
-        
+
         # Execute function
         future_levels = ["Hour", "Simulation"]
         historic_levels = ["Hour", "Simulation"]
-        
+
         result = _compute_simulation_paired_difference(
             future_dup, historic_dup, future_levels, historic_levels
         )
-        
+
         # Verify outcome: handles duplicates gracefully
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
         assert result.shape[0] == future_dup.shape[0], "Should preserve row count"
 
 
+class TestComputeWarmingLevelDifference:
+    """Test class for _compute_warming_level_difference function.
+
+    Tests the function that computes differences for profiles with warming
+    levels but no simulations, handling various column structures and
+    matching logic between future and historic profiles.
+
+    Attributes
+    ----------
+    future_profile : pd.DataFrame
+        Future profile with warming level columns.
+    historic_profile : pd.DataFrame
+        Historic profile for comparison.
+    """
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        hours = list(range(1, 25))
+        warming_levels = [1.5, 2.0, 3.0]
+
+        # Create future profile with (Hour, Warming_Level) MultiIndex
+        future_cols = pd.MultiIndex.from_product(
+            [hours, warming_levels], names=["Hour", "Warming_Level"]
+        )
+        self.future_profile = pd.DataFrame(
+            np.random.rand(365, len(future_cols)) + 20.0,
+            index=range(1, 366),
+            columns=future_cols,
+        )
+
+        # Create simple historic profile with hour columns
+        self.historic_profile = pd.DataFrame(
+            np.random.rand(365, 24) + 15.0,
+            index=range(1, 366),
+            columns=hours,
+        )
+
+    def test_compute_warming_level_difference_returns_difference_dataframe(self):
+        """Test _compute_warming_level_difference returns DataFrame with computed differences."""
+        # Execute function
+        future_levels = ["Hour", "Warming_Level"]
+        historic_levels = []
+
+        result = _compute_warming_level_difference(
+            self.future_profile, self.historic_profile, future_levels, historic_levels
+        )
+
+        # Verify outcome: returns DataFrame with differences computed
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert (
+            result.shape == self.future_profile.shape
+        ), "Result shape should match future profile"
+        assert isinstance(
+            result.columns, pd.MultiIndex
+        ), "Should preserve MultiIndex structure"
+        assert result.columns.names == [
+            "Hour",
+            "Warming_Level",
+        ], "Should preserve column level names"
+
+        # Verify differences are computed (future - historic should be positive on average)
+        assert (
+            result.mean().mean() > 0
+        ), "Future should be warmer than historic on average"
+
+
 class TestFormatBasedOnStructure:
     """Test class for _format_based_on_structure function.
-    
+
     Tests the function that formats DataFrames based on whether they have
     single-level or multi-level columns, ensuring proper formatting for
     climate profile display and processing.
-    
+
     Attributes
     ----------
     simple_df : pd.DataFrame
@@ -841,63 +932,70 @@ class TestFormatBasedOnStructure:
     multi_df : pd.DataFrame
         DataFrame with MultiIndex columns.
     """
-    
+
     def setup_method(self):
         """Set up test fixtures."""
         # Create DataFrame with simple columns
         self.simple_df = pd.DataFrame(
-            np.random.rand(365, 24),
-            index=range(1, 366),
-            columns=range(1, 25)
+            np.random.rand(365, 24), index=range(1, 366), columns=range(1, 25)
         )
-        
+
         # Create DataFrame with MultiIndex columns
         hours = list(range(1, 25))
         simulations = ["sim1", "sim2"]
         multi_cols = pd.MultiIndex.from_product(
-            [hours, simulations],
-            names=["Hour", "Simulation"]
+            [hours, simulations], names=["Hour", "Simulation"]
         )
         self.multi_df = pd.DataFrame(
             np.random.rand(365, len(multi_cols)),
             index=range(1, 366),
-            columns=multi_cols
+            columns=multi_cols,
         )
 
     def test_format_based_on_structure_with_simple_columns(self):
         """Test _format_based_on_structure with single-level columns."""
         # Store original state for comparison
         original_columns = self.simple_df.columns.copy()
-        
+
         # Execute function
         _format_based_on_structure(self.simple_df)
-        
-        # Verify outcome: simple columns should be formatted appropriately  
-        assert not isinstance(self.simple_df.columns, pd.MultiIndex), "Should maintain simple column structure"
+
+        # Verify outcome: simple columns should be formatted appropriately
+        assert not isinstance(
+            self.simple_df.columns, pd.MultiIndex
+        ), "Should maintain simple column structure"
         # The function modifies the DataFrame in-place, check it's still valid
-        assert isinstance(self.simple_df, pd.DataFrame), "Should remain a valid DataFrame"
-        assert len(self.simple_df.columns) == len(original_columns), "Should preserve column count"
+        assert isinstance(
+            self.simple_df, pd.DataFrame
+        ), "Should remain a valid DataFrame"
+        assert len(self.simple_df.columns) == len(
+            original_columns
+        ), "Should preserve column count"
 
     def test_format_based_on_structure_with_multiindex_columns(self):
         """Test _format_based_on_structure with MultiIndex columns."""
         # Store original MultiIndex info
         original_shape = self.multi_df.shape
-        
-        # Execute function  
+
+        # Execute function
         _format_based_on_structure(self.multi_df)
-        
+
         # Verify outcome: MultiIndex should be handled appropriately
-        assert isinstance(self.multi_df, pd.DataFrame), "Should remain a valid DataFrame"
+        assert isinstance(
+            self.multi_df, pd.DataFrame
+        ), "Should remain a valid DataFrame"
         assert self.multi_df.shape == original_shape, "Should preserve DataFrame shape"
         # Function should preserve or appropriately modify MultiIndex structure
         if isinstance(self.multi_df.columns, pd.MultiIndex):
-            assert self.multi_df.columns.names is not None, "Should have meaningful column level names"
+            assert (
+                self.multi_df.columns.names is not None
+            ), "Should have meaningful column level names"
 
     def test_format_based_on_structure_handles_empty_dataframe(self):
         """Test _format_based_on_structure with empty DataFrame."""
         # Create empty DataFrame
         empty_df = pd.DataFrame()
-        
+
         # Execute function - expect it to raise an error for empty DataFrame
         with pytest.raises(ValueError, match="Length mismatch"):
             _format_based_on_structure(empty_df)
@@ -905,10 +1003,10 @@ class TestFormatBasedOnStructure:
 
 class TestConstructProfileDataframe:
     """Test class for _construct_profile_dataframe function.
-    
+
     Tests the function that constructs climate profile DataFrames with appropriate
     column structures based on warming level and simulation dimensions.
-    
+
     Attributes
     ----------
     profile_data : dict
@@ -918,12 +1016,12 @@ class TestConstructProfileDataframe:
     simulations : list
         List of simulation identifiers.
     """
-    
+
     def setup_method(self):
         """Set up test fixtures."""
         self.warming_levels = np.array([1.5, 2.0])
         self.simulations = ["sim1", "sim2"]
-        
+
         # Create sample profile data dictionary
         self.profile_data = {}
         for wl in self.warming_levels:
@@ -932,11 +1030,11 @@ class TestConstructProfileDataframe:
                 sim_key = f"Sim{i+1}"  # Simple simulation labels
                 # Create 365x24 profile matrix
                 self.profile_data[(wl_key, sim_key)] = np.random.rand(365, 24) + 20.0
-        
+
         # Simple function to get simulation labels
         def sim_label_func(sim, sim_idx):
             return f"Sim{sim_idx + 1}"
-        
+
         self.sim_label_func = sim_label_func
 
     def test_construct_profile_dataframe_single_wl_single_sim(self):
@@ -944,12 +1042,10 @@ class TestConstructProfileDataframe:
         # Use only first warming level and simulation
         single_wl = np.array([1.5])
         single_sim = ["sim1"]
-        
+
         # Create appropriate profile data
-        profile_data = {
-            ("WL_1.5", "Sim1"): np.random.rand(365, 24) + 20.0
-        }
-        
+        profile_data = {("WL_1.5", "Sim1"): np.random.rand(365, 24) + 20.0}
+
         # Execute function
         result = _construct_profile_dataframe(
             profile_data=profile_data,
@@ -957,27 +1053,31 @@ class TestConstructProfileDataframe:
             simulations=single_sim,
             sim_label_func=self.sim_label_func,
             days_in_year=365,
-            hours_per_day=24
+            hours_per_day=24,
         )
-        
+
         # Verify outcome: simple DataFrame structure
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
         assert result.shape == (365, 24), "Should have 365 rows and 24 columns"
-        assert not isinstance(result.columns, pd.MultiIndex), "Should have simple column structure"
-        assert list(result.columns) == list(range(1, 25)), "Columns should be hours 1-24"
+        assert not isinstance(
+            result.columns, pd.MultiIndex
+        ), "Should have simple column structure"
+        assert list(result.columns) == list(
+            range(1, 25)
+        ), "Columns should be hours 1-24"
 
     def test_construct_profile_dataframe_single_wl_multi_sim(self):
         """Test _construct_profile_dataframe with single warming level and multiple simulations."""
         # Use single warming level but multiple simulations
         single_wl = np.array([1.5])
         multi_sim = ["sim1", "sim2"]
-        
+
         # Create appropriate profile data
         profile_data = {
             ("WL_1.5", "Sim1"): np.random.rand(365, 24) + 20.0,
             ("WL_1.5", "Sim2"): np.random.rand(365, 24) + 20.0,
         }
-        
+
         # Execute function
         result = _construct_profile_dataframe(
             profile_data=profile_data,
@@ -985,27 +1085,35 @@ class TestConstructProfileDataframe:
             simulations=multi_sim,
             sim_label_func=self.sim_label_func,
             days_in_year=365,
-            hours_per_day=24
+            hours_per_day=24,
         )
-        
+
         # Verify outcome: MultiIndex structure with (Hour, Simulation)
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert result.shape == (365, 48), "Should have 365 rows and 48 columns (24*2 sims)"
-        assert isinstance(result.columns, pd.MultiIndex), "Should have MultiIndex column structure"
-        assert result.columns.names == ["Hour", "Simulation"], "Should have Hour and Simulation levels"
+        assert result.shape == (
+            365,
+            48,
+        ), "Should have 365 rows and 48 columns (24*2 sims)"
+        assert isinstance(
+            result.columns, pd.MultiIndex
+        ), "Should have MultiIndex column structure"
+        assert result.columns.names == [
+            "Hour",
+            "Simulation",
+        ], "Should have Hour and Simulation levels"
 
     def test_construct_profile_dataframe_multi_wl_single_sim(self):
         """Test _construct_profile_dataframe with multiple warming levels and single simulation."""
         # Use multiple warming levels but single simulation
         multi_wl = np.array([1.5, 2.0])
         single_sim = ["sim1"]
-        
+
         # Create appropriate profile data
         profile_data = {
             ("WL_1.5", "Sim1"): np.random.rand(365, 24) + 20.0,
             ("WL_2.0", "Sim1"): np.random.rand(365, 24) + 22.0,
         }
-        
+
         # Execute function
         result = _construct_profile_dataframe(
             profile_data=profile_data,
@@ -1013,21 +1121,29 @@ class TestConstructProfileDataframe:
             simulations=single_sim,
             sim_label_func=self.sim_label_func,
             days_in_year=365,
-            hours_per_day=24
+            hours_per_day=24,
         )
-        
+
         # Verify outcome: MultiIndex structure with (Hour, Warming_Level)
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert result.shape == (365, 48), "Should have 365 rows and 48 columns (24*2 WLs)"
-        assert isinstance(result.columns, pd.MultiIndex), "Should have MultiIndex column structure"
-        assert result.columns.names == ["Hour", "Warming_Level"], "Should have Hour and Warming_Level levels"
+        assert result.shape == (
+            365,
+            48,
+        ), "Should have 365 rows and 48 columns (24*2 WLs)"
+        assert isinstance(
+            result.columns, pd.MultiIndex
+        ), "Should have MultiIndex column structure"
+        assert result.columns.names == [
+            "Hour",
+            "Warming_Level",
+        ], "Should have Hour and Warming_Level levels"
 
     def test_construct_profile_dataframe_multi_wl_multi_sim(self):
         """Test _construct_profile_dataframe with multiple warming levels and multiple simulations."""
         # Use multiple warming levels and multiple simulations
         multi_wl = np.array([1.5, 2.0])
         multi_sim = ["sim1", "sim2"]
-        
+
         # Create appropriate profile data for all combinations
         profile_data = {
             ("WL_1.5", "Sim1"): np.random.rand(365, 24) + 20.0,
@@ -1035,7 +1151,7 @@ class TestConstructProfileDataframe:
             ("WL_2.0", "Sim1"): np.random.rand(365, 24) + 22.0,
             ("WL_2.0", "Sim2"): np.random.rand(365, 24) + 22.0,
         }
-        
+
         # Execute function
         result = _construct_profile_dataframe(
             profile_data=profile_data,
@@ -1043,29 +1159,34 @@ class TestConstructProfileDataframe:
             simulations=multi_sim,
             sim_label_func=self.sim_label_func,
             days_in_year=365,
-            hours_per_day=24
+            hours_per_day=24,
         )
-        
+
         # Verify outcome: MultiIndex structure with (Hour, Warming_Level, Simulation)
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert result.shape == (365, 96), "Should have 365 rows and 96 columns (24*2WL*2sim)"
-        assert isinstance(result.columns, pd.MultiIndex), "Should have MultiIndex column structure"
+        assert result.shape == (
+            365,
+            96,
+        ), "Should have 365 rows and 96 columns (24*2WL*2sim)"
+        assert isinstance(
+            result.columns, pd.MultiIndex
+        ), "Should have MultiIndex column structure"
         # The function creates a 3-level MultiIndex for this scenario
         assert len(result.columns.levels) >= 2, "Should have at least 2 column levels"
 
 
 class TestStackProfileData:
     """Test class for _stack_profile_data function.
-    
+
     Tests the function that stacks profile data arrays into the appropriate
     format for DataFrame creation, handling different ordering and dimensions.
-    
+
     Attributes
     ----------
     profile_data : dict
         Sample profile data dictionary for testing.
     """
-    
+
     def setup_method(self):
         """Set up test fixtures."""
         # Create sample profile data - 365 days x 24 hours
@@ -1085,14 +1206,17 @@ class TestStackProfileData:
             wl_names=["WL_1.5", "WL_2.0"],
             sim_names=["Sim1", "Sim2"],
             hour_first=True,
-            three_level=False
+            three_level=False,
         )
-        
+
         # Verify outcome: returns 2D array with correct shape
         assert isinstance(result, np.ndarray), "Should return a numpy array"
-        assert result.shape == (365, 96), "Should have 365 rows and 96 columns (24*2WL*2sim)"
+        assert result.shape == (
+            365,
+            96,
+        ), "Should have 365 rows and 96 columns (24*2WL*2sim)"
         assert not np.isnan(result).any(), "Should not contain NaN values"
-        
+
         # Check that all values are positive (since input data is 20+ and 22+)
         assert np.all(result > 0), "All values should be positive"
 
@@ -1105,13 +1229,13 @@ class TestStackProfileData:
             wl_names=["WL_1.5", "WL_2.0"],
             sim_names=["Sim1", "Sim2"],
             hour_first=True,
-            three_level=True
+            three_level=True,
         )
-        
+
         # Verify outcome: returns 2D array with proper dimensions
         assert isinstance(result, np.ndarray), "Should return a numpy array"
         assert result.shape == (365, 96), "Should have correct total column count"
-        assert result.dtype.kind == 'f', "Should contain floating point data"
+        assert result.dtype.kind == "f", "Should contain floating point data"
 
     def test_stack_profile_data_handles_single_simulation(self):
         """Test _stack_profile_data with single simulation."""
@@ -1120,7 +1244,7 @@ class TestStackProfileData:
             ("WL_1.5", "Sim1"): np.random.rand(365, 24) + 20.0,
             ("WL_2.0", "Sim1"): np.random.rand(365, 24) + 22.0,
         }
-        
+
         # Execute function
         result = _stack_profile_data(
             profile_data=single_sim_data,
@@ -1128,9 +1252,9 @@ class TestStackProfileData:
             wl_names=["WL_1.5", "WL_2.0"],
             sim_names=["Sim1"],
             hour_first=True,
-            three_level=False
+            three_level=False,
         )
-        
+
         # Verify outcome: correct dimensions for single simulation
         assert isinstance(result, np.ndarray), "Should return a numpy array"
         assert result.shape == (365, 48), "Should have 48 columns (24*2WL*1sim)"
@@ -1143,7 +1267,7 @@ class TestStackProfileData:
             ("WL_1.5", "Sim1"): np.ones((365, 24)) * 25.0,  # All values = 25
             ("WL_2.0", "Sim1"): np.ones((365, 24)) * 30.0,  # All values = 30
         }
-        
+
         # Execute function
         result = _stack_profile_data(
             profile_data=simple_data,
@@ -1151,9 +1275,9 @@ class TestStackProfileData:
             wl_names=["WL_1.5", "WL_2.0"],
             sim_names=["Sim1"],
             hour_first=True,
-            three_level=False
+            three_level=False,
         )
-        
+
         # Verify outcome: data values are preserved
         assert isinstance(result, np.ndarray), "Should return a numpy array"
         # Check that we have both 25.0 and 30.0 values in the result
