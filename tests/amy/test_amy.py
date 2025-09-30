@@ -11,7 +11,14 @@ import numpy as np
 import xarray as xr
 from unittest.mock import MagicMock, patch
 
-from climakitae.explore.amy import retrieve_profile_data, get_climate_profile, compute_profile
+from climakitae.explore.amy import (
+    retrieve_profile_data, 
+    get_climate_profile, 
+    compute_profile,
+    get_profile_units,
+    get_profile_metadata,
+    set_profile_metadata
+)
 
 
 class TestRetrieveProfileData:
@@ -266,3 +273,92 @@ class TestComputeProfile:
         assert 'method' in result.attrs, "Should include method description"
         assert result.attrs['quantile'] == 0.75, "Should record the correct quantile used"
         assert result.attrs['units'] == 'degC', "Should preserve original units"
+
+
+class TestProfileUtilityFunctions:
+    """Test class for profile utility functions.
+    
+    Tests the utility functions that handle metadata extraction, units, 
+    and profile DataFrame formatting operations.
+    
+    Attributes
+    ----------
+    sample_profile : pd.DataFrame
+        Sample profile DataFrame for testing.
+    """
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        # Create sample profile DataFrame with metadata
+        self.sample_profile = pd.DataFrame(
+            np.random.rand(365, 24),
+            index=range(1, 366),
+            columns=range(1, 25)
+        )
+        # Add metadata attributes
+        self.sample_profile.attrs = {
+            'units': 'degF',
+            'variable_id': 'tasmax',
+            'quantile': 0.5,
+            'method': '8760 analysis',
+            'description': 'Test climate profile'
+        }
+
+    def test_get_profile_units_returns_correct_units(self):
+        """Test that get_profile_units extracts units from DataFrame metadata."""
+        # Execute function
+        units = get_profile_units(self.sample_profile)
+        
+        # Verify outcome: returns the correct units
+        assert units == 'degF', "Should return the units from DataFrame metadata"
+
+    def test_get_profile_units_returns_unknown_when_missing(self):
+        """Test that get_profile_units returns 'Unknown' when units are not present."""
+        # Create DataFrame without units
+        profile_no_units = pd.DataFrame(np.random.rand(10, 5))
+        
+        # Execute function
+        units = get_profile_units(profile_no_units)
+        
+        # Verify outcome: returns 'Unknown' for missing units
+        assert units == 'Unknown', "Should return 'Unknown' when units metadata is missing"
+
+    def test_get_profile_metadata_returns_all_attributes(self):
+        """Test that get_profile_metadata returns complete metadata dictionary."""
+        # Execute function
+        metadata = get_profile_metadata(self.sample_profile)
+        
+        # Verify outcome: returns dictionary with all metadata
+        assert isinstance(metadata, dict), "Should return a dictionary"
+        assert metadata['units'] == 'degF', "Should include units"
+        assert metadata['variable_id'] == 'tasmax', "Should include variable_id"
+        assert metadata['quantile'] == 0.5, "Should include quantile"
+        assert metadata['method'] == '8760 analysis', "Should include method"
+        assert len(metadata) == 5, "Should return all metadata attributes"
+
+    def test_set_profile_metadata_updates_dataframe_attrs(self):
+        """Test that set_profile_metadata properly updates DataFrame attributes."""
+        # Setup new metadata to add
+        new_metadata = {
+            'author': 'Test User',
+            'created_date': '2023-01-01',
+            'notes': 'Test profile data'
+        }
+        
+        # Execute function
+        set_profile_metadata(self.sample_profile, new_metadata)
+        
+        # Verify outcome: DataFrame attrs are updated
+        assert 'author' in self.sample_profile.attrs, "Should add new author attribute"
+        assert 'created_date' in self.sample_profile.attrs, "Should add new created_date attribute"  
+        assert 'notes' in self.sample_profile.attrs, "Should add new notes attribute"
+        assert self.sample_profile.attrs['author'] == 'Test User', "Should set correct author value"
+        
+        # Original attributes should still exist
+        assert self.sample_profile.attrs['units'] == 'degF', "Should preserve original units"
+
+    def test_set_profile_metadata_raises_error_for_non_dict_input(self):
+        """Test that set_profile_metadata raises ValueError for non-dictionary input."""
+        # Execute and verify outcome: should raise ValueError for non-dict input
+        with pytest.raises(ValueError, match="Metadata must be provided as a dictionary"):
+            set_profile_metadata(self.sample_profile, "not_a_dict")
