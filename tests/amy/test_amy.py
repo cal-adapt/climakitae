@@ -1646,6 +1646,61 @@ class TestFindMatchingHistoricColumn:
             "Returned column should exist in reversed historic profile"
         )
 
+    def test_find_matching_historic_column_with_missing_levels(self):
+        """Test _find_matching_historic_column when required levels are missing."""
+        # Test various scenarios where required levels are missing
+        test_scenarios = [
+            # Future missing Hour level
+            {
+                'future_col': ('sim1',),  # Only simulation
+                'future_levels': ['Simulation'],  # Missing Hour
+                'historic_levels': ['Hour', 'Simulation'],
+                'description': 'future missing Hour level'
+            },
+            # Future missing Simulation level
+            {
+                'future_col': (1,),  # Only hour
+                'future_levels': ['Hour'],  # Missing Simulation
+                'historic_levels': ['Hour', 'Simulation'],
+                'description': 'future missing Simulation level'
+            },
+            # Historic missing Hour level
+            {
+                'future_col': (1, 'sim1'),
+                'future_levels': ['Hour', 'Simulation'],
+                'historic_levels': ['Simulation'],  # Missing Hour
+                'description': 'historic missing Hour level'
+            },
+            # Historic missing Simulation level
+            {
+                'future_col': (1, 'sim1'),
+                'future_levels': ['Hour', 'Simulation'],
+                'historic_levels': ['Hour'],  # Missing Simulation
+                'description': 'historic missing Simulation level'
+            },
+            # Both missing required levels
+            {
+                'future_col': ('other',),
+                'future_levels': ['Other'],  # No Hour or Simulation
+                'historic_levels': ['Different'],  # No Hour or Simulation
+                'description': 'both missing Hour and Simulation levels'
+            },
+        ]
+
+        for scenario in test_scenarios:
+            # Execute function
+            result = _find_matching_historic_column(
+                scenario['future_col'], 
+                scenario['future_levels'], 
+                self.sample_historic_profile, 
+                scenario['historic_levels']
+            )
+
+            # Verify outcome: returns None when required levels are missing
+            assert result is None, (
+                f"Should return None when {scenario['description']}"
+            )
+
 
 class TestFormatBasedOnStructure:
     """Test class for _format_based_on_structure function.
