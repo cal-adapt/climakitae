@@ -1582,6 +1582,33 @@ class TestFindMatchingHistoricColumn:
         assert len(result) == 2, "Returned tuple should have 2 elements"
         assert result == (1, 'sim1'), "Should return exact matching tuple"
 
+    def test_find_matching_historic_column_with_matching_hour_simulation(self):
+        """Test _find_matching_historic_column with valid Hour and Simulation matching."""
+        # Test various combinations that exist in the historic profile
+        test_cases = [
+            ((1, 'sim1'), (1, 'sim1')),  # First hour, first simulation
+            ((12, 'sim2'), (12, 'sim2')),  # Middle hour, second simulation
+            ((24, 'sim1'), (24, 'sim1')),  # Last hour, first simulation
+        ]
+        
+        future_levels = ['Hour', 'Simulation']
+        historic_levels = ['Hour', 'Simulation']
+
+        for future_col, expected_result in test_cases:
+            # Execute function
+            result = _find_matching_historic_column(
+                future_col, future_levels, self.sample_historic_profile, historic_levels
+            )
+
+            # Verify outcome: returns correct matching tuple
+            assert isinstance(result, tuple), f"Should return tuple for {future_col}"
+            assert result == expected_result, (
+                f"Should return {expected_result} for future column {future_col}"
+            )
+            assert result in self.sample_historic_profile.columns, (
+                f"Returned column {result} should exist in historic profile"
+            )
+
 
 class TestFormatBasedOnStructure:
     """Test class for _format_based_on_structure function.
