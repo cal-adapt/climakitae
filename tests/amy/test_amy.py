@@ -1815,6 +1815,45 @@ class TestGetHistoricHourMean:
         assert isinstance(result_simple, pd.Series), "Should return a pandas Series for simple structure"
         assert len(result_simple) == 2, "Should have same number of rows as input DataFrame"
 
+    def test_get_historic_hour_mean_with_simulation_levels(self):
+        """Test _get_historic_hour_mean with Simulation levels computes correct means."""
+        historic_levels = ['Hour', 'Simulation']
+        
+        # Test specific hours to verify mean calculation
+        test_cases = [
+            # Hour 1: columns (1, sim1), (1, sim2), (1, sim3)
+            # Row 1 values: [10.0, 20.0, 30.0], Row 2 values: [12.0, 22.0, 32.0]
+            # Expected means: sim1=11.0, sim2=21.0, sim3=31.0
+            {
+                'hour': 1,
+                'expected_means': {'sim1': 11.0, 'sim2': 21.0, 'sim3': 31.0}
+            },
+            # Hour 12: columns (12, sim1), (12, sim2), (12, sim3)
+            # Row 1 values: [15.0, 25.0, 35.0], Row 2 values: [17.0, 27.0, 37.0]
+            # Expected means: sim1=16.0, sim2=26.0, sim3=36.0
+            {
+                'hour': 12,
+                'expected_means': {'sim1': 16.0, 'sim2': 26.0, 'sim3': 36.0}
+            },
+        ]
+
+        for case in test_cases:
+            # Execute function
+            result = _get_historic_hour_mean(
+                self.historic_with_sim, historic_levels, case['hour']
+            )
+
+            # Verify outcome: correct mean calculation
+            assert isinstance(result, pd.Series), f"Should return pd.Series for hour {case['hour']}"
+            assert result.index.name == 'Simulation', f"Index should be Simulation level for hour {case['hour']}"
+            
+            # Check specific mean values
+            for sim, expected_mean in case['expected_means'].items():
+                actual_mean = result[sim]
+                assert abs(actual_mean - expected_mean) < 0.001, (
+                    f"Hour {case['hour']}, Simulation {sim}: expected {expected_mean}, got {actual_mean}"
+                )
+
 
 class TestFormatBasedOnStructure:
     """Test class for _format_based_on_structure function.
