@@ -188,3 +188,12 @@ class TestGetClimateProfile:
         assert result.shape == mock_future_profile.shape, "Should return the original future profile shape"
         # Verify compute_profile was called only once (for future data only)
         assert self.mock_compute_profile.call_count == 1, "Should call compute_profile only once for future data"
+
+    def test_get_climate_profile_raises_error_when_no_data_returned(self):
+        """Test that get_climate_profile raises ValueError when no data is retrieved."""
+        # Setup scenario where both datasets are None
+        self.mock_retrieve_profile_data.return_value = (None, None)
+        
+        # Execute and verify outcome: should raise ValueError
+        with pytest.raises(ValueError, match="No data returned for either historical or future datasets"):
+            get_climate_profile(warming_level=[2.0])
