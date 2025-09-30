@@ -1279,6 +1279,50 @@ class TestComputeMixedIndexDifference:
             result.mean().mean() > 0
         ), "Future should be warmer than historic on average with fallback"
 
+    def test_compute_mixed_index_difference_with_different_multiindex_structures(self):
+        """Test _compute_mixed_index_difference with various MultiIndex structures."""
+        # Create future profile with (Hour, Warming_Level) only (no Simulation)
+        hours = list(range(1, 25))
+        warming_levels = [1.5, 2.0]
+
+        future_cols = pd.MultiIndex.from_product(
+            [hours, warming_levels], names=["Hour", "Warming_Level"]
+        )
+        future_wl = pd.DataFrame(
+            np.random.rand(365, len(future_cols)) + 20.0,
+            index=range(1, 366),
+            columns=future_cols,
+        )
+
+        # Create simple historic profile
+        historic_simple = pd.DataFrame(
+            np.random.rand(365, 24) + 15.0,
+            index=range(1, 366),
+            columns=hours,
+        )
+
+        # Execute function
+        result = _compute_mixed_index_difference(future_wl, historic_simple)
+
+        # Verify outcome: handles different MultiIndex structures correctly
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert (
+            result.shape == future_wl.shape
+        ), "Result shape should match future profile"
+        assert isinstance(
+            result.columns, pd.MultiIndex
+        ), "Should preserve future MultiIndex structure"
+        assert result.columns.names == [
+            "Hour",
+            "Warming_Level",
+        ], "Should preserve future column level names"
+
+        # Verify differences are computed correctly
+        assert result.notna().any().any(), "Should produce non-NaN difference values"
+        assert (
+            result.mean().mean() > 0
+        ), "Future should be warmer than historic on average"
+
 
 class TestFormatBasedOnStructure:
     """Test class for _format_based_on_structure function.
