@@ -1158,6 +1158,46 @@ class TestComputeMixedIndexDifference:
             result.mean().mean() > 0
         ), "Future should be warmer than historic on average"
 
+    def test_compute_mixed_index_difference_with_matching_hours(self):
+        """Test _compute_mixed_index_difference correctly handles matching hours."""
+        # Create test data with specific values to verify matching
+        hours = [1, 12, 24]  # Use subset for clearer verification
+        warming_levels = [2.0]
+        simulations = ["sim1"]
+
+        # Future profile with known values
+        future_cols = pd.MultiIndex.from_product(
+            [hours, warming_levels, simulations],
+            names=["Hour", "Warming_Level", "Simulation"],
+        )
+        future_data = pd.DataFrame(
+            [[25.0, 30.0, 20.0]], index=[1], columns=future_cols  # One row for simplicity
+        )
+
+        # Historic profile with corresponding hours
+        historic_data = pd.DataFrame(
+            [[15.0, 20.0, 10.0]], index=[1], columns=hours  # Matching hour structure
+        )
+
+        # Execute function
+        result = _compute_mixed_index_difference(future_data, historic_data)
+
+        # Verify outcome: differences computed correctly for matching hours
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert (
+            result.shape == future_data.shape
+        ), "Result shape should match future profile"
+
+        # Verify specific hour matching produces expected differences
+        # The function should match hours in MultiIndex with simple historic columns
+        result_values = result.iloc[0].values
+        expected_diffs = [10.0, 10.0, 10.0]  # 25-15, 30-20, 20-10 
+        
+        for i, (actual, expected) in enumerate(zip(result_values, expected_diffs)):
+            assert (
+                abs(actual - expected) < 0.001
+            ), f"Column {i} difference should be {expected}, got {actual}"
+
 
 class TestFormatBasedOnStructure:
     """Test class for _format_based_on_structure function.
