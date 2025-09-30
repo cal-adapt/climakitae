@@ -1701,6 +1701,49 @@ class TestFindMatchingHistoricColumn:
                 f"Should return None when {scenario['description']}"
             )
 
+    def test_find_matching_historic_column_with_no_matching_column(self):
+        """Test _find_matching_historic_column when constructed column doesn't exist in historic."""
+        # Test scenarios where future column exists but historic doesn't have the matching column
+        test_cases = [
+            # Hour exists but simulation doesn't
+            {
+                'future_col': (1, 'nonexistent_sim'),
+                'description': 'nonexistent simulation'
+            },
+            # Simulation exists but hour doesn't  
+            {
+                'future_col': (999, 'sim1'),
+                'description': 'nonexistent hour'
+            },
+            # Neither hour nor simulation exists
+            {
+                'future_col': (999, 'nonexistent_sim'),
+                'description': 'both nonexistent hour and simulation'
+            },
+        ]
+
+        future_levels = ['Hour', 'Simulation']
+        historic_levels = ['Hour', 'Simulation']
+
+        for case in test_cases:
+            # Execute function
+            result = _find_matching_historic_column(
+                case['future_col'], 
+                future_levels, 
+                self.sample_historic_profile, 
+                historic_levels
+            )
+
+            # Verify outcome: returns None when constructed column doesn't exist
+            assert result is None, (
+                f"Should return None for {case['description']}"
+            )
+
+            # Double-check that the constructed column indeed doesn't exist
+            assert case['future_col'] not in self.sample_historic_profile.columns, (
+                f"Test case {case['future_col']} should not exist in historic profile"
+            )
+
 
 class TestFormatBasedOnStructure:
     """Test class for _format_based_on_structure function.
