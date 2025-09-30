@@ -1854,6 +1854,37 @@ class TestGetHistoricHourMean:
                     f"Hour {case['hour']}, Simulation {sim}: expected {expected_mean}, got {actual_mean}"
                 )
 
+    def test_get_historic_hour_mean_without_simulation_levels(self):
+        """Test _get_historic_hour_mean without Simulation levels returns specific column."""
+        historic_levels = ['Hour']  # No Simulation level
+        
+        # Test specific hours from simple historic profile
+        test_cases = [
+            # Hour 1: column values [100.0, 110.0] (both rows)
+            {'hour': 1, 'expected_values': [100.0, 110.0]},
+            # Hour 12: column values [200.0, 210.0] (both rows)  
+            {'hour': 12, 'expected_values': [200.0, 210.0]},
+            # Hour 24: column values [300.0, 310.0] (both rows)
+            {'hour': 24, 'expected_values': [300.0, 310.0]},
+        ]
+
+        for case in test_cases:
+            # Execute function
+            result = _get_historic_hour_mean(
+                self.historic_simple, historic_levels, case['hour']
+            )
+
+            # Verify outcome: returns specific column as Series
+            assert isinstance(result, pd.Series), f"Should return pd.Series for hour {case['hour']}"
+            assert len(result) == 2, f"Should have 2 values for hour {case['hour']}"
+            
+            # Check specific column values
+            for i, expected_value in enumerate(case['expected_values']):
+                actual_value = result.iloc[i]
+                assert abs(actual_value - expected_value) < 0.001, (
+                    f"Hour {case['hour']}, Row {i}: expected {expected_value}, got {actual_value}"
+                )
+
 
 class TestFormatBasedOnStructure:
     """Test class for _format_based_on_structure function.
