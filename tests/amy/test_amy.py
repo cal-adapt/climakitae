@@ -917,6 +917,48 @@ class TestComputeWarmingLevelDifference:
             result.mean().mean() > 0
         ), "Future should be warmer than historic on average"
 
+    def test_compute_warming_level_difference_matches_corresponding_hours(self):
+        """Test _compute_warming_level_difference correctly matches hours between profiles."""
+        # Create specific test data to verify hour matching
+        hours = [1, 12, 24]  # Use subset of hours for clearer testing
+        warming_levels = [2.0]
+
+        # Future profile with known values
+        future_cols = pd.MultiIndex.from_product(
+            [hours, warming_levels], names=["Hour", "Warming_Level"]
+        )
+        future_data = pd.DataFrame(
+            [[25.0, 30.0, 20.0]], index=[1], columns=future_cols  # One row for simplicity
+        )
+
+        # Historic profile with known values for matching
+        historic_data = pd.DataFrame(
+            [[15.0, 20.0, 10.0]], index=[1], columns=hours  # Matching hours
+        )
+
+        # Execute function
+        future_levels = ["Hour", "Warming_Level"]
+        historic_levels = []
+
+        result = _compute_warming_level_difference(
+            future_data, historic_data, future_levels, historic_levels
+        )
+
+        # Verify outcome: differences are computed correctly for each hour
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+
+        # Check specific hour matching: future[hour, wl] - historic[hour]
+        # Hour 1: 25.0 - 15.0 = 10.0
+        # Hour 12: 30.0 - 20.0 = 10.0  
+        # Hour 24: 20.0 - 10.0 = 10.0
+        # Verify that differences are computed correctly by checking all values are 10.0
+        result_values = result.iloc[0].values  # Get first row values
+        expected_diff = 10.0
+        for i, val in enumerate(result_values):
+            assert (
+                abs(val - expected_diff) < 0.001
+            ), f"Column {i} difference should be {expected_diff}, got {val}"
+
 
 class TestFormatBasedOnStructure:
     """Test class for _format_based_on_structure function.
