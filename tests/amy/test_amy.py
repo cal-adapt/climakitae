@@ -901,3 +901,154 @@ class TestFormatBasedOnStructure:
         # Execute function - expect it to raise an error for empty DataFrame
         with pytest.raises(ValueError, match="Length mismatch"):
             _format_based_on_structure(empty_df)
+
+
+class TestConstructProfileDataframe:
+    """Test class for _construct_profile_dataframe function.
+    
+    Tests the function that constructs climate profile DataFrames with appropriate
+    column structures based on warming level and simulation dimensions.
+    
+    Attributes
+    ----------
+    profile_data : dict
+        Sample profile data dictionary for testing.
+    warming_levels : np.ndarray
+        Array of warming level values.
+    simulations : list
+        List of simulation identifiers.
+    """
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.warming_levels = np.array([1.5, 2.0])
+        self.simulations = ["sim1", "sim2"]
+        
+        # Create sample profile data dictionary
+        self.profile_data = {}
+        for wl in self.warming_levels:
+            for i, sim in enumerate(self.simulations):
+                wl_key = f"WL_{wl}"
+                sim_key = f"Sim{i+1}"  # Simple simulation labels
+                # Create 365x24 profile matrix
+                self.profile_data[(wl_key, sim_key)] = np.random.rand(365, 24) + 20.0
+        
+        # Simple function to get simulation labels
+        def sim_label_func(sim, sim_idx):
+            return f"Sim{sim_idx + 1}"
+        
+        self.sim_label_func = sim_label_func
+
+    def test_construct_profile_dataframe_single_wl_single_sim(self):
+        """Test _construct_profile_dataframe with single warming level and single simulation."""
+        # Use only first warming level and simulation
+        single_wl = np.array([1.5])
+        single_sim = ["sim1"]
+        
+        # Create appropriate profile data
+        profile_data = {
+            ("WL_1.5", "Sim1"): np.random.rand(365, 24) + 20.0
+        }
+        
+        # Execute function
+        result = _construct_profile_dataframe(
+            profile_data=profile_data,
+            warming_levels=single_wl,
+            simulations=single_sim,
+            sim_label_func=self.sim_label_func,
+            days_in_year=365,
+            hours_per_day=24
+        )
+        
+        # Verify outcome: simple DataFrame structure
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert result.shape == (365, 24), "Should have 365 rows and 24 columns"
+        assert not isinstance(result.columns, pd.MultiIndex), "Should have simple column structure"
+        assert list(result.columns) == list(range(1, 25)), "Columns should be hours 1-24"
+
+    def test_construct_profile_dataframe_single_wl_multi_sim(self):
+        """Test _construct_profile_dataframe with single warming level and multiple simulations."""
+        # Use single warming level but multiple simulations
+        single_wl = np.array([1.5])
+        multi_sim = ["sim1", "sim2"]
+        
+        # Create appropriate profile data
+        profile_data = {
+            ("WL_1.5", "Sim1"): np.random.rand(365, 24) + 20.0,
+            ("WL_1.5", "Sim2"): np.random.rand(365, 24) + 20.0,
+        }
+        
+        # Execute function
+        result = _construct_profile_dataframe(
+            profile_data=profile_data,
+            warming_levels=single_wl,
+            simulations=multi_sim,
+            sim_label_func=self.sim_label_func,
+            days_in_year=365,
+            hours_per_day=24
+        )
+        
+        # Verify outcome: MultiIndex structure with (Hour, Simulation)
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert result.shape == (365, 48), "Should have 365 rows and 48 columns (24*2 sims)"
+        assert isinstance(result.columns, pd.MultiIndex), "Should have MultiIndex column structure"
+        assert result.columns.names == ["Hour", "Simulation"], "Should have Hour and Simulation levels"
+
+    def test_construct_profile_dataframe_multi_wl_single_sim(self):
+        """Test _construct_profile_dataframe with multiple warming levels and single simulation."""
+        # Use multiple warming levels but single simulation
+        multi_wl = np.array([1.5, 2.0])
+        single_sim = ["sim1"]
+        
+        # Create appropriate profile data
+        profile_data = {
+            ("WL_1.5", "Sim1"): np.random.rand(365, 24) + 20.0,
+            ("WL_2.0", "Sim1"): np.random.rand(365, 24) + 22.0,
+        }
+        
+        # Execute function
+        result = _construct_profile_dataframe(
+            profile_data=profile_data,
+            warming_levels=multi_wl,
+            simulations=single_sim,
+            sim_label_func=self.sim_label_func,
+            days_in_year=365,
+            hours_per_day=24
+        )
+        
+        # Verify outcome: MultiIndex structure with (Hour, Warming_Level)
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert result.shape == (365, 48), "Should have 365 rows and 48 columns (24*2 WLs)"
+        assert isinstance(result.columns, pd.MultiIndex), "Should have MultiIndex column structure"
+        assert result.columns.names == ["Hour", "Warming_Level"], "Should have Hour and Warming_Level levels"
+
+    def test_construct_profile_dataframe_multi_wl_multi_sim(self):
+        """Test _construct_profile_dataframe with multiple warming levels and multiple simulations."""
+        # Use multiple warming levels and multiple simulations
+        multi_wl = np.array([1.5, 2.0])
+        multi_sim = ["sim1", "sim2"]
+        
+        # Create appropriate profile data for all combinations
+        profile_data = {
+            ("WL_1.5", "Sim1"): np.random.rand(365, 24) + 20.0,
+            ("WL_1.5", "Sim2"): np.random.rand(365, 24) + 20.0,
+            ("WL_2.0", "Sim1"): np.random.rand(365, 24) + 22.0,
+            ("WL_2.0", "Sim2"): np.random.rand(365, 24) + 22.0,
+        }
+        
+        # Execute function
+        result = _construct_profile_dataframe(
+            profile_data=profile_data,
+            warming_levels=multi_wl,
+            simulations=multi_sim,
+            sim_label_func=self.sim_label_func,
+            days_in_year=365,
+            hours_per_day=24
+        )
+        
+        # Verify outcome: MultiIndex structure with (Hour, Warming_Level, Simulation)
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert result.shape == (365, 96), "Should have 365 rows and 96 columns (24*2WL*2sim)"
+        assert isinstance(result.columns, pd.MultiIndex), "Should have MultiIndex column structure"
+        # The function creates a 3-level MultiIndex for this scenario
+        assert len(result.columns.levels) >= 2, "Should have at least 2 column levels"
