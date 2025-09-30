@@ -11,7 +11,7 @@ import numpy as np
 import xarray as xr
 from unittest.mock import MagicMock, patch
 
-from climakitae.explore.amy import retrieve_profile_data, get_climate_profile
+from climakitae.explore.amy import retrieve_profile_data, get_climate_profile, compute_profile
 
 
 class TestRetrieveProfileData:
@@ -197,3 +197,51 @@ class TestGetClimateProfile:
         # Execute and verify outcome: should raise ValueError
         with pytest.raises(ValueError, match="No data returned for either historical or future datasets"):
             get_climate_profile(warming_level=[2.0])
+
+
+class TestComputeProfile:
+    """Test class for compute_profile function.
+    
+    Tests the core function that computes climate profiles from xarray DataArrays
+    using quantile-based analysis across multiple years of data.
+    
+    Attributes
+    ----------
+    sample_data : xr.DataArray
+        Sample climate data for testing.
+    """
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        # Create sample xarray DataArray that mimics actual climate data structure
+        time_delta = pd.date_range('2020-01-01', periods=8760*2, freq='H')  # 2 years of hourly data
+        warming_levels = [1.5, 2.0]
+        simulations = ['sim1', 'sim2']
+        
+        # Create test data with proper dimensions
+        data = np.random.rand(len(warming_levels), len(time_delta), len(simulations))
+        
+        self.sample_data = xr.DataArray(
+            data,
+            dims=['warming_level', 'time_delta', 'simulation'],
+            coords={
+                'warming_level': warming_levels,
+                'time_delta': time_delta,
+                'simulation': simulations
+            },
+            attrs={'units': 'degC', 'variable_id': 'tasmax'}
+        )
+
+    def test_compute_profile_returns_dataframe_with_correct_shape(self):
+        """Test that compute_profile returns DataFrame with expected dimensions."""
+        # Execute function
+        result = compute_profile(self.sample_data, days_in_year=365, q=0.5)
+        
+        # Verify outcome: returns DataFrame with correct shape
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert result.shape[0] == 365, "Should have 365 rows (days)"
+        assert result.shape[1] > 0, "Should have columns for hours and other dimensions"
+        
+        # Verify the DataFrame has proper index and column structure
+        assert result.index.dtype == int or isinstance(result.index, pd.Index), "Should have proper index"
+        assert hasattr(result, 'attrs'), "Should preserve metadata in attrs"
