@@ -97,6 +97,13 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
     """
     no_delta = kwargs.pop("no_delta", False)
     # Define allowed inputs with types and defaults
+    # Compute units default separately to avoid runtime evaluation in dictionary
+    units_default = (
+        "degF"  # Default to degF if user hasn't specified both variable and units
+        if kwargs.get("variable", None) is None and kwargs.get("units", None) is None
+        else None  # otherwise default to None and let get_data decide
+    )
+
     ALLOWED_INPUTS = {
         "variable": (str, "Air Temperature at 2m"),
         "resolution": (str, "3 km"),
@@ -105,15 +112,7 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
         "latitude": ((float, tuple), None),
         "longitude": ((float, tuple), None),
         "stations": (list, None),
-        "units": kwargs.get(
-            "units",
-            (
-                "degF"  # Default to degF if user hasn't specified both variable and units
-                if kwargs.get("variable", None) is None
-                and kwargs.get("units", None) is None
-                else None  # otherwise default to None and let get_data decide
-            ),
-        ),
+        "units": (str, units_default),
     }
 
     # if the user does not enter warming level the analysis is a moot point
@@ -134,11 +133,20 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
     # Validate input types
     for key, value in kwargs.items():
         expected_type, _ = ALLOWED_INPUTS[key]
-        if not isinstance(value, expected_type):
-            raise TypeError(
-                f"Parameter '{key}' must be of type {expected_type.__name__}, "
-                f"got {type(value).__name__}"
-            )
+        # Handle union types (tuples of types)
+        if isinstance(expected_type, tuple):
+            if not isinstance(value, expected_type):
+                type_names = [t.__name__ for t in expected_type]
+                raise TypeError(
+                    f"Parameter '{key}' must be of type {' or '.join(type_names)}, "
+                    f"got {type(value).__name__}"
+                )
+        else:
+            if not isinstance(value, expected_type):
+                raise TypeError(
+                    f"Parameter '{key}' must be of type {expected_type.__name__}, "
+                    f"got {type(value).__name__}"
+                )
 
     # Validate location parameters
     # the bahavior will be to use cached_area if provided
@@ -1487,195 +1495,3 @@ def set_profile_metadata(profile_df: pd.DataFrame, metadata: dict) -> None:
 
     for key, value in metadata.items():
         profile_df.attrs[key] = value
-
-
-# !DEPRECATED
-def _set_amy_year_inputs(year_start: int, year_end: int) -> tuple[int, int]:
-    """Helper function for _retrieve_meteo_yr_data.
-    Checks that the user has input valid values.
-    Sets year end if it hasn't been set; default is 30 year range (year_start + 30). Minimum is 5 year range.
-
-    """
-    match year_end:
-        case None:
-            year_end = (
-                year_start + 30 if (year_start + 30 < 2100) else 2100
-            )  # Default is +30 years
-        case _ if year_end > 2100:
-            print("Your end year cannot exceed 2100. Resetting end year to 2100.")
-            year_end = 2100
-    if year_end - year_start < 5:
-        raise ValueError(
-            """To compute an Average Meteorological Year, you must input a date range with a difference
-            of at least 5 years, where the end year is no later than 2100 and the start year is no later than
-            2095."""
-        )
-    if year_start < 1980:
-        raise ValueError(
-            """You've input an invalid start year. The start year must be 1980 or later."""
-        )
-    return (year_start, year_end)
-
-
-# !DEPRECATED
-def retrieve_meteo_yr_data(
-    data_params: DataParameters,
-    ssp: str = None,
-    year_start: int = 2015,
-    year_end: int = None,
-) -> xr.DataArray:
-    """Backend function for retrieving data needed for computing a meteorological year.
-
-    Reads in the hourly ensemble means instead of the hourly data.
-    Reads in future SSP data, historical climate data, or a combination
-    of both, depending on year_start and year_end
-
-    Parameters
-    ----------
-    self : AverageMetYearParameters
-    ssp : str
-        one of "SSP 2-4.5", "SSP 3-7.0", "SSP 5-8.5"
-        Shared Socioeconomic Pathway. Defaults to SSP 3-7.0
-    year_start : int, optional
-        Year between 1980-2095. Default to 2015
-    year_end : int, optional
-        Year between 1985-2100. Default to year_start+30
-
-    Returns
-    -------
-    xr.DataArray
-        Hourly ensemble means from year_start-year_end for the ssp specified.
-
-    """
-    # Ensure only WRF data is being used
-    data_params.downscaling_method = "Dynamical"
-
-    # Save units. Sometimes they get lost.
-    units = data_params.units
-
-    # Check year start and end inputs
-    year_start, year_end = _set_amy_year_inputs(year_start, year_end)
-
-    # Set scenario selections
-    if (ssp is not None) and (year_end >= 2015):
-        data_params.scenario_ssp = [ssp]
-    if year_end < 2015:
-        data_params.scenario_ssp = []
-    elif (year_end >= 2015) and (data_params.scenario_ssp) == []:
-        data_params.scenario_ssp = ["SSP 3-7.0"]  # Default
-    if year_start < 2015:  # Append historical data
-        data_params.scenario_historical = ["Historical Climate"]
-    else:
-        data_params.scenario_historical = []
-    if len(data_params.scenario_ssp) > 1:
-        # If multiple SSPs are selected, only use the first one
-        data_params.scenario_ssp = [data_params.scenario_ssp[0]]
-
-    # Set other data parameters
-    data_params.simulation = ["ensmean"]
-    data_params.time_slice = (year_start, year_end)
-    data_params.area_average = "Yes"
-    data_params.timescale = "hourly"
-    data_params.units = units
-
-    # Grab data from the catalog
-    amy_data = read_catalog_from_select(data_params)
-    if amy_data is None:
-        # Catch small spatial resolutions
-        raise ValueError(
-            "COULD NOT RETRIEVE DATA: For the provided data selections, there is not sufficient data to retrieve. Try selecting a larger spatial area, or a higher resolution. Returning None."
-        )
-    return amy_data.isel(scenario=0, simulation=0)
-
-
-# ! DEPRECATED
-def compute_severe_yr(data: xr.DataArray, days_in_year: int = 366) -> pd.DataFrame:
-    """Calculate the severe meteorological year based on the 90th percentile of data.
-
-    Applicable for both the historical and future periods.
-
-    Parameters
-    ----------
-    data : xr.DataArray
-        Hourly data for one variable
-    days_in_year : int, optional
-        Either 366 or 365, depending on whether or not the year is a leap year.
-        Default to 366 days (leap year)
-
-    Returns
-    -------
-    pd.DataFrame
-        Severe meteorological year table, with days of year as
-        the index and hour of day as the columns.
-
-    """
-
-    def closest_to_quantile(dat):
-        stacked = dat.stack(allofit=list(dat.dims))
-        index = (
-            abs(stacked - stacked.quantile(q=0.90, dim="allofit"))
-            .argmin(dim="allofit")
-            .values
-        )
-        return xr.DataArray(stacked.isel(allofit=index).values)
-
-    def return_diurnal(y):
-        return y.groupby("time.hour").map(closest_to_quantile)
-
-    hourly_da = data.groupby("time.dayofyear").map(return_diurnal)
-
-    ## Funnel data into pandas DataFrame object
-    df_severe_yr = pd.DataFrame(
-        hourly_da,
-        columns=np.arange(1, 25, 1),
-        index=np.arange(1, days_in_year + 1, 1),
-    )
-
-    # Format dataframe
-    df_severe_yr = _format_meteo_yr_df(df_severe_yr)
-    return df_severe_yr
-
-
-# ! DEPRECATED
-def compute_amy(data: xr.DataArray, days_in_year: int = 366) -> pd.DataFrame:
-    """Calculates the average meteorological year based on a designated period of time
-
-    Applicable for both the historical and future periods.
-
-    Parameters
-    ----------
-    data : xr.DataArray
-        Hourly data for one variable
-    days_in_year : int, optional
-        Either 366 or 365, depending on whether or not the year is a leap year.
-        Default to 366 days (leap year)
-
-    Returns
-    -------
-    pd.DataFrame
-        Average meteorological year table, with days of year as
-        the index and hour of day as the columns.
-
-    """
-
-    def _closest_to_mean(dat: xr.DataArray) -> xr.DataArray:
-        """Find the value closest to the mean of the data."""
-        stacked = dat.stack(allofit=list(dat.dims))
-        index = abs(stacked - stacked.quantile("allofit")).argmin(dim="allofit").values
-        return xr.DataArray(stacked.isel(allofit=index).values)
-
-    def _return_diurnal(y: xr.DataArray) -> xr.DataArray:
-        """Return the diurnal cycle of the data."""
-        return y.groupby("time.hour").map(_closest_to_mean)
-
-    hourly_da = data.groupby("time.dayofyear").map(_return_diurnal)
-
-    # Funnel data into pandas DataFrame object
-    df_amy = pd.DataFrame(
-        hourly_da,  # hourly DataArray,
-        columns=np.arange(1, 25, 1),
-        index=np.arange(1, days_in_year + 1, 1),
-    )
-    # Format dataframe
-    df_amy = _format_meteo_yr_df(df_amy)
-    return df_amy
