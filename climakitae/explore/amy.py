@@ -427,7 +427,7 @@ def _compute_simulation_paired_difference(
         historic_mean = historic_profile.groupby(level="Hour", axis=1).mean()
         for col in future_profile.columns:
             hour = col[0] if "Hour" in future_levels else col[-1]
-            difference_profile[col] = future_profile[col] - historic_mean[hour]
+            difference_profile.loc[:, col] = future_profile[col] - historic_mean[hour]
     else:
         # Compute differences for matching simulations
         n_cols = len(future_profile.columns)
@@ -439,7 +439,7 @@ def _compute_simulation_paired_difference(
                     col, future_levels, historic_profile, historic_levels
                 )
                 if historic_col and historic_col in historic_profile.columns:
-                    difference_profile[col] = (
+                    difference_profile.loc[:, col] = (
                         future_profile[col] - historic_profile[historic_col]
                     )
                 else:
@@ -448,7 +448,7 @@ def _compute_simulation_paired_difference(
                     historic_hour_mean = _get_historic_hour_mean(
                         historic_profile, historic_levels, hour
                     )
-                    difference_profile[col] = future_profile[col] - historic_hour_mean
+                    difference_profile.loc[:, col] = future_profile[col] - historic_hour_mean
                 pbar.update(1)
 
     return difference_profile
