@@ -213,10 +213,10 @@ class TestComputeProfile:
 
     def setup_method(self):
         """Set up test fixtures."""
-        # Create sample xarray DataArray that mimics actual climate data structure
-        time_delta = pd.date_range('2020-01-01', periods=8760*2, freq='H')  # 2 years of hourly data
-        warming_levels = [1.5, 2.0]
-        simulations = ['sim1', 'sim2']
+        # Create smaller sample for faster testing (just enough for the algorithm)
+        time_delta = pd.date_range('2020-01-01', periods=8760, freq='h')  # 1 year of hourly data
+        warming_levels = [1.5]
+        simulations = ['sim1']
         
         # Create test data with proper dimensions
         data = np.random.rand(len(warming_levels), len(time_delta), len(simulations))
@@ -245,3 +245,24 @@ class TestComputeProfile:
         # Verify the DataFrame has proper index and column structure
         assert result.index.dtype == int or isinstance(result.index, pd.Index), "Should have proper index"
         assert hasattr(result, 'attrs'), "Should preserve metadata in attrs"
+
+    def test_compute_profile_respects_days_in_year_parameter(self):
+        """Test that compute_profile creates DataFrame with specified number of days."""        
+        # Execute function with regular year (365 days) - this should work with 8760 hours
+        result_365 = compute_profile(self.sample_data, days_in_year=365, q=0.5)
+        
+        # Verify outcome: correct number of rows based on days_in_year
+        assert result_365.shape[0] == 365, "Should have 365 rows for regular year"
+        assert result_365.shape[1] == 24, "Should have 24 columns for hours"
+
+    def test_compute_profile_preserves_metadata_from_input(self):
+        """Test that compute_profile preserves important metadata from input DataArray."""
+        # Execute function
+        result = compute_profile(self.sample_data, days_in_year=365, q=0.75)
+        
+        # Verify outcome: metadata is preserved and enhanced
+        assert 'units' in result.attrs, "Should preserve units from input data"
+        assert 'quantile' in result.attrs, "Should include quantile information"
+        assert 'method' in result.attrs, "Should include method description"
+        assert result.attrs['quantile'] == 0.75, "Should record the correct quantile used"
+        assert result.attrs['units'] == 'degC', "Should preserve original units"
