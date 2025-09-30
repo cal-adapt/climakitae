@@ -1532,6 +1532,57 @@ class TestComputeSimpleDifference:
         ), "Should confirm columns match for single-row data"
 
 
+class TestFindMatchingHistoricColumn:
+    """Test class for _find_matching_historic_column function.
+
+    Tests the function that finds matching historic columns for future columns
+    when both profiles have MultiIndex structures with Hour and Simulation levels.
+    The function handles different level orders and missing level scenarios.
+
+    Attributes
+    ----------
+    sample_historic_profile : pd.DataFrame
+        Sample historic profile with MultiIndex columns for testing.
+    """
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        hours = [1, 12, 24]
+        simulations = ['sim1', 'sim2']
+
+        # Create historic profile with (Hour, Simulation) MultiIndex structure
+        historic_cols = pd.MultiIndex.from_product(
+            [hours, simulations], names=['Hour', 'Simulation']
+        )
+        self.sample_historic_profile = pd.DataFrame(
+            np.random.rand(10, len(historic_cols)) + 15.0,
+            index=range(1, 11),
+            columns=historic_cols,
+        )
+
+    def test_find_matching_historic_column_returns_tuple_or_none(self):
+        """Test _find_matching_historic_column returns tuple or None."""
+        # Test future column that exists in historic profile
+        future_col = (1, 'sim1')  # (Hour, Simulation)
+        future_levels = ['Hour', 'Simulation']
+        historic_levels = ['Hour', 'Simulation']
+
+        # Execute function
+        result = _find_matching_historic_column(
+            future_col, future_levels, self.sample_historic_profile, historic_levels
+        )
+
+        # Verify outcome: returns tuple or None
+        assert isinstance(result, tuple) or result is None, (
+            "Should return a tuple or None"
+        )
+        
+        # In this case, should return matching tuple
+        assert isinstance(result, tuple), "Should return tuple for valid match"
+        assert len(result) == 2, "Returned tuple should have 2 elements"
+        assert result == (1, 'sim1'), "Should return exact matching tuple"
+
+
 class TestFormatBasedOnStructure:
     """Test class for _format_based_on_structure function.
 
