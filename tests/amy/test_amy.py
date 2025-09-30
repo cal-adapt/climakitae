@@ -1609,6 +1609,43 @@ class TestFindMatchingHistoricColumn:
                 f"Returned column {result} should exist in historic profile"
             )
 
+    def test_find_matching_historic_column_with_different_level_order(self):
+        """Test _find_matching_historic_column when historic levels are in different order."""
+        # Create historic profile with (Simulation, Hour) order instead of (Hour, Simulation)
+        hours = [1, 12, 24]
+        simulations = ['sim1', 'sim2']
+        
+        # Reversed order: Simulation first, then Hour
+        reversed_historic_cols = pd.MultiIndex.from_product(
+            [simulations, hours], names=['Simulation', 'Hour']
+        )
+        reversed_historic_profile = pd.DataFrame(
+            np.random.rand(10, len(reversed_historic_cols)) + 15.0,
+            index=range(1, 11),
+            columns=reversed_historic_cols,
+        )
+
+        # Future column in (Hour, Simulation) order
+        future_col = (1, 'sim1')  # Hour first, Simulation second
+        future_levels = ['Hour', 'Simulation']
+        historic_levels = ['Simulation', 'Hour']  # Reversed order
+
+        # Execute function
+        result = _find_matching_historic_column(
+            future_col, future_levels, reversed_historic_profile, historic_levels
+        )
+
+        # Verify outcome: function handles level order correctly
+        assert isinstance(result, tuple), "Should return tuple for reversed level order"
+        # Function should create ('sim1', 1) to match historic (Simulation, Hour) order
+        expected_result = ('sim1', 1)  # Simulation first, Hour second
+        assert result == expected_result, (
+            f"Should return {expected_result} for reversed historic levels"
+        )
+        assert result in reversed_historic_profile.columns, (
+            "Returned column should exist in reversed historic profile"
+        )
+
 
 class TestFormatBasedOnStructure:
     """Test class for _format_based_on_structure function.
