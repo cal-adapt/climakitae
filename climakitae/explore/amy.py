@@ -87,6 +87,10 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
     1. cached_area
     2. latitude/longitude
     3. stations
+    Each parameter will override the lower-priority ones if provided. So if cached_area
+    is given, lat/lon and stations are ignored. If lat/lon are given, stations are
+    ignored. If stations are given, they are used only if neither cached_area nor lat/lon
+    are provided.
 
     If no location parameters are provided, a warning is issued about retrieving the
     entire CA dataset.
@@ -408,6 +412,21 @@ def _compute_simulation_paired_difference(
     pd.DataFrame
         Difference profile with paired simulations
     """
+    # Check for duplicate columns and handle them
+    if not future_profile.columns.is_unique:
+        print(
+            "   ⚠️  Warning: Found duplicate columns in future profile. Removing duplicates."
+        )
+        future_profile = future_profile.loc[:, ~future_profile.columns.duplicated()]
+
+    if not historic_profile.columns.is_unique:
+        print(
+            "   ⚠️  Warning: Found duplicate columns in historic profile. Removing duplicates."
+        )
+        historic_profile = historic_profile.loc[
+            :, ~historic_profile.columns.duplicated()
+        ]
+
     difference_profile = future_profile.copy()
 
     # Get unique simulations from both profiles
@@ -481,6 +500,21 @@ def _compute_warming_level_difference(
     pd.DataFrame
         Difference profile
     """
+    # Check for duplicate columns and handle them
+    if not future_profile.columns.is_unique:
+        print(
+            "   ⚠️  Warning: Found duplicate columns in future profile. Removing duplicates."
+        )
+        future_profile = future_profile.loc[:, ~future_profile.columns.duplicated()]
+
+    if not historic_profile.columns.is_unique:
+        print(
+            "   ⚠️  Warning: Found duplicate columns in historic profile. Removing duplicates."
+        )
+        historic_profile = historic_profile.loc[
+            :, ~historic_profile.columns.duplicated()
+        ]
+
     difference_profile = future_profile.copy()
 
     n_cols = len(future_profile.columns)
@@ -536,6 +570,21 @@ def _compute_mixed_index_difference(
     pd.DataFrame
         Difference profile
     """
+    # Check for duplicate columns and handle them
+    if not future_profile.columns.is_unique:
+        print(
+            "   ⚠️  Warning: Found duplicate columns in future profile. Removing duplicates."
+        )
+        future_profile = future_profile.loc[:, ~future_profile.columns.duplicated()]
+
+    if not historic_profile.columns.is_unique:
+        print(
+            "   ⚠️  Warning: Found duplicate columns in historic profile. Removing duplicates."
+        )
+        historic_profile = historic_profile.loc[
+            :, ~historic_profile.columns.duplicated()
+        ]
+
     difference_profile = future_profile.copy()
 
     n_cols = len(future_profile.columns)
@@ -781,11 +830,14 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
             # Extract the GCM model name (e.g., CESM2, CNRM-ESM2-1, etc.)
             parts = sim_str.split("_")
             if len(parts) >= 2:
-                return parts[1]  # Get the GCM name
+                # Include simulation index to ensure uniqueness
+                return f"{parts[1]}_{sim_idx+1}"  # Get the GCM name with index
             else:
                 return f"Sim_{sim_idx+1}"
         else:
-            return sim_str.split("_")[0] if "_" in sim_str else sim_str
+            # Ensure uniqueness by adding index
+            base_name = sim_str.split("_")[0] if "_" in sim_str else sim_str
+            return f"{base_name}_{sim_idx+1}"
 
     # Process all data using quantile computation across years
     print(
@@ -1075,6 +1127,22 @@ def _create_single_wl_multi_sim_dataframe(
     wl = warming_level
     sim_names = [sim_label_func(sim, i) for i, sim in enumerate(simulations)]
 
+    # Ensure simulation names are unique
+    if len(sim_names) != len(set(sim_names)):
+        print(
+            "   ⚠️  Warning: Duplicate simulation names detected, adding uniqueness suffixes"
+        )
+        unique_sim_names = []
+        name_counts = {}
+        for name in sim_names:
+            if name not in name_counts:
+                name_counts[name] = 0
+                unique_sim_names.append(name)
+            else:
+                name_counts[name] += 1
+                unique_sim_names.append(f"{name}_v{name_counts[name]}")
+        sim_names = unique_sim_names
+
     # Create MultiIndex columns
     col_tuples = [(hour, sim_name) for hour in hours for sim_name in sim_names]
     multi_cols = pd.MultiIndex.from_tuples(col_tuples, names=["Hour", "Simulation"])
@@ -1188,6 +1256,22 @@ def _create_multi_wl_multi_sim_dataframe(
     """
     wl_names = [f"WL_{wl}" for wl in warming_levels]
     sim_names = [sim_label_func(sim, i) for i, sim in enumerate(simulations)]
+
+    # Ensure simulation names are unique
+    if len(sim_names) != len(set(sim_names)):
+        print(
+            "   ⚠️  Warning: Duplicate simulation names detected, adding uniqueness suffixes"
+        )
+        unique_sim_names = []
+        name_counts = {}
+        for name in sim_names:
+            if name not in name_counts:
+                name_counts[name] = 0
+                unique_sim_names.append(name)
+            else:
+                name_counts[name] += 1
+                unique_sim_names.append(f"{name}_v{name_counts[name]}")
+        sim_names = unique_sim_names
 
     # Create MultiIndex columns
     col_tuples = [
