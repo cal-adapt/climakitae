@@ -1324,6 +1324,62 @@ class TestComputeMixedIndexDifference:
         ), "Future should be warmer than historic on average"
 
 
+class TestComputeSimpleDifference:
+    """Test class for _compute_simple_difference function.
+
+    Tests the function that computes differences for profiles with simple
+    (non-MultiIndex) columns, handling both matching and non-matching
+    column scenarios.
+
+    Attributes
+    ----------
+    future_profile : pd.DataFrame
+        Future profile with simple columns.
+    historic_profile : pd.DataFrame
+        Historic profile with simple columns.
+    """
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        hours = list(range(1, 25))
+        
+        # Create future profile with simple columns
+        self.future_profile = pd.DataFrame(
+            np.random.rand(365, 24) + 20.0,
+            index=range(1, 366),
+            columns=hours,
+        )
+
+        # Create historic profile with simple columns (same structure)
+        self.historic_profile = pd.DataFrame(
+            np.random.rand(365, 24) + 15.0,
+            index=range(1, 366),
+            columns=hours,
+        )
+
+    def test_compute_simple_difference_returns_difference_dataframe(self):
+        """Test _compute_simple_difference returns DataFrame with computed differences."""
+        # Execute function
+        result = _compute_simple_difference(self.future_profile, self.historic_profile)
+
+        # Verify outcome: returns DataFrame with differences computed
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert (
+            result.shape == self.future_profile.shape
+        ), "Result shape should match future profile"
+        assert not isinstance(
+            result.columns, pd.MultiIndex
+        ), "Should maintain simple column structure"
+        assert list(result.columns) == list(
+            self.future_profile.columns
+        ), "Should preserve column names"
+
+        # Verify differences are computed (future - historic should be positive on average)
+        assert (
+            result.mean().mean() > 0
+        ), "Future should be warmer than historic on average"
+
+
 class TestFormatBasedOnStructure:
     """Test class for _format_based_on_structure function.
 
