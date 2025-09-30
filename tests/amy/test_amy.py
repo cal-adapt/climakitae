@@ -1052,3 +1052,111 @@ class TestConstructProfileDataframe:
         assert isinstance(result.columns, pd.MultiIndex), "Should have MultiIndex column structure"
         # The function creates a 3-level MultiIndex for this scenario
         assert len(result.columns.levels) >= 2, "Should have at least 2 column levels"
+
+
+class TestStackProfileData:
+    """Test class for _stack_profile_data function.
+    
+    Tests the function that stacks profile data arrays into the appropriate
+    format for DataFrame creation, handling different ordering and dimensions.
+    
+    Attributes
+    ----------
+    profile_data : dict
+        Sample profile data dictionary for testing.
+    """
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        # Create sample profile data - 365 days x 24 hours
+        self.profile_data = {
+            ("WL_1.5", "Sim1"): np.random.rand(365, 24) + 20.0,
+            ("WL_1.5", "Sim2"): np.random.rand(365, 24) + 20.0,
+            ("WL_2.0", "Sim1"): np.random.rand(365, 24) + 22.0,
+            ("WL_2.0", "Sim2"): np.random.rand(365, 24) + 22.0,
+        }
+
+    def test_stack_profile_data_hour_first_two_level(self):
+        """Test _stack_profile_data with hour_first=True and two levels."""
+        # Execute function with hour-first ordering
+        result = _stack_profile_data(
+            profile_data=self.profile_data,
+            hours_per_day=24,
+            wl_names=["WL_1.5", "WL_2.0"],
+            sim_names=["Sim1", "Sim2"],
+            hour_first=True,
+            three_level=False
+        )
+        
+        # Verify outcome: returns 2D array with correct shape
+        assert isinstance(result, np.ndarray), "Should return a numpy array"
+        assert result.shape == (365, 96), "Should have 365 rows and 96 columns (24*2WL*2sim)"
+        assert not np.isnan(result).any(), "Should not contain NaN values"
+        
+        # Check that all values are positive (since input data is 20+ and 22+)
+        assert np.all(result > 0), "All values should be positive"
+
+    def test_stack_profile_data_three_level_structure(self):
+        """Test _stack_profile_data with three_level=True."""
+        # Execute function with three-level structure
+        result = _stack_profile_data(
+            profile_data=self.profile_data,
+            hours_per_day=24,
+            wl_names=["WL_1.5", "WL_2.0"],
+            sim_names=["Sim1", "Sim2"],
+            hour_first=True,
+            three_level=True
+        )
+        
+        # Verify outcome: returns 2D array with proper dimensions
+        assert isinstance(result, np.ndarray), "Should return a numpy array"
+        assert result.shape == (365, 96), "Should have correct total column count"
+        assert result.dtype.kind == 'f', "Should contain floating point data"
+
+    def test_stack_profile_data_handles_single_simulation(self):
+        """Test _stack_profile_data with single simulation."""
+        # Create single simulation profile data
+        single_sim_data = {
+            ("WL_1.5", "Sim1"): np.random.rand(365, 24) + 20.0,
+            ("WL_2.0", "Sim1"): np.random.rand(365, 24) + 22.0,
+        }
+        
+        # Execute function
+        result = _stack_profile_data(
+            profile_data=single_sim_data,
+            hours_per_day=24,
+            wl_names=["WL_1.5", "WL_2.0"],
+            sim_names=["Sim1"],
+            hour_first=True,
+            three_level=False
+        )
+        
+        # Verify outcome: correct dimensions for single simulation
+        assert isinstance(result, np.ndarray), "Should return a numpy array"
+        assert result.shape == (365, 48), "Should have 48 columns (24*2WL*1sim)"
+        assert np.all(result >= 20), "Values should be in expected range"
+
+    def test_stack_profile_data_preserves_data_values(self):
+        """Test _stack_profile_data preserves original data values correctly."""
+        # Create simple test data to verify preservation
+        simple_data = {
+            ("WL_1.5", "Sim1"): np.ones((365, 24)) * 25.0,  # All values = 25
+            ("WL_2.0", "Sim1"): np.ones((365, 24)) * 30.0,  # All values = 30
+        }
+        
+        # Execute function
+        result = _stack_profile_data(
+            profile_data=simple_data,
+            hours_per_day=24,
+            wl_names=["WL_1.5", "WL_2.0"],
+            sim_names=["Sim1"],
+            hour_first=True,
+            three_level=False
+        )
+        
+        # Verify outcome: data values are preserved
+        assert isinstance(result, np.ndarray), "Should return a numpy array"
+        # Check that we have both 25.0 and 30.0 values in the result
+        unique_values = np.unique(result)
+        assert 25.0 in unique_values, "Should preserve 25.0 values from WL_1.5"
+        assert 30.0 in unique_values, "Should preserve 30.0 values from WL_2.0"
