@@ -2090,6 +2090,54 @@ class TestFindMatchingHistoricValue:
                 f"Hour {hour} should exist in historic profile"
             )
 
+    def test_find_matching_historic_value_with_numeric_hour_matching(self):
+        """Test _find_matching_historic_value with numeric hour conversion."""
+        # Create future profile with string hour identifiers
+        string_hours = ['1am', '12pm', '11pm']
+        warming_levels = [2.0]
+        simulations = ['sim1']
+
+        future_cols_str = pd.MultiIndex.from_product(
+            [string_hours, warming_levels, simulations],
+            names=['Hour', 'Warming_Level', 'Simulation'],
+        )
+        future_profile_str = pd.DataFrame(
+            np.random.rand(10, len(future_cols_str)) + 20.0,
+            index=range(1, 11),
+            columns=future_cols_str,
+        )
+
+        # Create historic profile with numeric hours
+        numeric_hours = [1, 12, 11]  # Corresponding to 1am, 12pm, 11pm
+        historic_profile_numeric = pd.DataFrame(
+            np.random.rand(10, len(numeric_hours)) + 15.0,
+            index=range(1, 11),
+            columns=numeric_hours,
+        )
+
+        # Test numeric conversion matching
+        test_cases = [
+            ('1am', 1),     # '1am' should match numeric 1
+            ('12pm', 12),   # '12pm' should match numeric 12
+            ('11pm', 11),   # '11pm' should match numeric 11
+        ]
+
+        for string_hour, numeric_hour in test_cases:
+            future_col = (string_hour, 2.0, 'sim1')
+            
+            # Execute function
+            result = _find_matching_historic_value(
+                future_col, future_profile_str, historic_profile_numeric
+            )
+
+            # Verify outcome: matches converted numeric hour
+            assert isinstance(result, pd.Series), f"Should return Series for {future_col}"
+            expected_series = historic_profile_numeric[numeric_hour]
+            pd.testing.assert_series_equal(
+                result, expected_series, 
+                check_names=False
+            )
+
 
 class TestFormatBasedOnStructure:
     """Test class for _format_based_on_structure function.
