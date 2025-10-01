@@ -1765,24 +1765,25 @@ class TestGetHistoricHourMean:
     def setup_method(self):
         """Set up test fixtures."""
         hours = [1, 12, 24]
-        simulations = ['sim1', 'sim2', 'sim3']
+        simulations = ["sim1", "sim2", "sim3"]
 
         # Create historic profile with (Hour, Simulation) MultiIndex structure
         historic_cols = pd.MultiIndex.from_product(
-            [hours, simulations], names=['Hour', 'Simulation']
+            [hours, simulations], names=["Hour", "Simulation"]
         )
         # Use predictable values for testing means
         self.historic_with_sim = pd.DataFrame(
-            [[10.0, 20.0, 30.0, 15.0, 25.0, 35.0, 5.0, 15.0, 25.0],  # Row 1
-             [12.0, 22.0, 32.0, 17.0, 27.0, 37.0, 7.0, 17.0, 27.0]],  # Row 2
+            [
+                [10.0, 20.0, 30.0, 15.0, 25.0, 35.0, 5.0, 15.0, 25.0],  # Row 1
+                [12.0, 22.0, 32.0, 17.0, 27.0, 37.0, 7.0, 17.0, 27.0],
+            ],  # Row 2
             index=[1, 2],
             columns=historic_cols,
         )
 
         # Create simple historic profile with hour columns
         self.historic_simple = pd.DataFrame(
-            [[100.0, 200.0, 300.0],  # Row 1
-             [110.0, 210.0, 310.0]],  # Row 2
+            [[100.0, 200.0, 300.0], [110.0, 210.0, 310.0]],  # Row 1  # Row 2
             index=[1, 2],
             columns=hours,
         )
@@ -1790,106 +1791,108 @@ class TestGetHistoricHourMean:
     def test_get_historic_hour_mean_returns_series(self):
         """Test _get_historic_hour_mean returns pd.Series."""
         # Test with MultiIndex structure
-        historic_levels = ['Hour', 'Simulation']
+        historic_levels = ["Hour", "Simulation"]
         hour = 1
 
         # Execute function
-        result = _get_historic_hour_mean(
-            self.historic_with_sim, historic_levels, hour
-        )
+        result = _get_historic_hour_mean(self.historic_with_sim, historic_levels, hour)
 
         # Verify outcome: returns pd.Series
         assert isinstance(result, pd.Series), "Should return a pandas Series"
         # xs extracts all columns for hour 1, then mean() computes mean across rows
         # Result should have one value per simulation (3 simulations)
         assert len(result) == 3, "Should have one value per simulation"
-        assert result.index.name == 'Simulation', "Index should be Simulation level"
+        assert result.index.name == "Simulation", "Index should be Simulation level"
 
         # Test with simple structure
-        historic_levels = ['Hour']
+        historic_levels = ["Hour"]
         result_simple = _get_historic_hour_mean(
             self.historic_simple, historic_levels, hour
         )
 
         # Verify outcome: also returns pd.Series (converted from single column)
-        assert isinstance(result_simple, pd.Series), "Should return a pandas Series for simple structure"
-        assert len(result_simple) == 2, "Should have same number of rows as input DataFrame"
+        assert isinstance(
+            result_simple, pd.Series
+        ), "Should return a pandas Series for simple structure"
+        assert (
+            len(result_simple) == 2
+        ), "Should have same number of rows as input DataFrame"
 
     def test_get_historic_hour_mean_with_simulation_levels(self):
         """Test _get_historic_hour_mean with Simulation levels computes correct means."""
-        historic_levels = ['Hour', 'Simulation']
-        
+        historic_levels = ["Hour", "Simulation"]
+
         # Test specific hours to verify mean calculation
         test_cases = [
             # Hour 1: columns (1, sim1), (1, sim2), (1, sim3)
             # Row 1 values: [10.0, 20.0, 30.0], Row 2 values: [12.0, 22.0, 32.0]
             # Expected means: sim1=11.0, sim2=21.0, sim3=31.0
-            {
-                'hour': 1,
-                'expected_means': {'sim1': 11.0, 'sim2': 21.0, 'sim3': 31.0}
-            },
+            {"hour": 1, "expected_means": {"sim1": 11.0, "sim2": 21.0, "sim3": 31.0}},
             # Hour 12: columns (12, sim1), (12, sim2), (12, sim3)
             # Row 1 values: [15.0, 25.0, 35.0], Row 2 values: [17.0, 27.0, 37.0]
             # Expected means: sim1=16.0, sim2=26.0, sim3=36.0
-            {
-                'hour': 12,
-                'expected_means': {'sim1': 16.0, 'sim2': 26.0, 'sim3': 36.0}
-            },
+            {"hour": 12, "expected_means": {"sim1": 16.0, "sim2": 26.0, "sim3": 36.0}},
         ]
 
         for case in test_cases:
             # Execute function
             result = _get_historic_hour_mean(
-                self.historic_with_sim, historic_levels, case['hour']
+                self.historic_with_sim, historic_levels, case["hour"]
             )
 
             # Verify outcome: correct mean calculation
-            assert isinstance(result, pd.Series), f"Should return pd.Series for hour {case['hour']}"
-            assert result.index.name == 'Simulation', f"Index should be Simulation level for hour {case['hour']}"
-            
+            assert isinstance(
+                result, pd.Series
+            ), f"Should return pd.Series for hour {case['hour']}"
+            assert (
+                result.index.name == "Simulation"
+            ), f"Index should be Simulation level for hour {case['hour']}"
+
             # Check specific mean values
-            for sim, expected_mean in case['expected_means'].items():
+            for sim, expected_mean in case["expected_means"].items():
                 actual_mean = result[sim]
-                assert abs(actual_mean - expected_mean) < 0.001, (
-                    f"Hour {case['hour']}, Simulation {sim}: expected {expected_mean}, got {actual_mean}"
-                )
+                assert (
+                    abs(actual_mean - expected_mean) < 0.001
+                ), f"Hour {case['hour']}, Simulation {sim}: expected {expected_mean}, got {actual_mean}"
 
     def test_get_historic_hour_mean_without_simulation_levels(self):
         """Test _get_historic_hour_mean without Simulation levels returns specific column."""
-        historic_levels = ['Hour']  # No Simulation level
-        
+        historic_levels = ["Hour"]  # No Simulation level
+
         # Test specific hours from simple historic profile
         test_cases = [
             # Hour 1: column values [100.0, 110.0] (both rows)
-            {'hour': 1, 'expected_values': [100.0, 110.0]},
-            # Hour 12: column values [200.0, 210.0] (both rows)  
-            {'hour': 12, 'expected_values': [200.0, 210.0]},
+            {"hour": 1, "expected_values": [100.0, 110.0]},
+            # Hour 12: column values [200.0, 210.0] (both rows)
+            {"hour": 12, "expected_values": [200.0, 210.0]},
             # Hour 24: column values [300.0, 310.0] (both rows)
-            {'hour': 24, 'expected_values': [300.0, 310.0]},
+            {"hour": 24, "expected_values": [300.0, 310.0]},
         ]
 
         for case in test_cases:
             # Execute function
             result = _get_historic_hour_mean(
-                self.historic_simple, historic_levels, case['hour']
+                self.historic_simple, historic_levels, case["hour"]
             )
 
             # Verify outcome: returns specific column as Series
-            assert isinstance(result, pd.Series), f"Should return pd.Series for hour {case['hour']}"
+            assert isinstance(
+                result, pd.Series
+            ), f"Should return pd.Series for hour {case['hour']}"
             assert len(result) == 2, f"Should have 2 values for hour {case['hour']}"
-            
+
             # Check specific column values
-            for i, expected_value in enumerate(case['expected_values']):
+            for i, expected_value in enumerate(case["expected_values"]):
                 actual_value = result.iloc[i]
-                assert abs(actual_value - expected_value) < 0.001, (
-                    f"Hour {case['hour']}, Row {i}: expected {expected_value}, got {actual_value}"
-                )
+                assert (
+                    abs(actual_value - expected_value) < 0.001
+                ), f"Hour {case['hour']}, Row {i}: expected {expected_value}, got {actual_value}"
 
     def test_get_historic_hour_mean_with_missing_hour(self):
         """Test _get_historic_hour_mean when requested hour doesn't exist returns 0."""
         # Test with simple structure (no Simulation levels)
-        historic_levels = ['Hour']
-        nonexistent_hours = [5, 999, 'nonexistent_hour']
+        historic_levels = ["Hour"]
+        nonexistent_hours = [5, 999, "nonexistent_hour"]
 
         for missing_hour in nonexistent_hours:
             # Execute function
@@ -1899,26 +1902,163 @@ class TestGetHistoricHourMean:
 
             # Verify outcome: returns 0 when hour doesn't exist
             if isinstance(result, pd.Series):
-                assert (result == 0).all(), f"Should return 0 for missing hour {missing_hour}"
+                assert (
+                    result == 0
+                ).all(), f"Should return 0 for missing hour {missing_hour}"
             else:
                 assert result == 0, f"Should return 0 for missing hour {missing_hour}"
 
         # Test with MultiIndex structure - should raise error when trying to use xs with missing level
-        historic_levels = ['Hour', 'Simulation']
-        
+        historic_levels = ["Hour", "Simulation"]
+
         for missing_hour in [5, 999]:  # Test numeric missing hours
             try:
                 result = _get_historic_hour_mean(
                     self.historic_with_sim, historic_levels, missing_hour
                 )
                 # If no exception, the function handled it gracefully (may return empty Series)
-                assert isinstance(result, (pd.Series, type(None), int)), (
-                    f"Should handle missing hour {missing_hour} gracefully"
-                )
+                assert isinstance(
+                    result, (pd.Series, type(None), int)
+                ), f"Should handle missing hour {missing_hour} gracefully"
             except KeyError:
                 # KeyError is expected when using xs with missing level
                 # This documents the current behavior
-                assert True, f"KeyError expected for missing hour {missing_hour} in MultiIndex"
+                assert (
+                    True
+                ), f"KeyError expected for missing hour {missing_hour} in MultiIndex"
+
+    def test_get_historic_hour_mean_with_different_hour_types(self):
+        """Test _get_historic_hour_mean with various hour identifier types."""
+        # Create historic profile with different hour column types
+        mixed_hours = [1, "12", 24.0]  # int, string, float
+        mixed_hour_profile = pd.DataFrame(
+            [[100.0, 200.0, 300.0], [110.0, 210.0, 310.0]],  # Row 1  # Row 2
+            index=[1, 2],
+            columns=mixed_hours,
+        )
+
+        historic_levels = ["Hour"]
+
+        # Test cases with different hour identifier types
+        test_cases = [
+            # Integer hour
+            {
+                "hour": 1,
+                "expected_values": [100.0, 110.0],
+                "description": "integer hour",
+            },
+            # String hour
+            {
+                "hour": "12",
+                "expected_values": [200.0, 210.0],
+                "description": "string hour",
+            },
+            # Float hour
+            {
+                "hour": 24.0,
+                "expected_values": [300.0, 310.0],
+                "description": "float hour",
+            },
+        ]
+
+        for case in test_cases:
+            # Execute function
+            result = _get_historic_hour_mean(
+                mixed_hour_profile, historic_levels, case["hour"]
+            )
+
+            # Verify outcome: function handles different hour types correctly
+            assert isinstance(
+                result, pd.Series
+            ), f"Should return pd.Series for {case['description']}"
+            assert len(result) == 2, f"Should have 2 values for {case['description']}"
+
+            # Check specific column values
+            for i, expected_value in enumerate(case["expected_values"]):
+                actual_value = result.iloc[i]
+                assert (
+                    abs(actual_value - expected_value) < 0.001
+                ), f"{case['description']}, Row {i}: expected {expected_value}, got {actual_value}"
+
+        # Test type compatibility - string matching numeric should not work
+        # (This documents current behavior - pandas is strict about index matching)
+        try:
+            result = _get_historic_hour_mean(
+                mixed_hour_profile, historic_levels, "1"
+            )  # String '1' not int 1
+            # If no exception, should return 0 (missing hour behavior)
+            if isinstance(result, pd.Series):
+                assert (result == 0).all(), "String '1' should not match int 1 column"
+            else:
+                assert result == 0, "String '1' should not match int 1 column"
+        except (KeyError, TypeError):
+            # Exception is acceptable - documents type strictness
+            assert (
+                True
+            ), "Type mismatch between hour identifier and column type is handled"
+
+
+class TestFindMatchingHistoricValue:
+    """Test class for _find_matching_historic_value function.
+
+    Tests the function that finds matching historic values for future columns
+    when dealing with mixed index types, handling hour-based matching, 
+    numeric conversions, and positional fallbacks.
+
+    Attributes
+    ----------
+    future_profile : pd.DataFrame
+        Future profile with MultiIndex columns for testing.
+    historic_profile : pd.DataFrame
+        Historic profile with simple columns for testing.
+    """
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        hours = list(range(1, 25))
+        warming_levels = [1.5, 2.0]
+        simulations = ['sim1', 'sim2']
+
+        # Create future profile with (Hour, Warming_Level, Simulation) MultiIndex
+        future_cols = pd.MultiIndex.from_product(
+            [hours, warming_levels, simulations],
+            names=['Hour', 'Warming_Level', 'Simulation'],
+        )
+        self.future_profile = pd.DataFrame(
+            np.random.rand(10, len(future_cols)) + 20.0,
+            index=range(1, 11),
+            columns=future_cols,
+        )
+
+        # Create historic profile with simple hour columns
+        self.historic_profile = pd.DataFrame(
+            np.random.rand(10, 24) + 15.0,
+            index=range(1, 11),
+            columns=hours,
+        )
+
+    def test_find_matching_historic_value_returns_series(self):
+        """Test _find_matching_historic_value returns pd.Series."""
+        # Test with a future column that has Hour level
+        future_col = (1, 1.5, 'sim1')  # (Hour, Warming_Level, Simulation)
+
+        # Execute function
+        result = _find_matching_historic_value(
+            future_col, self.future_profile, self.historic_profile
+        )
+
+        # Verify outcome: returns a pandas Series
+        assert isinstance(result, pd.Series), "Should return a pandas Series"
+        assert len(result) == self.historic_profile.shape[0], (
+            "Series length should match historic profile rows"
+        )
+        
+        # Verify it contains the correct historic data for hour 1
+        expected_series = self.historic_profile[1]
+        pd.testing.assert_series_equal(
+            result, expected_series, 
+            check_names=False
+        )
 
 
 class TestFormatBasedOnStructure:
