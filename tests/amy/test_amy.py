@@ -3438,3 +3438,39 @@ class TestCreateMultiWlMultiSimDataframe:
         # With 3 warming levels, 2 simulations, and 24 hours: 24 * 3 * 2 = 144 columns
         expected_cols = 24 * len(self.warming_levels) * len(self.simulations)
         assert result.shape[1] == expected_cols, f"Should have {expected_cols} columns"
+    
+    def test_multiindex_structure(self):
+        """Test that DataFrame has proper (Hour, Warming_Level, Simulation) MultiIndex structure."""
+        # Execute function
+        result = _create_multi_wl_multi_sim_dataframe(
+            profile_data=self.profile_data,
+            warming_levels=self.warming_levels,
+            simulations=self.simulations,
+            sim_label_func=self.mock_sim_label_func,
+            days_in_year=self.days_in_year,
+            hours=self.hours,
+            hours_per_day=self.hours_per_day,
+        )
+        
+        # Verify outcome: proper MultiIndex structure
+        assert isinstance(result.columns, pd.MultiIndex), "Should have MultiIndex columns"
+        assert result.columns.names == ["Hour", "Warming_Level", "Simulation"], "Should have three levels: Hour, Warming_Level, Simulation"
+        
+        # Verify all hours are present
+        unique_hours = result.columns.get_level_values("Hour").unique()
+        assert len(unique_hours) == 24, "Should have 24 unique hours"
+        assert all(h in unique_hours for h in range(1, 25)), "Should have hours 1-24"
+        
+        # Verify all warming levels are present
+        unique_wls = result.columns.get_level_values("Warming_Level").unique()
+        expected_wl_names = [f"WL_{wl}" for wl in self.warming_levels]
+        assert len(unique_wls) == len(self.warming_levels), f"Should have {len(self.warming_levels)} warming levels"
+        for wl_name in expected_wl_names:
+            assert wl_name in unique_wls, f"Should contain warming level {wl_name}"
+        
+        # Verify all simulations are present
+        unique_sims = result.columns.get_level_values("Simulation").unique()
+        expected_sim_names = [f"Simulation_{sim}" for sim in self.simulations]
+        assert len(unique_sims) == len(self.simulations), f"Should have {len(self.simulations)} simulations"
+        for sim_name in expected_sim_names:
+            assert sim_name in unique_sims, f"Should contain simulation {sim_name}"
