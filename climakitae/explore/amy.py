@@ -1,8 +1,9 @@
 """
-Calculates the Average Meterological Year (AMY) and Severe Meteorological Year (SMY) for
-the Cal-Adapt: Analytics Engine using a standard climatological period (1981-2010) for
-the historical baseline, and uses a 30-year window around when a designated warming
-level is exceeded for the SSP3-7.0 future scenario for 1.5°C, 2°C, and 3°C.
+Calculates the Quantiled Climate Profiles using a warming level approach. The historical
+baseline for relative profile computation is a warming level of 1.2 C. User specified
+warming level will be calculated relative to this baseline unless the "no_delta" option
+is set to True, in which case the raw profile(s) for the requested warming level(s) will
+be returned.
 """
 
 from typing import Tuple
@@ -1375,7 +1376,35 @@ def _stack_profile_data(
 
 
 def _format_meteo_yr_df(df: pd.DataFrame) -> pd.DataFrame:
-    """Format dataframe output from compute_amy and compute_severe_yr"""
+    """
+    Format meteorological yearly dataframe for display with readable time labels.
+
+    This function reformats a dataframe output from compute_amy and compute_severe_yr
+    by reordering columns to PST time format, converting numeric hour columns to
+    12-hour AM/PM format, and converting Julian day indices to Month-Day format.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input dataframe with meteorological data. Expected to have 24 columns
+        representing hours (0-23) and Julian day indices (1-365 or 1-366).
+
+    Returns
+    -------
+    pd.DataFrame
+        Formatted dataframe with:
+        - Columns reordered and labeled in 12-hour AM/PM format (12am, 1am, ..., 11pm)
+        - Column name set to "Hour"
+        - Index converted from Julian days to "Month-Day" format (e.g., "Jan-01")
+        - Index name set to "Day of Year"
+        - Uses leap year (2024) for 366-day datasets, otherwise uses 2023
+
+    Notes
+    -----
+    The function assumes the input dataframe has exactly 24 columns representing
+    hourly data, with the first 7 columns corresponding to hours 17-23 (5pm-11pm)
+    and the last 17 columns corresponding to hours 0-16 (12am-4pm).
+    """
     ## Re-order columns for PST, with easy to read time labels
     cols = df.columns.tolist()
     cols = cols[7:] + cols[:7]
