@@ -3553,3 +3553,68 @@ class TestCreateMultiWlMultiSimDataframe:
                         
                         assert abs(result_value - expected_value) < 0.001, \
                             f"Value mismatch at day={day}, hour={hour}, wl={wl}, sim={sim}: expected {expected_value}, got {result_value}"
+    
+    def test_complex_combinations(self):
+        """Test various complex combinations of warming levels and simulations."""
+        # Test different scenarios with varying numbers of warming levels and simulations
+        test_scenarios = [
+            {
+                "name": "single_wl_single_sim",
+                "warming_levels": np.array([2.0]),
+                "simulations": ["sim1"],
+                "expected_cols": 24,  # 24 hours * 1 WL * 1 sim
+            },
+            {
+                "name": "many_wls_many_sims",
+                "warming_levels": np.array([1.0, 1.5, 2.0, 2.5, 3.0]),
+                "simulations": ["sim1", "sim2", "sim3", "sim4"],
+                "expected_cols": 480,  # 24 hours * 5 WLs * 4 sims
+            },
+            {
+                "name": "two_wls_three_sims",
+                "warming_levels": np.array([1.5, 3.0]),
+                "simulations": ["sim1", "sim2", "sim3"],
+                "expected_cols": 144,  # 24 hours * 2 WLs * 3 sims
+            },
+        ]
+        
+        for scenario in test_scenarios:
+            # Create profile data for this scenario
+            scenario_profile_data = {}
+            
+            for wl in scenario["warming_levels"]:
+                wl_key = f"WL_{wl}"
+                for sim in scenario["simulations"]:
+                    sim_label = f"Simulation_{sim}"
+                    profile_matrix = np.random.rand(365, 24) + 20.0 + wl
+                    scenario_profile_data[(wl_key, sim_label)] = profile_matrix
+            
+            # Execute function
+            result = _create_multi_wl_multi_sim_dataframe(
+                profile_data=scenario_profile_data,
+                warming_levels=scenario["warming_levels"],
+                simulations=scenario["simulations"],
+                sim_label_func=self.mock_sim_label_func,
+                days_in_year=self.days_in_year,
+                hours=self.hours,
+                hours_per_day=self.hours_per_day,
+            )
+            
+            # Verify outcome for this scenario
+            assert isinstance(result, pd.DataFrame), f"Should return DataFrame for {scenario['name']}"
+            assert result.shape[0] == 365, f"Should have 365 rows for {scenario['name']}"
+            assert result.shape[1] == scenario["expected_cols"], f"Should have {scenario['expected_cols']} columns for {scenario['name']}"
+            
+            # Verify MultiIndex structure
+            assert isinstance(result.columns, pd.MultiIndex), f"Should have MultiIndex columns for {scenario['name']}"
+            assert result.columns.names == ["Hour", "Warming_Level", "Simulation"], f"Should have correct level names for {scenario['name']}"
+            
+            # Verify correct number of unique values in each level
+            unique_hours = result.columns.get_level_values("Hour").unique()
+            assert len(unique_hours) == 24, f"Should have 24 hours for {scenario['name']}"
+            
+            unique_wls = result.columns.get_level_values("Warming_Level").unique()
+            assert len(unique_wls) == len(scenario["warming_levels"]), f"Should have {len(scenario['warming_levels'])} warming levels for {scenario['name']}"
+            
+            unique_sims = result.columns.get_level_values("Simulation").unique()
+            assert len(unique_sims) == len(scenario["simulations"]), f"Should have {len(scenario['simulations'])} simulations for {scenario['name']}"
