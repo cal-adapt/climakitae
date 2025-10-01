@@ -2783,3 +2783,58 @@ class TestCreateSimpleDataframe:
         # Verify proper index for leap year
         expected_leap_index = np.arange(1, 367, 1)  # 1 to 366
         np.testing.assert_array_equal(result_leap.index.values, expected_leap_index)
+
+    def test_create_simple_dataframe_with_different_year_lengths(self):
+        """Test _create_simple_dataframe with different days_in_year parameter values."""
+        # Test with various year lengths
+        year_length_scenarios = [
+            {"days": 365, "description": "regular year"},
+            {"days": 366, "description": "leap year"},
+            {"days": 360, "description": "simplified calendar year"},
+            {"days": 300, "description": "partial year"},
+        ]
+        
+        for scenario in year_length_scenarios:
+            days = scenario["days"]
+            description = scenario["description"]
+            
+            # Create profile data matching the year length
+            profile_matrix = np.random.rand(days, 24) + 18.0
+            test_data = {
+                ("WL_2.0", "Sim1"): profile_matrix
+            }
+            
+            # Execute function
+            result = _create_simple_dataframe(
+                profile_data=test_data,
+                warming_level=self.warming_level,
+                simulation=self.simulation,
+                sim_label_func=self.sim_label_func,
+                days_in_year=days,
+                hours=self.hours,
+            )
+            
+            # Verify outcome: correct dimensions for each scenario
+            assert isinstance(result, pd.DataFrame), f"Should return DataFrame for {description}"
+            assert result.shape == (days, 24), f"Should have {days} rows for {description}"
+            assert result.shape[1] == 24, f"Should have 24 columns for {description}"
+            
+            # Verify proper index generation
+            expected_index = np.arange(1, days + 1, 1)
+            np.testing.assert_array_equal(
+                result.index.values, expected_index,
+                err_msg=f"Index should be 1 to {days} for {description}"
+            )
+            
+            # Verify columns remain consistent regardless of year length
+            expected_columns = np.arange(1, 25, 1)
+            np.testing.assert_array_equal(
+                result.columns.values, expected_columns,
+                err_msg=f"Columns should always be 1-24 for {description}"
+            )
+            
+            # Verify data values are preserved
+            np.testing.assert_array_equal(
+                result.values, profile_matrix,
+                err_msg=f"Data values should be preserved for {description}"
+            )
