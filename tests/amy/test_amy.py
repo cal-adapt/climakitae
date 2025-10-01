@@ -2732,3 +2732,54 @@ class TestCreateSimpleDataframe:
         # Verify all results have different data but same structure
         assert not result_wl.equals(result_sim), "Different scenarios should produce different data"
         assert list(result_wl.columns) == list(result_sim.columns), "Columns should be identical"
+
+    def test_create_simple_dataframe_preserves_data(self):
+        """Test _create_simple_dataframe preserves data values correctly."""
+        # Create profile data with known values for verification
+        test_data = np.ones((365, 24)) * 42.5  # All values set to 42.5
+        test_profile_data = {
+            ("WL_2.0", "Sim1"): test_data
+        }
+        
+        # Execute function
+        result = _create_simple_dataframe(
+            profile_data=test_profile_data,
+            warming_level=self.warming_level,
+            simulation=self.simulation,
+            sim_label_func=self.sim_label_func,
+            days_in_year=365,
+            hours=self.hours,
+        )
+        
+        # Verify outcome: data values are preserved correctly
+        assert isinstance(result, pd.DataFrame), "Should return DataFrame"
+        
+        # Check that all values in the DataFrame match the original data
+        assert np.all(result.values == 42.5), "All values should be 42.5"
+        
+        # Verify shape matches original profile matrix
+        assert result.shape == test_data.shape, "Shape should match original profile matrix"
+        
+        # Test with different profile matrix size (leap year)
+        leap_year_data = np.ones((366, 24)) * 33.7  # Leap year with different values
+        leap_year_profile_data = {
+            ("WL_2.0", "Sim1"): leap_year_data
+        }
+        
+        # Execute function with leap year data
+        result_leap = _create_simple_dataframe(
+            profile_data=leap_year_profile_data,
+            warming_level=self.warming_level,
+            simulation=self.simulation,
+            sim_label_func=self.sim_label_func,
+            days_in_year=366,  # Leap year
+            hours=self.hours,
+        )
+        
+        # Verify outcome: handles different matrix sizes correctly
+        assert result_leap.shape == (366, 24), "Should handle leap year shape (366 days)"
+        assert np.all(result_leap.values == 33.7), "All leap year values should be 33.7"
+        
+        # Verify proper index for leap year
+        expected_leap_index = np.arange(1, 367, 1)  # 1 to 366
+        np.testing.assert_array_equal(result_leap.index.values, expected_leap_index)
