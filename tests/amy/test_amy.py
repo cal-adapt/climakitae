@@ -2660,3 +2660,28 @@ class TestCreateSimpleDataframe:
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
         assert result.shape[0] > 0, "DataFrame should have rows"
         assert result.shape[1] > 0, "DataFrame should have columns"
+
+    def test_create_simple_dataframe_with_proper_structure(self):
+        """Test _create_simple_dataframe with correct DataFrame structure."""
+        # Execute function
+        result = _create_simple_dataframe(
+            profile_data=self.profile_data,
+            warming_level=self.warming_level,
+            simulation=self.simulation,
+            sim_label_func=self.sim_label_func,
+            days_in_year=365,
+            hours=self.hours,
+        )
+
+        # Verify outcome: correct DataFrame structure
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert result.shape == (365, 24), "Should have 365 rows (days) and 24 columns (hours)"
+        assert not isinstance(result.columns, pd.MultiIndex), "Should have simple column structure"
+        
+        # Verify index structure (days 1-365)
+        expected_index = np.arange(1, 366, 1)
+        np.testing.assert_array_equal(result.index.values, expected_index)
+        
+        # Verify column structure (hours 1-24)
+        expected_columns = np.arange(1, 25, 1)
+        np.testing.assert_array_equal(result.columns.values, expected_columns)
