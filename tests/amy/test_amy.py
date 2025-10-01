@@ -3672,3 +3672,31 @@ class TestFormatMeteoYrDf:
         # Verify metadata
         assert result.columns.name == "Hour", "Column name should be 'Hour'"
         assert result.index.name == "Day of Year", "Index name should be 'Day of Year'"
+    
+    def test_formats_columns_with_ampm(self):
+        """Test proper column reordering and AM/PM formatting."""
+        # Execute function
+        result = _format_meteo_yr_df(self.sample_df_365.copy())
+        
+        # Verify outcome: columns are in correct 12-hour AM/PM format
+        expected_columns = [
+            '12am', '1am', '2am', '3am', '4am', '5am', '6am', '7am', '8am', '9am', '10am', '11am',
+            '12pm', '1pm', '2pm', '3pm', '4pm', '5pm', '6pm', '7pm', '8pm', '9pm', '10pm', '11pm'
+        ]
+        
+        assert list(result.columns) == expected_columns, "Columns should be in correct 12-hour AM/PM format"
+        
+        # Verify column ordering starts at 12am (midnight)
+        assert result.columns[0] == '12am', "First column should be 12am"
+        assert result.columns[12] == '12pm', "13th column should be 12pm (noon)"
+        assert result.columns[-1] == '11pm', "Last column should be 11pm"
+        
+        # Verify all AM hours come before PM hours
+        am_columns = [col for col in result.columns if 'am' in col]
+        pm_columns = [col for col in result.columns if 'pm' in col]
+        assert len(am_columns) == 12, "Should have 12 AM hours"
+        assert len(pm_columns) == 12, "Should have 12 PM hours"
+        
+        # Verify the first 12 columns are AM and last 12 are PM
+        assert all('am' in col for col in result.columns[:12]), "First 12 columns should be AM"
+        assert all('pm' in col for col in result.columns[12:]), "Last 12 columns should be PM"
