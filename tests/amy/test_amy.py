@@ -11,6 +11,7 @@ import numpy as np
 import xarray as xr
 from unittest.mock import MagicMock, patch
 
+
 from climakitae.explore.amy import (
     retrieve_profile_data,
     get_climate_profile,
@@ -2002,7 +2003,7 @@ class TestFindMatchingHistoricValue:
     """Test class for _find_matching_historic_value function.
 
     Tests the function that finds matching historic values for future columns
-    when dealing with mixed index types, handling hour-based matching, 
+    when dealing with mixed index types, handling hour-based matching,
     numeric conversions, and positional fallbacks.
 
     Attributes
@@ -2017,12 +2018,12 @@ class TestFindMatchingHistoricValue:
         """Set up test fixtures."""
         hours = list(range(1, 25))
         warming_levels = [1.5, 2.0]
-        simulations = ['sim1', 'sim2']
+        simulations = ["sim1", "sim2"]
 
         # Create future profile with (Hour, Warming_Level, Simulation) MultiIndex
         future_cols = pd.MultiIndex.from_product(
             [hours, warming_levels, simulations],
-            names=['Hour', 'Warming_Level', 'Simulation'],
+            names=["Hour", "Warming_Level", "Simulation"],
         )
         self.future_profile = pd.DataFrame(
             np.random.rand(10, len(future_cols)) + 20.0,
@@ -2040,7 +2041,7 @@ class TestFindMatchingHistoricValue:
     def test_find_matching_historic_value_returns_series(self):
         """Test _find_matching_historic_value returns pd.Series."""
         # Test with a future column that has Hour level
-        future_col = (1, 1.5, 'sim1')  # (Hour, Warming_Level, Simulation)
+        future_col = (1, 1.5, "sim1")  # (Hour, Warming_Level, Simulation)
 
         # Execute function
         result = _find_matching_historic_value(
@@ -2049,57 +2050,53 @@ class TestFindMatchingHistoricValue:
 
         # Verify outcome: returns a pandas Series
         assert isinstance(result, pd.Series), "Should return a pandas Series"
-        assert len(result) == self.historic_profile.shape[0], (
-            "Series length should match historic profile rows"
-        )
-        
+        assert (
+            len(result) == self.historic_profile.shape[0]
+        ), "Series length should match historic profile rows"
+
         # Verify it contains the correct historic data for hour 1
         expected_series = self.historic_profile[1]
-        pd.testing.assert_series_equal(
-            result, expected_series, 
-            check_names=False
-        )
+        pd.testing.assert_series_equal(result, expected_series, check_names=False)
 
     def test_find_matching_historic_value_with_hour_level(self):
         """Test _find_matching_historic_value with Hour level direct matching."""
         # Test various hour matches
         test_cases = [
-            (1, 1.5, 'sim1'),   # First hour
-            (12, 2.0, 'sim2'),  # Middle hour
-            (24, 1.5, 'sim1'),  # Last hour
+            (1, 1.5, "sim1"),  # First hour
+            (12, 2.0, "sim2"),  # Middle hour
+            (24, 1.5, "sim1"),  # Last hour
         ]
 
         for future_col in test_cases:
             hour = future_col[0]  # Extract hour from future column
-            
+
             # Execute function
             result = _find_matching_historic_value(
                 future_col, self.future_profile, self.historic_profile
             )
 
             # Verify outcome: returns correct historic data for the hour
-            assert isinstance(result, pd.Series), f"Should return Series for {future_col}"
+            assert isinstance(
+                result, pd.Series
+            ), f"Should return Series for {future_col}"
             expected_series = self.historic_profile[hour]
-            pd.testing.assert_series_equal(
-                result, expected_series, 
-                check_names=False
-            )
-            
+            pd.testing.assert_series_equal(result, expected_series, check_names=False)
+
             # Verify the series contains the expected hour's data
-            assert hour in self.historic_profile.columns, (
-                f"Hour {hour} should exist in historic profile"
-            )
+            assert (
+                hour in self.historic_profile.columns
+            ), f"Hour {hour} should exist in historic profile"
 
     def test_find_matching_historic_value_with_numeric_hour_matching(self):
         """Test _find_matching_historic_value with numeric hour conversion."""
         # Create future profile with string hour identifiers
-        string_hours = ['1am', '12pm', '11pm']
+        string_hours = ["1am", "12pm", "11pm"]
         warming_levels = [2.0]
-        simulations = ['sim1']
+        simulations = ["sim1"]
 
         future_cols_str = pd.MultiIndex.from_product(
             [string_hours, warming_levels, simulations],
-            names=['Hour', 'Warming_Level', 'Simulation'],
+            names=["Hour", "Warming_Level", "Simulation"],
         )
         future_profile_str = pd.DataFrame(
             np.random.rand(10, len(future_cols_str)) + 20.0,
@@ -2117,37 +2114,36 @@ class TestFindMatchingHistoricValue:
 
         # Test numeric conversion matching
         test_cases = [
-            ('1am', 1),     # '1am' should match numeric 1
-            ('12pm', 12),   # '12pm' should match numeric 12
-            ('11pm', 11),   # '11pm' should match numeric 11
+            ("1am", 1),  # '1am' should match numeric 1
+            ("12pm", 12),  # '12pm' should match numeric 12
+            ("11pm", 11),  # '11pm' should match numeric 11
         ]
 
         for string_hour, numeric_hour in test_cases:
-            future_col = (string_hour, 2.0, 'sim1')
-            
+            future_col = (string_hour, 2.0, "sim1")
+
             # Execute function
             result = _find_matching_historic_value(
                 future_col, future_profile_str, historic_profile_numeric
             )
 
             # Verify outcome: matches converted numeric hour
-            assert isinstance(result, pd.Series), f"Should return Series for {future_col}"
+            assert isinstance(
+                result, pd.Series
+            ), f"Should return Series for {future_col}"
             expected_series = historic_profile_numeric[numeric_hour]
-            pd.testing.assert_series_equal(
-                result, expected_series, 
-                check_names=False
-            )
+            pd.testing.assert_series_equal(result, expected_series, check_names=False)
 
     def test_find_matching_historic_value_with_positional_fallback(self):
         """Test _find_matching_historic_value with positional fallback when no hour matches."""
         # Create future profile with hours that don't exist in historic
         nonexistent_hours = [99, 100, 101]
         warming_levels = [2.0]
-        simulations = ['sim1']
+        simulations = ["sim1"]
 
         future_cols_no_match = pd.MultiIndex.from_product(
             [nonexistent_hours, warming_levels, simulations],
-            names=['Hour', 'Warming_Level', 'Simulation'],
+            names=["Hour", "Warming_Level", "Simulation"],
         )
         future_profile_no_match = pd.DataFrame(
             np.random.rand(10, len(future_cols_no_match)) + 20.0,
@@ -2171,26 +2167,25 @@ class TestFindMatchingHistoricValue:
             )
 
             # Verify outcome: uses positional fallback
-            assert isinstance(result, pd.Series), f"Should return Series for {future_col}"
-            
+            assert isinstance(
+                result, pd.Series
+            ), f"Should return Series for {future_col}"
+
             # Calculate expected positional match
             expected_col_idx = i % len(historic_profile_different.columns)
             expected_series = historic_profile_different.iloc[:, expected_col_idx]
-            
-            pd.testing.assert_series_equal(
-                result, expected_series, 
-                check_names=False
-            )
+
+            pd.testing.assert_series_equal(result, expected_series, check_names=False)
 
     def test_find_matching_historic_value_without_hour_level(self):
         """Test _find_matching_historic_value when future has no Hour level."""
         # Create future profile without Hour level (only Warming_Level and Simulation)
         warming_levels = [1.5, 2.0, 3.0]
-        simulations = ['sim1', 'sim2']
+        simulations = ["sim1", "sim2"]
 
         future_cols_no_hour = pd.MultiIndex.from_product(
             [warming_levels, simulations],
-            names=['Warming_Level', 'Simulation'],
+            names=["Warming_Level", "Simulation"],
         )
         future_profile_no_hour = pd.DataFrame(
             np.random.rand(10, len(future_cols_no_hour)) + 20.0,
@@ -2214,16 +2209,15 @@ class TestFindMatchingHistoricValue:
             )
 
             # Verify outcome: uses positional matching since no Hour level
-            assert isinstance(result, pd.Series), f"Should return Series for {future_col}"
-            
+            assert isinstance(
+                result, pd.Series
+            ), f"Should return Series for {future_col}"
+
             # Calculate expected positional match
             expected_col_idx = i % len(historic_profile_hours.columns)
             expected_series = historic_profile_hours.iloc[:, expected_col_idx]
-            
-            pd.testing.assert_series_equal(
-                result, expected_series, 
-                check_names=False
-            )
+
+            pd.testing.assert_series_equal(result, expected_series, check_names=False)
 
         # Test fallback to first column when position calculation fails
         # Use a mock case where get_loc might return a slice instead of int
@@ -2231,9 +2225,11 @@ class TestFindMatchingHistoricValue:
         result_fallback = _find_matching_historic_value(
             first_col, future_profile_no_hour, historic_profile_hours
         )
-        
+
         # Should still return a valid Series
-        assert isinstance(result_fallback, pd.Series), "Should return Series for fallback case"
+        assert isinstance(
+            result_fallback, pd.Series
+        ), "Should return Series for fallback case"
 
 
 class TestFormatBasedOnStructure:
@@ -2627,20 +2623,20 @@ class TestCreateSimpleDataframe:
         """Set up test fixtures."""
         self.warming_level = 2.0
         self.simulation = "sim1"
-        
+
         # Create sample profile data dictionary
         wl_key = "WL_2.0"
         sim_key = "Sim1"
-        
+
         # Create 365x24 profile matrix with realistic climate data
         self.profile_data = {
             (wl_key, sim_key): np.random.rand(365, 24) + 20.0  # Temperature-like data
         }
-        
+
         # Simple function to get simulation labels
         def sim_label_func(sim, sim_idx):
             return f"Sim{sim_idx + 1}"
-        
+
         self.sim_label_func = sim_label_func
         self.hours = np.arange(1, 25, 1)  # Hours 1-24
 
@@ -2675,13 +2671,18 @@ class TestCreateSimpleDataframe:
 
         # Verify outcome: correct DataFrame structure
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert result.shape == (365, 24), "Should have 365 rows (days) and 24 columns (hours)"
-        assert not isinstance(result.columns, pd.MultiIndex), "Should have simple column structure"
-        
+        assert result.shape == (
+            365,
+            24,
+        ), "Should have 365 rows (days) and 24 columns (hours)"
+        assert not isinstance(
+            result.columns, pd.MultiIndex
+        ), "Should have simple column structure"
+
         # Verify index structure (days 1-365)
         expected_index = np.arange(1, 366, 1)
         np.testing.assert_array_equal(result.index.values, expected_index)
-        
+
         # Verify column structure (hours 1-24)
         expected_columns = np.arange(1, 25, 1)
         np.testing.assert_array_equal(result.columns.values, expected_columns)
@@ -2690,10 +2691,8 @@ class TestCreateSimpleDataframe:
         """Test _create_simple_dataframe with different warming level and simulation scenarios."""
         # Test different warming level
         different_wl = 1.5
-        different_wl_data = {
-            ("WL_1.5", "Sim1"): np.random.rand(365, 24) + 15.0
-        }
-        
+        different_wl_data = {("WL_1.5", "Sim1"): np.random.rand(365, 24) + 15.0}
+
         # Execute function with different warming level
         result_wl = _create_simple_dataframe(
             profile_data=different_wl_data,
@@ -2703,18 +2702,18 @@ class TestCreateSimpleDataframe:
             days_in_year=365,
             hours=self.hours,
         )
-        
+
         # Verify outcome: maintains same structure with different data
-        assert isinstance(result_wl, pd.DataFrame), "Should return DataFrame for different WL"
+        assert isinstance(
+            result_wl, pd.DataFrame
+        ), "Should return DataFrame for different WL"
         assert result_wl.shape == (365, 24), "Should maintain same shape"
-        
-        # Test different simulation identifier  
+
+        # Test different simulation identifier
         different_sim = "sim2"
         # Note: sim_label_func always uses index 0, so key will be "Sim1" regardless of simulation value
-        different_sim_data = {
-            ("WL_2.0", "Sim1"): np.random.rand(365, 24) + 25.0  
-        }
-        
+        different_sim_data = {("WL_2.0", "Sim1"): np.random.rand(365, 24) + 25.0}
+
         # Execute function with different simulation
         result_sim = _create_simple_dataframe(
             profile_data=different_sim_data,
@@ -2724,23 +2723,27 @@ class TestCreateSimpleDataframe:
             days_in_year=365,
             hours=self.hours,
         )
-        
+
         # Verify outcome: handles different simulation correctly
-        assert isinstance(result_sim, pd.DataFrame), "Should return DataFrame for different sim"
+        assert isinstance(
+            result_sim, pd.DataFrame
+        ), "Should return DataFrame for different sim"
         assert result_sim.shape == (365, 24), "Should maintain same shape"
-        
+
         # Verify all results have different data but same structure
-        assert not result_wl.equals(result_sim), "Different scenarios should produce different data"
-        assert list(result_wl.columns) == list(result_sim.columns), "Columns should be identical"
+        assert not result_wl.equals(
+            result_sim
+        ), "Different scenarios should produce different data"
+        assert list(result_wl.columns) == list(
+            result_sim.columns
+        ), "Columns should be identical"
 
     def test_create_simple_dataframe_preserves_data(self):
         """Test _create_simple_dataframe preserves data values correctly."""
         # Create profile data with known values for verification
         test_data = np.ones((365, 24)) * 42.5  # All values set to 42.5
-        test_profile_data = {
-            ("WL_2.0", "Sim1"): test_data
-        }
-        
+        test_profile_data = {("WL_2.0", "Sim1"): test_data}
+
         # Execute function
         result = _create_simple_dataframe(
             profile_data=test_profile_data,
@@ -2750,22 +2753,22 @@ class TestCreateSimpleDataframe:
             days_in_year=365,
             hours=self.hours,
         )
-        
+
         # Verify outcome: data values are preserved correctly
         assert isinstance(result, pd.DataFrame), "Should return DataFrame"
-        
+
         # Check that all values in the DataFrame match the original data
         assert np.all(result.values == 42.5), "All values should be 42.5"
-        
+
         # Verify shape matches original profile matrix
-        assert result.shape == test_data.shape, "Shape should match original profile matrix"
-        
+        assert (
+            result.shape == test_data.shape
+        ), "Shape should match original profile matrix"
+
         # Test with different profile matrix size (leap year)
         leap_year_data = np.ones((366, 24)) * 33.7  # Leap year with different values
-        leap_year_profile_data = {
-            ("WL_2.0", "Sim1"): leap_year_data
-        }
-        
+        leap_year_profile_data = {("WL_2.0", "Sim1"): leap_year_data}
+
         # Execute function with leap year data
         result_leap = _create_simple_dataframe(
             profile_data=leap_year_profile_data,
@@ -2775,11 +2778,14 @@ class TestCreateSimpleDataframe:
             days_in_year=366,  # Leap year
             hours=self.hours,
         )
-        
+
         # Verify outcome: handles different matrix sizes correctly
-        assert result_leap.shape == (366, 24), "Should handle leap year shape (366 days)"
+        assert result_leap.shape == (
+            366,
+            24,
+        ), "Should handle leap year shape (366 days)"
         assert np.all(result_leap.values == 33.7), "All leap year values should be 33.7"
-        
+
         # Verify proper index for leap year
         expected_leap_index = np.arange(1, 367, 1)  # 1 to 366
         np.testing.assert_array_equal(result_leap.index.values, expected_leap_index)
@@ -2793,17 +2799,15 @@ class TestCreateSimpleDataframe:
             {"days": 360, "description": "simplified calendar year"},
             {"days": 300, "description": "partial year"},
         ]
-        
+
         for scenario in year_length_scenarios:
             days = scenario["days"]
             description = scenario["description"]
-            
+
             # Create profile data matching the year length
             profile_matrix = np.random.rand(days, 24) + 18.0
-            test_data = {
-                ("WL_2.0", "Sim1"): profile_matrix
-            }
-            
+            test_data = {("WL_2.0", "Sim1"): profile_matrix}
+
             # Execute function
             result = _create_simple_dataframe(
                 profile_data=test_data,
@@ -2813,30 +2817,38 @@ class TestCreateSimpleDataframe:
                 days_in_year=days,
                 hours=self.hours,
             )
-            
+
             # Verify outcome: correct dimensions for each scenario
-            assert isinstance(result, pd.DataFrame), f"Should return DataFrame for {description}"
-            assert result.shape == (days, 24), f"Should have {days} rows for {description}"
+            assert isinstance(
+                result, pd.DataFrame
+            ), f"Should return DataFrame for {description}"
+            assert result.shape == (
+                days,
+                24,
+            ), f"Should have {days} rows for {description}"
             assert result.shape[1] == 24, f"Should have 24 columns for {description}"
-            
+
             # Verify proper index generation
             expected_index = np.arange(1, days + 1, 1)
             np.testing.assert_array_equal(
-                result.index.values, expected_index,
-                err_msg=f"Index should be 1 to {days} for {description}"
+                result.index.values,
+                expected_index,
+                err_msg=f"Index should be 1 to {days} for {description}",
             )
-            
+
             # Verify columns remain consistent regardless of year length
             expected_columns = np.arange(1, 25, 1)
             np.testing.assert_array_equal(
-                result.columns.values, expected_columns,
-                err_msg=f"Columns should always be 1-24 for {description}"
+                result.columns.values,
+                expected_columns,
+                err_msg=f"Columns should always be 1-24 for {description}",
             )
-            
+
             # Verify data values are preserved
             np.testing.assert_array_equal(
-                result.values, profile_matrix,
-                err_msg=f"Data values should be preserved for {description}"
+                result.values,
+                profile_matrix,
+                err_msg=f"Data values should be preserved for {description}",
             )
 
 
@@ -2865,14 +2877,14 @@ class TestCreateSingleWlMultiSimDataframe:
         # Create mock simulation label function
         self.mock_sim_label_func = MagicMock()
         self.mock_sim_label_func.side_effect = lambda sim, idx: f"sim_{sim}_{idx}"
-        
+
         # Test parameters
         self.warming_level = 2.0
         self.simulations = ["model_A", "model_B", "model_C"]
         self.hours = np.arange(0, 24)
         self.days_in_year = 365
         self.hours_per_day = 24
-        
+
         # Create sample profile data dictionary
         # The function expects data for each (WL_X, sim_label) combination
         self.sample_profile_data = {}
@@ -2916,18 +2928,25 @@ class TestCreateSingleWlMultiSimDataframe:
 
         # Verify outcome: correct MultiIndex column structure
         assert isinstance(result.columns, pd.MultiIndex), "Columns should be MultiIndex"
-        assert result.columns.names == ["Hour", "Simulation"], "Column levels should be named Hour and Simulation"
-        
+        assert result.columns.names == [
+            "Hour",
+            "Simulation",
+        ], "Column levels should be named Hour and Simulation"
+
         # Verify expected dimensions: 365 rows, (24 hours × 3 simulations) columns
         expected_rows = 365
         expected_cols = 24 * len(self.simulations)  # 24 hours × 3 simulations = 72
-        assert result.shape == (expected_rows, expected_cols), f"Should have {expected_rows} rows and {expected_cols} columns"
-        
+        assert result.shape == (
+            expected_rows,
+            expected_cols,
+        ), f"Should have {expected_rows} rows and {expected_cols} columns"
+
         # Verify index structure (day numbers)
         expected_index = np.arange(1, self.days_in_year + 1)
         np.testing.assert_array_equal(
-            result.index.values, expected_index,
-            err_msg="Index should be day numbers from 1 to days_in_year"
+            result.index.values,
+            expected_index,
+            err_msg="Index should be day numbers from 1 to days_in_year",
         )
 
     def test_create_single_wl_multi_sim_dataframe_handles_multiple_simulations(self):
@@ -2947,37 +2966,50 @@ class TestCreateSingleWlMultiSimDataframe:
         # Expected structure: (hour, sim) for each hour and each simulation
         unique_simulations = result.columns.get_level_values("Simulation").unique()
         unique_hours = result.columns.get_level_values("Hour").unique()
-        
+
         # Should have one column for each (hour, simulation) combination
         expected_sim_names = ["sim_model_A_0", "sim_model_B_1", "sim_model_C_2"]
-        assert len(unique_simulations) == len(self.simulations), f"Should have {len(self.simulations)} simulations"
-        assert len(unique_hours) == len(self.hours), f"Should have {len(self.hours)} hours"
-        
+        assert len(unique_simulations) == len(
+            self.simulations
+        ), f"Should have {len(self.simulations)} simulations"
+        assert len(unique_hours) == len(
+            self.hours
+        ), f"Should have {len(self.hours)} hours"
+
         # Verify simulation names match expected pattern from mock function
         for expected_sim in expected_sim_names:
-            assert expected_sim in unique_simulations, f"Should contain simulation {expected_sim}"
-        
+            assert (
+                expected_sim in unique_simulations
+            ), f"Should contain simulation {expected_sim}"
+
         # Verify each hour appears for each simulation (24 hours × 3 sims = 72 columns)
         for hour in self.hours:
             for sim_name in expected_sim_names:
-                assert (hour, sim_name) in result.columns, f"Should have column for hour {hour}, simulation {sim_name}"
+                assert (
+                    hour,
+                    sim_name,
+                ) in result.columns, (
+                    f"Should have column for hour {hour}, simulation {sim_name}"
+                )
 
     def test_create_single_wl_multi_sim_dataframe_duplicate_simulation_names(self):
         """Test function handles duplicate simulation names with uniqueness suffixes."""
         # Create mock sim_label_func that returns duplicate names
         mock_dup_sim_func = MagicMock()
-        mock_dup_sim_func.side_effect = lambda sim, idx: "duplicate_name"  # All return same name
-        
+        mock_dup_sim_func.side_effect = (
+            lambda sim, idx: "duplicate_name"
+        )  # All return same name
+
         # Create profile data - need to have data for both original and modified names
         # The function will try to access data using both original and uniquified names
         duplicate_profile_data = {}
         simulations_with_dups = ["model_A", "model_B", "model_C"]
         wl_key = f"WL_{self.warming_level}"
-        
+
         # Add data with original duplicate name (function will use this for first occurrence)
         profile_matrix = np.random.rand(365, 24) + 20.0
         duplicate_profile_data[(wl_key, "duplicate_name")] = profile_matrix
-        
+
         # Since the function modifies names internally but doesn't update profile_data,
         # we'll test the warning behavior but expect KeyError for missing keys
         # Let's just test that the warning is printed when duplicate names are detected
@@ -2999,11 +3031,17 @@ class TestCreateSingleWlMultiSimDataframe:
         # Verify outcome: warning message was printed about duplicates
         printed_calls = [str(call) for call in mock_print.call_args_list]
         printed_output = " ".join(printed_calls)
-        assert "duplicate simulation names" in printed_output.lower(), "Should warn about duplicate simulation names"
-        assert "uniqueness suffixes" in printed_output.lower(), "Should mention adding uniqueness suffixes"
-        
+        assert (
+            "duplicate simulation names" in printed_output.lower()
+        ), "Should warn about duplicate simulation names"
+        assert (
+            "uniqueness suffixes" in printed_output.lower()
+        ), "Should mention adding uniqueness suffixes"
+
         # Verify the sim_label_func was called for each simulation
-        assert mock_dup_sim_func.call_count == len(simulations_with_dups), "Should call sim_label_func for each simulation"
+        assert mock_dup_sim_func.call_count == len(
+            simulations_with_dups
+        ), "Should call sim_label_func for each simulation"
 
     def test_create_single_wl_multi_sim_dataframe_preserves_data_integrity(self):
         """Test that profile data values are correctly preserved in MultiIndex structure."""
@@ -3011,15 +3049,15 @@ class TestCreateSingleWlMultiSimDataframe:
         test_simulations = ["test_sim_A", "test_sim_B"]
         test_hours = np.array([0, 1, 2])  # Use smaller subset for easier verification
         test_days = 3  # Use smaller dataset for precise testing
-        
+
         # Create mock sim_label_func for predictable names
         test_sim_func = MagicMock()
         test_sim_func.side_effect = lambda sim, idx: f"test_{sim}_{idx}"
-        
+
         # Create test profile data with known values
         test_profile_data = {}
         expected_values = {}
-        
+
         for i, sim in enumerate(test_simulations):
             sim_key = f"test_{sim}_{i}"
             wl_key = f"WL_{self.warming_level}"
@@ -3028,7 +3066,7 @@ class TestCreateSingleWlMultiSimDataframe:
             for day in range(test_days):
                 for hour_idx, hour in enumerate(test_hours):
                     profile_matrix[day, hour_idx] = (day + 1) * 10 + hour
-            
+
             test_profile_data[(wl_key, sim_key)] = profile_matrix
             expected_values[sim_key] = profile_matrix
 
@@ -3045,29 +3083,100 @@ class TestCreateSingleWlMultiSimDataframe:
 
         # Verify outcome: data integrity is preserved
         assert isinstance(result, pd.DataFrame), "Should return DataFrame"
-        assert result.shape == (test_days, len(test_hours) * len(test_simulations)), "Should have correct dimensions"
-        
+        assert result.shape == (
+            test_days,
+            len(test_hours) * len(test_simulations),
+        ), "Should have correct dimensions"
+
         # Verify specific data values are preserved for each (hour, simulation) combination
         for hour in test_hours:
             for i, sim in enumerate(test_simulations):
                 sim_key = f"test_{sim}_{i}"
                 expected_matrix = expected_values[sim_key]
-                
+
                 # Get column data for this (hour, simulation) combination
                 column_data = result[(hour, sim_key)]
                 expected_column = expected_matrix[:, list(test_hours).index(hour)]
-                
+
                 # Verify data values match
                 np.testing.assert_array_equal(
-                    column_data.values, expected_column,
-                    err_msg=f"Data mismatch for hour {hour}, simulation {sim_key}"
+                    column_data.values,
+                    expected_column,
+                    err_msg=f"Data mismatch for hour {hour}, simulation {sim_key}",
                 )
-                
+
         # Verify specific known values at expected positions
         # Day 1 (index 0), Hour 0, Sim A should be 10 (day 1 * 10 + hour 0)
         sim_a_key = "test_test_sim_A_0"
-        assert result.loc[1, (0, sim_a_key)] == 10.0, "Day 1, Hour 0, Sim A should be 10"
-        
+        assert (
+            result.loc[1, (0, sim_a_key)] == 10.0
+        ), "Day 1, Hour 0, Sim A should be 10"
+
         # Day 2 (index 1), Hour 1, Sim B should be 21 (day 2 * 10 + hour 1)
         sim_b_key = "test_test_sim_B_1"
-        assert result.loc[2, (1, sim_b_key)] == 21.0, "Day 2, Hour 1, Sim B should be 21"
+        assert (
+            result.loc[2, (1, sim_b_key)] == 21.0
+        ), "Day 2, Hour 1, Sim B should be 21"
+
+
+class TestCreateMultiWlSingleSimDataframe:
+    """Test class for _create_multi_wl_single_sim_dataframe function.
+
+    Tests the function that creates DataFrames for multiple warming levels with
+    single simulation, validating MultiIndex column structure and data handling.
+
+    Attributes
+    ----------
+    sample_profile_data : dict
+        Sample profile data dictionary with (warming_level, simulation) keys.
+    mock_sim_label_func : MagicMock
+        Mock function for generating simulation labels.
+    warming_levels : np.ndarray
+        Array of warming levels for testing.
+    simulation : str
+        Sample simulation identifier.
+    hours : np.ndarray
+        Array of hour values for columns.
+    """
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        # Create mock simulation label function
+        self.mock_sim_label_func = MagicMock()
+        self.mock_sim_label_func.return_value = "test_simulation"
+        
+        # Test parameters
+        self.warming_levels = np.array([1.5, 2.0, 3.0])
+        self.simulation = "model_X"
+        self.hours = np.arange(0, 24)
+        self.days_in_year = 365
+        self.hours_per_day = 24
+        
+        # Create sample profile data dictionary
+        # The function expects data for each (WL_X, sim_label) combination
+        self.sample_profile_data = {}
+        sim_key = "test_simulation"
+        
+        for wl in self.warming_levels:
+            wl_key = f"WL_{wl}"
+            # Create random data for each warming level (365 days x 24 hours)
+            profile_matrix = np.random.rand(365, 24) + 20.0 + wl  # Add WL to make different
+            self.sample_profile_data[(wl_key, sim_key)] = profile_matrix
+
+    def test_create_multi_wl_single_sim_dataframe_returns_dataframe(self):
+        """Test that _create_multi_wl_single_sim_dataframe returns a pandas DataFrame."""
+        # Execute function
+        result = _create_multi_wl_single_sim_dataframe(
+            profile_data=self.sample_profile_data,
+            warming_levels=self.warming_levels,
+            simulation=self.simulation,
+            sim_label_func=self.mock_sim_label_func,
+            days_in_year=self.days_in_year,
+            hours=self.hours,
+            hours_per_day=self.hours_per_day,
+        )
+
+        # Verify outcome: returns a pandas DataFrame
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert result.shape[0] > 0, "DataFrame should have rows"
+        assert result.shape[1] > 0, "DataFrame should have columns"
