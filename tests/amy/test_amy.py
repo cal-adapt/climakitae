@@ -3209,3 +3209,35 @@ class TestCreateMultiWlSingleSimDataframe:
             result.index.values, expected_index,
             err_msg="Index should be day numbers from 1 to days_in_year"
         )
+
+    def test_create_multi_wl_single_sim_dataframe_handles_multiple_warming_levels(self):
+        """Test function handles multiple warming levels correctly."""
+        # Execute function
+        result = _create_multi_wl_single_sim_dataframe(
+            profile_data=self.sample_profile_data,
+            warming_levels=self.warming_levels,
+            simulation=self.simulation,
+            sim_label_func=self.mock_sim_label_func,
+            days_in_year=self.days_in_year,
+            hours=self.hours,
+            hours_per_day=self.hours_per_day,
+        )
+
+        # Verify outcome: each warming level creates columns for all hours
+        # Expected structure: (hour, wl) for each hour and each warming level
+        unique_warming_levels = result.columns.get_level_values("Warming_Level").unique()
+        unique_hours = result.columns.get_level_values("Hour").unique()
+        
+        # Should have one column for each (hour, warming_level) combination
+        expected_wl_names = ["WL_1.5", "WL_2.0", "WL_3.0"]
+        assert len(unique_warming_levels) == len(self.warming_levels), f"Should have {len(self.warming_levels)} warming levels"
+        assert len(unique_hours) == len(self.hours), f"Should have {len(self.hours)} hours"
+        
+        # Verify warming level names match expected pattern
+        for expected_wl in expected_wl_names:
+            assert expected_wl in unique_warming_levels, f"Should contain warming level {expected_wl}"
+        
+        # Verify each hour appears for each warming level (24 hours × 3 WLs = 72 columns)
+        for hour in self.hours:
+            for wl_name in expected_wl_names:
+                assert (hour, wl_name) in result.columns, f"Should have column for hour {hour}, warming level {wl_name}"
