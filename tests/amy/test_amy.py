@@ -3700,3 +3700,31 @@ class TestFormatMeteoYrDf:
         # Verify the first 12 columns are AM and last 12 are PM
         assert all('am' in col for col in result.columns[:12]), "First 12 columns should be AM"
         assert all('pm' in col for col in result.columns[12:]), "Last 12 columns should be PM"
+    
+    def test_converts_julian_days_to_month_day(self):
+        """Test conversion of Julian day indices to Month-Day format."""
+        # Execute function
+        result = _format_meteo_yr_df(self.sample_df_365.copy())
+        
+        # Verify outcome: index is converted to Month-Day format
+        assert result.index.name == "Day of Year", "Index name should be 'Day of Year'"
+        assert len(result.index) == 365, "Should have 365 days"
+        
+        # Verify specific date conversions (Julian day to Month-Day)
+        # Day 1 should be Jan-01
+        assert result.index[0] == "Jan-01", "First day should be Jan-01"
+        
+        # Day 32 should be Feb-01
+        assert result.index[31] == "Feb-01", "Day 32 should be Feb-01"
+        
+        # Last day (365) should be Dec-31
+        assert result.index[-1] == "Dec-31", "Last day should be Dec-31"
+        
+        # Verify all indices have Month-Day format (e.g., "Jan-01", "Feb-15")
+        for idx in result.index:
+            assert isinstance(idx, str), "Index should be strings"
+            assert '-' in idx, "Index should contain hyphen"
+            parts = idx.split('-')
+            assert len(parts) == 2, "Index should be in Month-Day format"
+            # Verify month is a 3-letter abbreviation
+            assert len(parts[0]) == 3, "Month should be 3-letter abbreviation"
