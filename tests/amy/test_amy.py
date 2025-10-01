@@ -3144,23 +3144,25 @@ class TestCreateMultiWlSingleSimDataframe:
         # Create mock simulation label function
         self.mock_sim_label_func = MagicMock()
         self.mock_sim_label_func.return_value = "test_simulation"
-        
+
         # Test parameters
         self.warming_levels = np.array([1.5, 2.0, 3.0])
         self.simulation = "model_X"
         self.hours = np.arange(0, 24)
         self.days_in_year = 365
         self.hours_per_day = 24
-        
+
         # Create sample profile data dictionary
         # The function expects data for each (WL_X, sim_label) combination
         self.sample_profile_data = {}
         sim_key = "test_simulation"
-        
+
         for wl in self.warming_levels:
             wl_key = f"WL_{wl}"
             # Create random data for each warming level (365 days x 24 hours)
-            profile_matrix = np.random.rand(365, 24) + 20.0 + wl  # Add WL to make different
+            profile_matrix = (
+                np.random.rand(365, 24) + 20.0 + wl
+            )  # Add WL to make different
             self.sample_profile_data[(wl_key, sim_key)] = profile_matrix
 
     def test_create_multi_wl_single_sim_dataframe_returns_dataframe(self):
@@ -3196,18 +3198,27 @@ class TestCreateMultiWlSingleSimDataframe:
 
         # Verify outcome: correct MultiIndex column structure
         assert isinstance(result.columns, pd.MultiIndex), "Columns should be MultiIndex"
-        assert result.columns.names == ["Hour", "Warming_Level"], "Column levels should be named Hour and Warming_Level"
-        
+        assert result.columns.names == [
+            "Hour",
+            "Warming_Level",
+        ], "Column levels should be named Hour and Warming_Level"
+
         # Verify expected dimensions: 365 rows, (24 hours × 3 warming levels) columns
         expected_rows = 365
-        expected_cols = 24 * len(self.warming_levels)  # 24 hours × 3 warming levels = 72
-        assert result.shape == (expected_rows, expected_cols), f"Should have {expected_rows} rows and {expected_cols} columns"
-        
+        expected_cols = 24 * len(
+            self.warming_levels
+        )  # 24 hours × 3 warming levels = 72
+        assert result.shape == (
+            expected_rows,
+            expected_cols,
+        ), f"Should have {expected_rows} rows and {expected_cols} columns"
+
         # Verify index structure (day numbers)
         expected_index = np.arange(1, self.days_in_year + 1)
         np.testing.assert_array_equal(
-            result.index.values, expected_index,
-            err_msg="Index should be day numbers from 1 to days_in_year"
+            result.index.values,
+            expected_index,
+            err_msg="Index should be day numbers from 1 to days_in_year",
         )
 
     def test_create_multi_wl_single_sim_dataframe_handles_multiple_warming_levels(self):
@@ -3225,22 +3236,35 @@ class TestCreateMultiWlSingleSimDataframe:
 
         # Verify outcome: each warming level creates columns for all hours
         # Expected structure: (hour, wl) for each hour and each warming level
-        unique_warming_levels = result.columns.get_level_values("Warming_Level").unique()
+        unique_warming_levels = result.columns.get_level_values(
+            "Warming_Level"
+        ).unique()
         unique_hours = result.columns.get_level_values("Hour").unique()
-        
+
         # Should have one column for each (hour, warming_level) combination
         expected_wl_names = ["WL_1.5", "WL_2.0", "WL_3.0"]
-        assert len(unique_warming_levels) == len(self.warming_levels), f"Should have {len(self.warming_levels)} warming levels"
-        assert len(unique_hours) == len(self.hours), f"Should have {len(self.hours)} hours"
-        
+        assert len(unique_warming_levels) == len(
+            self.warming_levels
+        ), f"Should have {len(self.warming_levels)} warming levels"
+        assert len(unique_hours) == len(
+            self.hours
+        ), f"Should have {len(self.hours)} hours"
+
         # Verify warming level names match expected pattern
         for expected_wl in expected_wl_names:
-            assert expected_wl in unique_warming_levels, f"Should contain warming level {expected_wl}"
-        
+            assert (
+                expected_wl in unique_warming_levels
+            ), f"Should contain warming level {expected_wl}"
+
         # Verify each hour appears for each warming level (24 hours × 3 WLs = 72 columns)
         for hour in self.hours:
             for wl_name in expected_wl_names:
-                assert (hour, wl_name) in result.columns, f"Should have column for hour {hour}, warming level {wl_name}"
+                assert (
+                    hour,
+                    wl_name,
+                ) in result.columns, (
+                    f"Should have column for hour {hour}, warming level {wl_name}"
+                )
 
     def test_create_multi_wl_single_sim_dataframe_preserves_data_integrity(self):
         """Test that profile data values are correctly preserved in MultiIndex structure."""
@@ -3248,15 +3272,15 @@ class TestCreateMultiWlSingleSimDataframe:
         test_warming_levels = np.array([1.0, 2.0])
         test_hours = np.array([0, 1, 2])  # Use smaller subset for easier verification
         test_days = 3  # Use smaller dataset for precise testing
-        
+
         # Create mock sim_label_func for predictable names
         test_sim_func = MagicMock()
         test_sim_func.return_value = "test_sim"
-        
+
         # Create test profile data with known values
         test_profile_data = {}
         expected_values = {}
-        
+
         for wl in test_warming_levels:
             wl_key = f"WL_{wl}"
             sim_key = "test_sim"
@@ -3265,7 +3289,7 @@ class TestCreateMultiWlSingleSimDataframe:
             for day in range(test_days):
                 for hour_idx, hour in enumerate(test_hours):
                     profile_matrix[day, hour_idx] = (day + 1) * 10 + hour + wl
-            
+
             test_profile_data[(wl_key, sim_key)] = profile_matrix
             expected_values[wl_key] = profile_matrix
 
@@ -3282,30 +3306,38 @@ class TestCreateMultiWlSingleSimDataframe:
 
         # Verify outcome: data integrity is preserved
         assert isinstance(result, pd.DataFrame), "Should return DataFrame"
-        assert result.shape == (test_days, len(test_hours) * len(test_warming_levels)), "Should have correct dimensions"
-        
+        assert result.shape == (
+            test_days,
+            len(test_hours) * len(test_warming_levels),
+        ), "Should have correct dimensions"
+
         # Verify specific data values are preserved for each (hour, warming_level) combination
         for hour in test_hours:
             for wl in test_warming_levels:
                 wl_key = f"WL_{wl}"
                 expected_matrix = expected_values[wl_key]
-                
+
                 # Get column data for this (hour, warming_level) combination
                 column_data = result[(hour, wl_key)]
                 expected_column = expected_matrix[:, list(test_hours).index(hour)]
-                
+
                 # Verify data values match
                 np.testing.assert_array_equal(
-                    column_data.values, expected_column,
-                    err_msg=f"Data mismatch for hour {hour}, warming level {wl_key}"
+                    column_data.values,
+                    expected_column,
+                    err_msg=f"Data mismatch for hour {hour}, warming level {wl_key}",
                 )
-                
+
         # Verify specific known values at expected positions
         # Day 1 (index 0), Hour 0, WL 1.0 should be 10 + 0 + 1.0 = 11.0
-        assert result.loc[1, (0, "WL_1.0")] == 11.0, "Day 1, Hour 0, WL 1.0 should be 11.0"
-        
+        assert (
+            result.loc[1, (0, "WL_1.0")] == 11.0
+        ), "Day 1, Hour 0, WL 1.0 should be 11.0"
+
         # Day 2 (index 1), Hour 1, WL 2.0 should be 20 + 1 + 2.0 = 23.0
-        assert result.loc[2, (1, "WL_2.0")] == 23.0, "Day 2, Hour 1, WL 2.0 should be 23.0"
+        assert (
+            result.loc[2, (1, "WL_2.0")] == 23.0
+        ), "Day 2, Hour 1, WL 2.0 should be 23.0"
 
     def test_create_multi_wl_single_sim_dataframe_different_warming_level_configs(self):
         """Test function with different warming level configurations."""
@@ -3315,32 +3347,39 @@ class TestCreateMultiWlSingleSimDataframe:
                 "name": "single_warming_level",
                 "warming_levels": np.array([2.0]),
                 "expected_cols": 24 * 1,  # 24 hours × 1 WL
-                "expected_wl_names": ["WL_2.0"]
+                "expected_wl_names": ["WL_2.0"],
             },
             {
                 "name": "two_warming_levels",
                 "warming_levels": np.array([1.5, 3.0]),
                 "expected_cols": 24 * 2,  # 24 hours × 2 WLs
-                "expected_wl_names": ["WL_1.5", "WL_3.0"]
+                "expected_wl_names": ["WL_1.5", "WL_3.0"],
             },
             {
                 "name": "many_warming_levels",
                 "warming_levels": np.array([1.0, 1.5, 2.0, 2.5, 3.0, 4.0]),
                 "expected_cols": 24 * 6,  # 24 hours × 6 WLs
-                "expected_wl_names": ["WL_1.0", "WL_1.5", "WL_2.0", "WL_2.5", "WL_3.0", "WL_4.0"]
-            }
+                "expected_wl_names": [
+                    "WL_1.0",
+                    "WL_1.5",
+                    "WL_2.0",
+                    "WL_2.5",
+                    "WL_3.0",
+                    "WL_4.0",
+                ],
+            },
         ]
-        
+
         for scenario in test_scenarios:
             # Create profile data for this scenario
             scenario_profile_data = {}
             sim_key = "test_simulation"
-            
+
             for wl in scenario["warming_levels"]:
                 wl_key = f"WL_{wl}"
                 profile_matrix = np.random.rand(365, 24) + 20.0 + wl
                 scenario_profile_data[(wl_key, sim_key)] = profile_matrix
-            
+
             # Execute function
             result = _create_multi_wl_single_sim_dataframe(
                 profile_data=scenario_profile_data,
@@ -3351,35 +3390,52 @@ class TestCreateMultiWlSingleSimDataframe:
                 hours=self.hours,
                 hours_per_day=self.hours_per_day,
             )
-            
+
             # Verify outcome for this scenario
-            assert isinstance(result, pd.DataFrame), f"Should return DataFrame for {scenario['name']}"
-            assert result.shape[0] == 365, f"Should have 365 rows for {scenario['name']}"
-            assert result.shape[1] == scenario["expected_cols"], f"Should have {scenario['expected_cols']} columns for {scenario['name']}"
-            
+            assert isinstance(
+                result, pd.DataFrame
+            ), f"Should return DataFrame for {scenario['name']}"
+            assert (
+                result.shape[0] == 365
+            ), f"Should have 365 rows for {scenario['name']}"
+            assert (
+                result.shape[1] == scenario["expected_cols"]
+            ), f"Should have {scenario['expected_cols']} columns for {scenario['name']}"
+
             # Verify MultiIndex structure
-            assert isinstance(result.columns, pd.MultiIndex), f"Should have MultiIndex columns for {scenario['name']}"
-            assert result.columns.names == ["Hour", "Warming_Level"], f"Should have correct level names for {scenario['name']}"
-            
+            assert isinstance(
+                result.columns, pd.MultiIndex
+            ), f"Should have MultiIndex columns for {scenario['name']}"
+            assert result.columns.names == [
+                "Hour",
+                "Warming_Level",
+            ], f"Should have correct level names for {scenario['name']}"
+
             # Verify warming level names
             unique_wls = result.columns.get_level_values("Warming_Level").unique()
-            assert len(unique_wls) == len(scenario["warming_levels"]), f"Should have {len(scenario['warming_levels'])} unique warming levels for {scenario['name']}"
-            
+            assert len(unique_wls) == len(
+                scenario["warming_levels"]
+            ), f"Should have {len(scenario['warming_levels'])} unique warming levels for {scenario['name']}"
+
             for expected_wl in scenario["expected_wl_names"]:
-                assert expected_wl in unique_wls, f"Should contain {expected_wl} for {scenario['name']}"
-            
+                assert (
+                    expected_wl in unique_wls
+                ), f"Should contain {expected_wl} for {scenario['name']}"
+
             # Verify all hours are present for each warming level
             unique_hours = result.columns.get_level_values("Hour").unique()
-            assert len(unique_hours) == 24, f"Should have 24 hours for {scenario['name']}"
+            assert (
+                len(unique_hours) == 24
+            ), f"Should have 24 hours for {scenario['name']}"
 
 
 class TestCreateMultiWlMultiSimDataframe:
     """Test class for _create_multi_wl_multi_sim_dataframe function.
-    
+
     Tests the function that creates DataFrames for climate profiles with
     multiple warming levels and multiple simulations together, producing
     (Hour, Warming_Level, Simulation) MultiIndex column structure.
-    
+
     Attributes
     ----------
     warming_levels : np.ndarray
@@ -3397,7 +3453,7 @@ class TestCreateMultiWlMultiSimDataframe:
     profile_data : dict
         Sample profile data dictionary.
     """
-    
+
     def setup_method(self):
         """Set up test fixtures."""
         self.warming_levels = np.array([1.5, 2.0, 3.0])
@@ -3406,7 +3462,7 @@ class TestCreateMultiWlMultiSimDataframe:
         self.days_in_year = 365
         self.hours = np.arange(1, 25, 1)
         self.hours_per_day = 24
-        
+
         # Create sample profile data with (warming_level, simulation_label) keys
         # The keys must use the labeled names that sim_label_func produces
         self.profile_data = {}
@@ -3417,7 +3473,7 @@ class TestCreateMultiWlMultiSimDataframe:
                 # Create 365x24 matrix for each combination
                 profile_matrix = np.random.rand(365, 24) + 20.0 + wl
                 self.profile_data[(wl_key, sim_label)] = profile_matrix
-    
+
     def test_returns_dataframe(self):
         """Test that _create_multi_wl_multi_sim_dataframe returns a pandas DataFrame."""
         # Execute function
@@ -3430,15 +3486,15 @@ class TestCreateMultiWlMultiSimDataframe:
             hours=self.hours,
             hours_per_day=self.hours_per_day,
         )
-        
+
         # Verify outcome: returns DataFrame with correct shape
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
         assert result.shape[0] == 365, "Should have 365 rows (days)"
-        
+
         # With 3 warming levels, 2 simulations, and 24 hours: 24 * 3 * 2 = 144 columns
         expected_cols = 24 * len(self.warming_levels) * len(self.simulations)
         assert result.shape[1] == expected_cols, f"Should have {expected_cols} columns"
-    
+
     def test_multiindex_structure(self):
         """Test that DataFrame has proper (Hour, Warming_Level, Simulation) MultiIndex structure."""
         # Execute function
@@ -3451,30 +3507,40 @@ class TestCreateMultiWlMultiSimDataframe:
             hours=self.hours,
             hours_per_day=self.hours_per_day,
         )
-        
+
         # Verify outcome: proper MultiIndex structure
-        assert isinstance(result.columns, pd.MultiIndex), "Should have MultiIndex columns"
-        assert result.columns.names == ["Hour", "Warming_Level", "Simulation"], "Should have three levels: Hour, Warming_Level, Simulation"
-        
+        assert isinstance(
+            result.columns, pd.MultiIndex
+        ), "Should have MultiIndex columns"
+        assert result.columns.names == [
+            "Hour",
+            "Warming_Level",
+            "Simulation",
+        ], "Should have three levels: Hour, Warming_Level, Simulation"
+
         # Verify all hours are present
         unique_hours = result.columns.get_level_values("Hour").unique()
         assert len(unique_hours) == 24, "Should have 24 unique hours"
         assert all(h in unique_hours for h in range(1, 25)), "Should have hours 1-24"
-        
+
         # Verify all warming levels are present
         unique_wls = result.columns.get_level_values("Warming_Level").unique()
         expected_wl_names = [f"WL_{wl}" for wl in self.warming_levels]
-        assert len(unique_wls) == len(self.warming_levels), f"Should have {len(self.warming_levels)} warming levels"
+        assert len(unique_wls) == len(
+            self.warming_levels
+        ), f"Should have {len(self.warming_levels)} warming levels"
         for wl_name in expected_wl_names:
             assert wl_name in unique_wls, f"Should contain warming level {wl_name}"
-        
+
         # Verify all simulations are present
         unique_sims = result.columns.get_level_values("Simulation").unique()
         expected_sim_names = [f"Simulation_{sim}" for sim in self.simulations]
-        assert len(unique_sims) == len(self.simulations), f"Should have {len(self.simulations)} simulations"
+        assert len(unique_sims) == len(
+            self.simulations
+        ), f"Should have {len(self.simulations)} simulations"
         for sim_name in expected_sim_names:
             assert sim_name in unique_sims, f"Should contain simulation {sim_name}"
-    
+
     def test_handles_multiple_warming_levels_and_simulations(self):
         """Test proper handling of multiple warming levels and simulations together."""
         # Execute function with multiple warming levels and simulations
@@ -3487,31 +3553,37 @@ class TestCreateMultiWlMultiSimDataframe:
             hours=self.hours,
             hours_per_day=self.hours_per_day,
         )
-        
+
         # Verify outcome: each hour has all combinations of warming levels and simulations
         for hour in range(1, 25):
             hour_cols = result.loc[:, hour]
-            
+
             # Should have wl_count * sim_count columns for each hour
             expected_cols_per_hour = len(self.warming_levels) * len(self.simulations)
-            assert hour_cols.shape[1] == expected_cols_per_hour, f"Hour {hour} should have {expected_cols_per_hour} columns"
-            
+            assert (
+                hour_cols.shape[1] == expected_cols_per_hour
+            ), f"Hour {hour} should have {expected_cols_per_hour} columns"
+
             # Verify all warming levels present for this hour
             if isinstance(hour_cols.columns, pd.MultiIndex):
                 wls = hour_cols.columns.get_level_values("Warming_Level").unique()
-                assert len(wls) == len(self.warming_levels), f"Hour {hour} should have all {len(self.warming_levels)} warming levels"
-                
+                assert len(wls) == len(
+                    self.warming_levels
+                ), f"Hour {hour} should have all {len(self.warming_levels)} warming levels"
+
                 # Verify all simulations present for this hour
                 sims = hour_cols.columns.get_level_values("Simulation").unique()
-                assert len(sims) == len(self.simulations), f"Hour {hour} should have all {len(self.simulations)} simulations"
-    
+                assert len(sims) == len(
+                    self.simulations
+                ), f"Hour {hour} should have all {len(self.simulations)} simulations"
+
     def test_preserves_data_integrity(self):
         """Test that data values are preserved correctly in the transformation."""
         # Create specific test data to verify data preservation
         test_warming_levels = np.array([1.5, 2.0])
         test_simulations = ["sim1", "sim2"]
         test_profile_data = {}
-        
+
         # Create known data patterns for each combination
         for wl in test_warming_levels:
             wl_key = f"WL_{wl}"
@@ -3522,9 +3594,9 @@ class TestCreateMultiWlMultiSimDataframe:
                 profile_matrix = np.zeros((365, 24))
                 for day in range(365):
                     for hour in range(24):
-                        profile_matrix[day, hour] = day + hour + wl*10 + sim_index
+                        profile_matrix[day, hour] = day + hour + wl * 10 + sim_index
                 test_profile_data[(wl_key, sim_label)] = profile_matrix
-        
+
         # Execute function
         result = _create_multi_wl_multi_sim_dataframe(
             profile_data=test_profile_data,
@@ -3535,7 +3607,7 @@ class TestCreateMultiWlMultiSimDataframe:
             hours=self.hours,
             hours_per_day=self.hours_per_day,
         )
-        
+
         # Verify outcome: data values are preserved correctly
         # Check specific values for a sample of combinations
         for day in [1, 100, 365]:  # Check first, middle, and last day
@@ -3544,16 +3616,17 @@ class TestCreateMultiWlMultiSimDataframe:
                     for sim_idx, sim in enumerate(test_simulations):
                         wl_name = f"WL_{wl}"
                         sim_name = f"Simulation_{sim}"
-                        
+
                         # Get value from result DataFrame
                         result_value = result.loc[day, (hour, wl_name, sim_name)]
-                        
+
                         # Calculate expected value
-                        expected_value = (day - 1) + (hour - 1) + wl*10 + sim_idx
-                        
-                        assert abs(result_value - expected_value) < 0.001, \
-                            f"Value mismatch at day={day}, hour={hour}, wl={wl}, sim={sim}: expected {expected_value}, got {result_value}"
-    
+                        expected_value = (day - 1) + (hour - 1) + wl * 10 + sim_idx
+
+                        assert (
+                            abs(result_value - expected_value) < 0.001
+                        ), f"Value mismatch at day={day}, hour={hour}, wl={wl}, sim={sim}: expected {expected_value}, got {result_value}"
+
     def test_complex_combinations(self):
         """Test various complex combinations of warming levels and simulations."""
         # Test different scenarios with varying numbers of warming levels and simulations
@@ -3577,18 +3650,18 @@ class TestCreateMultiWlMultiSimDataframe:
                 "expected_cols": 144,  # 24 hours * 2 WLs * 3 sims
             },
         ]
-        
+
         for scenario in test_scenarios:
             # Create profile data for this scenario
             scenario_profile_data = {}
-            
+
             for wl in scenario["warming_levels"]:
                 wl_key = f"WL_{wl}"
                 for sim in scenario["simulations"]:
                     sim_label = f"Simulation_{sim}"
                     profile_matrix = np.random.rand(365, 24) + 20.0 + wl
                     scenario_profile_data[(wl_key, sim_label)] = profile_matrix
-            
+
             # Execute function
             result = _create_multi_wl_multi_sim_dataframe(
                 profile_data=scenario_profile_data,
@@ -3599,34 +3672,52 @@ class TestCreateMultiWlMultiSimDataframe:
                 hours=self.hours,
                 hours_per_day=self.hours_per_day,
             )
-            
+
             # Verify outcome for this scenario
-            assert isinstance(result, pd.DataFrame), f"Should return DataFrame for {scenario['name']}"
-            assert result.shape[0] == 365, f"Should have 365 rows for {scenario['name']}"
-            assert result.shape[1] == scenario["expected_cols"], f"Should have {scenario['expected_cols']} columns for {scenario['name']}"
-            
+            assert isinstance(
+                result, pd.DataFrame
+            ), f"Should return DataFrame for {scenario['name']}"
+            assert (
+                result.shape[0] == 365
+            ), f"Should have 365 rows for {scenario['name']}"
+            assert (
+                result.shape[1] == scenario["expected_cols"]
+            ), f"Should have {scenario['expected_cols']} columns for {scenario['name']}"
+
             # Verify MultiIndex structure
-            assert isinstance(result.columns, pd.MultiIndex), f"Should have MultiIndex columns for {scenario['name']}"
-            assert result.columns.names == ["Hour", "Warming_Level", "Simulation"], f"Should have correct level names for {scenario['name']}"
-            
+            assert isinstance(
+                result.columns, pd.MultiIndex
+            ), f"Should have MultiIndex columns for {scenario['name']}"
+            assert result.columns.names == [
+                "Hour",
+                "Warming_Level",
+                "Simulation",
+            ], f"Should have correct level names for {scenario['name']}"
+
             # Verify correct number of unique values in each level
             unique_hours = result.columns.get_level_values("Hour").unique()
-            assert len(unique_hours) == 24, f"Should have 24 hours for {scenario['name']}"
-            
+            assert (
+                len(unique_hours) == 24
+            ), f"Should have 24 hours for {scenario['name']}"
+
             unique_wls = result.columns.get_level_values("Warming_Level").unique()
-            assert len(unique_wls) == len(scenario["warming_levels"]), f"Should have {len(scenario['warming_levels'])} warming levels for {scenario['name']}"
-            
+            assert len(unique_wls) == len(
+                scenario["warming_levels"]
+            ), f"Should have {len(scenario['warming_levels'])} warming levels for {scenario['name']}"
+
             unique_sims = result.columns.get_level_values("Simulation").unique()
-            assert len(unique_sims) == len(scenario["simulations"]), f"Should have {len(scenario['simulations'])} simulations for {scenario['name']}"
+            assert len(unique_sims) == len(
+                scenario["simulations"]
+            ), f"Should have {len(scenario['simulations'])} simulations for {scenario['name']}"
 
 
 class TestFormatMeteoYrDf:
     """Test class for _format_meteo_yr_df function.
-    
+
     Tests the function that reformats meteorological yearly dataframes by
     converting numeric hour columns to 12-hour AM/PM format and Julian day
     indices to Month-Day format for improved readability.
-    
+
     Attributes
     ----------
     sample_df_365 : pd.DataFrame
@@ -3634,156 +3725,190 @@ class TestFormatMeteoYrDf:
     sample_df_366 : pd.DataFrame
         Sample 366-day dataframe for testing leap years.
     """
-    
+
     def setup_method(self):
         """Set up test fixtures."""
         # Create sample 365-day dataframe (regular year)
         # 24 columns representing hours 0-23
         # Index represents Julian days 1-365
         self.sample_df_365 = pd.DataFrame(
-            np.random.rand(365, 24) + 20.0,
-            index=range(1, 366),
-            columns=range(24)
+            np.random.rand(365, 24) + 20.0, index=range(1, 366), columns=range(24)
         )
-        
+
         # Create sample 366-day dataframe (leap year)
         self.sample_df_366 = pd.DataFrame(
-            np.random.rand(366, 24) + 20.0,
-            index=range(1, 367),
-            columns=range(24)
+            np.random.rand(366, 24) + 20.0, index=range(1, 367), columns=range(24)
         )
-    
+
     def test_returns_formatted_dataframe(self):
         """Test that _format_meteo_yr_df returns a properly formatted DataFrame."""
         # Execute function with 365-day dataframe
         result = _format_meteo_yr_df(self.sample_df_365.copy())
-        
+
         # Verify outcome: returns DataFrame with same shape
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
         assert result.shape[0] == 365, "Should have 365 rows"
         assert result.shape[1] == 24, "Should have 24 columns (hours)"
-        
+
         # Verify column structure has AM/PM format
-        assert all('am' in str(col) or 'pm' in str(col) for col in result.columns), "All columns should have AM/PM format"
-        
+        assert all(
+            "am" in str(col) or "pm" in str(col) for col in result.columns
+        ), "All columns should have AM/PM format"
+
         # Verify index is formatted as Month-Day
-        assert all('-' in str(idx) for idx in result.index), "Index should be in Month-Day format"
-        
+        assert all(
+            "-" in str(idx) for idx in result.index
+        ), "Index should be in Month-Day format"
+
         # Verify metadata
         assert result.columns.name == "Hour", "Column name should be 'Hour'"
         assert result.index.name == "Day of Year", "Index name should be 'Day of Year'"
-    
+
     def test_formats_columns_with_ampm(self):
         """Test proper column reordering and AM/PM formatting."""
         # Execute function
         result = _format_meteo_yr_df(self.sample_df_365.copy())
-        
+
         # Verify outcome: columns are in correct 12-hour AM/PM format
         expected_columns = [
-            '12am', '1am', '2am', '3am', '4am', '5am', '6am', '7am', '8am', '9am', '10am', '11am',
-            '12pm', '1pm', '2pm', '3pm', '4pm', '5pm', '6pm', '7pm', '8pm', '9pm', '10pm', '11pm'
+            "12am",
+            "1am",
+            "2am",
+            "3am",
+            "4am",
+            "5am",
+            "6am",
+            "7am",
+            "8am",
+            "9am",
+            "10am",
+            "11am",
+            "12pm",
+            "1pm",
+            "2pm",
+            "3pm",
+            "4pm",
+            "5pm",
+            "6pm",
+            "7pm",
+            "8pm",
+            "9pm",
+            "10pm",
+            "11pm",
         ]
-        
-        assert list(result.columns) == expected_columns, "Columns should be in correct 12-hour AM/PM format"
-        
+
+        assert (
+            list(result.columns) == expected_columns
+        ), "Columns should be in correct 12-hour AM/PM format"
+
         # Verify column ordering starts at 12am (midnight)
-        assert result.columns[0] == '12am', "First column should be 12am"
-        assert result.columns[12] == '12pm', "13th column should be 12pm (noon)"
-        assert result.columns[-1] == '11pm', "Last column should be 11pm"
-        
+        assert result.columns[0] == "12am", "First column should be 12am"
+        assert result.columns[12] == "12pm", "13th column should be 12pm (noon)"
+        assert result.columns[-1] == "11pm", "Last column should be 11pm"
+
         # Verify all AM hours come before PM hours
-        am_columns = [col for col in result.columns if 'am' in col]
-        pm_columns = [col for col in result.columns if 'pm' in col]
+        am_columns = [col for col in result.columns if "am" in col]
+        pm_columns = [col for col in result.columns if "pm" in col]
         assert len(am_columns) == 12, "Should have 12 AM hours"
         assert len(pm_columns) == 12, "Should have 12 PM hours"
-        
+
         # Verify the first 12 columns are AM and last 12 are PM
-        assert all('am' in col for col in result.columns[:12]), "First 12 columns should be AM"
-        assert all('pm' in col for col in result.columns[12:]), "Last 12 columns should be PM"
-    
+        assert all(
+            "am" in col for col in result.columns[:12]
+        ), "First 12 columns should be AM"
+        assert all(
+            "pm" in col for col in result.columns[12:]
+        ), "Last 12 columns should be PM"
+
     def test_converts_julian_days_to_month_day(self):
         """Test conversion of Julian day indices to Month-Day format."""
         # Execute function
         result = _format_meteo_yr_df(self.sample_df_365.copy())
-        
+
         # Verify outcome: index is converted to Month-Day format
         assert result.index.name == "Day of Year", "Index name should be 'Day of Year'"
         assert len(result.index) == 365, "Should have 365 days"
-        
+
         # Verify specific date conversions (Julian day to Month-Day)
         # Day 1 should be Jan-01
         assert result.index[0] == "Jan-01", "First day should be Jan-01"
-        
+
         # Day 32 should be Feb-01
         assert result.index[31] == "Feb-01", "Day 32 should be Feb-01"
-        
+
         # Last day (365) should be Dec-31
         assert result.index[-1] == "Dec-31", "Last day should be Dec-31"
-        
+
         # Verify all indices have Month-Day format (e.g., "Jan-01", "Feb-15")
         for idx in result.index:
             assert isinstance(idx, str), "Index should be strings"
-            assert '-' in idx, "Index should contain hyphen"
-            parts = idx.split('-')
+            assert "-" in idx, "Index should contain hyphen"
+            parts = idx.split("-")
             assert len(parts) == 2, "Index should be in Month-Day format"
             # Verify month is a 3-letter abbreviation
             assert len(parts[0]) == 3, "Month should be 3-letter abbreviation"
-    
+
     def test_handles_leap_year(self):
         """Test leap year handling (366 days)."""
         # Execute function with 366-day dataframe
         result = _format_meteo_yr_df(self.sample_df_366.copy())
-        
+
         # Verify outcome: properly handles leap year with 366 days
         assert result.shape[0] == 366, "Should have 366 rows for leap year"
         assert result.shape[1] == 24, "Should have 24 columns"
-        
+
         # Verify first and last days
         assert result.index[0] == "Jan-01", "First day should be Jan-01"
         assert result.index[-1] == "Dec-31", "Last day should be Dec-31"
-        
+
         # Verify Feb-29 exists (leap day)
         assert "Feb-29" in result.index, "Leap year should include Feb-29"
-        
+
         # Find Feb-29 in the index
         feb_29_idx = list(result.index).index("Feb-29")
         # Feb-29 should be the 60th day (0-indexed: 59)
         assert feb_29_idx == 59, "Feb-29 should be at position 59 (60th day)"
-        
+
         # Verify Mar-01 comes after Feb-29
         assert result.index[60] == "Mar-01", "Mar-01 should follow Feb-29"
-        
+
         # Verify all dates are formatted correctly
-        assert all('-' in str(idx) for idx in result.index), "All indices should be in Month-Day format"
-    
+        assert all(
+            "-" in str(idx) for idx in result.index
+        ), "All indices should be in Month-Day format"
+
     def test_handles_regular_year(self):
         """Test regular year handling (365 days)."""
         # Execute function with 365-day dataframe
         result = _format_meteo_yr_df(self.sample_df_365.copy())
-        
+
         # Verify outcome: properly handles regular year with 365 days
         assert result.shape[0] == 365, "Should have 365 rows for regular year"
         assert result.shape[1] == 24, "Should have 24 columns"
-        
+
         # Verify first and last days
         assert result.index[0] == "Jan-01", "First day should be Jan-01"
         assert result.index[-1] == "Dec-31", "Last day should be Dec-31"
-        
+
         # Verify Feb-29 does NOT exist (not a leap year)
         assert "Feb-29" not in result.index, "Regular year should not include Feb-29"
-        
+
         # Verify Feb-28 exists and is followed by Mar-01
         assert "Feb-28" in result.index, "Regular year should include Feb-28"
         feb_28_idx = list(result.index).index("Feb-28")
         # Feb-28 should be the 59th day (0-indexed: 58)
         assert feb_28_idx == 58, "Feb-28 should be at position 58 (59th day)"
-        
+
         # Verify Mar-01 follows Feb-28 in regular year
-        assert result.index[59] == "Mar-01", "Mar-01 should follow Feb-28 in regular year"
-        
+        assert (
+            result.index[59] == "Mar-01"
+        ), "Mar-01 should follow Feb-28 in regular year"
+
         # Verify some other key dates to ensure correct calendar
         assert "Jul-04" in result.index, "Should include Jul-04"
         assert "Dec-25" in result.index, "Should include Dec-25"
-        
+
         # Verify all dates are formatted correctly
-        assert all('-' in str(idx) for idx in result.index), "All indices should be in Month-Day format"
+        assert all(
+            "-" in str(idx) for idx in result.index
+        ), "All indices should be in Month-Day format"
